@@ -18,3 +18,5 @@ theories/cones/examples_cone.v
 theories/cones/cone_cat.v
 theories/mcones/ar.v
 theories/mcones/mcone.v
+theories/mcones/fmeas.v
+theories/mcones/path.v
