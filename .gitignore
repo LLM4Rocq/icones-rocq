@@ -1,0 +1,35 @@
+# Rocq build artefacts
+*.vo
+*.vok
+*.vos
+*.glob
+*.aux
+.*.aux
+
+# Coq/Rocq make scaffolding
+Makefile.coq
+Makefile.coq.conf
+.Makefile.coq.d
+.lia.cache
+.nia.cache
+.coq-native/
+
+# rocq-mcp cache
+rocq_mcp_cache_*.v
+
+# Claude Code local lock files (per-session)
+.claude/scheduled_tasks.lock
+
+# Python venv
+.venv/
+
+# Editor / OS
+*~
+\#*\#
+.DS_Store
+.vscode/
+.idea/
+
+# Local scratch
+scratch/
+*.bak

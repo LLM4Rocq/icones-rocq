@@ -1,0 +1,40 @@
+opam-version: "2.0"
+name: "rocq-icones"
+version: "dev"
+synopsis: "Integration in Cones, formalized in Rocq"
+description: """
+A Rocq/mathcomp-analysis formalization of the paper
+"Integration in Cones" by Thomas Ehrhard and Guillaume Geoffroy
+(LMCS 21:1, 2025; arXiv:2212.02371).
+
+Builds positive cones, measurable cones, integrable cones, the internal
+hom of integrable cones, and (target MVP) the full-and-faithful
+embedding of substochastic kernels into the category of integrable cones.
+"""
+maintainer: "Icones contributors"
+authors: ["Icones contributors"]
+license: "MIT"
+homepage: "https://github.com/baudart/icones"
+bug-reports: "https://github.com/baudart/icones/issues"
+dev-repo: "git+https://github.com/baudart/icones.git"
+depends: [
+  "rocq-core" { >= "9.1" }
+  "rocq-mathcomp-ssreflect" { >= "2.5.0" }
+  "rocq-mathcomp-algebra" { >= "2.5.0" }
+  "rocq-mathcomp-classical" { >= "1.16.0" }
+  "rocq-mathcomp-analysis" { >= "1.16.0" }
+  "rocq-hierarchy-builder" { >= "1.10.0" }
+]
+build: [
+  [make "-j%{jobs}%"]
+]
+install: [make "install"]
+tags: [
+  "logpath:Icones"
+  "keyword:cones"
+  "keyword:linear logic"
+  "keyword:probabilistic semantics"
+  "keyword:measurable cones"
+  "keyword:integrable cones"
+  "keyword:pettis integral"
+]

@@ -1,0 +1,18 @@
+-Q theories Icones
+-arg -w -arg -notation-overridden
+-arg -w -arg -projection-no-head-constant
+-arg -w -arg -redundant-canonical-projection
+-arg -w -arg -hiding-delimiting-key
+-arg -w -arg -ambiguous-paths
+-arg -w -arg -deprecated-since-mathcomp-analysis-1.9.0
+-arg -w -arg -deprecated-since-mathcomp-2.5.0
+
+theories/prelude/classical_extra.v
+theories/prelude/nonneg_extra.v
+theories/prelude/ereal_extra.v
+theories/prelude/omegacpo.v
+theories/cones/precone.v
+theories/cones/cone.v
+theories/cones/basic_lemmas.v
+theories/cones/examples_cone.v
+theories/cones/cone_cat.v
