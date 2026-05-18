@@ -60,11 +60,18 @@ From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import measure measure_function.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
+From mathcomp.analysis Require Import topology normedtype sequences.
+Import numFieldTopology.Exports.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.basic_lemmas.
+Require Import Icones.cones.cone_cat.
+Require Import Icones.mcones.ar.
+Require Import Icones.mcones.mcone.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -401,3 +408,1045 @@ exact: Hxy.
 Qed.
 
 End FMeasNormLaws.
+
+(** ** Helper: a single ereal-arithmetic identity used in σ-additivity. *)
+Lemma efin_sub_add_distr (R : numDomainType) (a b c d : \bar R) :
+  a \is a fin_num -> b \is a fin_num ->
+  c \is a fin_num -> d \is a fin_num ->
+  ((a - b) + (c - d) = (a + c) - (b + d))%E.
+Proof.
+move: a b c d => [a||] [b||] [c||] [d||] //= _ _ _ _.
+rewrite -!EFinD; congr (_%:E).
+rewrite -[in RHS]addrA opprD -addrA; congr (_ + _)%R.
+by rewrite addrCA.
+Qed.
+
+(** ** (Normc) ω-completeness via telescoping [mseries] — Paper §2.1
+       (footnote on page 1:10) and §3.2.1.
+
+    Given an increasing chain [u : nat -> fmeas R X] in the unit ball
+    (i.e. [forall n, fmeas_norm (u n) <= 1]), we build a finite measure
+    [fmeas_sup_meas u uch ub1] which is the pointwise supremum of the
+    chain. Construction strategy: by [cid] we extract for each [n] a
+    "difference" finite measure [δ n] with [u n.+1 = u n + δ n] (in the
+    precone sense); then [mseries] of the sequence [u 0 :: δ 0 :: δ 1 :: …]
+    is the desired pointwise supremum, by the partial-sum equation
+    [u n = u 0 + δ 0 + … + δ n.-1].
+
+    All definitions are kept at the top level (no surrounding [Section]
+    that varies [R] / [X]) so that HB structure-discharge does not
+    interfere with the resulting [Definition] terms. *)
+
+(** *** Top-level differences and the candidate sup measure *)
+
+(** The cone-order difference witness — Paper §2.1. Given [u n ≤p u n.+1]
+    as guaranteed by the chain hypothesis, [fmeas_diff] extracts the
+    [fmeas R X] [δ] with [u n.+1 = u n + δ] using [cid]. *)
+Definition fmeas_diff (R : realType) (disp : measure_display)
+    (X : measurableType disp)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (n : nat) : fmeas R X :=
+  projT1 (cid (uch n)).
+
+Lemma fmeas_diffE (R : realType) (disp : measure_display)
+    (X : measurableType disp)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (n : nat) :
+  u n.+1 = fmeas_add (u n) (fmeas_diff uch n).
+Proof. exact: projT2 (cid (uch n)). Qed.
+
+(** The telescoping sequence of measures: [dseq 0 = u 0],
+    [dseq n.+1 = δ n]. *)
+Definition fmeas_dseq (R : realType) (disp : measure_display)
+    (X : measurableType disp)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (n : nat) : {measure set X -> \bar R} :=
+  match n with
+  | 0 => fmeas_mu (u 0)
+  | n.+1 => fmeas_mu (fmeas_diff uch n)
+  end.
+
+(** The candidate pointwise-sup measure, as a [{measure set X -> \bar R}]
+    instance derived from [mseries]. *)
+Definition fmeas_sup_meas_fun (R : realType) (disp : measure_display)
+    (X : measurableType disp)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1)) :
+    {measure set X -> \bar R} :=
+  [the {measure set X -> \bar R} of mseries (fmeas_dseq uch) 0].
+
+Section FMeasSupBallTheory.
+Variable R : realType.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+Variable u : nat -> fmeas R X.
+Variable uch : forall n, precone_le (u n) (u n.+1).
+Implicit Type A : set X.
+
+Local Open Scope ereal_scope.
+
+(** Partial sums of the telescoping sequence: [u n A] equals the partial
+    sum [\sum_(k < n.+1) dseq k A]. By induction. *)
+Lemma fmeas_partial_sum n A :
+  fmeas_mu (u n) A = \sum_(k < n.+1) fmeas_dseq uch k A.
+Proof.
+elim: n => [|n IH].
+  by rewrite big_ord_recl big_ord0 adde0/=.
+rewrite big_ord_recr/= -IH/=.
+have -> : u n.+1 = fmeas_add (u n) (fmeas_diff uch n) by exact: fmeas_diffE.
+by rewrite fmeas_addE.
+Qed.
+
+(** Partial-sum equality in the [\sum_(0 <= k < m)] form, more useful
+    when matching [mseries]. *)
+Lemma fmeas_partial_sumE n A :
+  fmeas_mu (u n) A = \sum_(0 <= k < n.+1) fmeas_dseq uch k A.
+Proof. by rewrite fmeas_partial_sum big_mkord. Qed.
+
+(** Pointwise bound: each [u n A] is bounded by [fmeas_sup_meas_fun]. *)
+Lemma fmeas_partial_le_mseries n A :
+  fmeas_mu (u n) A <= fmeas_sup_meas_fun uch A.
+Proof.
+rewrite fmeas_partial_sumE /fmeas_sup_meas_fun /= /mseries ereal_series.
+apply: nneseries_lim_ge => i _ _; exact: measure_ge0.
+Qed.
+
+(** The candidate sup is the pointwise limit of [u n A]: the sequence
+    [u n A] converges (it is non-decreasing and bounded above by
+    [fmeas_sup_meas_fun A]). *)
+Lemma fmeas_sup_cvg A :
+  measurable A ->
+  fmeas_mu (u n) A
+    @[n --> \oo] --> fmeas_sup_meas_fun uch A.
+Proof.
+move=> mA.
+have nd : forall n, fmeas_mu (u n) A <= fmeas_mu (u n.+1) A.
+  move=> n; rewrite [in leRHS](fmeas_diffE uch n) fmeas_addE.
+  by rewrite leeDl// measure_ge0.
+have homo_u :
+    {homo (fun n => fmeas_mu (u n) A) : i j / (i <= j)%N >-> i <= j}.
+  apply/nondecreasing_seqP => n; exact: nd.
+have := ereal_nondecreasing_cvgn homo_u.
+suff -> : ereal_sup (range (fun n => fmeas_mu (u n) A)) =
+          fmeas_sup_meas_fun uch A by [].
+apply: le_anti; apply/andP; split.
+  apply: ge_ereal_sup => _ [n _ <-]; exact: fmeas_partial_le_mseries.
+(* mseries dseq 0 A = lim_(n) sum_(k < n) dseq k A
+                    = lim_(n) u_(n-1) A    (for n >= 1)
+                    ≤ ereal_sup of (u_n A) *)
+rewrite /fmeas_sup_meas_fun /= /mseries ereal_series.
+have nde : {homo
+  (fun n => \sum_(0 <= k < n) fmeas_dseq uch k A) :
+    i j / (i <= j)%N >-> i <= j}.
+  apply/nondecreasing_seqP => n.
+  rewrite big_nat_recr/=; last by [].
+  by rewrite leeDl// measure_ge0.
+have ndcvg :=
+  ereal_nondecreasing_cvgn nde.
+apply: lime_le.
+  apply/cvg_ex; exists (ereal_sup (range
+    (fun n => \sum_(0 <= k < n) fmeas_dseq uch k A))); exact: ndcvg.
+apply: nearW => -[|n].
+  rewrite big_nil.
+  apply: (@le_trans _ _ (fmeas_mu (u 0) A)).
+    exact: measure_ge0.
+  by apply: ereal_sup_ubound; exists 0%N.
+rewrite -fmeas_partial_sumE.
+by apply: ereal_sup_ubound; exists n.
+Qed.
+
+End FMeasSupBallTheory.
+
+(** *** Packaging as a [fmeas R X] and the cone operation [cone_sup_ball] *)
+
+Section FMeasSupBallPkg.
+Variable R : realType.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+Variable u : nat -> fmeas R X.
+Variable uch : forall n, precone_le (u n) (u n.+1).
+Variable ub1 : forall n, (fmeas_norm (u n) <= 1)%R.
+
+Local Open Scope ereal_scope.
+
+(** [fmeas_sup_meas_fun setT] is bounded by [1]. *)
+Lemma fmeas_sup_meas_setT_le1 : fmeas_sup_meas_fun uch [set: X] <= 1.
+Proof.
+have cvg_setT := @fmeas_sup_cvg R disp X u uch _ (@measurableT _ X).
+have lim_eq : limn (fun n => fmeas_mu (u n) [set: X]) =
+              fmeas_sup_meas_fun uch [set: X].
+  exact: cvg_lim cvg_setT.
+rewrite -lim_eq.
+apply: lime_le.
+  by apply/cvg_ex; exists (fmeas_sup_meas_fun uch [set: X]); exact: cvg_setT.
+apply: nearW => n.
+have Hfin : fmeas_mu (u n) [set: X] \is a fin_num by exact: fmeas_setT_fin.
+rewrite -(fineK Hfin) lee_fin; exact: ub1.
+Qed.
+
+(** [fmeas_sup_meas_fun setT] is finite (since bounded by 1 < +∞). *)
+Lemma fmeas_sup_meas_setT_fin :
+  fmeas_sup_meas_fun uch [set: X] \is a fin_num.
+Proof.
+rewrite ge0_fin_numE; last exact: measure_ge0.
+apply: le_lt_trans fmeas_sup_meas_setT_le1 _.
+by rewrite ltry.
+Qed.
+
+(** [fmeas_sup_meas_fun] is finite on every measurable set. *)
+Lemma fmeas_sup_meas_finP : fmeas_finP (fmeas_sup_meas_fun uch).
+Proof.
+move=> U mU; rewrite ge0_fin_numE; last exact: measure_ge0.
+apply: (@le_lt_trans _ _ (fmeas_sup_meas_fun uch [set: X])).
+  by apply: le_measure => //; rewrite inE.
+have Hfin : fmeas_sup_meas_fun uch [set: X] \is a fin_num
+  by exact: fmeas_sup_meas_setT_fin.
+by rewrite ltey_eq Hfin.
+Qed.
+
+(** The canonicality invariant for the sup measure: for non-measurable
+    sets we *redefine* the value to be [0] via a wrapping, since
+    [mseries] of measures doesn't automatically vanish off the
+    σ-algebra. *)
+Definition fmeas_sup_meas_canon_fun : set X -> \bar R :=
+  fun A => if `[< measurable A >] then fmeas_sup_meas_fun uch A else 0.
+
+Lemma fmeas_sup_meas_canon_fun_E A :
+  measurable A -> fmeas_sup_meas_canon_fun A = fmeas_sup_meas_fun uch A.
+Proof. by move=> mA; rewrite /fmeas_sup_meas_canon_fun asboolT. Qed.
+
+Lemma fmeas_sup_meas_canon_fun_off A :
+  ~ measurable A -> fmeas_sup_meas_canon_fun A = 0.
+Proof. by move=> nmA; rewrite /fmeas_sup_meas_canon_fun asboolF. Qed.
+
+Lemma fmeas_sup_meas_canon_set0 : fmeas_sup_meas_canon_fun set0 = 0.
+Proof. by rewrite fmeas_sup_meas_canon_fun_E ?measurable0// measure0. Qed.
+
+Lemma fmeas_sup_meas_canon_ge0 A : 0 <= fmeas_sup_meas_canon_fun A.
+Proof.
+rewrite /fmeas_sup_meas_canon_fun.
+case: asboolP => mA; first exact: measure_ge0.
+exact: lexx.
+Qed.
+
+Lemma fmeas_sup_meas_canon_sigma_additive :
+  semi_sigma_additive fmeas_sup_meas_canon_fun.
+Proof.
+move=> F mF tF mUF.
+have eqU : fmeas_sup_meas_canon_fun (\bigcup_n F n) =
+           fmeas_sup_meas_fun uch (\bigcup_n F n).
+  by rewrite fmeas_sup_meas_canon_fun_E.
+have eqi i : fmeas_sup_meas_canon_fun (F i) =
+             fmeas_sup_meas_fun uch (F i).
+  by rewrite fmeas_sup_meas_canon_fun_E.
+rewrite eqU.
+have base := @measure_semi_sigma_additive _ _ R
+  (fmeas_sup_meas_fun uch) F mF tF mUF.
+have -> :
+  (fun n => \sum_(0 <= i < n) fmeas_sup_meas_canon_fun (F i)) =
+  (fun n => \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i)).
+  by apply: funext => n; apply: eq_bigr => i _; exact: eqi.
+exact: base.
+Qed.
+
+HB.instance Definition _ :=
+  isMeasure.Build _ _ _ fmeas_sup_meas_canon_fun
+    fmeas_sup_meas_canon_set0 fmeas_sup_meas_canon_ge0
+    fmeas_sup_meas_canon_sigma_additive.
+
+(** Canonicality of the candidate sup measure (post-restriction). *)
+Lemma fmeas_sup_meas_canon_canon : fmeas_canon fmeas_sup_meas_canon_fun.
+Proof. exact: fmeas_sup_meas_canon_fun_off. Qed.
+
+(** Finiteness of the canonicalized sup measure. *)
+Lemma fmeas_sup_meas_canon_finP : fmeas_finP fmeas_sup_meas_canon_fun.
+Proof.
+move=> U mU; rewrite fmeas_sup_meas_canon_fun_E//.
+exact: fmeas_sup_meas_finP.
+Qed.
+
+(** The (Normc) witness — Paper §2.1, ω-completeness of the unit ball. *)
+Definition fmeas_sup_ball : fmeas R X :=
+  MkFmeas
+    [the {measure set X -> \bar R} of fmeas_sup_meas_canon_fun]
+    fmeas_sup_meas_canon_finP
+    fmeas_sup_meas_canon_canon.
+
+Lemma fmeas_sup_ballE U :
+  measurable U ->
+  fmeas_mu fmeas_sup_ball U = fmeas_sup_meas_fun uch U.
+Proof. exact: fmeas_sup_meas_canon_fun_E. Qed.
+
+End FMeasSupBallPkg.
+
+(** *** Cone-order properties of [fmeas_sup_ball] *)
+
+(** The (Normc) [cone_sup_ball_norm] property: [‖fmeas_sup_ball‖ ≤ 1]. *)
+Lemma fmeas_sup_ball_norm (R : realType) (disp : measure_display)
+    (X : measurableType disp)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, (fmeas_norm (u n) <= 1)%R) :
+  (fmeas_norm (fmeas_sup_ball uch ub1) <= 1)%R.
+Proof.
+rewrite /fmeas_norm (fmeas_sup_ballE _ ub1 measurableT).
+have Hfin : fmeas_sup_meas_fun uch [set: X] \is a fin_num
+  by exact: fmeas_sup_meas_setT_fin uch ub1.
+rewrite -lee_fin fineK//.
+exact: fmeas_sup_meas_setT_le1 uch ub1.
+Qed.
+
+(** *** Helper: building the LUB witness [w] such that
+       [y = sup_ball + w] *)
+
+(** The LUB difference, as a function set X -> \bar R: [y A - sup A] on
+    measurable sets, zero off them. This is non-negative and finite,
+    and we will register it as a measure to package as a [fmeas]. *)
+Section FMeasSupLUBWitness.
+Variable R : realType.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+Variable u : nat -> fmeas R X.
+Variable uch : forall n, precone_le (u n) (u n.+1).
+Variable ub1 : forall n, (fmeas_norm (u n) <= 1)%R.
+Variable y : fmeas R X.
+Hypothesis Hy : forall n, precone_le (u n) y.
+
+Local Open Scope ereal_scope.
+
+(** Pointwise: each [u n A ≤ y A] on every measurable A. *)
+Lemma fmeas_lub_un_le_y n A :
+  measurable A -> fmeas_mu (u n) A <= fmeas_mu y A.
+Proof.
+move=> mA; apply: fmeas_le_pointwise => //.
+exact: Hy.
+Qed.
+
+(** Pointwise: [sup A ≤ y A] on every measurable A. *)
+Lemma fmeas_lub_sup_le_y A :
+  measurable A -> fmeas_sup_meas_fun uch A <= fmeas_mu y A.
+Proof.
+move=> mA.
+have cvg_A := @fmeas_sup_cvg R disp X u uch _ mA.
+have lim_eq : limn (fun n => fmeas_mu (u n) A) =
+              fmeas_sup_meas_fun uch A.
+  exact: cvg_lim cvg_A.
+rewrite -lim_eq.
+apply: lime_le.
+  by apply/cvg_ex; exists (fmeas_sup_meas_fun uch A); exact: cvg_A.
+apply: nearW => n; exact: fmeas_lub_un_le_y.
+Qed.
+
+(** The LUB witness function: [y A - sup A] on measurable sets,
+    [0] on non-measurable. *)
+Definition fmeas_lub_w_fun : set X -> \bar R :=
+  fun A => if `[< measurable A >] then
+             fmeas_mu y A - fmeas_sup_meas_fun uch A
+           else 0.
+
+Lemma fmeas_lub_w_fun_E A :
+  measurable A ->
+  fmeas_lub_w_fun A = fmeas_mu y A - fmeas_sup_meas_fun uch A.
+Proof. by move=> mA; rewrite /fmeas_lub_w_fun asboolT. Qed.
+
+Lemma fmeas_lub_w_fun_off A :
+  ~ measurable A -> fmeas_lub_w_fun A = 0.
+Proof. by move=> nmA; rewrite /fmeas_lub_w_fun asboolF. Qed.
+
+Lemma fmeas_lub_w_set0 : fmeas_lub_w_fun set0 = 0.
+Proof.
+rewrite fmeas_lub_w_fun_E ?measurable0//.
+by rewrite !measure0 sube0.
+Qed.
+
+Lemma fmeas_lub_w_ge0 A : 0 <= fmeas_lub_w_fun A.
+Proof.
+rewrite /fmeas_lub_w_fun.
+case: asboolP => mA; last exact: lexx.
+rewrite sube_ge0.
+- exact: fmeas_lub_sup_le_y.
+- by apply/orP; right; exact: fmeas_fin.
+Qed.
+
+Lemma fmeas_lub_w_fin A :
+  measurable A -> fmeas_lub_w_fun A \is a fin_num.
+Proof.
+move=> mA; rewrite fmeas_lub_w_fun_E//.
+have Hyfin : fmeas_mu y A \is a fin_num by exact: fmeas_fin.
+have Hsfin : fmeas_sup_meas_fun uch A \is a fin_num.
+  exact: (fmeas_sup_meas_finP uch ub1).
+by rewrite fin_numB Hyfin Hsfin.
+Qed.
+
+(** σ-additivity of [fmeas_lub_w_fun]: by σ-additivity of [y] and [sup],
+    using finiteness to distribute the subtraction. *)
+Lemma fmeas_lub_w_sigma_additive : semi_sigma_additive fmeas_lub_w_fun.
+Proof.
+move=> F mF tF mUF.
+have eqU : fmeas_lub_w_fun (\bigcup_n F n) =
+           fmeas_mu y (\bigcup_n F n) - fmeas_sup_meas_fun uch (\bigcup_n F n).
+  by rewrite fmeas_lub_w_fun_E.
+have eqi i : fmeas_lub_w_fun (F i) =
+             fmeas_mu y (F i) - fmeas_sup_meas_fun uch (F i).
+  by rewrite fmeas_lub_w_fun_E.
+rewrite eqU.
+(* By σ-additivity of [y] and [sup_meas]: their bigcup-values are the
+   pointwise limits of partial sums. We rewrite the partial sum to
+   be the difference of partial sums (using finiteness). *)
+have Hy_cvg := @measure_semi_sigma_additive _ _ R (fmeas_mu y) F mF tF mUF.
+have Hs_cvg := @measure_semi_sigma_additive _ _ R
+                  (fmeas_sup_meas_fun uch) F mF tF mUF.
+have lim_y : limn (fun n => \sum_(0 <= i < n) fmeas_mu y (F i)) =
+             fmeas_mu y (\bigcup_n F n).
+  exact: cvg_lim Hy_cvg.
+have lim_s : limn (fun n => \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i)) =
+             fmeas_sup_meas_fun uch (\bigcup_n F n).
+  exact: cvg_lim Hs_cvg.
+have cvg_y : cvgn (fun n => \sum_(0 <= i < n) fmeas_mu y (F i))
+  by apply/cvg_ex; exists (fmeas_mu y (\bigcup_n F n)).
+have cvg_s : cvgn (fun n => \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i))
+  by apply/cvg_ex; exists (fmeas_sup_meas_fun uch (\bigcup_n F n)).
+(* Rewrite each partial sum of [fmeas_lub_w_fun (F i)] as the difference
+   of partial sums of [y (F i)] and [sup (F i)]. *)
+have wfin i : fmeas_lub_w_fun (F i) \is a fin_num.
+  exact: fmeas_lub_w_fin.
+have yfin i : fmeas_mu y (F i) \is a fin_num by exact: fmeas_fin.
+have sfin i : fmeas_sup_meas_fun uch (F i) \is a fin_num.
+  exact: (fmeas_sup_meas_finP uch ub1).
+have sumyfin n : \sum_(0 <= i < n) fmeas_mu y (F i) \is a fin_num.
+  apply/sum_fin_numP => i _ _; exact: yfin.
+have sumsfin n : \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i) \is a fin_num.
+  apply/sum_fin_numP => i _ _; exact: sfin.
+have step n :
+  \sum_(0 <= i < n) fmeas_lub_w_fun (F i) =
+  \sum_(0 <= i < n) fmeas_mu y (F i) -
+  \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i).
+  elim: n => [|n IH].
+    by rewrite !big_nil sube0.
+  rewrite !big_nat_recr//= IH eqi.
+  exact: efin_sub_add_distr.
+have -> :
+  (fun n => \sum_(0 <= i < n) fmeas_lub_w_fun (F i)) =
+  (fun n => \sum_(0 <= i < n) fmeas_mu y (F i) -
+            \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i)).
+  by apply: funext => n; exact: step.
+have HfinY : fmeas_mu y (\bigcup_n F n) \is a fin_num by exact: fmeas_fin.
+have HfinS : fmeas_sup_meas_fun uch (\bigcup_n F n) \is a fin_num.
+  exact: (fmeas_sup_meas_finP uch ub1).
+rewrite -lim_y -lim_s.
+apply: cvgeB => //.
+have ey : (\big[+%E/0%R]_(0 <= i <oo) fmeas_mu y (F i)) =
+          fmeas_mu y (\bigcup_n F n) by exact: lim_y.
+by rewrite ey fin_num_adde_defr.
+Qed.
+
+HB.instance Definition _ :=
+  isMeasure.Build _ _ _ fmeas_lub_w_fun
+    fmeas_lub_w_set0 fmeas_lub_w_ge0 fmeas_lub_w_sigma_additive.
+
+Lemma fmeas_lub_w_finP : fmeas_finP fmeas_lub_w_fun.
+Proof. exact: fmeas_lub_w_fin. Qed.
+
+Lemma fmeas_lub_w_canon : fmeas_canon fmeas_lub_w_fun.
+Proof. exact: fmeas_lub_w_fun_off. Qed.
+
+(** The LUB witness, packaged as a [fmeas R X]. *)
+Definition fmeas_lub_w : fmeas R X :=
+  MkFmeas
+    [the {measure set X -> \bar R} of fmeas_lub_w_fun]
+    fmeas_lub_w_finP
+    fmeas_lub_w_canon.
+
+(** The key equation: [y = fmeas_sup_ball + fmeas_lub_w]. *)
+Lemma fmeas_lub_wE : y = fmeas_add (fmeas_sup_ball uch ub1) fmeas_lub_w.
+Proof.
+apply: fmeas_eq => U mU.
+rewrite fmeas_addE/= fmeas_lub_w_fun_E// (fmeas_sup_ballE _ ub1 mU)/=.
+by rewrite addeC subeK// (fmeas_sup_meas_finP uch ub1).
+Qed.
+
+End FMeasSupLUBWitness.
+
+Section FMeasSupBallUB.
+Local Open Scope ereal_scope.
+Variable R : realType.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+Variable u : nat -> fmeas R X.
+Variable uch : forall n, precone_le (u n) (u n.+1).
+Variable ub1 : forall n, (fmeas_norm (u n) <= 1)%R.
+
+(** *** The (Normc) UB property *)
+Lemma fmeas_sup_ball_ub n :
+  precone_le (u n) (fmeas_sup_ball uch ub1).
+Proof.
+(* We need w : fmeas R X with [fmeas_sup_ball = u n + w].  Use the
+   LUB-witness construction with [y := fmeas_sup_ball uch ub1] (and the
+   "from-n" hypothesis: every [u m] for m >= n is bounded by sup_ball,
+   so in particular [u n] is); but we don't actually use the limit,
+   just the pointwise bound. We construct [w] directly: define
+   [w_fun A := fmeas_sup_meas_fun uch A - u n A] for measurable A,
+   zero otherwise. By the same construction as [fmeas_lub_w] (swapping
+   [y] and the "smaller" measure), it is a finite measure. *)
+(* Reuse the construction of fmeas_lub_w, applied with the supremum as
+   y and u_n as the smaller increasing chain. To shortcut, we reuse
+   fmeas_lub_w with a chain of constants [v n := u n] (i.e. the
+   constant chain at [u n]). For the constant chain, the supremum is
+   [u n]. But we need the SUP to equal [fmeas_sup_ball uch ub1] not
+   [u n]. Easier: build [w] directly by case analysis. *)
+pose w_fun (A : set X) : \bar R :=
+  if `[< measurable A >] then
+    (fmeas_sup_meas_fun uch A - fmeas_mu (u n) A)%E
+  else 0%E.
+have w_fun_E A :
+  measurable A -> w_fun A = fmeas_sup_meas_fun uch A - fmeas_mu (u n) A.
+  by move=> mA; rewrite /w_fun asboolT.
+have w_fun_off A : ~ measurable A -> w_fun A = 0%E.
+  by move=> nmA; rewrite /w_fun asboolF.
+have w_set0 : w_fun set0 = 0%E.
+  by rewrite w_fun_E ?measurable0// !measure0 sube0.
+have w_ge0 A : (0 <= w_fun A)%E.
+  rewrite /w_fun.
+  case: asboolP => mA; last exact: lexx.
+  rewrite sube_ge0.
+    by exact: (fmeas_partial_le_mseries uch n A).
+  by apply/orP; left; exact: fmeas_fin.
+have w_fin A : measurable A -> (w_fun A \is a fin_num).
+  move=> mA; rewrite w_fun_E//.
+  have Hsfin : fmeas_sup_meas_fun uch A \is a fin_num.
+    exact: (fmeas_sup_meas_finP uch ub1).
+  have Hufin : fmeas_mu (u n) A \is a fin_num by exact: fmeas_fin.
+  by rewrite fin_numB Hsfin Hufin.
+have w_sigma_additive : semi_sigma_additive w_fun.
+  move=> F mF tF mUF.
+  have eqU : w_fun (\bigcup_k F k) =
+             fmeas_sup_meas_fun uch (\bigcup_k F k) -
+             fmeas_mu (u n) (\bigcup_k F k).
+    by rewrite w_fun_E.
+  have eqi i : w_fun (F i) =
+               fmeas_sup_meas_fun uch (F i) - fmeas_mu (u n) (F i).
+    by rewrite w_fun_E.
+  rewrite eqU.
+  have Hs_cvg := @measure_semi_sigma_additive _ _ R
+                  (fmeas_sup_meas_fun uch) F mF tF mUF.
+  have Hu_cvg := @measure_semi_sigma_additive _ _ R
+                  (fmeas_mu (u n)) F mF tF mUF.
+  have lim_s : limn (fun m => \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i)) =
+               fmeas_sup_meas_fun uch (\bigcup_k F k).
+    exact: cvg_lim Hs_cvg.
+  have lim_u : limn (fun m => \sum_(0 <= i < m) fmeas_mu (u n) (F i)) =
+               fmeas_mu (u n) (\bigcup_k F k).
+    exact: cvg_lim Hu_cvg.
+  have cvg_s : cvgn (fun m => \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i))
+    by apply/cvg_ex; exists (fmeas_sup_meas_fun uch (\bigcup_k F k)).
+  have cvg_u : cvgn (fun m => \sum_(0 <= i < m) fmeas_mu (u n) (F i))
+    by apply/cvg_ex; exists (fmeas_mu (u n) (\bigcup_k F k)).
+  have wfin' i : w_fun (F i) \is a fin_num by exact: w_fin.
+  have sfin i : fmeas_sup_meas_fun uch (F i) \is a fin_num.
+    exact: (fmeas_sup_meas_finP uch ub1).
+  have ufin i : fmeas_mu (u n) (F i) \is a fin_num by exact: fmeas_fin.
+  have sumsfin m : \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i) \is a fin_num.
+    apply/sum_fin_numP => i _ _; exact: sfin.
+  have sumufin m : \sum_(0 <= i < m) fmeas_mu (u n) (F i) \is a fin_num.
+    apply/sum_fin_numP => i _ _; exact: ufin.
+  have step m :
+    \sum_(0 <= i < m) w_fun (F i) =
+    \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i) -
+    \sum_(0 <= i < m) fmeas_mu (u n) (F i).
+    elim: m => [|m IH].
+      by rewrite !big_nil sube0.
+    rewrite !big_nat_recr//= IH eqi.
+    exact: efin_sub_add_distr.
+  have -> :
+    (fun m => \sum_(0 <= i < m) w_fun (F i)) =
+    (fun m => \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i) -
+              \sum_(0 <= i < m) fmeas_mu (u n) (F i)).
+    by apply: funext => m; exact: step.
+  have HfinS : fmeas_sup_meas_fun uch (\bigcup_k F k) \is a fin_num.
+    exact: (fmeas_sup_meas_finP uch ub1).
+  have HfinU : fmeas_mu (u n) (\bigcup_k F k) \is a fin_num by exact: fmeas_fin.
+  rewrite -lim_s -lim_u.
+  apply: cvgeB => //.
+  have es : (\big[+%E/0%R]_(0 <= i <oo) fmeas_sup_meas_fun uch (F i)) =
+            fmeas_sup_meas_fun uch (\bigcup_k F k) by exact: lim_s.
+  rewrite es.
+  by apply: fin_num_adde_defr; rewrite (fmeas_sup_meas_finP uch ub1).
+have wMeas : isMeasure.axioms_ disp X R w_fun :=
+  isMeasure.Build disp X R w_fun w_set0 w_ge0 w_sigma_additive.
+pose w0 : {measure set X -> \bar R} :=
+  HB.pack_for {measure set X -> \bar R} w_fun wMeas.
+have w_finP : fmeas_finP w0 by exact: w_fin.
+have w_canon : fmeas_canon w0 by exact: w_fun_off.
+exists (MkFmeas w0 w_finP w_canon).
+apply: fmeas_eq => U mU.
+rewrite fmeas_addE/= (fmeas_sup_ballE _ ub1 mU)/=.
+rewrite /w0/= w_fun_E// addeC subeK//.
+exact: fmeas_fin.
+Qed.
+
+End FMeasSupBallUB.
+
+(** *** The (Normc) LUB property *)
+Lemma fmeas_sup_ball_lub (R : realType) (disp : measure_display)
+    (X : measurableType disp)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, (fmeas_norm (u n) <= 1)%R)
+    (y : fmeas R X) :
+  (forall n, precone_le (u n) y) ->
+  precone_le (fmeas_sup_ball uch ub1) y.
+Proof.
+move=> Hy.
+exists (fmeas_lub_w uch ub1 Hy).
+exact: fmeas_lub_wE.
+Qed.
+
+(** ** Register the cone instance on [fmeas R X] — Paper §2.1 *)
+
+HB.instance Definition _ (R : realType) (disp : measure_display)
+    (X : measurableType disp) :=
+  @isCone.Build R (fmeas R X)
+    (@fmeas_norm R disp X)
+    (@fmeas_normh R disp X) (@fmeas_normz R disp X)
+    (@fmeas_normt R disp X) (@fmeas_normp R disp X)
+    (@fmeas_sup_ball R disp X)
+    (@fmeas_sup_ball_ub R disp X)
+    (@fmeas_sup_ball_lub R disp X)
+    (@fmeas_sup_ball_norm R disp X).
+
+(** ** The measurable-cone structure on [fmeas R X] — Paper §3.2.1
+
+    The test family [M_Y(FMeas X)] consists of the tests
+    [e_U(s, µ) = µ U] indexed by [U : set X] measurable. These are
+    constant in [s], so (Mscomp) is trivial. (Mssep) is [fmeas_eq];
+    (Msnorm) is from [cnorm µ = µ setT] (a particular value of the
+    sup). *)
+
+Section FMeasMCone.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+
+(** Paper §3.2.1: the test [e_U] for a measurable [U : set X] at any
+    arity [Y]. The function is constant in [s], returning
+    [fine (µ U)]. *)
+Section FMeasEU.
+Variable Y : ar_obj Ar.
+Variable U : set X.
+Hypothesis mU : measurable U.
+
+Definition eU_fun : ar_carrier Ar Y -> fmeas R X -> R :=
+  fun _ µ => fine (fmeas_mu µ U).
+
+Lemma eU_meas (µ : fmeas R X) :
+  cone_norm µ <= 1 ->
+  measurable_fun [set: ar_carrier Ar Y] (fun s => eU_fun s µ).
+Proof. by move=> _; exact: measurable_cst. Qed.
+
+Lemma eU_ge0 (s : ar_carrier Ar Y) (µ : fmeas R X) :
+  (0 <= eU_fun s µ)%R.
+Proof.
+rewrite /eU_fun -lee_fin fineK.
+- exact: measure_ge0.
+- exact: fmeas_fin.
+Qed.
+
+Lemma eU_le1 (s : ar_carrier Ar Y) (µ : fmeas R X) :
+  cone_norm µ <= 1 -> (eU_fun s µ <= 1)%R.
+Proof.
+move=> Hµ; rewrite /eU_fun.
+have Hfin : fmeas_mu µ U \is a fin_num by exact: fmeas_fin.
+rewrite -lee_fin fineK//.
+apply: (@le_trans _ _ (fmeas_mu µ [set: X])).
+  by apply: le_measure => //; rewrite inE.
+have HsetTfin : fmeas_mu µ [set: X] \is a fin_num by exact: fmeas_setT_fin.
+by rewrite -(fineK HsetTfin) lee_fin.
+Qed.
+
+Lemma eU_lin0 (s : ar_carrier Ar Y) :
+  eU_fun s (precone_zero : fmeas R X) = 0%R.
+Proof. by rewrite /eU_fun /=. Qed.
+
+Lemma eU_linD (s : ar_carrier Ar Y) (µ1 µ2 : fmeas R X) :
+  eU_fun s (precone_add µ1 µ2) = (eU_fun s µ1 + eU_fun s µ2)%R.
+Proof.
+rewrite /eU_fun /precone_add/= fmeas_addE.
+by rewrite fineD; first by []; exact: fmeas_fin.
+Qed.
+
+Lemma eU_linZ (s : ar_carrier Ar Y) (r : {nonneg R}) (µ : fmeas R X) :
+  eU_fun s (precone_scale r µ) = (r%:num * eU_fun s µ)%R.
+Proof.
+rewrite /eU_fun /precone_scale/= /mscale.
+by rewrite fineM//; exact: fmeas_fin.
+Qed.
+
+Lemma eU_cont
+    (s : ar_carrier Ar Y)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (N : R) :
+  (forall n, (eU_fun s (u n) <= N)%R) ->
+  (eU_fun s (cone_sup_ball u uch ub1) <= N)%R.
+Proof.
+move=> HN.
+rewrite /eU_fun /=.
+rewrite (fmeas_sup_ballE _ ub1 mU).
+have cvg_eU := @fmeas_sup_cvg R disp X u uch _ mU.
+have Hsfin : fmeas_sup_meas_fun uch U \is a fin_num
+  by exact: (fmeas_sup_meas_finP uch ub1).
+rewrite -lee_fin fineK//.
+have lim_eq : limn (fun n => fmeas_mu (u n) U) = fmeas_sup_meas_fun uch U.
+  exact: cvg_lim cvg_eU.
+rewrite -lim_eq.
+apply: lime_le.
+  by apply/cvg_ex; exists (fmeas_sup_meas_fun uch U).
+apply: nearW => n.
+have Hufin : fmeas_mu (u n) U \is a fin_num by exact: fmeas_fin.
+by rewrite -(fineK Hufin) lee_fin; exact: HN.
+Qed.
+
+Lemma eU_norm_le (s : ar_carrier Ar Y) (µ : fmeas R X) :
+  (eU_fun s µ <= cone_norm µ)%R.
+Proof.
+rewrite /eU_fun /cone_norm/= /fmeas_norm.
+have Hsetfin : fmeas_mu µ [set: X] \is a fin_num by exact: fmeas_setT_fin.
+have HUfin : fmeas_mu µ U \is a fin_num by exact: fmeas_fin.
+rewrite -lee_fin !fineK//.
+by apply: le_measure => //; rewrite inE.
+Qed.
+
+(** Paper §3.2.1: the packaged test [e_U]. *)
+Definition fmeas_eU : test_of Ar Y (fmeas R X) :=
+  MkTestOf eU_meas eU_ge0 eU_le1 eU_lin0 eU_linD eU_linZ eU_cont eU_norm_le.
+
+(** [fmeas_eU] is pointwise [fine (µ U)], constant in [s]. *)
+Lemma fmeas_eUE (s : ar_carrier Ar Y) (µ : fmeas R X) :
+  test_fun fmeas_eU s µ = fine (fmeas_mu µ U).
+Proof. by []. Qed.
+
+End FMeasEU.
+
+(** Paper §3.2.1: the test family [M_Y(FMeas X)] for arity [Y]. *)
+Definition fmeas_mcone_M (Y : ar_obj Ar) :
+    set (test_of Ar Y (fmeas R X)) :=
+  fun p =>
+    exists (U : set X) (mU : measurable U),
+      p = fmeas_eU Y mU.
+
+(** Paper §3.2.1 (Mscomp). Tests [e_U] are constant in their first
+    argument, so [test_reindex φ (e_U) = e_U']. *)
+Lemma fmeas_mcone_M_comp
+    (Y X' : ar_obj Ar) (φ : ar_hom Ar Y X')
+    (p : test_of Ar X' (fmeas R X)) :
+  fmeas_mcone_M p ->
+  fmeas_mcone_M (test_reindex φ p).
+Proof.
+case=> U [mU ->].
+exists U, mU; apply: test_eq => s µ /=.
+by rewrite /test_reindex_fun.
+Qed.
+
+(** Paper §3.2.1 (Mssep): tests separate points (use [fmeas_eq]). *)
+Lemma fmeas_mcone_M_sep (µ1 µ2 : fmeas R X) :
+  (forall p : test_of Ar (ar_zero Ar) (fmeas R X),
+    fmeas_mcone_M p ->
+    test_fun p (ar_zero_pt Ar) µ1 = test_fun p (ar_zero_pt Ar) µ2) ->
+  µ1 = µ2.
+Proof.
+move=> Hsep.
+apply: fmeas_eq => U mU.
+have Hin : fmeas_mcone_M (fmeas_eU (ar_zero Ar) mU)
+  by exists U, mU.
+have := Hsep _ Hin.
+rewrite !fmeas_eUE => Hfine.
+have H1 : fmeas_mu µ1 U \is a fin_num by exact: fmeas_fin.
+have H2 : fmeas_mu µ2 U \is a fin_num by exact: fmeas_fin.
+by rewrite -(fineK H1) -(fineK H2) Hfine.
+Qed.
+
+(** Paper §3.2.1 (Msnorm): for non-zero [µ] and ε > 0, the test
+    [e_setT] gives [cnorm µ ≤ µ setT + ε]. In fact, equality holds
+    (e_setT µ = cnorm µ). *)
+Lemma fmeas_mcone_M_norm (µ : fmeas R X) (eps : R) :
+  µ <> precone_zero -> (0 < eps)%R ->
+  exists p : test_of Ar (ar_zero Ar) (fmeas R X),
+    fmeas_mcone_M p /\
+    (cone_norm µ <= test_fun p (ar_zero_pt Ar) µ + eps)%R.
+Proof.
+move=> _ eps_pos.
+exists (fmeas_eU (ar_zero Ar) (@measurableT _ X)); split.
+  by exists [set: X], (@measurableT _ X).
+rewrite /cone_norm/= /fmeas_norm/= /eU_fun/=.
+by rewrite ltW// ltrDl.
+Qed.
+
+(** ** Register the [isMCone] instance on [fmeas R X] — Paper §3.2.1 *)
+HB.instance Definition _ :=
+  @isMCone.Build R Ar (fmeas R X)
+    fmeas_mcone_M
+    fmeas_mcone_M_comp
+    fmeas_mcone_M_sep
+    fmeas_mcone_M_norm.
+
+End FMeasMCone.
+
+(** ** Paper Lemma 3.17: the pushforward functor [FMeas : Ar → MCones]
+
+    Given [φ : ar_hom Ar X Y], the pushforward [µ ↦ pushforward µ φ]
+    is a [cones_hom] from [fmeas R (ar_carrier Ar X)] to
+    [fmeas R (ar_carrier Ar Y)]. *)
+
+Section FMeasPushforward.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variables X Y : ar_obj Ar.
+Variable φ : ar_hom Ar X Y.
+
+Local Open Scope ereal_scope.
+
+(** The underlying function: [µ ↦ pushforward µ φ] as an [fmeas]. *)
+Lemma fmeas_push_finP (µ : fmeas R (ar_carrier Ar X)) :
+  fmeas_finP (pushforward (fmeas_mu µ) φ).
+Proof.
+move=> U mU; rewrite /pushforward.
+apply: fmeas_fin.
+rewrite -[X in measurable X]setTI.
+exact: measurable_funP.
+Qed.
+
+(** The pushforward of a measure: as a non-canonical function, we pick
+    the canonicalized version that vanishes on non-measurable sets. *)
+Definition fmeas_push_meas_fun (µ : fmeas R (ar_carrier Ar X)) :
+    set (ar_carrier Ar Y) -> \bar R :=
+  fun A =>
+    if `[< measurable A >] then pushforward (fmeas_mu µ) φ A else 0.
+
+Lemma fmeas_push_meas_fun_E (µ : fmeas R (ar_carrier Ar X)) A :
+  measurable A ->
+  fmeas_push_meas_fun µ A = pushforward (fmeas_mu µ) φ A.
+Proof. by move=> mA; rewrite /fmeas_push_meas_fun asboolT. Qed.
+
+Lemma fmeas_push_meas_fun_off (µ : fmeas R (ar_carrier Ar X)) A :
+  ~ measurable A -> fmeas_push_meas_fun µ A = 0.
+Proof. by move=> nmA; rewrite /fmeas_push_meas_fun asboolF. Qed.
+
+Lemma fmeas_push_set0 (µ : fmeas R (ar_carrier Ar X)) :
+  fmeas_push_meas_fun µ set0 = 0.
+Proof.
+rewrite fmeas_push_meas_fun_E ?measurable0//.
+rewrite /pushforward preimage_set0; exact: measure0.
+Qed.
+
+Lemma fmeas_push_ge0 (µ : fmeas R (ar_carrier Ar X)) A :
+  0 <= fmeas_push_meas_fun µ A.
+Proof.
+rewrite /fmeas_push_meas_fun; case: asboolP => mA; last exact: lexx.
+rewrite /pushforward; apply: measure_ge0.
+Qed.
+
+Lemma fmeas_push_sigma_additive (µ : fmeas R (ar_carrier Ar X)) :
+  semi_sigma_additive (fmeas_push_meas_fun µ).
+Proof.
+move=> F mF tF mUF.
+have measf : measurable_fun [set: ar_carrier Ar X] φ.
+  exact: measurable_funP.
+have base := @measure_semi_sigma_additive _ _ R
+  [the measure _ _ of pushforward (fmeas_mu µ) φ] F mF tF mUF.
+have eqU : fmeas_push_meas_fun µ (\bigcup_n F n) =
+           pushforward (fmeas_mu µ) φ (\bigcup_n F n).
+  by rewrite fmeas_push_meas_fun_E.
+have eqi i : fmeas_push_meas_fun µ (F i) =
+             pushforward (fmeas_mu µ) φ (F i).
+  by rewrite fmeas_push_meas_fun_E.
+rewrite eqU.
+have -> :
+  (fun n => \sum_(0 <= i < n) fmeas_push_meas_fun µ (F i)) =
+  (fun n => \sum_(0 <= i < n) pushforward (fmeas_mu µ) φ (F i)).
+  by apply: funext => n; apply: eq_bigr => i _; exact: eqi.
+exact: base.
+Qed.
+
+Section FMeasPushMeas.
+Variable µ : fmeas R (ar_carrier Ar X).
+
+HB.instance Definition _ :=
+  isMeasure.Build (ar_disp Ar Y) (ar_carrier Ar Y) R
+    (fmeas_push_meas_fun µ)
+    (fmeas_push_set0 µ) (fmeas_push_ge0 µ)
+    (fmeas_push_sigma_additive (µ := µ)).
+
+Definition fmeas_push_meas :
+    {measure set (ar_carrier Ar Y) -> \bar R} :=
+  [the {measure set (ar_carrier Ar Y) -> \bar R} of fmeas_push_meas_fun µ].
+
+End FMeasPushMeas.
+
+Lemma fmeas_push_finP_canon (µ : fmeas R (ar_carrier Ar X)) :
+  fmeas_finP (fmeas_push_meas µ).
+Proof.
+move=> U mU; rewrite /fmeas_push_meas/= fmeas_push_meas_fun_E//.
+exact: fmeas_push_finP.
+Qed.
+
+Lemma fmeas_push_canon (µ : fmeas R (ar_carrier Ar X)) :
+  fmeas_canon (fmeas_push_meas µ).
+Proof. exact: fmeas_push_meas_fun_off. Qed.
+
+(** Paper Lemma 3.17: the pushforward as an [fmeas]. *)
+Definition fmeas_push_fun (µ : fmeas R (ar_carrier Ar X)) :
+    fmeas R (ar_carrier Ar Y) :=
+  MkFmeas
+    (fmeas_push_meas µ)
+    (fmeas_push_finP_canon µ)
+    (fmeas_push_canon µ).
+
+(** Pointwise pushforward equation on measurable sets. *)
+Lemma fmeas_push_funE (µ : fmeas R (ar_carrier Ar X)) U :
+  measurable U ->
+  fmeas_mu (fmeas_push_fun µ) U = fmeas_mu µ (φ @^-1` U).
+Proof.
+move=> mU; rewrite /=.
+by rewrite (fmeas_push_meas_fun_E _ mU).
+Qed.
+
+(** Pushforward preserves [precone_zero]. *)
+Lemma fmeas_push_linear0 : fmeas_push_fun precone_zero = precone_zero.
+Proof.
+apply: fmeas_eq => U mU.
+by rewrite /precone_zero/= fmeas_push_funE//.
+Qed.
+
+(** Pushforward preserves addition. *)
+Lemma fmeas_push_linearD (µ1 µ2 : fmeas R (ar_carrier Ar X)) :
+  fmeas_push_fun (precone_add µ1 µ2) =
+  precone_add (fmeas_push_fun µ1) (fmeas_push_fun µ2).
+Proof.
+apply: fmeas_eq => U mU.
+rewrite /precone_add/= fmeas_push_funE// /pushforward.
+rewrite /msum big_ord_recl big_ord_recl big_ord0 adde0/=.
+rewrite /msum big_ord_recl big_ord_recl big_ord0 adde0/=.
+by rewrite !fmeas_push_meas_fun_E.
+Qed.
+
+(** Pushforward preserves scaling. *)
+Lemma fmeas_push_linearZ (r : {nonneg R}) (µ : fmeas R (ar_carrier Ar X)) :
+  fmeas_push_fun (precone_scale r µ) =
+  precone_scale r (fmeas_push_fun µ).
+Proof.
+apply: fmeas_eq => U mU.
+rewrite /precone_scale/= fmeas_push_funE// /pushforward /mscale.
+by rewrite /fmeas_push_meas/= /fmeas_push_meas_fun asboolT.
+Qed.
+
+Lemma fmeas_push_is_linear : is_linear fmeas_push_fun.
+Proof. split; [exact: fmeas_push_linear0|exact: fmeas_push_linearD
+              |exact: fmeas_push_linearZ]. Qed.
+
+(** Pushforward decreases norm (it preserves it, actually). *)
+Lemma fmeas_push_norm_le µ :
+  (cone_norm (fmeas_push_fun µ) <= cone_norm µ)%R.
+Proof.
+rewrite /cone_norm/= /fmeas_norm.
+rewrite fmeas_push_funE; last exact: measurableT.
+rewrite /pushforward.
+have -> : φ @^-1` [set: ar_carrier Ar Y] = [set: ar_carrier Ar X].
+  by apply/seteqP; split=> // x _.
+exact: lexx.
+Qed.
+
+(** Pushforward is ω-continuous. *)
+Lemma fmeas_push_omega_continuous : is_omega_continuous fmeas_push_fun.
+Proof.
+rewrite /is_omega_continuous => u uch ub1 fuch fub1.
+apply: fmeas_eq => U mU.
+have measf : measurable_fun [set: ar_carrier Ar X] φ.
+  exact: measurable_funP.
+have mφU : measurable (φ @^-1` U).
+  rewrite -[X in measurable X]setTI.
+  exact: measf.
+(* both sides equal [µ_∞ (φ ⁻¹ U)] = lim_n µ_n (φ ⁻¹ U). *)
+rewrite fmeas_push_funE//.
+have cvg_pre := @fmeas_sup_cvg R _ _ u uch _ mφU.
+have lim_pre :
+  limn (fun n => fmeas_mu (u n) (φ @^-1` U)) =
+  fmeas_sup_meas_fun uch (φ @^-1` U).
+  exact: cvg_lim cvg_pre.
+rewrite (fmeas_sup_ballE _ ub1 mφU) -lim_pre.
+(* The RHS: cone_sup_ball (fmeas_push_fun \o u) ... U =
+   fmeas_sup_meas_fun on the pushforward chain U *)
+have cvg_post :
+  fmeas_mu ((fmeas_push_fun \o u) n) U @[n --> \oo] -->
+  fmeas_sup_meas_fun fuch U.
+  apply: (@fmeas_sup_cvg R _ (ar_carrier Ar Y) (fmeas_push_fun \o u) fuch).
+  exact: mU.
+have lim_post :
+  limn (fun n => fmeas_mu ((fmeas_push_fun \o u) n) U) =
+  fmeas_sup_meas_fun fuch U.
+  exact: cvg_lim cvg_post.
+rewrite (fmeas_sup_ballE _ fub1 mU) -lim_post.
+congr (limn _); apply: funext => n /=.
+by rewrite fmeas_push_funE.
+Qed.
+
+(** Paper Lemma 3.17: the [cones_hom] packaging. *)
+Definition fmeas_push :
+  cones_hom (fmeas R (ar_carrier Ar X)) (fmeas R (ar_carrier Ar Y)) :=
+  ConesHom fmeas_push_fun fmeas_push_is_linear fmeas_push_omega_continuous
+           fmeas_push_norm_le.
+
+(** Paper Lemma 3.17: pointwise [fmeas_push_funE] lifted to
+    [cones_hom]. *)
+Lemma fmeas_pushE (µ : fmeas R (ar_carrier Ar X)) U :
+  measurable U ->
+  fmeas_mu (cones_hom_fun fmeas_push µ) U = fmeas_mu µ (φ @^-1` U).
+Proof. exact: fmeas_push_funE. Qed.
+
+End FMeasPushforward.
+
+(** ** Functoriality of [fmeas_push] — Paper Lemma 3.17 *)
+
+Section FMeasPushFunctor.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+
+(** [fmeas_push id = id]: stated at the level of underlying [fmeas]
+    functions. *)
+Lemma fmeas_push_id (X : ar_obj Ar) (φid : ar_hom Ar X X) :
+  φid =1 idfun ->
+  cones_hom_fun (fmeas_push φid) =1 @idfun (fmeas R (ar_carrier Ar X)).
+Proof.
+move=> Hφ µ; apply: fmeas_eq => U mU.
+rewrite fmeas_pushE// /idfun.
+have -> : φid @^-1` U = U.
+  by apply/seteqP; split=> x /=; rewrite /preimage Hφ.
+by [].
+Qed.
+
+(** [fmeas_push (g \o f) = fmeas_push g \o fmeas_push f]: stated at the
+    level of underlying [fmeas] functions. *)
+Lemma fmeas_push_comp (X Y Z : ar_obj Ar)
+    (f : ar_hom Ar X Y) (g : ar_hom Ar Y Z) (gf : ar_hom Ar X Z) :
+  gf =1 g \o f ->
+  cones_hom_fun (fmeas_push gf) =1
+  (cones_hom_fun (fmeas_push g)) \o (cones_hom_fun (fmeas_push f)).
+Proof.
+move=> Hgf µ; apply: fmeas_eq => U mU.
+rewrite (fmeas_pushE gf µ mU).
+have measg : measurable_fun [set: ar_carrier Ar Y] g.
+  exact: measurable_funP.
+have mgU : measurable (g @^-1` U).
+  rewrite -[X in measurable X]setTI; exact: measg.
+rewrite /= (fmeas_pushE g (fmeas_push_fun f µ) mU).
+rewrite /= (fmeas_pushE f µ mgU).
+have -> : gf @^-1` U = f @^-1` (g @^-1` U).
+  by apply/seteqP; split=> x /=; rewrite /preimage Hgf.
+by [].
+Qed.
+
+End FMeasPushFunctor.
