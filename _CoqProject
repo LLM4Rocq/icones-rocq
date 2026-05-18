@@ -20,3 +20,4 @@ theories/mcones/ar.v
 theories/mcones/mcone.v
 theories/mcones/fmeas.v
 theories/mcones/path.v
+theories/mcones/mcone_cat.v
