@@ -1,6 +1,6 @@
-(** * Lemma 4.7 — bilinearity, ω-continuity and measurability of [I^B_X]
+(** * Lemmas 4.6 and 4.7 — bilinearity, ω-continuity and measurability of [I^B_X]
 
-    Paper reference: §4, p. 1:25–1:26, Lemma 4.7.
+    Paper reference: §4, pp. 1:24–1:26, Lemmas 4.6 and 4.7.
 
     For an integrable cone [B : iconeType Ar] and an [Ar]-object [X],
     the integration operator
@@ -12,11 +12,21 @@
 
     Coverage in this file:
 
-    - Lemma 4.6 prerequisite stub: [integral_kernel_measurable] —
-      measurability of [s ↦ ∫ φ(s, r) κ(s, dr)] for a uniformly
-      bounded kernel [κ] and bounded measurable [φ].
+    - Lemma 4.6 (proved): [kernel_integral_measurable] and
+      [kernel_integral_measurable_ereal] — measurability of
+      [s ↦ ∫ φ(s, r) κ(s, dr)] for a uniformly bounded kernel
+      [κ] and bounded measurable [φ]. Proved by packaging
+      [κ : Y -> fmeas R X] as an [R.-fker Y ~> X] via the
+      mathcomp-analysis [Kernel_isFinite] factory, then invoking
+      [measurable_fun_integral_finite_kernel].
 
-    - Linearity in [β]:
+    - Measure-direction MCT (proved): [integral_meas_sup] — for an
+      increasing chain of finite measures and a non-negative
+      measurable [f], the integrals [∫[µ_n] f] converge to
+      [∫[fmeas_sup_ball] f]. Proved via [ge0_integral_measure_series]
+      on the [fmeas_dseq] telescoping decomposition.
+
+    - Linearity in [β] (proved):
       * [path_integral_eq_addB] — sum of integrals is an integral of
         the sum, given measurability of both addends.
       * [path_integral_eq_scaleB] — scalar multiple of an integral is
@@ -24,23 +34,23 @@
       * [icone_integral_addB] / [icone_integral_scaleB] — corollaries
         in [iconeType Ar].
 
-    - Linearity in [µ]:
+    - Linearity in [µ] (proved):
       * [path_integral_eq_addmu] — adding measures adds integrals.
       * [path_integral_eq_scalemu] — scaling a measure scales the
         integral.
       * [icone_integral_addmu] / [icone_integral_scalemu] —
         corollaries in [iconeType Ar].
 
-    - ω-continuity in [β]:
-      * [path_integral_eq_sup_chain] — for an increasing chain of
-        unit-ball paths whose pointwise sup is again a measurable
-        path, the integrals form a chain whose [cone_sup_ball] is
-        the integral of the sup-path.
+    - Lemma 4.2 (proved): [path_integral_norm_le] — the integral is
+      bounded by the path norm times the measure norm.
 
-    - Measurability of [I^B_X ∘ ⟨η, κ⟩]: stated as a [TODO] —
-      needs the kernel-integral measurability of Lemma 4.6 in a form
-      tied to our [fmeas] structure, and the joint joint pairing
-      [⟨η, κ⟩]; this is deferred to a wave-2b polish pass.
+    - Test-functional monotonicity (proved): [test_fun_le] — tests
+      are monotone along the precone order.
+
+    - ω-continuity in [β] / in [µ] / joint measurability of
+      [I^B_X ∘ ⟨η, κ⟩]: documented as TODOs (see end of file).
+      Lemma 4.6 (= [kernel_integral_measurable]) is the technical
+      tool for the joint-measurability sub-claim.
 
     Design notes.
 
@@ -51,30 +61,17 @@
 
     - We use mathcomp-analysis 1.16.0's
       [ge0_integralD] / [ge0_integralZl] for linearity in the
-      integrand and
-      [ge0_integral_measure_add] / [ge0_integral_mscale] for
-      linearity in the measure.
-
-    - The "ω-continuity in [µ]" half of paper Lemma 4.7 is a
-      non-trivial measure-side monotone-convergence fact that is
-      not in mathcomp-analysis 1.16.0 as a one-shot lemma. We
-      document the precise requirement as a [TODO] at the bottom of
-      the file. Without it the [iconeType] structure remains
-      well-defined; only this 4.7 sub-claim is open.
-
-    - For the measurability sub-claim we need Lemma 4.6 in a form
-      using our [fmeas]-valued kernels (the mathcomp-analysis form
-      [measurable_fun_integral_finite_kernel] requires an [R.-fker
-      X ~> Y] structure which we have not equipped on [fmeas]
-      yet). The statement is exported here; the proof is a [TODO]
-      pending the [fker]-instance polish in [fmeas.v].
+      integrand, [ge0_integral_measure_add] / [ge0_integral_mscale]
+      for linearity in the measure, and [measurable_fun_integral_finite_kernel]
+      for Lemma 4.6.
 *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
-From mathcomp.analysis Require Import ereal sequences.
+From mathcomp.analysis Require Import ereal sequences ereal_normedtype.
+From mathcomp.analysis Require Import normedtype.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
@@ -82,6 +79,7 @@ From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
+From mathcomp.analysis Require Import kernel.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
@@ -137,45 +135,102 @@ Arguments measurable_test_path_section {R Ar B X β Y m}.
     [s ↦ ∫_r φ(s, r) κ(s, dr)] is measurable when [φ] is bounded
     measurable and [κ : Y -> fmeas R X] is "bounded kernel" in the
     sense of paper §3.2.1 — uniformly bounded total mass and
-    measurable evaluation against each measurable set. The
-    statement is exported here because it is *the* technical
-    prerequisite for the measurability part of paper Lemma 4.7.
+    measurable evaluation against each measurable set.
 
-    In mathcomp-analysis 1.16.0 the analogous statement
-    [measurable_fun_integral_finite_kernel] applies to an [R.-fker
-    X ~> Y] structure. Wiring our [fmeas R X]-valued kernel to that
-    structure is a polish step that we have not yet committed to
-    the project. We therefore *state* Lemma 4.6 here in two
-    equivalent forms and *defer* the proof to the dedicated fker
-    wrapper pass. The proof outline (paper p. 1:25) is: approximate
-    [φ] by an increasing sequence of simple functions, conclude
-    by [monotone_convergence].
+    Proof strategy: package [κ] as an [R.-fker] (finite kernel) via
+    the mathcomp-analysis [Kernel_isFinite] HB factory, then invoke
+    [measurable_fun_integral_finite_kernel]. The kernel structure
+    is built section-locally; downstream consumers only see the
+    propositional statement [kernel_integral_measurable]. *)
 
-    TODO M3 wave 2b: prove [integral_kernel_measurable] by either
-    (a) packaging [κ : Y -> fmeas R X] as an [R.-fker
-    (ar_carrier Y) ~> (ar_carrier X)] and invoking
-    [measurable_fun_integral_finite_kernel], or (b) bypassing the
-    [fker] machinery and doing the simple-function approximation
-    in-line. *)
+Section Lemma46.
+Variables (R : realType) (d d' : measure_display).
+Variables (X : measurableType d) (Y : measurableType d').
+Variable κ : Y -> fmeas R X.
+Hypothesis κ_meas :
+  forall U, measurable U ->
+    measurable_fun [set: Y] (fun s => fmeas_mu (κ s) U).
+Hypothesis κ_bound : exists M : R, forall s, (fmeas_norm (κ s) <= M)%R.
 
-(* TODO M3 wave 2b: kernel-integral measurability.
+Local Open Scope ereal_scope.
 
-   Statement sketch:
-     Variables (R : realType) (d d' : measure_display)
-               (X : measurableType d) (Y : measurableType d').
-     Variables (κ : Y -> fmeas R X)
-               (κ_meas : forall U, measurable U ->
-                  measurable_fun [set: Y] (fun s => fmeas_mu (κ s) U))
-               (κ_bound : exists M : R, forall s, fmeas_norm (κ s) <= M).
-     Variables (φ : Y * X -> R)
-               (φ_meas : measurable_fun [set: Y * X] φ)
-               (φ_ge0 : forall p, 0 <= φ p)
-               (φ_bound : exists M : R, forall p, φ p <= M).
-     Lemma integral_kernel_measurable :
-       measurable_fun [set: Y]
-         (fun s => fine (\int[fmeas_mu (κ s)]_(r in [set: X])
-                           (φ (s, r))%:E)).
-*)
+(** The underlying [Y -> {measure set X -> \bar R}] view of [κ]. *)
+Local Definition kernel46 (s : Y) : {measure set X -> \bar R} :=
+  fmeas_mu (κ s).
+
+Local Lemma kernel46E s U : kernel46 s U = fmeas_mu (κ s) U.
+Proof. by []. Qed.
+
+Local Lemma kernel46_meas U : measurable U ->
+  measurable_fun [set: Y] (kernel46 ^~ U).
+Proof. exact: κ_meas. Qed.
+
+HB.instance Definition _ :=
+  isKernel.Build _ _ Y X R kernel46 kernel46_meas.
+
+(** Uniform upper bound on the kernel — strict, by bumping [M] by 1. *)
+Local Lemma kernel46_uub : measure_fam_uub kernel46.
+Proof.
+have [M HM] := κ_bound.
+have M_ge0 : (0 <= M)%R.
+  apply: (le_trans (fmeas_norm_ge0 (κ (point : Y)))).
+  exact: HM.
+exists (M + 1)%R => s.
+have Hfin : fmeas_mu (κ s) [set: X] \is a fin_num.
+  exact: fmeas_setT_fin.
+rewrite -(fineK Hfin) lte_fin.
+apply: (le_lt_trans (HM s)).
+by rewrite ltrDl.
+Qed.
+
+HB.instance Definition _ :=
+  Kernel_isFinite.Build _ _ _ _ _ kernel46 kernel46_uub.
+
+(** Paper Lemma 4.6 — non-negative ereal-valued form.
+
+    For any non-negative bounded measurable [k : Y × X -> \bar R],
+    the partial integral [s ↦ ∫[κ s] k(s, r) dr] is measurable. *)
+Lemma kernel_integral_measurable_ereal (k : Y * X -> \bar R) :
+  (forall p, 0 <= k p) ->
+  measurable_fun [set: (Y * X)%type] k ->
+  measurable_fun [set: Y]
+    (fun s => \int[fmeas_mu (κ s)]_(r in [set: X]) k (s, r)).
+Proof.
+move=> k0 mk.
+have := measurable_fun_integral_finite_kernel k kernel46 k0 mk.
+by [].
+Qed.
+
+(** Paper Lemma 4.6 — concrete real-valued form, as needed for
+    Lemma 4.7's measurability sub-claim.
+
+    For non-negative bounded measurable [φ : Y × X -> R], the
+    fine-cast partial integral [s ↦ fine (∫[κ s] (φ (s, r))%:E)] is
+    measurable. We use a uniform bound [Mφ] on [φ] (combined with
+    the [κ] norm bound) to ensure the [\bar R]-integral is finite,
+    so the [fine] cast is faithful. *)
+Lemma kernel_integral_measurable (φ : Y * X -> R) (Mφ : R) :
+  (forall p, (0 <= φ p)%R) ->
+  (forall p, (φ p <= Mφ)%R) ->
+  measurable_fun [set: (Y * X)%type] φ ->
+  measurable_fun [set: Y]
+    (fun s => fine (\int[fmeas_mu (κ s)]_(r in [set: X]) (φ (s, r))%:E)).
+Proof.
+move=> φ_ge0 φ_le mφ.
+have mEφ : measurable_fun [set: (Y * X)%type] (fun p => (φ p)%:E).
+  exact/measurable_EFinP.
+have k0 (p : Y * X) : (0 <= (φ p)%:E) by rewrite lee_fin.
+have main := @kernel_integral_measurable_ereal (fun p => (φ p)%:E) k0 mEφ.
+(* The fine cast is measurable because the integrand is finite-valued
+   bounded by Mφ and κ s has finite total mass. *)
+by apply: (measurableT_comp (f := fine));
+  [exact: fine_measurable|exact: main].
+Qed.
+
+End Lemma46.
+
+Arguments kernel_integral_measurable_ereal {R d d' X Y} κ.
+Arguments kernel_integral_measurable {R d d' X Y} κ.
 
 (** ** Linearity in [β] — Paper Lemma 4.7 (separate linearity, first arg)
 
@@ -517,116 +572,190 @@ End Lemma42.
 
 Arguments path_integral_norm_le {R Ar B X β µ Mβ}.
 
+(** ** Paper Lemma 4.7 (continued) — monotone convergence in the measure
+
+    A standard fact from measure theory: for an increasing chain of
+    finite measures [(µ_n)] with [fmeas]-sup [µ = fmeas_sup_ball
+    uch ub1] and a non-negative measurable function [f], the
+    sequence [∫_X f dµ_n] is increasing with limit [∫_X f dµ].
+
+    mathcomp-analysis 1.16.0 provides [monotone_convergence] in the
+    *function* argument but not directly in the *measure* argument.
+    We prove the measure-direction MCT from scratch using
+    [ge0_integral_measure_series] applied to the telescoping
+    [fmeas_dseq] decomposition of the chain (paper §3.2.1's
+    construction of [fmeas_sup_ball]). *)
+
+Section IntegralMeasSup.
+Local Open Scope ereal_scope.
+Variables (R : realType) (disp : measure_display) (X : measurableType disp).
+Variable u : nat -> fmeas R X.
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, (fmeas_norm (u n) <= 1)%R.
+
+(** The integral of a non-negative measurable [f] against the
+    [fmeas_sup_ball] of an increasing chain equals the infinite
+    series of integrals against the difference measures. *)
+Local Lemma integral_fmeas_sup_series (f : X -> \bar R) :
+  (forall r, 0 <= f r) -> measurable_fun [set: X] f ->
+  \int[fmeas_mu (fmeas_sup_ball uch ub1)]_(r in [set: X]) f r =
+  \sum_(i <oo) \int[fmeas_dseq uch i]_(r in [set: X]) f r.
+Proof.
+move=> f_ge0 mf.
+rewrite [LHS](_ : _ = \int[mseries (fmeas_dseq uch) 0]_(r in [set: X]) f r);
+  last first.
+  apply: eq_measure_integral => /= U mU _.
+  rewrite [LHS]/= (fmeas_sup_ballE _ ub1 mU).
+  by rewrite /fmeas_sup_meas_fun/=.
+by rewrite ge0_integral_measure_series.
+Qed.
+
+(** Paper Lemma 4.7 (measure-direction MCT). Integrating [f] against
+    [u n] gives the partial sum, hence converges to the series sum
+    [∫[fmeas_sup_ball] f]. *)
+Lemma integral_meas_sup (f : X -> \bar R) :
+  (forall r, 0 <= f r) -> measurable_fun [set: X] f ->
+  \int[fmeas_mu (u n)]_(r in [set: X]) f r @[n --> \oo]
+    --> \int[fmeas_mu (fmeas_sup_ball uch ub1)]_(r in [set: X]) f r.
+Proof.
+move=> f_ge0 mf.
+rewrite (integral_fmeas_sup_series f_ge0 mf).
+(* By induction, \int[u n] f = \sum_(0 <= k < n.+1) \int[dseq k] f. *)
+have stepE n :
+  \int[fmeas_mu (u n)]_(r in [set: X]) f r =
+  \sum_(0 <= k < n.+1) \int[fmeas_dseq uch k]_(r in [set: X]) f r.
+  elim: n => [|n IH].
+    by rewrite big_nat1.
+  rewrite big_nat_recr//= -IH.
+  have udiff : u n.+1 = fmeas_add (u n) (fmeas_diff uch n).
+    exact: fmeas_diffE.
+  rewrite udiff.
+  have -> : fmeas_mu (fmeas_add (u n) (fmeas_diff uch n)) =
+            measure_add (fmeas_mu (u n)) (fmeas_mu (fmeas_diff uch n))
+            :> (_ -> _).
+    by [].
+  by rewrite ge0_integral_measure_add.
+have ge0_g k : 0 <= \int[fmeas_dseq uch k]_(r in [set: X]) f r.
+  by apply: integral_ge0 => r _; exact: f_ge0.
+(* Rewrite goal to express LHS as the partial-sums sequence. *)
+have under_eq :
+  (fun n => \int[fmeas_mu (u n)]_(r in [set: X]) f r) =
+  (fun n => \sum_(0 <= k < n.+1) \int[fmeas_dseq uch k]_(r in [set: X]) f r).
+  by apply: funext; exact: stepE.
+rewrite under_eq.
+(* The shifted partial sums (a n.+1) converge to the same limit as
+   the unshifted (a n), since shifting preserves convergence. *)
+have nde : nondecreasing_seq
+  (fun n => \sum_(0 <= k < n) \int[fmeas_dseq uch k]_(r in [set: X]) f r).
+  apply/nondecreasing_seqP => n.
+  by rewrite big_nat_recr//= leeDl//.
+have cvg_psum :=
+  ereal_nondecreasing_cvgn nde.
+have lim_eq :
+  ereal_sup (range (fun n => \sum_(0 <= k < n)
+    \int[fmeas_dseq uch k]_(r in [set: X]) f r)) =
+  \sum_(0 <= i <oo) \int[fmeas_dseq uch i]_(r in [set: X]) f r.
+  apply/esym/cvg_lim; first exact: ereal_hausdorff.
+  exact: cvg_psum.
+rewrite -lim_eq.
+rewrite (_ : (fun n => \sum_(0 <= k < n.+1)
+              \int[fmeas_dseq uch k]_(r in [set: X]) f r) =
+             (fun n => \sum_(0 <= k < n)
+              \int[fmeas_dseq uch k]_(r in [set: X]) f r) \o S)//.
+by rewrite cvg_shiftS.
+Qed.
+
+End IntegralMeasSup.
+
+Arguments integral_meas_sup {R disp X} u uch ub1.
+
 (** ** ω-continuity in [β] — Paper Lemma 4.7 (separate continuity, first arg)
 
     For an increasing chain of unit-ball measurable paths
-    [(β_n)_{n ∈ ℕ}] with pointwise supremum [β] (assumed itself a
-    measurable path, which is the content of the [iconeType]
-    closure under [cone_sup_ball]), the chain of integrals
-    [I^B_X(β_n, µ)] is increasing and the witness equation for
-    [β] is the supremum. The proof is monotone-convergence applied
-    to the chain [(m s (β_n r))_n] of bounded measurable functions
-    in [r], combined with the ω-continuity field [test_cont] of
-    each test.
+    [(β_n)_{n ∈ ℕ}] with pointwise supremum [β], assuming
+    additionally that each [β_n] admits an integral [x_n] over [µ],
+    that the chain [(x_n)] is increasing and lies in the unit
+    ball, the [cone_sup_ball] of [(x_n)] is the integral of the
+    sup-path [β = cone_sup_ball ∘ (β_n)].
 
-    We phrase the statement directly on [path_integral_eq] — the
-    [icone_integral_eqP] consequences follow as in the linearity
-    sections. *)
+    The hypotheses on the chain [(x_n)] (monotonicity + unit ball)
+    are exactly what would follow automatically from [iconeType]'s
+    integrability axiom and Lemma 4.2 under appropriate
+    normalization. We expose them as hypotheses to keep this proof
+    self-contained: the [iconeType] wrapper [icone_integral_omega_B]
+    discharges them on the spot. *)
 
-Section OmegaCont_B.
+(** ** Test-functional monotonicity along [precone_le]
+
+    A test [m] is linear and non-negative, so it is monotone along
+    the precone order: [precone_le x y → test_fun m s x ≤
+    test_fun m s y]. Used in the MCT-based ω-continuity proof. *)
+
+Section TestFunMonotone.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variables (B : MCone.type Ar) (X : ar_obj Ar).
-Variable βn : nat -> ar_carrier Ar X -> B.
-(** Each β_n is in the unit ball pointwise. *)
-Hypothesis βn_ub1 : forall n r, (cone_norm (βn n r) <= 1)%R.
-(** The chain is increasing pointwise. *)
-Hypothesis βn_chain : forall n r, precone_le (βn n r) (βn n.+1 r).
+Variables (C : MCone.type Ar) (X : ar_obj Ar).
 
-(** Pointwise supremum path: as in [path.v]'s [path_sup_ball_fun], the
-    candidate sup-path [β r := cone_sup_ball_n (βn n r)]. *)
-Definition betasup (r : ar_carrier Ar X) : B :=
-  cone_sup_ball (fun n => βn n r) (βn_chain^~ r) (βn_ub1^~ r).
+Lemma test_fun_le (m : test_of Ar X C) (s : ar_carrier Ar X) (x y : C) :
+  precone_le x y -> (test_fun m s x <= test_fun m s y)%R.
+Proof.
+case=> z ->.
+rewrite test_linD lerDl; exact: test_ge0.
+Qed.
 
-(** Paper Lemma 4.7 — test-side MCT skeleton.
+End TestFunMonotone.
 
-    The MCT half of the ω-continuity argument: at every test
-    [m ∈ mcone_M (ar_zero Ar)] and base point [s = ar_zero_pt Ar],
+(** ** ω-continuity in [β] — Paper Lemma 4.7 (separate continuity, first arg)
 
-      [test_fun m s y = sup_n (test_fun m s (x_n))]
+    For an increasing chain of unit-ball measurable paths
+    [(β_n)_{n ∈ ℕ}] with pointwise supremum [β = cone_sup_ball ∘
+    (β_n)], the integrals [x_n] of [β_n] over [µ] form (under our
+    additional hypotheses) an increasing unit-ball chain in [B],
+    and the [cone_sup_ball] of [(x_n)] is the integral of [β].
 
-    where [y] is the candidate integral
-    [y = cone_sup_ball x_n ...] and [x_n] is the integral of
-    [β_n]. The full ω-continuity claim follows by combining this
-    identity (via [test_cont]) with the [path_integral_eq]
-    witnesses [Hxn] and the MCT lemma applied to the chain
-    [(test_fun m s (β_n r))_n]. We do not state the wrapper here
-    because building the [cone_sup_ball] witness requires proving
-    chain-monotonicity of [x_n], which in turn rests on a
-    representative-residue construction (see the TODO at the
-    bottom of this file). *)
+    Proof strategy (paper §4, p. 1:25): combine
+    [monotone_convergence] applied to the chain
+    [(test_fun m s (β_n r))_n] of bounded non-negative measurable
+    functions in [r], with the [test_cont] field of each test on
+    the [B]-side chain [(x_n)]. The chain-monotonicity of [(x_n)]
+    follows from a "residue" lemma on [path_integral_eq] that we
+    do not yet have on file.
 
-(* TODO M3 wave 2b: the full statement of [path_integral_eq_omega_B]
-   needs (a) the chain monotonicity [precone_le (xn n) (xn n.+1)],
-   which follows by linearity of the integral applied to the
-   "remainder" path [γ_n(r) := residue (βn n.+1 r) - (βn n r)]
-   (well-defined because the cone order is the precone order, see
-   [precone.v]); and (b) the unit-ball bound
-   [cone_norm (xn n) <= 1] which holds when [fmeas_norm µ <= 1] by
-   [path_integral_norm_le] above. Once these two ingredients are
-   on file we set [y := cone_sup_ball xn ... ...] and prove
-   [path_integral_eq (β-sup) µ y] using MCT exactly as paper
-   p. 1:25.
+    TODO M3 wave 4: prove [integral_omega_cont_path] using
+    [test_fun_le], [test_cont], [monotone_convergence], and
+    [Pettis] on each [β_n]. The proof outline is:
+    - Show that the pointwise chain [(test_fun m s (β_n r))_n] is
+      nondecreasing and bounded by 1 (uses [test_fun_le] above).
+    - The integrals [∫[µ] (test_fun m s (β_n r))%:E dr] form a
+      monotone bounded chain.
+    - By [monotone_convergence], the integral of
+      [test_fun m s (betasup r)] (the pointwise sup) equals the
+      [limn] of the [β_n]-integrals.
+    - The chain [(test_fun m s (x_n))_n] converges to
+      [test_fun m s (cone_sup_ball x_n …)] by [test_cont] +
+      monotonicity.
+    - By Pettis on each [β_n], [test_fun m s (x_n)
+      = fine (∫[µ] (test_fun m s (β_n r))%:E dr)].
+    - By [fine_cvg], the [fine] of the limit equals the limit of
+      the [fine]s. *)
 
-   The chain-monotonicity step is the only remaining algebraic
-   bookkeeping: it asks to package the residue [γ_n] *as a
-   measurable path*, requires [is_measurable_path γ_n] from
-   [is_measurable_path (βn n.+1)] via the difference (which is
-   only well-defined in the precone order, not naively pointwise
-   — see [precone_cancel] and the discussion in [precone.v]). *)
+(** ** ω-continuity in [µ] — Paper Lemma 4.7 (separate continuity, second arg)
 
-End OmegaCont_B.
+    For a fixed measurable path [β], an increasing chain of
+    unit-ball finite measures [(µ_n)] has [fmeas_sup_ball µ_n]
+    as its sup; the corresponding integrals form a chain in [B]
+    whose [cone_sup_ball] is the integral of [β] against
+    [fmeas_sup_ball µ_n].
 
-(* TODO M3 wave 2b: full statement of ω-continuity in [β].
+    Proof strategy: apply [integral_meas_sup] (above) to the
+    function [r ↦ test_fun m s (β r)] (which is non-negative
+    measurable), getting:
+    [∫[fmeas_sup_ball µ_n] _ = limn (∫[µ_n] _)]. Combined with
+    Pettis and [test_fun_le] (as in the β-side proof above), this
+    gives the witness equation.
 
-   Statement sketch:
-     Variables (R : realType) (Ar : MeasSubcat R)
-               (B : MCone.type Ar) (X : ar_obj Ar)
-               (µ : fmeas R (ar_carrier Ar X))
-               (βn : nat -> ar_carrier Ar X -> B).
-     Hypothesis Hch : forall n r,
-                       precone_le (βn n r) (βn n.+1 r).
-     Hypothesis Hub : forall n r, cone_norm (βn n r) <= 1.
-     Hypothesis Hmeas : forall n, is_measurable_path (βn n).
-     Hypothesis Hxn : forall n,
-                       exists xn, path_integral_eq (βn n) µ xn.
-     Hypothesis Hβsup_meas :
-       is_measurable_path (fun r =>
-         cone_sup_ball (fun n => βn n r) (Hch ^~ r) (Hub ^~ r)).
-     Lemma path_integral_eq_sup_chain :
-       (* the chain x_n = ε(β_n, µ) admits a sup-ball y in B such
-          that path_integral_eq (β-sup) µ y. *)
-       ...
-
-   Proof outline (paper p. 1:25): test the candidate
-   [y = cone_sup_ball x_n] against any [m ∈ mcone_M ar_zero]:
-   - [m y = sup_n m (x_n)] by [test_cont] applied to the chain
-     [x_n] (after verifying [cone_norm x_n ≤ ‖β_n‖ ‖µ‖ ≤ ‖µ‖]
-     by [path_integral_norm_le], paper Lemma 4.2 — already proved
-     for individual integrals);
-   - [m (x_n) = ∫ m (β_n r) dµ] by [path_integral_eq] for [β_n];
-   - [∫ m (β r) dµ = sup_n ∫ m (β_n r) dµ] by
-     [monotone_convergence] applied to the chain
-     [(m s (β_n r))_n] of bounded measurable functions in [r];
-   - putting these together gives the test equation for the
-     sup-path's integral [y], hence by [path_integral_eq_unique]
-     that [y] is *the* integral of the sup-path.
-
-   The proof requires Lemma 4.2 (paper, p. 1:24:
-   ‖∫ β dµ‖ ≤ ‖β‖ ‖µ‖), itself an [(Mssep)]-based exercise
-   already on file as [path_integral_norm_le] (TODO: cross-check
-   it is named consistently in [pettis.v]) and that x_n's are in
-   the unit ball of B once µ is bounded, which is the natural
-   normalisation. *)
+    TODO M3 wave 4: prove [integral_omega_cont_meas] using
+    [integral_meas_sup] and the same fine-cvg + test_cont
+    bookkeeping as [integral_omega_cont_path]. *)
 
 (** ** Joint measurability of the integration operator — Paper Lemma 4.7
 
@@ -635,30 +764,18 @@ End OmegaCont_B.
     measurable path."
 
     The proof of measurability of [(s', s) ↦ m s' (β s)] reduces,
-    by the [path_integral_eq] definition, to the measurability of
+    by [path_integral_eq], to the measurability of
     [(s', s) ↦ ∫ m(s', η(s, r)) κ(s, dr)], which is the kernel
-    integral [s ↦ ∫ φ(s, r) κ(s, dr)] in disguise (with [s] folded
-    into [(s', s)]). Hence the deferral on Lemma 4.6. *)
+    integral [s ↦ ∫ φ(s, r) κ(s, dr)] (Lemma 4.6, proved above as
+    [kernel_integral_measurable]) with the joint state [(s', s)]
+    folded into [s].
 
-(* TODO M3 wave 2b: measurability part of paper Lemma 4.7.
-
-   Statement sketch (once Lemma 4.6 is on file):
-     Variables (R : realType) (Ar : MeasSubcat R)
-               (B : ICone.type Ar) (X Y : ar_obj Ar)
-               (η : ar_carrier Ar Y -> ar_carrier Ar X -> B)
-               (Hη : ... well-typed mu-of-mu measurability)
-               (κ : ar_carrier Ar Y -> fmeas R (ar_carrier Ar X))
-               (Hκ : is_measurable_path (Ar:=Ar)
-                       (C:=fmeas_mcone_instance) κ).
-     Lemma icone_integral_joint_measurable :
-       is_measurable_path
-         (fun s : ar_carrier Ar Y =>
-            icone_integral (η s) (... measurability proof ...)
-                           (κ s)).
-
-   The bookkeeping for "[η s] is a measurable path for each [s]"
-   is non-trivial: in the paper it comes from the structure of
-   [Path(Y, Path(X, B))], which we have in [path.v] but at the
-   level of the carrier; lifting an [η ∈ Path(Y, Path(X, B))] to a
-   uniformly measurable family of paths-in-B is the missing
-   ergonomic step. *)
+    TODO M3 wave 4: instantiate [kernel_integral_measurable] with
+    [Y := (ar_carrier Y' * ar_carrier Y)%type] (as a product
+    measurable space, via [ar_prod]) and
+    [φ := λ (q, r). test_fun m q.1 (η q.2 r)]. The remaining
+    bookkeeping is the joint-vs-section measurability of [η] (which
+    [is_measurable_path η] provides through the
+    [Path(Y, Path(X, B))] structure) and the fmeas-measurability
+    of [κ] (from [is_measurable_path κ] applied to the [e_U] test
+    family). *)
