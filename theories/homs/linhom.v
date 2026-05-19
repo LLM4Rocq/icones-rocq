@@ -2708,6 +2708,553 @@ Arguments linhom_diff_fun {R Ar C D u v} Hle.
 Arguments linhom_diff_E {R Ar C D u v} Hle.
 Arguments linhom_diff_linear {R Ar C D u v} Hle.
 
+(** ** Remaining [linhom_car] fields for the difference — Paper §5.1
+
+    Building on [linhom_diff_fun] / [linhom_diff_linear] from
+    [LinhomDiff], we now discharge the four remaining fields of the
+    [linhom_car] record on the difference
+    [w x := linhom_diff_fun Hle x]:
+
+    - boundedness ([linhom_diff_bounded]) — via
+      [precone_le (w x) (v x)] (witness [u x] from [precone_addC]
+      on [linhom_diff_E]) and [cone_normp] + [linhom_norm_sup_ub].
+    - ω-continuity ([linhom_diff_continuous]) — by [v_cont],
+      [u_cont] applied to the chain [x_n] (whose images stay in
+      the unit ball under the auxiliary hypothesis
+      [linhom_norm v <= 1]), [cone_sup_ball_addD], and
+      [precone_cancel].
+    - path-preservation ([linhom_diff_pres_path]) — subtract the
+      measurable test of [u ∘ γ] from the measurable test of [v ∘
+      γ], rewriting
+      [test_fun m s (w (γ r)) = test_fun m s (v (γ r)) -
+                                test_fun m s (u (γ r))]
+      via [test_linD] + cancellation in [R].
+    - integral-preservation ([linhom_diff_pres_int]) — by
+      [linhom_pres_int] on [u] and [v], pointwise [linhom_diff_E],
+      path-additivity [path_integral_eq_addB], and cancellation
+      [precone_cancel] in [D].
+
+    For ω-continuity we require the auxiliary hypothesis
+    [linhom_norm v <= 1]; this is automatic at the call sites
+    (chain of unit-norm linhoms with [linhom_sup_ball] as [v]).
+    [linhom_norm u <= 1] follows from [Hle] and [linhom_norm v <= 1]
+    via [linhom_norm_sup_lub] + [cone_normp]. *)
+
+Section LinhomDiffPack.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Variables u v : linhom_car Ar C D.
+Hypothesis Hle : forall x : C,
+  exists z : D, linhom_fun v x = precone_add (linhom_fun u x) z.
+Hypothesis Hv_le1 : linhom_norm v <= 1.
+
+(** Local notation: [w x := linhom_diff_fun Hle x]. *)
+Let w (x : C) : D := linhom_diff_fun Hle x.
+
+Let w_E (x : C) :
+  linhom_fun v x = precone_add (linhom_fun u x) (w x).
+Proof. exact: linhom_diff_E. Qed.
+
+(** Pointwise [≤p]: [w x ≤p v x] in [D], witnessed by [u x] via
+    [precone_addC] on [w_E]. *)
+Let w_le_v (x : C) : precone_le (w x) (linhom_fun v x).
+Proof.
+exists (linhom_fun u x); rewrite precone_addC; exact: w_E.
+Qed.
+
+(** Pointwise [≤p]: [u x ≤p v x] in [D], witnessed by [w x]. *)
+Let u_le_v (x : C) : precone_le (linhom_fun u x) (linhom_fun v x).
+Proof. exists (w x); exact: w_E. Qed.
+
+(** Norm bound: [‖u‖ ≤ ‖v‖ ≤ 1]. *)
+Let Hu_le1 : linhom_norm u <= 1.
+Proof.
+apply: le_trans Hv_le1.
+apply: linhom_norm_sup_lub => x Hx.
+have H1 := @cone_normp _ _ _ _ (u_le_v x).
+exact: le_trans H1 (linhom_norm_sup_ub v x Hx).
+Qed.
+
+(** Paper §5.1: boundedness of [w] — Step 1a. *)
+Lemma linhom_diff_bounded :
+  exists M : R, forall x : C, cnorm x <= 1 ->
+    cnorm (w x) <= M.
+Proof.
+exists (linhom_norm v) => x Hx.
+have H1 := @cone_normp _ _ _ _ (w_le_v x).
+exact: le_trans H1 (linhom_norm_sup_ub v x Hx).
+Qed.
+
+(** Paper §5.1: ω-continuity of [w] — Step 1b.
+
+    Strategy: at the chain [x_n] with unit-ball bounds:
+    - [u_cont x_n], [v_cont x_n] both apply since [‖u(x_n)‖ ≤ ‖u‖
+      ≤ 1] and similarly for [v].
+    - By [cone_sup_ball_addD] on chains [(u(x_n))], [(w(x_n))]
+      whose diagonal sum [(v(x_n))] is unit-bounded.
+    - Identify [v(sup x_n) = u(sup x_n) + sup w(x_n)]; compare to
+      [v(sup x_n) = u(sup x_n) + w(sup x_n)] by [w_E]; cancel. *)
+Lemma linhom_diff_continuous : is_omega_continuous w.
+Proof.
+move=> x xch xub fwch fwub.
+set xs := cone_sup_ball x xch xub.
+have Hxs : cnorm xs <= 1 by exact: cone_sup_ball_norm.
+have v_lin := linhom_pre_linear (linhom_pre_of v).
+have u_lin := linhom_pre_linear (linhom_pre_of u).
+have w_lin : is_linear w by exact: linhom_diff_linear.
+have v_cont := linhom_pre_continuous (linhom_pre_of v).
+have u_cont := linhom_pre_continuous (linhom_pre_of u).
+(* Image chains: (u ∘ x), (v ∘ x), (w ∘ x). *)
+have vx_ch n :
+    precone_le (linhom_fun v (x n)) (linhom_fun v (x n.+1)).
+  exact: (linear_increasing v_lin) _ _ (xch n).
+have ux_ch n :
+    precone_le (linhom_fun u (x n)) (linhom_fun u (x n.+1)).
+  exact: (linear_increasing u_lin) _ _ (xch n).
+have vx_ub n : cnorm (linhom_fun v (x n)) <= 1.
+  have H := linhom_norm_apply_le Hv_le1 (x n).
+  rewrite mul1r in H; exact: le_trans H (xub n).
+have ux_ub n : cnorm (linhom_fun u (x n)) <= 1.
+  have H := linhom_norm_apply_le Hu_le1 (x n).
+  rewrite mul1r in H; exact: le_trans H (xub n).
+(* Apply u_cont and v_cont to chain x: *)
+have v_sup : linhom_fun v xs =
+    cone_sup_ball (linhom_fun v \o x) vx_ch vx_ub.
+  exact: v_cont.
+have u_sup : linhom_fun u xs =
+    cone_sup_ball (linhom_fun u \o x) ux_ch ux_ub.
+  exact: u_cont.
+(* The diagonal sum chain (u(x_n) + w(x_n)) equals (v(x_n)) by w_E. *)
+have sum_pw n :
+    precone_add (linhom_fun u (x n)) (w (x n)) = linhom_fun v (x n).
+  by symmetry; exact: w_E.
+have sum_ch n :
+    precone_le
+      (precone_add (linhom_fun u (x n)) (w (x n)))
+      (precone_add (linhom_fun u (x n.+1)) (w (x n.+1))).
+  by rewrite !sum_pw; exact: vx_ch.
+have sum_ub n :
+    cnorm (precone_add (linhom_fun u (x n)) (w (x n))) <= 1.
+  by rewrite sum_pw; exact: vx_ub.
+(* By cone_sup_ball_addD: sup (u + w) = sup u + sup w. *)
+have addD := @cone_sup_ball_addD R D
+              (linhom_fun u \o x) (w \o x)
+              ux_ch ux_ub fwch fwub sum_ch sum_ub.
+(* sup (u + w) ∘ x = sup (v ∘ x), via Prop_irrelevance. *)
+have sum_eq_v :
+    cone_sup_ball
+      (fun n => precone_add (linhom_fun u (x n)) (w (x n)))
+      sum_ch sum_ub =
+    cone_sup_ball (linhom_fun v \o x) vx_ch vx_ub.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n.
+    rewrite /= sum_pw.
+    exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => n.
+    rewrite /= -sum_pw.
+    exact: cone_sup_ball_ub.
+(* Putting it together: v(xs) = u(xs) + sup w(x_n).  *)
+have key :
+    linhom_fun v xs =
+    precone_add (linhom_fun u xs) (cone_sup_ball (w \o x) fwch fwub).
+  by rewrite v_sup u_sup -addD sum_eq_v.
+(* And by w_E at xs: v(xs) = u(xs) + w(xs). *)
+have key' := w_E xs.
+(* Cancel u(xs) from both sides. *)
+rewrite key in key'; symmetry.
+exact: precone_cancel key'.
+Qed.
+
+(** Paper §5.1: path-preservation of [w] — Step 1c.
+
+    Template: [path_sup_ball_ub] / [path_sup_ball_lub] in
+    [theories/mcones/path.v] (the [w_meas] step). *)
+Lemma linhom_diff_pres_path (X : ar_obj Ar)
+    (γ : ar_carrier Ar X -> C) :
+  is_measurable_path (Ar:=Ar) (C:=C) γ ->
+  is_measurable_path (Ar:=Ar) (C:=D) (fun r => w (γ r)).
+Proof.
+move=> Hγ.
+have Hvγ : is_measurable_path
+    (Ar:=Ar) (C:=D) (fun r => linhom_fun v (γ r)).
+  exact: (linhom_pre_pres_path (linhom_pre_of v)).
+have Huγ : is_measurable_path
+    (Ar:=Ar) (C:=D) (fun r => linhom_fun u (γ r)).
+  exact: (linhom_pre_pres_path (linhom_pre_of u)).
+have [[Mv HMv] Hv_meas] := Hvγ.
+have [_ Hu_meas] := Huγ.
+split.
+  exists Mv => r.
+  have H1 := @cone_normp _ _ _ _ (w_le_v (γ r)).
+  exact: le_trans H1 (HMv r).
+move=> Y m mM.
+have -> :
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+    test_fun m p.1 (w (γ p.2))) =
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+    test_fun m p.1 (linhom_fun v (γ p.2)) -
+    test_fun m p.1 (linhom_fun u (γ p.2))).
+  apply: funext => p.
+  have := w_E (γ p.2).
+  move/(congr1 (test_fun m p.1)).
+  rewrite test_linD => H.
+  rewrite H.
+  by rewrite addrAC subrr add0r.
+apply: measurable_funB.
+- exact: Hv_meas.
+- exact: Hu_meas.
+Qed.
+
+(** Paper §5.1: integral-preservation of [w] — Step 1d.
+
+    Template: [linhom_add_fun_pres_int] (the additivity +
+    cancellation pattern); also mirrors the M3 wave 2a additivity
+    lemma [path_integral_eq_addB]. *)
+Lemma linhom_diff_pres_int (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> C) (Hβ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X)) :
+  w (icone_integral β Hβ µ) =
+  icone_integral (fun r => w (β r)) (linhom_diff_pres_path Hβ) µ.
+Proof.
+have Hvγ := linhom_pre_pres_path (linhom_pre_of v) X β Hβ.
+have Huγ := linhom_pre_pres_path (linhom_pre_of u) X β Hβ.
+have Hwγ : is_measurable_path (fun r : ar_carrier Ar X => w (β r))
+  := linhom_diff_pres_path Hβ.
+have at_int :
+    linhom_fun v (icone_integral β Hβ µ) =
+    precone_add
+      (linhom_fun u (icone_integral β Hβ µ))
+      (w (icone_integral β Hβ µ)).
+  exact: w_E.
+(* By Pettis spec on v: v(∫β) satisfies path_integral_eq for (v ∘ β). *)
+have Petv : path_integral_eq (fun r => linhom_fun v (β r)) µ
+    (linhom_fun v (icone_integral β Hβ µ)).
+  move=> m mM s.
+  have := linhom_pres_int v X β Hβ µ.
+  rewrite /linhom_fun /= => -> .
+  exact: (icone_integralP _ _ µ m mM s).
+have Petu : path_integral_eq (fun r => linhom_fun u (β r)) µ
+    (linhom_fun u (icone_integral β Hβ µ)).
+  move=> m mM s.
+  have := linhom_pres_int u X β Hβ µ.
+  rewrite /linhom_fun /= => -> .
+  exact: (icone_integralP _ _ µ m mM s).
+(* Sum Pettis spec: v(∫β) = ∫(v ∘ β) = ∫(u ∘ β) + ∫(w ∘ β) via
+   path_integral_eq_addB on (u ∘ β) and (w ∘ β). *)
+have Petsum : path_integral_eq
+    (fun r => precone_add (linhom_fun u (β r)) (w (β r))) µ
+    (precone_add
+       (icone_integral (fun r => linhom_fun u (β r)) Huγ µ)
+       (icone_integral (fun r => w (β r)) Hwγ µ)).
+  apply: (@path_integral_eq_addB R Ar D X µ _ _ _ _ Huγ Hwγ).
+  - exact: icone_integralP.
+  - exact: icone_integralP.
+(* Note (fun r => v (β r)) = (fun r => u(β r) + w(β r)) by pw_eq. *)
+have Petv' : path_integral_eq
+    (fun r => precone_add (linhom_fun u (β r)) (w (β r))) µ
+    (linhom_fun v (icone_integral β Hβ µ)).
+  move=> m mM s.
+  have := Petv m mM s.
+  congr (_ = _).
+  congr fine.
+  by apply: eq_integral => r _; rewrite w_E.
+(* By uniqueness of the path-integral (icone_integral_eqP, applied to
+   B = D viewed as iconeType): the two witnesses of Petsum and Petv'
+   agree. *)
+have UE : linhom_fun v (icone_integral β Hβ µ) =
+    precone_add
+      (icone_integral (fun r => linhom_fun u (β r)) Huγ µ)
+      (icone_integral (fun r => w (β r)) Hwγ µ).
+  have Hpath : is_measurable_path
+      (fun r => precone_add (linhom_fun u (β r)) (w (β r))).
+    have -> : (fun r => precone_add (linhom_fun u (β r)) (w (β r)))
+            = (fun r : ar_carrier Ar X => linhom_fun v (β r))
+      by apply: funext => r; rewrite -w_E.
+    exact: Hvγ.
+  have H1 := icone_integral_eqP _ Hpath µ _ Petv'.
+  have H2 := icone_integral_eqP _ Hpath µ _ Petsum.
+  by rewrite H1 H2.
+(* Now we have: v(∫β) = u(∫β) + w(∫β) = ∫(u ∘ β) + ∫(w ∘ β).
+   Also v(∫β) = ∫(u ∘ β) + ∫(w ∘ β) by UE; and u(∫β) = ∫(u ∘ β)
+   via Petu — we'll need this equality too. *)
+have u_int_eq : linhom_fun u (icone_integral β Hβ µ) =
+    icone_integral (fun r => linhom_fun u (β r)) Huγ µ.
+  by apply: icone_integral_eqP.
+(* Combine in at_int. *)
+rewrite UE u_int_eq in at_int.
+(* at_int: ∫(u∘β) + ∫(w∘β) = ∫(u∘β) + w(∫β); cancel to get
+   ∫(w∘β) = w(∫β). *)
+have key : icone_integral (fun r => w (β r)) Hwγ µ =
+    w (icone_integral β Hβ µ).
+  exact: precone_cancel at_int.
+(* Goal: w(∫β) = icone_integral (...) (linhom_diff_pres_path Hβ) µ;
+   the local witness [Hwγ] equals [linhom_diff_pres_path Hβ] by
+   Prop_irrelevance. *)
+rewrite (_ : linhom_diff_pres_path Hβ = Hwγ);
+  last exact: Prop_irrelevance.
+by symmetry.
+Qed.
+
+(** Packaging: [linhom_pre] form. *)
+Definition linhom_diff_pre : linhom_pre Ar C D :=
+  MkLinhomPre w
+    (linhom_diff_linear Hle)
+    linhom_diff_continuous
+    linhom_diff_bounded
+    linhom_diff_pres_path.
+
+(** Packaging: full [linhom_car] form. *)
+Definition linhom_diff_car : linhom_car Ar C D :=
+  MkLinhom linhom_diff_pre linhom_diff_pres_int.
+
+End LinhomDiffPack.
+
+Arguments linhom_diff_pre {R Ar C D u v} Hle Hv_le1.
+Arguments linhom_diff_car {R Ar C D u v} Hle Hv_le1.
+
+(** ** Sup-ball is an upper bound and least upper bound — Paper §5.1
+
+    With [linhom_diff_car] in hand, we can produce a [linhom_car]
+    witness of [precone_le (u n) (linhom_sup_ball u uch ub1)] for
+    every [n], and dually a witness of the least-upper-bound
+    property. These two lemmas close the (Normc) axiom on
+    [linhom_car], yielding the [isCone] HB instance. *)
+
+Section LinhomSupBallOrder.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Variable u : nat -> linhom_car Ar C D.
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, linhom_norm (u n) <= 1.
+
+Local Notation S := (linhom_sup_ball u uch ub1).
+
+(** Paper §5.1 (Normc) — every chain element is below the sup. *)
+Lemma linhom_sup_ball_ub n : precone_le (u n) S.
+Proof.
+(* Pointwise: for each x, (u_n x) ≤p linhom_sup_fun x.
+   Working via linhom_sup_funE (the scaled form at cnorm_succ_nng x). *)
+have Hle : forall x : C,
+    exists z : D, linhom_fun S x =
+      precone_add (linhom_fun (u n) x) z.
+  move=> x.
+  have S_eq : linhom_fun S x = linhom_sup_fun uch ub1 x by [].
+  (* Use linhom_sup_funE: linhom_sup_fun x = cnorm_succ *:
+     cone_sup_ball (k ↦ linhom_fun (u k) (cnorm_succ_inv *: x)). *)
+  rewrite S_eq linhom_sup_funE.
+  pose rinv := cnorm_succ_inv_nng x.
+  pose r := cnorm_succ_nng x.
+  (* By cone_sup_ball_ub in D applied to the k-indexed chain at n. *)
+  have Hub_n := @cone_sup_ball_ub R D
+                  (fun k => linhom_fun (u k) (precone_scale rinv x))
+                  (fun k => linhom_sup_pw_chain uch _ k)
+                  (linhom_sup_pw_ub1 ub1 (cnorm_inv_unit x)) n.
+  case: Hub_n => z Hz.
+  exists (precone_scale r z).
+  rewrite Hz precone_scale_DAr.
+  (* Goal: r *: (u_n (rinv *: x) + z) = u_n x + r *: z, i.e.,
+     r *: u_n (rinv *: x) = u_n x. By linearity:
+     r *: u_n (rinv *: x) = u_n (r *: rinv *: x) = u_n x. *)
+  have [_ _ HZ] := linhom_pre_linear (linhom_pre_of (u n)).
+  have key : precone_scale r (linhom_fun (u n) (precone_scale rinv x)) =
+             linhom_fun (u n) x.
+    rewrite -HZ -precone_scale_A.
+    have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+      by move=> a b /val_inj.
+    have r_rinv : (r%:num * rinv%:num)%:nng = 1%:nng :> {nonneg R}.
+      apply: nng_eq => /=.
+      have hp := cnorm_succ_pos x.
+      by rewrite mulfV// gt_eqF.
+    by rewrite r_rinv precone_scale_1.
+  by congr precone_add; rewrite -key.
+have Hv1 : linhom_norm S <= 1 by exact: linhom_sup_ball_norm.
+exists (linhom_diff_car Hle Hv1).
+apply: linhom_eq => x /=.
+have := linhom_diff_E Hle x.
+rewrite /linhom_diff_car /linhom_diff_pre /linhom_diff_fun /=.
+move=> ->.
+by [].
+Qed.
+
+(** Paper §5.1 (Normc) — the sup is least among all upper bounds. *)
+Lemma linhom_sup_ball_lub (y : linhom_car Ar C D) :
+  (forall n, precone_le (u n) y) -> precone_le S y.
+Proof.
+move=> Hy.
+(* Pointwise: each (u n x) ≤p y x; by cone_sup_ball_lub in D,
+   linhom_sup_fun x ≤p y x. We work via the scaled-form
+   [linhom_sup_funE]. *)
+have Hle : forall x : C,
+    exists z : D, linhom_fun y x =
+      precone_add (linhom_fun S x) z.
+  move=> x.
+  pose rinv := cnorm_succ_inv_nng x.
+  pose r := cnorm_succ_nng x.
+  (* Pointwise at scaled x: each (u n) (rinv *: x) ≤p y (rinv *: x). *)
+  have Hpw : forall n, precone_le (linhom_fun (u n) (precone_scale rinv x))
+                                   (linhom_fun y (precone_scale rinv x)).
+    move=> n; exact: linhom_le_pointwise (Hy n) _.
+  have Hsup := @cone_sup_ball_lub R D
+                 (fun k => linhom_fun (u k) (precone_scale rinv x))
+                 (fun k => linhom_sup_pw_chain uch _ k)
+                 (linhom_sup_pw_ub1 ub1 (cnorm_inv_unit x))
+                 (linhom_fun y (precone_scale rinv x)) Hpw.
+  case: Hsup => z Hz.
+  exists (precone_scale r z).
+  (* linhom_fun S x = r *: cone_sup_ball (...) *)
+  have S_eq : linhom_fun S x = linhom_sup_fun uch ub1 x by [].
+  rewrite S_eq linhom_sup_funE.
+  rewrite -precone_scale_DAr -Hz.
+  (* Goal: linhom_fun y x = r *: linhom_fun y (rinv *: x). *)
+  have [_ _ HZ] := linhom_pre_linear (linhom_pre_of y).
+  rewrite -HZ -precone_scale_A.
+  have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+    by move=> a b /val_inj.
+  have hp := cnorm_succ_pos x.
+  have r_rinv : (r%:num * rinv%:num)%:nng = 1%:nng :> {nonneg R}.
+    by apply: nng_eq => /=; rewrite mulfV// gt_eqF.
+  by rewrite r_rinv precone_scale_1.
+(* Need ‖S‖ ≤ 1 to instantiate linhom_diff_car at the inverted
+   inequality. The roles are reversed: here the "v" is y and "u"
+   is S. We need ‖y‖ ≤ 1 — but y is a *generic* upper bound, and
+   ‖y‖ need not be ≤ 1. We sidestep by NOT using [linhom_diff_car]:
+   instead, directly use [linhom_diff_pres_int] without the
+   unit-norm Hypothesis. But linhom_diff_continuous needs it!
+   We re-prove ω-continuity here using the unit-norm bound from
+   linhom_sup_ball_norm. *)
+have Hv1 : linhom_norm S <= 1 by exact: linhom_sup_ball_norm.
+(* Hle now says y x = S x + z, i.e., S x ≤p y x with witness. We
+   build the difference linhom_car using a flipped Hle. The
+   difference's continuity depends on the *larger* element being
+   unit-norm, which fails for y in general. So we cannot package
+   the diff as a linhom_car.
+
+   Workaround: we construct the difference function differently —
+   we need a [linhom_car δ] with [y = S + δ]. Since ‖S‖ ≤ 1 ≤ ‖y‖
+   (where ‖y‖ may be large), the *difference* y - S has norm at
+   most 2 (or arbitrary), still finite. The construction
+   [linhom_diff_car] requires ‖larger‖ ≤ 1 for its continuity
+   proof; but we can scale.
+
+   Concretely: pose K := ‖y‖ + 1 (positive), then ‖y/K‖ ≤ 1 and
+   ‖S/K‖ ≤ ‖S‖/K ≤ 1/K ≤ 1. Apply linhom_diff_car to the *scaled*
+   pair (S/K, y/K) with witness (Hle scaled), then scale the
+   resulting δ back by K. *)
+have K_ge0 : 0 <= linhom_norm y + 1.
+  apply: ltW; apply: lt_le_trans ltr01 _.
+  by rewrite -[X in X <= _]add0r lerD2r; exact: linhom_norm_ge0.
+pose K : {nonneg R} := NngNum K_ge0.
+have Kpos : 0 < K%:num.
+  by apply: lt_le_trans ltr01 _;
+     rewrite -[X in X <= _]add0r lerD2r; exact: linhom_norm_ge0.
+have Kinv_ge0 : 0 <= (linhom_norm y + 1)^-1
+  by rewrite invr_ge0 ltW.
+pose Kinv : {nonneg R} := NngNum Kinv_ge0.
+have KKinv : K%:num * Kinv%:num = 1
+  by rewrite /= mulfV// gt_eqF.
+have KinvK : Kinv%:num * K%:num = 1
+  by rewrite /= mulVf// gt_eqF.
+have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+  by move=> a b /val_inj.
+have KKinv_nng : (K%:num * Kinv%:num)%:nng = 1%:nng :> {nonneg R}
+  by apply: nng_eq.
+have KinvK_nng : (Kinv%:num * K%:num)%:nng = 1%:nng :> {nonneg R}
+  by apply: nng_eq.
+(* Scaled versions. *)
+pose yK : linhom_car Ar C D := linhom_scale Kinv y.
+pose SK : linhom_car Ar C D := linhom_scale Kinv S.
+have HyK_norm : linhom_norm yK <= 1.
+  rewrite /yK.
+  apply: linhom_norm_sup_lub => x Hx.
+  rewrite /linhom_fun /linhom_scale /linhom_scale_pre /linhom_scale_fun /=.
+  rewrite cone_normh /=.
+  rewrite mulrC -ler_pdivlMr; last by rewrite invr_gt0.
+  rewrite invrK.
+  have Hub := linhom_norm_sup_ub y x Hx.
+  apply: le_trans Hub _.
+  rewrite mul1r -[X in X <= _]addr0 lerD2l.
+  exact: ler01.
+have HSK_le_yK : forall x : C,
+    exists z : D, linhom_fun yK x = precone_add (linhom_fun SK x) z.
+  move=> x.
+  case: (Hle x) => z Hz.
+  exists (precone_scale Kinv z).
+  rewrite /yK /SK /linhom_fun /linhom_scale /linhom_scale_pre
+          /linhom_scale_fun /= Hz precone_scale_DAr //.
+pose δK : linhom_car Ar C D := linhom_diff_car HSK_le_yK HyK_norm.
+have δK_eq : forall x : C,
+    linhom_fun yK x = precone_add (linhom_fun SK x) (linhom_fun δK x).
+  move=> x.
+  rewrite /δK /linhom_diff_car /linhom_diff_pre /linhom_diff_fun /=.
+  exact: (linhom_diff_E HSK_le_yK x).
+(* Pointwise: yK x = SK x + δK x, i.e.,
+   Kinv *: y(x) = Kinv *: S(x) + δK(x). Scale by K to obtain
+   y(x) = S(x) + K *: δK(x). *)
+have pw_y : forall x : C,
+    linhom_fun y x =
+    precone_add (linhom_fun S x) (precone_scale K (linhom_fun δK x)).
+  move=> x.
+  have HK_eq : precone_scale Kinv (linhom_fun y x) =
+               precone_add (precone_scale Kinv (linhom_fun S x))
+                           (linhom_fun δK x).
+    have := δK_eq x.
+    by rewrite /yK /SK /linhom_fun /linhom_scale /linhom_scale_pre
+               /linhom_scale_fun /=.
+  (* Scale HK_eq by K. *)
+  have HK_scaled := congr1 (precone_scale K) HK_eq.
+  rewrite precone_scale_DAr in HK_scaled.
+  rewrite -[in precone_scale K (precone_scale Kinv (linhom_fun y x))]
+           precone_scale_A in HK_scaled.
+  rewrite -[in precone_scale K (precone_scale Kinv (linhom_fun S x))]
+           precone_scale_A in HK_scaled.
+  have nng1 : (K%:num * Kinv%:num)%:nng = 1%:nng :> {nonneg R}
+    by apply: nng_eq.
+  rewrite nng1 !precone_scale_1 in HK_scaled.
+  exact: HK_scaled.
+(* Now scale δK back to obtain δ : linhom_car. *)
+pose δ : linhom_car Ar C D := linhom_scale K δK.
+exists δ.
+apply: linhom_eq => x.
+rewrite /δ /linhom_fun /linhom_scale /linhom_scale_pre
+        /linhom_scale_fun /=.
+exact: pw_y.
+Qed.
+
+End LinhomSupBallOrder.
+
+Arguments linhom_sup_ball_ub {R Ar C D} u uch ub1 n.
+Arguments linhom_sup_ball_lub {R Ar C D} u uch ub1 y.
+
+(** ** [isCone] HB instance on [linhom_car] — Paper §5.1
+
+    With (Normh), (Normz), (Normt), (Normp) already in place from
+    M4 wave 2 and (Normc) discharged via [linhom_sup_ball_ub] +
+    [linhom_sup_ball_lub] + [linhom_sup_ball_norm], we register
+    [linhom_car Ar C D] as a [coneType R]. *)
+
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (C D : ICone.type Ar) :=
+  @isCone.Build R (linhom_car Ar C D)
+    (@linhom_norm R Ar C D)
+    (@linhom_normh R Ar C D) (@linhom_normz R Ar C D)
+    (@linhom_normt R Ar C D) (@linhom_normp R Ar C D)
+    (@linhom_sup_ball R Ar C D)
+    (@linhom_sup_ball_ub R Ar C D)
+    (@linhom_sup_ball_lub R Ar C D)
+    (@linhom_sup_ball_norm R Ar C D).
+
+(** ** Sanity check: [linhom_car Ar C D] is a [coneType R] *)
+
+Section LinhomConeCheck.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Check (linhom_car Ar C D : coneType R).
+
+End LinhomConeCheck.
+
 (** ** Sanity checks for [linhom_sup_ball] *)
 Section LinhomSupBallSanityCheck.
 Variables (R : realType) (Ar : MeasSubcat R).
