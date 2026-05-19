@@ -2595,6 +2595,119 @@ End LinhomSupPack.
 Arguments linhom_sup_ball {R Ar C D} u uch ub1.
 Arguments linhom_sup_ball_norm {R Ar C D} u uch ub1.
 
+(** ** The difference of two linhoms — Paper §5.1 (Normc) prerequisite
+
+    Given [u v : linhom_car] with a pointwise [precone_le u v]
+    witnessed by a per-[x] family [Hle], build the "difference"
+    [linhom_diff u v Hle] as a full [linhom_car] satisfying
+    [v x = u x + (linhom_diff u v Hle) x]. The construction uses
+    classical choice ([cid]) for the per-[x] witness and discharges
+    each [linhom_car] field by *cancellation in D* (precone_cancel /
+    cone_normp / integral additivity).
+
+    This is the key ingredient for [linhom_sup_ball_ub] /
+    [linhom_sup_ball_lub] and, ultimately, the [isCone] HB instance
+    on [linhom_car]. *)
+Section LinhomDiff.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Variables u v : linhom_car Ar C D.
+Hypothesis Hle : forall x : C,
+  exists z : D, linhom_fun v x = precone_add (linhom_fun u x) z.
+
+(** The pointwise witness function. *)
+Definition linhom_diff_fun (x : C) : D := projT1 (cid (Hle x)).
+
+(** Defining equation: [v x = u x + (linhom_diff_fun x)]. *)
+Lemma linhom_diff_E (x : C) :
+  linhom_fun v x =
+    precone_add (linhom_fun u x) (linhom_diff_fun x).
+Proof. exact: projT2 (cid (Hle x)). Qed.
+
+(** Convenience: [(u, v)] linearity accessors. *)
+Let v_lin0 : linhom_fun v precone_zero = precone_zero.
+Proof. by have [Hl _ _] := linhom_pre_linear v; exact: Hl. Qed.
+Let u_lin0 : linhom_fun u precone_zero = precone_zero.
+Proof. by have [Hl _ _] := linhom_pre_linear u; exact: Hl. Qed.
+Let v_linD x y :
+  linhom_fun v (precone_add x y) =
+  precone_add (linhom_fun v x) (linhom_fun v y).
+Proof. by have [_ Hl _] := linhom_pre_linear v; exact: Hl. Qed.
+Let u_linD x y :
+  linhom_fun u (precone_add x y) =
+  precone_add (linhom_fun u x) (linhom_fun u y).
+Proof. by have [_ Hl _] := linhom_pre_linear u; exact: Hl. Qed.
+Let v_linZ r x :
+  linhom_fun v (precone_scale r x) = precone_scale r (linhom_fun v x).
+Proof. by have [_ _ Hl] := linhom_pre_linear v; exact: Hl. Qed.
+Let u_linZ r x :
+  linhom_fun u (precone_scale r x) = precone_scale r (linhom_fun u x).
+Proof. by have [_ _ Hl] := linhom_pre_linear u; exact: Hl. Qed.
+
+(** Linearity: [linhom_diff_fun 0 = 0]. *)
+Lemma linhom_diff_lin0 : linhom_diff_fun precone_zero = precone_zero.
+Proof.
+have HE := linhom_diff_E precone_zero.
+rewrite v_lin0 u_lin0 in HE.
+(* HE : 0 = 0 + linhom_diff_fun 0 *)
+rewrite precone_add0 in HE.
+by rewrite -HE.
+Qed.
+
+(** Linearity: [linhom_diff_fun (x + y) = linhom_diff_fun x +
+    linhom_diff_fun y]. By cancellation: [u(x+y) + w(x+y) = v(x+y) =
+    v(x) + v(y) = u(x) + w(x) + u(y) + w(y) = u(x+y) + (w(x) +
+    w(y))]. *)
+Lemma linhom_diff_linD x y :
+  linhom_diff_fun (precone_add x y) =
+  precone_add (linhom_diff_fun x) (linhom_diff_fun y).
+Proof.
+have HE := linhom_diff_E (precone_add x y).
+have HEx := linhom_diff_E x.
+have HEy := linhom_diff_E y.
+rewrite v_linD HEx HEy u_linD in HE.
+(* HE : u(x+y) + (w(x+y)) = (u x + w x) + (u y + w y) *)
+(* RHS rearranges to u(x+y) + (w x + w y) via comm/assoc *)
+have HRHS : precone_add (precone_add (linhom_fun u x) (linhom_diff_fun x))
+              (precone_add (linhom_fun u y) (linhom_diff_fun y)) =
+            precone_add (linhom_fun u (precone_add x y))
+              (precone_add (linhom_diff_fun x) (linhom_diff_fun y)).
+  rewrite u_linD.
+  rewrite -2!precone_addA; congr precone_add.
+  rewrite precone_addA (precone_addC _ (linhom_fun u y)) -precone_addA.
+  by [].
+rewrite HRHS in HE.
+rewrite -u_linD in HE.
+by symmetry; apply: precone_cancel HE.
+Qed.
+
+(** Linearity: [linhom_diff_fun (r *: x) = r *: linhom_diff_fun x]. *)
+Lemma linhom_diff_linZ (r : {nonneg R}) x :
+  linhom_diff_fun (precone_scale r x) =
+  precone_scale r (linhom_diff_fun x).
+Proof.
+have HE := linhom_diff_E (precone_scale r x).
+have HEx := linhom_diff_E x.
+rewrite v_linZ HEx u_linZ in HE.
+(* HE : r *: (u x + w x) = r *: u x + w(r *: x) *)
+rewrite precone_scale_DAr in HE.
+(* HE : r *: u x + r *: w x = r *: u x + w(r *: x) *)
+by symmetry; apply: precone_cancel HE.
+Qed.
+
+(** [linhom_diff_fun] is linear (packaged). *)
+Lemma linhom_diff_linear : is_linear linhom_diff_fun.
+Proof.
+exact: (IsLinear linhom_diff_lin0 linhom_diff_linD linhom_diff_linZ).
+Qed.
+
+End LinhomDiff.
+
+Arguments linhom_diff_fun {R Ar C D u v} Hle.
+Arguments linhom_diff_E {R Ar C D u v} Hle.
+Arguments linhom_diff_linear {R Ar C D u v} Hle.
+
 (** ** Sanity checks for [linhom_sup_ball] *)
 Section LinhomSupBallSanityCheck.
 Variables (R : realType) (Ar : MeasSubcat R).
