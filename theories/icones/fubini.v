@@ -773,35 +773,17 @@ Arguments fubini_cone_eq
 
     Here we provide the paper-form wrapper [fubini_cone_eq_arprod]:
     given [β : ar_prod X Y -> B] together with [is_measurable_path
-    β] (paper Def 3.7 hypothesis) and the cast measurability witnesses
-    [Har_uncast] / [Har_cast], the iterated integrals via
+    β] (paper Def 3.7 hypothesis), the iterated integrals via
     [β \o ar_prod_cast : X * Y -> B] agree. Each input of
     [fubini_cone_eq] is derived from [is_measurable_path β] by
-    reindexing along [ar_prod_fst], [ar_prod_snd], and [ar_pair]. *)
+    reindexing along [ar_prod_fst], [ar_prod_snd], and [ar_pair].
+    Cast measurability is now a record field of [MeasSubcat] (paper
+    §3, [ar_prod_cast_meas]), so this section is unconditional. *)
 
 Section Fubini415Arprod.
 Local Open Scope ereal_scope.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables (B : ICone.type Ar) (X Y : ar_obj Ar).
-
-(** Cast measurability hypotheses for [ar_prod X Y] (forward) and
-    [(X * Y)%type] (backward), plus the symmetric pair for
-    [ar_prod Y X]. *)
-Hypothesis Har_uncast_XY :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)]
-    (ar_prod_uncast (X:=X) (Y:=Y)).
-Hypothesis Har_cast_XY :
-  measurable_fun [set: (ar_carrier Ar X * ar_carrier Ar Y)%type]
-    (ar_prod_cast (X:=X) (Y:=Y)).
-Hypothesis Har_uncast_ZXY :
-  forall Z : ar_obj Ar,
-    measurable_fun [set: ar_carrier Ar (ar_prod Ar Z (ar_prod Ar X Y))]
-      (ar_prod_uncast (X:=Z) (Y:=ar_prod Ar X Y)).
-Hypothesis Har_cast_ZXY :
-  forall Z : ar_obj Ar,
-    measurable_fun
-      [set: (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type]
-      (ar_prod_cast (X:=Z) (Y:=ar_prod Ar X Y)).
 
 Variable β : ar_carrier Ar (ar_prod Ar X Y) -> B.
 Hypothesis Hβ : is_measurable_path β.
@@ -848,7 +830,7 @@ have ψ_meas : measurable_fun
   have meas_pair_x : measurable_fun [set: ar_carrier Ar Y]
       (fun y : ar_carrier Ar Y => (x, y)).
     by apply: measurable_fun_pair; [exact: measurable_cst|exact: measurable_id].
-  apply: (measurableT_comp Har_cast_XY).
+  apply: (measurableT_comp (ar_prod_cast_meas Ar X Y)).
   apply: (measurableT_comp meas_pair_x); exact: measurable_snd.
 apply: (eq_measurable_fun
   ((fun q : ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y) =>
@@ -879,7 +861,7 @@ have ψ_meas : measurable_fun
   have meas_pair_y : measurable_fun [set: ar_carrier Ar X]
       (fun x : ar_carrier Ar X => (x, y)).
     by apply: measurable_fun_pair; [exact: measurable_id|exact: measurable_cst].
-  apply: (measurableT_comp Har_cast_XY).
+  apply: (measurableT_comp (ar_prod_cast_meas Ar X Y)).
   apply: (measurableT_comp meas_pair_y); exact: measurable_snd.
 apply: (eq_measurable_fun
   ((fun q : ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y) =>
@@ -912,7 +894,7 @@ have ψ_meas : measurable_fun
     [set: (ar_carrier Ar Z *
            (ar_carrier Ar X * ar_carrier Ar Y))%type] ψ.
   rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
-  apply: (measurableT_comp Har_cast_XY).
+  apply: (measurableT_comp (ar_prod_cast_meas Ar X Y)).
   have -> : (fun p : ar_carrier Ar Z *
                      (ar_carrier Ar X * ar_carrier Ar Y) =>
              (p.2.1, p.2.2)) =
@@ -948,7 +930,7 @@ have ψ_meas : measurable_fun
     [set: (ar_carrier Ar Z *
            (ar_carrier Ar Y * ar_carrier Ar X))%type] ψ.
   rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
-  apply: (measurableT_comp Har_cast_XY).
+  apply: (measurableT_comp (ar_prod_cast_meas Ar X Y)).
   apply: measurable_fun_pair.
   - by apply: (measurableT_comp (f := snd));
       [exact: measurable_snd|exact: measurable_snd].

@@ -1053,31 +1053,15 @@ End PathICone.
     m) mM'], and translates the output across the propositional
     carrier equation [ar_prod_carrier_eq Ar Z X].
 
-    The cast measurability witnesses are taken as Section-bound
-    hypotheses [Har_uncast] / [Har_cast]. They are not provable from
-    the pure [:> Type] equality stored in [MeasSubcat], so consumers
-    must discharge them when they instantiate a concrete [MeasSubcat]
-    (where the casts are [eq_refl]-trivially measurable, by
-    [measurable_id]). *)
+    Cast measurability is now a record field of [MeasSubcat] (paper §3,
+    [ar_prod_uncast_meas] / [ar_prod_cast_meas]), so this section is
+    unconditional. *)
 
 Section PathIConeFull.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables (X : ar_obj Ar) (B : iconeType Ar).
 
 Local Notation P := (path_car Ar X B).
-
-(** Cast measurability hypothesis: [ar_prod_uncast] is measurable for
-    every product [ar_prod Z X] arising as a test-arity. *)
-Hypothesis Har_uncast :
-  forall Z : ar_obj Ar,
-    measurable_fun [set: ar_carrier Ar (ar_prod Ar Z X)]
-      (ar_prod_uncast (X:=Z) (Y:=X)).
-(** Cast measurability hypothesis: [ar_prod_cast] is measurable for
-    every product [ar_prod Z X] arising as a test-arity. *)
-Hypothesis Har_cast :
-  forall Z : ar_obj Ar,
-    measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type]
-      (ar_prod_cast (X:=Z) (Y:=X)).
 
 (** Paper Theorem 4.12: discharge the joint test-measurability
     hypothesis of [path_int_exists_cond] using [is_measurable_path
@@ -1098,10 +1082,8 @@ have [_ Hη_meas] := Hη.
    evaluates at [(s', γ)] to
    [test_fun (test_reindex ar_prod_fst m) s' (path_fun γ (ar_prod_snd s'))]
    = [test_fun m (ar_prod_fst s') (path_fun γ (ar_prod_snd s'))]. *)
-pose ar_fst : ar_hom Ar (ar_prod Ar Z X) Z :=
-  @ar_prod_fst R Ar Z X (@Har_uncast Z).
-pose ar_snd : ar_hom Ar (ar_prod Ar Z X) X :=
-  @ar_prod_snd R Ar Z X (@Har_uncast Z).
+pose ar_fst : ar_hom Ar (ar_prod Ar Z X) Z := ar_prod_fst Z X.
+pose ar_snd : ar_hom Ar (ar_prod Ar Z X) X := ar_prod_snd Z X.
 pose m' : test_of Ar (ar_prod Ar Z X) B := test_reindex ar_fst m.
 have mM' : mcone_M (ar_prod Ar Z X) m'.
   by apply: mcone_M_comp.
@@ -1130,7 +1112,7 @@ have ψ_meas : measurable_fun
       + exact: measurable_fst.
       + by apply: (measurableT_comp (f := fst));
           [exact: measurable_fst|exact: measurable_snd].
-    exact: (measurableT_comp (@Har_cast Z) meas_p12).
+    exact: (measurableT_comp (ar_prod_cast_meas Ar Z X) meas_p12).
   - by apply: (measurableT_comp (f := snd));
       [exact: measurable_snd|exact: measurable_snd].
 have eqψ p :
@@ -1169,23 +1151,16 @@ HB.instance Definition _ : isICone R Ar P :=
 
 End PathIConeFull.
 
-(** Sanity check: within a context that discharges the cast
-    measurability for all [Z], [path_car Ar X B] is recognised as
-    an [iconeType Ar]. *)
+(** Sanity check: [path_car Ar X B] is recognised as an
+    [iconeType Ar] unconditionally — cast measurability is now part
+    of the [MeasSubcat] record. *)
 Section PathIConeCheck.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables (X : ar_obj Ar) (B : iconeType Ar).
-Hypothesis Har_uncast :
-  forall Z : ar_obj Ar,
-    measurable_fun [set: ar_carrier Ar (ar_prod Ar Z X)]
-      (ar_prod_uncast (X:=Z) (Y:=X)).
-Hypothesis Har_cast :
-  forall Z : ar_obj Ar,
-    measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type]
-      (ar_prod_cast (X:=Z) (Y:=X)).
 
 (* The [isICone] instance registered above discharges
-   into [path_car Ar X B : iconeType Ar] inside this Section. *)
+   into [path_car Ar X B : iconeType Ar] without any extra
+   hypothesis. *)
 Check (path_car Ar X B : iconeType Ar).
 
 End PathIConeCheck.

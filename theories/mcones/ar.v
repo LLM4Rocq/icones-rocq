@@ -95,6 +95,24 @@ Record MeasSubcat (R : realType) : Type := MkMeasSubcat {
   ar_prod_carrier_eq :
     forall X Y, ar_carrier (ar_prod X Y) =
                 (ar_carrier X * ar_carrier Y)%type :> Type;
+
+  (* Paper §3: the projection [ar_prod_uncast] is measurable. This is
+     a separate field because the propositional [ar_prod_carrier_eq]
+     equality does not imply σ-algebra agreement between
+     [ar_carrier (ar_prod X Y)] and [ar_carrier X * ar_carrier Y]. *)
+  ar_prod_uncast_meas :
+    forall X Y,
+      measurable_fun [set: ar_carrier (ar_prod X Y)]
+        (fun p : ar_carrier (ar_prod X Y) =>
+           eq_rect _ (fun T : Type => T) p _ (ar_prod_carrier_eq X Y));
+
+  (* Paper §3: the cast injection in the reverse direction is also
+     measurable. *)
+  ar_prod_cast_meas :
+    forall X Y,
+      measurable_fun [set: (ar_carrier X * ar_carrier Y)%type]
+        (fun p : (ar_carrier X * ar_carrier Y)%type =>
+           eq_rect_r (fun T : Type => T) p (ar_prod_carrier_eq X Y));
 }.
 
 (** Disable [Set Implicit Arguments]'s automatic implicit-isation of
@@ -110,6 +128,8 @@ Arguments ar_zero_singleton {R} m _ _.
 Arguments ar_prod {R} m _ _.
 Arguments ar_prod_disp_eq {R} m _ _.
 Arguments ar_prod_carrier_eq {R} m _ _.
+Arguments ar_prod_uncast_meas {R} m _ _.
+Arguments ar_prod_cast_meas {R} m _ _.
 
 (** ** Morphisms in [Ar] — Paper §3
 
@@ -151,18 +171,17 @@ Arguments ar_zero_pt {R} Ar.
     *propositionally at type [Type]*. Downstream files that need to
     move functions and elements across this equality therefore have
     to transport via [eq_rect] / [eq_rect_r]. The helpers below
-    package the two casts, their round-trip identities, and — under
-    the assumption that the casts are measurable — the categorical
-    product projections, pairing, and universal property as
-    measurable functions ([ar_hom]).
+    package the two casts, their round-trip identities, and the
+    categorical product projections, pairing, and universal property
+    as measurable functions ([ar_hom]).
 
-    The measurability of the casts is taken as a Section-bound
-    hypothesis ([ar_prod_uncast_meas], [ar_prod_cast_meas]). This is
-    not provable from a pure [:> Type] equality (the two sides have
-    *a priori* unrelated sigma-algebras), so we expose it as an
-    explicit prerequisite that consumers discharge at use sites.
-    For every standard [MeasSubcat] realisation (where [ar_prod] is
-    the actual product [measurableType]), both hypotheses are
+    The measurability of the two casts is part of the [MeasSubcat]
+    record itself ([ar_prod_uncast_meas], [ar_prod_cast_meas]). Cast
+    measurability is not provable from the pure [:> Type] equality
+    (the two sides have *a priori* unrelated sigma-algebras); it is
+    therefore a constructor obligation of every [MeasSubcat]. For
+    every standard realisation (where [ar_prod] is the actual product
+    [measurableType], so the equality is [eq_refl]), both fields are
     discharged by [measurable_id]. *)
 
 Section ArProdHelpers.
@@ -205,31 +224,17 @@ generalize dependent (Measurable.sort (ar_carrier Ar (ar_prod Ar X Y))).
 by move=> a e p; case: _ / e in p *.
 Qed.
 
-(** Hypothesis: the [ar_prod_uncast] cast is measurable.
-
-    Cannot be derived from the pure [:> Type] equality. For every
-    canonical [MeasSubcat] (where [ar_prod] is the standard product
-    [measurableType], so the equality is [eq_refl]), this is
-    discharged by [measurable_id]. *)
-Hypothesis ar_prod_uncast_meas :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_uncast.
-
-(** Hypothesis: the [ar_prod_cast] cast is measurable. Same comment
-    as for [ar_prod_uncast_meas]. *)
-Hypothesis ar_prod_cast_meas :
-  measurable_fun [set: (ar_carrier Ar X * ar_carrier Ar Y)%type]
-    ar_prod_cast.
-
 (** First projection of the categorical product, packaged as an
-    [ar_hom]. *)
+    [ar_hom]. Measurability follows from the record field
+    [ar_prod_uncast_meas]. *)
 Definition ar_prod_fst_fun (p : ar_carrier Ar (ar_prod Ar X Y)) :
     ar_carrier Ar X := (ar_prod_uncast p).1.
 
 Lemma ar_prod_fst_fun_meas :
   measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_fst_fun.
 Proof.
-rewrite /ar_prod_fst_fun.
-exact: (measurableT_comp measurable_fst ar_prod_uncast_meas).
+rewrite /ar_prod_fst_fun /ar_prod_uncast.
+exact: (measurableT_comp measurable_fst (ar_prod_uncast_meas Ar X Y)).
 Qed.
 
 HB.instance Definition _ :=
@@ -245,8 +250,8 @@ Definition ar_prod_snd_fun (p : ar_carrier Ar (ar_prod Ar X Y)) :
 Lemma ar_prod_snd_fun_meas :
   measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_snd_fun.
 Proof.
-rewrite /ar_prod_snd_fun.
-exact: (measurableT_comp measurable_snd ar_prod_uncast_meas).
+rewrite /ar_prod_snd_fun /ar_prod_uncast.
+exact: (measurableT_comp measurable_snd (ar_prod_uncast_meas Ar X Y)).
 Qed.
 
 HB.instance Definition _ :=
@@ -267,11 +272,11 @@ Definition ar_pair_fun : ar_carrier Ar Z ->
 Lemma ar_pair_fun_meas :
   measurable_fun [set: ar_carrier Ar Z] ar_pair_fun.
 Proof.
-rewrite /ar_pair_fun.
+rewrite /ar_pair_fun /ar_prod_cast.
 have meas_pair : measurable_fun [set: ar_carrier Ar Z]
     (fun z => (f z, g z)).
   by apply: measurable_fun_pair; exact: measurable_funPT.
-exact: (measurableT_comp ar_prod_cast_meas meas_pair).
+exact: (measurableT_comp (ar_prod_cast_meas Ar X Y) meas_pair).
 Qed.
 
 HB.instance Definition _ :=
