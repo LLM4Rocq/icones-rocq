@@ -1,0 +1,3 @@
+# Convenience pointer to the blueprint build deps.
+# The canonical list lives at blueprint/requirements.txt; pip will follow it.
+-r blueprint/requirements.txt

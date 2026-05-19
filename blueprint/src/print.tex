@@ -1,0 +1,31 @@
+% PDF entry point for the Icones blueprint.
+% This file is processed by `rocqblueprint pdf` (xelatex via latexmk).
+
+\documentclass[a4paper]{report}
+
+\usepackage{geometry}
+\usepackage{expl3}
+\usepackage{amssymb, amsthm, mathtools}
+\usepackage[unicode,colorlinks=true,linkcolor=blue,urlcolor=magenta,citecolor=blue]{hyperref}
+\usepackage[warnings-off={mathtools-colon,mathtools-overbracket}]{unicode-math}
+
+\input{macros/common}
+\input{macros/print}
+
+\title{Icones --- a Rocq formalisation of \emph{Integration in Cones}}
+\author{Guillaume Baudart and Assia Mahboubi with Claude Opus 4.7 and Rocq-MCP}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\input{chapters/00-intro}
+\input{chapters/01-cones}
+\input{chapters/02-mcones}
+\input{chapters/03-icones}
+\input{chapters/04-linhom}
+\input{chapters/05-skern}
+
+\bibliographystyle{alpha}
+\bibliography{bibliography}
+\end{document}

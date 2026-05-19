@@ -1,0 +1,54 @@
+% Chapter 2 --- Measurable cones (paper §3, milestone M2).
+%
+% Mirrors theories/mcones/:
+%   ar.v          paper §3 — the $\Ar$ parameter / measurable test space
+%   mcone.v       paper Def 3.x — measurable cones (cone + test family $\Mtest_X$)
+%   fmeas.v       paper §3.2.1 — finite measures FMeas(X), with cone structure
+%   path.v        paper §3.2.2 — paths Path(X, B)
+%   mcone_cat.v   paper Prop 3.11 — the category MCones, αB rescaling
+%
+% TODO (wave 2): populate the sections below from the Rocq sources and
+% the corresponding paper subsections.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Measurable cones}\label{ch:mcones}
+
+This chapter formalises paper \S3: the measurable refinement of a
+cone, the test family $\Mtest_X$, the cones of finite measures
+$\FMeas(X)$ and of paths $\Path(X, B)$, and the category $\MCones$.
+All material in this chapter lives under \texttt{theories/mcones/}.
+
+\section{The parameter $\Ar$}\label{sec:ar}
+
+% TODO (wave 2): paper §3 — the $\Ar$ datum (a measurable space with
+% extra structure) and the consequences for the underlying carrier.
+% Point at \rocq{Icones.mcones.ar.Ar} and the basic constructions
+% (ar_obj, ar_carrier, ar_prod, ...).
+
+\section{Measurable cones}\label{sec:mcones}
+
+% TODO (wave 2): paper Def 3.x — an $\MCone$ is a cone equipped with a
+% test family $\Mtest_X$ closed under positive linear combinations,
+% pointwise sups of bounded monotone sequences, and the cone norm.
+% Point at \rocq{Icones.mcones.mcone.MCone}.
+
+\section{Finite measures $\FMeas(X)$}\label{sec:fmeas}
+
+% TODO (wave 2): paper §3.2.1 — the precone, cone, and then $\MCone$
+% structure on $\FMeas(X)$ (finite measures on an $\Ar$-object $X$),
+% culminating in paper Lemma 3.17. Point at
+% \rocq{Icones.mcones.fmeas.FMeas} and its companions.
+
+\section{Paths $\Path(X, B)$}\label{sec:path}
+
+% TODO (wave 2): paper §3.2.2 — paths from $X$ to a measurable cone
+% $B$, as $\Mtest_B$-test-measurable, $\omega$-continuous,
+% norm-bounded maps. Point at \rocq{Icones.mcones.path.Path}.
+
+\section{The category $\MCones$ and $\alpha_B$-rescaling}%
+\label{sec:cat-mcones}
+
+% TODO (wave 2): paper Prop 3.11 — assemble $\MCone$ objects + path
+% morphisms into a category. Discuss the $\alpha_B$ rescaling trick
+% that keeps norms compatible with composition. Point at
+% \rocq{Icones.mcones.mcone_cat.MCones_cat}.

@@ -1,0 +1,142 @@
+name: Deploy Blueprint
+
+# The blueprint build is intentionally a SEPARATE workflow from the
+# main Rocq build. A blueprint failure must never block PRs against the
+# Rocq formalisation — auditors who clone the repo and run `make` must
+# always be able to merge a passing PR even if (say) the LaTeX
+# pipeline broke on a dependency update. All blueprint steps below
+# either `continue-on-error: true` or use `|| true` to enforce this.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: coq-community/docker-coq-action@v1
+        with:
+          opam_file: icones.opam
+          coq_version: '9.1.1'
+          ocaml_version: 'default'
+          before_script: |
+            startGroup "Workaround permission issue"
+              sudo chown -R 1000:1000 .
+            endGroup
+          # The full Rocq build of this project is non-trivial; the
+          # blueprint links into coqdoc HTML for cross-refs. We build
+          # whatever compiles within the runner budget; missing pages
+          # render as plain anchors in the blueprint.
+          after_script: |
+            startGroup "Build coqdoc (best effort)"
+              if ! command -v rocq >/dev/null 2>&1 ; then
+                coq_makefile -f _CoqProject -o Makefile.doc
+              else
+                rocq makefile -f _CoqProject -o Makefile.doc
+              fi
+              mkdir -p html
+              make -f Makefile.doc html || true
+            endGroup
+            sudo chown -R $(id -u):$(id -g) html/ || true
+
+      - name: Revert permissions
+        if: ${{ always() }}
+        run: sudo chown -R 1001:116 . || true
+
+      - name: Upload coqdoc artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coqdoc-html
+          path: html/
+          if-no-files-found: ignore
+
+  build-blueprint:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            graphviz libgraphviz-dev \
+            texlive-latex-base texlive-latex-extra \
+            texlive-xetex texlive-fonts-extra \
+            latexmk
+
+      - name: Install rocqblueprint
+        run: pip install rocqblueprint
+
+      - name: Build blueprint (web)
+        run: rocqblueprint web || true
+
+      - name: Build blueprint (pdf, best-effort)
+        run: rocqblueprint pdf || true
+
+      - name: Stage site
+        run: |
+          mkdir -p site
+          cp -r blueprint/web site/blueprint || true
+          if [ -f blueprint/print/print.pdf ]; then
+            cp blueprint/print/print.pdf site/blueprint.pdf
+          fi
+
+      - name: Upload blueprint artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blueprint-site
+          path: site/
+          if-no-files-found: ignore
+
+  combine-and-deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-docs, build-blueprint]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download blueprint
+        uses: actions/download-artifact@v4
+        with:
+          name: blueprint-site
+          path: site/
+        continue-on-error: true
+
+      - name: Download coqdoc
+        uses: actions/download-artifact@v4
+        with:
+          name: coqdoc-html
+          path: site/docs/
+        continue-on-error: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

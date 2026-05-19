@@ -1,0 +1,61 @@
+% Chapter 1 --- Cones (paper §2, milestone M1).
+%
+% Mirrors theories/cones/:
+%   precone.v          paper Def 2.1, 2.2: precones
+%   cone.v             paper Def 2.4: cones, norm, ω-completeness
+%   basic_lemmas.v     supporting lemmas on cones
+%   cone_cat.v         paper §2.4: the category Cones
+%   examples_cone.v    canonical examples (R≥0, ℓ¹, ...)
+%
+% TODO (wave 2): populate each section below with the corresponding
+% statements and informal proofs. Use \rocq{Icones.cones.<file>.<name>}
+% to point at each Rocq declaration, \rocqok when the proof is closed
+% by Qed, and \uses{...} to wire up the dep graph.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Cones}\label{ch:cones}
+
+This chapter formalises paper \S2: precones, cones, the norm on a
+cone, $\omega$-completeness, and the category $\Cones$. All material
+in this chapter lives under \texttt{theories/cones/}.
+
+\section{Precones}\label{sec:precones}
+
+% TODO (wave 2): paper Def 2.1, 2.2 — the $\Rnn$-semimodule structure
+% with a partial order, ω-suprema on bounded monotone sequences, and
+% the precone laws. Point at:
+%   \rocq{Icones.cones.precone.PreCone}
+%   \rocq{Icones.cones.precone.preconeType}
+% List the basic algebraic lemmas (add_assoc, scale_distr, sup_mono,
+% etc.) and tag each with \rocqok.
+
+\section{Cones and the norm}\label{sec:cones}
+
+% TODO (wave 2): paper Def 2.4 — a cone is a precone with a norm
+% $\cnorm{\cdot}$ satisfying the four axioms of Def 2.4 plus
+% $\omega$-completeness on the unit ball. Point at:
+%   \rocq{Icones.cones.cone.Cone}
+%   \rocq{Icones.cones.cone.cone_norm0}
+%   \rocq{Icones.cones.cone.cone_norm_ge0}
+%   \rocq{Icones.cones.cone.cone_normz_iff}
+%   \rocq{Icones.cones.cone.cone_sup_ball_in_unit}
+
+\section{Basic lemmas}\label{sec:cone-basic-lemmas}
+
+% TODO (wave 2): the structural lemmas of theories/cones/basic_lemmas.v
+% (monotonicity of the sup, scalar continuity, sub/add cancellation on
+% bounded elements). One subsection per lemma family.
+
+\section{The category $\Cones$}\label{sec:cat-cones}
+
+% TODO (wave 2): paper §2.4 — objects = cone types, morphisms =
+% $\Rnn$-linear, $\omega$-continuous, norm-non-expansive maps;
+% composition and identity; the proof that this assembles into a
+% category. Point at:
+%   \rocq{Icones.cones.cone_cat.Cones_cat}
+
+\section{Examples}\label{sec:cone-examples}
+
+% TODO (wave 2): canonical examples — $\Rnn$ itself, $\ell^1$,
+% finite-dimensional non-negative orthants. Point at the relevant
+% declarations in \texttt{theories/cones/examples\_cone.v}.

@@ -1,0 +1,85 @@
+% Math macros and theorem environments shared by web.tex and print.tex.
+%
+% The dep-graph collects environments definition, lemma, proposition,
+% theorem and corollary by default.
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+\newtheorem*{convention}{Convention}
+\newtheorem*{notation}{Notation}
+
+% ---------------------------------------------------------------------
+% Project-specific math macros for the Icones blueprint.
+%
+% Convention: each macro is called from math mode unless noted. The
+% sans-serif text macros use \ensuremath so they are safe in either
+% context.
+% ---------------------------------------------------------------------
+
+% Number sets
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Rnn}{\mathbb{R}_{\geq 0}}
+\newcommand{\Rext}{\overline{\mathbb{R}}}
+\newcommand{\Rextnn}{\overline{\mathbb{R}}_{\geq 0}}
+
+% Cones layer (paper §2)
+\newcommand{\PCone}{\mathsf{PreCone}}
+\newcommand{\Cone}{\mathsf{Cone}}
+\newcommand{\Cones}{\mathbf{Cones}}
+\newcommand{\cnorm}[1]{\lVert #1 \rVert}
+\newcommand{\cle}{\preceq}
+\newcommand{\cleq}{\preceq}
+\newcommand{\bigsup}{\bigvee}
+
+% Measurable cones layer (paper §3)
+\newcommand{\MCone}{\mathsf{MCone}}
+\newcommand{\MCones}{\mathbf{MCones}}
+\newcommand{\Ar}{\mathsf{Ar}}
+\newcommand{\Path}{\mathrm{Path}}
+\newcommand{\FMeas}{\mathrm{FMeas}}
+\newcommand{\Mtest}{\mathcal{M}}
+\newcommand{\borel}{\mathcal{B}}
+
+% Integrable cones layer (paper §4)
+\newcommand{\ICone}{\mathsf{ICone}}
+\newcommand{\ICones}{\mathbf{ICones}}
+\newcommand{\Pettis}[2]{\int_{#1}\!#2}
+
+% Internal hom (paper §5.1)
+\newcommand{\lin}{\multimap}
+\newcommand{\linhom}{\multimap}
+
+% Kernels layer (paper §6 + MVP)
+\newcommand{\Skern}{\mathbf{Skern}}
+\newcommand{\skernhom}[2]{#1 \overset{s}{\to} #2}
+
+% Categorical
+\newcommand{\op}{\mathrm{op}}
+\newcommand{\id}{\mathrm{id}}
+\newcommand{\Set}{\mathbf{Set}}
+\newcommand{\Meas}{\mathbf{Meas}}
+
+% Misc operators
+\newcommand{\dom}{\operatorname{dom}}
+\newcommand{\img}{\operatorname{img}}
+\newcommand{\restr}[2]{#1{\restriction_{#2}}}
+
+% Text-mode safe (sans-serif). Used in prose and inside math.
+\newcommand{\mathcomp}{\ensuremath{\mathsf{math\text{-}comp}}}
+\newcommand{\mathcompA}{\ensuremath{\mathsf{mathcomp\text{-}analysis}}}
+\newcommand{\HB}{\ensuremath{\mathsf{HB}}}
+
+% Text-only.
+\newcommand{\Qed}{\texttt{Qed}}
+\newcommand{\Admitted}{\texttt{Admitted}}

@@ -1,0 +1,11 @@
+% Convenience entry point alias.
+%
+% The canonical PDF entry point is print.tex (driven by latexmkrc and
+% `rocqblueprint pdf`); the canonical HTML entry point is web.tex
+% (driven by plasTeX and `rocqblueprint web`).
+%
+% This main.tex exists so that editors / tools that default to
+% `main.tex` (e.g. Overleaf, VSCode LaTeX Workshop) still produce a
+% sensible PDF. It just forwards to print.tex.
+
+\input{print}

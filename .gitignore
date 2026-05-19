@@ -33,3 +33,19 @@ rocq_mcp_cache_*.v
 # Local scratch
 scratch/
 *.bak
+
+# Blueprint build artefacts
+blueprint/web/
+blueprint/print/
+blueprint/src/*.aux
+blueprint/src/*.log
+blueprint/src/*.out
+blueprint/src/*.toc
+blueprint/src/*.fls
+blueprint/src/*.fdb_latexmk
+blueprint/src/*.synctex.gz
+blueprint/src/*.bbl
+blueprint/src/*.blg
+blueprint/src/print.pdf
+blueprint/src/main.pdf
+

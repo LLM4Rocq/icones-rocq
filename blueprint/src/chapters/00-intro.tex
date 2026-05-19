@@ -1,0 +1,62 @@
+% Introduction chapter for the Icones blueprint.
+%
+% Conventions used throughout the blueprint:
+%   \rocq{Icones.<dir>.<File>.<name>}   link to a Rocq declaration
+%   \rocqok                              the surrounding env is fully Qed-formalised
+%   \mathcompok                          the env is fully formalised and uses only
+%                                        mathcomp-analysis (no project-specific axioms)
+%   \notready                            statement is not yet proved in Rocq
+%   \uses{label1, ...}                   dep-graph dependencies
+%   \label{...}                          unique label, prefixed by env type
+%
+% The Rocq logical name of every theory file is `Icones.<dir>.<File>`
+% (see `_CoqProject`), so e.g. `cones/cone.v`'s `Cone` structure becomes
+% `Icones.cones.cone.Cone`.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter*{Introduction}
+
+This blueprint accompanies a Rocq formalisation of \emph{Integration in
+Cones} by Thomas Ehrhard and Guillaume Geoffroy
+(\cite{ehrhard-geoffroy-icones}). It describes the mathematics of the
+formalisation in mathematical English, and links each definition,
+lemma, proposition and theorem to the corresponding Rocq declaration
+in the source tree under \texttt{theories/}.
+
+\paragraph{Scope.}
+The Rocq development currently covers the \emph{MVP} of the
+formalisation plan (see \texttt{PLAN.md} at the root of the
+repository):
+\begin{itemize}
+  \item paper \S2 --- cones, the category $\Cones$ (M1);
+  \item paper \S3 --- measurable cones, paths, $\FMeas$, the
+    category $\MCones$ (M2);
+  \item paper \S4 --- the Pettis-style integral, integrable cones,
+    cone-Fubini, completeness and well-poweredness of $\ICones$ (M3);
+  \item paper \S5.1 + \S5.2 --- the concrete internal hom
+    $A \lin B$ as a $\Cone$, $\MCone$, then $\ICone$ structure (M4);
+  \item paper \S6 + MVP --- the substochastic-kernel category $\Skern$
+    and the fully-faithful embedding $\Skern \hookrightarrow \ICones$
+    (Theorem~6.5, M5).
+\end{itemize}
+Out of scope (for the MVP): the tensor product $\otimes$, the
+exponential $\mathord{!}$, stable / analytic functions
+(\S5.3--\S5.5, \S7, \S8), the LNL adjunction (\S9), and the PCS
+embedding (\S10).
+
+\paragraph{How to read this blueprint.}
+Each chapter mirrors a paper section (or, in some cases, a small
+group of related Rocq source files). Inside each chapter, mathematical
+statements are presented as \texttt{lemma} / \texttt{theorem} /
+\texttt{definition} environments, each tagged with the corresponding
+Rocq declaration via \verb|\rocq{...}|. The \verb|\rocqok| marker
+means the surrounding environment is fully formalised and closed by
+\verb|Qed| in the source tree. \verb|\uses{...}| declarations
+populate the dependency graph shown in the web version of the
+blueprint.
+
+\paragraph{Status.}
+At the time of this scaffolding the chapters are intentionally empty
+stubs. Wave~2 of the documentation effort populates them with the
+actual statements and informal proofs, paragraph by paragraph,
+working from the Rocq sources outward.

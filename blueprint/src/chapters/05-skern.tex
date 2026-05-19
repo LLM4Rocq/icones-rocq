@@ -1,0 +1,70 @@
+% Chapter 5 --- Substochastic kernels and the MVP theorem
+% (paper §6 + MVP, milestone M5).
+%
+% Mirrors theories/kernels/:
+%   skern.v   the category Skern of substochastic kernels (mathcomp-
+%             analysis fker-based, with the norm-≤-1 constraint)
+%   thm65.v   paper Thm 6.5 — Skern → ICones is fully faithful
+%
+% TODO (wave 2): write up the Skern category, the embedding functor,
+% the faithfulness and fullness lemmas, and the headline Theorem 6.5.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Substochastic kernels and the MVP theorem}\label{ch:skern}
+
+This chapter formalises paper \S6 and the MVP money theorem:
+substochastic kernels on $\Ar$-objects form a category $\Skern$, and
+the obvious assignment $X \mapsto \FMeas(X)$,
+$\kappa \mapsto \lambda \mu.\,\mu \otimes \kappa$ extends to a fully
+faithful functor $\Skern \hookrightarrow \ICones$ (paper
+Theorem~6.5). All material in this chapter lives under
+\texttt{theories/kernels/}.
+
+\section{The category $\Skern$}\label{sec:skern}
+
+% TODO (wave 2): the objects (Ar-objects) and morphisms
+% (substochastic kernels: $R$-finite kernels of norm $\le 1$), the
+% identity (dirac), and the composition (the kernel composition of
+% mathcomp-analysis). Point at \rocq{Icones.kernels.skern.Skern_hom}
+% and the supporting category-laws lemmas.
+
+\section{The embedding into $\ICones$}\label{sec:skern-to-icones}
+
+% TODO (wave 2): the on-objects and on-morphisms parts of the functor
+% $\Skern \to \ICones$. Point at
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_obj},
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_mor},
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_mor_E}, and the
+% functoriality lemmas
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_mor_id},
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_mor_comp}.
+
+\section{Faithfulness}\label{sec:skern-faithful}
+
+% TODO (wave 2): paper Thm 6.5 (half a). Point at
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_faithful}. The proof
+% uses the dirac round-trip from Chapter~\ref{ch:linhom} to recover
+% a kernel from its action on diracs.
+
+\section{Fullness}\label{sec:skern-full}
+
+% TODO (wave 2): paper Thm 6.5 (half b). Point at
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_full} and the
+% reconstruction lemma
+% \rocq{Icones.kernels.thm65.Skern_to_ICones_mor_to_skern}.
+
+\section{Theorem 6.5 --- the MVP headline}\label{sec:thm65}
+
+\begin{theorem}[paper Theorem 6.5, MVP headline]\label{thm:thm65}
+\rocq{Icones.kernels.thm65.Skern_to_ICones_fully_faithful}
+% TODO (wave 2): state the theorem in mathematical English, with the
+% precise hypotheses (Ar-objects $X$, $Y$). For each $X, Y$, the map
+% $\Skern(X, Y) \to \ICones(\FMeas(X), \FMeas(Y))$ induced by the
+% Pettis integral against the kernel is a bijection.
+\end{theorem}
+\begin{proof}
+% TODO (wave 2): one-paragraph sketch — combine faithfulness
+% (Section~\ref{sec:skern-faithful}) and fullness
+% (Section~\ref{sec:skern-full}); both rely on the dirac round-trip
+% of Chapter~\ref{ch:linhom}.
+\end{proof}

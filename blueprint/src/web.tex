@@ -1,0 +1,33 @@
+% Web (HTML) entry point for the Icones blueprint.
+% This file is processed by plasTeX via `rocqblueprint web`.
+
+\documentclass{report}
+
+\usepackage{amssymb, amsthm, amsmath}
+\usepackage{hyperref}
+\usepackage[dep_graph]{blueprint}
+
+\input{macros/common}
+\input{macros/web}
+
+% Adjust on first push: GitHub user/org and repo name determine these.
+\home{https://llm4rocq.github.io/icones/}
+\github{https://github.com/LLM4Rocq/icones}
+\dochome{https://llm4rocq.github.io/icones/docs}
+
+\title{Icones --- a Rocq formalisation of \emph{Integration in Cones}}
+\author{Guillaume Baudart and Assia Mahboubi with Claude Opus 4.7 and Rocq-MCP}
+
+\begin{document}
+\maketitle
+
+\input{chapters/00-intro}
+\input{chapters/01-cones}
+\input{chapters/02-mcones}
+\input{chapters/03-icones}
+\input{chapters/04-linhom}
+\input{chapters/05-skern}
+
+\bibliographystyle{alpha}
+\bibliography{bibliography}
+\end{document}

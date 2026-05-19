@@ -1,0 +1,61 @@
+% Chapter 4 --- The internal hom $\lin$ (paper §5.1 + §5.2, milestone M4).
+%
+% Mirrors theories/homs/:
+%   linhom.v   paper §5.1, §5.2 — concrete $A \lin B$ as a cone, then
+%              an MCone, then an ICone (Lemma 5.4)
+%   bilin.v    paper §5.2 + Thm 6.1 — bilinear maps, dirac path,
+%              I/K building blocks for Thm 6.1, round-trips
+%
+% TODO (wave 2): write up the carrier, the (Normc)/(Normz)/(Normt)/
+% (Normp) seminorms and how they combine into the cone norm, the
+% diagonal-sup proof of ω-completeness, the linhom_sup_fun helper,
+% and the HB instances isCone / isMCone / isICone.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{The internal hom $\lin$}\label{ch:linhom}
+
+This chapter formalises paper \S5.1 and the parts of \S5.2 used by
+the MVP: the concrete construction of the internal hom $A \lin B$ of
+two integrable cones as a cone, then as a measurable cone, then as
+an integrable cone (paper Lemma~5.4). The chapter also covers the
+companion material on bilinear maps and the round-trips of paper
+Theorem~6.1. All material lives under \texttt{theories/homs/}.
+
+\section{The carrier $A \lin B$}\label{sec:linhom-carrier}
+
+% TODO (wave 2): definition of the carrier and its basic algebraic
+% structure. Point at \rocq{Icones.homs.linhom.linhom_car}.
+
+\section{Norms}\label{sec:linhom-norms}
+
+% TODO (wave 2): the four candidate seminorms (Normc), (Normz),
+% (Normt), (Normp), the canonical choice, and how they coincide on
+% morphisms of bounded norm. Point at the canonical-instance lemmas.
+
+\section{Cone structure (paper §5.1)}\label{sec:linhom-cone}
+
+% TODO (wave 2): the isCone HB instance — addition, scaling, sup of
+% bounded monotone sequences (the diagonal-sup proof). Point at the
+% isCone HB.instance and the supporting lemmas
+% (linhom_sup_fun_linear, linhom_sup_fun_bounded, ...).
+
+\section{Measurable-cone structure (paper Def 5.4)}\label{sec:linhom-mcone}
+
+% TODO (wave 2): the isMCone HB instance — the test family on
+% $A \lin B$, ω-continuity of the test maps, and the path-preservation
+% lemma. Point at the isMCone HB.instance.
+
+\section{Integrable-cone structure (paper Lemma 5.4)}\label{sec:linhom-icone}
+
+% TODO (wave 2): the isICone HB instance — every $(\mu, \beta)$ pair
+% on $A \lin B$ admits a Pettis integral. Point at the isICone
+% HB.instance and the integral-preservation lemma.
+
+\section{Bilinear maps and the round-trips of Theorem 6.1}%
+\label{sec:bilin}
+
+% TODO (wave 2): paper §5.2 + Thm 6.1 — dirac path, I/K building
+% blocks, the two round-trips
+% $\Path(X, B) \to (\FMeas(X) \lin B) \to \Path(X, B)$
+% and the other direction. Point at the lemmas in
+% \texttt{theories/homs/bilin.v}.

@@ -1,0 +1,62 @@
+% Chapter 3 --- Integrable cones and the Pettis integral
+% (paper §4, milestone M3).
+%
+% Mirrors theories/icones/:
+%   pettis.v             paper Def 4.1 — Pettis-style cone integral
+%   icone.v              paper §4 — integrable-cone HB tower
+%   icone_integral.v     paper Lemma 4.2, 4.6, 4.7, Thm 4.5, 4.12, 4.15
+%   fubini.v             paper Thm 4.15 — cone-Fubini, paper-form Fubini
+%   icone_cat.v          paper Thm 4.16, 4.18 — ICones complete + well-powered
+%   examples_icone.v     canonical examples
+%
+% TODO (wave 2): write up the Pettis construction, the bilinearity
+% and ω-continuity of the integral, Lemma 4.7 (the workhorse), the
+% Fubini theorem, and the categorical structure of ICones.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Integrable cones}\label{ch:icones}
+
+This chapter formalises paper \S4: the Pettis-style integral, the
+$\ICone$ HB structure, cone-Fubini, and the categorical structure of
+$\ICones$ (complete and well-powered). All material in this chapter
+lives under \texttt{theories/icones/}.
+
+\section{The Pettis-style integral}\label{sec:pettis}
+
+% TODO (wave 2): paper Def 4.1 — for a measurable cone $B$, a finite
+% measure $\mu$ on $X$, and a path $\beta : \Path(X, B)$, the Pettis
+% integral $\int_X \beta\,d\mu$ is the unique element of $B$ such
+% that for every test $\phi \in \Mtest_B$,
+% $\phi(\int_X \beta\,d\mu) = \int_X \phi \circ \beta\,d\mu$
+% (the right-hand side is the ordinary Lebesgue integral of a
+% non-negative measurable function). Point at
+% \rocq{Icones.icones.pettis.pettis_integral}.
+
+\section{Bilinearity and $\omega$-continuity}\label{sec:integral-bilinear}
+
+% TODO (wave 2): paper Lemma 4.2, Lemma 4.7 — bilinearity of the
+% integral in $\beta$ and $\mu$, plus $\omega$-continuity in $\beta$.
+% Lemma 4.7 is the workhorse. Point at the relevant lemmas in
+% \texttt{icone\_integral.v}.
+
+\section{Integrable cones}\label{sec:icones}
+
+% TODO (wave 2): paper Thm 4.5, Thm 4.12 — the $\ICone$ HB structure:
+% an MCone is integrable when every $(\mu, \beta)$ pair admits a
+% Pettis integral. Examples: $\bot$, $\FMeas(X)$, $\Path(X, B)$.
+% Point at \rocq{Icones.icones.icone.ICone}.
+
+\section{Cone-Fubini}\label{sec:fubini}
+
+% TODO (wave 2): paper Thm 4.15 — for measures $\mu$ on $X$, $\nu$
+% on $Y$, and a path $\beta$ from $X \times Y$ to an integrable cone,
+% $\int_X \int_Y \beta\,d\nu\,d\mu = \int_{X \times Y} \beta\,d(\mu
+% \otimes \nu)$, both as the same element of the target cone. Point
+% at \rocq{Icones.icones.fubini.cone_fubini} and the paper-form
+% variant.
+
+\section{$\ICones$ is complete and well-powered}\label{sec:icones-cat}
+
+% TODO (wave 2): paper Thm 4.16, Thm 4.18. Point at
+% \rocq{Icones.icones.icone_cat.ICones_complete} and
+% \rocq{Icones.icones.icone_cat.ICones_well_powered}.
