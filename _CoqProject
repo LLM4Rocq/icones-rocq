@@ -28,3 +28,6 @@ theories/icones/examples_icone.v
 theories/icones/fubini.v
 theories/icones/icone_cat.v
 theories/homs/linhom.v
+theories/homs/bilin.v
+theories/kernels/skern.v
+theories/kernels/thm65.v
