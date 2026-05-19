@@ -27,3 +27,4 @@ theories/icones/icone_integral.v
 theories/icones/examples_icone.v
 theories/icones/fubini.v
 theories/icones/icone_cat.v
+theories/homs/linhom.v
