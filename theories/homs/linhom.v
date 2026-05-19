@@ -42,6 +42,8 @@ From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
+From mathcomp.analysis Require Import topology normedtype sequences.
+Import numFieldTopology.Exports.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
@@ -1819,9 +1821,845 @@ exists 1 => x Hx.
 apply: le_trans (linhom_sup_fun_norm_le x) Hx.
 Qed.
 
+(** ** ω-continuity of [linhom_sup_fun] — Paper §5.1 (Step 2a)
+
+    Strategy. We must show that the pointwise sup [linhom_sup_fun] is
+    itself ω-continuous as a function [C -> D]. The argument is the
+    commutation of two sups: for an inner chain [(x_k)] in the unit
+    ball of [C] with sup [xs],
+
+      [linhom_sup_fun xs = sup_n (linhom_fun u_n xs)
+                        = sup_n sup_k (linhom_fun u_n (x_k))    (ω-cont u_n)
+                        = sup_k sup_n (linhom_fun u_n (x_k))    (swap)
+                        = sup_k (linhom_sup_fun (x_k))]
+
+    The middle equality is the commutation of two sups. Both sides
+    are LUBs of the same doubly-indexed family, hence equal by
+    anti-symmetry of [≤p]. We package the swap as an auxiliary
+    lemma [cone_sup_ball_swap], working in the inner cone [D]. *)
+
+Section LinhomSupCont.
+Local Open Scope precone_scope.
+
+(** Commutation of two unit-ball sups in [D]. Given a doubly-indexed
+    family [b : nat -> nat -> D] with row and column unit-ball chains
+    and entry-wise unit-ball bound, the iterated sup commutes. The
+    same proof template would apply in any [coneType]. *)
+Lemma cone_sup_ball_swap (b : nat -> nat -> D)
+    (b_row_ch : forall k n, b n k <=p b n.+1 k)
+    (b_col_ch : forall n k, b n k <=p b n k.+1)
+    (b_ub : forall n k, cnorm (b n k) <= 1)
+    (b_col_sup_ub : forall n,
+       cnorm
+         (cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k)) <= 1)
+    (b_col_sup_ch : forall n,
+       cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k) <=p
+       cone_sup_ball (b n.+1) (b_col_ch n.+1) (fun k => b_ub n.+1 k))
+    (b_row_sup_ub : forall k,
+       cnorm (cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
+       <= 1)
+    (b_row_sup_ch : forall k,
+       cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k) <=p
+       cone_sup_ball (b^~ k.+1) (b_row_ch k.+1) (fun n => b_ub n k.+1)) :
+  cone_sup_ball
+    (fun n => cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k))
+    b_col_sup_ch b_col_sup_ub =
+  cone_sup_ball
+    (fun k => cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
+    b_row_sup_ch b_row_sup_ub.
+Proof.
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  apply: cone_sup_ball_lub => k.
+  have step1 : b n k <=p
+      cone_sup_ball (b^~ k) (b_row_ch k) (fun n0 => b_ub n0 k).
+    exact: cone_sup_ball_ub.
+  apply: precone_le_trans step1 _.
+  exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => k.
+  apply: cone_sup_ball_lub => n.
+  have step1 : b n k <=p
+      cone_sup_ball (b n) (b_col_ch n) (fun k0 => b_ub n k0).
+    exact: cone_sup_ball_ub.
+  apply: precone_le_trans step1 _.
+  exact: cone_sup_ball_ub.
+Qed.
+
+End LinhomSupCont.
+
+(** ω-continuity of [linhom_sup_fun] — Paper §5.1.
+
+    Given an increasing unit-ball chain [(x_k)] in [C] with image
+    chain [(linhom_sup_fun (x_k))] also unit-ball and increasing,
+    the pointwise sup commutes with [linhom_sup_fun]. *)
+Lemma linhom_sup_fun_continuous : is_omega_continuous linhom_sup_fun.
+Proof.
+move=> x xch xub fxch fxub.
+set xs := cone_sup_ball x xch xub.
+have Hxs : cnorm xs <= 1 by exact: cone_sup_ball_norm.
+have Hxk : forall k, cnorm (x k) <= 1 by exact: xub.
+(* The doubly-indexed family. *)
+pose b (n k : nat) : D := linhom_fun (u n) (x k).
+have b_row_ch : forall k n, precone_le (b n k) (b n.+1 k).
+  by move=> k n; exact: (linhom_le_pointwise (uch n) (x k)).
+have b_col_ch : forall n k, precone_le (b n k) (b n k.+1).
+  move=> n k.
+  have Hlin := linhom_pre_linear (linhom_pre_of (u n)).
+  exact: (linear_increasing Hlin) _ _ (xch k).
+have b_ub : forall n k, cnorm (b n k) <= 1.
+  by move=> n k; exact: linhom_sup_pw_ub1.
+have b_col_sup_ub : forall n,
+    cnorm (cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k)) <= 1.
+  by move=> n; exact: cone_sup_ball_norm.
+have b_row_sup_ub : forall k,
+    cnorm (cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k)) <= 1.
+  by move=> k; exact: cone_sup_ball_norm.
+have b_col_sup_ch : forall n,
+    precone_le
+      (cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k))
+      (cone_sup_ball (b n.+1) (b_col_ch n.+1) (fun k => b_ub n.+1 k)).
+  move=> n; apply: cone_sup_ball_lub => k.
+  apply: precone_le_trans (b_row_ch k n) _.
+  exact: cone_sup_ball_ub.
+have b_row_sup_ch : forall k,
+    precone_le
+      (cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
+      (cone_sup_ball (b^~ k.+1) (b_row_ch k.+1) (fun n => b_ub n k.+1)).
+  move=> k; apply: cone_sup_ball_lub => n.
+  apply: precone_le_trans (b_col_ch n k) _.
+  exact: cone_sup_ball_ub.
+(* Step 1: For each n, by ω-continuity of u_n applied to the
+   chain (x k), we have
+   linhom_fun u_n xs = cone_sup_ball_k (linhom_fun u_n (x k))
+                     = cone_sup_ball_k (b n k). *)
+have un_xs_eq : forall n,
+    linhom_fun (u n) xs =
+    cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k).
+  move=> n.
+  have Hcont_un := linhom_pre_continuous (linhom_pre_of (u n)).
+  have := Hcont_un x xch xub (b_col_ch n) (fun k => b_ub n k).
+  by rewrite /xs/b/=.
+(* Step 2: For each k, linhom_sup_fun (x k) = cone_sup_ball_n (b n k). *)
+have sup_xk_eq : forall k,
+    linhom_sup_fun (x k) =
+    cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k).
+  move=> k.
+  rewrite (linhom_sup_fun_unitE (Hxk k)) /linhom_sup_unit.
+  have e1 : [eta linhom_sup_pw_chain (x k)] = b_row_ch k
+    by exact: Prop_irrelevance.
+  have e2 : linhom_sup_pw_ub1 (Hxk k) = (fun n => b_ub n k)
+    by exact: Prop_irrelevance.
+  by rewrite e1 e2.
+(* Step 3: linhom_sup_fun xs = cone_sup_ball_n (linhom_fun u_n xs)
+                              = cone_sup_ball_n (sup_k (b n k))
+                              (by un_xs_eq, with Prop_irrelevance). *)
+have LHS_eq :
+    linhom_sup_fun xs =
+    cone_sup_ball
+      (fun n => cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k))
+      b_col_sup_ch b_col_sup_ub.
+  rewrite (linhom_sup_fun_unitE Hxs) /linhom_sup_unit.
+  (* The two cone_sup_balls have the same underlying function up to
+     un_xs_eq, hence are equal by Prop_irrelevance + the equality of
+     functions. *)
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n /=.
+    rewrite un_xs_eq.
+    exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => n /=.
+    rewrite -un_xs_eq.
+    exact: cone_sup_ball_ub.
+(* Step 4: cone_sup_ball (linhom_sup_fun \o x) fxch fxub
+          = cone_sup_ball (k ↦ sup_n (b n k)) ... (by sup_xk_eq). *)
+have RHS_eq :
+    cone_sup_ball (linhom_sup_fun \o x) fxch fxub =
+    cone_sup_ball
+      (fun k => cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
+      b_row_sup_ch b_row_sup_ub.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => k /=.
+    rewrite sup_xk_eq.
+    exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => k /=.
+    rewrite -sup_xk_eq.
+    exact: cone_sup_ball_ub.
+(* Step 5: the LHS-form and RHS-form are equal by sup-commutation. *)
+rewrite LHS_eq RHS_eq.
+exact: cone_sup_ball_swap.
+Qed.
+
+(** ** Path-preservation of [linhom_sup_fun] — Paper §5.1 (Step 2b)
+
+    Given a measurable path [γ : ar_carrier X' -> C] with norm
+    bound [M], we show that [r ↦ linhom_sup_fun (γ r)] is a
+    measurable path in [D]:
+    - Boundedness: [cnorm (linhom_sup_fun (γ r)) ≤ cnorm (γ r) ≤ M]
+      via [linhom_sup_fun_norm_le].
+    - Test-measurability: for every test [m : test_of Ar Y D] with
+      [mcone_M Y m], the map [(s, r) ↦ m s (linhom_sup_fun (γ r))]
+      is measurable. The key trick is the *uniform-scale rewrite*:
+      with [S := M + 1] (positive), [γ r ∈ S * B_C], so
+      [linhom_sup_fun (γ r) = S *: cone_sup_ball_n (linhom_fun u_n
+      (S⁻¹ *: γ r))]. The map [(s, r) ↦ m s ...] becomes [S * sup_n
+      m s (linhom_fun u_n (S⁻¹ *: γ r))]; each [u_n] preserves
+      paths, scaling preserves paths, so each [(s, r) ↦ m s (...)]
+      is measurable. The sup is then measurable via
+      [measurable_fun_cvg]. *)
+
+(** Auxiliary: scaling preserves measurable paths. *)
+Lemma is_measurable_path_scale (X' : ar_obj Ar)
+    (γ : ar_carrier Ar X' -> C) (s : {nonneg R}) :
+  is_measurable_path γ ->
+  is_measurable_path (fun r => precone_scale s (γ r)).
+Proof.
+move=> [[M HM] Hmeas]; split.
+  exists (s%:num * M) => r.
+  rewrite cone_normh.
+  have sge0 : 0 <= s%:num by exact: nngnum_ge0.
+  have [s0 | spos] := eqVneq s%:num 0.
+    by rewrite s0 !mul0r.
+  by rewrite ler_pM2l ?lt_def ?spos ?sge0 //; exact: HM.
+move=> Y m mM.
+have -> :
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X')%type =>
+    test_fun m p.1 (precone_scale s (γ p.2))) =
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X')%type =>
+    s%:num * test_fun m p.1 (γ p.2)).
+  by apply: funext => p; rewrite test_linZ.
+by apply: measurable_funM; [exact: measurable_cst | exact: Hmeas].
+Qed.
+
+(** Path-preservation of [linhom_sup_fun]. *)
+Lemma linhom_sup_fun_pres_path (X' : ar_obj Ar)
+    (γ : ar_carrier Ar X' -> C) :
+  is_measurable_path γ ->
+  is_measurable_path (fun r => linhom_sup_fun (γ r)).
+Proof.
+move=> Hγ.
+have [[M HM] Hγ_meas] := Hγ.
+have Mge0 : 0 <= M.
+  have := HM (point _).
+  by apply: le_trans; exact: cone_norm_ge0.
+(* Uniform scale: S := M + 1, so S > 0 and ‖γ r‖/S ≤ 1. *)
+have Sge0 : 0 <= M + 1.
+  by apply: le_trans ler01 _; rewrite -[X in X <= _]add0r lerD2r.
+pose S : {nonneg R} := NngNum Sge0.
+have Spos : 0 < S%:num.
+  by apply: lt_le_trans ltr01 _; rewrite -[X in X <= _]add0r lerD2r.
+have S_num : S%:num = M + 1 by [].
+have Sinv_ge0 : 0 <= (M + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+have Sinv_num : Sinv%:num = (M + 1)^-1 by [].
+have S_Sinv : S%:num * Sinv%:num = 1.
+  by rewrite S_num Sinv_num mulfV// gt_eqF.
+have Sinv_S : Sinv%:num * S%:num = 1.
+  by rewrite S_num Sinv_num mulVf// gt_eqF.
+(* The scaled path. *)
+pose γs (r : ar_carrier Ar X') : C := precone_scale Sinv (γ r).
+have Hγs_unit : forall r, cnorm (γs r) <= 1.
+  move=> r; rewrite cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  apply: le_trans (HM r) _.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+have nng_inv_eq : nng_inv S = Sinv.
+  by apply: val_inj => /=.
+(* Reformulation of linhom_sup_fun on γ r via uniform scale.
+   We avoid dependent-rewrite headaches by phrasing the inner sup
+   directly at [γs r] (so the proof can use [Hγs_unit r]) and
+   reusing [linhom_sup_fun_at_scale] with [Hxs := Hγs_unit r]
+   after first rewriting [γ r] as [S *: γs r]. *)
+have γ_eq_Sγs : forall r, γ r = precone_scale S (γs r).
+  move=> r; rewrite /γs -precone_scale_A.
+  have nng1 : (S%:num * Sinv%:num)%:nng = 1%:nng :> {nonneg R}.
+    by apply: val_inj => /=.
+  by rewrite nng1 precone_scale_1.
+have lsfun_eq : forall r, linhom_sup_fun (γ r) =
+    precone_scale S (linhom_sup_unit (Hγs_unit r)).
+  move=> r.
+  rewrite (γ_eq_Sγs r) linhom_sup_fun_linZ.
+  congr precone_scale.
+  exact: linhom_sup_fun_unitE.
+split.
+- (* Boundedness: ‖linhom_sup_fun (γ r)‖ ≤ ‖γ r‖ ≤ M. *)
+  exists M => r.
+  apply: le_trans (linhom_sup_fun_norm_le _) _.
+  exact: HM.
+- (* Test measurability via uniform-scale + sup-of-meas-fns. *)
+  move=> Y m mM.
+  have Hγs_path : is_measurable_path γs.
+    exact: (is_measurable_path_scale Sinv Hγ).
+  (* For each n, by path-preservation of u_n, the function
+     (s, r) ↦ m s (u_n (γs r)) is measurable. We extract this
+     directly to avoid canonical-structure inference issues. *)
+  have un_γs_path : forall n,
+      is_measurable_path (Ar:=Ar) (C:=D) (X:=X')
+        (fun r => linhom_fun (u n) (γs r)).
+    move=> n; exact: (linhom_pre_pres_path (linhom_pre_of (u n))).
+  pose h (n : nat) (p : (ar_carrier Ar Y * ar_carrier Ar X')%type) : R :=
+    test_fun m p.1 (linhom_fun (u n) (γs p.2)).
+  (* Pointwise convergence of (h ^~ p) to test m p.1 of
+     linhom_sup_unit (Hγs_unit p.2). *)
+  pose b (n : nat) (r : ar_carrier Ar X') : D := linhom_fun (u n) (γs r).
+  have b_ch : forall r n, precone_le (b n r) (b n.+1 r).
+    by move=> r n; exact: (linhom_le_pointwise (uch n) (γs r)).
+  have b_ub : forall r n, cnorm (b n r) <= 1.
+    move=> r n; rewrite /b.
+    apply: le_trans (linhom_norm_sup_ub (u n) (γs r) (Hγs_unit r)) _.
+    exact: ub1.
+  have h_ndec : forall p, nondecreasing_seq (h ^~ p).
+    move=> p; apply/nondecreasing_seqP => n.
+    rewrite /h.
+    have Hpw := b_ch p.2 n.
+    case: Hpw => [z Hz].
+    by rewrite -/(b n p.2) -/(b n.+1 p.2) [in leRHS]Hz test_linD lerDl;
+       exact: test_ge0.
+  have h_ub : forall p, has_ubound (range (h ^~ p)).
+    move=> p; exists 1 => _ [n _ <-].
+    rewrite /h; apply: test_le1.
+    apply: le_trans
+      (linhom_norm_sup_ub (u n) (γs p.2) (Hγs_unit p.2)) _.
+    exact: ub1.
+  have h_cvg : forall p, (h ^~ p : nat -> R)
+      @ \oo --> (sup (range (h ^~ p)) : R).
+    by move=> p; apply: nondecreasing_cvgn;
+      [exact: h_ndec | exact: h_ub].
+  (* The target: test_fun m s (linhom_sup_unit (Hγs_unit r)) =
+     sup_n h n (s, r). *)
+  have target_eq : forall p,
+      test_fun m p.1 (linhom_sup_unit (Hγs_unit p.2)) =
+      sup (range (h ^~ p)).
+    move=> p; apply: le_anti; apply/andP; split.
+    + (* ≤: by test_cont on the chain (b ^~ p.2). *)
+      rewrite /linhom_sup_unit.
+      have e1 : [eta linhom_sup_pw_chain (γs p.2)] = b_ch p.2.
+        exact: Prop_irrelevance.
+      have e2 : linhom_sup_pw_ub1 (Hγs_unit p.2) = b_ub p.2.
+        exact: Prop_irrelevance.
+      rewrite e1 e2.
+      apply: (@test_cont _ _ _ _ _ p.1 (b ^~ p.2) (b_ch p.2) (b_ub p.2)
+        (sup (range (h ^~ p)))) => n.
+      have hsup : has_sup (range (h ^~ p)).
+        by split; [by exists (h 0%N p), 0%N | exact: h_ub].
+      move/ubP/(_ (h n p)) : (sup_upper_bound hsup); apply.
+      by exists n.
+    + apply: ge_sup; first by exists (h 0%N p), 0%N.
+      move=> _ [n _ <-]; rewrite /h.
+      have Hub : precone_le (b n p.2)
+                            (linhom_sup_unit (Hγs_unit p.2)).
+        rewrite /linhom_sup_unit /b.
+        have e1 : [eta linhom_sup_pw_chain (γs p.2)] = b_ch p.2.
+          exact: Prop_irrelevance.
+        have e2 : linhom_sup_pw_ub1 (Hγs_unit p.2) = b_ub p.2.
+          exact: Prop_irrelevance.
+        rewrite e1 e2.
+        exact: cone_sup_ball_ub.
+      case: Hub => [z ->].
+      rewrite test_linD lerDl; exact: test_ge0.
+  (* Now we put it all together. The test of linhom_sup_fun (γ r) is
+     S * test_fun m s (linhom_sup_unit ...) by test_linZ + lsfun_eq. *)
+  have target_full : forall p,
+      test_fun m p.1 (linhom_sup_fun (γ p.2)) =
+      S%:num * sup (range (h ^~ p)).
+    move=> p; rewrite (lsfun_eq p.2) test_linZ.
+    by rewrite -target_eq.
+  have -> : (fun p : ar_carrier Ar Y * ar_carrier Ar X' =>
+              test_fun m p.1 (linhom_sup_fun (γ p.2))) =
+            (fun p : ar_carrier Ar Y * ar_carrier Ar X' =>
+              S%:num * sup [set h i p | i in [set: nat]]).
+    by apply: funext => p; exact: target_full.
+  apply: measurable_funM; first exact: measurable_cst.
+  apply: (measurable_fun_cvg (h := h)).
+  - by move=> n; have [_ Hmeas] := un_γs_path n; exact: Hmeas.
+  - by move=> p _; exact: h_cvg.
+Qed.
+
+(** ** Auxiliary: norm bound on linhom application at arbitrary point.
+
+    For an [f : linhom_car Ar C D] with [linhom_norm f ≤ K] and any
+    [x : C], [cnorm (linhom_fun f x) ≤ K * cnorm x]. Derives from
+    [linhom_norm_sup_ub] by scaling [x] into the unit ball. *)
+Lemma linhom_norm_apply_le
+    (f : linhom_car Ar C D) (K : R) (HK : linhom_norm f <= K) (x : C) :
+  cnorm (linhom_fun f x) <= K * cnorm x.
+Proof.
+have x_ge0 : 0 <= cnorm x by exact: cone_norm_ge0.
+have Kge0 : 0 <= K.
+  apply: le_trans HK; exact: linhom_norm_ge0.
+have [x0|xpos] := eqVneq (cnorm x) 0.
+  have x_is0 : x = precone_zero by apply: cone_normz.
+  rewrite x0 mulr0.
+  rewrite x_is0.
+  case: (linhom_pre_linear (linhom_pre_of f)) => H0 _ _.
+  by rewrite /linhom_fun H0 cone_norm0.
+have xpos' : 0 < cnorm x.
+  by rewrite lt_def xpos x_ge0.
+have cinv_ge0 : 0 <= (cnorm x)^-1 by rewrite invr_ge0 ltW.
+pose cinv : {nonneg R} := NngNum cinv_ge0.
+have Hxinv : cnorm (precone_scale cinv x) <= 1.
+  rewrite cone_normh /=.
+  by rewrite mulVf// gt_eqF.
+(* cnorm (f x) = cnorm x * cnorm (f (cinv * x)) ≤ cnorm x * K *)
+pose c : {nonneg R} := NngNum x_ge0.
+have [_ _ HfZ] := linhom_pre_linear (linhom_pre_of f).
+have step : cnorm (linhom_fun f x) =
+            c%:num * cnorm (linhom_fun f (precone_scale cinv x)).
+  have linZ_x_to_cinv :
+      linhom_fun f x = precone_scale c (linhom_fun f (precone_scale cinv x)).
+    rewrite -[in LHS](_ : precone_scale c (precone_scale cinv x) = x);
+      last first.
+      rewrite -precone_scale_A.
+      have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+        by move=> a b /val_inj.
+      rewrite (_ : (c%:num * cinv%:num)%:nng = 1%:nng); last first.
+        by apply: nng_eq => /=; rewrite mulfV// gt_eqF.
+      by rewrite precone_scale_1.
+    by rewrite /linhom_fun; exact: HfZ.
+  by rewrite linZ_x_to_cinv cone_normh.
+rewrite step.
+have step2 : cnorm (linhom_fun f (precone_scale cinv x)) <= K.
+  apply: le_trans HK.
+  exact: linhom_norm_sup_ub.
+rewrite [K * _]mulrC.
+have c_eq : c%:num = cnorm x by [].
+rewrite c_eq.
+apply: ler_pM.
+- exact: cone_norm_ge0.
+- exact: cone_norm_ge0.
+- exact: lexx.
+- exact: step2.
+Qed.
+
+(** ** Integral-preservation of [linhom_sup_fun] — Paper §5.1 (Step 2c)
+
+    For [β : ar_carrier X' -> C] measurable and [µ] a finite measure,
+    we show [linhom_sup_fun (∫β) = ∫(linhom_sup_fun ∘ β)]. The proof:
+    by uniqueness of integral, reduce to verifying the Pettis equation
+    for [linhom_sup_fun (∫β)] against the integral of the linhom_sup
+    chain. Per-test computation uses [test_cont] + monotone-
+    convergence. *)
+
+(** Auxiliary: test of sup equals R-sup of tests, for any [x : C]. *)
+Lemma linhom_sup_fun_test_sup
+    (Y : ar_obj Ar) (m : test_of Ar Y D) (s : ar_carrier Ar Y) (x : C) :
+  test_fun m s (linhom_sup_fun x) =
+  sup [set test_fun m s (linhom_fun (u n) x) | n in [set: nat]].
+Proof.
+have S_pos : 0 < cnorm x + 1 by exact: cnorm_succ_pos.
+have S_ge0 : 0 <= cnorm x + 1 by exact: ltW.
+pose S : {nonneg R} := NngNum S_ge0.
+have Sinv_ge0 : 0 <= (cnorm x + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+have nng_inv_eq : nng_inv S = Sinv.
+  by apply: val_inj => /=.
+have Hx : cnorm (precone_scale (nng_inv S) x) <= 1.
+  rewrite cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+have Spos : 0 < S%:num by exact: S_pos.
+(* Step A: linhom_sup_fun x = S *: linhom_sup_unit Hx. *)
+rewrite (linhom_sup_fun_at_scale Spos Hx) test_linZ.
+(* Step B: chain at scaled point. *)
+pose b' (n : nat) : D := linhom_fun (u n) (precone_scale (nng_inv S) x).
+have b'_ch : forall n, precone_le (b' n) (b' n.+1).
+  by move=> n; exact: linhom_sup_pw_chain.
+have b'_ub : forall n, cnorm (b' n) <= 1.
+  by move=> n; exact: linhom_sup_pw_ub1.
+pose h' (n : nat) : R := test_fun m s (b' n).
+have h'_ndec : nondecreasing_seq h'.
+  apply/nondecreasing_seqP => n.
+  rewrite /h'.
+  have := b'_ch n.
+  rewrite /b' => -[z Hz].
+  by rewrite [in leRHS]Hz test_linD lerDl; exact: test_ge0.
+have h'_ub : has_ubound (range h').
+  exists 1 => _ [n _ <-]; rewrite /h'.
+  by apply: test_le1; exact: b'_ub.
+have hsup' : has_sup (range h').
+  by split; [exists (h' 0%N), 0%N => // | exact: h'_ub].
+have inner_eq :
+    test_fun m s (linhom_sup_unit Hx) = sup (range h').
+  rewrite /linhom_sup_unit.
+  have e1 : [eta linhom_sup_pw_chain (precone_scale (nng_inv S) x)]
+            = b'_ch by exact: Prop_irrelevance.
+  have e2 : linhom_sup_pw_ub1 Hx = b'_ub by exact: Prop_irrelevance.
+  rewrite e1 e2.
+  apply: le_anti; apply/andP; split.
+  - apply: (@test_cont _ _ _ _ _ s b' b'_ch b'_ub (sup (range h'))) => n.
+    move/ubP/(_ (h' n)) : (sup_upper_bound hsup'); apply.
+    by exists n.
+  - apply: ge_sup; first by exists (h' 0%N), 0%N.
+    move=> _ [n _ <-]; rewrite /h' /b'.
+    have Hub : precone_le (b' n)
+              (cone_sup_ball b' b'_ch b'_ub).
+      exact: cone_sup_ball_ub.
+    case: Hub => [z ->].
+    rewrite test_linD lerDl; exact: test_ge0.
+rewrite inner_eq.
+(* Step C: relate b' to (linhom_fun u_n x) via Sinv-scaling. *)
+have linZ_b' : forall n,
+    test_fun m s (b' n) = Sinv%:num * test_fun m s (linhom_fun (u n) x).
+  move=> n; rewrite /b'.
+  have [_ _ HfZ] := linhom_pre_linear (linhom_pre_of (u n)).
+  rewrite /linhom_fun nng_inv_eq /= HfZ.
+  by rewrite test_linZ.
+(* Step D: sup (range h') = Sinv * sup_n (test_fun m s (u_n x)). *)
+pose h'' (n : nat) : R := test_fun m s (linhom_fun (u n) x).
+have h''_ndec : nondecreasing_seq h''.
+  apply/nondecreasing_seqP => n.
+  rewrite /h''.
+  have Hpw : precone_le (linhom_fun (u n) x) (linhom_fun (u n.+1) x).
+    exact: linhom_le_pointwise.
+  case: Hpw => [z Hz].
+  by rewrite [in leRHS]Hz test_linD lerDl; exact: test_ge0.
+have h''_ub : has_ubound (range h'').
+  exists (cnorm x) => _ [n _ <-]; rewrite /h''.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans (linhom_norm_apply_le _ _) _; first exact: ub1.
+  by rewrite mul1r.
+have hsup'' : has_sup (range h'').
+  by split; [exists (h'' 0%N), 0%N => // | exact: h''_ub].
+(* sup (range h') = Sinv%:num * sup (range h''). *)
+have h_range_eq :
+    sup (range h') = Sinv%:num * sup (range h'').
+  apply: le_anti; apply/andP; split.
+  - apply: ge_sup; first by case: hsup'.
+    move=> y [n _ <-].
+    rewrite /h' linZ_b'.
+    apply: ler_pM; [exact: nngnum_ge0|exact: test_ge0|exact: lexx|].
+    by move/ubP/(_ (h'' n)) : (sup_upper_bound hsup''); apply; exists n.
+  - rewrite -ler_pdivlMl /=; last first.
+      by rewrite invr_gt0.
+    have inv_eq : Sinv%:num^-1 = S%:num.
+      by rewrite /= invrK.
+    rewrite inv_eq.
+    apply: ge_sup; first by case: hsup''.
+    move=> y [n _ <-].
+    rewrite /h''.
+    have heq : test_fun m s (linhom_fun (u n) x)
+             = S%:num * (Sinv%:num * test_fun m s (linhom_fun (u n) x)).
+      rewrite mulrA mulfV ?mul1r//.
+      by rewrite gt_eqF.
+    rewrite heq.
+    apply: ler_pM; [exact: nngnum_ge0|by rewrite mulr_ge0 ?test_ge0|
+                    exact: lexx|].
+    rewrite -linZ_b'.
+    by move/ubP/(_ (h' n)) : (sup_upper_bound hsup'); apply; exists n.
+rewrite h_range_eq.
+rewrite mulrA mulfV ?gt_eqF // mul1r.
+by [].
+Qed.
+
+(** ** Integral-preservation of [linhom_sup_fun] — Paper §5.1.
+
+    Strategy mirrors [integral_omega_cont_path] from
+    [icone_integral.v]: by (Mssep), it suffices to check the Pettis
+    equation at every test [m] of arity 0. By [linhom_sup_fun_test_sup],
+    both sides reduce to the same [sup] over [n], identified via
+    monotone convergence on ereal-valued integrals. *)
+
+Local Open Scope ereal_scope.
+
+Lemma linhom_sup_fun_pres_int
+    (X' : ar_obj Ar)
+    (β : ar_carrier Ar X' -> C) (Hβ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X')) :
+  linhom_sup_fun (icone_integral β Hβ µ) =
+  icone_integral (fun r => linhom_sup_fun (β r))
+    (linhom_sup_fun_pres_path Hβ) µ.
+Proof.
+apply: icone_integral_eqP => m mM s0.
+(* LHS rewrite: m s0 (linhom_sup_fun X) = sup_n m s0 (u_n X). *)
+rewrite (linhom_sup_fun_test_sup m s0 (icone_integral β Hβ µ)).
+(* Helper: each u_n preserves integrals, so
+   m s0 (u_n (∫β)) = fine (∫ m s0 (u_n (β r)) dµ). *)
+have un_pet : forall n,
+    test_fun m s0 (linhom_fun (u n) (icone_integral β Hβ µ)) =
+    fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X'])
+            (test_fun m s0 (linhom_fun (u n) (β r)))%:E).
+  move=> n.
+  have Hp := linhom_pres_int (u n) X' β Hβ µ.
+  rewrite /linhom_fun Hp.
+  exact: (icone_integralP _
+    (linhom_pre_pres_path (linhom_pre_of (u n)) X' β Hβ) µ m mM s0).
+(* Build the ereal chain un_n and its sup fsup. *)
+pose un_e (n : nat) (r : ar_carrier Ar X') : \bar R :=
+  (test_fun m s0 (linhom_fun (u n) (β r)))%:E.
+pose fsup_e (r : ar_carrier Ar X') : \bar R :=
+  (test_fun m s0 (linhom_sup_fun (β r)))%:E.
+have un_meas : forall n,
+    measurable_fun [set: ar_carrier Ar X'] (un_e n).
+  move=> n.
+  apply/measurable_EFinP.
+  have Hun_path :=
+    linhom_pre_pres_path (linhom_pre_of (u n)) X' β Hβ.
+  exact: (measurable_test_path_section mM Hun_path s0).
+have un_ge0 : forall n r, 0 <= un_e n r.
+  by move=> n r; rewrite /un_e lee_fin; exact: test_ge0.
+have un_homo : forall r,
+    {homo (un_e^~ r) : n m0 / (n <= m0)%N >-> (n <= m0)%E}.
+  move=> r; apply/nondecreasing_seqP => n.
+  rewrite /un_e lee_fin.
+  apply: test_fun_le; exact: linhom_le_pointwise.
+(* Pointwise limit/sup identity: lim_n un_e n r = fsup_e r. *)
+have un_cvg_R : forall r,
+  (fun n => test_fun m s0 (linhom_fun (u n) (β r))) x @[x --> \oo] -->
+  (test_fun m s0 (linhom_sup_fun (β r)) : R^o).
+  move=> r.
+  pose v (n : nat) := test_fun m s0 (linhom_fun (u n) (β r)).
+  have nd_v : nondecreasing_seq v.
+    apply/nondecreasing_seqP => n; rewrite /v.
+    apply: test_fun_le; exact: linhom_le_pointwise.
+  have ub_v : has_ubound (range v).
+    exists (cnorm (β r)) => _ [n _ <-]; rewrite /v.
+    apply: le_trans (test_norm_le _ _ _) _.
+    apply: le_trans (linhom_norm_apply_le _ _) _; first exact: ub1.
+    by rewrite mul1r.
+  have sup_eq : sup (range v) = test_fun m s0 (linhom_sup_fun (β r)).
+    by rewrite -(linhom_sup_fun_test_sup m s0 (β r)).
+  rewrite -sup_eq.
+  exact: nondecreasing_cvgn.
+have un_cvg : forall r, (un_e^~ r) x @[x --> \oo] --> fsup_e r.
+  move=> r; rewrite /un_e /fsup_e.
+  apply: cvg_EFin; first by apply: nearW => n; rewrite fin_numE.
+  exact: un_cvg_R.
+have un_lim : forall r, limn (un_e^~ r) = fsup_e r.
+  by move=> r; apply/cvg_lim => //; exact: ereal_hausdorff.
+(* MCT: ∫ fsup_e = lim_n ∫ un_e n. *)
+have MCT :
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r =
+    limn (fun n => \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X'])
+                       un_e n r).
+  have HMC :=
+    monotone_convergence (fmeas_mu µ) (D := [set: ar_carrier Ar X'])
+      measurableT un_meas (fun n r _ => un_ge0 n r)
+      (fun r _ => un_homo r).
+  rewrite -HMC; apply: eq_integral => r _; by rewrite -un_lim.
+(* Finiteness of each ∫ un_e n. *)
+have un_bound : forall (n : nat) (r : ar_carrier Ar X'),
+    un_e n r <= (cnorm (β r))%:E.
+  move=> n r; rewrite /un_e lee_fin.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans (linhom_norm_apply_le _ _) _; first exact: ub1.
+  by rewrite mul1r.
+have [[Mβ HMβ] _] := Hβ.
+have un_bound_M : forall n r, un_e n r <= Mβ%:E.
+  move=> n r.
+  apply: le_trans (un_bound n r) _; rewrite lee_fin; exact: HMβ.
+have intGe0_un : forall n,
+    0 <= \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) un_e n r.
+  by move=> n; apply: integral_ge0 => r _; exact: un_ge0.
+have intGe0_sup :
+    0 <= \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r.
+  apply: integral_ge0 => r _; rewrite /fsup_e lee_fin.
+  exact: test_ge0.
+have fmeas_setT_fin : fmeas_mu µ [set: ar_carrier Ar X'] \is a fin_num.
+  exact: fmeas_setT_fin.
+have un_int_fin : forall n,
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) un_e n r \is a fin_num.
+  move=> n.
+  rewrite ge0_fin_numE//.
+  apply: (@le_lt_trans _ _
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) Mβ%:E)); last first.
+    rewrite (_ : (fun _ => Mβ%:E) = cst Mβ%:E)//.
+    rewrite integral_cst//.
+    by rewrite ltey_eq fin_numM.
+  apply: (@ge0_le_integral _ _ R (fmeas_mu µ) _ measurableT
+            (un_e n) (cst Mβ%:E)).
+    by move=> r _; exact: un_ge0.
+    exact: un_meas.
+    by apply: measurable_cst.
+  by move=> r _; exact: un_bound_M.
+have meas_fsup :
+    measurable_fun [set: ar_carrier Ar X'] fsup_e.
+  apply/measurable_EFinP.
+  exact: (measurable_test_path_section mM
+            (linhom_sup_fun_pres_path Hβ) s0).
+have fsup_bound : forall r, fsup_e r <= Mβ%:E.
+  move=> r; rewrite /fsup_e lee_fin.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans (linhom_sup_fun_norm_le _) _.
+  exact: HMβ.
+have fsup_int_fin :
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r \is a fin_num.
+  rewrite ge0_fin_numE//.
+  apply: (@le_lt_trans _ _
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) Mβ%:E)); last first.
+    rewrite (_ : (fun _ => Mβ%:E) = cst Mβ%:E)//.
+    rewrite integral_cst//.
+    by rewrite ltey_eq fin_numM.
+  apply: (@ge0_le_integral _ _ R (fmeas_mu µ) _ measurableT
+            fsup_e (cst Mβ%:E)).
+    by move=> r _; rewrite /fsup_e lee_fin; exact: test_ge0.
+    exact: meas_fsup.
+    by apply: measurable_cst.
+  by move=> r _; exact: fsup_bound.
+(* Now relate sup_n to fine ∫. *)
+pose hint (n : nat) := test_fun m s0 (linhom_fun (u n) (icone_integral β Hβ µ)).
+have nd_hint : nondecreasing_seq hint.
+  apply/nondecreasing_seqP => n; rewrite /hint.
+  apply: test_fun_le.
+  exact: linhom_le_pointwise.
+have ub_hint : has_ubound (range hint).
+  exists (cnorm (icone_integral β Hβ µ)) => _ [n _ <-]; rewrite /hint.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans (linhom_norm_apply_le _ _) _; first exact: ub1.
+  by rewrite mul1r.
+have hint_cvg :
+    hint x @[x --> \oo] -->
+    (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r) : R^o).
+  have HCMu :=
+    cvg_monotone_convergence (D := [set: ar_carrier Ar X'])
+      (mu := fmeas_mu µ) measurableT un_meas
+      (fun n r _ => un_ge0 n r) (fun r _ => un_homo r).
+  have HE :
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X'])
+        (fun x : ar_carrier Ar X' => limn (un_e^~ x)) r =
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r.
+    by apply: eq_integral => r _; rewrite -un_lim.
+  have e_cvg :
+    (fun n => \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) un_e n r)
+      x @[x --> \oo] -->
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r)%E.
+    by rewrite -HE.
+  have HEFin :
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r =
+    (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r))%:E.
+    by rewrite fineK.
+  rewrite HEFin in e_cvg.
+  have fcvg : (fun n =>
+      fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) un_e n r)) x
+    @[x --> \oo] --> (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X'])
+                            fsup_e r) : R^o).
+    by have := fine_cvg e_cvg; exact.
+  have heq : (fun n =>
+      fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) un_e n r))
+    = hint.
+    by apply: funext => n; rewrite /hint un_pet.
+  by rewrite heq in fcvg; exact: fcvg.
+have hint_sup_eq :
+    sup (range hint) =
+    fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X']) fsup_e r).
+  have nd_cvg := nondecreasing_cvgn nd_hint ub_hint.
+  exact: (@cvg_unique R^o (@Rhausdorff R) _ _ _ _ nd_cvg hint_cvg).
+by rewrite -hint_sup_eq.
+Qed.
+
 End LinhomSupBall.
 
-(** ** M4 wave 2 status note
+(** ** Packaging the sup-ball as a [linhom_car] — Paper §5.1
+
+    The constructed [linhom_sup_fun] together with the proofs of
+    linearity, ω-continuity, boundedness, path-preservation, and
+    integral-preservation packages into a [linhom_car] element.
+    Combined with the three sup-ball properties below, this yields
+    the [isCone] HB instance on [linhom_car Ar C D]. *)
+
+Section LinhomSupPack.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Variable u : nat -> linhom_car Ar C D.
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, linhom_norm (u n) <= 1.
+
+(** Pre-carrier: linearity from lin0/linD/linZ, ω-cont from
+    [linhom_sup_fun_continuous], boundedness from
+    [linhom_sup_fun_bounded], path-preservation from
+    [linhom_sup_fun_pres_path]. *)
+Definition linhom_sup_ball_pre : linhom_pre Ar C D :=
+  MkLinhomPre (@linhom_sup_fun R Ar C D u uch ub1)
+    (IsLinear
+       (@linhom_sup_fun_lin0 R Ar C D u uch ub1)
+       (@linhom_sup_fun_linD R Ar C D u uch ub1)
+       (@linhom_sup_fun_linZ R Ar C D u uch ub1))
+    (@linhom_sup_fun_continuous R Ar C D u uch ub1)
+    (@linhom_sup_fun_bounded R Ar C D u uch ub1)
+    (@linhom_sup_fun_pres_path R Ar C D u uch ub1).
+
+(** Full [linhom_car]: adds integral preservation. *)
+Definition linhom_sup_ball : linhom_car Ar C D :=
+  MkLinhom linhom_sup_ball_pre
+    (linhom_sup_fun_pres_int uch ub1).
+
+(** Norm bound: the operator norm of [linhom_sup_ball] is ≤ 1.
+    Direct from [linhom_sup_fun_norm_le] (pointwise bound) and the
+    [linhom_norm_sup_lub] property of [linhom_norm]. *)
+Lemma linhom_sup_ball_norm : linhom_norm linhom_sup_ball <= 1.
+Proof.
+apply: linhom_norm_sup_lub => x Hx.
+apply: le_trans (linhom_sup_fun_norm_le uch ub1 x) Hx.
+Qed.
+
+End LinhomSupPack.
+
+Arguments linhom_sup_ball {R Ar C D} u uch ub1.
+Arguments linhom_sup_ball_norm {R Ar C D} u uch ub1.
+
+(** ** Sanity checks for [linhom_sup_ball] *)
+Section LinhomSupBallSanityCheck.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+(** Any chain of integrable linear maps in the unit ball admits a
+    packaged [linhom_car] sup, with operator norm ≤ 1. *)
+Check (fun (u : nat -> linhom_car Ar C D)
+           (uch : forall n, precone_le (u n) (u n.+1))
+           (ub1 : forall n, linhom_norm (u n) <= 1) =>
+        linhom_sup_ball u uch ub1 : linhom_car Ar C D).
+Check (fun (u : nat -> linhom_car Ar C D)
+           (uch : forall n, precone_le (u n) (u n.+1))
+           (ub1 : forall n, linhom_norm (u n) <= 1) =>
+        linhom_sup_ball_norm u uch ub1 :
+          linhom_norm (linhom_sup_ball u uch ub1) <= 1).
+
+End LinhomSupBallSanityCheck.
+
+(** ** M4 wave 4 status note
+
+    Delivered in this commit (M4 wave 4):
+    - [cone_sup_ball_swap] — commutation of two unit-ball sups in a
+      cone, used to discharge ω-continuity of [linhom_sup_fun].
+    - [linhom_sup_fun_continuous] — ω-continuity of the pointwise sup
+      (Step 2 of paper §5.1). Proved via the swap identity and
+      ω-continuity of each [u_n].
+    - [is_measurable_path_scale] — scaling preserves measurable paths.
+    - [linhom_sup_fun_pres_path] — path-preservation of the pointwise
+      sup. Strategy: uniform-scale rewrite [γ r = S *: γs r] with
+      [S := M + 1], then [measurable_fun_cvg] on the chain
+      [(s, r) ↦ m s (u_n (γs r))].
+    - [linhom_norm_apply_le] — general operator-norm bound for arbitrary
+      [x : C] (i.e., [cnorm (f x) ≤ ‖f‖ * cnorm x]).
+    - [linhom_sup_fun_test_sup] — the test-of-sup identity:
+      [m s (linhom_sup_fun x) = sup_n (m s (u_n x))] for any test [m].
+    - [linhom_sup_fun_pres_int] — integral preservation of the
+      pointwise sup. Strategy mirrors [integral_omega_cont_path] from
+      M3: each [u_n] preserves integrals via Pettis; combine with MCT
+      ([monotone_convergence]) and [fine_cvg] to identify both sides.
+    - [linhom_sup_ball] — packaged sup-of-chain as a [linhom_car].
+    - [linhom_sup_ball_norm] — the operator-norm bound ≤ 1.
+
+    Deferred to M4 wave 5 (full isCone HB instance):
+    - [linhom_sup_ball_ub] and [linhom_sup_ball_lub] — these state the
+      precone-order (Cauchy-difference) upper-bound and least-upper-
+      bound properties of [linhom_sup_ball]. The pointwise [≤p]
+      relation holds (by [linhom_le_pointwise] in reverse — using the
+      [linhom_sup_fun_norm_le] direction); but the precone_le on
+      [linhom_car] requires constructing a *linhom_car* witness [δ]
+      satisfying [linhom_sup_ball = u n + δ]. Bundling [δ] requires
+      proving its own linearity, ω-continuity, boundedness, path-
+      preservation, AND integral-preservation — the latter being the
+      hard step, since the difference [linhom_sup_fun x - u_n x]
+      doesn't directly inherit Pettis-equation from its summands.
+    - Final [isCone] HB instance registration on [linhom_car Ar C D]
+      — blocked on the above.
+
+    Once Step 5 is delivered, the [isMCone] / [isICone] HB instances
+    follow the [path.v] / [examples_icone.v] templates with the
+    test family [γ ▷ m] (Paper Def 5.4) and pointwise integral
+    construction (Paper Lemma 5.4).
+*)
+
+(** ** M4 wave 2 status note legacy:
 
     Delivered in this commit:
     - [linhom_norm] re-defined as the canonical real-valued [sup]
