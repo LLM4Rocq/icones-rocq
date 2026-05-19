@@ -3298,25 +3298,51 @@ End LinhomSupBallSanityCheck.
     - [linhom_sup_ball] — packaged sup-of-chain as a [linhom_car].
     - [linhom_sup_ball_norm] — the operator-norm bound ≤ 1.
 
-    Deferred to M4 wave 5 (full isCone HB instance):
-    - [linhom_sup_ball_ub] and [linhom_sup_ball_lub] — these state the
-      precone-order (Cauchy-difference) upper-bound and least-upper-
-      bound properties of [linhom_sup_ball]. The pointwise [≤p]
-      relation holds (by [linhom_le_pointwise] in reverse — using the
-      [linhom_sup_fun_norm_le] direction); but the precone_le on
-      [linhom_car] requires constructing a *linhom_car* witness [δ]
-      satisfying [linhom_sup_ball = u n + δ]. Bundling [δ] requires
-      proving its own linearity, ω-continuity, boundedness, path-
-      preservation, AND integral-preservation — the latter being the
-      hard step, since the difference [linhom_sup_fun x - u_n x]
-      doesn't directly inherit Pettis-equation from its summands.
-    - Final [isCone] HB instance registration on [linhom_car Ar C D]
-      — blocked on the above.
+    Delivered in M4 wave 5 (this section):
+    - [linhom_diff_fun] / [linhom_diff_linear] (linearity of the
+      pointwise difference) — Paper §5.1.
+    - [LinhomDiffPack] section discharges the four remaining fields
+      of [linhom_car] on the difference [w x := linhom_diff_fun Hle
+      x], conditional on the auxiliary hypothesis
+      [linhom_norm v <= 1]:
+        * [linhom_diff_bounded] — via [cone_normp] and the [w ≤p v]
+          witness.
+        * [linhom_diff_continuous] — by [v_cont], [u_cont] applied
+          to the chain [x_n] (image bounds via [linhom_norm_apply_le]
+          + the unit-norm hypothesis), [cone_sup_ball_addD], and
+          [precone_cancel].
+        * [linhom_diff_pres_path] — subtract the two measurable test
+          paths of [v ∘ γ] and [u ∘ γ] using [test_linD] +
+          [measurable_funB].
+        * [linhom_diff_pres_int] — by [linhom_pres_int] on [u] and
+          [v], pointwise [linhom_diff_E], path-additivity
+          [path_integral_eq_addB], and cancellation [precone_cancel].
+    - [linhom_diff_pre] and [linhom_diff_car] — the packaged
+      [linhom_pre] and [linhom_car] for the difference.
+    - [linhom_sup_ball_ub] (every chain element is below the sup) and
+      [linhom_sup_ball_lub] (least upper bound) — both use
+      [linhom_diff_car] as the witness, with [linhom_sup_ball_lub]
+      introducing a uniform-scale [K := ‖y‖ + 1] to bring [y] into
+      the unit ball before instantiating [linhom_diff_car].
+    - [isCone] HB instance on [linhom_car Ar C D] — REGISTERED.
+      Sanity check: [linhom_car Ar C D : coneType R] type-checks.
 
-    Once Step 5 is delivered, the [isMCone] / [isICone] HB instances
-    follow the [path.v] / [examples_icone.v] templates with the
-    test family [γ ▷ m] (Paper Def 5.4) and pointwise integral
-    construction (Paper Lemma 5.4).
+    Deferred to M4 wave 6 (isMCone + isICone):
+    - [isMCone] HB instance — Paper Def 5.4 test family
+      [γ ▷ m : ar_carrier Y × linhom_car -> R] with body
+      [m(s, f(γ(s)))]. Template: [path_test] / [path_mcone_M] /
+      [path_mcone_M_comp] / [path_mcone_M_sep] / [path_mcone_M_norm]
+      in [theories/mcones/path.v] (lines 715–1000). The challenge:
+      adapting (Mssep) and (Msnorm) to use a [Path(X, C)] index
+      rather than a direct [ar_carrier X] index.
+    - [isICone] HB instance — Paper Lemma 5.4 pointwise integral
+      [(∫η dµ)(x) := icone_integral (r ↦ linhom_fun (η r) x) _ µ].
+      Template: [path_int_fun] / [path_int_pt_meas] /
+      [path_int_fun_bound] / [path_int_fun_test_meas] /
+      [path_int_exists_cond] / [path_int_exists] in
+      [theories/icones/examples_icone.v] (lines 842–1175). Requires
+      a joint test-measurability lemma analogous to
+      [path_int_joint_meas].
 *)
 
 (** ** M4 wave 2 status note legacy:
