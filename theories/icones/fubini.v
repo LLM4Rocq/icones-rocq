@@ -762,3 +762,232 @@ Arguments fubini_path_Y_meas
   {R Ar B X Y} β Mβ HMβ Hβy µ HjointY.
 Arguments fubini_cone_eq
   {R Ar B X Y} β Mβ HMβ Hβx Hβy µ ν HjointX HjointY.
+
+(** ** Paper Theorem 4.15 — Fubini in paper form ([β : ar_prod X Y -> B])
+
+    The paper states Theorem 4.15 for a measurable path
+    [β : ar_carrier (ar_prod X Y) -> B]. The cast-free form
+    [fubini_cone_eq] above proves the equation for
+    [β : ar_carrier X * ar_carrier Y -> B] (avoiding the
+    [ar_prod_carrier_eq] cast at the statement level).
+
+    Here we provide the paper-form wrapper [fubini_cone_eq_arprod]:
+    given [β : ar_prod X Y -> B] together with [is_measurable_path
+    β] (paper Def 3.7 hypothesis) and the cast measurability witnesses
+    [Har_uncast] / [Har_cast], the iterated integrals via
+    [β \o ar_prod_cast : X * Y -> B] agree. Each input of
+    [fubini_cone_eq] is derived from [is_measurable_path β] by
+    reindexing along [ar_prod_fst], [ar_prod_snd], and [ar_pair]. *)
+
+Section Fubini415Arprod.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B : ICone.type Ar) (X Y : ar_obj Ar).
+
+(** Cast measurability hypotheses for [ar_prod X Y] (forward) and
+    [(X * Y)%type] (backward), plus the symmetric pair for
+    [ar_prod Y X]. *)
+Hypothesis Har_uncast_XY :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)]
+    (ar_prod_uncast (X:=X) (Y:=Y)).
+Hypothesis Har_cast_XY :
+  measurable_fun [set: (ar_carrier Ar X * ar_carrier Ar Y)%type]
+    (ar_prod_cast (X:=X) (Y:=Y)).
+Hypothesis Har_uncast_ZXY :
+  forall Z : ar_obj Ar,
+    measurable_fun [set: ar_carrier Ar (ar_prod Ar Z (ar_prod Ar X Y))]
+      (ar_prod_uncast (X:=Z) (Y:=ar_prod Ar X Y)).
+Hypothesis Har_cast_ZXY :
+  forall Z : ar_obj Ar,
+    measurable_fun
+      [set: (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type]
+      (ar_prod_cast (X:=Z) (Y:=ar_prod Ar X Y)).
+
+Variable β : ar_carrier Ar (ar_prod Ar X Y) -> B.
+Hypothesis Hβ : is_measurable_path β.
+
+Variables (µ : fmeas R (ar_carrier Ar X)) (ν : fmeas R (ar_carrier Ar Y)).
+
+(** Cast-free reindexing of [β]: [β_uncast (x, y) = β (ar_prod_cast
+    (x, y))]. *)
+Definition β_uncast : (ar_carrier Ar X * ar_carrier Ar Y)%type -> B :=
+  fun p => β (ar_prod_cast p).
+
+(** [β_uncast] inherits a uniform bound from [β]. *)
+Lemma β_uncast_bound :
+  exists M : R, forall p : (ar_carrier Ar X * ar_carrier Ar Y)%type,
+    (cone_norm (β_uncast p) <= M)%R.
+Proof.
+have [[M HM] _] := Hβ.
+by exists M => p; rewrite /β_uncast; exact: HM.
+Qed.
+
+(** Section measurability at fixed [x]: [y ↦ β (ar_prod_cast (x, y))]
+    is a measurable path. Derived from [is_measurable_path β] by
+    reindexing along the ar_hom [y ↦ ar_prod_cast (x, y)]. *)
+Lemma β_uncast_secY (x : ar_carrier Ar X) :
+  is_measurable_path (fun y => β_uncast (x, y)).
+Proof.
+have [[M HM] Hβ_meas] := Hβ.
+split.
+  by exists M => y; rewrite /β_uncast; exact: HM.
+move=> Z m mM.
+(* The function [(z, y) ↦ test_fun m z (β (ar_prod_cast (x, y)))]
+   factors through [(z, y) ↦ (z, ar_prod_cast (x, y))] and
+   [(z, p) ↦ test_fun m z (β p)]. *)
+have Hbase : measurable_fun
+  [set: (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type]
+  (fun p => test_fun m p.1 (β p.2)).
+  exact: (Hβ_meas Z m mM).
+pose ψ (p : (ar_carrier Ar Z * ar_carrier Ar Y)%type) :
+    (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type :=
+  (p.1, ar_prod_cast (x, p.2)).
+have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Z * ar_carrier Ar Y)%type] ψ.
+  rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
+  have meas_pair_x : measurable_fun [set: ar_carrier Ar Y]
+      (fun y : ar_carrier Ar Y => (x, y)).
+    by apply: measurable_fun_pair; [exact: measurable_cst|exact: measurable_id].
+  apply: (measurableT_comp Har_cast_XY).
+  apply: (measurableT_comp meas_pair_x); exact: measurable_snd.
+apply: (eq_measurable_fun
+  ((fun q : ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y) =>
+     test_fun m q.1 (β q.2)) \o ψ)).
+  by [].
+exact: (measurableT_comp Hbase ψ_meas).
+Qed.
+
+(** Section measurability at fixed [y]: [x ↦ β (ar_prod_cast (x, y))]
+    is a measurable path. Symmetric to [β_uncast_secY]. *)
+Lemma β_uncast_secX (y : ar_carrier Ar Y) :
+  is_measurable_path (fun x => β_uncast (x, y)).
+Proof.
+have [[M HM] Hβ_meas] := Hβ.
+split.
+  by exists M => x; rewrite /β_uncast; exact: HM.
+move=> Z m mM.
+have Hbase : measurable_fun
+  [set: (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type]
+  (fun p => test_fun m p.1 (β p.2)).
+  exact: (Hβ_meas Z m mM).
+pose ψ (p : (ar_carrier Ar Z * ar_carrier Ar X)%type) :
+    (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type :=
+  (p.1, ar_prod_cast (p.2, y)).
+have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Z * ar_carrier Ar X)%type] ψ.
+  rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
+  have meas_pair_y : measurable_fun [set: ar_carrier Ar X]
+      (fun x : ar_carrier Ar X => (x, y)).
+    by apply: measurable_fun_pair; [exact: measurable_id|exact: measurable_cst].
+  apply: (measurableT_comp Har_cast_XY).
+  apply: (measurableT_comp meas_pair_y); exact: measurable_snd.
+apply: (eq_measurable_fun
+  ((fun q : ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y) =>
+     test_fun m q.1 (β q.2)) \o ψ)).
+  by [].
+exact: (measurableT_comp Hbase ψ_meas).
+Qed.
+
+(** Joint test-measurability of [β_uncast] in the [(z, x, y)]
+    arrangement (the X-iteration shape required by [fubini_cone_eq]).
+    Derived from [is_measurable_path β] at arity [ar_prod Z _], reindexed
+    through [ar_prod_cast]. *)
+Lemma β_uncast_jointX
+    (Z : ar_obj Ar) (m : test_of Ar Z B) (mM : mcone_M Z m) :
+  measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar X * ar_carrier Ar Y))%type]
+    (fun p => test_fun m p.1 (β_uncast (p.2.1, p.2.2))).
+Proof.
+have [_ Hβ_meas] := Hβ.
+have Hbase : measurable_fun
+  [set: (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type]
+  (fun p => test_fun m p.1 (β p.2)).
+  exact: (Hβ_meas Z m mM).
+pose ψ (p : (ar_carrier Ar Z *
+             (ar_carrier Ar X * ar_carrier Ar Y))%type) :
+    (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type :=
+  (p.1, ar_prod_cast (p.2.1, p.2.2)).
+have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar X * ar_carrier Ar Y))%type] ψ.
+  rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
+  apply: (measurableT_comp Har_cast_XY).
+  have -> : (fun p : ar_carrier Ar Z *
+                     (ar_carrier Ar X * ar_carrier Ar Y) =>
+             (p.2.1, p.2.2)) =
+            (fun p => p.2).
+    by apply: funext => -[a [b c]].
+  exact: measurable_snd.
+apply: (eq_measurable_fun
+  ((fun q : ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y) =>
+     test_fun m q.1 (β q.2)) \o ψ)).
+  by [].
+exact: (measurableT_comp Hbase ψ_meas).
+Qed.
+
+(** Joint test-measurability of [β_uncast] in the [(z, y, x)]
+    arrangement (the Y-iteration shape required by [fubini_cone_eq]). *)
+Lemma β_uncast_jointY
+    (Z : ar_obj Ar) (m : test_of Ar Z B) (mM : mcone_M Z m) :
+  measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar Y * ar_carrier Ar X))%type]
+    (fun p => test_fun m p.1 (β_uncast (p.2.2, p.2.1))).
+Proof.
+have [_ Hβ_meas] := Hβ.
+have Hbase : measurable_fun
+  [set: (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type]
+  (fun p => test_fun m p.1 (β p.2)).
+  exact: (Hβ_meas Z m mM).
+pose ψ (p : (ar_carrier Ar Z *
+             (ar_carrier Ar Y * ar_carrier Ar X))%type) :
+    (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y))%type :=
+  (p.1, ar_prod_cast (p.2.2, p.2.1)).
+have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar Y * ar_carrier Ar X))%type] ψ.
+  rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
+  apply: (measurableT_comp Har_cast_XY).
+  apply: measurable_fun_pair.
+  - by apply: (measurableT_comp (f := snd));
+      [exact: measurable_snd|exact: measurable_snd].
+  - by apply: (measurableT_comp (f := fst));
+      [exact: measurable_fst|exact: measurable_snd].
+apply: (eq_measurable_fun
+  ((fun q : ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar X Y) =>
+     test_fun m q.1 (β q.2)) \o ψ)).
+  by [].
+exact: (measurableT_comp Hbase ψ_meas).
+Qed.
+
+(** Paper Theorem 4.15 (paper form): the iterated integrals of
+    [β : ar_prod X Y -> B] via [β_uncast = β \o ar_prod_cast] agree.
+
+    This is a direct wrapper over the cast-free [fubini_cone_eq],
+    discharging its five hypotheses ([HMβ], [Hβx], [Hβy], [HjointX],
+    [HjointY]) from [is_measurable_path β] via the cast-measurability
+    helpers [β_uncast_secY], [β_uncast_secX], [β_uncast_jointX],
+    [β_uncast_jointY]. *)
+Lemma fubini_cone_eq_arprod
+    (Mβ : R)
+    (HMβ : forall p : ar_carrier Ar (ar_prod Ar X Y),
+             (cone_norm (β p) <= Mβ)%R) :
+  let HMβ' (p : (ar_carrier Ar X * ar_carrier Ar Y)%type) :
+        (cone_norm (β_uncast p) <= Mβ)%R := HMβ (ar_prod_cast p) in
+  icone_integral (fubini_path_X β_uncast ν)
+    (fubini_path_X_meas β_uncast Mβ HMβ' β_uncast_secY ν β_uncast_jointX)
+    µ =
+  icone_integral (fubini_path_Y β_uncast µ)
+    (fubini_path_Y_meas β_uncast Mβ HMβ' β_uncast_secX µ β_uncast_jointY)
+    ν.
+Proof.
+exact: (fubini_cone_eq β_uncast Mβ
+          (fun p => HMβ (ar_prod_cast p))
+          β_uncast_secY β_uncast_secX µ ν
+          β_uncast_jointX β_uncast_jointY).
+Qed.
+
+End Fubini415Arprod.
+
+Arguments β_uncast {R Ar B X Y} β.

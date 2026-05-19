@@ -143,3 +143,174 @@ Proof. exact: ar_zero_singleton. Qed.
 End ArDerived.
 
 Arguments ar_zero_pt {R} Ar.
+
+(** ** Cartesian product helpers — Paper §3 (universal property)
+
+    The record field [ar_prod_carrier_eq] only equates
+    [ar_carrier (ar_prod X Y)] with [(ar_carrier X * ar_carrier Y)%type]
+    *propositionally at type [Type]*. Downstream files that need to
+    move functions and elements across this equality therefore have
+    to transport via [eq_rect] / [eq_rect_r]. The helpers below
+    package the two casts, their round-trip identities, and — under
+    the assumption that the casts are measurable — the categorical
+    product projections, pairing, and universal property as
+    measurable functions ([ar_hom]).
+
+    The measurability of the casts is taken as a Section-bound
+    hypothesis ([ar_prod_uncast_meas], [ar_prod_cast_meas]). This is
+    not provable from a pure [:> Type] equality (the two sides have
+    *a priori* unrelated sigma-algebras), so we expose it as an
+    explicit prerequisite that consumers discharge at use sites.
+    For every standard [MeasSubcat] realisation (where [ar_prod] is
+    the actual product [measurableType]), both hypotheses are
+    discharged by [measurable_id]. *)
+
+Section ArProdHelpers.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variables X Y : ar_obj Ar.
+
+(** Forward cast: [ar_carrier (ar_prod X Y) -> ar_carrier X *
+    ar_carrier Y]. Defined via [eq_rect] on the propositional
+    equality [ar_prod_carrier_eq]. *)
+Definition ar_prod_uncast (p : ar_carrier Ar (ar_prod Ar X Y)) :
+    (ar_carrier Ar X * ar_carrier Ar Y)%type :=
+  eq_rect _ (fun T : Type => T) p _ (ar_prod_carrier_eq Ar X Y).
+
+(** Backward cast: [ar_carrier X * ar_carrier Y -> ar_carrier
+    (ar_prod X Y)]. Defined via [eq_rect_r] on the same equality. *)
+Definition ar_prod_cast (p : (ar_carrier Ar X * ar_carrier Ar Y)%type) :
+    ar_carrier Ar (ar_prod Ar X Y) :=
+  eq_rect_r (fun T : Type => T) p (ar_prod_carrier_eq Ar X Y).
+
+(** Round-trip identity: [ar_prod_uncast] is a left inverse of
+    [ar_prod_cast]. *)
+Lemma ar_prod_castK p : ar_prod_uncast (ar_prod_cast p) = p.
+Proof.
+rewrite /ar_prod_uncast /ar_prod_cast /eq_rect_r.
+generalize (ar_prod_carrier_eq Ar X Y) => e.
+move: p.
+generalize dependent (Measurable.sort (ar_carrier Ar (ar_prod Ar X Y))).
+by move=> a e p; case: _ / e in p *.
+Qed.
+
+(** Round-trip identity: [ar_prod_uncast] is a right inverse of
+    [ar_prod_cast]. *)
+Lemma ar_prod_uncastK x : ar_prod_cast (ar_prod_uncast x) = x.
+Proof.
+rewrite /ar_prod_uncast /ar_prod_cast /eq_rect_r.
+generalize (ar_prod_carrier_eq Ar X Y) => e.
+move: x.
+generalize dependent (Measurable.sort (ar_carrier Ar (ar_prod Ar X Y))).
+by move=> a e p; case: _ / e in p *.
+Qed.
+
+(** Hypothesis: the [ar_prod_uncast] cast is measurable.
+
+    Cannot be derived from the pure [:> Type] equality. For every
+    canonical [MeasSubcat] (where [ar_prod] is the standard product
+    [measurableType], so the equality is [eq_refl]), this is
+    discharged by [measurable_id]. *)
+Hypothesis ar_prod_uncast_meas :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_uncast.
+
+(** Hypothesis: the [ar_prod_cast] cast is measurable. Same comment
+    as for [ar_prod_uncast_meas]. *)
+Hypothesis ar_prod_cast_meas :
+  measurable_fun [set: (ar_carrier Ar X * ar_carrier Ar Y)%type]
+    ar_prod_cast.
+
+(** First projection of the categorical product, packaged as an
+    [ar_hom]. *)
+Definition ar_prod_fst_fun (p : ar_carrier Ar (ar_prod Ar X Y)) :
+    ar_carrier Ar X := (ar_prod_uncast p).1.
+
+Lemma ar_prod_fst_fun_meas :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_fst_fun.
+Proof.
+rewrite /ar_prod_fst_fun.
+exact: (measurableT_comp measurable_fst ar_prod_uncast_meas).
+Qed.
+
+HB.instance Definition _ :=
+  isMeasurableFun.Build _ _ _ _ ar_prod_fst_fun ar_prod_fst_fun_meas.
+
+Definition ar_prod_fst : ar_hom Ar (ar_prod Ar X Y) X := ar_prod_fst_fun.
+
+(** Second projection of the categorical product, packaged as an
+    [ar_hom]. *)
+Definition ar_prod_snd_fun (p : ar_carrier Ar (ar_prod Ar X Y)) :
+    ar_carrier Ar Y := (ar_prod_uncast p).2.
+
+Lemma ar_prod_snd_fun_meas :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_snd_fun.
+Proof.
+rewrite /ar_prod_snd_fun.
+exact: (measurableT_comp measurable_snd ar_prod_uncast_meas).
+Qed.
+
+HB.instance Definition _ :=
+  isMeasurableFun.Build _ _ _ _ ar_prod_snd_fun ar_prod_snd_fun_meas.
+
+Definition ar_prod_snd : ar_hom Ar (ar_prod Ar X Y) Y := ar_prod_snd_fun.
+
+(** Pairing morphism: given [f : Z -> X], [g : Z -> Y] in [Ar],
+    [ar_pair f g : Z -> ar_prod X Y] in [Ar]. *)
+Section ArPair.
+Variable Z : ar_obj Ar.
+Variables (f : ar_hom Ar Z X) (g : ar_hom Ar Z Y).
+
+Definition ar_pair_fun : ar_carrier Ar Z ->
+    ar_carrier Ar (ar_prod Ar X Y) :=
+  fun z => ar_prod_cast (f z, g z).
+
+Lemma ar_pair_fun_meas :
+  measurable_fun [set: ar_carrier Ar Z] ar_pair_fun.
+Proof.
+rewrite /ar_pair_fun.
+have meas_pair : measurable_fun [set: ar_carrier Ar Z]
+    (fun z => (f z, g z)).
+  by apply: measurable_fun_pair; exact: measurable_funPT.
+exact: (measurableT_comp ar_prod_cast_meas meas_pair).
+Qed.
+
+HB.instance Definition _ :=
+  isMeasurableFun.Build _ _ _ _ ar_pair_fun ar_pair_fun_meas.
+
+Definition ar_pair : ar_hom Ar Z (ar_prod Ar X Y) := ar_pair_fun.
+
+(** Paper §3 universal property: [ar_prod_fst ∘ ar_pair f g = f]. *)
+Lemma ar_pair_fst z : ar_prod_fst (ar_pair z) = f z.
+Proof.
+have -> : ar_prod_fst (ar_pair z) = ar_prod_fst_fun (ar_pair_fun z) by [].
+by rewrite /ar_prod_fst_fun /ar_pair_fun ar_prod_castK.
+Qed.
+
+(** Paper §3 universal property: [ar_prod_snd ∘ ar_pair f g = g]. *)
+Lemma ar_pair_snd z : ar_prod_snd (ar_pair z) = g z.
+Proof.
+have -> : ar_prod_snd (ar_pair z) = ar_prod_snd_fun (ar_pair_fun z) by [].
+by rewrite /ar_prod_snd_fun /ar_pair_fun ar_prod_castK.
+Qed.
+
+End ArPair.
+
+(** Paper §3 universal property: uniqueness. Any [h : Z -> X × Y]
+    in [Ar] is determined pointwise by [ar_prod_fst ∘ h] and
+    [ar_prod_snd ∘ h]. *)
+Lemma ar_pair_uniqueE (Z : ar_obj Ar)
+    (h : ar_hom Ar Z (ar_prod Ar X Y)) (z : ar_carrier Ar Z) :
+  ar_prod_cast (ar_prod_fst (h z), ar_prod_snd (h z)) = h z.
+Proof.
+have eq1 : ar_prod_fst (h z) = (ar_prod_uncast (h z)).1 by [].
+have eq2 : ar_prod_snd (h z) = (ar_prod_uncast (h z)).2 by [].
+rewrite eq1 eq2 -surjective_pairing.
+exact: ar_prod_uncastK.
+Qed.
+
+End ArProdHelpers.
+
+Arguments ar_prod_uncast {R Ar X Y} p.
+Arguments ar_prod_cast {R Ar X Y} p.
+Arguments ar_prod_castK {R Ar X Y} p.
+Arguments ar_prod_uncastK {R Ar X Y} x.
