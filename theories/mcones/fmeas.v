@@ -899,16 +899,16 @@ Proof.
    [u n]. Easier: build [w] directly by case analysis. *)
 pose w_fun (A : set X) : \bar R :=
   if `[< measurable A >] then
-    (fmeas_sup_meas_fun uch A - fmeas_mu (u n) A)%E
-  else 0%E.
+    fmeas_sup_meas_fun uch A - fmeas_mu (u n) A
+  else 0.
 have w_fun_E A :
   measurable A -> w_fun A = fmeas_sup_meas_fun uch A - fmeas_mu (u n) A.
   by move=> mA; rewrite /w_fun asboolT.
-have w_fun_off A : ~ measurable A -> w_fun A = 0%E.
+have w_fun_off A : ~ measurable A -> w_fun A = 0.
   by move=> nmA; rewrite /w_fun asboolF.
-have w_set0 : w_fun set0 = 0%E.
+have w_set0 : w_fun set0 = 0.
   by rewrite w_fun_E ?measurable0// !measure0 sube0.
-have w_ge0 A : (0 <= w_fun A)%E.
+have w_ge0 A : 0 <= w_fun A.
   rewrite /w_fun.
   case: asboolP => mA; last exact: lexx.
   rewrite sube_ge0.
@@ -1257,7 +1257,7 @@ move=> F mF tF mUF.
 have measf : measurable_fun [set: ar_carrier Ar X] φ.
   exact: measurable_funP.
 have base := @measure_semi_sigma_additive _ _ R
-  [the measure _ _ of pushforward (fmeas_mu µ) φ] F mF tF mUF.
+  (pushforward (fmeas_mu µ) φ) F mF tF mUF.
 have eqU : fmeas_push_meas_fun µ (\bigcup_n F n) =
            pushforward (fmeas_mu µ) φ (\bigcup_n F n).
   by rewrite fmeas_push_meas_fun_E.
