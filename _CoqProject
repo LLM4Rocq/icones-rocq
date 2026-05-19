@@ -23,3 +23,4 @@ theories/mcones/path.v
 theories/mcones/mcone_cat.v
 theories/icones/pettis.v
 theories/icones/icone.v
+theories/icones/icone_integral.v
