@@ -27,45 +27,54 @@
       [dirac_fmeas r]. Bounded by [1] and a measurable path, hence
       a [path_car Ar X (fmeas R (ar_carrier Ar X))].
 
-    - [int_to_linhom_fun β] — paper Thm 6.1 forward direction at
-      the function level: [µ ↦ icone_integral β _ µ]. Three of the
-      four [linhom_pre] fields are delivered:
+    - [int_to_linhom β] — paper Thm 6.1 forward direction, packaged
+      as a full [linhom_car Ar (fmeas R (ar_carrier Ar X)) B].  All
+      five [linhom_car] fields are proved:
 
       * [int_to_linhom_fun_linear]: linearity in [µ] (paper Lemma 4.7).
+      * [int_to_linhom_fun_continuous]: ω-continuity in [µ] (paper
+        Lemma 4.7); proved by rescaling [β] to the unit ball,
+        invoking [integral_omega_cont_meas] on the rescaled path,
+        and pulling back through [sup_ball_scaler] / [icone_integral_scaleB].
       * [int_to_linhom_fun_bounded]: operator-norm boundedness
         with constant [M := path_norm β] (paper Lemma 4.2).
       * [int_to_linhom_fun_pres_path]: measurable-path preservation
         in the [fmeas] argument (paper Lemma 4.7, joint measurability).
-
-      The ω-continuity field is documented but deferred: the proof
-      sketch (rescale [β] to unit ball, invoke
-      [integral_omega_cont_meas], pull back via [sup_ball_scaler])
-      is implemented at draft level but a [cone_sup_ball] proof-
-      irrelevance bridge is missing. See the body for the proof
-      sketch.
+      * [int_to_linhom_fun_pres_int]: integral preservation
+        (paper Thm 4.15 / cone-Fubini), via the kernel-Tonelli
+        identity [icone_integral_kernel_tonelli], which packages [β']
+        and [µ'] as finite kernels and invokes mathcomp-analysis's
+        [integral_kcomp].
 
     - [linhom_to_int f] — paper Thm 6.1 inverse direction. Takes
       a [linhom_car Ar (fmeas R (ar_carrier Ar X)) B] and produces
       a [path_car Ar X B] via [r ↦ linhom_fun f (dirac_fmeas r)].
 
-    - [K_int_to_linhom_E] — paper Thm 6.1 round-trip [K ∘ I = id]
-      at the function level:
-      [path_fun (linhom_to_int_path β _ _ _) r = path_fun β r].
-      Direct via [integral_dirac].
+    - [icone_integral_dirac_path] — paper Thm 6.1 Dirac
+      approximation: every [µ : fmeas R X] equals the integral of
+      its Diracs, [icone_integral dirac_path Hδ µ = µ].  Proved by
+      [fmeas_eq] checking on every measurable set [U] via the
+      Pettis equation against [fmeas_eU U] and [integral_indic].
 
-    Deferred to wave 2 / follow-up.
+    - [K_I_int_to_linhom_path_E] — paper Thm 6.1 round-trip
+      [K ∘ I = id] at the [path_car] level: [linhom_to_int
+      (int_to_linhom β) = β].
 
-    - Full packaging of the forward map as a [linhom_car], hence
-      as a [mcones_hom]/[icones_hom]. The bulky proofs are
-      ω-continuity in [µ] (via [integral_omega_cont_meas] +
-      norm-rescaling through [sup_ball_scaler]),
-      measurable-path-preservation (via [icone_integral_joint_measurable]),
-      and integral-preservation (the paper's cone-Fubini step,
-      requiring a scalar Tonelli identity for [fmeas]-integrated
-      kernels on the lines of [mathcomp-analysis]'s [integral_kcomp]).
-    - The reverse round-trip [I ∘ K = id], which uses simple-function
-      approximation of [µ] (the identity [µ = ∫ \d_r µ(dr)] in
-      [FMeas X]) followed by [f]'s integral preservation.
+    - [I_K_int_to_linhom_E] — paper Thm 6.1 round-trip [I ∘ K = id]
+      at the [linhom_car] level: [int_to_linhom (linhom_to_int f) =
+      f].  Proved by extensionality, the Dirac approximation, and
+      [linhom_pres_int f].
+
+    Deferred to wave 3 / follow-up.
+
+    - [mcones_iso] packaging: build [int_to_linhom] and
+      [linhom_to_int] as [mcones_hom] morphisms in [MCones] and
+      witness their mutual inverse.  The packaging is non-trivial
+      because [cones_hom_norm_le1] requires norm-decrease ([cnorm
+      (f x) ≤ cnorm x]) whereas [int_to_linhom β] is bounded by
+      [path_norm β], not [1]; a normalization wrapper or a
+      relaxation of [cones_hom_norm_le1] is needed for the
+      packaging.
     - Naturality in [X] (via pushforward) and in [B] (via
       post-composition). *)
 
@@ -83,6 +92,8 @@ From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import dirac_measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
+From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
+From mathcomp.analysis Require Import kernel.
 Import numFieldTopology.Exports.
 
 Require Import Icones.prelude.classical_extra.
@@ -296,23 +307,316 @@ apply: (path_integral_norm_le (Mβ := path_norm β)).
 - exact: icone_integralP.
 Qed.
 
-(** Paper Lemma 4.7 (ω-continuity in [µ]) — *deferred*.
+(** Paper Lemma 4.7 (ω-continuity in [µ]).
 
-    The proof sketch: rescale [β] to the unit ball via
-    [β' := (path_norm β + 1)^-1 *: β], invoke
-    [integral_omega_cont_meas] on [β'] (which only applies when
-    [β] is unit-bounded), and pull the equation back through
-    [sup_ball_scaler] (Paper Lemma 2.9). The pullback step matches
-    the [cone_sup_ball] of the unscaled image chain against
-    [S *: cone_sup_ball] of the unit-bounded image chain.
+    Rescale [β] to the unit ball via [β_unit := sinv *: β] where
+    [s := path_norm β + 1] and [sinv := s^{-1}]. Then
+    [integral_omega_cont_meas] applies to [β_unit] (a path with
+    [path_norm β_unit ≤ 1]) on any unit-ball measure chain. The
+    image scalar [sinv] commutes with [cone_sup_ball] via
+    [sup_ball_scaler]; scaling back by [s] recovers the unscaled
+    statement, using [icone_integral_scaleB] to compare
+    [icone_integral (sinv *: β) _ µ] with
+    [precone_scale sinv (icone_integral β _ µ)]. *)
+Lemma int_to_linhom_fun_continuous : is_omega_continuous int_to_linhom_fun.
+Proof.
+move=> µn µn_chain µn_bound fµn_chain fµn_bound.
+(* Build [s := path_norm β + 1 > 0] and [sinv := s^{-1}]. *)
+pose s_num : R := (path_norm β + 1)%R.
+have s_pos : 0 < s_num.
+  by rewrite /s_num ltr_wpDl ?ltr01 ?path_norm_ge0.
+have s_ge0 : 0 <= s_num by exact: ltW.
+pose s : {nonneg R} := NngNum s_ge0.
+have sinv_ge0 : 0 <= s_num^-1 by rewrite invr_ge0 ltW.
+pose sinv : {nonneg R} := NngNum sinv_ge0.
+have s_neq0 : s_num != 0%R by rewrite gt_eqF.
+have s_sinv : s%:num * sinv%:num = 1.
+  by rewrite /= mulfV.
+have sinv_s : sinv%:num * s%:num = 1.
+  by rewrite /= mulVf.
+have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+  by move=> a b /val_inj.
+have s_sinv_nng : (s%:num * sinv%:num)%:nng = 1%:nng.
+  by apply: nng_eq => /=; exact: s_sinv.
+have sinv_s_nng : (sinv%:num * s%:num)%:nng = 1%:nng.
+  by apply: nng_eq => /=; exact: sinv_s.
+(* The rescaled path [β_unit r := sinv *: β r]. *)
+pose β_unit : path_car Ar X B := path_scale sinv β.
+have β_unit_norm_le1 : (path_norm β_unit <= 1)%R.
+  rewrite /β_unit path_normh.
+  apply: le_trans (_ : sinv%:num * s_num <= 1)%R; last by rewrite sinv_s.
+  apply: ler_wpM2l; first exact: sinv_ge0.
+  by rewrite /s_num lerDl.
+have β_unit_ptbound : forall r, (cone_norm (path_fun β_unit r) <= 1)%R.
+  by move=> r; apply: le_trans (path_norm_ub β_unit r) β_unit_norm_le1.
+(* The rescaled image chain: integrating [β_unit] against [µn n]. *)
+pose int_unit (n : nat) : B :=
+  icone_integral (path_fun β_unit) (path_is_path β_unit) (µn n).
+have int_unit_E n : int_unit n = precone_scale sinv (int_to_linhom_fun (µn n)).
+  rewrite /int_unit /int_to_linhom_fun /β_unit /=.
+  exact: icone_integral_scaleB.
+have int_unit_chain : forall n, precone_le (int_unit n) (int_unit n.+1).
+  move=> n; rewrite (int_unit_E n) (int_unit_E n.+1).
+  exact: precone_scale_le (fµn_chain n).
+have int_unit_bound : forall n, (cone_norm (int_unit n) <= 1)%R.
+  move=> n.
+  have Hnorm : (cone_norm (int_unit n) <= 1 * fmeas_norm (µn n))%R.
+    apply: (@path_integral_norm_le _ _ _ _ (path_fun β_unit) _ 1)
+                                   β_unit_ptbound
+                                   (path_is_path β_unit)
+                                   _ (icone_integralP _ _ _).
+  apply: le_trans Hnorm _.
+  by rewrite mul1r; exact: µn_bound.
+(* Apply [integral_omega_cont_meas] on [β_unit] and chain [µn]. The
+   lemma uses section-local chain/bound proofs equal to ours up to
+   proof irrelevance; we bridge via [precone_le_anti]. *)
+have key : cone_sup_ball int_unit int_unit_chain int_unit_bound =
+           icone_integral (path_fun β_unit) (path_is_path β_unit)
+                          (fmeas_sup_ball µn_chain µn_bound).
+  have base := integral_omega_cont_meas
+                 (path_is_path β_unit) β_unit_ptbound µn_chain µn_bound.
+  (* [base : cone_sup_ball int_µ int_µ_chain int_µ_bound = RHS]. The
+     LHS [int_µ] is definitionally [int_unit]; chain/bound proofs are
+     swapped via [precone_le_anti]. *)
+  set lhs_base := cone_sup_ball _ _ _ in base.
+  set lhs_ours := cone_sup_ball int_unit int_unit_chain int_unit_bound.
+  have swap : lhs_ours = lhs_base.
+    rewrite /lhs_ours /lhs_base.
+    apply: precone_le_anti; apply: cone_sup_ball_lub => n;
+      exact: cone_sup_ball_ub.
+  by rewrite swap.
+(* Rewrite the RHS as [precone_scale sinv (int_to_linhom_fun (sup_ball µn))]. *)
+have rhs_eq : icone_integral (path_fun β_unit) (path_is_path β_unit)
+                             (fmeas_sup_ball µn_chain µn_bound) =
+              precone_scale sinv
+                (int_to_linhom_fun (fmeas_sup_ball µn_chain µn_bound)).
+  rewrite /int_to_linhom_fun /β_unit /=.
+  exact: icone_integral_scaleB.
+(* Rescale LHS chain via [sup_ball_scaler]. *)
+pose sinv_fµn (n : nat) : B := precone_scale sinv (int_to_linhom_fun (µn n)).
+have sinv_fµn_E n : int_unit n = sinv_fµn n.
+  by rewrite int_unit_E.
+have sinv_fµn_chain : forall n,
+    precone_le (sinv_fµn n) (sinv_fµn n.+1).
+  by move=> n; apply: precone_scale_le (fµn_chain n).
+have s_ge1 : (1 <= s_num)%R.
+  by rewrite /s_num lerDr; exact: path_norm_ge0.
+have sinv_le1 : (sinv%:num <= 1)%R.
+  by rewrite /= invf_le1 ?s_ge1// s_pos.
+have sinv_fµn_bound : forall n,
+    (cone_norm (sinv_fµn n) <= 1)%R.
+  move=> n; rewrite /sinv_fµn cone_normh.
+  apply: le_trans
+    (ler_pM sinv_ge0 (cone_norm_ge0 _) sinv_le1 (fµn_bound n)) _.
+  by rewrite mulr1.
+have lhs_swap :
+    cone_sup_ball int_unit int_unit_chain int_unit_bound =
+    cone_sup_ball sinv_fµn sinv_fµn_chain sinv_fµn_bound.
+  apply: precone_le_anti; apply: cone_sup_ball_lub => n.
+  - rewrite sinv_fµn_E; exact: cone_sup_ball_ub.
+  - rewrite -(sinv_fµn_E n); exact: cone_sup_ball_ub.
+(* Apply [sup_ball_scaler] to extract sinv from the LHS sup_ball. *)
+have lhs_scaler :
+    cone_sup_ball sinv_fµn sinv_fµn_chain sinv_fµn_bound =
+    precone_scale sinv
+      (cone_sup_ball (int_to_linhom_fun \o µn) fµn_chain fµn_bound).
+  exact: (@sup_ball_scaler R B sinv _ fµn_chain fµn_bound).
+(* Combine: [sinv * f (sup µn)] = [sinv * (sup f µn)]. Multiply by s. *)
+have core :
+    precone_scale sinv (int_to_linhom_fun
+                          (fmeas_sup_ball µn_chain µn_bound)) =
+    precone_scale sinv
+      (cone_sup_ball (int_to_linhom_fun \o µn) fµn_chain fµn_bound).
+  by rewrite -rhs_eq -key lhs_swap lhs_scaler.
+have multiply_s : forall x : B, precone_scale s (precone_scale sinv x) = x.
+  by move=> x; rewrite -precone_scale_A s_sinv_nng precone_scale_1.
+by rewrite -[LHS]multiply_s core multiply_s.
+Qed.
 
-    The bridging arithmetic between the two [cone_sup_ball]
-    instances (different chain/bound proof terms for the same
-    function) is the main obstacle in this wave; a clean form
-    requires either exposing [int_µ]/[int_µ_chain]/[int_µ_bound]
-    as a public abbreviation in [icone_integral.v] (so we can
-    package our [int_βS_n]/chain/bound to match) or proving a
-    [cone_sup_ball]-proof-irrelevance lemma in [precone]/[cone]. *)
+(** ** Kernel-Tonelli identity for [icone_integral β' _ µ'] (paper §6)
+
+    Given a measurable path [β' : ar_carrier Y → fmeas R X] and a
+    finite measure [µ' : fmeas R Y], the integrated measure
+    [µY := icone_integral β' Hβ' µ'] supports a kernel-Tonelli
+    identity for any non-negative measurable integrand
+    [g : X → \bar R]:
+
+      [\int[µY] g r = \int[µ'] (\int[β' y] g r) dy].
+
+    We package this by viewing [β'] as a finite kernel
+    [Y ~> ar_carrier X] and [µ'] as a finite kernel from the
+    [ar_zero] singleton, then invoking [integral_kcomp] from
+    mathcomp-analysis. *)
+
+Section KernelTonelli.
+Variables (Y : ar_obj Ar) (β' : ar_carrier Ar Y -> fmeas R (ar_carrier Ar X)).
+Hypothesis Hβ' : is_measurable_path β'.
+Variable µ' : fmeas R (ar_carrier Ar Y).
+
+Local Open Scope ereal_scope.
+
+(** Package [β'] as a finite kernel [Y ~> X] (mathcomp [R.-fker]). *)
+Local Definition β'_kfun (y : ar_carrier Ar Y) :
+    {measure set (ar_carrier Ar X) -> \bar R} :=
+  fmeas_mu (β' y).
+
+Local Lemma β'_kfun_meas U : measurable U ->
+  measurable_fun [set: ar_carrier Ar Y] (β'_kfun ^~ U).
+Proof. by move=> mU; exact: (fmeas_int_meas_fun Hβ' mU). Qed.
+
+HB.instance Definition _ :=
+  isKernel.Build _ _ _ _ R β'_kfun β'_kfun_meas.
+
+Local Lemma β'_kfun_uub : measure_fam_uub β'_kfun.
+Proof.
+have [[Mβ HMβ] _] := Hβ'.
+have HMβge0 : (0 <= Mβ)%R.
+  by apply: le_trans (HMβ (ar_point Ar Y)); exact: cone_norm_ge0.
+exists (Mβ + 1)%R => y.
+have Hfin : (fmeas_mu (β' y) [set: ar_carrier Ar X] \is a fin_num)%E.
+  exact: fmeas_setT_fin.
+rewrite -(fineK Hfin) lte_fin.
+apply: (le_lt_trans (HMβ y)).
+by rewrite ltrDl.
+Qed.
+
+HB.instance Definition _ :=
+  Kernel_isFinite.Build _ _ _ _ _ β'_kfun β'_kfun_uub.
+
+(** Repackage [β'] as a kernel from [ar_zero × Y ~> X] by ignoring
+    the first coordinate. *)
+Local Definition β'_kfun_lift
+    (p : ar_carrier Ar (ar_zero Ar) * ar_carrier Ar Y) :
+    {measure set (ar_carrier Ar X) -> \bar R} :=
+  β'_kfun p.2.
+
+Local Lemma β'_kfun_lift_meas U : measurable U ->
+  measurable_fun
+    [set: (ar_carrier Ar (ar_zero Ar) * ar_carrier Ar Y)%type]
+    (β'_kfun_lift ^~ U).
+Proof.
+move=> mU.
+apply: (measurableT_comp (f := β'_kfun ^~ U)).
+- exact: β'_kfun_meas.
+- exact: measurable_snd.
+Qed.
+
+HB.instance Definition _ :=
+  isKernel.Build _ _ _ _ R β'_kfun_lift β'_kfun_lift_meas.
+
+Local Lemma β'_kfun_lift_uub : measure_fam_uub β'_kfun_lift.
+Proof. by have [M HM] := β'_kfun_uub; exists M => p; exact: HM. Qed.
+
+HB.instance Definition _ :=
+  Kernel_isFinite.Build _ _ _ _ _ β'_kfun_lift β'_kfun_lift_uub.
+
+(** Package [µ'] as a constant kernel from [ar_zero] to [Y]. *)
+Local Definition µ'_kfun (_ : ar_carrier Ar (ar_zero Ar)) :
+    {measure set (ar_carrier Ar Y) -> \bar R} :=
+  fmeas_mu µ'.
+
+Local Lemma µ'_kfun_meas U : measurable U ->
+  measurable_fun [set: ar_carrier Ar (ar_zero Ar)] (µ'_kfun ^~ U).
+Proof. by move=> _; exact: measurable_cst. Qed.
+
+HB.instance Definition _ :=
+  isKernel.Build _ _ _ _ R µ'_kfun µ'_kfun_meas.
+
+Local Lemma µ'_kfun_uub : measure_fam_uub µ'_kfun.
+Proof.
+exists (fmeas_norm µ' + 1)%R => z.
+have Hfin : (fmeas_mu µ' [set: ar_carrier Ar Y] \is a fin_num)%E.
+  exact: fmeas_setT_fin.
+rewrite /µ'_kfun -(fineK Hfin) lte_fin.
+by rewrite ltrDl.
+Qed.
+
+HB.instance Definition _ :=
+  Kernel_isFinite.Build _ _ _ _ _ µ'_kfun µ'_kfun_uub.
+
+(** The Pettis equation identifies [icone_integral β' Hβ' µ'] with
+    the kernel-composition measure on every measurable set. *)
+Local Lemma icone_integral_set_E U : measurable U ->
+  fmeas_mu (icone_integral β' Hβ' µ') U =
+  kcomp µ'_kfun β'_kfun_lift (ar_zero_pt Ar) U.
+Proof.
+move=> mU.
+have HµY_pet := icone_integralP β' Hβ' µ'
+                  (fmeas_eU (ar_zero Ar) mU)
+                  (ex_intro _ U (ex_intro _ mU erefl))
+                  (ar_zero_pt Ar).
+have HµYUfin : (fmeas_mu (icone_integral β' Hβ' µ') U \is a fin_num)%E.
+  exact: fmeas_fin.
+have intfin :
+    (\int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y]) fmeas_mu (β' y) U
+     \is a fin_num)%E.
+  have meas_int :
+    measurable_fun [set: ar_carrier Ar Y]
+      (fun y => fmeas_mu (β' y) U).
+    exact: (fmeas_int_meas_fun Hβ' mU).
+  have [[Mβ' HMβ'] _] := Hβ'.
+  have Mb_ge0 : (0 <= Mβ')%R.
+    by apply: le_trans (HMβ' (ar_point _ _)); exact: cone_norm_ge0.
+  have intge0 :
+    (0 <= \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+            fmeas_mu (β' y) U)%E.
+    by apply: integral_ge0 => y _; exact: measure_ge0.
+  have intle :
+    (\int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+       fmeas_mu (β' y) U <= Mβ'%:E * fmeas_mu µ' [set: _])%E.
+    have -> : (Mβ'%:E * fmeas_mu µ' [set: _])%E =
+              (\int[fmeas_mu µ']_(y in [set: _]) Mβ'%:E)%E
+      by rewrite integral_cst.
+    apply: ge0_le_integral.
+    - exact: measurableT.
+    - by move=> y _; exact: measure_ge0.
+    - exact: meas_int.
+    - exact: measurable_cst.
+    - move=> y _.
+      apply: (@le_trans _ _ (fmeas_mu (β' y) [set: ar_carrier Ar X])).
+        by apply: le_measure; rewrite ?inE//; exact: measurableT.
+      have HfinT : (fmeas_mu (β' y) [set: ar_carrier Ar X] \is a fin_num)%E
+        by exact: fmeas_setT_fin.
+      by rewrite -(fineK HfinT) lee_fin; exact: HMβ' y.
+  have HsetTfin : (fmeas_mu µ' [set: _] \is a fin_num)%E
+    by exact: fmeas_setT_fin.
+  rewrite ge0_fin_numE//.
+  apply: le_lt_trans intle _.
+  by apply: lte_mul_pinfty => //; rewrite ltey_eq HsetTfin.
+have HµY_eq : fine (fmeas_mu (icone_integral β' Hβ' µ') U) =
+              fine (\int[fmeas_mu µ']_(y in [set: _]) fmeas_mu (β' y) U).
+  rewrite [LHS]HµY_pet /fmeas_eU /eU_fun /=.
+  congr fine.
+  by apply: eq_integral => y _; rewrite fineK//; exact: fmeas_fin.
+have -> : kcomp µ'_kfun β'_kfun_lift (ar_zero_pt Ar) U =
+          \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+            fmeas_mu (β' y) U by [].
+by rewrite -(fineK HµYUfin) -(fineK intfin) HµY_eq.
+Qed.
+
+(** Paper Thms 4.5 / 4.15 — kernel-Tonelli identity in
+    [fmeas R (ar_carrier Ar X)]. *)
+Lemma icone_integral_kernel_tonelli
+    (g : ar_carrier Ar X -> \bar R) :
+  measurable_fun [set: ar_carrier Ar X] g ->
+  (forall r, (0 <= g r)%E) ->
+  \int[fmeas_mu (icone_integral β' Hβ' µ')]_(r in [set: ar_carrier Ar X])
+    g r =
+  \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+    \int[fmeas_mu (β' y)]_(r in [set: ar_carrier Ar X]) g r.
+Proof.
+move=> gm gge0.
+have eq_µY :
+    \int[fmeas_mu (icone_integral β' Hβ' µ')]_(r in [set: ar_carrier Ar X])
+      g r =
+    \int[kcomp µ'_kfun β'_kfun_lift (ar_zero_pt Ar)]_(r in [set:
+      ar_carrier Ar X]) g r.
+  apply: eq_measure_integral => U mU _; exact: icone_integral_set_E.
+rewrite eq_µY.
+exact: (integral_kcomp µ'_kfun β'_kfun_lift (ar_zero_pt Ar) (f := g) gge0 gm).
+Qed.
+
+End KernelTonelli.
 
 (** Paper Lemma 4.7 + joint measurability: for any measurable path
     [κ : ar_carrier Y -> fmeas R X], the composite
@@ -410,11 +714,127 @@ congr (test_fun m p.1 _).
 apply/esym/icone_integral_eqP; exact: icone_integralP.
 Qed.
 
+(** ** Paper Thm 6.1 — integral preservation in [µ] for [int_to_linhom_fun β]
+
+    For any measurable path [β' : Y → fmeas R X] and finite measure
+    [µ' : fmeas R Y]:
+
+      [int_to_linhom_fun β (icone_integral β' Hβ' µ')
+         = icone_integral (fun y => int_to_linhom_fun β (β' y))
+                          (int_to_linhom_fun_pres_path β' Hβ') µ'].
+
+    Proof: by uniqueness of the integral on [B] ([icone_integral_eqP]),
+    show that the RHS satisfies the Pettis equation
+    [path_integral_eq βf (icone_integral β' Hβ' µ') (RHS)].  Test
+    against any [m ∈ M_{ar_zero}] using [icone_integralP] on both
+    levels and the kernel-Tonelli identity
+    [icone_integral_kernel_tonelli] to swap the integration order. *)
+Lemma int_to_linhom_fun_pres_int
+    (Y : ar_obj Ar) (β' : ar_carrier Ar Y -> fmeas R (ar_carrier Ar X))
+    (Hβ' : is_measurable_path β')
+    (µ' : fmeas R (ar_carrier Ar Y)) :
+  int_to_linhom_fun (icone_integral β' Hβ' µ') =
+  icone_integral
+    (fun r => int_to_linhom_fun (β' r))
+    (int_to_linhom_fun_pres_path Hβ') µ'.
+Proof.
+rewrite /int_to_linhom_fun.
+apply/esym/icone_integral_eqP => m mM s.
+(* RHS = m s (icone_integral γ_path Hγ µ'). Expand via icone_integralP. *)
+rewrite (icone_integralP _ _ µ' m mM s).
+(* Inside the µ'-integral, expand test of [int_to_linhom_fun β (β' y)]
+   via icone_integralP on β' y. *)
+have test_inner y :
+    test_fun m s (icone_integral βf Hβ (β' y)) =
+    fine (\int[fmeas_mu (β' y)]_(r in [set: ar_carrier Ar X])
+            (test_fun m s (βf r))%:E)%E.
+  exact: icone_integralP.
+(* Tonelli swap via [icone_integral_kernel_tonelli]. *)
+pose f0 : ar_carrier Ar X -> \bar R :=
+  fun r => (test_fun m s (βf r))%:E.
+have f0_meas : measurable_fun [set: ar_carrier Ar X] f0.
+  rewrite /f0.
+  by apply/measurable_EFinP; exact: (measurable_test_path_section mM Hβ).
+have f0_ge0 r : (0 <= f0 r)%E by rewrite /f0 lee_fin; apply: test_ge0.
+have tonelli := icone_integral_kernel_tonelli Hβ' µ' f0_meas f0_ge0.
+(* Rewrite the outer integrand: replace [test_fun m s (γ_path r)]
+   by the inner-integral form, then drop the [fine ∘ (_%:E)] via [fineK]. *)
+have inner_fin y :
+    (\int[fmeas_mu (β' y)]_(r in [set: _]) f0 r \is a fin_num)%E.
+  have HfinT : (fmeas_mu (β' y) [set: _] \is a fin_num)%E
+    by exact: fmeas_setT_fin.
+  have intge0 :
+    (0 <= \int[fmeas_mu (β' y)]_(r in [set: _]) f0 r)%E
+    by apply: integral_ge0 => r _; exact: f0_ge0.
+  have ub :
+    (\int[fmeas_mu (β' y)]_(r in [set: _]) f0 r <=
+       (path_norm β)%:E * fmeas_mu (β' y) [set: _])%E.
+    have -> : ((path_norm β)%:E * fmeas_mu (β' y) [set: _])%E =
+              (\int[fmeas_mu (β' y)]_(r in [set: _]) (path_norm β)%:E)%E
+      by rewrite integral_cst.
+    apply: ge0_le_integral.
+    - exact: measurableT.
+    - by move=> r _; exact: f0_ge0.
+    - exact: f0_meas.
+    - exact: measurable_cst.
+    - move=> r _; rewrite /f0 lee_fin.
+      apply: le_trans (test_norm_le _ _ _) _; exact: path_norm_ub.
+  rewrite ge0_fin_numE//.
+  apply: le_lt_trans ub _.
+  apply: lte_mul_pinfty => //.
+  - exact: path_norm_ge0.
+  - by rewrite ltey_eq HfinT.
+have rewE :
+    (\int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+       (test_fun m s (int_to_linhom_fun (β' y)))%:E =
+     \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+       \int[fmeas_mu (β' y)]_(r in [set: _]) f0 r)%E.
+  apply: eq_integral => y _.
+  rewrite /int_to_linhom_fun (test_inner y).
+  by rewrite fineK//.
+rewrite rewE.
+by rewrite -tonelli.
+Qed.
+
 End IntToLinhomFun.
 
 Arguments int_to_linhom_fun {R Ar X B} β.
 Arguments int_to_linhom_fun_linear {R Ar X B} β.
 Arguments int_to_linhom_fun_bounded {R Ar X B} β.
+Arguments int_to_linhom_fun_continuous {R Ar X B} β.
+Arguments int_to_linhom_fun_pres_path {R Ar X B} β {Y κ}.
+Arguments int_to_linhom_fun_pres_int {R Ar X B} β {Y β'} Hβ' µ'.
+
+(** ** Paper Thm 6.1 forward direction — [int_to_linhom β : linhom_car _]
+
+    With all five [linhom_car] fields proved, package
+    [int_to_linhom_fun β] as a [linhom_car Ar (fmeas R X) B]. *)
+
+Section IntToLinhom.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B : ICone.type Ar).
+Variable β : path_car Ar X B.
+
+(** The [linhom_pre] structure carries the function, linearity,
+    ω-continuity, boundedness, and path-preservation. *)
+Definition int_to_linhom_pre :
+    linhom_pre Ar (fmeas R (ar_carrier Ar X)) B :=
+  MkLinhomPre (int_to_linhom_fun β)
+    (int_to_linhom_fun_linear β)
+    (int_to_linhom_fun_continuous β)
+    (int_to_linhom_fun_bounded β)
+    (fun Y κ => int_to_linhom_fun_pres_path β (κ:=κ)).
+
+(** The [linhom_car] structure adds integral preservation. *)
+Definition int_to_linhom :
+    linhom_car Ar (fmeas R (ar_carrier Ar X)) B :=
+  MkLinhom int_to_linhom_pre
+    (fun Y β' Hβ' µ' => int_to_linhom_fun_pres_int β Hβ' µ').
+
+End IntToLinhom.
+
+Arguments int_to_linhom_pre {R Ar X B} β.
+Arguments int_to_linhom {R Ar X B} β.
 
 (** ** Paper Thm 6.1 inverse direction — [linhom_to_int f]
 
@@ -528,12 +948,164 @@ Lemma K_int_to_linhom_E (r : ar_carrier Ar X) :
   int_to_linhom_fun β (dirac_fmeas r) = βf r.
 Proof. exact: int_to_linhom_fun_dirac. Qed.
 
+(** Paper Thm 6.1: round-trip [K ∘ I = id] at the [path_car] level.
+    With [int_to_linhom β] fully packaged as a [linhom_car], this
+    statement reads [linhom_to_int (int_to_linhom β) = β]. *)
+Lemma K_I_int_to_linhom_path_E :
+  linhom_to_int (int_to_linhom β) = β.
+Proof.
+apply: path_eq => r /=.
+by rewrite /linhom_to_int_fun /linhom_fun /=; exact: K_int_to_linhom_E.
+Qed.
+
 End RoundTripKI.
 
 Arguments int_to_linhom_fun_dirac {R Ar X B} β r.
 Arguments K_int_to_linhom_E {R Ar X B} β r.
+Arguments K_I_int_to_linhom_path_E {R Ar X B} β.
 
-(** ** Sanity checks — paper Thm 6.1 wave 1 deliverables *)
+(** ** Paper Thm 6.1 — Dirac approximation of finite measures
+
+    Every finite measure equals the integral of its Diracs:
+    [µ = icone_integral dirac_path Hδ µ] in [fmeas R X].
+
+    Proof: by [fmeas_eq], check on every measurable set [U].  Both
+    sides agree on [U] via the Pettis equation against [fmeas_eU U],
+    using [integral_dirac] inside the integrand. *)
+Section DiracApprox.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable X : ar_obj Ar.
+
+Lemma icone_integral_dirac_path (µ : fmeas R (ar_carrier Ar X)) :
+  icone_integral (dirac_path Ar X)
+                 (path_is_path (dirac_path Ar X)) µ =
+  µ.
+Proof.
+apply: fmeas_eq => U mU.
+have HU_pet :=
+  icone_integralP (dirac_path Ar X)
+                  (path_is_path (dirac_path Ar X)) µ
+                  (fmeas_eU (ar_zero Ar) mU)
+                  (ex_intro _ U (ex_intro _ mU erefl))
+                  (ar_zero_pt Ar).
+rewrite /fmeas_eU /eU_fun /= in HU_pet.
+have Hfin_lhs :
+  (fmeas_mu (icone_integral (dirac_path Ar X)
+                            (path_is_path (dirac_path Ar X)) µ) U
+   \is a fin_num)%E.
+  exact: fmeas_fin.
+have Hfin_int :
+  (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+     (fine (fmeas_mu (dirac_fmeas r) U))%:E \is a fin_num)%E.
+  have intge0 :
+    (0 <= \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+            (fine (fmeas_mu (dirac_fmeas r) U))%:E)%E.
+    apply: integral_ge0 => r _.
+    rewrite lee_fin -lee_fin fineK; first exact: measure_ge0.
+    exact: fmeas_fin.
+  have intle :
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+       (fine (fmeas_mu (dirac_fmeas r) U))%:E <= fmeas_mu µ [set: _])%E.
+    have -> : (fmeas_mu µ [set: _])%E =
+              (\int[fmeas_mu µ]_(r in [set: _]) 1%:E)%E
+      by rewrite integral_cst//= mul1e.
+    have mf_dirac :
+      measurable_fun [set: ar_carrier Ar X]
+        (fun r => (fine (fmeas_mu (dirac_fmeas r) U))%:E).
+      apply/measurable_EFinP; apply: (measurableT_comp (f := fine)).
+        exact: fine_measurable.
+      by apply: (fmeas_int_meas_fun
+                   (path_is_path (dirac_path Ar X)) mU).
+    apply: ge0_le_integral; rewrite ?measurableT//=.
+    - move=> r _; rewrite lee_fin.
+      have HfinD : (fmeas_mu (dirac_fmeas r) U \is a fin_num)%E
+        by exact: fmeas_fin.
+      by rewrite -lee_fin fineK//; exact: measure_ge0.
+    - move=> r _; rewrite lee_fin.
+      have HfinD : (fmeas_mu (dirac_fmeas r) U \is a fin_num)%E
+        by exact: fmeas_fin.
+      rewrite -lee_fin fineK//.
+      have -> : (dirac_canon_fun r U = \d_r U :> \bar R)%E
+        by exact: dirac_canon_funE.
+      rewrite diracE.
+      by case: (r \in U); rewrite ?ler01 ?lexx.
+  rewrite ge0_fin_numE//.
+  apply: le_lt_trans intle _.
+  by rewrite ltey_eq fmeas_setT_fin.
+have HfinU : (fmeas_mu µ U \is a fin_num)%E by exact: fmeas_fin.
+rewrite -(fineK Hfin_lhs) HU_pet.
+(* The integrand [fine (dirac_canon_fun r U)] equals [\1_U r]. *)
+have step1 :
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+       (fine (dirac_canon_fun r U))%:E =
+     \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+       (numfun.indic U r)%:E)%E.
+  apply: eq_integral => r _.
+  have -> : (dirac_canon_fun r U = \d_r U :> \bar R)%E
+    by exact: dirac_canon_funE.
+  by rewrite diracE /numfun.indic; case: (r \in U).
+rewrite step1 integral_indic ?setIT//.
+by rewrite fineK.
+Qed.
+
+End DiracApprox.
+
+Arguments icone_integral_dirac_path {R Ar X} µ.
+
+(** ** Paper Thm 6.1 — round-trip identity [I ∘ K = id]
+
+    For [f : linhom_car Ar (fmeas R X) B]:
+
+      [int_to_linhom (linhom_to_int f) = f].
+
+    Proof: by [linhom_eq] (extensionality), check pointwise:
+
+      [int_to_linhom_fun (linhom_to_int f) µ
+         = icone_integral (r ↦ f (dirac_fmeas r)) _ µ      (definition)
+         = f (icone_integral dirac_path _ µ)                (linhom_pres_int f)
+         = f µ                                              (Dirac approximation)]
+*)
+Section RoundTripIK.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B : ICone.type Ar).
+Variable f : linhom_car Ar (fmeas R (ar_carrier Ar X)) B.
+
+Lemma I_K_int_to_linhom_E : int_to_linhom (linhom_to_int f) = f.
+Proof.
+apply: linhom_eq => µ.
+have Hδ : is_measurable_path (dirac_fmeas (R:=R) (Ar:=Ar) (X:=X))
+  := dirac_fmeas_is_path X.
+(* LHS expansion: [int_to_linhom_fun (linhom_to_int f) µ] is by
+   definition [icone_integral (fun r => f (dirac_fmeas r)) Hpath µ]
+   for some [Hpath]; by uniqueness it agrees with any chosen Hpath. *)
+have LHS_E :
+    linhom_fun (int_to_linhom (linhom_to_int f)) µ =
+    icone_integral (fun r => linhom_fun f (dirac_fmeas r))
+                   (linhom_pre_pres_path (linhom_pre_of f) X
+                      dirac_fmeas Hδ) µ.
+  apply: icone_integral_eqP; exact: icone_integralP.
+rewrite LHS_E.
+(* By linhom_pres_int f applied to [dirac_path X] and µ. *)
+have step :
+    linhom_fun f (icone_integral dirac_fmeas Hδ µ) =
+    icone_integral
+      (fun r => linhom_fun f (dirac_fmeas r))
+      (linhom_pre_pres_path (linhom_pre_of f) X dirac_fmeas Hδ) µ.
+  exact: (linhom_pres_int f).
+rewrite -step.
+have Heq : icone_integral dirac_fmeas Hδ µ = µ.
+  have Heq0 := icone_integral_dirac_path (X:=X) µ.
+  rewrite /dirac_path /= in Heq0.
+  by apply: (eq_trans _ Heq0); congr (icone_integral _ _ _);
+     exact: Prop_irrelevance.
+by rewrite Heq.
+Qed.
+
+End RoundTripIK.
+
+Arguments I_K_int_to_linhom_E {R Ar X B} f.
+
+(** ** Sanity checks — paper Thm 6.1 wave 2 deliverables *)
 
 Section BilinSanityCheck.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -543,17 +1115,22 @@ Variables (X : ar_obj Ar) (B : ICone.type Ar).
 Check (dirac_path Ar X :
   path_car Ar X (fmeas R (ar_carrier Ar X))).
 
-(** [int_to_linhom_fun] sends a path to a function on measures. *)
+(** [int_to_linhom] is the full forward map, a [linhom_car]. *)
 Check (fun β : path_car Ar X B =>
-  int_to_linhom_fun β : fmeas R (ar_carrier Ar X) -> B).
+  int_to_linhom β : linhom_car Ar (fmeas R (ar_carrier Ar X)) B).
 
-(** [linhom_to_int] sends a [linhom_car] to a path. *)
+(** [linhom_to_int] is the inverse map, a [path_car]. *)
 Check (fun f : linhom_car Ar (fmeas R (ar_carrier Ar X)) B =>
   linhom_to_int f : path_car Ar X B).
 
-(** Paper Thm 6.1: round-trip [K ∘ I = id] at function level. *)
-Check (fun (β : path_car Ar X B) (r : ar_carrier Ar X) =>
-  K_int_to_linhom_E β r :
-    int_to_linhom_fun β (dirac_fmeas r) = path_fun β r).
+(** Paper Thm 6.1: round-trip [K ∘ I = id] at the path_car level. *)
+Check (fun β : path_car Ar X B =>
+  K_I_int_to_linhom_path_E β :
+    linhom_to_int (int_to_linhom β) = β).
+
+(** Paper Thm 6.1: round-trip [I ∘ K = id] at the linhom_car level. *)
+Check (fun f : linhom_car Ar (fmeas R (ar_carrier Ar X)) B =>
+  I_K_int_to_linhom_E f :
+    int_to_linhom (linhom_to_int f) = f).
 
 End BilinSanityCheck.
