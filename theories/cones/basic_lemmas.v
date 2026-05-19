@@ -263,7 +263,8 @@ have Dir2 : precone_le (precone_add su y) s.
   have ws_eq : forall n, s = precone_add (precone_add (u n) y) (ws n).
     by move=> n; exact: projT2 (cid (wsex n)).
   (* All u n + w n equal u 0 + w 0. *)
-  have u_w_const : forall n, precone_add (u n) (ws n) = precone_add (u 0) (ws 0).
+  have u_w_const : forall n,
+      precone_add (u n) (ws n) = precone_add (u 0) (ws 0).
     move=> n.
     have H0 : s = precone_add (precone_add (u 0) (ws 0)) y.
       by rewrite (ws_eq 0) -precone_addA (precone_addC y (ws 0)) precone_addA.
@@ -304,7 +305,8 @@ Lemma addl_omega_continuous x :
 Proof.
 rewrite /is_omega_continuous => u uch ub1 fuch fub1.
 (* Symmetric: rewrite x + u_n as u_n + x, apply [sup_ball_addr]. *)
-have fuch' : forall n, precone_le (precone_add (u n) x) (precone_add (u n.+1) x).
+have fuch' : forall n,
+    precone_le (precone_add (u n) x) (precone_add (u n.+1) x).
   by move=> n; rewrite -!(precone_addC x); exact: fuch.
 have fub1' : forall n, cone_norm (precone_add (u n) x) <= 1.
   by move=> n; rewrite precone_addC; exact: fub1.
@@ -343,7 +345,8 @@ Qed.
 Lemma sup_ball_scaler (r : {nonneg R}) (u : nat -> P)
   (uch : forall n, precone_le (u n) (u n.+1))
   (ub1 : forall n, cone_norm (u n) <= 1)
-  (fuch : forall n, precone_le (precone_scale r (u n)) (precone_scale r (u n.+1)))
+  (fuch : forall n,
+      precone_le (precone_scale r (u n)) (precone_scale r (u n.+1)))
   (fub1 : forall n, cone_norm (precone_scale r (u n)) <= 1) :
   cone_sup_ball (fun n => precone_scale r (u n)) fuch fub1 =
   precone_scale r (cone_sup_ball u uch ub1).

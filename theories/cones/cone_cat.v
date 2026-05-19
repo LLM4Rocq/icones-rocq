@@ -441,7 +441,8 @@ Qed.
 (** Helper: the cone order on the product is componentwise.
     Forward direction. *)
 Lemma cones_prod_le_comp (x y : T) :
-  precone_le x y -> forall i, precone_le (cones_prod_val x i) (cones_prod_val y i).
+  precone_le x y ->
+  forall i, precone_le (cones_prod_val x i) (cones_prod_val y i).
 Proof.
 case=> z Hxy i; exists (cones_prod_val z i).
 have /(congr1 (fun w => cones_prod_val w i)) := Hxy.
@@ -633,7 +634,8 @@ Proof.
 move=> Hub.
 (* Componentwise: u_n i ≤ y i for all n, so sup_n ≤ y i.
    Bundle the witnesses. *)
-have Hcomp : forall i, precone_le (cones_prod_sup_ball_fun i) (cones_prod_val y i).
+have Hcomp : forall i,
+    precone_le (cones_prod_sup_ball_fun i) (cones_prod_val y i).
   move=> i; apply: cone_sup_ball_lub.
   by move=> n; apply: cones_prod_le_comp; exact: Hub.
 (* Now extract componentwise witnesses. *)
@@ -889,7 +891,8 @@ Variables P Q S : coneType R.
     continuity. *)
 Lemma diagonal_collapse
   (a : nat -> nat -> S)
-  (mono : forall n m k l, (n <= k)%N -> (m <= l)%N -> precone_le (a n m) (a k l))
+  (mono : forall n m k l,
+      (n <= k)%N -> (m <= l)%N -> precone_le (a n m) (a k l))
   (diagch : forall n, precone_le (a n n) (a n.+1 n.+1))
   (diagub1 : forall n, cone_norm (a n n) <= 1)
   (rowch : forall n k, precone_le (a n k) (a n k.+1))
@@ -976,7 +979,9 @@ Definition cones_eq_scale (r : {nonneg R}) (x : cones_eq_car) : cones_eq_car :=
 (** *** Precone axioms *)
 
 Lemma cones_eq_addA : associative cones_eq_add.
-Proof. by move=> x y z; apply: cones_eq_extensional; rewrite /= precone_addA. Qed.
+Proof.
+by move=> x y z; apply: cones_eq_extensional; rewrite /= precone_addA.
+Qed.
 
 Lemma cones_eq_addC : commutative cones_eq_add.
 Proof. by move=> x y; apply: cones_eq_extensional; rewrite /= precone_addC. Qed.
@@ -1157,8 +1162,9 @@ Proof.
 have HH : precone_le (cones_eq_val (u n)) cones_eq_sup_P
   by exact: cone_sup_ball_ub.
 case: HH => z Hz.
-(* Need to package z as an element of E. Since z = sup_P - u_n in some sense,
-   and both u_n, sup_P are in E, z's image under f and g should also coincide... *)
+(* Need to package z as an element of E. Since z = sup_P - u_n in some
+   sense, and both u_n, sup_P are in E, z's image under f and g should
+   also coincide... *)
 (* Use: f sup_P = f u_n + f z (linearity); g sup_P = g u_n + g z. *)
 (* Since f sup_P = g sup_P and f u_n = g u_n, by cancellation f z = g z. *)
 have Hfz : f z = g z.
