@@ -60,6 +60,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.
+Require Import Icones.icones.fubini.
 Require Import Icones.icones.icone_cat.
 
 Set Implicit Arguments.
@@ -3729,6 +3730,844 @@ Variables C D : ICone.type Ar.
 Check (linhom_car Ar C D : mconeType Ar).
 
 End LinhomMConeCheck.
+
+(** ** [isICone] HB instance on [linhom_car] — Paper Lemma 5.4
+
+    Given a measurable path [η : ar_carrier Ar Y' -> linhom_car Ar C D]
+    and a finite measure [µ : fmeas R (ar_carrier Ar Y')], we build
+    the pointwise integral
+    [(∫η dµ)(x) := icone_integral (r ↦ linhom_fun (η r) x) ... µ]
+    in [D]. We then verify that this map is itself a [linhom_car]
+    (linear, ω-continuous, bounded, measurable-path-preserving,
+    integral-preserving) and satisfies the Pettis equation w.r.t. the
+    [linhom_test] family.
+
+    Template: [theories/icones/examples_icone.v] lines 842–1175
+    ([path_int_fun], [path_int_pt_meas], [path_int_fun_is_path],
+    [path_int_exists]) for [path_car]; here we replicate it for
+    [linhom_car], using Fubini ([fubini_cone_eq]) for the
+    integral-preservation field. *)
+
+Section LinhomICone.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Section LinhomIntFun.
+Variable Y' : ar_obj Ar.
+Variable η : ar_carrier Ar Y' -> linhom_car Ar C D.
+Hypothesis Hη : is_measurable_path η.
+Variable µ : fmeas R (ar_carrier Ar Y').
+
+(** Paper Lemma 5.4: at each [x : C], the function
+    [r ↦ linhom_fun (η r) x] is a measurable path of [D].
+    The cone-norm bound follows from boundedness of each [η r]
+    (uniform via [Hη]'s norm bound); the joint test-measurability
+    follows from (Msmeas) on [η] applied to the rescaled constant
+    test [linhom_test (const_x_path_arity Z x') γub m_D mM_D]. *)
+Lemma linhom_int_pt_meas (x : C) :
+  is_measurable_path (fun r : ar_carrier Ar Y' => linhom_fun (η r) x).
+Proof.
+have [[Mη HMη] Hη_meas] := Hη.
+split.
+  exists (Mη * (cone_norm x)) => r.
+  apply: le_trans (linhom_norm_apply_le _ _) _.
+  - exact: HMη.
+  - exact: lexx.
+move=> Z m_D mM_D.
+(* Rescale [x] to the unit ball: [x' := (cnorm x + 1)^-1 *: x]. *)
+have S_pos : 0 < cone_norm x + 1 by exact: cnorm_succ_pos.
+have Sinv_ge0 : 0 <= (cone_norm x + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+have Sinv_pos : 0 < Sinv%:num by rewrite /= invr_gt0.
+have Sinv_neq0 : Sinv%:num != 0 by rewrite gt_eqF.
+pose x' : C := precone_scale Sinv x.
+have Hx'_unit : cone_norm x' <= 1.
+  rewrite /x' cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+have Hγx'_unit : cone_norm (const_x_path_arity Z x') <= 1.
+  by rewrite /cone_norm /= const_x_path_arity_normE.
+(* Apply (Msmeas) on η at the linhom test [γ_{x'} ▷ m_D]. *)
+have Hmeas_xprime :
+  measurable_fun [set: ar_carrier Ar Z * ar_carrier Ar Y']
+    (fun p => m_D p.1 (linhom_fun (η p.2) x')).
+  have HinM : linhom_mcone_M (Y:=Z)
+    (linhom_test (const_x_path_arity Z x') Hγx'_unit m_D mM_D).
+    by exists (const_x_path_arity Z x'), Hγx'_unit, m_D, mM_D.
+  have Hη' := Hη_meas Z _ HinM.
+  apply: (eq_measurable_fun
+    (fun p => linhom_test (const_x_path_arity Z x') Hγx'_unit m_D mM_D
+                p.1 (η p.2))).
+    by move=> p _; rewrite /linhom_test /= /linhom_test_fun /=.
+  exact: Hη'.
+(* Now use linearity of [linhom_fun (η r)]: x' = Sinv *: x. *)
+have Heq : forall (z : ar_carrier Ar Z) (r : ar_carrier Ar Y'),
+    m_D z (linhom_fun (η r) x') =
+    Sinv%:num * m_D z (linhom_fun (η r) x).
+  move=> z r.
+  have [_ _ HfZ] := linhom_pre_linear (linhom_pre_of (η r)).
+  by rewrite /x' /linhom_fun HfZ test_linZ.
+(* Multiply by [(cnorm x + 1) = Sinv⁻¹] to recover the unscaled fn. *)
+apply: (eq_measurable_fun
+  (fun p : ar_carrier Ar Z * ar_carrier Ar Y' =>
+    Sinv%:num^-1 * m_D p.1 (linhom_fun (η p.2) x'))).
+  move=> p _ /=.
+  by rewrite Heq mulrA mulVf // mul1r.
+have Hmul : measurable_fun [set: R] ( *%R Sinv%:num^-1).
+  exact: mulrl_measurable.
+have step : (fun p : ar_carrier Ar Z * ar_carrier Ar Y' =>
+   Sinv%:num^-1 * m_D p.1 (linhom_fun (η p.2) x')) =
+  *%R Sinv%:num^-1 \o
+  (fun p : ar_carrier Ar Z * ar_carrier Ar Y' =>
+    m_D p.1 (linhom_fun (η p.2) x')).
+  by apply: funext.
+by rewrite step; exact: (measurableT_comp Hmul Hmeas_xprime).
+Qed.
+
+(** Paper Lemma 5.4: the pointwise integral as a function [C -> D]. *)
+Definition linhom_int_fun (x : C) : D :=
+  icone_integral (fun r => linhom_fun (η r) x) (linhom_int_pt_meas x) µ.
+
+(** Paper Lemma 5.4: boundedness — operator-norm bound.
+    [cnorm (linhom_int_fun x) ≤ ‖η‖ · ‖µ‖] when [‖x‖ ≤ 1], via
+    [path_integral_norm_le]. *)
+Lemma linhom_int_fun_bounded :
+  exists M : R, forall x : C, cnorm x <= 1 ->
+  cnorm (linhom_int_fun x) <= M.
+Proof.
+have [[Mη HMη] _] := Hη.
+have Mη_ge0 : 0 <= Mη.
+  by apply: le_trans (HMη (ar_point Ar Y')); exact: cone_norm_ge0.
+exists (Mη * fmeas_norm µ) => x Hx.
+apply: (path_integral_norm_le (Mβ := Mη)).
+- move=> r /=.
+  apply: le_trans (linhom_norm_apply_le (HMη r) x) _.
+  by rewrite -[X in _ <= X]mulr1 ler_wpM2l // cone_norm_ge0.
+- exact: linhom_int_pt_meas.
+- exact: icone_integralP.
+Qed.
+
+(** Paper Lemma 5.4: linearity of [linhom_int_fun].
+    Each [η r] is linear, hence the integrand commutes with [0], [+],
+    [*:], and the M3 wave 2a bilinearity lemmas
+    [path_integral_eq_addB] / [path_integral_eq_scaleB]
+    promote this through [icone_integral_eqP]. *)
+Lemma linhom_int_fun_linear : is_linear linhom_int_fun.
+Proof.
+split.
+- rewrite /linhom_int_fun.
+  symmetry; apply: icone_integral_eqP => m mM s /=.
+  rewrite test_lin0.
+  under eq_integral => r _ do (
+    rewrite (_ : linhom_fun (η r) 0%PC = 0%PC); last
+    by have [Hf0 _ _] := linhom_pre_linear (linhom_pre_of (η r));
+       rewrite /linhom_fun Hf0).
+  under eq_integral => r _ do rewrite test_lin0.
+  rewrite (_ : (fun _ : ar_carrier Ar Y' => (0 : R)%:E) =
+    cst 0%E :> (_ -> \bar R)); last by apply: funext.
+  by rewrite integral0.
+- move=> x y.
+  rewrite /linhom_int_fun.
+  symmetry; apply: icone_integral_eqP => m mM s.
+  have HeqAdd := path_integral_eq_addB
+    (linhom_int_pt_meas x) (linhom_int_pt_meas y)
+    (icone_integralP _ (linhom_int_pt_meas x) µ)
+    (icone_integralP _ (linhom_int_pt_meas y) µ).
+  rewrite (HeqAdd m mM s).
+  congr (fine _); apply: eq_integral => r _.
+  congr (_)%:E.
+  have [_ HfD _] := linhom_pre_linear (linhom_pre_of (η r)).
+  by rewrite /linhom_fun HfD.
+- move=> r x.
+  rewrite /linhom_int_fun.
+  symmetry; apply: icone_integral_eqP => m mM s.
+  have HeqZ := path_integral_eq_scaleB r
+    (linhom_int_pt_meas x)
+    (icone_integralP _ (linhom_int_pt_meas x) µ).
+  rewrite (HeqZ m mM s).
+  congr (fine _); apply: eq_integral => u _.
+  congr (_)%:E.
+  have [_ _ HfZ] := linhom_pre_linear (linhom_pre_of (η u)).
+  by rewrite /linhom_fun HfZ.
+Qed.
+
+(** Paper Lemma 5.4: joint test-measurability for path-preservation.
+    For any [γ : ar_carrier X' -> C] measurable path and any
+    [Z]-test [m_D] of [D], the function
+    [(z, r, r') ↦ m_D z (linhom_fun (η r') (γ r))] is jointly
+    measurable on [Z × X' × Y']. Direct analogue of
+    [path_int_joint_meas] from [examples_icone.v]. *)
+Lemma linhom_int_fun_joint_meas
+    (X' : ar_obj Ar)
+    (γ : ar_carrier Ar X' -> C) (Hγ : is_measurable_path γ)
+    (Z : ar_obj Ar) (m_D : test_of Ar Z D) (mM_D : mcone_M Z m_D) :
+  measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar X' * ar_carrier Ar Y'))%type]
+    (fun p => m_D p.1 (linhom_fun (η p.2.2) (γ p.2.1))).
+Proof.
+have [[Mγ HMγ] _] := Hγ.
+have [_ Hη_meas] := Hη.
+(* Rescale γ to unit-ball via [Sγ := (Mγ + 1)^-1]: γ' := Sγ *: γ. *)
+have S_pos : 0 < Mγ + 1.
+  rewrite ltr_pwDr // (le_trans _ (HMγ (ar_point Ar X'))) //.
+  exact: cone_norm_ge0.
+have Sinv_ge0 : 0 <= (Mγ + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+have Sinv_pos : 0 < Sinv%:num by rewrite /= invr_gt0.
+have Sinv_neq0 : Sinv%:num != 0 by rewrite gt_eqF.
+pose γ' : ar_carrier Ar X' -> C :=
+  fun r => precone_scale Sinv (γ r).
+have Hγ'_meas : is_measurable_path γ'.
+  split.
+    exists 1 => r.
+    rewrite /γ' cone_normh /=.
+    rewrite mulrC ler_pdivrMr // mul1r.
+    by apply: le_trans (HMγ _) _; rewrite lerDl ler01.
+  move=> Y m mM.
+  have Hgm := proj2 Hγ Y m mM.
+  apply: (eq_measurable_fun (fun p => Sinv%:num * m p.1 (γ p.2))).
+    by move=> p _; rewrite /γ' /= test_linZ.
+  pose Fmul : R -> R := *%R Sinv%:num.
+  have Hmul : measurable_fun [set: R] Fmul.
+    exact: mulrl_measurable.
+  have step :
+    (fun p : ar_carrier Ar Y * ar_carrier Ar X' =>
+       Sinv%:num * m p.1 (γ p.2)) =
+    Fmul \o (fun p => m p.1 (γ p.2)).
+    by apply: funext.
+  by rewrite step; exact: (measurableT_comp Hmul Hgm).
+pose γ'_path : path_car Ar X' C := MkPath Hγ'_meas.
+have γ'ub : cone_norm γ'_path <= 1.
+  rewrite /cone_norm /= /path_norm.
+  apply: ge_sup.
+    by exists (cnorm (γ' (ar_point Ar X'))); exists (ar_point Ar X').
+  move=> _ [r ->]; rewrite /γ' /=.
+  rewrite cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by apply: le_trans (HMγ _) _; rewrite lerDl ler01.
+(* Build the test on linhom at arity [Z' = ar_prod Z X']. *)
+pose ar_fst : ar_hom Ar (ar_prod Ar Z X') Z := ar_prod_fst Z X'.
+pose ar_snd : ar_hom Ar (ar_prod Ar Z X') X' := ar_prod_snd Z X'.
+pose mZ' : test_of Ar (ar_prod Ar Z X') D := test_reindex ar_fst m_D.
+have mZ'M : mcone_M (ar_prod Ar Z X') mZ'.
+  exact: mcone_M_comp.
+(* Path on Z' obtained by reindexing γ' via ar_snd. *)
+pose γZ'_pre : ar_carrier Ar (ar_prod Ar Z X') -> C :=
+  fun z' => γ' (ar_snd z').
+have γZ'_meas : is_measurable_path γZ'_pre.
+  have := Hγ'_meas.
+  rewrite /γZ'_pre => -[[Mγ' HMγ'] Hg'].
+  split.
+    by exists Mγ' => z'; exact: HMγ'.
+  move=> Y m mM.
+  have HgY := Hg' Y m mM.
+  have Hsnd_meas : measurable_fun
+    [set: ar_carrier Ar Y * ar_carrier Ar (ar_prod Ar Z X')]
+    (fun p : ar_carrier Ar Y * ar_carrier Ar (ar_prod Ar Z X') =>
+      (p.1, ar_snd p.2)).
+    apply: measurable_fun_pair; first exact: measurable_fst.
+    by apply: (measurableT_comp (f := ar_snd));
+       [exact: measurable_funP|exact: measurable_snd].
+  have step :
+    (fun p : ar_carrier Ar Y * ar_carrier Ar (ar_prod Ar Z X') =>
+       m p.1 (γ' (ar_snd p.2))) =
+    (fun p => m p.1 (γ' p.2)) \o
+    (fun p : ar_carrier Ar Y * ar_carrier Ar (ar_prod Ar Z X') =>
+       (p.1, ar_snd p.2)).
+    by apply: funext.
+  by rewrite step; exact: (measurableT_comp HgY Hsnd_meas).
+pose γZ'_path : path_car Ar (ar_prod Ar Z X') C := MkPath γZ'_meas.
+have γZ'ub : cone_norm γZ'_path <= 1.
+  rewrite /cone_norm /= /path_norm.
+  apply: ge_sup.
+    by exists (cnorm (γZ'_pre (ar_point Ar (ar_prod Ar Z X'))));
+       exists (ar_point Ar (ar_prod Ar Z X')).
+  move=> _ [z ->]; rewrite /γZ'_pre /γ' /=.
+  rewrite cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by apply: le_trans (HMγ _) _; rewrite lerDl ler01.
+(* The linhom test at arity Z'. *)
+have HinM : linhom_mcone_M
+  (linhom_test γZ'_path γZ'ub mZ' mZ'M).
+  by exists γZ'_path, γZ'ub, mZ', mZ'M.
+(* Apply (Msmeas) on η at this test. *)
+have Hη' := Hη_meas (ar_prod Ar Z X') _ HinM.
+(* Hη' gives joint measurability on Z' × Y'. *)
+(* Cast Z × X' × Y' through ar_prod_cast. *)
+pose ψ (p : (ar_carrier Ar Z *
+             (ar_carrier Ar X' * ar_carrier Ar Y'))%type) :
+    (ar_carrier Ar (ar_prod Ar Z X') * ar_carrier Ar Y')%type :=
+  (ar_prod_cast (p.1, p.2.1), p.2.2).
+have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar X' * ar_carrier Ar Y'))%type] ψ.
+  rewrite /ψ.
+  apply: measurable_fun_pair.
+  - have meas_p12 : measurable_fun [set: (ar_carrier Ar Z *
+        (ar_carrier Ar X' * ar_carrier Ar Y'))%type]
+        (fun p : ar_carrier Ar Z *
+                (ar_carrier Ar X' * ar_carrier Ar Y') => (p.1, p.2.1)).
+      apply: measurable_fun_pair.
+      + exact: measurable_fst.
+      + by apply: (measurableT_comp (f := fst));
+          [exact: measurable_fst|exact: measurable_snd].
+    exact: (measurableT_comp (ar_prod_cast_meas Ar Z X') meas_p12).
+  - by apply: (measurableT_comp (f := snd));
+      [exact: measurable_snd|exact: measurable_snd].
+(* Show the relation between the integrand and the test composition. *)
+have eqψ_unscaled :
+    forall p : ar_carrier Ar Z *
+               (ar_carrier Ar X' * ar_carrier Ar Y'),
+  Sinv%:num * m_D p.1 (linhom_fun (η p.2.2) (γ p.2.1)) =
+  (fun q => linhom_test γZ'_path γZ'ub mZ' mZ'M q.1 (η q.2)) (ψ p).
+  move=> p.
+  rewrite /linhom_test /linhom_test_fun /= /γZ'_pre /γ' /=.
+  rewrite /ψ /=.
+  rewrite /ar_snd /ar_prod_snd /ar_prod_snd_fun.
+  rewrite ar_prod_castK.
+  rewrite /mZ' /test_reindex /test_reindex_fun /=.
+  rewrite /ar_fst /ar_prod_fst /ar_prod_fst_fun.
+  rewrite ar_prod_castK.
+  have [_ _ HfZ] := linhom_pre_linear (linhom_pre_of (η p.2.2)).
+  by rewrite /linhom_fun HfZ test_linZ.
+(* Compose: measurability via ψ. *)
+have Hmeas_scaled : measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar X' * ar_carrier Ar Y'))%type]
+    (fun p => Sinv%:num *
+                m_D p.1 (linhom_fun (η p.2.2) (γ p.2.1))).
+  apply: (eq_measurable_fun (fun p =>
+    (fun q : ar_carrier Ar (ar_prod Ar Z X') * ar_carrier Ar Y' =>
+       linhom_test γZ'_path γZ'ub mZ' mZ'M q.1 (η q.2)) (ψ p))).
+    by move=> p _; rewrite -eqψ_unscaled.
+  exact: (measurableT_comp Hη' ψ_meas).
+(* Unscale by multiplying by Sinv^-1. *)
+apply: (eq_measurable_fun (fun p =>
+  Sinv%:num^-1 *
+    (Sinv%:num * m_D p.1 (linhom_fun (η p.2.2) (γ p.2.1))))).
+  move=> p _ /=.
+  by rewrite mulrA mulVf // mul1r.
+have Hmul : measurable_fun [set: R] ( *%R Sinv%:num^-1).
+  exact: mulrl_measurable.
+have step :
+  (fun p : ar_carrier Ar Z *
+           (ar_carrier Ar X' * ar_carrier Ar Y') =>
+   Sinv%:num^-1 *
+   (Sinv%:num * m_D p.1 (linhom_fun (η p.2.2) (γ p.2.1)))) =
+  *%R Sinv%:num^-1 \o
+  (fun p => Sinv%:num *
+              m_D p.1 (linhom_fun (η p.2.2) (γ p.2.1))).
+  by apply: funext.
+by rewrite step; exact: (measurableT_comp Hmul Hmeas_scaled).
+Qed.
+
+(** Paper Lemma 5.4: path-preservation.
+    For every measurable path [γ : ar_carrier X' -> C], the function
+    [r ↦ linhom_int_fun (γ r) : ar_carrier X' -> D] is a measurable
+    path of [D]. Proof: it equals [fubini_iter_fun_X β' _ µ] for
+    [β'(r, r') := linhom_fun (η r') (γ r)], to which we apply
+    [fubini_iter_fun_X_is_path]. *)
+Lemma linhom_int_fun_pres_path
+    (X' : ar_obj Ar) (γ : ar_carrier Ar X' -> C) :
+  is_measurable_path γ ->
+  is_measurable_path (fun r => linhom_int_fun (γ r)).
+Proof.
+move=> Hγ.
+have [[Mγ HMγ] _] := Hγ.
+have [[Mη HMη] _] := Hη.
+have Mη_ge0 : 0 <= Mη.
+  by apply: le_trans (HMη (ar_point Ar Y')); exact: cone_norm_ge0.
+have Mγ_ge0 : 0 <= Mγ.
+  by apply: le_trans (HMγ (ar_point Ar X')); exact: cone_norm_ge0.
+(* Define the bivariate path [β'(r, r') := linhom_fun (η r') (γ r)]. *)
+pose β' : (ar_carrier Ar X' * ar_carrier Ar Y') -> D :=
+  fun p => linhom_fun (η p.2) (γ p.1).
+have Hβ'x : forall r, is_measurable_path (fun r' => β' (r, r')).
+  move=> r; rewrite /β' /=.
+  exact: (linhom_int_pt_meas (γ r)).
+have HMβ' : forall p, cnorm (β' p) <= Mη * Mγ.
+  move=> p.
+  apply: le_trans (linhom_norm_apply_le (HMη p.2) (γ p.1)) _.
+  by apply: ler_wpM2l => //; exact: HMγ.
+have HjointX :
+    forall (Z : ar_obj Ar) (m : test_of Ar Z D),
+      mcone_M Z m ->
+      measurable_fun
+        [set: (ar_carrier Ar Z *
+               (ar_carrier Ar X' * ar_carrier Ar Y'))%type]
+        (fun p => m p.1 (β' (p.2.1, p.2.2))).
+  move=> Z m mM.
+  exact: linhom_int_fun_joint_meas.
+have HrwE : (fun r => linhom_int_fun (γ r)) =
+  fubini_iter_fun_X β' Hβ'x µ.
+  apply: funext => r.
+  rewrite /linhom_int_fun /fubini_iter_fun_X.
+  apply: icone_integral_eqP.
+  exact: icone_integralP.
+rewrite HrwE.
+exact: (fubini_iter_fun_X_is_path β' Hβ'x µ (Mη * Mγ) HMβ' HjointX).
+Qed.
+
+(** Paper Lemma 5.4: ω-continuity of [linhom_int_fun].
+    Direct adaptation of [linhom_sup_fun_pres_int]: use [mcone_M_sep]
+    on [D], rewrite both sides via [icone_integralP] and a
+    sup-of-tests identity, and conclude by monotone convergence
+    (Lebesgue MCT). *)
+Lemma linhom_int_fun_continuous : is_omega_continuous linhom_int_fun.
+Proof.
+move=> u uch ub1 fuch fub1.
+have [[Mη HMη] _] := Hη.
+have Mη_ge0 : 0 <= Mη.
+  by apply: le_trans (HMη (ar_point Ar Y')); exact: cone_norm_ge0.
+(* Mssep reduction. *)
+apply: mcone_M_sep => m mM.
+set s0 := ar_zero_pt Ar.
+(* Pointwise test chain in C → D. *)
+pose b' (n : nat) (r : ar_carrier Ar Y') : D :=
+  linhom_fun (η r) (u n).
+have b'_ch : forall n r, (b' n r <=p b' n.+1 r)%PC.
+  move=> n r; rewrite /b'.
+  have [_ HfD _] := linhom_pre_linear (linhom_pre_of (η r)).
+  have [z Hz] := uch n.
+  exists (linhom_fun (η r) z).
+  by rewrite -HfD -Hz.
+have b'_meas : forall n,
+  is_measurable_path (b' n) by move=> n; exact: linhom_int_pt_meas.
+(* Pointwise test as ereal chain. *)
+pose un_e (n : nat) (r : ar_carrier Ar Y') : \bar R :=
+  (test_fun m s0 (b' n r))%:E.
+pose fsup_e (r : ar_carrier Ar Y') : \bar R :=
+  (test_fun m s0 (linhom_fun (η r) (cone_sup_ball u uch ub1)))%:E.
+have un_meas : forall n,
+    measurable_fun [set: ar_carrier Ar Y'] (un_e n).
+  move=> n; apply/measurable_EFinP.
+  exact: (measurable_test_path_section mM (b'_meas n) s0).
+have un_ge0 : forall n r, (0 <= un_e n r)%E.
+  by move=> n r; rewrite /un_e lee_fin; exact: test_ge0.
+have un_homo : forall r,
+    {homo (un_e^~ r) : n m0 / (n <= m0)%N >-> (n <= m0)%E}.
+  move=> r; apply/nondecreasing_seqP => n.
+  rewrite /un_e lee_fin.
+  exact: (test_fun_le m s0 (b'_ch n r)).
+(* The pointwise function value [linhom_fun (η r) (cone_sup_ball u ...)]
+   admits the test_sup identity: m s (cone_sup_ball b ...) = sup_n m s (b_n)
+   via [test_cont] + [test_fun_le] + [cone_sup_ball_ub]. *)
+have linhom_test_sup_pt :
+    forall r,
+    test_fun m s0 (linhom_fun (η r) (cone_sup_ball u uch ub1)) =
+    sup [set test_fun m s0 (b' n r) | n in [set: nat]].
+  move=> r.
+  set v : nat -> R := fun n => test_fun m s0 (b' n r).
+  have nonempty : (range v) !=set0.
+    by exists (v 0%N), 0%N.
+  have v_le :
+      forall n,
+        v n <= test_fun m s0 (linhom_fun (η r) (cone_sup_ball u uch ub1)).
+    move=> n; rewrite /v.
+    apply: test_fun_le.
+    have [z Hz] := cone_sup_ball_ub u uch ub1 n.
+    have [_ HfD _] := linhom_pre_linear (linhom_pre_of (η r)).
+    exists (linhom_fun (η r) z).
+    by rewrite /b' -HfD -Hz.
+  have ub_v : has_ubound (range v).
+    by exists (test_fun m s0 (linhom_fun (η r) (cone_sup_ball u uch ub1)));
+      move=> _ [n _ <-]; exact: v_le.
+  (* Rescale η r to the unit ball via Sinv := (Mη + 1)^-1. *)
+  have S_pos : 0 < Mη + 1.
+    by rewrite ltr_pwDr // ltr01.
+  have Sinv_ge0 : 0 <= (Mη + 1)^-1 by rewrite invr_ge0 ltW.
+  pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+  have Sinv_pos : 0 < Sinv%:num by rewrite /= invr_gt0.
+  have Sinv_neq0 : Sinv%:num != 0 by rewrite gt_eqF.
+  pose η_resc : linhom_car Ar C D := linhom_scale Sinv (η r).
+  have η_resc_norm : linhom_norm η_resc <= 1.
+    rewrite linhom_normh /=.
+    rewrite mulrC ler_pdivrMr // mul1r.
+    by apply: le_trans (HMη r) _; rewrite lerDl ler01.
+  pose b_resc (n : nat) : D := linhom_fun η_resc (u n).
+  have b_resc_eq : forall n, b_resc n = precone_scale Sinv (b' n r).
+    by [].
+  have b_resc_ch : forall n, (b_resc n <=p b_resc n.+1)%PC.
+    move=> n; rewrite /b_resc.
+    have [_ HfD _] := linhom_pre_linear (linhom_pre_of η_resc).
+    have [z Hz] := uch n.
+    exists (linhom_fun η_resc z).
+    by rewrite -HfD -Hz.
+  have b_resc_ub : forall n, cnorm (b_resc n) <= 1.
+    move=> n; rewrite /b_resc.
+    apply: le_trans (linhom_norm_apply_le η_resc_norm (u n)) _.
+    by rewrite mul1r; exact: ub1.
+  pose w := cone_sup_ball u uch ub1.
+  have ω_resc :
+    linhom_fun η_resc w = cone_sup_ball b_resc b_resc_ch b_resc_ub.
+    exact: (linhom_pre_continuous (linhom_pre_of η_resc) u uch ub1
+              b_resc_ch b_resc_ub).
+  have lhs_eq :
+    linhom_fun η_resc w = precone_scale Sinv (linhom_fun (η r) w).
+    by rewrite /η_resc /linhom_scale /linhom_scale_fun /linhom_fun /=.
+  have test_resc :
+    Sinv%:num * test_fun m s0 (linhom_fun (η r) w) =
+    test_fun m s0 (cone_sup_ball b_resc b_resc_ch b_resc_ub).
+    by rewrite -test_linZ -lhs_eq ω_resc.
+  apply: le_anti; apply/andP; split; last first.
+    apply: ge_sup => //.
+    by move=> _ [n _ <-]; exact: v_le.
+  (* Multiply both sides by Sinv > 0 (preserves order). *)
+  rewrite -(@ler_pM2l _ Sinv%:num) // [Sinv%:num * sup _]mulrC.
+  rewrite test_resc.
+  apply: test_cont => n.
+  rewrite (b_resc_eq n) test_linZ -[X in X <= _]mulrC.
+  rewrite ler_pM2r //.
+  by apply: sup_upper_bound; [split => //|exists n].
+have un_cvg_R : forall r,
+  (fun n => test_fun m s0 (b' n r)) x @[x --> \oo] -->
+  (test_fun m s0 (linhom_fun (η r) (cone_sup_ball u uch ub1)) : R^o).
+  move=> r.
+  pose v (n : nat) := test_fun m s0 (b' n r).
+  have nd_v : nondecreasing_seq v.
+    apply/nondecreasing_seqP => n; rewrite /v.
+    exact: (test_fun_le m s0 (b'_ch n r)).
+  have ub_v : has_ubound (range v).
+    exists (cnorm (linhom_fun (η r) (cone_sup_ball u uch ub1))) =>
+      _ [n _ <-]; rewrite /v.
+    apply: le_trans (test_norm_le _ _ _) _.
+    have [_ HfD _] := linhom_pre_linear (linhom_pre_of (η r)).
+    have Hpt :
+      (linhom_fun (η r) (u n) <=p
+       linhom_fun (η r) (cone_sup_ball u uch ub1))%PC.
+      have [z Hz] := cone_sup_ball_ub u uch ub1 n.
+      exists (linhom_fun (η r) z).
+      by rewrite -HfD -Hz.
+    exact: cone_normp Hpt.
+  have sup_eq :
+    sup (range v) =
+    test_fun m s0 (linhom_fun (η r) (cone_sup_ball u uch ub1)).
+    by rewrite -linhom_test_sup_pt.
+  rewrite -sup_eq.
+  exact: nondecreasing_cvgn.
+have un_cvg : forall r, (un_e^~ r) x @[x --> \oo] --> fsup_e r.
+  move=> r; rewrite /un_e /fsup_e.
+  apply: cvg_EFin; first by apply: nearW => n; rewrite fin_numE.
+  exact: un_cvg_R.
+have un_lim : forall r, limn (un_e^~ r) = fsup_e r.
+  by move=> r; apply/cvg_lim => //; exact: ereal_hausdorff.
+have meas_fsup : measurable_fun [set: ar_carrier Ar Y'] fsup_e.
+  apply/measurable_EFinP.
+  have Hpath :
+    is_measurable_path (fun r =>
+      linhom_fun (η r) (cone_sup_ball u uch ub1)).
+    exact: (linhom_int_pt_meas (cone_sup_ball u uch ub1)).
+  exact: (measurable_test_path_section mM Hpath s0).
+(* Bounds and finiteness. *)
+have un_bound_M : forall n r, (un_e n r <= Mη%:E)%E.
+  move=> n r; rewrite /un_e /b' lee_fin.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans (linhom_norm_apply_le (HMη r) (u n)) _.
+  by rewrite -[X in _ <= X]mulr1; apply: ler_wpM2l => //; exact: ub1.
+have fsup_bound : forall r, (fsup_e r <= Mη%:E)%E.
+  move=> r; rewrite /fsup_e lee_fin.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans
+    (linhom_norm_apply_le (HMη r) (cone_sup_ball u uch ub1)) _.
+  by rewrite -[X in _ <= X]mulr1; apply: ler_wpM2l => //;
+    exact: cone_sup_ball_norm.
+have fmeas_setT_fin' : fmeas_mu µ [set: ar_carrier Ar Y'] \is a fin_num.
+  exact: fmeas_setT_fin.
+have un_int_fin : forall n,
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) un_e n r)%E \is a fin_num.
+  move=> n.
+  rewrite ge0_fin_numE //; last first.
+    by apply: integral_ge0 => r _; exact: un_ge0.
+  apply: (@le_lt_trans _ _
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) Mη%:E)%E); last first.
+    rewrite (_ : (fun _ => Mη%:E) = cst Mη%:E)//.
+    rewrite integral_cst//.
+    by rewrite ltey_eq fin_numM.
+  apply: (@ge0_le_integral _ _ R (fmeas_mu µ) _ measurableT
+            (un_e n) (cst Mη%:E)).
+    by move=> r _; exact: un_ge0.
+    exact: un_meas.
+    by apply: measurable_cst.
+  by move=> r _; exact: un_bound_M.
+have fsup_int_fin :
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r)%E \is a fin_num.
+  rewrite ge0_fin_numE //; last first.
+    apply: integral_ge0 => r _; rewrite /fsup_e lee_fin; exact: test_ge0.
+  apply: (@le_lt_trans _ _
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) Mη%:E)%E); last first.
+    rewrite (_ : (fun _ => Mη%:E) = cst Mη%:E)//.
+    rewrite integral_cst//.
+    by rewrite ltey_eq fin_numM.
+  apply: (@ge0_le_integral _ _ R (fmeas_mu µ) _ measurableT
+            fsup_e (cst Mη%:E)).
+    by move=> r _; rewrite /fsup_e lee_fin; exact: test_ge0.
+    exact: meas_fsup.
+    by apply: measurable_cst.
+  by move=> r _; exact: fsup_bound.
+(* Pettis spec at u_n: m s0 (linhom_int_fun (u n)) = fine ∫ ... *)
+have un_pet : forall n,
+    test_fun m s0 (linhom_int_fun (u n)) =
+    fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y'])
+            (test_fun m s0 (b' n r))%:E).
+  move=> n.
+  rewrite /linhom_int_fun.
+  exact: icone_integralP.
+(* Pettis spec at cone_sup_ball u: m s0 (linhom_int_fun (cone_sup_ball u)) = fine ∫ ... *)
+have fsup_pet :
+    test_fun m s0 (linhom_int_fun (cone_sup_ball u uch ub1)) =
+    fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r).
+  rewrite /linhom_int_fun.
+  exact: icone_integralP.
+(* Goal: test_fun m s0 (linhom_int_fun (cone_sup_ball u uch ub1)) =
+        test_fun m s0 (cone_sup_ball (linhom_int_fun \o u) fuch fub1).  *)
+rewrite fsup_pet.
+(* The test of the right sup-ball = sup of tests. *)
+have rhs_sup_eq :
+    test_fun m s0 (cone_sup_ball (linhom_int_fun \o u) fuch fub1) =
+    sup [set test_fun m s0 (linhom_int_fun (u n)) | n in [set: nat]].
+  set v : nat -> R := fun n => test_fun m s0 (linhom_int_fun (u n)).
+  have ub_v : has_ubound (range v).
+    exists 1 => _ [n _ <-]; rewrite /v.
+    by apply: test_le1; exact: fub1.
+  have nonempty : (range v) !=set0.
+    by exists (v 0%N), 0%N.
+  apply: le_anti; apply/andP; split.
+    apply: test_cont => n.
+    apply: sup_upper_bound; first by split.
+    by exists n.
+  apply: ge_sup => //.
+  move=> _ [n _ <-]; rewrite /v.
+  apply: test_fun_le.
+  exact: cone_sup_ball_ub.
+rewrite rhs_sup_eq.
+(* MCT-based identity: sup_n fine (∫ un_e n) = fine (∫ fsup_e). *)
+have nd_pet : nondecreasing_seq
+    (fun n => test_fun m s0 (linhom_int_fun (u n))).
+  apply/nondecreasing_seqP => n; rewrite /=.
+  apply: test_fun_le.
+  exact: fuch.
+have ub_pet : has_ubound
+    (range (fun n => test_fun m s0 (linhom_int_fun (u n)))).
+  by exists 1 => _ [n _ <-]; apply: test_le1; exact: fub1.
+have hint_cvg :
+    (fun n => test_fun m s0 (linhom_int_fun (u n))) x @[x --> \oo] -->
+    (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r) : R^o).
+  have HCMu :=
+    cvg_monotone_convergence (D := [set: ar_carrier Ar Y'])
+      (mu := fmeas_mu µ) measurableT un_meas
+      (fun n r _ => un_ge0 n r) (fun r _ => un_homo r).
+  have HE :
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y'])
+        (fun x : ar_carrier Ar Y' => limn (un_e^~ x)) r)%E =
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r)%E.
+    by apply: eq_integral => r _; rewrite -un_lim.
+  have e_cvg :
+    (fun n => (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) un_e n r)%E)
+      x @[x --> \oo] -->
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r)%E.
+    by rewrite -HE.
+  have HEFin :
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r)%E =
+    (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r))%:E.
+    by rewrite fineK.
+  rewrite HEFin in e_cvg.
+  have fcvg : (fun n =>
+      fine ((\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) un_e n r)%E)) x
+    @[x --> \oo] --> (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y'])
+                            fsup_e r) : R^o).
+    by have := fine_cvg e_cvg; exact.
+  have heq : (fun n =>
+      fine ((\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) un_e n r)%E))
+    = (fun n => test_fun m s0 (linhom_int_fun (u n))).
+    by apply: funext => n; rewrite un_pet.
+  by rewrite heq in fcvg; exact: fcvg.
+have hint_sup_eq :
+    sup [set test_fun m s0 (linhom_int_fun (u n)) | n in [set: nat]] =
+    fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar Y']) fsup_e r).
+  have nd_cvg := nondecreasing_cvgn nd_pet ub_pet.
+  exact: (@cvg_unique R^o (@Rhausdorff R) _ _ _ _ nd_cvg hint_cvg).
+by rewrite hint_sup_eq.
+Qed.
+
+(** Paper Lemma 5.4: integral-preservation, via Fubini.
+    Given [β : ar_carrier X' -> C] measurable path and [ν :
+    fmeas X'], we have
+    [linhom_int_fun η µ (∫ β dν) = ∫ (linhom_int_fun η µ ∘ β) dν]
+    by [fubini_cone_eq] applied to the bivariate path
+    [(r, r') ↦ linhom_fun (η r') (β r)] with measures [(ν, µ)]. *)
+Lemma linhom_int_fun_pres_int
+    (X' : ar_obj Ar)
+    (β : ar_carrier Ar X' -> C) (Hβ : is_measurable_path β)
+    (ν : fmeas R (ar_carrier Ar X')) :
+  linhom_int_fun (icone_integral β Hβ ν) =
+  icone_integral (fun r => linhom_int_fun (β r))
+    (linhom_int_fun_pres_path Hβ) ν.
+Proof.
+have [[Mβ HMβ] _] := Hβ.
+have [[Mη HMη] _] := Hη.
+have Mη_ge0 : 0 <= Mη.
+  by apply: le_trans (HMη (ar_point Ar Y')); exact: cone_norm_ge0.
+have Mβ_ge0 : 0 <= Mβ.
+  by apply: le_trans (HMβ (ar_point Ar X')); exact: cone_norm_ge0.
+(* Bivariate function with X = X' and Y = Y'. *)
+pose β2 : (ar_carrier Ar X' * ar_carrier Ar Y') -> D :=
+  fun p => linhom_fun (η p.2) (β p.1).
+have HMβ2 : forall p, cnorm (β2 p) <= Mη * Mβ.
+  move=> p.
+  apply: le_trans (linhom_norm_apply_le (HMη p.2) (β p.1)) _.
+  by apply: ler_wpM2l => //; exact: HMβ.
+have Hβ2x : forall r, is_measurable_path (fun r' => β2 (r, r')).
+  move=> r; rewrite /β2 /=.
+  exact: (linhom_int_pt_meas (β r)).
+have Hβ2y : forall r', is_measurable_path (fun r => β2 (r, r')).
+  move=> r' /=.
+  exact: (linhom_pre_pres_path (linhom_pre_of (η r')) X' β Hβ).
+have HjointX :
+    forall (Z : ar_obj Ar) (m : test_of Ar Z D),
+      mcone_M Z m ->
+      measurable_fun
+        [set: (ar_carrier Ar Z *
+               (ar_carrier Ar X' * ar_carrier Ar Y'))%type]
+        (fun p => m p.1 (β2 (p.2.1, p.2.2))).
+  move=> Z m mM.
+  exact: linhom_int_fun_joint_meas.
+have HjointY :
+    forall (Z : ar_obj Ar) (m : test_of Ar Z D),
+      mcone_M Z m ->
+      measurable_fun
+        [set: (ar_carrier Ar Z *
+               (ar_carrier Ar Y' * ar_carrier Ar X'))%type]
+        (fun p => m p.1 (β2 (p.2.2, p.2.1))).
+  move=> Z m mM.
+  pose ψ (p : (ar_carrier Ar Z *
+               (ar_carrier Ar Y' * ar_carrier Ar X'))%type) :
+       (ar_carrier Ar Z *
+        (ar_carrier Ar X' * ar_carrier Ar Y'))%type :=
+    (p.1, (p.2.2, p.2.1)).
+  have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Z *
+           (ar_carrier Ar Y' * ar_carrier Ar X'))%type] ψ.
+    rewrite /ψ.
+    apply: measurable_fun_pair; first exact: measurable_fst.
+    apply: measurable_fun_pair.
+    - by apply: (measurableT_comp (f := snd));
+        [exact: measurable_snd|exact: measurable_snd].
+    - by apply: (measurableT_comp (f := fst));
+        [exact: measurable_fst|exact: measurable_snd].
+  have HX := linhom_int_fun_joint_meas Hβ mM.
+  exact: (measurableT_comp HX ψ_meas).
+have HFub := fubini_cone_eq β2 (Mη * Mβ) HMβ2 Hβ2x Hβ2y ν µ HjointX HjointY.
+(* HFub: icone_integral (fubini_path_X β2 µ) ... ν
+       = icone_integral (fubini_path_Y β2 ν) ... µ. *)
+(* fubini_path_X r = icone_integral (r' ↦ β2 (r, r')) ... µ
+                   = icone_integral (r' ↦ linhom_fun (η r') (β r)) ... µ
+                   = linhom_int_fun (β r). *)
+(* fubini_path_Y r' = icone_integral (r ↦ β2 (r, r')) ... ν
+                    = icone_integral (r ↦ linhom_fun (η r') (β r)) ... ν
+                    = linhom_fun (η r') (icone_integral β Hβ ν)
+                      (by linhom_pres_int of (η r')). *)
+have LHS_eq : icone_integral (fubini_path_X β2 µ)
+    (fubini_path_X_meas β2 (Mη * Mβ) HMβ2 Hβ2x µ HjointX) ν =
+  icone_integral (fun r => linhom_int_fun (β r))
+    (linhom_int_fun_pres_path Hβ) ν.
+  apply: icone_integral_eqP.
+  move=> m mM s.
+  have HfubP := @icone_integralP R Ar D X' (fubini_path_X β2 µ) _ ν m mM s.
+  rewrite HfubP.
+  congr (fine _); apply: eq_integral => r _.
+  congr (_)%:E.
+  rewrite /fubini_path_X /fubini_iter_fun_X /β2 /linhom_int_fun /=.
+  congr (test_fun m s _).
+  apply: icone_integral_eqP.
+  exact: icone_integralP.
+have RHS_eq : icone_integral (fubini_path_Y β2 ν)
+    (fubini_path_Y_meas β2 (Mη * Mβ) HMβ2 Hβ2y ν HjointY) µ =
+  linhom_int_fun (icone_integral β Hβ ν).
+  apply: icone_integral_eqP.
+  move=> m mM s.
+  have HP :=
+    icone_integralP (fubini_path_Y β2 ν)
+      (fubini_path_Y_meas β2 (Mη * Mβ) HMβ2 Hβ2y ν HjointY) µ m mM s.
+  rewrite HP.
+  congr (fine _); apply: eq_integral => r' _.
+  congr (_)%:E.
+  rewrite /fubini_path_Y /fubini_iter_fun_Y /β2 /=.
+  have Hηr'_pres :=
+    linhom_pres_int (η r') X' β Hβ ν.
+  rewrite /linhom_fun.
+  rewrite Hηr'_pres.
+  congr (test_fun m s _).
+  apply: icone_integral_eqP.
+  exact: icone_integralP.
+by rewrite -RHS_eq -HFub LHS_eq.
+Qed.
+
+(** Pre-carrier packaging for the integral [linhom_int_fun]. *)
+Definition linhom_int_pre : linhom_pre Ar C D :=
+  MkLinhomPre linhom_int_fun
+    linhom_int_fun_linear linhom_int_fun_continuous
+    linhom_int_fun_bounded linhom_int_fun_pres_path.
+
+(** Full [linhom_car] for the integral. *)
+Definition linhom_int_car : linhom_car Ar C D :=
+  MkLinhom linhom_int_pre linhom_int_fun_pres_int.
+
+(** Paper Lemma 5.4: the Pettis equation in [linhom_car].
+
+    For every test [p] in the [linhom_test] family at arity 0
+    (i.e., [p = γ ▷ m] for some [γ : path_car Ar 0 C], [γub ≤ 1],
+    [m : test_of 0 D], [m ∈ M^D_0]), the test value of
+    [linhom_int_car] at [s] equals the integral over [µ] of the
+    test values of [η r] at [s]. *)
+Lemma linhom_int_car_pettis :
+  path_integral_eq η µ linhom_int_car.
+Proof.
+move=> p pM s.
+case: pM => γ [γub [m [mM ->]]].
+rewrite /linhom_test /= /linhom_test_fun /=.
+rewrite (ar_zero_ptE s).
+(* The test body is [m _ (linhom_fun linhom_int_car (path_fun γ _))],
+   which equals [m _ (linhom_int_fun (path_fun γ _))]. By Pettis on
+   D (icone_integralP) at the path [r ↦ linhom_fun (η r) (path_fun γ _)],
+   this equals [fine (∫ m _ (linhom_fun (η r) (path_fun γ _)) dµ)]. *)
+have HP := icone_integralP
+  (fun r => linhom_fun (η r) (path_fun γ (ar_zero_pt Ar)))
+  (linhom_int_pt_meas (path_fun γ (ar_zero_pt Ar))) µ m mM (ar_zero_pt Ar).
+by rewrite -HP.
+Qed.
+
+End LinhomIntFun.
+
+(** Paper Lemma 5.4: existence of the path integral for [linhom_car]. *)
+Lemma linhom_int_exists
+    (Y' : ar_obj Ar)
+    (η : ar_carrier Ar Y' -> linhom_car Ar C D)
+    (Hη : is_measurable_path η)
+    (µ : fmeas R (ar_carrier Ar Y')) :
+  is_path_integrable η µ.
+Proof.
+exists (linhom_int_car Hη µ).
+exact: linhom_int_car_pettis.
+Qed.
+
+End LinhomICone.
+
+(** ** [isICone] HB instance for [linhom_car Ar C D] — Paper Lemma 5.4 *)
+
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (C D : ICone.type Ar) :=
+  @isICone.Build R Ar (linhom_car Ar C D) (@linhom_int_exists R Ar C D).
+
+(** ** Sanity check: [linhom_car Ar C D] is an [iconeType Ar] *)
+
+Section LinhomIConeCheck.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Check (linhom_car Ar C D : iconeType Ar).
+
+End LinhomIConeCheck.
 
 (** ** M4 wave 2 status note legacy:
 
