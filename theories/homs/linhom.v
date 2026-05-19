@@ -38,6 +38,7 @@ From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
@@ -3344,6 +3345,390 @@ End LinhomSupBallSanityCheck.
       a joint test-measurability lemma analogous to
       [path_int_joint_meas].
 *)
+
+(** ** [isMCone] HB instance on [linhom_car] — Paper Def 5.4 / §5.1
+
+    Per paper §5.1: the measurability test family on [C ⊸ D] at arity
+    [Y] is parametrised by a measurable path [γ ∈ Path(Y, C)] (with
+    [cone_norm γ ≤ 1] so that the value [(γ ▷ m)(s, f)] lands in
+    [[0, 1]] when [‖f‖ ≤ 1]) and a test [m ∈ M^D_Y]. The test body
+    is
+
+      [(γ ▷ m)(s, f) := test_fun m s (linhom_fun f (path_fun γ s))]
+
+    and the family is closed under (Mscomp), (Mssep), (Msnorm). The
+    unit-ball restriction on [γ] is harmless: (Mscomp) preserves it
+    (via [path_normp] / [path_norm_ub]), and (Mssep) / (Msnorm) only
+    ever use constant paths [γ_x := λ_. x] with [cone_norm x ≤ 1]. *)
+
+Section LinhomTest.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+Variables (Y : ar_obj Ar) (γ : path_car Ar Y C).
+Hypothesis γub : cone_norm γ <= 1.
+Variable m : test_of Ar Y D.
+Hypothesis mM : mcone_M Y m.
+
+(** Paper §5.1: the test body [(γ ▷ m)(s, f) := m(s, f(γ(s)))]. *)
+Definition linhom_test_fun
+    (s : ar_carrier Ar Y) (f : linhom_car Ar C D) : R :=
+  test_fun m s (linhom_fun f (path_fun γ s)).
+
+(** (Msmeas) — Paper §5.1 paragraph 1. Given a unit-ball [f]
+    ([linhom_norm f ≤ 1]), the path [r ↦ linhom_fun f (path_fun γ r)]
+    is a measurable path in [D] by [linhom_pre_pres_path]. The joint
+    measurability of [(s', r) ↦ m s' ((f ∘ γ) r)] in [Y × Y] specialises
+    via the diagonal [s ↦ (s, s)] to give measurability in [s]. *)
+Lemma linhom_test_meas (f : linhom_car Ar C D) :
+  cone_norm f <= 1 ->
+  measurable_fun [set: ar_carrier Ar Y]
+                 (fun s => linhom_test_fun s f).
+Proof.
+move=> Hf.
+have Hfγ : is_measurable_path
+    (fun r : ar_carrier Ar Y => linhom_fun f (path_fun γ r)).
+  exact: linhom_pre_pres_path (linhom_pre_of f) Y (path_fun γ) (path_is_path γ).
+have [_ Hg] := Hfγ.
+have Hbase : measurable_fun
+  [set: (ar_carrier Ar Y * ar_carrier Ar Y)%type]
+  (fun p => test_fun m p.1 (linhom_fun f (path_fun γ p.2))).
+  exact: Hg.
+have Hpair : measurable_fun
+  [set: ar_carrier Ar Y]
+  (fun s => (s, s) : ar_carrier Ar Y * ar_carrier Ar Y).
+  by apply: measurable_fun_pair; exact: @measurable_id.
+rewrite /linhom_test_fun.
+pose F (p : ar_carrier Ar Y * ar_carrier Ar Y) : R :=
+  test_fun m p.1 (linhom_fun f (path_fun γ p.2)).
+have -> : (fun s => test_fun m s (linhom_fun f (path_fun γ s))) =
+          F \o (fun s => (s, s)).
+  by apply: funext.
+exact: measurableT_comp.
+Qed.
+
+Lemma linhom_test_ge0 (s : ar_carrier Ar Y) (f : linhom_car Ar C D) :
+  0 <= linhom_test_fun s f.
+Proof. exact: test_ge0. Qed.
+
+(** (Msmeas) — [(γ ▷ m)(s, f) ≤ 1] when [linhom_norm f ≤ 1].
+    Argument: [‖f(γ s)‖ ≤ ‖f‖ · ‖γ s‖ ≤ 1 · ‖γ‖ ≤ 1]. *)
+Lemma linhom_test_le1 (s : ar_carrier Ar Y) (f : linhom_car Ar C D) :
+  cone_norm f <= 1 -> linhom_test_fun s f <= 1.
+Proof.
+move=> Hf; apply: test_le1.
+have step1 : cone_norm (linhom_fun f (path_fun γ s))
+             <= 1 * cone_norm (path_fun γ s).
+  exact: linhom_norm_apply_le Hf _.
+apply: le_trans step1 _.
+rewrite mul1r.
+by apply: le_trans (path_norm_ub _ _) _; exact: γub.
+Qed.
+
+Lemma linhom_test_lin0 (s : ar_carrier Ar Y) :
+  linhom_test_fun s (linhom_zero C D) = 0.
+Proof. by rewrite /linhom_test_fun /= test_lin0. Qed.
+
+Lemma linhom_test_linD (s : ar_carrier Ar Y) (f1 f2 : linhom_car Ar C D) :
+  linhom_test_fun s (linhom_add f1 f2) =
+  linhom_test_fun s f1 + linhom_test_fun s f2.
+Proof. by rewrite /linhom_test_fun /= test_linD. Qed.
+
+Lemma linhom_test_linZ
+  (s : ar_carrier Ar Y) (r : {nonneg R}) (f : linhom_car Ar C D) :
+  linhom_test_fun s (linhom_scale r f) =
+  r%:num * linhom_test_fun s f.
+Proof. by rewrite /linhom_test_fun /= test_linZ. Qed.
+
+(** ω-continuity in [f]: directly via [linhom_sup_fun_test_sup],
+    which says [m s (linhom_sup_fun u_n x) = sup_n m s (u_n x)]. *)
+Lemma linhom_test_cont
+    (s : ar_carrier Ar Y)
+    (u : nat -> linhom_car Ar C D)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (N : R) :
+  (forall n, linhom_test_fun s (u n) <= N) ->
+  linhom_test_fun s (cone_sup_ball u uch ub1) <= N.
+Proof.
+move=> HN.
+rewrite /linhom_test_fun /=.
+have -> :
+  linhom_fun (cone_sup_ball u uch ub1) (path_fun γ s) =
+  linhom_sup_fun uch ub1 (path_fun γ s) by [].
+rewrite (linhom_sup_fun_test_sup uch ub1 m s (path_fun γ s)).
+apply: ge_sup.
+  by exists (test_fun m s (linhom_fun (u 0%N) (path_fun γ s))), 0%N.
+by move=> _ [n _ <-]; exact: HN.
+Qed.
+
+(** Pointwise upper bound: [(γ ▷ m)(s, f) ≤ cnorm f]. *)
+Lemma linhom_test_norm_le
+    (s : ar_carrier Ar Y) (f : linhom_car Ar C D) :
+  linhom_test_fun s f <= cone_norm f.
+Proof.
+apply: le_trans (test_norm_le _ _ _) _.
+(* test_norm_le of m gives ≤ cone_norm (f (γ s)) ≤ ‖f‖ ‖γ s‖ ≤ ‖f‖. *)
+apply: le_trans (linhom_norm_apply_le (lexx _) (path_fun γ s)) _.
+have Hγs : cone_norm (path_fun γ s) <= 1.
+  by apply: le_trans (path_norm_ub _ _) _; exact: γub.
+rewrite -[X in _ <= X]mulr1.
+by apply: ler_wpM2l;
+  [exact: linhom_norm_ge0 | exact: Hγs].
+Qed.
+
+(** The packaged test, abbreviated [γ ▷ m]. *)
+Definition linhom_test : test_of Ar Y (linhom_car Ar C D) :=
+  MkTestOf linhom_test_meas linhom_test_ge0 linhom_test_le1
+           linhom_test_lin0 linhom_test_linD linhom_test_linZ
+           linhom_test_cont linhom_test_norm_le.
+
+End LinhomTest.
+
+Arguments linhom_test {R Ar C D Y}.
+
+(** ** The measurability structure on [linhom_car] — Paper Def 5.4
+
+    [M_Y(C ⊸ D) = {γ ▷ m | γ ∈ Path(Y, C), ‖γ‖ ≤ 1, m ∈ M^D_Y}]. *)
+
+Section LinhomMCone.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Definition linhom_mcone_M (Y : ar_obj Ar) :
+    set (test_of Ar Y (linhom_car Ar C D)) :=
+  [set p | exists (γ : path_car Ar Y C) (γub : cone_norm γ <= 1)
+                  (m : test_of Ar Y D) (mM : mcone_M Y m),
+    p = linhom_test γ γub m mM].
+
+(** (Mscomp) — Paper §5.1. Reindexing by [ψ : ar_hom Y' Y]: the
+    reindexed test is [(s', f) ↦ m(ψ s', f(γ(ψ s')))], which equals
+    [(γ ∘ ψ) ▷ (m ∘ (ψ × D))]. *)
+Lemma linhom_mcone_M_comp
+  (Y' Y : ar_obj Ar) (ψ : ar_hom Ar Y' Y)
+  (p : test_of Ar Y (linhom_car Ar C D)) :
+  linhom_mcone_M p ->
+  linhom_mcone_M (test_reindex ψ p).
+Proof.
+case=> γ [γub [m [mM ->]]].
+(* Build the reindexed path γ ∘ ψ as a path_car Ar Y' C. *)
+have Hγψ : is_measurable_path (path_fun γ \o ψ).
+  exact: reindex_path_measurable ψ (path_is_path γ).
+pose γ' : path_car Ar Y' C := MkPath Hγψ.
+(* Unit-ball preserved: ‖γ ∘ ψ‖ ≤ ‖γ‖ ≤ 1, since the image set of
+   γ ∘ ψ is a subset of the image of γ. *)
+have γ'ub : cone_norm γ' <= 1.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [r ->].
+  apply: le_trans (path_norm_ub γ (ψ r)) _; exact: γub.
+have mM' : mcone_M Y' (test_reindex ψ m) by exact: mcone_M_comp.
+exists γ', γ'ub, (test_reindex ψ m), mM'.
+apply: test_eq => s f /=.
+by rewrite /linhom_test_fun /test_reindex_fun /=.
+Qed.
+
+(** Helper: constant path [γ_x : ar_carrier Z -> C] at arbitrary
+    arity, measurable, with [cone_norm γ_x = cone_norm x]. *)
+Section ConstPathAtArity.
+Variables (Z : ar_obj Ar) (x : C).
+
+Let const_x_fun : ar_carrier Ar Z -> C := fun _ => x.
+
+Lemma const_x_is_path :
+  is_measurable_path (Ar:=Ar) (C:=C) (X:=Z) const_x_fun.
+Proof. exact: const_path_measurable. Qed.
+
+Definition const_x_path_arity : path_car Ar Z C :=
+  MkPath const_x_is_path.
+
+Lemma const_x_path_arity_normE :
+  path_norm const_x_path_arity = cone_norm x.
+Proof.
+apply: le_anti; apply/andP; split.
+- apply: ge_sup; first exact: path_normset_nonempty.
+  by move=> _ [r ->] /=; exact: lexx.
+- have Hin : path_normset const_x_path_arity (cone_norm x).
+    by exists (ar_point Ar Z).
+  by move/ubP : (sup_upper_bound (path_normset_has_sup const_x_path_arity));
+    apply.
+Qed.
+
+End ConstPathAtArity.
+
+(** Specialization at [Z = ar_zero], used in (Mssep)/(Msnorm) below. *)
+Definition const_x_path (x : C) : path_car Ar (ar_zero Ar) C :=
+  const_x_path_arity (ar_zero Ar) x.
+
+Lemma const_x_path_normE (x : C) :
+  path_norm (const_x_path x) = cone_norm x.
+Proof. exact: const_x_path_arity_normE. Qed.
+
+(** (Mssep) — Paper §5.1: tests at arity 0 separate linear maps. *)
+Lemma linhom_mcone_M_sep (f1 f2 : linhom_car Ar C D) :
+  (forall p : test_of Ar (ar_zero Ar) (linhom_car Ar C D),
+    linhom_mcone_M (Y:=ar_zero Ar) p ->
+    test_fun p (ar_zero_pt Ar) f1 = test_fun p (ar_zero_pt Ar) f2) ->
+  f1 = f2.
+Proof.
+move=> Hsep; apply: linhom_eq => x.
+apply: mcone_M_sep => m mM.
+(* Use the rescaled-to-unit-ball constant path γ_{x'} where
+   x' = (1/(‖x‖+1)) *: x has norm ≤ 1. Then γ_{x'} ▷ m is a test in
+   the family, and its value at f_i is m _ (f_i x'). Use linearity of
+   f_i to scale back to m _ ((1/‖x‖+1) *: f_i x), and equality gives
+   m _ (f_i x) = m _ (f_2 x) by ‖x‖+1 ≠ 0. *)
+have S_pos : 0 < cone_norm x + 1 by exact: cnorm_succ_pos.
+have Sinv_ge0 : 0 <= (cone_norm x + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+have Sinv_pos : 0 < Sinv%:num by rewrite /= invr_gt0.
+have Sinv_neq0 : Sinv%:num != 0 by rewrite gt_eqF.
+pose x' : C := precone_scale Sinv x.
+have Hx'_unit : cone_norm x' <= 1.
+  rewrite /x' cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+have Hγx'_unit : cone_norm (const_x_path x') <= 1.
+  by rewrite /cone_norm /= const_x_path_normE.
+have HinM : linhom_mcone_M (Y:=ar_zero Ar)
+  (linhom_test (const_x_path x') Hγx'_unit m mM).
+  by exists (const_x_path x'), Hγx'_unit, m, mM.
+have Heq := Hsep _ HinM.
+rewrite /linhom_test /linhom_test_fun /= in Heq.
+have [_ _ HfZ1] := linhom_pre_linear (linhom_pre_of f1).
+have [_ _ HfZ2] := linhom_pre_linear (linhom_pre_of f2).
+rewrite /linhom_fun in Heq.
+rewrite /x' HfZ1 HfZ2 in Heq.
+rewrite test_linZ test_linZ in Heq.
+have step : Sinv%:num * test_fun m (ar_zero_pt Ar) (linhom_fun f1 x) =
+            Sinv%:num * test_fun m (ar_zero_pt Ar) (linhom_fun f2 x).
+  exact: Heq.
+have := mulfI Sinv_neq0 step.
+by rewrite /linhom_fun.
+Qed.
+
+(** (Msnorm) — Paper §5.1. Given [f ≠ 0] and ε > 0:
+    1. Choose [x : C] with [cnorm x ≤ 1] and [‖f‖ ≤ cnorm (f x) + ε/2]
+       (sup adherence on [linhom_normset f]).
+    2. Either [f x = 0] (then ‖f‖ ≤ ε/2, take any witness test) or
+       [f x ≠ 0]: apply (Msnorm) in [D] to [f x] with [ε/2] to get
+       [m ∈ M^D_0] with [cnorm (f x) ≤ m (f x) + ε/2].
+    3. Witness test: [(const_x_path x) ▷ m] applied at the zero point
+       gives [m _ (f x)], and [‖f‖ ≤ m (f x) + ε]. *)
+Lemma linhom_mcone_M_norm (f : linhom_car Ar C D) (eps : R) :
+  f <> linhom_zero C D -> 0 < eps ->
+  exists p : test_of Ar (ar_zero Ar) (linhom_car Ar C D),
+    linhom_mcone_M (Y:=ar_zero Ar) p /\
+    cone_norm f <= test_fun p (ar_zero_pt Ar) f + eps.
+Proof.
+move=> fne eps_pos.
+have eps2_pos : 0 < eps / 2 by rewrite divr_gt0.
+have norm_pos : 0 < cone_norm f.
+  rewrite lt_def cone_norm_ge0 andbT.
+  by apply/eqP => Hn0; apply: fne; exact: linhom_normz Hn0.
+have has_sup_f : has_sup (linhom_normset f).
+  exact: linhom_normset_has_sup.
+have [v Hv1 Hv2] := sup_adherent eps2_pos has_sup_f.
+case: Hv1 => x0 [Hx0_le1 Hx0_eq].
+have HnormR : cone_norm f <= cone_norm (linhom_fun f x0) + eps / 2.
+  rewrite -lerBlDr ltW //.
+  by rewrite -/(linhom_norm f) -Hx0_eq.
+have [eqz | nez] : linhom_fun f x0 = precone_zero \/
+                   linhom_fun f x0 <> precone_zero.
+  by case: (pselect (linhom_fun f x0 = precone_zero)); tauto.
+- (* [f x0 = 0]: then ‖f‖ ≤ ε/2 ≤ ε. *)
+  have norm_le_e2 : cone_norm f <= eps / 2.
+    apply: le_trans HnormR _.
+    by rewrite eqz cone_norm0 add0r.
+  (* Pick any x1 with f x1 ≠ 0. *)
+  have [x1 nz1] : exists x1, linhom_fun f x1 <> precone_zero.
+    apply: contrapT => Hne; apply: fne.
+    apply: linhom_eq => x.
+    apply: contrapT => Hr.
+    by apply: Hne; exists x.
+  (* Need a unit-ball x1' with f x1' ≠ 0; rescale. *)
+  have x1n_pos : 0 < cone_norm x1.
+    rewrite lt_def cone_norm_ge0 andbT.
+    apply/eqP => Hnz; apply: nz1.
+    have x1_zero : x1 = precone_zero by exact: cone_normz.
+    case: (linhom_pre_linear (linhom_pre_of f)) => H0 _ _.
+    by rewrite x1_zero /linhom_fun H0.
+  have Tinv_ge0 : 0 <= (cone_norm x1)^-1 by rewrite invr_ge0 ltW.
+  pose Tinv : {nonneg R} := NngNum Tinv_ge0.
+  have Tinv_pos : 0 < Tinv%:num by rewrite /= invr_gt0.
+  pose x1' : C := precone_scale Tinv x1.
+  have Hx1'_unit : cone_norm x1' <= 1.
+    rewrite /x1' cone_normh /=.
+    by rewrite mulVf ?gt_eqF.
+  have nz1' : linhom_fun f x1' <> precone_zero.
+    have [_ _ HfZ] := linhom_pre_linear (linhom_pre_of f).
+    rewrite /x1' /linhom_fun HfZ.
+    move=> Hsc; apply: nz1.
+    have step : precone_scale (NngNum (ltW x1n_pos))
+                  (precone_scale Tinv (linhom_fun f x1)) =
+                precone_scale (NngNum (ltW x1n_pos)) precone_zero.
+      by rewrite /linhom_fun in Hsc; rewrite Hsc.
+    rewrite precone_scale_0r -precone_scale_A in step.
+    have one_eq : (NngNum (ltW x1n_pos))%:num * Tinv%:num = 1.
+      by rewrite /= mulfV// gt_eqF.
+    have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+      by move=> a b /val_inj.
+    have repack : ((NngNum (ltW x1n_pos))%:num * Tinv%:num)%:nng = 1%:nng.
+      by apply: nng_eq => /=; rewrite one_eq.
+    by rewrite repack precone_scale_1 in step.
+  have [m [mM Hm]] :=
+    @mcone_M_norm R Ar D (linhom_fun f x1') eps nz1' eps_pos.
+  have Hpath_unit : cone_norm (const_x_path x1') <= 1.
+    by rewrite /cone_norm /= const_x_path_normE.
+  exists (linhom_test (const_x_path x1') Hpath_unit m mM); split.
+    by exists (const_x_path x1'), Hpath_unit, m, mM.
+  rewrite /linhom_test /= /linhom_test_fun /=.
+  apply: le_trans norm_le_e2 _.
+  have e2_le_e : eps / 2 <= eps.
+    by rewrite ler_pdivrMr // ler_peMr // ?ler1n // ltW.
+  apply: le_trans e2_le_e _.
+  rewrite -[X in X <= _]add0r lerD //.
+  exact: test_ge0.
+- (* [f x0 ≠ 0]. *)
+  have [m [mM Hm]] :=
+    @mcone_M_norm R Ar D (linhom_fun f x0) (eps / 2) nez eps2_pos.
+  have Hpath_unit : cone_norm (const_x_path x0) <= 1.
+    by rewrite /cone_norm /= const_x_path_normE.
+  exists (linhom_test (const_x_path x0) Hpath_unit m mM); split.
+    by exists (const_x_path x0), Hpath_unit, m, mM.
+  rewrite /linhom_test /= /linhom_test_fun /=.
+  apply: le_trans HnormR _.
+  apply: le_trans (lerD Hm (lexx (eps / 2))) _.
+  rewrite -addrA lerD2l.
+  have ->: (eps / 2 + eps / 2 = eps)%R.
+    have two_ne0 : (2 : R) != 0 by rewrite pnatr_eq0.
+    have step : (eps / 2 + eps / 2) * 2 = eps * 2.
+      rewrite mulrDl !mulfVK //.
+      by have ->: (2 = 1 + 1 :> R)%R by [];
+         rewrite mulrDr mulr1.
+    exact: (mulIf two_ne0 step).
+  exact: lexx.
+Qed.
+
+End LinhomMCone.
+
+(** ** [isMCone] HB instance for [linhom_car Ar C D] — Paper Def 5.4 *)
+
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (C D : ICone.type Ar) :=
+  @isMCone.Build R Ar (linhom_car Ar C D)
+    (@linhom_mcone_M R Ar C D)
+    (@linhom_mcone_M_comp R Ar C D)
+    (@linhom_mcone_M_sep R Ar C D)
+    (@linhom_mcone_M_norm R Ar C D).
+
+(** ** Sanity check: [linhom_car Ar C D] is an [mconeType Ar] *)
+
+Section LinhomMConeCheck.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Check (linhom_car Ar C D : mconeType Ar).
+
+End LinhomMConeCheck.
 
 (** ** M4 wave 2 status note legacy:
 
