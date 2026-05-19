@@ -1060,56 +1060,459 @@ HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (@linhom_scale_0r R Ar C D) (@linhom_scale_0l R Ar C D)
     (@linhom_cancel R Ar C D) (@linhom_pos R Ar C D).
 
-(** ** Operator norm on [linhom_car] — Paper §5.1 *)
+(** ** Operator norm on [linhom_car] — Paper §5.1
+
+    Paper §5.1: [‖f‖ = sup {‖f x‖ | ‖x‖ ≤ 1}]. We define this as the
+    canonical real-valued [sup] of the image set. The set is bounded
+    above by [linmap_norm f] (M1's [xchoose]-witness from Lemma 2.11),
+    so it has a sup, and that sup is the *least* upper bound, hence
+    fit for proving (Normh)/(Normz)/(Normt)/(Normp)/(Normc) in the
+    [isCone] HB instance. *)
 
 Section LinhomNorm.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables C D : ICone.type Ar.
 
-(** Paper §5.1: [‖f‖ = sup {‖f x‖ | ‖x‖ ≤ 1}], from M1's [linmap_norm].
-    Note: M1's [linmap_norm] is a witness *upper bound*, not the actual
-    supremum. The full [isCone] instance requires strengthening this
-    to a real supremum (see deferral note below). *)
-Definition linhom_norm (f : linhom_car Ar C D) : R :=
-  @linmap_norm R C D (linhom_fun f) (linhom_pre_linear (linhom_pre_of f)).
+(** The image norm-set: [{‖f x‖ | ‖x‖ ≤ 1}]. *)
+Definition linhom_normset (f : linhom_car Ar C D) : set R :=
+  [set y | exists x : C, cnorm x <= 1 /\ y = cnorm (linhom_fun f x)].
 
-(** Pointwise bound: [‖f x‖ ≤ ‖f‖] for [‖x‖ ≤ 1]. *)
-Lemma linhom_norm_ub (f : linhom_car Ar C D) (x : C) :
-  cnorm x <= 1 -> cnorm (linhom_fun f x) <= linhom_norm f.
+(** Nonempty: contains [cnorm (f 0) = 0] via [x := 0]. *)
+Lemma linhom_normset_nonempty (f : linhom_car Ar C D) :
+  linhom_normset f !=set0.
 Proof.
-move=> Hx; rewrite /linhom_norm.
-exact: linmap_norm_ub.
+exists 0; exists precone_zero; split; first by rewrite cone_norm0.
+case: (linhom_pre_linear (linhom_pre_of f)) => H0 _ _.
+by rewrite /linhom_fun H0 cone_norm0.
 Qed.
 
+(** Bounded above: M1's [linmap_norm] (an [xchoose]-extracted upper
+    bound) bounds the set. *)
+Lemma linhom_normset_has_ubound (f : linhom_car Ar C D) :
+  has_ubound (linhom_normset f).
+Proof.
+exists (@linmap_norm R C D (linhom_fun f)
+          (linhom_pre_linear (linhom_pre_of f))).
+by move=> _ [x [Hx ->]]; exact: linmap_norm_ub.
+Qed.
+
+Lemma linhom_normset_has_sup (f : linhom_car Ar C D) :
+  has_sup (linhom_normset f).
+Proof.
+by split; [exact: linhom_normset_nonempty | exact: linhom_normset_has_ubound].
+Qed.
+
+(** Paper §5.1: [‖f‖ = sup {‖f x‖ | ‖x‖ ≤ 1}]. *)
+Definition linhom_norm (f : linhom_car Ar C D) : R :=
+  sup (linhom_normset f).
+
+(** Pointwise bound: [‖f x‖ ≤ ‖f‖] for [‖x‖ ≤ 1] — the sup is an
+    upper bound. *)
+Lemma linhom_norm_sup_ub (f : linhom_car Ar C D) (x : C) :
+  cnorm x <= 1 -> cnorm (linhom_fun f x) <= linhom_norm f.
+Proof.
+move=> Hx.
+move/ubP : (sup_upper_bound (linhom_normset_has_sup f)); apply.
+by exists x.
+Qed.
+
+(** Least upper bound: any other upper bound of the image-norm set
+    dominates [linhom_norm f]. *)
+Lemma linhom_norm_sup_lub (f : linhom_car Ar C D) (M : R) :
+  (forall x : C, cnorm x <= 1 -> cnorm (linhom_fun f x) <= M) ->
+  linhom_norm f <= M.
+Proof.
+move=> HM.
+apply: ge_sup; first exact: linhom_normset_nonempty.
+by move=> _ [x [Hx ->]]; exact: HM.
+Qed.
+
+(** Kept for backwards compatibility with downstream callers. *)
+Lemma linhom_norm_ub (f : linhom_car Ar C D) (x : C) :
+  cnorm x <= 1 -> cnorm (linhom_fun f x) <= linhom_norm f.
+Proof. exact: linhom_norm_sup_ub. Qed.
+
 Lemma linhom_norm_ge0 (f : linhom_car Ar C D) : 0 <= linhom_norm f.
-Proof. rewrite /linhom_norm; exact: linmap_norm_ge0. Qed.
+Proof.
+have Hin : linhom_normset f 0.
+  exists precone_zero; split; first by rewrite cone_norm0.
+  case: (linhom_pre_linear (linhom_pre_of f)) => H0 _ _.
+  by rewrite /linhom_fun H0 cone_norm0.
+by move/ubP : (sup_upper_bound (linhom_normset_has_sup f)) => /(_ _ Hin).
+Qed.
 
 End LinhomNorm.
 
-(** ** Status of M4 wave 1-finish (this commit)
+Arguments linhom_normset {R Ar C D}.
+Arguments linhom_norm {R Ar C D}.
+Arguments linhom_normset_nonempty {R Ar C D}.
+Arguments linhom_normset_has_ubound {R Ar C D}.
+Arguments linhom_normset_has_sup {R Ar C D}.
+Arguments linhom_norm_sup_ub {R Ar C D}.
+Arguments linhom_norm_sup_lub {R Ar C D}.
+Arguments linhom_norm_ub {R Ar C D}.
+Arguments linhom_norm_ge0 {R Ar C D}.
 
-    - [cone_sup_ball_addD] — full diagonal-sup identity (both
-      directions) in any [coneType], delivered above.
-    - Pointwise [+], [*:] packaged as [linhom_car] (with ω-continuity
-      via the diagonal-sup identity, integral preservation via
-      [path_integral_eq_addB] / [path_integral_eq_scaleB]).
-    - [isPrecone] HB instance on [linhom_car Ar C D] — REGISTERED.
-    - [linhom_norm] defined as the operator-norm witness.
+(** ** Pointwise order on [linhom_car] mirrors precone_le
 
-    Deferred to M4 wave 2:
-    - [isCone] HB instance — blocked on strengthening
-      [Icones.cones.basic_lemmas.linmap_norm] to be the actual
-      supremum (currently it is only a witness upper bound via
-      [xchoose]). Once that is done, (Normh)/(Normz)/(Normt)/(Normp)
-      follow by sup manipulation, and (Normc) by the path-style
-      pointwise [cone_sup_ball] construction.
+    The precone-order on [linhom_car] (inherited via the [isPrecone]
+    instance) is [f ≤p g] iff there is a [δ : linhom_car] with
+    [g = linhom_add f δ]. Pointwise this gives [linhom_fun g x =
+    precone_add (linhom_fun f x) (linhom_fun δ x)], hence
+    [linhom_fun f x ≤p linhom_fun g x] in [D]. *)
+
+Section LinhomLePointwise.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Lemma linhom_le_pointwise (f g : linhom_car Ar C D) :
+  precone_le f g ->
+  forall x : C, precone_le (linhom_fun f x) (linhom_fun g x).
+Proof.
+move=> [δ Hδ] x.
+exists (linhom_fun δ x).
+by have /(congr1 (fun h => linhom_fun h x)) /= := Hδ.
+Qed.
+
+End LinhomLePointwise.
+
+(** ** Cone axioms on [linhom_car] — Paper §5.1
+
+    With [linhom_norm] defined as the actual real-valued [sup], the
+    five axioms (Normh)/(Normz)/(Normt)/(Normp)/(Normc) become sup
+    manipulations (for the first four) plus a pointwise sup-ball
+    construction (for the last one). *)
+
+Section LinhomConeAxioms.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+Implicit Types f g : linhom_car Ar C D.
+
+(** (Normh) — Paper §5.1: scalar homogeneity of the operator norm.
+    The image norm-set of [r *: f] is [r%:num * (image norm-set of f)]. *)
+Lemma linhom_normh (r : {nonneg R}) f :
+  linhom_norm (linhom_scale r f) = r%:num * linhom_norm f.
+Proof.
+have rge0 : 0 <= r%:num by exact: nngnum_ge0.
+have [rzero | rpos] := lerP r%:num 0.
+  have req0 : r%:num = 0 by apply: le_anti; rewrite rzero rge0.
+  rewrite req0 mul0r.
+  apply: le_anti; apply/andP; split; last exact: linhom_norm_ge0.
+  apply: linhom_norm_sup_lub => x Hx /=.
+  rewrite /linhom_fun /= /linhom_scale_fun cone_normh req0.
+  by rewrite mul0r.
+apply: le_anti; apply/andP; split.
+- apply: linhom_norm_sup_lub => x Hx /=.
+  rewrite /linhom_fun /= /linhom_scale_fun cone_normh.
+  by rewrite ler_pM2l //; exact: linhom_norm_sup_ub.
+- rewrite -ler_pdivlMl //.
+  apply: linhom_norm_sup_lub => x Hx /=.
+  rewrite ler_pdivlMl //.
+  have Hin :
+    linhom_normset (linhom_scale r f) (r%:num * cnorm (linhom_fun f x)).
+    exists x; split=> //=.
+    by rewrite /linhom_fun /= /linhom_scale_fun cone_normh.
+  by move/ubP : (sup_upper_bound
+    (linhom_normset_has_sup (linhom_scale r f))) => /(_ _ Hin).
+Qed.
+
+(** (Normz) — Paper §5.1: a linhom of norm zero is the zero linhom.
+    From [linhom_norm f = 0] and (Normp)+(Normh) we get [cnorm (f x) = 0]
+    for every [x] with [cnorm x ≤ 1]; by (Normz) in D, [f x = 0] for
+    such [x]; by linearity, [f x = 0] for every [x]. *)
+Lemma linhom_normz f : linhom_norm f = 0 -> f = linhom_zero C D.
+Proof.
+move=> H; apply: linhom_eq => x.
+case: (linhom_pre_linear (linhom_pre_of f)) => H0 _ HZ.
+have [x0 | xpos] := lerP (cnorm x) 0.
+  have xeq0 : cnorm x = 0 by apply: le_anti; rewrite x0 cone_norm_ge0.
+  have x_is_0 : x = precone_zero by exact: cone_normz.
+  rewrite x_is_0.
+  rewrite /linhom_fun /= H0.
+  by rewrite /linhom_zero_fun.
+(* cnorm x > 0: scale x to unit ball, use (Normz) on D. *)
+have rge0 : 0 <= (cnorm x)^-1 by rewrite invr_ge0 ltW.
+pose rinv : {nonneg R} := NngNum rge0.
+have rinv_pos : 0 < rinv%:num by rewrite /= invr_gt0.
+have scaled_unit : cnorm (precone_scale rinv x) <= 1.
+  by rewrite cone_normh /= mulVf// gt_eqF.
+have val0 : cnorm (linhom_fun f (precone_scale rinv x)) = 0.
+  apply: le_anti; rewrite cone_norm_ge0 andbT.
+  by rewrite -H; exact: linhom_norm_sup_ub.
+have inner_zero : linhom_fun f (precone_scale rinv x) = precone_zero.
+  exact: cone_normz.
+(* By linearity, f (rinv *: x) = rinv *: f(x), so rinv *: f(x) = 0,
+   then scale by cnorm x to get f(x) = 0. *)
+have key : precone_scale rinv (linhom_fun f x) = precone_zero by rewrite -HZ.
+(* Multiply by cnorm x: (cnorm x) *: (rinv *: f x) = (cnorm x * rinv) *: f x
+   = 1 *: f x = f x. *)
+have cnng_ge0 : 0 <= cnorm x by exact: cone_norm_ge0.
+pose c : {nonneg R} := NngNum cnng_ge0.
+have c_rinv_one : (NngNum (mulr_ge0 cnng_ge0 rge0)) =
+                  (NngNum (@ler01 R)).
+  by apply/val_inj => /=; rewrite mulfV// gt_eqF.
+have := f_equal (precone_scale c) key.
+rewrite precone_scale_0r => Hck.
+have Hck2 : precone_scale c (precone_scale rinv (linhom_fun f x)) =
+            linhom_fun f x.
+  rewrite -precone_scale_A.
+  have -> : (c%:num * rinv%:num)%:nng = 1%:nng :> {nonneg R}.
+    by apply/val_inj => /=; rewrite mulfV// gt_eqF.
+  by rewrite precone_scale_1.
+by rewrite -Hck2 Hck /linhom_fun /= /linhom_zero_fun.
+Qed.
+
+(** (Normt) — Paper §5.1: triangle inequality. *)
+Lemma linhom_normt f g :
+  linhom_norm (linhom_add f g) <= linhom_norm f + linhom_norm g.
+Proof.
+apply: linhom_norm_sup_lub => x Hx /=.
+apply: le_trans (cone_normt _ _) _.
+by rewrite lerD //; exact: linhom_norm_sup_ub.
+Qed.
+
+(** (Normp) — Paper §5.1: order monotonicity of the operator norm. *)
+Lemma linhom_normp f g :
+  precone_le f g -> linhom_norm f <= linhom_norm g.
+Proof.
+move=> Hle.
+apply: linhom_norm_sup_lub => x Hx.
+apply: le_trans (cone_normp _ _ (linhom_le_pointwise Hle x)) _.
+exact: linhom_norm_sup_ub.
+Qed.
+
+End LinhomConeAxioms.
+
+(** ** (Normc) — pointwise sup-ball construction on [linhom_car]
+
+    Given a [≤p]-increasing chain [(f_n)] in the unit ball of
+    [linhom_car Ar C D], the pointwise sup [f_sup x := cone_sup_ball
+    (n ↦ f_n x) ...] is a [linhom_car] (linear by [cone_sup_ball_addD]
+    + [sup_ball_scaler], ω-continuous, bounded by 1, path-preserving,
+    integral-preserving), and it is the LUB of the chain. *)
+
+Section LinhomSupBall.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D : ICone.type Ar.
+
+Variable u : nat -> linhom_car Ar C D.
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, linhom_norm (u n) <= 1.
+
+(** Pointwise chain in [D] is [≤p]-increasing. *)
+Lemma linhom_sup_pw_chain (x : C) n :
+  precone_le (linhom_fun (u n) x) (linhom_fun (u n.+1) x).
+Proof. exact: linhom_le_pointwise. Qed.
+
+(** Pointwise chain at [x] in the unit ball of [C] is in the unit
+    ball of [D]. *)
+Lemma linhom_sup_pw_ub1 (x : C) (Hx : cnorm x <= 1) n :
+  cnorm (linhom_fun (u n) x) <= 1.
+Proof.
+have := linhom_norm_sup_ub (u n) x Hx.
+by move=> /le_trans; apply; exact: ub1.
+Qed.
+
+(** Pointwise sup on the unit ball of [C]: the [cone_sup_ball] of the
+    pointwise chain in [D]. *)
+Definition linhom_sup_unit (x : C) (Hx : cnorm x <= 1) : D :=
+  cone_sup_ball (fun n => linhom_fun (u n) x)
+                (fun n => linhom_sup_pw_chain x n)
+                (linhom_sup_pw_ub1 Hx).
+
+(** Pointwise definition of the sup-ball: for general [x], scale to
+    the unit ball using [r := (cnorm x + 1)] (always positive), apply
+    [linhom_sup_unit], then scale back. *)
+
+(** [(cnorm x + 1)]-scaled inverse: norm of [x] divided by [cnorm x + 1]
+    is at most 1. *)
+Lemma cnorm_succ_pos (x : C) : 0 < cnorm x + 1.
+Proof.
+apply: lt_le_trans ltr01 _; rewrite -[X in X <= _]add0r lerD2r.
+exact: cone_norm_ge0.
+Qed.
+
+Lemma cnorm_div_succ_le1 (x : C) : cnorm x / (cnorm x + 1) <= 1.
+Proof.
+have h1 : 0 < cnorm x + 1 by exact: cnorm_succ_pos.
+rewrite ler_pdivrMr // mul1r.
+by rewrite -[X in X <= _]addr0 lerD2l ler01.
+Qed.
+
+Definition cnorm_succ_nng (x : C) : {nonneg R} :=
+  NngNum (ltW (cnorm_succ_pos x)).
+
+Lemma cnorm_succ_nng_pos (x : C) : 0 < (cnorm_succ_nng x)%:num.
+Proof. exact: cnorm_succ_pos. Qed.
+
+Lemma cnorm_succ_inv_ge0 (x : C) : 0 <= (cnorm x + 1)^-1.
+Proof. by rewrite invr_ge0 ltW//; exact: cnorm_succ_pos. Qed.
+
+Definition cnorm_succ_inv_nng (x : C) : {nonneg R} :=
+  NngNum (cnorm_succ_inv_ge0 x).
+
+Lemma cnorm_succ_invE (x : C) : (cnorm_succ_inv_nng x)%:num = (cnorm x + 1)^-1.
+Proof. by []. Qed.
+
+Lemma cnorm_succ_mulV (x : C) :
+  (cnorm_succ_nng x)%:num * (cnorm_succ_inv_nng x)%:num = 1.
+Proof. by rewrite /= mulfV// gt_eqF//; exact: cnorm_succ_pos. Qed.
+
+Lemma cnorm_succ_mulVl (x : C) :
+  (cnorm_succ_inv_nng x)%:num * (cnorm_succ_nng x)%:num = 1.
+Proof. by rewrite /= mulVf// gt_eqF//; exact: cnorm_succ_pos. Qed.
+
+(** Helper: scaling by [(cnorm x + 1)] cancels with scaling by its
+    inverse. *)
+Lemma cnorm_succ_scaleK (x : C) (y : D) :
+  precone_scale (cnorm_succ_nng x)
+    (precone_scale (cnorm_succ_inv_nng x) y) = y.
+Proof.
+rewrite -precone_scale_A.
+have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+  by move=> a b /val_inj.
+rewrite (_ : (_)%:nng = 1%:nng) ?precone_scale_1//.
+by apply: nng_eq => /=; exact: cnorm_succ_mulV.
+Qed.
+
+Lemma cnorm_inv_unit (x : C) :
+  cnorm (precone_scale (cnorm_succ_inv_nng x) x) <= 1.
+Proof.
+rewrite cone_normh /=.
+have hp : 0 < cnorm x + 1 by exact: cnorm_succ_pos.
+rewrite mulrC ler_pdivrMr // mul1r.
+by rewrite -[X in X <= _]addr0 lerD2l ler01.
+Qed.
+
+(** The candidate [f_sup x] for arbitrary [x]. *)
+Definition linhom_sup_fun (x : C) : D :=
+  precone_scale (cnorm_succ_nng x)
+    (linhom_sup_unit (cnorm_inv_unit x)).
+
+(** Helper: [f_sup x] equals [(cnorm x + 1) *: (sup ((f_n) (x/(cnorm x+1))))]. *)
+Lemma linhom_sup_funE (x : C) :
+  linhom_sup_fun x =
+  precone_scale (cnorm_succ_nng x)
+    (cone_sup_ball
+       (fun n => linhom_fun (u n) (precone_scale (cnorm_succ_inv_nng x) x))
+       (fun n => linhom_sup_pw_chain _ n)
+       (linhom_sup_pw_ub1 (cnorm_inv_unit x))).
+Proof. by []. Qed.
+
+(** ** Algebraic properties of [linhom_sup_fun]
+
+    The pointwise sup interacts cleanly with the linear structure of
+    [u_n] via the diagonal-sup identity. *)
+
+(** Helper: [f_sup x = ‖x‖_+ *: sup_n (f_n (rinv *: x))]. To prove
+    linearity, we will use a stronger equation: for any positive [r]
+    with [‖rinv x‖ ≤ 1], [f_sup x = r *: sup_n (f_n (rinv *: x))]. *)
+Lemma linhom_sup_unitE (x : C) (Hx : cnorm x <= 1) :
+  linhom_sup_unit Hx =
+  cone_sup_ball (fun n => linhom_fun (u n) x)
+                (fun n => linhom_sup_pw_chain x n)
+                (linhom_sup_pw_ub1 Hx).
+Proof. by []. Qed.
+
+(** When [x] is in the unit ball, [f_sup x] agrees with the unit-ball
+    pointwise sup (up to scaling). Concretely, by linearity of
+    [f_n] applied to [rinv *: x], the inner sup equals
+    [rinv *: (sup_n f_n x)], so [f_sup x = r *: rinv *: (sup_n f_n x)
+    = sup_n f_n x]. *)
+Lemma linhom_sup_fun_unitE (x : C) (Hx : cnorm x <= 1) :
+  linhom_sup_fun x = linhom_sup_unit Hx.
+Proof.
+rewrite linhom_sup_funE linhom_sup_unitE.
+set rinv := cnorm_succ_inv_nng x.
+set r := cnorm_succ_nng x.
+have linZ : forall n, linhom_fun (u n) (precone_scale rinv x) =
+                      precone_scale rinv (linhom_fun (u n) x).
+  move=> n; case: (linhom_pre_linear (linhom_pre_of (u n))) => _ _ HZ.
+  exact: HZ.
+pose ch1 (n : nat) : D := linhom_fun (u n) (precone_scale rinv x).
+have ch1_eq : ch1 = (fun n => linhom_fun (u n) (precone_scale rinv x))
+  by [].
+set ub1' := linhom_sup_pw_ub1 (cnorm_inv_unit x).
+set ub2 := linhom_sup_pw_ub1 Hx.
+set ch2 := [eta linhom_sup_pw_chain (precone_scale rinv x)].
+apply: precone_le_anti.
+- (* r *: cone_sup_ball ch1 ≤p cone_sup_ball (n ↦ f_n x). *)
+  (* For each n, f_n x = r *: f_n (rinv *: x). So r *: cone_sup_ball ch1
+     ≤p r *: f_n (rinv *: x) + ... is structurally cone_sup_ball ub. *)
+  have step : forall n,
+      linhom_fun (u n) x =
+      precone_scale r (linhom_fun (u n) (precone_scale rinv x)).
+    by move=> n; rewrite linZ cnorm_succ_scaleK.
+  (* r-scaled chain *)
+  pose ch_r (n : nat) : D := precone_scale r (ch1 n).
+  have ch_r_chain : forall n, precone_le (ch_r n) (ch_r n.+1).
+    by move=> n; rewrite /ch_r; apply: precone_scale_le; exact: ch2.
+  have ch_r_ub1 : forall n, cnorm (ch_r n) <= 1.
+    move=> n; rewrite /ch_r -step.
+    by have := linhom_sup_pw_ub1 Hx n.
+  have Hsup_eq :=
+    @sup_ball_scaler R D r ch1 ch2 ub1' ch_r_chain ch_r_ub1.
+  rewrite /ch_r in Hsup_eq.
+  rewrite -Hsup_eq.
+  apply: cone_sup_ball_lub => n.
+  rewrite /ch1 -step.
+  exact: cone_sup_ball_ub.
+- (* cone_sup_ball (n ↦ f_n x) ≤p r *: cone_sup_ball ch1. *)
+  apply: cone_sup_ball_lub => n.
+  have step : linhom_fun (u n) x =
+              precone_scale r (linhom_fun (u n) (precone_scale rinv x)).
+    by rewrite linZ cnorm_succ_scaleK.
+  rewrite step.
+  apply: precone_scale_le.
+  exact: cone_sup_ball_ub.
+Qed.
+
+End LinhomSupBall.
+
+(** ** M4 wave 2 status note
+
+    Delivered in this commit:
+    - [linhom_norm] re-defined as the canonical real-valued [sup]
+      over the image norm-set (Step 1 of the wave plan). The old
+      [xchoose]-witness form is no longer used in [linhom.v].
+    - [linhom_normset_nonempty] / [linhom_normset_has_ubound] /
+      [linhom_normset_has_sup] — sup is well-defined.
+    - [linhom_norm_sup_ub] (every image norm bounded by [linhom_norm f])
+      and [linhom_norm_sup_lub] (least-upper-bound property).
+    - [linhom_le_pointwise] — precone-order on [linhom_car] descends to
+      pointwise [≤p] in [D].
+    - Cone axioms (Normh) [linhom_normh], (Normz) [linhom_normz],
+      (Normt) [linhom_normt], (Normp) [linhom_normp] — fully proved
+      with the canonical-sup formulation.
+    - [linhom_sup_unit] — pointwise [cone_sup_ball] of [(f_n x)_n] on
+      the unit ball of [C], using [linhom_norm_sup_ub] to discharge
+      the unit-ball bound on each [linhom_fun (u n) x].
+    - [linhom_sup_fun] — scaled extension to arbitrary [x : C] via
+      the factor [(cnorm x + 1)], with the helper
+      [linhom_sup_fun_unitE] reducing it to [linhom_sup_unit] on the
+      unit ball.
+
+    Deferred to a follow-up commit (Normc + 3 HB instances):
+    - (Normc) — linhom_sup_fun packaging as a [linhom_car]:
+      requires proving linearity, ω-continuity, boundedness,
+      path-preservation, and integral-preservation of the pointwise
+      sup. The linearity step needs a careful rescaling argument
+      (a chain in the unit ball after [(cnorm x + 1)]-scaling) plus
+      one application of [cone_sup_ball_addD] (for [linD]) and one of
+      [sup_ball_scaler] (for [linZ]); the integral-preservation step
+      uses [icone_integral]'s MCT (paper Lemma 4.7 ω-continuity in
+      the path argument), namely the existing [icone_integral_test_pettis]
+      identity. The plumbing is voluminous but mechanical.
+    - [isCone] HB instance — registers [linhom_car] as a [coneType R]
+      via the canonical-sup norm plus the [(Normc)] sup-ball.
     - [isMCone] HB instance — Paper Def 5.4 test family
       [γ ▷ m : ar_carrier Y × linhom_car -> R] with body
       [m(s, f(γ(s)))]. Mirrors [path_test] / [path_mcone_M] in
       [path.v], with proofs of (Mscomp), (Mssep), (Msnorm).
     - [isICone] HB instance — Paper Lemma 5.4: pointwise integral
       [(∫η dµ)(x) := icone_integral (r ↦ η(r)(x)) ...] in [D].
-      Mirrors [path_int_fun] in [examples_icone.v]. *)
+      Mirrors [path_int_fun] / [path_int_exists] in
+      [examples_icone.v]. *)
 
 (** ** Paper §5.2 / Def 5.6 — Bilinear maps and the [linhom] bijection
 
