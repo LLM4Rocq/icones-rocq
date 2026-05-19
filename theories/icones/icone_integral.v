@@ -704,78 +704,570 @@ Qed.
 
 End TestFunMonotone.
 
-(** ** ω-continuity in [β] — Paper Lemma 4.7 (separate continuity, first arg)
+(** ** Residue extraction along the cone order — used in ω-continuity
 
-    For an increasing chain of unit-ball measurable paths
-    [(β_n)_{n ∈ ℕ}] with pointwise supremum [β = cone_sup_ball ∘
-    (β_n)], the integrals [x_n] of [β_n] over [µ] form (under our
-    additional hypotheses) an increasing unit-ball chain in [B],
-    and the [cone_sup_ball] of [(x_n)] is the integral of [β].
+    [precone_le x y] unfolds to [∃ z, y = x + z]. By [cid], we extract
+    a sigma-type witness which is then used to build a "residue"
+    function pointwise along an increasing chain of paths. *)
 
-    Proof strategy (paper §4, p. 1:25): combine
-    [monotone_convergence] applied to the chain
-    [(test_fun m s (β_n r))_n] of bounded non-negative measurable
-    functions in [r], with the [test_cont] field of each test on
-    the [B]-side chain [(x_n)]. The chain-monotonicity of [(x_n)]
-    follows from a "residue" lemma on [path_integral_eq] that we
-    do not yet have on file.
+Section PreconeResidue.
+Variables (R : realType) (P : preconeType R).
 
-    TODO M3 wave 4: prove [integral_omega_cont_path] using
-    [test_fun_le], [test_cont], [monotone_convergence], and
-    [Pettis] on each [β_n]. The proof outline is:
-    - Show that the pointwise chain [(test_fun m s (β_n r))_n] is
-      nondecreasing and bounded by 1 (uses [test_fun_le] above).
-    - The integrals [∫[µ] (test_fun m s (β_n r))%:E dr] form a
-      monotone bounded chain.
-    - By [monotone_convergence], the integral of
-      [test_fun m s (betasup r)] (the pointwise sup) equals the
-      [limn] of the [β_n]-integrals.
-    - The chain [(test_fun m s (x_n))_n] converges to
-      [test_fun m s (cone_sup_ball x_n …)] by [test_cont] +
-      monotonicity.
-    - By Pettis on each [β_n], [test_fun m s (x_n)
-      = fine (∫[µ] (test_fun m s (β_n r))%:E dr)].
-    - By [fine_cvg], the [fine] of the limit equals the limit of
-      the [fine]s. *)
+(** Sigma-type version of [precone_le]: extract the unique-up-to-
+    cancellation residue [z] such that [y = x + z]. *)
+Lemma precone_residue (x y : P) :
+  precone_le x y -> { z : P | y = (x + z)%PC }.
+Proof. exact: cid. Qed.
 
-(** ** ω-continuity in [µ] — Paper Lemma 4.7 (separate continuity, second arg)
+End PreconeResidue.
 
-    For a fixed measurable path [β], an increasing chain of
-    unit-ball finite measures [(µ_n)] has [fmeas_sup_ball µ_n]
-    as its sup; the corresponding integrals form a chain in [B]
-    whose [cone_sup_ball] is the integral of [β] against
-    [fmeas_sup_ball µ_n].
+Arguments precone_residue {R P x y}.
 
-    Proof strategy: apply [integral_meas_sup] (above) to the
-    function [r ↦ test_fun m s (β r)] (which is non-negative
-    measurable), getting:
-    [∫[fmeas_sup_ball µ_n] _ = limn (∫[µ_n] _)]. Combined with
-    Pettis and [test_fun_le] (as in the β-side proof above), this
-    gives the witness equation.
+(** ** Test-Pettis for arbitrary arity — Paper Def 4.1 reindexed
 
-    TODO M3 wave 4: prove [integral_omega_cont_meas] using
-    [integral_meas_sup] and the same fine-cvg + test_cont
-    bookkeeping as [integral_omega_cont_path]. *)
+    Paper Def 4.1 gives a Pettis equation only for arity-0 tests. By
+    (Mscomp), reindexing along a constant ar-hom [const_0Z z :
+    ar_zero → Z] turns any [m : test_of Ar Z B] into an arity-0 test
+    [test_reindex (const_0Z z) m], whose evaluation at [ar_zero_pt]
+    coincides with [test_fun m z]. The reindexed test sits in
+    [mcone_M (ar_zero Ar)] by (Mscomp), so [icone_integralP] applies. *)
 
-(** ** Joint measurability of the integration operator — Paper Lemma 4.7
+Section TestPettisGen.
+Variables (R : realType) (Ar : MeasSubcat R).
 
-    "For [Y ∈ Ar], [η ∈ Path(Y, Path(X, B))] and [κ ∈ Path(Y,
-    FMeas(X))], the function [β = I^B_X ∘ ⟨η, κ⟩ : Y → B] is a
-    measurable path."
+(** A general "constant at [z]" ar_hom from [ar_zero Ar] to any
+    [Z ∈ Ar]. *)
+Section ConstZeroZ.
+Variables (Z : ar_obj Ar) (z : ar_carrier Ar Z).
 
-    The proof of measurability of [(s', s) ↦ m s' (β s)] reduces,
-    by [path_integral_eq], to the measurability of
-    [(s', s) ↦ ∫ m(s', η(s, r)) κ(s, dr)], which is the kernel
-    integral [s ↦ ∫ φ(s, r) κ(s, dr)] (Lemma 4.6, proved above as
-    [kernel_integral_measurable]) with the joint state [(s', s)]
-    folded into [s].
+Let const_0Z_fun : ar_carrier Ar (ar_zero Ar) -> ar_carrier Ar Z :=
+  fun _ => z.
 
-    TODO M3 wave 4: instantiate [kernel_integral_measurable] with
-    [Y := (ar_carrier Y' * ar_carrier Y)%type] (as a product
-    measurable space, via [ar_prod]) and
-    [φ := λ (q, r). test_fun m q.1 (η q.2 r)]. The remaining
-    bookkeeping is the joint-vs-section measurability of [η] (which
-    [is_measurable_path η] provides through the
-    [Path(Y, Path(X, B))] structure) and the fmeas-measurability
-    of [κ] (from [is_measurable_path κ] applied to the [e_U] test
-    family). *)
+Local Lemma const_0Z_measurable :
+  measurable_fun [set: ar_carrier Ar (ar_zero Ar)] const_0Z_fun.
+Proof. exact: measurable_cst. Qed.
+
+HB.instance Definition _ :=
+  isMeasurableFun.Build _ _ _ _ const_0Z_fun const_0Z_measurable.
+
+Definition const_0Z : ar_hom Ar (ar_zero Ar) Z := const_0Z_fun.
+End ConstZeroZ.
+
+Variables (B : ICone.type Ar) (X : ar_obj Ar).
+Variables (β : ar_carrier Ar X -> B) (Hβ : is_measurable_path β).
+Variable µ : fmeas R (ar_carrier Ar X).
+
+(** Paper Def 4.1 + (Mscomp): the Pettis equation lifts to any arity
+    [Z] by reindexing the test along [const_0Z z]. *)
+Lemma icone_integral_test_pettis (Z : ar_obj Ar)
+    (m : test_of Ar Z B) (mM : mcone_M Z m) (z : ar_carrier Ar Z) :
+  test_fun m z (icone_integral β Hβ µ) =
+  fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+          (test_fun m z (β r))%:E).
+Proof.
+have mM0 : mcone_M (ar_zero Ar) (test_reindex (const_0Z z) m).
+  exact: mcone_M_comp.
+have := icone_integralP β Hβ µ (test_reindex (const_0Z z) m) mM0
+                              (ar_zero_pt Ar).
+by rewrite /test_reindex /= /test_reindex_fun /=.
+Qed.
+
+End TestPettisGen.
+
+Arguments const_0Z {R Ar} Z z.
+Arguments icone_integral_test_pettis
+  {R Ar B X β} Hβ µ {Z} m mM z.
+
+(** ** Integral chain monotonicity — Paper Lemma 4.7 helper
+
+    If [β1 ≤p β2] pointwise (in the cone order on [B]) and both are
+    measurable paths, then their integrals are comparable in the
+    cone order: [icone_integral β1 µ ≤p icone_integral β2 µ].
+
+    Proof: extract the pointwise residue [δ r] via [precone_residue],
+    show [δ] is itself a measurable path (the joint test measurability
+    is built from those of [β1] and [β2] via [test_linD]; the path
+    norm of [δ] is bounded by that of [β2] via (Normp)), and apply
+    [path_integral_eq_addB] to get
+    [icone_integral β2 = icone_integral β1 + icone_integral δ]. *)
+
+Section IntegralMonotone.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B : ICone.type Ar) (X : ar_obj Ar).
+Variables (β1 β2 : ar_carrier Ar X -> B).
+Variables (Hβ1 : is_measurable_path β1) (Hβ2 : is_measurable_path β2).
+Variable µ : fmeas R (ar_carrier Ar X).
+Hypothesis β_le : forall r, precone_le (β1 r) (β2 r).
+
+(** The pointwise residue function: [δ r] is the [z] such that
+    [β2 r = β1 r + z]. *)
+Local Definition residue_fun : ar_carrier Ar X -> B :=
+  fun r => proj1_sig (precone_residue (β_le r)).
+
+Local Lemma residue_funE r : β2 r = (β1 r + residue_fun r)%PC.
+Proof. exact: proj2_sig (precone_residue (β_le r)). Qed.
+
+Local Lemma residue_le_β2 r : precone_le (residue_fun r) (β2 r).
+Proof.
+exists (β1 r); rewrite residue_funE.
+by rewrite precone_addC.
+Qed.
+
+Local Lemma residue_norm_le r :
+  (cone_norm (residue_fun r) <= cone_norm (β2 r))%R.
+Proof. exact/cone_normp/residue_le_β2. Qed.
+
+Local Lemma residue_is_path : is_measurable_path residue_fun.
+Proof.
+have [[M2 HM2] H2j] := Hβ2; split.
+  exists M2 => r; apply: le_trans (residue_norm_le r) _; exact: HM2.
+move=> Y m mM.
+have [_ H1j] := Hβ1.
+have m1 := H1j Y m mM.
+have m2 := H2j Y m mM.
+have eqE p : test_fun m p.1 (residue_fun p.2) =
+             (test_fun m p.1 (β2 p.2) - test_fun m p.1 (β1 p.2))%R.
+  case: p => s r /=.
+  have := residue_funE r.
+  move/(congr1 (test_fun m s)).
+  rewrite test_linD => ->.
+  by rewrite addrAC subrr add0r.
+apply: (eq_measurable_fun
+  (fun p : ar_carrier Ar Y * ar_carrier Ar X =>
+    (test_fun m p.1 (β2 p.2) - test_fun m p.1 (β1 p.2))%R)).
+  by move=> p _; rewrite eqE.
+exact: measurable_funB.
+Qed.
+
+(** Paper Lemma 4.7 helper: integral chain monotonicity. *)
+Lemma icone_integral_chain_le :
+  precone_le (icone_integral β1 Hβ1 µ) (icone_integral β2 Hβ2 µ).
+Proof.
+exists (icone_integral residue_fun residue_is_path µ).
+apply/esym/icone_integral_eqP.
+have Hpie := path_integral_eq_addB Hβ1 residue_is_path
+    (icone_integralP β1 Hβ1 µ)
+    (icone_integralP residue_fun residue_is_path µ).
+move=> m mM s; rewrite (Hpie m mM s).
+congr fine; apply: eq_integral => r _.
+by rewrite -residue_funE.
+Qed.
+
+End IntegralMonotone.
+
+Arguments icone_integral_chain_le {R Ar B X β1 β2} Hβ1 Hβ2 µ.
+
+(** ** Paper Lemma 4.7 (ω-continuity in [β]) — separate continuity, first arg
+
+    For an increasing chain [(β_n)_{n ∈ ℕ}] of measurable paths
+    bounded by 1 in cone-norm pointwise, with pointwise supremum
+    path [βsup r := cone_sup_ball (β_n r) …] (the unit-ball sup),
+    and assuming [βsup] is itself a measurable path, the
+    [cone_sup_ball] of the integral chain [x_n := icone_integral
+    (β_n) _ µ] coincides with [icone_integral βsup _ µ]. *)
+
+Section OmegaContPath.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B : ICone.type Ar) (X : ar_obj Ar).
+Variable β : nat -> ar_carrier Ar X -> B.
+Hypothesis Hβ : forall n, is_measurable_path (β n).
+Hypothesis β_chain : forall n r, precone_le (β n r) (β n.+1 r).
+Hypothesis β_bound : forall n r, (cone_norm (β n r) <= 1)%R.
+Variable µ : fmeas R (ar_carrier Ar X).
+Hypothesis µ_norm : (fmeas_norm µ <= 1)%R.
+
+(** The pointwise unit-ball supremum of the chain [β]. *)
+Local Definition β_sup_fun : ar_carrier Ar X -> B :=
+  fun r => cone_sup_ball (fun n => β n r) (fun n => β_chain n r)
+                          (fun n => β_bound n r).
+
+Hypothesis Hβsup : is_measurable_path β_sup_fun.
+
+(** Integrals of each [β n]. *)
+Local Definition int_β (n : nat) : B := icone_integral (β n) (Hβ n) µ.
+
+(** Chain monotonicity of the integral sequence (uses
+    [icone_integral_chain_le]). *)
+Local Lemma int_β_chain n : precone_le (int_β n) (int_β n.+1).
+Proof. exact: icone_integral_chain_le. Qed.
+
+(** Unit-ball bound on each integral, using Paper Lemma 4.2. *)
+Local Lemma int_β_bound n : (cone_norm (int_β n) <= 1)%R.
+Proof.
+have H := @path_integral_norm_le R Ar B X (β n) µ 1 (β_bound n)
+                                 (Hβ n) (int_β n)
+                                 (icone_integralP (β n) (Hβ n) µ).
+apply: le_trans H _.
+by rewrite mul1r.
+Qed.
+
+(** Helper: pointwise test-value of the [β]-sup-path equals the sup
+    of pointwise test-values along the chain. *)
+Local Lemma test_β_sup_pt
+    (m : test_of Ar (ar_zero Ar) B) (r : ar_carrier Ar X) :
+  test_fun m (ar_zero_pt Ar) (β_sup_fun r) =
+  sup (range (fun n => test_fun m (ar_zero_pt Ar) (β n r))).
+Proof.
+set s0 := ar_zero_pt Ar.
+set u : nat -> R := fun n => test_fun m s0 (β n r).
+have ub : has_ubound (range u).
+  exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: β_bound.
+have nonempty : (range u) !=set0.
+  by exists (u 0%N), 0%N.
+apply: le_anti; apply/andP; split; last first.
+  apply: ge_sup => //.
+  move=> _ [n _ <-]; apply: test_fun_le.
+  exact: cone_sup_ball_ub.
+apply: test_cont => n.
+apply: sup_upper_bound; first by split.
+by exists n.
+Qed.
+
+(** Helper: same for the integral chain. *)
+Local Lemma test_int_β_sup_pt
+    (m : test_of Ar (ar_zero Ar) B) :
+  test_fun m (ar_zero_pt Ar) (cone_sup_ball int_β int_β_chain int_β_bound) =
+  sup (range (fun n => test_fun m (ar_zero_pt Ar) (int_β n))).
+Proof.
+set s0 := ar_zero_pt Ar.
+set u : nat -> R := fun n => test_fun m s0 (int_β n).
+have ub : has_ubound (range u).
+  exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: int_β_bound.
+have nonempty : (range u) !=set0.
+  by exists (u 0%N), 0%N.
+apply: le_anti; apply/andP; split; last first.
+  apply: ge_sup => //.
+  move=> _ [n _ <-]; apply: test_fun_le.
+  exact: cone_sup_ball_ub.
+apply: test_cont => n.
+apply: sup_upper_bound; first by split.
+by exists n.
+Qed.
+
+(** Paper Lemma 4.7 (ω-continuity in [β]). *)
+Lemma integral_omega_cont_path :
+  cone_sup_ball int_β int_β_chain int_β_bound =
+  icone_integral β_sup_fun Hβsup µ.
+Proof.
+apply: mcone_M_sep => m mM.
+set s0 := ar_zero_pt Ar.
+rewrite test_int_β_sup_pt.
+rewrite (icone_integral_test_pettis Hβsup µ m mM s0).
+pose un (n : nat) (r : ar_carrier Ar X) : \bar R :=
+  (test_fun m s0 (β n r))%:E.
+pose fsup r : \bar R := (test_fun m s0 (β_sup_fun r))%:E.
+have un_meas n : measurable_fun [set: ar_carrier Ar X] (un n).
+  by apply/measurable_EFinP;
+    exact: (measurable_test_path_section mM (Hβ n)).
+have un_ge0 (n : nat) r : (0 <= un n r)%E.
+  by rewrite lee_fin; apply: test_ge0.
+have un_homo r :
+  {homo (un^~ r) : n m0 / (n <= m0)%N >-> (n <= m0)%E}.
+  apply/nondecreasing_seqP => n; rewrite /un lee_fin.
+  apply: test_fun_le; exact: β_chain.
+have testβ_cvg_real r :
+  (fun n => test_fun m s0 (β n r)) x @[x --> \oo] -->
+  (test_fun m s0 (β_sup_fun r) : R^o).
+  have nd : {homo (fun n => test_fun m s0 (β n r))
+                 : n m0 / (n <= m0)%N >-> (n <= m0)%R}.
+    apply/nondecreasing_seqP => n; apply: test_fun_le; exact: β_chain.
+  have ub : has_ubound (range (fun n => test_fun m s0 (β n r))).
+    exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: β_bound.
+  rewrite test_β_sup_pt; exact: nondecreasing_cvgn.
+have un_cvg r : (un^~ r) x @[x --> \oo] --> fsup r.
+  rewrite /un /fsup.
+  apply: cvg_EFin; first by apply: nearW => n; rewrite fin_numE.
+  rewrite /=.
+  under eq_fun do rewrite /=.
+  exact: testβ_cvg_real.
+have un_lim r : limn (un^~ r) = fsup r.
+  by apply/cvg_lim => //; exact: ereal_hausdorff.
+have MCT : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r =
+           limn (fun n => \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+                              un n r))%E.
+  have HMC := monotone_convergence (fmeas_mu µ) (D := [set: ar_carrier Ar X])
+                measurableT un_meas (fun n r _ => un_ge0 n r)
+                (fun r _ => un_homo r).
+  rewrite -HMC; apply: eq_integral => r _; by rewrite -un_lim.
+have pet n : test_fun m s0 (int_β n) =
+             fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) un n r).
+  by rewrite /int_β; exact: (icone_integralP (β n) (Hβ n) µ m mM s0).
+have intβ_fin n : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) un n r
+                  \is a fin_num).
+  apply: test_int_fin => //; exists 1%R; exact: β_bound.
+have intβsup_fin : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r
+                   \is a fin_num).
+  have [[M HM] _] := Hβsup.
+  apply: test_int_fin => //; exists M; exact: HM.
+have int_β_cvg :
+  (fun n => \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) un n r) x
+   @[x --> \oo] --> (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r)%E.
+  have HC := cvg_monotone_convergence (D := [set: ar_carrier Ar X])
+               (mu := fmeas_mu µ) measurableT un_meas
+               (fun n r _ => un_ge0 n r) (fun r _ => un_homo r).
+  have HE : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+              (fun x : ar_carrier Ar X => limn (un^~ x)) r)%E =
+            (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r)%E.
+    by apply: eq_integral => r _; rewrite -un_lim.
+  by rewrite -HE.
+have fcvg : (fun n => fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+                              un n r)) x @[x --> \oo] -->
+            (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r) : R^o).
+  have HEFin : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r =
+               (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r))%:E)%E.
+    by rewrite fineK.
+  rewrite HEFin in int_β_cvg.
+  exact: (fine_cvg int_β_cvg).
+have nd_int : {homo (fun n => test_fun m s0 (int_β n))
+              : n m0 / (n <= m0)%N >-> (n <= m0)%R}.
+  apply/nondecreasing_seqP => n; apply: test_fun_le; exact: int_β_chain.
+have ub_int : has_ubound (range (fun n => test_fun m s0 (int_β n))).
+  exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: int_β_bound.
+have sup_cvg := nondecreasing_cvgn nd_int ub_int.
+have sup_eq : sup (range (fun n => test_fun m s0 (int_β n))) =
+              fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r).
+  have aux :
+    (fun n => test_fun m s0 (int_β n)) x @[x --> \oo] -->
+    (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r) : R^o).
+    apply: cvg_trans fcvg.
+    by apply: near_eq_cvg; apply: nearW => n; rewrite pet.
+  exact: (@cvg_unique R^o (@Rhausdorff R) _ _ _ _ sup_cvg aux).
+by rewrite sup_eq.
+Qed.
+
+End OmegaContPath.
+
+(** ** Paper Lemma 4.7 (ω-continuity in [µ]) — separate continuity, second arg
+
+    For a fixed measurable path [β] bounded in cone-norm by 1, an
+    increasing chain [(µ_n)] of finite measures with [fmeas_norm
+    µ_n ≤ 1], the integrals form a chain in [B] whose [cone_sup_ball]
+    is the integral of [β] against [fmeas_sup_ball µ_n]. *)
+
+Section OmegaContMeas.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B : ICone.type Ar) (X : ar_obj Ar).
+Variables (β : ar_carrier Ar X -> B) (Hβ : is_measurable_path β).
+Hypothesis β_bound : forall r, (cone_norm (β r) <= 1)%R.
+Variable µn : nat -> fmeas R (ar_carrier Ar X).
+Hypothesis µn_chain : forall n, precone_le (µn n) (µn n.+1).
+Hypothesis µn_bound : forall n, (fmeas_norm (µn n) <= 1)%R.
+
+(** Integral of [β] against each [µn n]. *)
+Local Definition int_µ (n : nat) : B := icone_integral β Hβ (µn n).
+
+(** Chain monotonicity: integrating against a larger measure gives a
+    larger integral. Proved via additivity in [µ]. *)
+Local Lemma int_µ_chain n : precone_le (int_µ n) (int_µ n.+1).
+Proof.
+have [w Hw] := µn_chain n.
+exists (icone_integral β Hβ w); apply/esym/icone_integral_eqP.
+have Hpe : path_integral_eq β (µn n.+1) (precone_add (int_µ n) (icone_integral β Hβ w)).
+  rewrite Hw.
+  apply: path_integral_eq_addmu => //; exact: icone_integralP.
+exact: Hpe.
+Qed.
+
+(** Unit-ball bound: using Paper Lemma 4.2 with [µ_n ≤ 1] and
+    [β ≤ 1] gives [‖int_µ n‖ ≤ 1]. *)
+Local Lemma int_µ_bound n : (cone_norm (int_µ n) <= 1)%R.
+Proof.
+have H := @path_integral_norm_le R Ar B X β (µn n) 1 β_bound Hβ
+                                 (int_µ n)
+                                 (icone_integralP β Hβ (µn n)).
+apply: le_trans H _.
+by rewrite mul1r.
+Qed.
+
+(** Paper Lemma 4.7 (ω-continuity in [µ]). *)
+Lemma integral_omega_cont_meas :
+  cone_sup_ball int_µ int_µ_chain int_µ_bound =
+  icone_integral β Hβ (fmeas_sup_ball µn_chain µn_bound).
+Proof.
+apply: mcone_M_sep => m mM.
+set s0 := ar_zero_pt Ar.
+rewrite (icone_integral_test_pettis Hβ
+           (fmeas_sup_ball µn_chain µn_bound) m mM s0).
+(* LHS: test of cone_sup_ball — sup of tests of int_µ n *)
+have test_sup :
+  test_fun m s0 (cone_sup_ball int_µ int_µ_chain int_µ_bound) =
+  sup (range (fun n => test_fun m s0 (int_µ n))).
+  set u : nat -> R := fun n => test_fun m s0 (int_µ n).
+  have ub : has_ubound (range u).
+    exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: int_µ_bound.
+  have nonempty : (range u) !=set0 by exists (u 0%N), 0%N.
+  apply: le_anti; apply/andP; split; last first.
+    apply: ge_sup => //.
+    move=> _ [n _ <-]; apply: test_fun_le.
+    exact: cone_sup_ball_ub.
+  apply: test_cont => n.
+  apply: sup_upper_bound; first by split.
+  by exists n.
+rewrite test_sup.
+(* Define the test integrand *)
+pose f r : \bar R := (test_fun m s0 (β r))%:E.
+have f_meas : measurable_fun [set: ar_carrier Ar X] f.
+  by apply/measurable_EFinP; exact: (measurable_test_path_section mM Hβ).
+have f_ge0 r : 0 <= f r by rewrite lee_fin; apply: test_ge0.
+(* Use integral_meas_sup *)
+have int_cvg :
+  (fun n => \int[fmeas_mu (µn n)]_(r in [set: ar_carrier Ar X]) f r) x
+   @[x --> \oo] -->
+  (\int[fmeas_mu (fmeas_sup_ball µn_chain µn_bound)]_(r in [set: _]) f r)%E.
+  exact: (integral_meas_sup µn µn_chain µn_bound f f_ge0 f_meas).
+(* finite-num facts *)
+have fin_µn n : \int[fmeas_mu (µn n)]_(r in [set: ar_carrier Ar X]) f r
+                \is a fin_num.
+  apply: test_int_fin => //; exists 1%R; exact: β_bound.
+set µsup := fmeas_sup_ball µn_chain µn_bound.
+have fin_µsup :
+  \int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r \is a fin_num.
+  apply: test_int_fin => //; exists 1%R; exact: β_bound.
+(* fine convergence *)
+have fcvg : (fun n => fine
+              (\int[fmeas_mu (µn n)]_(r in [set: ar_carrier Ar X]) f r)) x
+            @[x --> \oo] -->
+            (fine (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r)
+              : R^o).
+  have HE : (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r =
+             (fine (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r))%:E)%E.
+    by rewrite fineK.
+  rewrite HE in int_cvg.
+  exact: (fine_cvg int_cvg).
+(* Pettis on each int_µ n *)
+have pet n : test_fun m s0 (int_µ n) =
+             fine (\int[fmeas_mu (µn n)]_(r in [set: ar_carrier Ar X]) f r).
+  by rewrite /int_µ; exact: (icone_integralP β Hβ (µn n) m mM s0).
+have nd_int : {homo (fun n => test_fun m s0 (int_µ n))
+              : n m0 / (n <= m0)%N >-> (n <= m0)%R}.
+  apply/nondecreasing_seqP => n; apply: test_fun_le; exact: int_µ_chain.
+have ub_int : has_ubound (range (fun n => test_fun m s0 (int_µ n))).
+  exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: int_µ_bound.
+have sup_cvg := nondecreasing_cvgn nd_int ub_int.
+have aux :
+  (fun n => test_fun m s0 (int_µ n)) x @[x --> \oo] -->
+  (fine (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r) : R^o).
+  apply: cvg_trans fcvg.
+  by apply: near_eq_cvg; apply: nearW => n; rewrite pet.
+exact: (@cvg_unique R^o (@Rhausdorff R) _ _ _ _ sup_cvg aux).
+Qed.
+
+End OmegaContMeas.
+
+(** ** Paper Lemma 4.7 (joint measurability of the integration operator)
+
+    Given a "kernel" of measurable paths [β : S -> ar_carrier X -> B]
+    parameterised by a measurable space [S], a kernel measure-family
+    [κ : S -> fmeas R (ar_carrier X)] uniformly bounded, and any
+    test [m : test_of Ar Z B], the function
+
+      [(z, s) ↦ test_fun m z (icone_integral (β s) _ (κ s))]
+
+    is jointly measurable on [ar_carrier Z × S], provided the joint
+    test-measurability of [(z, s, r) ↦ test_fun m z (β s r)] is
+    given.
+
+    Proof: by [icone_integral_test_pettis], the test-value of the
+    integral equals [fine (∫[κ s] (test_fun m z (β s r))%:E)], which
+    is jointly measurable in [(z, s)] by paper Lemma 4.6
+    ([kernel_integral_measurable]) with [Y := Z × S] and
+    [φ ((z, s), r) := test_fun m z (β s r)]. *)
+
+Section JointMeasurability.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B : ICone.type Ar) (X : ar_obj Ar).
+Variables (d : measure_display) (S : measurableType d).
+Variable β : S -> ar_carrier Ar X -> B.
+Hypothesis Hβ : forall s, is_measurable_path (β s).
+Variable κ : S -> fmeas R (ar_carrier Ar X).
+Variable Z : ar_obj Ar.
+Variable m : test_of Ar Z B.
+Hypothesis mM : mcone_M Z m.
+
+(** Paper Lemma 4.7 (joint measurability).
+
+    The user provides:
+    - [κ_meas]: each set-evaluation of [κ] is measurable in [s].
+    - [κ_bound]: a uniform total-mass bound on [κ].
+    - [Hjoint]: joint measurability of [(z, s, r) ↦ test_fun m z (β s r)]
+      on [Z × S × X].
+    - [Mβ_bd]: a uniform pointwise bound for the test integrand
+      (typically [cone_norm (β s r) ≤ M] from the path bound). *)
+Lemma icone_integral_joint_measurable :
+  (forall U, measurable U ->
+     measurable_fun [set: S] (fun s => fmeas_mu (κ s) U)) ->
+  (exists M : R, forall s, (fmeas_norm (κ s) <= M)%R) ->
+  measurable_fun
+    [set: (ar_carrier Ar Z * (S * ar_carrier Ar X))%type]
+    (fun p => test_fun m p.1 (β p.2.1 p.2.2)) ->
+  (exists M : R, forall z s r,
+    (test_fun m z (β s r) <= M)%R) ->
+  measurable_fun
+    [set: (ar_carrier Ar Z * S)%type]
+    (fun p => test_fun m p.1 (icone_integral (β p.2) (Hβ p.2) (κ p.2))).
+Proof.
+move=> κ_meas κ_bound Hjoint [Mβ HMβ].
+(* Rewrite the integrand via [icone_integral_test_pettis] *)
+pose g (p : ar_carrier Ar Z * S) : R :=
+  fine (\int[fmeas_mu (κ p.2)]_(r in [set: ar_carrier Ar X])
+          (test_fun m p.1 (β p.2 r))%:E).
+have rewE p :
+  test_fun m p.1 (icone_integral (β p.2) (Hβ p.2) (κ p.2)) = g p.
+  by rewrite /g; exact: icone_integral_test_pettis.
+apply: (eq_measurable_fun g); first by move=> p _; rewrite -rewE.
+(* Apply [kernel_integral_measurable] with joint state (z, s) *)
+pose ρ (p : ar_carrier Ar Z * S) : fmeas R (ar_carrier Ar X) := κ p.2.
+have ρ_meas : forall U, measurable U ->
+    measurable_fun [set: (ar_carrier Ar Z * S)%type]
+                   (fun p => fmeas_mu (ρ p) U).
+  move=> U mU.
+  apply: (measurableT_comp (f := fun s => fmeas_mu (κ s) U)).
+  - exact: κ_meas.
+  - exact: measurable_snd.
+have ρ_bound : exists M : R, forall p, (fmeas_norm (ρ p) <= M)%R.
+  have [M HM] := κ_bound.
+  by exists M => p; exact: HM.
+pose φ (q : (ar_carrier Ar Z * S) * ar_carrier Ar X) : R :=
+  test_fun m q.1.1 (β q.1.2 q.2).
+have φ_ge0 q : (0 <= φ q)%R by rewrite /φ; exact: test_ge0.
+have φ_le_M q : (φ q <= Mβ)%R by rewrite /φ; exact: HMβ.
+(* measurability of φ *)
+have φ_meas : measurable_fun
+  [set: ((ar_carrier Ar Z * S) * ar_carrier Ar X)%type] φ.
+  rewrite /φ.
+  (* φ = (fun p => test_fun m p.1 (β p.2.1 p.2.2)) composed with
+     ((z,s),r) ↦ (z, (s, r)) *)
+  pose ψ (q : ((ar_carrier Ar Z * S) * ar_carrier Ar X)) :
+    ar_carrier Ar Z * (S * ar_carrier Ar X) :=
+    (q.1.1, (q.1.2, q.2)).
+  have ψ_meas : measurable_fun
+    [set: ((ar_carrier Ar Z * S) * ar_carrier Ar X)%type] ψ.
+    rewrite /ψ.
+    apply: measurable_fun_pair.
+    + apply: (measurableT_comp (f := fst)).
+      * exact: measurable_fst.
+      * exact: measurable_fst.
+    + apply: measurable_fun_pair.
+      * apply: (measurableT_comp (f := snd)).
+        - exact: measurable_snd.
+        - exact: measurable_fst.
+      * exact: measurable_snd.
+  pose hf (p : ar_carrier Ar Z * (S * ar_carrier Ar X)) : R :=
+    test_fun m p.1 (β p.2.1 p.2.2).
+  have -> :
+    (fun q : ((ar_carrier Ar Z * S) * ar_carrier Ar X)%type =>
+       test_fun m q.1.1 (β q.1.2 q.2)) = hf \o ψ.
+    by apply: funext => q; rewrite /hf /ψ.
+  by apply: measurableT_comp; [exact: Hjoint|exact: ψ_meas].
+(* Conclude via kernel_integral_measurable *)
+exact: (kernel_integral_measurable ρ ρ_meas ρ_bound φ Mβ φ_ge0 φ_le_M φ_meas).
+Qed.
+
+End JointMeasurability.
+
+Arguments icone_integral_joint_measurable
+  {R Ar B X d S} β Hβ κ {Z} m mM.

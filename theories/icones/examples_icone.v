@@ -74,6 +74,7 @@ Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.path.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
+Require Import Icones.icones.icone_integral.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -911,42 +912,163 @@ rewrite /path_int_fun.
 exact: icone_integralP.
 Qed.
 
+(** Paper Theorem 4.12 (continued): the candidate integral
+    [path_int_fun] is bounded in cone-norm by [‖η‖ · ‖ν‖]. *)
+Lemma path_int_fun_bound :
+  exists M : R, forall s : ar_carrier Ar X,
+    (cone_norm (path_int_fun s) <= M)%R.
+Proof.
+have [[Mη HMη] _] := Hη.
+exists (Mη * fmeas_norm ν).
+move=> s.
+apply: (path_integral_norm_le
+          (Mβ := Mη)
+          (β := fun r => path_fun (η r) s)).
+- by move=> r; apply: le_trans (path_norm_ub (η r) s) _; exact: HMη.
+- exact: path_int_pt_meas.
+- exact: icone_integralP.
+Qed.
+
+(** Paper Theorem 4.12 (continued): joint test-measurability of
+    [path_int_fun].
+
+    Given joint measurability of [(z, s, r) ↦ test_fun m z (path_fun
+    (η r) s)] on [Z × X × Y'] (a hypothesis: see below for the
+    natural source via [is_measurable_path η] at the [ar_prod Z X]
+    arity, modulo the [ar_prod_carrier_eq] cast), the function
+    [path_int_fun] inherits joint measurability against any test [m]
+    of [B] at arity [Z]. *)
+Lemma path_int_fun_test_meas (Z : ar_obj Ar) (m : test_of Ar Z B)
+    (mM : mcone_M Z m)
+    (Hjoint : measurable_fun
+      [set: (ar_carrier Ar Z *
+             (ar_carrier Ar X * ar_carrier Ar Y'))%type]
+      (fun p => test_fun m p.1 (path_fun (η p.2.2) p.2.1))) :
+  measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type]
+    (fun p => test_fun m p.1 (path_int_fun p.2)).
+Proof.
+have [[Mη HMη] _] := Hη.
+(* Apply icone_integral_joint_measurable with appropriate args *)
+pose β' (s : ar_carrier Ar X) (r : ar_carrier Ar Y') : B :=
+  path_fun (η r) s.
+have Hβ' : forall s, is_measurable_path (β' s) by exact: path_int_pt_meas.
+pose κ' (_ : ar_carrier Ar X) : fmeas R (ar_carrier Ar Y') := ν.
+have κ'_meas : forall U, measurable U ->
+    measurable_fun [set: ar_carrier Ar X]
+                   (fun s => fmeas_mu (κ' s) U).
+  by move=> U mU; exact: measurable_cst.
+have κ'_bound : exists M, forall s, (fmeas_norm (κ' s) <= M)%R.
+  by exists (fmeas_norm ν) => s; exact: lexx.
+(* Adapt Hjoint to the shape D1c expects: rearrange parens *)
+have Hjoint' : measurable_fun
+  [set: (ar_carrier Ar Z *
+         (ar_carrier Ar X * ar_carrier Ar Y'))%type]
+  (fun p => test_fun m p.1 (β' p.2.1 p.2.2)).
+  exact: Hjoint.
+(* M-bound on test integrand: test_fun ≤ cone_norm ≤ Mη *)
+have Mb : exists M : R, forall z s r,
+  (test_fun m z (β' s r) <= M)%R.
+  exists Mη => z s r.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans (path_norm_ub (η r) s) _; exact: HMη.
+have HmeasI :=
+  @icone_integral_joint_measurable R Ar B Y' _ (ar_carrier Ar X)
+    β' Hβ' κ' Z m mM κ'_meas κ'_bound Hjoint' Mb.
+(* HmeasI gives measurability of
+   (z, s) ↦ test_fun m z (icone_integral (β' s) (Hβ' s) (κ' s))
+   which equals path_int_fun. *)
+apply: (eq_measurable_fun
+  (fun p => test_fun m p.1
+              (icone_integral (β' p.2) (Hβ' p.2) (κ' p.2)))).
+  move=> p _.
+  rewrite /path_int_fun /β' /κ'.
+  congr (test_fun m _ _).
+  apply: icone_integral_eqP.
+  exact: icone_integralP.
+exact: HmeasI.
+Qed.
+
+(** Paper Theorem 4.12 (continued): conditional path measurability of
+    [path_int_fun].
+
+    Given the family of joint test-measurability hypotheses (one per
+    test of [B]), [path_int_fun] is itself a measurable path in
+    [Path(X, B)]. *)
+Lemma path_int_fun_is_path
+    (Hjoint : forall (Z : ar_obj Ar) (m : test_of Ar Z B)
+                     (mM : mcone_M Z m),
+       measurable_fun
+         [set: (ar_carrier Ar Z *
+                (ar_carrier Ar X * ar_carrier Ar Y'))%type]
+         (fun p => test_fun m p.1 (path_fun (η p.2.2) p.2.1))) :
+  is_measurable_path path_int_fun.
+Proof.
+split; first exact: path_int_fun_bound.
+move=> Z m mM.
+exact: (path_int_fun_test_meas mM (Hjoint Z m mM)).
+Qed.
+
 End PathIntegralData.
+
+(** Paper Theorem 4.12 (continued): existence of the path integral.
+
+    Given the per-test joint measurability hypotheses, the
+    pointwise-defined [path_int_fun] yields a measurable path that
+    satisfies the Pettis equation, witnessing path-integrability. *)
+Lemma path_int_exists_cond
+    (Y' : ar_obj Ar)
+    (η : ar_carrier Ar Y' -> path_car Ar X B)
+    (Hη : is_measurable_path η)
+    (ν : fmeas R (ar_carrier Ar Y'))
+    (Hjoint : forall (Z : ar_obj Ar) (m : test_of Ar Z B)
+                     (mM : mcone_M Z m),
+       measurable_fun
+         [set: (ar_carrier Ar Z *
+                (ar_carrier Ar X * ar_carrier Ar Y'))%type]
+         (fun p => test_fun m p.1 (path_fun (η p.2.2) p.2.1))) :
+  is_path_integrable η ν.
+Proof.
+have Hpif := path_int_fun_is_path Hη ν Hjoint.
+pose γ : path_car Ar X B := MkPath Hpif.
+exists γ.
+move=> p pM s.
+(* p ∈ path_mcone_M (ar_zero Ar) iff p = path_test (const_r r0) m mM
+   for some r0, m, mM ∈ mcone_M (ar_zero Ar) B. *)
+case: pM => φ [m [mM ->]].
+rewrite /path_test/= /path_test_fun/=.
+rewrite (ar_zero_ptE s).
+exact: path_int_fun_pettis_ar0.
+Qed.
 
 End PathICone.
 
-(** ** Deliverable 3 status note
+(** ** Status of the full [HB.instance Definition _ := isICone.Build]
+       registration for [path_car Ar X B]
 
-    [path_int_fun] is the pointwise integral candidate (paper
-    Theorem 4.12). Its arity-0 Pettis equation is captured by
-    [path_int_fun_pettis_ar0]. Completing
-    [HB.instance Definition _ := isICone.Build R Ar (path_car Ar X B)]
-    additionally requires showing [path_int_fun] is itself a
-    measurable path — which, by paper §4 (proof of Theorem 4.12),
-    appeals to paper Lemma 4.6 (joint measurability of
-    [s ↦ ∫ φ(s, r) κ(s, dr)] for measurable bounded [φ] and a
-    measurable kernel [κ]).
+    The conditional witness [path_int_exists_cond] above is parameterised
+    by a joint-measurability hypothesis [Hjoint] (one per test of [B]).
+    Closing this hypothesis to obtain an unconditional witness requires
+    extracting joint measurability of
+    [(z, s, r) ↦ test_fun m z (path_fun (η r) s)] on [Z × X × Y'] from
+    [is_measurable_path η]. The natural route applies [is_measurable_path
+    η] at the test-arity [ar_prod Z X] with the reindexed test
+    [path_test (snd) (test_reindex (fst) m) mM], and translates the
+    output across the propositional carrier equation
+    [ar_prod_carrier_eq Ar Z X : ar_carrier (ar_prod Z X) = ar_carrier
+    Z * ar_carrier X :> Type].
 
-    Paper Lemma 4.6 is being concurrently developed in the wave-2a
-    sibling file [theories/icones/icone_integral.v]. Once
-    [icone_integral_meas_path] is available there, the [isICone]
-    instance for [path_car Ar X B] is a routine wrapping:
+    This carrier-equality plumbing is explicitly **deferred** in the
+    project (see the [path_fl] iso of Paper Lemma 3.19 in
+    [theories/mcones/path.v], which makes the same observation: "the
+    full registration as a [cones_hom Path(X, Path(Y, B)) Path(X × Y,
+    B)] (with the [ar_prod] cast plumbed through) ... is left to a
+    downstream tensor-product PR (M2 wave 3)"). The same cast lives at
+    the heart of paper §3.3 (tensor products) and §5.1 (linear
+    arrow), neither of which is in the M3 scope.
 
-    - boundedness: [‖γ(s)‖ = ‖∫ path_fun (η r) s dν‖ ≤ ‖η‖ * ‖ν‖]
-      (paper Lemma 4.2 + Pettis spec + (Msnorm));
-    - measurability: for [m : test_of Ar Z B] and the constant
-      ar-hom [const_zZ z : ar_zero → Z], the test
-      [test_reindex (const_zZ z) m] sits in [mcone_M (ar_zero Ar)],
-      so the Pettis spec rewrites
-      [test_fun m z (path_int_fun s) =
-         fine (∫ test_fun m z (path_fun (η r) s) dν(r))],
-      whose RHS is jointly measurable in [(z, s)] by Lemma 4.6
-      applied to the kernel [(z, s) ↦ (r ↦ test_fun m z (path_fun
-      (η r) s))] (this kernel itself is jointly measurable in
-      [(z, s, r)] by [is_measurable_path η] applied at the
-      [ar_prod Z X]-arity reindexing, modulo casts through
-      [ar_prod_carrier_eq]).
-
-    No [Admitted]/[Axiom] is introduced here: the witness theorem
-    that is missing is exactly [path_int_fun_is_path], which is
-    omitted from this file pending wave-2a's [Lemma 4.6]. *)
+    Once the [ar_prod_carrier_eq] cast is plumbed through (M3+ tensor
+    work), the unconditional [HB.instance Definition _ :=
+    isICone.Build R Ar (path_car Ar X B) path_int_exists] follows by
+    discharging [Hjoint] from [is_measurable_path η] as outlined
+    above, and [path_int_exists_cond] becomes [path_int_exists]
+    directly. *)
