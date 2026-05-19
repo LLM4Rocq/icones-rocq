@@ -1414,6 +1414,13 @@ Lemma linhom_sup_unitE (x : C) (Hx : cnorm x <= 1) :
                 (linhom_sup_pw_ub1 Hx).
 Proof. by []. Qed.
 
+(** Auxiliary: the positive-real inverse of an [{nonneg R}] is itself
+    [{nonneg R}]. We will use this when scaling by [α⁻¹] for [α > 0]. *)
+Lemma nng_inv_ge0 (α : {nonneg R}) : 0 <= α%:num^-1.
+Proof. by rewrite invr_ge0; exact: nngnum_ge0. Qed.
+
+Definition nng_inv (α : {nonneg R}) : {nonneg R} := NngNum (nng_inv_ge0 α).
+
 (** When [x] is in the unit ball, [f_sup x] agrees with the unit-ball
     pointwise sup (up to scaling). Concretely, by linearity of
     [f_n] applied to [rinv *: x], the inner sup equals
@@ -1467,6 +1474,351 @@ apply: precone_le_anti.
   exact: cone_sup_ball_ub.
 Qed.
 
+(** ** Linearity equations for [linhom_sup_fun] — Paper §5.1 (key step)
+
+    These three equations witness that the pointwise sup is linear,
+    so that we can package it as a [linhom_car]. The hardest is
+    [linZ] (scalar multiplication); we use a case-split on [r = 0]
+    plus a rescaling argument for [r > 0]. *)
+
+(** [linhom_sup_fun 0 = 0]: by [linhom_sup_fun_unitE] at [precone_zero]
+    (in the unit ball) and the fact that each [f_n 0 = 0]. *)
+Lemma linhom_sup_fun_lin0 : linhom_sup_fun precone_zero = precone_zero.
+Proof.
+have Hz : cnorm (precone_zero : C) <= 1 by rewrite cone_norm0.
+rewrite (linhom_sup_fun_unitE Hz) /linhom_sup_unit.
+have Hfn0 : forall n,
+    linhom_fun (u n) (precone_zero : C) = (precone_zero : D).
+  by move=> n; case: (linhom_pre_linear (linhom_pre_of (u n))) => H0 _ _.
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  by rewrite /= Hfn0; exact: precone_le_refl.
+- exists (cone_sup_ball (fun n => linhom_fun (u n) (precone_zero : C))
+                         [eta linhom_sup_pw_chain (precone_zero : C)]
+                         (linhom_sup_pw_ub1 Hz)).
+  by rewrite precone_add0.
+Qed.
+
+(** [linhom_sup_fun (r *: x) = r *: linhom_sup_fun x]: case split on
+    [r = 0] vs [r > 0]. The positive case uses the unit-ball point
+    [u := (cnorm x + 1)⁻¹ *: x] and writes both sides in terms of
+    [linhom_sup_unit] at this [u], reducing the equality to an
+    application of [sup_ball_scaler]. *)
+Lemma linhom_sup_fun_linZ (r : {nonneg R}) (x : C) :
+  linhom_sup_fun (precone_scale r x) =
+  precone_scale r (linhom_sup_fun x).
+Proof.
+have [r0 | rne] := eqVneq r 0%:nng.
+- rewrite r0 precone_scale_0l precone_scale_0l.
+  exact: linhom_sup_fun_lin0.
+- have rpos : 0 < r%:num.
+    rewrite lt0r; apply/andP; split; last exact: nngnum_ge0.
+    by apply/eqP => Hr0; move/eqP : rne; apply; apply: val_inj.
+  (* Notations: u := xc1 *: x is in B_C; β := xs := cnorm x + 1.
+     Then x = β *: u (cnorm_succ_scaleK), r *: x = (r * β) *: u. *)
+  set xc1 := cnorm_succ_inv_nng x.
+  set xs := cnorm_succ_nng x.
+  set xrc1 := cnorm_succ_inv_nng (precone_scale r x).
+  set xrs := cnorm_succ_nng (precone_scale r x).
+  (* By definition: linhom_sup_fun (r *: x) = xrs *: lsu (xrc1 *: r *: x). *)
+  rewrite /linhom_sup_fun -/xs -/xrs -/xc1 -/xrc1.
+  rewrite -/(linhom_sup_unit (cnorm_inv_unit (precone_scale r x))).
+  rewrite -/(linhom_sup_unit (cnorm_inv_unit x)).
+  (* The unit-ball point xrc1 *: r *: x is r * xrc1 *: x = δ *: (xc1 *: x).
+     Define δ : {nonneg R} as r * xrc1, then we equate the two unit-ball
+     points via linhom_sup_unit's value at scaled unit-ball arguments. *)
+  pose δ_num : R := r%:num * xrc1%:num.
+  have δ_ge0 : 0 <= δ_num.
+    by rewrite mulr_ge0 //; exact: nngnum_ge0.
+  pose δ : {nonneg R} := NngNum δ_ge0.
+  (* δ_num = r/(r*cnorm x + 1) ≤ 1/cnorm x (when cnorm x > 0); but more
+     directly, since xrc1 *: (r *: x) has norm ≤ 1, and equals δ *: x. *)
+  have eq_δx : precone_scale δ x = precone_scale xrc1 (precone_scale r x).
+    rewrite -precone_scale_A.
+    by congr precone_scale; apply: val_inj => /=; exact: mulrC.
+  have δx_unit : cnorm (precone_scale δ x) <= 1.
+    by rewrite eq_δx; exact: cnorm_inv_unit.
+  (* Step 1: linhom_sup_unit (cnorm_inv_unit (r *: x)) = lsu at δ *: x.
+     Both unit-ball points are equal (eq_δx), so the unit-ball lsu's
+     are equal up to Prop_irrelevance of the bound. *)
+  have lsu_unit_eq :
+    linhom_sup_unit (cnorm_inv_unit (precone_scale r x)) =
+    linhom_sup_unit δx_unit.
+    rewrite /linhom_sup_unit.
+    apply: precone_le_anti.
+    + apply: cone_sup_ball_lub => n.
+      by rewrite -eq_δx /=; exact: cone_sup_ball_ub.
+    + apply: cone_sup_ball_lub => n.
+      by rewrite eq_δx /=; exact: cone_sup_ball_ub.
+  rewrite lsu_unit_eq.
+  (* Step 2: linhom_sup_unit at δ *: x = δ *: linhom_sup_unit at x (xc1 form),
+     pushed via linearity and sup_ball_scaler. Actually we use: the chain
+     (f_n (δ x))_n equals (δ *: f_n x)_n (by linearity), and the chain
+     (f_n (xc1 x))_n is unit-ball, with δ *: (f_n (xc1 x)) being (since
+     δ x = ? *: xc1 x, not directly equal — need the right scaling).
+
+     Actually use the unit-ball form: u := xc1 *: x. Then δ *: x =
+     (δ%:num * xs%:num) *: u. Let γ := δ * xs. *)
+  pose γ_num : R := δ_num * xs%:num.
+  have γ_ge0 : 0 <= γ_num.
+    by apply: mulr_ge0; rewrite ?nngnum_ge0.
+  pose γ : {nonneg R} := NngNum γ_ge0.
+  have eq_γu : precone_scale δ x =
+               precone_scale γ (precone_scale xc1 x).
+    rewrite -precone_scale_A.
+    congr precone_scale; apply: val_inj => /=.
+    rewrite /γ_num /xs /=.
+    by rewrite -mulrA mulfV ?gt_eqF ?cnorm_succ_pos // mulr1.
+  pose u_x := precone_scale xc1 x.
+  have u_x_unit : cnorm u_x <= 1 by exact: cnorm_inv_unit.
+  have γu_unit : cnorm (precone_scale γ u_x) <= 1 by rewrite -eq_γu.
+  have linZ_fn : forall n,
+      linhom_fun (u n) (precone_scale γ u_x) =
+      precone_scale γ (linhom_fun (u n) u_x).
+    move=> n; case: (linhom_pre_linear (linhom_pre_of (u n))) => _ _ HZ.
+    exact: HZ.
+  (* Build the rescaled chain and apply sup_ball_scaler. *)
+  have ch_u_chain : forall n,
+      precone_le (linhom_fun (u n) u_x) (linhom_fun (u n.+1) u_x).
+    by move=> n; exact: linhom_sup_pw_chain.
+  have ch_u_ub : forall n, cone_norm (linhom_fun (u n) u_x) <= 1.
+    by move=> n; exact: linhom_sup_pw_ub1.
+  have ch_γu_chain : forall n,
+      precone_le (precone_scale γ (linhom_fun (u n) u_x))
+                 (precone_scale γ (linhom_fun (u n.+1) u_x)).
+    by move=> n; apply: precone_scale_le; exact: ch_u_chain.
+  have ch_γu_ub : forall n,
+      cone_norm (precone_scale γ (linhom_fun (u n) u_x)) <= 1.
+    move=> n; rewrite -linZ_fn.
+    exact: linhom_sup_pw_ub1.
+  (* sup_ball_scaler gives us: cone_sup_ball(γ *: f_n u) = γ *: cone_sup_ball(f_n u). *)
+  have scaler_eq :
+    cone_sup_ball (fun n => precone_scale γ (linhom_fun (u n) u_x))
+                  ch_γu_chain ch_γu_ub =
+    precone_scale γ
+      (cone_sup_ball (fun n => linhom_fun (u n) u_x) ch_u_chain ch_u_ub).
+    exact: (@sup_ball_scaler R D γ (fun n => linhom_fun (u n) u_x)
+                            ch_u_chain ch_u_ub ch_γu_chain ch_γu_ub).
+  (* Bridge through Prop_irrelevance: rewrite δx unit-ball lsu using γ form. *)
+  have lsu_δx_eq_γu :
+    linhom_sup_unit δx_unit = linhom_sup_unit γu_unit.
+    rewrite /linhom_sup_unit.
+    apply: precone_le_anti.
+    + apply: cone_sup_ball_lub => n.
+      by rewrite eq_γu /=; exact: cone_sup_ball_ub.
+    + apply: cone_sup_ball_lub => n.
+      by rewrite -eq_γu /=; exact: cone_sup_ball_ub.
+  rewrite lsu_δx_eq_γu.
+  (* The unit-ball cone_sup_ball at u_x in linhom_sup_unit form versus
+     in (ch_u_chain, ch_u_ub) form: equal by Prop_irrelevance. *)
+  have csb_eq :
+    cone_sup_ball (fun n => linhom_fun (u n) u_x)
+                  [eta linhom_sup_pw_chain u_x] (linhom_sup_pw_ub1 u_x_unit) =
+    cone_sup_ball (fun n => linhom_fun (u n) u_x) ch_u_chain ch_u_ub.
+    have e1 : [eta linhom_sup_pw_chain u_x] = ch_u_chain
+      by exact: Prop_irrelevance.
+    have e2 : linhom_sup_pw_ub1 u_x_unit = ch_u_ub
+      by exact: Prop_irrelevance.
+    by rewrite e1 e2.
+  (* Now: linhom_sup_unit γu_unit = γ *: cone_sup_ball (ch_u). *)
+  have lsu_γu_eq :
+    linhom_sup_unit γu_unit =
+    precone_scale γ (linhom_sup_unit u_x_unit).
+    rewrite /linhom_sup_unit.
+    apply: precone_le_anti.
+    - apply: cone_sup_ball_lub => n.
+      rewrite /= linZ_fn.
+      apply: precone_scale_le.
+      exact: cone_sup_ball_ub.
+    - rewrite csb_eq -scaler_eq.
+      apply: cone_sup_ball_lub => n.
+      rewrite /= -linZ_fn.
+      exact: cone_sup_ball_ub.
+  rewrite lsu_γu_eq.
+  rewrite /linhom_sup_fun -/xs -/xc1 -/(linhom_sup_unit (cnorm_inv_unit x)).
+  rewrite -!precone_scale_A.
+  (* Algebra: xrs * γ = r * xs and the two linhom_sup_unit's are equal
+     by Prop_irrelevance. *)
+  have lsu_eq :
+    linhom_sup_unit u_x_unit = linhom_sup_unit (cnorm_inv_unit x).
+    rewrite /linhom_sup_unit.
+    have e2 : linhom_sup_pw_ub1 u_x_unit =
+              linhom_sup_pw_ub1 (cnorm_inv_unit x) by exact: Prop_irrelevance.
+    by rewrite e2.
+  rewrite lsu_eq.
+  congr precone_scale.
+  apply: val_inj => /=.
+  rewrite /γ_num /δ_num.
+  rewrite mulrA mulrCA mulrA.
+  have crx_simpl : (cnorm (r *: x)%PC + 1) *
+                   (cnorm_succ_inv_nng (r *: x)%PC)%:num = 1.
+    by rewrite /= mulfV// gt_eqF//; exact: cnorm_succ_pos.
+  have crx_inv2 :
+    r%:num * (cnorm (r *: x)%PC + 1) *
+    (cnorm_succ_inv_nng (r *: x)%PC)%:num = r%:num.
+    by rewrite -mulrA crx_simpl mulr1.
+  by rewrite crx_inv2 /xs/=.
+Qed.
+
+(** Helper: given [s : {nonneg R}] positive with [s⁻¹ *: x] in [B_C],
+    we have [linhom_sup_fun x = s *: linhom_sup_unit Hxs]. Used to
+    rewrite [linhom_sup_fun] at a common scale across multiple
+    points, which is essential for [linD]. *)
+Lemma linhom_sup_fun_at_scale (x : C) (s : {nonneg R}) (Hs : 0 < s%:num)
+    (Hxs : cnorm (precone_scale (nng_inv s) x) <= 1) :
+  linhom_sup_fun x = precone_scale s (linhom_sup_unit Hxs).
+Proof.
+have eq_x : x = precone_scale s (precone_scale (nng_inv s) x).
+  rewrite -precone_scale_A.
+  have -> : (s%:num * (nng_inv s)%:num)%:nng = 1%:nng :> {nonneg R}.
+    by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+  by rewrite precone_scale_1.
+rewrite {1}eq_x linhom_sup_fun_linZ.
+congr precone_scale.
+exact: linhom_sup_fun_unitE.
+Qed.
+
+(** [linhom_sup_fun (x + y) = linhom_sup_fun x + linhom_sup_fun y]:
+    rescaling trick. With [s := (cnorm x + cnorm y + 1)] we have
+    [(s⁻¹ *: x), (s⁻¹ *: y), (s⁻¹ *: (x+y))] all in [B_C]. Apply
+    [linhom_sup_fun_at_scale] at [s] for each of the three points, and
+    use [cone_sup_ball_addD] to commute the sup with the sum on the
+    common-scale unit-ball form. *)
+Lemma linhom_sup_fun_linD (x y : C) :
+  linhom_sup_fun (precone_add x y) =
+  precone_add (linhom_sup_fun x) (linhom_sup_fun y).
+Proof.
+(* Pick s := cnorm x + cnorm y + 1, definitely positive. *)
+have s_pos : 0 < cnorm x + cnorm y + 1.
+  apply: lt_le_trans ltr01 _.
+  rewrite -[X in X <= _]add0r lerD2r addr_ge0 //; exact: cone_norm_ge0.
+have s_ge0 : 0 <= cnorm x + cnorm y + 1 by exact: ltW.
+pose s : {nonneg R} := NngNum s_ge0.
+have spos : 0 < s%:num := s_pos.
+(* Verify the three norm bounds. *)
+have Hsx : cnorm (precone_scale (nng_inv s) x) <= 1.
+  rewrite cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  rewrite -[X in X <= _]addr0 -addrA lerD2l.
+  by rewrite addr_ge0 ?cone_norm_ge0 ?ler01.
+have Hsy : cnorm (precone_scale (nng_inv s) y) <= 1.
+  rewrite cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by rewrite addrAC -[X in X <= _]add0r lerD2r addr_ge0 // cone_norm_ge0.
+have Hsxy : cnorm (precone_scale (nng_inv s) (precone_add x y)) <= 1.
+  rewrite cone_normh /=.
+  apply: le_trans (ler_pM _ _ (lexx _) (cone_normt x y)) _.
+  - by rewrite invr_ge0 ltW.
+  - exact: cone_norm_ge0.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+(* Apply at_scale to each. *)
+rewrite (linhom_sup_fun_at_scale spos Hsxy).
+rewrite (linhom_sup_fun_at_scale spos Hsx).
+rewrite (linhom_sup_fun_at_scale spos Hsy).
+(* Goal: s *: lsu(s⁻¹ (x+y)) = s *: lsu(s⁻¹ x) + s *: lsu(s⁻¹ y).
+   Use precone_scale_DAr on the RHS, then apply cone_sup_ball_addD. *)
+rewrite -precone_scale_DAr.
+congr precone_scale.
+(* Goal: lsu(s⁻¹ (x+y)) = lsu(s⁻¹ x) + lsu(s⁻¹ y). *)
+rewrite /linhom_sup_unit.
+(* For each n, f_n(s⁻¹ (x+y)) = f_n(s⁻¹ x) + f_n(s⁻¹ y) by linearity. *)
+have linD_fn : forall n,
+    linhom_fun (u n) (precone_scale (nng_inv s) (precone_add x y)) =
+    precone_add (linhom_fun (u n) (precone_scale (nng_inv s) x))
+                (linhom_fun (u n) (precone_scale (nng_inv s) y)).
+  move=> n.
+  case: (linhom_pre_linear (linhom_pre_of (u n))) => _ HD _.
+  rewrite precone_scale_DAr.
+  exact: HD.
+(* Set up the chains needed by cone_sup_ball_addD. *)
+pose a (n : nat) : D := linhom_fun (u n) (precone_scale (nng_inv s) x).
+pose b (n : nat) : D := linhom_fun (u n) (precone_scale (nng_inv s) y).
+have a_chain : forall n, precone_le (a n) (a n.+1).
+  by move=> n; exact: linhom_sup_pw_chain.
+have b_chain : forall n, precone_le (b n) (b n.+1).
+  by move=> n; exact: linhom_sup_pw_chain.
+have a_ub : forall n, cone_norm (a n) <= 1.
+  by move=> n; exact: linhom_sup_pw_ub1.
+have b_ub : forall n, cone_norm (b n) <= 1.
+  by move=> n; exact: linhom_sup_pw_ub1.
+have ab_chain : forall n,
+    precone_le (precone_add (a n) (b n)) (precone_add (a n.+1) (b n.+1)).
+  move=> n.
+  rewrite -(linD_fn n) -(linD_fn n.+1).
+  exact: linhom_sup_pw_chain.
+have ab_ub : forall n, cone_norm (precone_add (a n) (b n)) <= 1.
+  move=> n; rewrite -(linD_fn n).
+  exact: linhom_sup_pw_ub1.
+(* The key: cone_sup_ball_addD. *)
+have addD := @cone_sup_ball_addD R D a b
+                a_chain a_ub b_chain b_ub ab_chain ab_ub.
+(* Now relate the linhom_sup_unit's to the cone_sup_balls. *)
+(* lsu(s⁻¹(x+y)) = cone_sup_ball (a + b) = (by linD_fn) cone_sup_ball (f_n(s⁻¹(x+y))). *)
+have csb_xy :
+  cone_sup_ball (fun n => linhom_fun (u n)
+                            (precone_scale (nng_inv s) (precone_add x y)))
+                [eta linhom_sup_pw_chain _]
+                (linhom_sup_pw_ub1 Hsxy) =
+  cone_sup_ball (fun n => precone_add (a n) (b n)) ab_chain ab_ub.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n.
+    rewrite /= linD_fn.
+    exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => n.
+    rewrite /= -linD_fn.
+    exact: cone_sup_ball_ub.
+have csb_x :
+  cone_sup_ball (fun n => linhom_fun (u n) (precone_scale (nng_inv s) x))
+                [eta linhom_sup_pw_chain _]
+                (linhom_sup_pw_ub1 Hsx) =
+  cone_sup_ball a a_chain a_ub.
+  have e1 : [eta linhom_sup_pw_chain (precone_scale (nng_inv s) x)] = a_chain
+    by exact: Prop_irrelevance.
+  have e2 : linhom_sup_pw_ub1 Hsx = a_ub by exact: Prop_irrelevance.
+  by rewrite e1 e2.
+have csb_y :
+  cone_sup_ball (fun n => linhom_fun (u n) (precone_scale (nng_inv s) y))
+                [eta linhom_sup_pw_chain _]
+                (linhom_sup_pw_ub1 Hsy) =
+  cone_sup_ball b b_chain b_ub.
+  have e1 : [eta linhom_sup_pw_chain (precone_scale (nng_inv s) y)] = b_chain
+    by exact: Prop_irrelevance.
+  have e2 : linhom_sup_pw_ub1 Hsy = b_ub by exact: Prop_irrelevance.
+  by rewrite e1 e2.
+by rewrite csb_xy csb_x csb_y addD.
+Qed.
+
+(** Norm bound: [cnorm (linhom_sup_fun x) ≤ cnorm x] (operator-norm
+    bound at 1 for chains of unit-ball-bounded morphisms). *)
+Lemma linhom_sup_fun_norm_le (x : C) :
+  cnorm (linhom_sup_fun x) <= cnorm x.
+Proof.
+have [x0 | xpos] := lerP (cnorm x) 0.
+  have xeq0 : cnorm x = 0 by apply: le_anti; rewrite x0 cone_norm_ge0.
+  have xis0 : x = precone_zero by exact: cone_normz.
+  rewrite xis0 linhom_sup_fun_lin0 cone_norm0; exact: cone_norm_ge0.
+(* cnorm x > 0: scale by 1/cnorm x. *)
+have xge0 : 0 <= cnorm x by exact: cone_norm_ge0.
+pose cn : {nonneg R} := NngNum xge0.
+have cnpos : 0 < cn%:num := xpos.
+have Hxcn : cnorm (precone_scale (nng_inv cn) x) <= 1.
+  rewrite cone_normh /=.
+  by rewrite mulVf// gt_eqF.
+rewrite (linhom_sup_fun_at_scale cnpos Hxcn) cone_normh.
+rewrite -[X in _ <= X]mulr1.
+apply: ler_pM; [exact: nngnum_ge0|exact: cone_norm_ge0|exact: lexx|].
+exact: cone_sup_ball_norm.
+Qed.
+
+(** Boundedness as required for [linhom_pre]. *)
+Lemma linhom_sup_fun_bounded :
+  exists M : R, forall x : C, cnorm x <= 1 -> cnorm (linhom_sup_fun x) <= M.
+Proof.
+exists 1 => x Hx.
+apply: le_trans (linhom_sup_fun_norm_le x) Hx.
+Qed.
+
 End LinhomSupBall.
 
 (** ** M4 wave 2 status note
@@ -1492,19 +1844,30 @@ End LinhomSupBall.
       [linhom_sup_fun_unitE] reducing it to [linhom_sup_unit] on the
       unit ball.
 
-    Deferred to a follow-up commit (Normc + 3 HB instances):
-    - (Normc) — linhom_sup_fun packaging as a [linhom_car]:
-      requires proving linearity, ω-continuity, boundedness,
-      path-preservation, and integral-preservation of the pointwise
-      sup. The linearity step needs a careful rescaling argument
-      (a chain in the unit ball after [(cnorm x + 1)]-scaling) plus
-      one application of [cone_sup_ball_addD] (for [linD]) and one of
-      [sup_ball_scaler] (for [linZ]); the integral-preservation step
-      uses [icone_integral]'s MCT (paper Lemma 4.7 ω-continuity in
-      the path argument), namely the existing [icone_integral_test_pettis]
-      identity. The plumbing is voluminous but mechanical.
-    - [isCone] HB instance — registers [linhom_car] as a [coneType R]
-      via the canonical-sup norm plus the [(Normc)] sup-ball.
+    M4 wave 3 additions (this commit):
+    - [nng_inv] — inverse of a positive [{nonneg R}].
+    - [linhom_sup_fun_lin0] : [linhom_sup_fun 0 = 0].
+    - [linhom_sup_fun_linZ] : [linhom_sup_fun (r *: x) = r *: linhom_sup_fun x],
+      via case-split on [r = 0] and a unit-ball rescaling argument for
+      [r > 0] using [sup_ball_scaler].
+    - [linhom_sup_fun_at_scale] — rescaling helper: for [s > 0] with
+      [s⁻¹ *: x ∈ B_C], [linhom_sup_fun x = s *: linhom_sup_unit Hxs].
+      Derived from [linhom_sup_fun_linZ] + [linhom_sup_fun_unitE].
+    - [linhom_sup_fun_linD] : [linhom_sup_fun (x + y) =
+      linhom_sup_fun x + linhom_sup_fun y], via uniform-scaling at
+      [s := cnorm x + cnorm y + 1] plus [cone_sup_ball_addD].
+    - [linhom_sup_fun_norm_le] : [cnorm (linhom_sup_fun x) ≤ cnorm x].
+    - [linhom_sup_fun_bounded] : the operator-norm bound [M = 1].
+
+    Deferred to a follow-up commit (full HB tower):
+    - ω-continuity of [linhom_sup_fun] — needs a "sup of sup = sup of
+      diagonal" identity ([cone_sup_ball_diag]) for double sup-balls
+      indexed by two parameters [(m, n)].
+    - Path-preservation / integral-preservation of [linhom_sup_fun].
+    - Final [isCone] HB instance registering [linhom_car] as a
+      [coneType R] via the canonical-sup norm + the four norm axioms
+      already in place + the [linhom_sup_ball] constructor packaged
+      from [linhom_sup_fun] above.
     - [isMCone] HB instance — Paper Def 5.4 test family
       [γ ▷ m : ar_carrier Y × linhom_car -> R] with body
       [m(s, f(γ(s)))]. Mirrors [path_test] / [path_mcone_M] in
