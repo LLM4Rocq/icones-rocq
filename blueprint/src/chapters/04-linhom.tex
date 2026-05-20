@@ -1,61 +1,566 @@
 % Chapter 4 --- The internal hom $\lin$ (paper §5.1 + §5.2, milestone M4).
 %
-% Mirrors theories/homs/:
-%   linhom.v   paper §5.1, §5.2 — concrete $A \lin B$ as a cone, then
-%              an MCone, then an ICone (Lemma 5.4)
-%   bilin.v    paper §5.2 + Thm 6.1 — bilinear maps, dirac path,
-%              I/K building blocks for Thm 6.1, round-trips
-%
-% TODO (wave 2): write up the carrier, the (Normc)/(Normz)/(Normt)/
-% (Normp) seminorms and how they combine into the cone norm, the
-% diagonal-sup proof of ω-completeness, the linhom_sup_fun helper,
-% and the HB instances isCone / isMCone / isICone.
+% Mirrors theories/homs/linhom.v (the whole milestone in one ~4.9k-line
+% file). The chapter follows the paper closely: §5.1 builds the cone
+% $C \lin D$, lifts it to a measurable cone (Lemma 5.3), then to an
+% integrable cone (Lemma 5.4). §5.2 specialises the bilinear $\leftrightarrow$
+% linhom bijection at the function level (Def 5.6, round-trip identities).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{The internal hom $\lin$}\label{ch:linhom}
 
-This chapter formalises paper \S5.1 and the parts of \S5.2 used by
-the MVP: the concrete construction of the internal hom $A \lin B$ of
-two integrable cones as a cone, then as a measurable cone, then as
-an integrable cone (paper Lemma~5.4). The chapter also covers the
-companion material on bilinear maps and the round-trips of paper
-Theorem~6.1. All material lives under \texttt{theories/homs/}.
+This chapter formalises paper \S5.1 and the parts of \S5.2 used by the
+MVP: the \emph{concrete} construction of the internal hom $C \lin D$
+of two integrable cones as a $\Cone$, then as an $\MCone$, then as an
+$\ICone$ (paper Lemma~5.4). The chapter also covers the function-level
+part of \S5.2: the bijection between bilinear maps $C_1, C_2 \to D$
+and curried linear maps $C_1 \to (C_2 \lin D)$. All material in this
+chapter lives under \texttt{theories/homs/linhom.v}.
 
-\section{The carrier $A \lin B$}\label{sec:linhom-carrier}
+\paragraph{Strategy: concrete vs SAFT.}
+Paper \S5 opens with the remark that the cartesian closed structure
+on $\ICones$ can be obtained \emph{either} concretely (constructing
+$C \lin D$ as a set of integrable linear maps, with its own norm and
+its own measurability structure) \emph{or} abstractly via Freyd's
+SAFT-style argument applied to the limit-preserving functor
+$C \lin -\;$. The paper chooses the concrete route for the internal
+hom and reserves the abstract argument for the tensor product
+$\otimes$ and the exponential $\mathord{!}$, which are out of scope
+for the MVP. The Rocq formalisation follows the same split: the
+internal hom $\lin$ is built concretely in
+\texttt{theories/homs/linhom.v}; $\otimes$ and $\mathord{!}$ are
+deferred to a future milestone.
 
-% TODO (wave 2): definition of the carrier and its basic algebraic
-% structure. Point at \rocq{Icones.homs.linhom.linhom_car}.
+\section{The carrier $C \lin D$}\label{sec:linhom-carrier}
 
-\section{Norms}\label{sec:linhom-norms}
+\begin{definition}[Def 5.2, integrable linear maps]\label{def:linhom-car}
+\rocq{Icones.homs.linhom.linhom_car}\rocqok\uses{def:icone}
+Let $C, D$ be integrable cones (\autoref{ch:icones}). The cone
+$C \lin D$ of \emph{integrable linear maps} has as elements the
+functions $f : C \to D$ such that, for some $\varepsilon > 0$, the
+scaled map $\varepsilon f$ lies in $\ICones(C, D)$. Equivalently,
+$f$ is $\Rnn$-linear, $\omega$-continuous, bounded on the unit ball,
+measurable in the sense of $\MCones$, and preserves Pettis integrals.
+The algebraic structure (zero, addition, scalar multiplication) is
+pointwise.
+\end{definition}
 
-% TODO (wave 2): the four candidate seminorms (Normc), (Normz),
-% (Normt), (Normp), the canonical choice, and how they coincide on
-% morphisms of bounded norm. Point at the canonical-instance lemmas.
+In Rocq we use a two-layer record. The intermediate record
+\rocq{Icones.homs.linhom.linhom_pre} packages the first four fields
+(linearity, $\omega$-continuity, ball-boundedness, measurable-path
+preservation); the full record
+\rocq{Icones.homs.linhom.linhom_car} adds Pettis-integral
+preservation as a fifth field. The split is required because the
+type of the integral-preservation field mentions the
+path-preservation field of \texttt{linhom\_pre}, mirroring the
+\texttt{cones\_hom} $\to$ \texttt{mcones\_hom} $\to$ \texttt{icones\_hom}
+record layering of M1/M2/M3.
 
-\section{Cone structure (paper §5.1)}\label{sec:linhom-cone}
+\paragraph{Pointwise algebraic structure.}
+The zero, the sum and the non-negative scalar action on the carrier
+are pointwise. They live as standalone definitions
+\rocq{Icones.homs.linhom.linhom_zero},
+\rocq{Icones.homs.linhom.linhom_add},
+\rocq{Icones.homs.linhom.linhom_scale}, each packaged as a full
+\texttt{linhom\_car} (linearity / continuity / boundedness /
+path-preservation / integral-preservation closed under pointwise
+operations).
 
-% TODO (wave 2): the isCone HB instance — addition, scaling, sup of
-% bounded monotone sequences (the diagonal-sup proof). Point at the
-% isCone HB.instance and the supporting lemmas
-% (linhom_sup_fun_linear, linhom_sup_fun_bounded, ...).
+\section{The operator norm $\linhom\!$-$\!\text{norm}$}\label{sec:linhom-norm}
 
-\section{Measurable-cone structure (paper Def 5.4)}\label{sec:linhom-mcone}
+\begin{definition}[Operator norm on $C \lin D$, paper \S5.1]
+\label{def:linhom-norm}
+\rocq{Icones.homs.linhom.linhom_norm}\rocqok\uses{def:linhom-car}
+For $f \in C \lin D$,
+\[
+  \cnorm{f} := \sup\,\bigl\{\,\cnorm{f(x)} \;\big|\; x \in C,\;
+  \cnorm{x} \le 1\,\bigr\}\;\in\;\R.
+\]
+The image set is non-empty (it contains $\cnorm{f(0)} = 0$) and
+bounded above (any $\varepsilon$-witness of integrability of
+$\varepsilon f$ yields the bound $\varepsilon^{-1}$ via M1's
+\texttt{linmap\_norm}), so the supremum exists by the Dedekind
+completeness of $\R$.
+\end{definition}
 
-% TODO (wave 2): the isMCone HB instance — the test family on
-% $A \lin B$, ω-continuity of the test maps, and the path-preservation
-% lemma. Point at the isMCone HB.instance.
+\begin{remark}[Why the canonical-sup formulation]
+M1 originally exposed an operator norm extracted by
+\texttt{xchoose} from the integrability witness
+(\texttt{linmap\_norm}). That formulation is enough for the cone
+axiom (Normh) on $\Cones(C, D)$, but it is the wrong shape for the
+\emph{cone-on-the-internal-hom} (Normc) axiom: we need both the
+upper-bound and the \emph{least}-upper-bound properties of the
+norm at the same time, and we need them in a form that supports
+$\omega$-continuity of the sup-of-chain operator on $C \lin D$.
+The canonical real-valued sup form
+\rocq{Icones.homs.linhom.linhom_norm} provides both via the lemmas
+\rocq{Icones.homs.linhom.linhom_norm_sup_ub} (upper bound) and
+\rocq{Icones.homs.linhom.linhom_norm_sup_lub} (least upper bound).
+\end{remark}
 
-\section{Integrable-cone structure (paper Lemma 5.4)}\label{sec:linhom-icone}
+\section{The diagonal-sup identity}\label{sec:linhom-diag-sup}
 
-% TODO (wave 2): the isICone HB instance — every $(\mu, \beta)$ pair
-% on $A \lin B$ admits a Pettis integral. Point at the isICone
-% HB.instance and the integral-preservation lemma.
+A structural lemma at the cone level, used heavily in the (Normc)
+proof on $C \lin D$.
 
-\section{Bilinear maps and the round-trips of Theorem 6.1}%
+\begin{lemma}[Diagonal-sup identity]\label{lem:cone-sup-ball-addD}
+\rocq{Icones.homs.linhom.cone_sup_ball_addD}\rocqok\uses{def:cone}
+Let $B$ be a cone (\autoref{ch:cones}) and let
+$(a_n)_{n \in \N}$, $(b_n)_{n \in \N}$ be two $\preceq$-increasing
+chains in the unit ball of $B$ whose diagonal sum
+$(a_n + b_n)_{n \in \N}$ is itself $\preceq$-increasing and unit-ball.
+Then
+\[
+  \bigsup_{n \in \N}\,(a_n + b_n)
+  \;=\;
+  \bigl(\bigsup_{n \in \N}\,a_n\bigr) + \bigl(\bigsup_{n \in \N}\,b_n\bigr)
+\]
+in $B$.
+\end{lemma}
+
+\begin{proof}
+The forward direction $\leq$
+(\rocq{Icones.homs.linhom.cone_sup_ball_addD_le}) is immediate from
+\texttt{cone\_sup\_ball\_lub}: pick at each level the witnesses
+$z_a, z_b$ above $a_n, b_n$ in the two component sups; their sum is
+above $a_n + b_n$ in the diagonal sup. The reverse direction
+$\geq$ (\rocq{Icones.homs.linhom.cone_sup_ball_addD_ge}) is the
+substantive half. Using $\max$ on the indices, every cross-term
+$a_n + b_k$ is dominated by $a_m + b_m$ with $m = \max(n, k)$, hence
+by the diagonal sup $S_s$, hence has norm $\le \cnorm{S_s} \le 1$.
+Two applications of the scalar-distribution identities
+\texttt{sup\_ball\_addr} / \texttt{sup\_ball\_addl} (from M1) then
+reduce the bound on $S_a + S_b$ to a bound on a unit-ball chain of
+cross-terms, which is again $\le S_s$. The two halves combine by
+$\preceq$-antisymmetry.
+\end{proof}
+
+\section{The pointwise sup on $C \lin D$}\label{sec:linhom-sup-fun}
+
+The cone-axiom (Normc) on $C \lin D$ requires a unit-ball chain
+$(f_n)_{n}$ in the linhom-carrier to admit a pointwise supremum.
+The construction proceeds in two steps.
+
+\paragraph{On the unit ball.}
+Given $x \in C$ with $\cnorm{x} \le 1$ and a chain
+$(f_n)_n \subseteq C \lin D$ with $\cnorm{f_n} \le 1$, each
+$f_n(x)$ lies in the unit ball of $D$, the chain $(f_n(x))_n$ is
+$\preceq$-increasing (by pointwise monotonicity, see
+\rocq{Icones.homs.linhom.linhom_le_pointwise}), and so admits a sup
+\rocq{Icones.homs.linhom.linhom_sup_unit} via $D$'s (Normc).
+
+\paragraph{Extension by uniform scaling.}
+For an arbitrary $x \in C$, define
+$S := \cnorm{x} + 1 > 0$ and $x' := S^{-1} \cdot x$ (so
+$\cnorm{x'} \le 1$). Set
+\[
+  \linhom\!\text{-}\sup\!{(f_n)}_n\,(x) \;:=\; S \cdot
+  \bigsup_n\,f_n(x').
+\]
+This is \rocq{Icones.homs.linhom.linhom_sup_fun}. The factor
+$\cnorm{x} + 1$ (rather than $\cnorm{x}$) avoids the degenerate case
+$\cnorm{x} = 0$. The scaling lemma
+\rocq{Icones.homs.linhom.linhom_sup_fun_unitE} shows that this
+extension agrees with \texttt{linhom\_sup\_unit} on the unit ball.
+
+The body of \S5.1 then consists of verifying that the pointwise
+sup inherits each \texttt{linhom\_car} field:
+\begin{itemize}
+  \item linearity at $0$, $+$, $\cdot$
+    (\rocq{Icones.homs.linhom.linhom_sup_fun_lin0},
+    \rocq{Icones.homs.linhom.linhom_sup_fun_linD},
+    \rocq{Icones.homs.linhom.linhom_sup_fun_linZ}) --- the additive
+    case is the only delicate one; it uses
+    \autoref{lem:cone-sup-ball-addD} at the common scaling factor
+    $S = \cnorm{x} + \cnorm{y} + 1$;
+  \item ball-boundedness with $M = 1$
+    (\rocq{Icones.homs.linhom.linhom_sup_fun_bounded});
+  \item $\omega$-continuity
+    (\rocq{Icones.homs.linhom.linhom_sup_fun_continuous}) --- this
+    relies on a sup-swap identity
+    \rocq{Icones.homs.linhom.cone_sup_ball_swap};
+  \item path-preservation
+    (\rocq{Icones.homs.linhom.linhom_sup_fun_pres_path}) --- via a
+    uniform-scale rewrite plus measurable-function convergence;
+  \item integral-preservation
+    (\rocq{Icones.homs.linhom.linhom_sup_fun_pres_int}) --- the M3
+    workhorse Lemma~4.7 (monotone convergence in $D$) combined with
+    integral-preservation of each $f_n$.
+\end{itemize}
+
+The packaging is \rocq{Icones.homs.linhom.linhom_sup_ball}, a full
+\texttt{linhom\_car}, with the norm bound
+\rocq{Icones.homs.linhom.linhom_sup_ball_norm}: $\cnorm{\sup_n f_n}
+\le 1$.
+
+\section{The difference helper $\linhom\!\text{-diff}$}\label{sec:linhom-diff}
+
+The cone axiom (Normc) on $C \lin D$ requires \emph{both} that the
+sup is an upper bound for the chain and that it is the least upper
+bound. Both proofs share the same algebraic shape: given two
+\texttt{linhom\_car}s $u, v$ with $u \preceq v$ pointwise (witnessed
+per-$x$), exhibit the difference $v - u$ as a \texttt{linhom\_car}.
+
+\begin{lemma}[\texttt{linhom\_diff\_car}]\label{lem:linhom-diff}
+\rocq{Icones.homs.linhom.linhom_diff_car}\rocqok\uses{def:linhom-car}
+Let $u, v : C \lin D$ with $\cnorm{v} \le 1$, and suppose that for
+every $x \in C$ there exists $z \in D$ with $v(x) = u(x) + z$. Then
+there exists a \texttt{linhom\_car} $\delta$ such that
+$v(x) = u(x) + \delta(x)$ for all $x$.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Define the underlying function $\delta(x)$ via classical choice
+(\texttt{cid}) on the existential witness
+(\rocq{Icones.homs.linhom.linhom_diff_fun}). The defining equation
+\rocq{Icones.homs.linhom.linhom_diff_E} reads
+$v(x) = u(x) + \delta(x)$. The five \texttt{linhom\_car} fields then
+follow by cancellation in $D$:
+\begin{enumerate}
+\item linearity, by cancelling $u$ against the linearity of $v$
+  (\rocq{Icones.homs.linhom.linhom_diff_linear});
+\item ball-boundedness, by $\delta(x) \preceq v(x)$ and the (Normp)
+  axiom of $D$ (\rocq{Icones.homs.linhom.linhom_diff_bounded});
+\item $\omega$-continuity, by $v$- and $u$-continuity on the chain
+  and \autoref{lem:cone-sup-ball-addD} together with the (Cancel)
+  axiom of $D$ (\rocq{Icones.homs.linhom.linhom_diff_continuous});
+\item path-preservation, by $\delta(\gamma(r)) = v(\gamma(r)) -
+  u(\gamma(r))$ pointwise and \texttt{measurable\_funB}
+  (\rocq{Icones.homs.linhom.linhom_diff_pres_path});
+\item integral-preservation, by integral-preservation of both $u$
+  and $v$ and path-additivity of the Pettis integral
+  (\rocq{Icones.homs.linhom.linhom_diff_pres_int}).
+\end{enumerate}
+The unit-norm hypothesis $\cnorm{v} \le 1$ is used by the
+$\omega$-continuity step (to keep the chain $\delta(x_n)$ in the
+unit ball).
+\end{proof}
+
+This helper is then re-used by \texttt{linhom\_sup\_ball\_ub} and
+\texttt{linhom\_sup\_ball\_lub}, avoiding duplication of the five
+field proofs.
+
+\section{Cone structure on $C \lin D$ (paper \S5.1)}%
+\label{sec:linhom-cone}
+
+\begin{lemma}[$C \lin D$ is a precone]\label{lem:linhom-precone}
+\rocq{Icones.homs.linhom.linhom_pre}\rocqok
+\uses{def:linhom-car}
+The pointwise zero, sum, and scalar action on \texttt{linhom\_car}
+satisfy the precone axioms.
+\end{lemma}
+
+\begin{proof}
+Each axiom (associativity, commutativity, zero, scalar
+distribution, scalar associativity, scalar units, cancellation,
+positivity) follows pointwise from the corresponding axiom of $D$,
+via \rocq{Icones.homs.linhom.linhom_eq} (extensionality of
+\texttt{linhom\_car}). The HB instance is registered immediately
+after \rocq{Icones.homs.linhom.linhom_pos} (around line 1067 of
+\texttt{linhom.v}).
+\end{proof}
+
+\begin{lemma}[$C \lin D$ is a cone]\label{lem:linhom-cone}
+\rocq{Icones.homs.linhom.linhom_norm}\rocqok
+\uses{lem:linhom-precone, lem:cone-sup-ball-addD, lem:linhom-diff}
+With the canonical-sup operator norm of \autoref{def:linhom-norm},
+the four norm axioms (Normh), (Normz), (Normt), (Normp) and the
+$\omega$-completeness axiom (Normc) hold on $C \lin D$.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+\begin{itemize}
+\item (Normh) \rocq{Icones.homs.linhom.linhom_normh}: scaling
+  commutes with the sup over the unit ball.
+\item (Normz) \rocq{Icones.homs.linhom.linhom_normz}: if
+  $\cnorm{f} = 0$ then $\cnorm{f(x)} = 0$ for every unit-ball $x$,
+  hence $f(x) = 0$ by (Normz) of $D$; the uniform-scaling rewrite
+  extends this to arbitrary $x$.
+\item (Normt) \rocq{Icones.homs.linhom.linhom_normt}: triangle
+  inequality, pointwise.
+\item (Normp) \rocq{Icones.homs.linhom.linhom_normp}: monotonicity
+  of the norm under $\preceq$, pointwise.
+\item (Normc) is discharged by
+  \rocq{Icones.homs.linhom.linhom_sup_ball_ub} (every $f_n$ is
+  below the packaged sup, via \autoref{lem:linhom-diff}) and
+  \rocq{Icones.homs.linhom.linhom_sup_ball_lub} (the sup is
+  least, via the same helper after a uniform-scale rewrite to
+  bring an arbitrary upper bound into the unit ball).
+\end{itemize}
+The \texttt{HB.instance Definition \_ := isCone.Build} registering
+\texttt{linhom\_car Ar C D} as a \texttt{coneType R} appears at line
+3247 of \texttt{linhom.v}. The sanity-check
+\verb|Check (linhom_car Ar C D : coneType R)| follows.
+\end{proof}
+
+\section{Measurable-cone structure (paper Lemma 5.3)}%
+\label{sec:linhom-mcone}
+
+\begin{definition}[Test family $\gamma \triangleright m$, paper \S5.1
+``Definition'' below Eq. (Mssep)]\label{def:linhom-test}
+\rocq{Icones.homs.linhom.linhom_test}\rocqok
+\uses{lem:linhom-cone, def:path}
+For $Y \in \Ar$, a measurable path
+$\gamma \in \Path(Y, C)$ with $\cnorm{\gamma} \le 1$, and a test
+$m \in \Mtest_Y^D$, define
+\[
+  (\gamma \triangleright m)(s, f)
+  \;:=\; m\bigl(s,\,f(\gamma(s))\bigr),
+  \qquad s \in Y,\ f \in C \lin D.
+\]
+The collection $\Mtest_Y^{C \lin D}$ is the set of all such
+$\gamma \triangleright m$.
+\end{definition}
+
+\begin{lemma}[Paper Lemma 5.3, $C \lin D$ is a measurable cone]
+\label{lem:linhom-mcone}
+\rocq{Icones.homs.linhom.linhom_mcone_M}\rocqok
+\uses{def:linhom-test, def:mcone}
+The family $\{\Mtest_Y^{C \lin D}\}_{Y \in \Ar}$ satisfies the three
+closure axioms (Mscomp), (Mssep), (Msnorm), so $C \lin D$ is a
+measurable cone.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+(Mscomp) \rocq{Icones.homs.linhom.linhom_mcone_M_comp}: reindexing
+a $\gamma \triangleright m$ by $\psi : Y' \to Y$ in $\Ar$ gives
+$(\gamma \circ \psi) \triangleright (m \circ (\psi \times D))$,
+which is again of the required form; the unit-ball constraint
+$\cnorm{\gamma \circ \psi} \le \cnorm{\gamma} \le 1$ is preserved
+because the image set of $\gamma \circ \psi$ is a subset of the
+image of $\gamma$.
+
+(Mssep) \rocq{Icones.homs.linhom.linhom_mcone_M_sep}: at arity
+$Y = 0$ the test family separates points: for each $x \in C$, take
+the constant path $\gamma_{x'}$ at the rescaled
+$x' := (\cnorm{x} + 1)^{-1} x \in B_C$ together with any
+$m \in \Mtest_0^D$. If $(\gamma_{x'} \triangleright m)(f_1) =
+(\gamma_{x'} \triangleright m)(f_2)$ for every such pair, then
+linearity rescales back to $m(f_1(x)) = m(f_2(x))$ for every
+$m \in \Mtest_0^D$, hence $f_1(x) = f_2(x)$ by (Mssep) in $D$.
+
+(Msnorm) \rocq{Icones.homs.linhom.linhom_mcone_M_norm}: the paper's
+$\varepsilon/2 + \varepsilon/3$ argument
+(\S5.1, just before ``So we have defined a measurable cone'').
+Pick $x \in B_C$ with $\cnorm{f} \le \cnorm{f(x)} + \varepsilon/3$;
+pick $m \in \Mtest_0^D \setminus \{0\}$ with
+$\cnorm{f(x)} \le m(f(x))/\cnorm{m} + \min(\varepsilon/2,
+\cnorm{f} - \varepsilon/2)$ by (Msnorm) in $D$; combine to
+$\cnorm{f} \le (\gamma_x \triangleright m)(f) / \cnorm{\gamma_x
+\triangleright m} + \varepsilon$.
+\end{proof}
+
+The HB instance \texttt{isMCone.Build} (line 3721 of
+\texttt{linhom.v}) registers \texttt{linhom\_car Ar C D} as an
+\texttt{mconeType Ar}; the sanity check
+\verb|Check (linhom_car Ar C D : mconeType Ar)| follows.
+
+\section{Integrable-cone structure (paper Lemma 5.4)}%
+\label{sec:linhom-icone}
+
+\begin{lemma}[Paper Lemma 5.4, $C \lin D$ is an integrable cone]
+\label{lem:linhom-icone}
+\rocq{Icones.homs.linhom.linhom_int_exists}\rocqok
+\uses{lem:linhom-mcone, def:icone}
+For every $Y' \in \Ar$, every measurable path
+$\eta \in \Path(Y', C \lin D)$, and every finite measure $\mu \in
+\FMeas(Y')$, there exists a unique $\bar\eta \in C \lin D$
+satisfying the Pettis equation w.r.t.\ the test family
+$\Mtest^{C \lin D}$. Concretely,
+\[
+  \bar\eta(x) \;:=\; \Pettis{Y'}{} \eta(r)(x)\,\mu(\mathrm dr)
+  \quad\in\; D,
+\]
+with the right-hand integral taken pointwise in the integrable
+cone $D$.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Set $\bar\eta := \texttt{linhom\_int\_fun}$
+(\rocq{Icones.homs.linhom.linhom_int_fun}). The five
+\texttt{linhom\_car} fields are verified in turn:
+\begin{itemize}
+\item Pointwise measurability (each $r \mapsto \eta(r)(x)$ is a
+  measurable path of $D$):
+  \rocq{Icones.homs.linhom.linhom_int_pt_meas}. The proof rescales
+  $x$ to the unit ball via the
+  $(\cnorm{x} + 1)$-scaling pattern of
+  \autoref{sec:linhom-sup-fun}, then invokes (Msmeas) on $\eta$
+  with the test $\gamma_{x'} \triangleright m_D$.
+\item Boundedness (\rocq{Icones.homs.linhom.linhom_int_fun_bounded}):
+  $\cnorm{\bar\eta(x)} \le \cnorm{\eta} \cdot \cnorm{\mu}$ on
+  unit-ball $x$, by
+  \texttt{path\_integral\_norm\_le} of M3.
+\item Linearity (\rocq{Icones.homs.linhom.linhom_int_fun_linear}):
+  the M3 bilinearity identities
+  \texttt{path\_integral\_eq\_addB} and
+  \texttt{path\_integral\_eq\_scaleB} on the integrand,
+  combined with linearity of each $\eta(r)$.
+\item $\omega$-continuity
+  (\rocq{Icones.homs.linhom.linhom_int_fun_continuous}): monotone
+  convergence in $D$ on the chain $r \mapsto \eta(r)(x_n)$,
+  identifying $\sup_n \bar\eta(x_n)$ with $\bar\eta(\sup_n x_n)$.
+\item Path-preservation
+  (\rocq{Icones.homs.linhom.linhom_int_fun_pres_path}): for
+  $\gamma \in \Path(X, C)$, the function $s \mapsto
+  \bar\eta(\gamma(s))$ is a measurable path of $D$ by the joint
+  test-measurability lemma
+  \rocq{Icones.homs.linhom.linhom_int_fun_joint_meas} combined with
+  Lemma~4.7 of M3.
+\item Integral-preservation
+  (\rocq{Icones.homs.linhom.linhom_int_fun_pres_int}): the
+  fundamental \emph{Fubini} step. For a measurable path
+  $\beta \in \Path(X, C)$ and a finite measure $\nu$ on $X$, both
+  sides of
+  $\bar\eta\bigl(\int \beta\,\mathrm d\nu\bigr) = \int
+  \bar\eta(\beta(\cdot))\,\mathrm d\nu$ unfold to a double integral
+  over $X \times Y'$ that agrees by cone-Fubini (M3, Theorem 4.15).
+\end{itemize}
+Finally, \rocq{Icones.homs.linhom.linhom_int_car_pettis} shows that
+$\bar\eta$ satisfies the Pettis equation: for every test
+$p = \gamma \triangleright m$ in $\Mtest_0^{C \lin D}$, the test
+value $p(\bar\eta) = m(\bar\eta(\gamma(*)))$ equals the integral
+$\int p(\eta(r))\,\mu(\mathrm dr)$, which is exactly the Pettis
+equation in $C \lin D$.
+\end{proof}
+
+The HB instance \texttt{isICone.Build} (line 4563 of
+\texttt{linhom.v}) registers \texttt{linhom\_car Ar C D} as an
+\texttt{iconeType Ar}; the sanity check
+\verb|Check (linhom_car Ar C D : iconeType Ar)| follows.
+
+\section{Bilinear maps and the $\lin$ bijection (paper \S5.2)}%
 \label{sec:bilin}
 
-% TODO (wave 2): paper §5.2 + Thm 6.1 — dirac path, I/K building
-% blocks, the two round-trips
-% $\Path(X, B) \to (\FMeas(X) \lin B) \to \Path(X, B)$
-% and the other direction. Point at the lemmas in
-% \texttt{theories/homs/bilin.v}.
+Paper \S5.2 (Def~5.6) defines the integrable cone of bilinear maps
+formally as a curried internal hom:
+\[
+  C_1, C_2 \lin D \;:=\; C_1 \lin (C_2 \lin D).
+\]
+With \autoref{lem:linhom-icone} in place, the right-hand side is an
+integrable cone in its own right. The paper then spells out, via its
+remark using Lemma~2.19, the bijection at the function level
+between elements of $C_1, C_2 \lin D$ and \emph{separately linear,
+$\omega$-continuous, measurable, integrable} bilinear functions
+$C_1 \& C_2 \to D$.
+
+For the MVP we deliver this bijection at the function level. A
+\emph{bilinear datum}
+(\rocq{Icones.homs.linhom.bilin_data}) is a function $f : C_1 \to
+C_2 \to D$ equipped with both a left-section
+\texttt{linhom\_car} family $x_1 \mapsto f(x_1, \cdot)$ and a
+right-section \texttt{linhom\_car} family
+$x_2 \mapsto f(\cdot, x_2)$, together with two pointwise
+agreement equations.
+
+\begin{definition}[Currying / uncurrying, paper Def 5.6]
+\label{def:bilin-linhom-bij}
+\rocq{Icones.homs.linhom.bilin_to_linhom}\rocqok
+\rocq{Icones.homs.linhom.linhom_to_bilin}\rocqok
+\uses{def:linhom-car}
+\begin{itemize}
+\item Curry: from a bilinear datum $f$, the function
+  $x_1 \mapsto f(x_1, \cdot) : C_1 \to (C_2 \lin D)$ is
+  \texttt{bilin\_to\_linhom}.
+\item Uncurry: from a function $F : C_1 \to (C_2 \lin D)$ together
+  with right-section data $H_{\mathrm{right}} : \forall x_2,
+  \texttt{linhom\_car}\,C_1\,D$ matching $F$ pointwise, the
+  function $(x_1, x_2) \mapsto F(x_1)(x_2) : C_1 \to C_2 \to D$
+  packages as a bilinear datum via \texttt{linhom\_to\_bilin}.
+\end{itemize}
+\end{definition}
+
+\begin{lemma}[Round-trip identities]\label{lem:bilin-roundtrip}
+\rocq{Icones.homs.linhom.bilin_to_linhom_E}\rocqok
+\rocq{Icones.homs.linhom.linhom_to_bilin_E}\rocqok
+\uses{def:bilin-linhom-bij}
+For every bilinear datum $f$ and every pair $(x_1, x_2)$,
+\[
+  \mathtt{bilin\_to\_linhom}(f)(x_1)(x_2) \;=\; f(x_1, x_2),
+\]
+and dually for every $F : C_1 \to (C_2 \lin D)$ with right-section
+data $H_{\mathrm{right}}$,
+\[
+  \mathtt{linhom\_to\_bilin}(F, H_{\mathrm{right}})(x_1, x_2)
+  \;=\; F(x_1)(x_2).
+\]
+\end{lemma}
+
+\begin{proof}
+The first identity is the pointwise agreement field
+\texttt{bilin\_left\_eq} of \texttt{bilin\_data}. The second
+identity is definitional (the uncurry is
+$(x_1, x_2) \mapsto F(x_1)(x_2)$). Both proofs close by
+\texttt{erefl} / \texttt{exact}.
+\end{proof}
+
+These function-level round-trips are exactly the data needed by
+\autoref{ch:skern} (the dirac round-trip in the
+faithfulness/fullness proof of paper Theorem~6.5). The morphism-level
+upgrade to an iso in $\ICones$ uses the full HB tower on
+\texttt{linhom\_car} delivered in \autoref{sec:linhom-icone}, but
+the explicit categorical statement is deferred together with the
+tensor product $\otimes$.
+
+\section{Design choices}\label{sec:linhom-design}
+
+\paragraph{Concrete internal hom vs SAFT.}
+Paper \S5 sketches two routes to the cartesian closed structure on
+$\ICones$: the concrete construction of $C \lin D$ as a set of
+integrable linear maps with a hand-built measurability structure
+(paper \S5.1), and the abstract construction via SAFT applied to
+$C \lin -\;$. The MVP follows the concrete route for $\lin$. The
+tensor product $\otimes$ and the exponential $\mathord{!}$, which
+the paper builds via the abstract route, are out of MVP scope.
+
+\paragraph{Canonical-sup norm.}
+M1's \texttt{linmap\_norm} extracts an upper bound on
+$\{\cnorm{f(x)} \mid \cnorm{x} \le 1\}$ via \texttt{xchoose}; this
+is enough for the cone axioms on $\Cones(C, D)$ but not for the
+(Normc) axiom on the internal hom $C \lin D$, which needs the
+least-upper-bound property. The canonical-sup form
+\rocq{Icones.homs.linhom.linhom_norm} provides both an upper
+bound (\texttt{linhom\_norm\_sup\_ub}) and a least-upper-bound
+property (\texttt{linhom\_norm\_sup\_lub}).
+
+\paragraph{The $(\cnorm{x} + 1)$-scaling pattern.}
+Many proofs about $C \lin D$ first reduce an arbitrary $x \in C$
+to a unit-ball element $x' := (\cnorm{x} + 1)^{-1} x$, do the
+work on the unit ball, and rescale back by $S := \cnorm{x} + 1$.
+The $+1$ avoids the degenerate case $\cnorm{x} = 0$ (where
+$\cnorm{x}^{-1}$ would not exist). This pattern appears in
+\rocq{Icones.homs.linhom.linhom_sup_fun} (Step 1 of (Normc)),
+\rocq{Icones.homs.linhom.linhom_mcone_M_sep} ((Mssep)),
+\rocq{Icones.homs.linhom.linhom_int_pt_meas} (pointwise
+measurability of the integral), and several path-preservation /
+joint-measurability lemmas in the same file.
+
+\paragraph{The difference helper.}
+\rocq{Icones.homs.linhom.linhom_diff_car} packages the
+``$v - u$'' \texttt{linhom\_car} once, exposing the five field
+proofs as separate cancellation arguments. Without it, both
+\texttt{linhom\_sup\_ball\_ub} and \texttt{linhom\_sup\_ball\_lub}
+would have to repeat the same five proofs.
+
+\paragraph{The four-layer HB tower on \texttt{linhom\_car}.}
+The whole construction climbs the four layers
+$\PCone \to \Cone \to \MCone \to \ICone$ on the same carrier
+\texttt{linhom\_car Ar C D}. Each layer is registered by an
+\texttt{HB.instance Definition} at the appropriate line of
+\texttt{linhom.v}:
+\begin{itemize}
+\item \texttt{isPrecone.Build} at line 1067 --- algebraic structure
+  is pointwise;
+\item \texttt{isCone.Build} at line 3247 --- canonical-sup norm +
+  diagonal-sup identity + the difference helper;
+\item \texttt{isMCone.Build} at line 3721 --- the test family
+  $\gamma \triangleright m$ and the three closure axioms;
+\item \texttt{isICone.Build} at line 4563 --- the pointwise Pettis
+  integral, with the Fubini step for integral-preservation.
+\end{itemize}
+The sanity checks
+\verb|linhom_car Ar C D : coneType R|,
+\verb|: mconeType Ar|, and
+\verb|: iconeType Ar|
+all type-check in the same file (\texttt{LinhomConeCheck},
+\texttt{LinhomMConeCheck}, \texttt{LinhomIConeCheck} sections).
