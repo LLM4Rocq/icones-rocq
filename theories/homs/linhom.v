@@ -735,7 +735,8 @@ have fv_eq : (linhom_fun f \o (fun n => precone_scale sinv (u n))) =
 have sinv_fu_ch : forall n, precone_le (precone_scale sinv (linhom_fun f (u n)))
                                        (precone_scale sinv (linhom_fun f (u n.+1))).
   move=> n; apply: precone_scale_le.
-  by have [_ HfD' HfZ'] := Hf_lin; exact: (linear_increasing Hf_lin) _ _ (uch n).
+  have [_ HfD' HfZ'] := Hf_lin.
+  exact: (linear_increasing Hf_lin) _ _ (uch n).
 have sinv_fu_ub : forall n, cnorm (precone_scale sinv (linhom_fun f (u n))) <= 1.
   move=> n; rewrite cone_normh /=.
   apply: le_trans (ler_pM sinv_ge0 (cone_norm_ge0 _)
@@ -1042,7 +1043,8 @@ exact: precone_cancel.
 Qed.
 
 Lemma linhom_pos (f1 f2 : linhom_car Ar C D) :
-  linhom_add f1 f2 = linhom_zero C D -> f1 = linhom_zero C D /\ f2 = linhom_zero C D.
+  linhom_add f1 f2 = linhom_zero C D ->
+  f1 = linhom_zero C D /\ f2 = linhom_zero C D.
 Proof.
 move=> H; split; apply: linhom_eq => x;
   have /(congr1 (fun h => linhom_fun h x)) /= := H.
