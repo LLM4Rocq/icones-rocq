@@ -2903,9 +2903,7 @@ have -> :
   rewrite test_linD => H.
   rewrite H.
   by rewrite addrAC subrr add0r.
-apply: measurable_funB.
-- exact: Hv_meas.
-- exact: Hu_meas.
+by apply: measurable_funB; [exact: Hv_meas | exact: Hu_meas].
 Qed.
 
 (** Paper §5.1: integral-preservation of [w] — Step 1d.
@@ -3453,9 +3451,6 @@ Lemma linhom_test_cont
 Proof.
 move=> HN.
 rewrite /linhom_test_fun /=.
-have -> :
-  linhom_fun (cone_sup_ball u uch ub1) (path_fun γ s) =
-  linhom_sup_fun uch ub1 (path_fun γ s) by [].
 rewrite (linhom_sup_fun_test_sup uch ub1 m s (path_fun γ s)).
 apply: ge_sup.
   by exists (test_fun m s (linhom_fun (u 0%N) (path_fun γ s))), 0%N.

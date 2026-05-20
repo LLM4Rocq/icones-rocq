@@ -322,14 +322,14 @@ Lemma int_to_linhom_fun_continuous : is_omega_continuous int_to_linhom_fun.
 Proof.
 move=> µn µn_chain µn_bound fµn_chain fµn_bound.
 (* Build [s := path_norm β + 1 > 0] and [sinv := s^{-1}]. *)
-pose s_num : R := (path_norm β + 1)%R.
+pose s_num : R := path_norm β + 1.
 have s_pos : 0 < s_num.
   by rewrite /s_num ltr_wpDl ?ltr01 ?path_norm_ge0.
 have s_ge0 : 0 <= s_num by exact: ltW.
 pose s : {nonneg R} := NngNum s_ge0.
 have sinv_ge0 : 0 <= s_num^-1 by rewrite invr_ge0 ltW.
 pose sinv : {nonneg R} := NngNum sinv_ge0.
-have s_neq0 : s_num != 0%R by rewrite gt_eqF.
+have s_neq0 : s_num != 0 by rewrite gt_eqF.
 have s_sinv : s%:num * sinv%:num = 1.
   by rewrite /= mulfV.
 have sinv_s : sinv%:num * s%:num = 1.
@@ -342,12 +342,12 @@ have sinv_s_nng : (sinv%:num * s%:num)%:nng = 1%:nng.
   by apply: nng_eq => /=; exact: sinv_s.
 (* The rescaled path [β_unit r := sinv *: β r]. *)
 pose β_unit : path_car Ar X B := path_scale sinv β.
-have β_unit_norm_le1 : (path_norm β_unit <= 1)%R.
+have β_unit_norm_le1 : path_norm β_unit <= 1.
   rewrite /β_unit path_normh.
-  apply: le_trans (_ : sinv%:num * s_num <= 1)%R; last by rewrite sinv_s.
+  apply: le_trans (_ : sinv%:num * s_num <= 1); last by rewrite sinv_s.
   apply: ler_wpM2l; first exact: sinv_ge0.
   by rewrite /s_num lerDl.
-have β_unit_ptbound : forall r, (cone_norm (path_fun β_unit r) <= 1)%R.
+have β_unit_ptbound : forall r, cone_norm (path_fun β_unit r) <= 1.
   by move=> r; apply: le_trans (path_norm_ub β_unit r) β_unit_norm_le1.
 (* The rescaled image chain: integrating [β_unit] against [µn n]. *)
 pose int_unit (n : nat) : B :=
@@ -358,9 +358,9 @@ have int_unit_E n : int_unit n = precone_scale sinv (int_to_linhom_fun (µn n)).
 have int_unit_chain : forall n, precone_le (int_unit n) (int_unit n.+1).
   move=> n; rewrite (int_unit_E n) (int_unit_E n.+1).
   exact: precone_scale_le (fµn_chain n).
-have int_unit_bound : forall n, (cone_norm (int_unit n) <= 1)%R.
+have int_unit_bound : forall n, cone_norm (int_unit n) <= 1.
   move=> n.
-  have Hnorm : (cone_norm (int_unit n) <= 1 * fmeas_norm (µn n))%R.
+  have Hnorm : cone_norm (int_unit n) <= 1 * fmeas_norm (µn n).
     apply: (@path_integral_norm_le _ _ _ _ (path_fun β_unit) _ 1)
                                    β_unit_ptbound
                                    (path_is_path β_unit)
@@ -399,12 +399,12 @@ have sinv_fµn_E n : int_unit n = sinv_fµn n.
 have sinv_fµn_chain : forall n,
     precone_le (sinv_fµn n) (sinv_fµn n.+1).
   by move=> n; apply: precone_scale_le (fµn_chain n).
-have s_ge1 : (1 <= s_num)%R.
+have s_ge1 : 1 <= s_num.
   by rewrite /s_num lerDr; exact: path_norm_ge0.
-have sinv_le1 : (sinv%:num <= 1)%R.
+have sinv_le1 : sinv%:num <= 1.
   by rewrite /= invf_le1 ?s_ge1// s_pos.
 have sinv_fµn_bound : forall n,
-    (cone_norm (sinv_fµn n) <= 1)%R.
+    cone_norm (sinv_fµn n) <= 1.
   move=> n; rewrite /sinv_fµn cone_normh.
   apply: le_trans
     (ler_pM sinv_ge0 (cone_norm_ge0 _) sinv_le1 (fµn_bound n)) _.
@@ -473,7 +473,7 @@ have [[Mβ HMβ] _] := Hβ'.
 have HMβge0 : (0 <= Mβ)%R.
   by apply: le_trans (HMβ (ar_point Ar Y)); exact: cone_norm_ge0.
 exists (Mβ + 1)%R => y.
-have Hfin : (fmeas_mu (β' y) [set: ar_carrier Ar X] \is a fin_num)%E.
+have Hfin : fmeas_mu (β' y) [set: ar_carrier Ar X] \is a fin_num.
   exact: fmeas_setT_fin.
 rewrite -(fineK Hfin) lte_fin.
 apply: (le_lt_trans (HMβ y)).
@@ -525,7 +525,7 @@ HB.instance Definition _ :=
 Local Lemma µ'_kfun_uub : measure_fam_uub µ'_kfun.
 Proof.
 exists (fmeas_norm µ' + 1)%R => z.
-have Hfin : (fmeas_mu µ' [set: ar_carrier Ar Y] \is a fin_num)%E.
+have Hfin : fmeas_mu µ' [set: ar_carrier Ar Y] \is a fin_num.
   exact: fmeas_setT_fin.
 rewrite /µ'_kfun -(fineK Hfin) lte_fin.
 by rewrite ltrDl.
