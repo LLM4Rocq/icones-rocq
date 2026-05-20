@@ -70,9 +70,10 @@ arity $0$. The (Mssep) axiom of $\MCone$ then forces $x_1 = x_2$.
 By Lemma~\ref{lem:path-integral-eq-unique}, when an element $x$
 satisfying the Pettis equation exists, it is unique. We denote it by
 $\Pettis{X}{\beta\,d\mu}$, mirroring the paper's
-$\int_X \beta(r)\mu(dr)$. In Rocq, once the existence witness $\hex$
-is in hand, the value is extracted via classical indefinite
-description as $\rocq{Icones.icones.pettis.path_integral}\ \hex$.
+$\int_X \beta(r)\mu(dr)$. In Rocq, once the existence witness
+\texttt{hex} is in hand, the value is extracted via classical
+indefinite description as \rocq{Icones.icones.pettis.path_integral}
+applied to \texttt{hex}.
 
 \section{Integrable cones}\label{sec:icones}
 
@@ -97,8 +98,8 @@ satisfying the Pettis equation; we package it as the Rocq function
 \rocq{Icones.icones.icone.icone_integral}, with specification
 \rocq{Icones.icones.icone.icone_integralP} and uniqueness
 \rocq{Icones.icones.icone.icone_integral_eqP}. We write
-$\Pettis{X}{\beta\,d\mu}$ for $\rocq{Icones.icones.icone.icone_integral}\
-\beta\ H_\beta\ \mu$.
+$\Pettis{X}{\beta\,d\mu}$ for \rocq{Icones.icones.icone.icone_integral}
+$\beta\ H_\beta\ \mu$.
 
 \section{The norm bound}\label{sec:integral-norm-bound}
 
@@ -572,7 +573,7 @@ which is a set because $\Ar$ is small. Hence the class of
 subobjects of $C$ (up to $\ICones$-isomorphism) injects into the
 small type
 $\{(S, F) \mid S \subseteq C\}$, witnessed in Rocq by the bound
-$\rocq{Icones.icones.icone_cat.icones_well_powered_bound} := \mathsf{set}\ C$.
+\rocq{Icones.icones.icone_cat.icones_well_powered_bound} $:= \mathsf{set}\ C$.
 \end{proof}
 
 \section{Design choices}\label{sec:design-choices}
@@ -586,7 +587,7 @@ would require equipping every $\iconeType$ with a $\mathsf{choiceType}$
 structure on top of its $\Cones$ data), we extract the integral via
 classical indefinite description (Rocq's $\mathsf{cid}$) from the
 existence witness packaged in the
-$\rocq{Icones.icones.icone.isICone}$ mixin. Uniqueness via
+\rocq{Icones.icones.icone.isICone} mixin. Uniqueness via
 (Mssep) (\rocq{Icones.icones.pettis.path_integral_eq_unique}) then
 makes the extracted value canonical up to propositional equality.
 This keeps the integrable-cone tower lightweight: no choice
