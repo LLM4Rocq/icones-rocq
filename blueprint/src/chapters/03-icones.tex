@@ -8,55 +8,625 @@
 %   fubini.v             paper Thm 4.15 — cone-Fubini, paper-form Fubini
 %   icone_cat.v          paper Thm 4.16, 4.18 — ICones complete + well-powered
 %   examples_icone.v     canonical examples
-%
-% TODO (wave 2): write up the Pettis construction, the bilinearity
-% and ω-continuity of the integral, Lemma 4.7 (the workhorse), the
-% Fubini theorem, and the categorical structure of ICones.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Integrable cones}\label{ch:icones}
 
 This chapter formalises paper \S4: the Pettis-style integral, the
-$\ICone$ HB structure, cone-Fubini, and the categorical structure of
+$\ICone$ \HB{} tower, cone-Fubini, and the categorical structure of
 $\ICones$ (complete and well-powered). All material in this chapter
 lives under \texttt{theories/icones/}.
 
+The novelty of paper \S4 is that the cone-valued integral of a
+measurable path $\beta : X \to B$ against a finite measure
+$\mu \in \FMeas(X)$ is \emph{not} built up from simple-function
+approximations, as in the Lebesgue case. Instead, following
+Pettis~\cite{Pet38}, it is characterised by a universal property:
+$\Pettis{X}{\beta\,d\mu}$ is the unique element $x \in B$ such that
+every arity-$0$ test $m \in \Mtest_B$ satisfies
+$m(x) = \int_X m(\beta(r))\,\mu(dr)$. Uniqueness is immediate from
+the separation axiom (Mssep) on $B$; existence is the defining
+condition of an integrable cone (paper Def~4.3). The formalisation
+mirrors this Pettis-by-axiom structure: the integral value is
+extracted via classical indefinite description from the existence
+witness packaged as the $\isICone$ \HB{} mixin.
+
 \section{The Pettis-style integral}\label{sec:pettis}
 
-% TODO (wave 2): paper Def 4.1 — for a measurable cone $B$, a finite
-% measure $\mu$ on $X$, and a path $\beta : \Path(X, B)$, the Pettis
-% integral $\int_X \beta\,d\mu$ is the unique element of $B$ such
-% that for every test $\phi \in \Mtest_B$,
-% $\phi(\int_X \beta\,d\mu) = \int_X \phi \circ \beta\,d\mu$
-% (the right-hand side is the ordinary Lebesgue integral of a
-% non-negative measurable function). Point at
-% \rocq{Icones.icones.pettis.pettis_integral}.
+\begin{definition}[Pettis integral specification]\label{def:path-integral-eq}
+\uses{def:fmeas, def:path}
+Let $B$ be a measurable cone, $X \in \Ar$, $\beta : X \to B$ a path
+and $\mu \in \FMeas(X)$. An element $x \in B$ is said to satisfy the
+\emph{Pettis equation} for $(\beta, \mu)$ when, for every arity-$0$
+test $m \in \Mtest_B$ at the singleton arity $\Ar_0$,
+\[
+  m(x) \;=\; \int_X m(\beta(r))\,\mu(dr).
+\]
+The right-hand side is the ordinary Lebesgue integral of the
+non-negative bounded measurable function $m \circ \beta$ against the
+finite measure $\mu$, viewed in the formalisation via the
+$\fine$-cast of its $\overline{\R}$-valued integral. In Rocq this is
+the predicate \rocq{Icones.icones.pettis.path_integral_eq}.
+\rocqok
+\end{definition}
 
-\section{Bilinearity and $\omega$-continuity}\label{sec:integral-bilinear}
+\begin{lemma}[Uniqueness of the Pettis integral]\label{lem:path-integral-eq-unique}
+\uses{def:path-integral-eq}
+Two elements $x_1, x_2 \in B$ that both satisfy the Pettis equation
+for $(\beta, \mu)$ are equal:
+\[
+  m(x_1) = m(x_2) \;\text{for every } m \in \Mtest_B \;\Longrightarrow\; x_1 = x_2,
+\]
+by the separation axiom (Mssep) on $B$. In Rocq this is
+\rocq{Icones.icones.pettis.path_integral_eq_unique}. \rocqok
+\end{lemma}
 
-% TODO (wave 2): paper Lemma 4.2, Lemma 4.7 — bilinearity of the
-% integral in $\beta$ and $\mu$, plus $\omega$-continuity in $\beta$.
-% Lemma 4.7 is the workhorse. Point at the relevant lemmas in
-% \texttt{icone\_integral.v}.
+\begin{proof}
+Both equations evaluate the same Lebesgue integral, so the two test
+values $m(x_1)$ and $m(x_2)$ agree for every $m \in \Mtest_B$ at
+arity $0$. The (Mssep) axiom of $\MCone$ then forces $x_1 = x_2$.
+\end{proof}
+
+By Lemma~\ref{lem:path-integral-eq-unique}, when an element $x$
+satisfying the Pettis equation exists, it is unique. We denote it by
+$\Pettis{X}{\beta\,d\mu}$, mirroring the paper's
+$\int_X \beta(r)\mu(dr)$. In Rocq, once the existence witness $\hex$
+is in hand, the value is extracted via classical indefinite
+description as $\rocq{Icones.icones.pettis.path_integral}\ \hex$.
 
 \section{Integrable cones}\label{sec:icones}
 
-% TODO (wave 2): paper Thm 4.5, Thm 4.12 — the $\ICone$ HB structure:
-% an MCone is integrable when every $(\mu, \beta)$ pair admits a
-% Pettis integral. Examples: $\bot$, $\FMeas(X)$, $\Path(X, B)$.
-% Point at \rocq{Icones.icones.icone.ICone}.
+\begin{definition}[Integrable cone --- paper Def 4.3]\label{def:icone}
+\uses{def:path-integral-eq}
+A measurable cone $B$ is \emph{integrable} when, for every
+$X \in \Ar$, every measurable path $\beta : X \to B$ and every
+finite measure $\mu \in \FMeas(X)$, there exists $x \in B$
+satisfying the Pettis equation for $(\beta, \mu)$.
 
-\section{Cone-Fubini}\label{sec:fubini}
+In the formalisation this is the \HB{} mixin
+\rocq{Icones.icones.icone.isICone} layered over $\MCone$. The
+existence field is named \texttt{icone\_exists}; the corresponding
+structure \rocq{Icones.icones.icone.ICone} packages an $\MCone$ with
+this Pettis-witness axiom. We write $\iconeType\ \Ar$ for the type of
+integrable cones over a given $\Ar$-parameter. \rocqok
+\end{definition}
 
-% TODO (wave 2): paper Thm 4.15 — for measures $\mu$ on $X$, $\nu$
-% on $Y$, and a path $\beta$ from $X \times Y$ to an integrable cone,
-% $\int_X \int_Y \beta\,d\nu\,d\mu = \int_{X \times Y} \beta\,d(\mu
-% \otimes \nu)$, both as the same element of the target cone. Point
-% at \rocq{Icones.icones.fubini.cone_fubini} and the paper-form
-% variant.
+For an integrable cone $B$, every triple $(X, \beta, \mu)$ with
+$\beta$ a measurable path determines a unique element of $B$
+satisfying the Pettis equation; we package it as the Rocq function
+\rocq{Icones.icones.icone.icone_integral}, with specification
+\rocq{Icones.icones.icone.icone_integralP} and uniqueness
+\rocq{Icones.icones.icone.icone_integral_eqP}. We write
+$\Pettis{X}{\beta\,d\mu}$ for $\rocq{Icones.icones.icone.icone_integral}\
+\beta\ H_\beta\ \mu$.
+
+\section{The norm bound}\label{sec:integral-norm-bound}
+
+\begin{lemma}[Paper Lemma 4.2]\label{lem:path-integral-norm-le}
+\uses{def:path-integral-eq}
+Let $\beta : X \to B$ be a measurable path bounded in cone-norm by
+$M_\beta \geq 0$, and let $\mu \in \FMeas(X)$. Any element $x \in B$
+satisfying the Pettis equation for $(\beta, \mu)$ obeys
+\[
+  \cnorm{x}_B \;\leq\; M_\beta \cdot \cnorm{\mu}_{\FMeas(X)}.
+\]
+In Rocq this is \rocq{Icones.icones.icone_integral.path_integral_norm_le}.
+\rocqok
+\end{lemma}
+
+\begin{proof}
+If $x = 0$ the bound is trivial. Otherwise, for any $\varepsilon > 0$
+the axiom (Msnorm) on $B$ provides $m \in \Mtest_B \setminus \{0\}$
+at arity $0$ with $\cnorm{x} \leq \varepsilon + m(x)/\cnorm{m}$.
+Combining the Pettis equation with the pointwise test bound
+$m(\beta(r)) \leq \cnorm{m} \cdot \cnorm{\beta(r)} \leq
+\cnorm{m} \cdot M_\beta$ and integrating against $\mu$ yields
+$m(x) = \int_X m(\beta(r))\,\mu(dr) \leq \cnorm{m} \cdot M_\beta
+\cdot \cnorm{\mu}$. Dividing by $\cnorm{m}$ and letting
+$\varepsilon \to 0$ gives the announced inequality.
+\end{proof}
+
+\section{The kernel-integral measurability lemma}\label{sec:lemma46}
+
+The next lemma is the technical prerequisite for proving that paths
+of paths integrate to paths. It is the only place in M3 where the
+mathcomp-analysis library on finite kernels is invoked directly.
+
+\begin{lemma}[Paper Lemma 4.6]\label{lem:kernel-integral-measurable}
+\uses{def:fmeas}
+Let $\varphi : Y \times X \to \R_{\geq 0}$ be measurable and bounded
+(say $\varphi \leq M_\varphi$), and let $\kappa : Y \to \FMeas(X)$
+be a bounded kernel (measurable set-evaluations, uniformly bounded
+total mass). Then the partial-integral function
+\[
+  s \in Y \;\longmapsto\; \int_X \varphi(s, r)\,\kappa(s)(dr) \;\in\;
+  \R_{\geq 0}
+\]
+is measurable. In Rocq this is
+\rocq{Icones.icones.icone_integral.kernel_integral_measurable}
+(real-valued, \fine{}-cast form) and
+\rocq{Icones.icones.icone_integral.kernel_integral_measurable_ereal}
+(extended-real form). \rocqok
+\end{lemma}
+
+\begin{proof}
+The paper proves this by monotone-class reduction: the property
+holds for simple $\varphi$ and lifts to general $\varphi$ via
+monotone convergence (each non-negative measurable $\varphi$ is the
+pointwise sup of an increasing sequence of simple functions). The
+formalisation routes through the mathcomp-analysis HB factory
+\texttt{Kernel\_isFinite}: the bounded kernel $\kappa$ is packaged
+as an $R$-finite kernel, and the
+\texttt{measurable\_fun\_integral\_finite\_kernel} lemma supplies
+the measurability of $s \mapsto \int \varphi(s, r)\,\kappa(s)(dr)$
+in the $\overline{\R}$-valued form. The $\fine$-cast to $\R$ is
+then measurable because the integrand is bounded by $M_\varphi$ and
+$\kappa$ has uniformly finite total mass.
+\end{proof}
+
+\section{Lemma 4.7 --- the workhorse}\label{sec:lemma47}
+
+Paper Lemma~4.7 is the engine of all downstream constructions: the
+integration operator $I^B_X(\beta, \mu) := \Pettis{X}{\beta\,d\mu}$
+is bilinear, $\omega$-continuous and \emph{jointly measurable} on
+$\Path(X, B) \mathbin{\&} \FMeas(X) \to B$. We split it into four
+sub-statements matching the structure of the Rocq sources.
+
+\subsection{Bilinearity in $\beta$ and $\mu$}\label{ssec:bilinear}
+
+\begin{lemma}[Linearity in $\beta$]\label{lem:integral-lin-beta}
+\uses{def:icone}
+For every $\mu \in \FMeas(X)$, the integration operator
+$\beta \mapsto \Pettis{X}{\beta\,d\mu}$ is $\R_{\geq 0}$-linear:
+\begin{align*}
+  \Pettis{X}{(\beta_1 + \beta_2)\,d\mu} &= \Pettis{X}{\beta_1\,d\mu}
+    + \Pettis{X}{\beta_2\,d\mu}, \\
+  \Pettis{X}{(r \cdot \beta)\,d\mu} &= r \cdot \Pettis{X}{\beta\,d\mu}
+    \quad (r \in \R_{\geq 0}).
+\end{align*}
+In Rocq, the predicate-level statements are
+\rocq{Icones.icones.icone_integral.path_integral_eq_addB} and
+\rocq{Icones.icones.icone_integral.path_integral_eq_scaleB}; the
+$\iconeType$ wrap-ups are
+\rocq{Icones.icones.icone_integral.icone_integral_addB} and
+\rocq{Icones.icones.icone_integral.icone_integral_scaleB}. \rocqok
+\end{lemma}
+
+\begin{proof}
+Apply the linearity field \texttt{test\_linD} (resp.\
+\texttt{test\_linZ}) of $\Mtest_B$ to the Pettis equations of
+$\beta_1$, $\beta_2$ (resp.\ $\beta$). The cone-side identity for
+the candidate witness $x_1 + x_2$ (resp.\ $r \cdot x$) then matches
+the linear combination of the Lebesgue integrals by
+$\mathsf{ge0\_integralD}$ (resp.\ $\mathsf{ge0\_integralZl}$) of
+mathcomp-analysis, both of which require the finiteness of the
+integrand --- which follows from the path bound and (Mssep) is
+\emph{not} invoked here. The $\iconeType$ wrap-up applies
+$\mathsf{icone\_integral\_eqP}$ (uniqueness) to identify the
+candidate with the integral.
+\end{proof}
+
+\begin{lemma}[Linearity in $\mu$]\label{lem:integral-lin-mu}
+\uses{def:icone}
+For every measurable path $\beta : X \to B$, the integration
+operator $\mu \mapsto \Pettis{X}{\beta\,d\mu}$ is
+$\R_{\geq 0}$-linear:
+\begin{align*}
+  \Pettis{X}{\beta\,d(\mu_1 + \mu_2)} &= \Pettis{X}{\beta\,d\mu_1}
+    + \Pettis{X}{\beta\,d\mu_2}, \\
+  \Pettis{X}{\beta\,d(r \cdot \mu)} &= r \cdot \Pettis{X}{\beta\,d\mu}
+    \quad (r \in \R_{\geq 0}).
+\end{align*}
+In Rocq, the predicate-level statements are
+\rocq{Icones.icones.icone_integral.path_integral_eq_addmu} and
+\rocq{Icones.icones.icone_integral.path_integral_eq_scalemu}; the
+$\iconeType$ wrap-ups are
+\rocq{Icones.icones.icone_integral.icone_integral_addmu} and
+\rocq{Icones.icones.icone_integral.icone_integral_scalemu}. \rocqok
+\end{lemma}
+
+\begin{proof}
+The measure-side analogue of the previous lemma. The
+$\FMeas(X)$-side $+$ is the measure-sum
+$\mathsf{measure\_add}$ on the underlying $\overline{\R}$-valued
+measures, and $r \cdot \mu$ is mathcomp-analysis's $\mathsf{mscale}$.
+The key identities are
+$\mathsf{ge0\_integral\_measure\_add}$ and
+$\mathsf{ge0\_integral\_mscale}$, applied to the bounded
+measurable integrand $r \mapsto m(\beta(r))$.
+\end{proof}
+
+\subsection{$\omega$-continuity in $\beta$ and $\mu$}\label{ssec:omega-cont}
+
+\begin{lemma}[$\omega$-continuity in $\beta$]\label{lem:integral-omega-cont-path}
+\uses{def:icone, lem:path-integral-norm-le}
+Let $(\beta_n)_{n \in \N}$ be an increasing chain of measurable
+paths from $X$ to $B$, all bounded by $1$ in cone-norm, with
+pointwise supremum $\beta_\infty := \sup_n \beta_n$ a measurable
+path. Let $\mu \in \FMeas(X)$ with $\cnorm{\mu} \leq 1$. Then the
+chain $\bigl(\Pettis{X}{\beta_n\,d\mu}\bigr)_n$ is increasing and
+bounded, with unit-ball supremum
+\[
+  \bigsup_n \Pettis{X}{\beta_n\,d\mu}
+  \;=\; \Pettis{X}{\beta_\infty\,d\mu}.
+\]
+In Rocq this is
+\rocq{Icones.icones.icone_integral.integral_omega_cont_path}.
+\rocqok
+\end{lemma}
+
+\begin{proof}
+The chain $(\Pettis{X}{\beta_n\,d\mu})_n$ is increasing by the
+integral-chain-monotonicity helper
+\rocq{Icones.icones.icone_integral.icone_integral_chain_le}, which
+itself uses the precone residue extraction
+\rocq{Icones.icones.icone_integral.precone_residue} to package the
+pointwise difference $\beta_{n+1} - \beta_n$ as a measurable path and
+appeal to additivity (Lemma~\ref{lem:integral-lin-beta}). The norm
+bound on each integral comes from
+Lemma~\ref{lem:path-integral-norm-le} with $M_\beta = 1$. The two
+sides agree by (Mssep): testing against any arity-$0$ $m$, both
+sides equal $\int_X m(\beta_\infty(r))\,\mu(dr)$, by the
+mathcomp-analysis monotone convergence theorem
+$\mathsf{monotone\_convergence}$ applied to the non-decreasing
+sequence $r \mapsto m(\beta_n(r))$.
+\end{proof}
+
+\begin{lemma}[$\omega$-continuity in $\mu$]\label{lem:integral-omega-cont-meas}
+\uses{def:icone, lem:path-integral-norm-le}
+Let $\beta : X \to B$ be a measurable path bounded by $1$, and let
+$(\mu_n)_n$ be an increasing chain of finite measures with
+$\cnorm{\mu_n} \leq 1$. Then
+$\bigl(\Pettis{X}{\beta\,d\mu_n}\bigr)_n$ is increasing and bounded,
+with unit-ball supremum
+\[
+  \bigsup_n \Pettis{X}{\beta\,d\mu_n}
+  \;=\; \Pettis{X}{\beta\,d(\bigsup_n \mu_n)}.
+\]
+In Rocq this is
+\rocq{Icones.icones.icone_integral.integral_omega_cont_meas}.
+\rocqok
+\end{lemma}
+
+\begin{proof}
+By the measure-side additivity Lemma~\ref{lem:integral-lin-mu} the
+integral chain is non-decreasing, and the norm bound is again
+Lemma~\ref{lem:path-integral-norm-le}. To identify the sup, test
+against any arity-$0$ $m$ and apply the project-internal
+measure-direction monotone convergence theorem
+\rocq{Icones.icones.icone_integral.integral_meas_sup}: this version
+of MCT (in the \emph{measure} argument rather than the function
+argument) is not present in mathcomp-analysis 1.16, and is proved
+from $\mathsf{ge0\_integral\_measure\_series}$ via the telescoping
+$\mathsf{fmeas\_dseq}$ decomposition of the chain (cf.\ \S3.2.1).
+(Mssep) on $B$ then identifies the cone-side sup with the
+integral against the limit measure.
+\end{proof}
+
+\subsection{Joint measurability}\label{ssec:joint-meas}
+
+\begin{lemma}[Joint measurability]\label{lem:integral-joint-meas}
+\uses{def:icone, lem:kernel-integral-measurable}
+Let $(S, \Sigma_S)$ be a measurable space, let $\beta : S \to X \to B$
+be a family of measurable paths with $(s, r) \mapsto m(z, \beta(s)(r))$
+jointly measurable on $\Ar(Z) \times S \times X$ for every test
+$m \in \Mtest^Z_B$, and let $\kappa : S \to \FMeas(X)$ be a bounded
+kernel (each set-evaluation $s \mapsto \kappa(s)(U)$ measurable, with
+uniform mass bound). Then for every $Z \in \Ar$ and every test
+$m \in \Mtest^Z_B$, the function
+\[
+  (z, s) \in \Ar(Z) \times S \;\longmapsto\;
+  m\bigl(z, \Pettis{X}{\beta(s)\,d\kappa(s)}\bigr)
+\]
+is jointly measurable. In Rocq this is
+\rocq{Icones.icones.icone_integral.icone_integral_joint_measurable}.
+\rocqok
+\end{lemma}
+
+\begin{proof}
+A general arity-$Z$ test reduces to the arity-$0$ Pettis equation
+via the constant-reindexing helper
+\rocq{Icones.icones.icone_integral.icone_integral_test_pettis}: at
+each $z$, $m(z, \cdot)$ acts like an arity-$0$ test on $B$ obtained
+by precomposition with the constant $\Ar_0 \to Z$ at $z$. Hence the
+test value at the integral equals the partial integral
+$\fine\bigl(\int_X (m(z, \beta(s)(r)))^\sharp\, \kappa(s)(dr)\bigr)$,
+which is jointly measurable in $(z, s)$ by
+Lemma~\ref{lem:kernel-integral-measurable} (taking $Y := \Ar(Z) \times S$
+and $\varphi((z, s), r) := m(z, \beta(s)(r))$).
+\end{proof}
+
+This is the form used by every downstream consumer: it powers the
+$\iconeType$ instance on $\Path(X, B)$ (\S\ref{sec:path-icone}) and
+the joint test-measurability needed by the product and equaliser
+structures in $\ICones$ (\S\ref{sec:icones-cat}).
+
+\section{$\FMeas(X)$ is integrable --- paper Thm 4.5}\label{sec:fmeas-icone}
+
+\begin{theorem}[Paper Thm 4.5]\label{thm:fmeas-icone}
+\uses{def:icone, def:fmeas}
+For every $X \in \Ar$, the measurable cone $\FMeas(X)$ is integrable.
+\rocqok
+\end{theorem}
+
+\begin{proof}
+Let $Y \in \Ar$, $\kappa \in \Path(Y, \FMeas(X))$ a bounded kernel,
+and $\nu \in \FMeas(Y)$. The candidate integral is the
+\emph{pushforward of paths}: the set function
+\[
+  \mu : U \in \sigma_X \;\longmapsto\; \int_Y \kappa(s)(U)\,\nu(ds)
+  \;\in\; \R_{\geq 0}.
+\]
+Standard measure theory shows $\mu$ is a finite measure on $X$, and
+by the very definition of $\Mtest_{\FMeas(X)}$ in terms of the
+generator tests $e_U : \rho \mapsto \rho(U)$, the integral $\mu$
+satisfies the Pettis equation for $(\kappa, \nu)$. In Rocq the
+existence witness is built in \texttt{examples\_icone.v} as
+\rocq{Icones.icones.examples_icone.fmeas_int_exists}; the supporting
+work is in \texttt{fmeas\_int\_fun}, \texttt{fmeas\_int\_finP},
+\texttt{fmeas\_int\_canon} and \texttt{fmeas\_int\_pettis}.
+\end{proof}
+
+\section{$\Path(X, B)$ is integrable --- paper Thm 4.12}%
+\label{sec:path-icone}
+
+\begin{theorem}[Paper Thm 4.12]\label{thm:path-icone}
+\uses{def:icone, lem:integral-joint-meas}
+If $B$ is an integrable cone, then for every $X \in \Ar$ the
+measurable cone $\Path(X, B)$ is integrable. The integral is
+\emph{pointwise}: if $\eta : Y \to \Path(X, B)$ is a measurable path
+of paths and $\nu \in \FMeas(Y)$, the integral $\beta \in \Path(X, B)$
+of $\eta$ over $\nu$ is given by
+\[
+  \beta(r) \;=\; \Pettis{Y}{\eta(s)(r)\,d\nu(s)} \quad (r \in X).
+\]
+In Rocq this is captured by the \HB.instance at
+\rocq{Icones.icones.examples_icone.path_int_exists}. \rocqok
+\end{theorem}
+
+\begin{proof}
+The candidate $\beta(r) := \Pettis{Y}{\eta(s)(r)\,d\nu(s)}$ exists
+pointwise because $B$ is integrable. Its cone-norm bound
+$\cnorm{\beta(r)} \leq \cnorm{\eta}\,\cnorm{\nu}$ follows from
+Lemma~\ref{lem:path-integral-norm-le}. Measurability of $\beta$ as
+a path in $\Path(X, B)$ reduces to a joint test-measurability
+statement, which is precisely
+Lemma~\ref{lem:integral-joint-meas} applied with $S := X$ and the
+swapped roles $(\eta, \nu, r) \rightsquigarrow (\beta(\cdot)(r), \nu, \cdot)$.
+The Pettis equation for $\beta$ is then a direct unfolding of the
+$\Path$ tests $p = r \rhd m$, since
+$p(\beta) = m(\beta(r)) = \int_Y m(\eta(s)(r))\,\nu(ds) = \int_Y p(\eta(s))\,\nu(ds)$.
+The full \HB.instance landed via M3 wave~7, after the $\ar\text{-}\mathsf{prod}$
+cast-measurability machinery (\S\ref{sec:cone-fubini}) made the joint
+measurability hypothesis dischargeable from a plain
+$\mathsf{is\_measurable\_path}\ \eta$.
+\end{proof}
+
+\section{The cone-Fubini theorem --- paper Thm 4.15}%
+\label{sec:cone-fubini}
+
+\begin{theorem}[Paper Thm 4.15, cast-free form]\label{thm:fubini-cone-eq}
+\uses{def:icone, lem:integral-joint-meas}
+Let $B$ be an integrable cone, $X, Y \in \Ar$, $\mu \in \FMeas(X)$,
+$\nu \in \FMeas(Y)$, and let $\beta : X \times Y \to B$ be uniformly
+norm-bounded, sectionally measurable in each variable, and jointly
+test-measurable in the two iteration shapes
+$(z, x, y) \mapsto m(z, \beta(x, y))$ and
+$(z, y, x) \mapsto m(z, \beta(x, y))$ for every test
+$m \in \Mtest^Z_B$. Then the two iterated cone-integrals agree:
+\[
+  \Pettis{X}{\Bigl(\Pettis{Y}{\beta(x, y)\,d\nu(y)}\Bigr)\,d\mu(x)}
+  \;=\;
+  \Pettis{Y}{\Bigl(\Pettis{X}{\beta(x, y)\,d\mu(x)}\Bigr)\,d\nu(y)}.
+\]
+In Rocq this is \rocq{Icones.icones.fubini.fubini_cone_eq}. \rocqok
+\end{theorem}
+
+\begin{proof}
+By (Mssep) on $B$, it suffices to check the equation under every
+arity-$0$ test $m \in \Mtest_B$. Testing each side, the Pettis
+equation applied twice yields
+$\fine\!\int_X \fine\!\int_Y m(\beta(x, y))\,d\nu\,d\mu$ on one
+side and
+$\fine\!\int_Y \fine\!\int_X m(\beta(x, y))\,d\mu\,d\nu$ on the
+other. The non-negative bounded measurable function
+$m \circ \beta : X \times Y \to \R$ then falls under the standard
+mathcomp-analysis Fubini--Tonelli theorems
+$\mathsf{fubini\_tonelli1}$ and $\mathsf{fubini\_tonelli2}$, applied
+to the product measure $\fmeas\text{-}\mathsf{fin\_view}\,\mu \times
+\fmeas\text{-}\mathsf{fin\_view}\,\nu$. The finiteness of every
+inner integral (used by the $\fine$ cast) is supplied by the
+uniform bound $M_\beta$ together with $\cnorm{\mu}, \cnorm{\nu} < \infty$.
+\end{proof}
+
+\begin{theorem}[Paper Thm 4.15, $\ar\text{-}\mathsf{prod}$ form]%
+\label{thm:fubini-cone-eq-arprod}
+\uses{thm:fubini-cone-eq}
+Let $\beta : \ar\text{-}\mathsf{prod}(\Ar, X, Y) \to B$ be a
+measurable path. Pulling back along the (measurable) cast
+$\ar\text{-}\mathsf{prod\text{-}cast}$ gives a $X \times Y$-indexed
+$\beta_{\!\mathsf{uncast}} = \beta \circ \ar\text{-}\mathsf{prod\text{-}cast}$
+to which Theorem~\ref{thm:fubini-cone-eq} applies, after deriving
+its five hypotheses from $\mathsf{is\_measurable\_path}\,\beta$. In
+Rocq this is the paper-form wrapper
+\rocq{Icones.icones.fubini.fubini_cone_eq_arprod}. \rocqok
+\end{theorem}
+
+\begin{proof}
+The cast-measurability field $\ar\text{-}\mathsf{prod\text{-}cast\text{-}meas}$
+of $\MeasSubcat$ (introduced in paper \S3, wave 7 of M3 closed it
+cleanly) makes $\beta_{\!\mathsf{uncast}}$'s norm bound, section
+measurability and joint test-measurability all derivable; the
+helpers
+\rocq{Icones.icones.fubini.β_uncast_bound},
+\rocq{Icones.icones.fubini.β_uncast_secY},
+\rocq{Icones.icones.fubini.β_uncast_secX},
+\rocq{Icones.icones.fubini.β_uncast_jointX} and
+\rocq{Icones.icones.fubini.β_uncast_jointY} discharge each side
+condition.
+\end{proof}
 
 \section{$\ICones$ is complete and well-powered}\label{sec:icones-cat}
 
-% TODO (wave 2): paper Thm 4.16, Thm 4.18. Point at
-% \rocq{Icones.icones.icone_cat.ICones_complete} and
-% \rocq{Icones.icones.icone_cat.ICones_well_powered}.
+The category $\ICones$ has integrable cones as objects, and as
+morphisms those $\MCones$-morphisms $f : B \to C$ that
+\emph{preserve integrals}: for every $X, \beta, \mu$,
+$f(\Pettis{X}{\beta\,d\mu}) = \Pettis{X}{f(\beta)\,d\mu}$. The
+Rocq packaging is \rocq{Icones.icones.icone_cat.icones_hom}; the
+category structure (identity, composition, associativity, units) is
+in the section \texttt{IConesCat}.
+
+\begin{theorem}[Paper Thm 4.16]\label{thm:icones-complete}
+\uses{def:icone, lem:integral-joint-meas}
+The category $\ICones$ is complete: it has all small products and
+all binary equalisers (hence all small limits, since these generate
+all limits in any category).
+\end{theorem}
+
+\begin{proof}
+\emph{Small products.} Let $(C_i)_{i \in I}$ be a family of
+integrable cones with product $P = \mathbin{\&}_{i \in I} C_i$ in
+$\Cones$. The test family on $P$ is generated by the lifted tests
+$\mathsf{iniTest}_i(m)(r, \vec{x}) := m(r, x_i)$ for
+$m \in \Mtest^Y_{C_i}$; the closure axioms (Mscomp), (Mssep) and
+(Msnorm) carry over from each $C_i$ (uniform existence-of-test for
+(Msnorm) uses that $\cnorm{\vec{x}} = \sup_i \cnorm{x_i}$).
+Integrability is componentwise: for $\gamma \in \Path(X, P)$ and
+$\mu \in \FMeas(X)$, the candidate is
+$\vec{x} := (\Pettis{X}{(\gamma_i(r))\,d\mu(r)})_{i \in I}$, in
+$P$ by the norm bound (Lemma~\ref{lem:path-integral-norm-le}), and
+the Pettis equation holds by definition of the test family.
+Projections and tuplings preserve paths and integrals; the universal
+property is exactly the $\Cones$-tupling restricted to integrable
+cones. In Rocq the construction lives in section
+\texttt{IConesProducts} of \texttt{icone\_cat.v}; the integrable cone
+structure is the HB.instance at
+\texttt{icones\_prod\_int\_exists}, packaged as
+\rocq{Icones.icones.icone_cat.icones_prod}, with projection
+\rocq{Icones.icones.icone_cat.icones_proj} and tupling
+\rocq{Icones.icones.icone_cat.icones_tuple} (universal property
+\rocq{Icones.icones.icone_cat.icones_tuple_proj},
+\rocq{Icones.icones.icone_cat.icones_tuple_unique}).
+
+\emph{Binary equalisers.} Let $f, g \in \ICones(C, D)$ and let
+$(P, e \in \Cones(P, C))$ be the equaliser of $f, g$ in $\Cones$. The
+test family on $E := P$ inherits from $C$ by precomposition with the
+inclusion $e$, satisfying (Msnorm) since $B_P = P \cap B_C \subseteq
+B_C$ tightens the test sup. Integrability: for $\beta \in \Path(X, E)$
+and $\mu \in \FMeas(X)$, the $C$-integral
+$x := \Pettis{X}{e(\beta(r))\,d\mu(r)}$ satisfies $f(x) = g(x)$
+(both equal $\Pettis{X}{f(\beta(r))\,d\mu(r)} =
+\Pettis{X}{g(\beta(r))\,d\mu(r)}$ since $f, g$ preserve integrals
+and $\beta$ lands in $E$), hence $x \in E$ and is the $E$-integral
+of $\beta$. In Rocq, section \texttt{IConesEqualisers},
+\HB.instance at \texttt{icones\_eq\_int\_exists}, the equaliser
+object \rocq{Icones.icones.icone_cat.icones_eq}, its inclusion
+\rocq{Icones.icones.icone_cat.icones_eq_incl} and the mediating
+arrow \rocq{Icones.icones.icone_cat.icones_eq_med} (universal
+property \rocq{Icones.icones.icone_cat.icones_eq_med_factor},
+\rocq{Icones.icones.icone_cat.icones_eq_med_unique}).
+\end{proof}
+
+\begin{theorem}[Paper Thm 4.18]\label{thm:icones-well-powered}
+\uses{def:icone}
+In the category $\ICones$:
+\begin{enumerate}
+  \item $1 = \R_{\geq 0}$ is both a separator and a coseparator;
+  \item $\ICones$ is well-powered.
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+\emph{Coseparator.} For $f \neq g$ in $\ICones(B, C)$ and $x \in B$
+with $f(x) \neq g(x)$, (Mssep) on $C$ yields an arity-$0$ test
+$m \in \Mtest^0_C$ with $m(f(x)) \neq m(g(x))$. Each such $m$ is
+itself a morphism $C \to 1$ in $\ICones$ (it is linear,
+$\omega$-continuous, non-expansive, and the Pettis equation
+\emph{is} the integral-preservation equation against $m$). In Rocq:
+\rocq{Icones.icones.icone_cat.icones_coseparator}.
+
+\emph{Separator.} For each $x \in B$, the map $b_x(\lambda) := \lambda
+\cdot x$ from $\R_{\geq 0} \cong 1$ to $B$ is in $\ICones(1, B)$:
+linearity and $\omega$-continuity are immediate, and the
+integral-preservation equation $b_x(\Pettis{X}{\beta\,d\mu}) =
+\Pettis{X}{b_x(\beta)\,d\mu}$ comes from the linearity of the
+ordinary Lebesgue integral (test against any arity-$0$
+$m \in \Mtest_B$ and use $m(b_x(\lambda)) = \lambda \cdot m(x)$).
+Since $b_x(1) = x$, the family $\{b_x\}_{x \in B}$ separates parallel
+morphisms. In Rocq:
+\rocq{Icones.icones.icone_cat.icones_separator}.
+
+\emph{Well-poweredness.} Let $h \in \ICones(D, C)$ be a monomorphism.
+Since $1$ is a separator, $h$ is injective on points
+(\rocq{Icones.icones.icone_cat.icones_subobject_inj}). By the
+isomorphism lemma~4.17 of the paper (every bijection from an
+integrable cone transports an integrable-cone structure), one may
+replace $D$ by its image $S := h(D) \subseteq C$ equipped with the
+transported structure, so that $h$ is identified with the set-inclusion
+$S \hookrightarrow C$. The class of structures on a fixed subset
+$S \subseteq C$ is bounded by the cardinality of the structure
+space
+$S^{S \times S} \times S^{\R_{\geq 0} \times S} \times \R_{\geq 0}^S
+\times \prod_{X \in \Ar} \mathcal{P}\bigl(\R_{\geq 0}^{X \times S}\bigr)$,
+which is a set because $\Ar$ is small. Hence the class of
+subobjects of $C$ (up to $\ICones$-isomorphism) injects into the
+small type
+$\{(S, F) \mid S \subseteq C\}$, witnessed in Rocq by the bound
+$\rocq{Icones.icones.icone_cat.icones_well_powered_bound} := \mathsf{set}\ C$.
+\end{proof}
+
+\section{Design choices}\label{sec:design-choices}
+
+The formalisation makes a handful of deliberate choices that
+diverge from the paper's prose but are equivalent in content.
+
+\paragraph{Pettis-by-axiom.}
+Rather than building $\Pettis{X}{\beta\,d\mu}$ constructively (which
+would require equipping every $\iconeType$ with a $\mathsf{choiceType}$
+structure on top of its $\Cones$ data), we extract the integral via
+classical indefinite description (Rocq's $\mathsf{cid}$) from the
+existence witness packaged in the
+$\rocq{Icones.icones.icone.isICone}$ mixin. Uniqueness via
+(Mssep) (\rocq{Icones.icones.pettis.path_integral_eq_unique}) then
+makes the extracted value canonical up to propositional equality.
+This keeps the integrable-cone tower lightweight: no choice
+structure is required on the cone carriers, only on the ambient
+classical metatheory.
+
+\paragraph{Measure-side monotone convergence.}
+mathcomp-analysis 1.16 ships $\mathsf{monotone\_convergence}$ in
+the \emph{function} argument but not in the \emph{measure}
+argument. The $\omega$-continuity-in-$\mu$ proof
+(Lemma~\ref{lem:integral-omega-cont-meas}) needs the latter, so we
+prove it in-tree as
+\rocq{Icones.icones.icone_integral.integral_meas_sup}, via the
+telescoping decomposition $\mathsf{fmeas\_dseq}$ of an increasing
+chain into a series (cf.\ paper \S3.2.1) plus
+$\mathsf{ge0\_integral\_measure\_series}$.
+
+\paragraph{Precone residue.}
+The chain-monotonicity helper for integrals
+(\rocq{Icones.icones.icone_integral.icone_integral_chain_le})
+needs to extract a measurable-path residue $r \mapsto z_r$ such that
+$\beta_2(r) = \beta_1(r) + z_r$ when $\beta_1 \cle \beta_2$
+pointwise. We package the pointwise extraction in
+\rocq{Icones.icones.icone_integral.precone_residue}: a thin wrapper
+over $\mathsf{cid}$ that turns the $\PCone$-order predicate
+$\cle$ into its sigma-type companion $\{z \mid y = x + z\}$.
+Measurability of the residue follows from $\mathsf{test\_linD}$ and
+$\mathsf{measurable\_funB}$.
+
+\paragraph{Cast-free Fubini.}
+Paper Theorem~4.15 is naturally stated as an equation between
+integrals over $X \times Y$ on one side and iterated integrals on
+the other. In our formalisation $\Ar(X \times Y) =
+\ar\text{-}\mathsf{prod}(\Ar, X, Y)$ has a non-trivial
+measurability cast to $\Ar(X) \times \Ar(Y)$. The natural
+cast-free formulation
+\rocq{Icones.icones.fubini.fubini_cone_eq} is the equation of the
+two iterated integrals, which is what every downstream consumer
+needs. The paper form
+\rocq{Icones.icones.fubini.fubini_cone_eq_arprod} is recovered as a
+thin wrapper once the cast-measurability field
+$\ar\text{-}\mathsf{prod\text{-}cast\text{-}meas}$ of $\MeasSubcat$
+is in place (M3 wave~7).
