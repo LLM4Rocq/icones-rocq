@@ -320,14 +320,14 @@ Lemma fubini_iter_fun_X_test_meas
        [set: (ar_carrier Ar Z *
               (ar_carrier Ar X * ar_carrier Ar Y))%type]
        (fun p => test_fun m p.1 (β (p.2.1, p.2.2)))) :
-  measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type]
+  measurable_fun setT
     (fun p => test_fun m p.1 (fubini_iter_fun_X p.2)).
 Proof.
 pose β' (x : ar_carrier Ar X) (y : ar_carrier Ar Y) : B := β (x, y).
 have Hβ' : forall x, is_measurable_path (β' x) by [].
 pose κ' (_ : ar_carrier Ar X) : fmeas R (ar_carrier Ar Y) := ν.
 have κ'_meas : forall U, measurable U ->
-    measurable_fun [set: ar_carrier Ar X]
+    measurable_fun setT
                    (fun s => fmeas_mu (κ' s) U).
   by move=> U mU; exact: measurable_cst.
 have κ'_bound : exists M, forall s, (fmeas_norm (κ' s) <= M)%R.
@@ -406,14 +406,14 @@ Lemma fubini_iter_fun_Y_test_meas
        [set: (ar_carrier Ar Z *
               (ar_carrier Ar Y * ar_carrier Ar X))%type]
        (fun p => test_fun m p.1 (β (p.2.2, p.2.1)))) :
-  measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar Y)%type]
+  measurable_fun setT
     (fun p => test_fun m p.1 (fubini_iter_fun_Y p.2)).
 Proof.
 pose β' (y : ar_carrier Ar Y) (x : ar_carrier Ar X) : B := β (x, y).
 have Hβ' : forall y, is_measurable_path (β' y) by [].
 pose κ' (_ : ar_carrier Ar Y) : fmeas R (ar_carrier Ar X) := µ.
 have κ'_meas : forall U, measurable U ->
-    measurable_fun [set: ar_carrier Ar Y]
+    measurable_fun setT
                    (fun s => fmeas_mu (κ' s) U).
   by move=> U mU; exact: measurable_cst.
 have κ'_bound : exists M, forall s, (fmeas_norm (κ' s) <= M)%R.
@@ -573,11 +573,11 @@ Proof.
 have intGe0 : 0 <= \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
                     (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E.
   by apply: integral_ge0 => y _; rewrite lee_fin; apply: test_ge0.
-have mf : measurable_fun [set: ar_carrier Ar Y]
+have mf : measurable_fun setT
             (fun y => (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM (Hβx x)).
-have mc : measurable_fun [set: ar_carrier Ar Y]
+have mc : measurable_fun setT
             (fun _ : ar_carrier Ar Y => Mβ%:E).
   exact: measurable_cst.
 rewrite ge0_fin_numE//.
@@ -604,11 +604,11 @@ Proof.
 have intGe0 : 0 <= \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
                     (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E.
   by apply: integral_ge0 => x _; rewrite lee_fin; apply: test_ge0.
-have mf : measurable_fun [set: ar_carrier Ar X]
+have mf : measurable_fun setT
             (fun x => (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM (Hβy y)).
-have mc : measurable_fun [set: ar_carrier Ar X]
+have mc : measurable_fun setT
             (fun _ : ar_carrier Ar X => Mβ%:E).
   exact: measurable_cst.
 rewrite ge0_fin_numE//.
@@ -827,7 +827,7 @@ pose ψ (p : (ar_carrier Ar Z * ar_carrier Ar Y)%type) :
 have ψ_meas : measurable_fun
     [set: (ar_carrier Ar Z * ar_carrier Ar Y)%type] ψ.
   rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
-  have meas_pair_x : measurable_fun [set: ar_carrier Ar Y]
+  have meas_pair_x : measurable_fun setT
       (fun y : ar_carrier Ar Y => (x, y)).
     by apply: measurable_fun_pair; [exact: measurable_cst|exact: measurable_id].
   apply: (measurableT_comp (ar_prod_cast_meas Ar X Y)).
@@ -858,7 +858,7 @@ pose ψ (p : (ar_carrier Ar Z * ar_carrier Ar X)%type) :
 have ψ_meas : measurable_fun
     [set: (ar_carrier Ar Z * ar_carrier Ar X)%type] ψ.
   rewrite /ψ; apply: measurable_fun_pair; first exact: measurable_fst.
-  have meas_pair_y : measurable_fun [set: ar_carrier Ar X]
+  have meas_pair_y : measurable_fun setT
       (fun x : ar_carrier Ar X => (x, y)).
     by apply: measurable_fun_pair; [exact: measurable_id|exact: measurable_cst].
   apply: (measurableT_comp (ar_prod_cast_meas Ar X Y)).

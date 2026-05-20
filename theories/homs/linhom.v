@@ -2399,7 +2399,7 @@ pose un_e (n : nat) (r : ar_carrier Ar X') : \bar R :=
 pose fsup_e (r : ar_carrier Ar X') : \bar R :=
   (test_fun m s0 (linhom_sup_fun (β r)))%:E.
 have un_meas : forall n,
-    measurable_fun [set: ar_carrier Ar X'] (un_e n).
+    measurable_fun setT (un_e n).
   move=> n.
   apply/measurable_EFinP.
   have Hun_path :=
@@ -2482,7 +2482,7 @@ have un_int_fin : forall n,
     by apply: measurable_cst.
   by move=> r _; exact: un_bound_M.
 have meas_fsup :
-    measurable_fun [set: ar_carrier Ar X'] fsup_e.
+    measurable_fun setT fsup_e.
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM
             (linhom_sup_fun_pres_path Hβ) s0).
@@ -3390,7 +3390,7 @@ Definition linhom_test_fun
     via the diagonal [s ↦ (s, s)] to give measurability in [s]. *)
 Lemma linhom_test_meas (f : linhom_car Ar C D) :
   cone_norm f <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y]
+  measurable_fun setT
                  (fun s => linhom_test_fun s f).
 Proof.
 move=> Hf.
@@ -3794,7 +3794,7 @@ have Hγx'_unit : cone_norm (const_x_path_arity Z x') <= 1.
   by rewrite /cone_norm /= const_x_path_arity_normE.
 (* Apply (Msmeas) on η at the linhom test [γ_{x'} ▷ m_D]. *)
 have Hmeas_xprime :
-  measurable_fun [set: ar_carrier Ar Z * ar_carrier Ar Y']
+  measurable_fun setT
     (fun p => m_D p.1 (linhom_fun (η p.2) x')).
   have HinM : linhom_mcone_M (Y:=Z)
     (linhom_test (const_x_path_arity Z x') Hγx'_unit m_D mM_D).
@@ -3818,7 +3818,7 @@ apply: (eq_measurable_fun
     Sinv%:num^-1 * m_D p.1 (linhom_fun (η p.2) x'))).
   move=> p _ /=.
   by rewrite Heq mulrA mulVf // mul1r.
-have Hmul : measurable_fun [set: R] ( *%R Sinv%:num^-1).
+have Hmul : measurable_fun setT ( *%R Sinv%:num^-1).
   exact: mulrl_measurable.
 have step : (fun p : ar_carrier Ar Z * ar_carrier Ar Y' =>
    Sinv%:num^-1 * m_D p.1 (linhom_fun (η p.2) x')) =
@@ -3934,7 +3934,7 @@ have Hγ'_meas : is_measurable_path γ'.
   apply: (eq_measurable_fun (fun p => Sinv%:num * m p.1 (γ p.2))).
     by move=> p _; rewrite /γ' /= test_linZ.
   pose Fmul : R -> R := *%R Sinv%:num.
-  have Hmul : measurable_fun [set: R] Fmul.
+  have Hmul : measurable_fun setT Fmul.
     exact: mulrl_measurable.
   have step :
     (fun p : ar_carrier Ar Y * ar_carrier Ar X' =>
@@ -4009,8 +4009,7 @@ have ψ_meas : measurable_fun
            (ar_carrier Ar X' * ar_carrier Ar Y'))%type] ψ.
   rewrite /ψ.
   apply: measurable_fun_pair.
-  - have meas_p12 : measurable_fun [set: (ar_carrier Ar Z *
-        (ar_carrier Ar X' * ar_carrier Ar Y'))%type]
+  - have meas_p12 : measurable_fun setT
         (fun p : ar_carrier Ar Z *
                 (ar_carrier Ar X' * ar_carrier Ar Y') => (p.1, p.2.1)).
       apply: measurable_fun_pair.
@@ -4053,7 +4052,7 @@ apply: (eq_measurable_fun (fun p =>
     (Sinv%:num * m_D p.1 (linhom_fun (η p.2.2) (γ p.2.1))))).
   move=> p _ /=.
   by rewrite mulrA mulVf // mul1r.
-have Hmul : measurable_fun [set: R] ( *%R Sinv%:num^-1).
+have Hmul : measurable_fun setT ( *%R Sinv%:num^-1).
   exact: mulrl_measurable.
 have step :
   (fun p : ar_carrier Ar Z *
@@ -4145,7 +4144,7 @@ pose un_e (n : nat) (r : ar_carrier Ar Y') : \bar R :=
 pose fsup_e (r : ar_carrier Ar Y') : \bar R :=
   (test_fun m s0 (linhom_fun (η r) (cone_sup_ball u uch ub1)))%:E.
 have un_meas : forall n,
-    measurable_fun [set: ar_carrier Ar Y'] (un_e n).
+    measurable_fun setT (un_e n).
   move=> n; apply/measurable_EFinP.
   exact: (measurable_test_path_section mM (b'_meas n) s0).
 have un_ge0 : forall n r, (0 <= un_e n r)%E.
@@ -4257,7 +4256,7 @@ have un_cvg : forall r, (un_e^~ r) x @[x --> \oo] --> fsup_e r.
   exact: un_cvg_R.
 have un_lim : forall r, limn (un_e^~ r) = fsup_e r.
   by move=> r; apply/cvg_lim => //; exact: ereal_hausdorff.
-have meas_fsup : measurable_fun [set: ar_carrier Ar Y'] fsup_e.
+have meas_fsup : measurable_fun setT fsup_e.
   apply/measurable_EFinP.
   have Hpath :
     is_measurable_path (fun r =>

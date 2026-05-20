@@ -353,7 +353,7 @@ Definition id_test_fun : ar_carrier Ar Y -> T -> R :=
 
 Lemma id_test_meas (x : T) :
   cone_norm x <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y] (fun r => id_test_fun r x).
+  measurable_fun setT (fun r => id_test_fun r x).
 Proof. by move=> _; exact: measurable_cst. Qed.
 
 Lemma id_test_ge0 (r : ar_carrier Ar Y) (x : T) : 0 <= id_test_fun r x.
@@ -475,7 +475,7 @@ Lemma cone_one_int_fin
 Proof.
 case: Hβ => [[M HM] Hmeas].
 have meas_β :
-    measurable_fun [set: ar_carrier Ar X]
+    measurable_fun setT
                    (fun r => ((c1_val (β r))%:num)%:E).
   apply/measurable_EFinP.
   pose m := ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar).
@@ -599,7 +599,7 @@ Variable µ : fmeas R (ar_carrier Ar X').
     measurability of the test [e_U] in the kernel direction. *)
 Lemma fmeas_int_meas_fun (U : set (ar_carrier Ar X)) :
   measurable U ->
-  measurable_fun [set: ar_carrier Ar X']
+  measurable_fun setT
                  (fun r => fmeas_mu (β r) U).
 Proof.
 move=> mU.
@@ -610,7 +610,7 @@ have mM : mcone_M (ar_zero Ar) (fmeas_eU (Ar:=Ar) (ar_zero Ar) mU).
 have HmeasEU :=
   Hmeas (ar_zero Ar) (fmeas_eU (Ar:=Ar) (ar_zero Ar) mU) mM.
 have meas_fine_β_U :
-    measurable_fun [set: ar_carrier Ar X']
+    measurable_fun setT
                    (fun r => fine (fmeas_mu (β r) U)).
   pose F (p : ar_carrier Ar (ar_zero Ar) * ar_carrier Ar X') : R :=
     test_fun (fmeas_eU (Ar:=Ar) (ar_zero Ar) mU) p.1 (β p.2).
@@ -681,7 +681,7 @@ have lim_partial_sum r :
     fmeas_mu (β r) (\bigcup_n F n).
   exact: cvg_lim (HsigmaR r).
 have meas_partial_sum n :
-    measurable_fun [set: ar_carrier Ar X']
+    measurable_fun setT
       (fun r => \sum_(0 <= i < n) fmeas_mu (β r) (F i)).
   elim: n => [|n IH].
     by under eq_fun do rewrite big_nil; exact: measurable_cst.
@@ -859,7 +859,7 @@ Variables (Z : ar_obj Ar) (s : ar_carrier Ar X).
 Let const_zs_fun : ar_carrier Ar Z -> ar_carrier Ar X := fun _ => s.
 
 Lemma const_zs_measurable :
-  measurable_fun [set: ar_carrier Ar Z] const_zs_fun.
+  measurable_fun setT const_zs_fun.
 Proof. exact: measurable_cst. Qed.
 
 HB.instance Definition _ :=
@@ -944,7 +944,7 @@ Lemma path_int_fun_test_meas (Z : ar_obj Ar) (m : test_of Ar Z B)
       [set: (ar_carrier Ar Z *
              (ar_carrier Ar X * ar_carrier Ar Y'))%type]
       (fun p => test_fun m p.1 (path_fun (η p.2.2) p.2.1))) :
-  measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type]
+  measurable_fun setT
     (fun p => test_fun m p.1 (path_int_fun p.2)).
 Proof.
 have [[Mη HMη] _] := Hη.
@@ -954,7 +954,7 @@ pose β' (s : ar_carrier Ar X) (r : ar_carrier Ar Y') : B :=
 have Hβ' : forall s, is_measurable_path (β' s) by exact: path_int_pt_meas.
 pose κ' (_ : ar_carrier Ar X) : fmeas R (ar_carrier Ar Y') := ν.
 have κ'_meas : forall U, measurable U ->
-    measurable_fun [set: ar_carrier Ar X]
+    measurable_fun setT
                    (fun s => fmeas_mu (κ' s) U).
   by move=> U mU; exact: measurable_cst.
 have κ'_bound : exists M, forall s, (fmeas_norm (κ' s) <= M)%R.
@@ -1104,8 +1104,7 @@ have ψ_meas : measurable_fun
            (ar_carrier Ar X * ar_carrier Ar Y'))%type] ψ.
   rewrite /ψ.
   apply: measurable_fun_pair.
-  - have meas_p12 : measurable_fun [set: (ar_carrier Ar Z *
-        (ar_carrier Ar X * ar_carrier Ar Y'))%type]
+  - have meas_p12 : measurable_fun setT
         (fun p : ar_carrier Ar Z *
                 (ar_carrier Ar X * ar_carrier Ar Y') => (p.1, p.2.1)).
       apply: measurable_fun_pair.

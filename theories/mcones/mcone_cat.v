@@ -650,7 +650,7 @@ Definition αB_test_fun : ar_carrier Ar Y -> T -> R :=
 
 Lemma αB_test_meas (x : T) :
   αB_norm x <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y] (fun s => αB_test_fun s x).
+  measurable_fun setT (fun s => αB_test_fun s x).
 Proof.
 move=> Hx; rewrite /αB_test_fun.
 (* [αB_norm x ≤ 1] means [‖val x‖_B ≤ α], not necessarily ≤ 1.

@@ -119,7 +119,7 @@ Variable β : ar_carrier Ar X -> B.
 Lemma measurable_test_path_section (Y : ar_obj Ar)
     (m : test_of Ar Y B) (mB : mcone_M Y m)
     (Hβ : is_measurable_path β) (s : ar_carrier Ar Y) :
-  measurable_fun [set: ar_carrier Ar X]
+  measurable_fun setT
     (fun r : ar_carrier Ar X => test_fun m s (β r) : R).
 Proof.
 have [_ Hj] := Hβ.
@@ -149,7 +149,7 @@ Variables (X : measurableType d) (Y : measurableType d').
 Variable κ : Y -> fmeas R X.
 Hypothesis κ_meas :
   forall U, measurable U ->
-    measurable_fun [set: Y] (fun s => fmeas_mu (κ s) U).
+    measurable_fun setT (fun s => fmeas_mu (κ s) U).
 Hypothesis κ_bound : exists M : R, forall s, fmeas_norm (κ s) <= M.
 
 Local Open Scope ereal_scope.
@@ -162,7 +162,7 @@ Local Lemma kernel46E s U : kernel46 s U = fmeas_mu (κ s) U.
 Proof. by []. Qed.
 
 Local Lemma kernel46_meas U : measurable U ->
-  measurable_fun [set: Y] (kernel46 ^~ U).
+  measurable_fun setT (kernel46 ^~ U).
 Proof. exact: κ_meas. Qed.
 
 HB.instance Definition _ :=
@@ -192,8 +192,8 @@ HB.instance Definition _ :=
     the partial integral [s ↦ ∫[κ s] k(s, r) dr] is measurable. *)
 Lemma kernel_integral_measurable_ereal (k : Y * X -> \bar R) :
   (forall p, 0 <= k p) ->
-  measurable_fun [set: (Y * X)%type] k ->
-  measurable_fun [set: Y]
+  measurable_fun setT k ->
+  measurable_fun setT
     (fun s => \int[fmeas_mu (κ s)]_(r in [set: X]) k (s, r)).
 Proof.
 move=> k0 mk.
@@ -212,12 +212,12 @@ Qed.
 Lemma kernel_integral_measurable (φ : Y * X -> R) (Mφ : R) :
   (forall p, (0 <= φ p)%R) ->
   (forall p, (φ p <= Mφ)%R) ->
-  measurable_fun [set: (Y * X)%type] φ ->
-  measurable_fun [set: Y]
+  measurable_fun setT φ ->
+  measurable_fun setT
     (fun s => fine (\int[fmeas_mu (κ s)]_(r in [set: X]) (φ (s, r))%:E)).
 Proof.
 move=> φ_ge0 φ_le mφ.
-have mEφ : measurable_fun [set: (Y * X)%type] (fun p => (φ p)%:E).
+have mEφ : measurable_fun setT (fun p => (φ p)%:E).
   exact/measurable_EFinP.
 have k0 (p : Y * X) : (0 <= (φ p)%:E) by rewrite lee_fin.
 have main := @kernel_integral_measurable_ereal (fun p => (φ p)%:E) k0 mEφ.
@@ -262,10 +262,10 @@ have [[M HM] _] := Hβ.
 have intGe0 : 0 <= \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
                     (test_fun m (ar_zero_pt Ar) (β r))%:E.
   by apply: integral_ge0 => r _; rewrite lee_fin; apply: test_ge0.
-have mf1 : measurable_fun [set: ar_carrier Ar X]
+have mf1 : measurable_fun setT
              (fun r => (test_fun m (ar_zero_pt Ar) (β r))%:E).
   by apply/measurable_EFinP; exact: (measurable_test_path_section mM Hβ).
-have mf2 : measurable_fun [set: ar_carrier Ar X]
+have mf2 : measurable_fun setT
              (fun _ : ar_carrier Ar X => M%:E).
   exact: measurable_cst.
 rewrite ge0_fin_numE//.
@@ -297,11 +297,11 @@ Lemma path_integral_eq_addB
 Proof.
 move=> Hβ1 Hβ2 H1 H2 m mM s.
 rewrite test_linD (H1 m mM s) (H2 m mM s).
-have m1 : measurable_fun [set: ar_carrier Ar X]
+have m1 : measurable_fun setT
             (fun r => (test_fun m s (β1 r))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM Hβ1).
-have m2 : measurable_fun [set: ar_carrier Ar X]
+have m2 : measurable_fun setT
             (fun r => (test_fun m s (β2 r))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM Hβ2).
@@ -334,7 +334,7 @@ Lemma path_integral_eq_scaleB
 Proof.
 move=> Hβ Hx m mM s.
 rewrite test_linZ (Hx m mM s).
-have mE : measurable_fun [set: ar_carrier Ar X]
+have mE : measurable_fun setT
             (fun u => (test_fun m s (β u))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM Hβ).
@@ -414,7 +414,7 @@ Lemma path_integral_eq_addmu
 Proof.
 move=> Hβ H1 H2 m mM s.
 rewrite test_linD (H1 m mM s) (H2 m mM s).
-have mE : measurable_fun [set: ar_carrier Ar X]
+have mE : measurable_fun setT
             (fun r => (test_fun m s (β r))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM Hβ).
@@ -443,7 +443,7 @@ Lemma path_integral_eq_scalemu
 Proof.
 move=> Hβ Hx m mM s.
 rewrite test_linZ (Hx m mM s).
-have mE : measurable_fun [set: ar_carrier Ar X]
+have mE : measurable_fun setT
             (fun u => (test_fun m s (β u))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM Hβ).
@@ -532,13 +532,13 @@ have IntGe0 :
   (0 <= \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
           (test_fun m (ar_zero_pt Ar) (β r))%:E)%E.
   by apply: integral_ge0 => r _; rewrite lee_fin; apply: test_ge0.
-have mE : measurable_fun [set: ar_carrier Ar X]
+have mE : measurable_fun setT
             (fun r => (test_fun m (ar_zero_pt Ar) (β r))%:E).
   by apply/measurable_EFinP; exact: (measurable_test_path_section mM Hβ_meas).
 have HfT : (fmeas_mu µ [set: ar_carrier Ar X] \is a fin_num)%E.
   exact: fmeas_setT_fin.
 rewrite -lee_fin fineK// EFinM /fmeas_norm fineK//.
-have mc : measurable_fun [set: ar_carrier Ar X]
+have mc : measurable_fun setT
             (fun _ : ar_carrier Ar X => Mβ%:E).
   exact: measurable_cst.
 apply: (le_trans
@@ -597,7 +597,7 @@ Hypothesis ub1 : forall n, (fmeas_norm (u n) <= 1)%R.
     [fmeas_sup_ball] of an increasing chain equals the infinite
     series of integrals against the difference measures. *)
 Local Lemma integral_fmeas_sup_series (f : X -> \bar R) :
-  (forall r, 0 <= f r) -> measurable_fun [set: X] f ->
+  (forall r, 0 <= f r) -> measurable_fun setT f ->
   \int[fmeas_mu (fmeas_sup_ball uch ub1)]_(r in [set: X]) f r =
   \sum_(i <oo) \int[fmeas_dseq uch i]_(r in [set: X]) f r.
 Proof.
@@ -614,7 +614,7 @@ Qed.
     [u n] gives the partial sum, hence converges to the series sum
     [∫[fmeas_sup_ball] f]. *)
 Lemma integral_meas_sup (f : X -> \bar R) :
-  (forall r, 0 <= f r) -> measurable_fun [set: X] f ->
+  (forall r, 0 <= f r) -> measurable_fun setT f ->
   \int[fmeas_mu (u n)]_(r in [set: X]) f r @[n --> \oo]
     --> \int[fmeas_mu (fmeas_sup_ball uch ub1)]_(r in [set: X]) f r.
 Proof.
@@ -744,7 +744,7 @@ Let const_0Z_fun : ar_carrier Ar (ar_zero Ar) -> ar_carrier Ar Z :=
   fun _ => z.
 
 Local Lemma const_0Z_measurable :
-  measurable_fun [set: ar_carrier Ar (ar_zero Ar)] const_0Z_fun.
+  measurable_fun setT const_0Z_fun.
 Proof. exact: measurable_cst. Qed.
 
 HB.instance Definition _ :=
@@ -957,7 +957,7 @@ rewrite (icone_integral_test_pettis Hβsup µ m mM s0).
 pose un (n : nat) (r : ar_carrier Ar X) : \bar R :=
   (test_fun m s0 (β n r))%:E.
 pose fsup r : \bar R := (test_fun m s0 (β_sup_fun r))%:E.
-have un_meas n : measurable_fun [set: ar_carrier Ar X] (un n).
+have un_meas n : measurable_fun setT (un n).
   by apply/measurable_EFinP;
     exact: (measurable_test_path_section mM (Hβ n)).
 have un_ge0 (n : nat) r : 0 <= un n r.
@@ -1111,7 +1111,7 @@ have test_sup :
 rewrite test_sup.
 (* Define the test integrand *)
 pose f r : \bar R := (test_fun m s0 (β r))%:E.
-have f_meas : measurable_fun [set: ar_carrier Ar X] f.
+have f_meas : measurable_fun setT f.
   by apply/measurable_EFinP; exact: (measurable_test_path_section mM Hβ).
 have f_ge0 r : 0 <= f r by rewrite lee_fin; apply: test_ge0.
 (* Use integral_meas_sup *)
@@ -1201,7 +1201,7 @@ Hypothesis mM : mcone_M Z m.
       (typically [cone_norm (β s r) ≤ M] from the path bound). *)
 Lemma icone_integral_joint_measurable :
   (forall U, measurable U ->
-     measurable_fun [set: S] (fun s => fmeas_mu (κ s) U)) ->
+     measurable_fun setT (fun s => fmeas_mu (κ s) U)) ->
   (exists M : R, forall s, (fmeas_norm (κ s) <= M)%R) ->
   measurable_fun
     [set: (ar_carrier Ar Z * (S * ar_carrier Ar X))%type]
@@ -1224,7 +1224,7 @@ apply: (eq_measurable_fun g); first by move=> p _; rewrite -rewE.
 (* Apply [kernel_integral_measurable] with joint state (z, s) *)
 pose ρ (p : ar_carrier Ar Z * S) : fmeas R (ar_carrier Ar X) := κ p.2.
 have ρ_meas : forall U, measurable U ->
-    measurable_fun [set: (ar_carrier Ar Z * S)%type]
+    measurable_fun setT
                    (fun p => fmeas_mu (ρ p) U).
   move=> U mU.
   apply: (measurableT_comp (f := fun s => fmeas_mu (κ s) U)).

@@ -101,7 +101,7 @@ Record test_of : Type := MkTestOf {
       [ar_carrier X] to [R]. *)
   test_meas :
     forall x : C, cone_norm x <= 1 ->
-      measurable_fun [set: ar_carrier Ar X] (fun r => test_fun r x);
+      measurable_fun setT (fun r => test_fun r x);
   (** (Msmeas) — Paper Def 3.2: tests are non-negative on the whole
       cone (a consequence of linearity and monotonicity, made
       structural here for ergonomics). *)
@@ -190,7 +190,7 @@ Definition test_reindex_fun : ar_carrier Ar Y -> C -> R :=
 
 Lemma test_reindex_meas (x : C) :
   cone_norm x <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y] (fun s => test_reindex_fun s x).
+  measurable_fun setT (fun s => test_reindex_fun s x).
 Proof.
 move=> Hx; rewrite /test_reindex_fun.
 by apply: (measurableT_comp (f := fun r => test_fun m r x));
@@ -357,7 +357,7 @@ have key : forall s, test_fun m s x = cone_norm x * test_fun m s x'.
 apply: (eq_measurable_fun (fun p => cone_norm x * test_fun m p.1 x')).
   by move=> p _; rewrite key.
 (* Measurability of [fun p => c * f p.1]. *)
-have mf : measurable_fun [set: ar_carrier Ar Y]
+have mf : measurable_fun setT
             (fun s => test_fun m s x').
   exact: test_meas.
 have mcomp1 : measurable_fun

@@ -271,7 +271,7 @@ Definition iniTest_fun : ar_carrier Ar Y -> P -> R :=
 
 Lemma iniTest_meas (x : P) :
   cone_norm x <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y] (fun s => iniTest_fun s x).
+  measurable_fun setT (fun s => iniTest_fun s x).
 Proof.
 move=> Hx.
 have Hxi : cone_norm (cones_prod_val x i) <= 1.
@@ -758,7 +758,7 @@ Definition eqTest_fun : ar_carrier Ar Y -> E -> R :=
 
 Lemma eqTest_meas (x : E) :
   cone_norm x <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y] (fun s => eqTest_fun s x).
+  measurable_fun setT (fun s => eqTest_fun s x).
 Proof.
 move=> Hx; rewrite /eqTest_fun.
 exact: test_meas.

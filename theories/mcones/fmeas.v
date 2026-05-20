@@ -1044,7 +1044,7 @@ Definition eU_fun : ar_carrier Ar Y -> fmeas R X -> R :=
 
 Lemma eU_meas (µ : fmeas R X) :
   cone_norm µ <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y] (fun s => eU_fun s µ).
+  measurable_fun setT (fun s => eU_fun s µ).
 Proof. by move=> _; exact: measurable_cst. Qed.
 
 Lemma eU_ge0 (s : ar_carrier Ar Y) (µ : fmeas R X) :
@@ -1254,7 +1254,7 @@ Lemma fmeas_push_sigma_additive (µ : fmeas R (ar_carrier Ar X)) :
   semi_sigma_additive (fmeas_push_meas_fun µ).
 Proof.
 move=> F mF tF mUF.
-have measf : measurable_fun [set: ar_carrier Ar X] φ.
+have measf : measurable_fun setT φ.
   exact: measurable_funP.
 have base := @measure_semi_sigma_additive _ _ R
   (pushforward (fmeas_mu µ) φ) F mF tF mUF.
@@ -1365,7 +1365,7 @@ Lemma fmeas_push_omega_continuous : is_omega_continuous fmeas_push_fun.
 Proof.
 rewrite /is_omega_continuous => u uch ub1 fuch fub1.
 apply: fmeas_eq => U mU.
-have measf : measurable_fun [set: ar_carrier Ar X] φ.
+have measf : measurable_fun setT φ.
   exact: measurable_funP.
 have mφU : measurable (φ @^-1` U).
   rewrite -[X in measurable X]setTI.
@@ -1438,7 +1438,7 @@ Lemma fmeas_push_comp (X Y Z : ar_obj Ar)
 Proof.
 move=> Hgf µ; apply: fmeas_eq => U mU.
 rewrite (fmeas_pushE gf µ mU).
-have measg : measurable_fun [set: ar_carrier Ar Y] g.
+have measg : measurable_fun setT g.
   exact: measurable_funP.
 have mgU : measurable (g @^-1` U).
   rewrite -[X in measurable X]setTI; exact: measg.

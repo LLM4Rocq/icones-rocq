@@ -102,7 +102,7 @@ Record MeasSubcat (R : realType) : Type := MkMeasSubcat {
      [ar_carrier (ar_prod X Y)] and [ar_carrier X * ar_carrier Y]. *)
   ar_prod_uncast_meas :
     forall X Y,
-      measurable_fun [set: ar_carrier (ar_prod X Y)]
+      measurable_fun setT
         (fun p : ar_carrier (ar_prod X Y) =>
            eq_rect _ (fun T : Type => T) p _ (ar_prod_carrier_eq X Y));
 
@@ -110,7 +110,7 @@ Record MeasSubcat (R : realType) : Type := MkMeasSubcat {
      measurable. *)
   ar_prod_cast_meas :
     forall X Y,
-      measurable_fun [set: (ar_carrier X * ar_carrier Y)%type]
+      measurable_fun setT
         (fun p : (ar_carrier X * ar_carrier Y)%type =>
            eq_rect_r (fun T : Type => T) p (ar_prod_carrier_eq X Y));
 }.
@@ -231,7 +231,7 @@ Definition ar_prod_fst_fun (p : ar_carrier Ar (ar_prod Ar X Y)) :
     ar_carrier Ar X := (ar_prod_uncast p).1.
 
 Lemma ar_prod_fst_fun_meas :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_fst_fun.
+  measurable_fun setT ar_prod_fst_fun.
 Proof.
 rewrite /ar_prod_fst_fun /ar_prod_uncast.
 exact: (measurableT_comp measurable_fst (ar_prod_uncast_meas Ar X Y)).
@@ -248,7 +248,7 @@ Definition ar_prod_snd_fun (p : ar_carrier Ar (ar_prod Ar X Y)) :
     ar_carrier Ar Y := (ar_prod_uncast p).2.
 
 Lemma ar_prod_snd_fun_meas :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar X Y)] ar_prod_snd_fun.
+  measurable_fun setT ar_prod_snd_fun.
 Proof.
 rewrite /ar_prod_snd_fun /ar_prod_uncast.
 exact: (measurableT_comp measurable_snd (ar_prod_uncast_meas Ar X Y)).
@@ -270,10 +270,10 @@ Definition ar_pair_fun : ar_carrier Ar Z ->
   fun z => ar_prod_cast (f z, g z).
 
 Lemma ar_pair_fun_meas :
-  measurable_fun [set: ar_carrier Ar Z] ar_pair_fun.
+  measurable_fun setT ar_pair_fun.
 Proof.
 rewrite /ar_pair_fun /ar_prod_cast.
-have meas_pair : measurable_fun [set: ar_carrier Ar Z]
+have meas_pair : measurable_fun setT
     (fun z => (f z, g z)).
   by apply: measurable_fun_pair; exact: measurable_funPT.
 exact: (measurableT_comp (ar_prod_cast_meas Ar X Y) meas_pair).

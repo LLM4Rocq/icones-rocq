@@ -724,7 +724,7 @@ Definition path_test_fun :
 
 Lemma path_test_meas (γ : path_car Ar X B) :
   cone_norm γ <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y]
+  measurable_fun setT
                  (fun s => path_test_fun s γ).
 Proof.
 move=> Hγ.
@@ -863,7 +863,7 @@ Let const_r_fun : ar_carrier Ar (ar_zero Ar) -> ar_carrier Ar X :=
   fun _ => r.
 
 Lemma const_r_measurable :
-  measurable_fun [set: ar_carrier Ar (ar_zero Ar)] const_r_fun.
+  measurable_fun setT const_r_fun.
 Proof. exact: measurable_cst. Qed.
 
 HB.instance Definition _ :=

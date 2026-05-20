@@ -239,9 +239,9 @@ apply: (eq_measurable_fun
      fine (\d_(p.2) U : \bar R))).
   by move=> p _; rewrite /= /eU_fun/= dirac_fmeas_E.
 pose g (r : ar_carrier Ar X) : \bar R := \d_r U.
-have g_meas : measurable_fun [set: ar_carrier Ar X] g.
+have g_meas : measurable_fun setT g.
   by apply: measurable_fun_dirac.
-have finecomp : measurable_fun [set: ar_carrier Ar X]
+have finecomp : measurable_fun setT
                   (fun r : ar_carrier Ar X => fine (g r)).
   by apply: (measurableT_comp (f := fine)) => //; exact: fine_measurable.
 exact: (measurableT_comp finecomp measurable_snd).
@@ -459,7 +459,7 @@ Local Definition β'_kfun (y : ar_carrier Ar Y) :
   fmeas_mu (β' y).
 
 Local Lemma β'_kfun_meas U : measurable U ->
-  measurable_fun [set: ar_carrier Ar Y] (β'_kfun ^~ U).
+  measurable_fun setT (β'_kfun ^~ U).
 Proof. by move=> mU; exact: (fmeas_int_meas_fun Hβ' mU). Qed.
 
 HB.instance Definition _ :=
@@ -514,7 +514,7 @@ Local Definition µ'_kfun (_ : ar_carrier Ar (ar_zero Ar)) :
   fmeas_mu µ'.
 
 Local Lemma µ'_kfun_meas U : measurable U ->
-  measurable_fun [set: ar_carrier Ar (ar_zero Ar)] (µ'_kfun ^~ U).
+  measurable_fun setT (µ'_kfun ^~ U).
 Proof. by move=> _; exact: measurable_cst. Qed.
 
 HB.instance Definition _ :=
@@ -549,7 +549,7 @@ have intfin :
     \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y]) fmeas_mu (β' y) U
      \is a fin_num.
   have meas_int :
-    measurable_fun [set: ar_carrier Ar Y]
+    measurable_fun setT
       (fun y => fmeas_mu (β' y) U).
     exact: (fmeas_int_meas_fun Hβ' mU).
   have [[Mβ' HMβ'] _] := Hβ'.
@@ -596,7 +596,7 @@ Qed.
     [fmeas R (ar_carrier Ar X)]. *)
 Lemma icone_integral_kernel_tonelli
     (g : ar_carrier Ar X -> \bar R) :
-  measurable_fun [set: ar_carrier Ar X] g ->
+  measurable_fun setT g ->
   (forall r, 0 <= g r) ->
   \int[fmeas_mu (icone_integral β' Hβ' µ')]_(r in [set: ar_carrier Ar X])
     g r =
@@ -649,14 +649,14 @@ pose βconst : ar_carrier Ar Y -> ar_carrier Ar X -> B := fun _ r => βf r.
 have Hβconst : forall s, is_measurable_path (βconst s).
   by move=> s; exact: Hβ.
 have κ_meas_perU : forall U, measurable U ->
-  measurable_fun [set: ar_carrier Ar Y] (fun s => fmeas_mu (κ s) U).
+  measurable_fun setT (fun s => fmeas_mu (κ s) U).
   move=> U mU.
   have mM_U : mcone_M (Ar:=Ar) (ar_zero Ar)
     (fmeas_eU (ar_zero Ar) mU).
     by exists U, mU.
   have HmU_joint := Hκj _ _ mM_U.
   have meas_fine :
-    measurable_fun [set: ar_carrier Ar Y]
+    measurable_fun setT
       (fun s => fine (fmeas_mu (κ s) U)).
     pose F (p : ar_carrier Ar (ar_zero Ar) * ar_carrier Ar Y) : R :=
       test_fun (fmeas_eU (ar_zero Ar) mU) p.1 (κ p.2).
@@ -750,7 +750,7 @@ have test_inner y :
 (* Tonelli swap via [icone_integral_kernel_tonelli]. *)
 pose f0 : ar_carrier Ar X -> \bar R :=
   fun r => (test_fun m s (βf r))%:E.
-have f0_meas : measurable_fun [set: ar_carrier Ar X] f0.
+have f0_meas : measurable_fun setT f0.
   rewrite /f0.
   by apply/measurable_EFinP; exact: (measurable_test_path_section mM Hβ).
 have f0_ge0 r : (0 <= f0 r)%E by rewrite /f0 lee_fin; apply: test_ge0.
@@ -913,7 +913,7 @@ Proof.
 rewrite /int_to_linhom_fun.
 apply/esym/icone_integral_eqP => m mM s.
 (* test_fun m s (β r) = fine (∫[\d_r] (test_fun m s (β r'))%:E dr'). *)
-have meas_test : measurable_fun [set: ar_carrier Ar X]
+have meas_test : measurable_fun setT
                    (fun r' => (test_fun m s (βf r'))%:E).
   apply/measurable_EFinP.
   exact: (measurable_test_path_section mM Hβ).
@@ -1008,7 +1008,7 @@ have Hfin_int :
               (\int[fmeas_mu µ]_(r in [set: _]) 1%:E)%E
       by rewrite integral_cst//= mul1e.
     have mf_dirac :
-      measurable_fun [set: ar_carrier Ar X]
+      measurable_fun setT
         (fun r => (fine (fmeas_mu (dirac_fmeas r) U))%:E).
       apply/measurable_EFinP; apply: (measurableT_comp (f := fine)).
         exact: fine_measurable.
