@@ -1,7 +1,7 @@
 # Formalization plan: *Integration in Cones* (Ehrhard & Geoffroy, LMCS 2025)
 
 Paper: <https://arxiv.org/abs/2212.02371> · LMCS DOI 10.46298/LMCS-21(1:1)2025 · 98 pages
-Source extracted at `paper/icones.txt`. Project root: `/home/rocq/icones`.
+(fetch the PDF from those open-access links; it is not bundled here).
 
 ---
 
@@ -253,9 +253,6 @@ Key design notes:
 ├── Makefile.coq                          -- generated
 ├── PLAN.md                                -- this file
 ├── README.md
-├── paper/
-│   ├── icones.pdf
-│   └── icones.txt                         -- extracted, source of truth
 └── theories/
     ├── prelude/
     │   ├── classical_extra.v              -- boolp extensions, ProofIrrelevance helpers

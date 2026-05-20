@@ -1,6 +1,6 @@
 (** * Paper Theorem 6.1 — [Path(X, B) ≃ FMeas(X) ⊸ B]
 
-    Paper reference: §6, lines 2835–3040 of [paper/icones.txt].
+    Paper reference: §6 (arXiv:2212.02371).
 
     For [X : ar_obj Ar] and [B : ICone.type Ar], the paper builds
     an isomorphism in [MCones] between [path_car Ar X B] and

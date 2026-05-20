@@ -1,6 +1,6 @@
 (** * Paper Theorem 6.5 — [Skern ↪ ICones] is fully faithful
 
-    Paper reference: §6.1, lines 3057–3069 of [paper/icones.txt].
+    Paper reference: §6.1 (arXiv:2212.02371).
 
     The functor [Klin : Skern → ICones] sends [X ∈ Ar] to [FMeas(X)]
     and a substochastic kernel [κ : X → FMeas(Y)] to its associated

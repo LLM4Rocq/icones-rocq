@@ -1,6 +1,6 @@
 (** * Paper §6.1 — the substochastic-kernel category [Skern]
 
-    Paper reference: §6.1, lines 3038–3062 of [paper/icones.txt].
+    Paper reference: §6.1 (arXiv:2212.02371).
 
     For [X, Y : ar_obj Ar], a *substochastic kernel* from [X] to [Y] is
     an element of [B_{Path(X, FMeas(Y))}], i.e. a measurable path

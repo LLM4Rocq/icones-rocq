@@ -51,13 +51,15 @@ MIT. See [`LICENSE`](./LICENSE).
 
 ## Paper sources
 
-The paper PDF and an extracted text rendering live under `paper/`:
+The paper is *Integration in Cones* by Thomas Ehrhard and Guillaume
+Geoffroy, available open access:
 
-- `paper/icones.pdf` (1 MB)
-- `paper/icones.txt` (252 KB, 98 pages of UTF-8)
+- arXiv: <https://arxiv.org/abs/2212.02371>
+- LMCS 21(1:1), 2025: DOI [10.46298/LMCS-21(1:1)2025](https://doi.org/10.46298/LMCS-21(1:1)2025)
 
-The extracted text is the canonical reference inside the Rocq sources;
-proofs annotate the paper section and lemma number they correspond to.
+The paper is the canonical reference for the Rocq sources; proofs
+annotate the paper section and lemma number they correspond to. The
+PDF is not bundled in this repository — fetch it from the links above.
 
 ## Blueprint
 
