@@ -282,8 +282,6 @@ split.
 - (* The integral against [fmeas_zero] is [precone_zero]. *)
   apply/esym/icone_integral_eqP => m mM s.
   rewrite test_lin0.
-  have -> : fmeas_mu (fmeas_zero (R:=R) (X:=ar_carrier Ar X))
-            = mzero :> (_ -> _) by [].
   by rewrite integral_measure_zero.
 - by move=> µ1 µ2; rewrite /int_to_linhom_fun; exact: icone_integral_addmu.
 - by move=> r µ; rewrite /int_to_linhom_fun; exact: icone_integral_scalemu.
