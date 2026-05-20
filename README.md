@@ -1,9 +1,9 @@
 # Icones — Integration in Cones, formalized in Rocq
 
-[![Build](https://img.shields.io/github/actions/workflow/status/baudart/icones/build.yml?branch=main&style=for-the-badge&label=build)](https://github.com/baudart/icones/actions/workflows/build.yml)
-[![Blueprint CI](https://img.shields.io/github/actions/workflow/status/baudart/icones/blueprint.yml?branch=main&style=for-the-badge&label=blueprint%20CI)](https://github.com/baudart/icones/actions/workflows/blueprint.yml)
-[![Blueprint](https://img.shields.io/badge/blueprint-online-blue?style=for-the-badge)](https://baudart.github.io/icones/blueprint/)
-[![Blueprint PDF](https://img.shields.io/badge/blueprint-PDF-red?style=for-the-badge)](https://baudart.github.io/icones/blueprint.pdf)
+[![Build](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/build.yml?branch=main&style=for-the-badge&label=build)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/build.yml)
+[![Blueprint CI](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/blueprint.yml?branch=main&style=for-the-badge&label=blueprint%20CI)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/blueprint.yml)
+[![Blueprint](https://img.shields.io/badge/blueprint-online-blue?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint/)
+[![Blueprint PDF](https://img.shields.io/badge/blueprint-PDF-red?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)
 [![Rocq 9.1.1](https://img.shields.io/badge/rocq-9.1.1-orange?style=for-the-badge)](https://rocq-prover.org/)
 [![License](https://img.shields.io/badge/license-CC--BY--4.0-blue.svg?style=for-the-badge)](https://creativecommons.org/licenses/by/4.0/)
 
@@ -12,11 +12,9 @@ Thomas Ehrhard and Guillaume Geoffroy
 ([LMCS 21(1:1), 2025](https://doi.org/10.46298/LMCS-21(1:1)2025),
 [arXiv:2212.02371](https://arxiv.org/abs/2212.02371)).
 
-> The badge URLs above assume the repository lives at
-> `github.com/baudart/icones` with GitHub Pages at
-> `baudart.github.io/icones`. If you publish elsewhere, update the
-> `baudart/icones` slug in the badges (and the `homepage`/`dev-repo`
-> fields of `icones.opam`).
+> The `Blueprint online` / `Blueprint PDF` badges resolve once the
+> blueprint workflow has deployed to GitHub Pages (enable Pages →
+> "GitHub Actions" in the repository settings).
 
 ## Status
 

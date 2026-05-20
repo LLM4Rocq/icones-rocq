@@ -14,9 +14,9 @@ embedding of substochastic kernels into the category of integrable cones.
 maintainer: "Icones contributors"
 authors: ["Icones contributors"]
 license: "CC-BY-4.0"
-homepage: "https://github.com/baudart/icones"
-bug-reports: "https://github.com/baudart/icones/issues"
-dev-repo: "git+https://github.com/baudart/icones.git"
+homepage: "https://github.com/LLM4Rocq/icones-rocq"
+bug-reports: "https://github.com/LLM4Rocq/icones-rocq/issues"
+dev-repo: "git+https://github.com/LLM4Rocq/icones-rocq.git"
 depends: [
   "rocq-core" { >= "9.1" }
   "rocq-mathcomp-ssreflect" { >= "2.5.0" }
