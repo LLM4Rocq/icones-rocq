@@ -5,57 +5,521 @@
 %   cone.v             paper Def 2.4: cones, norm, ω-completeness
 %   basic_lemmas.v     supporting lemmas on cones
 %   cone_cat.v         paper §2.4: the category Cones
-%   examples_cone.v    canonical examples (R≥0, ℓ¹, ...)
-%
-% TODO (wave 2): populate each section below with the corresponding
-% statements and informal proofs. Use \rocq{Icones.cones.<file>.<name>}
-% to point at each Rocq declaration, \rocqok when the proof is closed
-% by Qed, and \uses{...} to wire up the dep graph.
+%   examples_cone.v    canonical examples (⊤, ⊥)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Cones}\label{ch:cones}
 
-This chapter formalises paper \S2: precones, cones, the norm on a
-cone, $\omega$-completeness, and the category $\Cones$. All material
-in this chapter lives under \texttt{theories/cones/}.
+This chapter formalises paper \S2 of Ehrhard and
+Geoffroy~\cite{ehrhard-geoffroy-icones}: precones, cones, the
+norm, $\omega$-completeness of the unit ball, and the category
+$\Cones$. All material in this chapter lives under
+\texttt{theories/cones/}.
 
-\section{Precones}\label{sec:precones}
+Positive cones in the sense of Selinger~\cite{ehrhard-geoffroy-icones}
+are algebraic structures with both a numerical and a domain-theoretic
+flavour: an $\Rnn$-semimodule satisfying two cancellation/positivity
+axioms (this is the \emph{precone} layer), augmented with a norm
+$\cnorm{\cdot} : P \to \Rnn$ satisfying scalar-homogeneity,
+zero-detection, sub-additivity, order-monotonicity, and the
+$\omega$-completeness of the unit ball. They provide the basic
+objects of the model of probabilistic computation developed in
+\cite{ehrhard-geoffroy-icones}, where the algebraic and numerical
+parts encode probabilistic combinations of states, and the
+domain-theoretic part is what enables interpretation of recursion.
+Compared with Tix~\cite{ehrhard-geoffroy-icones}, the order-theoretic
+completeness is restricted to countable, norm-bounded
+$\omega$-chains, which suffices for fixed-point reasoning and is
+preserved by the monotone-convergence theorem of measure theory ---
+a fact that becomes essential in M2 and M3.
 
-% TODO (wave 2): paper Def 2.1, 2.2 — the $\Rnn$-semimodule structure
-% with a partial order, ω-suprema on bounded monotone sequences, and
-% the precone laws. Point at:
-%   \rocq{Icones.cones.precone.PreCone}
-%   \rocq{Icones.cones.precone.preconeType}
-% List the basic algebraic lemmas (add_assoc, scale_distr, sup_mono,
-% etc.) and tag each with \rocqok.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Basic definitions}\label{sec:precones}
 
-\section{Cones and the norm}\label{sec:cones}
+We begin with the purely algebraic layer.
 
-% TODO (wave 2): paper Def 2.4 — a cone is a precone with a norm
-% $\cnorm{\cdot}$ satisfying the four axioms of Def 2.4 plus
-% $\omega$-completeness on the unit ball. Point at:
-%   \rocq{Icones.cones.cone.Cone}
-%   \rocq{Icones.cones.cone.cone_norm0}
-%   \rocq{Icones.cones.cone.cone_norm_ge0}
-%   \rocq{Icones.cones.cone.cone_normz_iff}
-%   \rocq{Icones.cones.cone.cone_sup_ball_in_unit}
+\begin{definition}[Precone]\label{def:precone}
+\rocqok\rocq{Icones.cones.precone.isPrecone}
+An $\Rnn$-\emph{precone} is a set $P$ equipped with a constant
+$0 \in P$, an addition $+ : P \times P \to P$ and a scalar
+multiplication ${\cdot}: \Rnn \times P \to P$, making $P$ into a
+commutative $\Rnn$-semimodule (associativity, commutativity, unit
+$0$, distributivity, scalar associativity, $1 \cdot x = x$,
+$r \cdot 0 = 0$, $0 \cdot x = 0$), and additionally satisfying:
+\begin{description}
+  \item[\textnormal{(Cancel)}] $\forall x, x_1, x_2 \in P,\;
+    x_1 + x = x_2 + x \;\Rightarrow\; x_1 = x_2$;
+  \item[\textnormal{(Pos)}] $\forall x_1, x_2 \in P,\;
+    x_1 + x_2 = 0 \;\Rightarrow\; x_1 = 0 \text{ and } x_2 = 0$.
+\end{description}
+\end{definition}
 
-\section{Basic lemmas}\label{sec:cone-basic-lemmas}
+The cancellation and positivity axioms together imply that the
+relation $x_1 \cle x_2 \;\Leftrightarrow\; \exists z\in P,\,
+x_2 = x_1 + z$ is a partial order on $P$, the \emph{cone order},
+and that when $x_1 \cle x_2$ the difference $x_2 - x_1$ is uniquely
+defined. The Rocq counterpart is $\rocq{Icones.cones.precone.precone_le}$,
+with the antisymmetry/transitivity lemmas just below it in
+\texttt{precone.v}. The norm-free precone layer is sufficient to talk
+about the cone order and its arithmetic.
 
-% TODO (wave 2): the structural lemmas of theories/cones/basic_lemmas.v
-% (monotonicity of the sup, scalar continuity, sub/add cancellation on
-% bounded elements). One subsection per lemma family.
+\begin{definition}[Cone]\label{def:cone}
+\uses{def:precone}
+\rocqok\rocq{Icones.cones.cone.isCone}
+A \emph{cone} is a precone $P$ equipped with a function
+$\cnorm{\cdot}_P : P \to \Rnn$, called the norm of $P$, satisfying
+\begin{description}
+  \item[\textnormal{(Normh)}]
+    $\cnorm{\lambda x} = \lambda \cnorm{x}$ for all
+    $\lambda \in \Rnn, x \in P$;
+  \item[\textnormal{(Normz)}]
+    $\cnorm{x} = 0 \;\Rightarrow\; x = 0$;
+  \item[\textnormal{(Normt)}]
+    $\cnorm{x_1 + x_2} \leq \cnorm{x_1} + \cnorm{x_2}$;
+  \item[\textnormal{(Normp)}]
+    $x_1 \cle x_2 \;\Rightarrow\; \cnorm{x_1} \leq \cnorm{x_2}$;
+  \item[\textnormal{(Normc)}]
+    Every $\omega$-chain $(x_n)_{n \in \N}$ in $P$ with
+    $\cnorm{x_n} \leq 1$ for all $n$ has a least upper bound
+    $x = \bigsup_{n} x_n \in P$ which moreover satisfies
+    $\cnorm{x} \leq 1$.
+\end{description}
+We write $B_P = \{x \in P \mid \cnorm{x} \leq 1\}$ for the
+\emph{unit ball} of $P$.
+\end{definition}
 
+The Rocq mixin packages (Normc) as a concrete operator
+$\rocq{Icones.cones.cone.cone_sup_ball}$
+together with three lemmas
+($\rocq{Icones.cones.cone.cone_sup_ball_ub}$,
+$\rocq{Icones.cones.cone.cone_sup_ball_lub}$,
+$\rocq{Icones.cones.cone.cone_sup_ball_norm}$)
+witnessing that it is an upper bound, the least one, and lives in the
+unit ball. From (Normh) and (Normp) one immediately derives that
+$\cnorm{0} = 0$ ($\rocq{Icones.cones.cone.cone_norm0}$), that
+$\cnorm{x} \geq 0$ ($\rocq{Icones.cones.cone.cone_norm_ge0}$), and
+that (Normz) can be repackaged as the biconditional
+$\rocq{Icones.cones.cone.cone_normz_iff}$.
+
+We use $\rocq{Icones.cones.cone.cnorm}$ as a short abbreviation for
+$\rocq{Icones.cones.cone.cone_norm}$ throughout. Functions between
+cones (or, more generally, between $\omega$-closed subsets of cones)
+will be called \emph{increasing}, $\omega$-\emph{continuous},
+\emph{linear}, or \emph{bounded} in the senses of paper Def.~2.2;
+the corresponding Rocq predicates are
+$\rocq{Icones.cones.basic_lemmas.is_increasing}$,
+$\rocq{Icones.cones.basic_lemmas.is_omega_continuous}$, and
+$\rocq{Icones.cones.basic_lemmas.is_linear}$.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The cone of finite measures (motivational example)}\label{sec:cone-fmeas}
+
+Paper \S2.2 introduces the central example that drives the whole
+development: for a measurable space $X$, the set $\FMeas(X)$ of finite
+non-negative measures on $X$ is a cone. The algebraic operations are
+defined pointwise on measurable sets ($(\mu_1 + \mu_2)(U) =
+\mu_1(U) + \mu_2(U)$, $(\lambda \mu)(U) = \lambda \mu(U)$); the norm
+is the total mass $\cnorm{\mu} = \mu(X)$; the cone order coincides
+with the pointwise order; least upper bounds of norm-bounded
+increasing sequences are computed pointwise on measurable sets and
+exist by the monotone-convergence theorem. The proper treatment of
+$\FMeas(X)$ as a cone (and later as a measurable cone) is the subject
+of Chapter~\ref{ch:mcones}. We mention it here only as the prototype
+which all the abstract conditions of Definition~\ref{def:cone} are
+designed to capture.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Basic properties}\label{sec:cone-basic-lemmas}
+
+The next four lemmas are the algebraic backbone of the theory. They
+appear as paper Lemmas~2.8--2.11. The Rocq counterparts live in
+$\rocq{Icones.cones.basic_lemmas}$.
+
+\begin{lemma}[Inverse of a linear $\omega$-continuous bijection]
+\label{lem:invf-linear-cont}
+\uses{def:cone}
+\rocqok\rocq{Icones.cones.basic_lemmas.invf_linear}
+\rocq{Icones.cones.basic_lemmas.invf_omega_continuous}
+Let $P$ and $Q$ be cones and let $f : P \to Q$ be a linear
+$\omega$-continuous bijection. Then $f^{-1} : Q \to P$ is also
+linear and $\omega$-continuous.
+\end{lemma}
+
+\begin{proof}
+Linearity of $f^{-1}$ follows from injectivity of $f$: for
+$y_1, y_2 \in Q$ both $f^{-1}(y_1 + y_2)$ and $f^{-1}(y_1) +
+f^{-1}(y_2)$ have image $y_1 + y_2$ under $f$, so they agree;
+similarly for scalar multiplication. Since $f^{-1}$ is linear it
+is monotone. For $\omega$-continuity, let $(y_n)$ be an
+$\omega$-chain in $B_Q$ with sup $y$. The chain $(f^{-1}(y_n))$
+is increasing, bounded above by $f^{-1}(y)$, hence sits in a
+ball of $P$ and has a sup $x \cle f^{-1}(y)$. Applying $f$ and
+using its continuity gives $f(x) = \sup_n y_n = y$, so
+$x = f^{-1}(y)$ by injectivity.
+\end{proof}
+
+\begin{lemma}[Addition and scaling are increasing and $\omega$-continuous]
+\label{lem:add-scale-cont}
+\uses{def:cone}
+\rocqok\rocq{Icones.cones.basic_lemmas.addr_increasing}
+\rocq{Icones.cones.basic_lemmas.addl_increasing}
+\rocq{Icones.cones.basic_lemmas.scaler_increasing}
+\rocq{Icones.cones.basic_lemmas.addr_omega_continuous}
+\rocq{Icones.cones.basic_lemmas.addl_omega_continuous}
+\rocq{Icones.cones.basic_lemmas.scaler_omega_continuous}
+Let $P$ be a cone. The maps
+$x \mapsto x + y$, $y \mapsto x + y$ and $x \mapsto \lambda \cdot x$
+(for fixed $y \in P$, $x \in P$, $\lambda \in \Rnn$) are increasing
+and $\omega$-continuous on $P$.
+\end{lemma}
+
+\begin{proof}
+Monotonicity is by inspection of the cone order: if $x_1 \cle x_2$
+with witness $x_2 = x_1 + z$, then $x_1 + y \cle x_2 + y$ via the
+same $z$, and similarly for scaling. For $\omega$-continuity, one
+shows directly that the chain sup commutes with $x \mapsto x + y$
+by appealing to least-upper-bound uniqueness in the unit ball
+(after a renormalisation: $(x_n + y)$ may exit $B_P$, so the proof
+proceeds by rescaling to a chain in $B_P$, taking the sup there,
+and rescaling back).
+\end{proof}
+
+\begin{lemma}[$\omega$-continuity of differences]
+\label{lem:diff-omega-continuous}
+\uses{lem:add-scale-cont}
+\rocqok\rocq{Icones.cones.basic_lemmas.diff_omega_continuous}
+Let $P$ and $Q$ be cones, $A \subseteq P$ an $\omega$-closed
+subset, and $f, g : A \to Q$ functions with $f$ increasing, $g$
+$\omega$-continuous, and $f(x) \cle g(x)$ for all $x \in A$. If
+the pointwise difference $g - f : x \mapsto g(x) - f(x)$ is
+increasing, then $g - f$ is $\omega$-continuous.
+\end{lemma}
+
+\begin{proof}
+Let $(x_n)$ be a bounded increasing chain in $A$ with sup $x$.
+For each $n$, $f(x_n) \cle f(x) \cle f(x) + (g(x_n) - f(x_n))$,
+i.e.\ $g(x_n) \cle f(x) + (g(x_n) - f(x_n))$. The chain $n
+\mapsto f(x) + (g(x_n) - f(x_n))$ is increasing by hypothesis
+and order-bounded by $f(x) + g(x)$. By $\omega$-continuity of $g$
+and Lemma~\ref{lem:add-scale-cont},
+$g(x) = \sup_n g(x_n) \cle f(x) + \sup_n (g(x_n) - f(x_n))$,
+and hence $g(x) - f(x) \cle \sup_n (g(x_n) - f(x_n))$. The
+converse inequality holds by monotonicity of $g - f$.
+\end{proof}
+
+\begin{lemma}[Operator-norm boundedness]
+\label{lem:linmap-norm}
+\uses{def:cone}
+\rocqok\rocq{Icones.cones.basic_lemmas.linmap_bounded}
+\rocq{Icones.cones.basic_lemmas.linmap_norm}
+If $f : P \to Q$ is linear (not necessarily $\omega$-continuous)
+then $f(B_P)$ is bounded in $Q$, and we may define
+\[
+  \cnorm{f} \;=\; \sup_{x \in B_P} \cnorm{f(x)} \;\in\; \Rnn.
+\]
+\end{lemma}
+
+\begin{proof}
+If $f(B_P)$ were unbounded, pick $x_n \in B_P$ with
+$\cnorm{f(x_n)} \geq 4^n$. The sum $y_n = \sum_{k=1}^{n}
+\tfrac{1}{2^k} x_k$ lies in $B_P$ (by (Normt) and (Normh)) and
+the chain $(y_n)$ is increasing, hence has a sup $y \in B_P$ by
+(Normc). Linearity and (Normp) give
+$\cnorm{f(y)} \geq \cnorm{f(\tfrac{1}{2^n} x_n)} = \tfrac{1}{2^n}
+\cnorm{f(x_n)} \geq 2^n$ for every $n$, contradicting
+$\cnorm{f(y)} \in \Rnn$. Once $f(B_P)$ is bounded, the supremum
+$\cnorm{f}$ exists in $\R$ by Dedekind completeness; in Rocq it
+is extracted via $\rocq{Icones.cones.basic_lemmas.linmap_norm}$
+(based on $\mathsf{xchoose}$ applied to the boundedness witness).
+\end{proof}
+
+\begin{remark}
+Strikingly, the boundedness of $f(B_P)$ holds without any
+continuity assumption on $f$. The Rocq development records this as
+$\rocq{Icones.cones.basic_lemmas.linmap_bounded}$, and exposes the
+sup as $\rocq{Icones.cones.basic_lemmas.linmap_norm}$ with bound
+witness $\rocq{Icones.cones.basic_lemmas.linmap_norm_ub}$.
+\end{remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The category $\Cones$}\label{sec:cat-cones}
 
-% TODO (wave 2): paper §2.4 — objects = cone types, morphisms =
-% $\Rnn$-linear, $\omega$-continuous, norm-non-expansive maps;
-% composition and identity; the proof that this assembles into a
-% category. Point at:
-%   \rocq{Icones.cones.cone_cat.Cones_cat}
+\begin{definition}[The category $\Cones$ --- Paper Definition~2.17]
+\label{def:cones-cat}
+\uses{def:cone, lem:linmap-norm}
+\rocqok\rocq{Icones.cones.cone_cat.cones_hom}
+\rocq{Icones.cones.cone_cat.cones_id}
+\rocq{Icones.cones.cone_cat.cones_comp}
+The category $\Cones$ has cones as objects. A morphism $f : P \to Q$
+in $\Cones(P,Q)$ is a function which is linear,
+$\omega$-continuous, and satisfies $\cnorm{f} \leq 1$. Identity
+and composition are inherited from $\Set$.
+\end{definition}
 
-\section{Examples}\label{sec:cone-examples}
+\begin{remark}
+In the Rocq encoding the operator-norm condition $\cnorm{f} \leq 1$
+is replaced by its pointwise reformulation
+\[
+  \forall x \in P,\quad \cnorm{f(x)}_Q \;\leq\; \cnorm{x}_P,
+\]
+which is equivalent under Lemma~\ref{lem:linmap-norm} but avoids
+having to materialise the operator norm at the level of every
+morphism. See the design-choices section below for why this trade
+is preferable. The morphism record is
+$\rocq{Icones.cones.cone_cat.cones_hom}$, with identity and
+composition $\rocq{Icones.cones.cone_cat.cones_id}$ and
+$\rocq{Icones.cones.cone_cat.cones_comp}$. Category laws are proved
+by subtype extensionality ($\rocq{Icones.cones.cone_cat.cones_hom_eq}$)
+followed by direct calculation:
+$\rocq{Icones.cones.cone_cat.cones_compIl}$,
+$\rocq{Icones.cones.cone_cat.cones_compIr}$,
+$\rocq{Icones.cones.cone_cat.cones_compA}$.
+\end{remark}
 
-% TODO (wave 2): canonical examples — $\Rnn$ itself, $\ell^1$,
-% finite-dimensional non-negative orthants. Point at the relevant
-% declarations in \texttt{theories/cones/examples\_cone.v}.
+\begin{theorem}[Small products in $\Cones$ --- Paper Theorem~2.18]
+\label{thm:cones-products}
+\uses{def:cones-cat}
+\rocqok\rocq{Icones.cones.cone_cat.cones_prod}
+\rocq{Icones.cones.cone_cat.cones_proj}
+\rocq{Icones.cones.cone_cat.cones_tuple}
+Let $(P_i)_{i \in I}$ be a family of cones, indexed by an arbitrary
+type $I$. Their product in $\Cones$ is the cone $\&_{i \in I} P_i$
+of norm-bounded sections of $\prod_i P_i$, equipped with
+componentwise operations and norm
+$\cnorm{\vec{x}} = \sup_{i \in I} \cnorm{x_i}_{P_i}$. The
+projections are the standard set-theoretic projections; the
+mediating arrow associated with $(f_i \in \Cones(Q, P_i))_{i \in I}$
+is $y \mapsto (f_i(y))_{i \in I}$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The carrier is the record
+$\rocq{Icones.cones.cone_cat.cones_prod_car}$, a $\Sigma$-type of a
+section $i \mapsto x_i$ together with a boundedness witness
+$\exists M, \forall i, \cnorm{x_i} \leq M$. Pointwise addition and
+scaling preserve boundedness by (Normt) and (Normh); the precone
+axioms transport componentwise. The norm
+$\cnorm{\vec{x}} = \sup_i \cnorm{x_i}$ is taken in $\R$ via
+$\rocq{Icones.cones.cone_cat.cones_prod_norm}$, using Dedekind
+completeness on the bounded set
+$\rocq{Icones.cones.cone_cat.cones_prod_normset}$. Axioms (Normh)
+to (Normp) reduce to componentwise properties; (Normc) is
+established by taking componentwise suprema of the chain
+($\rocq{Icones.cones.cone_cat.cones_prod_sup_ball}$). Projections
+are linear, $\omega$-continuous, and pointwise norm-non-expansive
+($\rocq{Icones.cones.cone_cat.cones_proj}$); the tuple
+$y \mapsto (f_i(y))_{i \in I}$ is norm-bounded by the sup of the
+operator norms of the $f_i$'s, all bounded by $\cnorm{y}$, hence is
+itself a morphism in $\Cones$
+($\rocq{Icones.cones.cone_cat.cones_tuple}$). Uniqueness of the
+mediating arrow follows from extensionality
+($\rocq{Icones.cones.cone_cat.cones_tuple_unique}$).
+\end{proof}
+
+\begin{remark}
+The empty product yields the terminal object $\top$ (paper
+\S2.3): the zero-dimensional cone with one element.
+\end{remark}
+
+\begin{lemma}[Separate $\omega$-continuity implies joint $\omega$-continuity --- Paper Lemma~2.19]
+\label{lem:separate-implies-joint}
+\uses{thm:cones-products}
+\rocqok\rocq{Icones.cones.cone_cat.diagonal_collapse}
+Let $P, Q, R$ be cones, $A \subseteq P$ and $B \subseteq Q$ be
+$\omega$-closed subsets, and $f : A \times B \to R$ be separately
+$\omega$-continuous (continuous in each argument with the other
+fixed). Then $f$ is $\omega$-continuous.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+For an $\omega$-chain $((x_n, y_n))$ with sup $(\sup_n x_n, \sup_n y_n)$,
+separate continuity gives $f(\sup_n x_n, \sup_n y_n) = \sup_n \sup_k
+f(x_n, y_k)$. Monotonicity of $f$ collapses the double supremum to
+the diagonal $\sup_n f(x_n, y_n)$. The Rocq lemma
+$\rocq{Icones.cones.cone_cat.diagonal_collapse}$ packages the
+diagonal-collapse step (the substantive content) on
+$\omega$-completed chains.
+\end{proof}
+
+\begin{theorem}[Binary equalisers in $\Cones$ --- Paper Theorem~2.20]
+\label{thm:cones-equalisers}
+\uses{def:cones-cat}
+\rocqok\rocq{Icones.cones.cone_cat.cones_eq}
+\rocq{Icones.cones.cone_cat.cones_eq_incl}
+\rocq{Icones.cones.cone_cat.cones_eq_med}
+\rocq{Icones.cones.cone_cat.cones_eq_med_factor}
+\rocq{Icones.cones.cone_cat.cones_eq_med_unique}
+For any parallel pair $f, g \in \Cones(P, Q)$, the equaliser
+$E = \{x \in P \mid f(x) = g(x)\}$ inherits a unique cone structure
+from $P$, and the inclusion $e : E \hookrightarrow P$ is a
+morphism in $\Cones$. Furthermore $e$ reflects the cone order: if
+$e(x) \cle e(y)$ in $P$ then $x \cle y$ in $E$. Together with
+Theorem~\ref{thm:cones-products}, this shows that $\Cones$ is
+\emph{complete}.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Linearity of $f, g$ makes $E$ closed under the algebraic
+operations. The norm of $E$ is the restriction of the norm of $P$,
+which trivially inherits (Normh), (Normz), (Normt) and (Normp).
+For (Normc), an $\omega$-chain in $B_E$ is in particular a chain
+in $B_P$ and has a sup $x \in B_P$; $\omega$-continuity of $f$
+and $g$ then yields $f(x) = g(x)$, i.e.\ $x \in E$. The order on
+$E$ inherited from $P$ coincides with the cone order computed
+inside $E$, because if $x_1 \cle_P x_2$ for $x_1, x_2 \in E$
+then the difference $x_2 - x_1$ in $P$ lies in $E$ (by linearity
+of $f$ and $g$). Universality of the equaliser is direct: given
+$h \in \Cones(T, P)$ with $f \circ h = g \circ h$, the function
+$h$ factors through $E$ via the canonical mediator
+$\rocq{Icones.cones.cone_cat.cones_eq_med}$; uniqueness follows
+from injectivity of the inclusion.
+\end{proof}
+
+\begin{lemma}[Norm bound on an isomorphism --- Paper Lemma~2.21 + Proposition~2.22]
+\label{lem:iso-preserves-norm}
+\uses{def:cones-cat, lem:linmap-norm}
+\rocqok\rocq{Icones.cones.cone_cat.cones_iso_preserves_norm}
+If $f \in \Cones(P, Q)$ is an isomorphism (i.e.\ there exists
+$g \in \Cones(Q, P)$ with $g \circ f = \id_P$ and $f \circ g =
+\id_Q$), then $f$ is norm-preserving: $\cnorm{f(x)}_Q = \cnorm{x}_P$
+for all $x \in P$.
+\end{lemma}
+
+\begin{proof}
+One direction $\cnorm{f(x)} \leq \cnorm{x}$ is the morphism
+condition on $f$. Conversely, $\cnorm{x} = \cnorm{g(f(x))} \leq
+\cnorm{f(x)}$ by the morphism condition on $g$ together with
+$g \circ f = \id_P$. The Rocq proof
+$\rocq{Icones.cones.cone_cat.cones_iso_preserves_norm}$ records
+this in pointwise form, which subsumes Proposition~2.22's
+$\cnorm{f} = 1$ (when $P \neq 0$) of the paper.
+\end{proof}
+
+\begin{lemma}[Transport of cone structure along a bijection --- Paper Lemma~2.23]
+\label{lem:cone-transport}
+\uses{def:cone}
+\rocqok\rocq{Icones.cones.cone_cat.transport_isPrecone}
+Let $P$ be a cone, $S$ a set, and $f : P \to S$ a bijection.
+There is a unique cone structure on $S$ making $f$ an isomorphism
+in $\Cones$.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Transport the operations along $f$: $s + t := f(f^{-1}(s) +
+f^{-1}(t))$, $r \cdot s := f(r \cdot f^{-1}(s))$, $\cnorm{s} :=
+\cnorm{f^{-1}(s)}$. The cone axioms transport verbatim, and the
+structure is forced by the requirement that $f$ be a $\Cones$-iso.
+The Rocq construction lives in
+$\rocq{Icones.cones.cone_cat.ConesTransport}$, with the precone
+mixin assembled by
+$\rocq{Icones.cones.cone_cat.transport_isPrecone}$.
+\end{proof}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Examples: $\top$ and $\bot$}\label{sec:cone-examples}
+
+\begin{definition}[The zero-dimensional cone $\top$]
+\label{def:cone-top}
+\uses{def:cone}
+\rocqok\rocq{Icones.cones.examples_cone.ConeBot.T}
+The cone $\top$ has a single element. Addition, scaling, the norm
+($\equiv 0$), and the $\omega$-sup are all constant. It is the
+terminal object of $\Cones$ (cf.\ Theorem~\ref{thm:cones-products}).
+In Rocq, the carrier is the one-constructor inductive
+$\rocq{Icones.cones.examples_cone.ConeBot.T}$ wrapped in a
+\texttt{Module} to avoid name clashes with the dual example.
+\end{definition}
+
+\begin{definition}[The one-dimensional cone $\bot = \Rnn$]
+\label{def:cone-bot}
+\uses{def:cone}
+\rocqok\rocq{Icones.cones.examples_cone.ConeOne.T}
+The cone $\bot$ has carrier $\Rnn$, with the obvious operations
+$r + s$, $\lambda \cdot r$, and norm $\cnorm{r} = r$. Direct
+verification of the cone axioms is bundled in
+$\rocq{Icones.cones.examples_cone.ConeOne.T}$.
+\end{definition}
+
+\begin{remark}[Wrapper records]
+Each of $\top$ and $\bot$ is declared as a fresh inductive (or a
+fresh \texttt{Definition} of an abbreviation type) wrapped in a
+\texttt{Module} so that the \HB{} instances do not clash. This is
+a standard \HB{}/Rocq idiom: two distinct cones must have distinct
+carrier types in order for HB to attach two distinct
+$\rocq{Icones.cones.precone.isPrecone}$ /
+$\rocq{Icones.cones.cone.isCone}$ instances. A raw
+\texttt{Notation T := unit} (resp.\ $\texttt{T := \{nonneg R\}}$)
+would mean both cones share a carrier, so HB would resolve to one
+canonical structure only.
+\end{remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Design choices}\label{sec:cones-design}
+
+The Rocq formalisation makes several pragmatic design choices that
+diverge from the most literal transcription of paper Definition~2.4.
+We document them here because they propagate through M2--M5.
+
+\paragraph{The norm is valued in $\R$, not $\mathsf{\{nonneg\;R\}}$.}
+The paper's norm is $\cnorm{\cdot} : P \to \Rnn$. The Rocq mixin
+$\rocq{Icones.cones.cone.isCone}$ instead chooses
+$\cnorm{\cdot} : P \to R$ with $R$ a $\mathsf{realType}$, and adds
+the derived lemma $\cnorm{x} \geq 0$
+($\rocq{Icones.cones.cone.cone_norm_ge0}$) to recover the
+non-negativity statement. Choosing $\mathsf{\{nonneg\;R\}}$ as codomain
+would force a forest of $\%\!:\!\mathsf{num}$ coercions in every
+arithmetic step of every downstream proof (e.g.\ in
+$\rocq{Icones.cones.cone.cone_norm0}$ alone), with no logical
+benefit. Keeping the norm in $R$ and proving positivity separately
+matches mathcomp's standard treatment of norms on metric and
+normed spaces.
+
+\paragraph{No \texttt{Order.POrder} instance on \texttt{Precone}.}
+The cone order
+$x_1 \cle x_2 \;\Leftrightarrow\; \exists z,\, x_2 = x_1 + z$
+is a \texttt{Prop}-valued partial order, and is in general not
+decidable. Attempting to register it as
+$\rocq{Icones.cones.precone.Precone}$ +
+$\texttt{Order.POrder}$ in HB would either force a $\mathsf{bool}$
+projection (forbidden by the existential) or carry the entire
+order theory along ghost \texttt{Prop} arguments, with constant
+unification grief. We therefore expose the order purely as a
+predicate $\rocq{Icones.cones.precone.precone_le}$ with its
+reflexivity/transitivity/antisymmetry lemmas (and the rewriting
+lemmas of $\rocq{Icones.cones.precone.PreconeOrder}$), reserving
+HB hierarchies for the algebraic and normed structures.
+
+\paragraph{(Normc) as a concrete \texttt{sup\_ball} operator.}
+The paper's (Normc) is an existence statement: every bounded
+$\omega$-chain in $B_P$ has a sup. We could have packaged this in
+Rocq using a sigma-type $\{x \mid \cdots\}$ from which a sup could
+be extracted by $\mathsf{cid}$ on demand. We chose instead to
+expose the sup as a concrete operator
+$\rocq{Icones.cones.cone.cone_sup_ball}$ taking the chain and the
+chain-hypotheses as arguments, plus three characterising lemmas.
+This pays dividends in M2 and M3, where many proofs need direct
+access to the sup as a function of the chain (e.g.\ to argue that
+two chain-equivalences yield equal sups, by
+$\rocq{Icones.prelude.omegacpo.sup_irrelevant}$-style reasoning).
+Re-extracting the sup via $\mathsf{cid}$ at every use would block
+the rewriting steps in downstream
+$\omega$-continuity proofs.
+
+\paragraph{Pointwise vs.\ operator-norm condition on morphisms.}
+Paper Definition~2.17 takes morphisms $f : P \to Q$ satisfying
+$\cnorm{f} \leq 1$ where $\cnorm{f} = \sup_{x \in B_P} \cnorm{f(x)}$
+(Lemma~\ref{lem:linmap-norm}). The Rocq record
+$\rocq{Icones.cones.cone_cat.cones_hom}$ instead carries the
+pointwise condition
+\[
+  \forall x \in P, \quad \cnorm{f(x)}_Q \;\leq\; \cnorm{x}_P,
+\]
+which is logically equivalent (one direction is immediate by
+(Normh); the other is by definition of the sup applied to a
+rescaling of $x$). The pointwise form has two advantages: it does
+not require materialising
+$\rocq{Icones.cones.basic_lemmas.linmap_norm}$ inside every
+$\mathsf{cones\_hom}$ record (and $\mathsf{linmap\_norm}$ uses
+$\mathsf{xchoose}$ internally), and it composes elegantly under
+$\rocq{Icones.cones.cone_cat.comp_norm_le1}$. The operator norm
+remains available as a derived quantity when needed.
