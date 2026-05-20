@@ -90,11 +90,13 @@ rocqblueprint pdf      # PDF  → blueprint/print/print.pdf
 ```
 
 In CI, [`.github/workflows/blueprint.yml`](./.github/workflows/blueprint.yml)
-builds both the HTML and the PDF on every push to `main` (and on PRs),
-uploads them as artefacts, and (on `main` only) publishes them to
-GitHub Pages. The blueprint workflow uses `continue-on-error: true`
-throughout and is independent of the gating Rocq build below — a
-blueprint failure never blocks a PR.
+builds the HTML (and best-effort PDF) on every push to `main` (and on
+PRs), uploads them as artefacts, and (on `main` only) publishes them to
+GitHub Pages. The blueprint web build is the gating step: if it fails,
+the coqdoc build and the Pages deploy are skipped and the workflow
+(and its badge) goes red — an honest signal. It stays independent of
+the main Rocq build and never *blocks* a PR, because it is simply not
+marked a required status check (not because failures are hidden).
 
 The Rocq build itself is gated by
 [`.github/workflows/build.yml`](./.github/workflows/build.yml), which

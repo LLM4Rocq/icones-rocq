@@ -1,11 +1,13 @@
 name: Deploy Blueprint
 
-# The blueprint build is intentionally a SEPARATE workflow from the
-# main Rocq build. A blueprint failure must never block PRs against the
-# Rocq formalisation — auditors who clone the repo and run `make` must
-# always be able to merge a passing PR even if (say) the LaTeX
-# pipeline broke on a dependency update. All blueprint steps below
-# either `continue-on-error: true` or use `|| true` to enforce this.
+# The blueprint build is a SEPARATE workflow from the main Rocq build
+# (build.yml). It is kept NON-BLOCKING by simply not making it a
+# required status check in branch protection — NOT by hiding failures.
+# A failing blueprint build therefore turns this workflow (and its
+# badge) red, which is the honest signal, while still never blocking a
+# merge. Only the best-effort coqdoc job below keeps
+# `continue-on-error: true` (a missing coqdoc page is cosmetic); the
+# blueprint web build and the Pages deploy fail loudly.
 
 on:
   push:
@@ -25,6 +27,10 @@ concurrency:
 
 jobs:
   build-docs:
+    # Gate coqdoc on the blueprint web build: if the blueprint fails
+    # there is no point spending the (slow) Rocq toolchain install on
+    # coqdoc, nor deploying. coqdoc itself stays best-effort.
+    needs: build-blueprint
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -68,7 +74,6 @@ jobs:
 
   build-blueprint:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -119,7 +124,6 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [build-docs, build-blueprint]
     runs-on: ubuntu-latest
-    continue-on-error: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
