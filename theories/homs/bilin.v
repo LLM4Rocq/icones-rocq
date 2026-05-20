@@ -545,11 +545,11 @@ have HµY_pet := icone_integralP β' Hβ' µ'
                   (fmeas_eU (ar_zero Ar) mU)
                   (ex_intro _ U (ex_intro _ mU erefl))
                   (ar_zero_pt Ar).
-have HµYUfin : (fmeas_mu (icone_integral β' Hβ' µ') U \is a fin_num)%E.
+have HµYUfin : fmeas_mu (icone_integral β' Hβ' µ') U \is a fin_num.
   exact: fmeas_fin.
 have intfin :
-    (\int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y]) fmeas_mu (β' y) U
-     \is a fin_num)%E.
+    \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y]) fmeas_mu (β' y) U
+     \is a fin_num.
   have meas_int :
     measurable_fun [set: ar_carrier Ar Y]
       (fun y => fmeas_mu (β' y) U).
@@ -558,14 +558,14 @@ have intfin :
   have Mb_ge0 : (0 <= Mβ')%R.
     by apply: le_trans (HMβ' (ar_point _ _)); exact: cone_norm_ge0.
   have intge0 :
-    (0 <= \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
-            fmeas_mu (β' y) U)%E.
+    0 <= \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+            fmeas_mu (β' y) U.
     by apply: integral_ge0 => y _; exact: measure_ge0.
   have intle :
-    (\int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
-       fmeas_mu (β' y) U <= Mβ'%:E * fmeas_mu µ' [set: _])%E.
-    have -> : (Mβ'%:E * fmeas_mu µ' [set: _])%E =
-              (\int[fmeas_mu µ']_(y in [set: _]) Mβ'%:E)%E
+    \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
+       fmeas_mu (β' y) U <= Mβ'%:E * fmeas_mu µ' [set: _].
+    have -> : Mβ'%:E * fmeas_mu µ' [set: _] =
+              \int[fmeas_mu µ']_(y in [set: _]) Mβ'%:E
       by rewrite integral_cst.
     apply: ge0_le_integral.
     - exact: measurableT.
@@ -575,10 +575,10 @@ have intfin :
     - move=> y _.
       apply: (@le_trans _ _ (fmeas_mu (β' y) [set: ar_carrier Ar X])).
         by apply: le_measure; rewrite ?inE//; exact: measurableT.
-      have HfinT : (fmeas_mu (β' y) [set: ar_carrier Ar X] \is a fin_num)%E
+      have HfinT : fmeas_mu (β' y) [set: ar_carrier Ar X] \is a fin_num
         by exact: fmeas_setT_fin.
       by rewrite -(fineK HfinT) lee_fin; exact: HMβ' y.
-  have HsetTfin : (fmeas_mu µ' [set: _] \is a fin_num)%E
+  have HsetTfin : fmeas_mu µ' [set: _] \is a fin_num
     by exact: fmeas_setT_fin.
   rewrite ge0_fin_numE//.
   apply: le_lt_trans intle _.
@@ -599,7 +599,7 @@ Qed.
 Lemma icone_integral_kernel_tonelli
     (g : ar_carrier Ar X -> \bar R) :
   measurable_fun [set: ar_carrier Ar X] g ->
-  (forall r, (0 <= g r)%E) ->
+  (forall r, 0 <= g r) ->
   \int[fmeas_mu (icone_integral β' Hβ' µ')]_(r in [set: ar_carrier Ar X])
     g r =
   \int[fmeas_mu µ']_(y in [set: ar_carrier Ar Y])
