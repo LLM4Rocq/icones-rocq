@@ -12,10 +12,6 @@ Thomas Ehrhard and Guillaume Geoffroy
 ([LMCS 21(1:1), 2025](https://doi.org/10.46298/LMCS-21(1:1)2025),
 [arXiv:2212.02371](https://arxiv.org/abs/2212.02371)).
 
-> The `Blueprint online` / `Blueprint PDF` badges resolve once the
-> blueprint workflow has deployed to GitHub Pages (enable Pages →
-> "GitHub Actions" in the repository settings).
-
 ## Status
 
 **MVP complete.** The development covers paper §2 – §6 and culminates
