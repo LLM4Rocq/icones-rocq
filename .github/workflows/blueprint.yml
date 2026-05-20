@@ -93,9 +93,10 @@ jobs:
       - name: Install rocqblueprint
         run: pip install rocqblueprint
 
-      # Do NOT mask the web build with `|| true`: if it fails we want
-      # the error visible in the logs (the job is continue-on-error, so
-      # a failure here still never blocks a PR — it just shows red).
+      # Do NOT mask the web build with `|| true`: a failure must be
+      # visible. This job is NOT continue-on-error, so a failure here
+      # shows the workflow red and skips coqdoc + the Pages deploy — yet
+      # never blocks a PR, because this check is simply not required.
       - name: Build blueprint (web)
         run: rocqblueprint web
 
