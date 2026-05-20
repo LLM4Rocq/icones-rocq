@@ -716,8 +716,9 @@ have fvub : forall n, cnorm (linhom_fun f (precone_scale sinv (u n))) <= 1.
   exact: sinv_Mf_le_1.
 (* By f's ω-continuity: f(sup(sinv·u)) = sup(f∘(sinv·u)). *)
 have fv_sup : linhom_fun f (cone_sup_ball _ vch vub) =
-              cone_sup_ball (linhom_fun f \o (fun n => precone_scale sinv (u n)))
-                            fvch fvub.
+              cone_sup_ball
+                (linhom_fun f \o (fun n => precone_scale sinv (u n)))
+                fvch fvub.
   exact: Hf_cont.
 (* sup(sinv·u) = sinv·sup(u). *)
 have v_sup : cone_sup_ball _ vch vub =
@@ -732,21 +733,24 @@ have fv_eq : (linhom_fun f \o (fun n => precone_scale sinv (u n))) =
              (fun n => precone_scale sinv (linhom_fun f (u n))).
   by apply: funext => n /=; rewrite /linhom_fun HfZ.
 (* (sinv·f u_n) is a unit-ball chain. *)
-have sinv_fu_ch : forall n, precone_le (precone_scale sinv (linhom_fun f (u n)))
-                                       (precone_scale sinv (linhom_fun f (u n.+1))).
+have sinv_fu_ch : forall n,
+    precone_le (precone_scale sinv (linhom_fun f (u n)))
+               (precone_scale sinv (linhom_fun f (u n.+1))).
   move=> n; apply: precone_scale_le.
   have [_ HfD' HfZ'] := Hf_lin.
   exact: (linear_increasing Hf_lin) _ _ (uch n).
-have sinv_fu_ub : forall n, cnorm (precone_scale sinv (linhom_fun f (u n))) <= 1.
+have sinv_fu_ub : forall n,
+    cnorm (precone_scale sinv (linhom_fun f (u n))) <= 1.
   move=> n; rewrite cone_normh /=.
   apply: le_trans (ler_pM sinv_ge0 (cone_norm_ge0 _)
                           (lexx _) (HMf _ (ub1 n))) _.
   exact: sinv_Mf_le_1.
 (* From fv_sup + fv_eq + lhs_eq + Prop_irrelevance:
    sinv · f(sup u) = cone_sup_ball (sinv · f u_n) sinv_fu_ch sinv_fu_ub. *)
-have main_sinv_eq : precone_scale sinv (linhom_fun f (cone_sup_ball u uch ub1)) =
-                    cone_sup_ball (fun n => precone_scale sinv (linhom_fun f (u n)))
-                                  sinv_fu_ch sinv_fu_ub.
+have main_sinv_eq :
+    precone_scale sinv (linhom_fun f (cone_sup_ball u uch ub1)) =
+    cone_sup_ball (fun n => precone_scale sinv (linhom_fun f (u n)))
+                  sinv_fu_ch sinv_fu_ub.
   rewrite -lhs_eq fv_sup.
   apply: precone_le_anti; apply: cone_sup_ball_lub => n.
   - have -> : (linhom_fun f \o (fun n0 => precone_scale sinv (u n0))) n =
@@ -794,8 +798,9 @@ have rsinv_fu_ub : forall n,
 have chain_swap_eq :
   cone_sup_ball (fun n => precone_scale sinv (linhom_scale_fun r f (u n)))
                 sinv_rfu_ch sinv_rfu_ub =
-  cone_sup_ball (fun n => precone_scale r (precone_scale sinv (linhom_fun f (u n))))
-                rsinv_fu_ch rsinv_fu_ub.
+  cone_sup_ball
+    (fun n => precone_scale r (precone_scale sinv (linhom_fun f (u n))))
+    rsinv_fu_ch rsinv_fu_ub.
   apply: precone_le_anti; apply: cone_sup_ball_lub => n.
   - have <- : precone_scale r (precone_scale sinv (linhom_fun f (u n))) =
               precone_scale sinv (linhom_scale_fun r f (u n)).
@@ -814,11 +819,14 @@ have chain_swap_eq :
 (* By sup_ball_scaler on (sinv · f u_n) chain with scalar r:
    sup_n (r · (sinv·f u_n)) = r · sup_n (sinv·f u_n) = r · sinv · f(sup u). *)
 have r_sinv_fu_sup_eq :
-  cone_sup_ball (fun n => precone_scale r (precone_scale sinv (linhom_fun f (u n))))
-                rsinv_fu_ch rsinv_fu_ub =
-  precone_scale r (cone_sup_ball (fun n => precone_scale sinv (linhom_fun f (u n)))
-                                  sinv_fu_ch sinv_fu_ub).
-  exact: (@sup_ball_scaler R D r _ sinv_fu_ch sinv_fu_ub rsinv_fu_ch rsinv_fu_ub).
+  cone_sup_ball
+    (fun n => precone_scale r (precone_scale sinv (linhom_fun f (u n))))
+    rsinv_fu_ch rsinv_fu_ub =
+  precone_scale r
+    (cone_sup_ball (fun n => precone_scale sinv (linhom_fun f (u n)))
+                   sinv_fu_ch sinv_fu_ub).
+  exact: (@sup_ball_scaler R D r _
+            sinv_fu_ch sinv_fu_ub rsinv_fu_ch rsinv_fu_ub).
 (* Combine: sinv · (r · f(sup u)) = sinv · sup_n (r·f u_n). *)
 have core_eq : precone_scale sinv
                  (precone_scale r (linhom_fun f (cone_sup_ball u uch ub1))) =
