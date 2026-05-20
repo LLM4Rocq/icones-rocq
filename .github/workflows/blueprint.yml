@@ -88,8 +88,11 @@ jobs:
       - name: Install rocqblueprint
         run: pip install rocqblueprint
 
+      # Do NOT mask the web build with `|| true`: if it fails we want
+      # the error visible in the logs (the job is continue-on-error, so
+      # a failure here still never blocks a PR — it just shows red).
       - name: Build blueprint (web)
-        run: rocqblueprint web || true
+        run: rocqblueprint web
 
       - name: Build blueprint (pdf, best-effort)
         run: rocqblueprint pdf || true
@@ -97,7 +100,10 @@ jobs:
       - name: Stage site
         run: |
           mkdir -p site
-          cp -r blueprint/web site/blueprint || true
+          # Fail loudly rather than deploying an empty /blueprint/ (which
+          # would 404). The web build above must have produced blueprint/web.
+          test -d blueprint/web
+          cp -r blueprint/web site/blueprint
           if [ -f blueprint/print/print.pdf ]; then
             cp blueprint/print/print.pdf site/blueprint.pdf
           fi

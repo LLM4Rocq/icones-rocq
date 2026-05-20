@@ -31,14 +31,15 @@ make -f Makefile.coq -j
 
 echo
 echo "=== Print Assumptions Skern_to_ICones_fully_faithful ==="
+# Feed the command on stdin to the Rocq toplevel (there is no `-e`
+# batch flag). The module is loaded via `Require Import` of the
+# already-compiled .vo, so this is fast.
+cmd='From Icones.kernels Require Import thm65.
+Print Assumptions Skern_to_ICones_fully_faithful.'
 if command -v rocq >/dev/null 2>&1; then
-  rocq repl -q -Q theories Icones \
-    -l theories/kernels/thm65.v -batch \
-    -e 'Print Assumptions Icones.kernels.thm65.Skern_to_ICones_fully_faithful.'
+  printf '%s\n' "$cmd" | rocq repl -q -Q theories Icones
 else
-  coqtop -q -Q theories Icones \
-    -l theories/kernels/thm65.v -batch \
-    -e 'Print Assumptions Icones.kernels.thm65.Skern_to_ICones_fully_faithful.'
+  printf '%s\n' "$cmd" | coqtop -q -Q theories Icones
 fi
 
 echo
