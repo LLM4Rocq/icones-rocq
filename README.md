@@ -1,16 +1,41 @@
 # Icones — Integration in Cones, formalized in Rocq
 
-A Rocq/mathcomp-analysis formalization of *Integration in Cones* by Thomas Ehrhard
-and Guillaume Geoffroy ([LMCS 21:1, 2025](https://lmcs.episciences.org/15021),
+[![Build](https://img.shields.io/github/actions/workflow/status/baudart/icones/build.yml?branch=main&style=for-the-badge&label=build)](https://github.com/baudart/icones/actions/workflows/build.yml)
+[![Blueprint CI](https://img.shields.io/github/actions/workflow/status/baudart/icones/blueprint.yml?branch=main&style=for-the-badge&label=blueprint%20CI)](https://github.com/baudart/icones/actions/workflows/blueprint.yml)
+[![Blueprint](https://img.shields.io/badge/blueprint-online-blue?style=for-the-badge)](https://baudart.github.io/icones/blueprint/)
+[![Blueprint PDF](https://img.shields.io/badge/blueprint-PDF-red?style=for-the-badge)](https://baudart.github.io/icones/blueprint.pdf)
+[![Rocq 9.1.1](https://img.shields.io/badge/rocq-9.1.1-orange?style=for-the-badge)](https://rocq-prover.org/)
+[![License](https://img.shields.io/badge/license-CC--BY--4.0-blue.svg?style=for-the-badge)](https://creativecommons.org/licenses/by/4.0/)
+
+A Rocq / mathcomp-analysis formalization of *Integration in Cones* by
+Thomas Ehrhard and Guillaume Geoffroy
+([LMCS 21(1:1), 2025](https://doi.org/10.46298/LMCS-21(1:1)2025),
 [arXiv:2212.02371](https://arxiv.org/abs/2212.02371)).
+
+> The badge URLs above assume the repository lives at
+> `github.com/baudart/icones` with GitHub Pages at
+> `baudart.github.io/icones`. If you publish elsewhere, update the
+> `baudart/icones` slug in the badges (and the `homepage`/`dev-repo`
+> fields of `icones.opam`).
 
 ## Status
 
-Early development. See [`PLAN.md`](./PLAN.md) for scope, milestones, and the
-strategic decisions guiding the formalization. The current target is the MVP:
-a faithful formalization of paper §2 – §4 + §5.1 + §6, culminating in
-Theorem 6.5 (the substochastic-kernel category `Skern` embeds fully and
-faithfully into `ICones`).
+**MVP complete.** The development covers paper §2 – §6 and culminates
+in paper Theorem 6.5: the substochastic-kernel category `Skern` embeds
+fully and faithfully into the category `ICones` of integrable cones
+(`Icones.kernels.thm65.Skern_to_ICones_fully_faithful`).
+
+- ~19k lines of Rocq across 24 files, **zero project-specific axioms**
+  and **zero `Admitted`** — the headline theorem depends only on the
+  three classical-logic axioms inherited from `mathcomp-analysis`
+  (`propositional_extensionality`, `functional_extensionality_dep`,
+  `constructive_indefinite_description`).
+- See [`PLAN.md`](./PLAN.md) for the milestone roadmap (M1 – M5) and the
+  strategic design decisions.
+
+Out of scope for the MVP (documented in `PLAN.md`): the tensor product
+`⊗`, the `!` exponential comonad, stable / analytic functions, the
+LNL adjunction, and the PCS embedding.
 
 ## Build
 
@@ -22,15 +47,10 @@ Requires:
 - `rocq-hierarchy-builder` 1.10+
 - `rocq-elpi` 3.3+
 
-Install dependencies from the released opam repository:
+Install dependencies from the released opam repository and build:
 
 ```bash
 opam install rocq-mathcomp-analysis rocq-hierarchy-builder
-```
-
-Build:
-
-```bash
 make
 ```
 
@@ -38,28 +58,13 @@ make
 
 ```
 theories/
-├── prelude/          -- classical-logic + ereal/nonneg helpers + ω-cpo
-└── cones/            -- precone, cone, category Cones (paper §2)
+├── prelude/    -- classical-logic + ereal/nonneg helpers + ω-cpo
+├── cones/      -- precone, cone, basic lemmas, examples, category Cones   (paper §2, M1)
+├── mcones/     -- Ar, measurable cones, FMeas, Path, category MCones      (paper §3, M2)
+├── icones/     -- Pettis integral, integrable cones, Fubini, completeness (paper §4, M3)
+├── homs/       -- internal hom C ⊸ D (linhom) and the iso of Thm 6.1      (paper §5.1/§5.2 + §6, M4/M5)
+└── kernels/    -- substochastic kernels Skern and the embedding Thm 6.5   (paper §6, M5)
 ```
-
-Further sub-directories (`mcones/`, `icones/`, `homs/`, `kernels/`) appear as
-the corresponding milestones M2–M5 land.
-
-## License
-
-MIT. See [`LICENSE`](./LICENSE).
-
-## Paper sources
-
-The paper is *Integration in Cones* by Thomas Ehrhard and Guillaume
-Geoffroy, available open access:
-
-- arXiv: <https://arxiv.org/abs/2212.02371>
-- LMCS 21(1:1), 2025: DOI [10.46298/LMCS-21(1:1)2025](https://doi.org/10.46298/LMCS-21(1:1)2025)
-
-The paper is the canonical reference for the Rocq sources; proofs
-annotate the paper section and lemma number they correspond to. The
-PDF is not bundled in this repository — fetch it from the links above.
 
 ## Blueprint
 
@@ -90,12 +95,16 @@ rocqblueprint web      # HTML → blueprint/web/
 rocqblueprint pdf      # PDF  → blueprint/print/print.pdf
 ```
 
-In CI, the workflow [`.github/workflows/blueprint.yml`](./.github/workflows/blueprint.yml)
+In CI, [`.github/workflows/blueprint.yml`](./.github/workflows/blueprint.yml)
 builds both the HTML and the PDF on every push to `main` (and on PRs),
 uploads them as artefacts, and (on `main` only) publishes them to
-GitHub Pages. The blueprint workflow is independent of the Rocq build
-and uses `continue-on-error: true` throughout: a blueprint failure
-never blocks a PR.
+GitHub Pages. The blueprint workflow uses `continue-on-error: true`
+throughout and is independent of the gating Rocq build below — a
+blueprint failure never blocks a PR.
+
+The Rocq build itself is gated by
+[`.github/workflows/build.yml`](./.github/workflows/build.yml), which
+runs `make` and the MVP axiom check on every push and PR.
 
 ## Reproducing the MVP headline
 
@@ -105,3 +114,22 @@ Run [`./verify.sh`](./verify.sh) to clean-rebuild the project and
 6.5). The expected output lists only the classical-logic axioms
 inherited from `mathcomp-analysis`; the project itself contains zero
 `Axiom` declarations and zero `Admitted` lemmas.
+
+## Paper sources
+
+The paper is *Integration in Cones* by Thomas Ehrhard and Guillaume
+Geoffroy, available open access:
+
+- arXiv: <https://arxiv.org/abs/2212.02371>
+- LMCS 21(1:1), 2025: DOI [10.46298/LMCS-21(1:1)2025](https://doi.org/10.46298/LMCS-21(1:1)2025)
+
+The paper is the canonical reference for the Rocq sources; proofs
+annotate the paper section and lemma number they correspond to. The
+PDF is not bundled in this repository — fetch it from the links above.
+
+## License
+
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — the same
+licence under which the underlying LMCS paper is published. See
+[`LICENSE`](./LICENSE). When reusing this work, please cite both the
+original paper and this formalisation.

@@ -1,21 +1,48 @@
-MIT License
+Creative Commons Attribution 4.0 International (CC BY 4.0)
 
 Copyright (c) 2026 The Icones contributors
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This work — the Icones Rocq formalisation and its accompanying
+blueprint — is licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0), the same licence under which the
+underlying paper is published:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+  Thomas Ehrhard and Guillaume Geoffroy, "Integration in Cones",
+  Logical Methods in Computer Science, Volume 21, Issue 1 (2025),
+  DOI 10.46298/LMCS-21(1:1)2025, arXiv:2212.02371.
+  Published by LMCS under CC BY 4.0.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You are free to:
+
+  - Share  — copy and redistribute the material in any medium or format;
+  - Adapt  — remix, transform, and build upon the material
+             for any purpose, even commercially.
+
+The licensor cannot revoke these freedoms as long as you follow the
+licence terms.
+
+Under the following terms:
+
+  - Attribution — You must give appropriate credit, provide a link to
+    the licence, and indicate if changes were made. You may do so in
+    any reasonable manner, but not in any way that suggests the
+    licensor endorses you or your use.
+  - No additional restrictions — You may not apply legal terms or
+    technological measures that legally restrict others from doing
+    anything the licence permits.
+
+Notices:
+
+  - When attributing this work, please cite the original paper (above)
+    and this formalisation.
+  - This is a human-readable summary of (and not a substitute for) the
+    licence. The full legal code is available at:
+
+        https://creativecommons.org/licenses/by/4.0/legalcode
+
+  - Licence deed: https://creativecommons.org/licenses/by/4.0/
+
+THE WORK IS PROVIDED "AS-IS" AND WITHOUT WARRANTIES OF ANY KIND. To the
+extent possible, the licensor offers the work as-is and as-available,
+and makes no representations or warranties of any kind concerning the
+work, whether express, implied, statutory, or other.

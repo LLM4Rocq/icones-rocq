@@ -464,7 +464,7 @@ Items the user (Guillaume Baudart, INRIA) should weigh in on **before M0 starts*
    (The kernel embedding works in either case; abstract `Ar` mostly adds section-variable noise.)
 4. **Engineer availability.** This is realistically a 9–12 month project for one expert. Is that
    the resourcing? If less, scope down further to "M1+M2+M3 done, M4/M5 deferred".
-5. **License & repo.** Likely MIT / CECILL-C to match mathcomp's licensing — confirm.
+5. **License & repo.** RESOLVED: CC BY 4.0, matching the underlying LMCS paper.
 6. **Communication with the authors.** Ehrhard and Geoffroy are at IRIF; do you want to engage them
    early so the formalisation effort is visible / supported? This may help with axiomatisation
    sanity-checks for §5 SMCC and §9 `!`.

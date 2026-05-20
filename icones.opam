@@ -13,7 +13,7 @@ embedding of substochastic kernels into the category of integrable cones.
 """
 maintainer: "Icones contributors"
 authors: ["Icones contributors"]
-license: "MIT"
+license: "CC-BY-4.0"
 homepage: "https://github.com/baudart/icones"
 bug-reports: "https://github.com/baudart/icones/issues"
 dev-repo: "git+https://github.com/baudart/icones.git"

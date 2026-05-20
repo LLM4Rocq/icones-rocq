@@ -1,0 +1,45 @@
+name: Build
+
+# Gating CI for the Rocq formalisation: a clean `make` plus the MVP
+# axiom check (`verify.sh`). Unlike the blueprint workflow, this one
+# is NOT best-effort — a failure here means the formalisation does
+# not compile or the MVP headline picked up an unexpected axiom.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: coq-community/docker-coq-action@v1
+        with:
+          opam_file: icones.opam
+          coq_version: '9.1.1'
+          ocaml_version: 'default'
+          before_script: |
+            startGroup "Workaround permission issue"
+              sudo chown -R 1000:1000 .
+            endGroup
+          script: |
+            startGroup "Build the formalisation"
+              make -j2
+            endGroup
+            startGroup "Check the MVP axiom budget"
+              # verify.sh clean-rebuilds and Print Assumptions the headline
+              # theorem Skern_to_ICones_fully_faithful (paper Thm 6.5).
+              ./verify.sh
+            endGroup
+
+      - name: Revert permissions
+        if: ${{ always() }}
+        run: sudo chown -R $(id -u):$(id -g) . || true
