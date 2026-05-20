@@ -1,4 +1,4 @@
-(** * Lemmas 4.6 and 4.7 — bilinearity, ω-continuity and measurability of [I^B_X]
+(** * Lemmas 4.6 / 4.7 — bilinearity, ω-continuity, measurability of [I^B_X]
 
     Paper reference: §4, pp. 1:24–1:26, Lemmas 4.6 and 4.7.
 
@@ -150,7 +150,7 @@ Variable κ : Y -> fmeas R X.
 Hypothesis κ_meas :
   forall U, measurable U ->
     measurable_fun [set: Y] (fun s => fmeas_mu (κ s) U).
-Hypothesis κ_bound : exists M : R, forall s, (fmeas_norm (κ s) <= M)%R.
+Hypothesis κ_bound : exists M : R, forall s, fmeas_norm (κ s) <= M.
 
 Local Open Scope ereal_scope.
 
@@ -269,8 +269,8 @@ have mf2 : measurable_fun [set: ar_carrier Ar X]
              (fun _ : ar_carrier Ar X => M%:E).
   exact: measurable_cst.
 rewrite ge0_fin_numE//.
-apply: (@le_lt_trans _ _
-  (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) M%:E)).
+apply: (le_lt_trans
+  (y := \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) M%:E)).
   apply: ge0_le_integral => //.
   - by move=> r _; rewrite lee_fin; apply: test_ge0.
   - move=> r _; rewrite lee_fin.
@@ -541,8 +541,8 @@ rewrite -lee_fin fineK// EFinM /fmeas_norm fineK//.
 have mc : measurable_fun [set: ar_carrier Ar X]
             (fun _ : ar_carrier Ar X => Mβ%:E).
   exact: measurable_cst.
-apply: (@le_trans _ _
-  (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) Mβ%:E)%E).
+apply: (le_trans
+  (y := (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) Mβ%:E)%E)).
   apply: ge0_le_integral => //.
   - by move=> r _; rewrite lee_fin; apply: test_ge0.
   - move=> r _; rewrite lee_fin.
@@ -896,9 +896,8 @@ Proof. exact: icone_integral_chain_le. Qed.
 (** Unit-ball bound on each integral, using Paper Lemma 4.2. *)
 Local Lemma int_β_bound n : (cone_norm (int_β n) <= 1)%R.
 Proof.
-have H := @path_integral_norm_le R Ar B X (β n) µ 1 (β_bound n)
-                                 (Hβ n) (int_β n)
-                                 (icone_integralP (β n) (Hβ n) µ).
+have H := path_integral_norm_le (Mβ := 1) (β_bound n)
+            (Hβ n) (int_β n) (icone_integralP (β n) (Hβ n) µ).
 apply: le_trans H _.
 by rewrite mul1r.
 Qed.
@@ -961,10 +960,10 @@ pose fsup r : \bar R := (test_fun m s0 (β_sup_fun r))%:E.
 have un_meas n : measurable_fun [set: ar_carrier Ar X] (un n).
   by apply/measurable_EFinP;
     exact: (measurable_test_path_section mM (Hβ n)).
-have un_ge0 (n : nat) r : (0 <= un n r)%E.
+have un_ge0 (n : nat) r : 0 <= un n r.
   by rewrite lee_fin; apply: test_ge0.
 have un_homo r :
-  {homo (un^~ r) : n m0 / (n <= m0)%N >-> (n <= m0)%E}.
+  {homo (un^~ r) : n m0 / (n <= m0)%N >-> n <= m0}.
   apply/nondecreasing_seqP => n; rewrite /un lee_fin.
   apply: test_fun_le; exact: β_chain.
 have testβ_cvg_real r :
@@ -984,9 +983,9 @@ have un_cvg r : (un^~ r) x @[x --> \oo] --> fsup r.
   exact: testβ_cvg_real.
 have un_lim r : limn (un^~ r) = fsup r.
   by apply/cvg_lim => //; exact: ereal_hausdorff.
-have MCT : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r =
+have MCT : \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r =
            limn (fun n => \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
-                              un n r))%E.
+                              un n r).
   have HMC := monotone_convergence (fmeas_mu µ) (D := [set: ar_carrier Ar X])
                 measurableT un_meas (fun n r _ => un_ge0 n r)
                 (fun r _ => un_homo r).
@@ -1003,20 +1002,23 @@ have intβsup_fin : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r
   apply: test_int_fin => //; exists M; exact: HM.
 have int_β_cvg :
   (fun n => \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) un n r) x
-   @[x --> \oo] --> (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r)%E.
+   @[x --> \oo] --> \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r.
   have HC := cvg_monotone_convergence (D := [set: ar_carrier Ar X])
                (mu := fmeas_mu µ) measurableT un_meas
                (fun n r _ => un_ge0 n r) (fun r _ => un_homo r).
-  have HE : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
-              (fun x : ar_carrier Ar X => limn (un^~ x)) r)%E =
-            (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r)%E.
+  have HE : \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+              (fun x : ar_carrier Ar X => limn (un^~ x)) r =
+            \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r.
     by apply: eq_integral => r _; rewrite -un_lim.
   by rewrite -HE.
 have fcvg : (fun n => fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
                               un n r)) x @[x --> \oo] -->
-            (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r) : R^o).
-  have HEFin : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r =
-               (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r))%:E)%E.
+            (fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r)
+              : R^o).
+  have HEFin : \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r =
+               (fine
+                  (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) fsup r))
+                 %:E.
     by rewrite fineK.
   rewrite HEFin in int_β_cvg.
   exact: (fine_cvg int_β_cvg).
@@ -1065,7 +1067,8 @@ Local Lemma int_µ_chain n : precone_le (int_µ n) (int_µ n.+1).
 Proof.
 have [w Hw] := µn_chain n.
 exists (icone_integral β Hβ w); apply/esym/icone_integral_eqP.
-have Hpe : path_integral_eq β (µn n.+1) (precone_add (int_µ n) (icone_integral β Hβ w)).
+have Hpe : path_integral_eq β (µn n.+1)
+             (precone_add (int_µ n) (icone_integral β Hβ w)).
   rewrite Hw.
   apply: path_integral_eq_addmu => //; exact: icone_integralP.
 exact: Hpe.
@@ -1075,9 +1078,8 @@ Qed.
     [β ≤ 1] gives [‖int_µ n‖ ≤ 1]. *)
 Local Lemma int_µ_bound n : (cone_norm (int_µ n) <= 1)%R.
 Proof.
-have H := @path_integral_norm_le R Ar B X β (µn n) 1 β_bound Hβ
-                                 (int_µ n)
-                                 (icone_integralP β Hβ (µn n)).
+have H := path_integral_norm_le (Mβ := 1) β_bound Hβ
+            (int_µ n) (icone_integralP β Hβ (µn n)).
 apply: le_trans H _.
 by rewrite mul1r.
 Qed.
@@ -1116,7 +1118,7 @@ have f_ge0 r : 0 <= f r by rewrite lee_fin; apply: test_ge0.
 have int_cvg :
   (fun n => \int[fmeas_mu (µn n)]_(r in [set: ar_carrier Ar X]) f r) x
    @[x --> \oo] -->
-  (\int[fmeas_mu (fmeas_sup_ball µn_chain µn_bound)]_(r in [set: _]) f r)%E.
+  \int[fmeas_mu (fmeas_sup_ball µn_chain µn_bound)]_(r in [set: _]) f r.
   exact: (integral_meas_sup µn µn_chain µn_bound f f_ge0 f_meas).
 (* finite-num facts *)
 have fin_µn n : \int[fmeas_mu (µn n)]_(r in [set: ar_carrier Ar X]) f r
@@ -1132,8 +1134,8 @@ have fcvg : (fun n => fine
             @[x --> \oo] -->
             (fine (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r)
               : R^o).
-  have HE : (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r =
-             (fine (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r))%:E)%E.
+  have HE : \int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r =
+            (fine (\int[fmeas_mu µsup]_(r in [set: ar_carrier Ar X]) f r))%:E.
     by rewrite fineK.
   rewrite HE in int_cvg.
   exact: (fine_cvg int_cvg).

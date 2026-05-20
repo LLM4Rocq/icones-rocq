@@ -395,12 +395,12 @@ have [i Hxi] : exists i : I, cones_prod_val x i <> precone_zero.
    [‖xi‖] within ε/2 of [‖x‖], we can apply (Msnorm) on [B i] at
    [xi] with [ε/2]. The existence of such an [i] uses the
    sup-adherence of [cones_prod_normset]. *)
-pose eps2 := (eps / 2)%R.
+pose eps2 := eps / 2.
 have eps2_pos : 0 < eps2 by rewrite divr_gt0 // ltr0n.
 (* sup-adherence: there is a value in cones_prod_normset x within
    eps2 of cones_prod_norm x. *)
-have Hadh : exists j : I, (cone_norm x - eps2 <=
-                           cone_norm (cones_prod_val x j))%R.
+have Hadh : exists j : I, cone_norm x - eps2 <=
+                          cone_norm (cones_prod_val x j).
   have [Hnonempty | Hempty] :=
     pselect ([set y | exists i, y = cone_norm (cones_prod_val x i)]
                !=set0).
@@ -430,7 +430,7 @@ have [Hxj_zero | Hxj_nz] := pselect (cones_prod_val x j = precone_zero).
     by have := Hj; rewrite lerBlDr add0r.
   (* Pick the test from the non-zero component [i]. *)
   have [m [mM Hm]] :=
-    @mcone_M_norm R Ar (B i) (cones_prod_val x i) eps2 Hxi eps2_pos.
+    mcone_M_norm (cones_prod_val x i) eps2 Hxi eps2_pos.
   exists (iniTest m); split.
     by exists i, m.
   rewrite /iniTest /= /iniTest_fun.
@@ -440,7 +440,7 @@ have [Hxj_zero | Hxj_nz] := pselect (cones_prod_val x j = precone_zero).
   apply: lerD; last exact: lexx.
   by rewrite addr_ge0 ?test_ge0 // ltW.
 have [m [mM Hm]] :=
-  @mcone_M_norm R Ar (B j) (cones_prod_val x j) eps2 Hxj_nz eps2_pos.
+  mcone_M_norm (cones_prod_val x j) eps2 Hxj_nz eps2_pos.
 exists (iniTest m); split.
   by exists j, m.
 rewrite /iniTest /= /iniTest_fun.
@@ -594,7 +594,7 @@ Qed.
 
 (** Paper Thm 4.16: the [i]-th projection as an [mcones_hom]. *)
 Definition icones_proj_mcones (i : I) : mcones_hom Ar P (B i) :=
-  MkMConesHom (cones_proj i) (@icones_proj_pres_path i).
+  MkMConesHom (cones_proj i) (icones_proj_pres_path i).
 
 (** Paper Thm 4.16: the [i]-th projection preserves integrals.
     Direct: [(∫β µ).i = ∫(β r).i µ] by definition of the
@@ -625,7 +625,7 @@ Qed.
 
 (** Paper Thm 4.16: the [i]-th projection as an [icones_hom]. *)
 Definition icones_proj (i : I) : icones_hom Ar P (B i) :=
-  MkIConesHom (icones_proj_mcones i) (@icones_proj_pres_int i).
+  MkIConesHom (icones_proj_mcones i) (icones_proj_pres_int i).
 
 (** Tupling: given [(f_i : Q -> B_i)_i], the mediating [Q -> P]. *)
 Variable Q : ICone.type Ar.
@@ -851,7 +851,7 @@ move=> xne eps_pos.
 have vne : cones_eq_val x <> precone_zero.
   move=> Hv; apply: xne; apply: cones_eq_extensional => /=; exact: Hv.
 have [m [mM Hm]] :=
-  @mcone_M_norm R Ar B (cones_eq_val x) eps vne eps_pos.
+  mcone_M_norm (cones_eq_val x) eps vne eps_pos.
 exists (eqTest m); split.
   by exists m.
 by rewrite /eqTest /= /eqTest_fun.

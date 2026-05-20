@@ -144,7 +144,7 @@ Variables (µ : fmeas R X) (ν : fmeas R Y).
     value (no explicit [: measure _ R] ascription) so that
     [product_measure1E] / [fubini_tonelli1] rewrites apply directly. *)
 Local Definition prod_meas : set (X * Y)%type -> \bar R :=
-  (fmeas_fin_view µ \x fmeas_fin_view ν)%E.
+  fmeas_fin_view µ \x fmeas_fin_view ν.
 
 (** Cut off on non-measurable sets so the [fmeas] canonicality
     invariant holds. *)
@@ -162,7 +162,7 @@ Proof. by move=> nmA; rewrite /fmeas_prod_fun asboolF. Qed.
 (** Canonical measure of [prod_meas]: by HB on
     [product_measure1 m1 m2] when [m2] is sigma-finite. *)
 Local Definition prod_meas_cs : measure (X * Y)%type R :=
-  (fmeas_fin_view µ \x fmeas_fin_view ν)%E.
+  fmeas_fin_view µ \x fmeas_fin_view ν.
 
 Local Lemma prod_meas_csE A : prod_meas_cs A = prod_meas A.
 Proof. by []. Qed.
@@ -224,7 +224,7 @@ Qed.
 Lemma fmeas_prod_finP : fmeas_finP fmeas_prod_fun.
 Proof.
 move=> U mU; rewrite ge0_fin_numE; last exact: measure_ge0.
-apply: (@le_lt_trans _ _ (fmeas_prod_fun [set: (X * Y)%type])).
+apply: (le_lt_trans (y := fmeas_prod_fun [set: (X * Y)%type])).
   by apply: le_measure => //; rewrite inE.
 by rewrite ltey_eq fmeas_prod_setT_fin.
 Qed.
@@ -241,7 +241,7 @@ Definition fmeas_prod : fmeas R (X * Y)%type :=
 Lemma fmeas_prodE A :
   measurable A ->
   fmeas_mu fmeas_prod A =
-    (fmeas_fin_view µ \x fmeas_fin_view ν)%E A.
+    (fmeas_fin_view µ \x fmeas_fin_view ν) A.
 Proof. exact: fmeas_prod_funE. Qed.
 
 (** Paper §4: the product formula on basic rectangles. *)
@@ -581,8 +581,8 @@ have mc : measurable_fun [set: ar_carrier Ar Y]
             (fun _ : ar_carrier Ar Y => Mβ%:E).
   exact: measurable_cst.
 rewrite ge0_fin_numE//.
-apply: (@le_lt_trans _ _
-  (\int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y]) Mβ%:E)).
+apply: (le_lt_trans
+  (y := \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y]) Mβ%:E)).
   apply: ge0_le_integral => //.
   - by move=> y _; rewrite lee_fin; apply: test_ge0.
   - move=> y _; rewrite lee_fin.
@@ -612,8 +612,8 @@ have mc : measurable_fun [set: ar_carrier Ar X]
             (fun _ : ar_carrier Ar X => Mβ%:E).
   exact: measurable_cst.
 rewrite ge0_fin_numE//.
-apply: (@le_lt_trans _ _
-  (\int[fmeas_mu µ]_(x in [set: ar_carrier Ar X]) Mβ%:E)).
+apply: (le_lt_trans
+  (y := \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X]) Mβ%:E)).
   apply: ge0_le_integral => //.
   - by move=> x _; rewrite lee_fin; apply: test_ge0.
   - move=> x _; rewrite lee_fin.
@@ -660,11 +660,11 @@ have f_meas : measurable_fun
   by apply/measurable_EFinP; exact: Hβpair_test.
 (* fubini_tonelli1 applied to the canonical (µ × ν)-style integral. *)
 have ft1 :
-  \int[(fmeas_fin_view µ \x fmeas_fin_view ν)%E]_p f p =
+  \int[fmeas_fin_view µ \x fmeas_fin_view ν]_p f p =
   \int[fmeas_fin_view µ]_x fubini_F (fmeas_fin_view ν) f x.
   exact: (fubini_tonelli1 f f_meas f_ge0).
 have ft2 :
-  \int[(fmeas_fin_view µ \x fmeas_fin_view ν)%E]_p f p =
+  \int[fmeas_fin_view µ \x fmeas_fin_view ν]_p f p =
   \int[fmeas_fin_view ν]_y fubini_G (fmeas_fin_view µ) f y.
   exact: (fubini_tonelli2 f f_meas f_ge0).
 (* Lift the inner integrals to the [fmeas_mu] views via
