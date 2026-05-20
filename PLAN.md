@@ -533,4 +533,241 @@ Items the user (Guillaume Baudart, INRIA) should weigh in on **before M0 starts*
   for one mathcomp-analysis-grade engineer (~2× the original estimate), (e) flagged Lemma 4.7 and
   Thm 6.1 as the two technical bottlenecks. All of this is reflected in §3 and §6 above.
 
+---
+
+## 11. Iteration 1 retrospective — MVP **delivered** (journal entry, 2026-05)
+
+> This section closes the iteration-1 plan (§0–§10 + Appendices A–B). Nothing
+> above is rewritten; this is the honest "what actually happened" record so the
+> document reads as a journal across iterations.
+
+**Outcome: shipped.** Paper §2–§6 are formalized in Rocq 9.1.1 + mathcomp-analysis
+1.16 + HB 1.10. The headline **Theorem 6.5** — the substochastic-kernel category
+`Skern` embeds fully and faithfully into `ICones` — is proved as
+`Icones.kernels.thm65.Skern_to_ICones_fully_faithful`, **axiom-clean**: it depends
+only on the three classical axioms inherited from `mathcomp-analysis`/`boolp`
+(`propositional_extensionality`, `functional_extensionality_dep`,
+`constructive_indefinite_description`), with **zero project `Axiom`s and zero
+`Admitted`**. ~19.3 k lines across 24 files in `theories/`.
+
+**What matched the plan.** The HB tower precone → cone → MCone → ICone (§4) was
+realized as designed; the internal hom `C ⊸ D` was built **concretely** (§5.1, no
+axioms); `FMeas`, `Path`, Lemma 4.7, Fubini (Thm 4.15), completeness +
+well-poweredness (Thm 4.16/4.18), Thm 6.1 and Thm 6.5 all landed. The three §3
+strategic bets held up: the Phase 0′ Nmodule tower was the right call, `Ar` was
+kept parametric, and the "state categorical facts concretely on the objects"
+approach (what §12 below names *Strategy C*) was validated.
+
+**Honest deviations (corrections to §4/§6).**
+- **Coproducts `⊕` were _not_ built.** §4 (line ~224) and §6 list `⊕` as MVP, but
+  only products `&` (`icones_prod`) and equalisers (`icones_eq`) were needed for
+  completeness and Thm 6.5, and only those exist in `theories/icones/icone_cat.v`.
+  `⊕` (paper Thm 4.21 / §4.4) remains a TODO. It is *not* a prerequisite for `⊗`;
+  it would only matter if a later development needs coproduct-shaped objects.
+- **`Path` `isICone` cast** was partially deferred during M3 (a representation
+  cast left for later); revisit if a downstream proof needs the full instance.
+- **File layout** settled as `prelude/ cones/ mcones/ icones/ homs/ kernels/`,
+  matching the plan's intent.
+
+**Post-MVP polish (after §2–§6 closed).** A `mathcomp-rocq-guide` style audit; a
+6-chapter LaTeX **blueprint** + GitHub Pages CI (`build.yml` gating Rocq build +
+`blueprint.yml`); relicense to **CC BY 4.0**; the paper PDF scrubbed from git
+history (references point to arXiv/LMCS); and an idiomatic `[set: T] → setT`
+notation sweep across the 82 `measurable_fun` sites.
+
+**Effort reality.** The devil's-advocate "~2× the first estimate" rule (Appendix B)
+held; budget iteration 2 accordingly (§12.7).
+
+---
+
+## 12. Iteration 2 — Tensor `⊗` and Exponential `!` (**planned**)
+
+**Goal.** Extend `ICones` from a (multiplicative-additive) linear structure with a
+concrete `⊸` to a full **symmetric monoidal closed category** (`⊗`, §5) carrying an
+**exponential `!`** via a linear-non-linear adjunction (§7+§9). These are the
+structures a higher-order probabilistic language needs: `⊗` gives the SMC/MELL
+core; the co-Kleisli of `!` is the **call-by-name** model, and the monad induced by
+the LNL adjunction on the cartesian side is the **call-by-value** model. Fixpoints
+(§9.2) give recursion.
+
+This iteration *refines* (does not replace) §3.2's "stretch choice B". The plan
+below is the synthesis of a 4-expert planning pass (see **Appendix C**).
+
+### 12.0 Strategy decisions (team consensus)
+
+- **D1 — Axiomatize `⊗`/`!` _minimally_, then _derive_ coherence.** The paper builds
+  both via the Special Adjoint Functor Theorem (Thm 4.19), whose existence step is
+  irreducibly non-constructive; no concrete carrier for `B ⊗ C` is given (Remark
+  5.1). So a constructive `⊗` is rejected (still §3.2 option A — "never"). But the
+  axiom surface is far smaller than §7's "~10 coherence axioms": postulate **only**
+  the representing object + the universal homset bijection + its naturality, and
+  **derive** the associator/unitors/braiding and pentagon/hexagon/triangle as
+  *theorems* — for `⊗` via **Prop 5.14** (agreement on pure tensors ⇒ equal), for
+  `!` via **Lemma 9.2/9.3**. Net: ~3–4 axioms for `⊗`, ~4–6 for `!`, all in
+  isolated `theories/axioms/*.v` files. This removes risk #5's "missed coherence
+  diagram → unsoundness" by not hand-stating coherence at all.
+- **D2 — Strategy C: stay concrete; no foreign category library.** The MVP, the
+  closest precedent (`LLM4Rocq/mathcomp-qbs`, a concrete CCC in HB), and the paper
+  itself (§5 intro: the direct approach is tractable "because our morphisms are
+  functions") all argue for stating SMCC/`!`/Seely concretely on `ICone` +
+  `icones_hom`. Surveyed alternatives are all worse fits: **UniMath** (best
+  monoidal/LL infrastructure but univalent foundations — incompatible carriers),
+  **jwiegley/category-theory** (complete drop-in but `Equations` + `crelation`
+  setoids, no HB/mathcomp interop, universe clashes), **affeldt-aist/monae**
+  (HB+mathcomp concrete categories — the only stack-compatible one, but no
+  monoidal/closed/comonad). Use external libs **only** as machine-checked
+  coherence-law inventories to diff our axioms against.
+- **D3 — Stable route; defer analytic.** Build `!` over the CCC of **stable**
+  measurable functions `SCones` (§7). Defer **analytic** functions `ACones` (§8 —
+  the paper's hardest section: polarisation, Taylor/homogeneous-polynomial
+  expansion) and the **PCS** embedding (§10). §9 is written route-agnostically, so
+  analytic can be slotted later by *re-instantiating* §9, not rewriting it.
+- **D4 — Construct fixpoints, don't axiomatize.** The ω-cpo enrichment
+  (`prelude/omegacpo.v`) already supports least fixed points; `Y` lives in the CCC
+  and needs no new axioms.
+
+### 12.1 Prerequisites / gap-closing (before S6)
+
+| Item | Why | Paper / code |
+|---|---|---|
+| `icones_iso` record (fwd+bwd `icones_hom` + round-trips) | no iso record exists yet | infra (Yoneda/Lemma 1.1) |
+| Functorial action `h ⊸ g : (C₁⊸D₁) → (C₂⊸D₂)` | absent (`grep` finds no `linhom_map`) | Def 5.7 / Prop 5.8, txt 2416 |
+| Thm 5.9: `C ⊸ −` preserves products & equalisers | the *soundness justification* the `⊗` axiom cites | §5.3, txt 2466–2538 |
+| (deferred) coproducts `⊕` | only if a later object needs it; **not** needed for `⊗` | Thm 4.21, txt 1808 |
+
+### 12.2 S6 — Tensor `⊗` + SMCC (paper §5.2–§5.5) — *the minimum publishable deliverable*
+
+- **Axioms** (`theories/axioms/tensor.v`, ~3–4): `tensor : ICone→ICone→ICone`; the
+  natural bijection `Φ : ICones(B⊗C,D) ≃ ICones(B, C⊸D)` (Thm 5.9 / Eq 5.1, txt
+  2553); `Φ` naturality in `D` and in `B,C`.
+- **Derived as theorems**: `τ` and `x⊗y := τ x y`; **Thm 5.12** `Φ` is an iso ⇒ SMC
+  closure `(B⊗C)⊸D ≃ B⊸(C⊸D)` (txt 2619); **Thm 5.13** `‖x⊗y‖=‖x‖·‖y‖` (txt 2700);
+  **Prop 5.14** tree-extensionality (txt 2730); associator/unitors/braiding (via
+  `Φ`, Eqs 5.2–5.4); pentagon/hexagon/triangle; **Thm 5.15** SMCC packaging.
+- **Unit object**: the scalar cone `R≥0` (the registered `cone_one_car`, the paper's
+  `1`/`⊥`), already an `ICone` (`examples_icone.v`).
+- **Files**: `homs/linhom.v` (+ `linhom_map`), new `homs/linhom_lim.v` (Thm 5.9),
+  `axioms/tensor.v`, `homs/tensor.v`, `homs/smcc.v`.
+- **Headline**: "the cone-integral model is a mechanized SMCC (a model of
+  MELL-without-`!`)". Self-contained; reuses the concrete `⊸`/bilinear layer.
+
+### 12.3 S7 — Stable CCC `SCones` (paper §7) — fully constructive, no axioms
+
+| Sub | Content | Paper | txt |
+|---|---|---|---|
+| S7a | local cone `B_x`, gauge norm | §7.1, Lem 7.1–7.2 | 3131 |
+| S7b | total monotonicity, stable cone `B ⇒s C` (built like `linhom.v`) | Def 7.5/7.7/7.10 | 3211 |
+| S7c | finite differences `Δ`, Thm 7.19, composition keystones — **the time sink** | §7.3 | 3419 |
+| S7d | CCC `SCones`: `Ev`/curry, `Der` preserves limits | Thm 7.30/7.32/7.34 | 3890 |
+
+Files: `theories/stable/{local_cone,totmono,stablehom,findiff,scones_cat}.v`.
+Independent of `⊗`/`!` — a standalone **cartesian-closed** model (CBN λ-calculus).
+
+### 12.4 S8 — Exponential `!` + LNL + Seely (paper §9)
+
+- **Axioms** (`theories/axioms/exp.v`, ~4–6): the left adjoint `E` of `Der`, the
+  natural bijection `Θ`, the unit `nl`, and their naturality (`!B := E(Der B)`,
+  txt 5064; no concrete `E` — Remark 9.1).
+- **Derived**: `der`/`dig`/`!f` + comonad laws (Lem 9.2/9.3); Seely isos
+  `!(A&B) ≅ !A⊗!B`, `!⊤ ≅ I` + **Thm 9.5** (needs S6's `⊗`); the `FMeas(X)`
+  coalgebra **Thm 9.7** (reuses `dirac_path`/Thm 6.1 from `bilin.v`).
+- **Files**: `theories/exp/{comonad,seely,coalgebra}.v` + `axioms/exp.v`.
+- **Depends on**: S6 (`⊗`, for Seely) **and** S7 (the CCC).
+
+### 12.5 Fixpoints (§9.2) + optional capstone
+
+- `theories/exp/fixpoint.v`: least fixed point `Y` in the CCC via `omegacpo`.
+  **Constructed**; depends only on S7d + `omegacpo` (**not** on `!`), so it can ship
+  right after S7.
+- *Optional* capstone (defer): a toy CBV/CBPV PPL interpreted on `ICones`/`SCones`,
+  closing open question §9-#7. Tie the value/computation split to "values = cone
+  elements, computations = sub-distributions"; this is where CBN (co-Kleisli of `!`)
+  vs CBV (Kleisli of the LNL-induced monad) is made concrete.
+
+### 12.6 Dependency DAG
+
+```
+ MVP (done): ICone tower, ICones cat (& products, equalisers, completeness,
+             well-poweredness), ⊸ (concrete), FMeas, Path, Thm 6.1, ω-cpo, SAFT
+        │
+ 12.1 prereqs: icones_iso · h⊸g (Def 5.7) · Thm 5.9 (⊸ preserves lim)
+        │
+ S6  ⊗ + SMCC (axioms/tensor.v + derived coherence)         ── min. publishable
+        │                                  │
+        │                                  └────────────┐
+ S7  stable CCC SCones (constructive, independent of ⊗)   │
+        │                                                 │
+        ├──► S7d ──► S9d fixpoints (ω-cpo only; NOT !)     │
+        │                                                 ▼
+        └──────────────────────────►  S8  ! + LNL + comonad (axioms/exp.v)
+                                            ├─ Seely isos  (needs S6 ⊗ + S8)
+                                            └─ FMeas coalgebra (needs Thm 6.1)
+   (§8 analytic ACones hangs to the side: re-instantiate §9 with C = ACones)
+```
+
+### 12.7 Axiom budget & effort
+
+**New axioms: ~7–10**, all in `theories/axioms/{tensor,exp}.v`, each annotated with
+its paper equation; everything else (coherence, comonad/Seely laws, the stable CCC,
+fixpoints) is constructive. A reviewer audits the two axiom files in isolation
+against the **coherence checklist**: Mac Lane *CWM* Ch. VII (pentagon/triangle/
+hexagon + naturality), Melliès' LL-semantics survey and Bierman's new-Seely
+coherence (Seely-iso naturality + comonad laws), with UniMath `Monoidal.*` and
+jwiegley `Monoidal.v`/`Closed.v` as machine-checked law inventories to diff against.
+
+| Milestone | Nominal | Realistic (~2×, one expert) |
+|---|---|---|
+| 12.1 prereqs + **S6** `⊗`+SMCC | 4–5.5 mo | **8–11 mo** |
+| **S7** stable `SCones` (§7.3 dominant) | 6–8 mo | 11–15 mo |
+| **S8** `!` + LNL/Seely | 4–6 mo | 7–11 mo |
+| §9.2 fixpoints | within S8 | 1–2 mo |
+| toy PPL (optional) | 1–2 mo | 2–4 mo |
+
+Minimum deliverable (S6) ≈ **8–11 months**. S6 + S7 (strongest standalone story)
+≈ 18–24 months. **Defer/cut**: §8 analytic `ACones`, §10 PCS.
+
+### 12.8 Risks (iteration 2)
+
+| # | Risk | Lik. | Impact | Mitigation |
+|---|------|------|--------|------------|
+| 1 | A coherence/naturality axiom is mis-stated → silent unsoundness | Med | Catastrophic | Derive coherence (Prop 5.14 / Lem 9.2) instead of postulating it; isolate axioms in `axioms/*.v`; second-reviewer audit; cross-check Mac Lane/Melliès; sanity-test `⊗` against `Skern`'s tensor on `FMeas`. |
+| 2 | §7.3 finite-difference / `n`-increasing combinatorics balloons | High | High | Prototype Lem 7.16/7.17/7.26/7.27 in week 1 of S7 *before committing*; build `Pᵉ(n)`/`Δ` as standalone `bigop`/`finset` lemmas; if blocked at 6 wk, ship S6 alone. |
+| 3 | Scope creep into §8 analytic or a full PPL | High | High | Publicly fix scope at "S6, optionally S7"; §8/PPL only as labelled optional capstones. |
+| 4 | Pressure to *construct* `⊗`/`!` (option A) | Med | High | Document: SAFT existence is non-constructive and no category/SAFT layer exists in `theories/`; option B is the deliverable. |
+| 5 | An abstract category layer triggers HB universe issues | Low–Med | Med | Strategy C: concrete `Record` morphisms + pointwise isos (as in `icone_cat.v`); no generic `Category`/`Functor` tower; keep `Ar` fixed where possible. |
+
+### 12.9 Open questions for iteration 2
+
+1. Is the **toy PPL** capstone in scope, and if so **CBV (CBPV)** or **CBN**? (CBV
+   is the natural target for probabilistic programming; see the CBN/CBV discussion —
+   `!`-co-Kleisli is CBN, the LNL-induced monad is CBV.)
+2. Engage **Ehrhard & Geoffroy** to sanity-check the §5/§9 axiom files? (Recommended
+   given the soundness stakes of D1.)
+3. Build coproducts `⊕` now (close the §11 gap) or only on demand?
+
+---
+
+## Appendix C. Iteration-2 expert team findings
+
+- **Tensor architect** (§5.2–§5.5): reassessed construct-vs-axiomatize given the
+  concrete `⊸`/bilinear layer ⇒ **"Option B-minimal"**: axiomatize only `Φ` +
+  naturality (~3–4 axioms), derive all SMC coherence via Prop 5.14. Flagged the
+  three real prereqs (`icones_iso`, `h⊸g`, Thm 5.9) and the **coproducts-`⊕` gap**
+  in the code. Norm-wrapper friction at the `icones_hom` boundary is the subtle
+  technical risk.
+- **Exponential architect** (§7–§9): `!` is never built directly — it is the SAFT
+  left adjoint over a CCC of non-linear maps. **Take the stable route (§7), defer
+  analytic (§8)**; §9 is route-agnostic. Detailed S7a–d / S9a–d split; only ~4–6
+  axioms (the adjunction), the rest constructive; **fixpoints don't depend on `!`**.
+  §7.3 finite differences is the dominant cost (~3–4 mo).
+- **Rocq/HB scaffolding + ecosystem**: confirmed **Strategy C** is already in force
+  (no abstract `Category` typeclass in `theories/`); surveyed UniMath / jwiegley /
+  monae / mathcomp-qbs — all corroborate concrete over a foreign library. Provided
+  HB/axiom-file sketches and the coherence-audit checklist. Fixpoints: construct.
+- **Devil's-advocate / sequencing**: `⊗` and `!` **axiomatized, not constructed**
+  (SAFT existence is irreducible). Minimum publishable = **S6 alone**; order
+  prereqs → S6 → S7 → S8 → fixpoints → optional PPL. Realistic effort with the ~2×
+  rule: S6 ≈ 8–11 mo, S6+S7 ≈ 18–24 mo. Top calendar risk is §7.3; top soundness
+  risk is a mis-stated coherence axiom. **Defer §8 analytic and §10 PCS.**
+
 End of plan.
