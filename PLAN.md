@@ -564,6 +564,12 @@ approach (what §12 below names *Strategy C*) was validated.
   completeness and Thm 6.5, and only those exist in `theories/icones/icone_cat.v`.
   `⊕` (paper Thm 4.21 / §4.4) remains a TODO. It is *not* a prerequisite for `⊗`;
   it would only matter if a later development needs coproduct-shaped objects.
+- **Well-poweredness (Thm 4.18) is a stub.** `icones_well_powered_bound`
+  (`icone_cat.v:1287`) is `:= set B` with no proof that the subobject class injects
+  into it, and `icones_subobject_inj` is a one-line restatement of injectivity.
+  Harmless for the MVP (Thm 6.5 never uses it) but a **genuine prerequisite** for the
+  SAFT route — §13.1 (SA0) must complete it. Completeness, local smallness, and the
+  coseparator `1` *are* genuinely proven.
 - **`Path` `isICone` cast** was partially deferred during M3 (a representation
   cast left for later); revisit if a downstream proof needs the full instance.
 - **File layout** settled as `prelude/ cones/ mcones/ icones/ homs/ kernels/`,
@@ -581,6 +587,12 @@ held; budget iteration 2 accordingly (§12.7).
 ---
 
 ## 12. Iteration 2 — Tensor `⊗` and Exponential `!` (**planned**)
+
+> **⚠ Superseded by §13 (decision 2026-05-21).** The project chose the *axiom-free*
+> path: prove SAFT and **construct** `⊗`/`!` from it (§13). This §12 (axiomatized) is
+> **retained**, not deleted: its universal-property interface is reused verbatim as
+> §13's staging contract, and it remains the recommended *fallback* / staged-first
+> path if the SAFT proof bogs down. Read §13 for the live plan.
 
 **Goal.** Extend `ICones` from a (multiplicative-additive) linear structure with a
 concrete `⊸` to a full **symmetric monoidal closed category** (`⊗`, §5) carrying an
@@ -784,6 +796,167 @@ Minimum deliverable (S6) ≈ **8–11 months**. S6 + S7 (strongest standalone st
 
 ---
 
+## 13. Iteration 2 (revised) — axiom-free path: tensor → SAFT → exponential (**live plan**)
+
+**Decision (2026-05-21).** Pursue the **axiom-free** route: *prove* SAFT for `ICones`
+(Riehl, *Category Theory in Context*, Thm 4.6.10 / Cor 4.6.14 — the paper's Thm 4.19)
+and **construct** the tensor `⊗` and the exponential `!` from it, rather than
+postulating them. End state: zero project axioms (only the inherited `boolp` classical
+base, as in the MVP). Supersedes the axiomatized §12, which is retained as the staging
+contract / fallback. Synthesized from a second 4-expert pass (Appendix E).
+
+### 13.0 Strategy, the well-poweredness gap, and the staging decision
+
+- **Strategy C unchanged**: build everything *concretely* on `ICone`/`icones_hom`; no
+  abstract `Category` typeclass, no foreign category library.
+- **⚠ Prerequisite correction — well-poweredness is a stub.** SAFT needs `ICones`
+  complete + locally small + a small coseparating set + intersections of subobjects.
+  The MVP genuinely proves completeness (`icones_prod` over arbitrary `I : Type` +
+  `icones_eq`, with uniqueness `icones_tuple_unique`/`icones_eq_med_unique`), local
+  smallness (homs are a type), and the coseparator `1` (`icones_coseparator`). **But
+  `icones_well_powered_bound` (`icone_cat.v:1287`) is a stub** (`:= set B`, no injection
+  proof). So well-poweredness + the subobject-intersection machinery are *not* done;
+  completing them is the bulk of M-SAFT (13.1), not free.
+- **Recommended sequencing — decouple via the interface.** Proving SAFT is the
+  riskiest, lowest-leverage piece, and a SAFT-built `⊗`/`!` is an *opaque* object used
+  only through its universal property (Riehl p.165; paper Remark 5.1/9.1) — so
+  downstream proofs are identical whether that property is *asserted* or *derived*.
+  Therefore specify the SAFT conclusion as a **section-local interface** (`==` §12's
+  axioms), build tensor (13.2), stable CCC (13.3) and exponential (13.4) against it,
+  and run **M-SAFT (13.1) as its own track that discharges the interface** → fully
+  axiom-free, no downstream rework. This reaches the axiom-free goal while letting
+  `⊗`/`SCones`/`!` progress in parallel. (Strict alternative: make M-SAFT a hard gate
+  first — front-loads ~5–8 months before any `⊗` result.)
+
+### 13.1 M-SAFT — proved representability for ICones (Riehl 4.6.10/4.6.11/4.6.14)
+
+**Approach: option B — a bespoke representability theorem stated directly on
+`icones_hom`** (no abstract category layer; matches MVP style and sidesteps universe
+machinery, since homs are types, the coseparating set is the single object `1`, and the
+subobject family of `p` is indexed by `set p`). Construction (Lemma 4.6.11 with
+`Φ = {1}`): form the power `p := icones_prod (fun _ : J => 1)` over `J := U(1)`
+(resp. `F 1`), then the intersection `i ↪ p` of all subobjects of `p`; `i` is initial
+in the inlined comma `s ↓ U`. Encode the wide intersection as a **single binary
+`icones_eq` of two product maps** (keeps HB instances on the existing `cones_eq_car`,
+avoiding universe trouble). Initiality: existence from completeness (`icones_eq_med`),
+uniqueness from the coseparator.
+
+| # | Sub-milestone | Reuses / fixes |
+|---|---|---|
+| SA0 | **Complete the well-poweredness proof** (Thm 4.18): subobjects of `B` inject into `set B` | replaces the `icone_cat.v:1287` stub |
+| SA1 | `is_icones_mono`, `icones_subobject` record | SA0 |
+| SA2 | wide equalizer via binary `icones_eq` of two product maps; mediating arrow + uniqueness | `icones_prod`, `icones_eq`, `icones_eq_med` |
+| SA3 | power `p = ∏_J 1`; intersection `i ↪ p` | `icones_prod` (arb. `I`), `icones_coseparator` |
+| SA4 | initiality of `i` in `s ↓ U` (the key lemma) | `icones_coseparator`, `icones_hom_eq` |
+| SA5 | package `icones_left_adjoint` (4.6.10) + `icones_continuous_representable` (4.6.14); export | SA1–SA4 |
+
+**Exported interface** (consumed by 13.2/13.4; `==` §12's axioms once proved):
+`icones_left_adjoint : ∀ (U : ICones→C continuous), { L & L ⊣ U }` and
+`icones_continuous_representable : ∀ (F : ICones→Set continuous), { r & ICones(r,−) ≅ F }`.
+File: `theories/icones/representable.v`. Effort ≈ 2.5–3.5 mo nominal / **5–8 mo
+realistic**; the highest-risk milestone of the iteration (the subobject-intersection
+machinery does not exist yet).
+
+### 13.2 Tensor `⊗` + SMCC via SAFT (route b) — paper §5.2–§5.5
+
+Prove `(C ⊸ −) : ICones → ICones` continuous (**Thm 5.9**, concrete/pointwise on
+`icones_prod`/`icones_eq`), feed it to `icones_left_adjoint`, and *define* `(− ⊗ C)` as
+the resulting left adjoint with the natural bijection
+`Φ : ICones(B⊗C,D) ≃ ICones(B, C⊸D)`. Route (b) is the paper's literal path and does
+less work than representing the bilinear functor (which needs Def 5.6's
+`Bilin = B⊸(C⊸D)` — route (b)'s codomain). Prereqs: `icones_iso` record; `linhom_map`
+(`h ⊸ g`, Def 5.7, absent today); **Thm 5.9**. Derived as theorems: `τ`/`x⊗y`;
+**Thm 5.12** closure; **Thm 5.13** `‖x⊗y‖=‖x‖‖y‖`; **Prop 5.14** pure-tensor
+extensionality; associator/unitors/braiding (unit `= cone_one_car`);
+pentagon/hexagon/triangle (via Prop 5.14); **Thm 5.15** SMCC. Opaque carrier is fine —
+every proof goes through `Φ`/`τ` + Prop 5.14, as the paper does. Files:
+`homs/linhom.v`(+`linhom_map`), `homs/icones_iso.v`, `homs/linhom_lim.v` (Thm 5.9),
+`homs/tensor.v`, `homs/smcc.v`. Effort ≈ 8–11 mo realistic. Top risks: norm-wrapper
+friction at the `icones_hom` (`‖f x‖≤‖x‖`) boundary; Thm 5.9 *equaliser* preservation
+(prototype first).
+
+### 13.3 Stable CCC `SCones` (§7) — constructive, the mountain
+
+Independent of `⊗`/`!`/SAFT. `B ⇒ₛ C` clones the `linhom.v` skeleton.
+
+| Sub | Content | Paper · txt | Effort |
+|---|---|---|---|
+| S7a | local cone `B_x`, gauge norm | §7.1, 3131 | 3–4 wk |
+| S7b | total monotonicity, stable cone `B ⇒ₛ C` | §7.2, 3211 | 4–6 wk |
+| S7c | finite differences `Δ`, Thm 7.19, composition keystones — **the time sink** | §7.3, 3419 | **10–16 wk** |
+| S7d | CCC `SCones`, `Ev`/curry, `Der` continuous (Thm 7.34) | §7.4, 3890 | 4–6 wk |
+
+S7c: **port** mathlib4 `ForwardDiff` + `FaaDiBruno` onto native
+`bigop`/`finset`/`binomial`/`multinomials`(`mpoly`), indexing the higher chain rule by
+**ordered partitions of `Fin n`** (not raw subsets) to kill the nested double-induction.
+Files: `theories/stable/{local_cone,totmono,stablehom,findiff,scones_cat}.v`. Effort
+≈ 11–15 mo realistic (S7c dominant).
+
+### 13.4 Exponential `!` via SAFT — paper §9, axiom-free
+
+`!B := E(Der B)` with `E ⊣ Der` from `icones_left_adjoint` applied to the forgetful
+`Der : ICones → SCones`. The single input to feed SAFT is **Thm 7.34 (`Der` preserves
+small limits, from S7d)**. Derived as theorems (no axioms): `der`/`dig`/`!f` + comonad
+laws (Lem 9.2/9.3) — SAFT only; Seely isos `!(A&B)≅!A⊗!B`, `!⊤≅I` + **Thm 9.5** — need
+`⊗` (13.2); `FMeas(X)` coalgebra **Thm 9.7** — reuses Thm 6.1 (`bilin.v`).
+**SAFT-for-`!` is recommended over the MTT free exponential**, which even with `⊗`
+constructed still needs the `Sₙ`-actions, the limit tower, and two `⊗`-distributivity
+coherences (more work); keep MTT only as future hardening (Remark 9.6). Files:
+`theories/exp/{comonad,seely,coalgebra}.v`. Effort ≈ 7–11 mo realistic.
+
+### 13.5 Fixpoints (§9.2) — constructive
+
+`theories/stable/fixpoint.v`: `Y(f) = sup_n fⁿ(0)` via the existing `omegacpo`; depends
+only on **S7d + ω-cpo** (not on `!`/`⊗`), ships right after S7. Effort 2–3 wk. Note (per
+the PPL analysis): a small higher-order PPL needs only `SCones` + fixpoints — *not*
+`⊗`/`!` — so this plus 13.3 already suffices for a CBN/CBV PPL semantics if that, rather
+than the linear-logic structure, is the goal.
+
+### 13.6 Dependency order
+
+```
+MVP (done) ─► SAFT interface (13.0 contract, == §12 axioms, temporary)
+   │                                              │
+   ▼                                              └─► M-SAFT (13.1) discharges it
+13.2 ⊗+SMCC (Thm 5.9 → left adjoint)                  (incl. fixing the well-powered stub)
+13.3 SCones (§7, constructive, independent) ─► S7d ─► fixpoints (ω-cpo only)
+                                                 │
+                                                 └─► 13.4 ! (feed Thm 7.34 to SAFT)
+                                                        ├─ der/dig/comonad  (SAFT only)
+                                                        ├─ Seely / Thm 9.5  (needs ⊗)
+                                                        └─ FMeas coalgebra  (needs Thm 6.1)
+```
+
+### 13.7 Effort, risks & the staged recommendation
+
+| Milestone | Realistic (~2×, one expert) |
+|---|---|
+| M-SAFT (13.1, **new**, incl. well-powered proof) | 5–8 mo |
+| ⊗ + SMCC (13.2) | 8–11 mo |
+| SCones (13.3, §7.3 dominant) | 11–15 mo |
+| ! + Seely (13.4) | 7–11 mo |
+| fixpoints (13.5) | 1–2 mo |
+
+Axiom-free end-to-end ≈ **31–45 months** (one expert). Staged: a conservative
+axiomatized `⊗` (S6) ships at **8–11 mo**, with M-SAFT discharging it later.
+
+| # | Risk | Lik. | Impact | Mitigation |
+|---|---|---|---|---|
+| 1 | Gating the iteration on proving SAFT first triples time-to-first-result | High | Schedule | Stage: build against the SAFT *interface*; M-SAFT discharges it later (13.0). |
+| 2 | Subobject-intersection / well-powered proof doesn't exist, underestimated (stub today) | High | High | Scope M-SAFT honestly (5–8 mo); prototype `i ↪ 1^J` in week 1. |
+| 3 | §7.3 finite-difference combinatorics balloons | High | High | Port mathlib `FaaDiBruno` (ordered-partition indexing); build the `bigop` sign-split layer first. |
+| 4 | HB universe/size blow-up in the wide-equalizer carrier | Med | Med | Keep HB instances on `cones_eq_car`; confine `set p` to map definitions; no abstract `Category` tower. |
+| 5 | SAFT buys only soundness/cleanliness (opaque object) — over-investment vs §7.3 | High | Low–Med | Accept consciously; don't let M-SAFT starve the §7.3 critical path. |
+
+**Independent review's bottom line.** The axiom-free end state is the right *goal*, but
+the cheapest route to it is to **build `⊗`/`!` against the §12 axiomatized interface
+first** (sound, conservative, ~8–11 mo to a citable SMCC result), **then discharge those
+axioms via M-SAFT** — rather than front-loading the riskiest, opaquest,
+lowest-downstream-content proof. Either ordering reaches the identical destination:
+axiom-free `⊗` and `!`.
+
+---
+
 ## Appendix C. Iteration-2 expert team findings
 
 - **Tensor architect** (§5.2–§5.5): reassessed construct-vs-axiomatize given the
@@ -847,5 +1020,30 @@ Affeldt–Cohen–Saito, s-finite kernels in mathcomp-analysis (CPP 2023); Ahren
 Matthes–van der Weide–Wullaert, *Displayed Monoidal Categories for the Semantics of
 LL* (CPP 2024, hal-04375376); Ehrhard–Pagani–Tasson, *Measurable Cones and Stable,
 Measurable Functions* (arXiv:1711.09640).
+
+---
+
+## Appendix E. Iteration-2 (revised) axiom-free expert team findings
+
+The second 4-expert pass that produced §13 (the axiom-free SAFT path).
+
+- **SAFT-for-ICones architect**: recommend a *bespoke concrete* representability theorem
+  on `icones_hom` (option B), not an abstract category layer — coseparator `{1}`,
+  intersection of subobjects of a power of `1` encoded as one binary `icones_eq` of
+  product maps (keeps HB instances on `cones_eq_car`, sidesteps universes). Exports
+  `icones_left_adjoint` / `icones_continuous_representable`. SA0–SA5; ~2.5–3.5 mo
+  nominal.
+- **Tensor-via-SAFT architect**: route (b) — prove `(C⊸−)` continuous (Thm 5.9), read
+  off `(−⊗C)` as the SAFT left adjoint; derive the SMCC via Prop 5.14. Opaque carrier
+  handled through `Φ`/`τ`. Risks: norm-wrapper friction, Thm 5.9 equaliser preservation.
+- **Exponential-via-SAFT architect**: build the §7 stable CCC, then `!` = SAFT applied
+  to `Der` (feed Thm 7.34); comonad/Seely/coalgebra derived. SAFT-for-`!` beats MTT even
+  with `⊗` constructed. §7.3 is the dominant cost (port mathlib `ForwardDiff`/
+  `FaaDiBruno`, ordered-partition indexing).
+- **Devil's-advocate**: **found that `icones_well_powered_bound` is a stub** (so a SAFT
+  hypothesis is unproven — now §13.1 SA0); a SAFT-built object is opaque and buys only
+  soundness/cleanliness; axiom-free-first ≈ 31–45 mo vs axiomatized S6 ≈ 8–11 mo.
+  **Recommends staging**: ship `⊗`/`!` against the axiomatized interface first, discharge
+  via M-SAFT later — same axiom-free destination, far less schedule risk.
 
 End of plan.
