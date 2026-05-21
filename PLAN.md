@@ -663,6 +663,22 @@ below is the synthesis of a 4-expert planning pass (see **Appendix C**).
 Files: `theories/stable/{local_cone,totmono,stablehom,findiff,scones_cat}.v`.
 Independent of `⊗`/`!` — a standalone **cartesian-closed** model (CBN λ-calculus).
 
+**Reusable assets & de-risking (scout, 2026-05).** No proof assistant has a
+formalized stable/analytic CCC or `!` (first-of-kind), but the §7.3 combinatorics
+— the time sink — can lean on existing tooling rather than be built from nothing:
+- *Native mathcomp infrastructure* turns the sign-split power-sets `P⁻(n)/P⁺(n)`
+  and alternating-sum identities into routine `bigop` algebra: `finset.powerset` +
+  `card_powerset`, `bigID`/`reindex`/`telescope_big`, `ssralg.signrE`/`exprNn`,
+  `binomial`'s `'C(n,k)` + Vandermonde; the **`multinomials` package** (`mpoly`,
+  installed 2.4.0 — add to `icones.opam`) covers the symmetric/multilinear side.
+- *mathlib4 as a vetted spec to PORT* (not import): `Algebra.Group.ForwardDiff`
+  (finite differences, Gregory–Newton, the alternating-binomial `n`-th difference)
+  and `…/IteratedDeriv/FaaDiBruno`. Load-bearing transferable idea: index the higher
+  chain rule by **ordered partitions of `Fin n`**, not raw subsets — this sidesteps
+  the nested double induction of the Lem 7.26/7.27 composition keystones.
+This downgrades §7.3 (risk #2) from "build from scratch" to "port a known-good
+blueprint onto solid mathcomp infrastructure". See Appendix D.
+
 ### 12.4 S8 — Exponential `!` + LNL + Seely (paper §9)
 
 - **Axioms** (`theories/axioms/exp.v`, ~4–6): the left adjoint `E` of `Der`, the
@@ -673,6 +689,20 @@ Independent of `⊗`/`!` — a standalone **cartesian-closed** model (CBN λ-cal
   coalgebra **Thm 9.7** (reuses `dirac_path`/Thm 6.1 from `bilin.v`).
 - **Files**: `theories/exp/{comonad,seely,coalgebra}.v` + `axioms/exp.v`.
 - **Depends on**: S6 (`⊗`, for Seely) **and** S7 (the CCC).
+- **Axiom-free alternative (recorded, _not_ the path)**: the Melliès–Tabareau–Tasson
+  *free exponential* gives `!A = limₙ A^{≤n}`, with `A^{≤n}` the equalizer of the
+  `n!` symmetries on `(A & I)^⊗n` — needing `⊗`, products, equalisers, countable
+  limits (ICones has all via completeness) **plus two `⊗`-distributivity
+  conditions**. Crubille–Ehrhard–Pagani–Tasson (FoSSaCS 2017) proved PCS's `!` *is*
+  exactly this free comonoid, and PCS embeds in ICones, so the cone `!` is morally
+  free. **But** it does not remove the `⊗` axiom, it adds the `Sₙ`-actions and two
+  distributivity theorems over an *opaque* SAFT tensor, and Ehrhard–Geoffroy
+  deliberately avoid it ("the special adjoint functor theorem … avoids providing
+  explicit combinatorial constructions"). Verdict: optional future *hardening* of
+  the de-axiomatization goal, attractive only once `⊗` has an explicit description —
+  **axiomatized-SAFT stays the path**. (mathcomp-analysis ships `completeType`
+  predicates but no completion *functor* à la mathlib `UniformSpace.Completion`, so a
+  completion-based `⊗`/`!` starts from scratch.) See Appendix D.
 
 ### 12.5 Fixpoints (§9.2) + optional capstone
 
@@ -683,6 +713,13 @@ Independent of `⊗`/`!` — a standalone **cartesian-closed** model (CBN λ-cal
   closing open question §9-#7. Tie the value/computation split to "values = cone
   elements, computations = sub-distributions"; this is where CBN (co-Kleisli of `!`)
   vs CBV (Kleisli of the LNL-induced monad) is made concrete.
+- *In-stack scaffolding for the capstone (scout, 2026-05)*: Affeldt–Cohen–Saito's
+  **s-finite kernels + measure monad in mathcomp-analysis** (CPP 2023 / TOPLAS 2025)
+  is reusable monad/kernel infrastructure in our exact stack and supplies an
+  intrinsically-typed PPL-syntax pattern (first-order, no `!`). Paper-only *recipes*
+  for the higher-order layer: Hamano's linear-exponential-comonad over s-finite
+  kernels (via integration-orthogonality) and Vákár–Kammar–Staton ωQBS (cpo ⊕ base,
+  for recursion + higher-order). See Appendix D.
 
 ### 12.6 Dependency DAG
 
@@ -769,5 +806,46 @@ Minimum deliverable (S6) ≈ **8–11 months**. S6 + S7 (strongest standalone st
   prereqs → S6 → S7 → S8 → fixpoints → optional PPL. Realistic effort with the ~2×
   rule: S6 ≈ 8–11 mo, S6+S7 ≈ 18–24 mo. Top calendar risk is §7.3; top soundness
   risk is a mis-stated coherence axiom. **Defer §8 analytic and §10 PCS.**
+
+---
+
+## Appendix D. Iteration-2 reusable-assets scouting (web search, 2026-05)
+
+A 4-scout web search for anything that helps build `!`. **Headline: nothing
+importable builds `!` for us** — no proof assistant has a formalized LL exponential
+/ Seely / Lafont / linear-non-linear category, nor any cone/PCS exponential, in any
+foundation (let alone mathcomp/HB). But three useful assets surfaced:
+
+- **§7.3 de-risking (the practical win).** mathcomp's
+  `bigop`/`finset`/`binomial`/`ssralg` + the installed `multinomials` (`mpoly`,
+  2.4.0) cover the subset/alternating-sum and symmetric/multilinear infrastructure;
+  **mathlib4** has fully formalized finite differences (`ForwardDiff`,
+  Gregory–Newton) and **Faà di Bruno** (via `OrderedFinpartition`) as a spec to
+  *port* — index by ordered partitions of `Fin n`, not raw subsets. ⇒ folded into
+  §12.3.
+- **MTT free exponential (axiom-free `!`, expensive).** Explicit formula
+  `!A = limₙ`(equalizer of `Sₙ` on `(A & I)^⊗n`); *proven* to be PCS's `!` (Crubille
+  et al., FoSSaCS 2017), and PCS embeds in ICones — but it adds distributivity
+  theorems over an opaque `⊗` and is *not* what Ehrhard–Geoffroy use. ⇒ folded into
+  §12.4 as optional hardening.
+- **In-stack scaffolding & blueprints.** Affeldt–Cohen–Saito s-finite kernels +
+  measure monad in mathcomp-analysis (our exact stack; first-order, no `!`); and the
+  paper-only recipes Hamano (`!` over s-finite kernels via integration-orthogonality)
+  and Vákár–Kammar–Staton ωQBS (recursion + higher-order); the Isabelle/HOL QBS stack
+  (exponentials over a measure base); UniMath's CPP-2024 *Displayed Monoidal
+  Categories for LL* (architectural template for the comonoid/LNL target — univalent,
+  not importable). ⇒ §12.5.
+- **To verify before relying on:** a claimed Rocq free-CCC universal-property
+  formalization (arXiv:2402.11727, library/foundation unconfirmed); the absence of a
+  completion *functor* in mathcomp-analysis (only `completeType`).
+
+Key sources: mathlib `Algebra.Group.ForwardDiff` and `…/IteratedDeriv/FaaDiBruno`;
+Melliès–Tabareau–Tasson, *An explicit formula for the free exponential modality of
+LL* (ICALP 2009 / MSCS 2018, hal-01992148); Crubille–Ehrhard–Pagani–Tasson, *The
+Free Exponential Modality of PCS* (FoSSaCS 2017); Hamano, arXiv:1909.07589;
+Affeldt–Cohen–Saito, s-finite kernels in mathcomp-analysis (CPP 2023); Ahrens–
+Matthes–van der Weide–Wullaert, *Displayed Monoidal Categories for the Semantics of
+LL* (CPP 2024, hal-04375376); Ehrhard–Pagani–Tasson, *Measurable Cones and Stable,
+Measurable Functions* (arXiv:1711.09640).
 
 End of plan.
