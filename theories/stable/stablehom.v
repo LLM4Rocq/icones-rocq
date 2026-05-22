@@ -36,18 +36,15 @@
       [sh_norm_lub] / [sh_norm_ge0], and the cone-norm axioms (Normh)
       [sh_normh], (Normt) [sh_normt], (Normp) [sh_normp] — Lemma 7.14.
 
-    What is NOT delivered (and why), see the closing status block:
-    the [isCone] HB instance — blocked at (Normz), and hence [isMCone]
-    / [isICone].  (Normz) ([‖f‖ = 0 ⇒ f = 0]) fails for the *total*-
-    function carrier: [‖f‖ = 0] forces [f x = 0] only on the unit ball
-    [B_B] (the domain of a stable map), but [stablehom] wraps a total
-    [B -> C] whose values *outside* [B_B] are unconstrained by
-    [is_meas_stable], so [f] need not be Leibniz-equal to [sh_zero].
-    The linear cone [C ⊸ D] dodges this via linearity (a linear map
-    null on [B_C] is null everywhere); a nonlinear stable map is not so
-    determined.  Closing (Normz) needs the carrier to identify maps
-    agreeing on [B_B] (a setoid/quotient or a canonical extension by
-    [0] off [B_B]), a carrier-level change beyond resuming the tower. *)
+    The full cone structure is now delivered (see the closing status
+    block): the **[isCone] HB instance is REGISTERED** — [stablehom B C :
+    coneType R].  (Normz) is unblocked by the canonical 0-extension
+    carrier (the [sh_offball] field), and (Normc) is discharged by the
+    pointwise supremum [sh_sup] together with the difference-is-stable
+    construction (Lemma 7.12 backward, [sh_diff]) supplying the precone-
+    order witnesses [sh_sup ⊖ uₙ] / [y ⊖ sh_sup] required by the
+    [cone_sup_ball] mixin.  Only the measurability structure [isMCone]
+    and the integrability [isICone] (txt 3365–3372) remain. *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.
@@ -657,6 +654,71 @@ Arguments sumsup_chain {R P T} c A n.
 Arguments sum_cone_sup_ub {R P T c} cch cub A n.
 Arguments sum_cone_sup_lub {R P T c} cch cub A y.
 
+(** ** Adding a constant on the left commutes with the finite-sum-sup
+
+    [Z + Σ_A cone_sup_ball(c)] is the lub of [(Z + sumsup_chain c A m)_m]:
+    the finite cone-sum of per-index suprema equals the radius-[#|A|+1]
+    [cone_sup_at] of the diagonal sum chain ([sum_cone_sup_eq], via
+    [sum_cone_sup_ub] / [sum_cone_sup_lub] + [cone_sup_at] antisymmetry),
+    and adding [Z] on the left commutes through [cone_sup_at]
+    ([sup_at_addr], after a [precone_addC]).  This is the cone fact behind
+    the supremum-passage of the alternating condition (Lemma 7.12). *)
+Section AddlSumConeSup.
+Variable R : realType.
+Variable P : coneType R.
+Variable T : finType.
+Variable c : T -> nat -> P.
+Hypothesis cch : forall i n, c i n <=p c i n.+1.
+Hypothesis cub : forall i n, cnorm (c i n) <= 1.
+Local Open Scope precone_scope.
+
+(** [Σ_A cone_sup_ball(c)] as a radius-[#|A|+1] [cone_sup_at]. *)
+Lemma sum_cone_sup_eq (A : {set T}) :
+  \big[precone_add/precone_zero]_(i in A)
+     (cone_sup_ball (c i) (cch i) (cub i)) =
+  cone_sup_at (sumsup_chain_ch cch A) (sumsup_chain_radius cub A)
+              (sumsup_radius_pos R A).
+Proof.
+apply: precone_le_anti.
+- apply: (sum_cone_sup_lub cch cub) => m; exact: cone_sup_at_ub.
+- by apply: cone_sup_at_lub => m; exact: (sum_cone_sup_ub cch cub).
+Qed.
+
+(** Left-add commutes: [Z + Σ_A cone_sup_ball(c) ≤p V] reduces to the
+    pointwise diagonal bound [Z + sumsup_chain c A m ≤p V]. *)
+Lemma addl_sum_cone_sup_lub (A : {set T}) (Z V : P) :
+  (forall m, Z + sumsup_chain c A m <=p V) ->
+  Z + \big[precone_add/precone_zero]_(i in A)
+        (cone_sup_ball (c i) (cch i) (cub i)) <=p V.
+Proof.
+move=> HZ.
+rewrite sum_cone_sup_eq.
+set Mpos := sumsup_radius_pos R A.
+set ch := sumsup_chain_ch cch A.
+set ub := sumsup_chain_radius cub A.
+(* [Z + cone_sup_at = cone_sup_at (sumsup_chain + Z)] (right form). *)
+have azch m : sumsup_chain c A m + Z <=p sumsup_chain c A m.+1 + Z.
+  by apply: precone_add_le_r; exact: ch.
+have Kge0 : (0 <= (sumsup_radius R A)%:num + cnorm Z)%R.
+  by rewrite addr_ge0 // ?cone_norm_ge0 // ltW.
+pose K : {nonneg R} := NngNum Kge0.
+have Kpos : (0 < K%:num)%R.
+  by apply: lt_le_trans Mpos _; rewrite /= lerDl cone_norm_ge0.
+have azub m : cnorm (sumsup_chain c A m + Z) <= K%:num.
+  apply: le_trans (cone_normt _ _) _.
+  by rewrite /= lerD2r; exact: ub.
+have ubK m : cnorm (sumsup_chain c A m) <= K%:num.
+  by apply: le_trans (ub m) _; rewrite /= lerDl cone_norm_ge0.
+rewrite (cone_sup_at_indep ch ub ubK Mpos Kpos) precone_addC.
+rewrite -(sup_at_addr ch ubK azch azub Kpos).
+by apply: cone_sup_at_lub => m; rewrite precone_addC; exact: HZ.
+Qed.
+
+End AddlSumConeSup.
+
+Arguments sum_cone_sup_eq {R P T c} cch cub A.
+Arguments addl_sum_cone_sup_lub {R P T c} cch cub A Z V.
+
 (** ** (Normc) — the unit-ball supremum of a chain of stable maps
     — Paper §7.2 (Lemma 7.14)
 
@@ -722,6 +784,83 @@ Qed.
 End ConeSupBallSwap.
 
 Arguments sh_sup_swap {R C}.
+
+(** ** Radius-aware ω-continuity of a difference — Paper Lemma 2.10
+       (general image radius)
+
+    The codomain difference [w = g − f] (with [g x = f x + w x]) is
+    ω-continuous on the unit ball *at any image radius* [Mf], provided
+    [f] is increasing and [g] is Scott-continuous ([is_scott_continuous],
+    [omega_general.v]).  This is the radius-aware analogue of
+    [basic_lemmas.v]'s [diff_omega_continuous] (Lemma 2.10): we replace
+    the unit-ball [cone_sup_ball] of the conclusion by the radius-[Mf]
+    [cone_sup_at], use [g]'s Scott-continuity at input radius [1]
+    ([cone_sup_at_ball] identifies the input [cone_sup_ball] with the
+    radius-[1] [cone_sup_at]), and recombine the image suprema with the
+    radius-aware [addl_scott_continuous].  Used below for the
+    Scott-continuity of the stable difference [y ⊖ sh_sup] of Lemma 7.12
+    backward (where the upper bound [y] has unconstrained norm). *)
+
+Section DiffScottAt.
+Variable R : realType.
+Variables P Q : coneType R.
+Local Open Scope precone_scope.
+
+Lemma diff_scott_at
+  (f g w : P -> Q)
+  (Hg_cont : is_scott_continuous_unit g)
+  (Hsplit : forall x, g x = f x + w x)
+  (Mf Mg : {nonneg R}) (u : nat -> P)
+  (uch : forall n, precone_le (u n) (u n.+1))
+  (ub1 : forall n, cone_norm (u n) <= 1)
+  (fxle : forall n, precone_le (f (u n)) (f (cone_sup_ball u uch ub1)))
+  (wuch : forall n, precone_le (w (u n)) (w (u n.+1)))
+  (wxch : forall n, precone_le (w (u n)) (w (cone_sup_ball u uch ub1)))
+  (wubMf : forall n, cone_norm (w (u n)) <= Mf%:num)
+  (Mfpos : (0 < Mf%:num)%R)
+  (guch : forall n, precone_le (g (u n)) (g (u n.+1)))
+  (gubMg : forall n, cone_norm (g (u n)) <= Mg%:num)
+  (Mgpos : (0 < Mg%:num)%R) :
+  w (cone_sup_ball u uch ub1) = cone_sup_at wuch wubMf Mfpos.
+Proof.
+set x := cone_sup_ball u uch ub1.
+set y := cone_sup_at wuch wubMf Mfpos.
+apply: precone_le_anti; last first.
+  by apply: cone_sup_at_lub => n; exact: wxch.
+(* Hard direction: [w x ≤p y].  Reduce to [f x + w x ≤p f x + y]. *)
+have gx_eq : g x = cone_sup_at guch gubMg Mgpos.
+  by rewrite /x (Hg_cont Mg u uch ub1 guch gubMg Mgpos).
+have step1 n : precone_le (g (u n)) (f x + w (u n)).
+  by rewrite (Hsplit (u n)); apply: precone_add_le_r; exact: fxle.
+have Kge0 : (0 <= cone_norm (f x) + Mf%:num)%R.
+  by rewrite addr_ge0 // ?cone_norm_ge0 // ltW.
+pose K : {nonneg R} := NngNum Kge0.
+have Kpos : (0 < K%:num)%R.
+  by rewrite /= -[X in (X < _)%R]addr0 ler_ltD // ?cone_norm_ge0.
+have fwch n : f x + w (u n) <=p f x + w (u n.+1).
+  by apply: precone_add_le_l; exact: wuch.
+have fwub n : cone_norm (f x + w (u n)) <= K%:num.
+  by apply: le_trans (cone_normt _ _) _; rewrite /= lerD2l; exact: wubMf.
+have step2 n : precone_le (g (u n)) (cone_sup_at fwch fwub Kpos).
+  by apply: precone_le_trans (step1 n) _; exact: cone_sup_at_ub.
+have step3 : precone_le (cone_sup_at guch gubMg Mgpos)
+                        (cone_sup_at fwch fwub Kpos).
+  by apply: cone_sup_at_lub => n; exact: step2.
+have sumeq : cone_sup_at fwch fwub Kpos = f x + y.
+  rewrite /y.
+  by rewrite -(addl_scott_continuous (f x) Mf K (w \o u) wuch wubMf Mfpos
+                fwch fwub Kpos).
+have gx_le : precone_le (g x) (f x + y).
+  by rewrite gx_eq -sumeq; exact: step3.
+move: gx_le; rewrite (Hsplit x) => -[z Hz].
+exists z.
+have Hz' : f x + y = f x + (w x + z) by rewrite Hz -precone_addA.
+exact: precone_cancel Hz'.
+Qed.
+
+End DiffScottAt.
+
+Arguments diff_scott_at {R P Q f g w} Hg_cont Hsplit {Mf Mg u}.
 
 Section StablehomSupBall.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -1057,6 +1196,514 @@ Qed.
 
 End StablehomSupBall.
 
+(** ** Precone order left-cancellation
+    [z + a ≤p z + b] entails [a ≤p b]: the difference witness commutes
+    past [z] and is removed by left cancellation [precone_cancel]. *)
+Section PreconeLeCancel.
+Variable R : realType.
+Variable P : preconeType R.
+Local Open Scope precone_scope.
+
+Lemma precone_le_addlI (z a b : P) : z + a <=p z + b -> a <=p b.
+Proof.
+move=> [w Hw]; exists w.
+apply: (@precone_cancel R P z b (a + w)).
+by rewrite Hw precone_addA.
+Qed.
+
+End PreconeLeCancel.
+
+Arguments precone_le_addlI {R P z a b}.
+
+(** ** Lemma 7.12 backward — the difference of two stable maps is stable
+    — Paper §7.2 (txt 3345)
+//
+    Given [f, g : stablehom B C] with [f ≤ g] in the *stable* order —
+    here split into the pointwise comparison [Hpw] (the [n = 0] case of
+    Lemma 7.12) and the alternating condition [Halt] (the additive,
+    subtraction-free form of "[g − f] is totally monotonic") — we build
+    the difference [h := g ⊖ f] as a genuine [stablehom] satisfying
+    [sh_add f h = g], i.e. [f ≤p g] in the precone order.
+//
+    The pointwise difference [shd_fun x] is the cone-cancellation witness
+    of [f x ≤p g x] (extracted by [cid] from the *total* comparison
+    [shd_le], which off the unit ball is [0 ≤p 0]); off [B_B] it collapses
+    to [0] (the equation [0 = 0 + z] forces [z = 0]), preserving the
+    canonical 0-extension.  Its three stability facts:
+    - **total monotonicity** ([shd_totmono]) — substitute [g(a) = f(a) +
+      h(a)] into [Halt], split the cone-sums ([sumP_add]), and cancel the
+      common [Σf]-term in the precone order ([precone_le_addlI]); what
+      remains is [Σ_{P⁻} h ≤p Σ_{P⁺} h], i.e. (7.1) for [h].
+    - **ω-continuity** ([shd_scott]) — the radius-aware Lemma 2.10
+      [diff_scott_at] (with [f] increasing, [g] Scott-continuous via the
+      [is_scott_continuous] bridge [linear_scott_of_omega]…—here [g] is a
+      stable map so we use its [is_scott_continuous_unit] field directly,
+      repackaged as a [cone_sup_at] commutation).
+    - **measurability** ([shd_pres_path]) — [test m s (h(γ r)) =
+      test m s (g(γ r)) − test m s (f(γ r))] by [test_linD] on [shd_E],
+      a difference of the measurable test-paths of [f], [g]
+      ([measurable_funB]). *)
+
+(** The alternating condition of Lemma 7.12: [g − f] is totally monotonic
+    in additive, subtraction-free form.  Stated as a standalone predicate
+    so the forward direction ([sh_alt_of_le]) and the supremum-passage
+    lemmas ([sh_alt_sup_r] / [sh_alt_sup_l]) can be phrased about it. *)
+Definition sh_alt (R : realType) (Ar : MeasSubcat R) (B C : MCone.type Ar)
+    (f g : stablehom B C) : Prop :=
+  forall (n : nat) (x : B) (v : 'I_n -> B),
+    (cone_norm (x + \big[precone_add/precone_zero]_(i : 'I_n) v i)%PC <= 1) ->
+    precone_le
+      (\big[precone_add/precone_zero]_(I in Pneg n) sh_fun g (tm_arg x v I)
+       + \big[precone_add/precone_zero]_(I in Ppos n) sh_fun f (tm_arg x v I))%PC
+      (\big[precone_add/precone_zero]_(I in Ppos n) sh_fun g (tm_arg x v I)
+       + \big[precone_add/precone_zero]_(I in Pneg n) sh_fun f (tm_arg x v I))%PC.
+
+Arguments sh_alt {R Ar B C} f g.
+
+Section StablehomDiff.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+Local Open Scope precone_scope.
+
+Variables f g : stablehom B C.
+
+(** The pointwise comparison on the unit ball ([n = 0] of Lemma 7.12). *)
+Hypothesis Hpw :
+  forall x : B, cone_norm x <= 1 -> precone_le (sh_fun f x) (sh_fun g x).
+
+(** The alternating condition (Lemma 7.12). *)
+Hypothesis Halt : sh_alt f g.
+
+(** Pointwise comparison, made *total*: off the unit ball both maps are
+    [0], so [0 ≤p 0] by reflexivity. *)
+Lemma shd_le (x : B) : precone_le (sh_fun f x) (sh_fun g x).
+Proof.
+have [Hx | Hx] := boolP (cone_norm x <= 1); first exact: Hpw.
+by rewrite (sh_offball f x Hx) (sh_offball g x Hx); exact: precone_le_refl.
+Qed.
+
+(** The pointwise difference [g x ⊖ f x] (the cone-cancellation witness). *)
+Definition shd_fun (x : B) : C := projT1 (cid (shd_le x)).
+
+(** Defining equation: [g x = f x + shd_fun x]. *)
+Lemma shd_E (x : B) : sh_fun g x = sh_fun f x + shd_fun x.
+Proof. exact: projT2 (cid (shd_le x)). Qed.
+
+(** Off the unit ball the difference collapses to [0] (canonical
+    0-extension): from [0 = 0 + shd_fun x = shd_fun x]. *)
+Lemma shd_offball (x : B) : ~~ (cone_norm x <= 1) -> shd_fun x = 0.
+Proof.
+move=> Hx; have := shd_E x.
+by rewrite (sh_offball f x Hx) (sh_offball g x Hx) precone_add0 => <-.
+Qed.
+
+(** Pointwise: [shd_fun x ≤p g x], hence bounded by [‖g‖]. *)
+Lemma shd_le_g (x : B) : precone_le (shd_fun x) (sh_fun g x).
+Proof. by exists (sh_fun f x); rewrite shd_E precone_addC. Qed.
+
+(** *** Total monotonicity of the difference (Lemma 7.12 rearrangement) *)
+
+(** A cone-sum of [g(a I)] splits as [Σ f(a I) + Σ shd_fun(a I)] via the
+    defining equation [shd_E] and [sumP_add]. *)
+Lemma shd_sumP_split (T : finType) (A : {set T}) (a : T -> B) :
+  \big[precone_add/precone_zero]_(I in A) sh_fun g (a I) =
+  (\big[precone_add/precone_zero]_(I in A) sh_fun f (a I))
+  + (\big[precone_add/precone_zero]_(I in A) shd_fun (a I)).
+Proof.
+rewrite -sumP_add; apply: eq_bigr => I _; exact: shd_E.
+Qed.
+
+(** Lemma 7.12 rearrangement: the difference is totally monotonic. *)
+Lemma shd_totmono : is_totmono shd_fun.
+Proof.
+move=> n x v Hxv.
+pose a (I : {set 'I_n}) : B := tm_arg x v I.
+have Hsplit_neg : \big[precone_add/precone_zero]_(I in Pneg n) sh_fun g (a I) =
+    (\big[precone_add/precone_zero]_(I in Pneg n) sh_fun f (a I))
+    + (\big[precone_add/precone_zero]_(I in Pneg n) shd_fun (a I)).
+  exact: shd_sumP_split.
+have Hsplit_pos : \big[precone_add/precone_zero]_(I in Ppos n) sh_fun g (a I) =
+    (\big[precone_add/precone_zero]_(I in Ppos n) sh_fun f (a I))
+    + (\big[precone_add/precone_zero]_(I in Ppos n) shd_fun (a I)).
+  exact: shd_sumP_split.
+set Sf_neg := \big[precone_add/precone_zero]_(I in Pneg n) sh_fun f (a I).
+set Sf_pos := \big[precone_add/precone_zero]_(I in Ppos n) sh_fun f (a I).
+set Sh_neg := \big[precone_add/precone_zero]_(I in Pneg n) shd_fun (a I).
+set Sh_pos := \big[precone_add/precone_zero]_(I in Ppos n) shd_fun (a I).
+(* [Halt] with [a] = [tm_arg x v]: [Σg⁻ + Σf⁺ ≤p Σg⁺ + Σf⁻]. *)
+have HA := @Halt n x v Hxv.
+rewrite -/a Hsplit_neg Hsplit_pos in HA.
+(* HA : (Sf_neg + Sh_neg) + Sf_pos ≤p (Sf_pos + Sh_pos) + Sf_neg. *)
+(* Rearrange both sides to (Sf_neg + Sf_pos) + S{neg,pos}. *)
+apply: (precone_le_addlI (z := Sf_neg + Sf_pos)).
+apply: (@precone_le_trans _ _ ((Sf_neg + Sh_neg) + Sf_pos)).
+  rewrite -precone_addA [Sf_pos + Sh_neg]precone_addC precone_addA.
+  exact: precone_le_refl.
+apply: precone_le_trans HA _.
+rewrite -[Sf_pos + Sh_pos + Sf_neg]precone_addA [Sh_pos + Sf_neg]precone_addC.
+rewrite precone_addA [Sf_pos + Sf_neg]precone_addC.
+exact: precone_le_refl.
+Qed.
+
+(** *** Boundedness, ω-continuity (Scott, unit ball), measurability *)
+
+(** The difference is bounded on the unit ball by [‖g‖]. *)
+Lemma shd_bounded :
+  exists M : R, forall x : B, cone_norm x <= 1 -> cnorm (shd_fun x) <= M.
+Proof.
+exists (sh_norm g) => x Hx.
+apply: le_trans (sh_norm_ub g x Hx).
+exact: cone_normp (shd_le_g x).
+Qed.
+
+(** Increasingness of the difference on the unit ball (from [shd_totmono]
+    via [tm_incr_le]). *)
+Lemma shd_incr_le (x y : B) :
+  x <=p y -> cone_norm y <= 1 -> shd_fun x <=p shd_fun y.
+Proof. exact: (tm_incr_le shd_totmono). Qed.
+
+(** ω-continuity (Scott, unit ball) of the difference, via [diff_scott_at]:
+    [f] is increasing along the unit-ball chain (total monotonicity), and
+    [g] is Scott-continuous (its [is_scott_continuous_unit] field). *)
+Lemma shd_scott : is_scott_continuous_unit shd_fun.
+Proof.
+move=> Mf u uch ub1 hfuch hfubMf Mfpos.
+set s := cone_sup_ball u uch ub1.
+have Hs : cone_norm s <= 1 by exact: cone_sup_ball_norm.
+(* [f], [g] are stable, hence totally monotonic and Scott-continuous. *)
+have [[Hfm _ _] _] := sh_meas_stable f.
+have [[Hgm _ Hgc] _] := sh_meas_stable g.
+(* [f (u n)] ≤p [f s] (total monotonicity, [u n ≤p s], [‖s‖ ≤ 1]). *)
+have fxle n : precone_le (sh_fun f (u n)) (sh_fun f s).
+  by apply: (tm_incr_le Hfm); [exact: cone_sup_ball_ub | exact: Hs].
+(* [shd (u n)] ≤p [shd s] likewise. *)
+have wxch n : precone_le (shd_fun (u n)) (shd_fun s).
+  by apply: shd_incr_le; [exact: cone_sup_ball_ub | exact: Hs].
+(* [g] chain monotone and bounded by [Mg := ‖g‖ + 1]. *)
+have Hg_chain n : sh_fun g (u n) <=p sh_fun g (u n.+1).
+  exact: (tm_incr_le Hgm (uch n) (ub1 n.+1)).
+have Mg_ge0 : (0 <= sh_norm g + 1)%R.
+  by rewrite addr_ge0 // ?sh_norm_ge0 // ler01.
+pose Mg : {nonneg R} := NngNum Mg_ge0.
+have Mgpos : (0 < Mg%:num)%R.
+  by rewrite /= -[X in (X < _)%R]add0r ler_ltD // ?sh_norm_ge0 // ltr01.
+have Hg_chubMg n : cone_norm (sh_fun g (u n)) <= Mg%:num.
+  by apply: le_trans (sh_norm_ub g _ (ub1 n)) _; rewrite /= lerDl ler01.
+exact: (diff_scott_at Hgc (@shd_E) uch ub1 fxle hfuch wxch hfubMf Mfpos
+          Hg_chain Hg_chubMg Mgpos).
+Qed.
+
+(** Stability of the difference (Def 7.7): total monotonicity, bounded,
+    Scott-continuous. *)
+Lemma shd_stable : is_stable shd_fun.
+Proof.
+split; [exact: shd_totmono | exact: shd_bounded | exact: shd_scott].
+Qed.
+
+(** *** Measurability of the difference (subtraction on [R])
+
+    For a unit-ball measurable path [γ], [test m s (shd_fun (γ r))]
+    equals [test m s (g(γ r)) − test m s (f(γ r))] (by [test_linD] on
+    [shd_E]), a difference of the measurable test-paths of [g] and [f]. *)
+Lemma shd_pres_path (X : ar_obj Ar) (γ : ar_carrier Ar X -> B) :
+  (forall r, cone_norm (γ r) <= 1) ->
+  is_measurable_path (Ar:=Ar) (C:=B) γ ->
+  is_measurable_path (Ar:=Ar) (C:=C) (fun r => shd_fun (γ r)).
+Proof.
+move=> Hγ1 Hγ.
+have [_ Hfp] := sh_meas_stable f.
+have [_ Hgp] := sh_meas_stable g.
+have Hfγ := Hfp X γ Hγ1 Hγ.
+have Hgγ := Hgp X γ Hγ1 Hγ.
+have [_ Hf_meas] := Hfγ.
+have [_ Hg_meas] := Hgγ.
+split.
+  exists (sh_norm g) => r.
+  apply: le_trans (sh_norm_ub g _ (Hγ1 r)).
+  exact: cone_normp (shd_le_g (γ r)).
+move=> Y m mM.
+have -> :
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+     test_fun m p.1 (shd_fun (γ p.2))) =
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+     test_fun m p.1 (sh_fun g (γ p.2)) - test_fun m p.1 (sh_fun f (γ p.2))).
+  apply: funext => p.
+  have := shd_E (γ p.2); move/(congr1 (test_fun m p.1)).
+  rewrite test_linD => H.
+  by rewrite H addrAC subrr add0r.
+by apply: measurable_funB; [exact: Hg_meas | exact: Hf_meas].
+Qed.
+
+(** Off the unit ball, [g(γ r)] need not vanish, but the path-version
+    above is on-ball only; measurable-stability bundles them. *)
+Lemma shd_meas_stable : is_meas_stable shd_fun.
+Proof. by split; [exact: shd_stable | exact: shd_pres_path]. Qed.
+
+(** The difference packaged as a [stablehom]. *)
+Definition sh_diff : stablehom B C :=
+  MkStablehom shd_fun shd_meas_stable shd_offball.
+
+(** Paper Lemma 7.12 backward: [f + (g ⊖ f) = g], i.e. [f ≤p g]. *)
+Lemma sh_add_diff : sh_add f sh_diff = g.
+Proof. by apply: stablehom_eq => x /=; rewrite /stm_add shd_E. Qed.
+
+(** Hence [f ≤p g] in the stable (precone) order. *)
+Lemma sh_le_of_alt : precone_le f g.
+Proof. by exists sh_diff; rewrite -sh_add_diff. Qed.
+
+End StablehomDiff.
+
+Arguments sh_le_of_alt {R Ar B C f g} Hpw Halt.
+
+(** ** Lemma 7.12 forward — the stable order implies the alternating
+    condition.  Given a stablehom witness [δ] with [g = f + δ], substitute
+    [g(a) = f(a) + δ(a)] into both [Σg]-sums ([sumP_add]) and reduce to
+    [Σ_{P⁻} δ ≤p Σ_{P⁺} δ] — total monotonicity of [δ] — after rearranging
+    the common [Σf]-terms. *)
+Section StablehomAltOfLe.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+Local Open Scope precone_scope.
+
+Lemma sh_alt_of_le (f g : stablehom B C) : precone_le f g -> sh_alt f g.
+Proof.
+move=> [d Hd] n x v Hxv.
+have dE (y : B) : sh_fun g y = sh_fun f y + sh_fun d y.
+  by have /(congr1 (fun h => sh_fun h y)) /= := Hd.
+set a := fun I : {set 'I_n} => tm_arg x v I.
+have splitN : \big[precone_add/precone_zero]_(I in Pneg n) sh_fun g (a I) =
+    (\big[precone_add/precone_zero]_(I in Pneg n) sh_fun f (a I))
+    + (\big[precone_add/precone_zero]_(I in Pneg n) sh_fun d (a I)).
+  by rewrite -sumP_add; apply: eq_bigr => I _; exact: dE.
+have splitP : \big[precone_add/precone_zero]_(I in Ppos n) sh_fun g (a I) =
+    (\big[precone_add/precone_zero]_(I in Ppos n) sh_fun f (a I))
+    + (\big[precone_add/precone_zero]_(I in Ppos n) sh_fun d (a I)).
+  by rewrite -sumP_add; apply: eq_bigr => I _; exact: dE.
+set Sf_neg := \big[precone_add/precone_zero]_(I in Pneg n) sh_fun f (a I).
+set Sf_pos := \big[precone_add/precone_zero]_(I in Ppos n) sh_fun f (a I).
+set Sd_neg := \big[precone_add/precone_zero]_(I in Pneg n) sh_fun d (a I).
+set Sd_pos := \big[precone_add/precone_zero]_(I in Ppos n) sh_fun d (a I).
+rewrite -/a splitN splitP.
+(* [d] is totally monotonic: [Sd_neg ≤p Sd_pos]. *)
+have [[Hdm _ _] _] := sh_meas_stable d.
+have Htm := Hdm n x v Hxv.
+rewrite -/a -/Sd_neg -/Sd_pos in Htm.
+(* Goal: (Sf_neg + Sd_neg) + Sf_pos ≤p (Sf_pos + Sd_pos) + Sf_neg. *)
+apply: (@precone_le_trans _ _ ((Sf_neg + Sf_pos) + Sd_pos)).
+  rewrite -[(Sf_neg + Sd_neg) + Sf_pos]precone_addA.
+  rewrite [Sd_neg + Sf_pos]precone_addC precone_addA.
+  by apply: precone_add_le_l.
+rewrite -[(Sf_pos + Sd_pos) + Sf_neg]precone_addA.
+rewrite [Sd_pos + Sf_neg]precone_addC precone_addA.
+rewrite [Sf_pos + Sf_neg]precone_addC.
+exact: precone_le_refl.
+Qed.
+
+End StablehomAltOfLe.
+
+Arguments sh_alt_of_le {R Ar B C f g}.
+
+(** ** (Normc) [cone_sup_ball_ub] — every chain element is below [sh_sup]
+    — Paper Lemma 7.14
+
+    The witness [δ_n := sh_sup ((u_{n+k} ⊖ uₙ)_k)] is the supremum of the
+    difference chain whose terms are the order witnesses [u_{n+k} ⊖ uₙ]
+    (themselves [stablehom]s, by chain monotonicity).  This chain is
+    [≤p]-increasing (left-cancellation [precone_le_addlI]) and unit-norm
+    (each [⊖]-term is [≤p u_{n+k}], so [≤ 1] by (Normp)).  Pointwise on
+    [B_B], [uₙ x + δ_n x = supₖ(uₙ x + (u_{n+k} ⊖ uₙ) x) = supₖ u_{n+k} x =
+    supₘ uₘ x = sh_sup x] by [sup_ball_addr] and cofinality; off [B_B] both
+    sides are [0].  Hence [sh_sup = sh_add uₙ δ_n], i.e. [uₙ ≤p sh_sup]. *)
+
+Section StablehomConeSup.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+Local Open Scope precone_scope.
+
+Variable u : nat -> stablehom B C.
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, sh_norm (u n) <= 1.
+
+Local Notation S := (sh_sup uch ub1).
+
+(** The difference [u_{n+k} ⊖ uₙ], extracted from chain monotonicity. *)
+Definition shu_diff (n k : nat) : stablehom B C :=
+  projT1 (cid (sh_chain_mono uch (leq_addr k n))).
+
+Lemma shu_diff_E (n k : nat) : u (n + k)%N = u n + shu_diff n k.
+Proof. exact: projT2 (cid (sh_chain_mono uch (leq_addr k n))). Qed.
+
+(** The difference chain is [≤p]-increasing (left-cancellation). *)
+Lemma shu_diff_ch (n k : nat) : precone_le (shu_diff n k) (shu_diff n k.+1).
+Proof.
+apply: (precone_le_addlI (z := u n)).
+rewrite -!shu_diff_E addnS; exact: uch.
+Qed.
+
+(** Each difference is [≤p u_{n+k}], hence unit-norm. *)
+Lemma shu_diff_le (n k : nat) : precone_le (shu_diff n k) (u (n + k)%N).
+Proof. by exists (u n); rewrite shu_diff_E precone_addC. Qed.
+
+Lemma shu_diff_ub1 (n k : nat) : sh_norm (shu_diff n k) <= 1.
+Proof.
+apply: le_trans (ub1 (n + k)%N); apply: sh_normp; exact: shu_diff_le.
+Qed.
+
+(** Each chain element is below the supremum. *)
+Lemma sh_sup_ball_ub n : precone_le (u n) S.
+Proof.
+set d := shu_diff n.
+pose δ : stablehom B C := sh_sup (@shu_diff_ch n) (@shu_diff_ub1 n).
+exists δ; apply: stablehom_eq => x /=.
+have [Hx | Hx] := boolP (cone_norm x <= 1); last first.
+  rewrite /stm_add (sh_offball (u n) x Hx).
+  by rewrite (sh_sup_fun_off _ _ Hx) (sh_sup_fun_off _ _ Hx) precone_add0.
+(* On-ball: [sh_sup x = uₙ x + δ x = supₖ (d k x + uₙ x)]. *)
+have dch_x m : sh_fun (d m) x <=p sh_fun (d m.+1) x.
+  exact: sh_le_pointwise (shu_diff_ch n m) x.
+have db1_x m : cnorm (sh_fun (d m) x) <= 1.
+  by apply: le_trans (shu_diff_ub1 n m); exact: sh_norm_ub _ _ Hx.
+have δxE' : sh_sup_fun (shu_diff_ch n) (shu_diff_ub1 n) x =
+    cone_sup_ball (fun m => sh_fun (d m) x) dch_x db1_x.
+  by rewrite (sh_sup_fun_unitE (shu_diff_ch n) (shu_diff_ub1 n) Hx dch_x db1_x).
+rewrite /stm_add δxE'.
+(* pointwise chain/bound for [m ↦ d m x + uₙ x]. *)
+have adch m : sh_fun (d m) x + sh_fun (u n) x <=p
+              sh_fun (d m.+1) x + sh_fun (u n) x.
+  by apply: precone_add_le_r; exact: dch_x.
+have adub m : cnorm (sh_fun (d m) x + sh_fun (u n) x) <= 1.
+  have -> : sh_fun (d m) x + sh_fun (u n) x = sh_fun (u (n + m)%N) x.
+    by rewrite shu_diff_E precone_addC.
+  by apply: le_trans (ub1 (n + m)%N); exact: sh_norm_ub _ _ Hx.
+rewrite precone_addC -(sup_ball_addr dch_x db1_x adch adub).
+(* Goal: sh_sup_fun x = cone_sup_ball (m ↦ d m x + uₙ x). *)
+apply: precone_le_anti.
+- apply: (sh_sup_fun_lubP uch ub1 Hx) => m.
+  have [le|lt] := leqP n m.
+    have -> : sh_fun (u m) x = sh_fun (d (m - n)%N) x + sh_fun (u n) x.
+      have Em : u m = u n + shu_diff n (m - n)%N by rewrite -shu_diff_E subnKC.
+      rewrite (_ : sh_fun (u m) x = sh_fun (u n + shu_diff n (m - n)%N) x);
+        last by rewrite Em.
+      by rewrite sh_addE precone_addC.
+    exact: (cone_sup_ball_ub (fun m => sh_fun (d m) x + sh_fun (u n) x)).
+  apply: (@precone_le_trans _ _ (sh_fun (u n) x)).
+    by apply: sh_le_pointwise; apply: sh_chain_mono => //; exact: ltnW.
+  apply: (@precone_le_trans _ _ (sh_fun (d 0%N) x + sh_fun (u n) x)).
+    by exists (sh_fun (d 0%N) x); rewrite precone_addC.
+  exact: (cone_sup_ball_ub
+            (fun m => sh_fun (d m) x + sh_fun (u n) x) adch adub 0%N).
+- apply: cone_sup_ball_lub => m.
+  have -> : sh_fun (d m) x + sh_fun (u n) x = sh_fun (u (n + m)%N) x.
+    by rewrite precone_addC shu_diff_E.
+  exact: (sh_sup_fun_ubP uch ub1 Hx (n + m)%N).
+Qed.
+
+(** ** (Normc) [cone_sup_ball_lub] — [sh_sup] is the least upper bound
+    — Paper Lemma 7.14 ("it is defined as a pointwise lub")
+
+    Given a stable upper bound [y] of the chain, [sh_sup ≤p y] in the
+    stable order.  We construct the difference [y ⊖ sh_sup] via the
+    difference-is-stable master [sh_diff] (Lemma 7.12 backward): its
+    pointwise hypothesis is the [C]-level lub [sh_sup x ≤p y x], and its
+    alternating hypothesis [sh_alt sh_sup y] is the supremum-passage of
+    the [sh_alt uₘ y] (each holds since [uₘ ≤p y], via the forward
+    [sh_alt_of_le]).  The passage commutes the finite cone-sums
+    [Σ_{P±} sh_sup(a)] with the chain supremum using the [SumSup] engine
+    ([sh_sup_fun_unitE] / [sum_cone_sup_ub] / [addl_sum_cone_sup_lub]),
+    exactly as total monotonicity of [sh_sup] does. *)
+
+(** The alternating condition for [(sh_sup, y)], by supremum-passage. *)
+Lemma sh_sup_alt_l (y : stablehom B C) :
+  (forall m, precone_le (u m) y) -> sh_alt S y.
+Proof.
+move=> Hy k x v Hxv.
+(* All [tm_arg]s are in [B_B] (≤p the full-set argument). *)
+have argle (I : {set 'I_k}) :
+    tm_arg x v I <=p x + \big[precone_add/precone_zero]_(i : 'I_k) v i.
+  rewrite /tm_arg; apply: precone_add_le_l.
+  rewrite [X in _ <=p X](bigID (mem I)) /= (eq_bigl (mem I)) //.
+  by exists (\big[precone_add/precone_zero]_(i | i \notin I) v i).
+have argub (I : {set 'I_k}) : cone_norm (tm_arg x v I) <= 1.
+  by apply: le_trans Hxv; apply: cone_normp; exact: argle.
+(* The doubly-indexed family [c I m := uₘ (a I)]. *)
+pose c (I : {set 'I_k}) (m : nat) : C := sh_fun (u m) (tm_arg x v I).
+have cch I m : c I m <=p c I m.+1 by exact: sh_le_pointwise (uch m) _.
+have cub I m : cnorm (c I m) <= 1.
+  by apply: le_trans (ub1 m); exact: sh_norm_ub _ _ (argub I).
+(* [sh_sup(a I) = cone_sup_ball (c I)]. *)
+have supE I : sh_fun S (tm_arg x v I) = cone_sup_ball (c I) (cch I) (cub I).
+  rewrite /S /=; apply: precone_le_anti.
+  - apply: (sh_sup_fun_lubP uch ub1 (argub I)) => m.
+    by rewrite /c; exact: (cone_sup_ball_ub (c I) (cch I) (cub I) m).
+  - apply: cone_sup_ball_lub => m.
+    by rewrite /c; exact: (sh_sup_fun_ubP uch ub1 (argub I) m).
+rewrite (eq_bigr _ (fun I _ => supE I)).
+(* Push [Σ_{P⁻} y] into the [P⁺]-sup; bound each diagonal term. *)
+apply: (addl_sum_cone_sup_lub cch cub (Ppos k)) => m.
+(* [sumsup_chain c (Ppos k) m = Σ_{P⁺} uₘ(a)]. *)
+apply: (@precone_le_trans _ _
+  (\big[precone_add/precone_zero]_(I in Ppos k) sh_fun y (tm_arg x v I)
+   + \big[precone_add/precone_zero]_(I in Pneg k) c^~ m I)).
+  (* [sh_alt uₘ y] at this test data. *)
+  have HA := sh_alt_of_le (Hy m) k x v Hxv.
+  rewrite /sumsup_chain.
+  by under eq_bigr => I _ do rewrite /c; exact: HA.
+(* [Σ_{P⁻} uₘ(a) ≤p Σ_{P⁻} cone_sup_ball(c)]. *)
+apply: precone_add_le_l.
+rewrite (eq_bigr _ (fun I _ => supE I)).
+exact: (sum_cone_sup_ub cch cub (Pneg k) m).
+Qed.
+
+(** [sh_sup] is the least upper bound: [sh_sup ≤p y]. *)
+Lemma sh_sup_ball_lub (y : stablehom B C) :
+  (forall m, precone_le (u m) y) -> precone_le S y.
+Proof.
+move=> Hy.
+(* Pointwise [C]-level lub: [sh_sup x ≤p y x] on [B_B]. *)
+have Hpw (z : B) : cone_norm z <= 1 ->
+    precone_le (sh_fun S z) (sh_fun y z).
+  move=> Hz; apply: (sh_sup_fun_lubP uch ub1 Hz) => m.
+  exact: sh_le_pointwise (Hy m) z.
+(* Build the difference [y ⊖ sh_sup] via the master [sh_diff]. *)
+exact: (sh_le_of_alt Hpw (sh_sup_alt_l Hy)).
+Qed.
+
+(** (Normc) norm: the supremum has operator norm [≤ 1] (pointwise [≤ 1]
+    on [B_B] by [sh_sup_fun_norm], lifted by [sh_norm_lub]). *)
+Lemma sh_sup_ball_norm : sh_norm S <= 1.
+Proof. by apply: sh_norm_lub => z _; exact: sh_sup_fun_norm. Qed.
+
+End StablehomConeSup.
+
+Arguments sh_sup_ball_ub {R Ar B C} u uch ub1 n.
+Arguments sh_sup_ball_lub {R Ar B C} u uch ub1 y.
+Arguments sh_sup_ball_norm {R Ar B C} u uch ub1.
+
+(** ** [isCone] HB instance on [stablehom B C] — Paper §7.2 / Lemma 7.14
+
+    With (Normh)/(Normt)/(Normp)/(Normz) already proved and (Normc)
+    discharged via [sh_sup] + [sh_sup_ball_ub] / [sh_sup_ball_lub] /
+    [sh_sup_ball_norm], we register [stablehom B C] as a [coneType R].
+    The stable function cone [B ⇒ₛ C] is now a cone. *)
+
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (B C : MCone.type Ar) :=
+  @isCone.Build R (stablehom B C)
+    (@sh_norm R Ar B C)
+    (@sh_normh R Ar B C) (@sh_normz R Ar B C)
+    (@sh_normt R Ar B C) (@sh_normp R Ar B C)
+    (@sh_sup R Ar B C) (@sh_sup_ball_ub R Ar B C)
+    (@sh_sup_ball_lub R Ar B C) (@sh_sup_ball_norm R Ar B C).
+
+(** Sanity check: [stablehom B C] is a [coneType R] — Paper §7.2. *)
+Section StablehomConeCheck.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+
+Check (stablehom B C : coneType R).
+
+End StablehomConeCheck.
+
 (**md**************************************************************)
 (** ** Status — what is delivered and what is deferred (and why)
 
@@ -1097,21 +1744,45 @@ End StablehomSupBall.
           uniform rescaling needed: unit-ball paths stay in [B_B]).
         * [sh_sup_offball] — the canonical 0-extension.
 
-    Deferred — the final [isCone] HB instance (and hence [isMCone] /
-    [isICone]).  Only ONE ingredient remains: the [cone_sup_ball] mixin
-    fields [cone_sup_ball_ub] / [cone_sup_ball_lub] require, for the
-    precone order [f ≤p g := ∃δ:stablehom, g = f + δ], that the
-    *pointwise difference* of two order-related stable maps is itself a
-    [stablehom] (the [linhom_diff] analog).  For *linear* maps this
-    difference is linear, hence trivially in the carrier; for *nonlinear
-    stable* maps the difference of two totally-monotonic maps is not in
-    general totally monotonic (subtracting the two (7.1) inequalities is
-    invalid in a cone), so a dedicated argument is needed to show the
-    specific differences arising here ([sh_sup ⊖ uₙ], [y ⊖ sh_sup]) are
-    stable.  This "difference-is-stable" lemma is the sole gap to
-    [isCone]; the supremum object and all its stability proofs (the bulk
-    of (Normc)) are already in place above.
+    - **Difference-is-stable — Lemma 7.12 backward — PROVED.**  For
+      [f, g] with [f ≤ g] in the *stable* order (pointwise comparison
+      [Hpw] = the [n = 0] case, plus the alternating condition
+      [sh_alt f g]), the difference [h := g ⊖ f] ([shd_fun], the
+      cone-cancellation witness extracted by [cid]) is a genuine
+      [stablehom] with [sh_add f h = g] ([sh_diff] / [sh_add_diff] /
+      [sh_le_of_alt]):
+        * total monotonicity ([shd_totmono]) — substitute [g(a)=f(a)+h(a)]
+          into [sh_alt], split the cone-sums ([sumP_add]) and cancel the
+          common [Σf]-terms in the precone order ([precone_le_addlI]),
+          leaving [Σ_{P⁻}h ≤p Σ_{P⁺}h];
+        * ω-continuity ([shd_scott]) — the radius-aware Lemma 2.10
+          [diff_scott_at] ([f] increasing along the chain, [g]
+          Scott-continuous via its [is_scott_continuous_unit] field,
+          recombined with [addl_scott_continuous]);
+        * measurability ([shd_pres_path]) — [test m s (h(γ r))] is the
+          difference of the measurable test-paths of [g], [f]
+          ([test_linD] on [shd_E], then [measurable_funB]).
+      The forward direction ([sh_alt_of_le]) shows [precone_le f g ⇒
+      sh_alt f g].
+    - **(Normc) [cone_sup_ball] order facts — PROVED.**
+        * [sh_sup_ball_ub] — every chain element is below [sh_sup]: the
+          witness [sh_sup ⊖ uₙ] is the [sh_sup] of the difference chain
+          [(u_{n+k} ⊖ uₙ)_k] (order witnesses, [stablehom]s by chain
+          monotonicity + [precone_le_addlI]), with the on-ball cofinality
+          identity discharged by [sup_ball_addr].
+        * [sh_sup_ball_lub] — [sh_sup] is the least upper bound: the
+          difference [y ⊖ sh_sup] is built by the [sh_diff] master, whose
+          alternating hypothesis [sh_alt sh_sup y] is the supremum-passage
+          of the [sh_alt uₘ y] (forward direction + the [SumSup]
+          finite-sum/sup commutation [addl_sum_cone_sup_lub]).
+        * [sh_sup_ball_norm] — operator norm [≤ 1].
+    - **[isCone] HB instance — REGISTERED.**  [stablehom B C : coneType
+      R]: the stable function cone [B ⇒ₛ C] is a cone (Paper §7.2 /
+      Lemmas 7.11, 7.12, 7.14).
 
-    [isMCone] (the [γ ▷ m] test family) and [isICone] (integrability)
-    follow the [linhom]/[path]/[examples_icone] templates once [isCone]
-    is registered; they are not attempted here. *)
+    Deferred — [isMCone] (the [γ ▷ m] test family, txt 3365) and
+    [isICone] (integrability, txt 3372).  These follow the
+    [linhom]/[path]/[examples_icone] templates now that [isCone] is in
+    place, but each is a substantial development (the measurability
+    structure [M] and the integral construction); they are not attempted
+    in this file. *)
