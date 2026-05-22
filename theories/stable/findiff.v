@@ -584,25 +584,310 @@ Arguments vcons {R B n} u w.
 Arguments Spos {R B C} f n u xb.
 Arguments Sneg {R B C} f n u xb.
 
-(** ** Deferred — the remaining clause of Lemma 7.17
+(** ** Generic cone helpers used by §7.3 below
 
-    The last clause of Lemma 7.17, [Δf(u :: u⃗) = Δ(Δf(u⃗))(u)], and the
-    *operator-level* difference monotonicity [Δf(u⃗)(x) ≤ Δf(u⃗)(x+u)],
-    are left for a follow-up.  Their content is fully delivered here in
-    [B]-additive, subtraction-free form ([Sdiff_mono], together with the
-    two cons recurrences [Delta_pos_recur] / [Delta_neg_recur] and the
-    defining equation [Delta_E]); what remains is purely the
-    *dependent-cone repackaging*:
+    Two facts about the local cone and cone-sums that drive the
+    nested-cone argument of Lemma 7.18: a left-cancellation for the cone
+    order, the [lc_val]-homomorphism over a [bigop], and the subset
+    monotonicity of a [\sumP]. *)
 
-    - the difference [Δ] is the [pselect]/[cid] cone-cancellation witness
-      ([Delta]); turning [Sdiff_mono] into [precone_le (Δf u⃗ x)
-      (Δf u⃗ x')] requires re-expressing both sides through [Delta_E] and
-      threading the two [precone_le] witnesses, plus the cancellation
-      [precone_le_addlI];
-    - the nested form [Δ(Δf(u⃗))(u)] needs [u] re-presented as a
-      *direction of [B_u⃗]* (a point of [local_cone (\sumP_i u⃗ i)]) and
-      [Δf(u⃗) : B_u⃗ → C] fed to [Delta] again, i.e. a transport across
-      [(B_u⃗)_{u} = B_{u :: u⃗}] (the paper's remark in Lemma 7.18).  This
-      is the same kind of local-cone cast deferred elsewhere in the
-      development and is the natural next increment.  No axiom or [admit]
-      is used: the clause is simply not stated. *)
+Section ConeHelpers.
+Variable R : realType.
+Local Open Scope precone_scope.
+
+(** Left-cancellation for the cone order: [c + a ≤p c + b ⇒ a ≤p b].
+    The dual of [precone_add_le_l]; derived from [precone_cancel]. *)
+Lemma precone_le_addlI (B : coneType R) (c a b : B) :
+  c + a <=p c + b -> a <=p b.
+Proof.
+move=> [z Hz]; exists z.
+by apply: (@precone_cancel _ _ c); rewrite Hz precone_addA.
+Qed.
+
+(** [lc_val] commutes with an arbitrary [bigop] (it is a precone
+    homomorphism), in the general [\big[_/_]_(i <- r | Q i)] shape. *)
+Lemma lc_val_big (B : coneType R) (x : B) (Hx : cone_norm x < 1)
+    (T : Type) (r : seq T) (Q : pred T) (g : T -> lc_coneType Hx) :
+  lc_val (\big[precone_add/precone_zero]_(i <- r | Q i) g i) =
+  \big[precone_add/precone_zero]_(i <- r | Q i) lc_val (g i).
+Proof. by elim/big_rec2: _ => // i s s' _ <-; rewrite lc_valD. Qed.
+
+(** A partial [\sumP] is below the full one: [Σ_{i∈I} g ≤p Σ_i g]. *)
+Lemma sumP_sub_le (B : coneType R) (T : finType) (I : {set T})
+    (g : T -> B) :
+  \big[precone_add/precone_zero]_(i in I) g i <=p
+  \big[precone_add/precone_zero]_(i : T) g i.
+Proof.
+rewrite [X in (_ <=p X)](bigID (fun i => i \in I))/=.
+by exists (\big[precone_add/precone_zero]_(i | i \notin I) g i).
+Qed.
+
+(** Head/tail split of the [\sumP] of a [vcons] family: the [u :: u⃗] sum
+    is [u + Σⱼ u⃗ⱼ]. *)
+Lemma sum_vcons (B : coneType R) (n : nat) (u : B) (w : 'I_n -> B) :
+  \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u w i =
+  u + \big[precone_add/precone_zero]_(i : 'I_n) w i.
+Proof.
+rewrite big_ord_recl vcons0; congr (u + _).
+by apply: eq_bigr => i _; rewrite vconsS.
+Qed.
+
+End ConeHelpers.
+
+Arguments precone_le_addlI {R B} c a b.
+
+(** ** Lemma 7.18 — [Δf(u)] is totally monotonic — Paper §7.3 (txt 3523)
+
+    For [f] totally monotonic and [u ∈ B_B], the single-step difference
+    [Δf(u) : B_u → C] is totally monotonic.
+
+    The paper's proof opens "notice that [(B_u)_u⃗ = B_{u,u⃗}]".  In this
+    formalization [B_u = local_cone u] carries the *gauge* norm, so the
+    identity is not definitional.  We resolve the obstacle *without* a
+    cone-iso/transport: every point of the nested cone [(B_u)_u⃗] used in
+    the total-monotonicity instance of [Δf(u)] is some [tm_arg xL wL I],
+    an actual point of [B_u]; we expand the value [Δf(u)(tm_arg xL wL I)]
+    through the [n = 1] defining equation [Delta1_E] *at that very point*,
+    pushing the whole computation through [lc_val] onto the [B]-side.
+    There the cons-recurrences [Spos_recur] / [Sneg_recur] (head [u]) and
+    the difference-monotonicity inequality [Sdiff_mono] (the
+    [(u :: u⃗)]-instance of total monotonicity of [f]) close the goal. *)
+
+Section Lemma718.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Variable u : B.
+Local Open Scope precone_scope.
+
+(** The one-element family [fun _ : 'I_1 => u] and its [\sumP] (which is
+    [u] up to [big_ord1]). *)
+Notation oneu := (fun _ : 'I_1 => u).
+Notation su := (\big[precone_add/precone_zero]_(i : 'I_1) oneu i).
+
+(** [Δ⁺f(u)(x) = f(lc_val x + u)] (the [Ppos 1 = {{1}}] term). *)
+Lemma Delta1_pos (x : local_cone su) :
+  Delta_pos f oneu x = f (lc_val x + u).
+Proof.
+rewrite Delta_pos_Spos /Spos Ppos1 big_set1; congr (f (_ + _)).
+rewrite (eq_bigl predT); last by move=> i; rewrite finset.in_setT.
+by rewrite big_ord1.
+Qed.
+
+(** [Δ⁻f(u)(x) = f(lc_val x)] (the [Pneg 1 = {∅}] term). *)
+Lemma Delta1_neg (x : local_cone su) :
+  Delta_neg f oneu x = f (lc_val x).
+Proof.
+by rewrite Delta_neg_Sneg /Sneg Pneg1 big_set1 big_set0 precone_addr0.
+Qed.
+
+(** The [n = 1] defining equation read on a single point: where [f] is
+    increasing at [lc_val x], [f(lc_val x + u) = f(lc_val x) + Δf(u)(x)].
+    This is the paper's [Δf(u)(x) = f(x + u) ⊖ f(x)]. *)
+Lemma Delta1_E (x : local_cone su) :
+  f (lc_val x) <=p f (lc_val x + u) ->
+  f (lc_val x + u) = f (lc_val x) + Delta f oneu x.
+Proof.
+move=> Hle.
+have HE : Delta_neg f oneu x <=p Delta_pos f oneu x.
+  by rewrite Delta1_pos Delta1_neg.
+by have := Delta_E HE; rewrite Delta1_pos Delta1_neg.
+Qed.
+
+Hypothesis Hsu : cone_norm su < 1.
+Notation Bu := (lc_coneType Hsu).
+
+(** The increasing instance at each index set [I], derived from
+    increasingness of [f] and the unit-ball bound on [B_u].  The point
+    [lc_val (tm_arg xL wL I) + u] lies in [B_B] because
+    [tm_arg xL wL I ≤ xL + Σⱼ wL j] in [B_u] and [lc_step1] transports the
+    [B_u]-ball bound to [B].  Parametrised on [is_increasing f] so the
+    same lemma serves both directions of Theorem 7.19. *)
+Lemma Delta1_inc (Hi : is_increasing f) (m : nat) (xL : Bu)
+    (wL : 'I_m -> Bu)
+    (Hnorm : cone_norm
+       (xL + \big[precone_add/precone_zero]_(i : 'I_m) wL i) <= 1)
+    (I : {set 'I_m}) :
+  f (lc_val (tm_arg xL wL I)) <=p f (lc_val (tm_arg xL wL I) + u).
+Proof.
+have step1 := lc_step1 Hsu Hnorm.
+apply: Hi; apply: le_trans step1; apply: cone_normp.
+rewrite /tm_arg lc_valD lc_val_big.
+rewrite [in X in (_ <=p X)]lc_valD lc_val_big.
+rewrite [X in (_ <=p X + _)]big_ord1.
+rewrite [X in (_ <=p X)]precone_addC -precone_addA precone_addA.
+by apply: precone_add_le_r; apply: precone_add_le_l; exact: sumP_sub_le.
+Qed.
+
+(** Summed [n = 1] equation (positive part): the paper's
+    [Δ⁺f(u⃗)(x + u) = Δ⁺f(u⃗)(x) + Δ⁺(Δf(u))(u⃗)(x)], read with [Δ⁺f(u⃗)]
+    on the [B]-side as [Spos] at the centre [lc_val xL]. *)
+Lemma SDpos_E (m : nat) (xL : Bu) (wL : 'I_m -> Bu)
+    (Hinc : forall I : {set 'I_m},
+       f (lc_val (tm_arg xL wL I)) <=p f (lc_val (tm_arg xL wL I) + u)) :
+  Spos f m (fun i => lc_val (wL i)) (lc_val xL + u) =
+  Spos f m (fun i => lc_val (wL i)) (lc_val xL) +
+  \big[precone_add/precone_zero]_(I in Ppos m) Delta f oneu (tm_arg xL wL I).
+Proof.
+rewrite /Spos -big_split/=; apply: eq_bigr => I _.
+have harg : lc_val (tm_arg xL wL I) =
+    lc_val xL + \big[precone_add/precone_zero]_(i in I) lc_val (wL i).
+  by rewrite /tm_arg lc_valD lc_val_big.
+rewrite -precone_addA (precone_addC u) precone_addA -harg.
+by move/Delta1_E : (Hinc I) => ->.
+Qed.
+
+(** Summed [n = 1] equation (negative part), identical with [Pneg]. *)
+Lemma SDneg_E (m : nat) (xL : Bu) (wL : 'I_m -> Bu)
+    (Hinc : forall I : {set 'I_m},
+       f (lc_val (tm_arg xL wL I)) <=p f (lc_val (tm_arg xL wL I) + u)) :
+  Sneg f m (fun i => lc_val (wL i)) (lc_val xL + u) =
+  Sneg f m (fun i => lc_val (wL i)) (lc_val xL) +
+  \big[precone_add/precone_zero]_(I in Pneg m) Delta f oneu (tm_arg xL wL I).
+Proof.
+rewrite /Sneg -big_split/=; apply: eq_bigr => I _.
+have harg : lc_val (tm_arg xL wL I) =
+    lc_val xL + \big[precone_add/precone_zero]_(i in I) lc_val (wL i).
+  by rewrite /tm_arg lc_valD lc_val_big.
+rewrite -precone_addA (precone_addC u) precone_addA -harg.
+by move/Delta1_E : (Hinc I) => ->.
+Qed.
+
+(** Lemma 7.18.  Total monotonicity of [Δf(u) : B_u → C]: for every [m],
+    [xL] and [wL] with the [B_u]-ball bound, [Δ⁻(Δf(u))(u⃗) ≤ Δ⁺(Δf(u))(u⃗)].
+    Expand both [\sumP]s of [Δf(u)]-values by [SDneg_E] / [SDpos_E], use
+    the [(u :: u⃗)]-difference inequality [Sdiff_mono] of [f], and cancel
+    the common summand [Σ⁻ + Σ⁺] (at centre [lc_val xL]) on the left. *)
+Lemma totmono_Delta1 (Hf : is_totmono f) : @is_totmono R Bu C (Delta f oneu).
+Proof.
+move=> m xL wL Hnorm.
+have Hinc := Delta1_inc (totmono_increasing Hf) Hnorm.
+have key : Sneg f m (fun i => lc_val (wL i)) (lc_val xL + u)
+             + Spos f m (fun i => lc_val (wL i)) (lc_val xL) <=p
+           Spos f m (fun i => lc_val (wL i)) (lc_val xL + u)
+             + Sneg f m (fun i => lc_val (wL i)) (lc_val xL).
+  apply: (@Sdiff_mono R B C f Hf m u (fun i => lc_val (wL i)) (lc_val xL)).
+  have suE : su = u by rewrite big_ord1.
+  rewrite sum_vcons -[in X in cnorm (_ + (X + _)) <= _]suE.
+  rewrite precone_addA (precone_addC (lc_val xL)) -precone_addA.
+  rewrite -lc_val_big -lc_valD.
+  exact: (lc_step1 Hsu Hnorm).
+move: key; rewrite SDpos_E// SDneg_E//.
+set Sn := Sneg f m _ _; set Sp := Spos f m _ _.
+set DN := \big[_/_]_(I in Pneg m) _; set DP := \big[_/_]_(I in Ppos m) _.
+rewrite -[Sn + DN + Sp]precone_addA [DN + Sp]precone_addC precone_addA.
+rewrite -[Sp + DP + Sn]precone_addA [DP + Sn]precone_addC precone_addA.
+rewrite [Sp + Sn]precone_addC.
+exact: (precone_le_addlI (Sn + Sp)).
+Qed.
+
+End Lemma718.
+
+Arguments totmono_Delta1 {R B C} f u Hsu Hf.
+
+(** ** Lemma 7.17, last monotonicity clause — Paper §7.3 (txt 3516)
+
+    Operator-level difference monotonicity: [Δf(u⃗)(x) ≤ Δf(u⃗)(x + u)].
+    Here [x] and [x'] are two points of [B_u⃗ = local_cone (Σⱼ u⃗ⱼ)] with
+    [x'] reached from [x] by a step [u] of [B] ([lc_val x' = lc_val x + u]);
+    [Δf(u⃗)] is well defined at both by [Delta_neg_le_pos].  Expanding both
+    [Δ] through their defining equations [Delta_E] turns the goal into the
+    [B]-additive inequality [Sdiff_mono] (the [(u :: u⃗)]-difference
+    instance of total monotonicity), after which the common summand
+    [Σ⁻(x+u) + Σ⁻(x)] cancels on the left ([precone_le_addlI]).  This
+    discharges the operator-level half of the Lemma 7.17 clause that was
+    previously delivered only in subtraction-free [B]-form ([Sdiff_mono]). *)
+
+Section DeltaMono.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+Lemma Delta_mono (n : nat) (w : 'I_n -> B)
+    (Hs : cone_norm (\big[precone_add/precone_zero]_(i : 'I_n) w i) < 1)
+    (x x' : local_cone (\big[precone_add/precone_zero]_(i : 'I_n) w i))
+    (u : B) (Hxx' : lc_val x' = lc_val x + u)
+    (Hxle : lc_norm x <= 1) (Hx'le : lc_norm x' <= 1)
+    (Hdiff : cone_norm (lc_val x +
+        \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u w i) <= 1) :
+  Delta f w x <=p Delta f w x'.
+Proof.
+have Ex := Delta_E (Delta_neg_le_pos Hf Hs Hxle).
+have Ex' := Delta_E (Delta_neg_le_pos Hf Hs Hx'le).
+move: Ex Ex'; rewrite !Delta_pos_Spos !Delta_neg_Sneg Hxx' => Ex Ex'.
+have key := @Sdiff_mono R B C f Hf n u w (lc_val x) Hdiff.
+rewrite Ex Ex' in key; move: key.
+set Su := Sneg f n w (lc_val x + u); set Sx := Sneg f n w (lc_val x).
+rewrite precone_addA -[Su + Delta f w x' + Sx]precone_addA.
+rewrite [Delta f w x' + Sx]precone_addC precone_addA.
+exact: (precone_le_addlI (Su + Sx)).
+Qed.
+
+End DeltaMono.
+
+Arguments Delta_mono {R B C} f Hf n w Hs x x' u.
+
+(** ** Theorem 7.19 — Paper §7.3 (txt 3533)
+
+    A function [f : B_B → C] is totally monotonic *iff* it is
+    [n]-increasing for every [n].  We deliver the *forward* implication
+    here ([totmono_is_n_increasing]); the converse is deferred — see the
+    note at the end of the file. *)
+
+(** Forward implication (paper: induction on [k]).  For every [n], total
+    monotonicity gives [n]-increasingness.  Generalising over [R B C f]
+    so the inductive hypothesis applies to [Δf(u) : B_u → C]:
+    - [n = 0] is increasingness, i.e. [totmono_increasing];
+    - [n.+1] also needs, for each direction [u], that [Δf(u)] be
+      [n]-increasing; [Δf(u)] is totally monotonic by Lemma 7.18
+      ([totmono_Delta1]), so the inductive hypothesis applies. *)
+Lemma totmono_is_n_increasing (n : nat) (R : realType) (B C : coneType R)
+    (f : B -> C) : is_totmono f -> is_n_increasing n f.
+Proof.
+elim: n R B C f => [|n IHn] R B C f Hf.
+  exact: (totmono_increasing Hf).
+split; first exact: (totmono_increasing Hf).
+move=> u Hu.
+exact: (IHn _ _ _ _ (totmono_Delta1 f u Hu Hf)).
+Qed.
+
+(** ** Deferred — Theorem 7.19 converse, Lemmas 7.20 / 7.21
+
+    What is delivered above with no holes:
+    - the nested-local-cone identity of Lemma 7.18, resolved *without* a
+      cone-iso: every point of [(B_u)_u⃗] used in the total-monotonicity
+      instance of [Δf(u)] is an actual [tm_arg] point of [B_u], expanded
+      on the spot through [Delta1_E] and pushed onto the [B]-side, where
+      the cons-recurrences and [Sdiff_mono] close it ([totmono_Delta1]);
+    - the operator-level Lemma 7.17 monotonicity clause
+      [Δf(u⃗)(x) ≤ Δf(u⃗)(x + u)] ([Delta_mono]);
+    - the *forward* half of Theorem 7.19 ([totmono_is_n_increasing]).
+
+    What remains, and the precise wall.
+    - Theorem 7.19 *converse* ([(∀n, n-increasing) ⇒ totally monotonic]).
+      The paper's induction on the arity [m] reduces the [(u₀ :: u⃗)]
+      instance to the total monotonicity of [Δf(u₀) : B_{u₀} → C], obtained
+      from Lemma 7.16 ([is_n_increasing_Delta]) plus the inductive
+      hypothesis applied to [Δf(u₀)].  This requires [B_{u₀}] to be a
+      [coneType], i.e. [‖u₀‖ < 1] *strictly* ([lc_coneType]).  But the
+      directions [u₀] quantified by [is_totmono] range over the *closed*
+      ball ([‖x + Σᵢ uᵢ‖ ≤ 1] only), so the head [u₀] may have
+      [‖u₀‖ = 1] and [B_{u₀}] is then not available as a [coneType].
+      Bridging the closed-ball case needs a strict-interior / Scott-limit
+      argument (approximate [u₀] from inside the open ball and pass to the
+      limit using ω-continuity), which is exactly the strict-interior
+      transport deferred elsewhere in the development.  Note the lifting
+      data themselves are available — the [mklift]-style admissibility
+      [‖u₀ + v‖ ≤ 1 ⇒ localP u₀ v] and the summed equations [SDpos_E] /
+      [SDneg_E] are in place — so only the [‖u₀‖ = 1] coneType gap blocks
+      a clean converse.
+    - Lemma 7.20 (total monotonicity of [Δ⁺f(u⃗)], [Δ⁻f(u⃗)], [Δf(u⃗)]) and
+      Lemma 7.21 ([Δf(u⃗)(x) ≤ f(x + Σᵢ uᵢ)]).  The [Δf(u⃗)] parts both
+      route through Theorem 7.19 (and, for 7.21, the nested clause
+      [Δf(u :: u⃗) = Δ(Δf(u⃗))(u)] which again needs the closed-ball
+      [B_{u⃗}] coneType), so they are blocked by the same wall.
+
+    No axiom or [admit] is introduced: the deferred statements are simply
+    not stated. *)
