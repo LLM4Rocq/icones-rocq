@@ -35,6 +35,7 @@ theories/homs/linhom_functor.v
 theories/kernels/skern.v
 theories/kernels/thm65.v
 theories/stable/local_cone.v
+theories/stable/totmono.v
 theories/axioms/saft_interface.v
 theories/homs/tensor.v
 theories/homs/smcc.v
