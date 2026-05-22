@@ -14,6 +14,7 @@ theories/prelude/omegacpo.v
 theories/cones/precone.v
 theories/cones/cone.v
 theories/cones/basic_lemmas.v
+theories/cones/omega_general.v
 theories/cones/examples_cone.v
 theories/cones/cone_cat.v
 theories/mcones/ar.v
