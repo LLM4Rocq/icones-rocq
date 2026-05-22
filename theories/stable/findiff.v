@@ -1436,6 +1436,629 @@ End ConvClosed.
 
 Arguments is_n_increasing_totmono {R B C} f.
 
+(** ** [totmono_shift] — shift preserves total monotonicity — Paper §7.3
+       (txt 3561, the "easy observation" of Lemma 7.20)
+
+    If [g : B_B → C] is totally monotonic and [u ∈ B_B] (strict interior,
+    [‖u‖ < 1]), then the shift [gᵤ : B_u → C], [gᵤ(x) := g(lc_val x + u)],
+    is totally monotonic.  The (7.1) instance of [gᵤ] at a [B_u]-config
+    [(xL, w⃗L)] is, through [lc_val], the (7.1) instance of [g] at the
+    [B]-config [(lc_val xL + u, lc_val ∘ w⃗L)]; its norm side-condition is
+    the local-cone step-[1] bound [lc_step1] (the [B_u]-ball bound
+    transported to [B]), exactly as in [totmono_Delta1]/[Delta1_inc]. *)
+
+Section TotmonoShift.
+Variable R : realType.
+Variables B C : coneType R.
+Local Open Scope precone_scope.
+
+Lemma totmono_shift (g : B -> C) (u : B) (Hu : cone_norm u < 1) :
+  is_totmono g ->
+  @is_totmono R (lc_coneType Hu) C (fun x => g (lc_val x + u)).
+Proof.
+move=> Hg n xL wL Hnorm.
+(* Read each [gᵤ]-argument as a [g]-argument on the shifted [B]-config. *)
+have argE (I : {set 'I_n}) :
+    g (lc_val (tm_arg xL wL I) + u) =
+    g (tm_arg (lc_val xL + u) (fun i => lc_val (wL i)) I).
+  congr g; rewrite /tm_arg lc_valD lc_val_big.
+  by rewrite -precone_addA (precone_addC _ u) precone_addA.
+(* The shifted [B]-config is in the unit ball, by [lc_step1]. *)
+have Hc : cone_norm ((lc_val xL + u) +
+    \big[precone_add/precone_zero]_(i : 'I_n) lc_val (wL i)) <= 1.
+  have key := lc_step1 Hu (w := xL +
+    \big[precone_add/precone_zero]_(i : 'I_n) wL i) Hnorm.
+  rewrite lc_valD lc_val_big in key.
+  by rewrite (precone_addC (lc_val xL) u) -precone_addA.
+have := Hg n (lc_val xL + u) (fun i => lc_val (wL i)) Hc.
+under eq_bigr => I _ do rewrite -argE.
+by under [X in _ <=p X]eq_bigr => I _ do rewrite -argE.
+Qed.
+
+(** The dominated-shift variant used by Lemma 7.20.  The shift direction
+    [s] is *below* the local-cone centre [S = Σᵢ uᵢ] ([s ≤p S]); then the
+    shift [gₛ : B_S → C], [gₛ(x) := g(lc_val x + s)], is totally monotonic
+    on the *same* cone [B_S].  This is what lets [Δεf(u⃗)] — a sum of the
+    shifts [g_{s_I}] by the partial sums [s_I = Σ_{i∈I} uᵢ ≤p S] — be read
+    as a sum of totally monotonic maps on [B_S] (no cone restriction). *)
+Lemma totmono_shift_le (g : B -> C) (S s : B) (Hs : cone_norm S < 1)
+    (Hsle : s <=p S) :
+  is_totmono g ->
+  @is_totmono R (lc_coneType Hs) C (fun x => g (lc_val x + s)).
+Proof.
+move=> Hg n xL wL Hnorm.
+have argE (I : {set 'I_n}) :
+    g (lc_val (tm_arg xL wL I) + s) =
+    g (tm_arg (lc_val xL + s) (fun i => lc_val (wL i)) I).
+  congr g; rewrite /tm_arg lc_valD lc_val_big.
+  by rewrite -precone_addA (precone_addC _ s) precone_addA.
+(* The shifted [B]-config is in the unit ball: dominate [s] by [S] and
+   reuse the [lc_step1] bound at the centre [S]. *)
+have Hc : cone_norm ((lc_val xL + s) +
+    \big[precone_add/precone_zero]_(i : 'I_n) lc_val (wL i)) <= 1.
+  have key := lc_step1 Hs (w := xL +
+    \big[precone_add/precone_zero]_(i : 'I_n) wL i) Hnorm.
+  rewrite lc_valD lc_val_big in key.
+  apply: le_trans key; apply: cone_normp.
+  rewrite (precone_addC (lc_val xL) s) -precone_addA.
+  set T := (lc_val xL + _).
+  by apply: precone_add_le_r.
+have := Hg n (lc_val xL + s) (fun i => lc_val (wL i)) Hc.
+under eq_bigr => I _ do rewrite -argE.
+by under [X in _ <=p X]eq_bigr => I _ do rewrite -argE.
+Qed.
+
+End TotmonoShift.
+
+Arguments totmono_shift {R B C} g u Hu.
+Arguments totmono_shift_le {R B C} g S s Hs Hsle.
+
+(** ** Lemma 7.20 — [Δ⁺f(u⃗)], [Δ⁻f(u⃗)], [Δf(u⃗)] totally monotonic
+       — Paper §7.3 (txt 3558)
+
+    For [f] totally monotonic and a family [u⃗ ∈ Bⁿ] with [Σᵢ uᵢ ∈ B_B]
+    (strict interior), the three difference operators are totally
+    monotonic on [B_u⃗ = local_cone (Σᵢ uᵢ)]:
+
+    - [Δεf(u⃗)] is the [\sumP] over [Pε(n)] of the shifts
+      [g_{s_I}(x) = f(lc_val x + s_I)] by the partial sums
+      [s_I = Σ_{i∈I} uᵢ ≤p Σᵢ uᵢ].  Each shift is totally monotonic on
+      [B_u⃗] by [totmono_shift_le], and a finite [\sumP] of totally
+      monotonic maps is totally monotonic ([totmono_bigP]).
+    - [Δf(u⃗)] needs, in addition to total monotonicity, ω-continuity.  We
+      record the [Δε] clauses (which need only [is_totmono f]) and the
+      pointwise-difference reading; the [Δf(u⃗)] clause via
+      [is_n_increasing_totmono] is deferred (see the status note). *)
+
+Section Lemma720.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+(** A finite [\sumP] of totally monotonic maps [P → Q] is totally
+    monotonic.  Pointwise [(\sumP_I g_I) x = \sumP_I (g_I x)] (the
+    eval-at-[x] precone homomorphism), so total monotonicity transfers
+    summand by summand through [totmono_add] / [totmono_zero]. *)
+Lemma totmono_bigP (P Q : coneType R) (T : finType) (A : {set T})
+    (g : T -> P -> Q) :
+  (forall i, i \in A -> is_totmono (g i)) ->
+  is_totmono (\big[stm_add/stm_zero P Q]_(i in A) g i).
+Proof.
+move=> Hg; elim/big_ind: _ => [|f1 f2 H1 H2|i iA].
+- exact: totmono_zero.
+- exact: totmono_add H1 H2.
+- exact: Hg.
+Qed.
+
+(** [Δ⁺f(u⃗)] is totally monotonic on [B_u⃗]. *)
+Lemma totmono_Delta_pos (n : nat) (u : 'I_n -> B)
+    (Hs : cone_norm (\big[precone_add/precone_zero]_(i : 'I_n) u i) < 1) :
+  @is_totmono R (lc_coneType Hs) C (Delta_pos f u).
+Proof.
+have shle (I : {set 'I_n}) :
+    is_totmono (fun x : lc_coneType Hs =>
+      f (lc_val x + \big[precone_add/precone_zero]_(i in I) u i)).
+  by apply: totmono_shift_le => //; exact: sumP_sub_le.
+have := @totmono_bigP (lc_coneType Hs) C _ (Ppos n)
+  (fun I (x : lc_coneType Hs) =>
+     f (lc_val x + \big[precone_add/precone_zero]_(i in I) u i))
+  (fun I _ => shle I).
+congr is_totmono; apply/funext => x.
+by rewrite /Delta_pos /Delta_arg; elim/big_rec2: _ => // I s s' _ <-.
+Qed.
+
+(** [Δ⁻f(u⃗)] is totally monotonic on [B_u⃗]. *)
+Lemma totmono_Delta_neg (n : nat) (u : 'I_n -> B)
+    (Hs : cone_norm (\big[precone_add/precone_zero]_(i : 'I_n) u i) < 1) :
+  @is_totmono R (lc_coneType Hs) C (Delta_neg f u).
+Proof.
+have shle (I : {set 'I_n}) :
+    is_totmono (fun x : lc_coneType Hs =>
+      f (lc_val x + \big[precone_add/precone_zero]_(i in I) u i)).
+  by apply: totmono_shift_le => //; exact: sumP_sub_le.
+have := @totmono_bigP (lc_coneType Hs) C _ (Pneg n)
+  (fun I (x : lc_coneType Hs) =>
+     f (lc_val x + \big[precone_add/precone_zero]_(i in I) u i))
+  (fun I _ => shle I).
+congr is_totmono; apply/funext => x.
+by rewrite /Delta_neg /Delta_arg; elim/big_rec2: _ => // I s s' _ <-.
+Qed.
+
+End Lemma720.
+
+Arguments totmono_bigP {R P Q T} A g.
+Arguments totmono_Delta_pos {R B C} f Hf {n} u Hs.
+Arguments totmono_Delta_neg {R B C} f Hf {n} u Hs.
+
+(** ** B-core difference [SD] and the cons recurrence — engine for 7.21/7.22
+
+    [Delta f u x] is defined purely from [Spos f n u (lc_val x)] and
+    [Sneg f n u (lc_val x)] (the pointwise difference where [Sneg ≤ Spos]),
+    so it depends on [x] only through [lc_val x].  We make this explicit
+    by a *B-side* difference [SD f n u xb] — the cone difference
+    [Spos ⊖ Sneg] at a bare centre [xb : B] — and show [Delta f u x =
+    SD f n u (lc_val x)] ([SD_Delta]).  This decouples the difference
+    recurrences from the local-cone carrier, so Lemmas 7.21 and 7.22 are
+    proved as pure [B]-side identities ([SD_cons]), with no cone cast. *)
+
+Section SDelta.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Local Open Scope precone_scope.
+
+(** The B-side cone difference [Spos ⊖ Sneg] at a centre [xb], [0] off the
+    region where the order [Sneg ≤ Spos] holds. *)
+Definition SD (n : nat) (u : 'I_n -> B) (xb : B) : C :=
+  match pselect (Sneg f n u xb <=p Spos f n u xb) with
+  | left p => projT1 (cid p)
+  | right _ => precone_zero
+  end.
+
+(** Defining equation: where [Sneg ≤ Spos], [Spos = Sneg + SD]. *)
+Lemma SD_E (n : nat) (u : 'I_n -> B) (xb : B) :
+  Sneg f n u xb <=p Spos f n u xb ->
+  Spos f n u xb = Sneg f n u xb + SD u xb.
+Proof.
+move=> p; rewrite /SD; case: pselect => [p'|]; last by [].
+exact: (projT2 (cid p')).
+Qed.
+
+(** [Delta f u x] is the B-side difference at the centre [lc_val x]. *)
+Lemma SD_Delta (n : nat) (u : 'I_n -> B)
+    (x : local_cone (\big[precone_add/precone_zero]_(i : 'I_n) u i)) :
+  Delta f u x = SD u (lc_val x).
+Proof.
+by rewrite /Delta /SD Delta_pos_Spos Delta_neg_Sneg.
+Qed.
+
+(** The three [Sneg ≤ Spos] (well-definedness) facts for the [(u :: w)]
+    config and its two sub-configs at centres [xb] and [xb + u], from
+    total monotonicity and the unit-ball bound on the full sum. *)
+Lemma Sle_xb (Hf : is_totmono f) (n : nat) (u : B) (w : 'I_n -> B) (xb : B) :
+  cone_norm (xb +
+     \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u w i) <= 1 ->
+  Sneg f n w xb <=p Spos f n w xb.
+Proof.
+move=> Hc; apply: (Sneg_le_Spos Hf); apply: le_trans Hc.
+apply: cone_normp; rewrite sum_vcons.
+by apply: precone_add_le_l; exists u; rewrite precone_addC.
+Qed.
+
+Lemma Sle_xbu (Hf : is_totmono f) (n : nat) (u : B) (w : 'I_n -> B) (xb : B) :
+  cone_norm (xb +
+     \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u w i) <= 1 ->
+  Sneg f n w (xb + u) <=p Spos f n w (xb + u).
+Proof.
+move=> Hc; apply: (Sneg_le_Spos Hf); apply: le_trans Hc.
+apply: cone_normp; rewrite sum_vcons precone_addA.
+exact: precone_le_refl.
+Qed.
+
+(** **The B-side cons recurrence (Lemma 7.22, first identity).**
+    [SD f w (xb + u) = SD f w xb + SD f (u :: w) xb].  Cancel the common
+    summand [Sn(xb+u) + Sn(xb)] in the three defining equations. *)
+Lemma SD_cons (Hf : is_totmono f) (n : nat) (u : B) (w : 'I_n -> B) (xb : B)
+    (Hc : cone_norm (xb +
+       \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u w i) <= 1) :
+  SD w (xb + u) = SD w xb + SD (vcons u w) xb.
+Proof.
+have D1 := SD_E (Sle_xbu Hf Hc).
+have D0 := SD_E (Sle_xb Hf Hc).
+have Dc := SD_E (Sneg_le_Spos Hf Hc).
+rewrite Spos_recur Sneg_recur in Dc.
+(* D1: Sp1 = Sn1 + d1; D0: Sp0 = Sn0 + d0;
+   Dc: Sp1 + Sn0 = (Sn1 + Sp0) + dc.  Substitute D1, D0 and cancel. *)
+rewrite D1 D0 in Dc.
+set Sn1 := Sneg f n w (xb + u) in Dc.
+set Sn0 := Sneg f n w xb in Dc.
+set d1 := SD w (xb + u) in Dc *.
+set d0 := SD w xb in Dc *.
+set dc := SD (vcons u w) xb in Dc *.
+apply: (@precone_cancel _ _ (Sn1 + Sn0)).
+rewrite -[Sn1 + Sn0 + d1]precone_addA [Sn0 + d1]precone_addC precone_addA.
+rewrite -[Sn1 + Sn0 + (d0 + dc)]precone_addA (precone_addA Sn0 d0 dc).
+rewrite precone_addA; exact: Dc.
+Qed.
+
+(** [SD] at arity [0] is just [f] at the centre. *)
+Lemma SD0 (u : 'I_0 -> B) (xb : B) : SD u xb = f xb.
+Proof.
+have HSp : Spos f 0 u xb = f xb.
+  by rewrite /Spos Ppos0 big_set1 big_set0 precone_addr0.
+have HSn : Sneg f 0 u xb = 0 by rewrite /Sneg Pneg0 big_set0.
+have le : Sneg f 0 u xb <=p Spos f 0 u xb.
+  by rewrite HSn; exact: precone_le0.
+by have := SD_E le; rewrite HSp HSn precone_add0 => <-.
+Qed.
+
+(** **Lemma 7.21 (B-side form).** [SD u⃗ xb ≤p f(xb + Σᵢ uᵢ)], for [f]
+    totally monotonic.  Induction on the arity: at [0], [SD = f xb]; at
+    [n+1], [SD (u₀ :: w) xb ≤p SD w (xb + u₀)] (the [SD_cons] witness) and
+    the IH at the shifted centre [xb + u₀] bounds the latter by
+    [f((xb + u₀) + Σ wᵢ) = f(xb + Σ (u₀ :: w))]. *)
+Lemma SD_le (Hf : is_totmono f) (n : nat) (u : 'I_n -> B) (xb : B) :
+  cone_norm (xb + \big[precone_add/precone_zero]_(i : 'I_n) u i) <= 1 ->
+  SD u xb <=p f (xb + \big[precone_add/precone_zero]_(i : 'I_n) u i).
+Proof.
+elim: n u xb => [|n IHn] u xb Hc.
+  rewrite SD0 big_ord0 precone_addr0; exact: precone_le_refl.
+rewrite [u]vcons_eta; set u0 := u ord0; set w := (fun i => u (lift ord0 i)).
+have Hc' : cone_norm (xb +
+    \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u0 w i) <= 1.
+  by move: Hc; rewrite [u]vcons_eta -/u0 -/w.
+have step := SD_cons Hf Hc'.
+have IH : SD w (xb + u0) <=p
+    f ((xb + u0) + \big[precone_add/precone_zero]_(i : 'I_n) w i).
+  apply: IHn; apply: le_trans Hc'; apply: cone_normp.
+  by rewrite sum_vcons precone_addA; exact: precone_le_refl.
+apply: (precone_le_trans (y := SD w (xb + u0))).
+  by rewrite step precone_addC; exists (SD w xb).
+by rewrite sum_vcons precone_addA; exact: IH.
+Qed.
+
+(** **Lemma 7.22 (second identity, B-side form).**
+    [SD (u+v :: w) xb = SD (u :: w) xb + SD (v :: w) (xb + u)].  Both sides
+    telescope through [SD_cons]: adding the two cons identities at heads
+    [u] (centre [xb]) and [v] (centre [xb+u]) gives
+    [SD w (xb+u+v) = SD w xb + SD (u :: w) xb + SD (v :: w) (xb+u)], while
+    the cons identity at head [u+v] gives
+    [SD w (xb+(u+v)) = SD w xb + SD (u+v :: w) xb]; cancel [SD w xb]. *)
+Lemma SD_add (Hf : is_totmono f) (n : nat) (u v : B) (w : 'I_n -> B) (xb : B)
+    (Hc : cone_norm (xb +
+       \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons (u + v) w i) <= 1) :
+  SD (vcons (u + v) w) xb =
+  SD (vcons u w) xb + SD (vcons v w) (xb + u).
+Proof.
+(* Unit-ball bounds for the three cons applications. *)
+have HcS : cone_norm (xb + (u + (v +
+    \big[precone_add/precone_zero]_(i : 'I_n) w i))) <= 1.
+  by move: Hc; rewrite sum_vcons -precone_addA.
+have Huv : cone_norm (xb +
+    \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons (u + v) w i) <= 1
+  by [].
+have Hu : cone_norm (xb +
+    \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u w i) <= 1.
+  apply: le_trans HcS; apply: cone_normp; rewrite sum_vcons.
+  apply: precone_add_le_l; apply: precone_add_le_l.
+  by exists v; rewrite precone_addC.
+have Hv : cone_norm ((xb + u) +
+    \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons v w i) <= 1.
+  apply: le_trans HcS; apply: cone_normp; rewrite sum_vcons.
+  by rewrite -precone_addA; exact: precone_le_refl.
+(* The three cons identities. *)
+have Euv := SD_cons Hf Huv.
+have Eu := SD_cons Hf Hu.
+have Ev := SD_cons Hf Hv.
+(* [Euv]: SD w (xb+(u+v)) = SD w xb + SD (u+v::w) xb;  reassociate the
+   centre to [xb+u+v] so the [Ev] telescope lines up. *)
+rewrite precone_addA in Euv.
+apply: (@precone_cancel _ _ (SD w xb)).
+by rewrite -Euv [RHS]precone_addA -Eu -Ev.
+Qed.
+
+End SDelta.
+
+Arguments SD {R B C} f {n} u xb.
+Arguments SD_E {R B C} f {n} u xb.
+Arguments SD_Delta {R B C} f {n} u x.
+Arguments SD0 {R B C} f u xb.
+Arguments SD_cons {R B C} f Hf {n} u w xb Hc.
+Arguments SD_le {R B C} f Hf {n} u xb.
+Arguments SD_add {R B C} f Hf {n} u v w xb Hc.
+
+(** ** Lemma 7.21 (operator form) — Paper §7.3 (txt 3565)
+
+    [Δf(u⃗)(x) ≤p f(lc_val x + Σᵢ uᵢ)] on the unit ball of [B_u⃗] (strict
+    interior centre [Σᵢ uᵢ]).  Read off from the B-side bound [SD_le] via
+    [SD_Delta], with the [B]-side norm bound [‖lc_val x + Σᵢ uᵢ‖ ≤ 1]
+    supplied by [lc_step1]. *)
+Section Lemma721.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+Lemma Delta_le (n : nat) (u : 'I_n -> B)
+    (Hs : cone_norm (\big[precone_add/precone_zero]_(i : 'I_n) u i) < 1)
+    (x : local_cone (\big[precone_add/precone_zero]_(i : 'I_n) u i))
+    (Hx : lc_norm x <= 1) :
+  Delta f u x <=p
+  f (lc_val x + \big[precone_add/precone_zero]_(i : 'I_n) u i).
+Proof.
+rewrite SD_Delta; apply: SD_le => //.
+rewrite precone_addC; exact: (lc_step1 Hs Hx).
+Qed.
+
+End Lemma721.
+
+Arguments Delta_le {R B C} f Hf {n} u Hs x.
+
+(** ** The cone [SnB] — Paper §7.3 (txt 3695)
+
+    [SnB B n := B^{n+1}], here the family type ['I_(n+1) → B], with
+    *pointwise* cone operations and the non-product norm
+    [‖g‖ := ‖Σ_{i} g i‖_B] (the [B]-norm of the total sum).  This is the
+    cone at the origin of coherent differentiation (Remark 7.24): not the
+    coproduct, nor the product, but [1 & ⋯ & 1 ⊸ B].
+
+    We deliver the full [coneType]: the [isPrecone] mixin (pointwise, by
+    the [funext] componentwise reductions) and the [isCone] mixin.  The
+    five norm axioms reduce, through the total-sum homomorphism
+    [snb_sum (g) = Σ_i g i] (which commutes with [+], [·:], and is
+    monotone), to the [B]-norm axioms; (Normc) bundles the componentwise
+    [cone_sup_ball]s, the norm bound coming from the radius-1 diagonal-sum
+    lub [dsum_lub] (the total-sum chain stays in the unit ball). *)
+
+Section SnBcone.
+Variable R : realType.
+Variable B : coneType R.
+Variable n : nat.
+Local Open Scope precone_scope.
+
+(** Carrier: families of length [n+1]. *)
+Definition snb_car : Type := 'I_n.+1 -> B.
+
+Implicit Types g h : snb_car.
+
+(** Pointwise operations. *)
+Definition snb_zero : snb_car := fun=> precone_zero.
+Definition snb_add g h : snb_car := fun i => g i + h i.
+Definition snb_scale (r : {nonneg R}) g : snb_car := fun i => r *: g i.
+
+(** The total sum [Σ_i g i] — a precone homomorphism into [B]. *)
+Definition snb_sum g : B := \big[precone_add/precone_zero]_(i : 'I_n.+1) g i.
+
+Lemma snb_sum0 : snb_sum snb_zero = 0.
+Proof. by rewrite /snb_sum big1. Qed.
+
+Lemma snb_sumD g h : snb_sum (snb_add g h) = snb_sum g + snb_sum h.
+Proof. by rewrite /snb_sum -big_split. Qed.
+
+Lemma snb_sumZ (r : {nonneg R}) g : snb_sum (snb_scale r g) = r *: snb_sum g.
+Proof.
+by rewrite /snb_sum (big_morph _ (precone_scale_DAr r) (precone_scale_0r r)).
+Qed.
+
+(** Precone axioms — pointwise. *)
+Lemma snb_addA : associative snb_add.
+Proof. by move=> g h k; apply/funext => i; rewrite /snb_add precone_addA. Qed.
+
+Lemma snb_addC : commutative snb_add.
+Proof. by move=> g h; apply/funext => i; rewrite /snb_add precone_addC. Qed.
+
+Lemma snb_add0 : left_id snb_zero snb_add.
+Proof. by move=> g; apply/funext => i; rewrite /snb_add precone_add0. Qed.
+
+Lemma snb_scale_DAr (r : {nonneg R}) g h :
+  snb_scale r (snb_add g h) = snb_add (snb_scale r g) (snb_scale r h).
+Proof.
+by apply/funext => i; rewrite /snb_scale /snb_add precone_scale_DAr.
+Qed.
+
+Lemma snb_scale_DAl (r s : {nonneg R}) g :
+  snb_scale (r%:num + s%:num)%R%:nng g =
+  snb_add (snb_scale r g) (snb_scale s g).
+Proof.
+by apply/funext => i; rewrite /snb_scale /snb_add precone_scale_DAl.
+Qed.
+
+Lemma snb_scale_A (r s : {nonneg R}) g :
+  snb_scale (r%:num * s%:num)%R%:nng g = snb_scale r (snb_scale s g).
+Proof. by apply/funext => i; rewrite /snb_scale precone_scale_A. Qed.
+
+Lemma snb_scale_1 g : snb_scale (1%R)%:nng g = g.
+Proof. by apply/funext => i; rewrite /snb_scale precone_scale_1. Qed.
+
+Lemma snb_scale_0r (r : {nonneg R}) : snb_scale r snb_zero = snb_zero.
+Proof. by apply/funext => i; rewrite /snb_scale precone_scale_0r. Qed.
+
+Lemma snb_scale_0l g : snb_scale (0%R)%:nng g = snb_zero.
+Proof. by apply/funext => i; rewrite /snb_scale precone_scale_0l. Qed.
+
+Lemma snb_cancel g h k : snb_add g h = snb_add g k -> h = k.
+Proof.
+move=> H; apply/funext => i; apply: (@precone_cancel _ _ (g i)).
+by have /(congr1 (fun w => w i)) := H.
+Qed.
+
+Lemma snb_pos g h : snb_add g h = snb_zero -> g = snb_zero /\ h = snb_zero.
+Proof.
+move=> H; split; apply/funext => i;
+  have /(congr1 (fun w => w i)) := H => /= H'.
+- by case: (precone_pos _ _ H').
+- by case: (precone_pos _ _ H').
+Qed.
+
+HB.instance Definition _ := @isPrecone.Build R snb_car
+  snb_zero snb_add snb_scale
+  snb_addA snb_addC snb_add0
+  snb_scale_DAr snb_scale_DAl snb_scale_A snb_scale_1
+  snb_scale_0r snb_scale_0l snb_cancel snb_pos.
+
+(** [snb_sum] is a precone homomorphism (re-export through the registered
+    [+]/[·:]/[0] of [snb_car]) and monotone for the (pointwise) order. *)
+Lemma snb_sum_zero : snb_sum (0 : snb_car) = 0.
+Proof. exact: snb_sum0. Qed.
+
+Lemma snb_sum_add (g h : snb_car) : snb_sum (g + h) = snb_sum g + snb_sum h.
+Proof. exact: snb_sumD. Qed.
+
+(** Componentwise reading of the [snb_car] order. *)
+Lemma snb_le_comp (g h : snb_car) :
+  g <=p h -> forall i, g i <=p h i.
+Proof.
+by case=> z Hz i; exists (z i); have /(congr1 (fun w => w i)) := Hz.
+Qed.
+
+(** [snb_sum] is monotone: [g ≤p h ⇒ Σg ≤p Σh]. *)
+Lemma snb_sum_le (g h : snb_car) : g <=p h -> snb_sum g <=p snb_sum h.
+Proof. by case=> z ->; rewrite snb_sumD; exists (snb_sum z). Qed.
+
+(** The norm: [B]-norm of the total sum. *)
+Definition snb_norm (g : snb_car) : R := cone_norm (snb_sum g).
+
+(** (Normh). *)
+Lemma snb_normh (r : {nonneg R}) (g : snb_car) :
+  snb_norm (r *: g) = r%:num * snb_norm g.
+Proof. by rewrite /snb_norm snb_sumZ cone_normh. Qed.
+
+(** (Normz). *)
+Lemma snb_normz (g : snb_car) : snb_norm g = 0%R -> g = 0.
+Proof.
+move=> /cone_normz; rewrite /snb_sum => H.
+apply/funext => i; move: H; rewrite (bigD1 i)//= => /precone_posl ->.
+by rewrite /GRing.zero/=.
+Qed.
+
+(** (Normt). *)
+Lemma snb_normt (g h : snb_car) :
+  snb_norm (g + h) <= (snb_norm g + snb_norm h)%R.
+Proof. by rewrite /snb_norm snb_sum_add; exact: cone_normt. Qed.
+
+(** (Normp). *)
+Lemma snb_normp (g h : snb_car) : g <=p h -> snb_norm g <= snb_norm h.
+Proof. by move=> /snb_sum_le H; rewrite /snb_norm; exact: cone_normp. Qed.
+
+End SnBcone.
+
+Arguments snb_car {R} B n.
+Arguments snb_sum {R B n} g.
+Arguments snb_norm {R B n} g.
+Arguments snb_le_comp {R B n g h}.
+Arguments snb_sum_le {R B n g h}.
+
+(** *** (Normc) — ω-completeness of the unit ball of [SnB]
+
+    For a [≤p]-increasing unit-ball chain [u : nat → SnB], each component
+    chain [c i k = u k i] is increasing and unit-ball (a component is
+    [≤p] the total sum, whose norm is [≤ 1]).  The supremum is taken
+    componentwise as a radius-1 [cone_sup_at]; it is the [SnB]-sup, with
+    the norm bound coming from the radius-1 finite-diagonal-sum lub
+    [dsum_lub]: the total-sum chain [Σ_i c i k = snb_sum (u k)] is
+    unit-ball, so [Σ_i snb_sup i] is below its [cone_sup_ball] (norm ≤ 1). *)
+
+Section SnBconeNorm.
+Variable R : realType.
+Variable B : coneType R.
+Variable n : nat.
+Local Open Scope precone_scope.
+
+Notation Sn := (snb_car B n).
+
+Section Sup.
+Variable u : nat -> Sn.
+Hypothesis uch : forall k, u k <=p u k.+1.
+Hypothesis ub1 : forall k, snb_norm (u k) <= 1.
+
+(** Per-component chain [c i k = u k i]. *)
+Let c (i : 'I_n.+1) (k : nat) : B := u k i.
+
+Let cch (i : 'I_n.+1) (k : nat) : c i k <=p c i k.+1.
+Proof. exact: (snb_le_comp (uch k)). Qed.
+
+(** A component is below the total sum [snb_sum (u k)]. *)
+Let comp_le_sum (i : 'I_n.+1) (k : nat) : c i k <=p snb_sum (u k).
+Proof.
+rewrite /c /snb_sum (bigD1 i)//=.
+by exists (\big[precone_add/precone_zero]_(j | j != i) u k j).
+Qed.
+
+Let M1 : {nonneg R} := 1%:nng.
+
+Let cub1 (i : 'I_n.+1) (k : nat) : cone_norm (c i k) <= M1%:num.
+Proof.
+apply: le_trans (ub1 k); rewrite /snb_norm.
+by apply: cone_normp; exact: comp_le_sum.
+Qed.
+
+Let M1pos : (0 < M1%:num)%R. Proof. by rewrite /M1/= ltr01. Qed.
+
+(** The componentwise supremum, as a radius-1 [cone_sup_at]. *)
+Definition snb_supf : Sn := fun i => dsup c cch cub1 M1pos i.
+
+Lemma snb_supf_ub (k : nat) : u k <=p snb_supf.
+Proof.
+have wsex i : exists z, snb_supf i = u k i + z.
+  by have := cone_sup_at_ub (cch i) (cub1 i) M1pos k.
+pose Z i := projT1 (cid (wsex i)).
+exists Z; apply/funext => i; rewrite /snb_add.
+exact: (projT2 (cid (wsex i))).
+Qed.
+
+Lemma snb_supf_lub (y : Sn) : (forall k, u k <=p y) -> snb_supf <=p y.
+Proof.
+move=> uy.
+have wsex i : exists z, y i = snb_supf i + z.
+  apply: (cone_sup_at_lub (cch i) (cub1 i) M1pos) => k.
+  exact: (snb_le_comp (uy k) i).
+pose Z i := projT1 (cid (wsex i)).
+exists Z; apply/funext => i; rewrite /snb_add.
+exact: (projT2 (cid (wsex i))).
+Qed.
+
+Lemma snb_supf_norm : snb_norm snb_supf <= 1.
+Proof.
+have Tch (k : nat) : snb_sum (u k) <=p snb_sum (u k.+1).
+  by apply: snb_sum_le; exact: uch.
+have Tub1 (k : nat) : cone_norm (snb_sum (u k)) <= 1 by exact: ub1.
+set T := cone_sup_ball (fun k => snb_sum (u k)) Tch Tub1.
+have key : snb_sum snb_supf <=p T.
+  rewrite /snb_sum /snb_supf.
+  rewrite (_ : \big[precone_add/precone_zero]_(i : 'I_n.+1)
+      dsup c cch cub1 M1pos i =
+    \big[precone_add/precone_zero]_(i in [set: 'I_n.+1])
+      dsup c cch cub1 M1pos i); last first.
+    by apply: eq_bigl => i; rewrite finset.in_setT.
+  apply: (dsum_lub cch cub1 M1pos) => k.
+  apply: (precone_le_trans (y := snb_sum (u k))); last first.
+    exact: (cone_sup_ball_ub (fun k => snb_sum (u k)) Tch Tub1 k).
+  rewrite /dchain /snb_sum.
+  rewrite (_ : \big[precone_add/precone_zero]_(i in [set: 'I_n.+1]) c i k =
+    \big[precone_add/precone_zero]_(i : 'I_n.+1) u k i); last first.
+    by apply: eq_bigl => i; rewrite finset.in_setT.
+  exact: precone_le_refl.
+rewrite /snb_norm; apply: le_trans (cone_normp _ _ key) _.
+exact: (cone_sup_ball_norm (fun k => snb_sum (u k)) Tch Tub1).
+Qed.
+
+End Sup.
+
+HB.instance Definition _ := @isCone.Build R Sn
+  (@snb_norm R B n) (@snb_normh R B n) (@snb_normz R B n)
+  (@snb_normt R B n) (@snb_normp R B n)
+  snb_supf snb_supf_ub snb_supf_lub snb_supf_norm.
+
+End SnBconeNorm.
+
+(** [SnB B n] as a [coneType]: the family ['I_(n+1) → B] with pointwise
+    operations and the total-sum norm. *)
+Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
+  snb_car B n.
+
 (**md**************************************************************)
 (** ** Status: what is proved, and the remaining wall
 
@@ -1487,20 +2110,45 @@ Arguments is_n_increasing_totmono {R B C} f.
         ([step]); the [Ppos] side dominates its supremum ([dsum_ub]) and
         the [Pneg] side passes to it as a least upper bound ([dsum_lub]).
 
-    The remaining wall (Lemmas 7.20 / 7.21).
-    - Lemma 7.20 (total monotonicity of [Δ⁺f(u⃗)], [Δ⁻f(u⃗)], [Δf(u⃗)] on
-      [B_{u⃗}]) and Lemma 7.21 ([Δf(u⃗)(x) ≤ f(x + Σᵢ uᵢ)]).  The
-      closed-ball converse [is_n_increasing_totmono] above now supplies
-      the [Δf(u⃗)] clause of 7.20 (apply it to [Δf(u⃗)], which is
-      [k]-increasing for all [k] by Lemma 7.16 and ω-continuous as a
-      difference of ω-continuous maps).  What is *still* missing is the
-      [Δεf(u⃗)] clause: the "easy observation" that the shift
-      [gᵤ(x) = g(x + u)] preserves total monotonicity ([totmono_shift]).
-      The subtlety is that on the *unit ball* the shift does NOT preserve
-      totmono in general (the shifted config [(x+u, w⃗)] may leave the
-      ball); 7.20 lives on the local cone [B_{u⃗}], whose gauge guarantees
-      admissibility, so [totmono_shift] must be phrased and proved through
-      [lc_val]/[lc_step1] (the same local-cone transport used for the
-      [n = 1] case in [totmono_Delta1]/[Lemma718]).  We stop here, with no
-      hole, rather than open that local-cone shift-transport development;
-      the closed-ball converse — the headline of §7.3 — is complete. *)
+    §7.3 composition lead-up, delivered here with NO holes.
+    - [totmono_shift] / [totmono_shift_le]: the "easy observation" of
+      Lemma 7.20 — the shift [gₛ(x) = g(lc_val x + s)] preserves total
+      monotonicity on the local cone [B_S] (single direction [s = S], and
+      the dominated form [s ≤p S] used to read [Δε] as a sum of shifts by
+      the partial sums).  Phrased and proved through [lc_val]/[lc_step1],
+      the same local-cone transport as in [totmono_Delta1]/[Lemma718].
+    - **Lemma 7.20, [Δε] clauses** ([totmono_Delta_pos] / [totmono_Delta_neg]):
+      [Δ⁺f(u⃗)] and [Δ⁻f(u⃗)] are totally monotonic on [B_u⃗], as finite
+      [\sumP]s of the dominated shifts [g_{s_I}] ([totmono_shift_le]) — a
+      sum of totally monotonic maps is totally monotonic ([totmono_bigP]).
+    - The **B-side difference [SD]** ([SD], [SD_E], [SD_Delta]): [Delta f u x]
+      depends on [x] only through [lc_val x], so the difference recurrences
+      live on bare [B]-centres, free of cone casts.
+    - **Lemma 7.21** ([SD_le] in B-side form, [Delta_le] in operator form):
+      [Δf(u⃗)(x) ≤p f(lc_val x + Σᵢ uᵢ)], by induction on the arity via
+      [SD_cons] (the cons recurrence) and [SD0] (base case).
+    - **Lemma 7.22** (both identities, B-side form): [SD_cons]
+      ([SD w (x+u) = SD w x + SD (u :: w) x]) and [SD_add]
+      ([SD (u+v :: w) x = SD (u :: w) x + SD (v :: w) (x+u)]) — pure
+      [B]-side cancellations of the three [SD_E] defining equations.
+    - **The cone [SnB]** ([SnB], full [coneType]): the family ['I_(n+1) → B]
+      with pointwise operations and the total-sum norm [‖g‖ = ‖Σ_i g i‖_B]
+      (Remark 7.24's [1 & ⋯ & 1 ⊸ B]).  All five norm axioms; (Normc)
+      bundles the componentwise [cone_sup_at]s, the norm bound coming from
+      the radius-1 diagonal-sum lub [dsum_lub].
+
+    Deferred (need ω-continuity / Theorem 7.19 on the difference operator).
+    - Lemma 7.20, [Δf(u⃗)] clause: total monotonicity of [Δf(u⃗)] itself.
+      Via [is_n_increasing_totmono] applied to [Δf(u⃗)] — [k]-increasing
+      for all [k] by Lemma 7.16, *and* ω-continuous as a difference of
+      ω-continuous maps ([is_scott_continuous_unit (Delta f u⃗)]); the
+      latter is a substantial development not opened here.
+    - Lemma 7.23 (the telescoping identity for [Δf(u⃗+v⃗)(x+u)]): a heavy
+      [SD]-side telescope over the family, "simple computations using
+      Lemma 7.22" but combinatorially involved; its engines ([SD_cons],
+      [SD_add]) are in place.
+    - Lemma 7.25 ([(x,u⃗) ↦ Δf(u⃗)(x)] increasing [B_SnB → C]): the
+      paper's "follows easily from Theorem 7.19" needs the [Δf(u⃗)] clause
+      of 7.20 (well-definedness + joint centre/direction monotonicity), so
+      it is deferred with that clause.  The [SnB] cone it lives on is
+      complete. *)
