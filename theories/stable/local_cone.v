@@ -25,21 +25,32 @@
       ([lc_leE]) — the observation used in the paper's (Normc) proof.
     - The gauge set [gauge_set] / its supremum [gauge_sup] and the gauge
       norm [lc_norm], with the reach lemmas of Lemma 7.2
-      ([gauge_sup_reach], [gauge_sup_gt_out]).
+      ([gauge_sup_reach], [gauge_sup_gt_out]), and the full [isCone]
+      instance (Lemma 7.1).
+    - The measurable / integrable structure of [B_x] (Example 7.3): the
+      renormalized pullback test family [lc_mcone_M] with its (Mscomp),
+      (Mssep), (Msnorm) closure, the [isMCone] instance, and — for
+      [B : iconeType] — the [isICone] instance (integral as in [B]).
 
     Design notes.
-    - [B] is taken to be a [coneType R]; the paper assumes integrability,
-      but Lemma 7.1 and Lemma 7.2 only use the cone structure (norm,
-      order, (Normc) ω-completeness of the unit ball).  The
-      measurability / integrability instances "inherited as in [B]" are
-      *deferred* (see the end of the file).
+    - The algebraic / cone development ([isPrecone], [isCone], Lemmas
+      7.1, 7.2) needs only that [B] is a [coneType R] and [‖x‖_B ≤ 1].
+      The measurability / integrability layer ([isMCone], [isICone],
+      "computed as in [B]") needs [B : mconeType] / [iconeType] *and* the
+      *strict* interior bound [‖x‖_B < 1] (Example 7.3): see the closing
+      comment.  We therefore strengthen the section hypothesis [Hx] to
+      [cnorm x < 1] throughout; the [≤ 1] facts are recovered via
+      [ltW Hx] (named [Hxle]) so nothing in the cone development changes.
     - Membership is a [Prop]-existential; we use [Prop_irrelevance] so
       that two carrier elements are equal as soon as their [B]-components
       are.  This is what lets the algebraic axioms reduce to the
       corresponding facts in [B].
-    - The full [isCone] instance (the norm axioms, in particular (Normc))
-      is *not* registered: see the closing comment for exactly what is
-      proved and what is left.
+    - All four HB instances are *registered*: [isPrecone], [isCone],
+      [isMCone] (test family the renormalized pullbacks), and [isICone]
+      (integral inherited from [B] via [lc_val]).  So [B_x] is a full
+      [iconeType Ar] at any strict interior point.  See the closing
+      comment for the construction and exactly which lemmas discharge
+      each axiom.
 *)
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.
@@ -53,11 +64,21 @@ Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
+From mathcomp.reals Require Import constructive_ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
+From mathcomp.analysis Require Import ereal measure.
+From mathcomp.analysis Require Import lebesgue_integral_definition.
+From mathcomp.analysis Require Import lebesgue_integral_nonneg.
+From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
+From mathcomp.analysis Require Import lebesgue_integrable.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
+Require Import Icones.mcones.fmeas.
+Require Import Icones.icones.pettis.
+Require Import Icones.icones.icone_integral.
+Require Import Icones.icones.icone.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -109,7 +130,14 @@ Section LocalConeCarrier.
 Variable R : realType.
 Variable B : coneType R.
 Variable x : B.
-Hypothesis Hx : cone_norm x <= 1.
+(** Paper §7.1, Example 7.3: the local cone is the differentiation of
+    [B] at an *interior* point of the unit ball.  We take [‖x‖_B < 1]
+    (strict): this is what closes the simplified [mcone_M_norm] field of
+    [mcone.v] for the pullback test family (see [LocalMCone] below).  The
+    non-strict facts of Lemmas 7.1/7.2 only ever consume [ltW Hx], so the
+    algebraic / norm development below is unchanged in meaning. *)
+Hypothesis Hx : cone_norm x < 1.
+Let Hxle : cone_norm x <= 1 := ltW Hx.
 
 (** Paper §7.1: a direction [u] is *admissible* at [x] when [x] can be
     pushed a positive amount along [u] while staying in the unit ball. *)
@@ -342,7 +370,8 @@ Section GaugeNorm.
 Variable R : realType.
 Variable B : coneType R.
 Variable x : B.
-Hypothesis Hx : cone_norm x <= 1.
+Hypothesis Hx : cone_norm x < 1.
+Let Hxle : cone_norm x <= 1 := ltW Hx.
 
 Local Open Scope classical_set_scope.
 
@@ -962,11 +991,11 @@ End GaugeNorm.
 (** The [coneType] of [B_x] with the admissibility witness [Hx]
     fixed.  The bare carrier [local_cone x] does not determine [Hx],
     so its canonical [Cone] structure is keyed by an extra
-    [cnorm x <= 1] argument; we name that family once here so the
+    [cnorm x < 1] argument; we name that family once here so the
     measurability layer below can resolve the [Cone] operations of
-    [B_x] without leaving an [cnorm x <= 1] placeholder. *)
+    [B_x] without leaving an [cnorm x < 1] placeholder. *)
 Definition lc_coneType (R : realType) (B : coneType R) (x : B)
-    (Hx : cone_norm x <= 1) : coneType R :=
+    (Hx : cone_norm x < 1) : coneType R :=
   local_cone_local_cone__canonical__cone_Cone Hx.
 
 (** ** Norm domination: [‖lc_val u‖_B ≤ N(u)] — Paper §7.1 (p. 1:56)
@@ -978,7 +1007,8 @@ Section NormDom.
 Variable R : realType.
 Variable B : coneType R.
 Variable x : B.
-Hypothesis Hx : cone_norm x <= 1.
+Hypothesis Hx : cone_norm x < 1.
+Let Hxle : cone_norm x <= 1 := ltW Hx.
 Local Notation P := (local_cone x).
 
 (** Paper §7.1, p. 1:56: [‖u‖_B ≤ ‖u‖_{B_x}].  For [u ≠ 0], every
@@ -1014,7 +1044,8 @@ Section SupBallEq.
 Variable R : realType.
 Variable B : coneType R.
 Variable x : B.
-Hypothesis Hx : cone_norm x <= 1.
+Hypothesis Hx : cone_norm x < 1.
+Let Hxle : cone_norm x <= 1 := ltW Hx.
 
 (** [B_x] as a [coneType] (see [lc_coneType]). *)
 Local Notation LC := (lc_coneType Hx).
@@ -1081,7 +1112,8 @@ Variable R : realType.
 Variable Ar : MeasSubcat R.
 Variable B : MCone.type Ar.
 Variable x : B.
-Hypothesis Hx : cone_norm x <= 1.
+Hypothesis Hx : cone_norm x < 1.
+Let Hxle : cone_norm x <= 1 := ltW Hx.
 
 Local Notation LC := (lc_coneType Hx).
 
@@ -1166,10 +1198,23 @@ End LocalTest.
 
 Arguments lc_test {Y} m.
 
-(** Paper §7.1: the test family of [B_x] — the image of [B]'s test
-    family under the pullback [lc_test]. *)
+(** Paper §7.1: the test family of [B_x].  Beyond the pullbacks
+    [lc_test m] of [B]'s tests, we also admit their *renormalized*
+    scalings [c ·: lc_test m] ([c ≥ 0], the renormalization factor
+    [1/‖m‖_{B_x}] of (Msnorm)).  A test [t] is in the family iff its
+    underlying function is [(r,u) ↦ c · m(r, lc_val u)] for some
+    [m ∈ M^B_Y] and [c ≥ 0]; this characterisation is closed under
+    reindexing (scaling commutes with [test_reindex]) and still
+    contains the bare pullbacks ([c = 1]) used for (Mssep). *)
 Definition lc_mcone_M (Y : ar_obj Ar) : set (test_of Ar Y LC) :=
-  [set lc_test m | m in mcone_M Y].
+  [set t : test_of Ar Y LC | exists2 m, mcone_M Y m &
+     exists2 c : R, 0 <= c &
+       forall r u, test_fun t r u = c * test_fun m r (lc_val u)].
+
+(** The bare pullback [lc_test m] is in the family (factor [c = 1]). *)
+Lemma lc_mcone_M_pull (Y : ar_obj Ar) (m : test_of Ar Y B) :
+  mcone_M Y m -> lc_mcone_M (lc_test m).
+Proof. by move=> mM; exists m => //; exists 1 => // r u; rewrite mul1r. Qed.
 
 (** Paper §7.1 (Mscomp): pullback commutes with reindexing,
     [test_reindex φ (lc_test m) = lc_test (test_reindex φ m)]. *)
@@ -1180,17 +1225,24 @@ Proof.
 by apply: test_eq => s u; rewrite /test_reindex/= /test_reindex_fun/=.
 Qed.
 
-(** Paper §7.1 (Mscomp): the family is closed under reindexing. *)
+(** Paper §7.1 (Mscomp): the family is closed under reindexing.  A
+    scaled pullback [(r,u) ↦ c · m(r, lc_val u)] reindexes to
+    [(s,u) ↦ c · (test_reindex φ m)(s, lc_val u)], with the reindexed
+    base test again in [M^B] by [B]'s (Mscomp). *)
 Lemma lc_mcone_M_comp (Y' Y : ar_obj Ar) (φ : ar_hom Ar Y' Y)
     (t : test_of Ar Y LC) :
   lc_mcone_M t -> lc_mcone_M (test_reindex φ t).
 Proof.
-move=> [m mM <-]; rewrite lc_test_reindex.
-by exists (test_reindex φ m) => //; exact: mcone_M_comp.
+move=> [m mM [c c_ge0 Ht]]; exists (test_reindex φ m).
+  exact: mcone_M_comp.
+exists c => // s u.
+by rewrite /test_reindex/= /test_reindex_fun/= Ht.
 Qed.
 
-(** Paper §7.1 (Mssep): arity-0 pullback tests separate points of
-    [B_x] — by (Mssep) of [B] on the [lc_val]-images, then [lc_eq]. *)
+(** Paper §7.1 (Mssep): arity-0 tests separate points of [B_x] —
+    apply the separation hypothesis to the bare pullbacks
+    [lc_test m] (which lie in the family) to separate the [lc_val]
+    images by [B]'s (Mssep), then conclude with [lc_eq]. *)
 Lemma lc_mcone_M_sep (u1 u2 : LC) :
   (forall t : test_of Ar (ar_zero Ar) LC,
     lc_mcone_M t ->
@@ -1198,11 +1250,468 @@ Lemma lc_mcone_M_sep (u1 u2 : LC) :
   u1 = u2.
 Proof.
 move=> Hsep; apply: (lc_eq (x:=x)); apply: mcone_M_sep => m mM.
-have Ht : lc_mcone_M (lc_test m) by exists m.
+have Ht : lc_mcone_M (lc_test m) by exact: lc_mcone_M_pull.
 by have := Hsep _ Ht.
 Qed.
 
+(** ** (Msnorm) for [B_x] — the renormalized-test construction
+
+    Paper §7.1 (Example 7.3): at an interior point [‖x‖_B < 1] the
+    gauge norm of [B_x] is reached by a *renormalized* pullback test.
+    For [u ≠ 0] put [v := lc_val u], [λ* := gauge_sup u > 0],
+    [z := x + λ* ·: v]; then [z ∈ B_B] with [‖z‖_B = 1]
+    ([gauge_sup_reach] + [gauge_sup_gt_out]).  Applying [B]'s
+    [mcone_M_norm] at [z] with a (small, uniform) slack [δ] gives a
+    test [m] with [m(r0,z) ≥ 1 − δ].  Its [B_x]-dual norm
+    [d(m) = sup_{‖w‖_{B_x}≤1} m(r0, lc_val w)] is bounded by
+    [β := 1 − m(r0,x) ≥ 1 − ‖x‖_B > 0] and below by
+    [m(r0,z) − m(r0,x) ≥ β − δ]; the renormalized test
+    [t := (1/d(m)) ·: lc_test m] then satisfies
+    [‖u‖_{B_x} ≤ t(r0,u) + ε]. *)
+
+Local Notation r0 := (ar_zero_pt Ar).
+
+(** The [B_x]-dual norm of a pullback test [lc_test m], i.e.
+    [sup_{‖w‖_{B_x} ≤ 1} m(r0, lc_val w)]. *)
+Definition lc_dnorm (m : test_of Ar (ar_zero Ar) B) : R :=
+  sup [set test_fun m r0 (lc_val w) | w in [set w : LC | cone_norm w <= 1]].
+
+Section DualNorm.
+Variable m : test_of Ar (ar_zero Ar) B.
+
+Let dset : set R :=
+  [set test_fun m r0 (lc_val w) | w in [set w : LC | cone_norm w <= 1]].
+
+Let dset_neq0 : nonempty dset.
+Proof.
+exists (test_fun m r0 (lc_val (precone_zero : LC))).
+exists (precone_zero : LC) => //=.
+by rewrite cone_norm0 ler01.
+Qed.
+
+Let dset_ub : has_ubound dset.
+Proof.
+exists 1 => z [w /= Hw <-].
+apply: le_trans (test_norm_le _ _ _) _.
+exact: le_trans (lc_val_norm_le Hx w) Hw.
+Qed.
+
+Let dset_hassup : has_sup dset.
+Proof. by split. Qed.
+
+(** Every unit-ball value [m(r0, lc_val w)] is below [d(m)]. *)
+Lemma lc_dnorm_ub (w : LC) :
+  cone_norm w <= 1 -> test_fun m r0 (lc_val w) <= lc_dnorm m.
+Proof.
+move=> Hw; apply: sup_upper_bound => //; exists w => //=.
+Qed.
+
+(** [d(m) ≥ 0]. *)
+Lemma lc_dnorm_ge0 : 0 <= lc_dnorm m.
+Proof.
+apply: le_trans (lc_dnorm_ub (w := (precone_zero : LC)) _).
+  by rewrite /lc_test_fun lc_val0 test_lin0.
+by rewrite cone_norm0 ler01.
+Qed.
+
+(** Admissibility bound: [d(m) ≤ 1 − m(r0, x)].  For unit-ball [w],
+    [x + lc_val w ∈ B_B] ([lc_step1]), so
+    [m(r0,x) + m(r0, lc_val w) = m(r0, x + lc_val w) ≤ 1]. *)
+Lemma lc_dnorm_le : lc_dnorm m <= 1 - test_fun m r0 x.
+Proof.
+apply: ge_sup => // z [w /= Hw <-].
+rewrite lerBrDr addrC -test_linD.
+apply: le_trans (test_norm_le _ _ _) _.
+by apply: lc_step1 => //; rewrite -[lc_val w]/(lc_val w).
+Qed.
+
+(** Operator-norm bound: [m(r0, lc_val u) ≤ d(m) · ‖u‖_{B_x}] for *all*
+    [u].  By homogeneity it reduces to the unit-ball bound
+    [lc_dnorm_ub]: rescale [u] to gauge-norm [1]. *)
+Lemma lc_dnorm_opnorm (u : LC) :
+  test_fun m r0 (lc_val u) <= lc_dnorm m * cone_norm u.
+Proof.
+have [u0|un0] := pselect (lc_val u = precone_zero).
+  rewrite u0 test_lin0 mulr_ge0//; first exact: lc_dnorm_ge0.
+  exact: cone_norm_ge0.
+have nu_pos : 0 < cone_norm u.
+  rewrite (_ : cone_norm u = lc_norm u)//.
+  by rewrite /lc_norm invr_gt0; exact: gauge_sup_gt0.
+pose r := (cone_norm u)^-1.
+have r_ge0 : 0 <= r by rewrite invr_ge0 ltW.
+pose u' : LC := lc_scale Hx (NngNum r_ge0) u.
+have u'_ball : cone_norm u' <= 1.
+  rewrite (_ : cone_norm u' = lc_norm u')//.
+  by rewrite /u' lc_normh /= /r mulVf ?gt_eqF.
+have key := lc_dnorm_ub u'_ball.
+move: key; rewrite /u' lc_valZ test_linZ /= /r.
+rewrite ler_pdivrMl// => H.
+by rewrite mulrC.
+Qed.
+
+End DualNorm.
+
+(** Paper §7.1: at the reach, [‖x + λ* ·: v‖_B ≥ 1].  If it were
+    [< 1], a slightly longer step [s = λ* + d] would still satisfy
+    [‖x + s ·: v‖_B ≤ ‖z‖_B + d·‖v‖_B ≤ 1] for small [d > 0],
+    contradicting [gauge_sup_gt_out] ([s > λ* = gauge_sup u]). *)
+Lemma lc_z_norm_ge1 (u : LC) (un0 : lc_val u <> precone_zero) :
+  1 <= cone_norm
+    (precone_add x (precone_scale (NngNum (gauge_sup_ge0 Hx u)) (lc_val u))).
+Proof.
+set v := lc_val u; set L := gauge_sup u.
+set z := precone_add x _.
+rewrite leNgt; apply/negP => zlt1.
+have gap_pos : 0 < 1 - cone_norm z by rewrite subr_gt0.
+have cv_pos : 0 < cone_norm v + 1.
+  by apply: lt_le_trans (_ : 1 <= _); [exact: ltr01 | rewrite lerDr cone_norm_ge0].
+pose d : R := (1 - cone_norm z) / (2 * (cone_norm v + 1)).
+have d_pos : 0 < d by rewrite divr_gt0 ?mulr_gt0 ?ltr0n.
+have Ld_ge0 : 0 <= L + d by rewrite addr_ge0 ?gauge_sup_ge0 ?ltW.
+have sgtL : L < (NngNum Ld_ge0)%:num by rewrite /= ltrDl.
+have zd_eq : precone_add x (precone_scale (NngNum Ld_ge0) v) =
+             precone_add z (precone_scale (NngNum (ltW d_pos)) v).
+  rewrite /z -precone_addA; congr precone_add.
+  rewrite -precone_scale_DAl; congr precone_scale.
+  by apply: val_inj => /=; rewrite addrC.
+have nle : cone_norm (precone_add x (precone_scale (NngNum Ld_ge0) v)) <= 1.
+  rewrite zd_eq; apply: le_trans (cone_normt _ _) _.
+  rewrite cone_normh /= -lerBrDl.
+  rewrite /d -mulrA -[leRHS]mulr1 ler_wpM2l ?subr_ge0 ?ltW//.
+  rewrite mulrC ltr_pdivrMr ?mulr_gt0 ?ltr0n// mul1r.
+  rewrite mulrDr mulr1; apply: le_lt_trans (_ : 2 * cone_norm v < _).
+    by rewrite ler_peMl ?cone_norm_ge0 ?ler1n.
+  by rewrite ltrDl ltr0n.
+exact: (gauge_sup_gt_out Hx un0 sgtL nle).
+Qed.
+
+(** ** Scaling a pullback test by a non-negative constant
+
+    [c ·: lc_test m], with the operator-norm validity proof
+    [Hnorm : c · m(r0, lc_val u) ≤ ‖u‖_{B_x}] for *all* [u].  This is
+    the renormalized test [t] of (Msnorm): the factor [c = 1/‖m‖_{B_x}]
+    rescales the pullback so it stays bounded by the gauge norm. *)
+Section ScaledTest.
+Variable m : test_of Ar (ar_zero Ar) B.
+Variable c : R.
+Hypothesis cge0 : 0 <= c.
+Hypothesis Hnorm :
+  forall u : LC, c * test_fun m r0 (lc_val u) <= cone_norm u.
+
+Let f : ar_carrier Ar (ar_zero Ar) -> LC -> R :=
+  fun r u => c * test_fun m r (lc_val u).
+
+Let st_meas (u : LC) :
+  cone_norm u <= 1 -> measurable_fun [set: _] (fun r => f r u).
+Proof.
+move=> Hu; rewrite /f.
+have -> : (fun r => c * test_fun m r (lc_val u))
+        = (functions.cst c) \* (fun r => test_fun m r (lc_val u)) by [].
+apply: measurable_funM; first exact: measurable_cst.
+by apply: test_meas; exact: le_trans (lc_val_norm_le Hx u) Hu.
+Qed.
+
+Let st_ge0 (r : ar_carrier Ar (ar_zero Ar)) (u : LC) : 0 <= f r u.
+Proof. by rewrite /f mulr_ge0//; exact: test_ge0. Qed.
+
+Let st_norm_le (r : ar_carrier Ar (ar_zero Ar)) (u : LC) :
+  f r u <= cone_norm u.
+Proof. by rewrite /f (ar_zero_ptE r); exact: Hnorm. Qed.
+
+Let st_le1 (r : ar_carrier Ar (ar_zero Ar)) (u : LC) :
+  cone_norm u <= 1 -> f r u <= 1.
+Proof. by move=> Hu; apply: le_trans Hu; exact: st_norm_le. Qed.
+
+Let st_lin0 (r : ar_carrier Ar (ar_zero Ar)) : f r precone_zero = 0.
+Proof. by rewrite /f lc_val0 test_lin0 mulr0. Qed.
+
+Let st_linD (r : ar_carrier Ar (ar_zero Ar)) (u v : LC) :
+  f r (precone_add u v) = f r u + f r v.
+Proof. by rewrite /f lc_valD test_linD mulrDr. Qed.
+
+Let st_linZ (r : ar_carrier Ar (ar_zero Ar)) (s : {nonneg R}) (u : LC) :
+  f r (precone_scale s u) = s%:num * f r u.
+Proof. by rewrite /f lc_valZ test_linZ mulrCA. Qed.
+
+Let st_cont (r : ar_carrier Ar (ar_zero Ar))
+  (u : nat -> LC)
+  (uch : forall n, precone_le (u n) (u n.+1))
+  (ub1 : forall n, cone_norm (u n) <= 1) (N : R) :
+  (forall n, f r (u n) <= N) -> f r (cone_sup_ball u uch ub1) <= N.
+Proof.
+move=> HN; rewrite /f.
+have [->|cpos] := eqVneq c 0.
+  by rewrite mul0r; exact: le_trans (st_ge0 r (u 0%N)) (HN 0%N).
+have cgt0 : 0 < c by rewrite lt0r cpos cge0.
+rewrite -ler_pdivlMl//; apply: (lc_test_cont (m := m)) => n.
+by rewrite ler_pdivlMl//; have := HN n; rewrite /f.
+Qed.
+
+(** Paper §7.1: the renormalized scaled pullback as a [test_of]. *)
+Definition lc_scaled_test : test_of Ar (ar_zero Ar) LC :=
+  MkTestOf st_meas st_ge0 st_le1 st_lin0 st_linD st_linZ st_cont
+           st_norm_le.
+
+Lemma lc_scaled_testE (r : ar_carrier Ar (ar_zero Ar)) (u : LC) :
+  test_fun lc_scaled_test r u = c * test_fun m r (lc_val u).
+Proof. by []. Qed.
+
+Lemma lc_scaled_test_inM :
+  mcone_M (ar_zero Ar) m -> lc_mcone_M lc_scaled_test.
+Proof. by move=> mM; exists m => //; exists c => // r u. Qed.
+
+End ScaledTest.
+
+(** Paper §7.1 / Example 7.3 (Msnorm): the renormalized pullback test
+    reaches within ε of the gauge norm at an interior point.  See the
+    section header for the full construction; the slack [δ] is chosen
+    uniformly via the strict interior bound [1 − ‖x‖_B > 0]. *)
+Lemma lc_mcone_M_norm (u : LC) (eps : R) :
+  u <> precone_zero -> 0 < eps ->
+  exists t : test_of Ar (ar_zero Ar) LC,
+    lc_mcone_M t /\ cone_norm u <= test_fun t r0 u + eps.
+Proof.
+move=> u0 eps_pos.
+have un0 : lc_val u <> precone_zero.
+  by move=> e; apply: u0; apply: (lc_eq (x := x)); rewrite lc_val0.
+set v := lc_val u; set L := gauge_sup u.
+pose Lge0 := gauge_sup_ge0 Hx u.
+have Lpos : 0 < L := gauge_sup_gt0 Hx un0.
+set z := precone_add x (precone_scale (NngNum Lge0) v).
+have zin : cone_norm z <= 1 := gauge_sup_reach Hx un0.
+have zge1 : 1 <= cone_norm z := lc_z_norm_ge1 un0.
+have zn0 : z <> precone_zero.
+  move=> e; move: zge1; rewrite e cone_norm0 leNgt => /negP; apply.
+  exact: ltr01.
+set κ := 1 - cone_norm x.
+have κpos : 0 < κ by rewrite subr_gt0.
+pose δ : R := Num.min (eps * L * κ / 2) (κ / 2).
+have δle1 : δ <= eps * L * κ / 2 by rewrite ge_min lexx.
+have δle2 : δ <= κ / 2 by rewrite ge_min lexx orbT.
+have δpos : 0 < δ.
+  rewrite lt_min !mulr_gt0 ?invr_gt0 ?ltr0n ?eps_pos//.
+have [m [mM Hm]] := mcone_M_norm z δ zn0 δpos.
+set d := lc_dnorm m.
+have dge0 : 0 <= d := lc_dnorm_ge0 m.
+(* β := 1 − m(r0, x) ≥ κ > 0 *)
+have mx_le : test_fun m r0 x <= cone_norm x := test_norm_le m r0 x.
+have βpos : 0 < 1 - test_fun m r0 x.
+  by rewrite subr_gt0; apply: le_lt_trans mx_le _; rewrite -subr_gt0.
+have dle : d <= 1 - test_fun m r0 x := lc_dnorm_le m.
+(* z-expansion m(r0,z) = m(r0,x) + L·m(r0,v) *)
+have mzE : test_fun m r0 z = test_fun m r0 x + L * test_fun m r0 v.
+  by rewrite /z test_linD test_linZ.
+(* lower bound L·m(r0,v) ≥ 1 − δ − m(r0,x) ≥ β − δ *)
+have mzlb : 1 - δ <= test_fun m r0 z.
+  by rewrite lerBlDr; apply: le_trans zge1 Hm.
+have Lmv_lb : 1 - δ - test_fun m r0 x <= L * test_fun m r0 v.
+  rewrite lerBlDl; apply: le_trans mzlb _; rewrite mzE.
+  by rewrite addrC.
+(* d ≥ L·m(r0,v) via w₀ in the unit ball *)
+have w0_ball :
+  cone_norm (lc_scale Hx (NngNum Lge0) u : LC) <= 1.
+  rewrite (_ : cone_norm _ = lc_norm (lc_scale Hx (NngNum Lge0) u))//.
+  by rewrite lc_normh /lc_norm /= -/L mulfV ?lexx ?gt_eqF.
+have d_lb : L * test_fun m r0 v <= d.
+  have := lc_dnorm_ub m w0_ball.
+  by rewrite lc_valZ test_linZ /=.
+have βge : κ <= 1 - test_fun m r0 x by rewrite /κ lerD2l lerN2.
+have κhalf_pos : 0 < κ / 2 by rewrite divr_gt0 ?ltr0n.
+have dpos : 0 < d.
+  apply: lt_le_trans d_lb; apply: lt_le_trans Lmv_lb.
+  apply: lt_le_trans κhalf_pos _.
+  rewrite addrAC lerBrDr; apply: le_trans _ βge.
+  by rewrite [leRHS]splitr lerD2l.
+(* the renormalized test t = (1/d) ·: lc_test m *)
+have cge0 : 0 <= d^-1 by rewrite invr_ge0 ltW.
+have Hnorm : forall w : LC, d^-1 * test_fun m r0 (lc_val w) <= cone_norm w.
+  move=> w; have Hop := lc_dnorm_opnorm m w.
+  rewrite -/d in Hop.
+  rewrite -[leRHS]mul1r -(@mulVf _ d) ?gt_eqF// -mulrA.
+  have d1ge0 : 0 <= d^-1 by rewrite invr_ge0 ltW.
+  by rewrite (ler_wpM2l d1ge0).
+exists (lc_scaled_test cge0 Hnorm); split.
+  exact: lc_scaled_test_inM.
+rewrite lc_scaled_testE -/v.
+(* reduce to L⁻¹ ≤ d⁻¹·m(r0,v) + eps *)
+rewrite (_ : cone_norm u = lc_norm u)// /lc_norm -/L.
+set β := 1 - test_fun m r0 x.
+have βpos' : 0 < β by [].
+have βLpos : 0 < β * L by rewrite mulr_gt0.
+(* β − δ ≤ L·m(r0,v) *)
+have Lmv_lb' : β - δ <= L * test_fun m r0 v.
+  by rewrite /β; move: Lmv_lb; rewrite addrAC.
+(* lower bound d⁻¹·m(r0,v) ≥ (β−δ)/(βL) *)
+have dvlb : (β - δ) / (β * L) <= d^-1 * test_fun m r0 v.
+  apply: (@le_trans _ _ (β^-1 * test_fun m r0 v)).
+    rewrite ler_pdivrMr// mulrACA mulVf ?gt_eqF// mul1r mulrC.
+    exact: Lmv_lb'.
+  rewrite ler_wpM2r ?test_ge0//.
+  have inv_mono : β^-1 <= d^-1 by rewrite lef_pV2 ?posrE//.
+  exact: inv_mono.
+(* δ/(βL) ≤ eps *)
+have κβ : κ <= β by rewrite /β /κ lerD2l lerN2.
+have κ2β : κ / 2 <= β.
+  apply: (le_trans _ κβ); apply: ler_piMr; first exact: ltW.
+  by rewrite invf_le1 ?ler1n ?ltr0n.
+have δβL_le : δ / (β * L) <= eps.
+  rewrite ler_pdivrMr//.
+  apply: le_trans δle1 _.
+  have e1 : eps * L * κ / 2 = (eps * L) * (κ / 2) by rewrite mulrA.
+  have e2 : eps * (β * L) = (eps * L) * β by rewrite mulrCA mulrC.
+  have epsL_ge0 : 0 <= eps * L by rewrite mulr_ge0 ?ltW.
+  by rewrite e1 e2 (ler_wpM2l epsL_ge0).
+(* assemble: L⁻¹ = (β−δ)/(βL) + δ/(βL) ≤ d⁻¹·m(r0,v) + eps *)
+have LinvE : L^-1 = (β - δ) / (β * L) + δ / (β * L).
+  rewrite -mulrDl subrK invfM mulrA mulfV ?gt_eqF//.
+  by rewrite mul1r.
+rewrite LinvE; apply: lerD => //.
+Qed.
+
+(** Paper §7.1 / Example 7.3: [B_x] is a measurable cone.  The test
+    family is the renormalized pullback family [lc_mcone_M]; (Mscomp),
+    (Mssep), (Msnorm) are [lc_mcone_M_comp], [lc_mcone_M_sep],
+    [lc_mcone_M_norm]. *)
+HB.instance Definition _ := @isMCone.Build R Ar (local_cone x)
+  lc_mcone_M lc_mcone_M_comp lc_mcone_M_sep lc_mcone_M_norm.
+
 End LocalMCone.
+
+(** ** [B_x] is an integrable cone — Paper §7.1 (p. 1:55, ~3189)
+
+    "the integral [I^{B_x}_X(β, µ)] is computed as in [B]": for a
+    measurable path [β : X → B_x] and a finite measure [µ], the integral
+    is the [B]-integral [y] of [lc_val ∘ β], which is *admissible* at the
+    interior point [x] ([‖x‖_B < 1] makes [x + ε ·: y ∈ B_B] for small
+    [ε]) and hence sits in [B_x].  Its defining equation transfers along
+    the renormalized pullback tests via [B]'s own [icone_integralP]. *)
+Section LocalICone.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variable B : ICone.type Ar.
+Variable x : B.
+Hypothesis Hx : cone_norm x < 1.
+Let Hxle : cone_norm x <= 1 := ltW Hx.
+
+(** [B_x] as an [mconeType] with the witness [Hx] fixed (mirrors
+    [lc_coneType]; lets [is_measurable_path] resolve the [MCone]
+    operations without an [cnorm x < 1] placeholder). *)
+Local Notation LCM :=
+  (local_cone_local_cone__canonical__mcone_MCone Hx).
+
+Section LocalIntegral.
+Variable X : ar_obj Ar.
+Variable β : ar_carrier Ar X -> LCM.
+Hypothesis Hβ : is_measurable_path β.
+Variable µ : fmeas R (ar_carrier Ar X).
+
+(** The [B]-shadow path [lc_val ∘ β]. *)
+Let β' : ar_carrier Ar X -> B := fun r => lc_val (β r).
+
+(** Its bound [Mβ] (inherited from [β]'s bound via [‖lc_val·‖ ≤ ‖·‖]). *)
+Let Mβ : R := projT1 (cid (proj1 Hβ)).
+
+Let β_bound r : cone_norm (β' r) <= Mβ.
+Proof.
+rewrite /β'; apply: le_trans (lc_val_norm_le Hx (β r)) _.
+exact: projT2 (cid (proj1 Hβ)) r.
+Qed.
+
+(** [lc_val ∘ β] is a measurable path in [B]: its [B]-tests pull back to
+    the bare pullback tests [lc_test], for which [β] is measurable. *)
+Let Hβ' : is_measurable_path β'.
+Proof.
+split; first by exists Mβ; exact: β_bound.
+move=> Y m mM.
+have := (proj2 Hβ) Y (@lc_test R Ar B x Hx Y m) (lc_mcone_M_pull Hx mM).
+by under eq_fun do rewrite /test_fun/= /lc_test_fun.
+Qed.
+
+(** The candidate integral [y : B] and its bound. *)
+Let y : B := icone_integral β' Hβ' µ.
+
+Let y_norm : cone_norm y <= Mβ * fmeas_norm µ.
+Proof.
+exact: (path_integral_norm_le (Mβ := Mβ) β_bound Hβ' y
+          (icone_integralP β' Hβ' µ)).
+Qed.
+
+(** [y] is admissible at [x]: at the interior point [‖x‖_B < 1] a small
+    step [ε] keeps [x + ε ·: y] in the unit ball. *)
+Let y_adm : localP x y.
+Proof.
+set N := Mβ * fmeas_norm µ.
+have Mβ_ge0 : 0 <= Mβ.
+  by apply: le_trans (β_bound (ar_point Ar X)); exact: cone_norm_ge0.
+have N_ge0 : 0 <= N by rewrite mulr_ge0 ?fmeas_norm_ge0.
+pose eps := (1 - cone_norm x) / (2 * (N + 1)).
+have N1_pos : 0 < N + 1 by apply: lt_le_trans (_ : 1 <= _); rewrite ?ltr01 ?lerDr.
+have eps_gt0 : 0 < eps.
+  by rewrite /eps divr_gt0 ?mulr_gt0 ?ltr0n ?subr_gt0.
+have eps_ge0 : 0 <= eps := ltW eps_gt0.
+exists (NngNum eps_ge0); split; first exact: eps_gt0.
+apply: le_trans (cone_normt _ _) _.
+rewrite cone_normh /= -lerBrDl.
+apply: le_trans (_ : eps * N <= _).
+  by rewrite ler_wpM2l// ?divr_ge0 ?mulr_ge0 ?ltr0n ?subr_ge0.
+rewrite /eps -mulrA -[leRHS]mulr1 ler_wpM2l ?subr_ge0//.
+rewrite ler_pdivrMl ?mulr_gt0 ?ltr0n// mulr1 mulrDr mulr1.
+apply: le_trans (_ : 2 * N <= _); first by rewrite ler_peMl ?ler1n.
+by rewrite lerDl ler0n.
+Qed.
+
+(** The integral packaged as a [B_x] element. *)
+Let z : local_cone x := exist (localP x) y y_adm.
+
+Let zE : lc_val z = y. Proof. by []. Qed.
+
+(** Paper §7.1: [z] satisfies the Pettis equation in [B_x].  Pullback
+    tests are scaled pullbacks [c · m'(·, lc_val·)]; the constant pulls
+    out of the integral ([integralZl]) and the un-scaled equation is
+    [B]'s own [icone_integralP] for [y]. *)
+Lemma lc_path_integrable : is_path_integrable β µ.
+Proof.
+exists z => t [m mM [c c_ge0 Ht]] s.
+have mmeas : measurable_fun [set: ar_carrier Ar X]
+    (fun r => (test_fun m s (β' r))%:E).
+  by apply/measurable_EFinP; exact: (measurable_test_path_section mM Hβ').
+have mcst : measurable_fun [set: ar_carrier Ar X]
+    (fun _ : ar_carrier Ar X => Mβ%:E).
+  exact: measurable_cst.
+have mfin : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+    (test_fun m s (β' r))%:E \is a fin_num)%E.
+  rewrite ge0_fin_numE; last first.
+    by apply: integral_ge0 => r _; rewrite lee_fin; apply: test_ge0.
+  apply: (@le_lt_trans _ _
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) Mβ%:E)%E).
+    apply: ge0_le_integral => //.
+    - by move=> r _; rewrite lee_fin; apply: test_ge0.
+    - move=> r _; rewrite lee_fin.
+      by apply: le_trans (test_norm_le _ _ _) (β_bound r).
+  by rewrite integral_cst// ltey_eq fin_numM ?fmeas_setT_fin.
+have mint : (fmeas_mu µ).-integrable [set: ar_carrier Ar X]
+    (fun r => (test_fun m s (β' r))%:E).
+  apply/integrableP; split=> //.
+  under eq_integral => r _ do rewrite gee0_abs ?lee_fin ?test_ge0//.
+  by rewrite ltey_eq mfin.
+under eq_integral => r _ do rewrite Ht EFinM.
+rewrite Ht zE (icone_integralP β' Hβ' µ m mM s).
+by rewrite integralZl// fineM//=.
+Qed.
+
+End LocalIntegral.
+
+(** Paper §7.1 (~3189): [B_x] is an integrable measurable cone. *)
+Lemma lc_icone_exists (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> LCM) :
+  is_measurable_path β ->
+  forall µ : fmeas R (ar_carrier Ar X), is_path_integrable β µ.
+Proof. by move=> Hβ µ; exact: lc_path_integrable. Qed.
+
+HB.instance Definition _ := @isICone.Build R Ar (local_cone x)
+  lc_icone_exists.
+
+End LocalICone.
 
 (**md**************************************************************)
 (** ** Status: what is proved, and what is deferred
@@ -1241,28 +1750,34 @@ End LocalMCone.
       identity [lc_sup_ball_translate], the *full* pullback test
       [lc_test m : test_of Ar X B_x] (all eight [test_of] fields proved,
       including ω-continuity [lc_test_cont] via [lc_sup_ball_translate]),
-      the test family [lc_mcone_M] and its (Mscomp) closure
-      [lc_mcone_M_comp] / (Mssep) [lc_mcone_M_sep].  This is exactly the
-      paper's family [M_X = { (r,u) ↦ m(r, lc_val u) | m ∈ M^B_X }].
+      and the (enriched) test family [lc_mcone_M].
 
-    Deferred (with the precise blocker).
-    - The [isMCone] / [isICone] HB *instances* on [B_x].  The pullback
-      family above satisfies (Msmeas), (Mscomp), (Mssep) but NOT the
-      [mcone_M_norm] field of [isMCone] *as simplified in [mcone.v]*.
-      That field demands a test [m] with [‖u‖_{B_x} ≤ m(lc_val u) + ε];
-      but every pullback test obeys [m(lc_val u) ≤ ‖lc_val u‖_B], and the
-      gauge norm satisfies [‖lc_val u‖_B ≤ ‖u‖_{B_x}] with the inequality
-      *strict* in general (Example 7.3: [B_x] is the homothety of [B] by
-      [1/(1-x)], so [‖u‖_{B_x} = ‖u‖_B/(1-x)] while the id-test only
-      reaches [‖u‖_B]).  The paper's (Msnorm) closes this because it
-      uses the operator-norm factor [m(u)/‖m‖] — but [mcone.v] adopts the
-      simplified form *without* [/‖m‖] (see its header, justified by
-      [‖m‖ ≤ 1], which fails for the gauge norm).  Registering [isMCone]
-      therefore needs the dual-norm machinery [mcone.v] deferred (a test
-      [m(lc_val·)/‖m‖_{B_x}] with [‖m‖_{B_x} = sup_{w ∈ B_P} m(lc_val w)],
-      plus a proof that it stays [≤ ‖·‖_{B_x}] and attains the gauge),
-      which is not available here.  [isICone] is layered over [isMCone],
-      so it is blocked transitively (its integral would indeed be "as in
-      [B]" — [icone_integral (lc_val ∘ β)] — once [B_x] is an [mconeType]
-      and the integral's admissibility is established).
+    - Paper §7.1 / Example 7.3: the [isMCone] HB *instance* on
+      [local_cone x] (so [B_x] is a full [mconeType]), at the *strict*
+      interior point [‖x‖_B < 1] (section hypothesis [Hx]; the older
+      [≤ 1] facts of Lemmas 7.1/7.2 are recovered through [ltW Hx]).
+      The test family is the *renormalized* pullback family
+      [lc_mcone_M = { (r,u) ↦ c · m(r, lc_val u) | m ∈ M^B, c ≥ 0 }];
+      (Mscomp) [lc_mcone_M_comp] and (Mssep) [lc_mcone_M_sep] hold as
+      for the bare pullbacks, and (Msnorm) [lc_mcone_M_norm] is closed
+      by the renormalized test [(1/‖m‖_{B_x}) · lc_test m]: with the
+      [B_x]-dual norm [lc_dnorm m = sup_{‖w‖_{B_x}≤1} m(r0, lc_val w)]
+      ([lc_dnorm_ub], [lc_dnorm_le], [lc_dnorm_opnorm]), the reach point
+      [z = x + λ* ·: v] (norm [1] by [gauge_sup_reach] + [lc_z_norm_ge1])
+      and [B]'s own [mcone_M_norm] at [z] with a slack [δ] chosen
+      uniformly via [1 − ‖x‖_B > 0].  The id-test undershoot of the
+      simplified (Msnorm) is exactly what the renormalization factor
+      [1/‖m‖_{B_x}] (≥ 1, the homothety factor of Example 7.3) repairs;
+      this is *only* available at the strict interior, which is the
+      paper's setting for local cones.
+
+    - Paper §7.1 (~3189): the [isICone] HB *instance* on [local_cone x]
+      (so [B_x] is a full [iconeType]) for [B : iconeType Ar].  The
+      integral is "computed as in [B]" ([lc_icone_exists]): for a
+      measurable path [β : X → B_x] and finite [µ], the [B]-integral
+      [y = icone_integral (lc_val ∘ β)] is *admissible* at [x] ([y_adm],
+      again using [‖x‖_B < 1] to keep [x + ε ·: y ∈ B_B]) and so packages
+      to a [B_x] element [z]; its Pettis equation transfers along the
+      renormalized pullback tests via [B]'s [icone_integralP] (the
+      constant [c] factoring out of the integral by [integralZl]).
 *)
