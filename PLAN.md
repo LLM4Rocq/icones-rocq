@@ -892,18 +892,16 @@ S7c: **port** mathlib4 `ForwardDiff` + `FaaDiBruno` onto native
 Files: `theories/stable/{local_cone,totmono,stablehom,findiff,scones_cat}.v`. Effort
 ≈ 11–15 mo realistic (S7c dominant).
 
-> **⚠ TODO — finish the stable-cone CARRIER redesign (in progress, 2026-05-22).**
-> S7b surfaced that the stable cone needs a **B_B-restricted carrier** (the paper's
-> stable functions are `f : B_P → Q`): the original `stablehom` wrapped a *total*
-> function, whose off-`B_B` values are unconstrained, so `(Normz)` (`‖f‖=0 ⇒ f=0`)
-> fails. A redesign (sigma over the unit ball, a quotient by agreement on `B_B`, or a
-> canonical 0-extension field) is being applied to `theories/stable/stablehom.v` (and,
-> if the function *type* changes, `is_meas_stable` in `totmono.v`). **This redesign
-> must be carried all the way through** `isCone → isMCone → isICone`, and any later
-> S7c/S7d code (finite differences, `Ev`/curry) must be written against the redesigned
-> carrier. Until done, `B ⇒ₛ C` is only a `preconeType`. This is the third instance of
-> the recurring §7 pattern (MVP linear-tailored representations not extending to
-> nonlinear stable functions; cf. (Msnorm)→strict-interior, ω-cont→radius-aware).
+> **✅ DONE (2026-05-22) — carrier redesign + S7b complete.** The stable cone needed a
+> **B_B-restricted carrier** (the paper's stable functions are `f : B_P → Q`): the
+> original `stablehom` wrapped a *total* function with unconstrained off-`B_B` values, so
+> `(Normz)` failed. Resolved via a **canonical 0-extension field** `sh_offball`
+> (`theories/stable/stablehom.v`; `totmono.v` untouched), carried all the way through
+> `isPrecone → isCone → isMCone → isICone`: **`B ⇒ₛ C` is now a full `iconeType`** (S7b
+> done, axiom-clean). Any later S7c/S7d code builds on this carrier. This was the third
+> of *five* recurring §7 "MVP linear-tailoring" gaps fixed en route ((Msnorm)→strict
+> interior; ω-cont→radius-aware `cone_sup_at`; carrier→0-extension;
+> difference-is-stable→Lemma 7.12 backward; integral ω-cont→`test_of_sup_at`).
 
 ### 13.4 Exponential `!` via SAFT — paper §9, axiom-free
 
