@@ -853,41 +853,296 @@ move=> u Hu.
 exact: (IHn _ _ _ _ (totmono_Delta1 f u Hu Hf)).
 Qed.
 
-(** ** Deferred — Theorem 7.19 converse, Lemmas 7.20 / 7.21
+(** ** Theorem 7.19 converse — Paper §7.3 (txt 3545)
 
-    What is delivered above with no holes:
-    - the nested-local-cone identity of Lemma 7.18, resolved *without* a
-      cone-iso: every point of [(B_u)_u⃗] used in the total-monotonicity
-      instance of [Δf(u)] is an actual [tm_arg] point of [B_u], expanded
-      on the spot through [Delta1_E] and pushed onto the [B]-side, where
-      the cons-recurrences and [Sdiff_mono] close it ([totmono_Delta1]);
-    - the operator-level Lemma 7.17 monotonicity clause
-      [Δf(u⃗)(x) ≤ Δf(u⃗)(x + u)] ([Delta_mono]);
-    - the *forward* half of Theorem 7.19 ([totmono_is_n_increasing]).
+    The paper's induction on the arity [n].  The [(u₀ :: u⃗)] instance of
+    the (7.1) inequality for [f] reduces, by the two cons recurrences and
+    the summed [n = 1] equations [SDpos_E] / [SDneg_E], to the (7.1)
+    inequality for the single-step difference [Δf(u₀) : B_{u₀} → C] at
+    arity [n].  By Lemma 7.16 ([is_n_increasing_Delta]) the difference
+    [Δf(u₀)] is [k]-increasing for all [k], so the inductive hypothesis
+    (generalised over the source cone) applies to it — provided [B_{u₀}]
+    is a [coneType], i.e. [‖u₀‖ < 1] *strictly*.
 
-    What remains, and the precise wall.
-    - Theorem 7.19 *converse* ([(∀n, n-increasing) ⇒ totally monotonic]).
-      The paper's induction on the arity [m] reduces the [(u₀ :: u⃗)]
-      instance to the total monotonicity of [Δf(u₀) : B_{u₀} → C], obtained
-      from Lemma 7.16 ([is_n_increasing_Delta]) plus the inductive
-      hypothesis applied to [Δf(u₀)].  This requires [B_{u₀}] to be a
-      [coneType], i.e. [‖u₀‖ < 1] *strictly* ([lc_coneType]).  But the
-      directions [u₀] quantified by [is_totmono] range over the *closed*
-      ball ([‖x + Σᵢ uᵢ‖ ≤ 1] only), so the head [u₀] may have
-      [‖u₀‖ = 1] and [B_{u₀}] is then not available as a [coneType].
-      Bridging the closed-ball case needs a strict-interior / Scott-limit
-      argument (approximate [u₀] from inside the open ball and pass to the
-      limit using ω-continuity), which is exactly the strict-interior
-      transport deferred elsewhere in the development.  Note the lifting
-      data themselves are available — the [mklift]-style admissibility
-      [‖u₀ + v‖ ≤ 1 ⇒ localP u₀ v] and the summed equations [SDpos_E] /
-      [SDneg_E] are in place — so only the [‖u₀‖ = 1] coneType gap blocks
-      a clean converse.
-    - Lemma 7.20 (total monotonicity of [Δ⁺f(u⃗)], [Δ⁻f(u⃗)], [Δf(u⃗)]) and
-      Lemma 7.21 ([Δf(u⃗)(x) ≤ f(x + Σᵢ uᵢ)]).  The [Δf(u⃗)] parts both
-      route through Theorem 7.19 (and, for 7.21, the nested clause
-      [Δf(u :: u⃗) = Δ(Δf(u⃗))(u)] which again needs the closed-ball
-      [B_{u⃗}] coneType), so they are blocked by the same wall.
+    We first deliver the *strict-interior* converse ([conv_strict_aux]):
+    the (7.1) inequality for every configuration whose total sum lies in
+    the *open* unit ball ([‖x + Σᵢ uᵢ‖ < 1]).  Inside the open ball the
+    head [u₀] is itself strictly interior ([‖u₀‖ ≤ ‖x + Σᵢ uᵢ‖ < 1]) so
+    [B_{u₀}] is a cone, and the nested family [u⃗ ∈ B^{n}] lifts to
+    [B_{u₀}] *with step [1]*: each direction [w i] and the centre [x] are
+    admissible at [u₀] because they are [≤p (x + Σⱼ wⱼ)] and
+    [‖u₀ + (x + Σⱼ wⱼ)‖ = ‖x + Σ vcons‖ ≤ 1].  The lifted [B_{u₀}]-norm
+    side-condition is exactly [lc_step1_norm] applied to that same bound.
+    The closed-ball converse would follow by an ω-continuity limit at the
+    boundary; see the closing status note for the precise remaining wall. *)
 
-    No axiom or [admit] is introduced: the deferred statements are simply
-    not stated. *)
+(** A direction [z] with [‖u₀ + z‖ ≤ 1] is admissible at the interior
+    centre [u₀]: step [1] keeps [u₀ + z] in the unit ball.  This is the
+    [‖u₀ + v‖ ≤ 1 ⇒ localP u₀ v] lifting datum. *)
+Lemma lift_localP (R : realType) (B : coneType R) (u0 : B) (z : B) :
+  cone_norm (precone_add u0 z) <= 1 -> localP u0 z.
+Proof.
+move=> Hz; exists 1%:nng; split; first by rewrite /= ltr01.
+by rewrite precone_scale_1.
+Qed.
+
+Arguments lift_localP {R B u0 z}.
+
+(** Strict reach lemma: if [x + lc_val u] is in the *open* unit ball,
+    then the gauge norm of [u] is [< 1].  A step [1 + δ] is still
+    admissible for [δ] small enough — [x + (1+δ)·u = (x + u) + δ·u] has
+    norm [≤ ‖x + u‖ + δ‖u‖ < 1] — so [gauge_sup u ≥ 1 + δ > 1] and
+    [lc_norm u = (gauge_sup u)⁻¹ < 1].  This is the strict analogue of
+    [lc_step1_norm], needed to keep configurations strictly interior
+    through the converse induction. *)
+Lemma lc_step1_norm_lt (R : realType) (B : coneType R) (x : B)
+    (Hx : cone_norm x < 1) (u : local_cone x) :
+  cone_norm (precone_add x (lc_val u)) < 1 -> lc_norm u < 1.
+Proof.
+move=> Hu.
+have [u0|un0] := pselect (lc_val u = precone_zero).
+  by rewrite lc_norm0// ltr01.
+have nu_pos : 0 < cone_norm (lc_val u).
+  rewrite lt_neqAle cone_norm_ge0 andbT eq_sym.
+  by apply/eqP => /cone_normz.
+(* Choose [δ > 0] with [‖x + u‖ + δ‖u‖ < 1]. *)
+pose d : R := (1 - cone_norm (precone_add x (lc_val u)))
+              / (2 * cone_norm (lc_val u)).
+have d_gt0 : 0 < d by rewrite divr_gt0 ?subr_gt0 ?mulr_gt0 ?ltr0n.
+have d_ge0 : 0 <= d := ltW d_gt0.
+have onepd_ge0 : 0 <= 1 + d by rewrite addr_ge0// ler01.
+(* The step [1 + δ] is admissible. *)
+have step_adm : cone_norm
+    (precone_add x (precone_scale (NngNum onepd_ge0) (lc_val u))) <= 1.
+  have split1 : precone_scale (NngNum onepd_ge0) (lc_val u) =
+      precone_add (lc_val u) (precone_scale (NngNum d_ge0) (lc_val u)).
+    rewrite -{2}(precone_scale_1 (lc_val u)) -precone_scale_DAl.
+    by congr (precone_scale _ (lc_val u)); apply: val_inj.
+  rewrite split1 precone_addA.
+  apply: le_trans (cone_normt _ _) _.
+  rewrite cone_normh /=.
+  rewrite -lerBrDl.
+  apply: le_trans (_ : d * cone_norm (lc_val u) <= _).
+    by rewrite mulrC.
+  rewrite /d -mulrA.
+  rewrite invfM -mulrA mulVf ?gt_eqF// mulr1.
+  rewrite ler_pdivrMr ?ltr0n//.
+  rewrite ler_peMr ?subr_ge0 ?ltW//.
+  by rewrite -{1}(addr0 1) -[2]/(1 + 1) ltrD2l ltr01.
+have ge1d : 1 + d <= gauge_sup u.
+  rewrite /gauge_sup; apply: sup_upper_bound; last first.
+    by exists (NngNum onepd_ge0).
+  by split; [exact: gauge_set_neq0 | exact: gauge_set_ub].
+rewrite /lc_norm -invr1 ltf_pV2 ?posrE ?ltr01 ?gauge_sup_gt0//.
+by apply: lt_le_trans ge1d; rewrite ltrDl.
+Qed.
+
+Arguments lc_step1_norm_lt {R B x} Hx u.
+
+Section ConvStrict.
+Variable R : realType.
+Local Open Scope precone_scope.
+
+(** Functional [η]-expansion of a family of arity [n+1] as a [vcons] of
+    its head [v ord0] and tail [v ∘ lift ord0]. *)
+Lemma vcons_eta (B : coneType R) (n : nat) (v : 'I_n.+1 -> B) :
+  v = vcons (v ord0) (fun i => v (lift ord0 i)).
+Proof.
+apply/funext => j; rewrite /vcons.
+by case: (unliftP ord0 j) => [i ->|->]; rewrite ?liftK ?unlift_none.
+Qed.
+
+(** The strict-interior converse, in [B]-core form.  Generalised over the
+    source/target cones and the map so that the inductive hypothesis can
+    be applied to [Δf(u₀) : B_{u₀} → C]. *)
+Lemma conv_strict_aux (n : nat) (B C : coneType R) (f : B -> C) :
+  (forall k, is_n_increasing k f) ->
+  forall (x : B) (u : 'I_n -> B),
+    cone_norm (x + \big[precone_add/precone_zero]_(i : 'I_n) u i) < 1 ->
+    precone_le (Sneg f n u x) (Spos f n u x).
+Proof.
+elim: n B C f => [|n IHn] B C f Hinc x u Hnorm.
+  by rewrite /Sneg Pneg0 big_set0; exact: precone_le0.
+(* Split [u] as [u₀ :: w] and unfold the goal through the recurrences. *)
+rewrite [u]vcons_eta in Hnorm *.
+set u0 := u ord0; set w := (fun i => u (lift ord0 i)).
+rewrite -/u0 -/w in Hnorm *.
+rewrite Spos_recur Sneg_recur.
+(* The total sum is in the open ball, so the head [u₀] is interior. *)
+have Hsum : cone_norm
+    (\big[precone_add/precone_zero]_(i : 'I_1) (fun=> u0) i) < 1.
+  rewrite big_ord1; apply: le_lt_trans Hnorm; apply: cone_normp.
+  rewrite sum_vcons -/u0 -/w precone_addA (precone_addC x u0) -precone_addA.
+  by exists (x + \big[precone_add/precone_zero]_(i : 'I_n) w i).
+set su := \big[precone_add/precone_zero]_(i : 'I_1) (fun=> u0) i.
+set sw := \big[precone_add/precone_zero]_(i : 'I_n) w i.
+(* Each [z ≤p x + Σⱼ wⱼ] is admissible at the centre [su]: step [1] keeps
+   [su + z] in the unit ball, because [su + (x + Σⱼ wⱼ) = x + Σ vcons]. *)
+have suxw : su + (x + sw) = x +
+    \big[precone_add/precone_zero]_(i : 'I_n.+1)
+      vcons u0 w i.
+  rewrite /su big_ord1 -/u0 sum_vcons -/u0 -/w.
+  by rewrite precone_addA (precone_addC u0 x) -precone_addA.
+have Hadm (z : B) : z <=p x + sw -> cone_norm (su + z) <= 1.
+  move=> Hz; apply: le_trans (ltW Hnorm); apply: cone_normp.
+  rewrite -suxw; apply: precone_add_le_l; exact: Hz.
+(* The lifted centre [xL] and family [wL] in [B_{u₀}]. *)
+have HxleB : x <=p x + sw by exists sw.
+have wi_le_sw i : w i <=p sw.
+  have := sumP_sub_le [set i] w; rewrite big_set1 -/sw; exact.
+have HwleB i : w i <=p x + sw.
+  apply: (@precone_le_trans _ _ sw); first exact: wi_le_sw.
+  by exists x; rewrite precone_addC.
+pose xL : lc_coneType Hsum := exist (localP su) x (lift_localP (Hadm x HxleB)).
+pose wL (i : 'I_n) : lc_coneType Hsum :=
+  exist (localP su) (w i) (lift_localP (Hadm (w i) (HwleB i))).
+have lc_xL : lc_val xL = x by [].
+have lc_wL i : lc_val (wL i) = w i by [].
+(* [Δf(u₀)] is [k]-increasing for all [k] (Lemma 7.16). *)
+have HD := @is_n_increasing_Delta R B C f Hinc u0 Hsum.
+(* The lifted total sum stays strictly interior in [B_{u₀}]. *)
+have HnormBu : cone_norm
+    (xL + \big[precone_add/precone_zero]_(i : 'I_n) wL i) < 1.
+  rewrite -[cone_norm _]/(lc_norm _).
+  apply: (lc_step1_norm_lt Hsum); rewrite lc_valD lc_val_big lc_xL.
+  rewrite (eq_bigr (fun i => w i)); last by move=> i _; rewrite lc_wL.
+  by rewrite -/sw suxw.
+(* Increasingness of [f] at the lifted [tm_arg]s, for [SDpos_E]/[SDneg_E]. *)
+have Hi : is_increasing f by have := Hinc 0%N.
+have Hinc_arg := @Delta1_inc R B C f u0 Hsum Hi n xL wL (ltW HnormBu).
+(* The inductive hypothesis on [Δf(u₀)]: its (7.1) inequality at arity
+   [n], centre [xL] and family [wL].  Definitionally [Sneg]/[Spos] of
+   [Δf(u₀)] are the [\sumP] of [Δf(u₀)] over [Pneg n] / [Ppos n]. *)
+have IH : precone_le
+    (\big[precone_add/precone_zero]_(I in Pneg n)
+       Delta f (fun=> u0) (tm_arg xL wL I))
+    (\big[precone_add/precone_zero]_(I in Ppos n)
+       Delta f (fun=> u0) (tm_arg xL wL I)).
+  exact: IHn (lc_coneType Hsum) C (Delta f (fun=> u0)) HD xL wL HnormBu.
+(* The two summed [n = 1] equations, read with [lc_val xL = x] and
+   [lc_val ∘ wL = w], turn the goal's [Sε f n w (x + u₀)] terms into the
+   centre-[x] term plus the [Δf(u₀)] sum. *)
+have wLval : (fun i => lc_val (wL i)) = w.
+  by apply/funext => i; rewrite lc_wL.
+have EP := @SDpos_E R B C f u0 Hsum n xL wL Hinc_arg.
+have EN := @SDneg_E R B C f u0 Hsum n xL wL Hinc_arg.
+rewrite lc_xL wLval in EP; rewrite lc_xL wLval in EN.
+rewrite EP EN.
+set Sw := Spos f n w x; set Snw := Sneg f n w x.
+set DP := \big[precone_add/precone_zero]_(I in Ppos n) _.
+set DN := \big[precone_add/precone_zero]_(I in Pneg n) _.
+(* Goal: (Snw + DN) + Sw ≤p (Sw + DP) + Snw; cancel the common [Snw + Sw]. *)
+rewrite -precone_addA [DN + Sw]precone_addC precone_addA.
+rewrite -[Sw + DP + Snw]precone_addA [DP + Snw]precone_addC precone_addA.
+rewrite [Sw + Snw]precone_addC.
+by apply: precone_add_le_l.
+Qed.
+End ConvStrict.
+
+Arguments conv_strict_aux {R} n {B C} f.
+
+(** ** Theorem 7.19 converse — strict-interior consequences
+
+    The strict-interior converse in the [tm_arg] form of [is_totmono]
+    (Condition 7.1): for every strictly-interior configuration the
+    [Pneg]/[Ppos] sums of [f] are ordered.  This is exactly the
+    [is_totmono] inequality restricted to the open unit ball, derived
+    here from [n]-increasingness alone. *)
+Lemma conv_strict (R : realType) (B C : coneType R) (f : B -> C) :
+  (forall k, is_n_increasing k f) ->
+  forall (n : nat) (x : B) (u : 'I_n -> B),
+    cone_norm (precone_add x
+      (\big[precone_add/precone_zero]_(i : 'I_n) u i)) < 1 ->
+    precone_le
+      (\big[precone_add/precone_zero]_(I in Pneg n) f (tm_arg x u I))
+      (\big[precone_add/precone_zero]_(I in Ppos n) f (tm_arg x u I)).
+Proof.
+move=> Hinc n x u Hnorm.
+have := conv_strict_aux n f Hinc x u Hnorm.
+by rewrite /Sneg /Spos /tm_arg.
+Qed.
+
+Arguments conv_strict {R B C} f.
+
+(** The pointwise difference [Δf(u⃗)] is well defined on the strict
+    interior for an [n]-increasing (for all [n]) map [f].  This is the
+    converse-side analogue of [Delta_neg_le_pos] (which assumed
+    [is_totmono]): the order [Δ⁻f(u⃗) ≤ Δ⁺f(u⃗)] needed by [Delta_E] now
+    follows from [n]-increasingness through the strict-interior converse
+    [conv_strict].  The well-definedness region is the open ball of
+    configurations, [‖lc_val x + Σᵢ uᵢ‖ < 1]. *)
+Section DeltaWellDefConv.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hinc : forall k, is_n_increasing k f.
+Local Open Scope precone_scope.
+
+Lemma Delta_neg_le_pos_conv (n : nat) (u : 'I_n -> B)
+    (x : local_cone (\big[precone_add/precone_zero]_(i : 'I_n) u i)) :
+  cone_norm (lc_val x + \big[precone_add/precone_zero]_(i : 'I_n) u i) < 1 ->
+  precone_le (Delta_neg f u x) (Delta_pos f u x).
+Proof.
+move=> cond.
+have := conv_strict f Hinc n (lc_val x) u cond.
+by rewrite Delta_pos_Spos Delta_neg_Sneg /Spos /Sneg /tm_arg.
+Qed.
+
+End DeltaWellDefConv.
+
+Arguments Delta_neg_le_pos_conv {R B C} f Hinc {n} u x.
+
+(**md**************************************************************)
+(** ** Status: what is proved, and the remaining wall
+
+    Delivered above with NO holes (no [Admitted]/[admit]/[Axiom]).
+    - The *forward* half of Theorem 7.19 ([totmono_is_n_increasing]).
+    - The strict reach lemma [lc_step1_norm_lt]: a configuration in the
+      *open* unit ball has [B_x]-gauge-norm [< 1] (the strict analogue of
+      [lc_step1_norm], proved by an admissible step [1 + δ]).
+    - The lifting datum [lift_localP]: [‖u₀ + z‖ ≤ 1 ⇒ localP u₀ z].
+    - **Theorem 7.19 converse, strict-interior form** ([conv_strict_aux]
+      in [B]-core shape, [conv_strict] in the [is_totmono] [tm_arg] form):
+      for an [f] that is [k]-increasing for all [k], the (7.1) inequality
+      [Δ⁻f(u⃗)(x) ≤ Δ⁺f(u⃗)(x)] holds for every configuration in the *open*
+      unit ball ([‖x + Σᵢ uᵢ‖ < 1]).  The induction on the arity follows
+      the paper exactly: the [(u₀ :: u⃗)] step lifts the tail family [u⃗]
+      from [B] to the local cone [B_{u₀}] (step-[1] admissibility, the
+      lifted norm bound from [lc_step1_norm]/[lc_step1_norm_lt]), applies
+      the inductive hypothesis to [Δf(u₀)] — which is [k]-increasing for
+      all [k] by Lemma 7.16 — and recombines via [SDpos_E] / [SDneg_E] and
+      the cons recurrences [Spos_recur] / [Sneg_recur].
+    - The corollary [Delta_neg_le_pos_conv]: on the open ball, the
+      pointwise difference [Δf(u⃗)] is well defined (the order consumed by
+      [Delta_E]) from [n]-increasingness alone — the converse-side
+      analogue of [Delta_neg_le_pos].
+
+    The remaining wall (closed ball + Lemmas 7.20 / 7.21).
+    - The *closed-ball* converse ([cone_norm (x + Σᵢ uᵢ) ≤ 1], i.e. the
+      full [is_totmono]) requires bridging the open-ball result to the
+      boundary by ω-continuity: scale the configuration by [λ < 1]
+      ([conv_strict] applies to [λ ·: (x, u⃗)]) and pass [λ ↑ 1].  Each
+      [f (λₘ ·: (x + Σ_{i∈I} uᵢ))] is then an increasing chain whose
+      [cone_sup_ball] is [f (x + Σ_{i∈I} uᵢ)] (by [is_scott_continuous_unit
+      f], once one knows the scaling chain [λₘ ·: y] has [cone_sup_ball]
+      equal to [y]); the finite [Pε(n)] sums of these chains commute with
+      the supremum ([sum_cone_sup_ub] / [sum_cone_sup_lub] of
+      [stablehom.v], in a radius-aware variant since [f]'s image escapes
+      the unit ball), and the inequality passes to the limit.  Two
+      analytic ingredients are missing from the cone API and would have to
+      be ported here: (i) the scaling-chain supremum [y = sup_m λₘ ·: y]
+      (an Archimedean argument in the style of [gauge_sup_reach] of
+      [local_cone.v]); (ii) the radius-aware finite-sum / supremum
+      commutation (the [stablehom.v] lemmas assume a unit-ball image
+      bound).  We stop here rather than introduce that machinery with a
+      hole; the strict-interior converse above already serves every
+      strictly-interior use, and [conv_strict] is stated so the boundary
+      bridge can be slotted in later without changing its consumers.
+    - Lemma 7.20 (total monotonicity of [Δ⁺f(u⃗)], [Δ⁻f(u⃗)], [Δf(u⃗)] on
+      [B_{u⃗}]) and Lemma 7.21 ([Δf(u⃗)(x) ≤ f(x + Σᵢ uᵢ)]).  Both are
+      stated for a *given* [is_totmono f] but their [Δf(u⃗)]/recurrence
+      content re-enters the nested local cone [B_{u⃗}] at a possibly
+      boundary centre (the same closed-ball [coneType] gap), and 7.20's
+      [Δf] clause routes through the closed-ball converse; they are
+      blocked by the same wall and are not stated, to keep the file
+      hole-free. *)
