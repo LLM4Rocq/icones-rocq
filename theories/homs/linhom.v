@@ -4796,6 +4796,458 @@ End BilinLinhomAlias.
 Arguments bilin_to_linhom {R Ar C1 C2 D}.
 Arguments linhom_to_bilin {R Ar C1 C2 D F Hright}.
 
+(** ** The functorial action of [⊸] — Paper §5.3, Def 5.7 / Prop 5.8
+
+    Given [h : icones_hom Ar C2 C1] and [g : icones_hom Ar D1 D2], the
+    internal hom sends [f ∈ C1 ⊸ D1] to [g ∘ f ∘ h ∈ C2 ⊸ D2].  We
+    build this in two reusable halves:
+
+    - [linhom_postc g f := g ∘ f] (postcomposition by [g], an
+      [icones_hom]), a [linhom_car Ar C D2] for [f : linhom_car Ar C D1].
+    - [linhom_prec h f := f ∘ h] (precomposition by [h], an
+      [icones_hom]), a [linhom_car Ar C2 D] for [f : linhom_car Ar C1 D].
+
+    Postcomposition is the harder direction (ω-continuity needs a
+    rescaling argument because [f] is only bounded, not unit-norm);
+    precomposition is direct because [h] is unit-norm.  We then combine
+    them into [linhom_map h g : icones_hom Ar (C1⊸D1) (C2⊸D2)] and prove
+    functoriality (Prop 5.8). *)
+
+Section LinhomPostc.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C D1 D2 : ICone.type Ar.
+Variable g : icones_hom Ar D1 D2.
+Variable f : linhom_car Ar C D1.
+
+Local Notation gf := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones g))).
+
+(** Underlying function [x ↦ g (f x)]. *)
+Definition postc_fun : C -> D2 := fun x => gf (linhom_fun f x).
+
+Lemma postc_linear : is_linear postc_fun.
+Proof.
+have [Hf0 HfD HfZ] := linhom_pre_linear (linhom_pre_of f).
+have [Hg0 HgD HgZ] :=
+  cones_hom_linear (mcones_hom_cones (icones_hom_mcones g)).
+rewrite /postc_fun; split.
+- by rewrite /linhom_fun Hf0 Hg0.
+- by move=> x y; rewrite /linhom_fun HfD HgD.
+- by move=> r x; rewrite /linhom_fun HfZ HgZ.
+Qed.
+
+Lemma postc_bounded :
+  exists M : R, forall x : C, cnorm x <= 1 -> cnorm (postc_fun x) <= M.
+Proof.
+have [Mf HMf] := linhom_pre_bounded (linhom_pre_of f).
+exists Mf => x Hx; rewrite /postc_fun.
+apply: le_trans
+  (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones g)) _) _.
+exact: HMf.
+Qed.
+
+(** ω-continuity of [g ∘ f].  Because [f] is only bounded (by some [Mf]),
+    we cannot apply [f]'s or [g]'s ω-continuity directly to a unit-ball
+    chain [u].  We rescale by [sinv := 1 / max 1 Mf]: then [f (sinv·u_n)]
+    has norm [≤ sinv·Mf ≤ 1], so [f]'s ω-continuity applies; the chain
+    [sinv·f(u_n)] is unit-norm so [g]'s ω-continuity applies; finally we
+    cancel [sinv] using [s·sinv = 1]. *)
+Lemma postc_continuous : is_omega_continuous postc_fun.
+Proof.
+move=> u uch ub1 wuch wub1.
+have Hf_cont := linhom_pre_continuous (linhom_pre_of f).
+have Hf_lin := linhom_pre_linear (linhom_pre_of f).
+have Hg_cont :
+    is_omega_continuous
+      (cones_hom_fun (mcones_hom_cones (icones_hom_mcones g))).
+  exact: cones_hom_continuous (mcones_hom_cones (icones_hom_mcones g)).
+have Hg_lin := cones_hom_linear (mcones_hom_cones (icones_hom_mcones g)).
+have [Mf HMf] := linhom_pre_bounded (linhom_pre_of f).
+have Mfge0 : 0 <= Mf.
+  apply: le_trans (HMf precone_zero _); first exact: cone_norm_ge0.
+  by rewrite cone_norm0.
+pose s_num : R := Order.max 1 Mf.
+have s_pos : 0 < s_num by rewrite /s_num lt_max ltr01.
+have s_ge1 : 1 <= s_num by rewrite /s_num le_max lexx.
+have s_ge0 : 0 <= s_num by exact: ltW.
+pose s : {nonneg R} := NngNum s_ge0.
+have sinv_ge0 : 0 <= s_num^-1 by rewrite invr_ge0 ltW.
+pose sinv : {nonneg R} := NngNum sinv_ge0.
+have nng_eq : forall (a b : {nonneg R}), a%:num = b%:num -> a = b.
+  by move=> a b /val_inj.
+have s_mul_sinv : s%:num * sinv%:num = 1.
+  by rewrite /= mulfV // gt_eqF.
+have s_sinv : (s%:num * sinv%:num)%:nng = 1%:nng.
+  by apply: nng_eq => /=; rewrite s_mul_sinv.
+have sinv_le_1 : sinv%:num <= 1.
+  by rewrite /= invf_le1 // s_ge1.
+have sinv_Mf_le_1 : sinv%:num * Mf <= 1.
+  have e : sinv%:num * Mf <= sinv%:num * s_num.
+    by rewrite ler_pM2l ?invr_gt0 // /s_num le_max lexx orbT.
+  apply: le_trans e _; rewrite /=.
+  by rewrite mulVf // gt_eqF.
+have [Hf0 HfD HfZ] := Hf_lin.
+have [Hg0 HgD HgZ] := Hg_lin.
+(* The rescaled input chain [v_n := sinv · u_n] is unit-norm. *)
+have vch : forall n, precone_le (precone_scale sinv (u n))
+                                (precone_scale sinv (u n.+1)).
+  by move=> n; exact: precone_scale_le (uch n).
+have vub : forall n, cnorm (precone_scale sinv (u n)) <= 1.
+  move=> n; rewrite cone_normh.
+  apply: le_trans (ler_pM sinv_ge0 (cone_norm_ge0 _) sinv_le_1 (ub1 n)) _.
+  by rewrite mulr1.
+(* [f(sinv·u_n) = sinv·f(u_n)] has norm [≤ sinv·Mf ≤ 1]. *)
+have fvch : forall n,
+    precone_le (linhom_fun f (precone_scale sinv (u n)))
+               (linhom_fun f (precone_scale sinv (u n.+1))).
+  by move=> n; exact: (linear_increasing Hf_lin) _ _ (vch n).
+have fvub : forall n, cnorm (linhom_fun f (precone_scale sinv (u n))) <= 1.
+  move=> n; rewrite /linhom_fun HfZ cone_normh /=.
+  apply: le_trans
+    (ler_pM sinv_ge0 (cone_norm_ge0 _) (lexx _) (HMf _ (ub1 n))) _.
+  exact: sinv_Mf_le_1.
+(* [f(sup v) = sup(f∘v)] by [f]'s ω-continuity. *)
+have fv_sup : linhom_fun f (cone_sup_ball _ vch vub) =
+              cone_sup_ball
+                (linhom_fun f \o (fun n => precone_scale sinv (u n)))
+                fvch fvub.
+  exact: Hf_cont.
+(* [sup v = sinv · sup u]. *)
+have v_sup : cone_sup_ball _ vch vub =
+             precone_scale sinv (cone_sup_ball u uch ub1).
+  exact: (@sup_ball_scaler R C sinv u uch ub1 vch vub).
+(* The chain [sinv·f(u_n)] is unit-norm. *)
+have sinv_fu_ch : forall n,
+    precone_le (precone_scale sinv (linhom_fun f (u n)))
+               (precone_scale sinv (linhom_fun f (u n.+1))).
+  move=> n; apply: precone_scale_le.
+  exact: (linear_increasing Hf_lin) _ _ (uch n).
+have sinv_fu_ub : forall n,
+    cnorm (precone_scale sinv (linhom_fun f (u n))) <= 1.
+  move=> n; rewrite cone_normh /=.
+  apply: le_trans
+    (ler_pM sinv_ge0 (cone_norm_ge0 _) (lexx _) (HMf _ (ub1 n))) _.
+  exact: sinv_Mf_le_1.
+(* [sinv·f(sup u) = sup_n (sinv·f u_n)]. *)
+have main_sinv_eq :
+    precone_scale sinv (linhom_fun f (cone_sup_ball u uch ub1)) =
+    cone_sup_ball (fun n => precone_scale sinv (linhom_fun f (u n)))
+                  sinv_fu_ch sinv_fu_ub.
+  have lhs_eq : linhom_fun f (cone_sup_ball _ vch vub) =
+                precone_scale sinv (linhom_fun f (cone_sup_ball u uch ub1)).
+    by rewrite v_sup /linhom_fun HfZ.
+  rewrite -lhs_eq fv_sup.
+  apply: precone_le_anti; apply: cone_sup_ball_lub => n.
+  - have -> : (linhom_fun f \o (fun n0 => precone_scale sinv (u n0))) n =
+              precone_scale sinv (linhom_fun f (u n)).
+      by rewrite /= /linhom_fun HfZ.
+    exact: cone_sup_ball_ub.
+  - have <- : (linhom_fun f \o (fun n0 => precone_scale sinv (u n0))) n =
+              precone_scale sinv (linhom_fun f (u n)).
+      by rewrite /= /linhom_fun HfZ.
+    exact: cone_sup_ball_ub.
+(* Apply [g]'s ω-continuity to the unit-norm chain [sinv·f u_n]. *)
+have gsfu_ch : forall n,
+    precone_le (gf (precone_scale sinv (linhom_fun f (u n))))
+               (gf (precone_scale sinv (linhom_fun f (u n.+1)))).
+  by move=> n; exact: (linear_increasing Hg_lin) _ _ (sinv_fu_ch n).
+have gsfu_ub : forall n,
+    cnorm (gf (precone_scale sinv (linhom_fun f (u n)))) <= 1.
+  move=> n.
+  apply: le_trans
+    (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones g)) _) _.
+  exact: sinv_fu_ub.
+have g_sup : gf (cone_sup_ball
+                   (fun n => precone_scale sinv (linhom_fun f (u n)))
+                   sinv_fu_ch sinv_fu_ub) =
+             cone_sup_ball
+               (gf \o (fun n => precone_scale sinv (linhom_fun f (u n))))
+               gsfu_ch gsfu_ub.
+  exact: Hg_cont.
+(* The unit-norm chain [sinv·postc_fun u_n]. *)
+have sinv_w_ch : forall n,
+    precone_le (precone_scale sinv (postc_fun (u n)))
+               (precone_scale sinv (postc_fun (u n.+1))).
+  by move=> n; exact: precone_scale_le (wuch n).
+have sinv_w_ub : forall n,
+    cnorm (precone_scale sinv (postc_fun (u n))) <= 1.
+  move=> n; rewrite cone_normh.
+  apply: le_trans (ler_pM sinv_ge0 (cone_norm_ge0 _) sinv_le_1 (wub1 n)) _.
+  by rewrite mulr1.
+(* [g(sinv·f u_n) = sinv·postc_fun(u_n)] pointwise, so the sup-balls agree. *)
+have gsfu_sinvw :
+  cone_sup_ball (gf \o (fun n => precone_scale sinv (linhom_fun f (u n))))
+                gsfu_ch gsfu_ub =
+  cone_sup_ball (fun n => precone_scale sinv (postc_fun (u n)))
+                sinv_w_ch sinv_w_ub.
+  apply: precone_le_anti; apply: cone_sup_ball_lub => n.
+  - have -> : (gf \o (fun n0 => precone_scale sinv (linhom_fun f (u n0)))) n =
+              precone_scale sinv (postc_fun (u n)).
+      by rewrite /= /postc_fun HgZ.
+    exact: cone_sup_ball_ub.
+  - have <- : (gf \o (fun n0 => precone_scale sinv (linhom_fun f (u n0)))) n =
+              precone_scale sinv (postc_fun (u n)).
+      by rewrite /= /postc_fun HgZ.
+    exact: cone_sup_ball_ub.
+(* [sup_n (sinv·postc_fun u_n) = sinv·sup(postc_fun∘u)]. *)
+have sinvw_sup :
+  cone_sup_ball (fun n => precone_scale sinv (postc_fun (u n)))
+                sinv_w_ch sinv_w_ub =
+  precone_scale sinv (cone_sup_ball (postc_fun \o u) wuch wub1).
+  exact: (@sup_ball_scaler R D2 sinv (postc_fun \o u) wuch wub1
+            sinv_w_ch sinv_w_ub).
+(* Chain everything: [sinv·postc_fun(sup u) = sinv·sup(postc_fun∘u)]. *)
+have core_eq :
+    precone_scale sinv (postc_fun (cone_sup_ball u uch ub1)) =
+    precone_scale sinv (cone_sup_ball (postc_fun \o u) wuch wub1).
+  rewrite -sinvw_sup -gsfu_sinvw -g_sup -main_sinv_eq.
+  by rewrite /postc_fun HgZ.
+(* Cancel [sinv] by multiplying with [s] (as [s·sinv = 1]). *)
+have multiply_s : forall x : D2, precone_scale s (precone_scale sinv x) = x.
+  by move=> x; rewrite -precone_scale_A s_sinv precone_scale_1.
+rewrite -(multiply_s (postc_fun _))
+        -[in RHS](multiply_s (cone_sup_ball _ _ _)).
+by congr precone_scale.
+Qed.
+
+Lemma postc_pres_path
+  (X : ar_obj Ar) (γ : ar_carrier Ar X -> C) :
+  is_measurable_path γ ->
+  is_measurable_path (fun r => postc_fun (γ r)).
+Proof.
+move=> Hγ.
+have Hfγ : is_measurable_path (fun r => linhom_fun f (γ r)).
+  exact: (linhom_pre_pres_path (linhom_pre_of f)).
+exact: (mcones_hom_pres_path (icones_hom_mcones g) X _ Hfγ).
+Qed.
+
+Definition postc_pre : linhom_pre Ar C D2 :=
+  MkLinhomPre postc_fun postc_linear postc_continuous postc_bounded
+              postc_pres_path.
+
+Lemma postc_pres_int
+  (X : ar_obj Ar) (β : ar_carrier Ar X -> C)
+  (Hβ : is_measurable_path β)
+  (µ : fmeas R (ar_carrier Ar X)) :
+  linhom_pre_fun postc_pre (icone_integral β Hβ µ) =
+  icone_integral
+    (fun r => linhom_pre_fun postc_pre (β r))
+    (linhom_pre_pres_path postc_pre X β Hβ) µ.
+Proof.
+(* [g (f (∫β µ)) = g (∫(f∘β) µ) = ∫(g∘f∘β) µ], by [f]'s and [g]'s
+   integral-preservation, then uniqueness of the path integral. *)
+have Hf := linhom_pres_int f X β Hβ µ.
+have Hfβ := linhom_pre_pres_path (linhom_pre_of f) X β Hβ.
+apply: (path_integral_eq_unique
+  (β := fun r => postc_fun (β r)) (µ := µ));
+  last by exact: icone_integralP.
+rewrite /postc_pre /=.
+have -> : postc_fun (icone_integral β Hβ µ) =
+          gf (icone_integral (fun r => linhom_fun f (β r)) Hfβ µ).
+  rewrite /postc_fun /linhom_fun Hf.
+  by congr (gf _); apply: f_equal2; first by apply: Prop_irrelevance.
+rewrite (icones_hom_pres_int g X (fun r => linhom_fun f (β r)) Hfβ µ).
+exact: icone_integralP.
+Qed.
+
+(** The postcomposed map [g ∘ f] as a [linhom_car]. *)
+Definition linhom_postc : linhom_car Ar C D2 :=
+  MkLinhom postc_pre postc_pres_int.
+
+Lemma linhom_postc_E (x : C) :
+  linhom_fun linhom_postc x =
+  cones_hom_fun (mcones_hom_cones (icones_hom_mcones g)) (linhom_fun f x).
+Proof. by []. Qed.
+
+End LinhomPostc.
+
+Arguments postc_fun {R Ar C D1 D2}.
+Arguments linhom_postc {R Ar C D1 D2}.
+
+Section LinhomPrec.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C1 C2 D : ICone.type Ar.
+Variable h : icones_hom Ar C2 C1.
+Variable f : linhom_car Ar C1 D.
+
+Local Notation hf := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Underlying function [x ↦ f (h x)]. *)
+Definition prec_fun : C2 -> D := fun x => linhom_fun f (hf x).
+
+Lemma prec_linear : is_linear prec_fun.
+Proof.
+have [Hf0 HfD HfZ] := linhom_pre_linear (linhom_pre_of f).
+have [Hh0 HhD HhZ] :=
+  cones_hom_linear (mcones_hom_cones (icones_hom_mcones h)).
+rewrite /prec_fun; split.
+- by rewrite /linhom_fun Hh0 Hf0.
+- by move=> x y; rewrite /linhom_fun HhD HfD.
+- by move=> r x; rewrite /linhom_fun HhZ HfZ.
+Qed.
+
+Lemma prec_bounded :
+  exists M : R, forall x : C2, cnorm x <= 1 -> cnorm (prec_fun x) <= M.
+Proof.
+have [Mf HMf] := linhom_pre_bounded (linhom_pre_of f).
+exists Mf => x Hx; rewrite /prec_fun.
+apply: HMf.
+apply: le_trans
+  (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones h)) _) _.
+exact: Hx.
+Qed.
+
+(** ω-continuity of [f ∘ h].  Since [h] is unit-norm, the chain [h∘u]
+    stays unit-norm, so we apply [h]'s ω-continuity to [u] and [f]'s
+    ω-continuity to [h∘u] — no rescaling needed. *)
+Lemma prec_continuous : is_omega_continuous prec_fun.
+Proof.
+move=> u uch ub1 wuch wub1.
+have Hf_cont := linhom_pre_continuous (linhom_pre_of f).
+have Hh_cont :
+    is_omega_continuous
+      (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+  exact: cones_hom_continuous (mcones_hom_cones (icones_hom_mcones h)).
+have Hh_lin := cones_hom_linear (mcones_hom_cones (icones_hom_mcones h)).
+(* [h∘u] is increasing and unit-norm. *)
+have huch : forall n, precone_le (hf (u n)) (hf (u n.+1)).
+  by move=> n; exact: (linear_increasing Hh_lin) _ _ (uch n).
+have hub1 : forall n, cnorm (hf (u n)) <= 1.
+  move=> n; apply: le_trans
+    (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones h)) _) _.
+  exact: ub1.
+(* [h(sup u) = sup(h∘u)] then [f(sup(h∘u)) = sup(f∘h∘u)]. *)
+rewrite /prec_fun (Hh_cont u uch ub1 huch hub1).
+exact: Hf_cont.
+Qed.
+
+Lemma prec_pres_path
+  (X : ar_obj Ar) (γ : ar_carrier Ar X -> C2) :
+  is_measurable_path γ ->
+  is_measurable_path (fun r => prec_fun (γ r)).
+Proof.
+move=> Hγ.
+have Hhγ : is_measurable_path (fun r => hf (γ r)).
+  exact: (mcones_hom_pres_path (icones_hom_mcones h) X _ Hγ).
+exact: (linhom_pre_pres_path (linhom_pre_of f) X _ Hhγ).
+Qed.
+
+Definition prec_pre : linhom_pre Ar C2 D :=
+  MkLinhomPre prec_fun prec_linear prec_continuous prec_bounded
+              prec_pres_path.
+
+Lemma prec_pres_int
+  (X : ar_obj Ar) (β : ar_carrier Ar X -> C2)
+  (Hβ : is_measurable_path β)
+  (µ : fmeas R (ar_carrier Ar X)) :
+  linhom_pre_fun prec_pre (icone_integral β Hβ µ) =
+  icone_integral
+    (fun r => linhom_pre_fun prec_pre (β r))
+    (linhom_pre_pres_path prec_pre X β Hβ) µ.
+Proof.
+(* [f (h (∫β µ)) = f (∫(h∘β) µ) = ∫(f∘h∘β) µ], by [h]'s and [f]'s
+   integral-preservation, then uniqueness of the path integral. *)
+have Hh := icones_hom_pres_int h X β Hβ µ.
+have Hhβ := mcones_hom_pres_path (icones_hom_mcones h) X β Hβ.
+apply: (path_integral_eq_unique
+  (β := fun r => prec_fun (β r)) (µ := µ));
+  last by exact: icone_integralP.
+rewrite /prec_pre /=.
+have -> : prec_fun (icone_integral β Hβ µ) =
+          linhom_fun f (icone_integral (fun r => hf (β r)) Hhβ µ).
+  rewrite /= /prec_fun Hh.
+  by congr (linhom_fun f _); apply: f_equal2; first by apply: Prop_irrelevance.
+rewrite /linhom_fun (linhom_pres_int f X (fun r => hf (β r)) Hhβ µ).
+exact: icone_integralP.
+Qed.
+
+(** The precomposed map [f ∘ h] as a [linhom_car]. *)
+Definition linhom_prec : linhom_car Ar C2 D :=
+  MkLinhom prec_pre prec_pres_int.
+
+Lemma linhom_prec_E (x : C2) :
+  linhom_fun linhom_prec x =
+  linhom_fun f (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) x).
+Proof. by []. Qed.
+
+End LinhomPrec.
+
+Arguments prec_fun {R Ar C1 C2 D}.
+Arguments linhom_prec {R Ar C1 C2 D}.
+
+(** ** The object map of [⊸] — Paper §5.3, Def 5.7
+
+    Combining [linhom_postc] and [linhom_prec] gives the action of the
+    internal hom on objects: for [h : icones_hom Ar C2 C1] and
+    [g : icones_hom Ar D1 D2],
+      [linhom_map_fun h g : linhom_car Ar C1 D1 -> linhom_car Ar C2 D2]
+    sends [f] to [g ∘ f ∘ h].
+
+    Packaging this object map as a morphism [icones_hom Ar (C1⊸D1)
+    (C2⊸D2)] in [ICones] (Prop 5.8) additionally requires showing the
+    map is itself measurable-path- and integral-preserving *in [f]*,
+    which needs the pull-back of a [D2]-test along [g] to land back in
+    the measurability structure of [D1] — infrastructure not present in
+    the current development (it is the dual, test-side, characterisation
+    of an [mcones_hom], not formalised here; cf. the analogous deferral
+    of the bilinear ↔ linhom bijection to morphisms of [ICones] in
+    [BilinLinhomAlias]).  We therefore deliver the object map together
+    with its full functoriality at the object level (Prop 5.8 read as
+    equalities of the underlying maps, established via [linhom_eq]). *)
+
+Section LinhomMap.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** [linhom_map_fun h g f := g ∘ f ∘ h]. *)
+Definition linhom_map_fun
+    (C1 C2 D1 D2 : ICone.type Ar)
+    (h : icones_hom Ar C2 C1) (g : icones_hom Ar D1 D2)
+    (f : linhom_car Ar C1 D1) : linhom_car Ar C2 D2 :=
+  linhom_prec h (linhom_postc g f).
+
+(** Pointwise: [(linhom_map_fun h g f) x = g (f (h x))]. *)
+Lemma linhom_map_funE
+    (C1 C2 D1 D2 : ICone.type Ar)
+    (h : icones_hom Ar C2 C1) (g : icones_hom Ar D1 D2)
+    (f : linhom_car Ar C1 D1) (x : C2) :
+  linhom_fun (linhom_map_fun h g f) x =
+  cones_hom_fun (mcones_hom_cones (icones_hom_mcones g))
+    (linhom_fun f
+       (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) x)).
+Proof. by []. Qed.
+
+(** One-sided actions (Paper §5.3): [C ⊸ g := linhom_map_fun id g] and
+    [h ⊸ D := linhom_map_fun h id]. *)
+Definition linhom_post (C D1 D2 : ICone.type Ar)
+    (g : icones_hom Ar D1 D2) : linhom_car Ar C D1 -> linhom_car Ar C D2 :=
+  linhom_map_fun (icones_id Ar C) g.
+
+Definition linhom_pre_act (C1 C2 D : ICone.type Ar)
+    (h : icones_hom Ar C2 C1) : linhom_car Ar C1 D -> linhom_car Ar C2 D :=
+  linhom_map_fun h (icones_id Ar D).
+
+(** Paper Prop 5.8 (identity law): [linhom_map_fun id id = id]. *)
+Lemma linhom_map_id (C D : ICone.type Ar) (f : linhom_car Ar C D) :
+  linhom_map_fun (icones_id Ar C) (icones_id Ar D) f = f.
+Proof. by apply: linhom_eq => x; rewrite linhom_map_funE. Qed.
+
+(** Paper Prop 5.8 (composition law, contravariant in the first slot):
+    [linhom_map_fun (h' ∘ h) (g ∘ g') =
+       linhom_map_fun h g ∘ linhom_map_fun h' g']. *)
+Lemma linhom_map_comp
+    (C1 C2 C3 D1 D2 D3 : ICone.type Ar)
+    (h : icones_hom Ar C2 C1) (h' : icones_hom Ar C3 C2)
+    (g : icones_hom Ar D1 D2) (g' : icones_hom Ar D2 D3)
+    (f : linhom_car Ar C1 D1) :
+  linhom_map_fun (icones_comp h h') (icones_comp g' g) f =
+  linhom_map_fun h' g' (linhom_map_fun h g f).
+Proof. by apply: linhom_eq => x; rewrite !linhom_map_funE. Qed.
+
+End LinhomMap.
+
+Arguments linhom_map_fun {R Ar C1 C2 D1 D2}.
+Arguments linhom_post {R Ar C D1 D2}.
+Arguments linhom_pre_act {R Ar C1 C2 D}.
+
 (** ** Sanity checks — M4 wave 1-finish deliverables
 
     - The [linhom_car Ar C D] type packages: linear, ω-continuous,

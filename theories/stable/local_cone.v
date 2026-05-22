@@ -52,6 +52,7 @@ Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.basic_lemmas.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -60,6 +61,42 @@ Unset Printing Implicit Defensive.
 Import Order.TTheory GRing.Theory Num.Theory.
 
 Local Open Scope ring_scope.
+
+(** ** A monotone running-maximum of a sequence of admissible steps
+
+    To attain the gauge supremum (Lemma 7.2, "reach" half) and to prove
+    (Normc) we approximate the supremum from below by an *increasing*
+    sequence of admissible scalars.  [rmax e] turns an arbitrary
+    sequence [e] of nonnegative reals into a monotone one, pointwise
+    above [e] and only taking values among the [e k]'s — so it preserves
+    any "downward-closed under value" property such as admissibility. *)
+
+Section RunningMax.
+Variable R : realType.
+Variable e : nat -> {nonneg R}.
+
+Fixpoint rmax (n : nat) : {nonneg R} :=
+  match n with
+  | 0 => e 0
+  | m.+1 => if (rmax m)%:num <= (e m.+1)%:num then e m.+1 else rmax m
+  end.
+
+Lemma rmax_ge_e n : (e n)%:num <= (rmax n)%:num.
+Proof.
+case: n => [|m] //=; case: ifPn => [_|]; first by [].
+by rewrite -ltNge => /ltW.
+Qed.
+
+Lemma rmax_mono n : (rmax n)%:num <= (rmax n.+1)%:num.
+Proof. by rewrite /=; case: ifPn => // _. Qed.
+
+Lemma rmax_is_e n : exists k, rmax n = e k.
+Proof.
+elim: n => [|m [k IH]]; first by exists 0.
+by rewrite /=; case: ifPn => _; [exists m.+1 | exists k].
+Qed.
+
+End RunningMax.
 
 (** ** The carrier of the local cone *)
 
@@ -431,6 +468,490 @@ have := HM1 (NngNum d_ge0); rewrite leNgt => /negP; apply.
 by rewrite ltrDl ltr01.
 Qed.
 
+(** ** Paper Lemma 7.2 (the "reach" half): the gauge supremum is attained
+
+    For [u ≠ 0], the step [gauge_sup u] is itself admissible:
+    [x + (gauge_sup u) ·: u ∈ B_B].  This is the point where the paper
+    invokes ω-closedness of [B_B].  We approximate [gauge_sup u] from
+    below by an increasing admissible chain [a_n] (built with [rmax] from
+    the [sup_adherent] witnesses), form the unit-ball supremum
+    [s = cone_sup_ball (n ↦ x + a_n ·: u)] (norm ≤ 1), and show
+    [x + (gauge_sup u) ·: u = s]: the gap [t] (with
+    [x + L ·: u = s + t]) satisfies [‖t‖ ≤ (L - a_n) ‖u‖ → 0], hence
+    [t = 0] by (Normz).  This is exactly the "scalar limit commutes with
+    [cone_sup_ball]" fact identified as the wave-1 blocker, here in the
+    only form actually needed. *)
+Lemma gauge_sup_reach (u : P) (Hu0 : lc_val u <> precone_zero) :
+  cone_norm (precone_add x
+     (precone_scale (NngNum (gauge_sup_ge0 u)) (lc_val u))) <= 1.
+Proof.
+have Hsup : has_sup (gauge_set u) := has_sup_gauge Hu0.
+set L := gauge_sup u.
+have L_ge0 : 0 <= L := gauge_sup_ge0 u.
+set v := lc_val u.
+have nv_pos : 0 < cone_norm v.
+  rewrite lt_neqAle cone_norm_ge0 andbT eq_sym.
+  by apply/eqP => /cone_normz.
+have ade : forall n : nat,
+    exists s : {nonneg R},
+      cone_norm (precone_add x (precone_scale s v)) <= 1 /\
+      L - n.+1%:R^-1 < s%:num.
+  move=> n.
+  have [d [s /= Hin sd] Hd] : exists2 d : R, gauge_set u d & L - n.+1%:R^-1 < d.
+    by apply: sup_adherent => //; rewrite invr_gt0 ltr0n.
+  by exists s; split=> //; rewrite sd.
+pose e n := projT1 (cid (ade n)).
+have eP : forall n,
+    cone_norm (precone_add x (precone_scale (e n) v)) <= 1 /\
+    L - n.+1%:R^-1 < (e n)%:num.
+  by move=> n; exact: projT2 (cid (ade n)).
+pose a n := rmax e n.
+have a_adm : forall n, cone_norm (precone_add x (precone_scale (a n) v)) <= 1.
+  move=> n; rewrite /a; have [k ->] := rmax_is_e e n; exact: (proj1 (eP k)).
+have a_le_L : forall n, (a n)%:num <= L.
+  move=> n; rewrite /L /gauge_sup; apply: sup_upper_bound => //.
+  by exists (a n) => //; exact: a_adm.
+have a_lb : forall n, L - n.+1%:R^-1 < (a n)%:num.
+  move=> n; apply: lt_le_trans (proj2 (eP n)) _; exact: rmax_ge_e.
+pose c n := precone_add x (precone_scale (a n) v).
+have c_mono : forall n, precone_le (c n) (c n.+1).
+  move=> n; rewrite /c; apply: precone_add_le_l.
+  have da_ge0 : 0 <= (a n.+1)%:num - (a n)%:num.
+    by rewrite subr_ge0; exact: rmax_mono.
+  exists (precone_scale (NngNum da_ge0) v).
+  rewrite -precone_scale_DAl; congr precone_scale.
+  by apply: val_inj => /=; rewrite addrC subrK.
+have c_ub1 : forall n, cone_norm (c n) <= 1 by exact: a_adm.
+pose s := cone_sup_ball c c_mono c_ub1.
+have s_norm : cone_norm s <= 1 := cone_sup_ball_norm c c_mono c_ub1.
+pose xLv := precone_add x (precone_scale (NngNum L_ge0) v).
+have c_le_xLv : forall n, precone_le (c n) xLv.
+  move=> n; rewrite /c /xLv; apply: precone_add_le_l.
+  have d_ge0 : 0 <= L - (a n)%:num by rewrite subr_ge0; exact: a_le_L.
+  exists (precone_scale (NngNum d_ge0) v).
+  rewrite -precone_scale_DAl; congr precone_scale.
+  by apply: val_inj => /=; rewrite addrC subrK.
+have s_le_xLv : precone_le s xLv.
+  by apply: cone_sup_ball_lub => n; exact: c_le_xLv.
+have [t Ht] := s_le_xLv.
+have t_norm_bound : forall n,
+    cone_norm t <= (L - (a n)%:num) * cone_norm v.
+  move=> n.
+  have d_ge0 : 0 <= L - (a n)%:num by rewrite subr_ge0; exact: a_le_L.
+  have [w Hw] : precone_le (c n) s by exact: cone_sup_ball_ub.
+  have E1 : xLv = precone_add (c n) (precone_scale (NngNum d_ge0) v).
+    rewrite /xLv /c -precone_addA; congr precone_add.
+    rewrite -precone_scale_DAl; congr precone_scale.
+    by apply: val_inj => /=; rewrite addrC subrK.
+  have E2 : xLv = precone_add (c n) (precone_add w t).
+    by rewrite Ht Hw -precone_addA.
+  have Heq : precone_scale (NngNum d_ge0) v = precone_add w t.
+    by apply: (@precone_cancel _ _ (c n)); rewrite -E1 -E2.
+  have t_le : precone_le t (precone_scale (NngNum d_ge0) v).
+    by rewrite Heq precone_addC; exists w.
+  have := cone_normp _ _ t_le.
+  by rewrite cone_normh /=.
+have t_norm_bound2 : forall n,
+    cone_norm t <= n.+1%:R^-1 * cone_norm v.
+  move=> n; apply: le_trans (t_norm_bound n) _.
+  apply: ler_pM => //; first by rewrite subr_ge0; exact: a_le_L.
+    by apply: ltW.
+  rewrite lerBlDl addrC -lerBlDl; apply: ltW.
+  by move: (a_lb n); rewrite ltrBlDl addrC -ltrBlDl.
+have t_norm0 : cone_norm t <= 0.
+  apply/unstable.ler_gtP => z z_pos.
+  have nvz_pos : 0 < cone_norm v / z by rewrite divr_gt0.
+  have HN := archimedean.Num.Theory.archi_boundP (ltW nvz_pos).
+  set N := archimedean.Num.bound (cone_norm v / z) in HN.
+  apply: le_trans (t_norm_bound2 N) _.
+  rewrite ler_pdivrMl ?ltr0n//.
+  apply: ltW; apply: lt_le_trans (_ : N%:R * z <= N.+1%:R * z).
+    by rewrite -ltr_pdivrMr.
+  rewrite ler_wpM2r ?ltW//.
+  by rewrite ltr_nat.
+have t0 : t = precone_zero.
+  by apply: cone_normz; apply/le_anti; rewrite t_norm0 cone_norm_ge0.
+have xLv_eq : xLv = s by rewrite Ht t0 precone_addr0.
+have -> : precone_scale (NngNum (gauge_sup_ge0 u)) (lc_val u) =
+          precone_scale (NngNum L_ge0) v.
+  by congr precone_scale; apply: val_inj.
+by rewrite -/xLv xLv_eq.
+Qed.
+
+(** (Normh) helper: a positive rescaling divides the gauge supremum.
+    [gauge_set (r ·: u)] is the [r⁻¹]-image of [gauge_set u]
+    (substituting [s ↦ s·r] in the admissibility condition via
+    [precone_scale_A]); taking [sup] gives the stated identity. *)
+Lemma gauge_sup_scale (r : {nonneg R}) (u : P)
+  (Hu0 : lc_val u <> precone_zero) (rpos : 0 < r%:num) :
+  gauge_sup (lc_scale Hx r u) = r%:num^-1 * gauge_sup u.
+Proof.
+rewrite /gauge_sup.
+have setE : gauge_set (lc_scale Hx r u) =
+            [set r%:num^-1 * s | s in gauge_set u].
+  apply/seteqP; split=> z.
+  - move=> [w /= Hin <-].
+    exists ((w%:num * r%:num)) => /=; last first.
+      by rewrite mulrCA mulVf ?gt_eqF// mulr1.
+    exists (NngNum (mulr_ge0 (nngnum_ge0 w) (nngnum_ge0 r))) => //=.
+    rewrite (_ : NngNum (mulr_ge0 (nngnum_ge0 w) (nngnum_ge0 r))
+                 = (w%:num * r%:num)%:nng); last by apply: val_inj.
+    by rewrite precone_scale_A -/(lc_val u) in Hin *; exact: Hin.
+  - move=> [s [w /= Hin sw] <-].
+    have q_ge0 : 0 <= r%:num^-1 * w%:num by rewrite mulr_ge0// invr_ge0 ltW.
+    exists (NngNum q_ge0) => /=; last by rewrite sw.
+    rewrite -precone_scale_A.
+    set sc := (X in cnorm (x + X *: _)%PC).
+    have -> : sc = w.
+      by rewrite /sc; apply: val_inj => /=; rewrite mulrAC mulVf ?gt_eqF// mul1r.
+    exact: Hin.
+have supZ : forall (k : R) (E : set R), 0 < k -> has_sup E ->
+    sup [set k * s | s in E] = k * sup E.
+  move=> k E k_pos hsE.
+  have [E0 Eub] := hsE.
+  have hsKE : has_sup [set k * s | s in E].
+    split; first by case: E0 => e Ee; exists (k * e), e.
+    case: Eub => M HM; exists (k * M) => z [s Es <-].
+    by rewrite ler_pM2l//; apply: HM.
+  apply/eqP; rewrite eq_le; apply/andP; split.
+    apply: ge_sup; first by case: E0 => e Ee; exists (k * e), e.
+    move=> z [s Es <-]; rewrite ler_pM2l//.
+    by apply: sup_upper_bound.
+  rewrite -ler_pdivlMl//.
+  apply: ge_sup; first by case: E0 => e Ee; exists e.
+  move=> s Es; rewrite ler_pdivlMl//.
+  apply: (sup_upper_bound hsKE).
+  by exists s => //; rewrite mulrC.
+by rewrite setE supZ ?invr_gt0//; exact: has_sup_gauge Hu0.
+Qed.
+
+(** Paper Lemma 7.1, (Normh): the gauge norm is homogeneous,
+    [lc_norm (r ·: u) = r · lc_norm u].  The interesting case [r > 0],
+    [u ≠ 0] uses [gauge_sup_scale]; the others reduce to [lc_norm0]. *)
+Lemma lc_normh (r : {nonneg R}) (u : P) :
+  lc_norm (lc_scale Hx r u) = r%:num * lc_norm u.
+Proof.
+have [r0|rpos] := eqVneq r 0%:nng.
+  rewrite r0 nngnum0 mul0r.
+  apply: lc_norm0; rewrite lc_valZ.
+  by rewrite (_ : 0%:nng = (0%:nng : {nonneg R})) // precone_scale_0l.
+have rnum_pos : 0 < r%:num.
+  rewrite lt_neqAle nngnum_ge0 andbT eq_sym.
+  by apply: contra rpos => /eqP r0; apply/eqP/val_inj.
+have [u0|un0] := pselect (lc_val u = precone_zero).
+  rewrite (_ : lc_norm u = 0); last by apply: lc_norm0.
+  rewrite mulr0; apply: lc_norm0; rewrite lc_valZ u0.
+  by rewrite precone_scale_0r.
+rewrite [in LHS]/lc_norm gauge_sup_scale// invfM invrK /lc_norm mulrC.
+by congr (_ * _); rewrite invrK.
+Qed.
+
+(** Convexity estimate used for (Normt) (Paper Lemma 7.1):
+    if [x + λᵢ ·: vᵢ ∈ B_B], then the harmonic-style step
+    [μ = λ₁λ₂/(λ₁+λ₂)] is admissible for [v₁ + v₂], via the convex
+    combination [μ ·: (v₁+v₂)] of the two admissible points with weights
+    [λ₂/(λ₁+λ₂)] and [λ₁/(λ₁+λ₂)] summing to [1]. *)
+Lemma gauge_convex (v1 v2 : B) (l1 l2 : {nonneg R})
+  (l1pos : 0 < l1%:num) (l2pos : 0 < l2%:num)
+  (Hin1 : cone_norm (precone_add x (precone_scale l1 v1)) <= 1)
+  (Hin2 : cone_norm (precone_add x (precone_scale l2 v2)) <= 1) :
+  forall (mu_ge0 : 0 <= l1%:num * l2%:num / (l1%:num + l2%:num)),
+  cone_norm (precone_add x
+     (precone_scale (NngNum mu_ge0) (precone_add v1 v2))) <= 1.
+Proof.
+move=> mu_ge0; set mu := l1%:num * l2%:num / (l1%:num + l2%:num) in mu_ge0 *.
+have Spos : 0 < l1%:num + l2%:num by rewrite addr_gt0.
+have w1_ge0 : 0 <= l2%:num / (l1%:num + l2%:num) by rewrite divr_ge0 ?ltW.
+have w2_ge0 : 0 <= l1%:num / (l1%:num + l2%:num) by rewrite divr_ge0 ?ltW.
+pose w1 : {nonneg R} := NngNum w1_ge0.
+pose w2 : {nonneg R} := NngNum w2_ge0.
+pose A := precone_add x (precone_scale l1 v1).
+pose Bb := precone_add x (precone_scale l2 v2).
+have key : precone_add x (precone_scale (NngNum mu_ge0) (precone_add v1 v2)) =
+           precone_add (precone_scale w1 A) (precone_scale w2 Bb).
+  rewrite /A /Bb !precone_scale_DAr -!precone_scale_A.
+  have e_mu1 : widen_itv (w1%:num * l1%:num)%:itv = NngNum mu_ge0 :> {nonneg R}.
+    by apply: val_inj => /=; rewrite /mu mulrAC (mulrC l2%:num).
+  have e_mu2 : widen_itv (w2%:num * l2%:num)%:itv = NngNum mu_ge0 :> {nonneg R}.
+    by apply: val_inj => /=; rewrite /mu mulrAC.
+  rewrite e_mu1 e_mu2.
+  have e_w : (w1%:num + w2%:num)%:nng = 1%:nng :> {nonneg R}.
+    by apply: val_inj => /=; rewrite -mulrDl addrC mulfV// gt_eqF.
+  have ACA : forall a b cc d : B,
+      precone_add (precone_add a b) (precone_add cc d) =
+      precone_add (precone_add a cc) (precone_add b d).
+    move=> a b cc d; rewrite -!precone_addA; congr precone_add.
+    by rewrite (precone_addC b) -precone_addA (precone_addC d).
+  by rewrite ACA -precone_scale_DAl e_w precone_scale_1.
+rewrite key.
+apply: le_trans (cone_normt _ _) _.
+rewrite !cone_normh /=.
+apply: le_trans (_ : w1%:num * 1 + w2%:num * 1 <= 1).
+  rewrite !mulr1; apply: lerD.
+    by rewrite -[w1%:num]mulr1; apply: ler_wpM2l => //; exact: Hin1.
+  by rewrite -[w2%:num]mulr1; apply: ler_wpM2l => //; exact: Hin2.
+by rewrite !mulr1 -mulrDl addrC mulfV ?lexx// gt_eqF.
+Qed.
+
+(** Paper Lemma 7.1, (Normt): sub-additivity of the gauge norm.  The
+    zero cases reduce to the value of [lc_norm] depending only on
+    [lc_val].  Otherwise: given [ε > 0], pick admissible [λᵢ] with
+    [λᵢ⁻¹ < lc_norm uᵢ + ε/2]; [gauge_convex] makes
+    [μ = λ₁λ₂/(λ₁+λ₂)] admissible for [u₁+u₂], so
+    [lc_norm (u₁+u₂) ≤ μ⁻¹ = λ₁⁻¹ + λ₂⁻¹ < lc_norm u₁ + lc_norm u₂ + ε]. *)
+Lemma lc_normt (u1 u2 : P) :
+  lc_norm (lc_add u1 u2) <= lc_norm u1 + lc_norm u2.
+Proof.
+have [z1|n1] := pselect (lc_val u1 = precone_zero).
+  rewrite (_ : lc_norm u1 = 0); last exact: lc_norm0.
+  rewrite add0r.
+  have -> : lc_norm (lc_add u1 u2) = lc_norm u2.
+    rewrite /lc_norm /gauge_sup; congr (_^-1); congr sup.
+    by rewrite /gauge_set lc_valD z1 precone_add0.
+  by [].
+have [z2|n2] := pselect (lc_val u2 = precone_zero).
+  rewrite (_ : lc_norm u2 = 0); last exact: lc_norm0.
+  rewrite addr0.
+  have -> : lc_norm (lc_add u1 u2) = lc_norm u1.
+    rewrite /lc_norm /gauge_sup; congr (_^-1); congr sup.
+    by rewrite /gauge_set lc_valD z2 precone_addr0.
+  by [].
+have g1pos : 0 < gauge_sup u1 by exact: gauge_sup_gt0.
+have g2pos : 0 < gauge_sup u2 by exact: gauge_sup_gt0.
+have add_n0 : lc_val (lc_add u1 u2) <> precone_zero.
+  rewrite lc_valD => /precone_posl; exact: n1.
+rewrite [lc_norm (lc_add _ _)]/lc_norm.
+apply/ler_addgt0Pr => eps eps_pos.
+have hs1 := has_sup_gauge n1.
+have hs2 := has_sup_gauge n2.
+have lc1_ge0 := lc_norm_ge0 u1.
+have lc2_ge0 := lc_norm_ge0 u2.
+have he2 : 0 < eps / 2 by rewrite divr_gt0.
+pose tgt1 := (lc_norm u1 + eps / 2)^-1.
+pose tgt2 := (lc_norm u2 + eps / 2)^-1.
+have d1 : tgt1 < gauge_sup u1.
+  rewrite /tgt1 /lc_norm -[X in _ < X]invrK ltf_pV2 ?posrE ?invr_gt0//.
+    by rewrite ltrDl.
+  by rewrite addr_gt0// invr_gt0.
+have d2 : tgt2 < gauge_sup u2.
+  rewrite /tgt2 /lc_norm -[X in _ < X]invrK ltf_pV2 ?posrE ?invr_gt0//.
+    by rewrite ltrDl.
+  by rewrite addr_gt0// invr_gt0.
+have [l1 /= Hin1 Hl1] :
+    exists2 l1 : {nonneg R},
+      cone_norm (precone_add x (precone_scale l1 (lc_val u1))) <= 1
+    & tgt1 < l1%:num.
+  have := sup_adherent (eps := gauge_sup u1 - tgt1) _ hs1.
+  rewrite subr_gt0 => /(_ d1)[d [s /= Hs se] He]; exists s => //.
+  by move: He; rewrite opprB addrCA subrr addr0 se.
+have [l2 /= Hin2 Hl2] :
+    exists2 l2 : {nonneg R},
+      cone_norm (precone_add x (precone_scale l2 (lc_val u2))) <= 1
+    & tgt2 < l2%:num.
+  have := sup_adherent (eps := gauge_sup u2 - tgt2) _ hs2.
+  rewrite subr_gt0 => /(_ d2)[d [s /= Hs se] He]; exists s => //.
+  by move: He; rewrite opprB addrCA subrr addr0 se.
+have l1pos : 0 < l1%:num.
+  apply: le_lt_trans Hl1; rewrite /tgt1 invr_ge0.
+  by apply: addr_ge0 => //; apply: ltW.
+have l2pos : 0 < l2%:num.
+  apply: le_lt_trans Hl2; rewrite /tgt2 invr_ge0.
+  by apply: addr_ge0 => //; apply: ltW.
+have mu_ge0 : 0 <= l1%:num * l2%:num / (l1%:num + l2%:num).
+  by rewrite divr_ge0 ?addr_ge0 ?mulr_ge0 ?ltW.
+have Hmu := gauge_convex l1pos l2pos Hin1 Hin2 mu_ge0.
+have mu_le : l1%:num * l2%:num / (l1%:num + l2%:num) <= gauge_sup (lc_add u1 u2).
+  apply: sup_upper_bound; first exact: has_sup_gauge add_n0.
+  by exists (NngNum mu_ge0) => //=; rewrite lc_valD; exact: Hmu.
+have mu_pos : 0 < l1%:num * l2%:num / (l1%:num + l2%:num).
+  by rewrite divr_gt0 ?addr_gt0 ?mulr_gt0.
+apply: le_trans (_ : (l1%:num * l2%:num / (l1%:num + l2%:num))^-1 <= _).
+  by rewrite lef_pV2 ?posrE//; apply: lt_le_trans mu_le.
+have muinvE : (l1%:num * l2%:num / (l1%:num + l2%:num))^-1
+            = l1%:num^-1 + l2%:num^-1.
+  rewrite invfM invrK mulrDr invfM mulrAC mulVf ?gt_eqF// mul1r.
+  by rewrite -mulrA mulVf ?gt_eqF// mulr1 addrC.
+rewrite muinvE.
+have b1 : l1%:num^-1 < lc_norm u1 + eps / 2.
+  rewrite -[X in _ < X](invrK (lc_norm u1 + eps/2)).
+  by rewrite ltf_pV2 ?posrE ?invr_gt0 ?addr_gt0// invr_gt0.
+have b2 : l2%:num^-1 < lc_norm u2 + eps / 2.
+  rewrite -[X in _ < X](invrK (lc_norm u2 + eps/2)).
+  by rewrite ltf_pV2 ?posrE ?invr_gt0 ?addr_gt0// invr_gt0.
+apply: ltW; apply: lt_le_trans (ltrD b1 b2) _.
+by rewrite addrACA -splitr.
+Qed.
+
+(** ** (Normc) — ω-completeness of the unit ball of [B_x]
+
+    Paper §7.1, (Normc) of Lemma 7.1.  For an increasing [B_x]-chain
+    [w] with [lc_norm (w n) ≤ 1], the points [x + w n] form an
+    increasing chain in the unit ball of [B] (each [x + w n ∈ B_B] by
+    [dev_step1]).  Its [B]-supremum [S] dominates [x], so [S = x + W]
+    for a [W ∈ B]; [W] is admissible (step [1] works since [S ∈ B_B]),
+    is the [B]-lub of the [w n] (cancel [x]), and has [lc_norm W ≤ 1]
+    (step [1] admissible).  As the order of [B_x] coincides with that of
+    [B], [W] is also the [B_x]-lub. *)
+
+(** Step [1] is admissible whenever [lc_norm w ≤ 1]: this realises the
+    paper's observation [B_P = {u ∈ B | x + u ∈ B_B}]. *)
+Lemma lc_step1 (w : P) : lc_norm w <= 1 ->
+  cone_norm (precone_add x (lc_val w)) <= 1.
+Proof.
+move=> Hw.
+have [w0|wn0] := pselect (lc_val w = precone_zero).
+  by rewrite w0 precone_addr0.
+have gpos : 0 < gauge_sup w by exact: gauge_sup_gt0.
+have g_ge1 : 1 <= gauge_sup w.
+  rewrite -[1]invr1 -lef_pV2 ?posrE ?ltr01// invrK.
+  by move: Hw; rewrite /lc_norm.
+have R1 := gauge_sup_reach wn0.
+have step1 : cone_norm (precone_add x (precone_scale 1%:nng (lc_val w))) <= 1.
+  by apply: (@localP_le_eps _ _ x (lc_val w) 1%:nng (NngNum (gauge_sup_ge0 w))).
+by move: step1; rewrite precone_scale_1.
+Qed.
+
+(** Conversely, [x + u ∈ B_B] makes step [1] admissible, so it gives
+    [lc_norm u ≤ 1] (when [u] is the [B]-value of a [B_x] element). *)
+Lemma lc_step1_norm (u : P) :
+  cone_norm (precone_add x (lc_val u)) <= 1 -> lc_norm u <= 1.
+Proof.
+move=> Hu.
+have [u0|un0] := pselect (lc_val u = precone_zero).
+  by rewrite lc_norm0// ler01.
+have g_ge1 : 1 <= gauge_sup u.
+  rewrite /gauge_sup; apply: sup_upper_bound; first exact: has_sup_gauge un0.
+  by exists 1%:nng => //=; rewrite precone_scale_1.
+rewrite /lc_norm -invr1 lef_pV2 ?posrE ?ltr01//.
+exact: lt_le_trans (gauge_sup_gt0 un0) _.
+Qed.
+
+(** Cancellation for the order: [x + a ≤p x + b] gives [a ≤p b]. *)
+Lemma lc_addxle (a b : B) :
+  precone_le (precone_add x a) (precone_add x b) -> precone_le a b.
+Proof.
+move=> [z Hz]; exists z.
+by apply: (@precone_cancel _ _ x); rewrite Hz precone_addA.
+Qed.
+
+Section LocalSupBall.
+Variable w : nat -> P.
+(** B-order chain hypothesis (the [B_x]-order one is converted to this
+    via [lc_leE] when building the [isCone] instance). *)
+Hypothesis wch : forall n, precone_le (lc_val (w n)) (lc_val (w n.+1)).
+Hypothesis wb1 : forall n, lc_norm (w n) <= 1.
+
+(** The translated chain [n ↦ x + (w n)] lives in [B_B]. *)
+Let c n : B := precone_add x (lc_val (w n)).
+
+Let c_mono n : precone_le (c n) (c n.+1).
+Proof. by rewrite /c; apply: precone_add_le_l; exact: wch. Qed.
+
+Let c_ub1 n : cone_norm (c n) <= 1.
+Proof. by rewrite /c; apply: lc_step1; exact: wb1. Qed.
+
+(** Its [B]-supremum. *)
+Let S : B := cone_sup_ball c c_mono c_ub1.
+
+Let S_norm : cone_norm S <= 1 := cone_sup_ball_norm c c_mono c_ub1.
+
+Let xleS : precone_le x S.
+Proof.
+apply: (precone_le_trans (y := c 0)).
+  by rewrite /c; exists (lc_val (w 0)).
+exact: cone_sup_ball_ub.
+Qed.
+
+(** [S = x + W] with [W] the lub of the [w n]'s; [W] is admissible. *)
+Definition lc_sup_val : B := projT1 (cid xleS).
+
+Let SWE : S = precone_add x lc_sup_val := projT2 (cid xleS).
+
+Lemma lc_sup_admissible : localP x lc_sup_val.
+Proof.
+exists 1%:nng; split; first by rewrite /= ltr01.
+by rewrite precone_scale_1 -SWE.
+Qed.
+
+Definition lc_sup_ball : P := exist (localP x) lc_sup_val lc_sup_admissible.
+
+(** Upper-bound and lub stated in [B]-order (on [lc_val]); the
+    [B_x]-order versions follow via [lc_leE] at the instance site. *)
+Lemma lc_sup_ball_ub n :
+  precone_le (lc_val (w n)) (lc_val lc_sup_ball).
+Proof.
+apply: lc_addxle; rewrite -SWE.
+exact: cone_sup_ball_ub.
+Qed.
+
+Lemma lc_sup_ball_lub (y : P) :
+  (forall n, precone_le (lc_val (w n)) (lc_val y)) ->
+  precone_le (lc_val lc_sup_ball) (lc_val y).
+Proof.
+move=> Hy.
+apply: lc_addxle; rewrite -SWE.
+apply: cone_sup_ball_lub => n.
+by rewrite /c; apply: precone_add_le_l; exact: Hy.
+Qed.
+
+Lemma lc_sup_ball_norm : lc_norm lc_sup_ball <= 1.
+Proof.
+apply: lc_step1_norm => /=.
+by rewrite -SWE.
+Qed.
+
+End LocalSupBall.
+
+(** Paper Lemma 7.1: [B_x] is a cone.  We have proved (Normh)
+    [lc_normh], (Normz) [lc_normz], (Normt) [lc_normt], (Normp)
+    [lc_normp] (below), and (Normc) via [lc_sup_ball] and its three
+    characterising lemmas. *)
+Lemma lc_normp (u v : P) :
+  precone_le (lc_val u) (lc_val v) -> lc_norm u <= lc_norm v.
+Proof.
+move=> uv.
+have [v0|vn0] := pselect (lc_val v = precone_zero).
+  have u0 : lc_val u = precone_zero.
+    by case: uv => z Hz; apply: (@precone_posl _ _ _ z); rewrite -Hz.
+  by rewrite !lc_norm0.
+have [u0|un0] := pselect (lc_val u = precone_zero).
+  by rewrite lc_norm0// lc_norm_ge0.
+rewrite /lc_norm lef_pV2 ?posrE ?gauge_sup_gt0//.
+rewrite /gauge_sup; apply: sup_le; last exact: has_sup_gauge un0.
+  move=> s [t /= Hin <-]; exists (t%:num) => //; split; last by [].
+  exists t => //=; apply: le_trans Hin.
+  apply: cone_normp; apply: precone_add_le_l; apply: precone_scale_le.
+  exact: uv.
+exact: gauge_set_neq0.
+Qed.
+
+(** Paper Lemma 7.1: [B_x] is a cone, with [0], algebraic operations
+    and order inherited from [B] and norm the gauge [lc_norm].  The five
+    norm axioms are: (Normh) [lc_normh], (Normz) [lc_normz], (Normt)
+    [lc_normt], (Normp) [lc_normp], and (Normc) the [lc_sup_ball]
+    operator with its upper-bound, least-upper-bound and norm lemmas.
+    The order [≤p] of [B_x] coincides with that of [B] ([lc_leE]), used
+    to translate the [B]-order statements of (Normp) and the
+    [lc_sup_ball] lemmas into the [B_x]-order shape required by the
+    [isCone] mixin. *)
+HB.instance Definition _ := @isCone.Build R (local_cone x)
+  lc_norm
+  lc_normh
+  (fun (u : P) (H : lc_norm u = 0) => @lc_eq R B x u (lc_zero Hx) (lc_normz H))
+  lc_normt
+  (fun u v uv => lc_normp ((lc_leE Hx u v).1 uv))
+  (fun u uch ub1 =>
+     lc_sup_ball (w := u) (fun n => (lc_leE Hx (u n) (u n.+1)).1 (uch n)) ub1)
+  (fun u uch ub1 n => (lc_leE Hx (u n) _).2
+     (lc_sup_ball_ub (w := u)
+        (fun n => (lc_leE Hx (u n) (u n.+1)).1 (uch n)) ub1 n))
+  (fun u uch ub1 y Hy => (lc_leE Hx _ y).2
+     (lc_sup_ball_lub (w := u)
+        (fun n => (lc_leE Hx (u n) (u n.+1)).1 (uch n)) ub1
+        (y := y) (fun n => (lc_leE Hx (u n) y).1 (Hy n))))
+  (fun u uch ub1 => lc_sup_ball_norm (w := u)
+     (fun n => (lc_leE Hx (u n) (u n.+1)).1 (uch n)) ub1).
+
 End GaugeNorm.
 
 (**md**************************************************************)
@@ -447,26 +968,25 @@ End GaugeNorm.
       bound [gauge_set_ub], the reach [gauge_sup] with [gauge_sup_ge0]
       and (for [u ≠ 0]) [gauge_sup_gt0], and the gauge norm [lc_norm]
       with [lc_norm_ge0], (Normz) [lc_normz] and [lc_norm0].
-    - Paper Lemma 7.2 (the "out" half): [gauge_sup_gt_out] — any step
-      strictly beyond [sup gauge_set u] leaves [B_B] (for [u ≠ 0]).
+    - The "scalar limit commutes with [cone_sup_ball]" fact (the wave-1
+      blocker), proved in the exact form needed inside [gauge_sup_reach]:
+      for an admissible chain [a_n ↑ gauge_sup u], the gap [t] between
+      [x + (gauge_sup u) ·: u] and [cone_sup_ball (n ↦ x + a_n ·: u)]
+      has [‖t‖ ≤ (gauge_sup u - a_n)‖u‖ → 0], hence [t = 0].  ([rmax]
+      provides the monotone approximating chain.)
+    - Paper Lemma 7.2 (the "out" half): [gauge_sup_gt_out]; and the
+      "reach" half [gauge_sup_reach]: [x + (gauge_sup u) ·: u ∈ B_B].
+    - Paper Lemma 7.1: the full [isCone] instance on [local_cone x].
+      (Normh) [lc_normh] (via [gauge_sup_scale]), (Normz) [lc_normz],
+      (Normt) [lc_normt] (via the convexity estimate [gauge_convex]),
+      (Normp) [lc_normp], and (Normc) the [lc_sup_ball] operator with
+      [lc_sup_ball_ub], [lc_sup_ball_lub], [lc_sup_ball_norm] — its
+      [B]-supremum [x + W] is built from the [B_B]-chain [n ↦ x + w_n]
+      ([lc_step1]) and [W] is admissible by step [1].
 
-    Deferred (require a "scalar-limit commutes with the unit-ball
-    supremum" lemma that is not part of the primitive cone API).
-    - Paper Lemma 7.2 (the "reach" half): [x + (gauge_sup u) ·: u ∈ B_B].
-      This is exactly where the paper invokes ω-closedness of [B_B]; in
-      our encoding it amounts to showing
-        [cone_sup_ball (n ↦ x + s_n ·: u) = x + (sup s_n) ·: u]
-      for an admissible chain [s_n ↑ gauge_sup u], i.e. that the
-      [cone_sup_ball] supremum commutes with the *scalar* limit.  The
-      available [sup_ball_scaler] (basic_lemmas.v) commutes scaling with
-      sup only for a *fixed* scalar; the varying-scalar version is a
-      separate development.
-    - The remaining norm axioms of [isCone] for [lc_norm]: (Normh) for
-      [r > 0] (needs the rescaling identity
-      [gauge_sup (r *: u) = gauge_sup u / r], a [sup]-image computation),
-      (Normt) sub-additivity (the paper's [λ₁λ₂/(λ₁+λ₂)] estimate), and
-      (Normc) ω-completeness (which needs the same scalar-limit lemma as
-      the reach half).  Hence the [isCone] instance is NOT registered.
+    Deferred.
     - The measurability / integrability instances "inherited as in [B]"
-      (paper §7.1, end): out of scope until the [isCone] instance lands.
+      (paper §7.1, end): the [isMCone]/[isICone] towers are out of scope
+      for this file (they require the [MeasSubcat]/path machinery of M2,
+      not just the cone structure used in Lemma 7.1/7.2).
 *)
