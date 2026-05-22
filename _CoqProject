@@ -37,3 +37,4 @@ theories/kernels/thm65.v
 theories/stable/local_cone.v
 theories/axioms/saft_interface.v
 theories/homs/tensor.v
+theories/homs/smcc.v

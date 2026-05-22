@@ -40,6 +40,7 @@ Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
+Require Import Icones.icones.examples_icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
@@ -189,6 +190,81 @@ Parameter tensor_normM :
     cone_norm (linhom_fun (tensor_curry (icones_id Ar (B ⊗ C)) x) y)
     = cone_norm x * cone_norm y.
 
+(** Local mirror of [tensor.v]'s pure tensor [x ⊗p y := τ_{B,C}(x)(y)],
+    written here through the contract's primitives (the very idiom used
+    by [tensor_normM] above).  Needed to state the pure-tensor
+    computation laws (paper Eqs 5.2–5.4) of the structural isos below. *)
+Local Notation "x '⊗p' y" :=
+  (linhom_fun (tensor_curry (icones_id Ar (_ ⊗ _)) x) y)
+  (at level 40, left associativity) : ring_scope.
+
+(** ** Paper §5.5, Eq 5.2 — the associator [α]
+
+    Paper Thm 5.15: from the two natural bijections built out of
+    [Φ] and Thm 5.12 ([tensor_hom_iso]), Yoneda (Lemma 1.1) yields a
+    natural iso [α_{A,B,C} : (A ⊗ B) ⊗ C ≅ A ⊗ (B ⊗ C)] in [ICones],
+    characterised by [α((x ⊗ y) ⊗ z) = x ⊗ (y ⊗ z)] (Eq 5.2).
+
+    The Yoneda construction needs representable-functor machinery the
+    minimal contract does not expose; we therefore stage the iso
+    together with its pure-tensor computation law.  All coherence
+    (pentagon, triangle, hexagon) is then *derived* in [smcc.v] from
+    these computation laws via the ternary extensionality [tensor_ext3]
+    (Prop 5.14), exactly as in the paper. *)
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.2) *)
+Parameter tensor_assoc_iso :
+  forall A B C : ICone.type Ar,
+    icones_iso Ar ((A ⊗ B) ⊗ C) (A ⊗ (B ⊗ C)).
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.2) *)
+Parameter tensor_assocE :
+  forall (A B C : ICone.type Ar) (x : A) (y : B) (z : C),
+    iso_fwd (tensor_assoc_iso A B C) ((x ⊗p y) ⊗p z) = x ⊗p (y ⊗p z).
+
+(** ** Paper §5.5, Eq 5.3 — the left and right unitors [λ], [ρ]
+
+    Paper Thm 5.15: the obvious natural bijection [ICones(1, B ⊸ C) ≃
+    ICones(B, C)] (resp. the natural iso [1 ⊸ C ≅ C]) yields natural
+    isos [λ_B : 1 ⊗ B ≅ B] and [ρ_B : B ⊗ 1 ≅ B], characterised by
+    [λ_B(u ⊗ x) = u · x = ρ_B(x ⊗ u)] (Eq 5.3), where [u ∈ 1 = R≥0]
+    acts by scaling.  Staged with their computation laws; the unit is
+    [cone_one_car Ar]. *)
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.3) *)
+Parameter tensor_lunit_iso :
+  forall A : ICone.type Ar, icones_iso Ar (cone_one_car Ar ⊗ A) A.
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.3) *)
+Parameter tensor_lunitE :
+  forall (A : ICone.type Ar) (u : cone_one_car Ar) (x : A),
+    iso_fwd (tensor_lunit_iso A) (u ⊗p x) = precone_scale (c1_val u) x.
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.3) *)
+Parameter tensor_runit_iso :
+  forall A : ICone.type Ar, icones_iso Ar (A ⊗ cone_one_car Ar) A.
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.3) *)
+Parameter tensor_runitE :
+  forall (A : ICone.type Ar) (x : A) (u : cone_one_car Ar),
+    iso_fwd (tensor_runit_iso A) (x ⊗p u) = precone_scale (c1_val u) x.
+
+(** ** Paper §5.5, Eq 5.4 — the braiding [σ]
+
+    Paper Thm 5.15: the natural iso of Lemma 5.5 yields a natural iso
+    [σ_{A,B} : A ⊗ B ≅ B ⊗ A], characterised by [σ(x ⊗ y) = y ⊗ x]
+    (Eq 5.4).  The involutivity [σ ∘ σ = id] and the symmetry hexagon
+    are *derived* in [smcc.v] from this computation law. *)
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.4) *)
+Parameter tensor_braid_iso :
+  forall A B : ICone.type Ar, icones_iso Ar (A ⊗ B) (B ⊗ A).
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete (Eq 5.4) *)
+Parameter tensor_braidE :
+  forall (A B : ICone.type Ar) (x : A) (y : B),
+    iso_fwd (tensor_braid_iso A B) (x ⊗p y) = y ⊗p x.
+
 End TensorInterface.
 
 (** [tensor] and its data should print with [B] [C] explicit. *)
@@ -198,3 +274,11 @@ Arguments tensor_uncurry {R Ar B C D}.
 Arguments tensor_curry_natural_post {R Ar B C D D'}.
 Arguments tensor_hom_iso {R Ar} B C D.
 Arguments tensor_normM {R Ar B C}.
+Arguments tensor_assoc_iso {R Ar} A B C.
+Arguments tensor_assocE {R Ar A B C}.
+Arguments tensor_lunit_iso {R Ar} A.
+Arguments tensor_lunitE {R Ar A}.
+Arguments tensor_runit_iso {R Ar} A.
+Arguments tensor_runitE {R Ar A}.
+Arguments tensor_braid_iso {R Ar} A B.
+Arguments tensor_braidE {R Ar A B}.

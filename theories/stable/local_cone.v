@@ -53,6 +53,11 @@ Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
+From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import measurable_realfun.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
+Require Import Icones.mcones.ar.
+Require Import Icones.mcones.mcone.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -954,6 +959,251 @@ HB.instance Definition _ := @isCone.Build R (local_cone x)
 
 End GaugeNorm.
 
+(** The [coneType] of [B_x] with the admissibility witness [Hx]
+    fixed.  The bare carrier [local_cone x] does not determine [Hx],
+    so its canonical [Cone] structure is keyed by an extra
+    [cnorm x <= 1] argument; we name that family once here so the
+    measurability layer below can resolve the [Cone] operations of
+    [B_x] without leaving an [cnorm x <= 1] placeholder. *)
+Definition lc_coneType (R : realType) (B : coneType R) (x : B)
+    (Hx : cone_norm x <= 1) : coneType R :=
+  local_cone_local_cone__canonical__cone_Cone Hx.
+
+(** ** Norm domination: [‖lc_val u‖_B ≤ N(u)] — Paper §7.1 (p. 1:56)
+
+    The paper records that [‖u‖_B ≤ ‖u‖_{B_x}] for every [u ∈ P].  This
+    is what lets every [B]-test, pulled back along [lc_val], stay a
+    valid test on [B_x] (it remains bounded by the gauge norm). *)
+Section NormDom.
+Variable R : realType.
+Variable B : coneType R.
+Variable x : B.
+Hypothesis Hx : cone_norm x <= 1.
+Local Notation P := (local_cone x).
+
+(** Paper §7.1, p. 1:56: [‖u‖_B ≤ ‖u‖_{B_x}].  For [u ≠ 0], every
+    admissible step [s] satisfies [s ≤ ‖lc_val u‖_B⁻¹] (Lemma 7.2
+    style), hence [gauge_sup u ≤ ‖lc_val u‖_B⁻¹], i.e.
+    [‖lc_val u‖_B ≤ (gauge_sup u)⁻¹ = N(u)]. *)
+Lemma lc_val_norm_le (u : P) : cone_norm (lc_val u) <= lc_norm u.
+Proof.
+have [u0|un0] := pselect (lc_val u = precone_zero).
+  by rewrite u0 cone_norm0 lc_norm_ge0.
+have nu_pos : 0 < cone_norm (lc_val u).
+  rewrite lt_neqAle cone_norm_ge0 andbT eq_sym.
+  by apply/eqP => /cone_normz.
+rewrite /lc_norm -[leLHS]invrK lef_pV2 ?posrE ?invr_gt0 ?gauge_sup_gt0//.
+rewrite /gauge_sup; apply: ge_sup; first exact: gauge_set_neq0.
+move=> s [t /= Hin <-].
+rewrite -(ler_pM2r nu_pos) mulVf ?gt_eqF//.
+have Hle : precone_le (precone_scale t (lc_val u))
+                      (precone_add x (precone_scale t (lc_val u))).
+  by exists x; rewrite precone_addC.
+by apply: le_trans _ Hin; rewrite -cone_normh; exact: cone_normp.
+Qed.
+
+End NormDom.
+
+(** ** Sup-ball compatibility with the inclusion — Paper §7.1 (Normc)
+
+    The paper's (Normc) proof identifies the [B_x]-lub of an increasing
+    unit-ball chain [(u_n)] as the [B]-lub of [(x + u_n)] minus [x].
+    Here is that identity in operator form, used to transport the
+    ω-continuity field [test_cont] of a [B]-test to its [B_x] pullback. *)
+Section SupBallEq.
+Variable R : realType.
+Variable B : coneType R.
+Variable x : B.
+Hypothesis Hx : cone_norm x <= 1.
+
+(** [B_x] as a [coneType] (see [lc_coneType]). *)
+Local Notation LC := (lc_coneType Hx).
+
+Variable u : nat -> LC.
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, cone_norm (u n) <= 1.
+
+Let c n : B := precone_add x (lc_val (u n)).
+
+Let cuch n : precone_le (lc_val (u n)) (lc_val (u n.+1)).
+Proof. exact: (lc_leE Hx _ _).1 (uch n). Qed.
+
+Let c_mono n : precone_le (c n) (c n.+1).
+Proof. by rewrite /c; apply: precone_add_le_l; exact: cuch. Qed.
+
+Let c_ub1 n : cone_norm (c n) <= 1.
+Proof. by rewrite /c; apply: lc_step1; [exact: Hx | exact: ub1]. Qed.
+
+(** Paper §7.1 (Normc): [x + (B_x-sup of u)] coincides with the
+    [B]-sup of the translated chain [n ↦ x + u_n]. *)
+Lemma lc_sup_ball_translate :
+  precone_add x (lc_val (cone_sup_ball u uch ub1)) =
+  cone_sup_ball c c_mono c_ub1.
+Proof.
+set S := cone_sup_ball c c_mono c_ub1.
+have S_norm : cone_norm S <= 1 := cone_sup_ball_norm c c_mono c_ub1.
+have xleSc : precone_le x S.
+  apply: (precone_le_trans (y := c 0)); first by exists (lc_val (u 0)).
+  exact: cone_sup_ball_ub.
+have [W HW] := xleSc.
+have Wadm : localP x W.
+  exists 1%:nng; split; first by rewrite /= ltr01.
+  by rewrite precone_scale_1 -HW.
+pose w : LC := exist (localP x) W Wadm.
+have lcw : lc_val w = W by [].
+apply: precone_le_anti.
+- rewrite HW; apply: precone_add_le_l.
+  rewrite -[W]lcw.
+  apply: (lc_leE Hx (cone_sup_ball u uch ub1) w).1.
+  apply: (cone_sup_ball_lub u uch ub1) => n.
+  apply: (lc_leE Hx (u n) w).2.
+  rewrite lcw; apply: (lc_addxle (x:=x)).
+  by rewrite -HW -/(c n); exact: cone_sup_ball_ub.
+- apply: (cone_sup_ball_lub c c_mono c_ub1) => n.
+  rewrite /c; apply: precone_add_le_l.
+  exact: (lc_leE Hx (u n) _).1 (cone_sup_ball_ub u uch ub1 n).
+Qed.
+
+End SupBallEq.
+
+(** ** Pullback of the test family along the inclusion — Paper §7.1
+
+    Paper §7.1 (p. 1:56): "For each [X ∈ Ar] we define [M_X] as the set
+    of all test functions [λr.λu. m(r, lc_val u)] for [m ∈ M^B_X]".  We
+    build the pullback test [lc_test m : test_of Ar X B_x] and the
+    family [lc_mcone_M], and prove the (Mscomp) and (Mssep) closure
+    conditions.  See the status block below for why the simplified
+    (Msnorm) of [mcone.v] cannot be closed for [B_x] (the gauge / B-norm
+    gap), and hence why the [isMCone]/[isICone] HB instances are
+    *deferred* rather than registered. *)
+Section LocalMCone.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variable B : MCone.type Ar.
+Variable x : B.
+Hypothesis Hx : cone_norm x <= 1.
+
+Local Notation LC := (lc_coneType Hx).
+
+Section LocalTest.
+Variable Y : ar_obj Ar.
+Variable m : test_of Ar Y B.
+
+(** Paper §7.1: the test [m] of [B] pulled back to [B_x] along the
+    inclusion [lc_val]. *)
+Definition lc_test_fun : ar_carrier Ar Y -> LC -> R :=
+  fun r u => test_fun m r (lc_val u).
+
+Lemma lc_test_meas (u : LC) :
+  cone_norm u <= 1 ->
+  measurable_fun [set: ar_carrier Ar Y] (fun r => lc_test_fun r u).
+Proof.
+move=> Hu; rewrite /lc_test_fun; apply: test_meas.
+exact: le_trans (lc_val_norm_le Hx u) Hu.
+Qed.
+
+Lemma lc_test_ge0 (r : ar_carrier Ar Y) (u : LC) : 0 <= lc_test_fun r u.
+Proof. exact: test_ge0. Qed.
+
+Lemma lc_test_le1 (r : ar_carrier Ar Y) (u : LC) :
+  cone_norm u <= 1 -> lc_test_fun r u <= 1.
+Proof.
+move=> Hu; rewrite /lc_test_fun; apply: test_le1.
+exact: le_trans (lc_val_norm_le Hx u) Hu.
+Qed.
+
+Lemma lc_test_lin0 (r : ar_carrier Ar Y) : lc_test_fun r precone_zero = 0.
+Proof. by rewrite /lc_test_fun lc_val0 test_lin0. Qed.
+
+Lemma lc_test_linD (r : ar_carrier Ar Y) (u v : LC) :
+  lc_test_fun r (precone_add u v) =
+  lc_test_fun r u + lc_test_fun r v.
+Proof. by rewrite /lc_test_fun lc_valD test_linD. Qed.
+
+Lemma lc_test_linZ (r : ar_carrier Ar Y) (s : {nonneg R}) (u : LC) :
+  lc_test_fun r (precone_scale s u) = s%:num * lc_test_fun r u.
+Proof. by rewrite /lc_test_fun lc_valZ test_linZ. Qed.
+
+(** Paper §7.1: ω-continuity transports along [lc_val] via the
+    sup-ball identity [lc_sup_ball_translate]: writing [S] for the
+    [B_x]-sup, [m r (lc_val S) = m r (x + lc_val S) - m r x] and the
+    first summand is bounded by [test_cont] of [m] on the [B]-chain
+    [n ↦ x + u_n]. *)
+Lemma lc_test_cont (r : ar_carrier Ar Y)
+  (u : nat -> LC)
+  (uch : forall n, precone_le (u n) (u n.+1))
+  (ub1 : forall n, cone_norm (u n) <= 1)
+  (N : R) :
+  (forall n, lc_test_fun r (u n) <= N) ->
+  lc_test_fun r (cone_sup_ball u uch ub1) <= N.
+Proof.
+move=> HN; rewrite /lc_test_fun.
+have key := lc_sup_ball_translate (u:=u) uch ub1.
+have Hxc : test_fun m r (lc_val (cone_sup_ball u uch ub1)) =
+           test_fun m r (x + lc_val (cone_sup_ball u uch ub1))%PC -
+           test_fun m r x.
+  by rewrite test_linD addrAC subrr add0r.
+rewrite Hxc key lerBlDr.
+apply: test_cont => n.
+rewrite test_linD [in leRHS]addrC lerD2l.
+exact: HN.
+Qed.
+
+Lemma lc_test_norm_le (r : ar_carrier Ar Y) (u : LC) :
+  lc_test_fun r u <= cone_norm u.
+Proof.
+rewrite /lc_test_fun; apply: le_trans (test_norm_le _ _ _) _.
+exact: lc_val_norm_le.
+Qed.
+
+(** Paper §7.1: [m] pulled back to [B_x]. *)
+Definition lc_test : test_of Ar Y LC :=
+  MkTestOf lc_test_meas lc_test_ge0 lc_test_le1
+           lc_test_lin0 lc_test_linD lc_test_linZ
+           lc_test_cont lc_test_norm_le.
+
+End LocalTest.
+
+Arguments lc_test {Y} m.
+
+(** Paper §7.1: the test family of [B_x] — the image of [B]'s test
+    family under the pullback [lc_test]. *)
+Definition lc_mcone_M (Y : ar_obj Ar) : set (test_of Ar Y LC) :=
+  [set lc_test m | m in mcone_M Y].
+
+(** Paper §7.1 (Mscomp): pullback commutes with reindexing,
+    [test_reindex φ (lc_test m) = lc_test (test_reindex φ m)]. *)
+Lemma lc_test_reindex (Y' Y : ar_obj Ar) (φ : ar_hom Ar Y' Y)
+    (m : test_of Ar Y B) :
+  test_reindex φ (lc_test m) = lc_test (test_reindex φ m).
+Proof.
+by apply: test_eq => s u; rewrite /test_reindex/= /test_reindex_fun/=.
+Qed.
+
+(** Paper §7.1 (Mscomp): the family is closed under reindexing. *)
+Lemma lc_mcone_M_comp (Y' Y : ar_obj Ar) (φ : ar_hom Ar Y' Y)
+    (t : test_of Ar Y LC) :
+  lc_mcone_M t -> lc_mcone_M (test_reindex φ t).
+Proof.
+move=> [m mM <-]; rewrite lc_test_reindex.
+by exists (test_reindex φ m) => //; exact: mcone_M_comp.
+Qed.
+
+(** Paper §7.1 (Mssep): arity-0 pullback tests separate points of
+    [B_x] — by (Mssep) of [B] on the [lc_val]-images, then [lc_eq]. *)
+Lemma lc_mcone_M_sep (u1 u2 : LC) :
+  (forall t : test_of Ar (ar_zero Ar) LC,
+    lc_mcone_M t ->
+    test_fun t (ar_zero_pt Ar) u1 = test_fun t (ar_zero_pt Ar) u2) ->
+  u1 = u2.
+Proof.
+move=> Hsep; apply: (lc_eq (x:=x)); apply: mcone_M_sep => m mM.
+have Ht : lc_mcone_M (lc_test m) by exists m.
+by have := Hsep _ Ht.
+Qed.
+
+End LocalMCone.
+
 (**md**************************************************************)
 (** ** Status: what is proved, and what is deferred
 
@@ -983,10 +1233,36 @@ End GaugeNorm.
       [lc_sup_ball_ub], [lc_sup_ball_lub], [lc_sup_ball_norm] — its
       [B]-supremum [x + W] is built from the [B_B]-chain [n ↦ x + w_n]
       ([lc_step1]) and [W] is admissible by step [1].
+    - The measurability *infrastructure* of [B_x] (paper §7.1, p. 1:56),
+      for [B : mconeType Ar] (or stronger): the named [coneType] family
+      [lc_coneType Hx] (so the [Cone] operations of [B_x] resolve with a
+      fixed admissibility witness), the norm-domination lemma
+      [lc_val_norm_le] ([‖u‖_B ≤ ‖u‖_{B_x}]), the (Normc) operator
+      identity [lc_sup_ball_translate], the *full* pullback test
+      [lc_test m : test_of Ar X B_x] (all eight [test_of] fields proved,
+      including ω-continuity [lc_test_cont] via [lc_sup_ball_translate]),
+      the test family [lc_mcone_M] and its (Mscomp) closure
+      [lc_mcone_M_comp] / (Mssep) [lc_mcone_M_sep].  This is exactly the
+      paper's family [M_X = { (r,u) ↦ m(r, lc_val u) | m ∈ M^B_X }].
 
-    Deferred.
-    - The measurability / integrability instances "inherited as in [B]"
-      (paper §7.1, end): the [isMCone]/[isICone] towers are out of scope
-      for this file (they require the [MeasSubcat]/path machinery of M2,
-      not just the cone structure used in Lemma 7.1/7.2).
+    Deferred (with the precise blocker).
+    - The [isMCone] / [isICone] HB *instances* on [B_x].  The pullback
+      family above satisfies (Msmeas), (Mscomp), (Mssep) but NOT the
+      [mcone_M_norm] field of [isMCone] *as simplified in [mcone.v]*.
+      That field demands a test [m] with [‖u‖_{B_x} ≤ m(lc_val u) + ε];
+      but every pullback test obeys [m(lc_val u) ≤ ‖lc_val u‖_B], and the
+      gauge norm satisfies [‖lc_val u‖_B ≤ ‖u‖_{B_x}] with the inequality
+      *strict* in general (Example 7.3: [B_x] is the homothety of [B] by
+      [1/(1-x)], so [‖u‖_{B_x} = ‖u‖_B/(1-x)] while the id-test only
+      reaches [‖u‖_B]).  The paper's (Msnorm) closes this because it
+      uses the operator-norm factor [m(u)/‖m‖] — but [mcone.v] adopts the
+      simplified form *without* [/‖m‖] (see its header, justified by
+      [‖m‖ ≤ 1], which fails for the gauge norm).  Registering [isMCone]
+      therefore needs the dual-norm machinery [mcone.v] deferred (a test
+      [m(lc_val·)/‖m‖_{B_x}] with [‖m‖_{B_x} = sup_{w ∈ B_P} m(lc_val w)],
+      plus a proof that it stays [≤ ‖·‖_{B_x}] and attains the gauge),
+      which is not available here.  [isICone] is layered over [isMCone],
+      so it is blocked transitively (its integral would indeed be "as in
+      [B]" — [icone_integral (lc_val ∘ β)] — once [B_x] is an [mconeType]
+      and the integral's admissibility is established).
 *)

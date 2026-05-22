@@ -208,6 +208,30 @@ apply: linhom_eq => y.
 by rewrite !tensor_curryE Hfg.
 Qed.
 
+(** ** Paper Proposition 5.14 — ternary tree extensionality
+
+    The instance of Prop 5.14 for the tree [⟨⟨∗,∗⟩,∗⟩], i.e. the left
+    ternary tensor [(A ⊗ B) ⊗ C].  Two morphisms [f, g : (A ⊗ B) ⊗ C →
+    D] that agree on every iterated pure tensor [(x ⊗ y) ⊗ z] are equal.
+
+    Proof (paper's induction unfolded to depth two): by injectivity of
+    [Φ] it suffices that [Φ(f) = Φ(g) : A ⊗ B → (C ⊸ D)]; by the binary
+    [tensor_ext] it suffices these agree on pure tensors [x ⊗ y]; by
+    [linhom_eq] it suffices they agree at every [z : C]; and by Eq 5.1
+    ([tensor_curryE]) [Φ(f)(x ⊗ y)(z) = f((x ⊗ y) ⊗ z)], which equals
+    the [g]-side by hypothesis. *)
+Lemma tensor_ext3 (A B C D : ICone.type Ar)
+    (f g : icones_hom Ar ((A ⊗ B) ⊗ C) D) :
+  (forall (x : A) (y : B) (z : C),
+     f ((x ⊗p y) ⊗p z) = g ((x ⊗p y) ⊗p z)) -> f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: tensor_ext => x y.
+apply: linhom_eq => z.
+by rewrite !tensor_curryE Hfg.
+Qed.
+
 End Tensor.
 
 Arguments tau {R Ar} B C.
@@ -217,3 +241,5 @@ Arguments tensor_hom_Phi {R Ar} B C D.
 Arguments tensor_hom_fwd {R Ar} B C D.
 Arguments tensor_hom_bwd {R Ar} B C D.
 Arguments tensor_curry_inj {R Ar B C D}.
+Arguments tensor_ext {R Ar B C D}.
+Arguments tensor_ext3 {R Ar A B C D}.
