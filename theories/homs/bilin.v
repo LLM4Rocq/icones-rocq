@@ -65,16 +65,56 @@
       f].  Proved by extensionality, the Dirac approximation, and
       [linhom_pres_int f].
 
-    Deferred to wave 3 / follow-up.
+    Wave-3 follow-up — DELIVERED below ([Cones] iso packaging).
 
-    - [mcones_iso] packaging: build [int_to_linhom] and
-      [linhom_to_int] as [mcones_hom] morphisms in [MCones] and
-      witness their mutual inverse.  The packaging is non-trivial
-      because [cones_hom_norm_le1] requires norm-decrease ([cnorm
-      (f x) ≤ cnorm x]) whereas [int_to_linhom β] is bounded by
-      [path_norm β], not [1]; a normalization wrapper or a
-      relaxation of [cones_hom_norm_le1] is needed for the
-      packaging.
+    - [int_to_linhom_cones] / [linhom_to_int_cones] — paper Thm 6.1
+      [I] and [K] packaged as morphisms in [Cones] ([cones_hom]),
+      with all three [cones_hom] fields ([is_linear],
+      [is_omega_continuous], [cones_hom_norm_le1]) proved in the
+      cone variable.  The header's prior concern about
+      [cones_hom_norm_le1] is resolved: norm-decrease is taken
+      *relative to the cone norms of [Path] and [linhom_car]*
+      ([path_norm] / [linhom_norm]), not against the constant [1].
+      With those norms, [linhom_norm (int_to_linhom β) ≤ path_norm
+      β] and [path_norm (linhom_to_int f) ≤ linhom_norm f] both
+      hold ([int_to_linhom_norm_le] / [linhom_to_int_norm_le]); no
+      rescaling wrapper is needed.  ω-continuity in the cone
+      variable is [int_to_linhom_is_omega_continuous] (via
+      [integral_omega_cont_path] on the unit ball, extended to all
+      [µ] by linearity-rescaling) and
+      [linhom_to_int_is_omega_continuous] (via the Dirac unit-norm
+      reduction).
+
+    - [int_to_linhom_iso] — paper Thm 6.1: [Path(X, B) ≃ FMeas(X) ⊸
+      B] as an isomorphism in [Cones], packaged in the local
+      [cones_iso] record (forward [I], backward [K], and both
+      [cones_comp] round-trips [int_to_linhom_conesK] /
+      [int_to_linhom_conesK'], which reuse the function-level
+      round-trips [K_I_int_to_linhom_path_E] /
+      [I_K_int_to_linhom_E]).
+
+    - [int_to_linhom_norm_eq] — the iso is norm-preserving
+      ([cone_norm (int_to_linhom β) = cone_norm β]), via
+      [cones_iso_preserves_norm] (paper Lemma 2.21 / Prop 2.22).
+
+    Still deferred / follow-up.
+
+    - Upgrading the [Cones] iso to an [MCones] iso ([mcones_hom],
+      adding the [mcones_hom_pres_path] field) and to an [ICones]
+      iso ([icones_hom], adding [icones_hom_pres_int]).  Both
+      [path_car Ar X B] and [linhom_car Ar (fmeas R X) B] are full
+      [iconeType Ar], so the targets [mcones_iso] / [icones_iso]
+      (the latter via [Icones.homs.icones_iso]) are well-typed; what
+      is missing is (i) path-preservation of [int_to_linhom] /
+      [linhom_to_int] *in the cone variable* — measurability of
+      [r ↦ int_to_linhom (η r)] / [r ↦ linhom_to_int (η r)] as
+      paths of [linhom_car] / [path_car] — which needs an
+      independently-indexed joint-measurability step (the measure
+      and the integrand path vary over different arities, so
+      [icone_integral_joint_measurable] does not apply verbatim;
+      the [linhom_to_int] side reduces to a [dirac_path]-pushforward
+      test, not yet available), and (ii) integral-preservation in
+      the cone variable.
     - Naturality in [X] (via pushforward) and in [B] (via
       post-composition). *)
 
@@ -1132,3 +1172,307 @@ Check (fun f : linhom_car Ar (fmeas R (ar_carrier Ar X)) B =>
     int_to_linhom (linhom_to_int f) = f).
 
 End BilinSanityCheck.
+
+(** ** Paper Thm 6.1 forward map [I] as a morphism in [Cones]
+
+    The integration operator [int_to_linhom] is linear,
+    ω-continuous, and norm-decreasing *in the path variable [β]*,
+    hence a [cones_hom (Path X B) (FMeas X ⊸ B)].  Norm-decrease is
+    relative to the cone norms [path_norm] / [linhom_norm] (not the
+    constant [1]), so no normalization wrapper is needed. *)
+
+Section IntToLinhomMorph.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B : ICone.type Ar).
+
+Local Notation P := (path_car Ar X B).
+Local Notation L := (linhom_car Ar (fmeas R (ar_carrier Ar X)) B).
+
+(** Paper Lemma 4.7: the zero path integrates to zero. *)
+Lemma int_to_linhom_lin0 :
+  int_to_linhom (0%PC : P) = (0%PC : L).
+Proof.
+apply: linhom_eq => µ.
+rewrite /int_to_linhom /int_to_linhom_fun /=.
+apply/esym/icone_integral_eqP => m mM s.
+rewrite /linhom_zero_fun test_lin0.
+by rewrite integral0.
+Qed.
+
+(** Paper Lemma 4.7: integration is additive in [β]
+    ([icone_integral_addB]). *)
+Lemma int_to_linhom_linD (b1 b2 : P) :
+  int_to_linhom (b1 + b2)%PC = (int_to_linhom b1 + int_to_linhom b2)%PC.
+Proof.
+apply: linhom_eq => µ.
+rewrite /linhom_fun /= /linhom_add_fun /int_to_linhom_pre /=.
+rewrite /int_to_linhom_fun.
+by rewrite (icone_integral_addB (path_is_path b1) (path_is_path b2)).
+Qed.
+
+(** Paper Lemma 4.7: integration is scalar in [β]
+    ([icone_integral_scaleB]). *)
+Lemma int_to_linhom_linZ (r : {nonneg R}) (b : P) :
+  int_to_linhom (r *: b)%PC = (r *: int_to_linhom b)%PC.
+Proof.
+apply: linhom_eq => µ.
+rewrite /linhom_fun /= /linhom_scale_fun /int_to_linhom_pre /=.
+rewrite /int_to_linhom_fun.
+by rewrite (icone_integral_scaleB r (path_is_path b)).
+Qed.
+
+Lemma int_to_linhom_is_linear :
+  is_linear (int_to_linhom : P -> L).
+Proof.
+split; [exact: int_to_linhom_lin0
+       |exact: int_to_linhom_linD
+       |exact: int_to_linhom_linZ].
+Qed.
+
+(** Paper Lemma 4.2: norm-decrease.  [linhom_norm (int_to_linhom β)
+    ≤ path_norm β], since each image norm is bounded by [path_norm β
+    · ‖µ‖ ≤ path_norm β] on the unit ball ([path_integral_norm_le]).
+    This is the field that resolves the header's [cones_hom_norm_le1]
+    concern: the bound is against [path_norm β], which *is* the cone
+    norm of [β] in [Path]. *)
+Lemma int_to_linhom_norm_le (b : P) :
+  cone_norm (int_to_linhom b) <= cone_norm b.
+Proof.
+apply: linhom_norm_sup_lub => µ Hµ.
+rewrite -[X in _ <= X]mulr1.
+apply: (@le_trans _ _ (path_norm b * fmeas_norm µ)); last first.
+  by apply: ler_wpM2l; [exact: path_norm_ge0|exact: Hµ].
+apply: (path_integral_norm_le (Mβ := path_norm b)).
+- move=> r; exact: path_norm_ub.
+- exact: path_is_path b.
+- exact: icone_integralP.
+Qed.
+
+(** [cone_sup_ball] depends only on the chain function, not on its
+    chain/bound proofs (by [Prop_irrelevance]). *)
+Lemma cone_sup_ball_irr (C : coneType R) (u : nat -> C)
+    (uch uch' : forall n, precone_le (u n) (u n.+1))
+    (ub ub' : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub = cone_sup_ball u uch' ub'.
+Proof.
+by rewrite (Prop_irrelevance uch uch') (Prop_irrelevance ub ub').
+Qed.
+
+(** Paper Lemma 4.7 (ω-continuity in [β]) on the unit ball, pointwise
+    in [µ]: reduce both sides to a [cone_sup_ball] of the integral
+    chain via [integral_omega_cont_path]. *)
+Lemma int_to_linhom_omega_unit
+    (u : nat -> P)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (fuch : forall n, precone_le (int_to_linhom (u n))
+                                  (int_to_linhom (u n.+1)))
+    (fub1 : forall n, cone_norm (int_to_linhom (u n)) <= 1)
+    (µ : fmeas R (ar_carrier Ar X)) (Hµ : cone_norm µ <= 1) :
+  int_to_linhom_fun (path_sup_ball uch ub1) µ =
+  linhom_fun (linhom_sup_ball (fun n => int_to_linhom (u n)) fuch fub1) µ.
+Proof.
+have Hµn : fmeas_norm µ <= 1 by exact: Hµ.
+rewrite /int_to_linhom_fun.
+rewrite /linhom_fun /= (linhom_sup_fun_unitE fuch fub1 Hµ).
+rewrite /linhom_sup_unit /=.
+rewrite -(integral_omega_cont_path (β := fun n => path_fun (u n))
+  (β_chain := fun n r => path_sup_ball_chain_pw uch r n)
+  (β_bound := fun n r => path_sup_ball_ub1_pw ub1 r n) (µ := µ)
+  (fun n => path_is_path (u n)) Hµn (path_sup_ball_is_path uch ub1)).
+exact: cone_sup_ball_irr.
+Qed.
+
+(** Paper Lemma 4.7 (full ω-continuity in [β]): extend from the unit
+    ball to all [µ] by linearity in [µ], rescaling
+    [µ = s *: (sinv *: µ)] with [s := ‖µ‖ + 1] (so [sinv *: µ] is in
+    the unit ball). *)
+Lemma int_to_linhom_is_omega_continuous :
+  is_omega_continuous (int_to_linhom : P -> L).
+Proof.
+move=> u uch ub1 fuch fub1.
+rewrite [cone_sup_ball u uch ub1]/(path_sup_ball uch ub1).
+rewrite [cone_sup_ball (int_to_linhom \o u) fuch fub1]
+  /(linhom_sup_ball (fun n => int_to_linhom (u n)) fuch fub1).
+apply: linhom_eq => µ; rewrite /linhom_fun.
+pose s_num : R := fmeas_norm µ + 1.
+have s_pos : 0 < s_num.
+  by rewrite /s_num ltr_wpDl ?ltr01 ?fmeas_norm_ge0.
+have sinv_ge0 : 0 <= s_num^-1 by rewrite invr_ge0 ltW.
+pose s : {nonneg R} := NngNum (ltW s_pos).
+pose sinv : {nonneg R} := NngNum sinv_ge0.
+have sV : (s%:num * sinv%:num = 1)%R.
+  by rewrite /= mulfV// gt_eqF.
+have Hµ' : cone_norm (precone_scale sinv µ) <= 1.
+  rewrite cone_normh /= mulrC.
+  rewrite ler_pdivrMr// mul1r /s_num.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+have scaleK : precone_scale s (precone_scale sinv µ) = µ.
+  rewrite -precone_scale_A.
+  rewrite (_ : (_)%:nng = 1%:nng) ?precone_scale_1//.
+  by apply/val_inj => /=; exact: sV.
+have unitEq := int_to_linhom_omega_unit uch ub1 fuch fub1 Hµ'.
+rewrite -[µ in LHS]scaleK -[µ in RHS]scaleK.
+rewrite (basic_lemmas.linearZ (linhom_pre_linear
+  (linhom_pre_of (int_to_linhom (path_sup_ball uch ub1)))) s).
+rewrite [in RHS](basic_lemmas.linearZ (linhom_pre_linear
+  (linhom_pre_of (linhom_sup_ball (fun n => int_to_linhom (u n))
+                                  fuch fub1))) s).
+congr (_ *: _)%PC.
+exact: unitEq.
+Qed.
+
+End IntToLinhomMorph.
+
+Arguments cone_sup_ball_irr {R C} u {uch uch' ub ub'}.
+
+(** ** Paper Thm 6.1 inverse map [K] as a morphism in [Cones]
+
+    [linhom_to_int] is linear, ω-continuous, and norm-decreasing in
+    the linhom variable [f].  ω-continuity is direct here: every
+    value [f ↦ f (\d_r)] tests against the unit-norm Dirac
+    [dirac_fmeas r], so no rescaling is needed. *)
+
+Section LinhomToIntMorph.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B : ICone.type Ar).
+
+Local Notation P := (path_car Ar X B).
+Local Notation L := (linhom_car Ar (fmeas R (ar_carrier Ar X)) B).
+
+Lemma linhom_to_int_lin0 :
+  linhom_to_int (0%PC : L) = (0%PC : P).
+Proof.
+apply: path_eq => r.
+by rewrite linhom_to_int_E /linhom_fun /linhom_zero_fun.
+Qed.
+
+Lemma linhom_to_int_linD (f g : L) :
+  linhom_to_int (f + g)%PC = (linhom_to_int f + linhom_to_int g)%PC.
+Proof.
+apply: path_eq => r.
+by rewrite !linhom_to_int_E /linhom_fun /=.
+Qed.
+
+Lemma linhom_to_int_linZ (s : {nonneg R}) (f : L) :
+  linhom_to_int (s *: f)%PC = (s *: linhom_to_int f)%PC.
+Proof.
+apply: path_eq => r.
+by rewrite !linhom_to_int_E /linhom_fun /=.
+Qed.
+
+Lemma linhom_to_int_is_linear :
+  is_linear (linhom_to_int : L -> P).
+Proof.
+split; [exact: linhom_to_int_lin0
+       |exact: linhom_to_int_linD
+       |exact: linhom_to_int_linZ].
+Qed.
+
+(** Norm-decrease: [path_norm (linhom_to_int f) ≤ linhom_norm f],
+    since each value [f (\d_r)] is bounded by [linhom_norm f]
+    ([linhom_to_int_fun_norm_bound]). *)
+Lemma linhom_to_int_norm_le (f : L) :
+  cone_norm (linhom_to_int f) <= cone_norm f.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+move=> y [r ->].
+rewrite linhom_to_int_E.
+exact: linhom_to_int_fun_norm_bound.
+Qed.
+
+(** ω-continuity in [f]: the value at [r] tests against the unit-norm
+    Dirac [dirac_fmeas r], so [linhom_sup_fun_unitE] applies directly
+    and both sides reduce to a [cone_sup_ball]. *)
+Lemma linhom_to_int_is_omega_continuous :
+  is_omega_continuous (linhom_to_int : L -> P).
+Proof.
+move=> u uch ub1 fuch fub1.
+rewrite [cone_sup_ball u uch ub1]/(linhom_sup_ball u uch ub1).
+rewrite [cone_sup_ball (linhom_to_int \o u) fuch fub1]
+  /(path_sup_ball fuch fub1).
+apply: path_eq => r.
+have Hd : cone_norm (dirac_fmeas r) <= 1 by rewrite dirac_fmeas_norm.
+rewrite linhom_to_int_E /linhom_fun /= (linhom_sup_fun_unitE uch ub1 Hd).
+rewrite /linhom_sup_unit /path_sup_ball /= /path_sup_ball_fun.
+exact: cone_sup_ball_irr.
+Qed.
+
+End LinhomToIntMorph.
+
+Arguments int_to_linhom_is_linear {R Ar X B}.
+Arguments int_to_linhom_norm_le {R Ar X B}.
+Arguments int_to_linhom_is_omega_continuous {R Ar X B}.
+Arguments linhom_to_int_is_linear {R Ar X B}.
+Arguments linhom_to_int_norm_le {R Ar X B}.
+Arguments linhom_to_int_is_omega_continuous {R Ar X B}.
+
+(** ** Paper Thm 6.1 — [Path(X, B) ≃ FMeas(X) ⊸ B] as a [Cones] iso
+
+    A minimal isomorphism record in [Cones]: a two-sided inverse
+    pair, stated via the [cones_comp] equations (exactly the data
+    consumed by [cones_iso_preserves_norm]). *)
+Record cones_iso (R : realType) (P Q : coneType R) : Type :=
+  MkConesIso {
+    ciso_fwd : cones_hom P Q;
+    ciso_bwd : cones_hom Q P;
+    ciso_fwdK : cones_comp ciso_bwd ciso_fwd = cones_id P;
+    ciso_bwdK : cones_comp ciso_fwd ciso_bwd = cones_id Q;
+  }.
+
+Arguments cones_iso {R} P Q.
+Arguments MkConesIso {R P Q}.
+
+Section BilinConesIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B : ICone.type Ar).
+
+Local Notation P := (path_car Ar X B).
+Local Notation L := (linhom_car Ar (fmeas R (ar_carrier Ar X)) B).
+
+(** Paper Thm 6.1 forward map [I] as a morphism in [Cones]. *)
+Definition int_to_linhom_cones : cones_hom P L :=
+  ConesHom (int_to_linhom : P -> L)
+    int_to_linhom_is_linear
+    int_to_linhom_is_omega_continuous
+    int_to_linhom_norm_le.
+
+(** Paper Thm 6.1 inverse map [K] as a morphism in [Cones]. *)
+Definition linhom_to_int_cones : cones_hom L P :=
+  ConesHom (linhom_to_int : L -> P)
+    linhom_to_int_is_linear
+    linhom_to_int_is_omega_continuous
+    linhom_to_int_norm_le.
+
+(** Round-trip [K ∘ I = id] at the morphism level (reuses
+    [K_I_int_to_linhom_path_E]). *)
+Lemma int_to_linhom_conesK :
+  cones_comp linhom_to_int_cones int_to_linhom_cones = cones_id P.
+Proof.
+apply: cones_hom_eq => β /=.
+exact: K_I_int_to_linhom_path_E.
+Qed.
+
+(** Round-trip [I ∘ K = id] at the morphism level (reuses
+    [I_K_int_to_linhom_E]). *)
+Lemma int_to_linhom_conesK' :
+  cones_comp int_to_linhom_cones linhom_to_int_cones = cones_id L.
+Proof.
+apply: cones_hom_eq => f /=.
+exact: I_K_int_to_linhom_E.
+Qed.
+
+(** Paper Thm 6.1: [Path(X, B) ≃ FMeas(X) ⊸ B] as an iso in [Cones]. *)
+Definition int_to_linhom_iso : cones_iso P L :=
+  MkConesIso int_to_linhom_cones linhom_to_int_cones
+    int_to_linhom_conesK int_to_linhom_conesK'.
+
+(** Consequence: the forward map preserves the norm exactly
+    (paper Lemma 2.21 / Prop 2.22 via [cones_iso_preserves_norm]). *)
+Lemma int_to_linhom_norm_eq (β : P) :
+  cone_norm (int_to_linhom β) = cone_norm β.
+Proof.
+exact: (cones_iso_preserves_norm int_to_linhom_conesK int_to_linhom_conesK').
+Qed.
+
+End BilinConesIso.

@@ -42,6 +42,8 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
+Require Import Icones.homs.linhom_functor.
+Require Import Icones.homs.icones_iso.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -142,9 +144,57 @@ Parameter tensor_curry_natural_B :
    tensor milestone (§13) consumes naturality in [D] and [B]; naturality
    in [C] is only needed for the symmetry coherence, derived later. *)
 
+(** ** Concrete naturality of [Φ] in [D] — Paper Thm 5.9 / Eq 5.1
+
+    The CONCRETE form of [tensor_curry_natural_D]: the witness [hstar]
+    of the existential naturality square is the hom-functor action
+    [C ⊸ h = linhom_post_icones h] (postcomposition by [h]).  This is
+    exactly the paper's "naturality of [Φ] in [D]": [Φ(h ∘ f) =
+    (C ⊸ h) ∘ Φ(f)].  Specialising [f := id (B ⊗ C)] yields Eq 5.1,
+    [Φ(f) = (C ⊸ f) ∘ τ], in the pointwise form
+    [Φ(f)(x)(y) = f(x ⊗ y)] used by Prop 5.14. *)
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete *)
+Parameter tensor_curry_natural_post :
+  forall (B C D D' : ICone.type Ar) (h : icones_hom Ar D D')
+         (f : icones_hom Ar (B ⊗ C) D),
+    tensor_curry (icones_comp h f) =
+    icones_comp (linhom_post_icones h) (tensor_curry f).
+
+(** ** Thm 5.12 — [Φ] as an iso of integrable cones
+
+    Paper Thm 5.12: [Φ_{B,C,D}] is an isomorphism of integrable cones
+    [(B ⊗ C) ⊸ D ≃ B ⊸ (C ⊸ D)].  This is the ELEMENT-level packaging
+    of [tensor_curry] (which the minimal contract exposes only at the
+    morphism level): an [icones_iso] between the two internal-hom cones,
+    where [B ⊸ (C ⊸ D) = linhom_car Ar B (linhom_car Ar C D)]. *)
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete *)
+Parameter tensor_hom_iso :
+  forall B C D : ICone.type Ar,
+    icones_iso Ar (linhom_car Ar (B ⊗ C) D)
+                  (linhom_car Ar B (linhom_car Ar C D)).
+
+(** ** Thm 5.13 — multiplicativity of the tensor norm
+
+    Paper Thm 5.13: [‖x ⊗ y‖ = ‖x‖ · ‖y‖].  The [≤] direction is
+    derived in [tensor.v] from norm-decrease of [τ]; the converse [≥]
+    needs the dual-separation Prop 3.11 together with the element-level
+    inverse [Φ⁻¹] of Thm 5.12, both supplied by the SAFT discharge.
+    We stage the full equality. *)
+
+(* STAGING: discharge via M-SAFT, PLAN §13.1; then delete *)
+Parameter tensor_normM :
+  forall (B C : ICone.type Ar) (x : B) (y : C),
+    cone_norm (linhom_fun (tensor_curry (icones_id Ar (B ⊗ C)) x) y)
+    = cone_norm x * cone_norm y.
+
 End TensorInterface.
 
 (** [tensor] and its data should print with [B] [C] explicit. *)
 Arguments tensor {R} Ar B C.
 Arguments tensor_curry {R Ar B C D}.
 Arguments tensor_uncurry {R Ar B C D}.
+Arguments tensor_curry_natural_post {R Ar B C D D'}.
+Arguments tensor_hom_iso {R Ar} B C D.
+Arguments tensor_normM {R Ar B C}.
