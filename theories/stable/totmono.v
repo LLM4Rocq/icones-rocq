@@ -21,14 +21,22 @@
     - [is_totmono] (Def 7.5, eq 7.1), with the sanity reformulations
       [totmono_increasing] (n = 1 ⇔ increasing) and [totmono2] /
       [totmono2E] (n = 2).
-    - [is_stable] (Def 7.7): totally monotonic, bounded, ω-continuous.
+    - [is_stable] (Def 7.7): totally monotonic, bounded, ω-continuous,
+      where ω-continuity is now Scott-continuity on the domain [B_P]
+      ([is_scott_continuous_unit]: unit-ball INPUT chain, general image
+      radius [Mf]) — the [M = 1] instance of [is_scott_continuous]
+      ([cones/omega_general.v]).  This image-radius generality is what
+      unblocks the nonlinear scaling closure [stable_scale].
     - [is_meas_stable] (Def 7.10): stable and measurable-path
       preserving on the unit ball.
     - Lemma 7.11 closure lemmas: the zero map, the pointwise sum
       [f + g] and the nonneg scaling [r *: f] preserve each of total
-      monotonicity, stability and measurability.  (We deliver these as
-      free-standing lemmas; the precone *record* and its HB tower are
-      the job of the next file [stable/stablehom.v].)
+      monotonicity, stability and measurability.  [stable_scale] (once
+      DEFERRED) is now proved via [r *: f = (r *: ·) ∘ f],
+      [scaler_scott_continuous] and the radius-aware suprema of
+      [omega_general.v].  (We deliver these as free-standing lemmas;
+      the precone *record* and its HB tower are the job of the next
+      file [stable/stablehom.v].)
 
     Design notes.
     - The cone sums of (7.1) range over the *finite* index sets
@@ -38,9 +46,19 @@
       [big_morph] then discharge the closure lemmas pointwise.
     - The stability fields mirror [homs/linhom.v]: boundedness is
       [exists M, ∀ x ∈ B, ‖f x‖ ≤ M], ω-continuity is
-      [is_omega_continuous], and path preservation is
-      [is_measurable_path]-on-[is_measurable_path], guarded by the
-      pointwise unit-ball condition since [f] is only defined on [B_C].
+      [is_scott_continuous_unit] (Def 2.2 on the domain [B_P]; the
+      [linhom] linear maps use the unit-ball-image [is_omega_continuous],
+      but nonlinear stable maps need the general image radius), and path
+      preservation is [is_measurable_path]-on-[is_measurable_path],
+      guarded by the pointwise unit-ball condition since [f] is only
+      defined on [B_C].
+    - On the input radius: a stable [f : B_P → Q] is monotone only on
+      [B_P] (total monotonicity, [totmono_increasing]); the full-radius
+      [is_scott_continuous f] (input chains of any radius) is therefore
+      *too strong* for nonlinear closure — for an input chain leaving
+      [B_P], [f ∘ u] need not be increasing and the commutation can
+      fail.  We keep the input in [B_P], matching the ω-closed domain of
+      Def 2.2, and let only the image radius range freely.
     - Lemma 7.12 (the induced order) is *not* delivered here: it needs
       the precone record (the addition operation of [P]) which lives in
       the next file; we note this in the closing comment. *)
@@ -56,6 +74,7 @@ Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
+Require Import Icones.cones.omega_general.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.path.
@@ -283,20 +302,53 @@ End SanityN2.
 (** ** Def 7.7 — stable functions
 
     A function [f : B_P → Q] is *stable* if it is totally monotonic,
-    bounded, and ω-continuous (Definition 2.2 / the cone [sup_ball]
-    sense used throughout the development; cf. [homs/linhom.v]). *)
+    bounded, and ω-continuous.  Following Def 7.7 / Def 2.2 faithfully,
+    ω-continuity is *Scott*-continuity on the *domain* [B_P]: the input
+    chain ranges over [B_P] (the function's domain, [‖uₙ‖ ≤ 1]) while
+    its image is allowed to escape the unit ball — the supremum on the
+    output side is the radius-aware [cone_sup_at] at any image radius
+    [Mf], rather than the unit-ball [cone_sup_ball].  We call this
+    [is_scott_continuous_unit]; it is exactly [is_scott_continuous]
+    ([cones/omega_general.v]) instantiated at input radius [M = 1] (via
+    [cone_sup_at_ball], which identifies [cone_sup_at] at radius [1]
+    with [cone_sup_ball]).
+
+    This is the migration that fixes the nonlinear-scaling blocker: the
+    *image*-side radius is now general ([Mf] arbitrary), so nonneg
+    scaling [r *: f] — whose image chain has norm up to [1/r > 1] for
+    [r < 1] — is Scott-continuous (see [stable_scale]).  The unrestric-
+    ted-input form [is_scott_continuous f] (all input radii) is too
+    strong for *nonlinear* stable maps: a stable [f : B_P → Q] is only
+    monotone on [B_P] (total monotonicity, [totmono_increasing]), so for
+    an input chain leaving [B_P] the image chain [f ∘ u] need not be
+    increasing and the commutation can fail.  Def 2.2 sidesteps this by
+    keeping the input chain in the ω-closed domain [A = B_P]. *)
 
 Section Stable.
 Variable R : realType.
 Variables P Q : coneType R.
 
+(** Def 2.2 ω-continuity for a [B_P → Q] map: input chain in [B_P],
+    output supremum at the (general) image radius [Mf].  Equal to
+    [is_scott_continuous f] specialised to input radius [1]. *)
+Definition is_scott_continuous_unit (f : P -> Q) : Prop :=
+  forall (Mf : {nonneg R}) (u : nat -> P)
+         (uch : forall n, precone_le (u n) (u n.+1))
+         (ub1 : forall n, cone_norm (u n) <= 1)
+         (fuch : forall n, precone_le (f (u n)) (f (u n.+1)))
+         (fubMf : forall n, cone_norm (f (u n)) <= Mf%:num)
+         (Mfpos : 0 < Mf%:num),
+    f (cone_sup_ball u uch ub1) = cone_sup_at (u := f \o u) fuch fubMf Mfpos.
+
 (** Paper Def 7.7. *)
 Definition is_stable (f : P -> Q) : Prop :=
   [/\ is_totmono f,
       exists M : R, forall x : P, cone_norm x <= 1 -> cone_norm (f x) <= M
-   &  is_omega_continuous f].
+   &  is_scott_continuous_unit f].
 
 End Stable.
+
+Arguments is_scott_continuous_unit {R P Q}.
 
 Arguments is_stable {R P Q}.
 
@@ -358,11 +410,12 @@ Proof.
 split.
 - exact: totmono_zero.
 - by exists 0%R => x _; rewrite /stm_zero cone_norm0.
-- move=> u uch ub1 fuch fub1; rewrite /stm_zero.
+- move=> Mf u uch ub1 fuch fubMf Mfpos; rewrite /stm_zero.
+  (* Both sides are [0]: LHS by [stm_zero]; RHS as the [cone_sup_at] of
+     the constant-[0] image chain, which is [0] by antisymmetry. *)
   apply: precone_le_anti.
-  + by exists (cone_sup_ball (stm_zero \o u) fuch fub1);
-       rewrite precone_add0.
-  + by apply: cone_sup_ball_lub => n /=; exact: precone_le_refl.
+  + by exists (cone_sup_at fuch fubMf Mfpos); rewrite precone_add0.
+  + by apply: cone_sup_at_lub => n /=; exact: precone_le_refl.
 Qed.
 
 End ClosureZero.
@@ -502,6 +555,77 @@ apply: cone_sup_ball_lub => k.
 by rewrite precone_addC; exact: Sa_bk_le_Ss.
 Qed.
 
+(** *** Radius-aware diagonal-sup identity
+
+    The [cone_sup_at] analogue of [sup_ball_addD]: for increasing chains
+    [a], [b] *and* their diagonal sum all bounded by a common radius
+    [M > 0], the sup of the diagonal sum is the sum of the sups.  Proof
+    mirrors [sup_ball_addD] line for line, replacing [cone_sup_ball] by
+    [cone_sup_at] and the one-sided [sup_ball_addr] by [sup_at_addr]
+    (both from [omega_general.v]).  This is the radius-aware engine
+    behind ω-continuity of the pointwise sum [f + g]. *)
+Lemma sup_at_addD (M : {nonneg R}) a b
+  (ach : forall n, a n <=p a n.+1)
+  (aubM : forall n, cone_norm (a n) <= M%:num)
+  (bch : forall n, b n <=p b n.+1)
+  (bubM : forall n, cone_norm (b n) <= M%:num)
+  (sch : forall n, a n + b n <=p a n.+1 + b n.+1)
+  (subM : forall n, cone_norm (a n + b n) <= M%:num)
+  (Mpos : (0 < M%:num)%R) :
+  cone_sup_at sch subM Mpos =
+  (cone_sup_at ach aubM Mpos) + (cone_sup_at bch bubM Mpos).
+Proof.
+set Sa := cone_sup_at ach aubM Mpos.
+set Sb := cone_sup_at bch bubM Mpos.
+set Ss := cone_sup_at sch subM Mpos.
+apply: precone_le_anti.
+  (* [Ss ≤p Sa + Sb] by [cone_sup_at_lub] with witnesses from the ubs. *)
+  apply: cone_sup_at_lub => n.
+  have [za Hza] : a n <=p Sa by exact: cone_sup_at_ub.
+  have [zb Hzb] : b n <=p Sb by exact: cone_sup_at_ub.
+  exists (za + zb); rewrite Hza Hzb -!precone_addA; congr precone_add.
+  by rewrite precone_addA [za + b n]precone_addC -precone_addA.
+(* General chain-monotonicity. *)
+have chain_mono c (cch : forall n, c n <=p c n.+1) n m :
+    (n <= m)%N -> c n <=p c m.
+  elim: m => [|m IHm] nm.
+    by move: nm; rewrite leqn0 => /eqP ->; exact: precone_le_refl.
+  case: (leqP n m) => Hk.
+    by apply: precone_le_trans (IHm Hk) _; exact: cch.
+  have -> : n = m.+1 by apply/eqP; rewrite eqn_leq nm Hk.
+  exact: precone_le_refl.
+(* Step 1: [a_n + b_k ≤p Ss] for all [n], [k]. *)
+have ab_le_Ss n k : a n + b k <=p Ss.
+  set m := maxn n k.
+  apply: precone_le_trans (cone_sup_at_ub sch subM Mpos m).
+  apply: (@precone_le_trans _ _ (a m + b k)).
+    by apply: precone_add_le_r; exact: chain_mono a ach n m (leq_maxl n k).
+  by apply: precone_add_le_l; exact: chain_mono b bch k m (leq_maxr n k).
+(* [(a_n + b_k)_n] increasing and bounded by [M]. *)
+have ch_ak_bk k n : a n + b k <=p a n.+1 + b k.
+  by apply: precone_add_le_r; exact: ach.
+have ub_ak_bk k n : cone_norm (a n + b k) <= M%:num.
+  by apply: le_trans (cone_normp _ _ (ab_le_Ss n k)) _;
+     exact: cone_sup_at_norm.
+(* Step 2/3: [Sa + b_k ≤p Ss] for all [k]. *)
+have Sa_bk_le_Ss k : Sa + b k <=p Ss.
+  rewrite -(@sup_at_addr _ _ M a (b k) ach aubM
+              (ch_ak_bk k) (ub_ak_bk k) Mpos).
+  by apply: cone_sup_at_lub => n; exact: ab_le_Ss.
+(* [(b_k + Sa)_k] increasing and bounded by [M]. *)
+have ch_bk_Sa k : b k + Sa <=p b k.+1 + Sa.
+  by apply: precone_add_le_r; exact: bch.
+have ub_bk_Sa k : cone_norm (b k + Sa) <= M%:num.
+  rewrite precone_addC.
+  by apply: le_trans (cone_normp _ _ (Sa_bk_le_Ss k)) _;
+     exact: cone_sup_at_norm.
+(* Step 4/5: [Sa + Sb ≤p Ss] via [sup_at_addr] on [b] with [y := Sa]. *)
+rewrite -[Sa + Sb]/(Sa + Sb) precone_addC.
+rewrite -(@sup_at_addr _ _ M b Sa bch bubM ch_bk_Sa ub_bk_Sa Mpos).
+apply: cone_sup_at_lub => k.
+by rewrite precone_addC; exact: Sa_bk_le_Ss.
+Qed.
+
 End DiagonalSup.
 
 (** *** Stability of [f + g]
@@ -529,28 +653,36 @@ by rewrite -Hv; exact: ub1.
 Qed.
 
 (** Stability is preserved by pointwise [+].  Total monotonicity is
-    [totmono_add], boundedness is [bounded_add]; ω-continuity follows
-    from [sup_ball_addD] once each summand chain is shown increasing
-    via [tm_chain]. *)
+    [totmono_add], boundedness is [bounded_add]; Scott-continuity
+    (unit-ball input, image radius [Mf]) follows from [sup_at_addD]:
+    each summand chain [f ∘ u], [g ∘ u] is increasing on [B_P] via
+    [tm_chain] (the [n = 1] sanity lemma [totmono_increasing]) and
+    bounded by [Mf] via (Normp).  We apply the [is_scott_continuous_unit]
+    field of [f] and [g] to commute each through the unit-ball
+    supremum, then [sup_at_addD] at the (possibly large) image radius
+    [Mf] recombines the two image suprema. *)
 Lemma stable_add (f g : P -> Q) :
   is_stable f -> is_stable g -> is_stable (stm_add f g).
 Proof.
 move=> [Hfm Hfb Hfc] [Hgm Hgb Hgc].
 split; first exact: totmono_add.
   exact: bounded_add.
-move=> u uch ub1 fuch fub1; rewrite /stm_add.
-(* Pointwise unit-ball bounds for each summand (by Normp). *)
-have fub n : cone_norm (f (u n)) <= 1.
-  by apply: le_trans (fub1 n); apply: cone_normp; exists (g (u n)).
-have gub n : cone_norm (g (u n)) <= 1.
-  apply: le_trans (fub1 n); apply: cone_normp.
+move=> Mf u uch ub1 fuch fubMf Mfpos; rewrite /stm_add.
+(* Pointwise image bounds for each summand (by Normp, ≤ Mf). *)
+have fubM n : cone_norm (f (u n)) <= Mf%:num.
+  by apply: le_trans (fubMf n); apply: cone_normp; exists (g (u n)).
+have gubM n : cone_norm (g (u n)) <= Mf%:num.
+  apply: le_trans (fubMf n); apply: cone_normp.
   by exists (f (u n)); rewrite precone_addC.
 (* Pointwise chains for each summand (by total monotonicity). *)
 have fch n : f (u n) <=p f (u n.+1) by exact: (tm_chain Hfm uch ub1).
 have gch n : g (u n) <=p g (u n.+1) by exact: (tm_chain Hgm uch ub1).
-(* ω-continuity of each summand, then the diagonal-sup identity. *)
-rewrite (Hfc u uch ub1 fch fub) (Hgc u uch ub1 gch gub); symmetry.
-exact: (@sup_ball_addD R Q (f \o u) (g \o u) fch fub gch gub fuch fub1).
+(* Scott-continuity of each summand, then the diagonal-sup identity. *)
+rewrite (Hfc Mf u uch ub1 fch fubM Mfpos).
+rewrite (Hgc Mf u uch ub1 gch gubM Mfpos).
+symmetry.
+exact: (@sup_at_addD R Q Mf (f \o u) (g \o u)
+          fch fubM gch gubM fuch fubMf Mfpos).
 Qed.
 
 End ClosureAddStable.
@@ -613,16 +745,46 @@ have [-> | rpos] := eqVneq r%:num 0%R; first by rewrite !mul0r.
 by rewrite ler_pM2l ?lt_def ?rpos ?rge0//; exact: HM.
 Qed.
 
-(** ω-continuity preservation under [r *: -] for a general stable [f]
-    is *omitted*: the unit-ball-restricted [is_omega_continuous] commutes
-    [f] with [cone_sup_ball] only on chains that stay in [B_Q], whereas
-    [r *: f∘u ∈ B_Q] forces only [‖f(u_n)‖ ≤ 1/r], which escapes [B_Q]
-    when [r < 1].  The linear case (homs/linhom.v,
-    [linhom_scale_fun_continuous]) sidesteps this by rescaling the
-    *domain* using [f(r·x) = r·f x] — unavailable for nonlinear [f].
-    We deliver [totmono_scale] and [bounded_scale]; closing the
-    ω-continuity component is left to [stable/stablehom.v] (where the
-    cone structure provides the needed rescaling lemmas). *)
+(** *** Stability of [r *: f] — the migration payoff
+
+    Previously the ω-continuity of [r *: f] was DEFERRED: under the
+    unit-ball-restricted [is_omega_continuous] the image chain
+    [r *: f∘u] in [B_Q] forced [‖f(uₙ)‖ ≤ 1/r], escaping [B_Q] for
+    [r < 1].  With Scott-continuity ([is_scott_continuous_unit]) the
+    image side carries a *general* radius [Mf], so the escape is
+    harmless.  We write [r *: f = (r *: ·) ∘ f] and chain:
+    [f] commutes with the unit-ball sup at image radius [Mf'] (its
+    [is_scott_continuous_unit] field, with [f ∘ u] increasing by total
+    monotonicity and bounded by the [is_stable] witness), and then the
+    *linear* [r *: ·] commutes with [cone_sup_at] at any radius
+    ([scaler_scott_continuous], [omega_general.v]). *)
+Lemma stable_scale (r : {nonneg R}) (f : P -> Q) :
+  is_stable f -> is_stable (stm_scale r f).
+Proof.
+move=> [Hfm Hfb Hfc]; split; first exact: totmono_scale.
+  exact: bounded_scale.
+have [M0 HM0] := Hfb.
+(* A strictly-positive image radius bounding [f] on [B_P]. *)
+have Mf'ge0 : (0 <= Num.max M0 1)%R by rewrite le_max ler01 orbT.
+pose Mf' : {nonneg R} := NngNum Mf'ge0.
+have Mf'pos : (0 < Mf'%:num)%R by rewrite /= lt_max ltr01 orbT.
+move=> Mf u uch ub1 fuch fubMf Mfpos; rewrite /stm_scale.
+(* [f ∘ u] is increasing on [B_P] (total monotonicity) … *)
+have fch n : f (u n) <=p f (u n.+1).
+  have [v Hv] := uch n; rewrite Hv.
+  by apply: (totmono_increasing Hfm); rewrite -Hv; exact: ub1.
+(* … and bounded by [Mf'] (the [is_stable] witness, on [B_P]). *)
+have fubM n : cone_norm (f (u n)) <= Mf'%:num.
+  by apply: le_trans (HM0 _ (ub1 n)) _; rewrite /= le_max lexx.
+(* [f] commutes with the unit-ball sup at image radius [Mf']. *)
+rewrite (Hfc Mf' u uch ub1 fch fubM Mf'pos).
+(* The linear [r *: ·] commutes with [cone_sup_at] (any radius). *)
+have rfch n : r *: (f \o u) n <=p r *: (f \o u) n.+1.
+  by apply: precone_scale_le; exact: fch.
+rewrite (scaler_scott_continuous r Mf' Mf (f \o u) fch fubM Mf'pos rfch
+           fubMf Mfpos).
+by congr cone_sup_at; exact: Prop_irrelevance.
+Qed.
 
 End ClosureScale.
 

@@ -18,29 +18,36 @@
     Coverage in this file.
     - [stablehom B C] — the carrier record bundling a function
       [B -> C] with [is_meas_stable].  Proof-irrelevant extensionality
-      [stablehom_eq].  This is the layer that compiles with no holes.
-    - Lemma 7.11 *content* at the record level: the zero map [sh_zero]
-      and the pointwise sum [sh_add] of two [stablehom]s are again
-      [stablehom]s (reusing [meas_stable_zero] / [meas_stable_add]).
+      [stablehom_eq].
+    - Lemma 7.11 — the zero map [sh_zero], the pointwise sum [sh_add]
+      and the nonneg scaling [sh_scale] of [stablehom]s are again
+      [stablehom]s (reusing [meas_stable_zero] / [meas_stable_add] /
+      [stable_scale] + [meas_stable_scale]).  [sh_scale] is now
+      available because the totmono.v migration to Scott-continuity
+      ([is_scott_continuous_unit]) proved [stable_scale] for ALL [r].
+    - The eleven precone axioms ([sh_addA]/[sh_addC]/[sh_add0],
+      [sh_scale_DAr]/[sh_scale_DAl]/[sh_scale_A]/[sh_scale_1]/
+      [sh_scale_0r]/[sh_scale_0l], [sh_cancel]/[sh_pos]) and the
+      **[isPrecone] HB instance** — [stablehom B C : preconeType R].
+    - Lemma 7.12 (the induced order): [sh_le_pointwise]
+      ([f ≤p g] pointwise in [C]).
     - The operator/sup norm [sh_norm f = sup_{x∈B_B} ‖f x‖] (well
-      defined since stable functions are bounded) with its upper-bound
-      / least-upper-bound / non-negativity lemmas — the norm of
-      Lemma 7.14, which needs no scaling.
-    - [stable_scale_cont_ge1] — the totmono.v-deferred ω-continuity of
-      nonneg scaling, *resolved for [r ≥ 1]* by the rescaling /
-      [sup_ball_scaler] argument adapted from [linhom_scale_fun_
-      continuous].
+      defined since stable functions are bounded) with [sh_norm_ub] /
+      [sh_norm_lub] / [sh_norm_ge0], and the cone-norm axioms (Normh)
+      [sh_normh], (Normt) [sh_normt], (Normp) [sh_normp] — Lemma 7.14.
 
-    What is NOT delivered (and why), see the closing [(**md ...*)]
-    status block: the [isPrecone] HB instance, hence the [isCone] /
-    [isMCone] / [isICone] layers.  The blocker is *exactly* the
-    totmono.v deferral: nonneg scaling [r *: f] for [0 < r < 1] is not
-    provably ω-continuous from [is_stable f] under the codebase's
-    unit-ball-restricted [is_omega_continuous] (which we may not
-    change), because the image chain [(f uₙ)] may have norm up to
-    [1/r > 1] and so escapes the unit ball where [f]'s ω-continuity has
-    any force.  The linear case escapes this via domain rescaling
-    ([f(s·x) = s·f x]), which is unavailable for nonlinear stable [f]. *)
+    What is NOT delivered (and why), see the closing status block:
+    the [isCone] HB instance — blocked at (Normz), and hence [isMCone]
+    / [isICone].  (Normz) ([‖f‖ = 0 ⇒ f = 0]) fails for the *total*-
+    function carrier: [‖f‖ = 0] forces [f x = 0] only on the unit ball
+    [B_B] (the domain of a stable map), but [stablehom] wraps a total
+    [B -> C] whose values *outside* [B_B] are unconstrained by
+    [is_meas_stable], so [f] need not be Leibniz-equal to [sh_zero].
+    The linear cone [C ⊸ D] dodges this via linearity (a linear map
+    null on [B_C] is null everywhere); a nonlinear stable map is not so
+    determined.  Closing (Normz) needs the carrier to identify maps
+    agreeing on [B_B] (a setoid/quotient or a canonical extension by
+    [0] off [B_B]), a carrier-level change beyond resuming the tower. *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.
@@ -126,65 +133,27 @@ End TmIncr.
 
 Arguments tm_incr_le {R P Q f} Hfm {x y}.
 
-(** ** Lemma 7.11 — ω-continuity of nonneg scaling, resolved for [r ≥ 1]
+(** ** Lemma 7.11 — nonneg scaling is now stable (full, all [r])
 
-    [totmono.v] delivered [totmono_scale] and [bounded_scale] but
-    deferred ω-continuity of [r *: f] for a *stable* (nonlinear) [f].
-    We resolve it here for scalars [r ≥ 1].
-
-    Argument (the totmono.v hint, made precise).  Let [u] be an
-    increasing unit-ball chain whose scaled image [(r *: f uₙ)] is also
-    in the unit ball — i.e. [‖r *: f uₙ‖ ≤ 1].  Since [r ≥ 1] and the
-    cone norm is non-negative, [‖f uₙ‖ ≤ r·‖f uₙ‖ = ‖r *: f uₙ‖ ≤ 1]
-    ([ler_peMl]); so the *unscaled* image chain [(f uₙ)] already lives
-    in the unit ball.  Now [f]'s ω-continuity applies on [u] directly,
-    giving [f (sup u) = sup_ball (f ∘ u)], and [sup_ball_scaler] pulls
-    the scalar [r] out: [r *: sup_ball (f ∘ u) = sup_ball (r *: f ∘ u)],
-    which is the [stm_scale]-chain sup, as required.
-
-    For [0 < r < 1] the unit-ball encoding of [is_omega_continuous]
-    is genuinely too weak (see the closing status block); the linear
-    development sidesteps this by rescaling the *domain*
-    ([f (s·x) = s·f x]), unavailable for nonlinear stable [f]. *)
-
-Section ScaleContinuous.
-Variable R : realType.
-Variables P Q : coneType R.
-Local Open Scope precone_scope.
-
-Lemma stable_scale_cont_ge1 (r : {nonneg R}) (f : P -> Q) :
-  is_stable f -> 1 <= r%:num -> is_omega_continuous (stm_scale r f).
-Proof.
-move=> [Hfm _ Hfc] rge1 u uch ub1 fuch fub1.
-rewrite /stm_scale.
-set Su := cone_sup_ball u uch ub1.
-have fch : forall n, f (u n) <=p f (u n.+1).
-  by move=> n; apply: (tm_incr_le Hfm (uch n)); exact: ub1.
-have fub : forall n, cone_norm (f (u n)) <= 1.
-  move=> n; have := fub1 n; rewrite /stm_scale cone_normh /= => H.
-  by apply: le_trans H; apply: ler_peMl rge1; exact: cone_norm_ge0.
-have fSu : f Su = cone_sup_ball (f \o u) fch fub by rewrite /Su; exact: Hfc.
-have rfch : forall n, (r *: (f \o u) n) <=p (r *: (f \o u) n.+1).
-  by move=> n /=; exact: precone_scale_le (fch n).
-have rfub : forall n, cone_norm (r *: (f \o u) n) <= 1.
-  by move=> n /=; have := fub1 n; rewrite /stm_scale.
-rewrite fSu -(@sup_ball_scaler R Q r (f \o u) fch fub rfch rfub).
-apply: precone_le_anti; apply: cone_sup_ball_lub => n /=; rewrite /stm_scale.
-- exact: (cone_sup_ball_ub ((fun x => r *: f x) \o u) fuch fub1 n).
-- exact: (cone_sup_ball_ub (fun n0 : nat => (r *: f (u n0))) rfch rfub n).
-Qed.
-
-End ScaleContinuous.
-
-Arguments stable_scale_cont_ge1 {R P Q} r f.
+    [totmono.v] previously DEFERRED ω-continuity of [r *: f] for a
+    *stable* (nonlinear) [f] (and [stablehom.v] only patched the
+    [r ≥ 1] sub-case via domain-free rescaling).  With the migration to
+    Scott-continuity ([is_scott_continuous_unit], general image radius)
+    this is fully resolved in [totmono.v] by [stable_scale], for ALL
+    [r : {nonneg R}].  The [r < 1] obstruction is gone: the image chain
+    [r *: f∘u] is allowed to carry any radius [Mf], so no rescaling of
+    the domain is needed.  We therefore reuse [stable_scale] /
+    [meas_stable_scale] directly below; the old [stable_scale_cont_ge1]
+    workaround is retired. *)
 
 (** ** Lemma 7.11 — the pointwise operations as [stablehom] records
 
-    The zero map and the pointwise sum of two stable measurable maps
-    are again stable measurable maps.  These are the parts of the
-    precone (Lemma 7.11) that need no scaling, so they compile with no
-    holes; the nonneg-scaling operation — and hence the [isPrecone] HB
-    instance — is blocked (see closing status block). *)
+    The zero map, the pointwise sum and the nonneg scaling of stable
+    measurable maps are again stable measurable maps (Lemma 7.11).  With
+    [stable_scale] now proved in [totmono.v] (the migration payoff),
+    scaling is no longer blocked, so all three operations and the eleven
+    precone laws are available — we register the [isPrecone] HB instance
+    below. *)
 
 Section StablehomOps.
 Variable R : realType.
@@ -201,12 +170,28 @@ Definition sh_add (f g : stablehom B C) : stablehom B C :=
   MkStablehom (stm_add (sh_fun f) (sh_fun g))
               (meas_stable_add (sh_meas_stable f) (sh_meas_stable g)).
 
+(** Measurable stability of [r *: f] from [is_meas_stable f]. *)
+Lemma sh_scale_meas_stable (r : {nonneg R}) (f : stablehom B C) :
+  is_meas_stable (stm_scale r (sh_fun f)).
+Proof.
+have [Hs Hp] := sh_meas_stable f; split; first exact: stable_scale.
+exact: meas_stable_scale Hp.
+Qed.
+
+(** Paper §7.2: nonneg scaling of a stable measurable map. *)
+Definition sh_scale (r : {nonneg R}) (f : stablehom B C) : stablehom B C :=
+  MkStablehom (stm_scale r (sh_fun f)) (sh_scale_meas_stable r f).
+
 (** Pointwise computation rules. *)
 Lemma sh_zeroE (x : B) : sh_fun sh_zero x = precone_zero.
 Proof. by []. Qed.
 
 Lemma sh_addE (f g : stablehom B C) (x : B) :
   sh_fun (sh_add f g) x = (sh_fun f x + sh_fun g x)%PC.
+Proof. by []. Qed.
+
+Lemma sh_scaleE (r : {nonneg R}) (f : stablehom B C) (x : B) :
+  sh_fun (sh_scale r f) x = (r *: sh_fun f x)%PC.
 Proof. by []. Qed.
 
 (** The pointwise sum is associative / commutative / unital, witnessing
@@ -220,10 +205,82 @@ Proof. by move=> f g; apply: stablehom_eq => x /=; exact: precone_addC. Qed.
 Lemma sh_add0 : left_id sh_zero sh_add.
 Proof. by move=> f; apply: stablehom_eq => x /=; exact: precone_add0. Qed.
 
+(** Semimodule scaling laws — the eight scaling axioms of [isPrecone]. *)
+Lemma sh_scale_DAr (r : {nonneg R}) (f g : stablehom B C) :
+  sh_scale r (sh_add f g) = sh_add (sh_scale r f) (sh_scale r g).
+Proof.
+by apply: stablehom_eq => x /=; exact: precone_scale_DAr.
+Qed.
+
+Lemma sh_scale_DAl (r s : {nonneg R}) (f : stablehom B C) :
+  sh_scale (r%:num + s%:num)%R%:nng f = sh_add (sh_scale r f) (sh_scale s f).
+Proof.
+by apply: stablehom_eq => x /=; exact: precone_scale_DAl.
+Qed.
+
+Lemma sh_scale_A (r s : {nonneg R}) (f : stablehom B C) :
+  sh_scale (r%:num * s%:num)%R%:nng f = sh_scale r (sh_scale s f).
+Proof.
+by apply: stablehom_eq => x /=; exact: precone_scale_A.
+Qed.
+
+Lemma sh_scale_1 (f : stablehom B C) : sh_scale 1%:nng f = f.
+Proof. by apply: stablehom_eq => x /=; exact: precone_scale_1. Qed.
+
+Lemma sh_scale_0r (r : {nonneg R}) : sh_scale r sh_zero = sh_zero.
+Proof. by apply: stablehom_eq => x /=; exact: precone_scale_0r. Qed.
+
+Lemma sh_scale_0l (f : stablehom B C) :
+  sh_scale (0%R%:nng : {nonneg R}) f = sh_zero.
+Proof. by apply: stablehom_eq => x /=; exact: precone_scale_0l. Qed.
+
+(** (Cancel) and (Pos) — pointwise from [C]. *)
+Lemma sh_cancel (f g h : stablehom B C) :
+  sh_add f g = sh_add f h -> g = h.
+Proof.
+move=> H; apply: stablehom_eq => x.
+have /(congr1 (fun k => sh_fun k x)) := H.
+exact: precone_cancel.
+Qed.
+
+Lemma sh_pos (f g : stablehom B C) :
+  sh_add f g = sh_zero -> f = sh_zero /\ g = sh_zero.
+Proof.
+move=> H; split; apply: stablehom_eq => x;
+  have /(congr1 (fun k => sh_fun k x)) /= := H.
+- by move/precone_pos => -[].
+- by move/precone_pos => -[].
+Qed.
+
 End StablehomOps.
 
 Arguments sh_zero {R Ar} B C.
 Arguments sh_add {R Ar B C}.
+Arguments sh_scale {R Ar B C}.
+
+(** ** Precone HB instance — Paper §7.2, Lemma 7.11
+
+    The eleven precone axioms reduce pointwise to those of the codomain
+    cone [C], exactly as for [linhom]'s [isPrecone]. *)
+
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (B C : MCone.type Ar) :=
+  @isPrecone.Build R (stablehom B C)
+    (sh_zero B C) (@sh_add R Ar B C) (@sh_scale R Ar B C)
+    (@sh_addA R Ar B C) (@sh_addC R Ar B C) (@sh_add0 R Ar B C)
+    (@sh_scale_DAr R Ar B C) (@sh_scale_DAl R Ar B C)
+    (@sh_scale_A R Ar B C) (@sh_scale_1 R Ar B C)
+    (@sh_scale_0r R Ar B C) (@sh_scale_0l R Ar B C)
+    (@sh_cancel R Ar B C) (@sh_pos R Ar B C).
+
+(** Sanity check: [stablehom B C] is a [preconeType R]. *)
+Section StablehomPreconeCheck.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+
+Check (stablehom B C : preconeType R).
+
+End StablehomPreconeCheck.
 
 (** ** The operator / sup norm — Lemma 7.14
 
@@ -298,56 +355,128 @@ Arguments sh_norm_ub {R Ar B C}.
 Arguments sh_norm_lub {R Ar B C}.
 Arguments sh_norm_ge0 {R Ar B C}.
 
+(** ** Lemma 7.12 — the induced order [f ≤ g]
+
+    With the [isPrecone] instance registered, the cone order [≤p] on
+    [stablehom B C] is [∃ δ, g = f + δ].  Pointwise, this gives
+    [sh_fun f x ≤p sh_fun g x] in [C], the engine for (Normp) and the
+    sup-ball construction (Normc). *)
+
+Section StablehomLePointwise.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+
+Lemma sh_le_pointwise (f g : stablehom B C) :
+  precone_le f g ->
+  forall x : B, precone_le (sh_fun f x) (sh_fun g x).
+Proof.
+move=> [δ Hδ] x; exists (sh_fun δ x).
+by have /(congr1 (fun h => sh_fun h x)) /= := Hδ.
+Qed.
+
+End StablehomLePointwise.
+
+Arguments sh_le_pointwise {R Ar B C}.
+
+(** ** Cone axioms on [stablehom] — Paper §7.2 / Lemma 7.14
+
+    (Normh)/(Normt)/(Normp) are sup manipulations on the image norm-set,
+    identical to [linhom]'s; they need no linearity, only [cone_normh] /
+    [cone_normt] / [cone_normp] of [C] applied pointwise. *)
+
+Section StablehomConeAxioms.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+Implicit Types f g : stablehom B C.
+
+(** (Normh) — scalar homogeneity of the operator norm. *)
+Lemma sh_normh (r : {nonneg R}) f :
+  sh_norm (sh_scale r f) = r%:num * sh_norm f.
+Proof.
+have rge0 : 0 <= r%:num by exact: nngnum_ge0.
+have [rzero | rpos] := lerP r%:num 0.
+  have req0 : r%:num = 0 by apply: le_anti; rewrite rzero rge0.
+  rewrite req0 mul0r.
+  apply: le_anti; apply/andP; split; last exact: sh_norm_ge0.
+  apply: sh_norm_lub => x Hx /=.
+  by rewrite /stm_scale cone_normh req0 mul0r.
+apply: le_anti; apply/andP; split.
+- apply: sh_norm_lub => x Hx /=.
+  rewrite /stm_scale cone_normh.
+  by rewrite ler_pM2l //; exact: sh_norm_ub.
+- rewrite -ler_pdivlMl //.
+  apply: sh_norm_lub => x Hx /=.
+  rewrite ler_pdivlMl //.
+  have Hin : sh_normset (sh_scale r f) (r%:num * cone_norm (sh_fun f x)).
+    by exists x; split=> //=; rewrite /stm_scale cone_normh.
+  by move/ubP : (sup_upper_bound (sh_normset_has_sup (sh_scale r f)))
+    => /(_ _ Hin).
+Qed.
+
+(** (Normt) — triangle inequality of the operator norm. *)
+Lemma sh_normt f g :
+  sh_norm (sh_add f g) <= sh_norm f + sh_norm g.
+Proof.
+apply: sh_norm_lub => x Hx /=.
+apply: le_trans (cone_normt _ _) _.
+by rewrite lerD //; exact: sh_norm_ub.
+Qed.
+
+(** (Normp) — order monotonicity of the operator norm. *)
+Lemma sh_normp f g :
+  precone_le f g -> sh_norm f <= sh_norm g.
+Proof.
+move=> Hle; apply: sh_norm_lub => x Hx.
+have Hpt := sh_le_pointwise f g Hle x.
+apply: le_trans (sh_norm_ub g x Hx).
+exact: cone_normp Hpt.
+Qed.
+
+End StablehomConeAxioms.
+
 (**md**************************************************************)
 (** ** Status — what is delivered and what is deferred (and why)
 
     Delivered (no holes, no axioms):
     - [stablehom B C] carrier (Def 7.10) + proof-irrelevant
-      extensionality [stablehom_eq].  This is the highest HB-tower
-      layer reached: the carrier is a plain [Record], *not* yet a
-      [preconeType] (see below).
+      extensionality [stablehom_eq].
     - [tm_incr_le] — total monotonicity ⇒ increasing along [≤p] with
       the larger point in the unit ball.
-    - [stable_scale_cont_ge1] — the totmono.v-deferred ω-continuity of
-      nonneg scaling, resolved for scalars [r ≥ 1].
-    - Lemma 7.11 records [sh_zero] / [sh_add] (the no-scaling part of
-      the precone), with [sh_addA] / [sh_addC] / [sh_add0].
+    - Lemma 7.11 operations [sh_zero] / [sh_add] / [sh_scale] and the
+      eleven precone axioms, registered as the **[isPrecone] HB
+      instance**: [stablehom B C : preconeType R].  [sh_scale] is the
+      migration payoff — [stable_scale] (totmono.v) now holds for ALL
+      [r : {nonneg R}] under Scott-continuity, so nonneg scaling is no
+      longer blocked.
+    - Lemma 7.12 (induced order) [sh_le_pointwise].
     - Lemma 7.14 operator norm [sh_norm] with [sh_norm_ub] /
-      [sh_norm_lub] / [sh_norm_ge0].
+      [sh_norm_lub] / [sh_norm_ge0], and the cone-norm axioms (Normh)
+      [sh_normh], (Normt) [sh_normt], (Normp) [sh_normp].
 
-    Deferred — the [isPrecone] HB instance (Lemma 7.11) and therefore
-    everything above it ([isCone] Lem 7.12/7.14, [isMCone], [isICone]).
+    Deferred — the [isCone] HB instance (and hence [isMCone] /
+    [isICone]).  The blocker is (Normz), NOT scaling (the scaling
+    blocker is now resolved by [stable_scale]).
 
-    Why the precone is blocked.  A [preconeType] needs a *total*
-    nonneg scaling [precone_scale : {nonneg R} -> P -> P], which here
-    must be the pointwise [r *: f].  Packaging [r *: f] as a
-    [stablehom] requires [is_meas_stable (stm_scale r f)], whose
-    ω-continuity component fails for [0 < r < 1] under this codebase's
-    encoding of ω-continuity:
+    Why (Normz) is blocked.  (Normz) is [‖f‖ = 0 ⇒ f = 0].  Here
+    [‖f‖ = sup_{x ∈ B_B} ‖f x‖], so [‖f‖ = 0] gives [f x = 0] only for
+    [‖x‖ ≤ 1] — the domain [B_B] on which a stable map is constrained.
+    But [stablehom] wraps a *total* function [B -> C], and
+    [is_meas_stable f] places NO constraint on [f x] for [‖x‖ > 1]
+    (total monotonicity ranges over [B_B], boundedness/Scott-continuity
+    are unit-ball, path preservation uses unit-ball paths).  So a
+    function null on [B_B] but arbitrary off it is a valid [stablehom]
+    with [‖f‖ = 0] yet [f ≠ sh_zero] (which demands [f x = 0]
+    everywhere via the Leibniz [stablehom_eq]).  Hence (Normz) fails.
 
-      [is_omega_continuous f] (cones/basic_lemmas.v) only constrains
-      [f] on increasing chains [u] whose *image* chain [(f uₙ)] also
-      lies in the unit ball.  When proving [r *: f] ω-continuous we are
-      given [‖r *: f uₙ‖ ≤ 1], i.e. [‖f uₙ‖ ≤ 1/r], which for [r < 1]
-      is [> 1]: the chain [(f uₙ)] may leave the unit ball, where
-      [is_omega_continuous f] says nothing, so [f (sup u)] is
-      unconstrained and [r *: f (sup u) = sup (r *: f uₙ)] need not
-      hold.  (One can exhibit a stable [f] with bound [M > 1] whose
-      values on norm-[(1, M]] chains are arbitrary increasing/bounded,
-      defeating the identity.)
+    The linear cone [C ⊸ D] ([homs/linhom.v]) proves (Normz) via
+    linearity: a linear map null on [B_C] is null everywhere (rescale
+    any [y] into [B_C] and back).  A *nonlinear* stable map is not
+    determined off [B_B] by its [B_B] values, so this route is gone.
 
-    The paper's Lemma 7.11 is "straightforward" because Ehrhard–
-    Geoffroy use the *unrestricted* Scott ω-continuity of Definition
-    2.2 (sup of any bounded increasing sequence), not the unit-ball
-    form used throughout this Rocq development.  The linear cone
-    [C ⊸ D] ([homs/linhom.v]) dodges the same issue by rescaling the
-    *domain* — [f (s·x) = s·f x] brings the image chain back into the
-    unit ball — which is unavailable for nonlinear stable [f].
-
-    Closing the precone (and the cone/mcone/icone tower) therefore
-    needs one of: (i) strengthening [is_omega_continuous] / (Normc) to
-    a radius-[ρ] ball form in [cones/{basic_lemmas,cone}.v]; or
-    (ii) adding a "rescaled completeness" lemma [sup_ball_at] giving
-    sups of chains bounded by [ρ ≥ 1].  Both are outside the
-    single-file scope of this task (which forbids touching
-    [basic_lemmas.v] / [cone.v] / [totmono.v]). *)
+    Closing (Normz) — and thus [isCone]/[isMCone]/[isICone] — needs a
+    carrier-level change: identify [stablehom]s that agree on [B_B]
+    (a setoid/quotient, or wrap functions canonically extended by [0]
+    off [B_B] so that [B_B]-agreement gives Leibniz equality).  That is
+    a carrier redesign beyond resuming the HB tower on the existing
+    [stablehom] record, so we stop cleanly at the [isPrecone] layer
+    (plus the no-scaling-blocked norm facts of Lemma 7.14). *)
