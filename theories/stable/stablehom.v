@@ -43,8 +43,10 @@
     pointwise supremum [sh_sup] together with the difference-is-stable
     construction (Lemma 7.12 backward, [sh_diff]) supplying the precone-
     order witnesses [sh_sup ⊖ uₙ] / [y ⊖ sh_sup] required by the
-    [cone_sup_ball] mixin.  Only the measurability structure [isMCone]
-    and the integrability [isICone] (txt 3365–3372) remain. *)
+    [cone_sup_ball] mixin.  The measurability structure [isMCone] (the
+    [γ ▷ m] test family, txt 3365) is also REGISTERED — [stablehom B C :
+    mconeType Ar].  Only the integrability [isICone] (txt 3372) remains
+    (see the closing status block for why it is deferred). *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.
@@ -52,6 +54,7 @@ From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import topology normedtype sequences.
 
 Require Import Icones.prelude.classical_extra.
@@ -64,6 +67,10 @@ Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.path.
 Require Import Icones.stable.totmono.
+Require Import Icones.icones.pettis.
+Require Import Icones.icones.icone.
+Require Import Icones.icones.icone_integral.
+Require Import Icones.mcones.test_pullback.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -1704,6 +1711,339 @@ Check (stablehom B C : coneType R).
 
 End StablehomConeCheck.
 
+(** ** The [γ ▷ m] test family on [stablehom] — Paper §7.2 (txt 3365)
+
+    Mirroring [linhom]'s [linhom_test], a test on [B ⇒ₛ C] is built from
+    a unit-ball path [γ ∈ Path(Y, B)] and a [C]-test [m ∈ M^C_Y] by
+
+      [(γ ▷ m)(s, f) := m s (sh_fun f (γ s))].
+
+    The cone operations on [stablehom] are *pointwise* and [m] is linear
+    in its second argument, so [(γ ▷ m)] is LINEAR in [f] — even though
+    [f] itself is a *nonlinear* stable map.  The eight test fields reduce
+    to those of [m]; only test-measurability ((Msmeas)) and ω-continuity
+    use the [stablehom]-specific machinery: path-preservation of
+    [is_meas_stable f] (so [f ∘ γ] is a measurable path of [C]) together
+    with [measurable_test_path_section], and [sh_sup_fun_unitE] +
+    [test_of_sup]. *)
+
+Section StablehomTest.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+Variables (Y : ar_obj Ar) (γ : path_car Ar Y B).
+Hypothesis γub : cone_norm γ <= 1.
+Variable m : test_of Ar Y C.
+Hypothesis mM : mcone_M Y m.
+Local Open Scope classical_set_scope.
+Local Open Scope ring_scope.
+
+(** Pointwise unit-ball membership of [γ], from [γub] via
+    [path_norm_ub]. *)
+Lemma sh_test_γ_unit (s : ar_carrier Ar Y) : cone_norm (path_fun γ s) <= 1.
+Proof. by apply: le_trans (path_norm_ub _ _) _; exact: γub. Qed.
+
+(** Paper §7.2: the test body [(γ ▷ m)(s, f) := m s (f (γ s))]. *)
+Definition sh_test_fun (s : ar_carrier Ar Y) (f : stablehom B C) : R :=
+  test_fun m s (sh_fun f (path_fun γ s)).
+
+(** (Msmeas) — for a unit-ball [f], the section [r ↦ m r (f (γ r))] is
+    measurable.  [f ∘ γ] is a measurable path of [C] by the
+    path-preservation field of [is_meas_stable f] (the path [γ] stays in
+    the unit ball pointwise, [sh_test_γ_unit]); the section
+    measurability is [measurable_test_path_section]. *)
+Lemma sh_test_meas (f : stablehom B C) :
+  cone_norm f <= 1 ->
+  measurable_fun [set: ar_carrier Ar Y] (fun s => sh_test_fun s f).
+Proof.
+move=> _.
+have [_ Hpres] := sh_meas_stable f.
+have Hfγ : is_measurable_path (fun r => sh_fun f (path_fun γ r)).
+  apply: Hpres; first by move=> r; exact: sh_test_γ_unit.
+  exact: path_is_path γ.
+rewrite /sh_test_fun.
+have [_ Hg] := Hfγ.
+have Hbase : measurable_fun
+  [set: (ar_carrier Ar Y * ar_carrier Ar Y)%type]
+  (fun p => test_fun m p.1 (sh_fun f (path_fun γ p.2))).
+  exact: (Hg Y m mM).
+have Hpair : measurable_fun [set: ar_carrier Ar Y]
+  (fun s => (s, s) : ar_carrier Ar Y * ar_carrier Ar Y).
+  by apply: measurable_fun_pair; exact: measurable_id.
+pose F (p : ar_carrier Ar Y * ar_carrier Ar Y) : R :=
+  test_fun m p.1 (sh_fun f (path_fun γ p.2)).
+have -> : (fun s => test_fun m s (sh_fun f (path_fun γ s))) =
+          F \o (fun s => (s, s)).
+  by apply: funext.
+exact: measurableT_comp.
+Qed.
+
+Lemma sh_test_ge0 (s : ar_carrier Ar Y) (f : stablehom B C) :
+  0 <= sh_test_fun s f.
+Proof. exact: test_ge0. Qed.
+
+(** (Msmeas) — [(γ ▷ m)(s, f) ≤ 1] when [‖f‖ ≤ 1]: [‖f (γ s)‖ ≤ ‖f‖ ≤ 1]
+    by [sh_norm_ub] (using [‖γ s‖ ≤ 1]). *)
+Lemma sh_test_le1 (s : ar_carrier Ar Y) (f : stablehom B C) :
+  cone_norm f <= 1 -> sh_test_fun s f <= 1.
+Proof.
+move=> Hf; apply: test_le1.
+apply: le_trans (sh_norm_ub f (path_fun γ s) (sh_test_γ_unit s)) _.
+exact: Hf.
+Qed.
+
+(** Linearity in [f] — the cone operations on [stablehom] are pointwise
+    and [m] is linear in its second argument. *)
+Lemma sh_test_lin0 (s : ar_carrier Ar Y) :
+  sh_test_fun s (sh_zero B C) = 0.
+Proof. by rewrite /sh_test_fun /= test_lin0. Qed.
+
+Lemma sh_test_linD (s : ar_carrier Ar Y) (f1 f2 : stablehom B C) :
+  sh_test_fun s (sh_add f1 f2) = sh_test_fun s f1 + sh_test_fun s f2.
+Proof. by rewrite /sh_test_fun /= test_linD. Qed.
+
+Lemma sh_test_linZ
+    (s : ar_carrier Ar Y) (r : {nonneg R}) (f : stablehom B C) :
+  sh_test_fun s (sh_scale r f) = r%:num * sh_test_fun s f.
+Proof. by rewrite /sh_test_fun /= test_linZ. Qed.
+
+(** ω-continuity in [f]: the value at the cone-supremum of a unit-ball
+    chain is the supremum of the test-values.  On [B_B], [sh_sup]
+    computes pointwise ([sh_sup_fun_unitE]); then [test_of_sup] of [m]
+    gives the supremum identity. *)
+Lemma sh_test_cont
+    (s : ar_carrier Ar Y)
+    (u : nat -> stablehom B C)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (N : R) :
+  (forall n, sh_test_fun s (u n) <= N) ->
+  sh_test_fun s (cone_sup_ball u uch ub1) <= N.
+Proof.
+move=> HN.
+have Hγ : cone_norm (path_fun γ s) <= 1 by exact: sh_test_γ_unit.
+have ch : forall n, sh_fun (u n) (path_fun γ s) <=p
+                    sh_fun (u n.+1) (path_fun γ s).
+  by move=> n; exact: sh_le_pointwise (uch n) (path_fun γ s).
+have b1 : forall n, cnorm (sh_fun (u n) (path_fun γ s)) <= 1.
+  move=> n.
+  apply: le_trans (sh_norm_ub (u n) (path_fun γ s) Hγ) _; exact: ub1.
+rewrite /sh_test_fun /=.
+rewrite (sh_sup_fun_unitE uch ub1 Hγ ch b1).
+rewrite (test_of_sup m s ch b1).
+apply: ge_sup.
+  by exists (test_fun m s (sh_fun (u 0%N) (path_fun γ s))), 0%N.
+by move=> _ [n _ <-]; exact: HN.
+Qed.
+
+(** Pointwise upper bound [(γ ▷ m)(s, f) ≤ ‖f‖]. *)
+Lemma sh_test_norm_le (s : ar_carrier Ar Y) (f : stablehom B C) :
+  sh_test_fun s f <= cone_norm f.
+Proof.
+apply: le_trans (test_norm_le _ _ _) _.
+have [Hx | Hx] := boolP (cone_norm (path_fun γ s) <= 1); last first.
+  rewrite (sh_offball f _ Hx) cone_norm0; exact: sh_norm_ge0.
+exact: sh_norm_ub f (path_fun γ s) Hx.
+Qed.
+
+(** The packaged test, abbreviated [γ ▷ m]. *)
+Definition sh_test : test_of Ar Y (stablehom B C) :=
+  MkTestOf sh_test_meas sh_test_ge0 sh_test_le1
+           sh_test_lin0 sh_test_linD sh_test_linZ
+           sh_test_cont sh_test_norm_le.
+
+End StablehomTest.
+
+Arguments sh_test {R Ar B C Y}.
+
+(** ** The measurability structure on [stablehom] — Paper §7.2
+
+    [M^{B⇒ₛC}_Y := { γ ▷ m | γ ∈ Path(Y, B), ‖γ‖ ≤ 1, m ∈ M^C_Y }]. *)
+
+Section StablehomMCone.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+Local Open Scope classical_set_scope.
+Local Open Scope ring_scope.
+
+Definition sh_mcone_M (Y : ar_obj Ar) :
+    set (test_of Ar Y (stablehom B C)) :=
+  [set p | exists (γ : path_car Ar Y B) (γub : cone_norm γ <= 1)
+                  (m : test_of Ar Y C) (mM : mcone_M Y m),
+    p = sh_test γ γub m mM].
+
+(** (Mscomp) — reindexing by [ψ : ar_hom Y' Y]: the reindexed test is
+    [(γ ∘ ψ) ▷ (m ∘ (ψ × C))]. *)
+Lemma sh_mcone_M_comp
+  (Y' Y : ar_obj Ar) (ψ : ar_hom Ar Y' Y)
+  (p : test_of Ar Y (stablehom B C)) :
+  sh_mcone_M p ->
+  sh_mcone_M (test_reindex ψ p).
+Proof.
+case=> γ [γub [m [mM ->]]].
+have Hγψ : is_measurable_path (path_fun γ \o ψ).
+  exact: reindex_path_measurable ψ (path_is_path γ).
+pose γ' : path_car Ar Y' B := MkPath Hγψ.
+have γ'ub : cone_norm γ' <= 1.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [r ->].
+  apply: le_trans (path_norm_ub γ (ψ r)) _; exact: γub.
+have mM' : mcone_M Y' (test_reindex ψ m) by exact: mcone_M_comp.
+exists γ', γ'ub, (test_reindex ψ m), mM'.
+apply: test_eq => s f /=.
+by rewrite /sh_test_fun /test_reindex_fun /=.
+Qed.
+
+(** Helper: constant path [γ_x : ar_carrier Z -> B] at arbitrary arity,
+    measurable, with [‖γ_x‖ = ‖x‖]. *)
+Section ConstPathAtArity.
+Variables (Z : ar_obj Ar) (x : B).
+
+Let const_x_fun : ar_carrier Ar Z -> B := fun _ => x.
+
+Lemma sh_const_x_is_path :
+  is_measurable_path (Ar:=Ar) (C:=B) (X:=Z) const_x_fun.
+Proof. exact: const_path_measurable. Qed.
+
+Definition sh_const_x_path_arity : path_car Ar Z B :=
+  MkPath sh_const_x_is_path.
+
+Lemma sh_const_x_path_arity_normE :
+  path_norm sh_const_x_path_arity = cone_norm x.
+Proof.
+apply: le_anti; apply/andP; split.
+- apply: ge_sup; first exact: path_normset_nonempty.
+  by move=> _ [r ->] /=; exact: lexx.
+- have Hin : path_normset sh_const_x_path_arity (cone_norm x).
+    by exists (ar_point Ar Z).
+  by move/ubP : (sup_upper_bound (path_normset_has_sup sh_const_x_path_arity));
+    apply.
+Qed.
+
+End ConstPathAtArity.
+
+(** Specialization at [Z = ar_zero], used in (Mssep)/(Msnorm). *)
+Definition sh_const_x_path (x : B) : path_car Ar (ar_zero Ar) B :=
+  sh_const_x_path_arity (ar_zero Ar) x.
+
+Lemma sh_const_x_path_normE (x : B) :
+  path_norm (sh_const_x_path x) = cone_norm x.
+Proof. exact: sh_const_x_path_arity_normE. Qed.
+
+(** (Mssep) — arity-0 tests separate stable maps.  As in [linhom], we
+    rescale [x ∈ B] to the unit ball, evaluate the constant-path test,
+    and use linearity of [m] (not of [f]) to scale back. *)
+Lemma sh_mcone_M_sep (f1 f2 : stablehom B C) :
+  (forall p : test_of Ar (ar_zero Ar) (stablehom B C),
+    sh_mcone_M (Y:=ar_zero Ar) p ->
+    test_fun p (ar_zero_pt Ar) f1 = test_fun p (ar_zero_pt Ar) f2) ->
+  f1 = f2.
+Proof.
+move=> Hsep; apply: stablehom_eq => x.
+(* On-ball [x] only matters: off-ball both maps are 0. *)
+have [Hx1 | Hx1] := boolP (cone_norm x <= 1); last first.
+  by rewrite (sh_offball f1 _ Hx1) (sh_offball f2 _ Hx1).
+apply: mcone_M_sep => m mM.
+have Hγx_unit : cone_norm (sh_const_x_path x) <= 1.
+  by rewrite /cone_norm /= sh_const_x_path_normE.
+have HinM : sh_mcone_M (Y:=ar_zero Ar)
+  (sh_test (sh_const_x_path x) Hγx_unit m mM).
+  by exists (sh_const_x_path x), Hγx_unit, m, mM.
+have Heq := Hsep _ HinM.
+by rewrite /sh_test /sh_test_fun /= in Heq.
+Qed.
+
+(** (Msnorm) — given [f ≠ 0] and [ε > 0], a witness test [p = γ_x ▷ m]
+    at arity 0 with [‖f‖ ≤ p(f) + ε].  We pick an adherent [x ∈ B_B] with
+    [‖f‖ ≤ ‖f x‖ + ε/2], then apply (Msnorm) of [C] to [f x] (when
+    [f x ≠ 0]) or note [‖f‖ ≤ ε/2] (when [f x = 0]).  Unlike [linhom] no
+    rescaling-by-linearity of [f] is needed: [x] is already on [B_B]. *)
+Lemma sh_mcone_M_norm (f : stablehom B C) (eps : R) :
+  f <> sh_zero B C -> 0 < eps ->
+  exists p : test_of Ar (ar_zero Ar) (stablehom B C),
+    sh_mcone_M (Y:=ar_zero Ar) p /\
+    cone_norm f <= test_fun p (ar_zero_pt Ar) f + eps.
+Proof.
+move=> fne eps_pos.
+have eps2_pos : 0 < eps / 2 by rewrite divr_gt0.
+have norm_pos : 0 < cone_norm f.
+  rewrite lt_def cone_norm_ge0 andbT.
+  by apply/eqP => Hn0; apply: fne; exact: sh_normz Hn0.
+have has_sup_f : has_sup (sh_normset f).
+  exact: sh_normset_has_sup.
+have [v Hv1 Hv2] := sup_adherent eps2_pos has_sup_f.
+case: Hv1 => x0 [Hx0_le1 Hx0_eq].
+have HnormR : cone_norm f <= cone_norm (sh_fun f x0) + eps / 2.
+  rewrite -lerBlDr ltW //.
+  by rewrite -/(sh_norm f) -Hx0_eq.
+have Hγx0_unit : cone_norm (sh_const_x_path x0) <= 1.
+  by rewrite /cone_norm /= sh_const_x_path_normE.
+have [eqz | nez] : sh_fun f x0 = precone_zero \/
+                   sh_fun f x0 <> precone_zero.
+  by case: (pselect (sh_fun f x0 = precone_zero)); tauto.
+- (* [f x0 = 0]: then ‖f‖ ≤ ε/2 ≤ ε; any family test witnesses. *)
+  have norm_le_e2 : cone_norm f <= eps / 2.
+    apply: le_trans HnormR _.
+    by rewrite eqz cone_norm0 add0r.
+  (* (Msnorm) of [C] needs a nonzero point; if all [f x] are 0 then
+     [f = sh_zero], contradicting [fne].  But for the witness we only
+     need *some* arity-0 family test; take [γ_{x0} ▷ m0] for any
+     [m0 ∈ M^C_0].  Since [‖f‖ ≤ ε/2 ≤ ε ≤ p(f) + ε], it works. *)
+  have [x1 nz1] : exists x1, sh_fun f x1 <> precone_zero.
+    apply: contrapT => Hne; apply: fne.
+    apply: stablehom_eq => x.
+    apply: contrapT => Hr.
+    by apply: Hne; exists x.
+  have [m0 [mM0 _]] :=
+    @mcone_M_norm R Ar C (sh_fun f x1) eps nz1 eps_pos.
+  exists (sh_test (sh_const_x_path x0) Hγx0_unit m0 mM0); split.
+    by exists (sh_const_x_path x0), Hγx0_unit, m0, mM0.
+  rewrite /sh_test /= /sh_test_fun /=.
+  apply: le_trans norm_le_e2 _.
+  have e2_le_e : eps / 2 <= eps.
+    by rewrite ler_pdivrMr // ler_peMr // ?ler1n // ltW.
+  apply: le_trans e2_le_e _.
+  rewrite -[X in X <= _]add0r lerD //.
+  exact: test_ge0.
+- (* [f x0 ≠ 0]: (Msnorm) of [C] at [f x0] with [ε/2]. *)
+  have [m [mM Hm]] :=
+    @mcone_M_norm R Ar C (sh_fun f x0) (eps / 2) nez eps2_pos.
+  exists (sh_test (sh_const_x_path x0) Hγx0_unit m mM); split.
+    by exists (sh_const_x_path x0), Hγx0_unit, m, mM.
+  rewrite /sh_test /= /sh_test_fun /=.
+  apply: le_trans HnormR _.
+  apply: le_trans (lerD Hm (lexx (eps / 2))) _.
+  rewrite -addrA lerD2l.
+  have ->: (eps / 2 + eps / 2 = eps)%R.
+    have two_ne0 : (2 : R) != 0 by rewrite pnatr_eq0.
+    have step : (eps / 2 + eps / 2) * 2 = eps * 2.
+      rewrite mulrDl !mulfVK //.
+      by have ->: (2 = 1 + 1 :> R)%R by [];
+         rewrite mulrDr mulr1.
+    exact: (mulIf two_ne0 step).
+  exact: lexx.
+Qed.
+
+End StablehomMCone.
+
+(** ** [isMCone] HB instance for [stablehom B C] — Paper §7.2 *)
+
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (B C : MCone.type Ar) :=
+  @isMCone.Build R Ar (stablehom B C)
+    (@sh_mcone_M R Ar B C)
+    (@sh_mcone_M_comp R Ar B C)
+    (@sh_mcone_M_sep R Ar B C)
+    (@sh_mcone_M_norm R Ar B C).
+
+(** ** Sanity check: [stablehom B C] is an [mconeType Ar] *)
+Section StablehomMConeCheck.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : MCone.type Ar.
+
+Check (stablehom B C : mconeType Ar).
+
+End StablehomMConeCheck.
+
 (**md**************************************************************)
 (** ** Status — what is delivered and what is deferred (and why)
 
@@ -1780,9 +2120,59 @@ End StablehomConeCheck.
       R]: the stable function cone [B ⇒ₛ C] is a cone (Paper §7.2 /
       Lemmas 7.11, 7.12, 7.14).
 
-    Deferred — [isMCone] (the [γ ▷ m] test family, txt 3365) and
-    [isICone] (integrability, txt 3372).  These follow the
-    [linhom]/[path]/[examples_icone] templates now that [isCone] is in
-    place, but each is a substantial development (the measurability
-    structure [M] and the integral construction); they are not attempted
-    in this file. *)
+    - **[isMCone] HB instance — REGISTERED.**  [stablehom B C : mconeType
+      Ar] (Paper §7.2, txt 3365: the measurability structure "as in
+      [C ⊸ D]").  The test family is
+
+        [M^{B⇒ₛC}_Y := { γ ▷ m | γ ∈ Path(Y, B), ‖γ‖ ≤ 1, m ∈ M^C_Y }]
+
+      with body [(γ ▷ m)(s, f) := m s (sh_fun f (γ s))] ([sh_test_fun],
+      packaged as [sh_test]).  Although a [stablehom] [f] is a *nonlinear*
+      stable map, [(γ ▷ m)] is *linear in [f]* because the cone
+      operations on [stablehom] are pointwise and [m] is linear in its
+      second argument — so (test_lin0)/(test_linD)/(test_linZ)
+      ([sh_test_lin0]/[sh_test_linD]/[sh_test_linZ]) reduce directly to
+      those of [m].  The non-trivial test fields:
+        * test-measurability ((Msmeas), [sh_test_meas]) — the
+          path-preservation field of [is_meas_stable f] makes [f ∘ γ] a
+          measurable path of [C] (the path [γ] stays in [B_B] pointwise,
+          [sh_test_γ_unit], from [‖γ‖ ≤ 1] via [path_norm_ub]); the
+          diagonal joint measurability is then [is_measurable_path]'s
+          second component composed with [s ↦ (s, s)].
+        * ω-continuity ((Mscont), [sh_test_cont]) — on [B_B] the cone-sup
+          [sh_sup] computes pointwise ([sh_sup_fun_unitE]), then
+          [test_of_sup] of [m] (from [test_pullback.v]) gives the sup
+          identity.
+      The (Mscomp)/(Mssep)/(Msnorm) closure ([sh_mcone_M_comp]/
+      [sh_mcone_M_sep]/[sh_mcone_M_norm]) mirrors [linhom]'s
+      [linhom_mcone_M_*], using the constant-path helper
+      [sh_const_x_path] at arity 0; (Mssep)/(Msnorm) reduce to
+      [mcone_M_sep]/[mcone_M_norm] of [C].  Unlike [linhom], (Mssep)
+      needs no rescaling-by-linearity of [f] (off-ball maps are [0] via
+      [sh_offball], on-ball [x] is fed directly through the constant
+      path).  Reuses [mcone.v]'s [test_of]/[test_reindex]/[mcone_M_*],
+      [path.v]'s [path_car]/[path_norm_ub]/[const_path_measurable], and
+      [icone_integral.v]'s [measurable_test_path_section] +
+      [test_pullback.v]'s [test_of_sup].
+
+    Deferred — [isICone] (integrability, txt 3372/3373).  The pointwise
+    Pettis integral [f(x) := icone_integral (r ↦ sh_fun (η r) x) µ]
+    (0-extended off [B_B]) must be shown a [stablehom], i.e. totally
+    monotonic, bounded, [is_scott_continuous_unit] and path-preserving.
+    Boundedness ([path_integral_norm_le]) and total monotonicity (a
+    finite-cone-sum / integral commutation built from [big_ind2] +
+    [path_integral_eq_addB], closed by [icone_integral_chain_le]) are
+    in reach with the imported [icone_integral.v] machinery.  The
+    *blocker* is the [is_scott_continuous_unit] field: it demands the
+    *radius-aware* identity [f (cone_sup_ball u) = cone_sup_at (f ∘ u)
+    Mf …] at a general image radius [Mf] (the integral of unit-ball
+    inputs has image norm up to [‖η‖·‖µ‖ > 1]).  [icone_integral.v]'s
+    [integral_omega_cont_path] proves only the *unit-ball-image*
+    [cone_sup_ball] version (it assumes [β_bound : ‖β n r‖ ≤ 1] and
+    [µ_norm ≤ 1]); a [cone_sup_at] general-radius port — a fresh
+    monotone-convergence lemma — would be required, plus the
+    joint-measurability (via [test_pullback]/Fubini) of the bivariate
+    integrand for the path-preservation field.  As these are each new
+    sub-developments and the brief forbids any holes, [isICone] is left
+    for a follow-up; everything below is hole-free and depends only on
+    the ambient classical axioms. *)
