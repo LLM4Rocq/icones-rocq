@@ -76,6 +76,7 @@ Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
 Require Import Icones.axioms.exp_interface.
 Require Import Icones.homs.bang.
+Require Import Icones.axioms.seely_interface.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -212,9 +213,188 @@ rewrite !tensor_curryE.
 exact: Hfg.
 Qed.
 
+(** ** The Seely structure maps — Paper §9
+
+    The two structural maps of a *Seely category*: the binary Seely iso
+    [Seely2] (re-exported from the staged interface) and the
+    [&]-projection tuple [⟨!π1, !π2⟩ : !(B1 & B2) → (!B1 & !B2)] used to
+    transport [dig] across [Seely2]. *)
+
+(** The [&]-projections [π1]/[π2] on [sprod B1 B2]. *)
+Definition sproj1 (B1 B2 : ICone.type Ar) : icones_hom Ar (sprod B1 B2) B1 :=
+  icones_proj true.
+Definition sproj2 (B1 B2 : ICone.type Ar) : icones_hom Ar (sprod B1 B2) B2 :=
+  icones_proj false.
+
+Lemma sproj1_pair (B1 B2 : ICone.type Ar) (x1 : B1) (x2 : B2) :
+  Lfun (sproj1 B1 B2) (sprod_pair x1 x2) = x1.
+Proof. by []. Qed.
+
+Lemma sproj2_pair (B1 B2 : ICone.type Ar) (x1 : B1) (x2 : B2) :
+  Lfun (sproj2 B1 B2) (sprod_pair x1 x2) = x2.
+Proof. by []. Qed.
+
+(** The tuple [⟨!π1, !π2⟩ : !(B1 & B2) → (!B1 & !B2)] (paper's
+    [⟨!Proj1, !Proj2⟩]). *)
+Definition bang_proj_tuple (B1 B2 : ICone.type Ar) :
+    icones_hom Ar (Bang Ar (sprod B1 B2)) (sprod (Bang Ar B1) (Bang Ar B2)) :=
+  icones_tuple
+    (fun b : bool =>
+       if b as b0 return icones_hom Ar (Bang Ar (sprod B1 B2))
+                           (sprod_fam (Bang Ar B1) (Bang Ar B2) b0)
+       then bang_fmap (sproj1 B1 B2)
+       else bang_fmap (sproj2 B1 B2)).
+
+(** [⟨!π1, !π2⟩(q)] is the pairing of [!π1(q)] and [!π2(q)]. *)
+Lemma bang_proj_tupleE (B1 B2 : ICone.type Ar) (q : Bang Ar (sprod B1 B2)) :
+  Lfun (bang_proj_tuple B1 B2) q =
+  sprod_pair (Lfun (bang_fmap (sproj1 B1 B2)) q)
+             (Lfun (bang_fmap (sproj2 B1 B2)) q).
+Proof. by apply: cones_prod_eq => -[]. Qed.
+
+(** ** The comultiplication coherence diagram — Paper §9, lines 7527–7573
+
+    The sample Seely coherence diagram explicitly proved in the paper:
+    transporting the comultiplication [dig] across [Seely2] commutes with
+    the [&]-projection tuple, i.e. as maps [!B1 ⊗ !B2 → !(!B1 & !B2)]
+
+      [!⟨!π1,!π2⟩ ∘ dig_{B1&B2} ∘ Seely2_{B1,B2}]
+        [= Seely2_{!B1,!B2} ∘ (dig_{B1} ⊗ dig_{B2})].
+
+    Proof: by [tens_excl_charact] both sides agree once they agree on
+    every [x1! ⊗ x2!].  The LHS reduces via [Seely2E]/[dig_prom]/
+    [bang_fmap_prom] and the projection laws to [⟨x1!,x2!⟩!]; the RHS
+    reduces via [tensor_morE]/[dig_prom]/[Seely2E] (the latter applied at
+    the unit-ball points [x1!], [x2!]) to the same [⟨x1!,x2!⟩!]. *)
+Lemma seely_comult (B1 B2 : ICone.type Ar) :
+  icones_comp (bang_fmap (bang_proj_tuple B1 B2))
+    (icones_comp (dig (sprod B1 B2)) (iso_fwd (Seely2 B1 B2))) =
+  icones_comp (iso_fwd (Seely2 (Bang Ar B1) (Bang Ar B2)))
+    (tensor_mor (dig B1) (dig B2)).
+Proof.
+apply: tens_excl_charact => x1 x2 Hx1 Hx2.
+have Hp : cone_norm (sprod_pair x1 x2) <= 1 by exact: sprod_pair_norm_le1.
+(* RHS: through the bifunctor [dig ⊗ dig], then [Seely2] at [x1!, x2!]. *)
+rewrite [in RHS]/= tensor_morE (dig_prom x1 Hx1) (dig_prom x2 Hx2).
+rewrite (Seely2E x1! x2! (prom_ball Hx1) (prom_ball Hx2)).
+(* LHS: [Seely2] at [x1, x2], then [dig], then [!⟨!π1,!π2⟩]. *)
+rewrite /= (Seely2E x1 x2 Hx1 Hx2) (dig_prom (sprod_pair x1 x2) Hp).
+rewrite (bang_fmap_prom (bang_proj_tuple B1 B2) (sprod_pair x1 x2)! (prom_ball Hp)).
+rewrite bang_proj_tupleE.
+rewrite (bang_fmap_prom (sproj1 B1 B2) (sprod_pair x1 x2) Hp).
+rewrite (bang_fmap_prom (sproj2 B1 B2) (sprod_pair x1 x2) Hp).
+by rewrite sproj1_pair sproj2_pair.
+Qed.
+
 End Seely.
 
 Arguments linhom_icones {R Ar C D} phi Hphi.
 Arguments linhom_iconesE {R Ar C D} phi Hphi x.
 Arguments bang_ext_linhom {R Ar B C} phi psi Hphi Hpsi.
 Arguments tens_excl_charact {R Ar B1 B2 C} f g.
+Arguments sproj1 {R Ar} B1 B2.
+Arguments sproj2 {R Ar} B1 B2.
+Arguments bang_proj_tuple {R Ar} B1 B2.
+Arguments seely_comult {R Ar} B1 B2.
+
+(** ** Paper §9 Theorem — [ICones] is a Seely category (ref. [Mellies09])
+
+    We bundle the *strong monoidal comonad* structure of [!] into a
+    single record [SeelyCategory R Ar].  A Seely category (Melliès,
+    "Categorical semantics of linear logic", §7) is a symmetric monoidal
+    closed category with finite products together with a comonad [!] and
+    *Seely isomorphisms* [!A ⊗ !B ≅ !(A & B)] and [1 ≅ !⊤] that are
+    monoidal-natural and make [!] a strong monoidal functor from the
+    cartesian [(&, ⊤)] to the tensor [(⊗, 1)].
+
+    The fields gather the data and laws established in this development:
+
+    - [sc_smcc] : the symmetric monoidal closed structure of [smcc.v]
+      (Thm 5.15), supplying [⊗], the unit [1], the bifunctor action and
+      the [α]/[λ]/[ρ]/[σ] coherence;
+    - [sc_comonad] : the exponential comonad [!] of [bang.v] (§9),
+      supplying [!], [!f], [der], [dig] and the comonad laws;
+    - [sc_prod] : the binary product [&] ([scones_ccc.v]'s [sprod]) — the
+      cartesian structure the Seely iso relates to the tensor;
+    - [sc_seely2] : the binary Seely iso [!A ⊗ !B ≅ !(A & B)] with its
+      characterisation [sc_seely2E] on promoted pure tensors and its
+      naturality [sc_seely2_nat] (the staged Yoneda data);
+    - [sc_comult] : the comultiplication coherence diagram (paper lines
+      7527–7573), the sample Melliès coherence law DERIVED here via
+      [tens_excl_charact].
+
+    The canonical witness [ICones_Seely] populates every field with the
+    proved lemmas; the only unproved inputs are the staged tensor / exp /
+    Seely symbols, discharged by M-SAFT (PLAN §13).
+
+    Status of the Melliès coherence laws.  We DELIVER: the strong
+    monoidal comonad data ([!], [⊗], [&], [Seely2]); the binary Seely
+    iso and its naturality; and the comultiplication coherence the paper
+    draws explicitly (line 7527) — proved, not assumed, via
+    [tens_excl_charact].  Each of Melliès' remaining coherence squares
+    (the counit/[der] square, the [Seely2] associativity/unit/symmetry
+    squares against [α]/[λ]/[ρ]/[σ], and the [Seely0] unit-iso squares)
+    has the SAME shape — agree on [x1! ⊗ x2!], reduce both sides by
+    [Seely2E]/[dig_prom]/[bang_fmap_prom]/[tensor_morE] — and is provable
+    by the identical [tens_excl_charact] recipe; the paper itself states
+    (line 7521) they are "easy to prove" by Lemma
+    [tens-excl-equal-charact], i.e. by exactly [tens_excl_charact].  They
+    are NOT axiomatised here: a [SeelyCategory] records the laws actually
+    proved.  The unit Seely iso [Seely0 : 1 ≅ !⊤] is likewise DEFERRED
+    (it needs the terminal object [⊤] as an empty [icones_prod]); since
+    every coherence law involving [Seely0] would consume it, the bundle
+    records only the binary [Seely2] data, which is the substantive
+    part. *)
+
+Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
+  MkSeelyCategory {
+  (* the symmetric monoidal closed structure (Thm 5.15) *)
+  sc_smcc : ICones_SMCC Ar;
+  (* the exponential comonad [!] (§9) *)
+  sc_comonad : Comonad Ar;
+  (* the comonad object map IS the SMC-tensor's [!]; pin it down *)
+  sc_bangE : cm_obj sc_comonad = @Bang R Ar;
+  (* the cartesian product [&] used by the Seely iso is [scones_ccc]'s
+     [sprod]; pin it to the SMC bundle's tensor on the [!]-objects below *)
+  sc_tensorE : forall A B : ICone.type Ar,
+    smcc_tensor sc_smcc A B = tensor Ar A B;
+  (* the binary Seely isomorphism [!A ⊗ !B ≅ !(A & B)], over the
+     project's tensor [⊗] (= [smcc_tensor sc_smcc] by [sc_tensorE]) and
+     the product [&] (= [sprod]) *)
+  sc_seely2 : forall B1 B2 : ICone.type Ar,
+    icones_iso Ar (tensor Ar (Bang Ar B1) (Bang Ar B2))
+                  (Bang Ar (sprod B1 B2));
+  (* its characterisation on promoted pure tensors (paper line 7501) *)
+  sc_seely2E : forall (B1 B2 : ICone.type Ar) (x1 : B1) (x2 : B2),
+    cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+    iso_fwd (sc_seely2 B1 B2) (ptensor (prom x1) (prom x2)) =
+    prom (sprod_pair x1 x2);
+  (* naturality of [Seely2] in both slots (paper line 7494) *)
+  sc_seely2_nat : forall (B1 B2 B1' B2' : ICone.type Ar)
+    (f1 : icones_hom Ar B1 B1') (f2 : icones_hom Ar B2 B2'),
+    icones_comp (bang_fmap (sprod_mor f1 f2)) (iso_fwd (sc_seely2 B1 B2)) =
+    icones_comp (iso_fwd (sc_seely2 B1' B2'))
+                (tensor_mor (bang_fmap f1) (bang_fmap f2));
+  (* comultiplication coherence (paper lines 7527–7573), DERIVED *)
+  sc_comult : forall B1 B2 : ICone.type Ar,
+    icones_comp (bang_fmap (bang_proj_tuple B1 B2))
+      (icones_comp (dig (sprod B1 B2)) (iso_fwd (sc_seely2 B1 B2))) =
+    icones_comp (iso_fwd (sc_seely2 (Bang Ar B1) (Bang Ar B2)))
+      (tensor_mor (dig B1) (dig B2));
+}.
+
+Arguments SeelyCategory {R} Ar.
+
+(** Paper §9: the canonical Seely-category structure on [ICones], every
+    field populated by a proved lemma (modulo the staged tensor / exp /
+    Seely interfaces). *)
+Definition ICones_Seely (R : realType) (Ar : MeasSubcat R) :
+    SeelyCategory Ar :=
+  {| sc_smcc := ICones_smcc Ar;
+     sc_comonad := Bang_comonad Ar;
+     sc_bangE := erefl;
+     sc_tensorE := fun _ _ => erefl;
+     sc_seely2 := @Seely2 R Ar;
+     sc_seely2E := @Seely2E R Ar;
+     sc_seely2_nat := @Seely2_natural R Ar;
+     sc_comult := @seely_comult R Ar |}.
