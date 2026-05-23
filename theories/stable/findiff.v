@@ -1797,6 +1797,79 @@ End Lemma721.
 
 Arguments Delta_le {R B C} f Hf {n} u Hs x.
 
+(** ** Lemma 7.23 (base instance) — the telescoping identity — Paper §7.3
+       (txt 3687)
+
+    The paper's [Δf(u⃗+v⃗)(x+u)] identity, derived "by simple computations
+    using Lemma 7.22".  On the [B]-side it decomposes into
+
+      [SD (u⃗+v⃗)(xb+u) = SD (u⃗+v⃗)(xb) + SD (u, u⃗+v⃗)(xb)]   (Lemma 7.22 / [SD_cons])
+
+    where the second summand is the paper's [Δf(u, u⃗+v⃗)(x)], and a
+    *diagonal split* of the first summand
+
+      [SD (u⃗+v⃗)(xb) = SD u⃗ (xb) + Σ_{j} SD (hybⱼ)(xb + uⱼ)] ,
+
+    [hybⱼ] being the hybrid family [(u₁,…,u_{j-1}, vⱼ, u_{j+1}+v_{j+1},…)]
+    of the paper's terms [3..n+1].  We deliver the *base instance* [n = 1]
+    in [B]-side form, the smallest faithful case (and the one used by the
+    induction base of Lemma 7.26): the diagonal split there is a single
+    application of the second [SD_add] identity of Lemma 7.22 (split the
+    sole head of [u⃗+v⃗]), and the head term is [SD_cons].  The general
+    [n] case is documented as deferred in the status note (it needs an
+    interior-position split of the head-only [SD_add] engine — i.e.
+    prefix-concatenation of ['I_n] families and the attendant ordinal
+    casts — which the present engine does not yet provide). *)
+
+Section Lemma723.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+(** Lemma 7.23 at arity [n = 1], [B]-side.  Families [u v : 'I_1 → B],
+    head [u0 : B], centre [xb : B].  The four paper terms collapse (for
+    [n = 1]) to three: [Δf(u⃗)(x)] ([SD u xb]), [Δf(u, u⃗+v⃗)(x)]
+    ([SD (vcons u0 (u+v)) xb]) and the single [j = 1] hybrid term
+    [Δf(v₁)(x+u₁)] ([SD v (xb + u ord0)]). *)
+Lemma SD_723_1 (u v : 'I_1 -> B) (u0 xb : B)
+    (Hc : cone_norm (xb + (u0 +
+       \big[precone_add/precone_zero]_(i : 'I_1) (u i + v i))) <= 1) :
+  SD f (fun i => u i + v i) (xb + u0) =
+  SD f u xb + SD f (vcons u0 (fun i => u i + v i)) xb
+    + SD f v (xb + u ord0).
+Proof.
+have sum1 (g : 'I_1 -> B) :
+    \big[precone_add/precone_zero]_(i : 'I_1) g i = g ord0.
+  by rewrite big_ord_recl big_ord0 precone_addr0.
+(* Head term, via the first [SD_cons] identity of Lemma 7.22. *)
+have HcA : cone_norm (xb + \big[precone_add/precone_zero]_(i : 'I_1.+1)
+    vcons u0 (fun i => u i + v i) i) <= 1.
+  by rewrite sum_vcons sum1; move: Hc; rewrite sum1.
+have stepA := SD_cons f Hf u0 (fun i => u i + v i) xb HcA.
+(* Diagonal split of the sole head, via the second [SD_add] identity. *)
+pose w0 := fun i : 'I_0 => u (lift ord0 i).
+have euv : (fun i => u i + v i) = vcons (u ord0 + v ord0) w0.
+  by apply/funext => i; rewrite [i]ord1 vcons0.
+have HcB : cone_norm (xb + \big[precone_add/precone_zero]_(i : 'I_0.+1)
+    vcons (u ord0 + v ord0) w0 i) <= 1.
+  rewrite -euv; move: Hc; rewrite sum1 => H.
+  apply: le_trans H; apply: cone_normp; apply: precone_add_le_l.
+  by exists u0; rewrite precone_addC.
+have stepB := SD_add f Hf (u ord0) (v ord0) w0 xb HcB.
+rewrite -euv in stepB.
+rewrite stepA stepB.
+have eu : vcons (u ord0) w0 = u by apply/funext => i; rewrite [i]ord1 vcons0.
+have ev : vcons (v ord0) w0 = v by apply/funext => i; rewrite [i]ord1 vcons0.
+rewrite eu ev -!precone_addA.
+by congr precone_add; exact: precone_addC.
+Qed.
+
+End Lemma723.
+
+Arguments SD_723_1 {R B C} f Hf u v u0 xb.
+
 (** ** The cone [SnB] — Paper §7.3 (txt 3695)
 
     [SnB B n := B^{n+1}], here the family type ['I_(n+1) → B], with
@@ -2131,6 +2204,11 @@ Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
       ([SD w (x+u) = SD w x + SD (u :: w) x]) and [SD_add]
       ([SD (u+v :: w) x = SD (u :: w) x + SD (v :: w) (x+u)]) — pure
       [B]-side cancellations of the three [SD_E] defining equations.
+    - **Lemma 7.23, base instance [n = 1]** ([SD_723_1], B-side): the
+      telescoping identity [SD (u⃗+v⃗)(xb+u) = SD u⃗ (xb) +
+      SD (u, u⃗+v⃗)(xb) + SD (v₁)(xb+u₁)].  The head term is [SD_cons],
+      the single hybrid term is one [SD_add] (split the sole head of
+      [u⃗+v⃗]).  The general-[n] case is deferred (see below).
     - **The cone [SnB]** ([SnB], full [coneType]): the family ['I_(n+1) → B]
       with pointwise operations and the total-sum norm [‖g‖ = ‖Σ_i g i‖_B]
       (Remark 7.24's [1 & ⋯ & 1 ⊸ B]).  All five norm axioms; (Normc)
@@ -2138,17 +2216,39 @@ Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
       the radius-1 diagonal-sum lub [dsum_lub].
 
     Deferred (need ω-continuity / Theorem 7.19 on the difference operator).
-    - Lemma 7.20, [Δf(u⃗)] clause: total monotonicity of [Δf(u⃗)] itself.
-      Via [is_n_increasing_totmono] applied to [Δf(u⃗)] — [k]-increasing
-      for all [k] by Lemma 7.16, *and* ω-continuous as a difference of
-      ω-continuous maps ([is_scott_continuous_unit (Delta f u⃗)]); the
-      latter is a substantial development not opened here.
-    - Lemma 7.23 (the telescoping identity for [Δf(u⃗+v⃗)(x+u)]): a heavy
-      [SD]-side telescope over the family, "simple computations using
-      Lemma 7.22" but combinatorially involved; its engines ([SD_cons],
-      [SD_add]) are in place.
+    - **[scott_Delta]** / Lemma 7.20 [Δf(u⃗)] clause: ω-continuity, then
+      total monotonicity, of the difference operator [Δf(u⃗)] itself.
+      Total monotonicity would follow from [is_n_increasing_totmono]
+      applied to [Δf(u⃗)] — [k]-increasing for all [k] by Lemma 7.16 —
+      *once* [Δf(u⃗)] is known [is_scott_continuous_unit].  The precise
+      blocker for that ω-continuity: the [Δε] summands are shifts
+      [g_{s_I}(x) = f(lc_val x + s_I)] of [f] by the *partial* sums
+      [s_I = Σ_{i∈I} uᵢ], read on the local cone [B_{u⃗}] centred at the
+      *full* sum [S = Σᵢ uᵢ].  The available sup-translate of the local
+      cone ([local_cone.v]'s [lc_sup_ball_translate]) only relates
+      [lc_val] of a [B_{u⃗}]-supremum to a [B]-supremum *through the
+      centre* [S] — [S + lc_val(sup) = sup_B(S + lc_val·)] — so it
+      transports shifts by [S] but NOT shifts by a strict sub-element
+      [s_I ≺ S].  For a *linear* test the difference trick
+      ([lc_test_cont]) sidesteps this, but for the nonlinear [f] it does
+      not.  Proving [scott_Delta] cleanly therefore needs a new
+      "shifted-translate" lemma (a [cone_sup_ball] for [lc_val(sup) + s])
+      plus the difference-of-ω-continuous engine [diff_scott_at] — a
+      substantial development not opened here.  No [Admitted] is left.
+    - Lemma 7.23, *general* arity (the full [Δf(u⃗+v⃗)(x+u)] telescope):
+      the [n = 1] base ([SD_723_1]) is delivered.  The general case
+      decomposes as [SD_cons] (head term [Δf(u, u⃗+v⃗)]) plus the
+      *diagonal split* [SD (u⃗+v⃗)(xb) = SD u⃗(xb) + Σⱼ SD(hybⱼ)(xb+uⱼ)].
+      The latter recurses with a *committed [u]-prefix* on every family,
+      so its clean inductive form needs prefix-concatenation of ['I_n]
+      families ([pcat] via [lshift]/[rshift]/[split]) and the interior
+      split of the *head-only* [SD_add] engine — i.e. the ordinal-cast
+      [m + k.+1 = m.+1 + k] reindexing.  The [SD] engines ([SD_cons],
+      [SD_add]) are in place; only the prefix machinery is missing.
     - Lemma 7.25 ([(x,u⃗) ↦ Δf(u⃗)(x)] increasing [B_SnB → C]): the
       paper's "follows easily from Theorem 7.19" needs the [Δf(u⃗)] clause
-      of 7.20 (well-definedness + joint centre/direction monotonicity), so
-      it is deferred with that clause.  The [SnB] cone it lives on is
-      complete. *)
+      of 7.20 (well-definedness + *joint* centre/direction monotonicity:
+      the [SnB] order moves both the centre [x] and the directions [u⃗],
+      whereas [Delta_mono] handles only a moving centre at fixed
+      directions), so it is deferred with [scott_Delta].  The [SnB] cone
+      it lives on is complete. *)
