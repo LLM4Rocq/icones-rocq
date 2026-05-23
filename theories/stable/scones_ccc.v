@@ -1496,3 +1496,265 @@ End Curry.
 Arguments curry {R Ar D B C} h.
 Arguments curry_ball {R Ar D B C} h z.
 Arguments curry_appE {R Ar D B C} h z x.
+
+(** ** β/η laws and the cartesian-closed theorem — Paper §7.4 / Thm 7.32
+
+    [SCones] is cartesian closed: the products are in [scones_cat.v]
+    ([scones_proj] / [scones_tuple]); the exponential of [B] and [C] is
+    [stablehom B C], with evaluation [Ev] and currying [curry], and the
+    β/η laws below.  We package the structure as [SCones_CCC], mirroring
+    [ICones_SMCC] of [smcc.v]. *)
+
+Section CCCLaws.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variables D B C : ICone.type Ar.
+Local Open Scope precone_scope.
+
+Local Notation SDB := (sprod D B).
+Local Notation H := (stablehom B C : ICone.type Ar).
+
+(** The pairing [⟨curry h ∘ π_D, π_B⟩ : SDB → sprod (B⇒ₛC) B]. *)
+Definition pairing_fam (h : scones_hom SDB C) :
+    forall b : bool, scones_hom SDB (sprod_fam H B b) :=
+  fun b => if b return scones_hom SDB (sprod_fam H B b)
+           then scones_comp (curry h) (scones_proj (sprod_fam D B) true)
+           else scones_proj (sprod_fam D B) false.
+
+Definition pairing (h : scones_hom SDB C) : scones_hom SDB (sprod H B) :=
+  scones_tuple (pairing_fam h).
+
+(** The [i]-th component of the pairing, on the ball. *)
+Lemma pairing_true_ball (h : scones_hom SDB C) (φ : SDB) :
+  cone_norm φ <= 1 ->
+  cones_prod_val (sc_fun (pairing h) φ) true = curry_app h (sprod_fst φ).
+Proof.
+move=> Hφ; rewrite /pairing.
+rewrite (_ : sc_fun (scones_tuple (pairing_fam h)) φ
+           = scones_tuple_fun (pairing_fam h) φ);
+  last by rewrite /= (sc_clamp_ball Hφ).
+rewrite (scones_tuple_val (pairing_fam h) Hφ true) /pairing_fam/=.
+rewrite (sc_clamp_ball Hφ).
+rewrite (_ : sc_clamp (cones_proj_fun true) φ = sprod_fst φ);
+  last by rewrite (sc_clamp_ball Hφ).
+by rewrite (sc_clamp_ball (sprod_fst_ball Hφ)).
+Qed.
+
+Lemma pairing_false_ball (h : scones_hom SDB C) (φ : SDB) :
+  cone_norm φ <= 1 ->
+  cones_prod_val (sc_fun (pairing h) φ) false = sprod_snd φ.
+Proof.
+move=> Hφ; rewrite /pairing.
+rewrite (_ : sc_fun (scones_tuple (pairing_fam h)) φ
+           = scones_tuple_fun (pairing_fam h) φ);
+  last by rewrite /= (sc_clamp_ball Hφ).
+rewrite (scones_tuple_val (pairing_fam h) Hφ false) /pairing_fam/=.
+by rewrite (sc_clamp_ball Hφ).
+Qed.
+
+(** **β law** — Paper §7.4: [Ev ∘ ⟨curry h, id⟩ = h]. *)
+Lemma curry_beta (h : scones_hom SDB C) :
+  scones_comp (Ev B C) (pairing h) = h.
+Proof.
+apply: scones_hom_eq => φ; rewrite /=.
+have [Hφ | Hφ] := boolP (cone_norm φ <= 1); last first.
+  by rewrite (sc_clamp_offball Hφ) (sc_offball h φ Hφ).
+(* the pairing image is in the product ball, so [Ev] computes. *)
+have Hpair' : cone_norm (scones_tuple_fun (pairing_fam h) φ) <= 1.
+  exact: (scones_tuple_norm_ball (pairing_fam h) Hφ).
+rewrite (sc_clamp_ball Hφ) (sc_clamp_ball Hφ) (sc_clamp_ball Hpair') /ev_fun.
+have E2 : sc_fun (pairing h) φ = scones_tuple_fun (pairing_fam h) φ.
+  by rewrite /pairing /= (sc_clamp_ball Hφ).
+(* the two components of the pairing image. *)
+rewrite /sprod_fst -E2 (pairing_true_ball h Hφ).
+rewrite /sprod_snd (pairing_false_ball h Hφ).
+(* [curry_app h (fst φ) (snd φ) = h(fst φ, snd φ) = h φ]. *)
+rewrite (curry_app_ball _ _ _ (sprod_fst_ball Hφ) (sprod_snd_ball Hφ)).
+by rewrite -sprod_eta.
+Qed.
+
+(** *** η / uniqueness — Paper §7.4 *)
+
+(** The pairing [⟨g ∘ π_D, π_B⟩ : SDB → sprod (B⇒ₛC) B] for a morphism
+    [g : D → B⇒ₛC] (the [g × id] of the η law). *)
+Definition gpair_fam (g : scones_hom D H) :
+    forall b : bool, scones_hom SDB (sprod_fam H B b) :=
+  fun b => if b return scones_hom SDB (sprod_fam H B b)
+           then scones_comp g (scones_proj (sprod_fam D B) true)
+           else scones_proj (sprod_fam D B) false.
+
+Definition gpair (g : scones_hom D H) : scones_hom SDB (sprod H B) :=
+  scones_tuple (gpair_fam g).
+
+Lemma gpair_true_ball (g : scones_hom D H) (φ : SDB) :
+  cone_norm φ <= 1 ->
+  cones_prod_val (sc_fun (gpair g) φ) true = sc_fun g (sprod_fst φ).
+Proof.
+move=> Hφ; rewrite /gpair.
+rewrite (_ : sc_fun (scones_tuple (gpair_fam g)) φ
+           = scones_tuple_fun (gpair_fam g) φ);
+  last by rewrite /= (sc_clamp_ball Hφ).
+rewrite (scones_tuple_val (gpair_fam g) Hφ true) /gpair_fam/=.
+rewrite (sc_clamp_ball Hφ).
+by rewrite (_ : sc_clamp (cones_proj_fun true) φ = sprod_fst φ);
+  last by rewrite (sc_clamp_ball Hφ).
+Qed.
+
+Lemma gpair_false_ball (g : scones_hom D H) (φ : SDB) :
+  cone_norm φ <= 1 ->
+  cones_prod_val (sc_fun (gpair g) φ) false = sprod_snd φ.
+Proof.
+move=> Hφ; rewrite /gpair.
+rewrite (_ : sc_fun (scones_tuple (gpair_fam g)) φ
+           = scones_tuple_fun (gpair_fam g) φ);
+  last by rewrite /= (sc_clamp_ball Hφ).
+rewrite (scones_tuple_val (gpair_fam g) Hφ false) /gpair_fam/=.
+by rewrite (sc_clamp_ball Hφ).
+Qed.
+
+(** On [B_D × B_B], the uncurried [Ev ∘ ⟨g∘π_D, π_B⟩] is [(g z) x]. *)
+Lemma gpair_evE (g : scones_hom D H) (z : D) (x : B) :
+  cone_norm z <= 1 -> cone_norm x <= 1 ->
+  sc_fun (scones_comp (Ev B C) (gpair g)) (sprod_pair z x) =
+  sh_fun (sc_fun g z) x.
+Proof.
+move=> Hz Hx.
+have Hzx : cone_norm (sprod_pair z x) <= 1 by exact: sprod_pair_norm_le1.
+rewrite /= (sc_clamp_ball Hzx).
+have Hpair' : cone_norm (scones_tuple_fun (gpair_fam g) (sprod_pair z x)) <= 1.
+  exact: (scones_tuple_norm_ball (gpair_fam g) Hzx).
+rewrite (sc_clamp_ball Hzx) (sc_clamp_ball Hpair') /ev_fun.
+have E2 : sc_fun (gpair g) (sprod_pair z x)
+        = scones_tuple_fun (gpair_fam g) (sprod_pair z x).
+  by rewrite /gpair /= (sc_clamp_ball Hzx).
+rewrite /sprod_fst -E2 (gpair_true_ball g Hzx).
+rewrite /sprod_snd (gpair_false_ball g Hzx).
+by rewrite sprod_fstE sprod_sndE.
+Qed.
+
+(** **η / uniqueness law** — Paper §7.4: [curry (Ev ∘ ⟨g∘π_D, π_B⟩) = g]. *)
+Lemma curry_eta (g : scones_hom D H) :
+  curry (scones_comp (Ev B C) (gpair g)) = g.
+Proof.
+apply: scones_hom_eq => z; rewrite /=.
+have [Hz | Hz] := boolP (cone_norm z <= 1); last first.
+  by rewrite (sc_clamp_offball Hz) (sc_offball g z Hz).
+rewrite (sc_clamp_ball Hz).
+(* both [curry_app (Ev∘gpair g) z] and [g z] are stablehoms; equal on
+   [B_B] (= [(g z) x]) hence everywhere ([stablehom_eq]). *)
+apply: stablehom_eq => x.
+have [Hx | Hx] := boolP (cone_norm x <= 1); last first.
+  by rewrite (sh_offball (curry_app _ z) x Hx) (sh_offball (sc_fun g z) x Hx).
+rewrite (curry_app_ball _ _ _ Hz Hx).
+exact: (gpair_evE g Hz Hx).
+Qed.
+
+End CCCLaws.
+
+Arguments pairing {R Ar D B C} h.
+Arguments curry_beta {R Ar D B C} h.
+Arguments gpair {R Ar D B C} g.
+Arguments curry_eta {R Ar D B C} g.
+
+(** ** The cartesian-closed-category bundle — Paper Theorem 7.32
+
+    [SCones_CCC] packages the cartesian-closed structure of [SCones]: the
+    binary products (via the bool-indexed [sprod]) with projections and
+    pairing, the exponential [stablehom B C] with evaluation [Ev],
+    currying [curry], and the β/η laws.  Mirrors [ICones_SMCC] of
+    [smcc.v].  [SCones_ccc] is the witness. *)
+
+Record SCones_CCC (R : realType) (Ar : MeasSubcat R) : Type := {
+  (* binary product *)
+  ccc_prod : ICone.type Ar -> ICone.type Ar -> ICone.type Ar;
+  ccc_fst : forall X Y : ICone.type Ar, scones_hom (ccc_prod X Y) X;
+  ccc_snd : forall X Y : ICone.type Ar, scones_hom (ccc_prod X Y) Y;
+  ccc_pair : forall (Q X Y : ICone.type Ar),
+    scones_hom Q X -> scones_hom Q Y -> scones_hom Q (ccc_prod X Y);
+  (* product β: the pairing factors each projection *)
+  ccc_pair_fst : forall (Q X Y : ICone.type Ar)
+    (f : scones_hom Q X) (g : scones_hom Q Y),
+    scones_comp (ccc_fst X Y) (ccc_pair f g) = f;
+  ccc_pair_snd : forall (Q X Y : ICone.type Ar)
+    (f : scones_hom Q X) (g : scones_hom Q Y),
+    scones_comp (ccc_snd X Y) (ccc_pair f g) = g;
+  (* exponential *)
+  ccc_exp : ICone.type Ar -> ICone.type Ar -> ICone.type Ar;
+  ccc_ev : forall B C : ICone.type Ar,
+    scones_hom (ccc_prod (ccc_exp B C) B) C;
+  ccc_curry : forall (D B C : ICone.type Ar),
+    scones_hom (ccc_prod D B) C -> scones_hom D (ccc_exp B C);
+  (* the β/η laws, phrased through the product pairing *)
+  ccc_beta : forall (D B C : ICone.type Ar)
+    (h : scones_hom (ccc_prod D B) C),
+    scones_comp (ccc_ev B C)
+      (ccc_pair (scones_comp (ccc_curry h) (ccc_fst D B)) (ccc_snd D B)) = h;
+  ccc_eta : forall (D B C : ICone.type Ar) (g : scones_hom D (ccc_exp B C)),
+    ccc_curry (scones_comp (ccc_ev B C)
+      (ccc_pair (scones_comp g (ccc_fst D B)) (ccc_snd D B))) = g;
+}.
+
+Section SConesCCCWitness.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Local Open Scope precone_scope.
+
+(** The binary projections / pairing as the bool-indexed product data. *)
+Definition sfst (X Y : ICone.type Ar) : scones_hom (sprod X Y) X :=
+  scones_proj (sprod_fam X Y) true.
+Definition ssnd (X Y : ICone.type Ar) : scones_hom (sprod X Y) Y :=
+  scones_proj (sprod_fam X Y) false.
+Definition spair (Q X Y : ICone.type Ar)
+    (f : scones_hom Q X) (g : scones_hom Q Y) : scones_hom Q (sprod X Y) :=
+  scones_tuple (fun b => if b return scones_hom Q (sprod_fam X Y b)
+                         then f else g).
+
+Lemma spair_fst (Q X Y : ICone.type Ar)
+    (f : scones_hom Q X) (g : scones_hom Q Y) :
+  scones_comp (sfst X Y) (spair f g) = f.
+Proof.
+rewrite /sfst /spair.
+have := scones_tuple_proj (B:=sprod_fam X Y)
+  (fun b => if b return scones_hom Q (sprod_fam X Y b) then f else g) true.
+by rewrite /=.
+Qed.
+
+Lemma spair_snd (Q X Y : ICone.type Ar)
+    (f : scones_hom Q X) (g : scones_hom Q Y) :
+  scones_comp (ssnd X Y) (spair f g) = g.
+Proof.
+rewrite /ssnd /spair.
+have := scones_tuple_proj (B:=sprod_fam X Y)
+  (fun b => if b return scones_hom Q (sprod_fam X Y b) then f else g) false.
+by rewrite /=.
+Qed.
+
+(** The β law re-expressed through [spair] = [pairing]. *)
+Lemma scones_beta (D B C : ICone.type Ar)
+    (h : scones_hom (sprod D B) C) :
+  scones_comp (Ev B C)
+    (spair (scones_comp (curry h) (sfst D B)) (ssnd D B)) = h.
+Proof. exact: curry_beta. Qed.
+
+(** The η law re-expressed through [spair] = [gpair]. *)
+Lemma scones_eta (D B C : ICone.type Ar)
+    (g : scones_hom D (stablehom B C)) :
+  curry (scones_comp (Ev B C)
+    (spair (scones_comp g (sfst D B)) (ssnd D B))) = g.
+Proof. exact: curry_eta. Qed.
+
+(** Paper Theorem 7.32: [SCones] is cartesian closed. *)
+Definition SCones_ccc : SCones_CCC Ar :=
+  {| ccc_prod := @sprod R Ar;
+     ccc_fst := @sfst;
+     ccc_snd := @ssnd;
+     ccc_pair := @spair;
+     ccc_pair_fst := @spair_fst;
+     ccc_pair_snd := @spair_snd;
+     ccc_exp := fun B C => (stablehom B C : ICone.type Ar);
+     ccc_ev := @Ev R Ar;
+     ccc_curry := @curry R Ar;
+     ccc_beta := @scones_beta;
+     ccc_eta := @scones_eta |}.
+
+End SConesCCCWitness.
