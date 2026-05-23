@@ -737,18 +737,88 @@ the mediating map
 $\mathbin{\&}_i B_i$ is the categorical product in $\mathbf{SCones}$.
 \end{theorem}
 
-\paragraph{The cartesian-closed structure (in progress).}\notready
-With the products in hand, what remains of the full Theorem 7.32 is the
-cartesian-\emph{closed} structure of $\mathbf{SCones}$: the evaluation
-map $\mathrm{Ev} : (B \mathbin{\Rightarrow_s} C) \mathbin{\&} B \to C$,
-currying, and the universal property of the internal hom. These rest on
-the bilinear--total-monotonicity Lemma 7.27 (the joint monotonicity of a
-stable map in two arguments at once, over the binary product cone) and
-on the stable internal hom $B \mathbin{\Rightarrow_s} C$ of
-\autoref{thm:stablehom-icone}; all morphisms here are $0$-extended off
-the ball (design note above), so the $\beta$/$\eta$ laws of currying
-hold as Leibniz equalities. This is being built at the time of writing
-and is not yet established.
+\subsection{The cartesian-closed structure --- paper Theorem 7.32 (closed part)}
+\label{sec:scones-ccc}
+With the products in hand, the file
+\texttt{theories/stable/scones\_ccc.v} completes the cartesian-\emph{closed}
+structure of $\mathbf{SCones}$, with $B \mathbin{\Rightarrow_s} C$
+(\autoref{thm:stablehom-icone}) as the internal hom. The binary product
+$X \mathbin{\&} Y$ is the bool-indexed product
+\rocq{Icones.stable.scones_ccc.sprod}, with pairing and projections
+$\texttt{sprod\_pair}$ / $\texttt{sprod\_fst}$ / $\texttt{sprod\_snd}$
+and the norm identity $\Cuball{X \mathbin{\&} Y} = \Cuball X \times
+\Cuball Y$ (\rocq{Icones.stable.scones_ccc.sprod_pair_norm_le1}).
+
+\begin{lemma}[Linear $\times$ totally monotonic $\Rightarrow$ totally monotonic, paper Lemma 7.27]
+\label{lem:lin-totmono}
+\rocq{Icones.stable.scones_ccc.ev_totmono}\rocqok\uses{def:is-totmono}
+A map $f : \Mcca X \times \Cuball{\Mcca Y} \to \Mcca Z$ that is linear in
+its first argument and totally monotonic in its second is, restricted to
+$\Cuball{\Mcca X} \times \Cuball{\Mcca Y}$, totally monotonic.
+\end{lemma}
+
+\begin{proof}
+Following the paper. Expanding $\Delta^\varepsilon f$ and using linearity
+in the first argument splits the alternating sum into a constant-in-$x$
+part $\sum_{I} f(x, y + \sum_{i \in I} v_i)$ --- bounded by the total
+monotonicity of $f(x, -)$ at the centre $(x,y)$ --- and a cross part
+$\sum_{I} \sum_{j \in I} f(u_j, y + \sum_{i \in I} v_i)$. The cross part
+is reindexed by the correspondence $\{I \in \mathit{P}^\varepsilon(n) :
+j \in I\} \cong \mathit{P}^\varepsilon(n{-}1)$ (\texttt{inset-corresp},
+realised here by a $\texttt{liftI}$ reindexing on $\{j : j \neq i\}$ and
+the general transport
+\rocq{Icones.stable.scones_ccc.gen_totmono}), and each $j$-summand is
+bounded by the total monotonicity of $f(u_j, -)$ at $(u_j, y + v_j)$
+over the punctured increment family. Recombining gives
+$\Delta^+ f \geq \Delta^- f$ for $n > 0$; the case $n = 0$ is trivial.
+\end{proof}
+
+\begin{lemma}[Evaluation, paper Theorem 7.32]\label{lem:ev}
+\rocq{Icones.stable.scones_ccc.Ev}\rocqok\uses{lem:lin-totmono, thm:stablehom-icone}
+The evaluation $\mathrm{Ev} : (B \mathbin{\Rightarrow_s} C) \mathbin{\&}
+B \to C$, $(f, x) \mapsto f(x)$
+(\rocq{Icones.stable.scones_ccc.ev_fun}), is a $\mathbf{SCones}$
+morphism. Its total monotonicity is \autoref{lem:lin-totmono} instantiated
+with the internal hom in the linear slot: evaluation is linear in $f$
+because the operations of $B \mathbin{\Rightarrow_s} C$ are pointwise
+(\texttt{sh\_addE} / \texttt{sh\_scaleE}), and totally monotonic in $x$
+for fixed $f$ because that is $f$'s own total monotonicity. The norm bound
+is $\Norm{\mathrm{Ev}} \leq 1$, and measurability follows the paper's
+test-pullback argument.
+\end{lemma}
+
+\begin{theorem}[$\mathbf{SCones}$ is cartesian closed, paper Theorem 7.32]
+\label{thm:scones-ccc}
+\rocq{Icones.stable.scones_ccc.SCones_ccc}\rocqok
+\uses{lem:ev, thm:scones-prod, thm:stablehom-icone}
+$\mathbf{SCones}$ is cartesian closed: the internal hom of $B$ and $C$ is
+$B \mathbin{\Rightarrow_s} C$ with evaluation $\mathrm{Ev}$, and every
+$h : (D \mathbin{\&} B) \to C$ has a unique transpose
+$\Lambda h : D \to (B \mathbin{\Rightarrow_s} C)$
+(\rocq{Icones.stable.scones_ccc.curry}, the $0$-extension of
+$z \mapsto (x \mapsto h(z,x))$).
+\end{theorem}
+
+\begin{proof}
+For fixed $z$ with $\cnorm z \leq 1$, $x \mapsto h(z,x)$ is measurable
+stable (\rocq{Icones.stable.scones_ccc.curry_app}); that $z \mapsto
+\Lambda h(z)$ is itself stable into $B \mathbin{\Rightarrow_s} C$ is the
+cone-step \rocq{Icones.stable.scones_ccc.curry_totmono_step}: the
+inequality in the internal hom is unfolded by the order characterisation
+(\autoref{lem:stable-order}, paper Lemma 7.12 backward) into the
+pointwise double-sum over $D$ and $B$ (\autoref{lem:sh-norm}, paper
+Lemma 7.12 backward), which the
+$(I,J) \mapsto I \cup (J{+}n)$ split (the parity-multiplicative
+$\mathit{P}^\pm(n{+}k) \cong \mathit{P}^\pm(n) \times \mathit{P}^\pm(k)$
+identity \texttt{Spos\_cat} / \texttt{Sneg\_cat} of \autoref{sec:findiff}),
+applied to the interleaved increment family $(w'_l, u'_l)$, reorganises
+into $h$'s own total monotonicity over $D \mathbin{\&} B$. The
+$\beta$ and $\eta$ laws (\rocq{Icones.stable.scones_ccc.curry_beta} /
+\rocq{Icones.stable.scones_ccc.curry_eta}) hold as Leibniz equalities by
+a unit-ball case split, all morphisms being $0$-extended off the ball.
+The whole structure is packaged as
+\rocq{Icones.stable.scones_ccc.SCones_CCC}.
+\end{proof}
 
 \section{Status}\label{sec:stable-status}
 
@@ -760,13 +830,13 @@ total monotonicity, stability, the Lemma 7.11 closure and the stable
 internal hom $B \mathbin{\Rightarrow_s} C$ as a full integrable cone
 (\autoref{sec:totmono}); the finite-difference characterisation
 (Theorem 7.19, both directions) and the composition theorem
-(Theorem 7.30, \autoref{sec:findiff}). For \S7.4 the category
-$\mathbf{SCones}$, the dereliction $\mathrm{Der}$, and the products with
-their full universal property (projections, tupling, and uniqueness of
-the mediating map --- Theorem 7.32, products part) are delivered on the
-$0$-extension morphism carrier (\autoref{sec:scones}); the
-cartesian-closed structure --- the evaluation map, currying, and the
-remaining (closed) half of Theorem 7.32 --- is in progress. The route to
-the exponential
+(Theorem 7.30, \autoref{sec:findiff}). \S7.4 is now fully delivered,
+axiom-clean, on the $0$-extension morphism carrier: the category
+$\mathbf{SCones}$, the dereliction $\mathrm{Der}$, the products with
+their universal property (\autoref{sec:scones}), and the
+cartesian-\emph{closed} structure --- the evaluation $\mathrm{Ev}$,
+currying, the $\beta$/$\eta$ laws, and Theorem 7.32 in full
+(\autoref{sec:scones-ccc}, \rocq{Icones.stable.scones_ccc.SCones_ccc}).
+The route to the exponential
 $\mathord{!}$ is then via a staged $E \dashv \mathrm{Der}$ interface
 (PLAN \S13.4) or a SAFT-style argument, a future milestone.
