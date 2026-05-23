@@ -40,6 +40,7 @@ From mathcomp Require Import perm.
 From mathcomp.classical Require Import boolp classical_sets.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
+From mathcomp.analysis Require Import measurable_structure measurable_function.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
@@ -47,6 +48,9 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.omega_general.
+Require Import Icones.mcones.ar.
+Require Import Icones.mcones.mcone.
+Require Import Icones.mcones.path.
 Require Import Icones.stable.local_cone.
 Require Import Icones.stable.totmono.
 Require Import Icones.stable.stablehom.
@@ -1741,6 +1745,256 @@ Arguments sumP_catf_T {R B} {n m} u w.
 Arguments totmono_SD_cat {R B C} f Hf {n m} u w XB Hc.
 Arguments totmono_Delta {R B C} f Hf {n} u Hs.
 
+(** ** Lemma 7.26 — the composition main lemma — Paper §7.3 (txt 3713)
+
+    Paper Lemma 7.26: for totally monotonic [f, h₁,…,hₙ : B_B → C] and
+    [g : B_C → D] with [∀x∈B_B, f(x) + Σᵢ hᵢ(x) ∈ B_C], the map
+
+      [k(x) := Δg(h₁(x),…,hₙ(x))(f(x))]
+
+    is totally monotonic.  On the B-side [k] reads as the [SD]-difference
+    of [g] in the directions [hᵢ(x)] at the centre [f(x)]:
+
+      [kfun g f h⃗ x := SD g n (fun i ↦ hᵢ x) (f x)] .
+
+    We deliver here the two fully-proved cornerstones of the paper's
+    [p]-induction:
+
+    - the base case [p = 0] ([kfun_increasing], Lemma 7.25 for the
+      composite): [k] is increasing on [B_B], read off the joint
+      centre/direction monotonicity [SD_mono_full] of [g] (the centre [f x]
+      and every direction [hᵢ x] grow as [x] does, since [f], [hᵢ] are
+      increasing, and [SD g] is jointly increasing), the boundedness
+      hypothesis [Hbd] supplying the unit-ball norm bound;
+
+    - the **diagonal expansion** [dB_kfun] of the single-step difference
+      [dB k u] (the engine of the [p ⤳ p+1] step, txt 3724–3731):
+
+        [dB k u x = SD g (Δf(u)(x) :: (hᵢ(x+u))ᵢ) (f x)
+                    + Σ_{k} SD g (hybₖ(h(x), Δh(u)(x))) (f x + h_k x)] ,
+
+      i.e. the paper's [n+1]-term sum, with the would-be first
+      Lemma-7.23 term [SD g (h(x)) (f x) = k x] *annihilated by the
+      subtraction* ([dB_E] + [precone_cancel]).  Each summand is itself a
+      [kfun]-shaped map at arity [n+1] (head) resp. [n] (hybrids), with
+      centre [f] resp. [f + h_k] and directions drawn from
+      [{Δf(u), hⱼ(·+u), hⱼ, Δhⱼ(u)}].  This is exactly the decomposition
+      [SD_723] (Lemma 7.23 full telescope) applied to the shifted family
+      [h(x+u) = h(x) + Δh(u)(x)] at the shifted centre [f(x+u) = f(x) +
+      Δf(u)(x)].
+
+    The remaining [p]-induction (and hence the closure of total
+    monotonicity under composition) requires feeding each summand back to
+    the inductive hypothesis [Sinc p].  On the *bare* carrier [B → C] this
+    is blocked: the head direction [Δf(u) = dB f u] is increasing
+    ([SD_mono_centre]) but *not* totally monotonic on the plain ball (it is
+    totmono only on the *shifted* ball, [totmono_dB]), and the forward
+    bridge [is_totmono ⇒ ∀p, Sinc p] is genuinely false on bare [B] (see
+    the status note: [Sinc 1 f] would demand [dB f u] increasing on the
+    *plain* unit ball, which fails near the boundary where [x + u] escapes
+    the ball and [dB f u x = 0]).  The paper sidesteps this by running the
+    whole induction on the *local cones* [B_u], where the gauge norm makes
+    the plain and shifted balls coincide ([lc_step1]) — i.e. through the
+    nested-local-cone transport [(B_{u₀})_{u⃗} = B_{u₀,u⃗}] that is the
+    one cast deferred throughout this development.  We therefore deliver
+    the two cornerstones above and document the precise wall. *)
+
+Section Lemma726.
+Variable R : realType.
+Variables B C D : coneType R.
+Variable g : C -> D.
+Hypothesis Hg : is_totmono g.
+Local Open Scope precone_scope.
+
+(** The B-side composite difference [k(x) = Δg(h⃗(x))(f(x))]. *)
+Definition kfun (n : nat) (f : B -> C) (h : 'I_n -> (B -> C)) : B -> D :=
+  fun x => SD g (fun i => h i x) (f x).
+
+(** **Lemma 7.25 for the composite / [Sinc 0] base case.**  [kfun] is
+    increasing on [B_B]: as [x] grows the centre [f x] and every direction
+    [hᵢ x] grow ([f], [hᵢ] increasing), and [SD g] is jointly increasing
+    ([SD_mono_full]); the [n = 0] case is just [g] increasing
+    ([totmono_increasing]). *)
+Lemma kfun_increasing (n : nat) (f : B -> C) (h : 'I_n -> (B -> C))
+    (Hf : is_increasing f)
+    (Hh : forall i, is_increasing (h i))
+    (Hbd : forall y, cone_norm y <= 1 ->
+       cone_norm (f y +
+         \big[precone_add/precone_zero]_(i : 'I_n) h i y) <= 1) :
+  is_increasing (kfun f h).
+Proof.
+move=> x v Hxv; rewrite /kfun.
+have Hx1 : cone_norm x <= 1.
+  by apply: le_trans Hxv; apply: cone_normp; exists v.
+have Hxv1 : cone_norm (x + v) <= 1 by exact: Hxv.
+have Hcf : f x <=p f (x + v) by exact: Hf.
+have Hch i : h i x <=p h i (x + v) by exact: Hh.
+have Hbnd : cone_norm (f (x + v) +
+    \big[precone_add/precone_zero]_(i : 'I_n) h i (x + v)) <= 1.
+  exact: Hbd.
+case: n h Hh Hbd Hbnd Hch => [|m] h Hh Hbd Hbnd Hch.
+  rewrite !(@SD0 R C D g); case: Hcf => d Hd; rewrite Hd.
+  apply: (totmono_increasing Hg).
+  by move: Hbnd; rewrite big_ord0 precone_addr0 -Hd.
+exact: (@SD_mono_full R C D g Hg m (h^~ x) (h^~ (x + v)) (f x) (f (x + v))
+  Hcf Hch Hbnd).
+Qed.
+
+(** **The diagonal expansion [dB_kfun] (Lemma 7.23 applied, txt 3724).**
+    The single-step difference of the composite splits as the paper's
+    [n+1]-term sum, the first Lemma-7.23 term cancelling against [k x].
+    The shifted family [h(x+u) = h(x) + Δh(u)(x)] and shifted centre
+    [f(x+u) = f(x) + Δf(u)(x)] turn [k(x+u)] into the LHS of [SD_723]. *)
+Lemma dB_kfun (n : nat) (f : B -> C) (h : 'I_n -> (B -> C))
+    (Hf : is_increasing f) (Hh : forall i, is_increasing (h i))
+    (Hbd : forall y, cone_norm y <= 1 ->
+       cone_norm (f y +
+         \big[precone_add/precone_zero]_(i : 'I_n) h i y) <= 1)
+    (u : B) (x : B) (Hxu : cone_norm (x + u) <= 1) :
+  dB (kfun f h) u x =
+  SD g (vcons (dB f u x) (fun i => h i x + dB (h i) u x)) (f x) +
+  \big[precone_add/precone_zero]_(k : 'I_n)
+     SD g (hyb (fun i => h i x) (fun i => dB (h i) u x) k)
+        (f x + h k x).
+Proof.
+have Hx1 : cone_norm x <= 1.
+  by apply: le_trans Hxu; apply: cone_normp; exists u.
+(* [f] and each [h i] are increasing at [x] in direction [u]. *)
+have Hcf : f x <=p f (x + u) by exact: Hf.
+have Hch i : h i x <=p h i (x + u) by exact: Hh.
+(* [dB_E] term reads: [f(x+u) = f x + dB f u x], [h i (x+u) = ..]. *)
+have EfU : f (x + u) = f x + dB f u x by exact: dB_E.
+have EhU i : h i (x + u) = h i x + dB (h i) u x by exact: dB_E.
+(* The shifted config stays in the ball, feeding [SD_723]. *)
+have Hbnd : cone_norm (f (x + u) +
+    \big[precone_add/precone_zero]_(i : 'I_n) h i (x + u)) <= 1 by exact: Hbd.
+have HcS : cone_norm (f x + (dB f u x +
+    \big[precone_add/precone_zero]_(i : 'I_n)
+      (h i x + dB (h i) u x))) <= 1.
+  rewrite precone_addA -EfU.
+  by under eq_bigr => i _ do rewrite -EhU; exact: Hbnd.
+(* [k(x+u)] is the LHS of [SD_723] with [u'=h(x)], [v'=Δh(u)(x)],
+   head [u0=Δf(u)(x)], centre [f x]. *)
+have Ekxu : kfun f h (x + u) =
+    SD g (fun i => h i x + dB (h i) u x) (f x + dB f u x).
+  rewrite /kfun -EfU; congr (SD g _ _); apply/funext => i; exact: EhU.
+have step := SD_723 g Hg (fun i => h i x) (fun i => dB (h i) u x)
+  (dB f u x) (f x) HcS.
+(* [k] is increasing, so [dB_E] applies to [k] itself at [(x,u)]. *)
+have Hkinc : is_increasing (kfun f h) by exact: kfun_increasing.
+have Hkx : kfun f h x <=p kfun f h (x + u) by exact: Hkinc.
+have Ek : kfun f h (x + u) = kfun f h x + dB (kfun f h) u x by exact: dB_E.
+(* The first Lemma-7.23 term [SD g (h x) (f x) = k x] cancels. *)
+apply: (@precone_cancel _ _ (kfun f h x)).
+rewrite -Ek Ekxu step precone_addA.
+by congr (_ + _).
+Qed.
+
+End Lemma726.
+
+Arguments kfun {R B C D} g {n} f h.
+Arguments kfun_increasing {R B C D} g Hg {n} f h Hf Hh Hbd.
+Arguments dB_kfun {R B C D} g Hg {n} f h Hf Hh Hbd u x Hxu.
+
+(** ** ω-continuity and boundedness of a composite — Paper §7.4 (Thm 7.30)
+       (the *unblocked* halves of [stable_comp])
+
+    The composition theorem 7.30 — [g ∘ f] stable-and-measurable for [f, g]
+    stable-and-measurable of norm [≤ 1] — has, by the paper's own remark,
+    exactly *one* non-obvious ingredient: that [g ∘ f] is totally
+    monotonic, "obtained by Lemma 7.26 applied with [n = 0]".  Everything
+    else is direct.  We deliver those direct halves here, fully proved:
+
+    - [scott_comp]: ω-continuity of [g ∘ f] composes.  A unit-ball chain
+      [u] is sent by [f] (increasing, ω-continuous, norm [≤ 1] so it stays
+      in [B_C]) to the unit-ball chain [f ∘ u] whose supremum is [f]'s
+      ([cone_sup_at_ball] turning [f]'s radius-[1] [cone_sup_at] into a
+      [cone_sup_ball]); [g]'s own ω-continuity then commutes through, the
+      radius reconciled by [cone_sup_at_indep].
+
+    - [bounded_comp]: [g ∘ f] is bounded ([g]'s bound at the [≤ 1]-bounded
+      image [f x]).
+
+    - [meas_path_comp]: path-preservation composes — [(g∘f)∘γ = g∘(f∘γ)],
+      and [f∘γ] stays in [B_C] (norm [≤ 1]), so [g]'s path-preservation
+      applies to it.
+
+    What is *not* delivered is [totmono_comp] ([g ∘ f] totally monotonic),
+    the [n = 0] corollary of Lemma 7.26, and hence the assembled
+    [stable_comp] / [meas_stable_comp].  The reason is the bare-[B] wall
+    documented at [dB_kfun]: the [p]-induction of Lemma 7.26 cannot close
+    on the bare carrier [B → C] (the head difference [Δf(u)] is increasing
+    but not totally monotonic on the *plain* ball, and the forward bridge
+    [is_totmono ⇒ ∀p, Sinc p] is genuinely false there), and the
+    local-cone route requires the deferred nested-cone transport.  When
+    [totmono_comp] becomes available the three lemmas below assemble it
+    into [stable_comp]/[meas_stable_comp] with no further work. *)
+
+Section CompClosure.
+Variable R : realType.
+Variables B C D : coneType R.
+Local Open Scope precone_scope.
+
+(** **ω-continuity composes.**  [f] ω-continuous, increasing, norm [≤ 1];
+    [g] ω-continuous ⇒ [g ∘ f : B → D] is [is_scott_continuous_unit]. *)
+Lemma scott_comp (f : B -> C) (g : C -> D)
+    (Hfc : is_scott_continuous_unit f) (Hfi : is_increasing f)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1)
+    (Hgc : is_scott_continuous_unit g) :
+  is_scott_continuous_unit (fun x => g (f x)).
+Proof.
+move=> Mf u uch ub1 fuch fubMf Mfpos.
+set x := cone_sup_ball u uch ub1.
+have fch m : f (u m) <=p f (u m.+1).
+  by have [d Hd] := uch m; rewrite Hd; apply: Hfi; rewrite -Hd; exact: ub1.
+have fb1 m : cone_norm (f (u m)) <= 1 by apply: Hfb; exact: ub1.
+have fxE : f x = cone_sup_ball (f \o u) fch fb1.
+  have fb1' m : cone_norm (f (u m)) <= (1%:nng : {nonneg R})%:num by exact: fb1.
+  have onepos : (0 < (1%:nng : {nonneg R})%:num)%R by rewrite /= ltr01.
+  rewrite /x (Hfc 1%:nng u uch ub1 fch fb1' onepos).
+  exact: (cone_sup_at_ball fch fb1 fb1' onepos).
+rewrite /comp/= fxE (Hgc Mf (f \o u) fch fb1 fuch fubMf Mfpos).
+exact: cone_sup_at_indep.
+Qed.
+
+(** **Boundedness composes** (bound [g]'s value at the [≤ 1]-image). *)
+Lemma bounded_comp (f : B -> C) (g : C -> D)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1)
+    (Hg : exists M : R, forall y, cone_norm y <= 1 -> cone_norm (g y) <= M) :
+  exists M : R, forall x, cone_norm x <= 1 ->
+    cone_norm ((fun x => g (f x)) x) <= M.
+Proof. by have [M HM] := Hg; exists M => x Hx; apply: HM; exact: Hfb. Qed.
+
+End CompClosure.
+
+Arguments scott_comp {R B C D} f g Hfc Hfi Hfb Hgc.
+Arguments bounded_comp {R B C D} f g Hfb Hg.
+
+(** **Path-preservation composes** — Paper §7.4 (the measurable half of
+    Thm 7.30).  [(g∘f)∘γ = g∘(f∘γ)]; the inner image [f∘γ] stays in [B_C]
+    (norm [≤ 1] by [f]'s bound), so [g]'s path-preservation applies. *)
+Lemma meas_path_comp (R : realType) (Ar : MeasSubcat R)
+    (B C D : MCone.type Ar) (f : B -> C) (g : C -> D)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1)
+    (Hfp : forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> B),
+       (forall r, cone_norm (γ r) <= 1) ->
+       is_measurable_path (Ar:=Ar) (C:=B) γ ->
+       is_measurable_path (Ar:=Ar) (C:=C) (fun r => f (γ r)))
+    (Hgp : forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> C),
+       (forall r, cone_norm (γ r) <= 1) ->
+       is_measurable_path (Ar:=Ar) (C:=C) γ ->
+       is_measurable_path (Ar:=Ar) (C:=D) (fun r => g (γ r)))
+    (X : ar_obj Ar) (γ : ar_carrier Ar X -> B)
+    (Hγb : forall r, cone_norm (γ r) <= 1)
+    (Hγ : is_measurable_path (Ar:=Ar) (C:=B) γ) :
+  is_measurable_path (Ar:=Ar) (C:=D) (fun r => g (f (γ r))).
+Proof.
+apply: (Hgp X (fun r => f (γ r))); first by move=> r; apply: Hfb; exact: Hγb.
+exact: Hfp.
+Qed.
+
+Arguments meas_path_comp {R Ar B C D} f g Hfb Hfp Hgp X γ Hγb Hγ.
+
 (** ** Status of §7.3 in this file
        (what is delivered here, and the precise remaining walls)
 
@@ -1946,16 +2200,58 @@ Arguments totmono_Delta {R B C} f Hf {n} u Hs.
     arity [m] *directly* to [f]'s own total monotonicity at the
     concatenated arity [n+m] — the discrete "[Dⁿ⁺ᵐ = Dᵐ ∘ Dⁿ]" composition.
 
-    Remaining (Lemmas 7.26/7.27 + composition theorem [stable_comp]):
+    Lemma 7.26 (the Faà-di-Bruno-style main lemma) — the two cornerstones:
 
-    - **Lemma 7.26** (the Faà-di-Bruno-style main lemma): for totally
-      monotonic [f, h₁,…,hₙ, g] with [f(x) + Σᵢ hᵢ(x) ∈ B_C], the map
-      [k(x) = Δg(h₁(x),…,hₙ(x))(f(x))] is totally monotonic.  Now unblocked:
-      [totmono_Delta] gives the [Δg(h⃗)] cone its total monotonicity, and the
-      [SD_concat]/Lemma-7.23 telescope ([SD_diag]/[SD_723]) supplies the
-      finite-difference bookkeeping the paper's [p]-induction needs.
+    - **[kfun]** / **[kfun_increasing]** (Lemma 7.25 for the composite, the
+      [p = 0] base case): the B-side composite difference
+      [kfun g f h⃗ x = SD g (fun i ↦ hᵢ x) (f x)] (i.e.
+      [Δg(h₁(x),…,hₙ(x))(f(x))]) is increasing on [B_B], read off the joint
+      centre/direction monotonicity [SD_mono_full] of [g] ([f], [hᵢ]
+      increasing make the centre [f x] and every direction [hᵢ x] grow;
+      [g]'s difference is jointly increasing), the [n = 0] case being [g]
+      increasing.  The boundedness hypothesis [Hbd] ([∀x∈B_B, f(x)+Σhᵢ(x)
+      ∈ B_C]) supplies the unit-ball norm bound.
 
-    - **Lemma 7.27** + the **composition theorem** ([stable_comp] /
-      [meas_stable_comp]): totally monotonic (resp. stable, resp.
-      measurable-stable) functions are closed under composition — the §7.3
-      payload, built on Lemma 7.26. *)
+    - **[dB_kfun]** (the diagonal expansion, the [p ⤳ p+1] engine, txt
+      3724): the single-step difference of the composite splits as the
+      paper's [n+1]-term sum [dB k u x = SD g (Δf(u)(x) :: (hᵢ(x+u))ᵢ)(f x)
+      + Σₖ SD g (hybₖ(h(x),Δh(u)(x)))(f x + h_k x)], the would-be first
+      Lemma-7.23 term [SD g (h(x))(f x) = k x] annihilated by the
+      subtraction ([dB_E] + [precone_cancel]).  This is exactly [SD_723]
+      (Lemma 7.23 full telescope) on the shifted family [h(x+u) = h(x) +
+      Δh(u)(x)] at the shifted centre [f(x+u) = f(x) + Δf(u)(x)].
+
+    Composition theorem (Thm 7.30) — the *unblocked* halves:
+
+    - **[scott_comp]** (ω-continuity composes) / **[bounded_comp]**
+      (boundedness composes) / **[meas_path_comp]** (path-preservation
+      composes): for [f, g] stable-and-measurable of norm [≤ 1], all of
+      [g ∘ f]'s stability/measurability fields *except total monotonicity*
+      are direct (ω-continuity via [cone_sup_at_ball]/[cone_sup_at_indep],
+      [f]'s [≤ 1]-image keeping the chain/path in [B_C]).
+
+    Deferred — the *one* non-obvious ingredient of Thm 7.30:
+
+    - **[totmono_compdiff]/[totmono_comp]** (Lemma 7.26 in full, and its
+      [n = 0] corollary [g ∘ f] totally monotonic), and hence the assembled
+      **[stable_comp]/[meas_stable_comp]**.  The wall is the bare-[B]
+      obstruction documented at [dB_kfun]: closing the paper's
+      [p]-induction needs each summand of [dB_kfun] fed back to the IH
+      [Sinc p], but the head direction [Δf(u) = dB f u] is increasing
+      ([SD_mono_centre]) yet *not* totally monotonic on the *plain* ball
+      (only on the *shifted* ball, [totmono_dB]), and the forward bridge
+      [is_totmono ⇒ ∀p, Sinc p] is genuinely false on bare [B] ([Sinc 1 f]
+      would demand [dB f u] increasing on the plain unit ball, which fails
+      near the boundary where [x + u] escapes and [dB f u x = 0]).  The
+      paper runs the whole induction on the *local cones* [B_u], where the
+      gauge norm makes plain and shifted balls coincide ([lc_step1]) — i.e.
+      through the nested-local-cone transport [(B_{u₀})_{u⃗} = B_{u₀,u⃗}]
+      that is the one cast deferred throughout this development.  With
+      [totmono_comp] in hand, [scott_comp]/[bounded_comp]/[meas_path_comp]
+      assemble [stable_comp]/[meas_stable_comp] with no further work.
+
+    - **Lemma 7.27** ([totmono_bilin]): [f : B × C → D] linear in arg 1 +
+      totmono in arg 2 ⇒ totmono on [B_B × B_C].  Independent of the wall
+      above, but needs the binary-product cone [B × C] with the [&]-norm
+      and the [Pε(n)] reindexing [inj_j] of Lemma 7.4 — fresh
+      product-cone infrastructure not yet in the development. *)
