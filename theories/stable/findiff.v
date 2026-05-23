@@ -637,6 +637,86 @@ End ConeHelpers.
 
 Arguments precone_le_addlI {R B} c a b.
 
+(** ** ω-continuity of the inclusion [lc_val : B_x → B] — Paper §7.1
+       (the missing "translate" lemma for §7.3)
+
+    The inclusion [lc_val : B_x → B] is ω-continuous on the unit ball: for
+    an increasing unit-ball chain [u : nat → B_x], the [B]-value of the
+    [B_x]-supremum is the [B]-supremum of the [B]-values,
+
+      [lc_val (cone_sup_ball u) = cone_sup_ball (lc_val ∘ u)] .
+
+    This is derived purely from existing exports: the (Normc) translate of
+    the local cone [lc_sup_ball_translate]
+    ([x + lc_val(B_x-sup u) = B-sup of (x + lc_val uₙ)]), the shift-commutes
+    fact [sup_ball_addr] (the [B]-sup commutes with [· + x]) and the
+    cancellation [precone_cancel] (cancel the centre [x]).  The B-side chain
+    proofs are derived from the [B_x]-chain ones by [lc_leE] (order
+    coincidence) and [lc_val_norm_le] (the [B]-norm is below the gauge
+    norm). *)
+
+Section LcValScott.
+Variable R : realType.
+Variable B : coneType R.
+Variable x : B.
+Hypothesis Hx : cone_norm x < 1.
+Local Notation LC := (lc_coneType Hx).
+Variable u : nat -> LC.
+Local Open Scope precone_scope.
+
+(** The [B]-value chain inherits monotonicity from the [B_x]-chain. *)
+Lemma lc_val_chain_mono (uch : forall n, u n <=p u n.+1) n :
+  lc_val (u n) <=p lc_val (u n.+1).
+Proof. exact: (lc_leE Hx (u n) (u n.+1)).1 (uch n). Qed.
+
+(** The [B]-value chain stays in the unit ball ([B]-norm ≤ gauge norm). *)
+Lemma lc_val_chain_ub1 (ub1 : forall n, cone_norm (u n) <= 1) n :
+  cone_norm (lc_val (u n)) <= 1.
+Proof. by apply: le_trans (ub1 n); exact: (lc_val_norm_le Hx (u n)). Qed.
+
+(** **ω-continuity of [lc_val].**  The B-side chain proofs [vch]/[vb1] are
+    passed explicitly (they are the [lc_val_chain_mono]/[lc_val_chain_ub1]
+    of the [B_x]-chain proofs [uch]/[ub1]); [cone_sup_ball] is determined by
+    the chain up to its (irrelevant) proof arguments. *)
+Lemma lc_val_scott
+    (uch : forall n, u n <=p u n.+1)
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (vch : forall n, lc_val (u n) <=p lc_val (u n.+1))
+    (vb1 : forall n, cone_norm (lc_val (u n)) <= 1) :
+  lc_val (cone_sup_ball u uch ub1) =
+  cone_sup_ball (fun n => lc_val (u n)) vch vb1.
+Proof.
+have transl := lc_sup_ball_translate uch ub1.
+set SL := lc_val (cone_sup_ball u uch ub1) in transl *.
+set SB := cone_sup_ball (fun n => lc_val (u n)) vch vb1.
+(* The shifted chain [n ↦ lc_val uₙ + x] is increasing and unit-ball. *)
+have addch n : lc_val (u n) + x <=p lc_val (u n.+1) + x.
+  by apply: precone_add_le_r; exact: vch.
+have addub n : cone_norm (lc_val (u n) + x) <= 1.
+  by rewrite precone_addC; exact: (lc_step1 Hx (ub1 n)).
+(* Cancel the centre [x]: show [x + SL = x + SB]. *)
+apply: (@precone_cancel _ _ x).
+rewrite transl.
+(* [transl]'s sup is over [n ↦ x + lc_val uₙ]; flip to [lc_val uₙ + x]. *)
+set CH := cone_sup_ball (fun n => x + lc_val (u n))
+  (local_cone.c_mono_subproof0 uch) (local_cone.c_ub1_subproof0 ub1).
+have ->: CH = cone_sup_ball (fun n => lc_val (u n) + x) addch addub.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n; rewrite precone_addC.
+    exact: (cone_sup_ball_ub (fun n => lc_val (u n) + x) addch addub n).
+  - apply: cone_sup_ball_lub => n; rewrite [lc_val (u n) + x]precone_addC.
+    exact: (cone_sup_ball_ub (fun n => x + lc_val (u n))
+      (local_cone.c_mono_subproof0 uch) (local_cone.c_ub1_subproof0 ub1) n).
+have key := @sup_ball_addr R B (fun n => lc_val (u n)) vch vb1 x addch addub.
+by rewrite key precone_addC.
+Qed.
+
+End LcValScott.
+
+Arguments lc_val_chain_mono {R B x} Hx {u} uch n.
+Arguments lc_val_chain_ub1 {R B x} Hx {u} ub1 n.
+Arguments lc_val_scott {R B x} Hx {u} uch ub1 vch vb1.
+
 (** ** Lemma 7.18 — [Δf(u)] is totally monotonic — Paper §7.3 (txt 3523)
 
     For [f] totally monotonic and [u ∈ B_B], the single-step difference
@@ -2214,27 +2294,36 @@ Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
       (Remark 7.24's [1 & ⋯ & 1 ⊸ B]).  All five norm axioms; (Normc)
       bundles the componentwise [cone_sup_at]s, the norm bound coming from
       the radius-1 diagonal-sum lub [dsum_lub].
+    - **[lc_val_scott]**: the inclusion [lc_val : B_x → B] is ω-continuous
+      on the unit ball — [lc_val (cone_sup_ball u) = cone_sup_ball
+      (lc_val ∘ u)].  Derived from the (Normc) translate
+      [lc_sup_ball_translate] (the [B]-sup of [n ↦ x + lc_val uₙ]), the
+      shift-commutes fact [sup_ball_addr], and cancellation of the centre
+      [precone_cancel]; the B-side chain proofs come from [lc_val_chain_mono]
+      ([lc_leE]) and [lc_val_chain_ub1] ([lc_val_norm_le]).  This is the
+      "translate" half of the [scott_Delta] blocker below, now removed.
 
     Deferred (need ω-continuity / Theorem 7.19 on the difference operator).
     - **[scott_Delta]** / Lemma 7.20 [Δf(u⃗)] clause: ω-continuity, then
       total monotonicity, of the difference operator [Δf(u⃗)] itself.
       Total monotonicity would follow from [is_n_increasing_totmono]
       applied to [Δf(u⃗)] — [k]-increasing for all [k] by Lemma 7.16 —
-      *once* [Δf(u⃗)] is known [is_scott_continuous_unit].  The precise
-      blocker for that ω-continuity: the [Δε] summands are shifts
+      *once* [Δf(u⃗)] is known [is_scott_continuous_unit].  Two ingredients
+      are now in place above: [lc_val_scott] (ω-continuity of the inclusion,
+      so the chain [lc_val xₙ + s_I] reads as a [B]-sup) and the dominated
+      shift [totmono_shift_le].  The precise blocker for the [Δε]
+      ω-continuity that remains: the summands are shifts
       [g_{s_I}(x) = f(lc_val x + s_I)] of [f] by the *partial* sums
       [s_I = Σ_{i∈I} uᵢ], read on the local cone [B_{u⃗}] centred at the
-      *full* sum [S = Σᵢ uᵢ].  The available sup-translate of the local
-      cone ([local_cone.v]'s [lc_sup_ball_translate]) only relates
-      [lc_val] of a [B_{u⃗}]-supremum to a [B]-supremum *through the
-      centre* [S] — [S + lc_val(sup) = sup_B(S + lc_val·)] — so it
-      transports shifts by [S] but NOT shifts by a strict sub-element
-      [s_I ≺ S].  For a *linear* test the difference trick
-      ([lc_test_cont]) sidesteps this, but for the nonlinear [f] it does
-      not.  Proving [scott_Delta] cleanly therefore needs a new
-      "shifted-translate" lemma (a [cone_sup_ball] for [lc_val(sup) + s])
-      plus the difference-of-ω-continuous engine [diff_scott_at] — a
-      substantial development not opened here.  No [Admitted] is left.
+      *full* sum [S = Σᵢ uᵢ].  Composing [f]'s [is_scott_continuous_unit]
+      after [lc_val_scott] needs the shifted chain [lc_val xₙ + s_I] to stay
+      in the unit ball [B_B] *and* its image sup to be read at a common
+      radius — this is the difference-of-ω-continuous engine [diff_scott_at]
+      (in [stable/stablehom.v], on the measure-theoretic dependency chain,
+      so NOT importable into this file without restructuring the loadpath).
+      Proving [scott_Delta] here therefore still needs [diff_scott_at] —
+      moved to [stable/compose.v] (which imports [stablehom.v]) rather than
+      added here.  No [Admitted] is left.
     - Lemma 7.23, *general* arity (the full [Δf(u⃗+v⃗)(x+u)] telescope):
       the [n = 1] base ([SD_723_1]) is delivered.  The general case
       decomposes as [SD_cons] (head term [Δf(u, u⃗+v⃗)]) plus the
@@ -2246,9 +2335,12 @@ Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
       [m + k.+1 = m.+1 + k] reindexing.  The [SD] engines ([SD_cons],
       [SD_add]) are in place; only the prefix machinery is missing.
     - Lemma 7.25 ([(x,u⃗) ↦ Δf(u⃗)(x)] increasing [B_SnB → C]): the
-      paper's "follows easily from Theorem 7.19" needs the [Δf(u⃗)] clause
-      of 7.20 (well-definedness + *joint* centre/direction monotonicity:
-      the [SnB] order moves both the centre [x] and the directions [u⃗],
-      whereas [Delta_mono] handles only a moving centre at fixed
-      directions), so it is deferred with [scott_Delta].  The [SnB] cone
-      it lives on is complete. *)
+      paper's "follows easily from Theorem 7.19" needs *joint*
+      centre/direction monotonicity (the [SnB] order moves both the centre
+      [x] and the directions [u⃗], whereas [Delta_mono] handles only a
+      moving centre at fixed directions).  This is now delivered in
+      [stable/compose.v] as [SnB_increasing], built on the joint
+      [SD_mono_full] monotonicity engine (centre [SD_mono_centre] + all
+      directions [SD_mono_dirs] via the symmetry [SD_perm]) — purely from
+      total monotonicity, with NO recourse to ω-continuity.  The [SnB] cone
+      it lives on is complete (delivered above). *)
