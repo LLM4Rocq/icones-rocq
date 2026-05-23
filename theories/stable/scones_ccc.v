@@ -244,6 +244,42 @@ Arguments sprod_fst {R Ar X Y}.
 Arguments sprod_snd {R Ar X Y}.
 Arguments sprod_pair {R Ar X Y}.
 
+(** Paper Cuball(X & Y) = Cuball X × Cuball Y.  The product norm is the
+    sup of the two component norms, so a pairing of two unit-ball points
+    is in the unit ball. *)
+Section SProdNorm.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variables X Y : ICone.type Ar.
+Local Open Scope precone_scope.
+
+(** [‖⟨x, y⟩‖ ≤ 1] when [‖x‖ ≤ 1] and [‖y‖ ≤ 1]. *)
+Lemma sprod_pair_norm_le1 (x : X) (y : Y) :
+  cone_norm x <= 1 -> cone_norm y <= 1 ->
+  cone_norm (sprod_pair x y) <= 1.
+Proof.
+move=> Hx Hy; rewrite /cone_norm/= /cones_prod_norm.
+apply: ge_sup.
+  by exists (cone_norm (cones_prod_val (sprod_pair x y) true)), true.
+by move=> r [[] ->].
+Qed.
+
+(** Conversely, both components of a unit-ball pairing are in the unit
+    ball (each component norm is [≤] the product norm). *)
+Lemma sprod_fst_ball (p : sprod X Y) :
+  cone_norm p <= 1 -> cone_norm (sprod_fst p) <= 1.
+Proof. by move=> Hp; apply: le_trans Hp; exact: (cones_prod_norm_ge_comp _ true). Qed.
+
+Lemma sprod_snd_ball (p : sprod X Y) :
+  cone_norm p <= 1 -> cone_norm (sprod_snd p) <= 1.
+Proof. by move=> Hp; apply: le_trans Hp; exact: (cones_prod_norm_ge_comp _ false). Qed.
+
+End SProdNorm.
+
+Arguments sprod_pair_norm_le1 {R Ar X Y} x y.
+Arguments sprod_fst_ball {R Ar X Y p}.
+Arguments sprod_snd_ball {R Ar X Y p}.
+
 (** ** The per-index totmono reduction (Term B of Lemma 7.27)
 
     For a totally-monotonic [h : B -> C] and a fixed index [i : 'I_n],
@@ -688,3 +724,530 @@ End EvMorphism.
 Arguments Ev {R Ar} B C.
 Arguments Ev_ball {R Ar B C} φ.
 Arguments Ev_pair {R Ar B C} f x.
+
+(** ** Currying — Paper §7.4 (lines 5972–6074)
+
+    Given [h : SCones(sprod D B, C)] and [z : D] with [‖z‖ ≤ 1], the
+    section [x ↦ h(z, x)] is a stable-and-measurable map [B → C] of
+    norm [≤ 1] (the paper's [g(z)]); we 0-extend it to [curry_app h z :
+    stablehom B C].  The currying morphism [curry h : SCones(D, B ⇒ₛ C)]
+    sends [z ↦ curry_app h z] (0-extended).
+
+    The pairing-with-fixed-[z] section [B → sprod D B], [x ↦ ⟨z, x⟩], is
+    used pervasively; on [B_B] (with [‖z‖ ≤ 1]) it lands in the product
+    unit ball ([sprod_pair_norm_le1]), and the (7.1) data on the
+    [B]-side transports to product (7.1) data with [D]-increments [0]. *)
+
+Section CurryApp.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variables D B C : ICone.type Ar.
+Local Open Scope precone_scope.
+
+Local Notation SDB := (sprod D B).
+
+Variable h : scones_hom SDB C.
+
+(** The bare section [x ↦ h(z, x)] (before 0-extension). *)
+Definition cap_fun (z : D) : B -> C := fun x => sc_fun h (sprod_pair z x).
+
+(** A product (7.1)-argument with [D]-increment [0]: pairing the centre
+    [z] with the [B]-side (7.1)-argument is the product (7.1)-argument of
+    [(z, x)] with increments [(0, w i)]. *)
+Lemma cap_tm_arg (z : D) (n : nat) (x : B) (w : 'I_n -> B) (I : {set 'I_n}) :
+  sprod_pair z (tm_arg x w I) =
+  tm_arg (sprod_pair z x) (fun i => sprod_pair (0 : D) (w i)) I.
+Proof.
+rewrite /tm_arg.
+apply: cones_prod_eq => -[]; rewrite /=.
+- rewrite cones_prod_val_big.
+  rewrite (eq_bigr (fun=> (0 : D))); last by move=> i _.
+  by rewrite big1// precone_addr0.
+- rewrite cones_prod_val_big.
+  by congr (_ + _); apply: eq_bigr.
+Qed.
+
+(** The full product-increment sum with [D]-component [0]: pairs [z]
+    with [x + Σ w] (the [n]-fold version of [cap_tm_arg] at [I = setT]). *)
+Lemma cap_full (z : D) (n : nat) (x : B) (w : 'I_n -> B) :
+  cone_norm z <= 1 ->
+  cone_norm (x + \big[precone_add/precone_zero]_(i : 'I_n) w i) <= 1 ->
+  cone_norm (sprod_pair z x +
+     \big[precone_add/precone_zero]_(i : 'I_n)
+        sprod_pair (0 : D) (w i)) <= 1.
+Proof.
+move=> Hz Hxw.
+have -> : sprod_pair z x +
+    \big[precone_add/precone_zero]_(i : 'I_n) sprod_pair (0 : D) (w i) =
+    sprod_pair z (x + \big[precone_add/precone_zero]_(i : 'I_n) w i).
+  apply: cones_prod_eq => -[]; rewrite /=.
+  - rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+    rewrite (eq_bigr (fun=> (0 : D))); last by move=> i _.
+    by rewrite big1// precone_addr0.
+  - rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+    by congr (_ + _); apply: eq_bigr.
+exact: sprod_pair_norm_le1.
+Qed.
+
+(** Total monotonicity of the section [x ↦ h(z, x)] on [B_B], for
+    [‖z‖ ≤ 1]: it is [is_totmono h] at centre [(z, x)] with the
+    [D]-increment-[0] family [(0, w i)]. *)
+Lemma cap_totmono (z : D) : cone_norm z <= 1 -> is_totmono (cap_fun z).
+Proof.
+move=> Hz n x w Hxw; rewrite /cap_fun.
+under eq_bigr => I _ do rewrite cap_tm_arg.
+under [X in _ <=p X]eq_bigr => I _ do rewrite cap_tm_arg.
+have [[Htm _ _] _] := sc_meas_stable h.
+by apply: Htm; exact: cap_full.
+Qed.
+
+(** Boundedness of the section on [B_B] (for [‖z‖ ≤ 1]): each value
+    [h(z, x)] has norm [≤ ‖h‖ ≤ 1] since [⟨z, x⟩ ∈ B_{sprod}]. *)
+Lemma cap_bounded (z : D) :
+  cone_norm z <= 1 ->
+  exists M : R, forall x : B, cone_norm x <= 1 -> cone_norm (cap_fun z x) <= M.
+Proof.
+move=> Hz; exists 1 => x Hx; rewrite /cap_fun.
+exact: (sc_image_ball h (sprod_pair_norm_le1 z x Hz Hx)).
+Qed.
+
+(** The section commutes with the unit-ball supremum: pairing [z] with
+    a [B]-chain supremum is the [sprod]-supremum of the paired chain
+    (the [sprod]-sup is componentwise — [z] constant, [u] varying). *)
+Lemma sprod_pair_sup (z : D) (u : nat -> B)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) (Hz : cone_norm z <= 1)
+    (pch : forall n, precone_le (sprod_pair z (u n)) (sprod_pair z (u n.+1)))
+    (pb1 : forall n, cone_norm (sprod_pair z (u n)) <= 1) :
+  sprod_pair z (cone_sup_ball u uch ub1) =
+  cone_sup_ball (fun n => sprod_pair z (u n)) pch pb1.
+Proof.
+set S := cone_sup_ball (fun n => sprod_pair z (u n)) pch pb1.
+(* The [true]-component of the paired-chain sup is [z] (constant chain). *)
+have Etrue : cones_prod_val S true = z.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n.
+    by have ->: cones_prod_val (sprod_pair z (u n)) true = z by [];
+       exact: precone_le_refl.
+  - have KEY := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 0%N) true.
+    by move: KEY; have ->: cones_prod_val (sprod_pair z (u 0%N)) true = z by [].
+(* The [false]-component is [cone_sup_ball u] (the [B]-chain sup). *)
+have Efalse : cones_prod_val S false = cone_sup_ball u uch ub1.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n.
+    have ->: cones_prod_val (sprod_pair z (u n)) false = u n by [].
+    exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => n.
+    have := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 n) false.
+    by have ->: cones_prod_val (sprod_pair z (u n)) false = u n by [].
+apply: cones_prod_eq => -[].
+- by rewrite Etrue.
+- by rewrite Efalse.
+Qed.
+
+(** ω-continuity of the section on [B_B] (for [‖z‖ ≤ 1]): commute the
+    [B]-sup through the section ([sprod_pair_sup]) and through [h]'s own
+    Scott-continuity. *)
+Lemma cap_scott (z : D) :
+  cone_norm z <= 1 -> is_scott_continuous_unit (cap_fun z).
+Proof.
+move=> Hz Mf u uch ub1 fuch fubMf Mfpos; rewrite /cap_fun.
+have pch n : precone_le (sprod_pair z (u n)) (sprod_pair z (u n.+1)).
+  by apply: cones_prod_le_compI => -[];
+    rewrite ?sprod_fstE ?sprod_sndE; [exact: precone_le_refl | exact: uch].
+have pb1 n : cone_norm (sprod_pair z (u n)) <= 1.
+  exact: sprod_pair_norm_le1.
+rewrite (sprod_pair_sup (z:=z) (u:=u) uch ub1 Hz pch pb1).
+have [[_ _ Hsc] _] := sc_meas_stable h.
+rewrite (Hsc Mf (fun n => sprod_pair z (u n)) pch pb1 fuch fubMf Mfpos).
+by apply: precone_le_anti; apply: cone_sup_at_lub => n;
+  exact: cone_sup_at_ub.
+Qed.
+
+(** Path-preservation of the section on [B_B] (for [‖z‖ ≤ 1]): a
+    unit-ball [B]-path [γ] gives the unit-ball [sprod]-path
+    [r ↦ ⟨z, γ r⟩] (constant [D]-component, [γ] in [B]-component), which
+    [h] preserves. *)
+Lemma cap_pres_path (z : D) :
+  cone_norm z <= 1 ->
+  forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> B),
+    (forall r, cone_norm (γ r) <= 1) ->
+    is_measurable_path (Ar:=Ar) (C:=B) γ ->
+    is_measurable_path (Ar:=Ar) (C:=C) (fun r => cap_fun z (γ r)).
+Proof.
+move=> Hz X γ Hγb Hγ; rewrite /cap_fun.
+(* the paired path [r ↦ ⟨z, γ r⟩] is a unit-ball [sprod]-path *)
+have Hpb r : cone_norm (sprod_pair z (γ r)) <= 1.
+  exact: sprod_pair_norm_le1.
+have Hpair : is_measurable_path (Ar:=Ar) (C:=SDB)
+    (fun r => sprod_pair z (γ r)).
+  split; first by exists 1 => r.
+  move=> Y m mM.
+  have [i [n [nM ->]]] := mM.
+  (* A product test [iniTest i n] reads the [i]-component pointwise. *)
+  rewrite (_ : (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+       iniTest i n p.1 (sprod_pair z (γ p.2)))
+     = (fun p => test_fun n p.1
+          (cones_prod_val (sprod_pair z (γ p.2)) i))); last first.
+    by apply: funext => p; rewrite /iniTest /= /iniTest_fun.
+  case: i n nM => n nM /=.
+  - (* [D]-component: constant [z], a constant section *)
+    have Hc : is_measurable_path (Ar:=Ar) (C:=D) (fun _ : ar_carrier Ar X => z).
+      exact: const_path_measurable.
+    by have [_ Hcj] := Hc; have := Hcj Y n nM; apply: eq_measurable_fun.
+  - (* [B]-component: the [γ]-path *)
+    by have [_ Hγj] := Hγ; have := Hγj Y n nM; apply: eq_measurable_fun.
+have [_ Hhp] := sc_meas_stable h.
+exact: (Hhp X (fun r => sprod_pair z (γ r)) Hpb Hpair).
+Qed.
+
+(** The section [x ↦ h(z, x)] is measurable-stable on [B_B], for
+    [‖z‖ ≤ 1] (paper: [g(z) ∈ Cuball(B ⇒ₛ C)]). *)
+Lemma cap_meas_stable (z : D) :
+  cone_norm z <= 1 -> is_meas_stable (cap_fun z).
+Proof.
+move=> Hz; split; first split.
+- exact: cap_totmono.
+- exact: cap_bounded.
+- exact: cap_scott.
+- exact: cap_pres_path.
+Qed.
+
+(** *** [curry_app h z : stablehom B C] — the 0-extended section
+
+    For [‖z‖ ≤ 1] we package the 0-extension [sc_clamp (cap_fun z)] (the
+    section [x ↦ h(z, x)], extended by [0] off [B_B]) as a [stablehom];
+    off [B_D] (when [‖z‖ > 1]) it is the zero map [sh_zero].  This makes
+    [curry_app h] a total [D → stablehom B C] (it will itself be
+    0-extended at the [D]-level by [curry] below). *)
+
+(** The [D]-guarded section: [h(z, x)] when [‖z‖ ≤ 1], else [0].  This
+    side-steps a proof-carrying [match]: the guard makes the function
+    [is_meas_stable] *uniformly* (on [B_B] it agrees with [cap_fun z],
+    stable for [‖z‖ ≤ 1], or with the zero map otherwise). *)
+Definition capg_fun (z : D) : B -> C :=
+  fun x => if cone_norm z <= 1 then sc_fun h (sprod_pair z x) else precone_zero.
+
+Lemma capg_meas_stable (z : D) : is_meas_stable (capg_fun z).
+Proof.
+rewrite /capg_fun; have [Hz | Hz] := boolP (cone_norm z <= 1).
+- exact: (cap_meas_stable Hz).
+- exact: (meas_stable_zero B C).
+Qed.
+
+Lemma capg_clamp_meas_stable (z : D) :
+  is_meas_stable (sc_clamp (capg_fun z)).
+Proof. exact: sc_clamp_meas_stable (capg_meas_stable z). Qed.
+
+(** [curry_app h z : stablehom B C] — the section, 0-extended off [B_B]. *)
+Definition curry_app (z : D) : stablehom B C :=
+  MkStablehom (sc_clamp (capg_fun z)) (capg_clamp_meas_stable z)
+    (sc_clamp_offball_field _).
+
+(** On [B_D] (for [‖z‖ ≤ 1]) and on [B_B] (for [‖x‖ ≤ 1]),
+    [curry_app h z] computes to [h(z, x)]. *)
+Lemma curry_app_ball (z : D) (x : B) :
+  cone_norm z <= 1 -> cone_norm x <= 1 ->
+  sh_fun (curry_app z) x = sc_fun h (sprod_pair z x).
+Proof.
+by move=> Hz Hx; rewrite /curry_app /= (sc_clamp_ball Hx) /capg_fun Hz.
+Qed.
+
+(** Off [B_D] (for [‖z‖ > 1]) [curry_app h z] is the zero stable map. *)
+Lemma curry_app_off (z : D) :
+  ~~ (cone_norm z <= 1) -> curry_app z = sh_zero B C.
+Proof.
+move=> Hz; apply: stablehom_eq => x; rewrite /curry_app /= /stm_zero.
+have [Hx | Hx] := boolP (cone_norm x <= 1).
+  by rewrite (sc_clamp_ball Hx) /capg_fun (negbTE Hz).
+by rewrite (sc_clamp_offball Hx).
+Qed.
+
+(** The operator norm of [curry_app h z] is [≤ 1]. *)
+Lemma curry_app_norm (z : D) : sh_norm (curry_app z) <= 1.
+Proof.
+apply: sh_norm_lub => x Hx; rewrite /curry_app /= (sc_clamp_ball Hx) /capg_fun.
+have [Hz | _] := boolP (cone_norm z <= 1); last by rewrite cone_norm0 ler01.
+exact: (sc_image_ball h (sprod_pair_norm_le1 z x Hz Hx)).
+Qed.
+
+End CurryApp.
+
+Arguments cap_fun {R Ar D B C} h z.
+Arguments curry_app {R Ar D B C} h z.
+Arguments curry_app_ball {R Ar D B C} h z x.
+Arguments curry_app_off {R Ar D B C} h z.
+Arguments curry_app_norm {R Ar D B C} h z.
+
+(** ** Total monotonicity of [curry h] — Paper §7.4 (lines 5978–6053)
+
+    The total-monotonicity inequality of [curry h] lives in the cone
+    [stablehom B C].  We reduce it through the cone-order
+    characterisation [sh_le_of_alt] (Lemma 7.12 backward) to a pointwise
+    comparison [Hpw] (over [B_B]) and the alternating condition
+    [sh_alt].  Both reduce to total monotonicity of [h] over [sprod D B]
+    with the *interleaved* increment family [(w_i, 0)] / [(0, u_j)],
+    classified by the parity-multiplicative [catf]/[catset] split of
+    [compose.v] ([Spos_cat]/[Sneg_cat]). *)
+
+Section CurryTotmono.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variables D B C : ICone.type Ar.
+Local Open Scope precone_scope.
+
+Local Notation SDB := (sprod D B).
+Variable h : scones_hom SDB C.
+
+(** [h] paired against the interleaved increments reads as the
+    [sprod D B]-shift: [h(z + Σ_I w, x + Σ_J u)] is [h] at
+    [(z, x) + Σ_{catset(I,J)} ipair]. *)
+Definition ipair (n k : nat) (w : 'I_n -> D) (u : 'I_k -> B)
+    : 'I_(n + k) -> SDB :=
+  catf (fun i => sprod_pair (w i) (0 : B)) (fun j => sprod_pair (0 : D) (u j)).
+
+(** A cone-sum of [ipair]-increments over [catset (I, J)] is the
+    pairing of the [D]-sum [Σ_I w] with the [B]-sum [Σ_J u]. *)
+Lemma sumP_ipair (n k : nat) (w : 'I_n -> D) (u : 'I_k -> B)
+    (I : {set 'I_n}) (J : {set 'I_k}) :
+  \big[precone_add/precone_zero]_(l in catset (I, J)) ipair w u l =
+  sprod_pair (\big[precone_add/precone_zero]_(i in I) w i)
+             (\big[precone_add/precone_zero]_(j in J) u j).
+Proof.
+rewrite /ipair sumP_catf setL_catset setR_catset.
+apply: cones_prod_eq => -[].
+- have valDt (a b : SDB) :
+    cones_prod_val (a + b) true = cones_prod_val a true + cones_prod_val b true
+    by [].
+  rewrite valDt.
+  rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+  rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+  have HZ : \big[precone_add/precone_zero]_(j in J) (0 : D) = precone_zero
+    by apply: big1.
+  by rewrite HZ precone_addr0.
+- have valDf (a b : SDB) :
+    cones_prod_val (a + b) false =
+    cones_prod_val a false + cones_prod_val b false
+    by [].
+  rewrite valDf.
+  rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+  rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+  have HZ : \big[precone_add/precone_zero]_(i in I) (0 : B) = precone_zero
+    by apply: big1.
+  by rewrite HZ precone_add0.
+Qed.
+
+(** [h] at the [ipair]-shift equals [h] at the paired shifts. *)
+Lemma h_ipair (n k : nat) (z : D) (x : B) (w : 'I_n -> D) (u : 'I_k -> B)
+    (I : {set 'I_n}) (J : {set 'I_k}) :
+  sc_fun h (tm_arg (sprod_pair z x) (ipair w u) (catset (I, J))) =
+  sc_fun h (sprod_pair (z + \big[precone_add/precone_zero]_(i in I) w i)
+                       (x + \big[precone_add/precone_zero]_(j in J) u j)).
+Proof.
+congr (sc_fun h _); rewrite /tm_arg sumP_ipair.
+by rewrite -sprod_pairD.
+Qed.
+
+(** The cone-sum of [curry_app]s evaluated at a ball point [y] is the
+    cone-sum of the [h]-values, provided every [z + Σ_I w] is in
+    [B_D]. *)
+Lemma sh_sum_curry (n : nat) (z : D) (w : 'I_n -> D) (A : {set {set 'I_n}})
+    (y : B) (Hy : cone_norm y <= 1)
+    (HzI : forall I : {set 'I_n},
+       cone_norm (z + \big[precone_add/precone_zero]_(i in I) w i) <= 1) :
+  sh_fun (\big[precone_add/precone_zero]_(I in A)
+            curry_app h (z + \big[precone_add/precone_zero]_(i in I) w i)) y =
+  \big[precone_add/precone_zero]_(I in A)
+     sc_fun h (sprod_pair (z + \big[precone_add/precone_zero]_(i in I) w i) y).
+Proof.
+rewrite sh_bigE; apply: eq_bigr => I _.
+by rewrite (curry_app_ball _ _ _ (HzI I) Hy).
+Qed.
+
+(** The cone-sum of the [D]-increments [(w_i, 0)] over [I] is the
+    pairing [(Σ_I w, 0)]. *)
+Lemma sumP_pair_w (n : nat) (w : 'I_n -> D) (I : {set 'I_n}) :
+  \big[precone_add/precone_zero]_(i in I) sprod_pair (w i) (0 : B) =
+  sprod_pair (\big[precone_add/precone_zero]_(i in I) w i) (0 : B).
+Proof.
+apply: cones_prod_eq => -[].
+- rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+  by apply: eq_bigr.
+- rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+  by rewrite (_ : \big[_/_]_(i in I) (0 : B) = precone_zero) ?big1.
+Qed.
+
+(** The combinatorial bridge.  [Spos]/[Sneg] of [h] over the
+    [D]-increment family [(w_i, 0)], at the [J]-shifted centre
+    [(z, x + Σ_J u)], are the [Ppos]/[Pneg]-block sums of [h]-values —
+    equivalently, [sh_fun] of the [Ppos n]/[Pneg n] cone-sum of
+    [curry_app]s at [x + Σ_J u]. *)
+Lemma Spos_h_curry (n : nat) (z : D)
+    (w : 'I_n -> D) (y : B)
+    (Hx : cone_norm y <= 1)
+    (HzI : forall I : {set 'I_n},
+       cone_norm (z + \big[precone_add/precone_zero]_(i in I) w i) <= 1) :
+  Spos (sc_fun h) n (fun i => sprod_pair (w i) (0 : B)) (sprod_pair z y) =
+  sh_fun (\big[precone_add/precone_zero]_(I in Ppos n)
+            curry_app h (z + \big[precone_add/precone_zero]_(i in I) w i)) y.
+Proof.
+rewrite (sh_sum_curry (Ppos n) Hx HzI) /Spos.
+apply: eq_bigr => I _; congr (sc_fun h _).
+by rewrite sumP_pair_w -sprod_pairD precone_addr0.
+Qed.
+
+Lemma Sneg_h_curry (n : nat) (z : D)
+    (w : 'I_n -> D) (y : B)
+    (Hx : cone_norm y <= 1)
+    (HzI : forall I : {set 'I_n},
+       cone_norm (z + \big[precone_add/precone_zero]_(i in I) w i) <= 1) :
+  Sneg (sc_fun h) n (fun i => sprod_pair (w i) (0 : B)) (sprod_pair z y) =
+  sh_fun (\big[precone_add/precone_zero]_(I in Pneg n)
+            curry_app h (z + \big[precone_add/precone_zero]_(i in I) w i)) y.
+Proof.
+rewrite (sh_sum_curry (Pneg n) Hx HzI) /Sneg.
+apply: eq_bigr => I _; congr (sc_fun h _).
+by rewrite sumP_pair_w -sprod_pairD precone_addr0.
+Qed.
+
+(** The [B]-increment family [(0, u_j)] sums to [(0, Σ_Bs u)], so the
+    [Bincr]-shift of the centre [(z, x)] is [(z, x + Σ_Bs u)]. *)
+Lemma sprod_Bincr_shift (k : nat) (z : D) (x : B) (u : 'I_k -> B)
+    (Bs : {set 'I_k}) :
+  sprod_pair z x +
+    \big[precone_add/precone_zero]_(j in Bs) sprod_pair (0 : D) (u j) =
+  sprod_pair z (x + \big[precone_add/precone_zero]_(j in Bs) u j).
+Proof.
+have HZ : \big[precone_add/precone_zero]_(j in Bs) sprod_pair (0 : D) (u j) =
+    sprod_pair (0 : D) (\big[precone_add/precone_zero]_(j in Bs) u j).
+  apply: cones_prod_eq => -[].
+  - rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+    by rewrite (_ : \big[_/_]_(j in Bs) (0 : D) = precone_zero) ?big1.
+  - rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+    by apply: eq_bigr.
+by rewrite HZ -sprod_pairD precone_addr0.
+Qed.
+
+(** **Lemma 7.27/§7.4 — total monotonicity of [curry h], the cone step.**
+    The (7.1) inequality of [curry h] *in the cone* [stablehom B C].
+    Through [sh_le_of_alt] (the stable-order characterisation, Lemma
+    7.12 backward) it reduces to the pointwise comparison [Hpw] and the
+    alternating condition [sh_alt]; both are total monotonicity of [h]
+    over [sprod D B] with the [D]-increments [(w_i, 0)] (and, for
+    [sh_alt], the interleaved [(0, u_j)]), classified by the
+    [Spos_cat]/[Sneg_cat] parity-multiplicative split. *)
+Lemma curry_totmono_step (n : nat) (z : D) (w : 'I_n -> D)
+    (Hzw : cone_norm (z + \big[precone_add/precone_zero]_(i : 'I_n) w i) <= 1) :
+  precone_le
+    (\big[precone_add/precone_zero]_(I in Pneg n)
+       curry_app h (z + \big[precone_add/precone_zero]_(i in I) w i))
+    (\big[precone_add/precone_zero]_(I in Ppos n)
+       curry_app h (z + \big[precone_add/precone_zero]_(i in I) w i)).
+Proof.
+have [[Hhm _ _] _] := sc_meas_stable h.
+(* Every sub-sum [z + Σ_I w] is in [B_D]. *)
+have HzI (I : {set 'I_n}) :
+    cone_norm (z + \big[precone_add/precone_zero]_(i in I) w i) <= 1.
+  apply: le_trans Hzw; apply: cone_normp; apply: precone_add_le_l.
+  exact: sumP_sub_le.
+apply: sh_le_of_alt.
+- (* [Hpw]: pointwise on [B_B] — [is_totmono h] at [(z,x)] over the
+     [D]-increments [(w_i, 0)]. *)
+  move=> x Hx.
+  rewrite -(Spos_h_curry (z:=z) (w:=w) (y:=x) Hx HzI)
+          -(Sneg_h_curry (z:=z) (w:=w) (y:=x) Hx HzI).
+  apply: (Sneg_le_Spos Hhm).
+  rewrite (_ : \big[precone_add/precone_zero]_(i : 'I_n) sprod_pair (w i) (0 : B) =
+               sprod_pair (\big[precone_add/precone_zero]_(i : 'I_n) w i) (0 : B));
+    last first.
+    apply: cones_prod_eq => -[].
+    + rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+      by apply: eq_bigr.
+    + rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+      by rewrite (_ : \big[_/_]_(i : 'I_n) (0 : B) = precone_zero) ?big1.
+  rewrite -sprod_pairD precone_addr0.
+  exact: sprod_pair_norm_le1.
+(* [sh_alt]: the alternating four-block sum reorganises (via the bridge
+   lemmas + [Spos_cat]/[Sneg_cat]) into [Sneg ≤p Spos] of [h] over the
+   interleaved [catf]-family at centre [(z, x)] — its own total
+   monotonicity. *)
+move=> k x u Hxu.
+have HxJ (J : {set 'I_k}) :
+    cone_norm (x + \big[precone_add/precone_zero]_(j in J) u j) <= 1.
+  apply: le_trans Hxu; apply: cone_normp; apply: precone_add_le_l.
+  exact: sumP_sub_le.
+rewrite /tm_arg.
+(* Rewrite the four blocks via [Spos_h_curry]/[Sneg_h_curry]. *)
+under eq_bigr => J _ do rewrite -(Spos_h_curry (z:=z) (w:=w)
+  (y:=x + \big[precone_add/precone_zero]_(j in J) u j) (HxJ J) HzI).
+under [X in (_ + X)%PC]eq_bigr => J _ do rewrite -(Sneg_h_curry (z:=z) (w:=w)
+  (y:=x + \big[precone_add/precone_zero]_(j in J) u j) (HxJ J) HzI).
+under [X in precone_le _ (X + _)]eq_bigr => J _ do rewrite -(Spos_h_curry
+  (z:=z) (w:=w) (y:=x + \big[precone_add/precone_zero]_(j in J) u j) (HxJ J) HzI).
+under [X in precone_le _ (_ + X)]eq_bigr => J _ do rewrite -(Sneg_h_curry
+  (z:=z) (w:=w) (y:=x + \big[precone_add/precone_zero]_(j in J) u j) (HxJ J) HzI).
+(* Fold the centre into the [Bincr]-shift, then [Spos_cat]/[Sneg_cat]. *)
+under eq_bigr => J _ do rewrite -sprod_Bincr_shift.
+under [X in (_ + X)%PC]eq_bigr => J _ do rewrite -sprod_Bincr_shift.
+under [X in precone_le _ (X + _)]eq_bigr => J _ do rewrite -sprod_Bincr_shift.
+under [X in precone_le _ (_ + X)]eq_bigr => J _ do rewrite -sprod_Bincr_shift.
+rewrite -(Spos_cat (sc_fun h) (fun i : 'I_n => sprod_pair (w i) (0 : B))
+            (fun j : 'I_k => sprod_pair (0 : D) (u j)) (sprod_pair z x)).
+rewrite [X in precone_le X _]precone_addC.
+rewrite -(Sneg_cat (sc_fun h) (fun i : 'I_n => sprod_pair (w i) (0 : B))
+            (fun j : 'I_k => sprod_pair (0 : D) (u j)) (sprod_pair z x)).
+apply: (Sneg_le_Spos Hhm).
+rewrite sumP_catf_T.
+have -> : \big[precone_add/precone_zero]_(i : 'I_n) sprod_pair (w i) (0 : B) =
+    sprod_pair (\big[precone_add/precone_zero]_(i : 'I_n) w i) (0 : B).
+  apply: cones_prod_eq => -[].
+  + rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+    by apply: eq_bigr.
+  + rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+    by rewrite (_ : \big[_/_]_(i : 'I_n) (0 : B) = precone_zero) ?big1.
+have -> : \big[precone_add/precone_zero]_(j : 'I_k) sprod_pair (0 : D) (u j) =
+    sprod_pair (0 : D) (\big[precone_add/precone_zero]_(j : 'I_k) u j).
+  apply: cones_prod_eq => -[].
+  + rewrite (big_morph (cones_prod_val^~ true) (fun a b => erefl) (erefl))/=.
+    by rewrite (_ : \big[_/_]_(j : 'I_k) (0 : D) = precone_zero) ?big1.
+  + rewrite (big_morph (cones_prod_val^~ false) (fun a b => erefl) (erefl))/=.
+    by apply: eq_bigr.
+rewrite -!sprod_pairD !precone_addr0 !precone_add0.
+exact: sprod_pair_norm_le1.
+Qed.
+
+End CurryTotmono.
+
+Arguments ipair {R Ar D B} {n k} w u.
+Arguments sumP_ipair {R Ar D B n k} w u I J.
+Arguments h_ipair {R Ar D B C} h {n k} z x w u I J.
+Arguments curry_totmono_step {R Ar D B C} h n z w Hzw.
+
+(** ** The currying morphism [curry h] — Paper §7.4
+
+    [curry h : SCones(D, B ⇒ₛ C)] sends [z ↦ curry_app h z], 0-extended
+    off [B_D].  Its total monotonicity is [curry_totmono_step]; its
+    ω-continuity is the [sup]-of-stable-functions machinery
+    ([sh_sup_ball_ub] / [sh_sup_ball_lub]); its path-preservation is the
+    test-pullback argument (lines 6058–6074). *)
+
+Section Curry.
+Variable R : realType.
+Variable Ar : MeasSubcat R.
+Variables D B C : ICone.type Ar.
+Local Open Scope precone_scope.
+
+Local Notation SDB := (sprod D B).
+Local Notation H := (stablehom B C : ICone.type Ar).
+Variable h : scones_hom SDB C.
+
+(** [curry_app h] is increasing on [B_D] (from total monotonicity). *)
+Lemma curry_app_incr (z z' : D) :
+  z <=p z' -> cone_norm z' <= 1 -> curry_app h z <=p curry_app h z'.
+Proof. exact: (tm_incr_le (R:=R) (Q:=H) (curry_totmono_step h)). Qed.
+
+(** Total monotonicity of [curry_app h] (Def 7.5 form). *)
+Lemma curry_app_totmono : is_totmono (curry_app h).
+Proof. by move=> n z w Hzw; exact: (curry_totmono_step h). Qed.
+
+End Curry.
