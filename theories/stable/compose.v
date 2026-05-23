@@ -1379,6 +1379,368 @@ Arguments hyb {R B n} u v k.
 Arguments SD_diag {R B C} f Hf {n} u v xb Hc.
 Arguments SD_723 {R B C} f Hf {n} u v u0 xb Hc.
 
+(** ** SD_concat — the difference operator composes — Paper §7.3 *)
+
+Section SDcatComb.
+Variables n m : nat.
+
+(** Concatenation of an [n]-family and an [m]-family into an
+    ['I_(n+m)]-family, via the [split] of the ordinal. *)
+Definition catf (B : Type) (u : 'I_n -> B) (w : 'I_m -> B)
+    : 'I_(n + m) -> B :=
+  fun k => match split k with inl i => u i | inr j => w j end.
+
+(** The two halves of a [{set 'I_(n+m)}], read on the [lshift]/[rshift]
+    images. *)
+Definition setL (K : {set 'I_(n + m)}) : {set 'I_n} :=
+  [set i : 'I_n | lshift m i \in K].
+Definition setR (K : {set 'I_(n + m)}) : {set 'I_m} :=
+  [set j : 'I_m | rshift n j \in K].
+
+(** The pairing [{set 'I_n} * {set 'I_m} → {set 'I_(n+m)}]. *)
+Definition catset (AB : {set 'I_n} * {set 'I_m}) : {set 'I_(n + m)} :=
+  [set lshift m i | i in AB.1] :|: [set rshift n j | j in AB.2].
+
+Lemma lshift_in_catset (A : {set 'I_n}) (Bs : {set 'I_m}) (i : 'I_n) :
+  (lshift m i \in catset (A, Bs)) = (i \in A).
+Proof.
+rewrite /catset !inE; apply/orP/idP => [[]|iA].
+- by move=> /imsetP[i' i'A] /lshift_inj ->.
+- by move=> /imsetP[j' _] /eqP; rewrite eq_lrshift.
+- by left; apply/imsetP; exists i.
+Qed.
+
+Lemma rshift_in_catset (A : {set 'I_n}) (Bs : {set 'I_m}) (j : 'I_m) :
+  (rshift n j \in catset (A, Bs)) = (j \in Bs).
+Proof.
+rewrite /catset !inE; apply/orP/idP => [[]|jB].
+- by move=> /imsetP[i' _] /eqP; rewrite eq_rlshift.
+- by move=> /imsetP[j' j'B] /rshift_inj ->.
+- by right; apply/imsetP; exists j.
+Qed.
+
+Lemma setL_catset (A : {set 'I_n}) (Bs : {set 'I_m}) :
+  setL (catset (A, Bs)) = A.
+Proof. by apply/setP => i; rewrite inE lshift_in_catset. Qed.
+
+Lemma setR_catset (A : {set 'I_n}) (Bs : {set 'I_m}) :
+  setR (catset (A, Bs)) = Bs.
+Proof. by apply/setP => j; rewrite inE rshift_in_catset. Qed.
+
+Lemma catset_LR (K : {set 'I_(n + m)}) : catset (setL K, setR K) = K.
+Proof.
+apply/setP => k; rewrite -[k](splitK); case: (split k) => [i|j] /=.
+- by rewrite lshift_in_catset inE.
+- by rewrite rshift_in_catset inE.
+Qed.
+
+Lemma catset_bij : bijective catset.
+Proof.
+exists (fun K => (setL K, setR K)) => [[A Bs]|K].
+  by rewrite setL_catset setR_catset.
+exact: catset_LR.
+Qed.
+
+(** The two images are disjoint, so cardinality splits. *)
+Lemma catset_card (A : {set 'I_n}) (Bs : {set 'I_m}) :
+  #|catset (A, Bs)| = (#|A| + #|Bs|)%N.
+Proof.
+rewrite /catset cardsU !card_imset.
+- have -> : [set lshift m i | i in A] :&: [set rshift n j | j in Bs]
+      = finset.set0.
+    apply/setP => k; rewrite !inE; apply/negbTE/negP => /andP[].
+    by move=> /imsetP[i _ ->] /imsetP[j _] /eqP; rewrite eq_lrshift.
+  by rewrite cards0 subn0.
+- exact: rshift_inj.
+- exact: lshift_inj.
+Qed.
+
+(** [#|setL K| ≤ n], [#|setR K| ≤ m] (cardinality bounds for parity). *)
+Lemma setL_card_leq (K : {set 'I_(n + m)}) : (#|setL K| <= n)%N.
+Proof. by apply: leq_trans (max_card _) _; rewrite card_ord. Qed.
+Lemma setR_card_leq (K : {set 'I_(n + m)}) : (#|setR K| <= m)%N.
+Proof. by apply: leq_trans (max_card _) _; rewrite card_ord. Qed.
+
+End SDcatComb.
+
+Arguments catf {n m B} u w.
+Arguments setL {n m} K.
+Arguments setR {n m} K.
+Arguments catset {n m} AB.
+
+(** Parity multiplicativity: the [Ppos]/[Pneg] sign of [catset (A,Bs)]
+    in ['I_(n+m)] is the product of the signs of [A] in ['I_n] and [Bs]
+    in ['I_m] (using the cardinality bounds [#A ≤ n], [#B ≤ m]). *)
+Section CatParity.
+Variables n m : nat.
+
+Lemma catset_odd (A : {set 'I_n}) (Bs : {set 'I_m}) :
+  odd (n + m - #|catset (A, Bs)|) =
+  odd (n - #|A|) (+) odd (m - #|Bs|).
+Proof.
+rewrite catset_card.
+have HA := setL_card_leq (catset (A, Bs)); rewrite setL_catset in HA.
+have HB := setR_card_leq (catset (A, Bs)); rewrite setR_catset in HB.
+have -> : (n + m - (#|A| + #|Bs|) = (n - #|A|) + (m - #|Bs|))%N
+  by rewrite addnBA// addnBAC// subnDA.
+by rewrite oddD.
+Qed.
+
+Lemma catset_Ppos (A : {set 'I_n}) (Bs : {set 'I_m}) :
+  (catset (A, Bs) \in Ppos (n + m)) =
+  ((A \in Ppos n) == (Bs \in Ppos m)).
+Proof.
+rewrite !in_Ppos catset_odd negb_add.
+by case: (odd _); case: (odd _).
+Qed.
+
+Lemma catset_Pneg (A : {set 'I_n}) (Bs : {set 'I_m}) :
+  (catset (A, Bs) \in Pneg (n + m)) =
+  ((A \in Ppos n) != (Bs \in Ppos m)).
+Proof.
+rewrite in_Pneg catset_odd.
+by rewrite !in_Ppos; case: (odd _); case: (odd _).
+Qed.
+
+End CatParity.
+
+Arguments catset_card {n m} A Bs.
+Arguments catset_Ppos {n m} A Bs.
+Arguments catset_Pneg {n m} A Bs.
+
+(** ** The cone-side composition: [Spos]/[Sneg] of the concatenated
+       config split as parity-classified blocks of the inner difference. *)
+
+Section SDcatSum.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Local Open Scope precone_scope.
+
+(** The inner-sum split: the [catf]-sum over [K] is the [setL]-sum of [u]
+    plus the [setR]-sum of [w]. *)
+Lemma sumP_catf (n m : nat) (u : 'I_n -> B) (w : 'I_m -> B)
+    (K : {set 'I_(n + m)}) :
+  \big[precone_add/precone_zero]_(k in K) catf u w k =
+  \big[precone_add/precone_zero]_(i in setL K) u i +
+  \big[precone_add/precone_zero]_(j in setR K) w j.
+Proof.
+rewrite big_split_ord/=; congr precone_add.
+- apply: eq_big => [i|i _]; first by rewrite inE.
+  rewrite /catf; case: splitP => j /= Hj.
+    by congr u; exact: ord_inj.
+  by move: (ltn_ord i); rewrite Hj ltnNge leq_addr.
+- apply: eq_big => [j|j _]; first by rewrite inE.
+  rewrite /catf; case: splitP => i /= Hi.
+    by move: (ltn_ord i); rewrite -Hi ltnNge leq_addr.
+  by congr w; apply: ord_inj; move: Hi => /eqP; rewrite eqn_add2l => /eqP.
+Qed.
+
+(** [Spos] of the concatenated config, reindexed over [catset] and split
+    along [Bs ∈ Ppos m] into the two same-parity blocks (parity
+    multiplicativity [catset_Ppos]): the [Ppos m] block contributes
+    [Spos f n u], the [Pneg m] block [Sneg f n u]. *)
+Lemma Spos_cat (n m : nat) (u : 'I_n -> B) (w : 'I_m -> B) (XB : B) :
+  Spos f (n + m) (catf u w) XB =
+  \big[precone_add/precone_zero]_(Bs in Ppos m)
+     Spos f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j) +
+  \big[precone_add/precone_zero]_(Bs in Pneg m)
+     Sneg f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+Proof.
+rewrite /Spos (reindex catset)/=; last by apply: onW_bij; exact: catset_bij.
+under eq_bigl => AB do rewrite catset_Ppos.
+under eq_bigr => AB ? do
+  rewrite sumP_catf setL_catset setR_catset precone_addA.
+rewrite (bigID (fun AB : {set 'I_n} * {set 'I_m} => AB.2 \in Ppos m))/=.
+congr precone_add.
+  rewrite (eq_bigl (fun AB : {set 'I_n} * {set 'I_m} =>
+     (AB.1 \in Ppos n) && (AB.2 \in Ppos m))); last first.
+    by move=> AB /=; case: (AB.2 \in Ppos m); case: (AB.1 \in Ppos n).
+  under [RHS]eq_bigr => Bs _ do under eq_bigr => I _ do
+    rewrite -precone_addA [\big[_/_]_(j in Bs) w j + _]precone_addC
+      precone_addA.
+  by rewrite [RHS]exchange_big/= [RHS]pair_big/=.
+rewrite (eq_bigl (fun AB : {set 'I_n} * {set 'I_m} =>
+   (AB.1 \in Pneg n) && (AB.2 \in Pneg m))); last first.
+  move=> AB /=; rewrite !in_Pneg_Ppos.
+  by case: (AB.2 \in Pneg m); case: (AB.1 \in Pneg n).
+rewrite /Sneg.
+under [RHS]eq_bigr => Bs _ do under eq_bigr => I _ do
+  rewrite -precone_addA [\big[_/_]_(j in Bs) w j + _]precone_addC precone_addA.
+by rewrite [RHS]exchange_big/= [RHS]pair_big/=.
+Qed.
+
+(** [Sneg] of the concatenated config: the *opposite*-parity blocks
+    ([catset_Pneg]).  The [Ppos m] block contributes [Sneg f n u], the
+    [Pneg m] block [Spos f n u]. *)
+Lemma Sneg_cat (n m : nat) (u : 'I_n -> B) (w : 'I_m -> B) (XB : B) :
+  Sneg f (n + m) (catf u w) XB =
+  \big[precone_add/precone_zero]_(Bs in Ppos m)
+     Sneg f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j) +
+  \big[precone_add/precone_zero]_(Bs in Pneg m)
+     Spos f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+Proof.
+rewrite /Sneg (reindex catset)/=; last by apply: onW_bij; exact: catset_bij.
+under eq_bigl => AB do rewrite catset_Pneg.
+under eq_bigr => AB ? do
+  rewrite sumP_catf setL_catset setR_catset precone_addA.
+rewrite (bigID (fun AB : {set 'I_n} * {set 'I_m} => AB.2 \in Ppos m))/=.
+congr precone_add.
+  rewrite (eq_bigl (fun AB : {set 'I_n} * {set 'I_m} =>
+     (AB.1 \in Pneg n) && (AB.2 \in Ppos m))); last first.
+    move=> AB /=; rewrite -[AB.1 \in Pneg n]negbK -in_Pneg_Ppos.
+    by case: (AB.1 \in Ppos n); case: (AB.2 \in Ppos m).
+  rewrite /Sneg.
+  under [RHS]eq_bigr => Bs _ do under eq_bigr => I _ do
+    rewrite -precone_addA [\big[_/_]_(j in Bs) w j + _]precone_addC
+      precone_addA.
+  by rewrite [RHS]exchange_big/= [RHS]pair_big/=.
+rewrite (eq_bigl (fun AB : {set 'I_n} * {set 'I_m} =>
+   (AB.1 \in Ppos n) && (AB.2 \in Pneg m))); last first.
+  move=> AB /=; rewrite -[AB.2 \in Pneg m]negbK -in_Pneg_Ppos.
+  by case: (AB.1 \in Ppos n); case: (AB.2 \in Ppos m).
+rewrite /Spos.
+under [RHS]eq_bigr => Bs _ do under eq_bigr => I _ do
+  rewrite -precone_addA [\big[_/_]_(j in Bs) w j + _]precone_addC precone_addA.
+by rewrite [RHS]exchange_big/= [RHS]pair_big/=.
+Qed.
+
+End SDcatSum.
+
+Arguments sumP_catf {R B} {n m} u w K.
+Arguments Spos_cat {R B C} f {n m} u w XB.
+Arguments Sneg_cat {R B C} f {n m} u w XB.
+
+(** ** [SD_concat] / [totmono_SD_cat] — the difference composes (the
+       (7.1) inequality for the inner difference [SD f n u⃗] at the outer
+       [m]-config), the engine of Lemma 7.20-[Δf]. *)
+
+Section SDconcat.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+(** The full [catf]-sum is the sum of the two families' full sums. *)
+Lemma sumP_catf_T (n m : nat) (u : 'I_n -> B) (w : 'I_m -> B) :
+  \big[precone_add/precone_zero]_(k : 'I_(n + m)) catf u w k =
+  \big[precone_add/precone_zero]_(i : 'I_n) u i +
+  \big[precone_add/precone_zero]_(j : 'I_m) w j.
+Proof.
+rewrite big_split_ord/=; congr precone_add.
+- by apply: eq_bigr => i _; rewrite /catf; case: splitP => j /= Hj;
+    [congr u; exact: ord_inj | move: (ltn_ord i); rewrite Hj ltnNge leq_addr].
+- apply: eq_bigr => j _; rewrite /catf; case: splitP => i /= Hi.
+    by move: (ltn_ord i); rewrite -Hi ltnNge leq_addr.
+  by congr w; apply: ord_inj; move: Hi => /eqP; rewrite eqn_add2l => /eqP.
+Qed.
+
+(** **The (7.1) inequality for the inner difference [SD f n u⃗] at the
+    outer [m]-config** — the [SD_concat] engine.  Each inner [Sε f n u⃗]
+    splits as [Sε(catf u⃗ w⃗)] over the parity blocks ([Spos_cat]/[Sneg_cat]);
+    [f]'s own total monotonicity at the concatenated [(n+m)]-config gives
+    [Sneg(catf) ≤p Spos(catf)], and cancelling the shared [Sneg]-blocks
+    leaves exactly [Sneg(SD f n u⃗) ≤p Spos(SD f n u⃗)]. *)
+Lemma totmono_SD_cat (n m : nat) (u : 'I_n -> B) (w : 'I_m -> B) (XB : B)
+    (Hc : cone_norm (XB +
+       (\big[precone_add/precone_zero]_(i : 'I_n) u i +
+        \big[precone_add/precone_zero]_(j : 'I_m) w j)) <= 1) :
+  Sneg (SD f u) m w XB <=p Spos (SD f u) m w XB.
+Proof.
+(* Term-level [Sneg f ≤p Spos f] at every [Bs]-shifted inner config. *)
+have inle (Bs : {set 'I_m}) :
+    Sneg f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j) <=p
+    Spos f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+  apply: (Sneg_le_Spos Hf); apply: le_trans Hc; apply: cone_normp.
+  rewrite -precone_addA [\big[_/_]_(j in Bs) w j + _]precone_addC.
+  by apply: precone_add_le_l; apply: precone_add_le_l; exact: sumP_sub_le.
+(* Term-level [SD_E]: [Spos f = Sneg f + SD f]. *)
+have splitE (Bs : {set 'I_m}) :
+    Spos f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j) =
+    Sneg f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j) +
+    SD f u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+  by apply: SD_E; exact: inle.
+(* The four parity blocks. *)
+pose Spp := \big[precone_add/precone_zero]_(Bs in Ppos m)
+   Spos f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+pose Snn := \big[precone_add/precone_zero]_(Bs in Pneg m)
+   Sneg f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+pose Snp := \big[precone_add/precone_zero]_(Bs in Ppos m)
+   Sneg f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+pose Spn := \big[precone_add/precone_zero]_(Bs in Pneg m)
+   Spos f n u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+(* [f]-totmono at the concatenated config: [Sneg_cat ≤p Spos_cat]. *)
+have Hcc : cone_norm (XB +
+    \big[precone_add/precone_zero]_(k : 'I_(n + m)) catf u w k) <= 1.
+  by rewrite sumP_catf_T.
+have key := Sneg_le_Spos Hf Hcc.
+rewrite (Spos_cat f u w XB) (Sneg_cat f u w XB) -/Spp -/Snn -/Snp -/Spn in key.
+(* [Spos]/[Sneg] of [SD f u⃗] are the bare [Ppos m]/[Pneg m] blocks [Pp]/[Pn]. *)
+rewrite /Spos /Sneg.
+set Pp := \big[precone_add/precone_zero]_(Bs in Ppos m)
+   SD f u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+set Pn := \big[precone_add/precone_zero]_(Bs in Pneg m)
+   SD f u (XB + \big[precone_add/precone_zero]_(j in Bs) w j).
+(* [Spp = Snp + Pp], [Spn = Snn + Pn] (the two block [SD_E]s). *)
+have HPP : Spp = Snp + Pp.
+  by rewrite /Spp /Snp /Pp -big_split/=; apply: eq_bigr => Bs _; exact: splitE.
+have HPN : Spn = Snn + Pn.
+  by rewrite /Spn /Snn /Pn -big_split/=; apply: eq_bigr => Bs _; exact: splitE.
+(* Goal [Pn ≤p Pp]; [key : Snp + Spn ≤p Spp + Snn].  Substitute, cancel. *)
+apply: (precone_le_addlI (Snp + Snn)).
+move: key; rewrite HPP HPN.
+rewrite precone_addA -[(Snp + Pp) + Snn]precone_addA [Pp + Snn]precone_addC.
+by rewrite precone_addA.
+Qed.
+
+(** **Lemma 7.20 ([Δf] clause).**  For [f] totally monotonic and a
+    direction family [u⃗] with [S := Σᵢ uᵢ] in the strict interior, the
+    difference operator [Δf(u⃗) : B_u⃗ → C] is totally monotonic.
+
+    Direct, via [SD_concat]: unfolding [is_totmono (Δf(u⃗))] over [B_u⃗],
+    each summand [Δf(u⃗)(y + Σ_J W⃗)] reads on the [B]-side as
+    [SD f n u⃗ (lc_val y + Σ_J (lc_val ∘ W⃗))] ([SD_Delta] + [lc_val_big]),
+    so the whole [Sε(Δf(u⃗))] is [Sε (SD f n u⃗) m (lc_val ∘ W⃗) (lc_val y)];
+    by [totmono_SD_cat] (the [SD_concat] engine) this is bounded
+    [Sneg ≤p Spos] — precisely [f]'s own total monotonicity at the
+    concatenated [(n+m)]-config (the centre/direction bound supplied by
+    [lc_step1] on the local cone).  No nested-cone cast, no ω-continuity. *)
+Lemma totmono_Delta (n : nat) (u : 'I_n -> B)
+    (Hs : cone_norm (\big[precone_add/precone_zero]_(i : 'I_n) u i) < 1) :
+  @is_totmono R (lc_coneType Hs) C (Delta f u).
+Proof.
+move=> m y W Hbd.
+(* The [B]-side images of the local-cone data. *)
+set XB := lc_val y; set ww := (fun j => lc_val (W j)).
+(* Each [Sε] term of [Δf(u⃗)] reads on the [B]-side as the [SD f u⃗] term. *)
+have termE (J : {set 'I_m}) :
+    Delta f u (y + \big[precone_add/precone_zero]_(j in J) W j) =
+    SD f u (XB + \big[precone_add/precone_zero]_(j in J) ww j).
+  rewrite SD_Delta /XB /ww; congr (SD f u _).
+  by rewrite lc_valD lc_val_big.
+rewrite /tm_arg.
+under eq_bigr => I _ do rewrite termE.
+under [X in _ <=p X]eq_bigr => I _ do rewrite termE.
+rewrite -/(Sneg (SD f u) m ww XB) -/(Spos (SD f u) m ww XB).
+(* The concatenated [(n+m)]-config stays in [B_B], by [lc_step1]. *)
+apply: totmono_SD_cat.
+have key := lc_step1 Hs
+  (w := y + \big[precone_add/precone_zero]_(j : 'I_m) W j).
+rewrite lc_valD lc_val_big in key.
+have Hball : lc_norm (y + \big[precone_add/precone_zero]_(j : 'I_m) W j) <= 1.
+  by move: Hbd; rewrite /cone_norm/=.
+apply: le_trans (key Hball); apply: cone_normp.
+rewrite /XB /ww precone_addC -precone_addA.
+by apply: precone_add_le_l; rewrite precone_addC; exact: precone_le_refl.
+Qed.
+
+End SDconcat.
+
+Arguments sumP_catf_T {R B} {n m} u w.
+Arguments totmono_SD_cat {R B C} f Hf {n m} u w XB Hc.
+Arguments totmono_Delta {R B C} f Hf {n} u Hs.
+
 (** ** Status of §7.3 in this file
        (what is delivered here, and the precise remaining walls)
 
@@ -1507,6 +1869,56 @@ Arguments SD_723 {R B C} f Hf {n} u v u0 xb Hc.
       split the residual diagonally by [SD_diag].  The general arity of
       [SD_723_1].
 
+    The [SD_concat] composition engine + Lemma 7.20 ([Δf] clause):
+
+    - **[catf]/[catset]/[catset_card]/[catset_odd]/[catset_Ppos]/
+      [catset_Pneg]**: the concatenation [u⃗ ++ w⃗ : 'I_(n+m) → B] and the
+      bijection [{set 'I_n} × {set 'I_m} ≃ {set 'I_(n+m)}] ([catset], via the
+      [lshift]/[rshift] preimages [setL]/[setR]) with the parity
+      *multiplicativity* [odd((n+m)−#K) = odd(n−#I) ⊕ odd(m−#J)]
+      ([catset_odd]): [K ∈ Pε(n+m)] iff the [I]- and [J]-signs combine to
+      [ε].  Cardinality splits [#catset = #I + #J] ([catset_card]) by the
+      disjointness of the two images.
+
+    - **[sumP_catf]/[sumP_catf_T]**: the [catf]-sum over [K] (resp. the full
+      sum) splits as the [setL]-sum of [u⃗] plus the [setR]-sum of [w⃗],
+      directly by [big_split_ord].
+
+    - **[Spos_cat]/[Sneg_cat]** (the **[SD_concat]** identity at the level of
+      the [Spos]/[Sneg] sums): reindexing [Sε f (n+m)(u⃗++w⃗) XB] over [catset]
+      and splitting by parity ([catset_Ppos]/[catset_Pneg], [bigID] on
+      [J∈Ppos m], [pair_big]) writes it as the two parity-classified blocks
+      [Σ_{J∈Ppos m} Sε' f n u⃗ (XB+Σ_J w⃗) + Σ_{J∈Pneg m} Sε'' f n u⃗ (XB+Σ_J
+      w⃗)] (same parity for [Spos], opposite for [Sneg]).  This is the
+      discrete "higher difference = iterated difference" content: the inner
+      [u⃗]-sums [Sε f n u⃗] reappear blockwise.
+
+    - **[totmono_SD_cat]** (the **[SD_concat]** inequality, the engine of
+      Lemma 7.20-[Δf]): for [f] totally monotonic and [‖XB + Σu⃗ + Σw⃗‖ ≤ 1],
+      the inner difference [SD f u⃗ : B → C] satisfies the (7.1) inequality
+      at the outer [m]-config: [Sneg (SD f u⃗) m w⃗ XB ≤p Spos (SD f u⃗) m w⃗
+      XB].  Each inner [Spos f n u⃗ = Sneg f n u⃗ + SD f u⃗] ([SD_E]
+      blockwise), so [Spos_cat]/[Sneg_cat] give the four parity blocks
+      [Spp = Snp + Pp], [Spn = Snn + Pn]; [f]'s own total monotonicity at
+      the concatenated [(n+m)]-config ([Sneg_le_Spos]) reads
+      [Snp + Spn ≤p Spp + Snn], and cancelling the shared [Snp + Snn]
+      ([precone_le_addlI]) leaves [Pn ≤p Pp], i.e. the claim.  *No global
+      total monotonicity of the inner [SD f u⃗] is ever needed — the
+      composition is reduced directly to [f]'s totmono one arity up.*
+
+    - **[totmono_Delta]** (**Lemma 7.20, [Δf] clause**): [Δf(u⃗) : B_u⃗ → C]
+      is totally monotonic for [f] totally monotonic.  Unfolding
+      [is_totmono (Δf(u⃗))] over [B_u⃗], each summand [Δf(u⃗)(y + Σ_J W⃗)]
+      reads on the [B]-side as [SD f u⃗ (lc_val y + Σ_J (lc_val∘W⃗))]
+      ([SD_Delta] + [lc_val_big]), so [Sε(Δf(u⃗)) = Sε (SD f u⃗) m
+      (lc_val∘W⃗) (lc_val y)]; the bound [Sneg ≤p Spos] is then exactly
+      [totmono_SD_cat] (the [SD_concat] engine), the centre/direction ball
+      bound supplied by [lc_step1] on the local cone.  **No nested-cone
+      cast, no ω-continuity, no [Sinc] recursion** — the [SD_concat]
+      identity reduces the higher difference's total monotonicity directly
+      to [f]'s, one arity up.  This closes the previously-deferred wall
+      (see below).
+
     Deferred (with the precise wall):
 
     - **Forward direction [totmono_Sinc]** ([is_totmono f ⇒ ∀p, Sinc p f]).
@@ -1521,31 +1933,29 @@ Arguments SD_723 {R B C} f Hf {n} u v u0 xb Hc.
       delivered): [Sinc] is an *input* hypothesis there, supplied by
       [Sinc_dB] with its own bounds, never re-derived from [is_totmono].
 
-    - **[totmono_Delta]** (Lemma 7.20, [Δf] clause): [Δf(u⃗) : B_u⃗ → C]
-      totally monotonic for stable [f].  ω-continuity ([scott_Delta]) and
-      the Lemma 7.23 telescope ([SD_diag]/[SD_723]) are now in hand, yet a
-      genuine wall remains.  Via [SD_Delta], [is_totmono (Δf(u⃗))] on
-      [B_u⃗] is equivalent to the (7.1) inequality for the *function*
-      [g := SD f u⃗ : B → C] at every "[u⃗]-shifted" outer config
-      [‖XB + ΣWⱼ + Σuᵢ‖ ≤ 1] — i.e. [Sneg g W XB ≤p Spos g W XB].  Two
-      routes both stall on the same point:
-      · the [Sinc_totmono] route needs [∀p, Sinc p (Δf(u⃗))] on [B_u⃗];
-        [Sinc (p.+1)] demands increasingness of the difference
-        [dB (Δf u⃗) u' = SD f (lc_val u' :: u⃗) ∘ lc_val] on the *plain*
-        [B_u⃗]-ball, whereas the higher difference is only increasing on the
-        shifted sub-ball where [Σ(lc_val u' :: u⃗) ≤p Σu⃗] — the same
-        plain-vs-shifted mismatch as the false bare-[B] [totmono_Sinc];
-      · the direct [m]-induction on the outer directions [W] reduces, at
-        the [m.+1] step, to the *centre-difference monotonicity*
-        ([Sdiff_mono]) of [g = SD f u⃗], which is itself the (7.1)
-        inequality for [g] at arity [m+1] — circular within the [m]-sweep;
-        an [n]-induction (peel [u⃗]'s head by [SD_consdB], [g = SD (dB f u₀)
-        ut]) needs the inner function [dB f u₀] *globally* totally
-        monotonic, which it is not (only on the shifted ball, [totmono_dB]).
-      Closing this needs a *generalised cons-recurrence for functions
-      satisfying only the shifted (7.1)-inequalities* (a [Sdiff_mono] /
-      [SD_cons] that does not require global [is_totmono] of the base),
-      which is a separate construction beyond the present engine.  The
-      Lemma 7.23 telescope ([SD_diag]/[SD_723], an equality) does not by
-      itself supply the missing inequality.  No [Admitted] is left; this
-      is the next genuine milestone for the §7.3 composition track. *)
+    *Resolved* — **[totmono_Delta]** (Lemma 7.20, [Δf] clause) is now
+    delivered above via the [SD_concat] identity [Spos_cat]/[Sneg_cat] +
+    [totmono_SD_cat].  The earlier accounts of this entry described two
+    *failed* routes (the [Sinc_totmono] route and the naive [m]- or
+    [n]-induction), both of which stalled on a plain-vs-shifted bound
+    mismatch or a circular centre-difference monotonicity.  The clean route
+    sidesteps both: it never asks for global total monotonicity of the
+    inner difference [SD f u⃗] (which it lacks), nor for any cons-recurrence
+    of functions satisfying only shifted inequalities; instead the parity
+    split [Spos_cat]/[Sneg_cat] reduces [Δf(u⃗)]'s total monotonicity at
+    arity [m] *directly* to [f]'s own total monotonicity at the
+    concatenated arity [n+m] — the discrete "[Dⁿ⁺ᵐ = Dᵐ ∘ Dⁿ]" composition.
+
+    Remaining (Lemmas 7.26/7.27 + composition theorem [stable_comp]):
+
+    - **Lemma 7.26** (the Faà-di-Bruno-style main lemma): for totally
+      monotonic [f, h₁,…,hₙ, g] with [f(x) + Σᵢ hᵢ(x) ∈ B_C], the map
+      [k(x) = Δg(h₁(x),…,hₙ(x))(f(x))] is totally monotonic.  Now unblocked:
+      [totmono_Delta] gives the [Δg(h⃗)] cone its total monotonicity, and the
+      [SD_concat]/Lemma-7.23 telescope ([SD_diag]/[SD_723]) supplies the
+      finite-difference bookkeeping the paper's [p]-induction needs.
+
+    - **Lemma 7.27** + the **composition theorem** ([stable_comp] /
+      [meas_stable_comp]): totally monotonic (resp. stable, resp.
+      measurable-stable) functions are closed under composition — the §7.3
+      payload, built on Lemma 7.26. *)
