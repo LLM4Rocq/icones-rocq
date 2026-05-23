@@ -1783,21 +1783,17 @@ Arguments totmono_Delta {R B C} f Hf {n} u Hs.
       [h(x+u) = h(x) + Δh(u)(x)] at the shifted centre [f(x+u) = f(x) +
       Δf(u)(x)].
 
-    The remaining [p]-induction (and hence the closure of total
-    monotonicity under composition) requires feeding each summand back to
-    the inductive hypothesis [Sinc p].  On the *bare* carrier [B → C] this
-    is blocked: the head direction [Δf(u) = dB f u] is increasing
-    ([SD_mono_centre]) but *not* totally monotonic on the plain ball (it is
-    totmono only on the *shifted* ball, [totmono_dB]), and the forward
-    bridge [is_totmono ⇒ ∀p, Sinc p] is genuinely false on bare [B] (see
-    the status note: [Sinc 1 f] would demand [dB f u] increasing on the
-    *plain* unit ball, which fails near the boundary where [x + u] escapes
-    the ball and [dB f u x = 0]).  The paper sidesteps this by running the
-    whole induction on the *local cones* [B_u], where the gauge norm makes
-    the plain and shifted balls coincide ([lc_step1]) — i.e. through the
-    nested-local-cone transport [(B_{u₀})_{u⃗} = B_{u₀,u⃗}] that is the
-    one cast deferred throughout this development.  We therefore deliver
-    the two cornerstones above and document the precise wall. *)
+    The remaining [p]-induction is closed in [ninc_kfun] below.  It cannot
+    run on the *bare* carrier [B → C] (the head direction [Δf(u) = dB f u]
+    is increasing but not totally monotonic on the plain ball — only on the
+    *shifted* ball, [totmono_dB] — and the forward bridge
+    [is_totmono ⇒ ∀p, Sinc p] is genuinely false on bare [B]).  Instead we
+    run it on the *local-cone* predicate [is_n_increasing] (which recurses
+    into [B_u], where [lc_step1] makes the plain and shifted balls coincide)
+    *and quantify the induction over all source cones*: the [p.+1] step's
+    goal at source [B_u] is discharged by the inductive hypothesis
+    instantiated at source [B_u], so the explicit nested-cone transport
+    [(B_{u₀})_{u⃗} = B_{u₀,u⃗}] is never needed.  See [ninc_kfun]. *)
 
 Section Lemma726.
 Variable R : realType.
@@ -1896,8 +1892,475 @@ Arguments kfun {R B C D} g {n} f h.
 Arguments kfun_increasing {R B C D} g Hg {n} f h Hf Hh Hbd.
 Arguments dB_kfun {R B C D} g Hg {n} f h Hf Hh Hbd u x Hxu.
 
+(** ** Sum engine for [is_n_increasing] — the additive [dB] on the ball
+       (the closure machinery for Lemma 7.26)
+
+    The local-cone [p]-increasing predicate [is_n_increasing] (findiff.v)
+    recurses *into the local cone* [B_u] via [Δf(u) = Delta f (fun=>u)],
+    exactly the recursion the paper's Lemma 7.26 needs ("[Δk(u)] is
+    [p]-increasing from [B_u]").  We close it under finite sums.  The
+    single-step difference [dB] is *additive on the ball* ([dB_add_at]):
+    where [f], [g] are increasing at [(xb, u)] (e.g. on the unit ball),
+    [dB (f+g) u xb = dB f u xb + dB g u xb] (by [dB_E] + cancellation), and
+    [dB] depends only on the two endpoint values ([dB_congr]).  Since
+    [is_n_increasing] is *ball-local* — its clauses (increasingness +
+    [Delta]-recursion through [lc_step1]-admissible shifts) only probe
+    unit-ball points — these give a congruence ([ninc_congr]) and the sum
+    closure ([ninc_zero]/[ninc_add]/[ninc_bigP]). *)
+
+Section NincSum.
+Variable R : realType.
+Variables B C : coneType R.
+Local Open Scope precone_scope.
+
+(** [dB] is additive at a point where both summands are increasing. *)
+Lemma dB_add_at (f g : B -> C) (u xb : B)
+    (Hf : f xb <=p f (xb + u)) (Hg : g xb <=p g (xb + u)) :
+  dB (stm_add f g) u xb = dB f u xb + dB g u xb.
+Proof.
+have Hfg : stm_add f g xb <=p stm_add f g (xb + u).
+  rewrite /stm_add; apply: precone_le_trans (precone_add_le_r _ Hf).
+  exact: precone_add_le_l.
+have E := dB_E (stm_add f g) u xb Hfg.
+have Ef := dB_E f u xb Hf.
+have Eg := dB_E g u xb Hg.
+move: E; rewrite /stm_add Ef Eg.
+have -> : f xb + dB f u xb + (g xb + dB g u xb)
+    = (f xb + g xb) + (dB f u xb + dB g u xb).
+  rewrite -!precone_addA; congr (_ + _).
+  by rewrite precone_addA [dB f u xb + _]precone_addC -precone_addA.
+by move/precone_cancel.
+Qed.
+
+(** [dB f u xb] depends only on the two endpoint values [f xb], [f(xb+u)]. *)
+Lemma dB_congr (f g : B -> C) (u xb : B)
+    (E0 : f xb = g xb) (E1 : f (xb + u) = g (xb + u)) :
+  dB f u xb = dB g u xb.
+Proof.
+rewrite /dB /SD.
+have Sp : Spos f 1 (fun _ : 'I_1 => u) xb = Spos g 1 (fun _ : 'I_1 => u) xb.
+  by rewrite !Spos_oneu E1.
+have Sn : Sneg f 1 (fun _ : 'I_1 => u) xb = Sneg g 1 (fun _ : 'I_1 => u) xb.
+  by rewrite !Sneg_oneu E0.
+by rewrite Sp Sn.
+Qed.
+
+(** [dB] of the zero map is [0], everywhere. *)
+Lemma dB_zero (u xb : B) : dB (stm_zero B C) u xb = (0 : C).
+Proof.
+have Hle : (stm_zero B C) xb <=p (stm_zero B C) (xb + u).
+  by rewrite /stm_zero; exact: precone_le_refl.
+have E := dB_E (stm_zero B C) u xb Hle.
+by move: E; rewrite /stm_zero precone_add0 => <-.
+Qed.
+
+End NincSum.
+
+Arguments dB_add_at {R B C} f g u xb Hf Hg.
+Arguments dB_congr {R B C} f g u xb E0 E1.
+Arguments dB_zero {R B C} u xb.
+
+(** [is_n_increasing p] depends only on the values on the unit ball: a
+    congruence on the ball lifts through the local-cone recursion, because
+    each [Delta f (fun=>u)] reads ([SD_Delta]) on the shifted [B]-points
+    [lc_val x] and [lc_val x + u], both in [B_B] by [lc_step1]. *)
+Lemma ninc_congr (p : nat) (R : realType) :
+  forall (B C : coneType R) (f g : B -> C),
+  (forall y : B, (cone_norm y <= 1)%R -> f y = g y) ->
+  is_n_increasing p f -> is_n_increasing p g.
+Proof.
+elim: p R => [|p IHp] R B C f g Eqfg.
+  move=> Hf x v Hxv; rewrite -!Eqfg//.
+  - exact: Hf.
+  - by apply: le_trans Hxv; apply: cone_normp; exists v.
+move=> /= [Hinc Hrec]; split.
+  move=> x v Hxv; rewrite -!Eqfg//.
+  - exact: Hinc.
+  - by apply: le_trans Hxv; apply: cone_normp; exists v.
+move=> u Hu; apply: (IHp _ _ _ (Delta f (fun=> u))); last exact: Hrec.
+move=> x Hx.
+have Hball := lc_step1 Hu (w := x) Hx.
+have key (y : B) :
+    (\big[precone_add/precone_zero]_(i : 'I_1) (fun _ : 'I_1 => u) i + y
+     = y + u)%PC.
+  by rewrite big_ord1 precone_addC.
+have Hlxu : (cone_norm (lc_val x + u)%PC <= 1)%R by rewrite -key; exact: Hball.
+have Hlx : (cone_norm (lc_val x) <= 1)%R.
+  by apply: le_trans Hx; exact: lc_val_norm_le.
+by rewrite !SD_Delta; apply: dB_congr; exact: Eqfg.
+Qed.
+
+Arguments ninc_congr p {R B C} f g Eqfg.
+
+(** The zero map is [n]-increasing, every [n], every source cone. *)
+Lemma ninc_zero (p : nat) (R : realType) :
+  forall (B C : coneType R), is_n_increasing p (stm_zero B C).
+Proof.
+elim: p R => [|p IHp] R B C; first by move=> x v _; exact: precone_le_refl.
+split; first by move=> x v _; exact: precone_le_refl.
+move=> u Hu.
+have -> : Delta (stm_zero B C) (fun=> u) = stm_zero (lc_coneType Hu) C.
+  by apply/funext => x; rewrite SD_Delta /stm_zero; exact: dB_zero.
+exact: IHp.
+Qed.
+
+Arguments ninc_zero p {R B C}.
+
+(** [is_n_increasing p f] gives [is_increasing f], for any [p]. *)
+Lemma ninc_increasing (p : nat) (R : realType) (B C : coneType R)
+    (f : B -> C) : is_n_increasing p f -> is_increasing f.
+Proof. by case: p => [|p]// [Hinc _]. Qed.
+
+Arguments ninc_increasing {p R B C} f.
+
+(** A sum of [n]-increasing maps is [n]-increasing (generic source).  The
+    [Delta]-recursion through [B_u] reduces — via [ninc_congr] and [dB]'s
+    on-ball additivity [dB_add_at] (each summand increasing on the ball) —
+    to the sum of the summands' own [Delta]-recursions. *)
+Lemma ninc_add (p : nat) (R : realType) :
+  forall (B C : coneType R) (f g : B -> C),
+  is_n_increasing p f -> is_n_increasing p g ->
+  is_n_increasing p (stm_add f g).
+Proof.
+elim: p R => [|p IHp] R B C f g.
+  move=> Hf Hg x v Hxv; rewrite /stm_add.
+  apply: precone_le_trans (precone_add_le_r _ (Hf x v Hxv)).
+  exact: (precone_add_le_l _ (Hg x v Hxv)).
+move=> [Hfi Hfr] [Hgi Hgr]; split.
+  move=> x v Hxv; rewrite /stm_add.
+  apply: precone_le_trans (precone_add_le_r _ (Hfi x v Hxv)).
+  exact: (precone_add_le_l _ (Hgi x v Hxv)).
+move=> u Hu.
+apply: (ninc_congr p (stm_add (Delta f (fun=> u)) (Delta g (fun=> u)))).
+  move=> x Hx.
+  have Hball := lc_step1 Hu (w := x) Hx.
+  have key (y : B) :
+      (\big[precone_add/precone_zero]_(i : 'I_1) (fun _ : 'I_1 => u) i + y
+       = y + u)%PC.
+    by rewrite big_ord1 precone_addC.
+  have Hlxu : (cone_norm (lc_val x + u)%PC <= 1)%R.
+    by rewrite -key; exact: Hball.
+  have Hf1 : (f (lc_val x) <=p f (lc_val x + u))%PC by exact: Hfi.
+  have Hg1 : (g (lc_val x) <=p g (lc_val x + u))%PC by exact: Hgi.
+  rewrite /stm_add !SD_Delta.
+  rewrite -/(dB f u (lc_val x)) -/(dB g u (lc_val x)).
+  rewrite -/(dB (stm_add f g) u (lc_val x)).
+  by rewrite (dB_add_at f g u (lc_val x) Hf1 Hg1).
+by apply: IHp; [exact: Hfr|exact: Hgr].
+Qed.
+
+Arguments ninc_add p {R B C} f g.
+
+(** A finite [\sumP] of [n]-increasing maps is [n]-increasing.  This is the
+    [is_n_increasing] analogue of [totmono_bigP] / [stable_bigP] — the
+    closure that lets the sum [dB_kfun] of Lemma-7.23 summands stay
+    [p]-increasing.  (The bare-[B] [Sinc] predicate cannot be summed: its
+    [dB] recursion stays on [B], where [dB] additivity fails off the ball;
+    the local-cone [is_n_increasing] avoids this, the gauge norm of [B_u]
+    making the plain and shifted balls coincide.) *)
+Lemma ninc_bigP (p : nat) (R : realType) (B C : coneType R)
+    (T : finType) (A : {set T}) (g : T -> B -> C) :
+  (forall i, i \in A -> is_n_increasing p (g i)) ->
+  is_n_increasing p (\big[stm_add/stm_zero B C]_(i in A) g i).
+Proof.
+move=> Hg; elim/big_ind: _ => [|f1 f2 H1 H2|i iA].
+- exact: ninc_zero.
+- exact: ninc_add H1 H2.
+- exact: Hg.
+Qed.
+
+Arguments ninc_bigP p {R B C T} A g.
+
+(** [f ∘ lc_val : B_S → C] is totally monotonic ([totmono_shift_le] at
+    shift [0]). *)
+Lemma totmono_lcval (R : realType) (B C : coneType R) (f : B -> C)
+    (S : B) (Hs : (cone_norm S < 1)%R) :
+  is_totmono f -> is_totmono (fun x : lc_coneType Hs => f (lc_val x)).
+Proof.
+move=> Hf.
+have := totmono_shift_le f S precone_zero Hs (precone_le0 S) Hf.
+by congr is_totmono; apply/funext => x; rewrite precone_addr0.
+Qed.
+
+Arguments totmono_lcval {R B C} f {S} Hs.
+
+(** ** Lemma 7.26 — the composition main lemma, generic-source induction
+       — Paper §7.3 (txt 3713)
+
+    Paper Lemma 7.26: for totally monotonic [f, h₁..hₙ : B_B → C] and
+    [g : B_C → D] with [∀x∈B_B, f(x)+Σᵢ hᵢ(x) ∈ B_C], the composite
+    [k(x) = Δg(h₁(x),…,hₙ(x))(f(x))] — read on the B-side as [kfun g f h⃗
+    x = SD g (fun i ↦ hᵢ x)(f x)] — is totally monotonic.
+
+    We deliver the paper's induction in full ([ninc_kfun]): *for every
+    source cone, arity, and admissible data, [kfun g f h⃗] is
+    [p]-increasing*, by induction on [p].
+
+    - [p = 0]: [kfun_increasing] (Lemma 7.25 for the composite).
+    - [p.+1]: for each direction [u], [Δk(u)] must be [p]-increasing *from
+      [B_u]*.  By [SD_Delta] + [dB_kfun] (Lemma 7.23 full telescope, the
+      first term annihilated by the subtraction) it equals — on the unit
+      ball of [B_u] — a [\sumP] of [n+1] [kfun]-summands *at source [B_u]*:
+      the head [kfun g (f∘lc_val) (dirH)] at arity [n+1], and [n] hybrids
+      [kfun g (f∘lc_val + hₖ∘lc_val) (dirK k)] at arity [n].  Their
+      directions are totally monotonic on [B_u] ([totmono_dirH]/[totmono_dirK]
+      via [totmono_Delta]-style [totmono_dB_lc] and [totmono_shift_le]) and
+      satisfy the codomain bound ([cod_head]/[cod_hyb], the hybrid sum being
+      [≤p] the full shifted config which is in [B_C]).  *The inductive
+      hypothesis applies at source [B_u]* — this is the generic-source
+      device that sidesteps the explicit nested-cone transport: the recursion
+      is just "the same theorem at the smaller source cone [B_u]".  The
+      [\sumP] is [p]-increasing by [ninc_bigP]/[ninc_add]; the [ninc_congr]
+      bridge transfers it to [Δk(u)].
+
+    The full Lemma 7.26 (total monotonicity of [kfun]) and Theorem 7.30
+    ([stable_comp]) follow at [n = 0] below. *)
+
+Section Lemma726main.
+Variable R : realType.
+Variables C D : coneType R.
+Variable g : C -> D.
+Hypothesis Hg : is_totmono g.
+Local Open Scope precone_scope.
+
+(** The clean head direction family on [B_S]: [Δf(S)] prepended to the
+    shifts [hᵢ(lc_val·+S)].  The shift direction is the cone centre [S]
+    itself (in the recursion [S = Σᵢ uᵢ] of the one-element family). *)
+Definition dirH (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (n : nat) (f : B -> C) (h : 'I_n -> (B -> C))
+    : 'I_n.+1 -> lc_coneType HS -> C :=
+  fun i x => vcons (dB f S (lc_val x)) (fun j => h j (lc_val x + S)) i.
+
+(** The clean hybrid direction family at split position [k]. *)
+Definition dirK (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (n : nat) (h : 'I_n -> (B -> C)) (k : 'I_n)
+    : 'I_n -> lc_coneType HS -> C :=
+  fun i x => if (i < k)%N then h i (lc_val x)
+             else if i == k then dB (h i) S (lc_val x)
+             else h i (lc_val x + S).
+
+(** [Δf(S)] read on [B_S] is totally monotonic.  Mirrors [totmono_shift]:
+    the [B_S]-config reads through [lc_val] as a shifted [B]-config of
+    [dB f S], whose (7.1) bound is [totmono_dB] on the shifted ball, the
+    norm side-condition being [lc_step1]. *)
+Lemma totmono_dB_lc (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (f : B -> C) (Hf : is_totmono f) :
+  is_totmono (fun x : lc_coneType HS => dB f S (lc_val x)).
+Proof.
+move=> m xL wL Hnorm.
+have argE (I : {set 'I_m}) :
+    dB f S (lc_val (tm_arg xL wL I)) =
+    dB f S (lc_val xL + \big[precone_add/precone_zero]_(i in I) lc_val (wL i)).
+  by congr (dB f S _); rewrite /tm_arg lc_valD lc_val_big.
+have Hc : cone_norm (lc_val xL + S +
+    \big[precone_add/precone_zero]_(i : 'I_m) lc_val (wL i)) <= 1.
+  have key := lc_step1 HS (w := xL +
+    \big[precone_add/precone_zero]_(i : 'I_m) wL i) Hnorm.
+  rewrite lc_valD lc_val_big in key.
+  apply: le_trans key; apply: cone_normp.
+  by rewrite (precone_addC (lc_val xL) S) -precone_addA; exact: precone_le_refl.
+have := totmono_dB f Hf S (fun i => lc_val (wL i)) (lc_val xL) Hc.
+rewrite /Sneg /Spos.
+under eq_bigr => I _ do rewrite -argE.
+by under [X in _ <=p X]eq_bigr => I _ do rewrite -argE.
+Qed.
+
+(** Each head direction is totally monotonic on [B_S]. *)
+Lemma totmono_dirH (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (n : nat) (f : B -> C) (h : 'I_n -> (B -> C))
+    (Hf : is_totmono f) (Hh : forall i, is_totmono (h i)) (i : 'I_n.+1) :
+  is_totmono (@dirH B S HS n f h i).
+Proof.
+rewrite /dirH; case: (unliftP ord0 i) => [j ->|->].
+- under eq_fun => x do rewrite vconsS.
+  exact: (totmono_shift_le (h j) S S HS (precone_le_refl S) (Hh j)).
+- under eq_fun => x do rewrite vcons0.
+  exact: (@totmono_dB_lc B S HS f Hf).
+Qed.
+
+(** Each hybrid direction is totally monotonic on [B_S]. *)
+Lemma totmono_dirK (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (n : nat) (h : 'I_n -> (B -> C))
+    (Hh : forall i, is_totmono (h i)) (k i : 'I_n) :
+  is_totmono (@dirK B S HS n h k i).
+Proof.
+rewrite /dirK; case: (ltngtP i k) => [Hik|Hik|Hik].
+- exact: (totmono_lcval (h i) HS (Hh i)).
+- have -> : (i == k) = false by rewrite -val_eqE gtn_eqF.
+  exact: (totmono_shift_le (h i) S S HS (precone_le_refl S) (Hh i)).
+- have -> : (i == k) = true by apply/eqP; exact: val_inj.
+  exact: (@totmono_dB_lc B S HS (h i) (Hh i)).
+Qed.
+
+(** For [x] in the unit ball of [B_S], [lc_val x + S] stays in [B_B]. *)
+Lemma lc_shift_ball (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (x : lc_coneType HS) (Hx : cone_norm x <= 1) :
+  cone_norm (lc_val x + S) <= 1.
+Proof. by have key := lc_step1 HS (w := x) Hx; rewrite precone_addC. Qed.
+
+(** Head codomain condition for the inductive hypothesis: the head config
+    sum is exactly the full shifted config [f(x'+S) + Σⱼ hⱼ(x'+S) ∈ B_C]. *)
+Lemma cod_head (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (n : nat) (f : B -> C) (h : 'I_n -> (B -> C))
+    (Hf : is_increasing f) (Hh : forall i, is_increasing (h i))
+    (Hbd : forall y : B, cone_norm y <= 1 ->
+       cone_norm (f y + \big[precone_add/precone_zero]_(i : 'I_n) h i y) <= 1)
+    (x : lc_coneType HS) (Hx : cone_norm x <= 1) :
+  cone_norm ((fun z : lc_coneType HS => f (lc_val z)) x +
+    \big[precone_add/precone_zero]_(i : 'I_n.+1) (@dirH B S HS n f h) i x) <= 1.
+Proof.
+set x' := lc_val x.
+have Hxu : cone_norm (x' + S) <= 1 by exact: lc_shift_ball.
+have EfU : f (x' + S) = f x' + dB f S x' by apply: dB_E; exact: Hf.
+have EhU i : h i (x' + S) = h i x' + dB (h i) S x' by apply: dB_E; exact: Hh.
+rewrite /dirH; under eq_bigr => i _ do rewrite -/x'.
+rewrite sum_vcons.
+have -> : (f x' + (dB f S x' +
+    \big[precone_add/precone_zero]_(j : 'I_n) h j (x' + S)))
+    = f (x' + S) + \big[precone_add/precone_zero]_(j : 'I_n) h j (x' + S).
+  by rewrite EfU precone_addA.
+exact: Hbd.
+Qed.
+
+(** Hybrid codomain condition: the hybrid config sum is [≤p] the full
+    shifted config sum (in [B_C]), hence has norm [≤ 1] by (Normp). *)
+Lemma cod_hyb (B : coneType R) (S : B) (HS : cone_norm S < 1)
+    (n : nat) (f : B -> C) (h : 'I_n -> (B -> C))
+    (Hf : is_increasing f) (Hh : forall i, is_increasing (h i))
+    (Hbd : forall y : B, cone_norm y <= 1 ->
+       cone_norm (f y + \big[precone_add/precone_zero]_(i : 'I_n) h i y) <= 1)
+    (k : 'I_n) (x : lc_coneType HS) (Hx : cone_norm x <= 1) :
+  cone_norm ((stm_add (fun z : lc_coneType HS => f (lc_val z))
+       (fun z => h k (lc_val z))) x +
+    \big[precone_add/precone_zero]_(i : 'I_n) (@dirK B S HS n h k) i x) <= 1.
+Proof.
+set x' := lc_val x.
+have Hxu : cone_norm (x' + S) <= 1 by exact: lc_shift_ball.
+have EfU : f (x' + S) = f x' + dB f S x' by apply: dB_E; exact: Hf.
+have EhU i : h i (x' + S) = h i x' + dB (h i) S x' by apply: dB_E; exact: Hh.
+have Hfull : cone_norm (f (x' + S) +
+    \big[precone_add/precone_zero]_(i : 'I_n) h i (x' + S)) <= 1 by exact: Hbd.
+pose extra (i : 'I_n) : C :=
+  if (i < k)%N then dB (h i) S x' else if i == k then h i x' else 0.
+have decompi (i : 'I_n) :
+    h i (x' + S) = (@dirK B S HS n h k) i x + extra i.
+  rewrite /dirK /extra -/x' EhU.
+  case: (ltngtP i k) => [Hik|Hik|Hik].
+  - by [].
+  - have -> : (i == k) = false by rewrite -val_eqE gtn_eqF.
+    by rewrite precone_addr0.
+  - have -> : (i == k) = true by apply/eqP; exact: val_inj.
+    by rewrite precone_addC.
+have Hsum : \big[precone_add/precone_zero]_(i : 'I_n) h i (x' + S) =
+    \big[precone_add/precone_zero]_(i : 'I_n) (@dirK B S HS n h k) i x +
+    \big[precone_add/precone_zero]_(i : 'I_n) extra i.
+  rewrite -big_split/=; apply: eq_bigr => i _; exact: decompi.
+set SK := \big[precone_add/precone_zero]_(i : 'I_n) (@dirK B S HS n h k) i x.
+set SE := \big[precone_add/precone_zero]_(i : 'I_n) extra i.
+have HhkSE : h k x' <=p SE.
+  rewrite /SE (bigD1 k)//=.
+  have -> : extra k = h k x' by rewrite /extra ltnn eqxx.
+  by exists (\big[precone_add/precone_zero]_(i | i != k) extra i).
+apply: le_trans Hfull; apply: cone_normp.
+rewrite EfU Hsum -/SK -/SE /stm_add -/x'.
+have [W' HW'] := HhkSE.
+exists (dB f S x' + W').
+rewrite HW' -!precone_addA; congr (_ + _).
+by rewrite !precone_addA [dB f S x' + SK]precone_addC [_ + h k x']precone_addC
+  -!precone_addA.
+Qed.
+
+(** **Lemma 7.26, generic-source [p]-induction.**  [kfun g f h⃗] is
+    [p]-increasing for every source cone, arity, and admissible data. *)
+Lemma ninc_kfun (p : nat) :
+  forall (B : coneType R) (n : nat) (f : B -> C) (h : 'I_n -> (B -> C)),
+  is_totmono f -> (forall i, is_totmono (h i)) ->
+  (forall y : B, cone_norm y <= 1 ->
+     cone_norm (f y + \big[precone_add/precone_zero]_(i : 'I_n) h i y) <= 1) ->
+  is_n_increasing p (kfun g f h).
+Proof.
+elim: p => [|p IHp] B n f h Hf Hh Hbd.
+  apply: (kfun_increasing g Hg) => //.
+  - exact: (totmono_increasing Hf).
+  - by move=> i; exact: (totmono_increasing (Hh i)).
+split.
+  apply: (kfun_increasing g Hg) => //.
+  - exact: (totmono_increasing Hf).
+  - by move=> i; exact: (totmono_increasing (Hh i)).
+move=> u Hu'.
+set S := \big[precone_add/precone_zero]_(i : 'I_1) (fun _ : 'I_1 => u) i.
+have SeqU : S = u by rewrite /S big_ord1.
+pose Fh : lc_coneType Hu' -> C := fun x => f (lc_val x).
+pose HEAD : lc_coneType Hu' -> D := kfun g Fh (@dirH B S Hu' n f h).
+pose Fk (k : 'I_n) : lc_coneType Hu' -> C :=
+  stm_add (fun x => f (lc_val x)) (fun x => h k (lc_val x)).
+pose HYB (k : 'I_n) : lc_coneType Hu' -> D :=
+  kfun g (Fk k) (@dirK B S Hu' n h k).
+have Htot_f : is_totmono Fh by exact: (totmono_lcval f Hu' Hf).
+have HEADok : is_n_increasing p HEAD.
+  apply: IHp; first exact: Htot_f.
+  - exact: (@totmono_dirH B S Hu' n f h Hf Hh).
+  - move=> x Hx.
+    exact: (@cod_head B S Hu' n f h
+      (totmono_increasing Hf) (fun i => totmono_increasing (Hh i)) Hbd x Hx).
+have HYBok (k : 'I_n) : is_n_increasing p (HYB k).
+  apply: IHp.
+  - by apply: totmono_add; [exact: Htot_f|
+      exact: (totmono_lcval (h k) Hu' (Hh k))].
+  - exact: (@totmono_dirK B S Hu' n h Hh k).
+  - move=> x Hx.
+    exact: (@cod_hyb B S Hu' n f h
+      (totmono_increasing Hf) (fun i => totmono_increasing (Hh i)) Hbd k x Hx).
+pose Dtil : lc_coneType Hu' -> D :=
+  stm_add HEAD
+    (\big[stm_add/stm_zero (lc_coneType Hu') D]_(k in [set: 'I_n]) HYB k).
+have HDtil : is_n_increasing p Dtil.
+  apply: ninc_add; first exact: HEADok.
+  by apply: ninc_bigP => k _; exact: HYBok.
+apply: (ninc_congr p Dtil); last exact: HDtil.
+move=> x Hx.
+set x' := lc_val x.
+rewrite SD_Delta -/x'.
+have Hxu : cone_norm (x' + u) <= 1.
+  by rewrite -SeqU; exact: (@lc_shift_ball B S Hu' x Hx).
+have EK := dB_kfun g Hg f h (totmono_increasing Hf)
+  (fun i => totmono_increasing (Hh i)) Hbd u x' Hxu.
+rewrite -/(dB (kfun g f h) u x') EK.
+have Hbigeval :
+  (\big[stm_add/stm_zero (lc_coneType Hu') D]_(k in [set: 'I_n]) HYB k) x
+    = \big[precone_add/precone_zero]_(k in [set: 'I_n]) HYB k x.
+  by rewrite (@big_morph _ _ (fun F : lc_coneType Hu' -> D => F x)
+    precone_zero precone_add (stm_zero (lc_coneType Hu') D) stm_add).
+rewrite /Dtil /stm_add Hbigeval.
+congr (_ + _).
+  rewrite /HEAD /kfun /Fh /dirH -/x'.
+  congr (SD g _ (f x')); apply/funext => i.
+  rewrite SeqU; case: (unliftP ord0 i) => [j ->|->]; last by rewrite !vcons0.
+  rewrite !vconsS.
+  have EhU : h j (x' + u) = h j x' + dB (h j) u x'.
+    by apply: dB_E; exact: (totmono_increasing (Hh j)).
+  by rewrite EhU.
+rewrite [LHS](eq_bigl predT); last by move=> k; rewrite finset.in_setT.
+apply: eq_bigr => k _.
+rewrite /HYB /kfun /Fk /dirK /stm_add /hyb -/x' SeqU.
+congr (SD g _ (f x' + h k x')); apply/funext => i.
+case: (ltngtP i k) => [Hik|Hik|Hik]//.
+  have EhU : h i (x' + u) = h i x' + dB (h i) u x'.
+    by apply: dB_E; exact: (totmono_increasing (Hh i)).
+  by rewrite EhU.
+by have -> : (i == k) = true by apply/eqP; exact: val_inj.
+Qed.
+
+End Lemma726main.
+
+Arguments dirH {R C B} S HS {n} f h.
+Arguments dirK {R C B} S HS {n} h k.
+Arguments ninc_kfun {R C D} g Hg p B n f h Hf Hh Hbd.
+
 (** ** ω-continuity and boundedness of a composite — Paper §7.4 (Thm 7.30)
        (the *unblocked* halves of [stable_comp])
+
+    The composition theorem 7.30 — [g ∘ f] stable-and-measurable for [f, g]
 
     The composition theorem 7.30 — [g ∘ f] stable-and-measurable for [f, g]
     stable-and-measurable of norm [≤ 1] — has, by the paper's own remark,
@@ -1919,16 +2382,14 @@ Arguments dB_kfun {R B C D} g Hg {n} f h Hf Hh Hbd u x Hxu.
       and [f∘γ] stays in [B_C] (norm [≤ 1]), so [g]'s path-preservation
       applies to it.
 
-    What is *not* delivered is [totmono_comp] ([g ∘ f] totally monotonic),
-    the [n = 0] corollary of Lemma 7.26, and hence the assembled
-    [stable_comp] / [meas_stable_comp].  The reason is the bare-[B] wall
-    documented at [dB_kfun]: the [p]-induction of Lemma 7.26 cannot close
-    on the bare carrier [B → C] (the head difference [Δf(u)] is increasing
-    but not totally monotonic on the *plain* ball, and the forward bridge
-    [is_totmono ⇒ ∀p, Sinc p] is genuinely false there), and the
-    local-cone route requires the deferred nested-cone transport.  When
-    [totmono_comp] becomes available the three lemmas below assemble it
-    into [stable_comp]/[meas_stable_comp] with no further work. *)
+    The remaining ingredient [totmono_comp] ([g ∘ f] totally monotonic,
+    the [n = 0] corollary of Lemma 7.26) is delivered after this section
+    via [ninc_kfun] + [is_n_increasing_totmono]; the three lemmas below then
+    assemble [stable_comp]/[meas_stable_comp].  Earlier this was blocked on
+    the bare-[B] wall (the forward bridge [is_totmono ⇒ ∀p, Sinc p] is false
+    on bare [B]); the *generic-source* induction of [ninc_kfun] — run on the
+    local-cone predicate [is_n_increasing], quantified over all source cones
+    — sidesteps the explicit nested-cone transport (see [ninc_kfun]). *)
 
 Section CompClosure.
 Variable R : realType.
@@ -1994,6 +2455,74 @@ exact: Hfp.
 Qed.
 
 Arguments meas_path_comp {R Ar B C D} f g Hfb Hfp Hgp X γ Hγb Hγ.
+
+(** ** Lemma 7.26 corollary + Theorem 7.30 — closure under composition
+
+    [totmono_comp] is Lemma 7.26 at [n = 0]: [SD g () (f x) = g (f x)]
+    ([SD0]), so [g ∘ f = kfun g f ()] is [p]-increasing for every [p]
+    ([ninc_kfun], the [n = 0] codomain bound being [f]'s [≤ 1]-image
+    [Hfb]); the closed-ball converse [is_n_increasing_totmono] then gives
+    total monotonicity, its ω-continuity ingredient supplied by
+    [scott_comp].  [stable_comp] assembles total monotonicity with
+    [bounded_comp] and [scott_comp]; [meas_stable_comp] adds
+    [meas_path_comp].  These close Theorem 7.30. *)
+
+Section CompTotmono.
+Variable R : realType.
+Variables B C D : coneType R.
+Local Open Scope precone_scope.
+
+(** **[g ∘ f] totally monotonic** (Lemma 7.26 at [n = 0]). *)
+Lemma totmono_comp (f : B -> C) (g : C -> D)
+    (Hf : is_stable f) (Hg : is_stable g)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1) :
+  is_totmono (fun x => g (f x)).
+Proof.
+have [Hfm Hfbd Hfc] := Hf.
+have [Hgm Hgbd Hgc] := Hg.
+have Ekf : kfun g f (fun _ : 'I_0 => stm_zero B C) = (fun x => g (f x)).
+  by apply/funext => x; rewrite /kfun SD0.
+have Hninc k : is_n_increasing k (fun x => g (f x)).
+  rewrite -Ekf; apply: (ninc_kfun g Hgm) => //; first by case.
+  by move=> y Hy; rewrite big_ord0 precone_addr0; exact: Hfb.
+apply: (is_n_increasing_totmono _ Hninc).
+exact: (scott_comp f g Hfc (totmono_increasing Hfm) Hfb Hgc).
+Qed.
+
+(** **[g ∘ f] stable** (Theorem 7.30, [coneType] form). *)
+Lemma stable_comp (f : B -> C) (g : C -> D)
+    (Hf : is_stable f) (Hg : is_stable g)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1) :
+  is_stable (fun x => g (f x)).
+Proof.
+have [Hfm Hfbd Hfc] := Hf.
+have [Hgm Hgbd Hgc] := Hg.
+split.
+- exact: totmono_comp Hf Hg Hfb.
+- exact: (bounded_comp f g Hfb Hgbd).
+- exact: (scott_comp f g Hfc (totmono_increasing Hfm) Hfb Hgc).
+Qed.
+
+End CompTotmono.
+
+Arguments totmono_comp {R B C D} f g Hf Hg Hfb.
+Arguments stable_comp {R B C D} f g Hf Hg Hfb.
+
+(** **[g ∘ f] stable-and-measurable** (Theorem 7.30). *)
+Lemma meas_stable_comp (R : realType) (Ar : MeasSubcat R)
+    (B C D : MCone.type Ar) (f : B -> C) (g : C -> D)
+    (Hf : is_meas_stable f) (Hg : is_meas_stable g)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1) :
+  is_meas_stable (fun x => g (f x)).
+Proof.
+have [Hfs Hfp] := Hf.
+have [Hgs Hgp] := Hg.
+split; first exact: (stable_comp f g Hfs Hgs Hfb).
+move=> X γ Hγb Hγ.
+exact: (meas_path_comp f g Hfb Hfp Hgp X γ Hγb Hγ).
+Qed.
+
+Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
 
 (** ** Status of §7.3 in this file
        (what is delivered here, and the precise remaining walls)
@@ -2230,25 +2759,41 @@ Arguments meas_path_comp {R Ar B C D} f g Hfb Hfp Hgp X γ Hγb Hγ.
       are direct (ω-continuity via [cone_sup_at_ball]/[cone_sup_at_indep],
       [f]'s [≤ 1]-image keeping the chain/path in [B_C]).
 
-    Deferred — the *one* non-obvious ingredient of Thm 7.30:
+    *Resolved* — Lemma 7.26 and Theorem 7.30 (closure under composition):
 
-    - **[totmono_compdiff]/[totmono_comp]** (Lemma 7.26 in full, and its
-      [n = 0] corollary [g ∘ f] totally monotonic), and hence the assembled
-      **[stable_comp]/[meas_stable_comp]**.  The wall is the bare-[B]
-      obstruction documented at [dB_kfun]: closing the paper's
-      [p]-induction needs each summand of [dB_kfun] fed back to the IH
-      [Sinc p], but the head direction [Δf(u) = dB f u] is increasing
-      ([SD_mono_centre]) yet *not* totally monotonic on the *plain* ball
-      (only on the *shifted* ball, [totmono_dB]), and the forward bridge
-      [is_totmono ⇒ ∀p, Sinc p] is genuinely false on bare [B] ([Sinc 1 f]
-      would demand [dB f u] increasing on the plain unit ball, which fails
-      near the boundary where [x + u] escapes and [dB f u x = 0]).  The
-      paper runs the whole induction on the *local cones* [B_u], where the
-      gauge norm makes plain and shifted balls coincide ([lc_step1]) — i.e.
-      through the nested-local-cone transport [(B_{u₀})_{u⃗} = B_{u₀,u⃗}]
-      that is the one cast deferred throughout this development.  With
-      [totmono_comp] in hand, [scott_comp]/[bounded_comp]/[meas_path_comp]
-      assemble [stable_comp]/[meas_stable_comp] with no further work.
+    - **[ninc_kfun]** (Lemma 7.26, the generic-source [p]-induction): for
+      *every* source cone, arity, and admissible data, [kfun g f h⃗] is
+      [p]-increasing.  The earlier bare-[B] wall (the forward bridge
+      [is_totmono ⇒ ∀p, Sinc p] is false on bare [B]) is sidestepped by
+      running the induction on the *local-cone* predicate [is_n_increasing]
+      (which recurses into [B_u]) and *quantifying it over all source
+      cones*: the [p.+1] step's goal at source [B_u] is discharged by the
+      inductive hypothesis *instantiated at source [B_u]* — "the same
+      theorem at the smaller cone" — so the explicit nested-cone transport
+      [(B_{u₀})_{u⃗} = B_{u₀,u⃗}] never appears.  The [dB_kfun] summands
+      become [kfun]s at source [B_u] whose directions are totally monotonic
+      ([totmono_dirH]/[totmono_dirK], via [totmono_dB_lc]/[totmono_shift_le])
+      and satisfy the codomain bound ([cod_head]/[cod_hyb]); the [\sumP] is
+      [p]-increasing ([ninc_add]/[ninc_bigP]), transferred to [Δk(u)] by the
+      ball-locality congruence [ninc_congr].
+
+    - **[totmono_comp]/[stable_comp]/[meas_stable_comp]** (Theorem 7.30):
+      [g ∘ f] is totally monotonic / stable / stable-and-measurable for
+      [f, g] stable(-and-measurable) with [f] mapping the unit ball into the
+      unit ball.  Total monotonicity is [ninc_kfun] at [n = 0]
+      ([SD g () (f x) = g (f x)]) + the closed-ball converse
+      [is_n_increasing_totmono] (ω-continuity from [scott_comp]); the other
+      fields are [bounded_comp]/[scott_comp]/[meas_path_comp].
+
+    - The [is_n_increasing] *sum engine* ([dB_add_at]/[dB_congr]/[dB_zero],
+      [ninc_congr]/[ninc_zero]/[ninc_add]/[ninc_bigP]) is the
+      [is_n_increasing] analogue of [totmono_bigP]/[stable_bigP].  The bare
+      [Sinc] predicate cannot be summed — its [dB] recursion stays on [B],
+      where [dB] additivity ([dB_add_at]) fails off the ball — so the
+      summation is realised on the local-cone [is_n_increasing], whose
+      gauge norm makes the plain and shifted balls of [B_u] coincide.
+
+    Deferred:
 
     - **Lemma 7.27** ([totmono_bilin]): [f : B × C → D] linear in arg 1 +
       totmono in arg 2 ⇒ totmono on [B_B × B_C].  Independent of the wall
