@@ -23,7 +23,14 @@
     - **Lemma 7.25** ([SnB_increasing]): the map [(x,u⃗) ↦ Δf(u⃗)(x)] is
       increasing [B_{SnB} → C], read off [SD_mono_full] (no ω-continuity
       needed: it is the joint centre/direction monotonicity of the
-      difference, which the paper derives "from Theorem 7.19").
+      difference, which the paper derives "from Theorem 7.19");
+    - the **B-side reformulation** of Def 7.15 / Lemmas 7.16–7.18: the
+      bare-[B] difference [dB], the [p]-increasing predicate [Sinc] whose
+      recursion never leaves [B → C], the multi-direction bootstrap
+      [Sinc_dB] (Lemma 7.16, immediate B-side), and the B-side Lemma 7.18
+      engine [totmono_dB] ([dB f u] is totally monotonic on the
+      shifted ball).  This sidesteps the nested-local-cone cast that blocks
+      the local-cone [is_n_increasing] recursion of [findiff.v].
 
     Paper reference: §7.3 (pages 1:62–1:65), Lemmas 7.23, 7.25, 7.26, 7.27
     and Theorem 7.30. *)
@@ -658,6 +665,198 @@ Arguments stable_Delta_pos {R B C} f Hf {n} u Hs.
 Arguments stable_Delta_neg {R B C} f Hf {n} u Hs.
 Arguments scott_Delta {R B C} f Hf {n} u Hs.
 
+(** ** B-side single-step difference [dB] and the bare-[B] Lemma 7.18
+       — Paper §7.3 (Def 7.15, Lemmas 7.16–7.18, Theorem 7.19)
+
+    The local-cone predicate [is_n_increasing] (findiff.v) recurses on the
+    *nested* local cone [(B_{u₀})_{u⃗}]: its [n.+1] clause asks that
+    [Δf(u₀) : B_{u₀} → C] be [n]-increasing *from the local cone of [u₀]*.
+    Iterating that recursion needs the nested-cone transport
+    [(B_{u₀})_{u⃗} = B_{u₀,u⃗}], which is the unproved cast that blocks the
+    multi-direction bootstrap (Lemma 7.20-[Δf]) and the composition.
+
+    We sidestep the cast entirely by working on *bare [B]-centres*.  The
+    B-side single-step difference of [φ : B → C] in direction [u] is
+
+      [dB φ u xb := SD φ 1 (fun _ ↦ u) xb] ,
+
+    which is the cone difference [φ(xb + u) ⊖ φ(xb)] (well defined on the
+    ball, [0]-extended off it by [SD]'s [pselect]).  Crucially [dB φ u : B →
+    C] *stays on [B]*, so the recursion of the B-side [p]-increasing
+    predicate [Sinc] (below) never changes the carrier — the nested-cone
+    cast simply disappears, and the multi-direction bootstrap [Sinc_dB] is a
+    one-line projection. *)
+
+Section BsideDiff.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Local Open Scope precone_scope.
+
+(** The B-side single-step difference [dB f u xb = SD f (fun ↦ u) xb]. *)
+Definition dB (u : B) : B -> C := fun xb => SD f (fun _ : 'I_1 => u) xb.
+
+(** [Spos]/[Sneg] of the one-element family collapse to [f] at the two
+    endpoints: [Spos f 1 (fun↦u) xb = f(xb+u)], [Sneg = f xb]. *)
+Lemma Spos_oneu (u xb : B) : Spos f 1 (fun _ : 'I_1 => u) xb = f (xb + u).
+Proof.
+rewrite /Spos Ppos1 big_set1; congr (f (_ + _)).
+by rewrite (eq_bigl predT) ?big_ord1// => i; rewrite finset.in_setT.
+Qed.
+
+Lemma Sneg_oneu (u xb : B) : Sneg f 1 (fun _ : 'I_1 => u) xb = f xb.
+Proof. by rewrite /Sneg Pneg1 big_set1 big_set0 precone_addr0. Qed.
+
+(** Defining equation of [dB]: where [f] is increasing at [xb] (the order
+    [f xb ≤p f(xb+u)] holds), [f(xb+u) = f xb + dB f u xb].  The bare-[B]
+    twin of [Delta1_E]. *)
+Lemma dB_E (u xb : B) :
+  f xb <=p f (xb + u) -> f (xb + u) = f xb + dB u xb.
+Proof.
+move=> Hle.
+have HE : Sneg f 1 (fun _ : 'I_1 => u) xb <=p Spos f 1 (fun _ : 'I_1 => u) xb.
+  by rewrite Spos_oneu Sneg_oneu.
+by have := SD_E f (fun _ : 'I_1 => u) xb HE; rewrite Spos_oneu Sneg_oneu.
+Qed.
+
+End BsideDiff.
+
+Arguments dB {R B C} f u xb.
+Arguments Spos_oneu {R B C} f u xb.
+Arguments Sneg_oneu {R B C} f u xb.
+Arguments dB_E {R B C} f u xb.
+
+(** ** B-side [p]-increasing predicate [Sinc] — Paper Def 7.15 (B-side)
+
+    The bare-[B] reformulation of [is_n_increasing].  [Sinc p f] is a
+    [Fixpoint] on [p] whose recursive call stays on the *same* carrier
+    [B → C] (because [dB f u : B → C]):
+
+    - [Sinc 0 f]: [f] is increasing on [B_B];
+    - [Sinc p.+1 f]: [f] is increasing *and*, for every direction [u ∈ B_B]
+      (strict interior, [‖u‖ < 1]), the B-side difference [dB f u : B → C]
+      is [Sinc p].
+
+    Contrast with [is_n_increasing], whose recursive call lands on the
+    *nested local cone* [lc_coneType Hu] — the carrier that forces the
+    blocked nested-cone cast.  Here the carrier is invariant, so the
+    multi-direction bootstrap [Sinc_dB] is immediate. *)
+
+Fixpoint Sinc (p : nat) (R : realType) (B C : coneType R) (f : B -> C)
+    {struct p} : Prop :=
+  match p with
+  | 0 => is_increasing f
+  | p'.+1 => is_increasing f /\
+      forall u : B, cone_norm u < 1 -> @Sinc p' R B C (dB f u)
+  end.
+
+Arguments Sinc p {R B C} f.
+
+(** ** [Sinc_dB] — the multi-direction bootstrap (Lemma 7.16, B-side)
+
+    If [f] is [Sinc p] for all [p], then for every interior direction [u]
+    the difference [dB f u : B → C] is [Sinc p] for all [p].  This is the
+    second conjunct of [Sinc] at [p.+1], read off directly — the
+    multi-direction step that the local-cone [is_n_increasing] could not
+    take without the nested-cone transport.  It goes through B-side in one
+    line precisely because [dB f u] lives on the bare carrier [B → C]. *)
+Lemma Sinc_dB (R : realType) (B C : coneType R) (f : B -> C) :
+  (forall p, Sinc p f) ->
+  forall (u : B), cone_norm u < 1 -> forall p, Sinc p (dB f u).
+Proof. by move=> H u Hu p; have /= [_ /(_ u Hu)] := H p.+1. Qed.
+
+Arguments Sinc_dB {R B C} f.
+
+(** ** B-side Lemma 7.18 — [dB f u] is totally monotonic (shifted ball)
+       — Paper §7.3 (txt 3523)
+
+    The bare-[B] twin of [totmono_Delta1]: for [f] totally monotonic and
+    [u] interior, the single-step difference [dB f u : B → C] satisfies the
+    (7.1) inequality at every configuration *whose [+u]-shift stays in the
+    unit ball* ([‖xb + u + Σᵢ wᵢ‖ ≤ 1]).  This shifted bound is the bare-[B]
+    image of the [B_u]-ball bound used by [totmono_Delta1] (there supplied
+    automatically by [lc_step1] on the local cone [B_u]); on bare centres it
+    must be carried explicitly, which is the only place the nested-cone
+    transport would have removed it.
+
+    Proof: the two summed [n = 1] equations [SDpos_dB] / [SDneg_dB] split
+    [Sε f (xb+u)] as [Sε f xb + Sε (dB f u) xb] (each [f(yb+u) = f yb + dB f
+    u yb] by [dB_E], valid since the shifted config keeps every [yb+u] in
+    the ball); the [(u :: w)]-difference inequality [Sdiff_mono] of [f] then
+    gives the order after cancelling the common summand [Sneg f + Spos f]. *)
+
+Section TotmonoDB.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Variable u : B.
+Local Open Scope precone_scope.
+
+(** Each shifted partial centre [xb + Σ_{i∈I} wᵢ + u] stays in the ball,
+    so [f] is increasing there: [f(yb) ≤p f(yb + u)]. *)
+Lemma dB_inc (m : nat) (w : 'I_m -> B) (xb : B)
+    (Hsh : cone_norm (xb + u +
+       \big[precone_add/precone_zero]_(i : 'I_m) w i) <= 1)
+    (I : {set 'I_m}) :
+  f (xb + \big[precone_add/precone_zero]_(i in I) w i) <=p
+  f (xb + \big[precone_add/precone_zero]_(i in I) w i + u).
+Proof.
+apply: (totmono_increasing Hf); apply: le_trans Hsh; apply: cone_normp.
+rewrite -precone_addA [_ + u]precone_addC precone_addA.
+by apply: precone_add_le_l; exact: sumP_sub_le.
+Qed.
+
+(** Summed [n = 1] equation (positive part), bare-[B]:
+    [Spos f w (xb + u) = Spos f w xb + Spos (dB f u) w xb]. *)
+Lemma SDpos_dB (m : nat) (w : 'I_m -> B) (xb : B)
+    (Hsh : cone_norm (xb + u +
+       \big[precone_add/precone_zero]_(i : 'I_m) w i) <= 1) :
+  Spos f m w (xb + u) = Spos f m w xb + Spos (dB f u) m w xb.
+Proof.
+rewrite /Spos -big_split/=; apply: eq_bigr => I _.
+rewrite -precone_addA [u + _]precone_addC precone_addA.
+by rewrite (dB_E f u _ (dB_inc Hsh I)).
+Qed.
+
+(** Summed [n = 1] equation (negative part), bare-[B]. *)
+Lemma SDneg_dB (m : nat) (w : 'I_m -> B) (xb : B)
+    (Hsh : cone_norm (xb + u +
+       \big[precone_add/precone_zero]_(i : 'I_m) w i) <= 1) :
+  Sneg f m w (xb + u) = Sneg f m w xb + Sneg (dB f u) m w xb.
+Proof.
+rewrite /Sneg -big_split/=; apply: eq_bigr => I _.
+rewrite -precone_addA [u + _]precone_addC precone_addA.
+by rewrite (dB_E f u _ (dB_inc Hsh I)).
+Qed.
+
+(** **B-side Lemma 7.18.** [dB f u] satisfies (7.1) at every shifted-ball
+    configuration: [Sneg (dB f u) w xb ≤p Spos (dB f u) w xb]. *)
+Lemma totmono_dB (m : nat) (w : 'I_m -> B) (xb : B)
+    (Hsh : cone_norm (xb + u +
+       \big[precone_add/precone_zero]_(i : 'I_m) w i) <= 1) :
+  Sneg (dB f u) m w xb <=p Spos (dB f u) m w xb.
+Proof.
+have key : Sneg f m w (xb + u) + Spos f m w xb <=p
+           Spos f m w (xb + u) + Sneg f m w xb.
+  apply: (Sdiff_mono Hf (n := m) (u := u) (w := w) (xb := xb)).
+  by rewrite sum_vcons precone_addA.
+move: key; rewrite SDpos_dB// SDneg_dB//.
+set Sn := Sneg f m w xb; set Sp := Spos f m w xb.
+set DN := Sneg (dB f u) m w xb; set DP := Spos (dB f u) m w xb.
+rewrite -[Sn + DN + Sp]precone_addA [DN + Sp]precone_addC precone_addA.
+rewrite -[Sp + DP + Sn]precone_addA [DP + Sn]precone_addC precone_addA.
+rewrite [Sp + Sn]precone_addC.
+exact: (precone_le_addlI (Sn + Sp)).
+Qed.
+
+End TotmonoDB.
+
+Arguments dB_inc {R B C} f Hf u {m} w xb Hsh I.
+Arguments SDpos_dB {R B C} f Hf u {m} w xb Hsh.
+Arguments SDneg_dB {R B C} f Hf u {m} w xb Hsh.
+Arguments totmono_dB {R B C} f Hf u {m} w xb Hsh.
+
 (** ** Status of §7.3 in this file
        (what is delivered here, and the precise remaining walls)
 
@@ -692,37 +891,72 @@ Arguments scott_Delta {R B C} f Hf {n} u Hs.
       ([Sneg_le_Spos] read through [Delta_E]), and centre-monotonicity of
       [Δf(u⃗)] supplied by [findiff.v]'s [Delta_mono].
 
+    B-side reformulation (Def 7.15 / Lemmas 7.16–7.18, no local cone):
+
+    - **[dB]** / **[dB_E]**: the bare-[B] single-step difference
+      [dB f u xb = SD f (fun↦u) xb = f(xb+u) ⊖ f(xb)], with the defining
+      equation [f(xb+u) = f xb + dB f u xb] on the ball.  [dB f u : B → C]
+      stays on [B].
+
+    - **[Sinc]**: the B-side [p]-increasing predicate ([Sinc 0] = increasing;
+      [Sinc p.+1 f] = increasing ∧ ∀ interior [u], [Sinc p (dB f u)]).  Its
+      recursive call is on the *same* carrier [B → C], whereas
+      [is_n_increasing] recurses into the *nested local cone* [lc_coneType
+      Hu] — the carrier that forces the blocked cast.
+
+    - **[Sinc_dB]** (Lemma 7.16, B-side): [(∀p, Sinc p f) ⇒ ∀p, Sinc p
+      (dB f u)] for interior [u].  This is the **multi-direction bootstrap**
+      the local-cone [is_n_increasing] could not take without the
+      nested-cone transport; B-side it is a one-line projection (the second
+      conjunct of [Sinc] at [p.+1]), because [dB f u] lives on bare [B].
+
+    - **[totmono_dB]** (Lemma 7.18, B-side): for [f] totally monotonic and
+      [u] interior, [dB f u] satisfies the (7.1) inequality
+      [Sneg (dB f u) w xb ≤p Spos (dB f u) w xb] at every *shifted-ball*
+      configuration [‖xb + u + Σᵢ wᵢ‖ ≤ 1].  The bare-[B] twin of
+      [totmono_Delta1]: the two summed [n = 1] equations [SDpos_dB]/[SDneg_dB]
+      ([Sε f (xb+u) = Sε f xb + Sε (dB f u) xb], by [dB_E] term-by-term)
+      reduce the order to [Sdiff_mono] of [f] after one cancellation.  No
+      local-cone cast; the only price is the *explicit* shifted-ball bound,
+      which [B_u]/[lc_step1] supplied for free in [totmono_Delta1].
+
     Deferred (with the precise wall):
 
-    - **[totmono_Delta]** — Lemma 7.20, the *total monotonicity* of
-      [Δf(u⃗)].  By Theorem 7.19 ([is_n_increasing_totmono]) this would
-      follow from [scott_Delta] (now delivered) *together with*
-      [forall k, is_n_increasing k (Δf(u⃗))] for the *full* family [u⃗].
-      The only [k]-increasing fact about a difference available upstream
-      is [is_n_increasing_Delta] ([findiff.v], Lemma 7.16), which is
-      **single-direction only** — it gives [k]-increasingness of
-      [Δf(fun=>u)] (a one-element family), not of the multi-direction
-      [Δf(u⃗)].  Bootstrapping single → multi needs the *general* Lemma
-      7.18 nested-difference identity
-      [Δf(u₀ :: u⃗) = Δ(Δf(u₀))(u⃗)], i.e. a cone transport between
-      [local_cone (Σᵢ (u₀ :: u⃗)ᵢ)] and the nested cone
-      [(local_cone u₀)_{u⃗}] — the deferred "cast" of [findiff.v]'s
-      [Lemma718] (only the single-step [totmono_Delta1] is proved there,
-      via a transport that is *not* exposed as a reusable nested identity).
-      So [totmono_Delta] is blocked on that nested-cone transport, not on
-      ω-continuity; [scott_Delta] removes the *other* (ω-continuity) half
-      of the wall.  No [Admitted] is left for it.
+    - **B-side Theorem 7.19 equivalence** ([totmono_Sinc] /
+      [Sinc_totmono]) and hence **[totmono_Delta]** (Lemma 7.20 [Δf]).
+      The wall is now sharply located: it is *not* a missing cast inside
+      the bootstrap (the bootstrap [Sinc_dB] and the engine [totmono_dB] are
+      both delivered, bare-[B]), but the **domain bound carried by the
+      recursion**.  [Sinc]/[is_totmono] on bare [B] only ever quantify a
+      configuration by its *own* unit-ball bound [‖xb + Σ wᵢ‖ ≤ 1]; but the
+      [dB]-step engine [totmono_dB] needs the *shifted* bound
+      [‖xb + u + Σ wᵢ‖ ≤ 1].  On the local cone [B_u] the gauge norm makes
+      the two coincide ([lc_step1]); on bare [B] they differ, and a
+      [Sinc p (dB f u)] obtained from a plain-ball IH would feed [totmono_dB]
+      a bound it cannot meet.  So the bare-[B] equivalence is blocked on the
+      same content as the nested-cone transport — the [B_u]-gauge that
+      converts plain bounds into shifted ones — re-expressed as a
+      domain-bound mismatch.  [scott_Delta] (ω-continuity) and [totmono_dB]
+      (the [Δ]-monotonicity engine) remove every *other* ingredient; what
+      remains is exactly this gauge bridge.  No [Admitted] is left.
 
     - **Lemma 7.23, general arity** (the full [Δf(u⃗+v⃗)(x+u)] telescope):
       [findiff.v] delivers the [n = 1] base [SD_723_1].  The general [n]
       case is the diagonal split
       [SD (u⃗+v⃗)(xb) = SD u⃗(xb) + Σⱼ SD(hybⱼ)(xb+uⱼ)] with [hybⱼ] the
-      hybrid family [(u₁,…,u_{j-1}, vⱼ, u_{j+1}+v_{j+1},…)].  Its clean
-      inductive form needs ['I_n] prefix-concatenation ([pcat] via
-      [lshift]/[rshift]/[split]/[unsplit]) and an interior-position
-      variant of the head-only [SD_add] (combine [SD_add] with [SD_perm]
-      to move position [k] to the head), with the attendant ordinal cast
-      [m + k.+1 = m.+1 + k].  The [SD] engines ([SD_cons], [SD_add],
+      hybrid family [(u₁,…,u_{j-1}, vⱼ, u_{j+1}+v_{j+1},…)].  The natural
+      induction (peel index 0 by [SD_add], recurse on the tail with a
+      *frozen head* [a]) needs the frozen-head split
+      [SD (a :: u⃗+v⃗)(xc) = SD (a :: u⃗)(xc) + Σₖ SD (a :: hybₖ)(xc + uₖ)],
+      whose recursive step splits the tail at an *interior* position — the
+      head-only [SD_add] applied after moving position [k] to the head by
+      [SD_perm], with the attendant ordinal cast [m + k.+1 = m.+1 + k] and
+      ['I_n] prefix-concatenation ([lshift]/[rshift]/[split]).  Crucially
+      the interior term keeps the *single-direction* centre shift [xc + uₖ]
+      (not the accumulated [xc + u₀ + … + uₖ]), so the frozen-head [a] and
+      [xc] cannot be folded into the head-peel — the interior-position
+      engine is genuinely required.  The [SD] engines ([SD_cons], [SD_add],
       [SD_perm], [SnB]) are all in place; only this prefix/reindex
-      machinery is missing.  Independent of [totmono_Delta]; deferred per
-      the strict priority order (the [totmono_Delta] wall comes first). *)
+      machinery is missing.  Independent of the [Sinc] equivalence;
+      deferred per the strict priority order (the equivalence wall comes
+      first). *)
