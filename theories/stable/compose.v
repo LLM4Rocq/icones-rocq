@@ -1117,6 +1117,268 @@ End SincTotmonoMain.
 
 Arguments Sinc_totmono {R B C} f Hg Hscott.
 
+(** ** Interior-position split of [SD] — Paper §7.3 (Lemma 7.22, [SD_add]
+       at an arbitrary position)
+
+    [SD_add] (findiff.v) splits the *head* direction [u₀ = a + b] of an
+    [SD]-difference into two; the §7.3 telescope (Lemma 7.23 general) needs
+    the same split at an *arbitrary* interior position [k].  We obtain it by
+    transposing [k] to the head ([tperm ord0 k]), applying the head split
+    [SD_add], and transposing back — the [SD]-symmetry [SD_perm] making
+    every reindexing free.  This is the missing "interior-position [SD_add]
+    engine" of the §7.3 status note. *)
+
+Section SDsplitIdx.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+(** Replace the value of a family [v] at index [k] by [c]. *)
+Definition setidx (n : nat) (v : 'I_n -> B) (k : 'I_n) (c : B) : 'I_n -> B :=
+  fun i => if i == k then c else v i.
+
+Lemma setidx_eq (n : nat) (v : 'I_n -> B) (k : 'I_n) (c : B) :
+  setidx v k c k = c.
+Proof. by rewrite /setidx eqxx. Qed.
+
+Lemma setidx_neq (n : nat) (v : 'I_n -> B) (k i : 'I_n) (c : B) :
+  i != k -> setidx v k c i = v i.
+Proof. by rewrite /setidx => /negbTE ->. Qed.
+
+(** Moving index [k] to the head: [v ∘ tperm ord0 k] is [vcons (v k) _].
+    [SD f v xb = SD f (vcons (v k) (tail)) xb] by [SD_perm]. *)
+Lemma SD_head_at (n : nat) (v : 'I_n.+1 -> B) (k : 'I_n.+1) (xb : B) :
+  SD f v xb =
+  SD f (vcons (v k) (fun i => v (tperm ord0 k (lift ord0 i)))) xb.
+Proof.
+pose s : 'S_n.+1 := tperm ord0 k.
+have sord0 : s ord0 = k by rewrite /s tpermL.
+have Ev : v \o s = vcons (v k) (fun i => v (tperm ord0 k (lift ord0 i))).
+  by rewrite [LHS]vcons_eta /= /comp sord0.
+by rewrite -Ev SD_perm.
+Qed.
+
+(** **Interior-position split.**  If [v k = a + b] then
+    [SD f v xb = SD f (v[k:=a]) xb + SD f (v[k:=b]) (xb + a)].  Stated over
+    an arbitrary arity ['I_n] with the index [k] witnessing [n > 0]. *)
+Lemma SD_split_idx (n : nat) (v : 'I_n -> B) (k : 'I_n)
+    (a b : B) (xb : B) (Hk : v k = a + b)
+    (Hc : cone_norm (xb +
+       \big[precone_add/precone_zero]_(i : 'I_n) v i) <= 1) :
+  SD f v xb =
+  SD f (setidx v k a) xb + SD f (setidx v k b) (xb + a).
+Proof.
+case: n => [|n] in v k a b Hk Hc *; first by case: k Hk Hc.
+pose tl := fun i : 'I_n => v (tperm ord0 k (lift ord0 i)).
+have tlE i : tperm ord0 k (lift ord0 i) != k.
+  apply: contraNneq (neq_lift ord0 i) => Hki.
+  by have := tpermK ord0 k (lift ord0 i); rewrite Hki tpermR.
+have Ev : vcons (v k) tl = v \o tperm ord0 k.
+  apply/funext => i; rewrite /comp /vcons /tl.
+  by case: (unliftP ord0 i) => [j ->|->]//; rewrite tpermL.
+(* Head split of the transposed family. *)
+have Hsum : \big[precone_add/precone_zero]_(i : 'I_n.+1)
+    vcons (v k) tl i = \big[precone_add/precone_zero]_(i : 'I_n.+1) v i.
+  rewrite (reindex_inj (h := tperm ord0 k)); last exact: perm_inj.
+  by apply: eq_bigr => i _; rewrite Ev /comp tpermK.
+have HcH : cone_norm (xb +
+    \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons (a + b) tl i) <= 1.
+  by rewrite -Hk Hsum.
+have step := SD_add f Hf a b tl xb HcH.
+rewrite (SD_head_at v k xb) -/tl Hk step.
+(* Identify [vcons a tl] and [vcons b tl] with [setidx]-families transposed. *)
+have EvA : vcons a tl = (setidx v k a) \o tperm ord0 k.
+  apply/funext => i; rewrite /comp /vcons /tl.
+  case: (unliftP ord0 i) => [j ->|->]; last by rewrite tpermL setidx_eq.
+  by rewrite setidx_neq// tlE.
+have EvB : vcons b tl = (setidx v k b) \o tperm ord0 k.
+  apply/funext => i; rewrite /comp /vcons /tl.
+  case: (unliftP ord0 i) => [j ->|->]; last by rewrite tpermL setidx_eq.
+  by rewrite setidx_neq// tlE.
+by rewrite EvA EvB !SD_perm.
+Qed.
+
+End SDsplitIdx.
+
+Arguments setidx {R B n} v k c.
+Arguments SD_split_idx {R B C} f Hf {n} v k a b xb Hk Hc.
+
+(** ** Lemma 7.23, general arity — the diagonal split of [SD] — Paper §7.3
+       (txt 3687)
+
+    The §7.3 telescope: differencing [f] in the *sum* family [u⃗ + v⃗]
+    decomposes diagonally as the pure-[u⃗] difference plus a sum of
+    single-direction-shifted hybrid differences,
+
+      [SD f (u⃗+v⃗) xb = SD f u⃗ xb + Σ_{j} SD f (hybⱼ)(xb + uⱼ)] ,
+
+    where [hybⱼ] is the *hybrid family* [(u₁,…,u_{j-1}, vⱼ, u_{j+1}+v_{j+1},
+    …)] — [u] before position [j], [v] at [j], [u+v] after.  This is the
+    general arity of [findiff.v]'s base [SD_723_1] (n = 1).
+
+    Proof by a telescoping "diagonal sweep": let [mixt j] be the family
+    [u] on positions [< j] and [u+v] on positions [≥ j] (so [mixt 0 =
+    u⃗+v⃗] and [mixt n = u⃗]).  At each [j] the position-[j] value of
+    [mixt j] is [uⱼ + vⱼ]; splitting it by the interior-position engine
+    [SD_split_idx] yields [mixt j.+1] (position [j] now [uⱼ], the
+    [u]-prefix grown) plus the hybrid term [SD f (hybⱼ)(xb + uⱼ)] — the
+    [v]-branch is exactly [hybⱼ].  Telescoping from [j = 0] to [j = n]
+    collects the [Σⱼ] hybrid sum and leaves [SD f u⃗ xb].  No
+    prefix-concatenation / ordinal cast is needed: the interior split
+    keeps the carrier ['I_n] fixed throughout. *)
+
+Section SDdiag.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+Variable n : nat.
+Variables u v : 'I_n -> B.
+
+(** [mixt j]: [u] on positions [< j], [u+v] on positions [≥ j]. *)
+Definition mixt (j : nat) : 'I_n -> B :=
+  fun i => if (i < j)%N then u i else u i + v i.
+
+(** [hyb k]: [u] before [k], [v] at [k], [u+v] after [k]. *)
+Definition hyb (k : 'I_n) : 'I_n -> B :=
+  fun i => if (i < k)%N then u i else if i == k then v i else u i + v i.
+
+Lemma mixt0 : mixt 0 = (fun i => u i + v i).
+Proof. by apply/funext => i; rewrite /mixt ltn0. Qed.
+
+Lemma mixtn : mixt n = u.
+Proof. by apply/funext => i; rewrite /mixt ltn_ord. Qed.
+
+(** At [k] (value [j = k]), [mixt j] has value [u k + v k]; setting it to
+    [u k] gives [mixt j.+1]; setting it to [v k] gives [hyb k]. *)
+Lemma mixt_at (k : 'I_n) : mixt k k = u k + v k.
+Proof. by rewrite /mixt ltnn. Qed.
+
+Lemma set_mixt_u (k : 'I_n) : setidx (mixt k) k (u k) = mixt k.+1.
+Proof.
+apply/funext => i; rewrite /setidx /mixt.
+case: (ltngtP i k) => [Hik|Hik|Hik].
+- have ik : (i == k) = false by rewrite -val_eqE; apply: ltn_eqF.
+  by rewrite ik (ltn_trans Hik (ltnSn k)).
+- have ik : (i == k) = false by rewrite -val_eqE gtn_eqF.
+  by rewrite ik ltnNge Hik.
+- have ik : i = k by apply: val_inj.
+  by rewrite ik eqxx ltnSn.
+Qed.
+
+Lemma set_mixt_v (k : 'I_n) : setidx (mixt k) k (v k) = hyb k.
+Proof.
+apply/funext => i; rewrite /setidx /mixt /hyb.
+case: (ltngtP i k) => [Hik|Hik|Hik].
+- have ik : (i == k) = false by rewrite -val_eqE; apply: ltn_eqF.
+  by rewrite ik.
+- have ik : (i == k) = false by rewrite -val_eqE gtn_eqF.
+  by rewrite ik.
+- have ik : i = k by apply: val_inj.
+  by rewrite ik eqxx.
+Qed.
+
+(** Sum of [mixt j] is below the full [u+v] sum (each term is [≤p]). *)
+Lemma mixt_sum_le (j : nat) :
+  \big[precone_add/precone_zero]_(i : 'I_n) mixt j i <=p
+  \big[precone_add/precone_zero]_(i : 'I_n) (u i + v i).
+Proof.
+elim/big_rec2: _ => [|i s s' _ Hs]; first exact: precone_le_refl.
+apply: precone_le_trans (precone_add_le_l _ Hs).
+apply: precone_add_le_r; rewrite /mixt; case: ifP => _.
+  by exists (v i).
+exact: precone_le_refl.
+Qed.
+
+(** **Single diagonal step.**  [SD f (mixt j) xb = SD f (mixt j.+1) xb +
+    SD f (hyb k) (xb + u k)] for [k : 'I_n] of value [j]. *)
+Lemma SD_diag_step (k : 'I_n) (xb : B)
+    (Hc : cone_norm (xb +
+       \big[precone_add/precone_zero]_(i : 'I_n) (u i + v i)) <= 1) :
+  SD f (mixt k) xb =
+  SD f (mixt k.+1) xb + SD f (hyb k) (xb + u k).
+Proof.
+have Hck : cone_norm (xb +
+    \big[precone_add/precone_zero]_(i : 'I_n) mixt k i) <= 1.
+  apply: le_trans Hc; apply: cone_normp; apply: precone_add_le_l.
+  exact: mixt_sum_le.
+have := SD_split_idx f Hf (mixt k) k (u k) (v k) xb (mixt_at k) Hck.
+by rewrite set_mixt_u set_mixt_v.
+Qed.
+
+(** **Diagonal sweep (telescope).**  Collecting the steps [j = 0 .. m-1]
+    leaves [SD f (mixt m) xb] plus the partial hybrid sum. *)
+Lemma SD_diag_sweep (m : nat) (Hmn : (m <= n)%N) (xb : B)
+    (Hc : cone_norm (xb +
+       \big[precone_add/precone_zero]_(i : 'I_n) (u i + v i)) <= 1) :
+  SD f (mixt 0) xb =
+  SD f (mixt m) xb +
+    \big[precone_add/precone_zero]_(k : 'I_n | (k < m)%N)
+      SD f (hyb k) (xb + u k).
+Proof.
+elim: m Hmn => [|m IHm] Hmn.
+  rewrite big_pred0; last by move=> k; rewrite ltn0.
+  by rewrite precone_addr0.
+have Hmn' : (m <= n)%N by exact: ltnW.
+rewrite (IHm Hmn').
+pose km : 'I_n := Ordinal Hmn.
+have step := SD_diag_step km.
+rewrite (step xb Hc).
+(* Reassemble: the new step's hybrid term joins the partial sum. *)
+rewrite -precone_addA; congr precone_add.
+rewrite [in RHS](bigD1 km)/=; last by rewrite ltnSn.
+rewrite [in RHS](eq_bigl (fun k : 'I_n => (k < m)%N)); last first.
+  by move=> k; rewrite ltnS andbC -val_eqE/= -ltn_neqAle.
+by [].
+Qed.
+
+(** **Lemma 7.23, general arity ([B]-side diagonal split).** *)
+Lemma SD_diag (xb : B)
+    (Hc : cone_norm (xb +
+       \big[precone_add/precone_zero]_(i : 'I_n) (u i + v i)) <= 1) :
+  SD f (fun i => u i + v i) xb =
+  SD f u xb +
+    \big[precone_add/precone_zero]_(k : 'I_n) SD f (hyb k) (xb + u k).
+Proof.
+have sweep := SD_diag_sweep (m := n) (leqnn n).
+rewrite -mixt0 (sweep xb Hc) mixtn; congr precone_add.
+by apply: eq_bigl => k; rewrite ltn_ord.
+Qed.
+
+(** **Lemma 7.23, general arity (full telescope, [B]-side).**  The paper's
+    [Δf(u⃗+v⃗)(x+u₀)] identity: peel the head shift [u₀] by [SD_cons]
+    (yielding the head term [Δf(u₀, u⃗+v⃗)(x)]), then split the residual
+    [Δf(u⃗+v⃗)(x)] diagonally by [SD_diag].  This is the general arity of
+    [findiff.v]'s [SD_723_1] (n = 1). *)
+Lemma SD_723 (u0 xb : B)
+    (Hc : cone_norm (xb + (u0 +
+       \big[precone_add/precone_zero]_(i : 'I_n) (u i + v i))) <= 1) :
+  SD f (fun i => u i + v i) (xb + u0) =
+  SD f u xb + SD f (vcons u0 (fun i => u i + v i)) xb +
+    \big[precone_add/precone_zero]_(k : 'I_n) SD f (hyb k) (xb + u k).
+Proof.
+have HcA : cone_norm (xb + \big[precone_add/precone_zero]_(i : 'I_n.+1)
+    vcons u0 (fun i => u i + v i) i) <= 1 by rewrite sum_vcons.
+have stepA := SD_cons f Hf u0 (fun i => u i + v i) xb HcA.
+have HcD : cone_norm (xb +
+    \big[precone_add/precone_zero]_(i : 'I_n) (u i + v i)) <= 1.
+  apply: le_trans Hc; apply: cone_normp; apply: precone_add_le_l.
+  by exists u0; rewrite precone_addC.
+rewrite stepA (SD_diag HcD).
+by rewrite -!precone_addA; congr precone_add; exact: precone_addC.
+Qed.
+
+End SDdiag.
+
+Arguments mixt {R B n} u v j.
+Arguments hyb {R B n} u v k.
+Arguments SD_diag {R B C} f Hf {n} u v xb Hc.
+Arguments SD_723 {R B C} f Hf {n} u v u0 xb Hc.
+
 (** ** Status of §7.3 in this file
        (what is delivered here, and the precise remaining walls)
 
@@ -1217,6 +1479,34 @@ Arguments Sinc_totmono {R B C} f Hg Hscott.
       replaced by the [SD]-linearity recurrence [SD_consdB]/[Sinc_dB] and
       never appears.
 
+    Lemma 7.23, general arity (the §7.3 telescope, [B]-side):
+
+    - **[SD_split_idx]** (interior-position [SD_add]): if [v⃗ k = a + b]
+      then [SD f v⃗ xb = SD f (v⃗[k:=a]) xb + SD f (v⃗[k:=b]) (xb + a)] — the
+      head-only [SD_add] of [findiff.v] lifted to an *arbitrary* position
+      [k], by transposing [k] to the head ([tperm ord0 k]), splitting, and
+      transposing back ([SD_perm]).  No prefix-concatenation / ordinal cast
+      is needed: the carrier ['I_n] is fixed throughout.
+
+    - **[SD_diag]** (Lemma 7.23, diagonal split): [SD f (u⃗+v⃗) xb =
+      SD f u⃗ xb + Σⱼ SD f (hybⱼ)(xb + uⱼ)], with [hybⱼ] the hybrid family
+      [(u₁,…,u_{j-1}, vⱼ, u_{j+1}+v_{j+1},…)].  The general arity of
+      [findiff.v]'s base [SD_723_1] (n = 1).  Proof by a *diagonal sweep*
+      ([SD_diag_sweep]): [mixt j] is [u] before [j], [u+v] from [j] on (so
+      [mixt 0 = u⃗+v⃗], [mixt n = u⃗]); each [SD_split_idx] at position [j]
+      grows the [u]-prefix ([mixt j → mixt j.+1]) and emits the hybrid term
+      [hybⱼ] at the single-direction-shifted centre [xb + uⱼ].  Telescoping
+      [j = 0 .. n] collects [Σⱼ] and leaves [SD f u⃗ xb].  *The original
+      "frozen head / prefix-concatenation" obstruction is sidestepped
+      entirely*: the sweep never leaves the fixed ['I_n] carrier, so no
+      [lshift]/[rshift]/[split] or [m + k.+1 = m.+1 + k] cast appears.
+
+    - **[SD_723]** (Lemma 7.23, full telescope): [SD f (u⃗+v⃗)(xb + u₀) =
+      SD f u⃗ xb + SD f (u₀ :: u⃗+v⃗) xb + Σⱼ SD f (hybⱼ)(xb + uⱼ)] — peel
+      the head shift [u₀] by [SD_cons] (head term [Δf(u₀, u⃗+v⃗)(x)]), then
+      split the residual diagonally by [SD_diag].  The general arity of
+      [SD_723_1].
+
     Deferred (with the precise wall):
 
     - **Forward direction [totmono_Sinc]** ([is_totmono f ⇒ ∀p, Sinc p f]).
@@ -1232,35 +1522,30 @@ Arguments Sinc_totmono {R B C} f Hg Hscott.
       [Sinc_dB] with its own bounds, never re-derived from [is_totmono].
 
     - **[totmono_Delta]** (Lemma 7.20, [Δf] clause): [Δf(u⃗) : B_u⃗ → C]
-      totally monotonic for stable [f].  Now *one milestone away*:
-      [Sinc_totmono] applies verbatim at the source cone [B := lc_coneType
-      Hs] once we exhibit [∀p, Sinc p (Δf(u⃗))] on that local cone
-      ([scott_Delta] already supplies the ω-continuity half).  The [Sinc]
-      recursion of [Δf(u⃗)] on [B_u⃗] descends through [dB (Δf u⃗) u'], and
-      by [SD_Delta] + the [SD]-cons recurrence each such difference is a
-      *higher* bare-[B] difference [SD f (u' :: u⃗) ∘ lc_val] — exactly the
-      iterated-[SD] / Lemma 7.23-general telescope below.  So [totmono_Delta]
-      is gated only on the iterated-difference machinery (next milestone),
-      not on any gauge bridge: [SD_consdB] is its first brick.  No
-      [Admitted] is left.
-
-    - **Lemma 7.23, general arity** (the full [Δf(u⃗+v⃗)(x+u)] telescope):
-      [findiff.v] delivers the [n = 1] base [SD_723_1].  The general [n]
-      case is the diagonal split
-      [SD (u⃗+v⃗)(xb) = SD u⃗(xb) + Σⱼ SD(hybⱼ)(xb+uⱼ)] with [hybⱼ] the
-      hybrid family [(u₁,…,u_{j-1}, vⱼ, u_{j+1}+v_{j+1},…)].  The natural
-      induction (peel index 0 by [SD_add], recurse on the tail with a
-      *frozen head* [a]) needs the frozen-head split
-      [SD (a :: u⃗+v⃗)(xc) = SD (a :: u⃗)(xc) + Σₖ SD (a :: hybₖ)(xc + uₖ)],
-      whose recursive step splits the tail at an *interior* position — the
-      head-only [SD_add] applied after moving position [k] to the head by
-      [SD_perm], with the attendant ordinal cast [m + k.+1 = m.+1 + k] and
-      ['I_n] prefix-concatenation ([lshift]/[rshift]/[split]).  Crucially
-      the interior term keeps the *single-direction* centre shift [xc + uₖ]
-      (not the accumulated [xc + u₀ + … + uₖ]), so the frozen-head [a] and
-      [xc] cannot be folded into the head-peel — the interior-position
-      engine is genuinely required.  The [SD] engines ([SD_cons], [SD_add],
-      [SD_perm], [SnB]) are all in place; only this prefix/reindex
-      machinery is missing.  Independent of the [Sinc] equivalence;
-      deferred per the strict priority order (the equivalence wall comes
-      first). *)
+      totally monotonic for stable [f].  ω-continuity ([scott_Delta]) and
+      the Lemma 7.23 telescope ([SD_diag]/[SD_723]) are now in hand, yet a
+      genuine wall remains.  Via [SD_Delta], [is_totmono (Δf(u⃗))] on
+      [B_u⃗] is equivalent to the (7.1) inequality for the *function*
+      [g := SD f u⃗ : B → C] at every "[u⃗]-shifted" outer config
+      [‖XB + ΣWⱼ + Σuᵢ‖ ≤ 1] — i.e. [Sneg g W XB ≤p Spos g W XB].  Two
+      routes both stall on the same point:
+      · the [Sinc_totmono] route needs [∀p, Sinc p (Δf(u⃗))] on [B_u⃗];
+        [Sinc (p.+1)] demands increasingness of the difference
+        [dB (Δf u⃗) u' = SD f (lc_val u' :: u⃗) ∘ lc_val] on the *plain*
+        [B_u⃗]-ball, whereas the higher difference is only increasing on the
+        shifted sub-ball where [Σ(lc_val u' :: u⃗) ≤p Σu⃗] — the same
+        plain-vs-shifted mismatch as the false bare-[B] [totmono_Sinc];
+      · the direct [m]-induction on the outer directions [W] reduces, at
+        the [m.+1] step, to the *centre-difference monotonicity*
+        ([Sdiff_mono]) of [g = SD f u⃗], which is itself the (7.1)
+        inequality for [g] at arity [m+1] — circular within the [m]-sweep;
+        an [n]-induction (peel [u⃗]'s head by [SD_consdB], [g = SD (dB f u₀)
+        ut]) needs the inner function [dB f u₀] *globally* totally
+        monotonic, which it is not (only on the shifted ball, [totmono_dB]).
+      Closing this needs a *generalised cons-recurrence for functions
+      satisfying only the shifted (7.1)-inequalities* (a [Sdiff_mono] /
+      [SD_cons] that does not require global [is_totmono] of the base),
+      which is a separate construction beyond the present engine.  The
+      Lemma 7.23 telescope ([SD_diag]/[SD_723], an equality) does not by
+      itself supply the missing inequality.  No [Admitted] is left; this
+      is the next genuine milestone for the §7.3 composition track. *)
