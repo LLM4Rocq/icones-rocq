@@ -857,6 +857,266 @@ Arguments SDpos_dB {R B C} f Hf u {m} w xb Hsh.
 Arguments SDneg_dB {R B C} f Hf u {m} w xb Hsh.
 Arguments totmono_dB {R B C} f Hf u {m} w xb Hsh.
 
+(** ** B-side nested recurrence [SD_consdB] — Paper §7.3 (Lemma 7.17/7.22)
+
+    The bare-[B] analogue of the nested-difference identity
+    [Δf(u₀ :: u⃗) = Δ(Δf(u₀))(u⃗)], with *no* local cone: prepending the
+    head [u₀] to the direction family of [SD] is the same as taking the
+    [SD] of the single-step difference [dB f u₀],
+
+      [SD f (u₀ :: u⃗) xb = SD (dB f u₀) u⃗ xb] .
+
+    This is precisely the [SD]-linearity-in-[f] content of the task: the
+    [SD]-cons recurrence [SD_cons] writes the head difference as
+    [SD f u⃗ (xb+u₀) ⊖ SD f u⃗ xb], while the summed [n=1] equations
+    [SDpos_dB] / [SDneg_dB] (Lemma 7.4, [dB_E] term-by-term) split
+    [Sε f u⃗ (xb+u₀) = Sε f u⃗ xb + Sε (dB f u₀) u⃗ xb], so [dB f u₀]'s own
+    difference [SD (dB f u₀) u⃗ xb] *is* the head difference.  Cancel the
+    common summands in the four defining equations to identify them. *)
+
+Section SDconsdB.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Hypothesis Hf : is_totmono f.
+Local Open Scope precone_scope.
+
+Lemma SD_consdB (u0 : B) (n : nat) (w : 'I_n -> B) (xb : B)
+    (Hc : cone_norm (xb +
+       \big[precone_add/precone_zero]_(i : 'I_n.+1) vcons u0 w i) <= 1) :
+  SD f (vcons u0 w) xb = SD (dB f u0) w xb.
+Proof.
+have Hsh : cone_norm (xb + u0 +
+    \big[precone_add/precone_zero]_(i : 'I_n) w i) <= 1.
+  by move: Hc; rewrite sum_vcons precone_addA.
+have D1 := SD_E f w (xb + u0) (Sle_xbu Hf Hc).
+have D0 := SD_E f w xb (Sle_xb Hf Hc).
+have step := SD_cons f Hf u0 w xb Hc.
+have SP := SDpos_dB f Hf u0 w xb Hsh.
+have SN := SDneg_dB f Hf u0 w xb Hsh.
+have HleB := totmono_dB f Hf u0 w xb Hsh.
+have DB := SD_E (dB f u0) w xb HleB.
+rewrite SP SN in D1.
+set Sp0 := Spos f n w xb in D1 D0 *.
+set Sn0 := Sneg f n w xb in D1 D0 *.
+set DP := Spos (dB f u0) n w xb in D1 DB *.
+set DN := Sneg (dB f u0) n w xb in D1 DB *.
+set d1 := SD f w (xb + u0) in D1 step.
+set d0 := SD f w xb in step D0 *.
+set dc := SD f (vcons u0 w) xb in step *.
+set db := SD (dB f u0) w xb in DB *.
+apply: (@precone_cancel _ _ (Sn0 + DN + d0)).
+rewrite step D0 DB in D1.
+rewrite -[Sn0 + DN + d0 + dc]precone_addA -D1.
+rewrite -precone_addA [d0 + (DN + db)]precone_addA [d0 + DN]precone_addC.
+by rewrite !precone_addA.
+Qed.
+
+End SDconsdB.
+
+Arguments SD_consdB {R B C} f Hf u0 {n} w xb Hc.
+
+(** ** B-side Theorem 7.19 converse on the *closed* ball — [Sinc_totmono]
+
+    The B-side counterpart of [findiff.v]'s [is_n_increasing_totmono],
+    delivered *without ever leaving the bare carrier* [B → C] — the
+    [Sinc] recursion (Def 7.15, B-side) recurses through [dB f u : B → C],
+    so the nested-local-cone transport that blocks the [is_n_increasing]
+    route never appears.
+
+    Two ingredients, both bare-[B]:
+
+    - the **open-ball** converse [Sinc_conv_strict]: from [∀p, Sinc p g]
+      the (7.1) inequality [Sneg g n u x ≤p Spos g n u x] holds at every
+      *strictly interior* configuration ([‖x + Σ uᵢ‖ < 1]).  Induction on
+      the arity [n]: peel the head [u₀] by the cons recurrences
+      [Spos_recur]/[Sneg_recur]; inside the open ball [u₀] is itself
+      strictly interior so [Sinc_dB] gives [∀p, Sinc p (dB g u₀)] and the
+      increasing-only splits [SDpos_dB_i]/[SDneg_dB_i] reduce the goal,
+      after cancelling the common centre summand, to the (7.1) inequality
+      for [dB g u₀] at arity [n] — supplied by the inductive hypothesis
+      *at the weaker plain bound* [‖x + Σ wᵢ‖ < 1] (the head shift is
+      absorbed into [dB], so the engine [SDpos_dB_i] feeds on the *given*
+      shifted bound while the IH only needs the implied plain one — this
+      is how the shifted-vs-plain mismatch is reconciled);
+    - the **closed-ball bridge**: realise a boundary configuration
+      [z = x + Σ uᵢ] ([‖z‖ ≤ 1]) as the supremum of the strictly-interior
+      scaling chain [λₘ ·: z], where [Sinc_conv_strict] applies, and pass
+      to the limit by [g]'s ω-continuity ([is_scott_continuous_unit]),
+      using [scale_chain_sup] / [dsum_lub] (the very machinery of
+      [is_n_increasing_totmono]).  This is the only place ω-continuity
+      (hence stability) enters, exactly as in Theorem 7.19. *)
+
+Section SincConvSplits.
+Variable R : realType.
+Variables B C : coneType R.
+Local Open Scope precone_scope.
+
+(** Each shifted partial centre stays in the ball, so [g] is increasing
+    there — the increasing-only twin of [dB_inc] (no [is_totmono]). *)
+Lemma dB_inc_i (g : B -> C)
+    (Hi : is_increasing g) (u : B) (m : nat) (w : 'I_m -> B) (xb : B)
+    (Hsh : cone_norm (xb + u +
+       \big[precone_add/precone_zero]_(i : 'I_m) w i) <= 1)
+    (I : {set 'I_m}) :
+  g (xb + \big[precone_add/precone_zero]_(i in I) w i) <=p
+  g (xb + \big[precone_add/precone_zero]_(i in I) w i + u).
+Proof.
+apply: Hi; apply: le_trans Hsh; apply: cone_normp.
+rewrite -precone_addA [_ + u]precone_addC precone_addA.
+by apply: precone_add_le_l; exact: sumP_sub_le.
+Qed.
+
+(** Increasing-only summed [n=1] equations: [Sε g w (xb+u) =
+    Sε g w xb + Sε (dB g u) w xb], from [dB_E] term-by-term (only
+    increasingness of [g] is used, not [is_totmono]). *)
+Lemma SDpos_dB_i (g : B -> C)
+    (Hi : is_increasing g) (u : B) (m : nat) (w : 'I_m -> B) (xb : B)
+    (Hsh : cone_norm (xb + u +
+       \big[precone_add/precone_zero]_(i : 'I_m) w i) <= 1) :
+  Spos g m w (xb + u) = Spos g m w xb + Spos (dB g u) m w xb.
+Proof.
+rewrite /Spos -big_split/=; apply: eq_bigr => I _.
+rewrite -precone_addA [u + _]precone_addC precone_addA.
+by rewrite (dB_E g u _ (dB_inc_i Hi Hsh I)).
+Qed.
+
+Lemma SDneg_dB_i (g : B -> C)
+    (Hi : is_increasing g) (u : B) (m : nat) (w : 'I_m -> B) (xb : B)
+    (Hsh : cone_norm (xb + u +
+       \big[precone_add/precone_zero]_(i : 'I_m) w i) <= 1) :
+  Sneg g m w (xb + u) = Sneg g m w xb + Sneg (dB g u) m w xb.
+Proof.
+rewrite /Sneg -big_split/=; apply: eq_bigr => I _.
+rewrite -precone_addA [u + _]precone_addC precone_addA.
+by rewrite (dB_E g u _ (dB_inc_i Hi Hsh I)).
+Qed.
+
+End SincConvSplits.
+
+Arguments dB_inc_i {R B C} g Hi u {m} w xb Hsh I.
+Arguments SDpos_dB_i {R B C} g Hi u {m} w xb Hsh.
+Arguments SDneg_dB_i {R B C} g Hi u {m} w xb Hsh.
+
+Section SincConv.
+Variable R : realType.
+Variables B C : coneType R.
+Local Open Scope precone_scope.
+
+(** **Open-ball B-side converse.** For [∀p, Sinc p g] the (7.1)
+    inequality holds at every strictly-interior configuration.  Bare-[B]
+    induction on the arity; the head difference [dB g u₀] is again
+    [∀p, Sinc p] ([Sinc_dB], the head being strictly interior) and the
+    inductive hypothesis applies to it at the implied plain bound. *)
+Lemma Sinc_conv_strict (n : nat) (g : B -> C) (Hg : forall p, Sinc p g)
+    (x : B) (u : 'I_n -> B) :
+  cone_norm (x + \big[precone_add/precone_zero]_(i : 'I_n) u i) < 1 ->
+  Sneg g n u x <=p Spos g n u x.
+Proof.
+elim: n g Hg x u => [|n IHn] g Hg x u Hnorm.
+  by rewrite /Sneg Pneg0 big_set0; exact: precone_le0.
+rewrite [u]vcons_eta in Hnorm *.
+set u0 := u ord0; set w := (fun i => u (lift ord0 i)).
+rewrite -/u0 -/w in Hnorm *.
+have Hi : is_increasing g by have := Hg 0%N.
+have Hsh : cone_norm (x + u0 +
+    \big[precone_add/precone_zero]_(i : 'I_n) w i) <= 1.
+  by apply: ltW; move: Hnorm; rewrite sum_vcons precone_addA.
+have Hu0 : cone_norm u0 < 1.
+  apply: le_lt_trans Hnorm; apply: cone_normp.
+  rewrite sum_vcons precone_addC -precone_addA.
+  by exists (\big[precone_add/precone_zero]_(i : 'I_n) w i + x).
+have HdB : forall p, Sinc p (dB g u0) by exact: (Sinc_dB g Hg u0 Hu0).
+have IH : Sneg (dB g u0) n w x <=p Spos (dB g u0) n w x.
+  apply: (IHn (dB g u0) HdB x w).
+  apply: le_lt_trans Hnorm; apply: cone_normp.
+  rewrite sum_vcons; apply: precone_add_le_l.
+  by exists u0; rewrite precone_addC.
+rewrite Spos_recur Sneg_recur.
+have EP := SDpos_dB_i g Hi u0 w x Hsh.
+have EN := SDneg_dB_i g Hi u0 w x Hsh.
+rewrite EP EN.
+set Sw := Spos g n w x; set Snw := Sneg g n w x.
+set DP := Spos (dB g u0) n w x; set DN := Sneg (dB g u0) n w x.
+rewrite -precone_addA [DN + Sw]precone_addC precone_addA.
+rewrite -[Sw + DP + Snw]precone_addA [DP + Snw]precone_addC precone_addA.
+rewrite [Sw + Snw]precone_addC.
+by apply: precone_add_le_l; exact: IH.
+Qed.
+
+End SincConv.
+
+Arguments Sinc_conv_strict {R B C n} g Hg x u.
+
+Section SincTotmonoMain.
+Variable R : realType.
+Variables B C : coneType R.
+Variable f : B -> C.
+Local Open Scope precone_scope.
+
+(** **B-side Theorem 7.19 (closed-ball converse).** A map [f] that is
+    [Sinc p] for all [p] and ω-continuous on the unit ball is totally
+    monotonic.  The boundary is reached by the scaling-chain limit of the
+    open-ball converse [Sinc_conv_strict], exactly as in [findiff.v]'s
+    [is_n_increasing_totmono] — but bare-[B], with no local-cone cast. *)
+Lemma Sinc_totmono (Hg : forall p, Sinc p f)
+    (Hscott : is_scott_continuous_unit f) : is_totmono f.
+Proof.
+move=> n x u Hz.
+set z := x + \big[precone_add/precone_zero]_(i : 'I_n) u i.
+have HzI (I : {set 'I_n}) : cone_norm (tm_arg x u I) <= 1.
+  apply: le_trans Hz; apply: cone_normp; rewrite /tm_arg /z.
+  by apply: precone_add_le_l; exact: sumP_sub_le.
+pose c (I : {set 'I_n}) (m : nat) := f (scl m *: tm_arg x u I).
+have M_ge0 : (0 <= \sum_(I : {set 'I_n}) cone_norm (f (tm_arg x u I)) + 1)%R.
+  by rewrite addr_ge0 ?ler01// sumr_ge0// => I _; exact: cone_norm_ge0.
+pose M : {nonneg R} := NngNum M_ge0.
+have Mpos : (0 < M%:num)%R.
+  rewrite /M/=; apply: lt_le_trans ltr01 _.
+  by rewrite lerDr sumr_ge0// => I _; exact: cone_norm_ge0.
+have Hi : is_increasing f by have := Hg 0%N.
+have cch I m : c I m <=p c I m.+1.
+  rewrite /c; have [v Hv] := scchain_mono (tm_arg x u I) m.
+  rewrite Hv; apply: Hi; rewrite -Hv.
+  by apply: le_trans (scchain_ub1 (HzI I) m.+1); rewrite Hv; exact: lexx.
+have c_le_fz I m : c I m <=p f (tm_arg x u I).
+  rewrite /c; have [v Hv] := scchain_le (tm_arg x u I) m.
+  by rewrite [X in _ <=p f X]Hv; apply: Hi; rewrite -Hv; exact: HzI.
+have cubM I m : cone_norm (c I m) <= M%:num.
+  apply: le_trans (cone_normp _ _ (c_le_fz I m)) _; rewrite /M/=.
+  apply: le_trans (_ : \sum_(J : {set 'I_n})
+      cone_norm (f (tm_arg x u J)) <= _)%R; last by rewrite lerDl ler01.
+  by rewrite (bigD1 I)//= lerDl sumr_ge0// => J _; exact: cone_norm_ge0.
+have dsup_eq I : dsup c cch cubM Mpos I = f (tm_arg x u I).
+  have key := Hscott M (fun m => scl m *: tm_arg x u I)
+    (scchain_mono _) (scchain_ub1 (HzI I)) (cch I) (cubM I) Mpos.
+  by rewrite /dsup -key scale_chain_sup.
+have step m : dchain c (Pneg n) m <=p dchain c (Ppos n) m.
+  have sumE : \big[precone_add/precone_zero]_(i : 'I_n) (scl m *: u i)
+            = scl m *: \big[precone_add/precone_zero]_(i : 'I_n) u i.
+    by rewrite (big_morph _ (precone_scale_DAr (scl m)) (precone_scale_0r _)).
+  have Hlt : cone_norm (scl m *: x +
+      \big[precone_add/precone_zero]_(i : 'I_n) (scl m *: u i)) < 1.
+    rewrite sumE -precone_scale_DAr cone_normh.
+    apply: le_lt_trans (_ : (scl m)%:num * 1 < 1)%R.
+      by rewrite ler_wpM2l ?nngnum_ge0//.
+    by rewrite mulr1 scl_num ltrBlDl ltrDr invr_gt0 ltr0n.
+  have H := Sinc_conv_strict f Hg (scl m *: x) (fun i => scl m *: u i) Hlt.
+  rewrite /dchain /c.
+  under eq_bigr => I _ do rewrite -tm_arg_scale.
+  under [X in _ <=p X]eq_bigr => I _ do rewrite -tm_arg_scale.
+  exact: H.
+under eq_bigr => I _ do rewrite -(dsup_eq I).
+under [X in _ <=p X]eq_bigr => I _ do rewrite -(dsup_eq I).
+apply: (dsum_lub cch cubM Mpos) => m.
+apply: precone_le_trans (step m) _.
+exact: dsum_ub.
+Qed.
+
+End SincTotmonoMain.
+
+Arguments Sinc_totmono {R B C} f Hg Hscott.
+
 (** ** Status of §7.3 in this file
        (what is delivered here, and the precise remaining walls)
 
@@ -920,25 +1180,69 @@ Arguments totmono_dB {R B C} f Hf u {m} w xb Hsh.
       local-cone cast; the only price is the *explicit* shifted-ball bound,
       which [B_u]/[lc_step1] supplied for free in [totmono_Delta1].
 
+    - **[SD_consdB]** (Lemma 7.17/7.22, the B-side *nested* recurrence):
+      [SD f (u₀ :: u⃗) xb = SD (dB f u₀) u⃗ xb] — the bare-[B] analogue of
+      [Δf(u₀ :: u⃗) = Δ(Δf(u₀))(u⃗)] with no local cone.  The head difference
+      of [SD f] in direction [u₀] *is* the [SD] of the single-step
+      difference [dB f u₀]: the [SD]-cons recurrence [SD_cons] and the
+      summed [n=1] splits [SDpos_dB]/[SDneg_dB] identify them after
+      cancellation.  This is the linearity-in-[f] content of the §7.3
+      composition track, on bare centres.
+
+    - **[Sinc_conv_strict]** (B-side Theorem 7.19, *open*-ball converse):
+      [(∀p, Sinc p g) ⇒] the (7.1) inequality at every strictly-interior
+      configuration ([‖x + Σ uᵢ‖ < 1]).  Bare-[B] induction on the arity,
+      peeling the head by [Spos_recur]/[Sneg_recur]: inside the open ball
+      the head [u₀] is strictly interior, so [Sinc_dB] supplies
+      [∀p, Sinc p (dB g u₀)] and the increasing-only splits
+      [SDpos_dB_i]/[SDneg_dB_i] reduce the goal to the inductive hypothesis
+      for [dB g u₀].  **This is where the shifted-vs-plain bound is
+      reconciled**: the engine [SDpos_dB_i] consumes the *given* shifted
+      bound [‖x + u₀ + Σ wᵢ‖ ≤ 1] (the arity-[n+1] config bound), while the
+      inductive hypothesis for [dB g u₀] needs only the *weaker* plain bound
+      [‖x + Σ wᵢ‖ < 1], which the config bound implies by norm-monotonicity.
+      The head shift is absorbed into [dB], so no gauge conversion is
+      needed — the bare-[B] recursion carries exactly the bounds it produces.
+
+    - **[Sinc_totmono]** (B-side Theorem 7.19, *closed*-ball converse): a
+      map [f] that is [Sinc p] for all [p] and [is_scott_continuous_unit]
+      (i.e. the ω-continuity half of stability) is totally monotonic.  The
+      boundary is reached by the scaling-chain limit of [Sinc_conv_strict]:
+      a closed-ball [z] is the [cone_sup_ball] of the strictly-interior
+      chain [λₘ ·: z] ([scale_chain_sup]), and ω-continuity passes the
+      open-ball inequality to the boundary ([dsum_lub]/[dsum_ub]).  This is
+      the bare-[B] twin of [findiff.v]'s [is_n_increasing_totmono], reusing
+      its very machinery but with *no local-cone cast anywhere* — the
+      nested-cone transport that blocked the [is_n_increasing] route is
+      replaced by the [SD]-linearity recurrence [SD_consdB]/[Sinc_dB] and
+      never appears.
+
     Deferred (with the precise wall):
 
-    - **B-side Theorem 7.19 equivalence** ([totmono_Sinc] /
-      [Sinc_totmono]) and hence **[totmono_Delta]** (Lemma 7.20 [Δf]).
-      The wall is now sharply located: it is *not* a missing cast inside
-      the bootstrap (the bootstrap [Sinc_dB] and the engine [totmono_dB] are
-      both delivered, bare-[B]), but the **domain bound carried by the
-      recursion**.  [Sinc]/[is_totmono] on bare [B] only ever quantify a
-      configuration by its *own* unit-ball bound [‖xb + Σ wᵢ‖ ≤ 1]; but the
-      [dB]-step engine [totmono_dB] needs the *shifted* bound
-      [‖xb + u + Σ wᵢ‖ ≤ 1].  On the local cone [B_u] the gauge norm makes
-      the two coincide ([lc_step1]); on bare [B] they differ, and a
-      [Sinc p (dB f u)] obtained from a plain-ball IH would feed [totmono_dB]
-      a bound it cannot meet.  So the bare-[B] equivalence is blocked on the
-      same content as the nested-cone transport — the [B_u]-gauge that
-      converts plain bounds into shifted ones — re-expressed as a
-      domain-bound mismatch.  [scott_Delta] (ω-continuity) and [totmono_dB]
-      (the [Δ]-monotonicity engine) remove every *other* ingredient; what
-      remains is exactly this gauge bridge.  No [Admitted] is left.
+    - **Forward direction [totmono_Sinc]** ([is_totmono f ⇒ ∀p, Sinc p f]).
+      *Genuinely false on bare [B] as stated.*  [Sinc (p.+1) f] demands
+      [Sinc p (dB f u)] on the *plain* unit ball of bare [B]; but [dB f u]'s
+      own total monotonicity only holds on the *shifted* ball ([totmono_dB]),
+      and on bare [B] a plain-ball point need not be shifted-admissible
+      ([‖x + v‖ ≤ 1] does not give [‖x + v + u‖ ≤ 1]).  On the local cone
+      [B_u] the gauge norm makes the two balls coincide ([lc_step1]); on bare
+      [B] they differ, so the [dB]-clause of [Sinc] can fail.  This is the
+      reason the *converse* [Sinc_totmono] is the useful direction (and is
+      delivered): [Sinc] is an *input* hypothesis there, supplied by
+      [Sinc_dB] with its own bounds, never re-derived from [is_totmono].
+
+    - **[totmono_Delta]** (Lemma 7.20, [Δf] clause): [Δf(u⃗) : B_u⃗ → C]
+      totally monotonic for stable [f].  Now *one milestone away*:
+      [Sinc_totmono] applies verbatim at the source cone [B := lc_coneType
+      Hs] once we exhibit [∀p, Sinc p (Δf(u⃗))] on that local cone
+      ([scott_Delta] already supplies the ω-continuity half).  The [Sinc]
+      recursion of [Δf(u⃗)] on [B_u⃗] descends through [dB (Δf u⃗) u'], and
+      by [SD_Delta] + the [SD]-cons recurrence each such difference is a
+      *higher* bare-[B] difference [SD f (u' :: u⃗) ∘ lc_val] — exactly the
+      iterated-[SD] / Lemma 7.23-general telescope below.  So [totmono_Delta]
+      is gated only on the iterated-difference machinery (next milestone),
+      not on any gauge bridge: [SD_consdB] is its first brick.  No
+      [Admitted] is left.
 
     - **Lemma 7.23, general arity** (the full [Δf(u⃗+v⃗)(x+u)] telescope):
       [findiff.v] delivers the [n = 1] base [SD_723_1].  The general [n]
