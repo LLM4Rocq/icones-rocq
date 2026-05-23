@@ -1,0 +1,772 @@
+% Chapter 7 --- Stable functions and the category SCones
+% (paper §7, iteration 2).
+%
+% Mirrors theories/stable/ and theories/cones/omega_general.v:
+%   cones/omega_general.v  radius-aware ω-continuity foundation (cone_sup_at,
+%                          is_scott_continuous, linear_scott_of_omega)
+%   stable/local_cone.v    §7.1 — the local cone B_x at an interior point
+%   stable/totmono.v       §7.2 — total monotonicity, stable, meas_stable,
+%                          Lemma 7.11 closure
+%   stable/stablehom.v     §7.2 — the stable internal hom B ⇒ₛ C
+%   stable/findiff.v       §7.3 — finite differences, Def 7.15, Theorem 7.19,
+%                          Lemmas 7.16–7.22, the SnB cone
+%   stable/compose.v       §7.3 — SD difference engine, Lemmas 7.23/7.25/7.26,
+%                          Theorem 7.30 (closure under composition)
+%   stable/scones_cat.v    §7.4 — the category SCones, Ders, products
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Stable functions and the category $\mathbf{SCones}$}\label{ch:stable}
+
+This chapter formalises paper \S7: the \emph{stable} (non-linear)
+functions between integrable cones --- the cone-theoretic analogue of
+analytic or absolutely-monotonic maps --- and the cartesian closed
+category $\mathbf{SCones}$ they form. The development climbs through
+four layers: the \emph{local cone} $B_x$ of admissible directions at an
+interior point (\S\ref{sec:local-cone}); the \emph{totally monotonic}
+and \emph{stable} predicates that single out the morphisms, together
+with the stable internal hom $B \mathbin{\Rightarrow_s} C$
+(\S\ref{sec:totmono}); the \emph{finite-difference} characterisation of
+total monotonicity (Theorem~7.19) and the proof that stable functions
+are closed under composition (Theorem~7.30, \S\ref{sec:findiff}); and
+finally the category $\mathbf{SCones}$ itself, the dereliction inclusion
+$\mathrm{Der} : \ICones \to \mathbf{SCones}$, and the products
+(\S\ref{sec:scones}). All material lives under
+\texttt{theories/stable/}, on top of the radius-aware $\omega$-continuity
+foundation \texttt{theories/cones/omega\_general.v}.
+
+The non-linearity of stable maps is what makes $\mathbf{SCones}$ the
+natural setting for the exponential modality $\mathord{!}$ of linear
+logic: $\ICones$ embeds into $\mathbf{SCones}$ as the linear maps (the
+dereliction), and the future exponential will arise from the adjunction
+relating the two. This chapter is the gateway to that milestone.
+
+\paragraph{Strategy: from the unit-ball MVP to general radii.}
+The MVP (\autoref{ch:icones}, \autoref{ch:linhom}) only ever needed
+$\omega$-continuity on the \emph{unit ball}: for a linear map every
+bounded chain rescales into $B_B$, so the unit-ball notion
+\texttt{is\_omega\_continuous} of paper \S2.1 sufficed. A non-linear
+stable map breaks this --- scaling a stable $f$ by $r < 1$ produces an
+image chain of norm up to $1/r > 1$, which leaves the ball and cannot be
+rescaled back pointwise. The first piece of \S7 infrastructure is
+therefore a genuinely radius-aware completeness and continuity layer
+(\texttt{omega\_general.v}), used pervasively below.
+
+\section{The radius-aware $\omega$-continuity foundation}%
+\label{sec:omega-general}
+
+The cone mixin (Normc) materialises completeness only for the unit
+ball: \texttt{cone\_sup\_ball} takes a $\cle$-increasing chain bounded
+by $1$. We first lift this to a general radius.
+
+\begin{definition}[Supremum at a radius]\label{def:cone-sup-at}
+\rocq{Icones.cones.omega_general.cone_sup_at}\rocqok\uses{def:cone}
+For a cone $P$, a radius $M : \Rnn$ with $0 < M$, and a
+$\cle$-increasing chain $(u_n)_n$ bounded by $M$ in cone-norm,
+$\texttt{cone\_sup\_at}\ M\ u$ is the supremum of the chain, obtained by
+rescaling into $B_P$ by $1/M$, taking \texttt{cone\_sup\_ball}, and
+scaling back by $M$. Its three characterising lemmas
+\rocq{Icones.cones.omega_general.cone_sup_at_ub} (upper bound),
+\rocq{Icones.cones.omega_general.cone_sup_at_lub} (least upper bound)
+and \rocq{Icones.cones.omega_general.cone_sup_at_norm} (norm bound)
+mirror the unit-ball ones, and
+\rocq{Icones.cones.omega_general.cone_sup_at_ball} shows it agrees with
+\texttt{cone\_sup\_ball} at radius $1$.
+\end{definition}
+
+\begin{definition}[Radius-aware Scott-continuity]\label{def:scott-cont}
+\rocq{Icones.cones.omega_general.is_scott_continuous}\rocqok
+\uses{def:cone-sup-at}
+A map $f : P \to Q$ is \emph{Scott-continuous} when, for every input
+chain of any positive radius $M$ and matching image radius $M_f$, $f$
+commutes with \texttt{cone\_sup\_at}:
+$f(\texttt{cone\_sup\_at}\,M\,u) = \texttt{cone\_sup\_at}\,M_f\,(f \circ
+u)$. The radii and the chain side-conditions are passed as explicit
+arguments (mirroring \texttt{is\_omega\_continuous}); in particular the
+image-chain hypotheses cannot be derived from $f$ alone, since a map
+increasing on the radius-$M$ ball need not send it into the radius-$M_f$
+ball.
+\end{definition}
+
+\begin{lemma}[Linear lift]\label{lem:linear-scott-of-omega}
+\rocq{Icones.cones.omega_general.linear_scott_of_omega}\rocqok
+\uses{def:scott-cont}
+A linear, unit-ball-$\omega$-continuous map is Scott-continuous.
+\end{lemma}
+
+\begin{proof}
+Rescale both the input chain $u$ and its image $f \circ u$ by the single
+common radius $K := \max(M, M_f)$: then $v := u/K$ lands in $B_P$ and,
+by linearity, $f \circ v = (f \circ u)/K$ lands in $B_Q$, so the
+unit-ball $\omega$-continuity of $f$ applies to $v$. Linearity moves $f$
+through the outer $K$-scaling and through each $1/K$, turning
+$f(K \cdot \texttt{cone\_sup\_ball}\,v)$ into
+$K \cdot \texttt{cone\_sup\_ball}\,(f \circ v)$. A change of working
+radius (\texttt{cone\_sup\_at\_indep}) swaps $K$ back to the
+user-supplied $M$, $M_f$.
+\end{proof}
+
+The corollaries \rocq{Icones.cones.omega_general.addr_scott_continuous},
+\rocq{Icones.cones.omega_general.scaler_scott_continuous} and
+\rocq{Icones.cones.omega_general.comp_scott_continuous} record that
+translation, scaling and composition are Scott-continuous; the scaling
+corollary is the one that unblocks the non-linear scaling closure
+\autoref{lem:stable-closure} below.
+
+\section{The local cone $B_x$ --- paper \S7.1}\label{sec:local-cone}
+
+\begin{definition}[The local cone, paper \S7.1]\label{def:local-cone}
+\rocq{Icones.stable.local_cone.local_cone}\rocqok\uses{def:cone}
+Let $B$ be a cone and $x \in B$ a point of the closed unit ball. The
+\emph{local cone} $B_x$ at $x$ is the sub-precone of \emph{admissible
+directions}
+\[
+  B_x \;:=\; \bigl\{\, u \in B \;\big|\; \exists \varepsilon > 0,\;
+  \cnorm{x + \varepsilon \cdot u} \leq 1 \,\bigr\}.
+\]
+In Rocq the carrier is the sigma-type
+\rocq{Icones.stable.local_cone.local_cone} over the admissibility
+predicate \rocq{Icones.stable.local_cone.localP}, with the inclusion
+$\texttt{lc\_val} : B_x \to B$
+(\rocq{Icones.stable.local_cone.lc_val}). Admissibility is a
+\texttt{Prop}-existential, so proof-irrelevant equality
+\rocq{Icones.stable.local_cone.lc_eq} reduces two carrier elements to
+the equality of their $B$-values. The algebraic operations
+$\texttt{lc\_zero}$, $\texttt{lc\_add}$, $\texttt{lc\_scale}$ are
+inherited from $B$, and \texttt{lc\_val} is a homomorphism for them
+(\texttt{lc\_val0}, \texttt{lc\_valD}, \texttt{lc\_valZ}).
+\end{definition}
+
+\begin{definition}[Gauge norm, paper Lemma 7.2]\label{def:gauge-norm}
+\rocq{Icones.stable.local_cone.lc_norm}\rocqok\uses{def:local-cone}
+The norm on $B_x$ is the \emph{gauge norm}
+\[
+  \cnorm{u}_{B_x} \;:=\; \bigl(\sup\,\{\, \lambda > 0 \mid
+  \cnorm{x + \lambda \cdot u} \leq 1 \,\}\bigr)^{-1}.
+\]
+The gauge set \rocq{Icones.stable.local_cone.gauge_set} is non-empty
+(it contains $0$) and bounded above (when $u \neq 0$, by
+\rocq{Icones.stable.local_cone.gauge_set_ub}), so its supremum
+\rocq{Icones.stable.local_cone.gauge_sup} exists; the norm is its
+reciprocal. The reach lemmas
+\rocq{Icones.stable.local_cone.gauge_sup_reach} and
+\rocq{Icones.stable.local_cone.gauge_sup_gt_out} (paper Lemma 7.2) state
+that $x + \texttt{gauge\_sup}(u) \cdot u$ is on the boundary of the
+ball, while any larger scaling leaves it.
+\end{definition}
+
+\begin{lemma}[$B_x$ is an integrable cone, paper Lemmas 7.1--7.2 + Example 7.3]
+\label{lem:local-cone-icone}
+\rocq{Icones.stable.local_cone.lc_coneType}\rocqok
+\uses{def:gauge-norm, def:icone}
+With the pointwise operations and the gauge norm, $B_x$ satisfies the
+precone and cone axioms (Lemma 7.1); for $B$ a measurable resp.\
+integrable cone it carries a measurable resp.\ integrable structure
+(Example 7.3). The four \HB{} instances are registered on the carrier
+\rocq{Icones.stable.local_cone.local_cone}:
+$\PCone$ (algebraic, line 336), $\Cone$ (gauge norm, line 971),
+$\MCone$ (the renormalised pullback test family
+\rocq{Icones.stable.local_cone.lc_mcone_M}, line 1575) and $\ICone$
+(integral inherited from $B$ via \texttt{lc\_val}, line 1711). The
+order on $B_x$ coincides with that of $B$
+(\rocq{Icones.stable.local_cone.lc_leE}), and the inclusion is
+norm-non-increasing in the sense
+$\cnorm{\texttt{lc\_val}\,u}_B \leq \cnorm{u}_{B_x}$
+(\rocq{Icones.stable.local_cone.lc_val_norm_le}).
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+The precone axioms reduce to those of $B$ through the homomorphism
+\texttt{lc\_val} and \rocq{Icones.stable.local_cone.lc_eq}. The cone
+axioms use the gauge norm: (Normh) is
+\rocq{Icones.stable.local_cone.lc_normh} (scale-equivariance of the
+gauge supremum), (Normt) \rocq{Icones.stable.local_cone.lc_normt} (a
+convexity argument \texttt{gauge\_convex} on the reach scalings),
+(Normz) \rocq{Icones.stable.local_cone.lc_normz}, (Normp)
+\rocq{Icones.stable.local_cone.lc_normp}, and (Normc) builds the
+unit-ball supremum \rocq{Icones.stable.local_cone.lc_sup_ball} from the
+$B$-supremum of the translated chain $n \mapsto x + \texttt{lc\_val}\,u_n$
+(\rocq{Icones.stable.local_cone.lc_sup_ball_translate}). The measurable
+test family $\texttt{lc\_mcone\_M}$ is the pullback of $B$-tests,
+renormalised; its three closure axioms are
+\rocq{Icones.stable.local_cone.lc_mcone_M_comp},
+\rocq{Icones.stable.local_cone.lc_mcone_M_sep} and
+\rocq{Icones.stable.local_cone.lc_mcone_M_norm}. The integral is
+inherited from $B$ via the inclusion
+(\rocq{Icones.stable.local_cone.lc_icone_exists}).
+\end{proof}
+
+\paragraph{Design note: strict interior.}
+The algebraic and cone development of $B_x$ needs only that $B$ is a
+$\Cone$ and $\cnorm{x} \leq 1$. The measurability and integrability
+layer (Example 7.3, ``$B_x$ computed as in $B$''), however, needs $B$
+measurable resp.\ integrable \emph{and} the \emph{strict} interior bound
+$\cnorm{x} < 1$. The formalisation therefore strengthens the section
+hypothesis to $\cnorm{x} < 1$ throughout: the local cone is defined only
+at strict-interior points. This loses nothing --- the paper uses local
+cones exactly for differentiation \emph{at interior points} --- and it
+is precisely where the MVP's simplified norm condition is satisfiable
+without weakening any cone axiom. The $\cnorm{x} \leq 1$ facts needed by
+the cone development are recovered from the strict bound by $\texttt{ltW}$.
+
+\section{Total monotonicity and stable functions --- paper \S7.2}%
+\label{sec:totmono}
+
+\subsection{The sign-split power sets and Condition (7.1)}
+
+Condition (7.1) of the paper compares two finite cone-sums indexed by
+subsets $I \subseteq \{1,\dots,n\}$, split by the parity of $n - |I|$.
+
+\begin{definition}[Sign-split index families]\label{def:sign-split}
+\rocq{Icones.stable.totmono.Pneg}\rocqok
+\rocq{Icones.stable.totmono.Ppos}\rocqok
+For $n : \N$, the families $\texttt{Pneg}\,n$ and $\texttt{Ppos}\,n$
+over $\{$subsets of $\mathtt{'I}\_n\}$ collect the $I$ with $n - |I|$
+odd resp.\ even (\rocq{Icones.stable.totmono.in_Pneg},
+\rocq{Icones.stable.totmono.in_Ppos}). The full set is positive
+(\rocq{Icones.stable.totmono.Ppos_setT}) and the two families partition
+the power set (\rocq{Icones.stable.totmono.in_Pneg_Ppos}). The cone-sum
+big-op over these families is written \texttt{\textbackslash sumP}, with distribution lemmas
+\rocq{Icones.stable.totmono.sumP_add} and
+\rocq{Icones.stable.totmono.sumP_scale}.
+\end{definition}
+
+\begin{definition}[Totally monotonic, paper Def 7.5 / Condition (7.1)]
+\label{def:is-totmono}
+\rocq{Icones.stable.totmono.is_totmono}\rocqok\uses{def:sign-split}
+A function $f : P \to Q$ is \emph{totally monotonic} when, for every
+$n$, every centre $x \in P$ and every direction family
+$u : \mathtt{'I}\_n \to P$ with $\cnorm{x + \sum_i u_i} \leq 1$,
+\[
+  \sum_{I \in \texttt{Pneg}\,n} f\Bigl(x + \textstyle\sum_{i \in I} u_i\Bigr)
+  \;\cle\;
+  \sum_{I \in \texttt{Ppos}\,n} f\Bigl(x + \textstyle\sum_{i \in I} u_i\Bigr),
+\]
+where the outer sums are taken in the cone $Q$ (the \texttt{\textbackslash sumP} big-op).
+The argument $x + \sum_{i \in I} u_i$ is the helper
+\rocq{Icones.stable.totmono.tm_arg}.
+\end{definition}
+
+The $n = 1$ instance is exactly increasingness on the unit ball
+(\rocq{Icones.stable.totmono.totmono_increasing}, using
+$\texttt{Pneg}\,1 = \{\emptyset\}$ and $\texttt{Ppos}\,1 = \{\{1\}\}$);
+the $n = 2$ instance (\rocq{Icones.stable.totmono.totmono2}) reads
+$f(x + u_0) + f(x + u_1) \cle f(x + u_0 + u_1) + f(x)$, the discrete
+convexity inequality.
+
+\begin{definition}[Stable and measurable stable, paper Def 7.7 / 7.10]
+\label{def:is-stable}
+\rocq{Icones.stable.totmono.is_stable}\rocqok\uses{def:is-totmono}
+A function $f : P \to Q$ is \emph{stable} when it is totally monotonic,
+bounded on the unit ball, and $\omega$-continuous in the sense of the
+unit-input Scott-continuity
+\rocq{Icones.stable.totmono.is_scott_continuous_unit} (input chain in
+$B_P$, image supremum at any radius $M_f$). For measurable cones $C, D$,
+$f : C \to D$ is \emph{measurable stable}
+(\rocq{Icones.stable.totmono.is_meas_stable}) when it is stable and
+sends unit-ball measurable paths to measurable paths.
+\end{definition}
+
+\paragraph{Design note: radius-aware $\omega$-continuity.}
+The MVP's $\omega$-continuity (\texttt{is\_omega\_continuous}) restricts
+both input and image chains to the unit ball. For linear maps this is
+harmless --- domain rescaling brings any bounded chain into $B_P$ --- but
+a non-linear stable $f$ scaled by $r < 1$ has an image chain reaching
+norm $1/r > 1$, escaping the ball, with no pointwise rescaling. The fix
+is the unit-input Scott-continuity
+\rocq{Icones.stable.totmono.is_scott_continuous_unit}: the input chain
+stays in $B_P$ (the function's domain, where total monotonicity makes it
+monotone), while the image supremum is taken with the general-radius
+\autoref{def:cone-sup-at}. This is exactly
+\autoref{def:scott-cont} specialised to input radius $1$ (via
+\texttt{cone\_sup\_at\_ball}), and it is what unblocks the non-linear
+scaling closure: the full-input Scott-continuity
+\autoref{def:scott-cont} would be \emph{too strong}, because a stable
+$f$ is monotone only on $B_P$, so for an input chain leaving $B_P$ the
+image chain $f \circ u$ need not even be increasing.
+
+\begin{lemma}[Lemma 7.11 closure]\label{lem:stable-closure}
+\rocq{Icones.stable.totmono.stable_add}\rocqok
+\rocq{Icones.stable.totmono.stable_scale}\rocqok
+\uses{def:is-stable}
+The zero map is stable and measurable
+(\rocq{Icones.stable.totmono.stable_zero}); total monotonicity,
+stability and measurability are preserved by the pointwise sum $f + g$
+(\rocq{Icones.stable.totmono.totmono_add},
+\rocq{Icones.stable.totmono.stable_add},
+\rocq{Icones.stable.totmono.meas_stable_add}) and by non-negative
+scaling $r \cdot f$
+(\rocq{Icones.stable.totmono.totmono_scale},
+\rocq{Icones.stable.totmono.stable_scale},
+\rocq{Icones.stable.totmono.meas_stable_scale}), for \emph{every}
+$r : \Rnn$.
+\end{lemma}
+
+\begin{proof}
+Total monotonicity is preserved because each sign-split sum splits
+through \texttt{\textbackslash sumP}-additivity (\rocq{Icones.stable.totmono.sumP_add}) and
+$f + g$ is read summand by summand. Boundedness adds the witnesses.
+$\omega$-continuity of $f + g$ uses the radius-aware diagonal-sum
+identity \rocq{Icones.stable.totmono.sup_at_addD}; $\omega$-continuity
+of $r \cdot f$ writes $r \cdot f = (r \cdot {-}) \circ f$ and composes
+$f$'s Scott-continuity with
+\rocq{Icones.cones.omega_general.scaler_scott_continuous}. The image
+chain of $r \cdot f$ may carry any radius, so no domain rescaling is
+needed --- the $r < 1$ obstruction that previously blocked scaling is
+gone.
+\end{proof}
+
+\subsection{The stable internal hom $B \mathbin{\Rightarrow_s} C$}
+
+\begin{definition}[The carrier $\mathtt{stablehom}$, paper Def 7.10]
+\label{def:stablehom}
+\rocq{Icones.stable.stablehom.stablehom}\rocqok\uses{def:is-stable}
+The carrier of $B \mathbin{\Rightarrow_s} C$ is the record
+\rocq{Icones.stable.stablehom.stablehom} bundling a function
+$f : B \to C$ with a proof that $f$ is measurable stable
+(\texttt{sh\_meas\_stable}) and a canonical $0$-extension field
+$\texttt{sh\_offball} : \cnorm{x} > 1 \Rightarrow f(x) = 0$. The
+coercion $\texttt{sh\_fun}$ recovers the underlying function, and
+proof-irrelevant extensionality
+\rocq{Icones.stable.stablehom.stablehom_eq} reduces equality to function
+equality.
+\end{definition}
+
+\paragraph{Design note: the $0$-extension carrier.}
+The paper's stable maps are functions $f : B_B \to C$ defined only on
+the unit ball, with two such maps equal iff they agree on $B_B$. The
+formalisation keeps a \emph{total} carrier $B \to C$ but adds the
+canonical $0$-extension field $\texttt{sh\_offball}$ forcing $f(x) = 0$
+for $\cnorm{x} > 1$. Since \texttt{is\_meas\_stable} constrains $f$ only
+on $B_B$, the off-ball behaviour is then fully determined ($f = 0$
+there), so Leibniz equality coincides with agreement on $B_B$. This is
+exactly what the (Normz) cone axiom needs: a norm-zero map is $0$ on
+$B_B$ by the supremum and $0$ off $B_B$ by $\texttt{sh\_offball}$, hence
+identically $0$ --- which is what unblocks the $\Cone$ instance.
+
+\begin{lemma}[The operator norm and the induced order, paper Lemmas 7.12, 7.14]
+\label{lem:sh-norm}
+\rocq{Icones.stable.stablehom.sh_norm}\rocqok\uses{def:stablehom}
+For $f \in B \mathbin{\Rightarrow_s} C$,
+$\cnorm{f} := \sup\{\cnorm{f(x)} \mid \cnorm{x} \leq 1\}$
+(\rocq{Icones.stable.stablehom.sh_norm}, well defined because stable
+maps are bounded), with upper-bound
+\rocq{Icones.stable.stablehom.sh_norm_ub} and least-upper-bound
+\rocq{Icones.stable.stablehom.sh_norm_lub} properties. The induced order
+$f \cle g$ is pointwise in $C$
+(\rocq{Icones.stable.stablehom.sh_le_pointwise}, Lemma 7.12), and the
+norm axioms (Normh), (Normt), (Normp) hold
+(\rocq{Icones.stable.stablehom.sh_normh},
+\rocq{Icones.stable.stablehom.sh_normt},
+\rocq{Icones.stable.stablehom.sh_normp}, Lemma 7.14).
+\end{lemma}
+
+\begin{theorem}[$B \mathbin{\Rightarrow_s} C$ is an integrable cone]
+\label{thm:stablehom-icone}
+\rocq{Icones.stable.stablehom.sh_int_exists}\rocqok
+\uses{lem:sh-norm, lem:stable-closure, def:icone}
+$B \mathbin{\Rightarrow_s} C$ is a $\PCone$, a $\Cone$, an $\MCone$ and
+an $\ICone$. All four \HB{} instances are registered on the carrier
+\rocq{Icones.stable.stablehom.stablehom}.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The $\PCone$ instance packages the Lemma 7.11 pointwise operations
+$\texttt{sh\_zero}$, $\texttt{sh\_add}$, $\texttt{sh\_scale}$ (line
+317). The $\Cone$ instance (line 1705) uses the operator norm of
+\autoref{lem:sh-norm}; (Normz) is unblocked by the $0$-extension
+carrier (\rocq{Icones.stable.stablehom.sh_normz}), and (Normc) is
+discharged by the pointwise supremum
+\rocq{Icones.stable.stablehom.sh_sup} together with the
+difference-is-stable construction
+\rocq{Icones.stable.stablehom.sh_diff} (Lemma 7.12 backward: if
+$f \cle g$ then $g \ominus f$ is again stable), which supplies the
+precone-order witnesses required by the \texttt{cone\_sup\_ball} mixin.
+The $\MCone$ instance (line 2039) uses the test family $\gamma
+\triangleright m$, $(\gamma \triangleright m)(s, f) := m(s, f(\gamma
+s))$ (\rocq{Icones.stable.stablehom.sh_mcone_M}), exactly as for
+$C \lin D$ in \autoref{ch:linhom}. The $\ICone$ instance (line 2639)
+uses the pointwise Pettis integral
+$\texttt{sh\_int\_fun}(x) := \Pettis{Y}{\eta(r)(x)\,d\mu(r)}$
+(\rocq{Icones.stable.stablehom.sh_int_fun}), with the integral-side
+total monotonicity \rocq{Icones.stable.stablehom.sh_int_fun_totmono} and
+Scott-continuity \rocq{Icones.stable.stablehom.sh_int_fun_scott}; the
+Pettis equation is \rocq{Icones.stable.stablehom.sh_int_car_pettis}.
+\end{proof}
+
+\section{Finite differences, Theorem 7.19, and composition --- paper \S7.3}%
+\label{sec:findiff}
+
+\subsection{Finite differences and $n$-increasingness}
+
+The difference operators map a function $f : B_B \to C$ into a nested
+local cone $B_{\vec u} := B_{\sum_i u_i}$.
+
+\begin{definition}[Difference operators, paper \S7.3]\label{def:delta}
+\rocq{Icones.stable.findiff.Delta_pos}\rocqok
+\rocq{Icones.stable.findiff.Delta_neg}\rocqok\uses{def:local-cone, def:sign-split}
+For $u : \mathtt{'I}\_n \to B$ and $x \in B_{\vec u}$, the difference
+argument is $\texttt{Delta\_arg}\,u\,x\,I := \texttt{lc\_val}\,x +
+\sum_{i \in I} u_i$ (\rocq{Icones.stable.findiff.Delta_arg}). Then
+$\Delta^+ f\,\vec u := \sum_{I \in \texttt{Ppos}\,n} f(\texttt{Delta\_arg}\,u\,x\,I)$
+and $\Delta^- f\,\vec u := \sum_{I \in \texttt{Pneg}\,n} f(\texttt{Delta\_arg}\,u\,x\,I)$,
+and the difference $\Delta f\,\vec u : B_{\vec u} \to C$
+(\rocq{Icones.stable.findiff.Delta}) is the pointwise cone difference
+$\Delta^+ \ominus \Delta^-$, defined where $\Delta^- \cle \Delta^+$
+holds (defining equation \rocq{Icones.stable.findiff.Delta_E}) and
+$0$-extended elsewhere.
+\end{definition}
+
+The well-definedness on the ball is exactly an instance of total
+monotonicity: for totally monotonic $f$,
+$\Delta^- f\,\vec u \cle \Delta^+ f\,\vec u$ on the unit ball of
+$B_{\vec u}$ (\rocq{Icones.stable.findiff.Delta_neg_le_pos}).
+
+\begin{definition}[$n$-increasing, paper Def 7.15]\label{def:n-increasing}
+\rocq{Icones.stable.findiff.is_n_increasing}\rocqok\uses{def:delta}
+$\texttt{is\_n\_increasing}\,n\,f$ is defined by recursion on $n$:
+$\texttt{is\_n\_increasing}\,0\,f$ is increasingness of $f$, and
+$\texttt{is\_n\_increasing}\,(n+1)\,f$ asks that $f$ be increasing
+\emph{and} that for every direction $u \in B_B$ (strict interior) the
+single-step difference $\Delta f(u) : B_u \to C$ be $n$-increasing.
+\end{definition}
+
+The recursive call changes the source cone from $B$ to the local cone
+$B_u$; the fixpoint keeps the source cone as a parameter so the call
+typechecks, and the direction is presented as a one-element family so
+that $\Delta f(u)$ has the literal source $B_u = \texttt{lc\_coneType}$
+without any cast. The hypothesis $\cnorm{u} < 1$ is the strict-interior
+witness of \S\ref{sec:local-cone}.
+
+\begin{lemma}[Lemmas 7.16, 7.18]\label{lem:716-718}
+\rocq{Icones.stable.findiff.totmono_Delta1}\rocqok\uses{def:n-increasing}
+If $f$ is $n$-increasing for all $n$, then for each $u \in B_B$ the
+difference $\Delta f(u)$ is $n$-increasing for all $n$
+(\rocq{Icones.stable.findiff.is_n_increasing_Delta}, Lemma 7.16, read
+off the second conjunct). If $f$ is totally monotonic, then $\Delta
+f(u) : B_u \to C$ is totally monotonic
+(\rocq{Icones.stable.findiff.totmono_Delta1}, Lemma 7.18), proved
+through the cons recurrence (Lemma 7.17,
+\rocq{Icones.stable.findiff.Delta_pos_recur} /
+\rocq{Icones.stable.findiff.Delta_neg_recur}) and the local-cone
+transport \texttt{lc\_step1}.
+\end{lemma}
+
+\begin{theorem}[Paper Theorem 7.19]\label{thm:719}
+\rocq{Icones.stable.findiff.totmono_is_n_increasing}\rocqok
+\rocq{Icones.stable.findiff.is_n_increasing_totmono}\rocqok
+\uses{lem:716-718, def:is-stable}
+A function $f$ is totally monotonic if and only if it is $n$-increasing
+for every $n$ (the converse using the $\omega$-continuity of $f$).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+\emph{Forward} (\rocq{Icones.stable.findiff.totmono_is_n_increasing}):
+induction on $n$, generalising over the source cone. The base $n = 0$ is
+increasingness (\rocq{Icones.stable.totmono.totmono_increasing}); at
+$n+1$, $\Delta f(u)$ is totally monotonic by Lemma 7.18, so the
+inductive hypothesis applies to it at source $B_u$.
+
+\emph{Converse} (\rocq{Icones.stable.findiff.is_n_increasing_totmono}):
+first the strict-interior form
+(\rocq{Icones.stable.findiff.conv_strict}), proved by induction on the
+arity: the $(u_0 :: \vec u)$ instance of (7.1) reduces, via the two cons
+recurrences, to the (7.1) inequality for $\Delta f(u_0) : B_{u_0} \to C$
+at arity $n$; inside the \emph{open} ball $u_0$ is strictly interior so
+$B_{u_0}$ is a cone, and $\Delta f(u_0)$ is $k$-increasing for all $k$
+by Lemma 7.16, so the (source-cone-generalised) inductive hypothesis
+applies. The closed-ball boundary is then crossed by an
+$\omega$-continuity limit: for each summand $z_I$ the scaled chain
+$m \mapsto \lambda_m \cdot z_I$ (with $\lambda_m \uparrow 1$) has
+supremum $f(z_I)$ by $\omega$-continuity
+(\rocq{Icones.stable.totmono.is_scott_continuous_unit}) and a vanishing-gap
+argument (\texttt{scale\_chain\_sup}); the open-ball inequality for each
+$m$ passes to the limit via the radius-aware finite-sum / supremum
+commutation $\texttt{dsum\_lub}$.
+\end{proof}
+
+\begin{lemma}[Lemmas 7.20--7.22 ($\Delta^\pm$ clauses, B-side recurrences)]
+\label{lem:720-722}
+\rocq{Icones.stable.findiff.totmono_Delta_pos}\rocqok
+\rocq{Icones.stable.findiff.totmono_Delta_neg}\rocqok\uses{thm:719}
+For totally monotonic $f$ and $\sum_i u_i$ strictly interior, $\Delta^+
+f(\vec u)$ and $\Delta^- f(\vec u)$ are totally monotonic on $B_{\vec
+u}$ (Lemma 7.20, $\Delta^\pm$ clauses): each is a finite \texttt{\textbackslash sumP} of the
+dominated shifts $g_{s_I}(x) = f(\texttt{lc\_val}\,x + s_I)$ by the
+partial sums $s_I$, each totally monotonic by
+\rocq{Icones.stable.findiff.totmono_shift_le}, and a finite \texttt{\textbackslash sumP} of
+totally monotonic maps is totally monotonic
+(\rocq{Icones.stable.findiff.totmono_bigP}). On the B-side, the
+difference engine $\texttt{SD}$
+(\rocq{Icones.stable.findiff.SD}) reads $\Delta f(\vec u)(x)$ on bare
+$B$-centres (\rocq{Icones.stable.findiff.SD_Delta}); Lemma 7.21
+(\rocq{Icones.stable.findiff.SD_le} / its operator form
+\rocq{Icones.stable.findiff.Delta_le}) bounds $\Delta f(\vec u)(x) \cle
+f(\texttt{lc\_val}\,x + \sum_i u_i)$, and Lemma 7.22 is the pair of cons
+identities $\texttt{SD\_cons}$
+(\rocq{Icones.stable.findiff.SD_cons}) and $\texttt{SD\_add}$
+(\rocq{Icones.stable.findiff.SD_add}).
+\end{lemma}
+
+\begin{lemma}[The cone $\mathtt{SnB}$, paper Remark 7.24]\label{lem:snb}
+\rocq{Icones.stable.findiff.SnB}\rocqok\uses{def:cone}
+$\texttt{SnB}\,B\,n$ is the cone of families $\mathtt{'I}\_{n+1} \to B$
+(the centre plus $n$ directions), with pointwise operations and the
+total-sum norm $\cnorm{g} := \cnorm{\sum_i g_i}_B$ (paper's $1 \mathbin{\&}
+\cdots \mathbin{\&} 1 \lin B$). All five norm axioms hold; (Normc)
+bundles the componentwise general-radius suprema, with the norm bound
+from the radius-$1$ diagonal-sum least-upper-bound $\texttt{dsum\_lub}$.
+\end{lemma}
+
+\subsection{Closure under composition --- paper Theorem 7.30}
+
+\paragraph{Design note: defeating the nested-cone cast.}
+The paper's composition proof (Lemma 7.26, the cone-theoretic Fa\`a di
+Bruno formula) differentiates a composite at a local cone of a local
+cone, $(B_{u_0})_{\vec w}$, and silently uses the cast
+$(B_{u_0})_{\vec w} \cong B_{u_0, \vec w}$. Formalising that transport
+is painful. The formalisation avoids it entirely with two engineering
+moves.
+
+\emph{(i) Difference-operator composition.} The B-side difference engine
+$\texttt{SD}$ (\rocq{Icones.stable.findiff.SD}) reads every difference
+on bare $B$-centres, free of local-cone packaging, and is equipped with
+the composition / reindexing identities
+\rocq{Icones.stable.compose.SD_cons},
+\rocq{Icones.stable.compose.SD_add},
+\rocq{Icones.stable.compose.SD_perm} (symmetry under permuting the
+direction family) and the concatenation engine $\texttt{SD\_concat}$.
+These yield, with a sign-multiplicative split of the index families,
+the $\Delta f$ clause of Lemma 7.20 directly
+(\rocq{Icones.stable.compose.totmono_Delta}: $\Delta f(\vec u)$ is
+totally monotonic on $B_{\vec u}$, via the $(n+m)$-config of $f$'s own
+total monotonicity), and the general-arity telescope of Lemma 7.23
+(\rocq{Icones.stable.compose.SD_diag} / its head-peeled form
+\rocq{Icones.stable.compose.SD_723}).
+
+\emph{(ii) Generic-source induction.} The $p$-induction of Lemma 7.26 is
+run on the local-cone predicate \texttt{is\_n\_increasing} (which
+recurses into $B_u$, where \texttt{lc\_step1} makes the plain and shifted
+balls coincide) \emph{and quantified over all source cones at once}
+(\rocq{Icones.stable.compose.ninc_kfun}). The $p+1$ step's goal at source
+$B_u$ is discharged by the inductive hypothesis instantiated at source
+$B_u$, so the local-cone summands feed the hypothesis without any
+explicit transport --- the nested-cone cast is never written down. This
+is the key insight that crosses the \S7.3 ``mountain''.
+
+\begin{lemma}[Lemma 7.25]\label{lem:725}
+\rocq{Icones.stable.compose.SnB_increasing}\rocqok\uses{lem:snb, lem:720-722}
+The map $(x, \vec u) \mapsto \Delta f(\vec u)(x)$ is increasing as a map
+$\texttt{SnB}\,B\,n \to C$, for totally monotonic $f$. The paper's
+``follows easily from Theorem 7.19'' is here the joint
+centre/direction monotonicity \rocq{Icones.stable.compose.SD_mono_full}
+of the difference (centre via
+\rocq{Icones.stable.compose.SD_mono_centre}, all directions via the
+permutation symmetry \rocq{Icones.stable.compose.SD_perm}), with no
+recourse to $\omega$-continuity.
+\end{lemma}
+
+\begin{lemma}[Lemma 7.26]\label{lem:726}
+\rocq{Icones.stable.compose.ninc_kfun}\rocqok
+\uses{lem:725, lem:720-722, thm:719}
+For totally monotonic $f, h_1, \dots, h_n : B_B \to C$ and totally
+monotonic $g : B_C \to D$ with $f(x) + \sum_i h_i(x) \in B_C$ for
+$x \in B_B$, the composite difference
+$k(x) := \Delta g(h_1(x), \dots, h_n(x))(f(x))$ --- read on the B-side
+as $\texttt{kfun}\,g\,f\,\vec h\,x := \texttt{SD}\,g\,(h_i\,x)_i\,(f\,x)$
+(\rocq{Icones.stable.compose.kfun}) --- is $p$-increasing for every $p$,
+every source cone, and every admissible data.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Induction on $p$. The base $p = 0$
+(\rocq{Icones.stable.compose.kfun_increasing}) is Lemma 7.25 for the
+composite: the centre $f(x)$ and every direction $h_i(x)$ grow with $x$,
+and $\texttt{SD}\,g$ is jointly increasing
+(\rocq{Icones.stable.compose.SD_mono_full}). The $p \to p+1$ step uses
+the diagonal expansion \rocq{Icones.stable.compose.dB_kfun} of the
+single-step difference: applying Lemma 7.23
+(\rocq{Icones.stable.compose.SD_723}) to the shifted family
+$h(x+u) = h(x) + \Delta h(u)(x)$ at the shifted centre
+$f(x+u) = f(x) + \Delta f(u)(x)$ splits $\Delta k(u)$ into an
+$(n+1)$-term sum of further $\texttt{kfun}$-shaped maps (the would-be
+first term cancelling against $k(x)$). Each summand is again a
+$\texttt{kfun}$, at source $B_u$, discharged by the inductive
+hypothesis instantiated at that source --- which is exactly the
+generic-source move that avoids the nested-cone cast.
+\end{proof}
+
+\begin{theorem}[Paper Theorem 7.30, closure under composition]\label{thm:730}
+\rocq{Icones.stable.compose.stable_comp}\rocqok
+\rocq{Icones.stable.compose.meas_stable_comp}\rocqok
+\uses{lem:726, thm:719, def:is-stable}
+If $f : B \to C$ and $g : C \to D$ are stable (resp.\ measurable stable)
+and $f$ maps the unit ball into the unit ball, then $g \circ f$ is
+stable (resp.\ measurable stable).
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Total monotonicity (\rocq{Icones.stable.compose.totmono_comp}) is
+Lemma 7.26 at $n = 0$: since $\texttt{SD}\,g\,()\,(f x) = g(f x)$, the
+composite $g \circ f$ is $\texttt{kfun}\,g\,f\,()$, hence $p$-increasing
+for all $p$ by \autoref{lem:726}; the converse half of Theorem 7.19
+(\rocq{Icones.stable.findiff.is_n_increasing_totmono}) then gives total
+monotonicity, its $\omega$-continuity ingredient supplied by
+\rocq{Icones.stable.compose.scott_comp}. Boundedness is
+\rocq{Icones.stable.compose.bounded_comp}; the measurable version adds
+path-preservation \rocq{Icones.stable.compose.meas_path_comp}.
+\end{proof}
+
+\section{The category $\mathbf{SCones}$ --- paper \S7.4}\label{sec:scones}
+
+\begin{definition}[Morphisms of $\mathbf{SCones}$]\label{def:scones-hom}
+\rocq{Icones.stable.scones_cat.scones_hom}\rocqok\uses{def:is-stable, def:icone}
+$\mathbf{SCones}$ has integrable cones as objects; a morphism
+$B \to C$ is the record
+\rocq{Icones.stable.scones_cat.scones_hom} bundling a measurable stable
+function $f : B \to C$ (\texttt{sc\_meas\_stable}) with the operator-norm
+bound $\cnorm{f} \leq 1$ (\texttt{sc\_norm\_le1}), where the operator
+norm $\texttt{sc\_norm}\,f := \sup\{\cnorm{f(x)} \mid \cnorm{x} \leq 1\}$
+is \rocq{Icones.stable.scones_cat.sc_norm} (with
+\rocq{Icones.stable.scones_cat.sc_norm_ub} /
+\rocq{Icones.stable.scones_cat.sc_norm_lub}). Proof-irrelevant
+extensionality is \rocq{Icones.stable.scones_cat.scones_hom_eq}.
+\end{definition}
+
+\paragraph{Design note: morphisms as $0$-extended maps.}
+Like the internal hom $B \mathbin{\Rightarrow_s} C$ of
+\autoref{def:stablehom}, the $\mathbf{SCones}$ morphism record carries a
+canonical off-ball field
+(\rocq{Icones.stable.scones_cat.scones_hom}, the
+$\texttt{sc\_offball}$ component forcing $f\,x = 0$ for $\cnorm{x} > 1$),
+so Leibniz equality of morphisms coincides with agreement on the unit
+ball $B_B$ --- the paper's notion of equality of stable maps
+$f : B_B \to C$. The apparent obstruction is that, for a non-linear $g$,
+one has $g(0) \neq 0$ in general, so plain composition $g \circ f$ need
+not vanish off the ball. The resolution is to define composition (and
+the identity, $\mathrm{Der}$, and the tupling below) as ``compose, then
+re-extend by $0$ off the ball'': the clamp
+\rocq{Icones.stable.scones_cat.sc_clamp} sets the value to $0$ outside
+$B_B$, and it preserves measurable stability because that predicate is
+unit-ball-determined
+(\rocq{Icones.stable.scones_cat.meas_stable_eq_on_ball}: a map agreeing
+on $B_B$ with a stable map is itself stable). The norm bound
+$\cnorm{f} \leq 1$ guarantees the unit ball is preserved
+(\rocq{Icones.stable.scones_cat.sc_image_ball}), the hypothesis the bare
+composite needs; clamping then restores the off-ball field. With this
+choice the category laws, $\mathrm{Der}$'s functoriality, and the
+product universal property below all hold as plain (Leibniz) equalities,
+each proved by a case split on $\cnorm{x} \leq 1$.
+
+\begin{theorem}[$\mathbf{SCones}$ is a category, paper Theorem 7.30 packaged]
+\label{thm:scones-cat}
+\rocq{Icones.stable.scones_cat.scones_comp}\rocqok\uses{def:scones-hom, thm:730}
+The identity \rocq{Icones.stable.scones_cat.scones_id} and the
+composition \rocq{Icones.stable.scones_cat.scones_comp} (well defined by
+\autoref{thm:730}, with $\cnorm{g \circ f} \leq 1$ pointwise) satisfy
+the category laws \rocq{Icones.stable.scones_cat.scones_compIl},
+\rocq{Icones.stable.scones_cat.scones_compIr} and
+\rocq{Icones.stable.scones_cat.scones_compA}.
+\end{theorem}
+
+\begin{lemma}[Linear $\Rightarrow$ totally monotonic, paper Lemma 7.31 core]
+\label{lem:linear-totmono}
+\rocq{Icones.stable.scones_cat.linear_totmono}\rocqok\uses{def:is-totmono}
+Every linear map $f : B \to C$ is totally monotonic.
+\end{lemma}
+
+\begin{proof}
+``Linearity clearly implies total monotonicity.'' By induction on the
+arity $n$ of (7.1), via the unconditional cons recurrences
+$\texttt{Spos\_recur}$ / $\texttt{Sneg\_recur}$. For a linear $f$,
+shifting the centre by the head $u_0$ adds the \emph{same} cone element
+to $\Delta^+$ and $\Delta^-$
+(\rocq{Icones.stable.scones_cat.Spos_lin_shift} /
+\rocq{Icones.stable.scones_cat.Sneg_lin_shift}), because the two
+sign-split index families have equal cardinality
+(\rocq{Icones.stable.scones_cat.card_Ppos_Pneg}, the $\texttt{injI0}$ /
+$\texttt{injI}$ reindexing swaps the contributions between $\mathit{Pos}$
+and $\mathit{Neg}$) and a constant cone-sum depends only on the
+cardinality (\texttt{big\_const}). After cancelling the common shifted
+part the inductive order reduces to
+\rocq{Icones.stable.scones_cat.big_Pneg_le_Ppos}.
+\end{proof}
+
+\begin{lemma}[The dereliction inclusion, paper Lemma 7.31]\label{lem:ders}
+\rocq{Icones.stable.scones_cat.ders}\rocqok
+\uses{lem:linear-totmono, thm:scones-cat}
+There is a faithful functor $\mathrm{Der} : \ICones \to \mathbf{SCones}$,
+the identity on objects and on underlying functions. On morphisms,
+$\rocq{Icones.stable.scones_cat.ders}$ sends an $\ICones$-morphism $h$ to
+the $\mathbf{SCones}$-morphism with the same underlying function: $h$ is
+measurable stable (\rocq{Icones.stable.scones_cat.icones_meas_stable},
+built on \rocq{Icones.stable.scones_cat.linear_stable}, whose three
+ingredients are \autoref{lem:linear-totmono}, the
+\autoref{lem:linear-scott-of-omega} specialisation
+\rocq{Icones.stable.scones_cat.linear_scott_unit}, and the norm bound)
+and has operator norm $\leq 1$. Functoriality is
+\rocq{Icones.stable.scones_cat.ders_id} /
+\rocq{Icones.stable.scones_cat.ders_comp}, and faithfulness is
+\rocq{Icones.stable.scones_cat.ders_faithful}. $\mathrm{Der}$ is not
+full (Examples 2.4 / 7.9 of the paper).
+\end{lemma}
+
+\begin{theorem}[Products in $\mathbf{SCones}$, paper Theorem 7.32 (products part)]
+\label{thm:scones-prod}
+\rocq{Icones.stable.scones_cat.scones_proj}\rocqok\uses{lem:ders}
+The $\ICones$ product $\mathbin{\&}_{i} B_i$ (\autoref{ch:icones}) is
+also the product in $\mathbf{SCones}$: the projections are
+$\texttt{scones\_proj}\,i := \mathrm{Der}(\texttt{icones\_proj}\,i)$
+(\rocq{Icones.stable.scones_cat.scones_proj}). The tupling
+$\langle f_i \rangle : y \mapsto (f_i\,y)_i$ is the $0$-extended map
+\rocq{Icones.stable.scones_cat.scones_tuple}: on the unit ball each
+$\cnorm{f_i\,y} \leq \cnorm{f_i} \leq 1$ supplies the uniform bound
+$M = 1$ that a point of the $\mathit{Type}$-indexed product carrier
+requires (\rocq{Icones.stable.scones_cat.scones_tuple_bd}), and off the
+ball the clamp returns the product zero. Its measurable stability
+reduces componentwise: total monotonicity, boundedness, $\omega$-
+continuity and path preservation each pass through the projection
+(\rocq{Icones.stable.scones_cat.cones_prod_val_big}, projection commutes
+with the product cone-sum) and the backward componentwise order
+(\rocq{Icones.stable.scones_cat.cones_prod_le_compI}, reducing the
+product (7.1) inequality to its factors). The universal property holds
+as a pair of Leibniz equalities:
+$\texttt{scones\_proj}\,i \circ \langle f_j \rangle = f_i$
+(\rocq{Icones.stable.scones_cat.scones_tuple_proj}) and uniqueness of
+the mediating map
+(\rocq{Icones.stable.scones_cat.scones_tuple_unique}). Thus
+$\mathbin{\&}_i B_i$ is the categorical product in $\mathbf{SCones}$.
+\end{theorem}
+
+\paragraph{The cartesian-closed structure (in progress).}\notready
+With the products in hand, what remains of the full Theorem 7.32 is the
+cartesian-\emph{closed} structure of $\mathbf{SCones}$: the evaluation
+map $\mathrm{Ev} : (B \mathbin{\Rightarrow_s} C) \mathbin{\&} B \to C$,
+currying, and the universal property of the internal hom. These rest on
+the bilinear--total-monotonicity Lemma 7.27 (the joint monotonicity of a
+stable map in two arguments at once, over the binary product cone) and
+on the stable internal hom $B \mathbin{\Rightarrow_s} C$ of
+\autoref{thm:stablehom-icone}; all morphisms here are $0$-extended off
+the ball (design note above), so the $\beta$/$\eta$ laws of currying
+hold as Leibniz equalities. This is being built at the time of writing
+and is not yet established.
+
+\section{Status}\label{sec:stable-status}
+
+\paragraph{Status.}
+\S7.1--\S7.3 are fully delivered, axiom-clean (no \texttt{Admitted}, no
+project axioms beyond the classical base): the local cone $B_x$ as a
+full integrable cone at strict-interior points (\autoref{sec:local-cone});
+total monotonicity, stability, the Lemma 7.11 closure and the stable
+internal hom $B \mathbin{\Rightarrow_s} C$ as a full integrable cone
+(\autoref{sec:totmono}); the finite-difference characterisation
+(Theorem 7.19, both directions) and the composition theorem
+(Theorem 7.30, \autoref{sec:findiff}). For \S7.4 the category
+$\mathbf{SCones}$, the dereliction $\mathrm{Der}$, and the products with
+their full universal property (projections, tupling, and uniqueness of
+the mediating map --- Theorem 7.32, products part) are delivered on the
+$0$-extension morphism carrier (\autoref{sec:scones}); the
+cartesian-closed structure --- the evaluation map, currying, and the
+remaining (closed) half of Theorem 7.32 --- is in progress. The route to
+the exponential
+$\mathord{!}$ is then via a staged $E \dashv \mathrm{Der}$ interface
+(PLAN \S13.4) or a SAFT-style argument, a future milestone.

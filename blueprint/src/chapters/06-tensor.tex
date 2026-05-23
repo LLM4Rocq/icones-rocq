@@ -1,0 +1,768 @@
+% Chapter 6 --- The tensor product and the symmetric monoidal closed
+% structure (paper §5.3–§5.5, iteration 2).
+%
+% Mirrors:
+%   theories/homs/icones_iso.v       isos in ICones (groupoid structure)
+%   theories/mcones/test_pullback.v  Def 3.13 test-side characterisation
+%   theories/homs/linhom_functor.v   Prop 5.8, the internal-hom functor
+%   theories/axioms/saft_interface.v the ~18 staged SAFT/tensor Parameters
+%   theories/homs/tensor.v           §5.4: τ, x⊗y, Eq 5.1, Thm 5.12/5.13,
+%                                    Prop 5.14
+%   theories/homs/smcc.v             §5.5: α/λ/ρ/σ + derived coherence,
+%                                    Thm 5.15 (ICones is SMCC)
+%
+% Honesty note: tensor.v and smcc.v are mechanised *modulo* the staging
+% interface saft_interface.v (the SAFT/Yoneda representability content).
+% The structural-iso EXISTENCE is staged (\notready); the monoidal
+% coherence and the consequences are genuinely PROVED from the interface
+% (\rocqok). The MVP headline (Thm 6.5, Chapter \ref{ch:skern}) does not
+% depend on this interface.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{The tensor product and the symmetric monoidal closed
+structure}\label{ch:tensor}
+
+This chapter formalises paper \S5.3--\S5.5: the symmetric monoidal
+closed (SMC closed) structure of $\ICones$, with the tensor product
+$\otimes$ as its monoidal product and the internal hom $\lin$ of
+Chapter~\ref{ch:linhom} as its closed structure (paper
+Theorem~5.15). Paper \S5 obtains the cartesian/monoidal closed
+structure of $\ICones$ in one of two ways: \emph{either} concretely
+--- as for the internal hom $C \lin D$, built by hand in
+Chapter~\ref{ch:linhom} --- \emph{or} abstractly, via Freyd's Special
+Adjoint Functor Theorem (SAFT) applied to the limit-preserving functor
+$C \lin -\;: \ICones \to \ICones$. The paper reserves the abstract,
+SAFT-based argument for the tensor product $\otimes$ (and, beyond the
+scope of this chapter, for the exponential $\mathord{!}$). This
+chapter formalises the SMC closed structure that results once
+$\otimes$ is available.
+
+The material lives under \texttt{theories/homs/icones\_iso.v} (isos in
+$\ICones$), \texttt{theories/mcones/test\_pullback.v} (the Def~3.13
+test-side characterisation), \texttt{theories/homs/linhom\_functor.v}
+(the morphism-level internal-hom functor, Prop~5.8),
+\texttt{theories/homs/tensor.v} (\S5.4) and
+\texttt{theories/homs/smcc.v} (\S5.5), with the SAFT/tensor universal
+property collected as a staging interface in
+\texttt{theories/axioms/saft\_interface.v}.
+
+\section{Staging strategy: the SAFT/tensor interface}%
+\label{sec:tensor-staging}
+
+This is the central design decision of the chapter, and we state it up
+front. The \emph{representability} content that the paper extracts
+from SAFT --- the existence of a tensor object $B \otimes C$
+representing the functor $D \mapsto \ICones(B, C \lin D)$, and the
+existence of the structural isomorphisms $\alpha/\lambda/\rho/\sigma$
+produced by Yoneda (paper Lemma~5.5) --- is the deep, non-elementary
+input to the monoidal structure. The Rocq development \emph{stages}
+this content: it is collected as a small interface of approximately
+$18$ \texttt{Parameter}s in
+\texttt{theories/axioms/saft\_interface.v}, and the \emph{consequences}
+(\texttt{tensor.v}, \texttt{smcc.v}) are mechanised \emph{modulo} this
+interface. Every \texttt{Parameter} in the interface is an
+intentional, temporary axiom, flagged in the source with
+\texttt{STAGING: discharge via M-SAFT, PLAN \S13.1; then delete}. No
+other part of the project is left unproved, and there is no
+\Admitted{} anywhere.
+
+We are precise about what is staged and what is proved:
+\begin{enumerate}
+  \item[(a)] The substantive monoidal coherence --- the triangle,
+    pentagon and braiding-hexagon identities, and the symmetry law
+    $\sigma \circ \sigma = \id$ --- is \emph{genuinely proved} from
+    the interface, via the pure-tensor tree-extensionality of paper
+    Proposition~5.14 (\S\ref{sec:tensor-ext}).
+  \item[(b)] Only the structural-iso \emph{existence} (the
+    Lemma-5.5/Yoneda content) and the universal property of $\otimes$
+    are staged: the tensor object former, the hom-bijection $\Phi$ and
+    its naturality, the Thm~5.12 element-level iso, the Thm~5.13 norm
+    equation, and the four structural isos $\alpha/\lambda/\rho/\sigma$
+    of Eqs~5.2--5.4 together with their pure-tensor computation laws.
+  \item[(c)] The plan (\texttt{PLAN.md} \S13.1, milestone
+    ``M-SAFT'') is to discharge every \texttt{Parameter} by proving
+    SAFT for $\ICones$, after which each \texttt{Parameter} is
+    replaced by a theorem and \texttt{saft\_interface.v} is deleted,
+    reaching zero project axioms.
+  \item[(d)] The MVP headline theorem --- paper Theorem~6.5, the fully
+    faithful embedding $\Skern \to \ICones$ of
+    Chapter~\ref{ch:skern} --- does \emph{not} depend on this
+    interface; the staging is confined to the $\otimes$/SMC-closed
+    development of this chapter.
+\end{enumerate}
+
+\paragraph{The $18$ staged \texttt{Parameter}s, grouped.}
+The interface is stated in a single section over a real type $R$ and a
+measurable subcategory $\Ar$, with local notations $C \lin D :=
+\texttt{linhom\_car}\,\Ar\,C\,D$ and $B \otimes C := \texttt{tensor}\,\Ar\,B\,C$.
+The \texttt{Parameter}s fall into five groups.
+
+\begin{itemize}
+  \item \emph{The representing object.}\label{def:tensor-object}
+    \rocq{Icones.axioms.saft\_interface.tensor}\notready{} ---
+    the opaque tensor object former $B \otimes C$ (paper \S5.4,
+    Remark~5.1, which gives no explicit carrier).
+  \item \emph{The hom-bijection $\Phi$ and its inverse (paper Thm~5.9 /
+    Eq~5.1).} The forward map
+    \rocq{Icones.axioms.saft\_interface.tensor\_curry}\notready{}
+    $:\ICones(B \otimes C, D) \to \ICones(B, C \lin D)$, the inverse
+    \rocq{Icones.axioms.saft\_interface.tensor\_uncurry}\notready{},
+    and the two round-trip cancellations
+    \rocq{Icones.axioms.saft\_interface.tensor\_curryK}\notready{},
+    \rocq{Icones.axioms.saft\_interface.tensor\_uncurryK}\notready{}.
+  \item \emph{Naturality of $\Phi$.} Naturality in $D$ stated
+    existentially
+    (\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_D}\notready{}),
+    naturality in $B$
+    (\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_B}\notready{}),
+    and the \emph{concrete} naturality in $D$ whose existential witness
+    is the explicit hom-functor action $C \lin h$
+    (\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_post}\notready{}).
+    The last one is the workhorse: it yields Eq~5.1 below.
+  \item \emph{Element-level packaging and the norm equation.} The
+    Thm~5.12 iso of integrable cones
+    \rocq{Icones.axioms.saft\_interface.tensor\_hom\_iso}\notready{}
+    and the Thm~5.13 norm equation
+    \rocq{Icones.axioms.saft\_interface.tensor\_normM}\notready{}.
+  \item \emph{Structural-iso existence and their computation laws (paper
+    Eqs~5.2--5.4).} The associator
+    \rocq{Icones.axioms.saft\_interface.tensor\_assoc\_iso}\notready{}
+    with
+    \rocq{Icones.axioms.saft\_interface.tensor\_assocE}\notready{}, the
+    unitors
+    \rocq{Icones.axioms.saft\_interface.tensor\_lunit\_iso}\notready{}
+    /
+    \rocq{Icones.axioms.saft\_interface.tensor\_runit\_iso}\notready{}
+    with
+    \rocq{Icones.axioms.saft\_interface.tensor\_lunitE}\notready{} /
+    \rocq{Icones.axioms.saft\_interface.tensor\_runitE}\notready{}, and
+    the braiding
+    \rocq{Icones.axioms.saft\_interface.tensor\_braid\_iso}\notready{}
+    with
+    \rocq{Icones.axioms.saft\_interface.tensor\_braidE}\notready{}.
+\end{itemize}
+
+\begin{remark}[A known gap in the interface, deferred to M-SAFT]
+Naturality of $\Phi$ in the $C$ slot is \emph{not} stated, because it
+needs the contravariant functorial action $\lin$ in its left argument,
+$\texttt{linhom\_pre\_icones}\,v : (C \lin D) \to (C' \lin D)$, in a
+shape the interface does not pin down. The tensor milestone of this
+chapter consumes only naturality in $D$ and $B$; naturality in $C$ is
+needed only for the symmetry coherence, which is instead derived from
+the pure-tensor computation law $\sigma(x \otimes y) = y \otimes x$.
+The $C$-slot square is to be added when SAFT lands (a \texttt{TODO} in
+\texttt{saft\_interface.v}).
+\end{remark}
+
+\section{Prerequisites for $\otimes$ (paper \S5.3)}%
+\label{sec:tensor-prereq}
+
+Three pieces of infrastructure feed the tensor development. All three
+are genuinely proved.
+
+\subsection{Isomorphisms in $\ICones$}\label{sec:icones-iso}
+
+The structural equivalences of the monoidal structure are stated as
+isos in the concrete category $\ICones$ (Chapter~\ref{ch:icones}),
+whose objects are $\ICone$s, whose morphisms are
+$\icones_{\mathrm{hom}}$, with identity \texttt{icones\_id},
+composition \texttt{icones\_comp} (where $\texttt{icones\_comp}\,g\,f$
+is ``$g$ after $f$''), and equality of morphisms reduced to pointwise
+equality by \texttt{icones\_hom\_eq}.
+
+\begin{definition}[Iso of integrable cones]\label{def:icones-iso}
+\rocq{Icones.homs.icones\_iso.icones\_iso}\rocqok\uses{sec:icones}
+An isomorphism $B \cong C$ in $\ICones$ is a record
+\rocq{Icones.homs.icones\_iso.icones\_iso} packaging a forward
+morphism $\texttt{iso\_fwd} : \icones_{\mathrm{hom}}\,\Ar\,B\,C$, a
+backward morphism $\texttt{iso\_bwd} : \icones_{\mathrm{hom}}\,\Ar\,C\,B$,
+and the two round-trip equations
+$\texttt{icones\_comp}\,(\texttt{iso\_bwd})\,(\texttt{iso\_fwd}) =
+\texttt{icones\_id}\,\Ar\,B$ (\texttt{iso\_fwdK}) and
+$\texttt{icones\_comp}\,(\texttt{iso\_fwd})\,(\texttt{iso\_bwd}) =
+\texttt{icones\_id}\,\Ar\,C$ (\texttt{iso\_bwdK}).
+\end{definition}
+
+The smart constructor
+\rocq{Icones.homs.icones\_iso.icones\_isoP} builds an iso from the two
+cancellation equations stated at the level of \texttt{icones\_comp};
+the Yoneda-style companion
+\rocq{Icones.homs.icones\_iso.icones\_iso\_of\_cancel} builds it from
+\emph{pointwise} cancellation, upgrading via \texttt{icones\_hom\_eq}.
+
+\begin{lemma}[Groupoid structure and bijectivity]\label{lem:icones-iso-groupoid}
+\rocq{Icones.homs.icones\_iso.icones\_iso\_refl}\rocqok
+\rocq{Icones.homs.icones\_iso.icones\_iso\_sym}\rocqok
+\rocq{Icones.homs.icones\_iso.icones\_iso\_trans}\rocqok
+\uses{def:icones-iso}
+The isos form a groupoid: the identity iso $B \cong B$
+(\rocq{Icones.homs.icones\_iso.icones\_iso\_refl}), symmetry $B \cong C
+\Rightarrow C \cong B$ by swapping forward and backward
+(\rocq{Icones.homs.icones\_iso.icones\_iso\_sym}), and transitivity by
+composition (\rocq{Icones.homs.icones\_iso.icones\_iso\_trans}).
+Moreover the underlying forward function is bijective: it has the
+backward function as a two-sided pointwise inverse
+(\rocq{Icones.homs.icones\_iso.iso\_can},
+\rocq{Icones.homs.icones\_iso.iso\_can\'}), hence is injective
+(\rocq{Icones.homs.icones\_iso.iso\_fwd\_inj}) and bijective
+(\rocq{Icones.homs.icones\_iso.iso\_fwd\_bij}).
+\end{lemma}
+
+\subsection{The test-pullback characterisation (paper Def 3.13)}%
+\label{sec:test-pullback}
+
+The morphism-level internal-hom functor of \S5.3 needs the
+\emph{test-side} reformulation of an $\mcones_{\mathrm{hom}}$. Paper
+Definition~3.13 (the ``equivalently'' bullet) says a
+$\cones_{\mathrm{hom}}\;g : B \to C$ is in $\MCones$ iff, for every
+test $m \in \Mtest^C_Z$ and every measurable path $\varphi : W \to B$,
+the function $(s, r) \mapsto m\bigl(s, g(\varphi(r))\bigr)$ is
+measurable on $Z \times W$. We package the forward direction in two
+shapes.
+
+\begin{lemma}[Test-pullback along an $\mcones_{\mathrm{hom}}$, paper
+Def 3.13]\label{lem:test-pullback-meas}
+\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas}\rocqok
+\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas\_bivar}\rocqok
+\uses{def:mcone}
+Let $g : \mcones_{\mathrm{hom}}\,\Ar\,B\,C$. For a target test $m \in
+\Mtest^C_Z$ and a measurable path $\varphi : W \to B$, the function
+$(s, r) \mapsto m\bigl(s, g(\varphi(r))\bigr)$ is measurable
+(\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas}). The
+bivariate variant
+(\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas\_bivar})
+folds the path argument out of a pair $(s, r) : Z \times W$ through
+$\texttt{ar\_prod}$, giving the exact shape arising in \S5.3's
+$\varphi(s, r) = m\bigl(s, g(\delta(s, r))\bigr)$ for a bivariate path
+$\delta$.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+Both reduce to \texttt{measurable\_test\_path\_section} of M3 applied
+to the post-composed path $g \circ \varphi$, whose measurability is
+exactly $\texttt{mcones\_hom\_pres\_path}\,g$
+(\rocq{Icones.mcones.test\_pullback.test\_pullback\_path}). The
+bivariate version reindexes $m$ along $\texttt{ar\_prod\_fst}$ to a
+test at the product arity $\texttt{ar\_prod}\,Z\,W$, applies the basic
+section, then folds the input pair back via the
+$\texttt{ar\_prod\_cast}$ / \texttt{test\_reindex} pattern shared with
+\texttt{bilin.v} and \texttt{linhom.v}.
+\end{proof}
+
+\begin{lemma}[Test-pullback continuity, paper \S5.3 / Def 3.13]%
+\label{lem:test-pullback-cont}
+\rocq{Icones.mcones.test\_pullback.test\_pullback\_cont}\rocqok
+\uses{lem:test-pullback-meas}
+For a $\cones_{\mathrm{hom}}\;g : D_1 \to D_2$, a test $m \in
+\Mtest^{D_2}_Z$, and a $\preceq$-increasing unit-ball chain $(a_n)_n$
+in $D_1$,
+\[
+  m\bigl(s, g(\textstyle\bigsup_n a_n)\bigr)
+  = \sup_n\, m\bigl(s, g(a_n)\bigr).
+\]
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+The $g$-image of a unit-ball increasing chain is again a unit-ball
+increasing chain ($g$ is linear hence increasing,
+\rocq{Icones.mcones.test\_pullback.cones\_hom\_image\_chain}, and
+norm-decreasing,
+\rocq{Icones.mcones.test\_pullback.cones\_hom\_image\_ub1}); push the
+cone-sup through $g$ by $\omega$-continuity of $g$, then apply the
+``test-of-sup'' identity
+\rocq{Icones.mcones.test\_pullback.test\_of\_sup} (a test is monotone
+and $\omega$-continuous, so its value at a $\texttt{cone\_sup\_ball}$
+is the real supremum of the chain of test values).
+\end{proof}
+
+\subsection{The internal-hom functor on morphisms (paper Prop 5.8)}%
+\label{sec:linhom-functor}
+
+\S5.3 upgrades the internal hom $\lin$ from an object map to a functor
+of \emph{two} variables (contravariant in the source, covariant in the
+target). Given $h : C_2 \to C_1$ and $g : D_1 \to D_2$, the object map
+$\Lambda := \texttt{linhom\_map\_fun}\,h\,g$ sends $f \mapsto g \circ f
+\circ h$, so $(\Lambda f)\,x = g\bigl(f(h\,x)\bigr)$.
+
+\begin{lemma}[Paper Prop 5.8, the hom-functor action]%
+\label{lem:linhom-map-icones}
+\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones}\rocqok
+\uses{def:linhom-car, lem:test-pullback-meas, lem:test-pullback-cont}
+The map $\Lambda = (f \mapsto g \circ f \circ h)$ packages as a
+morphism
+$\texttt{linhom\_map\_icones}\,h\,g :
+\icones_{\mathrm{hom}}\,\Ar\,(C_1 \lin D_1)\,(C_2 \lin D_2)$, with
+$\bigl(\texttt{linhom\_map\_icones}\,h\,g\bigr)\,f = g \circ f \circ h$
+(\rocq{Icones.homs.linhom\_functor.linhom\_map\_iconesE}).
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+The construction climbs the three layers $\Cone \to \MCone \to \ICone$
+on $\Lambda$:
+\begin{itemize}
+  \item \emph{$\cones_{\mathrm{hom}}$}
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_cones}): linearity
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_linear}),
+    norm-decrease $\cnorm{\Lambda f} \le \cnorm{f}$ from the chain
+    $\cnorm{g(f(h\,x))} \le \cnorm{f(h\,x)} \le \cnorm{f}\,\cnorm{x}$
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_norm\_le1}), and
+    $\omega$-continuity
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_continuous}) ---
+    which, by test-separation (Mssep) of $D_2$, reduces to pushing the
+    cone-sup through $g$ via
+    \autoref{lem:test-pullback-cont}.
+  \item \emph{$\mcones_{\mathrm{hom}}$}
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_mcones}): the crux,
+    measurable-path preservation \emph{in $f$}
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_pres\_path}). For a
+    measurable path $\Phi$ of $C_1 \lin D_1$, the bivariate $D_1$-path
+    $\delta(s, r) := (\Phi r)\bigl(h(\gamma_2 s)\bigr)$ is measurable
+    (by testing $\Phi$ against the linhom test of $h \circ \gamma_2$),
+    and pulling a $D_2$-test back along $g$ keeps it measurable by the
+    bivariate
+    \autoref{lem:test-pullback-meas}
+    (\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas\_bivar}).
+  \item \emph{$\icones_{\mathrm{hom}}$}
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones}):
+    integral-preservation in $f$
+    (\rocq{Icones.homs.linhom\_functor.linhom\_map\_pres\_int}) ---
+    $\Lambda(\int \Phi\,d\mu) = \int (\Lambda \circ \Phi)\,d\mu$, by
+    uniqueness of the linhom path integral plus $g$'s
+    integral-preservation and $D_2$'s Pettis spec.
+\end{itemize}
+\end{proof}
+
+\begin{definition}[One-sided actions, paper \S5.3]\label{def:linhom-onesided}
+\rocq{Icones.homs.linhom\_functor.linhom\_post\_icones}\rocqok
+\rocq{Icones.homs.linhom\_functor.linhom\_pre\_icones}\rocqok
+\uses{lem:linhom-map-icones}
+The covariant post-composition action $C \lin g :=
+\texttt{linhom\_map\_icones}\,(\texttt{icones\_id}\,C)\,g : (C \lin
+D_1) \to (C \lin D_2)$ is
+\rocq{Icones.homs.linhom\_functor.linhom\_post\_icones}, with
+$(C \lin g)\,f = g \circ f$
+(\rocq{Icones.homs.linhom\_functor.linhom\_post\_iconesE}). The
+contravariant pre-composition action $h \lin D :=
+\texttt{linhom\_map\_icones}\,h\,(\texttt{icones\_id}\,D) : (C_1 \lin
+D) \to (C_2 \lin D)$ is
+\rocq{Icones.homs.linhom\_functor.linhom\_pre\_icones}, with
+$(h \lin D)\,f = f \circ h$
+(\rocq{Icones.homs.linhom\_functor.linhom\_pre\_iconesE}).
+\end{definition}
+
+\begin{lemma}[Functoriality of $\lin$, paper Prop 5.8]\label{lem:linhom-functoriality}
+\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones\_id}\rocqok
+\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones\_comp}\rocqok
+\uses{lem:linhom-map-icones}
+The hom-functor preserves identities and composition in $\ICones$:
+$(\id_C) \lin (\id_D) = \id_{C \lin D}$
+(\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones\_id}) and, with
+the first slot contravariant,
+$(h' \circ h) \lin (g \circ g') = (h' \lin g') \circ (h \lin g)$
+(\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones\_comp}). Both
+reduce by \texttt{icones\_hom\_eq} to the object-level laws
+\texttt{linhom\_map\_id} / \texttt{linhom\_map\_comp} of
+Chapter~\ref{ch:linhom}.
+\end{lemma}
+
+\section{The tensor product (paper \S5.4)}\label{sec:tensor-build}
+
+Throughout this section we work modulo the staging interface
+(\S\ref{sec:tensor-staging}), with local notations $C \lin D :=
+\texttt{linhom\_car}\,\Ar\,C\,D$ and $B \otimes C := \texttt{tensor}\,\Ar\,B\,C$.
+Everything below is a genuine proof; the only unproved inputs are the
+staged \texttt{Parameter}s it consumes.
+
+\subsection{The universal map $\tau$ and the pure tensor}%
+\label{sec:tau}
+
+\begin{definition}[The universal map $\tau$ and the pure tensor, paper
+\S5.4]\label{def:tau}
+\rocq{Icones.homs.tensor.tau}\rocqok
+\rocq{Icones.homs.tensor.ptensor}\rocqok
+\uses{def:tensor-object, def:linhom-car}
+The universal map is $\tau_{B,C} := \Phi_{B,C,B \otimes
+C}\bigl(\id_{B \otimes C}\bigr) \in \ICones(B, C \lin B \otimes C)$,
+the image of the tensor identity under the hom-bijection $\Phi =
+\texttt{tensor\_curry}$ (\rocq{Icones.homs.tensor.tau}). The
+\emph{pure tensor} of $x \in B$ and $y \in C$ is
+\[
+  x \otimes y \;:=\; \tau_{B,C}(x)(y) \;\in\; B \otimes C,
+\]
+i.e.\ \rocq{Icones.homs.tensor.ptensor}, with the trivial computation
+$x \otimes y = \tau_{B,C}(x)(y)$
+(\rocq{Icones.homs.tensor.ptensorE}).
+\end{definition}
+
+\begin{lemma}[Paper Eq 5.1, $\Phi$ factors through $\tau$]\label{lem:eq51}
+\rocq{Icones.homs.tensor.tensor\_curryE}\rocqok
+\uses{def:tau}
+For $f : \icones_{\mathrm{hom}}\,\Ar\,(B \otimes C)\,D$,
+\[
+  \Phi(f) \;=\; (C \lin f) \circ \tau_{B,C}
+  \qquad\text{(\rocq{Icones.homs.tensor.tensor\_curry\_factor})},
+\]
+and pointwise $\Phi(f)(x)(y) = f(x \otimes y)$
+(\rocq{Icones.homs.tensor.tensor\_curryE}).
+\end{lemma}
+
+\begin{proof}
+From the concrete naturality of $\Phi$ in $D$
+(\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_post},
+modulo the staged interface, \S\ref{sec:tensor-staging}) with $h := f$
+and $f_0 := \id_{B \otimes C}$: $\Phi(f) = \Phi(f \circ \id) = (C \lin
+f) \circ \Phi(\id) = (C \lin f) \circ \tau$. Pointwise, evaluating the
+post-composition action through
+\rocq{Icones.homs.linhom.linhom\_map\_funE} gives $\Phi(f)(x)(y) =
+f(\tau(x)(y)) = f(x \otimes y)$.
+\end{proof}
+
+\subsection{Bifunctoriality}\label{sec:tensor-mor}
+
+\begin{definition}[The bifunctor action on morphisms, paper \S5.4]%
+\label{def:tensor-mor}
+\rocq{Icones.homs.tensor.tensor\_mor}\rocqok
+\uses{def:tau, lem:linhom-map-icones}
+Given $f : B_1 \to B_2$ and $g : C_1 \to C_2$, the action $f \otimes g
+: B_1 \otimes C_1 \to B_2 \otimes C_2$ is the uncurrying of $(C_1 \lin
+B_2 \otimes C_2) \xleftarrow{g \lin} (C_2 \lin B_2 \otimes C_2)
+\xleftarrow{\tau_{B_2,C_2} \circ f} B_1$, i.e.\
+\rocq{Icones.homs.tensor.tensor\_mor}, that precomposes
+$\tau_{B_2,C_2} \circ f$ in the hom-slot by $g$.
+\end{definition}
+
+\begin{lemma}[Identity law of $\otimes$, paper \S5.4]\label{lem:tensor-mor-id}
+\rocq{Icones.homs.tensor.tensor\_mor\_id}\rocqok
+\uses{def:tensor-mor}
+$\id_B \otimes \id_C = \id_{B \otimes C}$
+(\rocq{Icones.homs.tensor.tensor\_mor\_id}), modulo the staged
+interface.
+\end{lemma}
+
+\begin{proof}
+Unfold \texttt{tensor\_mor}; the pre-composition by $\id_C$ collapses
+to the identity on $C \lin B \otimes C$ via
+$\texttt{linhom\_map\_icones\_id}$
+(\autoref{lem:linhom-functoriality}); what remains is
+$\texttt{tensor\_uncurry}(\texttt{tensor\_curry}(\id)) = \id$ by the
+staged round-trip
+\rocq{Icones.axioms.saft\_interface.tensor\_curryK}.
+\end{proof}
+
+\begin{remark}[Composition law deferred]
+The header of \texttt{theories/homs/tensor.v} delivers only the
+\emph{identity} law of the bifunctor; the composition law
+$(f_2 \circ f_1) \otimes (g_2 \circ g_1) = (f_2 \otimes g_2) \circ (f_1
+\otimes g_1)$ is not mechanised in this iteration. It is not needed
+for any coherence diagram of \S\ref{sec:smcc} (each of those is checked
+on pure tensors via Prop~5.14), and the SMC-closed bundle
+(\autoref{thm:thm515}) records only the identity law in its
+\texttt{smcc\_mor\_id} field. The general composition law is deferred
+to the M-SAFT discharge together with the rest of the interface.
+\end{remark}
+
+\subsection{Theorem 5.12: the hom-tensor adjunction iso}%
+\label{sec:thm512}
+
+\begin{theorem}[Paper Theorem 5.12]\label{thm:thm512}
+\rocq{Icones.homs.tensor.tensor\_hom\_Phi}\rocqok
+\uses{def:icones-iso, def:tau}
+For all $B, C, D$, the hom-bijection $\Phi_{B,C,D}$ is an isomorphism
+of integrable cones
+\[
+  (B \otimes C) \lin D \;\cong\; B \lin (C \lin D),
+\]
+packaged as the \texttt{icones\_iso}
+\rocq{Icones.homs.tensor.tensor\_hom\_Phi} (re-exporting the staged
+\rocq{Icones.axioms.saft\_interface.tensor\_hom\_iso}, modulo the
+interface). Its forward/backward maps are
+\rocq{Icones.homs.tensor.tensor\_hom\_fwd} /
+\rocq{Icones.homs.tensor.tensor\_hom\_bwd}, and the forward map is
+bijective (\rocq{Icones.homs.tensor.tensor\_hom\_fwd\_bij}).
+\end{theorem}
+
+At the morphism level, $\Phi = \texttt{tensor\_curry}$ is injective
+because \texttt{tensor\_uncurry} is a left inverse: this is
+\rocq{Icones.homs.tensor.tensor\_curry\_inj}\rocqok, proved directly
+from the staged
+\rocq{Icones.axioms.saft\_interface.tensor\_curryK}. Injectivity is the
+engine of the extensionality principle below.
+
+\subsection{Theorem 5.13: multiplicativity of the tensor norm}%
+\label{sec:thm513}
+
+\begin{theorem}[Paper Theorem 5.13]\label{thm:thm513}
+\rocq{Icones.homs.tensor.tensor\_normME}\rocqok
+\uses{def:tau}
+For $x \in B$ and $y \in C$,
+\[
+  \cnorm{x \otimes y} \;=\; \cnorm{x} \cdot \cnorm{y}.
+\]
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+The $\le$ direction is genuinely derived
+(\rocq{Icones.homs.tensor.tensor\_norm\_le}) from norm-decrease of
+$\tau$ (an $\icones_{\mathrm{hom}}$, hence a $\cones_{\mathrm{hom}}$):
+$\cnorm{x \otimes y} = \cnorm{\tau(x)(y)} \le \cnorm{\tau(x)} \cdot
+\cnorm{y} \le \cnorm{x} \cdot \cnorm{y}$. The converse $\ge$ needs the
+dual-separation Prop~3.11 together with the element-level inverse
+$\Phi^{-1}$ of \autoref{thm:thm512}, both supplied by the SAFT
+discharge; the full equality
+\rocq{Icones.homs.tensor.tensor\_normME} therefore rests on the staged
+\rocq{Icones.axioms.saft\_interface.tensor\_normM} (modulo the
+interface, \S\ref{sec:tensor-staging}).
+\end{proof}
+
+\subsection{Proposition 5.14: pure-tensor extensionality}%
+\label{sec:tensor-ext}
+
+This is the lever that makes all monoidal coherence \emph{provable}
+from the staged computation laws: a morphism out of an iterated tensor
+is determined by its values on (iterated) pure tensors.
+
+\begin{lemma}[Paper Proposition 5.14, binary case]\label{lem:tensor-ext}
+\rocq{Icones.homs.tensor.tensor\_ext}\rocqok
+\uses{thm:thm512, lem:eq51}
+Two morphisms $f, g : B \otimes C \to D$ that agree on every pure
+tensor $x \otimes y$ are equal.
+\end{lemma}
+
+\begin{proof}
+By injectivity of $\Phi$
+(\rocq{Icones.homs.tensor.tensor\_curry\_inj}) it suffices that
+$\Phi(f) = \Phi(g)$; by \texttt{icones\_hom\_eq} and
+\texttt{linhom\_eq} this is pointwise; and by Eq~5.1
+(\autoref{lem:eq51}) $\Phi(f)(x)(y) = f(x \otimes y) = g(x \otimes y) =
+\Phi(g)(x)(y)$.
+\end{proof}
+
+\begin{lemma}[Paper Proposition 5.14, ternary tree]\label{lem:tensor-ext3}
+\rocq{Icones.homs.tensor.tensor\_ext3}\rocqok
+\uses{lem:tensor-ext}
+Two morphisms $f, g : (A \otimes B) \otimes C \to D$ that agree on
+every iterated pure tensor $(x \otimes y) \otimes z$ are equal.
+\end{lemma}
+
+\begin{proof}
+The paper's induction at depth two: by injectivity of $\Phi$ it
+suffices that $\Phi(f) = \Phi(g) : A \otimes B \to (C \lin D)$; by the
+binary \autoref{lem:tensor-ext} it suffices they agree on $x \otimes
+y$; by \texttt{linhom\_eq} on every $z : C$; and by Eq~5.1 $\Phi(f)(x
+\otimes y)(z) = f\bigl((x \otimes y) \otimes z\bigr)$, equal to the
+$g$-side by hypothesis.
+\end{proof}
+
+A quaternary instance
+\rocq{Icones.homs.smcc.tensor\_ext4}\rocqok (one more currying layer
+than \autoref{lem:tensor-ext3}, for the tree $((A \otimes B) \otimes C)
+\otimes D$) is proved the same way and is what the pentagon needs.
+
+\section{The symmetric monoidal closed structure (paper \S5.5)}%
+\label{sec:smcc}
+
+We assemble the SMC closed structure on top of $\otimes$ and the staged
+structural isos, with $1 := \texttt{cone\_one\_car}\,\Ar$ the monoidal
+unit (the integrable cone $\Rnn$ of Chapter~\ref{ch:icones}).
+
+\subsection{Bilinearity of the pure tensor}\label{sec:tensor-bilin}
+
+\begin{lemma}[Bilinearity of $\otimes$, paper \S5.4]\label{lem:tensor-bilin}
+\rocq{Icones.homs.smcc.ptensorZl}\rocqok
+\rocq{Icones.homs.smcc.ptensorZr}\rocqok
+\uses{def:tau}
+The pure tensor is linear in each argument. A nonnegative scalar
+commutes through either slot:
+$(r \cdot x) \otimes y = r \cdot (x \otimes y)$
+(\rocq{Icones.homs.smcc.ptensorZl}) and $x \otimes (r \cdot y) = r
+\cdot (x \otimes y)$ (\rocq{Icones.homs.smcc.ptensorZr}). Linearity in
+$y$ is linearity of the linhom $\tau(x)$; linearity in $x$ uses that
+$\tau$ is itself a linear morphism (it scales $\tau(x)$ pointwise, via
+\rocq{Icones.homs.smcc.linhom\_funZ}).
+\end{lemma}
+
+\subsection{The structural isos and their computation laws}%
+\label{sec:struct-isos}
+
+\begin{definition}[The structural isos $\alpha/\lambda/\rho/\sigma$,
+paper Eqs 5.2--5.4]\label{def:struct-isos}
+\rocq{Icones.homs.smcc.tensor\_assoc}\rocqok
+\rocq{Icones.homs.smcc.tensor\_lunit}\rocqok
+\rocq{Icones.homs.smcc.tensor\_runit}\rocqok
+\rocq{Icones.homs.smcc.tensor\_braid}\rocqok
+\uses{def:icones-iso, sec:tensor-staging}
+The associator $\alpha_{A,B,C} : (A \otimes B) \otimes C \cong A
+\otimes (B \otimes C)$
+(\rocq{Icones.homs.smcc.tensor\_assoc}), the left/right unitors
+$\lambda_A : 1 \otimes A \cong A$
+(\rocq{Icones.homs.smcc.tensor\_lunit}) and $\rho_A : A \otimes 1 \cong
+A$ (\rocq{Icones.homs.smcc.tensor\_runit}), and the braiding
+$\sigma_{A,B} : A \otimes B \cong B \otimes A$
+(\rocq{Icones.homs.smcc.tensor\_braid}) are the
+\texttt{icones\_iso}s re-exported under their paper names from the
+staged structural-iso \texttt{Parameter}s. Each comes with its
+pure-tensor computation law:
+\[
+  \alpha\bigl((x \otimes y) \otimes z\bigr) = x \otimes (y \otimes z),
+  \quad
+  \lambda(u \otimes x) = u \cdot x = \rho(x \otimes u),
+  \quad
+  \sigma(x \otimes y) = y \otimes x,
+\]
+namely \rocq{Icones.homs.smcc.tensor\_assocEp},
+\rocq{Icones.homs.smcc.tensor\_lunitEp},
+\rocq{Icones.homs.smcc.tensor\_runitEp},
+\rocq{Icones.homs.smcc.tensor\_braidEp} (here $u \in 1 = \Rnn$ acts by
+scaling). These restate the staged computation laws
+\rocq{Icones.axioms.saft\_interface.tensor\_assocE} etc.\ (modulo the
+interface, \S\ref{sec:tensor-staging}).
+\end{definition}
+
+The bifunctor action computes on pure tensors:
+$(f \otimes g)(x \otimes y) = (f\,x) \otimes (g\,y)$, namely
+\rocq{Icones.homs.smcc.tensor\_morE}\rocqok, derived from the staged
+round-trip \rocq{Icones.axioms.saft\_interface.tensor\_uncurryK} and
+Eq~5.1.
+
+\subsection{The derived coherence laws}\label{sec:coherence}
+
+The point of \S\ref{sec:tensor-ext} is that, although the structural
+\emph{isos} are staged, every coherence \emph{law} between them is
+genuinely \emph{proved}, by checking the two sides agree on (iterated)
+pure tensors and reading off the computation laws.
+
+\begin{lemma}[Symmetry law, paper Eq 5.4]\label{lem:braid-invol}
+\rocq{Icones.homs.smcc.tensor\_braid\_invol}\rocqok
+\uses{def:struct-isos, lem:tensor-ext}
+$\sigma_{B,A} \circ \sigma_{A,B} = \id_{A \otimes B}$.
+\end{lemma}
+\begin{proof}
+By \autoref{lem:tensor-ext}: $\sigma(\sigma(x \otimes y)) = \sigma(y
+\otimes x) = x \otimes y$ via \texttt{tensor\_braidEp}.
+\end{proof}
+
+\begin{lemma}[Triangle coherence, paper Thm 5.15]\label{lem:triangle}
+\rocq{Icones.homs.smcc.tensor\_triangle}\rocqok
+\uses{def:struct-isos, lem:tensor-bilin, lem:tensor-ext3}
+$(\id_A \otimes \lambda_B) \circ \alpha_{A,1,B} = \rho_A \otimes \id_B$
+as maps $(A \otimes 1) \otimes B \to A \otimes B$.
+\end{lemma}
+\begin{proof}
+By \autoref{lem:tensor-ext3}: on $(x \otimes u) \otimes y$ both sides
+equal $u \cdot (x \otimes y)$ --- the LHS through the right slot
+(\texttt{tensor\_assocEp}, \texttt{tensor\_morE},
+\texttt{tensor\_lunitEp}, \texttt{ptensorZr}), the RHS through the left
+slot (\texttt{tensor\_morE}, \texttt{tensor\_runitEp},
+\texttt{ptensorZl}).
+\end{proof}
+
+\begin{lemma}[Pentagon coherence, paper Thm 5.15]\label{lem:pentagon}
+\rocq{Icones.homs.smcc.tensor\_pentagon}\rocqok
+\uses{def:struct-isos, lem:tensor-ext3}
+The pentagon identity for $\alpha$, as maps $((A \otimes B) \otimes C)
+\otimes D \to A \otimes (B \otimes (C \otimes D))$.
+\end{lemma}
+\begin{proof}
+By the quaternary \texttt{tensor\_ext4}: on $((w \otimes x) \otimes y)
+\otimes z$ both composites equal $w \otimes (x \otimes (y \otimes z))$,
+by repeated \texttt{tensor\_assocEp} and the bifunctor law
+\texttt{tensor\_morE}.
+\end{proof}
+
+\begin{lemma}[Braiding hexagon, paper Thm 5.15]\label{lem:hexagon}
+\rocq{Icones.homs.smcc.tensor\_hexagon}\rocqok
+\uses{def:struct-isos, lem:tensor-ext3}
+The hexagon identity for $\sigma$, as maps $(A \otimes B) \otimes C \to
+B \otimes (C \otimes A)$.
+\end{lemma}
+\begin{proof}
+By \autoref{lem:tensor-ext3}: on $(x \otimes y) \otimes z$ both
+composites equal $y \otimes (z \otimes x)$, by \texttt{tensor\_assocEp},
+\texttt{tensor\_braidEp} and \texttt{tensor\_morE}.
+\end{proof}
+
+\subsection{Theorem 5.15: $\ICones$ is symmetric monoidal closed}%
+\label{sec:thm515}
+
+\begin{theorem}[Paper Theorem 5.15]\label{thm:thm515}
+\rocq{Icones.homs.smcc.ICones\_smcc}\rocqok
+\uses{def:tensor-object, lem:tensor-mor-id, def:struct-isos,
+lem:braid-invol, lem:triangle, lem:pentagon, lem:hexagon, thm:thm512}
+$\ICones$ is a symmetric monoidal closed category. The structure is
+bundled in the record
+\rocq{Icones.homs.smcc.ICones\_SMCC}, whose canonical witness
+\rocq{Icones.homs.smcc.ICones\_smcc} populates every field with the
+proved data:
+\begin{itemize}
+  \item the monoidal product $\otimes$ (\texttt{tensor}) with bifunctor
+    action $\otimes$ on morphisms (\texttt{tensor\_mor}) and its
+    identity law (\texttt{tensor\_mor\_id}), and the unit $1 =
+    \texttt{cone\_one\_car}\,\Ar$;
+  \item the structural isos $\alpha/\lambda/\rho/\sigma$
+    (\autoref{def:struct-isos});
+  \item the symmetry law $\sigma \circ \sigma = \id$
+    (\autoref{lem:braid-invol}) and the triangle, pentagon and
+    braiding-hexagon coherence diagrams
+    (\autoref{lem:triangle}, \autoref{lem:pentagon},
+    \autoref{lem:hexagon});
+  \item closedness: the internal hom $\lin$ ($\texttt{linhom\_car}$)
+    with the Theorem~5.12 iso $(B \otimes C) \lin D \cong B \lin (C
+    \lin D)$ (\autoref{thm:thm512}).
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+Each field is one of the proved lemmas above; the bundle
+\rocq{Icones.homs.smcc.ICones\_smcc} just assembles them. The only
+unproved inputs are the staged structural isos and their computation
+laws (paper Eqs~5.2--5.4) and the universal property of $\otimes$,
+discharged with the rest of the SAFT contract.
+\end{proof}
+
+\section{Status}\label{sec:tensor-status}
+
+\paragraph{Delivered (mechanised modulo the interface).}
+The three prerequisites of \S5.3 are fully proved with no project
+axioms: isos in $\ICones$ with their groupoid structure
+(\rocq{Icones.homs.icones\_iso.icones\_iso}), the Def~3.13 test-pullback
+characterisation
+(\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas},
+\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas\_bivar},
+\rocq{Icones.mcones.test\_pullback.test\_pullback\_cont}), and the
+morphism-level internal-hom functor of Prop~5.8
+(\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones}, its one-sided
+actions, and functoriality). On top of the staging interface, the
+tensor theory of \S5.4 (the universal map $\tau$ and pure tensor, Eq~5.1,
+bifunctor identity law, Thm~5.12, the $\le$ half of Thm~5.13, and the
+binary/ternary/quaternary pure-tensor extensionality of Prop~5.14) and
+the SMC closed structure of \S5.5 (the structural isos, the
+\emph{proved} symmetry/triangle/pentagon/hexagon coherence, and the
+bundle \rocq{Icones.homs.smcc.ICones\_smcc} witnessing Theorem~5.15)
+are all mechanised --- with the substantive coherence content genuinely
+\Qed{}'d, not assumed.
+
+\paragraph{Staged (to be discharged by M-SAFT).}
+The deep representability content remains the $\approx 18$
+\texttt{Parameter}s of \texttt{theories/axioms/saft\_interface.v}
+(\S\ref{sec:tensor-staging}): the tensor object former
+(\rocq{Icones.axioms.saft\_interface.tensor}), the hom-bijection and its
+naturality (\rocq{Icones.axioms.saft\_interface.tensor\_curry},
+\rocq{Icones.axioms.saft\_interface.tensor\_uncurry},
+\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_post}),
+the Thm~5.12 iso (\rocq{Icones.axioms.saft\_interface.tensor\_hom\_iso}),
+the Thm~5.13 norm equation
+(\rocq{Icones.axioms.saft\_interface.tensor\_normM}), and the structural
+isos of Eqs~5.2--5.4
+(\rocq{Icones.axioms.saft\_interface.tensor\_assoc\_iso},
+\rocq{Icones.axioms.saft\_interface.tensor\_lunit\_iso},
+\rocq{Icones.axioms.saft\_interface.tensor\_runit\_iso},
+\rocq{Icones.axioms.saft\_interface.tensor\_braid\_iso}) with their
+computation laws. The plan
+(\texttt{PLAN.md} \S13.1, ``M-SAFT'') is to discharge every
+\texttt{Parameter} by proving the Special Adjoint Functor Theorem for
+$\ICones$, after which \texttt{saft\_interface.v} is deleted and the
+project returns to zero project axioms. The bifunctor composition law
+(\S\ref{sec:tensor-mor}) and the naturality of $\Phi$ in the $C$ slot
+(\S\ref{sec:tensor-staging}) are deferred together with the discharge.
+The MVP headline theorem (paper Theorem~6.5,
+Chapter~\ref{ch:skern}) is independent of this interface.
