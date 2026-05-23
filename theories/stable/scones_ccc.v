@@ -1250,4 +1250,249 @@ Proof. exact: (tm_incr_le (R:=R) (Q:=H) (curry_totmono_step h)). Qed.
 Lemma curry_app_totmono : is_totmono (curry_app h).
 Proof. by move=> n z w Hzw; exact: (curry_totmono_step h). Qed.
 
+(** Pairing a [D]-chain supremum with a fixed [B]-point [x] is the
+    [sprod]-supremum of the paired chain (the [D]-component varies, the
+    [B]-component is constant [x]).  Mirror of [sprod_pair_sup]. *)
+Lemma sprod_pair_sup_l (x : B) (u : nat -> D)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) (Hx : cone_norm x <= 1)
+    (pch : forall n, precone_le (sprod_pair (u n) x) (sprod_pair (u n.+1) x))
+    (pb1 : forall n, cone_norm (sprod_pair (u n) x) <= 1) :
+  sprod_pair (cone_sup_ball u uch ub1) x =
+  cone_sup_ball (fun n => sprod_pair (u n) x) pch pb1.
+Proof.
+set S := cone_sup_ball (fun n => sprod_pair (u n) x) pch pb1.
+have Efalse : cones_prod_val S false = x.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n.
+    by have ->: cones_prod_val (sprod_pair (u n) x) false = x by [];
+       exact: precone_le_refl.
+  - have KEY := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 0%N) false.
+    by move: KEY; have ->: cones_prod_val (sprod_pair (u 0%N) x) false = x by [].
+have Etrue : cones_prod_val S true = cone_sup_ball u uch ub1.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n.
+    have ->: cones_prod_val (sprod_pair (u n) x) true = u n by [].
+    exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => n.
+    have := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 n) true.
+    by have ->: cones_prod_val (sprod_pair (u n) x) true = u n by [].
+apply: cones_prod_eq => -[].
+- by rewrite Etrue.
+- by rewrite Efalse.
+Qed.
+
+(** ω-continuity of [curry_app h] on [B_D].  The image lands in
+    [B_{B⇒ₛC}], so the radius-aware target reduces to the [stablehom]
+    supremum [sh_sup] of the increasing unit-norm chain
+    [n ↦ curry_app h (uₙ)] ([sh_sup_ball_ub] / [sh_sup_ball_lub]).  The
+    identity [curry_app h (sup u) = sh_sup] is proved by [precone_le_anti]:
+    [≥] is [sh_sup_ball_lub] (each [curry_app (uₙ) ≤p curry_app (sup u)]
+    by [curry_app_incr]); [≤] is [sh_le_of_alt], whose pointwise and
+    alternating data are [h]'s ω-continuity / total monotonicity along
+    the [D]-chain [n ↦ ⟨uₙ, ·⟩] (paired by [sprod_pair_sup_l]). *)
+Lemma curry_app_scott : is_scott_continuous_unit (curry_app h).
+Proof.
+move=> Mf u uch ub1 fuch fubMf Mfpos.
+set S := cone_sup_ball u uch ub1.
+have HS1 : cone_norm S <= 1 by exact: cone_sup_ball_norm.
+(* chain / norm facts for [curry_app ∘ u]. *)
+have cch n : curry_app h (u n) <=p curry_app h (u n.+1) := fuch n.
+have cb1 n : sh_norm (curry_app h (u n)) <= 1 by exact: curry_app_norm.
+(* the [stablehom] supremum [sh_sup] of the [curry_app]-chain.  Proved
+   *pointwise* ([stablehom_eq]): on [B_B], [h(sup u, x) = supₖ h(uₖ, x)]
+   by [h]'s ω-continuity along the [D]-chain [n ↦ ⟨uₙ, x⟩]
+   ([sprod_pair_sup_l]); off [B_B] both maps vanish. *)
+have KEYle : curry_app h S = sh_sup cch cb1.
+  apply: stablehom_eq => x.
+  have [Hx | Hx] := boolP (cone_norm x <= 1); last first.
+    by rewrite (sh_offball (curry_app h S) x Hx) (sh_offball (sh_sup cch cb1) x Hx).
+  rewrite (curry_app_ball _ _ _ HS1 Hx).
+  have pch n : sprod_pair (u n) x <=p sprod_pair (u n.+1) x.
+    by apply: cones_prod_le_compI => -[];
+      rewrite ?sprod_fstE ?sprod_sndE; [exact: uch | exact: precone_le_refl].
+  have pb1 n : cone_norm (sprod_pair (u n) x) <= 1.
+    by apply: sprod_pair_norm_le1; [exact: ub1 | exact: Hx].
+  have [[_ _ Hhc] _] := sc_meas_stable h.
+  have hb1 n : cone_norm (sc_fun h (sprod_pair (u n) x)) <= 1.
+    exact: (sc_image_ball h (pb1 n)).
+  have hch n : sc_fun h (sprod_pair (u n) x) <=p
+               sc_fun h (sprod_pair (u n.+1) x).
+    have [[Hhm _ _] _] := sc_meas_stable h.
+    by apply: (tm_incr_le Hhm (pch n)); exact: pb1.
+  (* [h(sup u, x) = cone_sup_at (h ∘ ⟨uₙ, x⟩)] by [h]'s ω-continuity… *)
+  rewrite (sprod_pair_sup_l (x:=x) (u:=u) uch ub1 Hx pch pb1).
+  rewrite (Hhc 1%:nng (fun n => sprod_pair (u n) x) pch pb1 hch hb1 ltr01).
+  (* …and [sh_sup x = cone_sup_ball (sh_fun (curry_app uₙ) x)]. *)
+  have chx m : sh_fun (curry_app h (u m)) x <=p sh_fun (curry_app h (u m.+1)) x.
+    exact: sh_le_pointwise (cch m) x.
+  have b1x m : cnorm (sh_fun (curry_app h (u m)) x) <= 1.
+    by apply: le_trans (cb1 m); exact: sh_norm_ub _ _ Hx.
+  have -> : sh_sup cch cb1 x =
+      cone_sup_ball (fun m => sh_fun (curry_app h (u m)) x) chx b1x.
+    by rewrite /= (sh_sup_fun_unitE cch cb1 Hx chx b1x).
+  rewrite (@cone_sup_at_ball _ _ (fun n => sc_fun h (sprod_pair (u n) x))
+             hch hb1 hb1 ltr01).
+  apply: precone_le_anti; apply: cone_sup_ball_lub => n.
+  - apply: (precone_le_trans (y := sh_fun (curry_app h (u n)) x)).
+      by rewrite (curry_app_ball _ _ _ (ub1 n) Hx); exact: precone_le_refl.
+    exact: cone_sup_ball_ub.
+  - apply: (precone_le_trans (y := sc_fun h (sprod_pair (u n) x))).
+      by rewrite -(curry_app_ball _ _ _ (ub1 n) Hx); exact: precone_le_refl.
+    exact: cone_sup_ball_ub.
+(* assemble: [curry_app (sup u) = sh_sup] and reduce the radius-aware sup. *)
+rewrite KEYle.
+apply: precone_le_anti.
+- apply: (sh_sup_ball_lub _ cch cb1) => n.
+  exact: (cone_sup_at_ub fuch fubMf Mfpos n).
+- apply: cone_sup_at_lub => n.
+  exact: (sh_sup_ball_ub _ cch cb1 n).
+Qed.
+
+(** Path-preservation of [curry_app h] on [B_D] — Paper §7.4 (lines
+    6058–6074).  For a unit-ball [D]-path [δ], a test on [B ⇒ₛ C] is a
+    [sh_test β m] (paper [p = β ▷ m]), and [(s, r) ↦ p(s, curry_app(δ r))
+    = m(s, h(δ r, β s))].  The bivariate point [⟨δ∘π₂, β∘π₁⟩] is a
+    unit-ball [sprod D B]-path, which [h] (an [SCones] morphism)
+    preserves; precomposing with the swap gives joint measurability. *)
+Lemma curry_app_pres_path (X : ar_obj Ar) (δ : ar_carrier Ar X -> D) :
+  (forall r, cone_norm (δ r) <= 1) ->
+  is_measurable_path (Ar:=Ar) (C:=D) δ ->
+  is_measurable_path (Ar:=Ar) (C:=H) (fun r => curry_app h (δ r)).
+Proof.
+move=> Hδb Hδ; split; first by exists 1 => r; exact: curry_app_norm.
+move=> Y p pM.
+have [β [βub [m [mM ->]]]] := pM.
+(* The bivariate [sprod D B]-path [(s, r) ↦ ⟨δ r, β s⟩] over [ar_prod Y X]. *)
+pose β' : ar_carrier Ar Y -> B := path_fun β.
+have Hβ'b s : cone_norm (β' s) <= 1.
+  by apply: le_trans (path_norm_ub _ _) _; exact: βub.
+pose θ : ar_carrier Ar (ar_prod Ar Y X) -> SDB :=
+  fun q => sprod_pair (δ (ar_prod_snd Y X q)) (β' (ar_prod_fst Y X q)).
+have Hθb q : cone_norm (θ q) <= 1.
+  by apply: sprod_pair_norm_le1; [exact: Hδb | exact: Hβ'b].
+have Hθ : is_measurable_path (Ar:=Ar) (C:=SDB) θ.
+  split; first by exists 1.
+  move=> Z n nM.
+  have [i [n0 [n0M ->]]] := nM.
+  rewrite (_ : (fun q : (ar_carrier Ar Z * ar_carrier Ar (ar_prod Ar Y X))%type =>
+       iniTest i n0 q.1 (θ q.2))
+     = (fun q => test_fun n0 q.1 (cones_prod_val (θ q.2) i))); last first.
+    by apply: funext => q; rewrite /iniTest /= /iniTest_fun.
+  case: i n0 n0M => n0 n0M /=.
+  - (* [D]-component [δ ∘ π₂] : a path of [D]. *)
+    have HδZ : is_measurable_path (Ar:=Ar) (C:=D)
+        (fun q : ar_carrier Ar (ar_prod Ar Y X) => δ (ar_prod_snd Y X q)).
+      have [[Mδ HMδ] Hδm] := Hδ; split; first by exists Mδ.
+      move=> W q qM.
+      have := Hδm W q qM.
+      have Hsnd : measurable_fun
+        [set: ar_carrier Ar W * ar_carrier Ar (ar_prod Ar Y X)]
+        (fun t => (t.1, ar_prod_snd Y X t.2)).
+        apply: measurable_fun_pair; first exact: measurable_fst.
+        by apply: (measurableT_comp (f := ar_prod_snd Y X));
+           [exact: measurable_funP | exact: measurable_snd].
+      move=> Hbase.
+      rewrite (_ : (fun p0 : (ar_carrier Ar W *
+                              ar_carrier Ar (ar_prod Ar Y X))%type =>
+           q p0.1 (δ (ar_prod_snd Y X p0.2)))
+         = (fun p0 : (ar_carrier Ar W * ar_carrier Ar X)%type =>
+              q p0.1 (δ p0.2))
+           \o (fun t => (t.1, ar_prod_snd Y X t.2))); last by apply: funext.
+      apply: (measurable_comp
+        (F := [set: (ar_carrier Ar W * ar_carrier Ar X)%type]) measurableT).
+      + exact: subsetT.
+      + exact: Hbase.
+      + exact: Hsnd.
+    by have [_ HδZj] := HδZ; have := HδZj Z n0 n0M; apply: eq_measurable_fun.
+  - (* [B]-component [β ∘ π₁] : a path of [B]. *)
+    have HβZ : is_measurable_path (Ar:=Ar) (C:=B)
+        (fun q : ar_carrier Ar (ar_prod Ar Y X) => β' (ar_prod_fst Y X q)).
+      have [[Mβ HMβ] Hβm] := path_is_path β; split; first by exists Mβ.
+      move=> W q qM.
+      have := Hβm W q qM.
+      have Hfst : measurable_fun
+        [set: ar_carrier Ar W * ar_carrier Ar (ar_prod Ar Y X)]
+        (fun t => (t.1, ar_prod_fst Y X t.2)).
+        apply: measurable_fun_pair; first exact: measurable_fst.
+        by apply: (measurableT_comp (f := ar_prod_fst Y X));
+           [exact: measurable_funP | exact: measurable_snd].
+      move=> Hbase.
+      rewrite (_ : (fun p0 : (ar_carrier Ar W *
+                              ar_carrier Ar (ar_prod Ar Y X))%type =>
+           q p0.1 (β' (ar_prod_fst Y X p0.2)))
+         = (fun p0 : (ar_carrier Ar W * ar_carrier Ar Y)%type =>
+              q p0.1 (β' p0.2))
+           \o (fun t => (t.1, ar_prod_fst Y X t.2))); last by apply: funext.
+      apply: (measurable_comp
+        (F := [set: (ar_carrier Ar W * ar_carrier Ar Y)%type]) measurableT).
+      + exact: subsetT.
+      + exact: Hbase.
+      + exact: Hfst.
+    by have [_ HβZj] := HβZ; have := HβZj Z n0 n0M; apply: eq_measurable_fun.
+(* [h] preserves the bivariate path; specialise the joint measurability. *)
+have [_ Hhp] := sc_meas_stable h.
+have Hhθ := Hhp (ar_prod Ar Y X) θ Hθb Hθ.
+have [_ Hhθj] := Hhθ.
+have HJ := Hhθj Y m mM.
+(* Reindex [(s, r) ↦ (s, cast (s, r))] : the test-value matches. *)
+rewrite (_ : (fun p0 : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+       sh_test β βub m mM p0.1 (curry_app h (δ p0.2)))
+   = (fun t : (ar_carrier Ar Y * ar_carrier Ar (ar_prod Ar Y X))%type =>
+        test_fun m t.1 (sc_fun h (θ t.2)))
+     \o (fun q => (q.1, ar_prod_cast (q.1, q.2)))); last first.
+  apply: funext => q; rewrite /θ/= /sh_test/= /sh_test_fun.
+  rewrite /ar_prod_snd_fun /ar_prod_fst_fun !ar_prod_castK/=.
+  congr (test_fun m q.1 _).
+  exact: (curry_app_ball _ _ _ (Hδb q.2) (Hβ'b q.1)).
+apply: (measurable_comp
+  (F := [set: (ar_carrier Ar Y * ar_carrier Ar (ar_prod Ar Y X))%type]) measurableT).
+- exact: subsetT.
+- exact: HJ.
+- apply: measurable_fun_pair; first exact: measurable_fst.
+  apply: (measurableT_comp (ar_prod_cast_meas Ar Y X)).
+  by apply: measurable_fun_pair; [exact: measurable_fst | exact: measurable_snd].
+Qed.
+
+(** [curry_app h] is measurable-stable as a map [D → B ⇒ₛ C]. *)
+Lemma curry_app_meas_stable : is_meas_stable (curry_app h).
+Proof.
+split; first split.
+- exact: curry_app_totmono.
+- by exists 1 => z _; exact: curry_app_norm.
+- exact: curry_app_scott.
+- exact: curry_app_pres_path.
+Qed.
+
+(** The currying morphism, 0-extended off [B_D] via [sc_clamp]. *)
+Lemma curry_clamp_meas_stable : is_meas_stable (sc_clamp (curry_app h)).
+Proof. exact: sc_clamp_meas_stable curry_app_meas_stable. Qed.
+
+Lemma curry_norm_le1 : sc_norm (sc_clamp (curry_app h)) <= 1.
+Proof.
+apply: sc_norm_lub => z Hz; rewrite (sc_clamp_ball Hz).
+exact: curry_app_norm.
+Qed.
+
+(** Paper §7.4: [curry h : SCones(D, B ⇒ₛ C)]. *)
+Definition curry : scones_hom D (stablehom B C) :=
+  MkSconesHom (sc_clamp (curry_app h)) curry_clamp_meas_stable curry_norm_le1
+    (sc_clamp_offball_field _).
+
+(** On [B_D] (for [‖z‖ ≤ 1]) [curry h] computes to [curry_app h z]. *)
+Lemma curry_ball (z : D) :
+  cone_norm z <= 1 -> sc_fun curry z = curry_app h z.
+Proof. by move=> Hz; rewrite /curry /= (sc_clamp_ball Hz). Qed.
+
+(** The defining pointwise equation: on [B_D × B_B], [curry h z x =
+    h(z, x)]. *)
+Lemma curry_appE (z : D) (x : B) :
+  cone_norm z <= 1 -> cone_norm x <= 1 ->
+  sh_fun (sc_fun curry z) x = sc_fun h (sprod_pair z x).
+Proof. by move=> Hz Hx; rewrite (curry_ball Hz) (curry_app_ball _ _ _ Hz Hx). Qed.
+
 End Curry.
+
+Arguments curry {R Ar D B C} h.
+Arguments curry_ball {R Ar D B C} h z.
+Arguments curry_appE {R Ar D B C} h z x.
