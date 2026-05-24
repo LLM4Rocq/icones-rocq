@@ -229,3 +229,53 @@ End IConesIsoGroupoid.
 Arguments icones_iso_refl {R Ar}.
 Arguments icones_iso_sym {R Ar B C}.
 Arguments icones_iso_trans {R Ar B C D}.
+
+(** ** Object-Yoneda: a natural hom-bijection induces an iso — Lemma 1.1
+
+    Given, for every object [A], a bijection [psi A : ICones(A, X) →
+    ICones(A, Y)] with inverse [psiV A], whose round-trips [psiK]/[psiVK]
+    hold and which is *natural in [A]* (the "diagonal" naturality
+    [psi (g ∘ f) = (psi g) ∘ f], [psiV (g ∘ f) = (psiV g) ∘ f]), the
+    representing object morphisms [psi id_X : X → Y] and
+    [psiV id_Y : Y → X] assemble into an iso [X ≅ Y].  Crucially the
+    forward and backward morphisms are *outputs of the bijection* (hence
+    already [icones_hom]s), so no [icones_hom] structure obligation
+    arises here. *)
+
+Section YonedaIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ICone.type Ar.
+Variable psi : forall A : ICone.type Ar, icones_hom Ar A X -> icones_hom Ar A Y.
+Variable psiV : forall A : ICone.type Ar, icones_hom Ar A Y -> icones_hom Ar A X.
+Hypothesis psiK : forall (A : ICone.type Ar) (f : icones_hom Ar A X),
+  psiV (psi f) = f.
+Hypothesis psiVK : forall (A : ICone.type Ar) (g : icones_hom Ar A Y),
+  psi (psiV g) = g.
+Hypothesis psi_nat : forall (A A' : ICone.type Ar)
+  (f : icones_hom Ar A X) (g : icones_hom Ar A' A),
+  psi (icones_comp f g) = icones_comp (psi f) g.
+Hypothesis psiV_nat : forall (A A' : ICone.type Ar)
+  (f : icones_hom Ar A Y) (g : icones_hom Ar A' A),
+  psiV (icones_comp f g) = icones_comp (psiV f) g.
+
+Lemma yoneda_iso_fwdK :
+  icones_comp (psiV (icones_id Ar Y)) (psi (icones_id Ar X)) =
+  icones_id Ar X.
+Proof.
+by rewrite -psiV_nat icones_compIl psiK.
+Qed.
+
+Lemma yoneda_iso_bwdK :
+  icones_comp (psi (icones_id Ar X)) (psiV (icones_id Ar Y)) =
+  icones_id Ar Y.
+Proof.
+by rewrite -psi_nat icones_compIl psiVK.
+Qed.
+
+Definition yoneda_iso : icones_iso Ar X Y :=
+  icones_isoP (psi (icones_id Ar X)) (psiV (icones_id Ar Y))
+    yoneda_iso_fwdK yoneda_iso_bwdK.
+
+End YonedaIso.
+
+Arguments yoneda_iso {R Ar X Y}.
