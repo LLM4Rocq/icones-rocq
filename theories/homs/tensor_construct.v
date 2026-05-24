@@ -199,6 +199,7 @@ Definition fs_sub (k : fsub) : icones_subobject p :=
   | MkFsub A h hinj eA Hf => MkSubobject A h hinj
   end.
 
+
 (** The basepoint subobject [(p, id_p, e_B)], which factors [e_B]
     trivially ([C ⊸ id = id]) and is a mono ([id] is injective). *)
 Lemma fk0_fact :
@@ -243,6 +244,14 @@ Definition fpick (s : fK) : fsub :=
     chosen representatives. *)
 Definition fAdom (s : fK) : ICone.type Ar := fs_dom (fpick s).
 Definition fhh (s : fK) : icones_hom Ar (fAdom s) p := fs_hom (fpick s).
+
+(** Each chosen representative's embedding is a mono.  Destructured via
+    [match] (as [fs_sub]) so the [fs_inj] projector's [injective]
+    arguments do not leak. *)
+Definition fhh_inj (s : fK) : is_icones_inj (fhh s) :=
+  match fpick s as k return is_icones_inj (fs_hom k) with
+  | MkFsub A h hinj eA Hf => hinj
+  end.
 
 (** The basepoint index: the classifier value of [fbase].  Its chosen
     representative [fpick fk0] is a factoring subobject (it factors
@@ -290,7 +299,9 @@ Arguments fsub {R Ar} B C.
 Arguments fK {R Ar B C}.
 Arguments fAdom {R Ar B C}.
 Arguments fhh {R Ar B C}.
+Arguments fhh_inj {R Ar B C}.
 Arguments fk0 {R Ar B C}.
+Arguments fs_sub {R Ar B C}.
 Arguments fpick {R Ar B C}.
 Arguments fpick_fact {R Ar B C}.
 Arguments tensor {R Ar} B C.
@@ -488,64 +499,392 @@ Arguments tensor_curryE {R Ar B C D}.
 Arguments tensor_curry_natural_post {R Ar B C D D'}.
 Arguments tensor_curry_natural_D {R Ar B C D D'}.
 
+(** ** [tensor_uncurry] — the SAFT comma-category mediator (Riehl 4.6.11)
+
+    Given [g : B → C ⊸ D], we build the unique [tensor_uncurry g :
+    B ⊗ C → D] with [(C ⊸ uncurry g) ∘ tau' = g] by the
+    coseparator-power reindexing of PLAN §13.2.
+
+    Write [1 = cone_one_car Ar].  Form the coseparator power of [D],
+    [q D := 1^{ICones(D,1)}], with its canonical mono
+    [GammaD : D ↪ q D] ([GammaD d . n = n d], a mono since [1]
+    cogenerates — Phase A.3 [icones_coseparator_inj]).  Reindex the
+    power [p = 1^J] of [B ⊗ C] to [q D] along
+    [θ : ICones(D,1) → J, n ↦ (C ⊸ n) ∘ g], giving [P : p → q D] with
+    [P x . n = x . (θ n)].  The square
+    [(C ⊸ P) ∘ eB = (C ⊸ GammaD) ∘ g] commutes (both send [b,c,n] to
+    [n (g b c)]) — this is the pullback datum.
+
+    Pull [GammaD] back along [P]: [Dsub := pb_obj P GammaD] (the
+    equaliser [{(x,d) | P x = GammaD d}]), with embedding [pb_incl :
+    Dsub → p] and projection [pb_proj2 : Dsub → D].  The square lets
+    [eB], [g] co-restrict (through [C ⊸ −], which preserves the
+    pullback equaliser) to [eA : B → C ⊸ Dsub] with
+    [(C ⊸ pb_incl) ∘ eA = eB] — so [(Dsub, pb_incl, eA)] is a member
+    of the factoring family.  Hence the intersection embedding
+    [tensor_incl] factors through it; the [D]-leg of that factor is the
+    point map of [tensor_uncurry g]. *)
+
+(** [C ⊸ −] preserves monos: if [h] is injective so is
+    [linhom_post_icones h].  Pointwise, [(C ⊸ h) f = h ∘ f], so
+    [h ∘ f₁ = h ∘ f₂] gives [f₁ = f₂] by injectivity of [h] and
+    [linhom_eq]. *)
+Lemma linhom_post_inj (R : realType) (Ar : MeasSubcat R)
+    (C D1 D2 : ICone.type Ar) (h : icones_hom Ar D1 D2) :
+  is_icones_inj h -> is_icones_inj (linhom_post_icones (C := C) h).
+Proof.
+move=> hinj f1 f2 /(congr1 (fun w : linhom_car Ar C D2 => linhom_fun w)) /= Hf.
+apply: linhom_eq => x; apply: hinj.
+by have := f_equal (fun w => w x) Hf.
+Qed.
+
+Arguments linhom_post_inj {R Ar C D1 D2} h.
+
+Section TensorUncurry.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+Local Notation Cone1 := (cone_one_car Ar).
+Local Notation p := (tp B C).
+
+Variable g : icones_hom Ar B (linhom_car Ar C D).
+
+(** The index of [q D]: the homset [ICones(D, 1)]. *)
+Definition tN : Type := icones_hom Ar D Cone1.
+
+(** The coseparator power [q D = 1^{ICones(D,1)}]. *)
+Definition tqfam (_ : tN) : ICone.type Ar := Cone1.
+Definition tq : ICone.type Ar := icones_prod tqfam.
+
+(** The canonical mono [GammaD : D → q D], [GammaD d . n = n d]. *)
+Definition GammaD : icones_hom Ar D tq :=
+  icones_tuple (B := tqfam) (fun n : tN => n).
+
+Lemma GammaDE (d : D) (n : tN) :
+  cones_prod_val ((GammaD : icones_hom _ _ _) d) n = (n : icones_hom _ _ _) d.
+Proof.
+have := icones_tuple_proj (B := tqfam) (fun n0 : tN => n0) n.
+by move/(congr1 (fun w : icones_hom Ar D Cone1 => (w : icones_hom _ _ _) d)).
+Qed.
+
+(** [GammaD] is a mono ([1] cogenerates). *)
+Lemma GammaD_inj : is_icones_inj GammaD.
+Proof.
+move=> x y /(congr1 (fun z : tq => cones_prod_val z)) /= Hxy.
+apply: icones_coseparator_inj => n.
+by have := f_equal (fun w => w n) Hxy.
+Qed.
+
+(** The reindexing map [θ : ICones(D,1) → J = ICones(B, C ⊸ 1)],
+    [θ n = (C ⊸ n) ∘ g]. *)
+Definition tθ (n : tN) : tJ B C :=
+  icones_comp (linhom_post_icones (C := C) n) g.
+
+(** The reindex projection [P : p → q D], [P x . n = x . (θ n)]. *)
+Definition tP : icones_hom Ar p tq :=
+  icones_tuple (B := tqfam) (fun n : tN => icones_proj (tθ n)).
+
+Lemma tPE (x : p) (n : tN) :
+  cones_prod_val ((tP : icones_hom _ _ _) x) n = cones_prod_val x (tθ n).
+Proof. by []. Qed.
+
+(** The pullback datum — the commuting square
+    [(C ⊸ P) ∘ eB = (C ⊸ GammaD) ∘ g].  Pointwise at [b, c], both
+    sides are the element of [C ⊸ q D] whose [n]-component is
+    [n (g b c)]: LHS via [eBE] ([eB b c . j = j b c]) and [tPE]
+    ([θ n = (C ⊸ n) ∘ g], so [eB b c . θ n = n (g b c)]); RHS via
+    [GammaDE]. *)
+Lemma tP_square :
+  icones_comp (linhom_post_icones (C := C) tP) (eB B C) =
+  icones_comp (linhom_post_icones (C := C) GammaD) g.
+Proof.
+apply: icones_hom_eq => b /=.
+apply: linhom_eq => c.
+rewrite !linhom_map_funE /=.
+apply: cones_prod_eq => n.
+rewrite tPE eBE.
+rewrite GammaDE.
+by rewrite /tθ /= linhom_map_funE /=.
+Qed.
+
+(** *** The pullback [Dsub = pb_obj P GammaD] and its [p]-subobject *)
+
+Local Notation Dsub := (pb_obj tP GammaD).
+
+(** [Dsub ↪ p] is [pb_proj1] (the [p]-leg of the pullback of the mono
+    [GammaD]); [pb_proj2 : Dsub → D] is the other leg. *)
+Local Notation Dincl := (pb_proj1 tP GammaD).
+Local Notation Dpr := (pb_proj2 tP GammaD).
+
+(** [Dincl] is a mono: if [Dincl a = Dincl b] then [P (Dincl a) =
+    P (Dincl b)], so by the pullback square [GammaD (Dpr a) =
+    GammaD (Dpr b)], whence [Dpr a = Dpr b] ([GammaD] mono); agreeing
+    on both projections of the product-equaliser forces [a = b]. *)
+Lemma Dincl_inj : is_icones_inj Dincl.
+Proof.
+have Hsq := pb_square tP GammaD.
+move=> a b Hab.
+have Hsqpt : forall z : Dsub,
+    (tP : icones_hom _ _ _) ((Dincl : icones_hom _ _ _) z) =
+    (GammaD : icones_hom _ _ _) ((Dpr : icones_hom _ _ _) z).
+  by move=> z;
+    have := f_equal
+      (fun w : icones_hom Ar Dsub tq => (w : icones_hom _ _ _) z) Hsq.
+have Hpr2 : (Dpr : icones_hom _ _ _) a = (Dpr : icones_hom _ _ _) b.
+  by apply: GammaD_inj; rewrite -!Hsqpt Hab.
+(* [Dsub = icones_eq …]; equal iff [eq_incl] (into [pb_prod]) agree,
+   iff both bool-components agree. *)
+apply: (icones_eq_incl_inj (pb_left D tP) (pb_right p GammaD)).
+apply: cones_prod_eq; case.
+- exact: Hab.
+- exact: Hpr2.
+Qed.
+
+(** *** Co-restricting [eB] and [g] to [C ⊸ Dsub]
+
+    [Dsub] is the equaliser of [pb_left = P ∘ π₁] and
+    [pb_right = GammaD ∘ π₂] on [pb_prod = p ×_bool D].  As [C ⊸ −]
+    preserves it, the map [eAprod : B → C ⊸ pb_prod] tupling [eB]
+    (at [true]) and [g] (at [false]) — built through
+    [limpl_preserves_prod] — co-restricts to [eA : B → C ⊸ Dsub]. *)
+
+(** The [bool]-family tuple [⟨ eB, g ⟩ : B → ∏_b (C ⊸ pb_fam b)]. *)
+Definition eAtupfam (b : bool) :
+    icones_hom Ar B (linhom_car Ar C (pb_fam p D b)) :=
+  if b as b' return icones_hom Ar B (linhom_car Ar C (pb_fam p D b'))
+  then eB B C else g.
+
+Definition eAtup :
+    icones_hom Ar B (icones_prod (fun b => linhom_car Ar C (pb_fam p D b))) :=
+  icones_tuple (B := fun b => linhom_car Ar C (pb_fam p D b)) eAtupfam.
+
+(** Transport back to [C ⊸ pb_prod] through Thm 5.9. *)
+Definition eAprod : icones_hom Ar B (linhom_car Ar C (pb_prod p D)) :=
+  icones_comp (iso_bwd (limpl_preserves_prod C (pb_fam p D))) eAtup.
+
+(** Pointwise component value of [eAprod]:
+    [eAprod b c . b' = (if b' then eB b c else g b c) . b']. *)
+Lemma eAprodE (b : B) (c : C) (b' : bool) :
+  cones_prod_val (linhom_fun ((eAprod : icones_hom _ _ _) b) c) b' =
+  linhom_fun ((eAtupfam b' : icones_hom _ _ _) b) c.
+Proof. by rewrite /eAprod /=. Qed.
+
+(** [(C ⊸ π_b) ∘ eAprod = eAtupfam b]: the [true]/[false] components
+    of [eAprod] are [eB] / [g]. *)
+Lemma eAprod_pi (b' : bool) :
+  icones_comp (linhom_post_icones (C := C) (icones_proj (B := pb_fam p D) b'))
+              eAprod = eAtupfam b'.
+Proof.
+apply: icones_hom_eq => b /=.
+apply: linhom_eq => c.
+by rewrite linhom_map_funE /=.
+Qed.
+
+(** [eAprod] equalises [C ⊸ pb_left] and [C ⊸ pb_right]: both reduce,
+    via [eAprod_pi], to [(C ⊸ P) ∘ eB] resp. [(C ⊸ GammaD) ∘ g], equal
+    by [tP_square]. *)
+Lemma eAprod_equ :
+  icones_comp (linhom_post_icones (C := C) (pb_left D tP)) eAprod =
+  icones_comp (linhom_post_icones (C := C) (pb_right p GammaD)) eAprod.
+Proof.
+rewrite /pb_left /pb_right /pb_pi1 /pb_pi2.
+rewrite !linhom_post_comp -!icones_compA.
+rewrite (eAprod_pi true) (eAprod_pi false).
+exact: tP_square.
+Qed.
+
+(** The co-restriction [eA : B → C ⊸ Dsub]. *)
+Definition eA : icones_hom Ar B (linhom_car Ar C Dsub) :=
+  limpl_eq_med_icones C eAprod eAprod_equ.
+
+(** [(C ⊸ eq_incl) ∘ eA = eAprod]. *)
+Lemma eA_eq_incl :
+  icones_comp (linhom_post_icones (C := C)
+                 (icones_eq_incl (pb_left D tP) (pb_right p GammaD))) eA =
+  eAprod.
+Proof. exact: (limpl_eq_med_factor C eAprod eAprod_equ). Qed.
+
+(** The factoring witness of the family member [(Dsub, Dincl, eA)]:
+    [(C ⊸ Dincl) ∘ eA = eB].  [Dincl = π₁ ∘ eq_incl], and
+    [(C ⊸ π₁) ∘ eAprod = eB] by [eAprod_pi true]. *)
+Lemma eA_fact :
+  icones_comp (linhom_post_icones (C := C) Dincl) eA = eB B C.
+Proof.
+rewrite /pb_proj1 /pb_pi1 linhom_post_comp -icones_compA eA_eq_incl.
+exact: (eAprod_pi true).
+Qed.
+
+(** The family member [(Dsub, Dincl, eA)] as an [fsub]. *)
+Definition Dfsub : fsub B C :=
+  {| fs_dom := Dsub; fs_hom := Dincl; fs_inj := Dincl_inj;
+     fs_eA := eA; fs_fact := eA_fact |}.
+
+(** *** [tensor_uncurry g] via the intersection's factoring property
+
+    Let [s := class(Dsub, Dincl)].  The chosen representative
+    [fpick s] has the same classifier, hence is iso *over [p]* to
+    [(Dsub, Dincl)] ([icones_subobject_classP]): an iso [φ : fAdom s ≅
+    Dsub] with [Dincl ∘ φ = fhh s].  The intersection embedding
+    [tensor_incl] factors through [fhh s] ([wi_factors_each]); composing
+    with [φ] then [pb_proj2] gives the [D]-valued point map. *)
+
+Definition Ds : fK := icones_subobject_class (fs_sub Dfsub).
+
+(** The subobjects (in [fs_dom]-projection form, so the resulting iso
+    has the [fAdom Ds] / [Dsub] domains [tu_factor] needs): the chosen
+    representative [(fAdom Ds, fhh Ds)] and the pullback [(Dsub, Dincl)]. *)
+Local Notation SubA :=
+  (@MkSubobject R Ar p (fAdom Ds) (fhh Ds) (fhh_inj Ds)).
+Local Notation SubDp :=
+  (@MkSubobject R Ar p Dsub Dincl Dincl_inj).
+
+(** Both have classifier [Ds]: [SubDp] by definition of [Ds] (via
+    [fs_subE] on the constructor [Dfsub]); [SubA] because [fpick Ds]
+    has classifier [Ds] (defining property of [fpick] when a witness —
+    here [Dfsub] — exists) and [fs_subE] reads off its projections. *)
+Lemma SubA_class : icones_subobject_class SubA = Ds.
+Proof.
+(* The chosen representative [fpick Ds] has classifier [Ds] (a witness
+   exists: [Dfsub]). *)
+have HpD : icones_subobject_class (fs_sub (fpick Ds)) = Ds.
+  rewrite /fpick; case: pselect => [e|[]]; last by exists Dfsub.
+  by case: (cid e) => k /= ->.
+(* [SubA = fs_sub (fpick Ds)]: casing the representative makes both
+   sides [MkSubobject A h hinj]. *)
+rewrite -[in RHS]HpD; congr icones_subobject_class.
+by rewrite /fAdom /fhh /fhh_inj /fs_sub; case: (fpick Ds).
+Qed.
+
+(** The two subobjects are iso *over [p]*: [SubDp] has classifier [Ds]
+    by definition ([fs_sub Dfsub] reduces, [Dfsub] being a constructor);
+    [SubA] by [SubA_class]. *)
+Lemma Ds_equiv : subobject_equiv SubA SubDp.
+Proof. by apply: icones_subobject_classP; rewrite SubA_class. Qed.
+
+(** The iso [φ : fAdom Ds ≅ Dsub] over [p]
+    ([Dincl ∘ iso_fwd φ = fhh Ds]). *)
+Definition Dphi : icones_iso Ar (fAdom Ds) Dsub := proj1_sig (cid Ds_equiv).
+
+Lemma DphiE (z : fAdom Ds) :
+  (Dincl : icones_hom _ _ _) ((iso_fwd Dphi : icones_hom _ _ _) z) =
+  (fhh Ds : icones_hom _ _ _) z.
+Proof. exact: proj2_sig (cid Ds_equiv) z. Qed.
+
+(** The factor of [tensor_incl] through [Dincl]:
+    [tensor B C → Dsub], [= iso_fwd φ ∘ wi_proj Ds]. *)
+Definition tu_factor : icones_hom Ar (tensor B C) Dsub :=
+  icones_comp (iso_fwd Dphi) (wi_proj fAdom fhh fk0 Ds).
+
+(** [Dincl ∘ tu_factor = tensor_incl]: [tensor_incl] factors through
+    [fhh Ds] ([wi_factors_each]) and [Dincl ∘ iso_fwd φ = fhh Ds]
+    ([DphiE]). *)
+Lemma tu_factorP :
+  icones_comp Dincl tu_factor = tensor_incl B C.
+Proof.
+rewrite /tu_factor icones_compA.
+have HDphi : icones_comp Dincl (iso_fwd Dphi) = fhh Ds.
+  by apply: icones_hom_eq => z /=; exact: DphiE.
+rewrite HDphi.
+rewrite -[tensor_incl B C]/(wi_incl fAdom fhh fk0).
+exact: (@wi_factors_each R Ar fK p fAdom fhh fk0 Ds).
+Qed.
+
+(** The SAFT mediator [tensor_uncurry g : B ⊗ C → D]. *)
+Definition tensor_uncurry : icones_hom Ar (tensor B C) D :=
+  icones_comp Dpr tu_factor.
+
+(** The [D]-leg factoring witness: [(C ⊸ Dpr) ∘ eA = g] ([Dpr =
+    π₂ ∘ eq_incl] and the [false]-component of [eAprod] is [g]). *)
+Lemma eA_pr_fact :
+  icones_comp (linhom_post_icones (C := C) Dpr) eA = g.
+Proof.
+rewrite /pb_proj2 /pb_pi2 linhom_post_comp -icones_compA eA_eq_incl.
+exact: (eAprod_pi false).
+Qed.
+
+(** *** [tensor_uncurryK] : [tensor_curry (tensor_uncurry g) = g]
+
+    The defining factorisation.  Let [w := (C ⊸ tu_factor) ∘ tau'].
+    Then [(C ⊸ Dincl) ∘ w = (C ⊸ tensor_incl) ∘ tau' = eB] ([tu_factorP],
+    [tau'_def]); and [(C ⊸ Dincl) ∘ eA = eB] ([eA_fact]).  As [C ⊸ Dincl]
+    is a mono ([linhom_post_inj] of the pullback mono [Dincl]), [w = eA].
+    Hence [tensor_curry (tensor_uncurry g) = (C ⊸ Dpr) ∘ w =
+    (C ⊸ Dpr) ∘ eA = g] ([eA_pr_fact]). *)
+Lemma tensor_uncurryK : tensor_curry tensor_uncurry = g.
+Proof.
+pose w := icones_comp (linhom_post_icones (C := C) tu_factor) (tau' B C).
+have Hw_Dincl : icones_comp (linhom_post_icones (C := C) Dincl) w = eB B C.
+  rewrite /w icones_compA -linhom_post_comp.
+  rewrite -[icones_comp Dincl tu_factor]/(icones_comp Dincl tu_factor).
+  rewrite tu_factorP.
+  exact: tau'_def.
+have Hwe : w = eA.
+  have Hmono := icones_inj_mono (linhom_post_icones (C := C) Dincl)
+                  (linhom_post_inj (C := C) Dincl Dincl_inj).
+  apply: (Hmono B w eA).
+  by rewrite Hw_Dincl eA_fact.
+rewrite /tensor_curry /tensor_uncurry linhom_post_comp -icones_compA -/w.
+by rewrite Hwe eA_pr_fact.
+Qed.
+
+End TensorUncurry.
+
+Arguments tensor_uncurry {R Ar B C D}.
+Arguments tensor_uncurryK {R Ar B C D}.
+
 (**md**************************************************************************)
-(* # REMAINING GAP — [tensor_uncurry] + the round-trips + naturality in [B]   *)
+(* # STATUS — [tensor_uncurry] BUILT; round-trip [tensor_uncurryK] PROVED      *)
 (*                                                                            *)
 (* What this file PROVES, axiom-clean (only the three classical [boolp]       *)
 (* axioms; NO project [Axiom]/[Parameter]/[Admitted]; verified by             *)
-(* [Print Assumptions]):                                                       *)
+(* [Print Assumptions tensor_uncurryK] = {propositional_extensionality,       *)
+(* functional_extensionality_dep, constructive_indefinite_description}):       *)
 (*                                                                            *)
-(*   - [tensor B C := wi_obj …] (Definition), the SAFT wide intersection of   *)
-(*     the factoring family of subobjects of the coseparator power [p = 1^J]. *)
-(*   - [eB], the universal map [B → C ⊸ p].                                   *)
-(*   - [tau' : B → C ⊸ (B ⊗ C)] (the single hardest step), the universal      *)
-(*     element, by co-restricting [eB] through [C ⊸ (eq-incl)] via            *)
-(*     [limpl_eq_med]; its defining factorisation [tau'_def] :                *)
-(*     [(C ⊸ tensor_incl) ∘ tau' = eB].                                       *)
-(*   - [tensor_curry f := (C ⊸ f) ∘ tau'] + [tensor_curryE] (Eq 5.1).         *)
-(*   - [tensor_curry_natural_post] / [tensor_curry_natural_D] (naturality of  *)
-(*     [Φ] in [D]).                                                            *)
+(*   - [tensor B C := wi_obj …], [eB], [tau'] + [tau'_def], [tensor_curry] +   *)
+(*     [tensor_curryE], [tensor_curry_natural_post] / [_D] (as before).        *)
+(*   - [tensor_uncurry g : B ⊗ C → D] — the SAFT comma-category mediator,      *)
+(*     BUILT by the coseparator-power reindexing (Riehl 4.6.11): the          *)
+(*     canonical mono [GammaD : D ↪ q := 1^{ICones(D,1)}] ([GammaD_inj] from   *)
+(*     Phase A [icones_coseparator_inj]), the reindex [P : p → q] along        *)
+(*     [n ↦ (C ⊸ n) ∘ g], the pullback [Dsub := pb_obj P GammaD] (its         *)
+(*     [p]-leg [Dincl] a mono, [Dincl_inj]), the co-restriction [eA :          *)
+(*     B → C ⊸ Dsub] of [eB]/[g] through the preserved equaliser              *)
+(*     ([eA_fact] : [(C ⊸ Dincl) ∘ eA = eB]) making [(Dsub, Dincl, eA)] a      *)
+(*     factoring-family member, and the classifier transport ([Ds_equiv] via  *)
+(*     [icones_subobject_classP]) so [tensor_incl] factors through [Dincl]     *)
+(*     ([tu_factorP]); [tensor_uncurry g := Dpr ∘ tu_factor].                  *)
+(*   - [tensor_uncurryK] : [tensor_curry (tensor_uncurry g) = g] — the         *)
+(*     defining factorisation, via [C ⊸ Dincl] mono ([linhom_post_inj]) so     *)
+(*     [(C ⊸ tu_factor) ∘ tau' = eA], then [(C ⊸ Dpr) ∘ eA = g] ([eA_pr_fact]).*)
 (*                                                                            *)
-(* What REMAINS — [tensor_uncurry], hence [tensor_curryK] / [tensor_uncurryK] *)
-(* / [tensor_curry_natural_B] (all of which presuppose [tensor_uncurry]):     *)
+(* What REMAINS — [tensor_curryK] and [tensor_curry_natural_B]:                *)
 (*                                                                            *)
-(*  (U1) THE COMMA-CATEGORY EXISTENCE STEP.  [tensor_uncurry g : B ⊗ C → D]   *)
-(*       for [g : B → C ⊸ D] is the unique mediator with                      *)
-(*       [(C ⊸ tensor_uncurry g) ∘ tau' = g] — the initiality of [(B⊗C, tau')]*)
-(*       in the comma category [B ↓ (C ⊸ −)].  Its EXISTENCE is the SAFT      *)
-(*       solution-set step (Riehl 4.6.10/4.6.11).  The exported               *)
-(*       [representable.v] API gives maps INTO the intersection ([wi_med]) and *)
-(*       maps to family MEMBERS ([wi_proj]) — but NO map from the intersection*)
-(*       to an arbitrary object [D].  A single [wi_proj] cannot be it: making *)
-(*       [(D, g)] a family member needs [h_g : D → p] with                    *)
-(*       [(C ⊸ h_g) ∘ g = e_B], i.e. for EVERY [j ∈ J = ICones(B, C ⊸ 1)] a   *)
-(*       map [n_j : D → 1] with [(C ⊸ n_j) ∘ g = j].  This holds only when    *)
-(*       every [j] factors through [g] by post-composition (g "epi-like"),    *)
-(*       which is false for general [g].                                       *)
-(*                                                                            *)
-(*       The correct SAFT existence uses the COSEPARATOR-POWER REINDEXING:    *)
-(*       build [q := 1^{ICones(D,1)}], the canonical mono [Γ : D ↪ q]         *)
-(*       ([Γ d = (n ↦ n d)], a mono since [1] coseparates), and the reindex   *)
-(*       projection [P : p → q] along [ICones(D,1) → J, n ↦ (C ⊸ n) ∘ g];     *)
-(*       then prove [P ∘ tensor_incl : B ⊗ C → q] factors through [Γ], the    *)
-(*       factor being [tensor_uncurry g].  That factorisation argument        *)
-(*       (image of [B ⊗ C] lands in [Γ(D)]) is itself a separate, substantial *)
-(*       lemma — it needs [B ⊗ C]'s minimality among factoring subobjects of  *)
-(*       [q] reindexed from [p] — and is NOT reachable from the current       *)
-(*       [wi_obj]/[wi_proj]/[wi_med] interface; it is a follow-up milestone.   *)
-(*                                                                            *)
-(*  (U2) UNIVERSE NOTE.  [tensor] here indexes the wide intersection by the   *)
-(*       *small* [SubobjClassifier p] (with a classical choice of             *)
-(*       representative), because [wi_obj]'s index [K : Type] is              *)
-(*       monomorphically bounded below the cone universe in the frozen        *)
-(*       [representable.v] (so the proper-class [fsub] record, which packs an *)
-(*       [ICone.type Ar], cannot index it directly).  The classifier-indexed  *)
-(*       family is correct up to iso by well-poweredness                      *)
-(*       ([icones_subobject_classP]); the [tau'] co-restriction needs only    *)
-(*       that every chosen representative factors [e_B] ([fpick_fact]).        *)
-(*       Fully discharging (U1) on this index will additionally require        *)
-(*       relating the chosen representatives to their classifier values       *)
-(*       (the forced-map machinery of [representable.v]).                      *)
+(*  (U1) [tensor_curryK] : [tensor_uncurry (tensor_curry f) = f] is EQUIVALENT *)
+(*       to *injectivity of [tensor_curry]* (given [tensor_uncurryK]:          *)
+(*       [tensor_curry (tensor_uncurry (tensor_curry f)) = tensor_curry f], so *)
+(*       [tensor_uncurry (tensor_curry f) = f] iff [tensor_curry] is mono).    *)
+(*       By the coseparator [GammaD] (cod [D]) and the component law           *)
+(*       [π_n ∘ GammaD = n], injectivity of [tensor_curry] reduces to the      *)
+(*       codomain-[1] case: for [h₁ h₂ : B ⊗ C → 1],                           *)
+(*         [tensor_curry h₁ = tensor_curry h₂  ⟹  h₁ = h₂].                    *)
+(*       Equivalently (taking [j := tensor_curry h]) the UNIVERSAL-ELEMENT      *)
+(*       RECOVERY identity                                                     *)
+(*         [π_j ∘ tensor_incl = h    whenever    tensor_curry h = j],          *)
+(*       i.e. the [j]-component of the intersection embedding reproduces the   *)
+(*       map [h] whose curry is [j].  This holds on the IMAGE of [tau']        *)
+(*       ([tensor_incl (tau' b c) . j = j b c], from [tau'_def]+[eBE]) but     *)
+(*       its extension to ALL of [B ⊗ C] is exactly the *faithfulness* /       *)
+(*       minimality half of SAFT representability: that [tau'] is jointly      *)
+(*       epic, i.e. the universal element generates [B ⊗ C].  The exported     *)
+(*       [representable.v] [wi_*] interface gives maps INTO the intersection   *)
+(*       ([wi_med]) and FACTORING through members ([wi_factors_each]) — but no *)
+(*       "maps OUT of the intersection are determined by [tau']" principle.    *)
+(*       Supplying that (a [wi_proj]-jointly-mono / generation lemma in        *)
+(*       [representable.v], or a direct density argument that the sub-cone     *)
+(*       generated by [tau']'s image is all of [B ⊗ C]) closes both [U1] and   *)
+(*       [tensor_curry_natural_B] (the latter is then routine — define         *)
+(*       [tensor_mor_l u := tensor_uncurry (icones_comp tau' u)] and use       *)
+(*       [tensor_uncurryK]).                                                   *)
 (******************************************************************************)
 
 End Icones_tensor_construct.
