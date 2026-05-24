@@ -213,6 +213,76 @@ rewrite !tensor_curryE.
 exact: Hfg.
 Qed.
 
+(** ** Paper Lemma [tens-excl-equal-charact] — the [n=3] case
+
+    Two linear maps [f g : !A ⊗ (!B ⊗ !C) → C0] agreeing on every
+    promoted pure tensor [x! ⊗ (y! ⊗ z!)] (for [‖x‖,‖y‖,‖z‖ ≤ 1]) are
+    equal.  This is the instance of the general-[n] paper lemma needed by
+    the monoidal-functor *associativity* coherence (one outer [!A], an
+    inner [!B ⊗ !C]).
+
+    Proof (the paper's induction, [n=3] unfolded — exactly one more
+    currying layer than [tens_excl_charact]).  Curry off the OUTER [!A]
+    with [tensor_curry_inj]; by [bang_ext] it suffices that the curried
+    images agree at every [x!] ([‖x‖ ≤ 1]), as [linhom_car]s out of the
+    inner tensor [!B ⊗ !C].  These are norm-[≤1] (the curried map [F] is
+    norm-[≤1], evaluated at the unit-ball point [x!]); package each as an
+    [icones_hom] via [linhom_icones] and discharge by the [n=2]
+    [tens_excl_charact] on [!B ⊗ !C], using [linhom_iconesE]/[tensor_curryE]
+    to turn agreement on [y! ⊗ z!] back into the hypothesis. *)
+Lemma tens_excl_charact3 (A B C C0 : ICone.type Ar)
+    (f g : icones_hom Ar (Bang Ar A ⊗ (Bang Ar B ⊗ Bang Ar C)) C0) :
+  (forall (x : A) (y : B) (z : C),
+     cone_norm x <= 1 -> cone_norm y <= 1 -> cone_norm z <= 1 ->
+     Lfun f (x! ⊗p (y! ⊗p z!)) = Lfun g (x! ⊗p (y! ⊗p z!))) ->
+  f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: bang_ext => x Hx.
+have Hnf : cone_norm (Lfun (tensor_curry f) x!) <= 1.
+  exact: (le_trans (cones_hom_norm_le1 _ x!) (prom_ball Hx)).
+have Hng : cone_norm (Lfun (tensor_curry g) x!) <= 1.
+  exact: (le_trans (cones_hom_norm_le1 _ x!) (prom_ball Hx)).
+have Heq : linhom_icones Hnf = linhom_icones Hng.
+  apply: tens_excl_charact => y z Hy Hz.
+  rewrite (linhom_iconesE Hnf (y! ⊗p z!)) (linhom_iconesE Hng (y! ⊗p z!)).
+  rewrite !tensor_curryE.
+  exact: Hfg.
+apply: linhom_eq => w.
+by rewrite -(linhom_iconesE Hnf w) -(linhom_iconesE Hng w) Heq.
+Qed.
+
+(** The left-associated [n=3] case [(!A ⊗ !B) ⊗ !C → C0], for the
+    associativity coherence read on the left tree.  Curry off the
+    rightmost [!C] with [tensor_curry_inj]; the [n=2] [tens_excl_charact]
+    on the inner [!A ⊗ !B] reduces to fixed [x! ⊗ y!], whose curried
+    image is a norm-[≤1] [linhom_car] out of [!C] — discharge by the
+    [linhom]-level [n=1] [bang_ext_linhom] on [z!]. *)
+Lemma tens_excl_charact3l (A B C C0 : ICone.type Ar)
+    (f g : icones_hom Ar ((Bang Ar A ⊗ Bang Ar B) ⊗ Bang Ar C) C0) :
+  (forall (x : A) (y : B) (z : C),
+     cone_norm x <= 1 -> cone_norm y <= 1 -> cone_norm z <= 1 ->
+     Lfun f ((x! ⊗p y!) ⊗p z!) = Lfun g ((x! ⊗p y!) ⊗p z!)) ->
+  f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: tens_excl_charact => x y Hx Hy.
+have Hp : cone_norm (x! ⊗p y!) <= 1.
+  apply: le_trans (tensor_norm_le _ _) _; rewrite -[1]mulr1.
+  by apply: ler_pM => //;
+    [exact: cone_norm_ge0 | exact: cone_norm_ge0
+     | exact: prom_ball Hx | exact: prom_ball Hy].
+have Hnf : cone_norm (Lfun (tensor_curry f) (x! ⊗p y!)) <= 1.
+  exact: (le_trans (cones_hom_norm_le1 _ _) Hp).
+have Hng : cone_norm (Lfun (tensor_curry g) (x! ⊗p y!)) <= 1.
+  exact: (le_trans (cones_hom_norm_le1 _ _) Hp).
+apply: (bang_ext_linhom Hnf Hng) => z Hz.
+rewrite !tensor_curryE.
+exact: Hfg.
+Qed.
+
 (** ** The Seely structure maps — Paper §9
 
     The two structural maps of a *Seely category*: the binary Seely iso
@@ -292,6 +362,8 @@ Arguments linhom_icones {R Ar C D} phi Hphi.
 Arguments linhom_iconesE {R Ar C D} phi Hphi x.
 Arguments bang_ext_linhom {R Ar B C} phi psi Hphi Hpsi.
 Arguments tens_excl_charact {R Ar B1 B2 C} f g.
+Arguments tens_excl_charact3 {R Ar A B C C0} f g.
+Arguments tens_excl_charact3l {R Ar A B C C0} f g.
 Arguments sproj1 {R Ar} B1 B2.
 Arguments sproj2 {R Ar} B1 B2.
 Arguments bang_proj_tuple {R Ar} B1 B2.
