@@ -910,3 +910,85 @@ Arguments limpl_eq_equ {R Ar} C {D1 D2} f g.
 Arguments limpl_eq_med_icones {R Ar} C {D1 D2 f g H} h.
 Arguments limpl_eq_med_factor {R Ar} C {D1 D2 f g H} h.
 Arguments limpl_eq_med_unique {R Ar} C {D1 D2 f g H} h.
+
+(** ** Wrap-up — Paper Theorem 5.9: [C ⊸ −] preserves all limits
+
+    A category with all small products and equalisers has all (small)
+    limits, and a functor preserving both preserves all limits.  The two
+    deliverables above are exactly those two facts for [C ⊸ −]:
+
+    - [limpl_preserves_prod] : for every family [(D_i)_{i ∈ I}], the
+      canonical comparison [⟨ C ⊸ π_i ⟩_i : C ⊸ (&_i D_i) ≅ &_i (C ⊸ D_i)]
+      is an [icones_iso] — i.e. [C ⊸ −] preserves the product;
+
+    - [limpl_eq_med_icones] / [limpl_eq_med_factor] / [limpl_eq_med_unique]
+      (together with [limpl_eq_equ]) : [(C ⊸ E, C ⊸ e)] has the equaliser
+      universal property of [C ⊸ f], [C ⊸ g] — i.e. [C ⊸ −] preserves the
+      equaliser.
+
+    [limpl_continuous C] below bundles the two as a single record, the
+    concrete per-consumer input that Theorem [th:limpl-has-left-adj]
+    feeds, via the M-SAFT machinery of [Icones.icones.representable]
+    ([is_icones_left_adjoint], SA-conditions + [icones_well_powered]), to
+    construct the tensor [− ⊗ C] as the SAFT *left adjoint* of [C ⊸ −]
+    (PLAN §13.2 — the next milestone, the G1 coseparator-power wiring).
+    Crucially this limit-preservation is AXIOM-FREE and depends on NO
+    staged interface: it is the *input* to SAFT, not a consumer of the
+    (later) tensor / Seely structure. *)
+
+Section LimplContinuous.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable C : ICone.type Ar.
+
+(** The two halves of Theorem 5.9 for the fixed consumer [C], packaged.
+    [lc_prod] is the products-preservation iso (for every index family);
+    [lc_eq_*] expose the equaliser universal property (mediator,
+    factorisation, uniqueness) for every pair of parallel maps. *)
+Record limpl_continuous : Prop := MkLimplContinuous {
+  (** Preservation of all small products. *)
+  lc_prod :
+    forall (I : Type) (D : I -> ICone.type Ar),
+      { iso : icones_iso Ar (linhom_car Ar C (icones_prod D))
+                            (icones_prod (fun i => linhom_car Ar C (D i)))
+      | iso_fwd iso = limpl_prod_fwd C D };
+  (** Preservation of all equalisers: for [f, g : D1 → D2] the pair
+      [(C ⊸ E, C ⊸ e)] equalises [C ⊸ f], [C ⊸ g] and is universal. *)
+  lc_eq_equ :
+    forall (D1 D2 : ICone.type Ar) (f g : icones_hom Ar D1 D2),
+      icones_comp (linhom_post_icones (C := C) f)
+                  (linhom_post_icones (C := C) (icones_eq_incl f g)) =
+      icones_comp (linhom_post_icones (C := C) g)
+                  (linhom_post_icones (C := C) (icones_eq_incl f g));
+  lc_eq_med :
+    forall (D1 D2 : ICone.type Ar) (f g : icones_hom Ar D1 D2)
+           (Hobj : ICone.type Ar)
+           (h : icones_hom Ar Hobj (linhom_car Ar C D1)),
+      icones_comp (linhom_post_icones (C := C) f) h =
+      icones_comp (linhom_post_icones (C := C) g) h ->
+      { h0 : icones_hom Ar Hobj (linhom_car Ar C (icones_eq f g))
+      | icones_comp (linhom_post_icones (C := C) (icones_eq_incl f g)) h0 = h
+        /\ forall h' : icones_hom Ar Hobj
+                         (linhom_car Ar C (icones_eq f g)),
+             icones_comp (linhom_post_icones (C := C) (icones_eq_incl f g)) h'
+               = h -> h' = h0 };
+}.
+
+(** Paper Theorem 5.9 (packaged): [C ⊸ −] preserves products and
+    equalisers, hence all limits. *)
+Theorem limpl_preserves_limits : limpl_continuous.
+Proof.
+split.
+- move=> I D.
+  by exists (limpl_preserves_prod C D).
+- exact: limpl_eq_equ.
+- move=> D1 D2 f g Hobj h Hh.
+  exists (limpl_eq_med_icones C h Hh); split.
+  + exact: (limpl_eq_med_factor C h Hh).
+  + move=> h' Hh'.
+    exact: (limpl_eq_med_unique C h Hh h' Hh').
+Qed.
+
+End LimplContinuous.
+
+Arguments limpl_continuous {R Ar} C.
+Arguments limpl_preserves_limits {R Ar} C.
