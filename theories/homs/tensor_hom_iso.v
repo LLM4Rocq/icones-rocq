@@ -7,13 +7,22 @@
 (*                                                                            *)
 (*   tensor_normM    (Paper Thm 5.13 — [‖x ⊗ y‖ = ‖x‖ · ‖y‖])  — PROVED       *)
 (*                                                                            *)
-(* and lays the proved algebraic skeleton of                                  *)
+(* and, towards Thm 5.12, the AXIOM-FREE "measurability of τ" lemma            *)
+(*                                                                            *)
+(*   tensor_path  ([s ↦ (β s) ⊗ (γ s)] is a measurable path in [B ⊗ C])       *)
+(*                                                                            *)
+(* (Paper [lemma:path-tens-to-one], via the reusable Fubini swap              *)
+(* [swap_lin_path]) — the stated "last blocker" of                            *)
 (*                                                                            *)
 (*   tensor_hom_iso  (Paper Thm 5.12 — [(B ⊗ C) ⊸ D ≅ B ⊸ (C ⊸ D)]) — PARTIAL *)
 (*                                                                            *)
-(* (forward map value [Phi_val] + pointwise law [Phi_valE]; the OUTER         *)
-(* measurability/integral-preservation is DEFERRED — see [PhiSkeleton] and    *)
-(* the footer for the precise obstruction).                                   *)
+(* whose element maps [Phi_inner]/[Psi_inner] (with the pointwise laws        *)
+(* [Phi_innerE]: [Φ(g)(b)(c) = g(b⊗c)] and [Psi_innerE]: [Ψ(h)(b⊗c) = h(b)(c)]*)
+(* and the pure-tensor extensionality [linhom_tensor_ext], constructive Prop  *)
+(* 5.14) are PROVED.  The full [icones_iso] packaging is DEFERRED: its only    *)
+(* remaining obstruction is the *inverse's norm-decrease* [‖Ψ h‖ ≤ ‖h‖] =      *)
+(* the [≥] half of the tensor-norm isometry (pure-tensor norm density), which *)
+(* [tensor_path] does NOT unlock — see the footer for the precise statement.  *)
 (*                                                                            *)
 (* It is AXIOM-FREE relative to the classical [boolp] base ([pselect]/[cid]/  *)
 (* extensionality) — NO [Axiom]/[Parameter]/[Admitted], and it does NOT       *)
@@ -29,7 +38,9 @@
 (*  - [linhom_comp] : general composition of two [linhom_car] elements.       *)
 (*  - [tauL] / [ptensor] / [tensor_curryEp] : local pure tensor + Eq 5.1.     *)
 (*  - [line_hom] : the scalar-line [icones_hom 1 (C⊸D)] (dual-test tool).     *)
-(*  - [Phi_val] / [Phi_valE] : the Thm 5.12 forward-map algebraic skeleton.   *)
+(*  - [swap_lin_path] / [tensor_path] : the Fubini swap + measurability of τ. *)
+(*  - [Phi_inner]/[Psi_inner]/[linhom_tensor_ext] : the Thm 5.12 element maps *)
+(*    and constructive pure-tensor extensionality (Prop 5.14).                *)
 (******************************************************************************)
 
 From HB Require Import structures.
@@ -869,46 +880,249 @@ End TensorPath.
 
 Arguments tensor_path {R Ar B C X} β γ Hβ γub.
 
+(** ** Thm 5.12 [tensor_hom_iso] — the forward/inverse element maps
+
+    The element-level forward [Φ : (B⊗C)⊸D → B⊸(C⊸D)] sends [g] to
+    [b ↦ (c ↦ g(b⊗c))]; the inverse [Ψ] sends [h] to the map with
+    [Ψ(h)(b⊗c) = h(b)(c)].  Both are built from the proved morphism-level
+    [tensor_curry] / [tensor_uncurry] by rescaling into the unit ball
+    ([t := ‖·‖+1], [·ₛ := t⁻¹··]) — so the codomain is automatically a
+    [linhom_car], and the five [linhom_car]/[icones_hom] structure fields
+    of the *inner element* come for free from [tensor_curry]'s codomain
+    being an [icones_hom].  The two scalings cancel, giving the clean
+    pointwise laws [Phi_innerE] / [Psi_innerE]. *)
+
+(** *** Scaling helpers — the unit-ball rescaling [·ₛ := (‖·‖+1)⁻¹··] *)
+
+Section ScaleHelpers.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C E : ICone.type Ar.
+Variable f : linhom_car Ar C E.
+
+Definition lh_t : R := cone_norm f + 1.
+
+Lemma lh_t_pos : 0 < lh_t.
+Proof.
+by rewrite /lh_t; apply: lt_le_trans ltr01 _; rewrite lerDr cone_norm_ge0.
+Qed.
+
+Lemma lh_t_ge0 : 0 <= lh_t. Proof. exact: ltW lh_t_pos. Qed.
+
+Lemma lh_tinv_ge0 : 0 <= lh_t^-1.
+Proof. by rewrite invr_ge0 ltW// lh_t_pos. Qed.
+
+Definition lh_tnng : {nonneg R} := NngNum lh_t_ge0.
+Definition lh_tinvnng : {nonneg R} := NngNum lh_tinv_ge0.
+
+Definition lh_scaled : linhom_car Ar C E := linhom_scale lh_tinvnng f.
+
+Lemma lh_scaled_norm : cone_norm lh_scaled <= 1.
+Proof.
+rewrite -[cone_norm lh_scaled]/(linhom_norm lh_scaled) /lh_scaled linhom_normh /=.
+rewrite mulrC -ler_pdivlMr ?invr_gt0 ?lh_t_pos // mul1r invrK.
+by rewrite /lh_t lerDl ler01.
+Qed.
+
+(** [t · t⁻¹ = 1] as a nonneg-scalar identity (for cancelling the two
+    rescalings). *)
+Lemma lh_t_tinv : (lh_tnng%:num * lh_tinvnng%:num)%:nng = 1%:nng :> {nonneg R}.
+Proof. by apply: val_inj => /=; rewrite mulfV// gt_eqF// lh_t_pos. Qed.
+
+End ScaleHelpers.
+
+Arguments lh_t {R Ar C E} f.
+Arguments lh_scaled {R Ar C E} f.
+Arguments lh_tnng {R Ar C E} f.
+Arguments lh_tinvnng {R Ar C E} f.
+
+(** *** The inner forward element [Phi_inner g : B ⊸ (C ⊸ D)] *)
+
+Section PhiInner.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+(** [Phi_inner g := t · (tensor_curry (gₛ as icones_hom))] as a
+    [linhom_car B (linhom_car C D)] element, where [gₛ = t⁻¹·g] has
+    norm [≤ 1] ([lh_scaled_norm]). *)
+Definition Phi_inner (g : linhom_car Ar (tensor B C) D) :
+    linhom_car Ar B (linhom_car Ar C D) :=
+  linhom_scale (lh_tnng g)
+    (icones_to_linhom
+       (tensor_curry (linhom_icones (lh_scaled g) (lh_scaled_norm g)))).
+
+(** Paper Eq 5.1: [Φ(g)(b)(c) = g(b ⊗ c)].  The two scalings cancel. *)
+Lemma Phi_innerE (g : linhom_car Ar (tensor B C) D) (b : B) (c : C) :
+  linhom_fun (linhom_fun (Phi_inner g) b) c = linhom_fun g (ptensor b c).
+Proof.
+rewrite /Phi_inner /linhom_fun /= /linhom_scale_fun /=.
+rewrite (tensor_curryEp (linhom_icones (lh_scaled g) (lh_scaled_norm g)) b c).
+rewrite (linhom_iconesE (lh_scaled g) (lh_scaled_norm g) (ptensor b c)).
+rewrite /lh_scaled /linhom_fun /= /linhom_scale_fun /=.
+rewrite -precone_scale_A.
+by rewrite lh_t_tinv precone_scale_1.
+Qed.
+
+End PhiInner.
+
+Arguments Phi_inner {R Ar B C D}.
+Arguments Phi_innerE {R Ar B C D}.
+
+(** *** The inner inverse element [Psi_inner h : (B⊗C) ⊸ D] *)
+
+Section PsiInner.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+(** [Psi_inner h := t · (tensor_uncurry (hₛ as icones_hom))], with
+    [hₛ = t⁻¹·h] of norm [≤ 1]. *)
+Definition Psi_inner (h : linhom_car Ar B (linhom_car Ar C D)) :
+    linhom_car Ar (tensor B C) D :=
+  linhom_scale (lh_tnng h)
+    (icones_to_linhom
+       (tensor_uncurry (linhom_icones (lh_scaled h) (lh_scaled_norm h)))).
+
+(** Paper Eq 5.1 (inverse): [Ψ(h)(b ⊗ c) = h(b)(c)].
+
+    [tensor_uncurry h'] computes on pure tensors by [tensor_uncurryK] +
+    [tensor_curryEp]: [tensor_curry (tensor_uncurry h') = h'], so
+    [(tensor_uncurry h')(b⊗c) = (tensor_curry (tensor_uncurry h') b)(c)
+    = h'(b)(c)].  The two scalings cancel. *)
+Lemma Psi_innerE (h : linhom_car Ar B (linhom_car Ar C D)) (b : B) (c : C) :
+  linhom_fun (Psi_inner h) (ptensor b c) =
+  linhom_fun (linhom_fun h b) c.
+Proof.
+rewrite /Psi_inner /linhom_fun /= /linhom_scale_fun /=.
+set h' := linhom_icones (lh_scaled h) (lh_scaled_norm h).
+have HH := tensor_curryEp (tensor_uncurry h') b c.
+rewrite tensor_uncurryK in HH.
+rewrite -/(ptensor b c) in HH.
+rewrite icones_to_linhomE -HH.
+rewrite (linhom_iconesE (lh_scaled h) (lh_scaled_norm h) b).
+rewrite /lh_scaled /linhom_fun /= /linhom_scale_fun /=.
+rewrite -precone_scale_A.
+by rewrite lh_t_tinv precone_scale_1.
+Qed.
+
+End PsiInner.
+
+Arguments Psi_inner {R Ar B C D}.
+Arguments Psi_innerE {R Ar B C D}.
+
+(** *** Pure-tensor extensionality — constructive Paper Prop 5.14
+
+    A [linhom_car (B⊗C) D] element is determined by its values on pure
+    tensors.  Reduce to the morphism-level uniqueness [tensor_curry_inj]
+    by rescaling both maps by a COMMON factor [t] into the unit ball,
+    converting to [icones_hom] via [linhom_icones]: equal pure-tensor
+    values give equal [tensor_curry], hence the two scaled [icones_hom]s
+    are equal, hence [t·f1 = t·f2], hence [f1 = f2]. *)
+
+Section LinhomTensorExt.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+Lemma linhom_tensor_ext (f1 f2 : linhom_car Ar (tensor B C) D) :
+  (forall (b : B) (c : C),
+     linhom_fun f1 (ptensor b c) = linhom_fun f2 (ptensor b c)) ->
+  f1 = f2.
+Proof.
+move=> Hpt.
+pose t : R := cone_norm f1 + cone_norm f2 + 1.
+have t_pos : 0 < t.
+  by rewrite /t; apply: lt_le_trans ltr01 _;
+     rewrite lerDr addr_ge0 ?cone_norm_ge0.
+have tinv_ge0 : 0 <= t^-1 by rewrite invr_ge0 ltW.
+pose tinv : {nonneg R} := NngNum tinv_ge0.
+have Hnorm fi : cone_norm fi <= cone_norm f1 + cone_norm f2 ->
+    cone_norm (linhom_scale tinv fi) <= 1.
+  move=> Hfi.
+  rewrite -[cone_norm _]/(linhom_norm (linhom_scale tinv fi)) linhom_normh /=.
+  rewrite mulrC -ler_pdivlMr ?invr_gt0 // mul1r invrK.
+  by apply: le_trans Hfi _; rewrite /t lerDl ler01.
+have H1 : cone_norm (linhom_scale tinv f1) <= 1.
+  by apply: Hnorm; rewrite lerDl cone_norm_ge0.
+have H2 : cone_norm (linhom_scale tinv f2) <= 1.
+  by apply: Hnorm; rewrite lerDr cone_norm_ge0.
+(* The two rescaled maps agree on pure tensors, so equal [tensor_curry]. *)
+have Hcurry :
+    tensor_curry (linhom_icones (linhom_scale tinv f1) H1) =
+    tensor_curry (linhom_icones (linhom_scale tinv f2) H2).
+  apply: icones_hom_eq => b /=.
+  apply: linhom_eq => c.
+  rewrite !(tensor_curryEp _ b c).
+  rewrite !(linhom_iconesE _ _ (ptensor b c)).
+  rewrite /linhom_fun /= /linhom_scale_fun /=.
+  by rewrite Hpt.
+have Heq := tensor_curry_inj _ _ Hcurry.
+(* Equal [icones_hom]s ⇒ equal underlying functions ⇒ [t·f1 = t·f2]. *)
+have Hfun : linhom_scale tinv f1 = linhom_scale tinv f2.
+  apply: linhom_eq => x.
+  by have := f_equal
+    (fun (w : icones_hom Ar (tensor B C) D) =>
+       cones_hom_fun (mcones_hom_cones (icones_hom_mcones w)) x) Heq.
+(* Cancel the common scaling [tinv > 0] by rescaling by [t]. *)
+apply: linhom_eq => x.
+have := f_equal (fun w : linhom_car Ar (tensor B C) D => linhom_fun w x) Hfun.
+rewrite /linhom_fun /= /linhom_scale_fun /= => Hx.
+have Ht := f_equal (precone_scale (NngNum (ltW t_pos))) Hx.
+move: Ht; rewrite -!precone_scale_A.
+have -> : (widen_itv ((NngNum (ltW t_pos))%:num * tinv%:num)%:itv : {nonneg R})
+          = 1%:nng.
+  by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+by rewrite !precone_scale_1.
+Qed.
+
+End LinhomTensorExt.
+
+Arguments linhom_tensor_ext {R Ar B C D}.
+
 (**md**************************************************************************)
 (* # STATUS — T2A                                                             *)
 (*                                                                            *)
-(* DONE (axiom-free; verified Print Assumptions [tensor_normM] = the 3        *)
-(* classical [boolp] axioms only, no [saft_interface] symbols):               *)
+(* DONE (axiom-free; verified Print Assumptions = the 3 classical [boolp]     *)
+(* axioms only, no [saft_interface] symbols):                                 *)
 (*  - Thm 5.13 [tensor_normM] : [‖x ⊗ y‖ = ‖x‖ · ‖y‖], via [line_hom] +       *)
 (*    [np_pairing] (dual pairing) + Prop 3.11 adherence.                      *)
+(*  - [swap_lin_path] (Paper [lemma:swap-lin-path], the "Fubini swap"): the   *)
+(*    diagonal eval [r ↦ (Φ r)(γ r)] of a measurable path [Φ] of [C ⊸ E] at   *)
+(*    a unit-ball [C]-path [γ] is a measurable path in [E].                    *)
+(*  - [tensor_path] (Paper [lemma:path-tens-to-one], "measurability of τ"):   *)
+(*    for unit-ball measurable paths [β : X → B], [γ : X → C], the pure       *)
+(*    tensor [s ↦ (β s) ⊗ (γ s)] is a measurable path in [B ⊗ C].  Via        *)
+(*    [swap_lin_path] with [Φ s := τ(β s)] ([τ = tauL] path-preserving on β). *)
+(*  - Thm 5.12 element maps + laws: [Phi_inner]/[Phi_innerE]                   *)
+(*    ([Φ(g)(b)(c) = g(b⊗c)]), [Psi_inner]/[Psi_innerE]                        *)
+(*    ([Ψ(h)(b⊗c) = h(b)(c)]) — built by unit-ball rescaling of the proved    *)
+(*    [tensor_curry]/[tensor_uncurry]; and [linhom_tensor_ext] (constructive  *)
+(*    Paper Prop 5.14: a [linhom_car (B⊗C) D] is determined by its pure-      *)
+(*    tensor values, via [tensor_curry_inj]).                                 *)
 (*  - Reusable: [icones_to_linhom], [linhom_icones], [linhom_comp],           *)
 (*    [tauL]/[ptensor]/[tensor_curryEp], [line_hom], [Phi_val]/[Phi_valE].    *)
 (*                                                                            *)
-(* DEFERRED — Thm 5.12 [tensor_hom_iso] as a full [icones_iso].  The          *)
-(* algebra (forward map [Phi_val] with [Phi_valE]: [Φ(g)(b)(c) = g(b⊗c)],     *)
-(* and the inverse from [tensor_uncurry]) is in hand, and round-trips would   *)
-(* follow from T1's [tensor_curryK]/[tensor_uncurryK].  What is MISSING is     *)
-(* that [Φ] (and [Ψ]) are [icones_hom]s BETWEEN the hom-cones — specifically  *)
-(* their PATH-PRESERVATION and INTEGRAL-PRESERVATION fields (the paper's      *)
-(* [lemma:path-tens-to-one] + the Fubini swap of [lemma:swap-lin-path]).      *)
+(* DEFERRED — Thm 5.12 [tensor_hom_iso] as a full [icones_iso].  With          *)
+(* [tensor_path] in hand, the PATH- and INTEGRAL-preservation fields of [Φ]    *)
+(* are unlocked: a [β▷(γ▷m)] test of [B⊸(C⊸D)] applied to [Φ(g)] reduces to    *)
+(* [m(s, g((β s)⊗(γ s)))], i.e. [g] tested against [θ▷m] with [θ] the         *)
+(* [tensor_path]; and the round-trips [Ψ∘Φ = id], [Φ∘Ψ = id] follow from       *)
+(* [Phi_innerE]/[Psi_innerE] + [linhom_tensor_ext].                           *)
 (*                                                                            *)
-(* PRECISE OBSTRUCTION.  Φ's path-preservation reduces, via the [β▷(γ▷m)]     *)
-(* test family of [B⊸(C⊸D)] and [η]'s own path-preservation tested against    *)
-(* the [θ▷m] test of [(B⊗C)⊸D], to ONE missing fact:                          *)
-(*                                                                            *)
-(*    [θ := (s ↦ (β s) ⊗ (γ s))] is a *measurable path* in [B ⊗ C]            *)
-(*    (the "measurability of τ", [tensor_preserves_integrals]'s measurable    *)
-(*    companion) for [β ∈ Path(Y,B)], [γ ∈ Path(Y,C)].                        *)
-(*                                                                            *)
-(* By Def 3.7 this needs, for every SELECTED test [m0 ∈ mcone_M] of [B ⊗ C],  *)
-(* joint measurability of [(s',s) ↦ m0(s', θ s)].  But [B ⊗ C = wi_obj] is    *)
-(* an equaliser of products of the coseparator power [1^J] ([J = ICones(B,    *)
-(* C⊸1)]); its selected tests are [eqTest (iniTest_s m)] — single-coordinate  *)
-(* projections through [icone_cat]'s [icones_eq_M]/[icones_prod_M].  Reading  *)
-(* a coordinate [j] of [θ s] gives [j(β s)(γ s)] (via [eBE]/[tau'_def] of     *)
-(* [tensor_construct]); its joint measurability is the DIAGONAL of [j]'s      *)
-(* path-preservation ([j : B → C⊸1] an [icones_hom]) tested by [γ▷id_test].   *)
-(* That argument is sound but requires unfolding the abstract [wi_obj] /      *)
-(* [fK]/[fAdom]/[fhh] classifier-reindexed selected-test machinery of         *)
-(* [tensor_construct]+[representable] — a self-contained but sizable dive      *)
-(* into those internals, left for a follow-up.  Once [θ]-measurability lands  *)
-(* (call it [tensor_path]), the icones_hom fields of [Φ]/[Ψ] and the iso via  *)
-(* [icones_iso_of_cancel] + [tensor_curryK]/[tensor_uncurryK] are routine.    *)
+(* PRECISE RESIDUAL OBSTRUCTION — the *inverse's norm-decrease*.  The          *)
+(* [icones_hom] norm field requires BOTH [‖Φ g‖ ≤ ‖g‖] (easy: [tensor_normM]  *)
+(* gives [‖Φ(g)(b)(c)‖ = ‖g(b⊗c)‖ ≤ ‖g‖·‖b‖·‖c‖], sup over the unit balls)    *)
+(* AND [‖Ψ h‖ ≤ ‖h‖].  The latter is the HARD half of the Thm 5.12 isometry:  *)
+(* [‖tensor_uncurry g'‖_op ≤ ‖g'‖_op], i.e. a map OUT of [B ⊗ C] is bounded    *)
+(* in operator norm by its values on PURE tensors.  Equivalently, pure        *)
+(* tensors are norm-dense in the unit ball of [B ⊗ C].  This is NOT unlocked   *)
+(* by [tensor_path] (which only gives measurability, not the norm bound on    *)
+(* general — non-pure — elements [z ∈ B ⊗ C]): the sup [‖Ψ h‖ =               *)
+(* sup_{‖z‖≤1} ‖(Ψ h)(z)‖] ranges over ALL [z], while [Psi_innerE] only       *)
+(* controls pure tensors.  Closing it needs the [wi_obj] coordinate norm      *)
+(* bound (read each [j ∈ J = ICones(B,C⊸1)] coordinate of [tensor_incl z] and *)
+(* bound [j(...)] by [‖g'‖] via [eBE]/[tau'_def]) OR a Prop-3.11-style         *)
+(* pure-tensor adherence on [B ⊗ C] — a separate substantial theorem (the     *)
+(* [≥] direction of the tensor-norm isometry), left for a follow-up.  Without *)
+(* it the [icones_hom] norm field of [Ψ] = [iso_bwd] cannot be discharged, so *)
+(* the [icones_iso] assembly via [icones_iso_of_cancel] is blocked.           *)
 (******************************************************************************)
 
 End Icones_tensor_hom_iso.
