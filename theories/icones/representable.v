@@ -594,3 +594,127 @@ End WellPowered.
 
 Arguments icones_subobject_classP {R Ar B} D1 D2.
 Arguments icones_well_powered {R Ar} B.
+
+(** ** SA2 — binary intersection (pullback) of two subobjects of [p]
+
+    The basic building block of the SAFT subobject-intersection
+    construction (Riehl Lemma 4.6.11): the meet of two subobjects of
+    [p], built concretely as the equaliser of the two product
+    projections post-composed with the embeddings.  This is the
+    inductive core of the *wide* intersection of a small family of
+    subobjects.
+
+    Given monos [h1 : A1 → p] and [h2 : A2 → p], form the product
+    [Q = ∏_{b:bool} (if b then A1 else A2)] with projections [π1, π2],
+    and take the equaliser [I] of [h1 ∘ π1] and [h2 ∘ π2].  The
+    composite [h1 ∘ π1 ∘ incl : I → p] is the intersection embedding;
+    its universal property is read off from those of the product and
+    the equaliser. *)
+
+Section BinaryIntersection.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (A1 A2 p : ICone.type Ar).
+Variables (h1 : icones_hom Ar A1 p) (h2 : icones_hom Ar A2 p).
+
+(** The [bool]-indexed family and its product. *)
+Definition pb_fam (b : bool) : ICone.type Ar := if b then A1 else A2.
+Definition pb_prod : ICone.type Ar := icones_prod pb_fam.
+
+Definition pb_pi1 : icones_hom Ar pb_prod A1 := icones_proj true.
+Definition pb_pi2 : icones_hom Ar pb_prod A2 := icones_proj false.
+
+(** The two maps [pb_prod → p] whose equaliser is the pullback. *)
+Definition pb_left : icones_hom Ar pb_prod p := icones_comp h1 pb_pi1.
+Definition pb_right : icones_hom Ar pb_prod p := icones_comp h2 pb_pi2.
+
+(** The pullback object: the equaliser of [pb_left] and [pb_right]. *)
+Definition pb_obj : ICone.type Ar := icones_eq pb_left pb_right.
+
+(** The embedding [pb_obj → p] (through [A1]). *)
+Definition pb_incl : icones_hom Ar pb_obj p :=
+  icones_comp pb_left (icones_eq_incl pb_left pb_right).
+
+(** Projections of the pullback to the two subobject domains. *)
+Definition pb_proj1 : icones_hom Ar pb_obj A1 :=
+  icones_comp pb_pi1 (icones_eq_incl pb_left pb_right).
+Definition pb_proj2 : icones_hom Ar pb_obj A2 :=
+  icones_comp pb_pi2 (icones_eq_incl pb_left pb_right).
+
+(** The pullback square commutes: [h1 ∘ proj1 = h2 ∘ proj2]
+    (both equal [pb_incl]). *)
+Lemma pb_square :
+  icones_comp h1 pb_proj1 = icones_comp h2 pb_proj2.
+Proof.
+rewrite /pb_proj1 /pb_proj2 /pb_pi1 /pb_pi2 !icones_compA.
+rewrite -/pb_left -/pb_right.
+exact: icones_eq_incl_equ.
+Qed.
+
+(** *** Universal property of the binary intersection (pullback UMP) *)
+
+Section BinaryIntersectionUniversal.
+Variable Z : ICone.type Ar.
+Variables (f : icones_hom Ar Z A1) (g : icones_hom Ar Z A2).
+Hypothesis Hcomm : icones_comp h1 f = icones_comp h2 g.
+
+(** The pullback tupling family [b ↦ if b then f else g]. *)
+Definition pb_tfam (b : bool) : icones_hom Ar Z (pb_fam b) :=
+  if b as b' return icones_hom Ar Z (pb_fam b') then f else g.
+
+(** The tupling [⟨f, g⟩ : Z → pb_prod]. *)
+Definition pb_tuple : icones_hom Ar Z pb_prod :=
+  icones_tuple (B:=pb_fam) pb_tfam.
+
+Lemma pb_tuple_pi1 : icones_comp pb_pi1 pb_tuple = f.
+Proof. exact: (icones_tuple_proj pb_tfam true). Qed.
+Lemma pb_tuple_pi2 : icones_comp pb_pi2 pb_tuple = g.
+Proof. exact: (icones_tuple_proj pb_tfam false). Qed.
+
+(** [⟨f, g⟩] equalises [pb_left] and [pb_right] (this is [Hcomm]). *)
+Lemma pb_tuple_equ :
+  icones_comp pb_left pb_tuple = icones_comp pb_right pb_tuple.
+Proof.
+rewrite /pb_left /pb_right -!icones_compA pb_tuple_pi1 pb_tuple_pi2.
+exact: Hcomm.
+Qed.
+
+(** The mediating map [Z → pb_obj]. *)
+Definition pb_med : icones_hom Ar Z pb_obj :=
+  icones_eq_med pb_left pb_right pb_tuple pb_tuple_equ.
+
+(** The equaliser inclusion of [pb_med] is the tupling. *)
+Lemma pb_med_incl :
+  icones_comp (icones_eq_incl pb_left pb_right) pb_med = pb_tuple.
+Proof. exact: (icones_eq_med_factor pb_tuple_equ). Qed.
+
+(** [pb_med] factors [f] and [g] through the projections. *)
+Lemma pb_med_proj1 : icones_comp pb_proj1 pb_med = f.
+Proof.
+rewrite /pb_proj1 -icones_compA pb_med_incl; exact: pb_tuple_pi1.
+Qed.
+
+Lemma pb_med_proj2 : icones_comp pb_proj2 pb_med = g.
+Proof.
+rewrite /pb_proj2 -icones_compA pb_med_incl; exact: pb_tuple_pi2.
+Qed.
+
+(** Uniqueness of the mediating map (the pullback UMP): any [k] with
+    [proj1 ∘ k = f] and [proj2 ∘ k = g] equals [pb_med].  By the
+    equaliser UMP it suffices that [incl ∘ k = tuple], which holds
+    since the two product components agree ([pb_*proj]). *)
+Lemma pb_med_unique (k : icones_hom Ar Z pb_obj) :
+  icones_comp pb_proj1 k = f ->
+  icones_comp pb_proj2 k = g ->
+  k = pb_med.
+Proof.
+move=> Hk1 Hk2; rewrite /pb_med.
+apply: (icones_eq_med_unique pb_tuple_equ).
+apply: (icones_tuple_unique (f := pb_tfam)).
+case=> /=.
+- by rewrite icones_compA -/pb_pi1 -/pb_proj1 Hk1.
+- by rewrite icones_compA -/pb_pi2 -/pb_proj2 Hk2.
+Qed.
+
+End BinaryIntersectionUniversal.
+
+End BinaryIntersection.
