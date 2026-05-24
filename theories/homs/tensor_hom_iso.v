@@ -732,6 +732,143 @@ End NormM.
 Arguments ptensor_norm_le {R Ar B C}.
 Arguments tensor_normM {R Ar B C}.
 
+(** ** The Fubini swap [swap_lin_path] — Paper [lemma:swap-lin-path]
+
+    Given a measurable path [Φ : X → (C ⊸ E)] and a UNIT-BALL measurable
+    path [γ : X → C] (over the same arity [X]), the *diagonal evaluation*
+    [r ↦ (Φ r)(γ r)] is a measurable path in [E].
+
+    The argument mirrors [linhom_functor.v]'s [linhom_map_pres_path]:
+    for a selected test [m] of [E] at arity [Y], the bivariate path
+    [δ(s, r) := (Φ r)(γ s)] (at the product arity [ar_prod Y X]) is a
+    measurable path in [E] — its test-measurability against any [E]-test
+    [m'] is obtained by testing [Φ] against the internal-hom test
+    [(γ ∘ snd) ▷ m'] at the doubled product arity.  Pulling [m] back over
+    [δ] then specialising the index pair to the diagonal
+    [(s, r) ↦ (s, ar_prod_cast(s, r))] gives the required joint
+    measurability of [(s, r) ↦ m(s, (Φ r)(γ r))]. *)
+
+Section SwapLinPath.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables C E : ICone.type Ar.
+Variable X : ar_obj Ar.
+Variable Φ : ar_carrier Ar X -> linhom_car Ar C E.
+Variable γ : path_car Ar X C.
+Hypothesis HΦ : is_measurable_path Φ.
+Hypothesis γub : cone_norm γ <= 1.
+
+Local Notation pf := (path_fun γ).
+
+(** Paper [lemma:swap-lin-path]: the diagonal evaluation [r ↦ (Φ r)(γ r)]
+    is a measurable path in [E].
+
+    Boundedness: [‖(Φ r)(γ r)‖ ≤ ‖Φ r‖ · ‖γ r‖ ≤ MΦ · Mγ].
+
+    Test-measurability: given an [E]-test [m] at arity [Y], we test the
+    [C ⊸ E]-path [Φ] (at the path arity [X]) against the internal-hom
+    test at the PRODUCT arity [ar_prod Y X], built from the [C]-path
+    [γ ∘ snd] (picks the [X]-coordinate) and the [E]-test [m ∘ fst]
+    (picks the [Y]-coordinate).  That gives, for [(s'', r) : (ar_prod Y X)
+    × X], measurability of
+      [(γsnd ▷ mfst)(s'', Φ r) = m(fst s'', (Φ r)(γ (snd s'')))].
+    Setting [s'' := ar_prod_cast(s, r)] (the diagonal in the second slot)
+    yields [m(s, (Φ r)(γ r))]. *)
+Lemma swap_lin_path :
+  is_measurable_path (fun r => linhom_fun (Φ r) (pf r)).
+Proof.
+have [[MΦ HMΦ] HΦm] := HΦ.
+have MΦ_ge0 : 0 <= MΦ.
+  by apply: le_trans (HMΦ (ar_point Ar X)); exact: cone_norm_ge0.
+split.
+  exists (MΦ * path_norm γ) => r.
+  apply: le_trans (linhom_norm_apply_le (K := MΦ) (HMΦ r) (pf r)) _.
+  apply: ler_pM => //; first exact: cone_norm_ge0.
+  exact: path_norm_ub.
+move=> Y m mM.
+(* Reindex [γ] (over [X]) to a path [γsnd] at arity [ar_prod Y X]
+   picking the [X]-coordinate. *)
+pose γsnd : ar_carrier Ar (ar_prod Ar Y X) -> C := fun q => pf (ar_prod_snd Y X q).
+have Hγsnd : is_measurable_path γsnd.
+  exact: (reindex_path_measurable (ar_prod_snd Y X) (path_is_path γ)).
+pose γA : path_car Ar (ar_prod Ar Y X) C := MkPath Hγsnd.
+have γA_ub : cone_norm γA <= 1.
+  rewrite /cone_norm /=.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [q ->] /=.
+  rewrite /γsnd /=.
+  by apply: le_trans (path_norm_ub γ _) _; exact: γub.
+(* Reindex [m] (over [Y]) to a test [mfst] at arity [ar_prod Y X]
+   picking the [Y]-coordinate. *)
+pose mfst : test_of Ar (ar_prod Ar Y X) E := test_reindex (ar_prod_fst Y X) m.
+have mfstM : mcone_M (ar_prod Ar Y X) mfst by exact: mcone_M_comp.
+(* Test [Φ] against the internal-hom test [γsnd ▷ mfst] at arity
+   [ar_prod Y X]; this is in [Φ]'s measurability structure. *)
+have HΦtest := HΦm (ar_prod Ar Y X)
+  (linhom_test γA γA_ub mfst mfstM)
+  (ex_intro _ γA (ex_intro _ γA_ub
+     (ex_intro _ mfst (ex_intro _ mfstM (erefl _))))).
+(* Specialise the index pair [(s'', r)] to the diagonal-in-[X]
+   [(ar_prod_cast(s, r), r)]. *)
+pose ψ (p : (ar_carrier Ar Y * ar_carrier Ar X)%type) :
+    (ar_carrier Ar (ar_prod Ar Y X) * ar_carrier Ar X)%type :=
+  (ar_prod_cast (p.1, p.2), p.2).
+have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Y * ar_carrier Ar X)%type] ψ.
+  apply: measurable_fun_pair; last exact: measurable_snd.
+  apply: (measurableT_comp (ar_prod_cast_meas Ar Y X)).
+  by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+rewrite (_ : (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+                test_fun m p.1 (linhom_fun (Φ p.2) (pf p.2))) =
+             (fun q : (ar_carrier Ar (ar_prod Ar Y X) *
+                       ar_carrier Ar X)%type =>
+                linhom_test γA γA_ub mfst mfstM q.1 (Φ q.2)) \o ψ).
+  apply: (measurable_comp (F := setT) measurableT (subsetT _) HΦtest ψ_meas).
+apply: funext => p /=.
+rewrite /linhom_test /linhom_test_fun /= /ψ /=.
+rewrite /mfst /test_reindex /test_reindex_fun /=.
+rewrite /ar_prod_fst /ar_prod_fst_fun ar_prod_castK /=.
+rewrite /γA /= /γsnd /= /ar_prod_snd /ar_prod_snd_fun ar_prod_castK /=.
+by [].
+Qed.
+
+End SwapLinPath.
+
+Arguments swap_lin_path {R Ar C E X} Φ γ HΦ γub.
+
+(** ** The pure-tensor path [tensor_path] — measurability of [τ]
+
+    Paper [lemma:path-tens-to-one].  For UNIT-BALL measurable paths
+    [β : X → B] and [γ : X → C], the pointwise pure tensor
+    [s ↦ (β s) ⊗ (γ s) = (τ(β s))(γ s)] is a measurable path in [B ⊗ C].
+
+    Since [τ = tauL B C : B → (C ⊸ B⊗C)] is an [icones_hom], it preserves
+    the measurable path [β], so [s ↦ τ(β s)] is a measurable path of
+    [C ⊸ (B ⊗ C)].  Diagonally evaluating that at the [C]-path [γ] via
+    [swap_lin_path] gives the result. *)
+
+Section TensorPath.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : ICone.type Ar.
+Variable X : ar_obj Ar.
+Variables (β : ar_carrier Ar X -> B) (γ : path_car Ar X C).
+Hypothesis Hβ : is_measurable_path β.
+Hypothesis γub : cone_norm γ <= 1.
+
+Lemma tensor_path :
+  is_measurable_path (fun s => ptensor (β s) (γ s)).
+Proof.
+(* The path of internal homs [s ↦ τ(β s)] in [C ⊸ (B ⊗ C)]. *)
+have HΦ : is_measurable_path
+    (fun s => (tauL B C : icones_hom _ _ _) (β s)).
+  exact: (mcones_hom_pres_path (icones_hom_mcones (tauL B C)) X β Hβ).
+(* The diagonal evaluation [s ↦ (τ(β s))(γ s) = (β s) ⊗ (γ s)]. *)
+exact: (swap_lin_path (fun s => (tauL B C : icones_hom _ _ _) (β s)) γ HΦ γub).
+Qed.
+
+End TensorPath.
+
+Arguments tensor_path {R Ar B C X} β γ Hβ γub.
+
 (**md**************************************************************************)
 (* # STATUS — T2A                                                             *)
 (*                                                                            *)
