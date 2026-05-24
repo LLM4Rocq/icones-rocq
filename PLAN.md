@@ -3,6 +3,19 @@
 Paper: <https://arxiv.org/abs/2212.02371> · LMCS DOI 10.46298/LMCS-21(1:1)2025 · 98 pages
 (fetch the PDF from those open-access links; it is not bundled here).
 
+> **Terminology note (2026-05-24).** The label **"MVP"** used throughout the
+> historical planning sections below (the original §2–§6 deliverable: the
+> `Skern → ICones` embedding, paper Thm 6.5) is **retired**. The project has
+> outgrown it — it now covers paper §2–§9. The current framing is
+> **axiom-free core vs staged tier**: the *axiom-free core* (zero project
+> axioms) is §2–§7 (incl. the full stable CCC `SCones`), the §9.2 fixpoints,
+> well-poweredness (Thm 4.18), and Thm 5.9; the *staged tier* (mechanized
+> modulo the three `theories/axioms/*` interfaces, to be discharged by SAFT)
+> is the §5.3–§5.5 tensor SMCC and the §9 exponential `!` + Seely category.
+> Read "MVP" below as "the axiom-free kernel-embedding core (§2–§6)";
+> `Skern_to_ICones_fully_faithful` is now described as the *axiom-free
+> regression anchor*. The README reflects the current framing.
+
 ---
 
 ## 0. TL;DR

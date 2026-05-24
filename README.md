@@ -14,77 +14,71 @@ Thomas Ehrhard and Guillaume Geoffroy
 
 ## Status
 
-**MVP complete.** The development covers paper §2 – §6 and culminates
-in paper Theorem 6.5: the substochastic-kernel category `Skern` embeds
-fully and faithfully into the category `ICones` of integrable cones
-(`Icones.kernels.thm65.Skern_to_ICones_fully_faithful`).
+A formalization of paper **§2 – §9** (paper §8, analytic functions, is
+out of scope). ~40k lines of Rocq across 45 files, **zero `Admitted`**.
+Every project-specific axiom is confined to three clearly-marked
+*staging interfaces* under `theories/axioms/`; everything else uses only
+the three classical-logic axioms inherited from `mathcomp-analysis`
+(`propositional_extensionality`, `functional_extensionality_dep`,
+`constructive_indefinite_description`). The development therefore splits
+into an **axiom-free core** and a **staged tier** — the latter
+mechanized *modulo* those interfaces, to be discharged by proving SAFT
+for `ICones` (see [`PLAN.md`](./PLAN.md) §13).
 
-- ~33.6k lines of Rocq across 37 files. The MVP headline theorem
-  carries **zero project-specific axioms** and **zero `Admitted`** — it
-  depends only on the three classical-logic axioms inherited from
-  `mathcomp-analysis` (`propositional_extensionality`,
-  `functional_extensionality_dep`, `constructive_indefinite_description`).
-- See [`PLAN.md`](./PLAN.md) for the milestone roadmap (M1 – M5) and the
-  strategic design decisions.
+### Axiom-free core (zero project axioms)
 
-## Iteration 2 (in progress)
+- **Cones, measurable cones, integrable cones** (paper §2 – §4): the
+  `PreCone → Cone → MCone → ICone` Hierarchy-Builder tower, the Pettis
+  integral, a Fubini theorem, and completeness of `ICones`.
+- **The kernel-embedding core** (paper §5.1 – §5.2 and §6), capstone
+  **Theorem 6.5**: the substochastic-kernel category `Skern` embeds
+  fully and faithfully into `ICones`
+  (`Icones.kernels.thm65.Skern_to_ICones_fully_faithful`). This is the
+  project's canonical **axiom-free regression anchor**.
+- **The stable cartesian closed category `SCones`** (paper §7): local
+  cones, total monotonicity, finite differences and **Theorem 7.19**,
+  the composition theorem **Theorem 7.30**, and **Theorem 7.32** in
+  full — `SCones` is cartesian closed (products, evaluation, currying) —
+  together with the dereliction functor `Der : ICones → SCones`.
+- **Least-fixpoint operators** (paper §9.2): the Kleene fixpoint on the
+  cone unit-ball ω-cpo and the fixpoint combinator `Y` as an `SCones`
+  morphism.
+- **Towards SAFT** ([`PLAN.md`](./PLAN.md) §13.1): `ICones`
+  **well-poweredness** (paper Theorem 4.18) genuinely proved, the
+  subobject-intersection machinery, and **Theorem 5.9** (`(C ⊸ −)`
+  preserves all limits) — the ingredients that will discharge the
+  staged tier.
 
-Iteration 2 extends the development past the MVP towards the symmetric
-monoidal closed structure (paper §5.3–§5.5) and the stable / measurable
-functions (paper §7). The live, axiom-free staged plan is `PLAN.md` §13
-(with §12 the retained axiomatized fallback). Status:
+### Staged tier (mechanized modulo the SAFT interfaces)
 
-- **Tensor `⊗` and the symmetric monoidal closed structure (paper
-  §5.3–§5.5)** — mechanized *against a staged SAFT interface*. The
-  morphism-level internal-hom functor `h ⊸ g` (Prop 5.8) is built in
-  `homs/linhom_functor.v` via the reusable test-pullback machinery
-  (`mcones/test_pullback.v`); `homs/icones_iso.v` packages isomorphisms
-  in `ICones`. The pure tensor, bifunctoriality, Theorem 5.12
-  (`(B⊗C)⊸D ≃ B⊸(C⊸D)`), Theorem 5.13 and Prop 5.14 live in
-  `homs/tensor.v`; the associator/unitors/symmetry as isos and **all**
-  the coherence (triangle / pentagon / hexagon, `σ² = id`) are
-  **derived** in `homs/smcc.v`, culminating in Theorem 5.15 (`ICones`
-  is an SMCC). **Honesty note:** the SAFT/Yoneda *representability*
-  content the paper obtains via Freyd's Special Adjoint Functor
-  Theorem — the existence of the tensor object and the structural
-  isomorphisms — is currently **axiomatized** as a handful of
-  `Parameter`s in `theories/axioms/saft_interface.v`. Everything in
-  `tensor.v` / `smcc.v` is proved *modulo* that clearly-delimited
-  interface; it is **not yet axiom-free**. The plan (`PLAN.md` §13.1) is
-  to *discharge* those `Parameter`s by proving SAFT for `ICones`
-  (M-SAFT). The MVP headline (Theorem 6.5) is independent of this
-  interface and remains axiom-clean.
+These results are fully proved *relative to* a small set of
+`Parameter`s — the SAFT/Yoneda *representability* content the paper
+obtains via Freyd's Special Adjoint Functor Theorem — quarantined in
+`theories/axioms/{saft_interface,exp_interface,seely_interface}.v` and
+slated for discharge by M-SAFT.
 
-- **Stable functions (paper §7)** — axiom-clean (only the inherited
-  classical base), no `Admitted`. In `theories/stable/` and
-  `theories/cones/omega_general.v`:
-  - the local cone `B_x` as a full integrable cone (§7.1,
-    `local_cone.v`);
-  - the radius-aware ω-continuity / Scott-continuity foundation
-    (`omega_general.v`), total monotonicity (Def 7.5) and the stable /
-    measurable predicates (§7.2, `totmono.v`), and the stable internal
-    hom `B ⇒ₛ C` as a full integrable cone (`stablehom.v`);
-  - finite differences and **Theorem 7.19** (totally monotonic ⟺
-    n-increasing for all n) in `findiff.v`;
-  - **Theorem 7.30**: stable functions are closed under composition
-    (the §7.3 "Faà di Bruno" core), `compose.v`;
-  - the category **SCones** of integrable cones and stable measurable
-    maps (§7.4), with the dereliction inclusion `Ders : ICones → SCones`
-    (Lemma 7.31) and products (Theorem 7.32, products part) in
-    `scones_cat.v`. The category, `Ders` and products are done; the
-    cartesian-closed structure (tupling, evaluation, currying) is in
-    progress.
+- **The symmetric monoidal closed structure** (paper §5.3 – §5.5): the
+  tensor `⊗`, **Theorem 5.12** (`(B⊗C)⊸D ≃ B⊸(C⊸D)`), Theorem 5.13, and
+  **Theorem 5.15** (`ICones` is an SMCC), with all coherence
+  (triangle / pentagon / hexagon, `σ² = id`) *derived*. The
+  morphism-level internal-hom functor `h ⊸ g` (Prop 5.8) and `ICones`
+  isomorphisms are themselves axiom-free
+  (`homs/{linhom_functor,icones_iso}.v`, `mcones/test_pullback.v`).
+- **The exponential `!` and the Seely category** (paper §9): the
+  linear/non-linear adjunction `E ⊣ Der`, staged as a five-declaration
+  universal-arrow interface; the induced comonad `! = E∘Der` with all
+  comonad laws *derived*; and **`ICones` is a Seely category** (the
+  Seely isomorphisms staged, the coherence derived).
 
-- The whole of iteration 2 keeps the **zero project-specific axioms**
-  discipline (only the three classical-logic axioms from
-  `mathcomp-analysis`), **except** the explicitly-staged
-  `saft_interface.v` `Parameter`s above. The MVP headline theorem is
-  unaffected.
+The axiom-free core does **not** depend on any staging interface —
+`Skern_to_ICones_fully_faithful` and everything in the core stay
+axiom-clean regardless of the staged tier.
 
-Out of scope / future work (documented in `PLAN.md`): discharging the
-staged SAFT interface (M-SAFT, `PLAN.md` §13.1), the `!` exponential
-comonad, paper §8 analytic functions, the §9 LNL adjunction, and the
-PCS embedding.
+**Out of scope / future work** ([`PLAN.md`](./PLAN.md)): discharging the
+staged interfaces via M-SAFT (§13.1 – §13.4), which moves the staged
+tier into the axiom-free core; paper §8 (analytic functions, `ACones`);
+and the probabilistic-coherence-space embedding. `PLAN.md` has the full
+roadmap (milestones M1 – M5 and the §13 axiom-free plan).
 
 ## Build
 
@@ -112,14 +106,20 @@ theories/
 │                  radius-aware Scott-continuity (omega_general)             (paper §7 prereq)
 ├── mcones/     -- Ar, measurable cones, FMeas, Path, category MCones,       (paper §3, M2)
 │                  test-pullback infrastructure (test_pullback)              (paper §5.3)
-├── icones/     -- Pettis integral, integrable cones, Fubini, completeness   (paper §4, M3)
+├── icones/     -- Pettis integral, integrable cones, Fubini, completeness,  (paper §4, M3)
+│                  well-poweredness + SAFT machinery (representable)         (paper §4.18, §13.1)
 ├── homs/       -- internal hom C ⊸ D (linhom), iso of Thm 6.1 (bilin),      (paper §5.1/§5.2 + §6, M4/M5)
-│                  isos in ICones (icones_iso), the h⊸g functor              (paper §5.3, iter 2)
-│                  (linhom_functor), tensor ⊗ (tensor) and the SMCC (smcc)   (paper §5.3–§5.5, iter 2)
-├── axioms/     -- the staged SAFT/tensor interface for ⊗ (to be discharged) (paper §5.4, iter 2)
-├── stable/     -- local cones, total monotonicity, the stable hom B ⇒ₛ C,   (paper §7, iter 2)
+│                  isos in ICones (icones_iso), the h⊸g functor              (paper §5.3)
+│                  (linhom_functor), (C⊸−) preserves limits                  (Thm 5.9)
+│                  (limpl_continuous); tensor ⊗ + SMCC (tensor, smcc),       (paper §5.3–§5.5, staged)
+│                  the ! comonad (bang) + Seely category (seely)             (paper §9, staged)
+├── axioms/     -- the three staged SAFT interfaces: tensor (saft_interface) (paper §5.4 / §9,
+│                  ! (exp_interface), Seely (seely_interface) -- discharged   to be discharged
+│                  by M-SAFT                                                  via SAFT)
+├── stable/     -- local cones, total monotonicity, the stable hom B ⇒ₛ C,   (paper §7)
 │                  finite differences (Thm 7.19), the composition theorem
-│                  (Thm 7.30), and the category SCones (Thm 7.30/7.32)
+│                  (Thm 7.30), the cartesian closed SCones (Thm 7.32:
+│                  scones_cat + scones_ccc), and fixpoints (fixpoint, §9.2)
 └── kernels/    -- substochastic kernels Skern and the embedding Thm 6.5     (paper §6, M5)
 ```
 
@@ -140,7 +140,10 @@ per milestone:
 - `chapters/02-mcones.tex` — paper §3 (M2)
 - `chapters/03-icones.tex` — paper §4 (M3)
 - `chapters/04-linhom.tex` — paper §5.1 + §5.2 (M4)
-- `chapters/05-skern.tex` — paper §6 + MVP (M5)
+- `chapters/05-skern.tex` — paper §6, the kernel embedding (M5)
+- `chapters/06-tensor.tex` — paper §5.3–§5.5, the tensor + SMCC (staged)
+- `chapters/07-stable.tex` — paper §7, the stable CCC `SCones`
+- `chapters/08-exponential.tex` — paper §9, the exponential `!` + Seely category (staged)
 
 To build locally:
 
@@ -163,16 +166,19 @@ marked a required status check (not because failures are hidden).
 
 The Rocq build itself is gated by
 [`.github/workflows/build.yml`](./.github/workflows/build.yml), which
-runs `make` and the MVP axiom check on every push and PR.
+runs `make` and the axiom-free-core axiom check on every push and PR.
 
-## Reproducing the MVP headline
+## Reproducing the axiom-free anchor
 
 Run [`./verify.sh`](./verify.sh) to clean-rebuild the project and
-`Print Assumptions` the MVP headline
+`Print Assumptions` the axiom-free regression anchor
 `Icones.kernels.thm65.Skern_to_ICones_fully_faithful` (paper Theorem
-6.5). The expected output lists only the classical-logic axioms
-inherited from `mathcomp-analysis`; the project itself contains zero
-`Axiom` declarations and zero `Admitted` lemmas.
+6.5, the capstone of the kernel-embedding core). The expected output
+lists only the classical-logic axioms inherited from `mathcomp-analysis`.
+The project's own `Axiom`/`Parameter` declarations are confined to the
+three staging interfaces under `theories/axioms/`; everything else —
+including this anchor — contains zero `Axiom` declarations and zero
+`Admitted` lemmas.
 
 ## Paper sources
 
