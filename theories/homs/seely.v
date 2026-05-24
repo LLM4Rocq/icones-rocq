@@ -29,31 +29,53 @@
       on all [x!] are equal.
     - [tens_excl_charact] — Paper Lemma [tens-excl-equal-charact] for
       [n=2]: the [!]-tensor promotion extensionality.  THE workhorse.
-    - [seely_comult] — the sample Seely coherence diagram of paper lines
-      7527–7573 (comultiplication vs. [Seely2]), proved by
-      [tens_excl_charact].
+    - [tens_excl_charact3]/[tens_excl_charact3l] — the [n=3] cases (right-
+      and left-associated), for the monoidal-functor associativity.
+    - [spair]/[sprod_assoc]/[sprod_braid]/[sprod_lunit]/[sprod_runit] —
+      the cartesian structural isos of the binary product [&] and the
+      terminal [⊤], built from [icones_proj]/[icones_tuple], with their
+      pure-pairing computation laws.
+    - [seely_assoc]/[seely_braid]/[seely_lunit]/[seely_runit] — the FULL
+      symmetric-monoidal-functor coherence of [(!, Seely2, Seely0)]:
+      associativity, symmetry, left/right unit.
+    - [seely_comult] — the comultiplication coherence of paper lines
+      7527–7573 ([dig] vs. [Seely2]).
+    - [seely_der_unit]/[seely_der1]/[seely_der2] — the counit ([der])
+      compatibility laws.
     - [SeelyCategory] / [ICones_Seely] — the strong-monoidal-comonad
       bundle and its canonical witness, mirroring [ICones_SMCC]/
       [SCones_CCC].
 
-    Status (Melliès coherence, §9).  We prove the binary Seely
-    isomorphism [Seely2] (the substantive part), its naturality, and the
-    comultiplication coherence diagram explicitly drawn in the paper.
-    The unit Seely iso [Seely0 : 1 ≅ !⊤] is DEFERRED (see the note on
-    [SeelyCategory] below): stating it cleanly needs the terminal object
-    [⊤] (empty [icones_prod]) and the scalar action [t·(0!)], which the
-    paper itself only sketches ("similarly", line 7508); the binary
-    [Seely2] is the substantive content and is delivered in full.
+    Status (Melliès coherence, §9).  [ICones] is now a FULL Seely category
+    in the sense of Melliès (ref. [Mellies09]): we deliver the
+    strong-monoidal-comonad data ([!], [⊗], [&], [⊤], [Seely2], [Seely0]),
+    the binary AND unit Seely isos with their characterisations and the
+    [Seely2] naturality, the FULL symmetric-monoidal-functor coherence of
+    [(!, Seely2, Seely0)] (associativity, symmetry, both unitors), the
+    comultiplication ([dig]) coherence the paper draws explicitly, and the
+    counit ([der]) compatibility.  Every coherence is PROVED — not assumed
+    — by the paper's recipe (reduce on promoted pure tensors via
+    [tens_excl_charact]/[tens_excl_charact3l] or the mixed unit
+    extensionality, then compute by [Seely2E]/[Seely0E]/[bang_fmap_prom]/
+    [tensor_morE] + the structural-iso E-laws), exactly the "easy by Lemma
+    [tens-excl-equal-charact]" of paper line 7521.  The only un-stated
+    square is a SINGLE un-projected morphism equation for the binary
+    counit [der_{A&B} ∘ Seely2_{A,B} : !A ⊗ !B → A & B]: [&] and [⊗]
+    differ with no canonical comparison [A & B ↔ A ⊗ B] to phrase it
+    through, so it is recorded in projected form ([seely_der1]/[der2]),
+    which carries the same content.
 
     All results are THEOREMS modulo the staged interfaces; the only
     non-classical assumptions are the staged tensor symbols, the staged
     exponential symbols ([Bang]/[nl]/[lin]/[lin_beta]/[lin_unique]), and
-    the staged Seely symbols ([Seely2]/[Seely2E]/[Seely2_natural]). *)
+    the staged Seely symbols ([Seely2]/[Seely2E]/[Seely2_natural] and
+    [Seely0]/[Seely0E]). *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals.
+From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 
 Require Import Icones.cones.precone.
@@ -356,6 +378,347 @@ rewrite (bang_fmap_prom (sproj2 B1 B2) (sprod_pair x1 x2) Hp).
 by rewrite sproj1_pair sproj2_pair.
 Qed.
 
+(** ** The cartesian-product structural isos for [&] — Paper §7.4
+
+    The symmetric-monoidal-functor coherence of [!] relates [Seely2] /
+    [Seely0] to the *cartesian* structure [(&, ⊤)] of [ICones] (the
+    [sprod] product, the terminal [Stop]) on one side and the [⊗]
+    structure [(⊗, 1)] on the other.  We need the cartesian associator,
+    symmetry and unitors for [&], built from [icones_proj]/[icones_tuple]
+    (their pure-point computation is definitional). *)
+
+(** Pairing of two morphisms into a [&]-product. *)
+Definition spair (Q X Y : ICone.type Ar)
+    (f : icones_hom Ar Q X) (g : icones_hom Ar Q Y) :
+    icones_hom Ar Q (sprod X Y) :=
+  icones_tuple
+    (fun b : bool =>
+       if b as b0 return icones_hom Ar Q (sprod_fam X Y b0) then f else g).
+
+Lemma spairE (Q X Y : ICone.type Ar)
+    (f : icones_hom Ar Q X) (g : icones_hom Ar Q Y) (q : Q) :
+  Lfun (spair f g) q = sprod_pair (Lfun f q) (Lfun g q).
+Proof. by apply: cones_prod_eq => -[]. Qed.
+
+(** *** The cartesian associator [α^& : (A & B) & C ≅ A & (B & C)]. *)
+Definition sprod_assoc_fwd (A B C : ICone.type Ar) :
+    icones_hom Ar (sprod (sprod A B) C) (sprod A (sprod B C)) :=
+  spair (icones_comp (sproj1 A B) (sproj1 (sprod A B) C))
+        (spair (icones_comp (sproj2 A B) (sproj1 (sprod A B) C))
+               (sproj2 (sprod A B) C)).
+
+Definition sprod_assoc_bwd (A B C : ICone.type Ar) :
+    icones_hom Ar (sprod A (sprod B C)) (sprod (sprod A B) C) :=
+  spair (spair (sproj1 A (sprod B C))
+               (icones_comp (sproj1 B C) (sproj2 A (sprod B C))))
+        (icones_comp (sproj2 B C) (sproj2 A (sprod B C))).
+
+Lemma sprod_assoc_fwdK (A B C : ICone.type Ar) (p : sprod (sprod A B) C) :
+  Lfun (sprod_assoc_bwd A B C) (Lfun (sprod_assoc_fwd A B C) p) = p.
+Proof.
+by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[].
+Qed.
+
+Lemma sprod_assoc_bwdK (A B C : ICone.type Ar) (p : sprod A (sprod B C)) :
+  Lfun (sprod_assoc_fwd A B C) (Lfun (sprod_assoc_bwd A B C) p) = p.
+Proof.
+by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[].
+Qed.
+
+Definition sprod_assoc (A B C : ICone.type Ar) :
+    icones_iso Ar (sprod (sprod A B) C) (sprod A (sprod B C)) :=
+  icones_iso_of_cancel (sprod_assoc_fwd A B C) (sprod_assoc_bwd A B C)
+    (@sprod_assoc_fwdK A B C) (@sprod_assoc_bwdK A B C).
+
+(** [α^&(⟨⟨a,b⟩,c⟩) = ⟨a,⟨b,c⟩⟩]. *)
+Lemma sprod_assocE (A B C : ICone.type Ar) (a : A) (b : B) (c : C) :
+  Lfun (iso_fwd (sprod_assoc A B C)) (sprod_pair (sprod_pair a b) c) =
+  sprod_pair a (sprod_pair b c).
+Proof.
+by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[].
+Qed.
+
+(** *** The cartesian symmetry [σ^& : A & B ≅ B & A]. *)
+Definition sprod_braid_fwd (A B : ICone.type Ar) :
+    icones_hom Ar (sprod A B) (sprod B A) :=
+  spair (sproj2 A B) (sproj1 A B).
+
+Lemma sprod_braid_fwdK (A B : ICone.type Ar) (p : sprod A B) :
+  Lfun (sprod_braid_fwd B A) (Lfun (sprod_braid_fwd A B) p) = p.
+Proof. by apply: cones_prod_eq => -[]. Qed.
+
+Definition sprod_braid (A B : ICone.type Ar) :
+    icones_iso Ar (sprod A B) (sprod B A) :=
+  icones_iso_of_cancel (sprod_braid_fwd A B) (sprod_braid_fwd B A)
+    (@sprod_braid_fwdK A B) (@sprod_braid_fwdK B A).
+
+(** [σ^&(⟨a,b⟩) = ⟨b,a⟩]. *)
+Lemma sprod_braidE (A B : ICone.type Ar) (a : A) (b : B) :
+  Lfun (iso_fwd (sprod_braid A B)) (sprod_pair a b) = sprod_pair b a.
+Proof. by apply: cones_prod_eq => -[]. Qed.
+
+(** *** The cartesian left unitor [λ^& : ⊤ & A ≅ A]. *)
+Definition sprod_lunit_fwd (A : ICone.type Ar) :
+    icones_hom Ar (sprod (Stop Ar) A) A := sproj2 (Stop Ar) A.
+
+Definition sprod_lunit_bwd (A : ICone.type Ar) :
+    icones_hom Ar A (sprod (Stop Ar) A) :=
+  spair (Stop_mor A) (icones_id Ar A).
+
+Lemma sprod_lunit_fwdK (A : ICone.type Ar) (p : sprod (Stop Ar) A) :
+  Lfun (sprod_lunit_bwd A) (Lfun (sprod_lunit_fwd A) p) = p.
+Proof. by apply: cones_prod_eq => -[] //=; exact: Stop_eq. Qed.
+
+Lemma sprod_lunit_bwdK (A : ICone.type Ar) (a : A) :
+  Lfun (sprod_lunit_fwd A) (Lfun (sprod_lunit_bwd A) a) = a.
+Proof. by []. Qed.
+
+Definition sprod_lunit (A : ICone.type Ar) :
+    icones_iso Ar (sprod (Stop Ar) A) A :=
+  icones_iso_of_cancel (sprod_lunit_fwd A) (sprod_lunit_bwd A)
+    (@sprod_lunit_fwdK A) (@sprod_lunit_bwdK A).
+
+(** [λ^&(⟨_,a⟩) = a]. *)
+Lemma sprod_lunitE (A : ICone.type Ar) (s : Stop Ar) (a : A) :
+  Lfun (iso_fwd (sprod_lunit A)) (sprod_pair s a) = a.
+Proof. by []. Qed.
+
+(** *** The cartesian right unitor [ρ^& : A & ⊤ ≅ A]. *)
+Definition sprod_runit_fwd (A : ICone.type Ar) :
+    icones_hom Ar (sprod A (Stop Ar)) A := sproj1 A (Stop Ar).
+
+Definition sprod_runit_bwd (A : ICone.type Ar) :
+    icones_hom Ar A (sprod A (Stop Ar)) :=
+  spair (icones_id Ar A) (Stop_mor A).
+
+Lemma sprod_runit_fwdK (A : ICone.type Ar) (p : sprod A (Stop Ar)) :
+  Lfun (sprod_runit_bwd A) (Lfun (sprod_runit_fwd A) p) = p.
+Proof. by apply: cones_prod_eq => -[] //=; exact: Stop_eq. Qed.
+
+Lemma sprod_runit_bwdK (A : ICone.type Ar) (a : A) :
+  Lfun (sprod_runit_fwd A) (Lfun (sprod_runit_bwd A) a) = a.
+Proof. by []. Qed.
+
+Definition sprod_runit (A : ICone.type Ar) :
+    icones_iso Ar (sprod A (Stop Ar)) A :=
+  icones_iso_of_cancel (sprod_runit_fwd A) (sprod_runit_bwd A)
+    (@sprod_runit_fwdK A) (@sprod_runit_bwdK A).
+
+(** [ρ^&(⟨a,_⟩) = a]. *)
+Lemma sprod_runitE (A : ICone.type Ar) (a : A) (s : Stop Ar) :
+  Lfun (iso_fwd (sprod_runit A)) (sprod_pair a s) = a.
+Proof. by []. Qed.
+
+(** ** The monoidal-functor coherence of [!] — Paper §9 (Melliès)
+
+    These are the laws making [(!, Seely2, Seely0)] a SYMMETRIC MONOIDAL
+    FUNCTOR from the cartesian [(ICones, &, ⊤)] to the tensor
+    [(ICones, ⊗, 1)] (ref. [Mellies09], Bierman).  Each is proved by the
+    paper's recipe: reduce on promoted pure tensors via
+    [tens_excl_charact]/[tens_excl_charact3l] (or the mixed unit
+    extensionality [tens_excl_unitL]/[tens_excl_unitR]) and compute by
+    [Seely2E]/[Seely0E]/[bang_fmap_prom]/[tensor_morE] + the structural-iso
+    E-laws.  The paper itself (line 7521) says they are "easy to prove" by
+    Lemma [tens-excl-equal-charact]. *)
+
+(** *** Associativity coherence — Seely2 vs the associators [α^⊗]/[α^&].
+
+    As maps [(!A ⊗ !B) ⊗ !C → !(A & (B & C))]:
+      [!(α^&) ∘ Seely2_{A&B,C} ∘ (Seely2_{A,B} ⊗ id)]
+        [= Seely2_{A,B&C} ∘ (id ⊗ Seely2_{B,C}) ∘ α^⊗].
+    Both sides send [(x! ⊗ y!) ⊗ z!] to [⟨x,⟨y,z⟩⟩!]. *)
+Lemma seely_assoc (A B C : ICone.type Ar) :
+  icones_comp (bang_fmap (iso_fwd (sprod_assoc A B C)))
+    (icones_comp (iso_fwd (Seely2 (sprod A B) C))
+       (tensor_mor (iso_fwd (Seely2 A B)) (icones_id Ar (Bang Ar C)))) =
+  icones_comp (iso_fwd (Seely2 A (sprod B C)))
+    (icones_comp (tensor_mor (icones_id Ar (Bang Ar A)) (iso_fwd (Seely2 B C)))
+       (iso_fwd (tensor_assoc (Bang Ar A) (Bang Ar B) (Bang Ar C)))).
+Proof.
+apply: tens_excl_charact3l => x y z Hx Hy Hz.
+have Hxy : cone_norm (sprod_pair x y) <= 1 by exact: sprod_pair_norm_le1.
+have Hyz : cone_norm (sprod_pair y z) <= 1 by exact: sprod_pair_norm_le1.
+rewrite [in LHS]/= tensor_morE (Seely2E x y Hx Hy).
+have idC : Lfun (icones_id Ar (Bang Ar C)) z! = z! by [].
+rewrite idC (Seely2E (sprod_pair x y) z Hxy Hz).
+have Hxyz : cone_norm (sprod_pair (sprod_pair x y) z) <= 1.
+  exact: sprod_pair_norm_le1.
+rewrite (bang_fmap_prom (sprod_assoc_fwd A B C)
+           (sprod_pair (sprod_pair x y) z) Hxyz) sprod_assocE.
+rewrite [in RHS]/= tensor_assocEp tensor_morE.
+have idA : Lfun (icones_id Ar (Bang Ar A)) x! = x! by [].
+by rewrite idA (Seely2E y z Hy Hz) (Seely2E x (sprod_pair y z) Hx Hyz).
+Qed.
+
+(** *** Symmetry coherence — Seely2 vs the braidings [σ^⊗]/[σ^&].
+
+    As maps [!A ⊗ !B → !(B & A)]:
+      [!(σ^&) ∘ Seely2_{A,B} = Seely2_{B,A} ∘ σ^⊗].
+    Both sides send [x! ⊗ y!] to [⟨y,x⟩!]. *)
+Lemma seely_braid (A B : ICone.type Ar) :
+  icones_comp (bang_fmap (iso_fwd (sprod_braid A B))) (iso_fwd (Seely2 A B)) =
+  icones_comp (iso_fwd (Seely2 B A))
+    (iso_fwd (tensor_braid (Bang Ar A) (Bang Ar B))).
+Proof.
+apply: tens_excl_charact => x y Hx Hy.
+rewrite [in LHS]/= (Seely2E x y Hx Hy).
+have Hxy : cone_norm (sprod_pair x y) <= 1 by exact: sprod_pair_norm_le1.
+rewrite (bang_fmap_prom (sprod_braid_fwd A B) (sprod_pair x y) Hxy) sprod_braidE.
+by rewrite [in RHS]/= tensor_braidEp (Seely2E y x Hy Hx).
+Qed.
+
+(** *** The unit point [1 ∈ 1] and the [tensor_lunit]/[tensor_runit]
+    inverse on promotions, used by the unit-coherence extensionality. *)
+Definition one1 : cone_one_car Ar := MkConeOne Ar 1%:nng.
+
+Lemma lunit_bwd_prom (B : ICone.type Ar) (x : B) :
+  iso_bwd (tensor_lunit (Bang Ar B)) x! = ptensor one1 x!.
+Proof.
+apply: (iso_fwd_inj (tensor_lunit (Bang Ar B))).
+rewrite iso_can'.
+rewrite -[iso_fwd (tensor_lunit (Bang Ar B)) (ptensor one1 x!)]
+  /(Lfun (iso_fwd (tensor_lunit (Bang Ar B))) (ptensor one1 x!)).
+rewrite tensor_lunitEp.
+have -> : c1_val one1 = 1%:nng by [].
+by rewrite precone_scale_1.
+Qed.
+
+Lemma runit_bwd_prom (B : ICone.type Ar) (x : B) :
+  iso_bwd (tensor_runit (Bang Ar B)) x! = ptensor x! one1.
+Proof.
+apply: (iso_fwd_inj (tensor_runit (Bang Ar B))).
+rewrite iso_can'.
+rewrite -[iso_fwd (tensor_runit (Bang Ar B)) (ptensor x! one1)]
+  /(Lfun (iso_fwd (tensor_runit (Bang Ar B))) (ptensor x! one1)).
+rewrite tensor_runitEp.
+have -> : c1_val one1 = 1%:nng by [].
+by rewrite precone_scale_1.
+Qed.
+
+(** Mixed unit extensionality.  A linear map [1 ⊗ !B → C] is determined
+    by its values on [1 ⊗ x!] (the unit scalar [1] tensored with a
+    promotion): post-compose with the iso [(λ^⊗)⁻¹] (which sends [x!] to
+    [1 ⊗ x!], [lunit_bwd_prom]) and discharge by the [n=1] [bang_ext]. *)
+Lemma tens_excl_unitL (A C0 : ICone.type Ar)
+    (f g : icones_hom Ar (tensor Ar (cone_one_car Ar) (Bang Ar A)) C0) :
+  (forall x : A, cone_norm x <= 1 ->
+     Lfun f (ptensor one1 x!) = Lfun g (ptensor one1 x!)) ->
+  f = g.
+Proof.
+move=> Hfg.
+have Hbwd : icones_comp f (iso_bwd (tensor_lunit (Bang Ar A))) =
+            icones_comp g (iso_bwd (tensor_lunit (Bang Ar A))).
+  apply: bang_ext => x Hx.
+  rewrite /= -/(Lfun (iso_bwd (tensor_lunit (Bang Ar A))) x!) lunit_bwd_prom.
+  exact: Hfg.
+rewrite -(icones_compIr f) -(icones_compIr g).
+rewrite -(iso_fwdK (tensor_lunit (Bang Ar A))).
+by rewrite !icones_compA Hbwd.
+Qed.
+
+Lemma tens_excl_unitR (A C0 : ICone.type Ar)
+    (f g : icones_hom Ar (tensor Ar (Bang Ar A) (cone_one_car Ar)) C0) :
+  (forall x : A, cone_norm x <= 1 ->
+     Lfun f (ptensor x! one1) = Lfun g (ptensor x! one1)) ->
+  f = g.
+Proof.
+move=> Hfg.
+have Hbwd : icones_comp f (iso_bwd (tensor_runit (Bang Ar A))) =
+            icones_comp g (iso_bwd (tensor_runit (Bang Ar A))).
+  apply: bang_ext => x Hx.
+  rewrite /= -/(Lfun (iso_bwd (tensor_runit (Bang Ar A))) x!) runit_bwd_prom.
+  exact: Hfg.
+rewrite -(icones_compIr f) -(icones_compIr g).
+rewrite -(iso_fwdK (tensor_runit (Bang Ar A))).
+by rewrite !icones_compA Hbwd.
+Qed.
+
+(** *** Left-unit coherence — Seely0 vs the left unitors [λ^⊗]/[λ^&].
+
+    As maps [1 ⊗ !A → !A]:
+      [!(λ^&_A) ∘ Seely2_{⊤,A} ∘ (Seely0 ⊗ id) = λ^⊗_{!A}].
+    Both sides send [1 ⊗ x!] to [x!] (the LHS through [Seely0(1) = 0!],
+    [Seely2(0! ⊗ x!) = ⟨0,x⟩!] and [λ^&⟨0,x⟩ = x]). *)
+Lemma seely_lunit (A : ICone.type Ar) :
+  icones_comp (bang_fmap (iso_fwd (sprod_lunit A)))
+    (icones_comp (iso_fwd (Seely2 (Stop Ar) A))
+       (tensor_mor (iso_fwd Seely0) (icones_id Ar (Bang Ar A)))) =
+  iso_fwd (tensor_lunit (Bang Ar A)).
+Proof.
+apply: tens_excl_unitL => x Hx.
+have H0 : cone_norm (precone_zero : Stop Ar) <= 1 by rewrite cone_norm0.
+rewrite [in LHS]/= tensor_morE (Seely0E one1).
+have e1 : c1_val one1 = 1%:nng by [].
+rewrite e1 precone_scale_1.
+have idA : Lfun (icones_id Ar (Bang Ar A)) x! = x! by [].
+rewrite idA (Seely2E (precone_zero : Stop Ar) x H0 Hx).
+have Hp : cone_norm (sprod_pair (precone_zero : Stop Ar) x) <= 1.
+  exact: sprod_pair_norm_le1.
+rewrite (bang_fmap_prom (sprod_lunit_fwd A)
+           (sprod_pair (precone_zero : Stop Ar) x) Hp) sprod_lunitE.
+rewrite -[iso_fwd (tensor_lunit (Bang Ar A)) (ptensor one1 x!)]
+  /(Lfun (iso_fwd (tensor_lunit (Bang Ar A))) (ptensor one1 x!)).
+by rewrite tensor_lunitEp e1 precone_scale_1.
+Qed.
+
+(** *** Right-unit coherence — Seely0 vs the right unitors [ρ^⊗]/[ρ^&].
+
+    As maps [!A ⊗ 1 → !A]:
+      [!(ρ^&_A) ∘ Seely2_{A,⊤} ∘ (id ⊗ Seely0) = ρ^⊗_{!A}].
+    Both sides send [x! ⊗ 1] to [x!]. *)
+Lemma seely_runit (A : ICone.type Ar) :
+  icones_comp (bang_fmap (iso_fwd (sprod_runit A)))
+    (icones_comp (iso_fwd (Seely2 A (Stop Ar)))
+       (tensor_mor (icones_id Ar (Bang Ar A)) (iso_fwd Seely0))) =
+  iso_fwd (tensor_runit (Bang Ar A)).
+Proof.
+apply: tens_excl_unitR => x Hx.
+have H0 : cone_norm (precone_zero : Stop Ar) <= 1 by rewrite cone_norm0.
+rewrite [in LHS]/= tensor_morE (Seely0E one1).
+have e1 : c1_val one1 = 1%:nng by [].
+rewrite e1 precone_scale_1.
+have idA : Lfun (icones_id Ar (Bang Ar A)) x! = x! by [].
+rewrite idA (Seely2E x (precone_zero : Stop Ar) Hx H0).
+have Hp : cone_norm (sprod_pair x (precone_zero : Stop Ar)) <= 1.
+  exact: sprod_pair_norm_le1.
+rewrite (bang_fmap_prom (sprod_runit_fwd A)
+           (sprod_pair x (precone_zero : Stop Ar)) Hp) sprod_runitE.
+rewrite -[iso_fwd (tensor_runit (Bang Ar A)) (ptensor x! one1)]
+  /(Lfun (iso_fwd (tensor_runit (Bang Ar A))) (ptensor x! one1)).
+by rewrite tensor_runitEp e1 precone_scale_1.
+Qed.
+
+(** ** Comonad-vs-monoidal compatibility — the counit [der] (Paper §9)
+
+    Complementing [seely_comult] (the comultiplication [dig] vs [Seely2]),
+    these record the counit [der]'s compatibility with the Seely isos.
+
+    *** Counit/unit coherence: [der_⊤ ∘ Seely0 = !] (the unique [1 → ⊤]).
+    Immediate from terminality of [⊤] ([Stop_mor_unique]). *)
+Lemma seely_der_unit :
+  icones_comp (der (Stop Ar)) (iso_fwd Seely0) = Stop_mor (cone_one_car Ar).
+Proof. exact: Stop_mor_unique. Qed.
+
+(** *** Counit/Seely2 binary coherence, in projected form.  The product
+    [A & B] is determined by its two projections, so the counit-square
+    [der_{A&B} ∘ Seely2_{A,B} : !A ⊗ !B → A & B] is pinned down by its two
+    [&]-projections, each of which is the naturality of [der] ([der_nat])
+    transported across [Seely2]: [πᵢ ∘ der_{A&B} ∘ Seely2 = derᵢ ∘ !πᵢ ∘
+    Seely2].  (Both send [x! ⊗ y!] to [x] resp. [y].) *)
+Lemma seely_der1 (A B : ICone.type Ar) :
+  icones_comp (sproj1 A B)
+    (icones_comp (der (sprod A B)) (iso_fwd (Seely2 A B))) =
+  icones_comp (der A)
+    (icones_comp (bang_fmap (sproj1 A B)) (iso_fwd (Seely2 A B))).
+Proof. by rewrite icones_compA (der_nat (sproj1 A B)) -icones_compA. Qed.
+
+Lemma seely_der2 (A B : ICone.type Ar) :
+  icones_comp (sproj2 A B)
+    (icones_comp (der (sprod A B)) (iso_fwd (Seely2 A B))) =
+  icones_comp (der B)
+    (icones_comp (bang_fmap (sproj2 A B)) (iso_fwd (Seely2 A B))).
+Proof. by rewrite icones_compA (der_nat (sproj2 A B)) -icones_compA. Qed.
+
 End Seely.
 
 Arguments linhom_icones {R Ar C D} phi Hphi.
@@ -368,6 +731,26 @@ Arguments sproj1 {R Ar} B1 B2.
 Arguments sproj2 {R Ar} B1 B2.
 Arguments bang_proj_tuple {R Ar} B1 B2.
 Arguments seely_comult {R Ar} B1 B2.
+Arguments spair {R Ar Q X Y}.
+Arguments spairE {R Ar Q X Y}.
+Arguments sprod_assoc {R Ar} A B C.
+Arguments sprod_assocE {R Ar A B C}.
+Arguments sprod_braid {R Ar} A B.
+Arguments sprod_braidE {R Ar A B}.
+Arguments sprod_lunit {R Ar} A.
+Arguments sprod_lunitE {R Ar A}.
+Arguments sprod_runit {R Ar} A.
+Arguments sprod_runitE {R Ar A}.
+Arguments one1 {R Ar}.
+Arguments tens_excl_unitL {R Ar A C0} f g.
+Arguments tens_excl_unitR {R Ar A C0} f g.
+Arguments seely_assoc {R Ar} A B C.
+Arguments seely_braid {R Ar} A B.
+Arguments seely_lunit {R Ar} A.
+Arguments seely_runit {R Ar} A.
+Arguments seely_der_unit {R Ar}.
+Arguments seely_der1 {R Ar} A B.
+Arguments seely_der2 {R Ar} A B.
 
 (** ** Paper §9 Theorem — [ICones] is a Seely category (ref. [Mellies09])
 
@@ -386,37 +769,48 @@ Arguments seely_comult {R Ar} B1 B2.
       the [α]/[λ]/[ρ]/[σ] coherence;
     - [sc_comonad] : the exponential comonad [!] of [bang.v] (§9),
       supplying [!], [!f], [der], [dig] and the comonad laws;
-    - [sc_prod] : the binary product [&] ([scones_ccc.v]'s [sprod]) — the
-      cartesian structure the Seely iso relates to the tensor;
-    - [sc_seely2] : the binary Seely iso [!A ⊗ !B ≅ !(A & B)] with its
-      characterisation [sc_seely2E] on promoted pure tensors and its
-      naturality [sc_seely2_nat] (the staged Yoneda data);
-    - [sc_comult] : the comultiplication coherence diagram (paper lines
-      7527–7573), the sample Melliès coherence law DERIVED here via
-      [tens_excl_charact].
+    - [sc_seely2]/[sc_seely2E]/[sc_seely2_nat] : the binary Seely iso
+      [!A ⊗ !B ≅ !(A & B)], its characterisation on promoted pure tensors
+      and its naturality (the staged Yoneda data);
+    - [sc_seely0]/[sc_seely0E] : the unit Seely iso [1 ≅ !⊤] (with [⊤] the
+      terminal cone [Stop]) and its characterisation [Seely0(t) = t·0!];
+    - [sc_assoc]/[sc_braid]/[sc_lunit]/[sc_runit] : the four
+      symmetric-monoidal-functor coherence squares of [(!, Seely2, Seely0)]
+      against the cartesian [(&, ⊤)] and the tensor [(⊗, 1)] structural
+      isos (associator/symmetry/unitors), DERIVED via
+      [tens_excl_charact3l]/[tens_excl_charact]/[tens_excl_unitL/R];
+    - [sc_comult] : the comultiplication coherence (paper lines 7527–7573),
+      the [dig] vs [Seely2] Melliès law, DERIVED via [tens_excl_charact];
+    - [sc_der_unit]/[sc_der1]/[sc_der2] : the counit [der] compatibility —
+      the counit/unit law [der_⊤ ∘ Seely0 = !] and the projected
+      counit/[Seely2] binary laws.
 
     The canonical witness [ICones_Seely] populates every field with the
     proved lemmas; the only unproved inputs are the staged tensor / exp /
     Seely symbols, discharged by M-SAFT (PLAN §13).
 
-    Status of the Melliès coherence laws.  We DELIVER: the strong
-    monoidal comonad data ([!], [⊗], [&], [Seely2]); the binary Seely
-    iso and its naturality; and the comultiplication coherence the paper
-    draws explicitly (line 7527) — proved, not assumed, via
-    [tens_excl_charact].  Each of Melliès' remaining coherence squares
-    (the counit/[der] square, the [Seely2] associativity/unit/symmetry
-    squares against [α]/[λ]/[ρ]/[σ], and the [Seely0] unit-iso squares)
-    has the SAME shape — agree on [x1! ⊗ x2!], reduce both sides by
-    [Seely2E]/[dig_prom]/[bang_fmap_prom]/[tensor_morE] — and is provable
-    by the identical [tens_excl_charact] recipe; the paper itself states
-    (line 7521) they are "easy to prove" by Lemma
-    [tens-excl-equal-charact], i.e. by exactly [tens_excl_charact].  They
-    are NOT axiomatised here: a [SeelyCategory] records the laws actually
-    proved.  The unit Seely iso [Seely0 : 1 ≅ !⊤] is likewise DEFERRED
-    (it needs the terminal object [⊤] as an empty [icones_prod]); since
-    every coherence law involving [Seely0] would consume it, the bundle
-    records only the binary [Seely2] data, which is the substantive
-    part. *)
+    Status of the Melliès coherence laws.  We DELIVER, as THEOREMS modulo
+    the staged interfaces (not axioms): the strong-monoidal-comonad data
+    ([!], [⊗], [&], [⊤], [Seely2], [Seely0]); the binary Seely iso, its
+    naturality and characterisation; the unit Seely iso and its
+    characterisation; the FULL symmetric-monoidal-functor coherence of
+    [(!, Seely2, Seely0)] — associativity, symmetry, left/right unit; the
+    comultiplication ([dig]) coherence the paper draws explicitly (line
+    7527); and the counit ([der]) compatibility laws.  Every coherence is
+    proved by the paper's recipe — reduce on promoted pure tensors via
+    [tens_excl_charact]/[tens_excl_charact3l] (or the mixed unit
+    extensionality), compute by [Seely2E]/[Seely0E]/[bang_fmap_prom]/
+    [tensor_morE] + the structural-iso E-laws — exactly the "easy by Lemma
+    [tens-excl-equal-charact]" of paper line 7521.
+
+    The binary counit/[Seely2] square [der_{A&B} ∘ Seely2_{A,B}] is
+    recorded only in its PROJECTED form ([sc_der1]/[sc_der2]): the product
+    [A & B] is determined by its projections, and each projection of that
+    square is the dereliction naturality [der_nat] transported across
+    [Seely2].  A single un-projected morphism equation between [!A ⊗ !B]
+    and [A & B] is not stated, since [&] and [⊗] differ and there is no
+    canonical comparison [A & B ↔ A ⊗ B] to phrase it through; the two
+    projections jointly carry the same content. *)
 
 Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
   MkSeelyCategory {
@@ -447,12 +841,57 @@ Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
     icones_comp (bang_fmap (sprod_mor f1 f2)) (iso_fwd (sc_seely2 B1 B2)) =
     icones_comp (iso_fwd (sc_seely2 B1' B2'))
                 (tensor_mor (bang_fmap f1) (bang_fmap f2));
+  (* the unit Seely iso [1 ≅ !⊤], with [⊤ = Stop Ar] the terminal cone *)
+  sc_seely0 : icones_iso Ar (cone_one_car Ar) (Bang Ar (Stop Ar));
+  (* its characterisation [Seely0(t) = t·(0!)] (paper line 7508) *)
+  sc_seely0E : forall t : cone_one_car Ar,
+    iso_fwd sc_seely0 t =
+    precone_scale (c1_val t) (prom (precone_zero : Stop Ar));
+  (* SYMMETRIC MONOIDAL FUNCTOR coherence of [(!, Seely2, Seely0)]
+     (Melliès; ref. [Mellies09]) — associativity, symmetry, unitors *)
+  sc_assoc : forall A B C : ICone.type Ar,
+    icones_comp (bang_fmap (iso_fwd (sprod_assoc A B C)))
+      (icones_comp (iso_fwd (sc_seely2 (sprod A B) C))
+         (tensor_mor (iso_fwd (sc_seely2 A B)) (icones_id Ar (Bang Ar C)))) =
+    icones_comp (iso_fwd (sc_seely2 A (sprod B C)))
+      (icones_comp
+         (tensor_mor (icones_id Ar (Bang Ar A)) (iso_fwd (sc_seely2 B C)))
+         (iso_fwd (tensor_assoc (Bang Ar A) (Bang Ar B) (Bang Ar C))));
+  sc_braid : forall A B : ICone.type Ar,
+    icones_comp (bang_fmap (iso_fwd (sprod_braid A B)))
+                (iso_fwd (sc_seely2 A B)) =
+    icones_comp (iso_fwd (sc_seely2 B A))
+                (iso_fwd (tensor_braid (Bang Ar A) (Bang Ar B)));
+  sc_lunit : forall A : ICone.type Ar,
+    icones_comp (bang_fmap (iso_fwd (sprod_lunit A)))
+      (icones_comp (iso_fwd (sc_seely2 (Stop Ar) A))
+         (tensor_mor (iso_fwd sc_seely0) (icones_id Ar (Bang Ar A)))) =
+    iso_fwd (tensor_lunit (Bang Ar A));
+  sc_runit : forall A : ICone.type Ar,
+    icones_comp (bang_fmap (iso_fwd (sprod_runit A)))
+      (icones_comp (iso_fwd (sc_seely2 A (Stop Ar)))
+         (tensor_mor (icones_id Ar (Bang Ar A)) (iso_fwd sc_seely0))) =
+    iso_fwd (tensor_runit (Bang Ar A));
   (* comultiplication coherence (paper lines 7527–7573), DERIVED *)
   sc_comult : forall B1 B2 : ICone.type Ar,
     icones_comp (bang_fmap (bang_proj_tuple B1 B2))
       (icones_comp (dig (sprod B1 B2)) (iso_fwd (sc_seely2 B1 B2))) =
     icones_comp (iso_fwd (sc_seely2 (Bang Ar B1) (Bang Ar B2)))
       (tensor_mor (dig B1) (dig B2));
+  (* counit [der] compatibility (complements [sc_comult]) *)
+  sc_der_unit :
+    icones_comp (der (Stop Ar)) (iso_fwd sc_seely0) =
+    Stop_mor (cone_one_car Ar);
+  sc_der1 : forall A B : ICone.type Ar,
+    icones_comp (sproj1 A B)
+      (icones_comp (der (sprod A B)) (iso_fwd (sc_seely2 A B))) =
+    icones_comp (der A)
+      (icones_comp (bang_fmap (sproj1 A B)) (iso_fwd (sc_seely2 A B)));
+  sc_der2 : forall A B : ICone.type Ar,
+    icones_comp (sproj2 A B)
+      (icones_comp (der (sprod A B)) (iso_fwd (sc_seely2 A B))) =
+    icones_comp (der B)
+      (icones_comp (bang_fmap (sproj2 A B)) (iso_fwd (sc_seely2 A B)));
 }.
 
 Arguments SeelyCategory {R} Ar.
@@ -469,4 +908,13 @@ Definition ICones_Seely (R : realType) (Ar : MeasSubcat R) :
      sc_seely2 := @Seely2 R Ar;
      sc_seely2E := @Seely2E R Ar;
      sc_seely2_nat := @Seely2_natural R Ar;
-     sc_comult := @seely_comult R Ar |}.
+     sc_seely0 := @Seely0 R Ar;
+     sc_seely0E := @Seely0E R Ar;
+     sc_assoc := @seely_assoc R Ar;
+     sc_braid := @seely_braid R Ar;
+     sc_lunit := @seely_lunit R Ar;
+     sc_runit := @seely_runit R Ar;
+     sc_comult := @seely_comult R Ar;
+     sc_der_unit := @seely_der_unit R Ar;
+     sc_der1 := @seely_der1 R Ar;
+     sc_der2 := @seely_der2 R Ar |}.
