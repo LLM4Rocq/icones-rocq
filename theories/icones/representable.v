@@ -56,6 +56,7 @@ From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import lebesgue_integral.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.cones.precone.
@@ -64,7 +65,9 @@ Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone_cat.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
+Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.mcone_cat.
+Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.icone_cat.
@@ -454,4 +457,123 @@ Proof. by rewrite phi_norm. Qed.
 Definition phi_chom : cones_hom A1 A2 :=
   ConesHom phi phi_lin phi_cont phi_norm_le.
 
+(** *** Test-family correspondence (from the [cls_M] table)
+
+    Every selected test [m] of [A2] is matched, *through [phi]*, by a
+    selected test [m'] of [A1]: [test_fun m s (phi a) = test_fun m' s a].
+    This is the equality of the transported test families [HM]
+    evaluated on the common image. *)
+Lemma phi_test_match (X : ar_obj Ar) (m : test_of Ar X A2) :
+  mcone_M X m ->
+  exists m' : test_of Ar X A1,
+    mcone_M X m' /\
+    forall (s : ar_carrier Ar X) (a : A1),
+      test_fun m s (phi a) = test_fun m' s a.
+Proof.
+move=> mM.
+have Hin : [set g | exists m0 : test_of Ar X A2, mcone_M X m0 /\
+             g = (fun s b => test_fun m0 s (hinv h2 b))]
+           (fun s b => test_fun m s (hinv h2 b)) by exists m.
+move: Hin; rewrite HM => -[m' [m'M Hgr]].
+exists m'; split=> // s a.
+have := f_equal (fun f => f s (g1 a)) Hgr => /=.
+rewrite (hinvK h1 inj1) => <-.
+by rewrite /phi.
+Qed.
+
+(** [phi] preserves measurable paths: [phi ∘ γ] is a measurable path
+    in [A2] whenever [γ] is one in [A1]. *)
+Lemma phi_pres_path (X : ar_obj Ar) (γ : ar_carrier Ar X -> A1) :
+  is_measurable_path γ ->
+  is_measurable_path (fun r => phi (γ r)).
+Proof.
+move=> [[Mb HMb] Hmeas]; split.
+  exists Mb => r; rewrite phi_norm; exact: HMb.
+move=> Y m mM.
+have [m' [m'M Hm']] := phi_test_match mM.
+have -> : (fun p => test_fun m p.1 (phi (γ p.2))) =
+          (fun p => test_fun m' p.1 (γ p.2)).
+  by apply: funext => p; rewrite Hm'.
+exact: Hmeas.
+Qed.
+
+(** [phi] as an [mcones_hom A1 A2]. *)
+Definition phi_mcones : mcones_hom Ar A1 A2 :=
+  MkMConesHom phi_chom phi_pres_path.
+
+(** [phi] preserves integrals: [phi (∫ β µ) = ∫ (phi ∘ β) µ].
+
+    By uniqueness of integrals (Mssep), it suffices to show that
+    [phi (∫ β µ)] satisfies the defining equation [path_integral_eq]
+    for the [A2]-path [phi ∘ β].  For an [A2]-test [m] matched by the
+    [A1]-test [m'] (via [phi_test_match]), both members reduce to the
+    [A1]-integral equation [icone_integralP] for [m']. *)
+Lemma phi_pres_int
+  (X : ar_obj Ar) (β : ar_carrier Ar X -> A1)
+  (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X)) :
+  cones_hom_fun (mcones_hom_cones phi_mcones) (icone_integral β Hβ µ) =
+  icone_integral
+    (fun r => cones_hom_fun (mcones_hom_cones phi_mcones) (β r))
+    (mcones_hom_pres_path phi_mcones X β Hβ) µ.
+Proof.
+apply: icone_integral_eqP.
+move=> m mM s.
+have [m' [m'M Hm']] := phi_test_match mM.
+rewrite /= Hm'.
+under eq_integral => r _ do rewrite /= Hm'.
+exact: (icone_integralP β Hβ µ) m' m'M s.
+Qed.
+
+(** [phi] as an [icones_hom A1 A2]. *)
+Definition phi_icones : icones_hom Ar A1 A2 :=
+  MkIConesHom phi_mcones phi_pres_int.
+
+(** The underlying point map of [phi_icones] is [phi]. *)
+Lemma phi_iconesE (a : A1) : hfun phi_icones a = phi a.
+Proof. by []. Qed.
+
 End ForcedMap.
+
+Arguments phi {R Ar A1 A2 B} h1 h2 a.
+Arguments psi {R Ar A1 A2 B} h1 h2 a.
+
+(** ** SA0 — the well-poweredness theorem
+
+    Two subobjects of [B] with the same classifier are equivalent, i.e.
+    iso over [B].  This is the precise, axiom-free Rocq rendering of
+    Paper Thm 4.18: the class of subobjects of [B] is essentially small,
+    classified by [icones_subobject_class] into the small type
+    [SubobjClassifier B]. *)
+
+Section WellPowered.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable B : ICone.type Ar.
+
+(** The classifier of a subobject is recovered as the algebraic /
+    measurability data over [B]. *)
+Lemma icones_subobject_classP (D1 D2 : icones_subobject B) :
+  icones_subobject_class D1 = icones_subobject_class D2 ->
+  subobject_equiv D1 D2.
+Proof.
+case: D1 => A1 h1 inj1; case: D2 => A2 h2 inj2 /=.
+move=> Hcls.
+(* Extract the component equalities of the two classifiers.  [HS] is
+   the image equality; [Hnrm] / [HM] the transported-norm / test-family
+   equalities (D1's data on the left). *)
+have HS := f_equal cls_S Hcls.
+have Hnrm := f_equal cls_nrm Hcls.
+have HM := fun X => f_equal (fun c => cls_M c X) Hcls.
+simpl in HS, Hnrm, HM.
+(* Forward morphism [A1 → A2] and backward morphism [A2 → A1] (the
+   forward of the swapped pair; its point map is [psi h1 h2]
+   definitionally).  The flips are just [esym]. *)
+pose fwd := phi_icones inj1 inj2 HS (esym Hnrm) (fun X => esym (HM X)).
+pose bwd := phi_icones inj2 inj1 (esym HS) Hnrm HM.
+exists (icones_iso_of_cancel fwd bwd
+          (psiphiK inj1 HS) (phipsiK inj2 HS)) => x.
+by rewrite /fwd (phiE HS).
+Qed.
+
+End WellPowered.
+
+Arguments icones_subobject_classP {R Ar B} D1 D2.
