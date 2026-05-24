@@ -1281,9 +1281,16 @@ Proof. by move=> Hinj a1 a2; exact: Hinj. Qed.
     set-theoretic sense; Rocq's [Type] is not a set, but the
     Coq type [set B] is a small type when [B] is).
 
-    The full paper argument exhibits an explicit injection from
-    the class of mono-types into [set B × F(subset of B)]; both are
-    [Type]-small under our Ar smallness hypothesis. *)
+    NOTE (M-SAFT, PLAN §13.1 SA0).  This [Definition] is only a
+    *cardinality placeholder*: it records the codomain type, not a
+    proved injection.  The GENUINE well-poweredness proof — a small
+    classifier [SubobjClassifier B] together with the theorem that it
+    determines each subobject up to ICones-iso ([icones_subobject_classP]
+    / [icones_well_powered]) — lives downstream in
+    [theories/icones/representable.v] (it must, since it builds on the
+    [icones_iso] record of [homs/icones_iso.v], which depends on this
+    file).  That result is the faithful, axiom-free rendering of the
+    paper's [(S, F)] essential-smallness argument. *)
 Definition icones_well_powered_bound : Type := set B.
 
 End IConesWellPowered.
