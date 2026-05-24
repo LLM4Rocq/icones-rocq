@@ -116,6 +116,38 @@ Axiom Seely2E :
     cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
     iso_fwd (Seely2 B1 B2) (x1! ⊗p x2!) = (sprod_pair x1 x2)!.
 
+(** ** The terminal integrable cone [⊤] — Paper §9 ([\Stop])
+
+    The Seely *unit* iso relates the monoidal unit [1] to [!⊤], where
+    [⊤] is the TERMINAL object of [ICones].  The terminal object is the
+    empty product [icones_prod] over [Empty_set]: a point is a (vacuous)
+    section [forall e : Empty_set, _], so by [cones_prod_eq] any two
+    points are equal — there is a single point, the product zero, and a
+    unique morphism into [⊤] from every object.  This is a genuine
+    definition (like [sprod_mor] below); only the [Seely0] iso it carries
+    is staged. *)
+Definition Stop : ICone.type Ar :=
+  icones_prod (fun e : Empty_set => match e return ICone.type Ar with end).
+
+(** [⊤] is terminal *as a cone*: any two of its points are equal (the
+    section quantifier ranges over [Empty_set]). *)
+Lemma Stop_eq (s t : Stop) : s = t.
+Proof. by apply: cones_prod_eq => -[]. Qed.
+
+(** Hence every point of [⊤] is its zero. *)
+Lemma Stop_is0 (s : Stop) : s = (precone_zero : Stop).
+Proof. exact: Stop_eq. Qed.
+
+(** The unique morphism into [⊤] from any object: the empty tuple. *)
+Definition Stop_mor (B : ICone.type Ar) : icones_hom Ar B Stop :=
+  icones_tuple (fun e : Empty_set => match e return icones_hom Ar B _ with end).
+
+(** Its uniqueness: any [h : B → ⊤] equals [Stop_mor] (both land in the
+    single point of [⊤]). *)
+Lemma Stop_mor_unique (B : ICone.type Ar) (h : icones_hom Ar B Stop) :
+  h = Stop_mor B.
+Proof. by apply: icones_hom_eq => x; exact: Stop_eq. Qed.
+
 (** ** The binary-product bifunctor action [f1 & f2] — Paper §7.4
 
     The cartesian product [&] of [scones_ccc.v] acts on morphisms by
@@ -153,6 +185,41 @@ Axiom Seely2_natural :
     icones_comp (iso_fwd (Seely2 B1' B2'))
                 (tensor_mor (bang_fmap f1) (bang_fmap f2)).
 
+(** ** Paper §9 — the unit Seely isomorphism [\Seelyz]
+
+    Dual to [Seely2], from the same chain of natural bijections and the
+    Yoneda Lemma [functor-yoneda-iso] (paper line 7507, "Similarly"), one
+    obtains a natural iso
+
+      [Seely0 : 1 ≅ !⊤]
+
+    where [1 = cone_one_car Ar] is the monoidal unit and [⊤ = Stop] is
+    the terminal object.  It is characterised (paper line 7508) by
+
+      [Seely0(t) = t · (0!)]
+
+    i.e. [Seely0] sends the scalar [t ∈ 1 = R≥0] to the [t]-scaling of
+    the promotion of the terminal object's (unique) zero point [0 ∈ ⊤].
+    By the [n=1] promotion extensionality and linearity this single
+    equation pins [Seely0] down, exactly as [Seely2E] pins [Seely2].
+
+    SAFT/Yoneda is what we STAGE; we keep the iso and its
+    characterisation. *)
+
+(* STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete *)
+Parameter Seely0 : icones_iso Ar (cone_one_car Ar) (Bang Ar Stop).
+
+(** Paper line 7508: the characterising equation of [Seely0].  The
+    terminal zero point is [precone_zero : Stop] (all points of [⊤] are
+    equal, [Stop_is0]); its promotion is [(precone_zero)!], scaled by the
+    scalar [c1_val t ∈ R≥0] carried by [t ∈ 1]. *)
+
+(* STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete *)
+Axiom Seely0E :
+  forall t : cone_one_car Ar,
+    iso_fwd Seely0 t =
+    precone_scale (c1_val t) (prom (precone_zero : Stop)).
+
 End SeelyInterface.
 
 (** [Seely2] and its characterisation should print with the object
@@ -161,3 +228,10 @@ Arguments Seely2 {R Ar} B1 B2.
 Arguments Seely2E {R Ar B1 B2}.
 Arguments sprod_mor {R Ar B1 B2 B1' B2'}.
 Arguments Seely2_natural {R Ar B1 B2 B1' B2'}.
+Arguments Stop {R} Ar.
+Arguments Stop_eq {R Ar}.
+Arguments Stop_is0 {R Ar}.
+Arguments Stop_mor {R Ar} B.
+Arguments Stop_mor_unique {R Ar B}.
+Arguments Seely0 {R Ar}.
+Arguments Seely0E {R Ar}.
