@@ -32,6 +32,7 @@ theories/mcones/test_pullback.v
 theories/homs/linhom.v
 theories/homs/bilin.v
 theories/homs/icones_iso.v
+theories/icones/representable.v
 theories/homs/linhom_functor.v
 theories/kernels/skern.v
 theories/kernels/thm65.v
