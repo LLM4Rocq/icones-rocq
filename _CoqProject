@@ -35,6 +35,7 @@ theories/homs/icones_iso.v
 theories/icones/representable.v
 theories/homs/linhom_functor.v
 theories/homs/limpl_continuous.v
+theories/homs/tensor_construct.v
 theories/kernels/skern.v
 theories/kernels/thm65.v
 theories/stable/local_cone.v

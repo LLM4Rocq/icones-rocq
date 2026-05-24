@@ -56,9 +56,12 @@ From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import measurable_realfun.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import lebesgue_integral.
 
 Require Import Icones.prelude.classical_extra.
+Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
@@ -69,6 +72,7 @@ Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
+Require Import Icones.icones.examples_icone.
 Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.icones_iso.
@@ -978,6 +982,188 @@ Definition is_icones_left_adjoint
 End SAFTExport.
 
 Arguments is_icones_left_adjoint {R Ar Cobj} Homc Robj Fobj Phi Psi.
+
+(** ** SA6 — the coseparator [1] in hom form (tensor-discharge primitives)
+
+    Three primitives that the tensor discharge ([tensor_construct.v])
+    consumes to run the SAFT solution-set construction against the
+    *concrete* continuous functor [(C ⊸ −)]:
+
+    - [icones_eq_incl_inj] : the equaliser inclusion is a mono.  This
+      supplies the [is_icones_inj (wi_proj k0)] hypothesis of
+      [wi_incl_inj] (the [wi_obj] of the tensor is an [icones_eq],
+      whose [wi_proj k0] is built from [icones_eq_incl]).
+    - [hom_of_test] : an arity-0 test [m ∈ mcone_M] of [D] in
+      morphism form [D → 1] (where [1 = cone_one_car Ar]) — the
+      missing "[1] cogenerates in hom form" bridge.
+    - [icones_coseparator_inj] : element-form "[1] cogenerates":
+      [(∀ n : D → 1, n x = n y) → x = y], via [mcone_M_sep] + the
+      hom form of the separating tests ([hom_of_test]). *)
+
+(** *** [icones_eq_incl] is a monomorphism
+
+    The point map of [icones_eq_incl f g] is the [cones_eq_val]
+    projection; injectivity is the subtype-extensionality
+    [cones_eq_extensional]. *)
+Lemma icones_eq_incl_inj (R : realType) (Ar : MeasSubcat R)
+    (B C : ICone.type Ar) (f g : icones_hom Ar B C) :
+  is_icones_inj (icones_eq_incl f g).
+Proof. by rewrite /is_icones_inj => x y /=; exact: cones_eq_extensional. Qed.
+
+Arguments icones_eq_incl_inj {R Ar B C} f g.
+
+(** *** A test of [D] at arity 0 as a morphism [D → 1]
+
+    For an integrable cone [D] and a *selected* arity-0 test
+    [m ∈ mcone_M (ar_zero Ar)], the point map [x ↦ m s x] (with
+    [s := ar_zero_pt Ar], valued in [R≥0] by [test_ge0]) is a genuine
+    [icones_hom Ar D (cone_one_car Ar)]: the [test_of] axioms supply
+    linearity / ω-continuity / norm-bound; path-preservation and
+    integral-preservation reduce to the singleton-test data of [1]. *)
+
+Section HomOfTest.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable D : ICone.type Ar.
+
+Local Notation T1 := (cone_one_car Ar).
+Local Notation s0 := (ar_zero_pt Ar).
+
+Variable m : test_of Ar (ar_zero Ar) D.
+Hypothesis mM : mcone_M (ar_zero Ar) m.
+
+(** The point map [D → 1]: wrap [m s0 x ∈ R≥0]. *)
+Definition hot_fun (x : D) : T1 :=
+  examples_icone.MkConeOne Ar (NngNum (test_ge0 m s0 x)).
+
+Lemma hot_val (x : D) : (examples_icone.c1_val (hot_fun x))%:num = test_fun m s0 x.
+Proof. by []. Qed.
+
+(** Linearity, from [test_lin0] / [test_linD] / [test_linZ]. *)
+Lemma hot_linear : is_linear hot_fun.
+Proof.
+split.
+- by apply: cone_one_eq; apply: nngnum_inj; rewrite /hot_fun /= test_lin0.
+- move=> x y; apply: cone_one_eq; apply: nngnum_inj.
+  by rewrite /hot_fun /= test_linD.
+- move=> r x; apply: cone_one_eq; apply: nngnum_inj.
+  by rewrite /hot_fun /= test_linZ.
+Qed.
+
+(** Monotonicity of [m s0] (from linearity + positivity): used for
+    the [≥] half of ω-continuity. *)
+Lemma hot_mono (x y : D) :
+  precone_le x y -> test_fun m s0 x <= test_fun m s0 y.
+Proof.
+by case=> z ->; rewrite test_linD lerDl; exact: test_ge0.
+Qed.
+
+(** ω-continuity: [m s0 (sup u) = sup_n (m s0 (u n))], the [≤] half by
+    [test_cont], the [≥] half by [hot_mono] on the chain. *)
+Lemma hot_continuous : is_omega_continuous hot_fun.
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: cone_one_eq; apply: nngnum_inj.
+rewrite [RHS]examples_icone.c1_sup_ball_E /=.
+set S : set R := [set _ | _ in _].
+have S_ne : S !=set0 by exists (test_fun m s0 (u 0%N)); exists 0%N.
+have S_ub : has_ubound S.
+  by exists 1 => _ [n _ <-] /=; apply: test_le1; exact: ub1.
+have hsup : has_sup S by split.
+apply: le_anti; apply/andP; split.
+- apply: (@test_cont _ _ _ _ _ s0 u uch ub1 (sup S)) => n.
+  by move/ubP/(_ (test_fun m s0 (u n))) : (sup_upper_bound hsup); apply; exists n.
+- apply: ge_sup => // _ [n _ <-].
+  apply: hot_mono; exact: cone_sup_ball_ub.
+Qed.
+
+Lemma hot_norm_le1 (x : D) : cone_norm (hot_fun x) <= cone_norm x.
+Proof. by rewrite /cone_norm/= /hot_fun/=; exact: test_norm_le. Qed.
+
+(** Underlying [cones_hom]. *)
+Definition hot_chom : cones_hom (D : coneType R) (T1 : coneType R) :=
+  ConesHom hot_fun hot_linear hot_continuous hot_norm_le1.
+
+(** Path-preservation: [hot_fun ∘ γ] is a measurable path in [1].
+    Boundedness from [hot_norm_le1]; the only test of [1] is
+    [id_test], which evaluates [c1_val], reducing the measurability to
+    that of [γ] tested by [m]. *)
+Lemma hot_pres_path (X : ar_obj Ar) (γ : ar_carrier Ar X -> D) :
+  is_measurable_path γ ->
+  is_measurable_path (fun r => hot_fun (γ r)).
+Proof.
+move=> [[Mb HMb] Hmeas]; split.
+  exists Mb => r; apply: le_trans (hot_norm_le1 (γ r)) _; exact: HMb.
+move=> Y m1 m1M.
+have Em1 : m1 = ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) Y := m1M.
+rewrite Em1 /ConeOneMConeAux.id_test /= /ConeOneMConeAux.id_test_fun /=.
+have HmeasF := Hmeas (ar_zero Ar) m mM.
+have Hfix := measurable_fun_pair2 s0 HmeasF.
+rewrite [X in measurable_fun _ X](_ : _ =
+  ((fun r : ar_carrier Ar X => test_fun m s0 (γ r)) \o snd)); last by [].
+apply: measurableT_comp; [exact: Hfix | exact: measurable_snd].
+Qed.
+
+(** [hot] as an [mcones_hom]. *)
+Definition hot_mcones : mcones_hom Ar D T1 :=
+  MkMConesHom hot_chom hot_pres_path.
+
+(** Integral-preservation: [hot (∫ β µ) = ∫ (hot ∘ β) µ].  By
+    uniqueness of integrals on [1] ([icone_integral_eqP]), reduce to
+    the defining [path_integral_eq] of [1]'s integral, whose only test
+    is [id_test]; both sides then equal the [R]-integral of
+    [m s0 (β r)], which is [icone_integralP] for [m] on [D]. *)
+Lemma hot_pres_int
+  (X : ar_obj Ar) (β : ar_carrier Ar X -> D)
+  (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X)) :
+  cones_hom_fun (mcones_hom_cones hot_mcones) (icone_integral β Hβ µ) =
+  icone_integral
+    (fun r => cones_hom_fun (mcones_hom_cones hot_mcones) (β r))
+    (mcones_hom_pres_path hot_mcones X β Hβ) µ.
+Proof.
+apply: icone_integral_eqP.
+move=> m1 m1M s.
+have Em1 : m1 = ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar) := m1M.
+rewrite Em1 /ConeOneMConeAux.id_test /= /ConeOneMConeAux.id_test_fun /=.
+have HmM : mcone_M (ar_zero Ar) m by [].
+have := icone_integralP β Hβ µ m HmM s0.
+by rewrite (ar_zero_singleton Ar s0 s) => ->.
+Qed.
+
+(** [hot] as an [icones_hom D → 1]. *)
+Definition hom_of_test : icones_hom Ar D T1 :=
+  MkIConesHom hot_mcones hot_pres_int.
+
+(** Its evaluation law: [hom_of_test x = m s0 x] (as a real). *)
+Lemma hom_of_testE (x : D) :
+  (examples_icone.c1_val
+     ((hom_of_test : icones_hom _ _ _) x))%:num = test_fun m s0 x.
+Proof. by []. Qed.
+
+End HomOfTest.
+
+Arguments hom_of_test {R Ar D} m.
+Arguments hom_of_testE {R Ar D} m.
+
+(** *** Element-form "[1] cogenerates"
+
+    Two points of an integrable cone [D] that agree under every
+    morphism [D → 1] are equal.  Apply the hom-agreement to the
+    morphisms [hom_of_test m] for every selected arity-0 test [m] of
+    [D]; this gives test-agreement at [ar_zero_pt], whence equality by
+    [mcone_M_sep]. *)
+Lemma icones_coseparator_inj (R : realType) (Ar : MeasSubcat R)
+    (D : ICone.type Ar) (x y : D) :
+  (forall n : icones_hom Ar D (cone_one_car Ar),
+     (n : icones_hom _ _ _) x = (n : icones_hom _ _ _) y) ->
+  x = y.
+Proof.
+move=> Hn; apply: mcone_M_sep => m mM.
+have := Hn (hom_of_test m mM).
+move/(congr1 (fun z : cone_one_car Ar => (examples_icone.c1_val z)%:num)).
+by rewrite !(hom_of_testE m mM).
+Qed.
+
+Arguments icones_coseparator_inj {R Ar D} x y.
 
 (**md**************************************************************************)
 (* # REMAINING GAP to the full [th:Icones-adjoint-functor]                    *)
