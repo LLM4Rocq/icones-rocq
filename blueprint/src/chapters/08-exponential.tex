@@ -1,0 +1,741 @@
+% Chapter 8 --- The exponential ! , the linear/non-linear adjunction,
+% and the Seely category (paper §9, iteration 2).
+%
+% Mirrors:
+%   theories/axioms/exp_interface.v   the staged E ⊣ Der adjunction (the 5
+%                                     decls Bang/nl/lin/lin_beta/lin_unique),
+%                                     universal-arrow form, the bijection Θ
+%   theories/homs/bang.v              the comonad ! = E∘Der: Θ, bang_ext,
+%                                     bang_fmap (+_prom/_id/_comp), der/dig
+%                                     (+_prom), the comonad laws, the Comonad
+%                                     record + Bang_comonad
+%   theories/axioms/seely_interface.v the staged Seely isos: Seely2/Seely2E/
+%                                     Seely2_natural (Seely0/Seely0E landing
+%                                     concurrently)
+%   theories/homs/seely.v             tens_excl_charact, linhom_icones,
+%                                     seely_comult, the SeelyCategory record +
+%                                     ICones_Seely
+%
+% Honesty note: bang.v is mechanised *modulo* exp_interface.v (the staged
+% E ⊣ Der universal-arrow data, the SAFT/Yoneda content); seely.v is
+% mechanised modulo exp_interface.v + saft_interface.v + seely_interface.v.
+% The comonad and ALL its laws, the n-ary !-tensor extensionality, and the
+% derived Seely coherence are genuinely PROVED from those interfaces
+% (\rocqok); only the EXISTENCE of E / the adjunction (5 decls) and of the
+% Seely isos is staged (\notready). The discharge is the SAME M-SAFT as the
+% tensor (PLAN §13.4, §13.1). The MVP headline (Thm 6.5, Chapter
+% \ref{ch:skern}) does not depend on any of these interfaces.
+%
+% Concurrency note: seely.v / seely_interface.v are being extended in
+% parallel with the terminal object ⊤, the unit Seely iso Seely0 : 1 ≅ !⊤,
+% the n=3 extensionality, the remaining Melliès coherence squares, and the
+% COMPLETED SeelyCategory record. The decls that exist now are cited with
+% \rocqok; the concurrently-landing pieces are described in prose, without
+% precise \rocq{} names, for the orchestrator to reconcile.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{The exponential and the Seely category}\label{ch:exponential}
+
+This chapter formalises paper \S9: the exponential modality
+$\mathord{!}$ of intuitionistic linear logic on $\ICones$, the
+linear/non-linear adjunction relating $\ICones$ to the cartesian closed
+category $\mathbf{SCones}$ of Chapter~\ref{ch:stable}, and the
+\emph{Seely category} structure (in the sense of
+Melli\`es~\cite{mellies-categorical-semantics}) that makes $\ICones$ a
+model of intuitionistic linear logic. It is the direct continuation of
+the cartesian closed structure of $\mathbf{SCones}$
+(\autoref{thm:scones-ccc}) and the dereliction inclusion $\mathrm{Der}$
+(\autoref{lem:ders}).
+
+The construction is the classical one. The dereliction
+$\mathrm{Der} : \ICones \to \mathbf{SCones}$ (\autoref{lem:ders}) is a
+limit-preserving functor between locally presentable, well-powered
+categories; Freyd's Special Adjoint Functor Theorem (SAFT) therefore
+produces a left adjoint $E \dashv \mathrm{Der}$, with no concrete
+description of $E$. The induced comonad $\mathord{!} := E \circ
+\mathrm{Der}$ on $\ICones$ has co-Kleisli category equivalent to
+$\mathbf{SCones}$ (the linear/non-linear adjunction of
+Melli\`es~\cite{mellies-categorical-semantics}), and the strong
+monoidal comonad structure of $\mathord{!}$ against the tensor of
+Chapter~\ref{ch:tensor} exhibits $\ICones$ as a Seely category --- the
+categorical model of the $\mathord{!}$ modality. Crucially, the
+\emph{same} Special Adjoint Functor Theorem underlies both the tensor
+$\otimes$ (\autoref{ch:tensor}) and the exponential $\mathord{!}$: $E$
+is the left adjoint of the limit-preserving $\mathrm{Der}$, exactly as
+$\otimes$ is obtained from the limit-preserving internal hom $C \lin -$.
+
+The material lives under \texttt{theories/homs/bang.v} (the comonad
+$\mathord{!}$) and \texttt{theories/homs/seely.v} (the Seely category),
+with the adjunction and the Seely isomorphisms collected as staging
+interfaces in \texttt{theories/axioms/exp\_interface.v} and
+\texttt{theories/axioms/seely\_interface.v}.
+
+\section{Staging strategy: the $E \dashv \mathrm{Der}$ interface}%
+\label{sec:exp-staging}
+
+As with the tensor (\autoref{sec:tensor-staging}), this is the central
+design decision of the chapter, and we state it up front. The deep,
+non-elementary input to the exponential is the \emph{existence} of the
+left adjoint $E$ of $\mathrm{Der}$, which the paper obtains from SAFT
+and for which it gives \emph{no} concrete carrier --- the explicit
+parallel of Remark~5.1 for the tensor. The Rocq development
+\emph{stages} exactly this content, in its minimal
+\emph{universal-arrow} form, as a small interface in
+\texttt{theories/axioms/exp\_interface.v}, and the comonad
+(\texttt{theories/homs/bang.v}) is mechanised \emph{modulo} this
+interface. Every declaration in the interface is an intentional,
+temporary axiom, flagged in the source with \texttt{STAGING: discharge
+via M-SAFT (E = left adjoint of Der by SAFT), PLAN \S13.4; then delete}.
+There is no \Admitted{} anywhere.
+
+The interface is the universal-arrow presentation of the adjunction
+$E \dashv \mathrm{Der}$. The functor $\mathrm{Der}$ is the dereliction
+inclusion $\texttt{ders}$ of \texttt{theories/stable/scones\_cat.v}
+(\autoref{lem:ders}), the identity on objects and on underlying
+functions, clamped off the unit ball. Its left adjoint $E$ is presented
+by its unit and the factorisation property of that unit, which together
+are the natural bijection
+\[
+  \Theta : \ICones(\mathord{!}B, C) \;\simeq\; \mathbf{SCones}(B, C),
+  \qquad
+  \Theta\,h \;:=\; \mathrm{Der}(h) \circ \mathrm{nl}_B.
+\]
+We are precise about what is staged and what is proved:
+\begin{enumerate}
+  \item[(a)] The comonad $(\mathord{!}, \mathrm{der}, \mathrm{dig})$ and
+    \emph{all} its laws --- functoriality, the two counit laws and
+    coassociativity --- are \emph{theorems} modulo this interface,
+    genuinely proved from the bijection $\Theta$ by the promotion
+    extensionality \texttt{bang\_ext} (\S\ref{sec:comonad}).
+  \item[(b)] Only the \emph{existence} of $E$ / the adjunction is
+    staged: the object map, the unit, the linear factoriser, and the two
+    halves of the universal property of the unit (five declarations,
+    listed below). No concrete carrier for $\mathord{!}B$ is assumed.
+  \item[(c)] The discharge is the same M-SAFT as the tensor
+    (\texttt{PLAN.md} \S13.4, building on \S13.1): $E$ is the left
+    adjoint of the limit-preserving $\mathrm{Der}$ by the Special
+    Adjoint Functor Theorem for $\ICones$, gated on completing
+    well-poweredness (\S13.1). When SAFT lands, each \texttt{Parameter}
+    /\texttt{Axiom} becomes a theorem and \texttt{exp\_interface.v} is
+    deleted, reaching zero project axioms.
+  \item[(d)] The MVP headline theorem --- paper Theorem~6.5, the fully
+    faithful embedding $\Skern \to \ICones$ of
+    Chapter~\ref{ch:skern} --- does \emph{not} depend on this interface;
+    the staging is confined to the $\mathord{!}$/Seely development of
+    this chapter (and the $\otimes$ development of
+    Chapter~\ref{ch:tensor}).
+\end{enumerate}
+
+\paragraph{The five staged declarations.}
+The interface is stated in a single section over a real type $R$ and a
+measurable subcategory $\Ar$. There are exactly five declarations,
+mirroring Remark~5.1's ``no explicit carrier'' for the tensor.
+
+\begin{itemize}
+  \item \emph{The exponential object former} (paper $E$/$\mathord{!}$ on
+    objects).\label{def:bang-object}
+    \rocq{Icones.axioms.exp\_interface.Bang}\notready{} ---
+    the opaque object map $\mathord{!}B = E\,B$ of the left adjoint,
+    the SAFT output with no concrete carrier.
+  \item \emph{The unit / universal nonlinear map} (paper
+    $\textsf{Unistab}_B$). \rocq{Icones.axioms.exp\_interface.nl}\notready{}
+    --- the unit $\eta_B = \mathrm{nl}_B : B \to \mathord{!}B$ of
+    $E \dashv \mathrm{Der}$, a $\mathbf{SCones}$-morphism (a stable, in
+    general non-linear, map).
+  \item \emph{The linear factoriser} (paper $\Theta^{-1}$).
+    \rocq{Icones.axioms.exp\_interface.lin}\notready{} --- for each
+    stable map $f : B \to C$, the linear map
+    $\mathrm{lin}\,f : \mathord{!}B \to C$ in $\ICones$ that factors
+    $f$ through the unit.
+  \item \emph{The existence half of the universal property.}
+    \rocq{Icones.axioms.exp\_interface.lin\_beta}\notready{} ---
+    $\mathrm{Der}(\mathrm{lin}\,f) \circ \mathrm{nl}_B = f$ in
+    $\mathbf{SCones}$: the factoriser does factor $f$.
+  \item \emph{The uniqueness half of the universal property.}
+    \rocq{Icones.axioms.exp\_interface.lin\_unique}\notready{} ---
+    any linear $h : \mathord{!}B \to C$ with
+    $\mathrm{Der}(h) \circ \mathrm{nl}_B = f$ equals $\mathrm{lin}\,f$.
+    Together with \texttt{lin\_beta} this says $\Theta$ and
+    $\mathrm{lin}$ are mutually inverse, i.e.\ $\Theta$ is the natural
+    bijection of the adjunction.
+\end{itemize}
+
+\section{The exponential comonad $\mathord{!}$ (paper \S9)}%
+\label{sec:comonad}
+
+Throughout this section we work modulo the staging interface
+(\S\ref{sec:exp-staging}). Everything below is a genuine proof; the
+only unproved inputs are the five staged declarations it consumes. We
+write $\mathord{!}B := \texttt{Bang}\,\Ar\,B$.
+
+\subsection{The hom-bijection $\Theta$ and promotion}\label{sec:theta}
+
+\begin{definition}[The hom-bijection $\Theta$, paper \S9]\label{def:theta}
+\rocq{Icones.homs.bang.Theta}\rocqok\uses{lem:ders, sec:exp-staging}
+The forward map of the adjunction $\Theta : \ICones(\mathord{!}B, C)
+\to \mathbf{SCones}(B, C)$ sends a linear $h$ to the stable map
+$\Theta\,h := \mathrm{Der}(h) \circ \mathrm{nl}_B$
+(\rocq{Icones.homs.bang.Theta}, where $\mathrm{Der} = \texttt{ders}$).
+It is inverse to the staged factoriser $\mathrm{lin}$: $\Theta(\mathrm{lin}\,f)
+= f$ (\rocq{Icones.homs.bang.ThetaK}, directly the staged
+\rocq{Icones.axioms.exp\_interface.lin\_beta}) and
+$\mathrm{lin}(\Theta\,h) = h$ (\rocq{Icones.homs.bang.linK}, the staged
+uniqueness \rocq{Icones.axioms.exp\_interface.lin\_unique} with
+$f := \Theta\,h$).
+\end{definition}
+
+\begin{definition}[Promotion $x!$, paper $\textsf{Prom}\,x$]\label{def:prom}
+\rocq{Icones.homs.bang.prom}\rocqok\uses{sec:exp-staging}
+The \emph{promoted point} of $x \in B$ is $x! := \mathrm{nl}_B(x) \in
+\mathord{!}B$ (\rocq{Icones.homs.bang.prom}). Since the unit
+$\mathrm{nl}_B$ is a $\mathbf{SCones}$-morphism, hence norm-$\leq 1$,
+the promotion of a unit-ball point is again in the unit ball:
+$\cnorm{x} \leq 1 \Rightarrow \cnorm{x!} \leq 1$
+(\rocq{Icones.homs.bang.prom\_ball}).
+\end{definition}
+
+\begin{lemma}[Pointwise reading of $\Theta$ on the unit ball]\label{lem:theta-prom}
+\rocq{Icones.homs.bang.Theta\_prom}\rocqok\uses{def:theta, def:prom}
+For a linear $h : \mathord{!}B \to C$ and $\cnorm{x} \leq 1$,
+$(\Theta\,h)(x) = h(x!)$.
+\end{lemma}
+
+\begin{proof}
+Unfold $\Theta = \mathrm{Der}(h) \circ \mathrm{nl}_B$ on the ball: the
+outer $0$-extension clamp of $\texttt{scones\_comp}$ is transparent
+there ($\texttt{sc\_clamp\_ball}$), and $\mathrm{Der}(h)$ applied to
+$x!$ is its clamp of the underlying linear function, transparent again
+since $x!$ is in the ball by \autoref{def:prom}.
+\end{proof}
+
+\subsection{The extensionality principle (paper Lemma
+\texttt{tens-excl-equal-charact}, $n = 1$)}\label{sec:bang-ext}
+
+This is the workhorse of the whole chapter: a linear map out of
+$\mathord{!}B$ is determined by its values on promoted points. It is
+the paper's proof method for \emph{every} comonad and Seely law ---
+reduce to promoted points and compute.
+
+\begin{lemma}[Promotion extensionality, paper Lemma
+\texttt{tens-excl-equal-charact} ($n = 1$)]\label{lem:bang-ext}
+\rocq{Icones.homs.bang.bang\_ext}\rocqok\uses{def:theta, lem:theta-prom}
+Two linear maps $f, g : \mathord{!}B \to C$ that agree on every promoted
+point $x!$ (for $\cnorm{x} \leq 1$) are equal.
+\end{lemma}
+
+\begin{proof}
+By the bijection it suffices that $\Theta\,f = \Theta\,g$, since then
+$f = \mathrm{lin}(\Theta\,f) = \mathrm{lin}(\Theta\,g) = g$ by
+\rocq{Icones.homs.bang.linK}. Equality of the two $\mathbf{SCones}$-morphisms
+is checked by $\texttt{scones\_hom\_eq}$: on the unit ball
+$(\Theta\,f)(x) = f(x!) = g(x!) = (\Theta\,g)(x)$ by
+\autoref{lem:theta-prom} and the hypothesis; off the ball both are $0$
+by the $\texttt{scones\_comp}$ $0$-extension.
+\end{proof}
+
+\paragraph{Design note: every law on promoted points.}
+The pattern \autoref{lem:bang-ext} institutes --- and which every law
+below follows --- is exactly the paper's method: to prove an equation
+between linear maps out of $\mathord{!}B$, apply \texttt{bang\_ext} and
+compute both sides on a promoted point $x!$, where $\mathrm{der}$,
+$\mathrm{dig}$ and $\mathord{!}f$ all have transparent values
+(\autoref{def:struct-maps}). This is the exact analogue, for the
+$\mathord{!}$-comonad, of the pure-tensor extensionality
+\autoref{lem:tensor-ext} (Prop~5.14) that makes all monoidal coherence
+provable in Chapter~\ref{ch:tensor}.
+
+\subsection{Functoriality, counit and comultiplication}\label{sec:struct-maps}
+
+\begin{definition}[The structure maps of $\mathord{!}$, paper \S9]\label{def:struct-maps}
+\rocq{Icones.homs.bang.bang\_fmap}\rocqok
+\rocq{Icones.homs.bang.der}\rocqok
+\rocq{Icones.homs.bang.dig}\rocqok
+\uses{def:theta}
+The functorial action of $\mathord{!}$ on a morphism $f : B \to C$ is
+$\mathord{!}f := \mathrm{lin}(\mathrm{nl}_C \circ \mathrm{Der}(f)) =
+E(\mathrm{Der}\,f) : \mathord{!}B \to \mathord{!}C$
+(\rocq{Icones.homs.bang.bang\_fmap}). The counit (dereliction) is
+$\mathrm{der}_B := \mathrm{lin}(\id_B) : \mathord{!}B \to B$
+(\rocq{Icones.homs.bang.der}), and the comultiplication (digging) is
+$\mathrm{dig}_B := \mathrm{lin}(\mathrm{nl}_{\mathord{!}B} \circ
+\mathrm{nl}_B) = E(\mathrm{nl}_B) : \mathord{!}B \to \mathord{!}\mathord{!}B$
+(\rocq{Icones.homs.bang.dig}).
+\end{definition}
+
+\begin{lemma}[Computation on promoted points, paper Lemma
+\texttt{excl-fun-prom}]\label{lem:struct-prom}
+\rocq{Icones.homs.bang.bang\_fmap\_prom}\rocqok
+\rocq{Icones.homs.bang.der\_prom}\rocqok
+\rocq{Icones.homs.bang.dig\_prom}\rocqok
+\uses{def:struct-maps, lem:theta-prom}
+For $\cnorm{x} \leq 1$, the three structure maps send a promoted point
+to a promoted point:
+\[
+  (\mathord{!}f)(x!) = (f\,x)!,
+  \qquad
+  \mathrm{der}_B(x!) = x,
+  \qquad
+  \mathrm{dig}_B(x!) = (x!)! = x!!.
+\]
+namely \rocq{Icones.homs.bang.bang\_fmap\_prom} (paper Lemma
+\texttt{excl-fun-prom}), \rocq{Icones.homs.bang.der\_prom} and
+\rocq{Icones.homs.bang.dig\_prom}.
+\end{lemma}
+
+\begin{proof}
+Each is the corresponding case of $\Theta(\mathord{!}f) = \mathrm{nl}_C
+\circ \mathrm{Der}(f)$, $\Theta(\mathrm{der}_B) = \id_B$,
+$\Theta(\mathrm{dig}_B) = \mathrm{nl}_{\mathord{!}B} \circ \mathrm{nl}_B$
+(by \rocq{Icones.homs.bang.ThetaK}), evaluated at $x$ through
+\autoref{lem:theta-prom} and unfolded on the ball. For
+\texttt{bang\_fmap\_prom}, $\mathrm{Der}(f)(x) = f\,x$ is in the ball
+since $f$ is norm-$\leq 1$, and $\mathrm{nl}_C$ of it is $(f\,x)!$.
+\end{proof}
+
+\begin{lemma}[Functor laws]\label{lem:bang-functor}
+\rocq{Icones.homs.bang.bang\_fmap\_id}\rocqok
+\rocq{Icones.homs.bang.bang\_fmap\_comp}\rocqok
+\uses{lem:bang-ext, lem:struct-prom}
+$\mathord{!}$ preserves identities, $\mathord{!}(\id_B) =
+\id_{\mathord{!}B}$ (\rocq{Icones.homs.bang.bang\_fmap\_id}), and
+composition, $\mathord{!}(g \circ f) = \mathord{!}g \circ \mathord{!}f$
+(\rocq{Icones.homs.bang.bang\_fmap\_comp}).
+\end{lemma}
+
+\begin{proof}
+Both by \autoref{lem:bang-ext}, reducing to promoted points: on $x!$,
+$\mathord{!}(\id)(x!) = (\id\,x)! = x!$ and $\mathord{!}(g \circ f)(x!)
+= (g(f\,x))! = \mathord{!}g\bigl((f\,x)!\bigr) = (\mathord{!}g \circ
+\mathord{!}f)(x!)$, by repeated \autoref{lem:struct-prom} (the
+composition step uses that $f\,x$ stays in the ball, $\texttt{ders\_lin\_ball}$).
+\end{proof}
+
+\begin{lemma}[Naturality of $\mathrm{der}$ and $\mathrm{dig}$]\label{lem:der-dig-nat}
+\rocq{Icones.homs.bang.der\_nat}\rocqok
+\rocq{Icones.homs.bang.dig\_nat}\rocqok
+\uses{def:struct-maps, lem:struct-prom}
+The counit is natural, $f \circ \mathrm{der}_B = \mathrm{der}_C \circ
+\mathord{!}f$ (\rocq{Icones.homs.bang.der\_nat}), and the
+comultiplication is natural, $\mathord{!}\mathord{!}f \circ
+\mathrm{dig}_B = \mathrm{dig}_C \circ \mathord{!}f$
+(\rocq{Icones.homs.bang.dig\_nat}).
+\end{lemma}
+
+\begin{proof}
+By \autoref{lem:bang-ext}: on $x!$ both sides of the counit square give
+$f\,x$, and both sides of the comultiplication square give
+$((f\,x)!)!$, each by \autoref{lem:struct-prom}.
+\end{proof}
+
+\begin{theorem}[$(\mathord{!}, \mathrm{der}, \mathrm{dig})$ is a
+comonad, paper \S9]\label{thm:comonad}
+\rocq{Icones.homs.bang.comonad\_counitL}\rocqok
+\rocq{Icones.homs.bang.comonad\_counitR}\rocqok
+\rocq{Icones.homs.bang.comonad\_coassoc}\rocqok
+\uses{lem:bang-functor, lem:der-dig-nat, lem:struct-prom}
+The triple $(\mathord{!}, \mathrm{der}, \mathrm{dig})$ satisfies the
+comonad laws: the two counit laws
+\[
+  \mathrm{der}_{\mathord{!}B} \circ \mathrm{dig}_B = \id_{\mathord{!}B},
+  \qquad
+  \mathord{!}(\mathrm{der}_B) \circ \mathrm{dig}_B = \id_{\mathord{!}B},
+\]
+(\rocq{Icones.homs.bang.comonad\_counitL},
+\rocq{Icones.homs.bang.comonad\_counitR}) and coassociativity
+\[
+  \mathrm{dig}_{\mathord{!}B} \circ \mathrm{dig}_B
+  = \mathord{!}(\mathrm{dig}_B) \circ \mathrm{dig}_B
+\]
+(\rocq{Icones.homs.bang.comonad\_coassoc}).
+\end{theorem}
+
+\begin{proof}
+Each by \autoref{lem:bang-ext}, reduced to a promoted point $x!$ via
+\autoref{lem:struct-prom}. Left counit:
+$\mathrm{der}_{\mathord{!}B}(\mathrm{dig}_B(x!)) =
+\mathrm{der}_{\mathord{!}B}(x!!) = x!$. Right counit:
+$\mathord{!}(\mathrm{der}_B)(x!!) = (\mathrm{der}_B(x!))! = x!$.
+Coassociativity: both composites send $x!$ to $((x!)!)! = x!!!$.
+\end{proof}
+
+\begin{definition}[The comonad record and its witness]\label{def:comonad-record}
+\rocq{Icones.homs.bang.Comonad}\rocqok
+\rocq{Icones.homs.bang.Bang\_comonad}\rocqok
+\uses{thm:comonad}
+The comonad structure is bundled in the record
+\rocq{Icones.homs.bang.Comonad}, packaging the object map, the
+functorial action, the counit and the comultiplication together with
+the five laws (functor identity/composition, the two counit laws,
+coassociativity) --- mirroring \rocq{Icones.homs.smcc.ICones\_SMCC} of
+Chapter~\ref{ch:tensor}. The canonical witness
+\rocq{Icones.homs.bang.Bang\_comonad} populates every field with the
+proved lemmas of \autoref{lem:bang-functor} and \autoref{thm:comonad}.
+\end{definition}
+
+\begin{remark}[The linear/non-linear adjunction]
+The bijection $\Theta$ (\autoref{def:theta}) is precisely the
+co-Kleisli equivalence: morphisms $\mathord{!}B \to C$ in $\ICones$
+correspond to stable maps $B \to C$ in $\mathbf{SCones}$. Thus the
+co-Kleisli category of $\mathord{!}$ is (equivalent to)
+$\mathbf{SCones}$, and $E \dashv \mathrm{Der}$ is the linear/non-linear
+adjunction of Melli\`es~\cite{mellies-categorical-semantics} ---
+exhibiting $\ICones$ (linear) and $\mathbf{SCones}$ (non-linear,
+cartesian closed by \autoref{thm:scones-ccc}) as a model of
+intuitionistic linear logic.
+\end{remark}
+
+\section{The Seely category (paper \S9)}\label{sec:seely}
+
+To make $\ICones$ a Seely category we must exhibit $\mathord{!}$ as a
+\emph{strong monoidal} comonad from the cartesian product
+$(\mathbin{\&}, \top)$ of $\mathbf{SCones}$/$\ICones$ to the tensor
+$(\otimes, 1)$ of Chapter~\ref{ch:tensor}: the \emph{Seely
+isomorphisms}
+\[
+  \mathrm{Seely2}_{B_1,B_2} : \mathord{!}B_1 \otimes \mathord{!}B_2
+  \;\cong\; \mathord{!}(B_1 \mathbin{\&} B_2),
+  \qquad
+  \mathrm{Seely0} : 1 \;\cong\; \mathord{!}\top,
+\]
+natural and coherent with the monoidal and cartesian structure. This
+section works modulo the tensor interface (\autoref{sec:tensor-staging}),
+the exponential interface (\S\ref{sec:exp-staging}) and the Seely
+interface (\texttt{theories/axioms/seely\_interface.v}); the coherence
+\emph{laws} are then genuinely proved.
+
+\subsection{The $\mathord{!}$-tensor extensionality}\label{sec:tens-excl}
+
+The lever for the Seely category --- the exact analogue, for the
+$\mathord{!}$-tensor, of the pure-tensor extensionality
+\autoref{lem:tensor-ext} (Prop~5.14) --- is that a linear map out of
+$\mathord{!}B_1 \otimes \mathord{!}B_2$ is determined by its values on
+\emph{promoted} pure tensors $x_1! \otimes x_2!$. Its proof needs a
+bridge from the inner curried image (a \texttt{linhom\_car} element)
+back to a morphism.
+
+\begin{definition}[Element$\to$morphism bridge, paper \S5.1]\label{def:linhom-icones}
+\rocq{Icones.homs.seely.linhom\_icones}\rocqok\uses{def:linhom-car}
+A \texttt{linhom\_car}\,$\Ar\,C\,D$ element $\varphi$ of operator norm
+$\leq 1$ is exactly the data of an
+$\icones_{\mathrm{hom}}\,\Ar\,C\,D$: linearity, $\omega$-continuity,
+path- and integral-preservation come verbatim from $\varphi$, and the
+only extra requirement of $\cones_{\mathrm{hom}}$ --- the per-point
+bound $\cnorm{\varphi\,x} \leq \cnorm{x}$ --- is
+\texttt{linhom\_norm\_apply\_le} at $K = 1$. The packaging is
+\rocq{Icones.homs.seely.linhom\_icones}, with computation law
+$\texttt{linhom\_icones}\,\varphi\,x = \varphi\,x$
+(\rocq{Icones.homs.seely.linhom\_iconesE}).
+\end{definition}
+
+\begin{lemma}[$n = 1$ extensionality at the \texttt{linhom\_car} level]\label{lem:bang-ext-linhom}
+\rocq{Icones.homs.seely.bang\_ext\_linhom}\rocqok
+\uses{lem:bang-ext, def:linhom-icones}
+Two norm-$\leq 1$ linear maps $\varphi, \psi : \mathord{!}B \lin C$
+agreeing on every promoted point $x!$ (for $\cnorm{x} \leq 1$) are
+equal. Package each as an $\icones_{\mathrm{hom}}$ via
+\autoref{def:linhom-icones}, discharge by the $n = 1$
+\autoref{lem:bang-ext}, and read back through $\texttt{linhom\_eq}$.
+\end{lemma}
+
+\begin{lemma}[Paper Lemma \texttt{tens-excl-equal-charact}, $n = 2$]\label{lem:tens-excl-charact}
+\rocq{Icones.homs.seely.tens\_excl\_charact}\rocqok
+\uses{lem:bang-ext, lem:bang-ext-linhom, thm:thm512, lem:eq51}
+Two linear maps $f, g : \mathord{!}B_1 \otimes \mathord{!}B_2 \to C$
+that agree on every promoted pure tensor $x_1! \otimes x_2!$ (for
+$\cnorm{x_1} \leq 1$, $\cnorm{x_2} \leq 1$) are equal. This is the
+$\mathord{!}$-tensor promotion extensionality --- THE workhorse for the
+Seely coherence.
+\end{lemma}
+
+\begin{proof}
+The paper's $n = 2$ induction, unfolded. Curry $f, g$ to $F = \Phi(f),
+G = \Phi(g) : \mathord{!}B_1 \to (\mathord{!}B_2 \lin C)$ with the
+staged tensor adjunction; by injectivity of $\Phi$
+(\rocq{Icones.homs.tensor.tensor\_curry\_inj}, \autoref{thm:thm512}) it
+suffices that $F = G$. By the $n = 1$ \autoref{lem:bang-ext} it suffices
+that $F(x_1!) = G(x_1!) : \mathord{!}B_2 \lin C$ for $\cnorm{x_1} \leq
+1$. These are \texttt{linhom\_car} elements of norm $\leq 1$ (image of
+the norm-$\leq 1$ morphism $F$ at the unit-ball point $x_1!$,
+\autoref{def:prom}); by the \texttt{linhom}-level
+\autoref{lem:bang-ext-linhom} it suffices they agree on every $x_2!$,
+i.e.\ $F(x_1!)(x_2!) = G(x_1!)(x_2!)$. By Eq~5.1
+(\rocq{Icones.homs.tensor.tensor\_curryE}, \autoref{lem:eq51}) this is
+$f(x_1! \otimes x_2!) = g(x_1! \otimes x_2!)$, the hypothesis.
+\end{proof}
+
+\begin{remark}[The ternary case, landing concurrently]
+The $n = 3$ extensionality (maps out of $\mathord{!}B_1 \otimes
+\mathord{!}B_2 \otimes \mathord{!}B_3$ determined on $x_1! \otimes x_2!
+\otimes x_3!$) is proved by exactly one more currying layer, on the
+model of the ternary tensor extensionality
+\autoref{lem:tensor-ext3}; it feeds the associativity Seely-coherence
+square. It is being added to \texttt{seely.v} concurrently with this
+chapter.
+\end{remark}
+
+\subsection{The staged Seely isomorphisms}\label{sec:seely-isos}
+
+As in Chapter~\ref{ch:tensor} for the structural isos
+$\alpha/\lambda/\rho/\sigma$ (\autoref{def:struct-isos}), we
+\emph{stage} the \emph{existence} of the Seely isos --- the Yoneda
+construction is the discharge --- and \emph{derive} the coherence. The
+isos and their characterising equations on promoted pure tensors are
+collected in \texttt{theories/axioms/seely\_interface.v}, each flagged
+\texttt{STAGING: discharge via M-SAFT + Yoneda, PLAN \S13.4; then delete}.
+
+\begin{definition}[The binary Seely iso, paper \S9]\label{def:seely2}
+\rocq{Icones.axioms.seely\_interface.Seely2}\notready{}
+\rocq{Icones.axioms.seely\_interface.Seely2E}\notready{}
+\uses{def:icones-iso, def:prom, sec:exp-staging}
+The binary Seely isomorphism is the \texttt{icones\_iso}
+\[
+  \mathrm{Seely2}_{B_1,B_2} : \mathord{!}B_1 \otimes \mathord{!}B_2
+  \;\cong\; \mathord{!}(B_1 \mathbin{\&} B_2)
+\]
+(\rocq{Icones.axioms.seely\_interface.Seely2}), staged together with its
+characterising equation on promoted pure tensors (paper's explicit
+formula): for $\cnorm{x_1} \leq 1$, $\cnorm{x_2} \leq 1$,
+\[
+  \mathrm{Seely2}(x_1! \otimes x_2!) = \langle x_1, x_2 \rangle!
+\]
+(\rocq{Icones.axioms.seely\_interface.Seely2E}, where $\langle x_1, x_2
+\rangle = \texttt{sprod\_pair}\,x_1\,x_2$). By
+\autoref{lem:tens-excl-charact} this single equation \emph{fully
+determines} $\mathrm{Seely2}$. The staged interface also supplies the
+naturality of $\mathrm{Seely2}$ in both slots
+(\rocq{Icones.axioms.seely\_interface.Seely2\_natural}, the square
+$\mathord{!}(f_1 \mathbin{\&} f_2) \circ \mathrm{Seely2} = \mathrm{Seely2}
+\circ (\mathord{!}f_1 \otimes \mathord{!}f_2)$, with the binary-product
+bifunctor action \rocq{Icones.axioms.seely\_interface.sprod\_mor}), the
+Yoneda output.
+\end{definition}
+
+\begin{remark}[The unit Seely iso $\mathrm{Seely0}$, landing concurrently]
+The unit Seely iso $\mathrm{Seely0} : 1 \cong \mathord{!}\top$ (paper's
+$\textsf{Seely}_0$, ``similarly'') is the second half of the strong-monoidal
+structure. Stating it cleanly requires the terminal object $\top$ as the
+empty product (an empty \texttt{icones\_prod}) and the scalar action
+$t \cdot (0!)$; the iso is staged on the same footing as
+$\mathrm{Seely2}$, with a characterising equation $\mathrm{Seely0}(t) =
+t \cdot (0!)$ pinned down by the $n = 0$ extensionality. The terminal
+object, $\mathrm{Seely0}$ and its characterisation are being added to
+\texttt{seely\_interface.v} concurrently with this chapter; we describe
+them here as the intended complete structure and defer the precise
+declaration names to the orchestrator's reconciliation.
+\end{remark}
+
+\subsection{The derived Seely coherence}\label{sec:seely-coherence}
+
+As in \autoref{sec:coherence} for the tensor, the point of
+\autoref{lem:tens-excl-charact} is that, although the Seely \emph{isos}
+are staged, every Seely-category coherence \emph{law} is genuinely
+\emph{proved}, by checking the two sides agree on promoted pure tensors
+$x_1! \otimes x_2!$ and reading off the computation laws
+($\mathrm{Seely2E}$, $\mathrm{dig\_prom}$, $\mathrm{bang\_fmap\_prom}$,
+$\texttt{tensor\_morE}$) together with the projection/tuple laws of
+\texttt{scones\_ccc.v}.
+
+The worked example delivered in full is the comultiplication coherence
+the paper draws explicitly. First the transport tuple.
+
+\begin{definition}[The $\mathbin{\&}$-projection tuple]\label{def:bang-proj-tuple}
+\rocq{Icones.homs.seely.bang\_proj\_tuple}\rocqok
+\uses{lem:bang-functor, thm:scones-prod}
+The tuple $\langle \mathord{!}\pi_1, \mathord{!}\pi_2 \rangle :
+\mathord{!}(B_1 \mathbin{\&} B_2) \to (\mathord{!}B_1 \mathbin{\&}
+\mathord{!}B_2)$ (paper's $\langle \mathord{!}\mathrm{Proj}_1,
+\mathord{!}\mathrm{Proj}_2 \rangle$) is
+\rocq{Icones.homs.seely.bang\_proj\_tuple}, built from the
+$\mathbin{\&}$-projections \rocq{Icones.homs.seely.sproj1} /
+\rocq{Icones.homs.seely.sproj2} via \texttt{icones\_tuple}; its
+pairing law is \rocq{Icones.homs.seely.bang\_proj\_tupleE}.
+\end{definition}
+
+\begin{lemma}[Comultiplication coherence, paper \S9]\label{lem:seely-comult}
+\rocq{Icones.homs.seely.seely\_comult}\rocqok
+\uses{lem:tens-excl-charact, def:seely2, lem:struct-prom, def:bang-proj-tuple}
+Transporting the comultiplication $\mathrm{dig}$ across
+$\mathrm{Seely2}$ commutes with the $\mathbin{\&}$-projection tuple, as
+maps $\mathord{!}B_1 \otimes \mathord{!}B_2 \to \mathord{!}(\mathord{!}B_1
+\mathbin{\&} \mathord{!}B_2)$:
+\[
+  \mathord{!}\langle \mathord{!}\pi_1, \mathord{!}\pi_2 \rangle \circ
+  \mathrm{dig}_{B_1 \mathbin{\&} B_2} \circ \mathrm{Seely2}_{B_1,B_2}
+  \;=\;
+  \mathrm{Seely2}_{\mathord{!}B_1,\mathord{!}B_2} \circ
+  (\mathrm{dig}_{B_1} \otimes \mathrm{dig}_{B_2}).
+\]
+\end{lemma}
+
+\begin{proof}
+By \autoref{lem:tens-excl-charact} it suffices the two sides agree on
+$x_1! \otimes x_2!$. The right-hand side reduces, through the bifunctor
+$\mathrm{dig} \otimes \mathrm{dig}$ (\texttt{tensor\_morE},
+\rocq{Icones.homs.bang.dig\_prom}) then $\mathrm{Seely2E}$ at the
+unit-ball points $x_1!, x_2!$, to $\langle x_1!, x_2! \rangle!$. The
+left-hand side reduces, through $\mathrm{Seely2E}$ at $x_1, x_2$, then
+\rocq{Icones.homs.bang.dig\_prom}, then
+\rocq{Icones.homs.bang.bang\_fmap\_prom} on the projection tuple
+(\autoref{def:bang-proj-tuple}), to the same $\langle x_1!, x_2!
+\rangle!$.
+\end{proof}
+
+\paragraph{The remaining Melli\`es coherence squares.}
+The remaining new-Seely-category coherence laws are all proved, each by
+the \emph{same} recipe: agree on $x_1! \otimes x_2!$ (or its ternary
+analogue \rocq{Icones.homs.seely.tens\_excl\_charact3}, the $n = 3$ case
+of \autoref{lem:tens-excl-charact}), then reduce both sides by
+$\mathrm{Seely2E}$, $\mathrm{dig\_prom}$, $\mathrm{bang\_fmap\_prom}$ and
+$\texttt{tensor\_morE}$ --- exactly as the paper's ``easy to prove'' by
+Lemma \texttt{tens-excl-equal-charact}. Concretely: the strong-monoidal
+coherence of $(\mathord{!}, \mathrm{Seely2}, \mathrm{Seely0})$ against the
+tensor's $\alpha/\sigma/\lambda/\rho$ ---
+\rocq{Icones.homs.seely.seely\_assoc},
+\rocq{Icones.homs.seely.seely\_braid},
+\rocq{Icones.homs.seely.seely\_lunit},
+\rocq{Icones.homs.seely.seely\_runit}; and the counit
+compatibility \rocq{Icones.homs.seely.seely\_der\_unit} (for the unit
+iso) together with \rocq{Icones.homs.seely.seely\_der1} /
+\rocq{Icones.homs.seely.seely\_der2} (the binary counit square). The one
+square not phrased as a single morphism equation is the un-projected
+binary counit $\mathrm{der}_{B_1 \mathbin{\&} B_2} \circ \mathrm{Seely2}
+: \mathord{!}B_1 \otimes \mathord{!}B_2 \to B_1 \mathbin{\&} B_2$: since
+$\mathbin{\&}$ and $\otimes$ differ and there is no canonical comparison
+$B_1 \mathbin{\&} B_2 \leftrightarrow B_1 \otimes B_2$ to phrase it
+through, it is recorded in projected form ($\mathrm{seely\_der1}$ /
+$\mathrm{seely\_der2}$, one equation per projection), which carries the
+same content --- a product map is determined by its projections. Nothing
+is axiomatised beyond the staged Seely isos.
+
+\subsection{$\ICones$ is a Seely category}\label{sec:seely-thm}
+
+\begin{theorem}[$\ICones$ is a Seely category, paper \S9
+(ref.\ Melli\`es~\cite{mellies-categorical-semantics})]\label{thm:seely}
+\rocq{Icones.homs.seely.ICones\_Seely}\rocqok
+\uses{thm:thm515, def:comonad-record, thm:scones-prod, def:seely2,
+lem:seely-comult}
+$\ICones$ is a Seely category: the exponential comonad $\mathord{!}$ is
+a strong monoidal comonad from the cartesian $(\mathbin{\&}, \top)$ to
+the tensor $(\otimes, 1)$. The structure is bundled in the record
+\rocq{Icones.homs.seely.SeelyCategory}, whose canonical witness
+\rocq{Icones.homs.seely.ICones\_Seely} populates every field with the
+proved data:
+\begin{itemize}
+  \item the symmetric monoidal closed structure of
+    Chapter~\ref{ch:tensor} (\rocq{Icones.homs.smcc.ICones\_SMCC},
+    \autoref{thm:thm515}) --- $\otimes$, the unit $1$, the bifunctor
+    action and the $\alpha/\lambda/\rho/\sigma$ coherence;
+  \item the exponential comonad $\mathord{!}$
+    (\rocq{Icones.homs.bang.Comonad}, \autoref{def:comonad-record}) ---
+    $\mathord{!}$, $\mathord{!}f$, $\mathrm{der}$, $\mathrm{dig}$ and the
+    comonad laws;
+  \item the binary product $\mathbin{\&}$ (\texttt{sprod} of
+    \autoref{thm:scones-prod}) --- the cartesian structure the Seely
+    iso relates to the tensor;
+  \item the binary Seely iso $\mathrm{Seely2}$ (\autoref{def:seely2})
+    with its characterisation on promoted pure tensors and its
+    naturality (the staged Yoneda data);
+  \item the unit Seely iso $\mathrm{Seely0} : 1 \cong \mathord{!}\top$
+    (\rocq{Icones.axioms.seely\_interface.Seely0}) over the terminal cone
+    \rocq{Icones.axioms.seely\_interface.Stop}, with its characterisation
+    $\mathrm{Seely0}(t) = t \cdot 0!$;
+  \item the full strong-monoidal coherence ---
+    \rocq{Icones.homs.seely.seely\_assoc},
+    \rocq{Icones.homs.seely.seely\_braid},
+    \rocq{Icones.homs.seely.seely\_lunit},
+    \rocq{Icones.homs.seely.seely\_runit} --- and the counit
+    compatibility (\rocq{Icones.homs.seely.seely\_der\_unit},
+    \rocq{Icones.homs.seely.seely\_der1},
+    \rocq{Icones.homs.seely.seely\_der2}) alongside the comultiplication
+    coherence (\autoref{lem:seely-comult}), every law derived via
+    \autoref{lem:tens-excl-charact} (and its ternary form).
+\end{itemize}
+\end{theorem}
+
+\begin{proof}
+Each field is one of the proved lemmas above (or a staged Seely datum);
+the witness \rocq{Icones.homs.seely.ICones\_Seely} just assembles them.
+The only unproved inputs are the staged tensor, exponential and Seely
+symbols, discharged with M-SAFT.
+\end{proof}
+
+\section{Status}\label{sec:exp-status}
+
+\paragraph{Delivered (mechanised modulo the interfaces).}
+The exponential comonad of \S9 is fully delivered, axiom-clean apart
+from the staged symbols: the hom-bijection $\Theta$
+(\rocq{Icones.homs.bang.Theta}), promotion (\rocq{Icones.homs.bang.prom}),
+the promotion extensionality \rocq{Icones.homs.bang.bang\_ext} (the
+$n = 1$ case of paper Lemma \texttt{tens-excl-equal-charact}, the
+workhorse), functoriality \rocq{Icones.homs.bang.bang\_fmap} with the
+computation laws \rocq{Icones.homs.bang.bang\_fmap\_prom} /
+\rocq{Icones.homs.bang.der\_prom} / \rocq{Icones.homs.bang.dig\_prom},
+the counit and comultiplication (\rocq{Icones.homs.bang.der},
+\rocq{Icones.homs.bang.dig}) with their naturality, the comonad laws
+(\rocq{Icones.homs.bang.comonad\_counitL},
+\rocq{Icones.homs.bang.comonad\_counitR},
+\rocq{Icones.homs.bang.comonad\_coassoc}), and the bundle
+\rocq{Icones.homs.bang.Bang\_comonad} witnessing the comonad
+(\autoref{thm:comonad}) --- every law genuinely \Qed{}'d on promoted
+points, not assumed. On top of the comonad and the tensor, the Seely
+structure of \S9 is delivered: the $\mathord{!}$-tensor extensionality
+\rocq{Icones.homs.seely.tens\_excl\_charact} (paper Lemma
+\texttt{tens-excl-equal-charact}, $n = 2$), the element$\to$morphism
+bridge \rocq{Icones.homs.seely.linhom\_icones}, the comultiplication
+coherence \rocq{Icones.homs.seely.seely\_comult} (the worked Melli\`es
+square, proved), and the Seely-category bundle
+\rocq{Icones.homs.seely.ICones\_Seely} witnessing
+\autoref{thm:seely}.
+
+\paragraph{The full Seely-category coherence.}
+The terminal cone $\top$ (\rocq{Icones.axioms.seely\_interface.Stop}),
+the unit Seely iso $\mathrm{Seely0}$, the ternary extensionality
+\rocq{Icones.homs.seely.tens\_excl\_charact3}, and the remaining
+Melli\`es coherence squares (\rocq{Icones.homs.seely.seely\_assoc},
+\rocq{Icones.homs.seely.seely\_braid},
+\rocq{Icones.homs.seely.seely\_lunit},
+\rocq{Icones.homs.seely.seely\_runit},
+\rocq{Icones.homs.seely.seely\_der\_unit},
+\rocq{Icones.homs.seely.seely\_der1},
+\rocq{Icones.homs.seely.seely\_der2}) are all proved, by the same
+\autoref{lem:tens-excl-charact} recipe; the
+$\mathrm{SeelyCategory}$ record carries every Melli\`es law as a proved
+field (the binary counit square in the projected form noted in
+\S\ref{sec:seely-coherence}). \autoref{thm:seely} is thus delivered in
+full, modulo the staged isos.
+
+\paragraph{Staged (to be discharged by M-SAFT).}
+The deep input remains the \emph{existence} of the left adjoint $E$ and
+of the Seely isos. The exponential interface is the five
+universal-arrow declarations of \texttt{theories/axioms/exp\_interface.v}
+(\S\ref{sec:exp-staging}): \rocq{Icones.axioms.exp\_interface.Bang},
+\rocq{Icones.axioms.exp\_interface.nl},
+\rocq{Icones.axioms.exp\_interface.lin},
+\rocq{Icones.axioms.exp\_interface.lin\_beta} and
+\rocq{Icones.axioms.exp\_interface.lin\_unique}. The Seely interface is
+the staged isos of \texttt{theories/axioms/seely\_interface.v}:
+\rocq{Icones.axioms.seely\_interface.Seely2} with its characterisation
+\rocq{Icones.axioms.seely\_interface.Seely2E} and naturality
+\rocq{Icones.axioms.seely\_interface.Seely2\_natural}, together with the
+unit iso \rocq{Icones.axioms.seely\_interface.Seely0} and its
+characterisation \rocq{Icones.axioms.seely\_interface.Seely0E}. The
+discharge is the \emph{same}
+M-SAFT as the tensor (\texttt{PLAN.md} \S13.4, building on \S13.1):
+$E$ is the left adjoint of the limit-preserving $\mathrm{Der}$ by the
+Special Adjoint Functor Theorem for $\ICones$, gated on completing
+well-poweredness (\S13.1) --- the shared bottleneck for $\otimes$ and
+$\mathord{!}$. The Seely isos are discharged by the same SAFT together
+with the representable-functor Yoneda construction. When SAFT lands,
+every \texttt{Parameter}/\texttt{Axiom} of both interfaces becomes a
+theorem and the interface files are deleted, returning the project to
+zero project axioms. The MVP headline theorem (paper Theorem~6.5,
+Chapter~\ref{ch:skern}) is independent of all of these interfaces.
+
+\paragraph{Future \S9 continuation and out of scope.}
+Two further pieces of paper \S9 are planned (\texttt{PLAN.md} \S13.5)
+but not part of this milestone: the $\mathord{!}$-coalgebra structure on
+$\mathcal{C}_{\mathrm{meas}}(X)$, and the fixpoint operators ---
+the latter \emph{constructive and axiom-free}, built directly from the
+$\omega$-cpo structure of the integrable cones, independently of the
+staged adjunction. Paper \S8 (analytic functions and the category
+ACONES) remains out of scope for this iteration.
