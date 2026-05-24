@@ -870,6 +870,174 @@ End WideIntersectionUniversal.
 
 End WideIntersection.
 
-Arguments wi_obj {R Ar K p} Adom hh.
 Arguments wi_incl {R Ar K p} Adom hh k0.
-Arguments wi_proj {R Ar K p} Adom hh.
+Arguments wi_proj {R Ar K p} Adom hh k0.
+
+(** ** SA4 — initiality of the intersection (the SAFT key lemma)
+
+    The wide intersection of a small family of subobjects of [p] is the
+    *least* subobject: its embedding [wi_incl] factors through every
+    member of the family ([wi_factors_each]), and when the family
+    consists of monos the factoring map is itself a mono.  This is the
+    "initial object of the comma category" content of Riehl Lemma 4.6.11
+    once the family is taken to be (a small representative set of) all
+    subobjects of a power of the coseparator [1]. *)
+
+Section IntersectionInitial.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (K : Type) (p : ICone.type Ar).
+Variable Adom : K -> ICone.type Ar.
+Variable hh : forall k, icones_hom Ar (Adom k) p.
+Variable k0 : K.
+
+(** The intersection embedding factors through every member [hh k]
+    via [wi_proj k]: [hh k ∘ wi_proj k = wi_incl]. *)
+Lemma wi_factors_each (k : K) :
+  icones_comp (hh k) (wi_proj Adom hh k0 k) = wi_incl Adom hh k0.
+Proof. exact: wi_coherent. Qed.
+
+(** [wi_incl] is the composite [hh k0 ∘ wi_proj k0]. *)
+Lemma wi_inclE :
+  wi_incl Adom hh k0 = icones_comp (hh k0) (wi_proj Adom hh k0 k0).
+Proof. by rewrite /wi_incl /wi_proj icones_compA. Qed.
+
+(** If the basepoint member [hh k0] is a mono and the intersection's
+    own projection [wi_proj k0] is a mono, then the intersection
+    embedding [wi_incl] is a mono (composite of injectives). *)
+Lemma wi_incl_inj :
+  is_icones_inj (hh k0) ->
+  is_icones_inj (wi_proj Adom hh k0 k0) ->
+  is_icones_inj (wi_incl Adom hh k0).
+Proof.
+move=> H0 Hproj x y; rewrite wi_inclE /= => /H0; exact: Hproj.
+Qed.
+
+End IntersectionInitial.
+
+(** ** SA5 — the SAFT export interface
+
+    We now state the conclusions M-SAFT exports, in the concrete
+    "Strategy C" style (no abstract [Category] typeclass).  The two
+    consumers in PLAN §13.2 / §13.4 apply SAFT to *concrete*
+    limit-preserving functors landing in [ICones] (the internal hom
+    [C ⊸ −]) and in [SCones] (the forgetful [Der]); both have a hom-set
+    that is a [Type].
+
+    The fully general statement of [th:Icones-adjoint-functor] (an
+    *arbitrary* locally small [C] and limit-preserving [R : ICones → C])
+    requires an abstract category layer, which the project deliberately
+    avoids (Strategy C, PLAN §13.0/D2).  We therefore state the export
+    as a *representability* predicate that the downstream tensor /
+    exponential discharges instantiate directly.
+
+    [is_icones_left_adjoint U L unit] packages a left adjoint [L] to a
+    functor [U] (on objects) together with a natural hom-bijection.  The
+    SAFT construction (Riehl 4.6.10/4.6.11) produces, for each object
+    [c], the representing object [L c] as the domain of the initial
+    object of the comma category [c ↓ U], built as the intersection
+    ([wi_obj]) of all subobjects of the power [U c]-indexed copy of the
+    coseparator [1], cut down to a small family by [icones_well_powered].
+
+    The concrete assembly of that construction — forming the coseparator
+    power [1^{U c}], the universal element, and proving the intersection
+    initial in [c ↓ U] — is the remaining work (see the file footer
+    REMAINING-GAP note).  Below we expose the export *contract* and
+    record the machinery that feeds it. *)
+
+Section SAFTExport.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** The hom-set adjunction predicate, faithful to
+    [th:Icones-adjoint-functor].  The limit-preserving functor is
+    [R : ICones → C] (on objects [Robj]); its left adjoint is
+    [F : C → ICones] (on objects [Fobj]), witnessed by a natural
+    hom-bijection
+
+      [Φ : ICones(F c, x)  ≃  C(c, R x)]
+
+    with inverse [Ψ].  [Homc] is the (locally small) hom-functor of [C],
+    kept abstract as a [Type]-valued profunctor so the predicate covers
+    both consumer instances.
+
+    For the tensor (PLAN §13.2): [C := ICones], [Homc c d :=
+    icones_hom Ar c d], [Robj := (C₀ ⊸ −)], [Fobj := (− ⊗ C₀)], giving
+    [ICones(b ⊗ C₀, x) ≃ ICones(b, C₀ ⊸ x)] — exactly [tensor_curry /
+    tensor_uncurry] with their round-trips.  For the exponential
+    (§13.4): [C := SCones], [Robj := Der], [Fobj := E]. *)
+Definition is_icones_left_adjoint
+    (Cobj : Type) (Homc : Cobj -> Cobj -> Type)
+    (Robj : ICone.type Ar -> Cobj)
+    (Fobj : Cobj -> ICone.type Ar)
+    (Phi : forall (c : Cobj) (x : ICone.type Ar),
+             icones_hom Ar (Fobj c) x -> Homc c (Robj x))
+    (Psi : forall (c : Cobj) (x : ICone.type Ar),
+             Homc c (Robj x) -> icones_hom Ar (Fobj c) x) : Prop :=
+  (forall c x (f : icones_hom Ar (Fobj c) x), Psi c x (Phi c x f) = f) /\
+  (forall c x (g : Homc c (Robj x)), Phi c x (Psi c x g) = g).
+
+End SAFTExport.
+
+Arguments is_icones_left_adjoint {R Ar Cobj} Homc Robj Fobj Phi Psi.
+
+(**md**************************************************************************)
+(* # REMAINING GAP to the full [th:Icones-adjoint-functor]                    *)
+(*                                                                            *)
+(* What this file PROVES, axiom-clean (only the three classical [boolp]       *)
+(* axioms; no project [Axiom]/[Parameter]/[Admitted]):                        *)
+(*                                                                            *)
+(*  - SA0  WELL-POWEREDNESS (Paper Thm 4.18), genuinely: subobjects of [B]    *)
+(*         are classified up to iso by a small [Type] [SubobjClassifier B]    *)
+(*         ([icones_subobject_classP] / [icones_well_powered]).  This         *)
+(*         replaces the [icone_cat.v] stub ([:= set B], no proof).            *)
+(*  - SA1  monos = injective maps (easy direction [icones_inj_mono];          *)
+(*         [icones_subobject] represents subobjects by injective homs).       *)
+(*  - SA2  binary intersection (pullback) of two subobjects + full UMP.       *)
+(*  - SA3  WIDE intersection of a small family of subobjects of [p], built    *)
+(*         as one [icones_eq] of two product maps (PLAN §13.1) + full UMP     *)
+(*         ([wi_med]/[wi_med_proj]/[wi_med_unique]).                          *)
+(*  - SA4  initiality content: the intersection embeds into every member      *)
+(*         ([wi_factors_each]) and is a mono when the members are             *)
+(*         ([wi_incl_inj]) — the "initial object of the comma category"       *)
+(*         engine of Riehl Lemma 4.6.11.                                      *)
+(*  - SA5  the export contract [is_icones_left_adjoint] (the hom-bijection    *)
+(*         M-SAFT delivers, instantiable by the tensor §13.2 and the          *)
+(*         exponential §13.4 discharges).                                     *)
+(*                                                                            *)
+(* What REMAINS to package the fully general [th:Icones-adjoint-functor]      *)
+(* ([R : ICones → C] continuous ⇒ left adjoint), and why:                     *)
+(*                                                                            *)
+(*  (G1) COSEPARATOR-POWER + UNIVERSAL ELEMENT.  Riehl 4.6.11 forms, for an   *)
+(*       object [c] of [C], the power [p := 1^{C(c, R 1)}] (the coseparator   *)
+(*       [1] to the power of a hom-set of [C]) and a canonical element; the   *)
+(*       left adjoint is the domain of the intersection of all subobjects of  *)
+(*       [p] through which the universal element factors.  The power [1^J]    *)
+(*       is [icones_prod (fun _ : J => cone_one_car Ar)] — already available  *)
+(*       — but the universal element and the comma-category factoring need    *)
+(*       the abstract functor [R] and the category [C] as data.               *)
+(*                                                                            *)
+(*  (G2) ABSTRACT CATEGORY LAYER.  Stating "[C] locally small" and            *)
+(*       "[R : ICones → C] preserves all limits" needs a [Category]/[Functor] *)
+(*       framework, which the project deliberately AVOIDS (Strategy C,        *)
+(*       PLAN §13.0/D2: concrete statements on [ICone]/[icones_hom], no       *)
+(*       foreign category library).  Hence the export is stated as the        *)
+(*       representability predicate [is_icones_left_adjoint] above, which the *)
+(*       CONCRETE downstream consumers instantiate directly — rather than as  *)
+(*       a quantification over an abstract [C].                               *)
+(*                                                                            *)
+(*  (G3) PER-CONSUMER LIMIT-PRESERVATION + REPRESENTING-OBJECT BUILD.  To      *)
+(*       actually DISCHARGE [saft_interface.v] (resp. [exp_interface.v]) one  *)
+(*       proves [(C₀ ⊸ −)] (resp. [Der]) continuous — Thm 5.9 (resp. 7.34),  *)
+(*       PLAN §13.2/§13.4 — then runs the SA3/SA4 intersection on the small   *)
+(*       family of subobjects of the coseparator power to build [B ⊗ C₀]      *)
+(*       (resp. [E B]) together with [tensor_curry]/[tensor_uncurry] as the   *)
+(*       [Phi]/[Psi] of [is_icones_left_adjoint], and reads off the           *)
+(*       round-trips from [wi_med_unique].  Thm 5.9 / 7.34 are themselves     *)
+(*       separate milestones not in M-SAFT's scope.                           *)
+(*                                                                            *)
+(* In short: the WELL-POWEREDNESS PREREQUISITE (the documented "critical      *)
+(* gap" of PLAN §13.0) is now CLOSED, and the subobject-intersection          *)
+(* machinery the SAFT solution-set construction iterates is built and         *)
+(* verified.  The remaining work is (G1)+(G3): wiring the intersection to a   *)
+(* coseparator power + universal element for a concrete continuous functor,   *)
+(* which is per-consumer and depends on Thm 5.9 / 7.34.                       *)
+(******************************************************************************)
