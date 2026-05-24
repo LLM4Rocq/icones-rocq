@@ -718,3 +718,158 @@ Qed.
 End BinaryIntersectionUniversal.
 
 End BinaryIntersection.
+
+Arguments pb_obj {R Ar A1 A2 p} h1 h2.
+Arguments pb_incl {R Ar A1 A2 p} h1 h2.
+
+(** ** SA3 — wide intersection of a small family of subobjects of [p]
+
+    The full subobject-intersection of the SAFT construction (Riehl
+    Lemma 4.6.11): given a small family [(hk : Ak → p)_{k:K}] of
+    subobjects of [p] (with [K] inhabited by a basepoint [k0]), their
+    intersection is built — per the standard "limits from products and
+    equalisers" recipe (Mac Lane V.2) — as the equaliser of two maps
+    [∏_k Ak → ∏_k p]:
+
+    - [u = ⟨ hk ∘ πk ⟩_k]  (apply each [hk] to its own component),
+    - [v = ⟨ h_{k0} ∘ π_{k0} ⟩_k]  (the constant tuple at the basepoint).
+
+    The equaliser carves out the tuples [(a_k)] all of whose components
+    [hk a_k] agree in [p] — i.e. the common sub-point — which is exactly
+    the intersection.  The embedding into [p] is [h_{k0} ∘ π_{k0} ∘ incl].
+
+    This is the object that, applied to the family of *all* subobjects
+    of the power [1^J] (small by [icones_well_powered]), is initial in
+    the SAFT comma category. *)
+
+Section WideIntersection.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (K : Type) (p : ICone.type Ar).
+Variable Adom : K -> ICone.type Ar.
+Variable hh : forall k, icones_hom Ar (Adom k) p.
+Variable k0 : K.
+
+(** The product of the family domains, with projections. *)
+Definition wi_prod : ICone.type Ar := icones_prod Adom.
+Definition wi_pi (k : K) : icones_hom Ar wi_prod (Adom k) := icones_proj k.
+
+(** The constant family at [p] (target of [u], [v]). *)
+Definition wi_pfam (_ : K) : ICone.type Ar := p.
+Definition wi_pprod : ICone.type Ar := icones_prod wi_pfam.
+
+(** [u : ∏ Ak → ∏ p] sending the [k]-th component through [hk]. *)
+Definition wi_u : icones_hom Ar wi_prod wi_pprod :=
+  icones_tuple (B:=wi_pfam) (fun k => icones_comp (hh k) (wi_pi k)).
+
+(** [v : ∏ Ak → ∏ p], the constant tuple at [h_{k0} ∘ π_{k0}]. *)
+Definition wi_v : icones_hom Ar wi_prod wi_pprod :=
+  icones_tuple (B:=wi_pfam) (fun _ => icones_comp (hh k0) (wi_pi k0)).
+
+(** The wide-intersection object: the equaliser of [wi_u], [wi_v]. *)
+Definition wi_obj : ICone.type Ar := icones_eq wi_u wi_v.
+
+(** The intersection embedding into [p] (through the basepoint). *)
+Definition wi_incl : icones_hom Ar wi_obj p :=
+  icones_comp (icones_comp (hh k0) (wi_pi k0))
+              (icones_eq_incl wi_u wi_v).
+
+(** The projection of the intersection onto each subobject domain. *)
+Definition wi_proj (k : K) : icones_hom Ar wi_obj (Adom k) :=
+  icones_comp (wi_pi k) (icones_eq_incl wi_u wi_v).
+
+(** Coherence: every component of the intersection lands on the same
+    point of [p], namely [wi_incl].  [hk ∘ projk = h_{k0} ∘ proj_{k0}]
+    for all [k]. *)
+Lemma wi_coherent (k : K) :
+  icones_comp (hh k) (wi_proj k) = wi_incl.
+Proof.
+rewrite /wi_proj /wi_incl !icones_compA.
+(* [hk ∘ πk = πk' ∘ u] and [h_{k0} ∘ π_{k0} = πk' ∘ v] (the [k]-th
+   product projection of [u], resp. [v]); the equaliser identifies
+   [u ∘ incl = v ∘ incl]. *)
+have Hu : icones_comp (hh k) (wi_pi k) =
+          icones_comp (icones_proj (I:=K) (B:=wi_pfam) k) wi_u.
+  by rewrite /wi_u (icones_tuple_proj
+    (fun k => icones_comp (hh k) (wi_pi k)) k).
+have Hv : icones_comp (hh k0) (wi_pi k0) =
+          icones_comp (icones_proj (I:=K) (B:=wi_pfam) k) wi_v.
+  by rewrite /wi_v (icones_tuple_proj
+    (fun _ => icones_comp (hh k0) (wi_pi k0)) k).
+rewrite Hu Hv -!icones_compA.
+by rewrite (icones_eq_incl_equ wi_u wi_v).
+Qed.
+
+(** *** Universal property of the wide intersection *)
+
+Section WideIntersectionUniversal.
+Variable Z : ICone.type Ar.
+Variable ff : forall k, icones_hom Ar Z (Adom k).
+(** The cone condition: all legs agree after composing with the
+    embeddings (they pick out the same sub-point of [p]). *)
+Hypothesis Hcone :
+  forall k, icones_comp (hh k) (ff k) = icones_comp (hh k0) (ff k0).
+
+(** The tupling [⟨ff_k⟩ : Z → ∏ Ak]. *)
+Definition wi_tuple : icones_hom Ar Z wi_prod :=
+  icones_tuple (B:=Adom) ff.
+
+Lemma wi_tuple_pi (k : K) : icones_comp (wi_pi k) wi_tuple = ff k.
+Proof. exact: (icones_tuple_proj ff k). Qed.
+
+(** [⟨ff_k⟩] equalises [wi_u] and [wi_v]: both composites send the
+    [k]-th [p]-component to [hk ∘ ff_k] resp. [h_{k0} ∘ ff_{k0}], which
+    agree by [Hcone].  We compare the two tuples componentwise via the
+    product universal property. *)
+Lemma wi_tuple_equ :
+  icones_comp wi_u wi_tuple = icones_comp wi_v wi_tuple.
+Proof.
+(* Two maps into a product are equal iff all projections agree. *)
+have proj_ext : forall (W : ICone.type Ar) (a b : icones_hom Ar W wi_pprod),
+  (forall k, icones_comp (icones_proj k) a = icones_comp (icones_proj k) b) ->
+  a = b.
+  move=> W a b Hab.
+  have Ha : a = icones_tuple (fun k => icones_comp (icones_proj k) a).
+    exact: (icones_tuple_unique (fun k => erefl)).
+  have Hb : b = icones_tuple (fun k => icones_comp (icones_proj k) a).
+    by apply: icones_tuple_unique => k; rewrite Hab.
+  by rewrite Ha Hb.
+apply: proj_ext => k.
+rewrite !icones_compA.
+rewrite (icones_tuple_proj (fun k => icones_comp (hh k) (wi_pi k)) k).
+rewrite (icones_tuple_proj (fun _ => icones_comp (hh k0) (wi_pi k0)) k).
+rewrite -!icones_compA !wi_tuple_pi.
+exact: Hcone.
+Qed.
+
+(** The mediating map [Z → wi_obj]. *)
+Definition wi_med : icones_hom Ar Z wi_obj :=
+  icones_eq_med wi_u wi_v wi_tuple wi_tuple_equ.
+
+Lemma wi_med_incl :
+  icones_comp (icones_eq_incl wi_u wi_v) wi_med = wi_tuple.
+Proof. exact: (icones_eq_med_factor wi_tuple_equ). Qed.
+
+(** [wi_med] factors each leg through the projection. *)
+Lemma wi_med_proj (k : K) : icones_comp (wi_proj k) wi_med = ff k.
+Proof.
+rewrite /wi_proj -icones_compA wi_med_incl; exact: wi_tuple_pi.
+Qed.
+
+(** Uniqueness of the mediating map. *)
+Lemma wi_med_unique (kk : icones_hom Ar Z wi_obj) :
+  (forall k, icones_comp (wi_proj k) kk = ff k) ->
+  kk = wi_med.
+Proof.
+move=> Hk; rewrite /wi_med.
+apply: (icones_eq_med_unique wi_tuple_equ).
+apply: (icones_tuple_unique (f := ff)) => k.
+by rewrite icones_compA -/(wi_pi k) -/(wi_proj k) Hk.
+Qed.
+
+End WideIntersectionUniversal.
+
+End WideIntersection.
+
+Arguments wi_obj {R Ar K p} Adom hh.
+Arguments wi_incl {R Ar K p} Adom hh k0.
+Arguments wi_proj {R Ar K p} Adom hh.
