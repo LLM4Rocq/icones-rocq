@@ -60,6 +60,7 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone_cat.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
@@ -279,3 +280,178 @@ Definition icones_subobject_class (D : icones_subobject B) :
 End ClassifyingMap.
 
 Arguments icones_subobject_class {R Ar B} D.
+
+(** *** The forced point-bijection between two subobjects with the
+        same classifier, and its properties.
+
+    Throughout this section [h1 : A1 → B] and [h2 : A2 → B] are two
+    injective embeddings with the *same image* and the *same
+    transported structure* (the consequences of [class D1 = class D2]
+    that we actually consume).  The forced point map is
+    [phi a := hinv h2 (h1 a)]; the backward map is
+    [psi a := hinv h1 (h2 a)]. *)
+
+Section ForcedMap.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (A1 A2 B : ICone.type Ar).
+Variables (h1 : icones_hom Ar A1 B) (h2 : icones_hom Ar A2 B).
+Hypothesis inj1 : is_icones_inj h1.
+Hypothesis inj2 : is_icones_inj h2.
+
+(** The two embeddings have the same image. *)
+Hypothesis Himg :
+  [set b : B | exists a, hfun h1 a = b] =
+  [set b : B | exists a, hfun h2 a = b].
+
+(** The two embeddings transport the same norm onto [B]:
+    [λ b. ‖hinv h2 b‖ = λ b. ‖hinv h1 b‖].  This is the equality of the
+    [cls_nrm] components of the two classifiers. *)
+Hypothesis Hnrm :
+  (fun b => cone_norm (hinv h2 b)) = (fun b => cone_norm (hinv h1 b)).
+
+(** The two embeddings transport the same test family onto [B]:
+    equality of the [cls_M] components.  Recorded per arity. *)
+Hypothesis HM :
+  forall X : ar_obj Ar,
+    [set g | exists m : test_of Ar X A2,
+       mcone_M X m /\ g = (fun s b => test_fun m s (hinv h2 b))] =
+    [set g | exists m : test_of Ar X A1,
+       mcone_M X m /\ g = (fun s b => test_fun m s (hinv h1 b))].
+
+Local Notation g1 := (hfun h1).
+Local Notation g2 := (hfun h2).
+
+(** The forced forward / backward point maps. *)
+Definition phi (a : A1) : A2 := hinv h2 (g1 a).
+Definition psi (a : A2) : A1 := hinv h1 (g2 a).
+
+(** Every point of [A1]'s image is in [A2]'s image (by [Himg]). *)
+Lemma img1_in_img2 (a : A1) : exists a2, g2 a2 = g1 a.
+Proof.
+have : [set b | exists a', g1 a' = b] (g1 a) by exists a.
+by rewrite Himg.
+Qed.
+
+Lemma img2_in_img1 (a : A2) : exists a1, g1 a1 = g2 a.
+Proof.
+have : [set b | exists a', g2 a' = b] (g2 a) by exists a.
+by rewrite -Himg.
+Qed.
+
+(** Commutation: [h2 (phi a) = h1 a] and [h1 (psi a) = h2 a]. *)
+Lemma phiE (a : A1) : g2 (phi a) = g1 a.
+Proof.
+rewrite /phi /hinv; case: pselect => [e|[]]; last exact: img1_in_img2.
+by case: (cid e) => a2 /= ->.
+Qed.
+
+Lemma psiE (a : A2) : g1 (psi a) = g2 a.
+Proof.
+rewrite /psi /hinv; case: pselect => [e|[]]; last exact: img2_in_img1.
+by case: (cid e) => a1 /= ->.
+Qed.
+
+(** [phi] and [psi] are mutually inverse on points. *)
+Lemma psiphiK (a : A1) : psi (phi a) = a.
+Proof. by apply: inj1; rewrite psiE phiE. Qed.
+
+Lemma phipsiK (a : A2) : phi (psi a) = a.
+Proof. by apply: inj2; rewrite phiE psiE. Qed.
+
+(** Linearity of [g1], [g2] (read off the [cones_hom] structure). *)
+Lemma g1_lin : is_linear g1.
+Proof. exact: cones_hom_linear. Qed.
+Lemma g2_lin : is_linear g2.
+Proof. exact: cones_hom_linear. Qed.
+
+(** [phi] is linear — transported for free from [g1], [g2] linear and
+    [g2] injective (no add/scale table needed): apply [g2] to both
+    sides, use [phiE] and the linearity of [g1], [g2]. *)
+Lemma phi_lin : is_linear phi.
+Proof.
+have [g10 g1D g1Z] := g1_lin; have [g20 g2D g2Z] := g2_lin.
+split.
+- by apply: inj2; rewrite phiE g10 g20.
+- by move=> x y; apply: inj2; rewrite phiE g1D g2D !phiE.
+- by move=> r x; apply: inj2; rewrite phiE g1Z g2Z phiE.
+Qed.
+
+(** Symmetric statement for [psi]. *)
+Lemma psi_lin : is_linear psi.
+Proof.
+have [g10 g1D g1Z] := g1_lin; have [g20 g2D g2Z] := g2_lin.
+split.
+- by apply: inj1; rewrite psiE g20 g10.
+- by move=> x y; apply: inj1; rewrite psiE g2D g1D !psiE.
+- by move=> r x; apply: inj1; rewrite psiE g2Z g1Z psiE.
+Qed.
+
+(** Norm-preservation: [‖phi a‖_{A2} = ‖a‖_{A1}].  The transported-norm
+    table at [b = g1 a] gives [‖hinv h2 (g1 a)‖ = ‖hinv h1 (g1 a)‖], and
+    [hinv h1 (g1 a) = a] by [hinvK]. *)
+Lemma phi_norm (a : A1) : cone_norm (phi a) = cone_norm a.
+Proof.
+rewrite /phi.
+have := f_equal (fun f => f (g1 a)) Hnrm => /= ->.
+by rewrite (hinvK h1 inj1).
+Qed.
+
+Lemma psi_norm (a : A2) : cone_norm (psi a) = cone_norm a.
+Proof.
+rewrite /psi.
+have := f_equal (fun f => f (g2 a)) Hnrm => /= <-.
+by rewrite (hinvK h2 inj2).
+Qed.
+
+(** ω-continuity of [g1], [g2]. *)
+Lemma g1_cont : is_omega_continuous g1.
+Proof. exact: cones_hom_continuous. Qed.
+Lemma g2_cont : is_omega_continuous g2.
+Proof. exact: cones_hom_continuous. Qed.
+
+(** [phi] is ω-continuous.  Modelled on Lemma 2.8
+    ([invf_omega_continuous]): for an increasing unit-ball chain [u]
+    with image chain [phi ∘ u] in the unit ball, the sup of [phi ∘ u]
+    equals [phi] of the sup, because applying the injective [g2] to
+    both sides reduces it to [g1 (sup u) = sup (g1 ∘ u)] (continuity of
+    [g1]) via the commutation [g2 ∘ phi = g1] and continuity of [g2]. *)
+Lemma phi_cont : is_omega_continuous phi.
+Proof.
+rewrite /is_omega_continuous => u uch ub1 vuch vub1.
+set x := cone_sup_ball (fun n => phi (u n)) vuch vub1.
+set y := cone_sup_ball u uch ub1.
+have g1incr := linear_increasing g1_lin.
+(* [g2 ∘ phi ∘ u] is an increasing unit-ball chain (= [g1 ∘ u]). *)
+have g2ch : forall n, precone_le (g2 (phi (u n))) (g2 (phi (u n.+1))).
+  by move=> n; rewrite !phiE; apply: g1incr; exact: uch.
+have g2ub : forall n, cone_norm (g2 (phi (u n))) <= 1.
+  by move=> n; rewrite phiE; apply: le_trans (cones_hom_norm_le1 _ _) (ub1 n).
+have Hg2x : g2 x = cone_sup_ball (g2 \o (fun n => phi (u n))) g2ch g2ub.
+  by rewrite /x; exact: g2_cont.
+(* The chain [g2 ∘ phi ∘ u] coincides pointwise with [g1 ∘ u]; its sup
+   is [g1 y] by continuity of [g1]. *)
+have g1ch : forall n, precone_le (g1 (u n)) (g1 (u n.+1)).
+  by move=> n; apply: g1incr; exact: uch.
+have g1ub : forall n, cone_norm (g1 (u n)) <= 1.
+  by move=> n; apply: le_trans (cones_hom_norm_le1 _ _) (ub1 n).
+have Hg1y : g1 y = cone_sup_ball (g1 \o u) g1ch g1ub.
+  by rewrite /y; exact: g1_cont.
+apply: inj2; rewrite phiE Hg1y Hg2x.
+(* The two sup_balls are over pointwise-equal chains. *)
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  have ->: (g1 \o u) n = (g2 \o (fun n => phi (u n))) n by rewrite /= phiE.
+  exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n.
+  have ->: (g2 \o (fun n => phi (u n))) n = (g1 \o u) n by rewrite /= phiE.
+  exact: cone_sup_ball_ub.
+Qed.
+
+Lemma phi_norm_le (a : A1) : cone_norm (phi a) <= cone_norm a.
+Proof. by rewrite phi_norm. Qed.
+
+(** [phi] as a [cones_hom A1 A2]. *)
+Definition phi_chom : cones_hom A1 A2 :=
+  ConesHom phi phi_lin phi_cont phi_norm_le.
+
+End ForcedMap.
