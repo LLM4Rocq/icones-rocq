@@ -1,12 +1,19 @@
 (**md**************************************************************************)
-(* # Tensor discharge T2A — Thm 5.12 [tensor_hom_iso] + Thm 5.13 [tensor_normM]*)
+(* # Tensor discharge T2A — Thm 5.13 [tensor_normM] (DONE) + Thm 5.12 skeleton *)
 (*                                                                            *)
-(* This file DISCHARGES, as genuine AXIOM-FREE theorems about the concrete    *)
-(* [tensor_construct] construction, two of the remaining staged [Parameter]s  *)
+(* This file DISCHARGES, as a genuine AXIOM-FREE theorem about the concrete   *)
+(* [tensor_construct] construction, one of the remaining staged [Parameter]s  *)
 (* of [theories/axioms/saft_interface.v]:                                     *)
 (*                                                                            *)
-(*   tensor_hom_iso  (Paper Thm 5.12 — [(B ⊗ C) ⊸ D ≅ B ⊸ (C ⊸ D)])           *)
-(*   tensor_normM    (Paper Thm 5.13 — [‖x ⊗ y‖ = ‖x‖ · ‖y‖])                  *)
+(*   tensor_normM    (Paper Thm 5.13 — [‖x ⊗ y‖ = ‖x‖ · ‖y‖])  — PROVED       *)
+(*                                                                            *)
+(* and lays the proved algebraic skeleton of                                  *)
+(*                                                                            *)
+(*   tensor_hom_iso  (Paper Thm 5.12 — [(B ⊗ C) ⊸ D ≅ B ⊸ (C ⊸ D)]) — PARTIAL *)
+(*                                                                            *)
+(* (forward map value [Phi_val] + pointwise law [Phi_valE]; the OUTER         *)
+(* measurability/integral-preservation is DEFERRED — see [PhiSkeleton] and    *)
+(* the footer for the precise obstruction).                                   *)
 (*                                                                            *)
 (* It is AXIOM-FREE relative to the classical [boolp] base ([pselect]/[cid]/  *)
 (* extensionality) — NO [Axiom]/[Parameter]/[Admitted], and it does NOT       *)
@@ -14,9 +21,15 @@
 (* their own module [Icones_tensor_hom_iso], from the proved [tensor_curry] / *)
 (* [tensor_uncurry] of [tensor_construct].                                    *)
 (*                                                                            *)
-(* The signatures match the [saft_interface] arguments exactly:               *)
-(*   tensor_hom_iso {R Ar} B C D                                              *)
-(*   tensor_normM   {R Ar B C}                                                 *)
+(* The [tensor_normM] signature matches the [saft_interface] arguments        *)
+(* exactly: [tensor_normM {R Ar B C}].                                        *)
+(*                                                                            *)
+(* ## Reusable infrastructure built here                                      *)
+(*  - [icones_to_linhom] / [linhom_icones] : the element↔morphism bridges.    *)
+(*  - [linhom_comp] : general composition of two [linhom_car] elements.       *)
+(*  - [tauL] / [ptensor] / [tensor_curryEp] : local pure tensor + Eq 5.1.     *)
+(*  - [line_hom] : the scalar-line [icones_hom 1 (C⊸D)] (dual-test tool).     *)
+(*  - [Phi_val] / [Phi_valE] : the Thm 5.12 forward-map algebraic skeleton.   *)
 (******************************************************************************)
 
 From HB Require Import structures.
@@ -288,6 +301,47 @@ End PureTensor.
 Arguments tauL {R Ar} B C.
 Arguments ptensor {R Ar B C}.
 Arguments tensor_curryEp {R Ar B C D}.
+
+(** ** Thm 5.12 [tensor_hom_iso] — algebraic skeleton of the forward [Φ]
+
+    The element-level forward map [Φ : (B⊗C)⊸D → B⊸(C⊸D)] of Paper
+    Thm 5.12 sends [g] to [b ↦ (c ↦ g(b⊗c))].  Its inner value at [b]
+    is the general composite [g ∘ τ(b) = linhom_comp g (tauL B C b)],
+    with the defining pointwise law [Phi_valE]: [Φ(g)(b)(c) = g(b⊗c)].
+
+    ⚠ DEFERRED — the OUTER measurability/integral-preservation (the
+    [icones_hom] fields of [Φ] as a map BETWEEN the hom-cones [(B⊗C)⊸D]
+    and [B⊸(C⊸D)]) is the substantial Fubini step of the paper
+    ([lemma:path-tens-to-one] + [lemma:swap-lin-path]).  It bottoms out
+    in: [s ↦ (β s) ⊗ (γ s)] is a measurable path in [B ⊗ C] (the
+    measurability of [τ]).  Establishing THAT requires unfolding the
+    *selected* test family of the abstractly-constructed [B ⊗ C =
+    wi_obj] (an equaliser of products of the coseparator power [1^J] in
+    [tensor_construct] / [representable]) and threading each coordinate
+    [j ∈ J = ICones(B, C⊸1)] through a diagonal joint-measurability of
+    [j]'s path-preservation.  This deep dive into the [wi_obj] internals
+    is the remaining T2A obstruction; [Phi_val]/[Phi_valE] are the proved
+    algebraic skeleton on which it would be built.  See the file footer. *)
+
+Section PhiSkeleton.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+(** The inner value of the forward [Φ] at [b]: the integrable linear map
+    [c ↦ g(b ⊗ c) = (g ∘ τ(b))], a [linhom_car C D] element. *)
+Definition Phi_val (g : linhom_car Ar (tensor B C) D) (b : B) :
+    linhom_car Ar C D :=
+  linhom_comp g ((tauL B C : icones_hom _ _ _) b).
+
+(** Paper Eq 5.1 at the element level: [Φ(g)(b)(c) = g(b ⊗ c)]. *)
+Lemma Phi_valE (g : linhom_car Ar (tensor B C) D) (b : B) (c : C) :
+  linhom_fun (Phi_val g b) c = linhom_fun g (ptensor b c).
+Proof. by rewrite /Phi_val linhom_compE /ptensor. Qed.
+
+End PhiSkeleton.
+
+Arguments Phi_val {R Ar B C D}.
+Arguments Phi_valE {R Ar B C D}.
 
 (** ** The "line" morphism [1 ⊸ (C ⊸ D)] — Paper §5.4 (dual-test tool)
 
@@ -677,5 +731,47 @@ End NormM.
 
 Arguments ptensor_norm_le {R Ar B C}.
 Arguments tensor_normM {R Ar B C}.
+
+(**md**************************************************************************)
+(* # STATUS — T2A                                                             *)
+(*                                                                            *)
+(* DONE (axiom-free; verified Print Assumptions [tensor_normM] = the 3        *)
+(* classical [boolp] axioms only, no [saft_interface] symbols):               *)
+(*  - Thm 5.13 [tensor_normM] : [‖x ⊗ y‖ = ‖x‖ · ‖y‖], via [line_hom] +       *)
+(*    [np_pairing] (dual pairing) + Prop 3.11 adherence.                      *)
+(*  - Reusable: [icones_to_linhom], [linhom_icones], [linhom_comp],           *)
+(*    [tauL]/[ptensor]/[tensor_curryEp], [line_hom], [Phi_val]/[Phi_valE].    *)
+(*                                                                            *)
+(* DEFERRED — Thm 5.12 [tensor_hom_iso] as a full [icones_iso].  The          *)
+(* algebra (forward map [Phi_val] with [Phi_valE]: [Φ(g)(b)(c) = g(b⊗c)],     *)
+(* and the inverse from [tensor_uncurry]) is in hand, and round-trips would   *)
+(* follow from T1's [tensor_curryK]/[tensor_uncurryK].  What is MISSING is     *)
+(* that [Φ] (and [Ψ]) are [icones_hom]s BETWEEN the hom-cones — specifically  *)
+(* their PATH-PRESERVATION and INTEGRAL-PRESERVATION fields (the paper's      *)
+(* [lemma:path-tens-to-one] + the Fubini swap of [lemma:swap-lin-path]).      *)
+(*                                                                            *)
+(* PRECISE OBSTRUCTION.  Φ's path-preservation reduces, via the [β▷(γ▷m)]     *)
+(* test family of [B⊸(C⊸D)] and [η]'s own path-preservation tested against    *)
+(* the [θ▷m] test of [(B⊗C)⊸D], to ONE missing fact:                          *)
+(*                                                                            *)
+(*    [θ := (s ↦ (β s) ⊗ (γ s))] is a *measurable path* in [B ⊗ C]            *)
+(*    (the "measurability of τ", [tensor_preserves_integrals]'s measurable    *)
+(*    companion) for [β ∈ Path(Y,B)], [γ ∈ Path(Y,C)].                        *)
+(*                                                                            *)
+(* By Def 3.7 this needs, for every SELECTED test [m0 ∈ mcone_M] of [B ⊗ C],  *)
+(* joint measurability of [(s',s) ↦ m0(s', θ s)].  But [B ⊗ C = wi_obj] is    *)
+(* an equaliser of products of the coseparator power [1^J] ([J = ICones(B,    *)
+(* C⊸1)]); its selected tests are [eqTest (iniTest_s m)] — single-coordinate  *)
+(* projections through [icone_cat]'s [icones_eq_M]/[icones_prod_M].  Reading  *)
+(* a coordinate [j] of [θ s] gives [j(β s)(γ s)] (via [eBE]/[tau'_def] of     *)
+(* [tensor_construct]); its joint measurability is the DIAGONAL of [j]'s      *)
+(* path-preservation ([j : B → C⊸1] an [icones_hom]) tested by [γ▷id_test].   *)
+(* That argument is sound but requires unfolding the abstract [wi_obj] /      *)
+(* [fK]/[fAdom]/[fhh] classifier-reindexed selected-test machinery of         *)
+(* [tensor_construct]+[representable] — a self-contained but sizable dive      *)
+(* into those internals, left for a follow-up.  Once [θ]-measurability lands  *)
+(* (call it [tensor_path]), the icones_hom fields of [Φ]/[Ψ] and the iso via  *)
+(* [icones_iso_of_cancel] + [tensor_curryK]/[tensor_uncurryK] are routine.    *)
+(******************************************************************************)
 
 End Icones_tensor_hom_iso.
