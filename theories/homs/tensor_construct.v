@@ -45,8 +45,10 @@
 (*  - [tensor_curry f := (C ⊸ f) ∘ tau'] (= [linhom_post_icones f ∘ tau']).    *)
 (*  - [tensor_uncurry g] := the SAFT mediator with [(C ⊸ uncurry g) ∘ tau' = g].*)
 (*  - [tensor_uncurryK] : DIRECT (the defining equation of [tensor_uncurry]).  *)
-(*  - [tensor_curryK]   : by coseparator + the mediator uniqueness.            *)
-(*  - the three naturalities : from [linhom_post] functoriality + uniqueness.  *)
+(*  - [tensor_curryK]   : from [tensor_curry_inj] (SAFT-uniqueness: equaliser  *)
+(*    of the two candidates + intersection minimality) + [tensor_uncurryK].    *)
+(*  - the three naturalities : from [linhom_post] functoriality + the          *)
+(*    round-trips (naturality in [B] uses [tensor_mor_l]).                      *)
 (*                                                                            *)
 (* APIs used: [representable.v] — [wi_obj]/[wi_incl]/[wi_proj]/[wi_med]/        *)
 (* [wi_med_proj]/[wi_med_unique]/[wi_factors_each]; [icones_well_powered].     *)
@@ -199,6 +201,14 @@ Definition fs_sub (k : fsub) : icones_subobject p :=
   | MkFsub A h hinj eA Hf => MkSubobject A h hinj
   end.
 
+(** A family member's embedding is a mono.  Destructured via [match]
+    (as [fs_sub]) so the [fs_inj] projector's auto-added [injective]
+    arguments do not leak. *)
+Definition fs_hom_inj (k : fsub) : is_icones_inj (fs_hom k) :=
+  match k as k' return is_icones_inj (fs_hom k') with
+  | MkFsub A h hinj eA Hf => hinj
+  end.
+
 
 (** The basepoint subobject [(p, id_p, e_B)], which factors [e_B]
     trivially ([C ⊸ id = id]) and is a mono ([id] is injective). *)
@@ -302,10 +312,102 @@ Arguments fhh {R Ar B C}.
 Arguments fhh_inj {R Ar B C}.
 Arguments fk0 {R Ar B C}.
 Arguments fs_sub {R Ar B C}.
+Arguments fs_hom_inj {R Ar B C}.
 Arguments fpick {R Ar B C}.
 Arguments fpick_fact {R Ar B C}.
 Arguments tensor {R Ar} B C.
 Arguments tensor_incl {R Ar} B C.
+
+(** ** Intersection minimality: [tensor_incl] factors through every
+       family member
+
+    The SAFT "initial object of the comma category" content (Riehl
+    4.6.11): for any factoring-family member [k : fsub B C] — a subobject
+    [(fs_dom k, fs_hom k)] of [p] through which [eB] factors — the
+    intersection embedding [tensor_incl] factors through its embedding,
+    [fs_hom k ∘ r = tensor_incl] for some [r : B ⊗ C → fs_dom k].
+
+    [k]'s underlying subobject [fs_sub k] has some classifier
+    [s := class(fs_sub k)].  The chosen representative [fpick s] (which
+    indexes the wide intersection) has the *same* classifier ([SubAk]
+    below: a witness — [k] itself — exists, so [fpick] picks a subobject
+    with classifier [s], and [fs_subE] reads its projections); hence by
+    well-poweredness ([icones_subobject_classP]) the two are iso over [p]:
+    an iso [φ : fAdom s ≅ fs_dom k] with [fs_hom k ∘ φ = fhh s].  Then
+    [r := φ ∘ wi_proj s] works: [fs_hom k ∘ r = fhh s ∘ wi_proj s =
+    wi_incl = tensor_incl] ([wi_factors_each]).  This is exactly the
+    transport [tensor_uncurry] performs ([tu_factorP]) for its pullback
+    member, generalised to an arbitrary member. *)
+
+Section FsubFactors.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : ICone.type Ar.
+
+Local Notation p := (tp B C).
+
+Variable k : fsub B C.
+
+(** The classifier of [k]'s subobject. *)
+Definition ff_class : @fK R Ar B C := icones_subobject_class (fs_sub k).
+
+(** The two subobjects of [p]: the chosen representative of [ff_class]
+    and [k]'s own embedding. *)
+Local Notation SubA :=
+  (@MkSubobject R Ar p (fAdom ff_class) (fhh ff_class) (fhh_inj ff_class)).
+Local Notation SubK :=
+  (@MkSubobject R Ar p (fs_dom k) (fs_hom k) (fs_hom_inj k)).
+
+(** [SubA] has classifier [ff_class]: a witness ([k]) exists, so [fpick
+    ff_class] picks a subobject with classifier [ff_class], and [fs_subE]
+    reads off its projections. *)
+Lemma ff_SubA_class : icones_subobject_class SubA = ff_class.
+Proof.
+have HpD : icones_subobject_class (fs_sub (fpick ff_class)) = ff_class.
+  rewrite /fpick; case: pselect => [e|[]]; last by exists k.
+  by case: (cid e) => k1 /= ->.
+rewrite -[in RHS]HpD; congr icones_subobject_class.
+by rewrite /fAdom /fhh /fhh_inj /fs_sub; case: (fpick ff_class).
+Qed.
+
+(** [SubK] is literally [fs_sub k] (the constructor reduces), so it has
+    classifier [ff_class] by definition; [SubA] too by [ff_SubA_class].
+    Hence they are iso over [p]. *)
+Lemma ff_equiv : subobject_equiv SubA SubK.
+Proof.
+apply: icones_subobject_classP.
+rewrite ff_SubA_class /ff_class.
+by congr icones_subobject_class; case: k.
+Qed.
+
+(** The iso [φ : fAdom ff_class ≅ fs_dom k] over [p]. *)
+Definition ff_phi : icones_iso Ar (fAdom ff_class) (fs_dom k) :=
+  proj1_sig (cid ff_equiv).
+
+Lemma ff_phiE (z : fAdom ff_class) :
+  (fs_hom k : icones_hom _ _ _) ((iso_fwd ff_phi : icones_hom _ _ _) z) =
+  (fhh ff_class : icones_hom _ _ _) z.
+Proof. exact: proj2_sig (cid ff_equiv) z. Qed.
+
+(** The factor [B ⊗ C → fs_dom k]. *)
+Definition ff_factor : icones_hom Ar (tensor B C) (fs_dom k) :=
+  icones_comp (iso_fwd ff_phi) (wi_proj fAdom fhh fk0 ff_class).
+
+(** [fs_hom k ∘ ff_factor = tensor_incl]. *)
+Lemma ff_factorP :
+  icones_comp (fs_hom k) ff_factor = tensor_incl B C.
+Proof.
+rewrite /ff_factor icones_compA.
+have Hphi : icones_comp (fs_hom k) (iso_fwd ff_phi) = fhh ff_class.
+  by apply: icones_hom_eq => z /=; exact: ff_phiE.
+rewrite Hphi.
+rewrite -[tensor_incl B C]/(wi_incl fAdom fhh fk0).
+exact: (@wi_factors_each R Ar (@fK R Ar B C) p fAdom fhh fk0 ff_class).
+Qed.
+
+End FsubFactors.
+
+Arguments ff_factor {R Ar B C} k.
+Arguments ff_factorP {R Ar B C} k.
 
 (** ** The universal element [tau' : B → C ⊸ (B ⊗ C)]
 
@@ -444,6 +546,87 @@ End Tau.
 
 Arguments tau' {R Ar} B C.
 Arguments tau'_def {R Ar B C}.
+
+(** ** The intersection embedding [tensor_incl] is a monomorphism
+
+    [tensor B C = icones_eq WU WV] and [tensor_incl = (hh k0 ∘ π_{k0}) ∘
+    eq_incl].  Two points [x], [y] of the intersection are equal iff
+    their underlying tuples [val x], [val y] agree componentwise
+    ([cones_eq_extensional] + [cones_prod_eq]).  The equaliser constraint
+    [WU (val x) = WV (val x)] says — componentwise via [WUE'] / [WVE'] —
+    [hh k (val x . k) = hh k0 (val x . k0)] for every [k] (and likewise
+    for [y]); and [tensor_incl x = tensor_incl y] gives
+    [hh k0 (val x . k0) = hh k0 (val y . k0)].  Hence for every [k],
+    [hh k (val x . k) = hh k (val y . k)], so [val x . k = val y . k] by
+    [fhh_inj k].  Unlike the generic [wi_incl_inj] (which would need the
+    single projection [wi_proj k0] injective — false here), this uses that
+    *every* family member [fhh k] is a mono, which holds for the tensor's
+    factoring family ([fhh_inj]). *)
+
+Section TensorInclInj.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : ICone.type Ar.
+
+Local Notation p := (tp B C).
+Local Notation K := (@fK R Ar B C).
+Local Notation hh := (@fhh R Ar B C).
+Local Notation k0 := (@fk0 R Ar B C).
+Local Notation WU := (wi_u hh).
+Local Notation WV := (wi_v hh k0).
+
+(** Componentwise value of the two product maps (re-derived here, the
+    [Tau]-section [WUE]/[WVE] being local to it). *)
+Lemma WUE' (x : wi_prod (@fAdom R Ar B C)) (k : K) :
+  cones_prod_val ((WU : icones_hom _ _ _) x) k =
+  (hh k : icones_hom _ _ _) (cones_prod_val x k).
+Proof.
+have := icones_tuple_proj (Q := wi_prod (@fAdom R Ar B C))
+          (fun k1 => icones_comp (hh k1) (wi_pi (@fAdom R Ar B C) k1)) k.
+by move/(congr1 (fun w : icones_hom Ar (wi_prod (@fAdom R Ar B C)) p =>
+                   (w : icones_hom _ _ _) x)) => /= ->.
+Qed.
+
+Lemma WVE' (x : wi_prod (@fAdom R Ar B C)) (k : K) :
+  cones_prod_val ((WV : icones_hom _ _ _) x) k =
+  (hh k0 : icones_hom _ _ _) (cones_prod_val x k0).
+Proof.
+have := icones_tuple_proj (Q := wi_prod (@fAdom R Ar B C))
+          (fun _ : K => icones_comp (hh k0) (wi_pi (@fAdom R Ar B C) k0)) k.
+by move/(congr1 (fun w : icones_hom Ar (wi_prod (@fAdom R Ar B C)) p =>
+                   (w : icones_hom _ _ _) x)) => /= ->.
+Qed.
+
+(** [tensor_incl] is a mono. *)
+Lemma tensor_incl_inj : is_icones_inj (tensor_incl B C).
+Proof.
+rewrite /is_icones_inj => x y Hxy.
+(* [tensor_incl z = hh k0 (val z . k0)]; the hypothesis says these agree. *)
+have Hk0 : (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val x) k0) =
+           (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val y) k0).
+  exact: Hxy.
+(* The equaliser constraints carried by [x] and [y]. *)
+have Hcx := cones_eq_eq x.
+have Hcy := cones_eq_eq y.
+(* Conclude tuple-wise equality of [val x], [val y]. *)
+apply: (icones_eq_incl_inj WU WV).
+apply: cones_prod_eq => k.
+apply: (@fhh_inj R Ar B C k).
+(* [hh k (val x . k) = hh k0 (val x . k0) = hh k0 (val y . k0)
+                     = hh k (val y . k)]. *)
+have Ex : (hh k : icones_hom _ _ _) (cones_prod_val (cones_eq_val x) k) =
+          (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val x) k0).
+  have := f_equal (fun z => cones_prod_val z k) Hcx.
+  by rewrite WUE' WVE'.
+have Ey : (hh k : icones_hom _ _ _) (cones_prod_val (cones_eq_val y) k) =
+          (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val y) k0).
+  have := f_equal (fun z => cones_prod_val z k) Hcy.
+  by rewrite WUE' WVE'.
+by rewrite Ex Hk0 -Ey.
+Qed.
+
+End TensorInclInj.
+
+Arguments tensor_incl_inj {R Ar} B C.
 
 (** ** [tensor_curry] and the naturalities not needing [tensor_uncurry]
 
@@ -832,59 +1015,264 @@ End TensorUncurry.
 Arguments tensor_uncurry {R Ar B C D}.
 Arguments tensor_uncurryK {R Ar B C D}.
 
+(** ** [tensor_curry] is injective, hence [tensor_curryK]
+
+    The SAFT-uniqueness argument (equaliser of the two candidates +
+    intersection minimality), NOT joint-epicness of [tau'].
+
+    Let [f1 f2 : B ⊗ C → D] with [tensor_curry f1 = tensor_curry f2],
+    i.e. [(C ⊸ f1) ∘ tau' = (C ⊸ f2) ∘ tau'].  Form the equaliser
+    [E := icones_eq f1 f2] with inclusion [e := icones_eq_incl f1 f2]
+    ([f1 ∘ e = f2 ∘ e], [e] a mono).  Since [C ⊸ −] preserves equalisers,
+    [tau'] (equalising [C ⊸ f1], [C ⊸ f2]) co-restricts to
+    [tauE : B → C ⊸ E] with [(C ⊸ e) ∘ tauE = tau'].
+
+    The composite [m_E := tensor_incl ∘ e : E ↪ p] is a mono, and [eB]
+    factors through [C ⊸ m_E]:
+      [eB = (C ⊸ tensor_incl) ∘ tau' = (C ⊸ tensor_incl) ∘ (C ⊸ e) ∘ tauE
+          = (C ⊸ m_E) ∘ tauE].
+    So [(E, m_E, tauE)] is a factoring-family member [fsub].  By
+    intersection minimality ([ff_factorP]) the embedding [tensor_incl]
+    factors through [m_E]: [r : B ⊗ C → E] with [m_E ∘ r = tensor_incl],
+    i.e. [tensor_incl ∘ (e ∘ r) = tensor_incl].  As [tensor_incl] is a
+    mono ([tensor_incl_inj]), [e ∘ r = id]; so [e] is a split epi.  An
+    epi from [f1 ∘ e = f2 ∘ e] then gives [f1 = f2]. *)
+
+Section TensorCurryInj.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+Variables f1 f2 : icones_hom Ar (tensor B C) D.
+Hypothesis Hcurry : tensor_curry f1 = tensor_curry f2.
+
+Local Notation E := (icones_eq f1 f2).
+Local Notation e := (icones_eq_incl f1 f2).
+
+(** [tau'] equalises [C ⊸ f1] and [C ⊸ f2] — that is exactly the
+    hypothesis [tensor_curry f1 = tensor_curry f2] unfolded. *)
+Lemma tci_equ :
+  icones_comp (linhom_post_icones (C := C) f1) (tau' B C) =
+  icones_comp (linhom_post_icones (C := C) f2) (tau' B C).
+Proof. exact: Hcurry. Qed.
+
+(** The co-restriction [tauE : B → C ⊸ E]. *)
+Definition tauE : icones_hom Ar B (linhom_car Ar C E) :=
+  limpl_eq_med_icones C (tau' B C) tci_equ.
+
+Lemma tauE_factor :
+  icones_comp (linhom_post_icones (C := C) e) tauE = tau' B C.
+Proof. exact: (limpl_eq_med_factor C (tau' B C) tci_equ). Qed.
+
+(** The composite embedding [m_E := tensor_incl ∘ e : E ↪ p]. *)
+Definition tci_mE : icones_hom Ar E (tp B C) := icones_comp (tensor_incl B C) e.
+
+(** [m_E] is a mono (composite of the injective [tensor_incl] and the
+    injective equaliser inclusion [e]). *)
+Lemma tci_mE_inj : is_icones_inj tci_mE.
+Proof.
+move=> a b /= /(tensor_incl_inj B C); exact: (icones_eq_incl_inj f1 f2).
+Qed.
+
+(** [eB] factors through [C ⊸ m_E] via [tauE]:
+    [(C ⊸ m_E) ∘ tauE = eB]. *)
+Lemma tci_fact :
+  icones_comp (linhom_post_icones (C := C) tci_mE) tauE = eB B C.
+Proof.
+rewrite /tci_mE linhom_post_comp -icones_compA tauE_factor.
+exact: tau'_def.
+Qed.
+
+(** The factoring-family member [(E, m_E, tauE)]. *)
+Definition tci_fsub : fsub B C :=
+  {| fs_dom := E; fs_hom := tci_mE; fs_inj := tci_mE_inj;
+     fs_eA := tauE; fs_fact := tci_fact |}.
+
+(** Intersection minimality: [tensor_incl] factors through [m_E].
+    The [E]-leg [r := ff_factor tci_fsub] satisfies [m_E ∘ r =
+    tensor_incl] ([ff_factorP]). *)
+Definition tci_r : icones_hom Ar (tensor B C) E := ff_factor tci_fsub.
+
+Lemma tci_rP : icones_comp tci_mE tci_r = tensor_incl B C.
+Proof. exact: (ff_factorP tci_fsub). Qed.
+
+(** [e] is a split epi: [e ∘ r = id_{B ⊗ C}].  From
+    [tensor_incl ∘ (e ∘ r) = m_E ∘ r = tensor_incl = tensor_incl ∘ id]
+    and [tensor_incl] mono. *)
+Lemma tci_split : icones_comp e tci_r = icones_id Ar (tensor B C).
+Proof.
+have Hmono := icones_inj_mono (tensor_incl B C) (tensor_incl_inj B C).
+apply: (Hmono _ (icones_comp e tci_r) (icones_id Ar (tensor B C))).
+rewrite icones_compA -/tci_mE tci_rP.
+by rewrite icones_compIr.
+Qed.
+
+(** Hence [f1 = f2]: [f1 = f1 ∘ e ∘ r = f2 ∘ e ∘ r = f2]
+    ([icones_eq_incl_equ] : [f1 ∘ e = f2 ∘ e]). *)
+Lemma tci_eq : f1 = f2.
+Proof.
+transitivity (icones_comp f1 (icones_comp e tci_r)).
+  by rewrite tci_split icones_compIr.
+transitivity (icones_comp f2 (icones_comp e tci_r)); last first.
+  by rewrite tci_split icones_compIr.
+by rewrite !icones_compA (icones_eq_incl_equ f1 f2).
+Qed.
+
+End TensorCurryInj.
+
+(** Injectivity of [tensor_curry] (Paper Thm 5.9: [Φ] is a bijection,
+    forward part is mono). *)
+Lemma tensor_curry_inj (R : realType) (Ar : MeasSubcat R)
+    (B C D : ICone.type Ar) (f1 f2 : icones_hom Ar (tensor B C) D) :
+  tensor_curry f1 = tensor_curry f2 -> f1 = f2.
+Proof. exact: tci_eq. Qed.
+
+Arguments tensor_curry_inj {R Ar B C D} f1 f2.
+
+(** [tensor_curryK] : [tensor_uncurry (tensor_curry f) = f].  By
+    [tensor_uncurryK], [tensor_curry (tensor_uncurry (tensor_curry f)) =
+    tensor_curry f]; injectivity of [tensor_curry] ([tensor_curry_inj])
+    then collapses the round trip. *)
+Lemma tensor_curryK (R : realType) (Ar : MeasSubcat R)
+    (B C D : ICone.type Ar) (f : icones_hom Ar (tensor B C) D) :
+  tensor_uncurry (tensor_curry f) = f.
+Proof.
+apply: tensor_curry_inj.
+exact: tensor_uncurryK.
+Qed.
+
+Arguments tensor_curryK {R Ar B C D} f.
+
+(** ** Naturality of [Φ] in [B] (existential form, the [saft_interface]
+       signature)
+
+    With both round-trips in hand, naturality in [B] is routine: for
+    [u : B' → B], the functorial action on objects is
+      [tensor_mor_l u := tensor_uncurry ((C ⊸ ?) …)]
+    — concretely the uncurry of [tau' B C ∘ u : B' → C ⊸ (B ⊗ C)] — a map
+    [B' ⊗ C → B ⊗ C].  Then
+      [tensor_curry (f ∘ tensor_mor_l u) = tensor_curry f ∘ u]
+    by [tensor_curry_natural_post] ([tensor_curry (f ∘ −) = (C ⊸ f) ∘
+    tensor_curry −]) together with [tensor_uncurryK]
+    ([tensor_curry (tensor_uncurry g) = g]). *)
+
+Section TensorNaturalB.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B B' C : ICone.type Ar.
+Variable u : icones_hom Ar B' B.
+
+(** The functorial action [tensor_mor_l u : B' ⊗ C → B ⊗ C]: the uncurry
+    of [tau' ∘ u]. *)
+Definition tensor_mor_l : icones_hom Ar (tensor B' C) (tensor B C) :=
+  tensor_uncurry (icones_comp (tau' B C) u).
+
+(** [tensor_curry] of [tensor_mor_l u] recovers [tau' ∘ u]
+    ([tensor_uncurryK]). *)
+Lemma tensor_mor_lK :
+  tensor_curry tensor_mor_l = icones_comp (tau' B C) u.
+Proof. exact: tensor_uncurryK. Qed.
+
+(** Naturality in [B], concrete form:
+    [tensor_curry (f ∘ tensor_mor_l u) = tensor_curry f ∘ u]. *)
+Lemma tensor_curry_natural_B_post (D : ICone.type Ar)
+    (f : icones_hom Ar (tensor B C) D) :
+  tensor_curry (icones_comp f tensor_mor_l) =
+  icones_comp (tensor_curry f) u.
+Proof.
+rewrite (tensor_curry_natural_post f tensor_mor_l).
+rewrite tensor_mor_lK.
+(* [(C ⊸ f) ∘ (tau' ∘ u) = ((C ⊸ f) ∘ tau') ∘ u = tensor_curry f ∘ u]. *)
+by rewrite /tensor_curry icones_compA.
+Qed.
+
+End TensorNaturalB.
+
+Arguments tensor_mor_l {R Ar B B' C} u.
+Arguments tensor_curry_natural_B_post {R Ar B B' C} u {D} f.
+
+(** Naturality of [Φ] in [B] (existential form, matching the
+    [saft_interface] [tensor_curry_natural_B] signature): the witness is
+    [tensor_mor_l u]. *)
+Lemma tensor_curry_natural_B (R : realType) (Ar : MeasSubcat R)
+    (B B' C D : ICone.type Ar) (u : icones_hom Ar B' B) :
+  exists utens : icones_hom Ar (tensor B' C) (tensor B C),
+    forall f : icones_hom Ar (tensor B C) D,
+      tensor_curry (icones_comp f utens) = icones_comp (tensor_curry f) u.
+Proof.
+exists (tensor_mor_l u) => f.
+exact: tensor_curry_natural_B_post.
+Qed.
+
+Arguments tensor_curry_natural_B {R Ar B B' C D} u.
+
 (**md**************************************************************************)
-(* # STATUS — [tensor_uncurry] BUILT; round-trip [tensor_uncurryK] PROVED      *)
+(* # STATUS — ALL 8 T1 PARAMETERS DISCHARGED, AXIOM-FREE                       *)
 (*                                                                            *)
-(* What this file PROVES, axiom-clean (only the three classical [boolp]       *)
-(* axioms; NO project [Axiom]/[Parameter]/[Admitted]; verified by             *)
-(* [Print Assumptions tensor_uncurryK] = {propositional_extensionality,       *)
-(* functional_extensionality_dep, constructive_indefinite_description}):       *)
+(* This file now DISCHARGES, as genuine theorems about the concrete           *)
+(* [wi_obj] construction, all eight [Parameter]s of [saft_interface.v]:        *)
+(*                                                                            *)
+(*   tensor, tensor_curry, tensor_uncurry, tensor_curryK, tensor_uncurryK,    *)
+(*   tensor_curry_natural_post, tensor_curry_natural_D, tensor_curry_natural_B *)
+(*                                                                            *)
+(* Axiom-clean: [Print Assumptions] on [tensor_curryK], [tensor_curry_inj]    *)
+(* and [tensor_curry_natural_B] yields ONLY the three classical [boolp]       *)
+(* axioms — {propositional_extensionality, functional_extensionality_dep,     *)
+(* constructive_indefinite_description} — with NO [saft_interface] symbols     *)
+(* and NO project [Axiom]/[Parameter]/[Admitted].                             *)
+(*                                                                            *)
+(* What this file PROVES:                                                      *)
 (*                                                                            *)
 (*   - [tensor B C := wi_obj …], [eB], [tau'] + [tau'_def], [tensor_curry] +   *)
-(*     [tensor_curryE], [tensor_curry_natural_post] / [_D] (as before).        *)
+(*     [tensor_curryE], [tensor_curry_natural_post] / [_D].                     *)
+(*   - [tensor_incl_inj] : the intersection embedding [tensor_incl] is a       *)
+(*     mono.  Proved by the *all-components* argument (every family member     *)
+(*     [fhh k] is a mono, [fhh_inj]): two equaliser points agree componentwise *)
+(*     because their [fhh k]-images all coincide.  (The generic [wi_incl_inj]  *)
+(*     would need the single projection [wi_proj k0] injective — false here.)  *)
+(*   - [ff_factor] / [ff_factorP] : SAFT intersection minimality — for ANY     *)
+(*     factoring-family member [k : fsub B C], [tensor_incl] factors through   *)
+(*     [fs_hom k] ([fs_hom k ∘ ff_factor k = tensor_incl]), via the classifier *)
+(*     transport [icones_subobject_classP] (the same transport [tu_factorP]    *)
+(*     does for the [tensor_uncurry] pullback member, here generalised).       *)
 (*   - [tensor_uncurry g : B ⊗ C → D] — the SAFT comma-category mediator,      *)
-(*     BUILT by the coseparator-power reindexing (Riehl 4.6.11): the          *)
-(*     canonical mono [GammaD : D ↪ q := 1^{ICones(D,1)}] ([GammaD_inj] from   *)
-(*     Phase A [icones_coseparator_inj]), the reindex [P : p → q] along        *)
-(*     [n ↦ (C ⊸ n) ∘ g], the pullback [Dsub := pb_obj P GammaD] (its         *)
-(*     [p]-leg [Dincl] a mono, [Dincl_inj]), the co-restriction [eA :          *)
-(*     B → C ⊸ Dsub] of [eB]/[g] through the preserved equaliser              *)
-(*     ([eA_fact] : [(C ⊸ Dincl) ∘ eA = eB]) making [(Dsub, Dincl, eA)] a      *)
-(*     factoring-family member, and the classifier transport ([Ds_equiv] via  *)
-(*     [icones_subobject_classP]) so [tensor_incl] factors through [Dincl]     *)
-(*     ([tu_factorP]); [tensor_uncurry g := Dpr ∘ tu_factor].                  *)
+(*     BUILT by the coseparator-power reindexing (Riehl 4.6.11): mono          *)
+(*     [GammaD : D ↪ 1^{ICones(D,1)}], reindex [P : p → q], pullback           *)
+(*     [Dsub := pb_obj P GammaD] ([Dincl] a mono), co-restriction [eA] of      *)
+(*     [eB]/[g], classifier transport so [tensor_incl] factors through         *)
+(*     [Dincl]; [tensor_uncurry g := Dpr ∘ tu_factor].                          *)
 (*   - [tensor_uncurryK] : [tensor_curry (tensor_uncurry g) = g] — the         *)
-(*     defining factorisation, via [C ⊸ Dincl] mono ([linhom_post_inj]) so     *)
-(*     [(C ⊸ tu_factor) ∘ tau' = eA], then [(C ⊸ Dpr) ∘ eA = g] ([eA_pr_fact]).*)
+(*     defining factorisation, via [C ⊸ Dincl] mono ([linhom_post_inj]).       *)
 (*                                                                            *)
-(* What REMAINS — [tensor_curryK] and [tensor_curry_natural_B]:                *)
+(* ## [tensor_curryK] via SAFT-uniqueness (equaliser of candidates +           *)
+(*    intersection minimality) — NOT joint-epicness of [tau']                  *)
 (*                                                                            *)
-(*  (U1) [tensor_curryK] : [tensor_uncurry (tensor_curry f) = f] is EQUIVALENT *)
-(*       to *injectivity of [tensor_curry]* (given [tensor_uncurryK]:          *)
-(*       [tensor_curry (tensor_uncurry (tensor_curry f)) = tensor_curry f], so *)
-(*       [tensor_uncurry (tensor_curry f) = f] iff [tensor_curry] is mono).    *)
-(*       By the coseparator [GammaD] (cod [D]) and the component law           *)
-(*       [π_n ∘ GammaD = n], injectivity of [tensor_curry] reduces to the      *)
-(*       codomain-[1] case: for [h₁ h₂ : B ⊗ C → 1],                           *)
-(*         [tensor_curry h₁ = tensor_curry h₂  ⟹  h₁ = h₂].                    *)
-(*       Equivalently (taking [j := tensor_curry h]) the UNIVERSAL-ELEMENT      *)
-(*       RECOVERY identity                                                     *)
-(*         [π_j ∘ tensor_incl = h    whenever    tensor_curry h = j],          *)
-(*       i.e. the [j]-component of the intersection embedding reproduces the   *)
-(*       map [h] whose curry is [j].  This holds on the IMAGE of [tau']        *)
-(*       ([tensor_incl (tau' b c) . j = j b c], from [tau'_def]+[eBE]) but     *)
-(*       its extension to ALL of [B ⊗ C] is exactly the *faithfulness* /       *)
-(*       minimality half of SAFT representability: that [tau'] is jointly      *)
-(*       epic, i.e. the universal element generates [B ⊗ C].  The exported     *)
-(*       [representable.v] [wi_*] interface gives maps INTO the intersection   *)
-(*       ([wi_med]) and FACTORING through members ([wi_factors_each]) — but no *)
-(*       "maps OUT of the intersection are determined by [tau']" principle.    *)
-(*       Supplying that (a [wi_proj]-jointly-mono / generation lemma in        *)
-(*       [representable.v], or a direct density argument that the sub-cone     *)
-(*       generated by [tau']'s image is all of [B ⊗ C]) closes both [U1] and   *)
-(*       [tensor_curry_natural_B] (the latter is then routine — define         *)
-(*       [tensor_mor_l u := tensor_uncurry (icones_comp tau' u)] and use       *)
-(*       [tensor_uncurryK]).                                                   *)
+(* The earlier "[tau'] is jointly epic / generates [B ⊗ C]" route was a dead   *)
+(* end (no "maps OUT of the intersection are determined by [tau']" principle   *)
+(* is exported).  Instead [tensor_curry_inj] uses the standard SAFT-uniqueness *)
+(* argument:                                                                   *)
+(*                                                                            *)
+(*   Given [f1 f2 : B ⊗ C → D] with [tensor_curry f1 = tensor_curry f2], form  *)
+(*   the equaliser [E := icones_eq f1 f2], inclusion [e := icones_eq_incl]      *)
+(*   ([f1 ∘ e = f2 ∘ e], [e] mono).  Since [C ⊸ −] preserves equalisers        *)
+(*   ([limpl_eq_med_icones]/[_factor]), [tau'] (equalising [C ⊸ f1], [C ⊸ f2]) *)
+(*   co-restricts to [tauE : B → C ⊸ E] with [(C ⊸ e) ∘ tauE = tau']           *)
+(*   ([tauE_factor]).  The composite [m_E := tensor_incl ∘ e : E ↪ p] is a     *)
+(*   mono ([tci_mE_inj]) and [eB = (C ⊸ m_E) ∘ tauE] ([tci_fact]), so          *)
+(*   [(E, m_E, tauE)] is a factoring-family member [tci_fsub].  Intersection   *)
+(*   minimality ([ff_factorP]) gives [r := ff_factor tci_fsub] with            *)
+(*   [m_E ∘ r = tensor_incl] ([tci_rP]); since [tensor_incl] is a mono         *)
+(*   ([tensor_incl_inj]), [e ∘ r = id] ([tci_split]) — [e] is a split epi.     *)
+(*   Then [f1 = f1 ∘ e ∘ r = f2 ∘ e ∘ r = f2] ([tci_eq], [icones_eq_incl_equ]).*)
+(*                                                                            *)
+(*   [tensor_curryK] : [tensor_uncurry (tensor_curry f) = f] then follows from *)
+(*   [tensor_uncurryK] + [tensor_curry_inj].                                    *)
+(*                                                                            *)
+(* ## [tensor_curry_natural_B]                                                 *)
+(*                                                                            *)
+(* Routine, given both round-trips: [tensor_mor_l u := tensor_uncurry          *)
+(* (tau' B C ∘ u) : B' ⊗ C → B ⊗ C]; then [tensor_curry (f ∘ tensor_mor_l u) = *)
+(* tensor_curry f ∘ u] by [tensor_curry_natural_post] + [tensor_uncurryK]      *)
+(* ([tensor_curry_natural_B_post]).  The existential witness of the            *)
+(* [saft_interface] signature is [tensor_mor_l u].                             *)
 (******************************************************************************)
 
 End Icones_tensor_construct.
