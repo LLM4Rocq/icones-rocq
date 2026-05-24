@@ -461,6 +461,14 @@ Proof.
 by rewrite /tensor_curry linhom_post_comp -icones_compA.
 Qed.
 
+(** Paper Eq 5.1, pointwise: [Φ(f)(x)(y) = f(τ'(x)(y))].  Direct from
+    the definition [tensor_curry f = (C ⊸ f) ∘ tau']. *)
+Lemma tensor_curryE (D : ICone.type Ar) (f : icones_hom Ar (tensor B C) D)
+    (x : B) (y : C) :
+  linhom_fun ((tensor_curry f : icones_hom _ _ _) x) y =
+  (f : icones_hom _ _ _) (linhom_fun ((tau' B C : icones_hom _ _ _) x) y).
+Proof. by rewrite /tensor_curry /= linhom_map_funE /=. Qed.
+
 (** Naturality of [Φ] in [D] (existential form, the [saft_interface]
     signature): the witness is [C ⊸ h = linhom_post_icones h]. *)
 Lemma tensor_curry_natural_D (D D' : ICone.type Ar)
