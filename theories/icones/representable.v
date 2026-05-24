@@ -574,6 +574,23 @@ exists (icones_iso_of_cancel fwd bwd
 by rewrite /fwd (phiE HS).
 Qed.
 
+(** The packaged well-poweredness statement (Paper Thm 4.18): the
+    class of subobjects of [B] is *essentially small* — it admits a
+    classifying map [icones_subobject_class] into the small type
+    [SubobjClassifier B] which is *injective up to iso*: subobjects
+    with equal classifier are iso over [B].
+
+    This is exactly the property the Special Adjoint Functor Theorem
+    consumes (Riehl 4.6.10): it lets one form the *small* family of
+    subobjects of an object (one representative per classifier value)
+    needed for the solution-set / subobject-intersection construction. *)
+Theorem icones_well_powered :
+  exists cls : icones_subobject B -> SubobjClassifier B,
+    forall D1 D2 : icones_subobject B,
+      cls D1 = cls D2 -> subobject_equiv D1 D2.
+Proof. by exists icones_subobject_class; exact: icones_subobject_classP. Qed.
+
 End WellPowered.
 
 Arguments icones_subobject_classP {R Ar B} D1 D2.
+Arguments icones_well_powered {R Ar} B.
