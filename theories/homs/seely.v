@@ -2,13 +2,14 @@
 (** * [ICones] is a Seely category — Paper §9
 
     From the staged exponential comonad [!] ([theories/homs/bang.v],
-    modulo [theories/axioms/exp_interface.v]), the staged symmetric
-    monoidal tensor [⊗] ([theories/homs/tensor.v]/[smcc.v], modulo
-    [theories/axioms/saft_interface.v]) and the staged Seely
-    isomorphisms ([theories/axioms/seely_interface.v]) we DERIVE — as
-    genuine theorems modulo those interfaces — that [!] is a *strong
-    monoidal comonad*, i.e. [ICones] is a *Seely category* in the sense
-    of Melliès (paper §9, lines 7515–7573, ref. [Mellies09]).
+    modulo [theories/axioms/exp_interface.v]), the now-AXIOM-FREE
+    symmetric monoidal tensor [⊗] ([theories/homs/tensor.v]/[smcc.v]; the
+    SAFT contract [saft_interface.v] is discharged and deleted) and the
+    staged Seely isomorphisms ([theories/axioms/seely_interface.v]) we
+    DERIVE — as genuine theorems modulo the remaining (exp/Seely)
+    interfaces — that [!] is a *strong monoidal comonad*, i.e. [ICones]
+    is a *Seely category* in the sense of Melliès (paper §9, lines
+    7515–7573, ref. [Mellies09]).
 
     The workhorse is the [n=2] promotion extensionality
     [tens_excl_charact] (paper Lemma [tens-excl-equal-charact]), the
@@ -65,11 +66,11 @@
     through, so it is recorded in projected form ([seely_der1]/[der2]),
     which carries the same content.
 
-    All results are THEOREMS modulo the staged interfaces; the only
-    non-classical assumptions are the staged tensor symbols, the staged
-    exponential symbols ([Bang]/[nl]/[lin]/[lin_beta]/[lin_unique]), and
-    the staged Seely symbols ([Seely2]/[Seely2E]/[Seely2_natural] and
-    [Seely0]/[Seely0E]). *)
+    All results are THEOREMS modulo the remaining staged interfaces; the
+    tensor symbols are now AXIOM-FREE (SAFT discharged), so the only
+    non-classical assumptions left are the staged exponential symbols
+    ([Bang]/[nl]/[lin]/[lin_beta]/[lin_unique]) and the staged Seely
+    symbols ([Seely2]/[Seely2E]/[Seely2_natural] and [Seely0]/[Seely0E]). *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -93,7 +94,6 @@ Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
-Require Import Icones.axioms.saft_interface.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
 Require Import Icones.axioms.exp_interface.
@@ -105,6 +105,17 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
+
+(** P6 — the tensor SAFT contract is DISCHARGED.  [tensor.v] (Required
+    above) [Export]s the proved tensor symbols, replacing the former
+    [saft_interface].  Re-seal the now-TRANSPARENT structural-iso /
+    bifunctor data so a bare [/=]/[simpl] in the Seely coherence proofs
+    below does not unfold the [tensor_construct] internals (which would
+    break the [tensor_assocEp]/[tensor_braidEp]/[tensor_morE]/[...Ep]
+    rewrites); [conversion] still computes their [...E] values, so the
+    promotion-coherence proofs go through verbatim. *)
+Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
+       tensor_curry tensor_uncurry ptensor tau.
 
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
@@ -207,7 +218,7 @@ Qed.
     pure tensor [x1! ⊗ x2!] (for [‖x1‖ ≤ 1], [‖x2‖ ≤ 1]) are equal.
 
     Proof (the paper's induction, [n=2] unfolded).  Curry [f, g] to
-    [F = Φ(f), G = Φ(g) : !B1 → (!B2 ⊸ C)] with the staged tensor
+    [F = Φ(f), G = Φ(g) : !B1 → (!B2 ⊸ C)] with the tensor
     adjunction; by injectivity of [Φ] ([tensor_curry_inj]) it suffices
     that [F = G].  By the [n=1] [bang_ext] it suffices that [F(x1!) =
     G(x1!) : !B2 ⊸ C] for [‖x1‖ ≤ 1].  These are [linhom_car] elements
@@ -574,25 +585,19 @@ Definition one1 : cone_one_car Ar := MkConeOne Ar 1%:nng.
 Lemma lunit_bwd_prom (B : ICone.type Ar) (x : B) :
   iso_bwd (tensor_lunit (Bang Ar B)) x! = ptensor one1 x!.
 Proof.
+(* P6 — with [tensor_lunit] sealed [Opaque], the staged change-fold no
+   longer applies; but [iso_fwd ∘ iso_bwd] cancels by [iso_can'] and the
+   forward unitor on the unit-scalar pure tensor [one1 ⊗ x!] computes to
+   [x!], so the residual goal closes by conversion. *)
 apply: (iso_fwd_inj (tensor_lunit (Bang Ar B))).
-rewrite iso_can'.
-rewrite -[iso_fwd (tensor_lunit (Bang Ar B)) (ptensor one1 x!)]
-  /(Lfun (iso_fwd (tensor_lunit (Bang Ar B))) (ptensor one1 x!)).
-rewrite tensor_lunitEp.
-have -> : c1_val one1 = 1%:nng by [].
-by rewrite precone_scale_1.
+by rewrite iso_can'.
 Qed.
 
 Lemma runit_bwd_prom (B : ICone.type Ar) (x : B) :
   iso_bwd (tensor_runit (Bang Ar B)) x! = ptensor x! one1.
 Proof.
 apply: (iso_fwd_inj (tensor_runit (Bang Ar B))).
-rewrite iso_can'.
-rewrite -[iso_fwd (tensor_runit (Bang Ar B)) (ptensor x! one1)]
-  /(Lfun (iso_fwd (tensor_runit (Bang Ar B))) (ptensor x! one1)).
-rewrite tensor_runitEp.
-have -> : c1_val one1 = 1%:nng by [].
-by rewrite precone_scale_1.
+by rewrite iso_can'.
 Qed.
 
 (** Mixed unit extensionality.  A linear map [1 ⊗ !B → C] is determined
@@ -630,7 +635,15 @@ have Hbwd : icones_comp f (iso_bwd (tensor_runit (Bang Ar A))) =
   exact: Hfg.
 rewrite -(icones_compIr f) -(icones_compIr g).
 rewrite -(iso_fwdK (tensor_runit (Bang Ar A))).
-by rewrite !icones_compA Hbwd.
+(* P6 — [tensor_runit_bwd] is itself an [icones_comp]; a blanket
+   [!icones_compA] would reassociate INTO it (defeating the [Opaque]
+   seal) and break the [Hbwd] match.  Reassociate only the two outer
+   composites by giving [icones_compA] explicit arguments. *)
+rewrite (icones_compA f (iso_bwd (tensor_runit (Bang Ar A)))
+                       (iso_fwd (tensor_runit (Bang Ar A)))).
+rewrite (icones_compA g (iso_bwd (tensor_runit (Bang Ar A)))
+                       (iso_fwd (tensor_runit (Bang Ar A)))).
+by rewrite Hbwd.
 Qed.
 
 (** *** Left-unit coherence — Seely0 vs the left unitors [λ^⊗]/[λ^&].
@@ -656,8 +669,6 @@ have Hp : cone_norm (sprod_pair (precone_zero : Stop Ar) x) <= 1.
   exact: sprod_pair_norm_le1.
 rewrite (bang_fmap_prom (sprod_lunit_fwd A)
            (sprod_pair (precone_zero : Stop Ar) x) Hp) sprod_lunitE.
-rewrite -[iso_fwd (tensor_lunit (Bang Ar A)) (ptensor one1 x!)]
-  /(Lfun (iso_fwd (tensor_lunit (Bang Ar A))) (ptensor one1 x!)).
 by rewrite tensor_lunitEp e1 precone_scale_1.
 Qed.
 
@@ -683,8 +694,6 @@ have Hp : cone_norm (sprod_pair x (precone_zero : Stop Ar)) <= 1.
   exact: sprod_pair_norm_le1.
 rewrite (bang_fmap_prom (sprod_runit_fwd A)
            (sprod_pair x (precone_zero : Stop Ar)) Hp) sprod_runitE.
-rewrite -[iso_fwd (tensor_runit (Bang Ar A)) (ptensor x! one1)]
-  /(Lfun (iso_fwd (tensor_runit (Bang Ar A))) (ptensor x! one1)).
 by rewrite tensor_runitEp e1 precone_scale_1.
 Qed.
 
@@ -786,8 +795,9 @@ Arguments seely_der2 {R Ar} A B.
       counit/[Seely2] binary laws.
 
     The canonical witness [ICones_Seely] populates every field with the
-    proved lemmas; the only unproved inputs are the staged tensor / exp /
-    Seely symbols, discharged by M-SAFT (PLAN §13).
+    proved lemmas; the tensor symbols are now AXIOM-FREE (SAFT
+    discharged), so the only unproved inputs left are the staged exp /
+    Seely symbols (PLAN §13).
 
     Status of the Melliès coherence laws.  We DELIVER, as THEOREMS modulo
     the staged interfaces (not axioms): the strong-monoidal-comonad data
@@ -897,8 +907,8 @@ Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
 Arguments SeelyCategory {R} Ar.
 
 (** Paper §9: the canonical Seely-category structure on [ICones], every
-    field populated by a proved lemma (modulo the staged tensor / exp /
-    Seely interfaces). *)
+    field populated by a proved lemma (the tensor is now axiom-free;
+    modulo the remaining staged exp / Seely interfaces). *)
 Definition ICones_Seely (R : realType) (Ar : MeasSubcat R) :
     SeelyCategory Ar :=
   {| sc_smcc := ICones_smcc Ar;

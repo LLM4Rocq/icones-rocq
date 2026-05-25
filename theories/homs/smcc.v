@@ -2,15 +2,14 @@
 (* # The symmetric monoidal closed structure of [ICones] — Paper §5.5         *)
 (*                                                                            *)
 (*   This file assembles the symmetric monoidal (closed) structure of         *)
-(*   [ICones] (paper Thm 5.15) on top of the tensor [⊗] of [tensor.v] and     *)
-(*   the staged structural isos of the SAFT contract                          *)
-(*   [Icones.axioms.saft_interface].                                          *)
-(*                                                                            *)
-(*   The associator [α], unitors [λ]/[ρ] and braiding [σ] are the staged      *)
-(*   natural isos [tensor_assoc_iso] / [tensor_lunit_iso] /                    *)
-(*   [tensor_runit_iso] / [tensor_braid_iso] (Yoneda outputs of Thm 5.12 /    *)
-(*   Lemma 5.5, paper Eqs 5.2–5.4), together with their pure-tensor           *)
-(*   computation laws.  Everything else here is a real proof.                 *)
+(*   [ICones] (paper Thm 5.15) on top of the tensor [⊗] of [tensor.v].        *)
+(*   The SAFT contract is now DISCHARGED (the former                          *)
+(*   [Icones.axioms.saft_interface] is deleted); the structural isos are the  *)
+(*   PROVED natural isos [tensor_assoc_iso] / [tensor_lunit_iso] /             *)
+(*   [tensor_runit_iso] / [tensor_braid_iso] (built in [tensor_iso.v], Thm    *)
+(*   5.12 / Lemma 5.5, paper Eqs 5.2–5.4), [Export]ed through [tensor.v]      *)
+(*   together with their pure-tensor computation laws.  Everything here is a  *)
+(*   real proof.                                                              *)
 (*                                                                            *)
 (*   Deliverables (paper references):                                         *)
 (*   - [tensor_assoc] / [tensor_lunit] / [tensor_runit] / [tensor_braid] :    *)
@@ -47,7 +46,16 @@ Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
-Require Import Icones.axioms.saft_interface.
+
+(** P6 — the tensor SAFT contract is DISCHARGED.  [tensor.v] now [Export]s
+    the proved tensor symbols (the former [saft_interface] Parameters:
+    [tensor]/[tensor_curry]/[tensor_uncurry]/[tensor_curryK]/[tensor_normM],
+    the Thm 5.12 iso [tensor_hom_iso] and the structural isos
+    [tensor_assoc_iso]/[tensor_lunit_iso]/[tensor_runit_iso]/
+    [tensor_braid_iso] with their pure-tensor [...E] laws), so importing it
+    suffices.  [tensor.v]'s own [tau]/[ptensor]/[tensor_mor] shadow the
+    proved modules' homonyms, so the [⊗]/[⊗p] notations and
+    [ptensorE]/[tensor_morE] rewrites all refer to the same symbols. *)
 Require Import Icones.homs.tensor.
 
 Set Implicit Arguments.
@@ -82,9 +90,9 @@ Lemma tensor_morE (B1 B2 C1 C2 : ICone.type Ar)
     (x : B1) (y : C1) :
   tensor_mor f g (x ⊗p y) = (f x) ⊗p (g y).
 Proof.
-rewrite -tensor_curryE /tensor_mor tensor_uncurryK /=.
-rewrite linhom_map_funE /=.
-by rewrite ptensorE.
+rewrite (ptensorE (f x) (g y)).
+rewrite -(tensor_curryE (tensor_mor f g) x y) /tensor_mor tensor_uncurryK.
+by rewrite linhom_map_funE.
 Qed.
 
 (** ** Bilinearity of the pure tensor — Paper §5.4
@@ -122,8 +130,8 @@ Qed.
 (** ** The structural isos — Paper §5.5, Eqs 5.2–5.4
 
     The associator [α], unitors [λ]/[ρ] and braiding [σ], re-exported
-    from the staged contract under their paper names, with their
-    pure-tensor computation laws. *)
+    from the proved [tensor_iso.v] isos under their paper names, with
+    their pure-tensor computation laws. *)
 
 Definition tensor_assoc (A B C : ICone.type Ar) :
   icones_iso Ar ((A ⊗ B) ⊗ C) (A ⊗ (B ⊗ C)) :=
@@ -157,6 +165,15 @@ Proof. exact: tensor_runitE. Qed.
 Lemma tensor_braidEp (A B : ICone.type Ar) (x : A) (y : B) :
   iso_fwd (tensor_braid A B) (x ⊗p y) = y ⊗p x.
 Proof. exact: tensor_braidE. Qed.
+
+(** P6 — seal the now-TRANSPARENT tensor data so a bare [/=]/[simpl] in
+    the coherence proofs below does not unfold the [tensor_construct]
+    internals (which would break the [...Ep]/[tensor_morE] rewrites).
+    [conversion] still computes the [...E] values, so the proofs go
+    through verbatim with the staged (opaque-Parameter) [simpl] behaviour
+    restored.  This is the documented P6 fix (cf. [tensor_iso.v] footer). *)
+Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
+       ptensor tau.
 
 (** ** The symmetry law — Paper §5.5, Eq 5.4
 
@@ -287,9 +304,9 @@ Arguments tensor_hexagon {R Ar} A B C.
       [(B ⊗ C) ⊸ D ≅ B ⊸ (C ⊸ D)] (here [tensor_hom_iso]).
 
     The canonical witness [ICones_smcc] populates every field with the
-    proved lemmas; the only unproved inputs are the staged structural
-    isos and their computation laws (paper Eqs 5.2–5.4), discharged with
-    the rest of the SAFT contract. *)
+    proved lemmas.  With the SAFT contract discharged (P6,
+    [saft_interface.v] deleted), [ICones_smcc] is AXIOM-FREE: it depends
+    on nothing beyond the three classical [boolp] axioms. *)
 
 Record ICones_SMCC (R : realType) (Ar : MeasSubcat R) : Type :=
   MkIConesSMCC {
