@@ -3485,6 +3485,207 @@ End TensorAssocIso.
 Arguments tensor_assoc_iso {R Ar} A B C.
 Arguments tensor_assocE {R Ar A B C}.
 
+(** ** Bilinearity of the pure tensor — Paper §5.4
+
+    Re-derived in-module (cf. [smcc.v]'s [ptensorZl]/[ptensorZr], stated
+    there with [tensor.v]'s [tau]); here through [tauL]. *)
+
+Section PTensorBilinear.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma ptensorZr (B C : ICone.type Ar) (r : {nonneg R}) (x : B) (y : C) :
+  ptensor x (precone_scale r y) = precone_scale r (ptensor x y).
+Proof.
+rewrite /ptensor /linhom_fun.
+by have [_ _ ->] := linhom_pre_linear (linhom_pre_of ((tauL B C) x)).
+Qed.
+
+Lemma ptensorZl (B C : ICone.type Ar) (r : {nonneg R}) (x : B) (y : C) :
+  ptensor (precone_scale r x) y = precone_scale r (ptensor x y).
+Proof.
+rewrite /ptensor.
+have [_ _ HZ] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones
+  (tauL B C))).
+by rewrite -[(tauL B C) (precone_scale r x)]/(cones_hom_fun _ _) HZ.
+Qed.
+
+End PTensorBilinear.
+
+Arguments ptensorZr {R Ar B C}.
+Arguments ptensorZl {R Ar B C}.
+
+(** ** Paper §5.5, Eq 5.3 — the right unitor [ρ : A⊗1 ≅ A]
+
+    Forward = [tensor_uncurry lo_lift] (so [ρ(x⊗u) = u·x]); backward
+    [a ↦ a⊗1] = [eval1 ∘ τ].  Round-trips via [tens_ext] + bilinearity. *)
+
+Section TensorRunitIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable A : ICone.type Ar.
+Local Notation One := (cone_one_car Ar).
+Local Notation "x '⊗p' y" := (ptensor x y) (at level 40, left associativity).
+
+(** [c1_val u · 1 = u] inside the unit cone. *)
+Lemma c1one_scaleK (u : One) :
+  precone_scale (c1_val u) (c1_one Ar) = u.
+Proof.
+apply: cone_one_eq; apply: nngnum_inj.
+rewrite /c1_one /precone_scale /=.
+by rewrite mulr1.
+Qed.
+
+Definition tensor_runit_fwd : icones_hom Ar (tensor A One) A :=
+  tensor_uncurry (@lo_lift R Ar A).
+
+Lemma tensor_runit_fwdE (x : A) (u : One) :
+  tensor_runit_fwd (x ⊗p u) = precone_scale (c1_val u) x.
+Proof.
+rewrite /tensor_runit_fwd.
+rewrite -(tensor_curryEp (tensor_uncurry (@lo_lift R Ar A)) x u).
+rewrite tensor_uncurryK.
+exact: lo_liftE.
+Qed.
+
+Definition tensor_runit_bwd : icones_hom Ar A (tensor A One) :=
+  icones_comp (@eval1 R Ar (tensor A One)) (tauL A One).
+
+Lemma tensor_runit_bwdE (a : A) :
+  tensor_runit_bwd a = a ⊗p (c1_one Ar).
+Proof.
+rewrite -[tensor_runit_bwd a]/(eval1 ((tauL A One) a)).
+by rewrite eval1E.
+Qed.
+
+Lemma tensor_runit_fwdK :
+  icones_comp tensor_runit_bwd tensor_runit_fwd =
+  icones_id Ar (tensor A One).
+Proof.
+apply: tens_ext => x u.
+rewrite -[LHS]/(tensor_runit_bwd (tensor_runit_fwd (x ⊗p u))).
+rewrite tensor_runit_fwdE tensor_runit_bwdE.
+by rewrite ptensorZl -ptensorZr c1one_scaleK.
+Qed.
+
+Lemma tensor_runit_bwdK :
+  icones_comp tensor_runit_fwd tensor_runit_bwd = icones_id Ar A.
+Proof.
+apply: icones_hom_eq => a.
+rewrite -[LHS]/(tensor_runit_fwd (tensor_runit_bwd a)).
+rewrite tensor_runit_bwdE tensor_runit_fwdE.
+by rewrite (_ : c1_val (c1_one Ar) = 1%:nng) ?precone_scale_1.
+Qed.
+
+Definition tensor_runit_iso : icones_iso Ar (tensor A One) A :=
+  icones_isoP tensor_runit_fwd tensor_runit_bwd
+    tensor_runit_fwdK tensor_runit_bwdK.
+
+(** Paper Eq 5.3: [ρ(x ⊗ u) = u · x]. *)
+Lemma tensor_runitE (x : A) (u : One) :
+  iso_fwd tensor_runit_iso (x ⊗p u) = precone_scale (c1_val u) x.
+Proof. exact: tensor_runit_fwdE. Qed.
+
+End TensorRunitIso.
+
+Arguments tensor_runit_iso {R Ar} A.
+Arguments tensor_runitE {R Ar A}.
+
+(** ** Paper §5.5, Eq 5.3 — the left unitor [λ : 1⊗A ≅ A]
+
+    Forward = [tensor_uncurry] of [u ↦ (c1_val u)·id_A] (built as
+    [lin_pt (linhom_id A)] viewed as an [icones_hom 1 (A⊸A)]); backward
+    [a ↦ 1⊗a].  Round-trips via [tens_ext] + bilinearity. *)
+
+Section TensorLunitIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable A : ICone.type Ar.
+Local Notation One := (cone_one_car Ar).
+Local Notation "x '⊗p' y" := (ptensor x y) (at level 40, left associativity).
+
+(** The curried datum [u ↦ (c1_val u)·id_A] as an [icones_hom 1 (A⊸A)];
+    [id_A] is the linhom [icones_to_linhom (icones_id A)]. *)
+Local Notation idA := (icones_to_linhom (icones_id Ar A)).
+
+Lemma lunit_g_norm : cone_norm (lin_pt idA) <= 1.
+Proof.
+apply: le_trans (lo_lift_norm_le1 idA) _.
+exact: icones_to_linhom_norm_le1.
+Qed.
+
+Definition lunit_g : icones_hom Ar One (linhom_car Ar A A) :=
+  linhom_icones (lin_pt idA) lunit_g_norm.
+
+Lemma lunit_gE (u : One) (x : A) :
+  linhom_fun (lunit_g u) x = precone_scale (c1_val u) x.
+Proof.
+rewrite -[lunit_g u]/(hfun (linhom_icones _ _) u) linhom_iconesE lin_ptE.
+rewrite -[linhom_fun (precone_scale (c1_val u) idA) x]
+  /(precone_scale (c1_val u) (linhom_fun idA x)).
+by rewrite icones_to_linhomE.
+Qed.
+
+Definition tensor_lunit_fwd : icones_hom Ar (tensor One A) A :=
+  tensor_uncurry lunit_g.
+
+Lemma tensor_lunit_fwdE (u : One) (x : A) :
+  tensor_lunit_fwd (u ⊗p x) = precone_scale (c1_val u) x.
+Proof.
+rewrite /tensor_lunit_fwd.
+rewrite -(tensor_curryEp (tensor_uncurry lunit_g) u x).
+rewrite tensor_uncurryK.
+exact: lunit_gE.
+Qed.
+
+Lemma lunit_bwd_norm :
+  cone_norm ((tauL One A) (c1_one Ar)) <= 1.
+Proof.
+apply: le_trans (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones
+  (tauL One A))) (c1_one Ar)) _.
+by rewrite -[cone_norm (c1_one Ar)]/(c1_norm (c1_one Ar)) /c1_norm /c1_one.
+Qed.
+
+Definition tensor_lunit_bwd : icones_hom Ar A (tensor One A) :=
+  linhom_icones ((tauL One A) (c1_one Ar)) lunit_bwd_norm.
+
+Lemma tensor_lunit_bwdE (a : A) :
+  tensor_lunit_bwd a = (c1_one Ar) ⊗p a.
+Proof.
+rewrite -[tensor_lunit_bwd a]/(hfun (linhom_icones _ _) a) linhom_iconesE.
+by rewrite -[linhom_fun ((tauL One A) (c1_one Ar)) a]/(ptensor (c1_one Ar) a).
+Qed.
+
+Lemma tensor_lunit_fwdK :
+  icones_comp tensor_lunit_bwd tensor_lunit_fwd =
+  icones_id Ar (tensor One A).
+Proof.
+apply: tens_ext => u x.
+rewrite -[LHS]/(tensor_lunit_bwd (tensor_lunit_fwd (u ⊗p x))).
+rewrite tensor_lunit_fwdE tensor_lunit_bwdE.
+by rewrite ptensorZr -ptensorZl c1one_scaleK.
+Qed.
+
+Lemma tensor_lunit_bwdK :
+  icones_comp tensor_lunit_fwd tensor_lunit_bwd = icones_id Ar A.
+Proof.
+apply: icones_hom_eq => a.
+rewrite -[LHS]/(tensor_lunit_fwd (tensor_lunit_bwd a)).
+rewrite tensor_lunit_bwdE tensor_lunit_fwdE.
+by rewrite (_ : c1_val (c1_one Ar) = 1%:nng) ?precone_scale_1.
+Qed.
+
+Definition tensor_lunit_iso : icones_iso Ar (tensor One A) A :=
+  icones_isoP tensor_lunit_fwd tensor_lunit_bwd
+    tensor_lunit_fwdK tensor_lunit_bwdK.
+
+(** Paper Eq 5.3: [λ(u ⊗ x) = u · x]. *)
+Lemma tensor_lunitE (u : One) (x : A) :
+  iso_fwd tensor_lunit_iso (u ⊗p x) = precone_scale (c1_val u) x.
+Proof. exact: tensor_lunit_fwdE. Qed.
+
+End TensorLunitIso.
+
+Arguments tensor_lunit_iso {R Ar} A.
+Arguments tensor_lunitE {R Ar A}.
+
 End Icones_tensor_iso.
 
 (**md**************************************************************************)
