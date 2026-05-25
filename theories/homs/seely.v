@@ -81,6 +81,8 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.basic_lemmas.
+Require Import Icones.cones.omega_general.
 Require Import Icones.cones.cone_cat.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
@@ -89,6 +91,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.examples_icone.
 Require Import Icones.icones.icone_cat.
+Require Import Icones.stable.totmono.
 Require Import Icones.stable.scones_cat.
 Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.linhom.
@@ -314,6 +317,213 @@ have Hng : cone_norm (Lfun (tensor_curry g) (x! ⊗p y!)) <= 1.
 apply: (bang_ext_linhom Hnf Hng) => z Hz.
 rewrite !tensor_curryE.
 exact: Hfg.
+Qed.
+
+(** ** Exponential naturality of [lin] — Paper §9 ([E ⊣ Der] naturality)
+
+    [lin] is natural on the [ICones]-side: post-composing the linear
+    factoriser by a morphism [g] is the factoriser of the stable map
+    [ders g ∘ f].  Proof by the uniqueness half [lin_unique]: compute
+    [Θ(g ∘ lin f) = ders g ∘ (ders (lin f) ∘ nl) = ders g ∘ Θ(lin f) =
+    ders g ∘ f] via [ders_comp]/[scones_compA]/[ThetaK]. *)
+Lemma lin_natural (B C D : ICone.type Ar)
+    (g : icones_hom Ar C D) (f : scones_hom B C) :
+  lin (scones_comp (ders g) f) = icones_comp g (lin f).
+Proof.
+apply/esym/lin_unique.
+rewrite /Theta ders_comp -scones_compA.
+by rewrite -/(Theta (lin f)) ThetaK.
+Qed.
+
+(** ** Paper §9 — the unit Seely isomorphism [\Seelyz] (DISCHARGED)
+
+    The unit Seely iso [Seely0 : 1 ≅ !⊤], built by the contravariant
+    Yoneda lemma [co_yoneda_iso] from the natural hom-bijection
+    [ICones(1, C) ≃ ICones(!⊤, C)].  Both hom-sets are the unit ball of
+    [C]: a morphism [1 → C] is its value at the unit [1] ([eval1]); a
+    morphism [!⊤ → C] is [lin] of a stable map [⊤ → C], which (since [⊤]
+    is the one-point cone) is the *constant* map at its value on [0].  The
+    forward map of the assembled iso is [psiV id_{!⊤}], the linear-point
+    map [t ↦ t·(0!)], giving [Seely0E] by [lin_ptE]. *)
+
+Section Seely0Build.
+
+(** The constant stable map [⊤ → C] at value [c] (for [‖c‖ ≤ 1]).
+    [⊤ = Stop] is the one-point cone, so the off-ball [0]-extension is
+    vacuous; total monotonicity is the constant-sum order
+    [big_Pneg_le_Ppos]; ω-continuity-on-the-unit-ball is the sup of a
+    constant chain; measurability of paths is [const_path_measurable]. *)
+Section ConstScones.
+Variable C : ICone.type Ar.
+Variable c : C.
+Hypothesis Hc : cone_norm c <= 1.
+
+Definition cs_fun : Stop Ar -> C := fun _ => c.
+
+Lemma cs_totmono : is_totmono cs_fun.
+Proof. by move=> n x u _; rewrite /cs_fun; exact: big_Pneg_le_Ppos. Qed.
+
+Lemma cs_stable : is_stable cs_fun.
+Proof.
+split.
+- exact: cs_totmono.
+- by exists (cone_norm c) => x _; rewrite /cs_fun.
+- move=> Mf u uch ub1 fuch fubMf Mfpos; rewrite /cs_fun.
+  (* RHS is [cone_sup_at] of the constant-[c] image chain, which is [c]
+     by antisymmetry. *)
+  apply: precone_le_anti.
+  + exact: (cone_sup_at_ub fuch fubMf Mfpos 0%N).
+  + by apply: cone_sup_at_lub => n /=; exact: precone_le_refl.
+Qed.
+
+Lemma cs_meas_stable : is_meas_stable cs_fun.
+Proof.
+split; first exact: cs_stable.
+by move=> X γ _ _; rewrite /cs_fun; exact: const_path_measurable.
+Qed.
+
+Lemma cs_norm_le1 : sc_norm cs_fun <= 1.
+Proof. by apply: sc_norm_lub => x _; rewrite /cs_fun. Qed.
+
+(** Every point of [⊤] has norm [0 ≤ 1], so off-ball is vacuous. *)
+Lemma cs_offball (x : Stop Ar) : ~~ (cone_norm x <= 1) -> cs_fun x = precone_zero.
+Proof. by rewrite (Stop_is0 x) cone_norm0 ler01. Qed.
+
+Definition cs : scones_hom (Stop Ar) C :=
+  MkSconesHom cs_fun cs_meas_stable cs_norm_le1 cs_offball.
+
+(** [cs] evaluated anywhere is the constant [c]. *)
+Lemma csE (x : Stop Ar) : sc_fun cs x = c.
+Proof. by []. Qed.
+
+End ConstScones.
+
+Variable C : ICone.type Ar.
+
+(** A morphism [1 → C] is norm-[≤1] at the unit point. *)
+Lemma one_eval_ball (f : icones_hom Ar (cone_one_car Ar) C) :
+  cone_norm (Lfun f (c1_one Ar)) <= 1.
+Proof.
+apply: le_trans (cones_hom_norm_le1 _ (c1_one Ar)) _.
+by rewrite (_ : cone_norm (c1_one Ar) = 1) // /cone_norm /= /c1_norm.
+Qed.
+
+(** A promoted [⊤]-point [x!] (for [‖x‖ ≤ 1]) of a [!⊤ → C] morphism is
+    norm-[≤1]; in particular at [0!]. *)
+Lemma bangstop_eval_ball (g : icones_hom Ar (Bang Ar (Stop Ar)) C) :
+  cone_norm (Lfun g (prom (precone_zero : Stop Ar))) <= 1.
+Proof.
+apply: le_trans (cones_hom_norm_le1 _ _) _.
+by apply: prom_ball; rewrite cone_norm0.
+Qed.
+
+(** Forward leg [ICones(1, C) → ICones(!⊤, C)]: send [f] to [lin] of the
+    constant stable map at [f(1)]. *)
+Definition psi0 (f : icones_hom Ar (cone_one_car Ar) C) :
+    icones_hom Ar (Bang Ar (Stop Ar)) C :=
+  lin (cs (one_eval_ball f)).
+
+(** Backward leg [ICones(!⊤, C) → ICones(1, C)]: send [g] to the
+    linear-point map at [g(0!)]. *)
+Definition psiV0 (g : icones_hom Ar (Bang Ar (Stop Ar)) C) :
+    icones_hom Ar (cone_one_car Ar) C :=
+  linhom_icones (phi := lin_pt (Lfun g (prom (precone_zero : Stop Ar))))
+    (le_trans (lo_lift_norm_le1 _) (bangstop_eval_ball g)).
+
+(** [psi0 f] applied to a promoted point [x!] is the constant [f(1)]. *)
+Lemma psi0_prom (f : icones_hom Ar (cone_one_car Ar) C) (x : Stop Ar) :
+  cone_norm x <= 1 -> Lfun (psi0 f) x! = Lfun f (c1_one Ar).
+Proof.
+move=> Hx; rewrite /psi0.
+rewrite -(Theta_prom (lin (cs (one_eval_ball f))) x Hx) ThetaK.
+by rewrite csE.
+Qed.
+
+(** [psiV0 g] applied to [s : 1] is [c1_val s · g(0!)]. *)
+Lemma psiV0E (g : icones_hom Ar (Bang Ar (Stop Ar)) C) (s : cone_one_car Ar) :
+  Lfun (psiV0 g) s = precone_scale (c1_val s) (Lfun g (prom (precone_zero : Stop Ar))).
+Proof. by rewrite /psiV0 linhom_iconesE lin_ptE. Qed.
+
+End Seely0Build.
+
+(** *** The four [co_yoneda_iso] hypotheses for [Seely0]. *)
+
+(** Round-trip [psiV0 (psi0 f) = f].  [psi0 f] at [0!] is [f(1)]
+    ([psi0_prom]), so [psiV0 (psi0 f)] is the linear-point map at [f(1)];
+    evaluated at [s] it is [c1_val s · f(1) = f(c1_val s · 1) = f s] by
+    homogeneity of [f]. *)
+Lemma psi0K (C : ICone.type Ar) (f : icones_hom Ar (cone_one_car Ar) C) :
+  psiV0 (psi0 f) = f.
+Proof.
+apply: icones_hom_eq => s.
+rewrite psiV0E.
+have H0 : cone_norm (precone_zero : Stop Ar) <= 1 by rewrite cone_norm0.
+rewrite (psi0_prom f H0).
+rewrite -[Lfun f (c1_one Ar)]/(cones_hom_fun _ (c1_one Ar)).
+rewrite -(basic_lemmas.linearZ (cones_hom_linear _) (c1_val s) (c1_one Ar)).
+congr (cones_hom_fun _ _).
+by apply: cone_one_eq; apply: val_inj => /=; rewrite mulr1.
+Qed.
+
+(** Round-trip [psi0 (psiV0 g) = g].  [psiV0 g] at [1] is [g(0!)], so
+    [psi0 (psiV0 g)] is the constant-[g(0!)] [lin]; on every [x!] it is
+    [g(0!) = g(x!)] since all points of [⊤] equal [0] ([Stop_is0]).
+    Discharge by [bang_ext]. *)
+Lemma psiV0K (C : ICone.type Ar) (g : icones_hom Ar (Bang Ar (Stop Ar)) C) :
+  psi0 (psiV0 g) = g.
+Proof.
+apply: bang_ext => x Hx.
+rewrite (psi0_prom (psiV0 g) Hx) psiV0E.
+have e1 : c1_val (c1_one Ar) = 1%:nng by [].
+rewrite e1 precone_scale_1.
+by rewrite (Stop_is0 x).
+Qed.
+
+(** Postcomposition naturality of [psi0]: [psi0 (g ∘ f) = g ∘ psi0 f].
+    [Lfun (g∘f) 1 = g(f 1)], and [lin] is natural ([lin_natural]):
+    [psi0 (g∘f) = lin (cs (g(f 1))) = lin (ders g ∘ cs (f 1)) =
+    g ∘ lin (cs (f 1))], the last step since [ders g ∘ (const f1)] is
+    the constant [g(f 1)] (on the ball; off-ball both clamp to [0]). *)
+Lemma psi0_nat (C C' : ICone.type Ar)
+    (f : icones_hom Ar (cone_one_car Ar) C) (g : icones_hom Ar C C') :
+  psi0 (icones_comp g f) = icones_comp g (psi0 f).
+Proof.
+rewrite /psi0 -lin_natural; congr lin.
+apply: scones_hom_eq => x.
+(* every point of [⊤] has norm [0 ≤ 1] *)
+have Hx : cone_norm x <= 1 by rewrite (Stop_is0 x) cone_norm0.
+rewrite csE.
+(* RHS [scones_comp (ders g) (cs (f 1))] on the ball: clamp, then [ders g]
+   of the constant [f 1] (also in the ball, [one_eval_ball f]). *)
+rewrite /= (sc_clamp_ball Hx).
+rewrite -[cs_fun (Lfun f (c1_one Ar)) x]/(Lfun f (c1_one Ar)).
+by rewrite (sc_clamp_ball (one_eval_ball f)).
+Qed.
+
+(** Postcomposition naturality of [psiV0]: [psiV0 (g ∘ f) = g ∘ psiV0 f].
+    [Lfun (g∘f) 0! = g(f(0!))], so both sides at [s] are
+    [c1_val s · g(f(0!))] (by homogeneity of [g] on the RHS). *)
+Lemma psiV0_nat (C C' : ICone.type Ar)
+    (f : icones_hom Ar (Bang Ar (Stop Ar)) C) (g : icones_hom Ar C C') :
+  psiV0 (icones_comp g f) = icones_comp g (psiV0 f).
+Proof.
+apply: icones_hom_eq => s.
+rewrite psiV0E /=.
+by rewrite lin_ptE (basic_lemmas.linearZ (cones_hom_linear _)).
+Qed.
+
+(** The unit Seely iso [Seely0 : 1 ≅ !⊤], assembled by [co_yoneda_iso].
+    Its forward is [psiV0 id_{!⊤}], the linear-point map [t ↦ t·(0!)]. *)
+Definition Seely0 : icones_iso Ar (cone_one_car Ar) (Bang Ar (Stop Ar)) :=
+  co_yoneda_iso psi0 psiV0 psi0K psiV0K psi0_nat psiV0_nat.
+
+(** Paper line 7508: [Seely0(t) = t·(0!)]. *)
+Lemma Seely0E (t : cone_one_car Ar) :
+  iso_fwd Seely0 t =
+  precone_scale (c1_val t) (prom (precone_zero : Stop Ar)).
+Proof.
+rewrite /Seely0 /co_yoneda_iso /=.
+by rewrite lin_ptE.
 Qed.
 
 (** ** The Seely structure maps — Paper §9
@@ -732,6 +942,13 @@ End Seely.
 
 Arguments linhom_icones {R Ar C D} phi Hphi.
 Arguments linhom_iconesE {R Ar C D} phi Hphi x.
+Arguments lin_natural {R Ar B C D} g f.
+Arguments cs {R Ar C} c Hc.
+Arguments csE {R Ar C} c Hc x.
+Arguments psi0 {R Ar C} f.
+Arguments psiV0 {R Ar C} g.
+Arguments Seely0 {R Ar}.
+Arguments Seely0E {R Ar}.
 Arguments bang_ext_linhom {R Ar B C} phi psi Hphi Hpsi.
 Arguments tens_excl_charact {R Ar B1 B2 C} f g.
 Arguments tens_excl_charact3 {R Ar A B C C0} f g.
