@@ -36,6 +36,7 @@ theories/icones/representable.v
 theories/homs/linhom_functor.v
 theories/homs/limpl_continuous.v
 theories/homs/tensor_construct.v
+theories/homs/bang_construct.v
 theories/homs/tensor_hom_iso.v
 theories/homs/tensor_iso.v
 theories/kernels/skern.v
@@ -46,6 +47,7 @@ theories/stable/stablehom.v
 theories/stable/findiff.v
 theories/stable/compose.v
 theories/stable/scones_cat.v
+theories/stable/der_continuous.v
 theories/stable/scones_ccc.v
 theories/stable/fixpoint.v
 theories/axioms/saft_interface.v
