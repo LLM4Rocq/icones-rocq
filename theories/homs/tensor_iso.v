@@ -456,5 +456,132 @@ End EvalAt.
 Arguments eval_at {R Ar C D} y.
 Arguments eval_atE {R Ar C D} y.
 
+(** ** Paper [lemma:lfun-path-swap] — the path-valued swap
+
+    Given [f ∈ ICones(B, Path(X, C ⊸ D))], the "transpose"
+    [f'(y)(r)(x) = f(x)(r)(y)] is an element of
+    [ICones(C, Path(X, B ⊸ D))].
+
+    The inner element [swap_inner f r y : B ⊸ D] (the map
+    [x ↦ f(x)(r)(y)]) is assembled by COMPOSITION of the already-built
+    integrable maps: [eval_at y ∘ eval_path r ∘ (f as linhom)], so all
+    five [linhom_car] fields come for free from [linhom_comp].  Its
+    computation law [swap_innerE] is [linhom_compE] applied twice. *)
+
+Section SwapInner.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B C D : ICone.type Ar).
+Variable f : icones_hom Ar B (path_car Ar X (linhom_car Ar C D)).
+
+(** [swap_inner f r y : B ⊸ D], the map [x ↦ f(x)(r)(y)]. *)
+Definition swap_inner (r : ar_carrier Ar X) (y : C) : linhom_car Ar B D :=
+  linhom_comp (eval_at y) (linhom_comp (eval_path r) (icones_to_linhom f)).
+
+Lemma swap_innerE (r : ar_carrier Ar X) (y : C) (x : B) :
+  linhom_fun (swap_inner r y) x =
+  linhom_fun (path_fun ((f : icones_hom _ _ _) x) r) y.
+Proof.
+rewrite /swap_inner !linhom_compE eval_atE eval_pathE.
+by rewrite icones_to_linhomE.
+Qed.
+
+End SwapInner.
+
+Arguments swap_inner {R Ar X B C D} f r y.
+Arguments swap_innerE {R Ar X B C D} f r y x.
+
+(** The transpose path [r ↦ swap_inner f r y] is a measurable path of
+    [B ⊸ D].  Mirrors the reindexing argument of [swap_lin_path]: test
+    the [Path(X, C⊸D)]-path [s ↦ f(β s)] (which [f] preserves) at the
+    product arity [Y × X] against the [Path]-test [(ar_prod_snd) ▷
+    ((y-section of) m reindexed by ar_prod_fst)], and pull back along the
+    diagonal in [X]. *)
+
+Section SwapInnerPath.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B C D : ICone.type Ar).
+Variable f : icones_hom Ar B (path_car Ar X (linhom_car Ar C D)).
+Variable y : C.
+
+Lemma swap_inner_path :
+  is_measurable_path (fun r => swap_inner f r y).
+Proof.
+split.
+  exists (cone_norm y) => r.
+  rewrite -[cone_norm (swap_inner f r y)]/(linhom_norm (swap_inner f r y)).
+  apply: linhom_norm_sup_lub => x Hx.
+  rewrite swap_innerE.
+  have Hphi : cone_norm (path_fun ((f : icones_hom _ _ _) x) r) <= 1.
+    apply: le_trans (path_norm_ub ((f : icones_hom _ _ _) x) r) _.
+    apply: le_trans (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones f)) x) _.
+    exact: Hx.
+  by have := linhom_norm_apply_le Hphi y; rewrite mul1r.
+move=> Y p [β [βub [mD [mDM ->]]]].
+(* The [Path(X,C⊸D)]-path [s ↦ f(β s)], which [f] preserves. *)
+have Hfβ : is_measurable_path (fun s => (f : icones_hom _ _ _) (path_fun β s)).
+  exact: (mcones_hom_pres_path (icones_hom_mcones f) Y (path_fun β) (path_is_path β)).
+have S_pos : 0 < cone_norm y + 1 by exact: cnorm_succ_pos.
+have Sinv_ge0 : 0 <= (cone_norm y + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+pose y' : C := precone_scale Sinv y.
+have Hy'_unit : cone_norm y' <= 1.
+  rewrite /y' cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+(* Reindex [f(β ·)] (over Y) to a path at arity [ar_prod Y X] picking Y. *)
+pose Pfst : ar_carrier Ar (ar_prod Ar Y X) -> path_car Ar X (linhom_car Ar C D)
+  := fun q => (f : icones_hom _ _ _) (path_fun β (ar_prod_fst Y X q)).
+have HPfst : is_measurable_path Pfst.
+  exact: (reindex_path_measurable (ar_prod_fst Y X) Hfβ).
+(* The inner (C⊸D)-test: evaluate at y' (unit-ball const path), test with
+   mD reindexed to pick the Y-coordinate. *)
+have Hγ' : cone_norm (const_x_path_arity (ar_prod Ar Y X) y') <= 1.
+  by rewrite /cone_norm /= const_x_path_arity_normE.
+pose mDfst : test_of Ar (ar_prod Ar Y X) D := test_reindex (ar_prod_fst Y X) mD.
+have mDfstM : mcone_M (ar_prod Ar Y X) mDfst by exact: mcone_M_comp.
+pose mCD : test_of Ar (ar_prod Ar Y X) (linhom_car Ar C D) :=
+  linhom_test (const_x_path_arity (ar_prod Ar Y X) y') Hγ' mDfst mDfstM.
+have mCDM : mcone_M (ar_prod Ar Y X) mCD.
+  by exists (const_x_path_arity (ar_prod Ar Y X) y'), Hγ', mDfst, mDfstM.
+(* The Path(X,C⊸D)-test picking X-coordinate via ar_prod_snd. *)
+pose mP : test_of Ar (ar_prod Ar Y X) (path_car Ar X (linhom_car Ar C D)) :=
+  path_test (ar_prod_snd Y X) mCD mCDM.
+have mPM : mcone_M (ar_prod Ar Y X) mP by exists (ar_prod_snd Y X), mCD, mCDM.
+have [_ HPfstm] := HPfst.
+have HPtest := HPfstm (ar_prod Ar Y X) mP mPM.
+pose ψ (sr : (ar_carrier Ar Y * ar_carrier Ar X)%type) :
+  (ar_carrier Ar (ar_prod Ar Y X) * ar_carrier Ar (ar_prod Ar Y X))%type :=
+  (ar_prod_cast (sr.1, sr.2), ar_prod_cast (sr.1, sr.2)).
+have ψ_meas : measurable_fun [set: (ar_carrier Ar Y * ar_carrier Ar X)%type] ψ.
+  apply: measurable_fun_pair.
+  - apply: (measurableT_comp (ar_prod_cast_meas Ar Y X)).
+    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+  - apply: (measurableT_comp (ar_prod_cast_meas Ar Y X)).
+    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+rewrite (_ : (fun p0 : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+                linhom_test β βub mD mDM p0.1 (swap_inner f p0.2 y)) =
+             (fun sr : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+                (cone_norm y + 1) * (mP (ψ sr).1 (Pfst (ψ sr).2)))); last first.
+  apply: funext => sr.
+  rewrite /ψ /mP /Pfst /path_test /= /path_test_fun /=.
+  rewrite /mCD /linhom_test /linhom_test_fun /= /const_x_path_arity /=.
+  rewrite /mDfst /test_reindex /test_reindex_fun /=.
+  rewrite /ar_prod_fst /ar_prod_fst_fun /ar_prod_snd /ar_prod_snd_fun !ar_prod_castK /=.
+  rewrite swap_innerE.
+  rewrite /y'.
+  have [_ _ HZ] :=
+    linhom_pre_linear (linhom_pre_of (path_fun ((f : icones_hom _ _ _) (β sr.1)) sr.2)).
+  rewrite -[linhom_fun (path_fun _ sr.2) (Sinv *: y)%PC]
+            /((path_fun ((f : icones_hom _ _ _) (β sr.1)) sr.2) (Sinv *: y)%PC).
+  rewrite HZ /= test_linZ /=.
+  by rewrite mulrA mulfV ?mul1r // gt_eqF.
+apply: measurable_funM; first exact: measurable_cst.
+exact: (measurable_comp (F := setT) measurableT (subsetT _) HPtest ψ_meas).
+Qed.
+
+End SwapInnerPath.
+
+Arguments swap_inner_path {R Ar X B C D} f y.
+
 
 End Icones_tensor_iso.
