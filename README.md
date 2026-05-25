@@ -43,6 +43,14 @@ for `ICones` (see [`PLAN.md`](./PLAN.md) §13).
 - **Least-fixpoint operators** (paper §9.2): the Kleene fixpoint on the
   cone unit-ball ω-cpo and the fixpoint combinator `Y` as an `SCones`
   morphism.
+- **The exponential `!` comonad** (paper §9, the `E ⊣ Der`
+  linear/non-linear adjunction): `Der : ICones → SCones` preserves all
+  limits (**Theorem 7.34**, `stable/der_continuous.v`), so the Special
+  Adjoint Functor Theorem yields the left adjoint `E`; the induced
+  comonad `! = E∘Der` (counit `der`, comultiplication `dig`, and all
+  comonad laws) is constructed in `homs/bang_construct.v` and is
+  **axiom-free** — the `E ⊣ Der` interface (`exp_interface`) is fully
+  discharged (the first of the three staging interfaces to be retired).
 - **Towards SAFT** ([`PLAN.md`](./PLAN.md) §13.1): `ICones`
   **well-poweredness** (paper Theorem 4.18) genuinely proved, the
   subobject-intersection machinery, and **Theorem 5.9** (`(C ⊸ −)`
@@ -53,9 +61,12 @@ for `ICones` (see [`PLAN.md`](./PLAN.md) §13).
 
 These results are fully proved *relative to* a small set of
 `Parameter`s — the SAFT/Yoneda *representability* content the paper
-obtains via Freyd's Special Adjoint Functor Theorem — quarantined in
-`theories/axioms/{saft_interface,exp_interface,seely_interface}.v` and
-slated for discharge by M-SAFT.
+obtains via Freyd's Special Adjoint Functor Theorem — quarantined under
+`theories/axioms/`. **`exp_interface` has now been discharged** (the
+`!` comonad above is axiom-free); the two remaining staged interfaces
+are `saft_interface` (the tensor — discharge in progress: 9/18
+Parameters proved, `tensor_hom_iso` underway) and `seely_interface`
+(the Seely isomorphisms).
 
 - **The symmetric monoidal closed structure** (paper §5.3 – §5.5): the
   tensor `⊗`, **Theorem 5.12** (`(B⊗C)⊸D ≃ B⊸(C⊸D)`), Theorem 5.13, and
@@ -64,11 +75,13 @@ slated for discharge by M-SAFT.
   morphism-level internal-hom functor `h ⊸ g` (Prop 5.8) and `ICones`
   isomorphisms are themselves axiom-free
   (`homs/{linhom_functor,icones_iso}.v`, `mcones/test_pullback.v`).
-- **The exponential `!` and the Seely category** (paper §9): the
-  linear/non-linear adjunction `E ⊣ Der`, staged as a five-declaration
-  universal-arrow interface; the induced comonad `! = E∘Der` with all
-  comonad laws *derived*; and **`ICones` is a Seely category** (the
-  Seely isomorphisms staged, the coherence derived).
+- **The Seely category** (paper §9): **`ICones` is a Seely category** —
+  the now-axiom-free comonad `!` made a strong monoidal comonad. The
+  Seely isomorphisms (`!A ⊗ !B ≅ !(A & B)`, `1 ≅ !⊤`) are staged in
+  `seely_interface.v` (characterized on promoted pure tensors; the
+  coherence is *derived*); since they also rest on the tensor `⊗`, the
+  Seely category becomes axiom-free once `saft_interface` and
+  `seely_interface` are discharged.
 
 The axiom-free core does **not** depend on any staging interface —
 `Skern_to_ICones_fully_faithful` and everything in the core stay
@@ -111,15 +124,18 @@ theories/
 ├── homs/       -- internal hom C ⊸ D (linhom), iso of Thm 6.1 (bilin),      (paper §5.1/§5.2 + §6, M4/M5)
 │                  isos in ICones (icones_iso), the h⊸g functor              (paper §5.3)
 │                  (linhom_functor), (C⊸−) preserves limits                  (Thm 5.9)
-│                  (limpl_continuous); tensor ⊗ + SMCC (tensor, smcc),       (paper §5.3–§5.5, staged)
-│                  the ! comonad (bang) + Seely category (seely)             (paper §9, staged)
-├── axioms/     -- the three staged SAFT interfaces: tensor (saft_interface) (paper §5.4 / §9,
-│                  ! (exp_interface), Seely (seely_interface) -- discharged   to be discharged
-│                  by M-SAFT                                                  via SAFT)
+│                  (limpl_continuous); tensor ⊗ + SMCC                       (paper §5.3–§5.5, staged,
+│                  (tensor/_construct/_hom_iso/_iso, smcc);                    discharge in progress)
+│                  the ! comonad — AXIOM-FREE (bang, bang_construct)         (paper §9, E⊣Der)
+│                  + the Seely category (seely, staged)                      (paper §9)
+├── axioms/     -- staged SAFT interfaces: tensor (saft_interface,           (paper §5.4 / §9)
+│                  in progress) + Seely (seely_interface); exp_interface
+│                  DISCHARGED (the ! comonad is axiom-free)
 ├── stable/     -- local cones, total monotonicity, the stable hom B ⇒ₛ C,   (paper §7)
 │                  finite differences (Thm 7.19), the composition theorem
 │                  (Thm 7.30), the cartesian closed SCones (Thm 7.32:
-│                  scones_cat + scones_ccc), and fixpoints (fixpoint, §9.2)
+│                  scones_cat + scones_ccc), fixpoints (fixpoint, §9.2),
+│                  and Der preserves limits (der_continuous, Thm 7.34)
 └── kernels/    -- substochastic kernels Skern and the embedding Thm 6.5     (paper §6, M5)
 ```
 
@@ -143,7 +159,7 @@ per milestone:
 - `chapters/05-skern.tex` — paper §6, the kernel embedding (M5)
 - `chapters/06-tensor.tex` — paper §5.3–§5.5, the tensor + SMCC (staged)
 - `chapters/07-stable.tex` — paper §7, the stable CCC `SCones`
-- `chapters/08-exponential.tex` — paper §9, the exponential `!` + Seely category (staged)
+- `chapters/08-exponential.tex` — paper §9, the exponential `!` (comonad discharged, axiom-free) + Seely category (staged)
 
 To build locally:
 

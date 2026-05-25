@@ -2,29 +2,32 @@
 % and the Seely category (paper §9, iteration 2).
 %
 % Mirrors:
-%   theories/axioms/exp_interface.v   the staged E ⊣ Der adjunction (the 5
-%                                     decls Bang/nl/lin/lin_beta/lin_unique),
-%                                     universal-arrow form, the bijection Θ
-%   theories/homs/bang.v              the comonad ! = E∘Der: Θ, bang_ext,
-%                                     bang_fmap (+_prom/_id/_comp), der/dig
-%                                     (+_prom), the comonad laws, the Comonad
-%                                     record + Bang_comonad
+%   theories/stable/der_continuous.v  Der preserves all limits (Thm 7.34)
+%   theories/homs/bang_construct.v    E ⊣ Der DISCHARGED: Bang/nl/lin +
+%                                     lin_beta/lin_unique as theorems (SAFT
+%                                     wi_obj, R:=Der; mirrors tensor_construct)
+%   theories/axioms/exp_interface.v   the E ⊣ Der adjunction (5 decls Bang/nl/
+%                                     lin/lin_beta/lin_unique) — now Definitions
+%                                     /Lemmas backed by bang_construct (discharged
+%                                     in place), universal-arrow form, bijection Θ
+%   theories/homs/bang.v              the comonad ! = E∘Der (axiom-free): Θ,
+%                                     bang_ext, bang_fmap (+_prom/_id/_comp),
+%                                     der/dig (+_prom), the comonad laws, the
+%                                     Comonad record + Bang_comonad
 %   theories/axioms/seely_interface.v the staged Seely isos: Seely2/Seely2E/
-%                                     Seely2_natural (Seely0/Seely0E landing
-%                                     concurrently)
+%                                     Seely2_natural + Seely0/Seely0E
 %   theories/homs/seely.v             tens_excl_charact, linhom_icones,
 %                                     seely_comult, the SeelyCategory record +
 %                                     ICones_Seely
 %
-% Honesty note: bang.v is mechanised *modulo* exp_interface.v (the staged
-% E ⊣ Der universal-arrow data, the SAFT/Yoneda content); seely.v is
-% mechanised modulo exp_interface.v + saft_interface.v + seely_interface.v.
-% The comonad and ALL its laws, the n-ary !-tensor extensionality, and the
-% derived Seely coherence are genuinely PROVED from those interfaces
-% (\rocqok); only the EXISTENCE of E / the adjunction (5 decls) and of the
-% Seely isos is staged (\notready). The discharge is the SAME M-SAFT as the
-% tensor (PLAN §13.4, §13.1). The MVP headline (Thm 6.5, Chapter
-% \ref{ch:skern}) does not depend on any of these interfaces.
+% Honesty note: the E ⊣ Der adjunction is DISCHARGED (der_continuous.v +
+% bang_construct.v), so bang.v / the ! comonad is AXIOM-FREE (Bang_comonad is
+% axiom-clean). seely.v is still mechanised modulo saft_interface.v (the tensor)
+% + seely_interface.v (the Seely isos). The comonad and ALL its laws, the n-ary
+% !-tensor extensionality, and the derived Seely coherence are genuinely PROVED
+% (\rocqok); only the EXISTENCE of the Seely isos (and of the tensor) is staged
+% (\notready). The discharge is the SAME M-SAFT (PLAN §13.4, §13.1). The MVP
+% headline (Thm 6.5, Chapter \ref{ch:skern}) does not depend on any of these.
 %
 % Concurrency note: seely.v / seely_interface.v are being extended in
 % parallel with the terminal object ⊤, the unit Seely iso Seely0 : 1 ≅ !⊤,
@@ -70,103 +73,92 @@ with the adjunction and the Seely isomorphisms collected as staging
 interfaces in \texttt{theories/axioms/exp\_interface.v} and
 \texttt{theories/axioms/seely\_interface.v}.
 
-\section{Staging strategy: the $E \dashv \mathrm{Der}$ interface}%
+\section{The $E \dashv \mathrm{Der}$ adjunction (paper \S9), discharged}%
 \label{sec:exp-staging}
 
-As with the tensor (\autoref{sec:tensor-staging}), this is the central
-design decision of the chapter, and we state it up front. The deep,
-non-elementary input to the exponential is the \emph{existence} of the
-left adjoint $E$ of $\mathrm{Der}$, which the paper obtains from SAFT
-and for which it gives \emph{no} concrete carrier --- the explicit
-parallel of Remark~5.1 for the tensor. The Rocq development
-\emph{stages} exactly this content, in its minimal
-\emph{universal-arrow} form, as a small interface in
-\texttt{theories/axioms/exp\_interface.v}, and the comonad
-(\texttt{theories/homs/bang.v}) is mechanised \emph{modulo} this
-interface. Every declaration in the interface is an intentional,
-temporary axiom, flagged in the source with \texttt{STAGING: discharge
-via M-SAFT (E = left adjoint of Der by SAFT), PLAN \S13.4; then delete}.
-There is no \Admitted{} anywhere.
+The deep input to the exponential is the \emph{existence} of the left
+adjoint $E$ of $\mathrm{Der}$, which the paper obtains from SAFT and for
+which it gives \emph{no} concrete carrier --- the explicit parallel of
+Remark~5.1 for the tensor. The Rocq development originally \emph{staged}
+this content (a minimal \emph{universal-arrow} interface in
+\texttt{theories/axioms/exp\_interface.v}); it is now \textbf{discharged}
+--- proved axiom-free --- so the $\mathord{!}$ comonad depends only on
+the classical base. The discharge mirrors the tensor's T1, instantiated
+with $R := \mathrm{Der}$: \texttt{theories/stable/der\_continuous.v}
+proves $\mathrm{Der}$ preserves all limits (\textbf{Theorem 7.34}), so
+the Special Adjoint Functor Theorem produces $E$, which
+\texttt{theories/homs/bang\_construct.v} constructs concretely as a wide
+intersection on a coseparator power (the same SAFT machinery as
+\texttt{tensor\_construct.v}). The five declarations of
+\texttt{exp\_interface.v} are now \texttt{Definition}s/\texttt{Lemma}s
+backed by \texttt{bang\_construct}; they are \emph{retained in place}
+(not deleted) because the still-staged Seely development
+(\texttt{seely.v}, \texttt{seely\_interface.v}) imports
+$\mathord{!}$/$\mathrm{nl}$ and must share the same $\mathord{!}$ ---
+\texttt{Strategy opaque} + \texttt{Arguments \ldots : simpl never}
+reproduce the former \texttt{Parameter} irreducibility so those
+consumers compile unchanged. There is no \Admitted{} anywhere, and
+\rocq{Icones.homs.bang.Bang\_comonad} is axiom-clean.
 
-The interface is the universal-arrow presentation of the adjunction
-$E \dashv \mathrm{Der}$. The functor $\mathrm{Der}$ is the dereliction
-inclusion $\texttt{ders}$ of \texttt{theories/stable/scones\_cat.v}
-(\autoref{lem:ders}), the identity on objects and on underlying
-functions, clamped off the unit ball. Its left adjoint $E$ is presented
-by its unit and the factorisation property of that unit, which together
-are the natural bijection
+\begin{theorem}[$\mathrm{Der}$ preserves all limits, paper Theorem 7.34]
+\label{thm:der-continuous}
+\rocq{Icones.stable.der\_continuous.der\_preserves\_limits}\rocqok
+\uses{lem:ders, thm:scones-prod}
+$\mathrm{Der} : \ICones \to \mathbf{SCones}$ preserves products --- the
+$\mathbf{SCones}$ product is the same $\ICones$ product
+($\texttt{scones\_proj}\,i = \mathrm{Der}(\texttt{icones\_proj}\,i)$) ---
+and equalisers: a stable map equalising $\mathrm{Der}\,f$, $\mathrm{Der}\,g$
+co-restricts to the $\ICones$-equaliser, since $\mathrm{Der}$ is the
+identity on underlying functions. This is the easy analogue, for the
+dereliction, of Theorem 5.9 (\autoref{thm:scones-ccc} prerequisites).
+\end{theorem}
+
+The adjunction is presented by the natural bijection
 \[
   \Theta : \ICones(\mathord{!}B, C) \;\simeq\; \mathbf{SCones}(B, C),
   \qquad
-  \Theta\,h \;:=\; \mathrm{Der}(h) \circ \mathrm{nl}_B.
+  \Theta\,h \;:=\; \mathrm{Der}(h) \circ \mathrm{nl}_B,
 \]
-We are precise about what is staged and what is proved:
-\begin{enumerate}
-  \item[(a)] The comonad $(\mathord{!}, \mathrm{der}, \mathrm{dig})$ and
-    \emph{all} its laws --- functoriality, the two counit laws and
-    coassociativity --- are \emph{theorems} modulo this interface,
-    genuinely proved from the bijection $\Theta$ by the promotion
-    extensionality \texttt{bang\_ext} (\S\ref{sec:comonad}).
-  \item[(b)] Only the \emph{existence} of $E$ / the adjunction is
-    staged: the object map, the unit, the linear factoriser, and the two
-    halves of the universal property of the unit (five declarations,
-    listed below). No concrete carrier for $\mathord{!}B$ is assumed.
-  \item[(c)] The discharge is the same M-SAFT as the tensor
-    (\texttt{PLAN.md} \S13.4, building on \S13.1): $E$ is the left
-    adjoint of the limit-preserving $\mathrm{Der}$ by the Special
-    Adjoint Functor Theorem for $\ICones$, gated on completing
-    well-poweredness (\S13.1). When SAFT lands, each \texttt{Parameter}
-    /\texttt{Axiom} becomes a theorem and \texttt{exp\_interface.v} is
-    deleted, reaching zero project axioms.
-  \item[(d)] The MVP headline theorem --- paper Theorem~6.5, the fully
-    faithful embedding $\Skern \to \ICones$ of
-    Chapter~\ref{ch:skern} --- does \emph{not} depend on this interface;
-    the staging is confined to the $\mathord{!}$/Seely development of
-    this chapter (and the $\otimes$ development of
-    Chapter~\ref{ch:tensor}).
-\end{enumerate}
-
-\paragraph{The five staged declarations.}
-The interface is stated in a single section over a real type $R$ and a
-measurable subcategory $\Ar$. There are exactly five declarations,
-mirroring Remark~5.1's ``no explicit carrier'' for the tensor.
-
+whose five universal-arrow components are now proved (no longer
+\notready):
 \begin{itemize}
-  \item \emph{The exponential object former} (paper $E$/$\mathord{!}$ on
-    objects).\label{def:bang-object}
-    \rocq{Icones.axioms.exp\_interface.Bang}\notready{} ---
-    the opaque object map $\mathord{!}B = E\,B$ of the left adjoint,
-    the SAFT output with no concrete carrier.
+  \item \emph{The exponential object former} $\mathord{!}B = E\,B$
+    (paper $E$).\label{def:bang-object}
+    \rocq{Icones.axioms.exp\_interface.Bang}\rocqok{} --- now the
+    concrete wide intersection of \texttt{bang\_construct}, not an
+    opaque carrier.
   \item \emph{The unit / universal nonlinear map} (paper
-    $\textsf{Unistab}_B$). \rocq{Icones.axioms.exp\_interface.nl}\notready{}
-    --- the unit $\eta_B = \mathrm{nl}_B : B \to \mathord{!}B$ of
-    $E \dashv \mathrm{Der}$, a $\mathbf{SCones}$-morphism (a stable, in
-    general non-linear, map).
+    $\textsf{Unistab}_B$). \rocq{Icones.axioms.exp\_interface.nl}\rocqok{}
+    --- the unit $\eta_B = \mathrm{nl}_B : B \to \mathord{!}B$, a
+    $\mathbf{SCones}$-morphism.
   \item \emph{The linear factoriser} (paper $\Theta^{-1}$).
-    \rocq{Icones.axioms.exp\_interface.lin}\notready{} --- for each
-    stable map $f : B \to C$, the linear map
-    $\mathrm{lin}\,f : \mathord{!}B \to C$ in $\ICones$ that factors
-    $f$ through the unit.
-  \item \emph{The existence half of the universal property.}
-    \rocq{Icones.axioms.exp\_interface.lin\_beta}\notready{} ---
-    $\mathrm{Der}(\mathrm{lin}\,f) \circ \mathrm{nl}_B = f$ in
-    $\mathbf{SCones}$: the factoriser does factor $f$.
-  \item \emph{The uniqueness half of the universal property.}
-    \rocq{Icones.axioms.exp\_interface.lin\_unique}\notready{} ---
-    any linear $h : \mathord{!}B \to C$ with
-    $\mathrm{Der}(h) \circ \mathrm{nl}_B = f$ equals $\mathrm{lin}\,f$.
-    Together with \texttt{lin\_beta} this says $\Theta$ and
-    $\mathrm{lin}$ are mutually inverse, i.e.\ $\Theta$ is the natural
-    bijection of the adjunction.
+    \rocq{Icones.axioms.exp\_interface.lin}\rocqok{} --- the SAFT
+    mediator, built like $\texttt{tensor\_uncurry}$.
+  \item \emph{The existence half} of the universal property.
+    \rocq{Icones.axioms.exp\_interface.lin\_beta}\rocqok{} ---
+    $\mathrm{Der}(\mathrm{lin}\,f) \circ \mathrm{nl}_B = f$.
+  \item \emph{The uniqueness half} of the universal property.
+    \rocq{Icones.axioms.exp\_interface.lin\_unique}\rocqok{} ---
+    proved by the equaliser-of-candidates + intersection-minimality
+    argument (like $\texttt{tensor\_curry\_inj}$). With \texttt{lin\_beta}
+    this makes $\Theta$ and $\mathrm{lin}$ mutually inverse.
 \end{itemize}
+
+\paragraph{What remains staged.} After this discharge, the only staged
+interfaces are the tensor's \texttt{saft\_interface.v}
+(Chapter~\ref{ch:tensor}, discharge in progress) and the Seely
+isomorphisms of \texttt{seely\_interface.v} (\S\ref{sec:seely-isos}).
+The MVP headline theorem (paper Theorem~6.5, Chapter~\ref{ch:skern})
+depends on none of these.
 
 \section{The exponential comonad $\mathord{!}$ (paper \S9)}%
 \label{sec:comonad}
 
-Throughout this section we work modulo the staging interface
-(\S\ref{sec:exp-staging}). Everything below is a genuine proof; the
-only unproved inputs are the five staged declarations it consumes. We
-write $\mathord{!}B := \texttt{Bang}\,\Ar\,B$.
+Since the $E \dashv \mathrm{Der}$ adjunction is now discharged
+(\S\ref{sec:exp-staging}), everything in this section is axiom-free:
+the comonad and all its laws depend only on the classical base
+(\rocq{Icones.homs.bang.Bang\_comonad} is axiom-clean). We write
+$\mathord{!}B := \texttt{Bang}\,\Ar\,B$.
 
 \subsection{The hom-bijection $\Theta$ and promotion}\label{sec:theta}
 
@@ -176,10 +168,10 @@ The forward map of the adjunction $\Theta : \ICones(\mathord{!}B, C)
 \to \mathbf{SCones}(B, C)$ sends a linear $h$ to the stable map
 $\Theta\,h := \mathrm{Der}(h) \circ \mathrm{nl}_B$
 (\rocq{Icones.homs.bang.Theta}, where $\mathrm{Der} = \texttt{ders}$).
-It is inverse to the staged factoriser $\mathrm{lin}$: $\Theta(\mathrm{lin}\,f)
-= f$ (\rocq{Icones.homs.bang.ThetaK}, directly the staged
+It is inverse to the factoriser $\mathrm{lin}$: $\Theta(\mathrm{lin}\,f)
+= f$ (\rocq{Icones.homs.bang.ThetaK}, directly
 \rocq{Icones.axioms.exp\_interface.lin\_beta}) and
-$\mathrm{lin}(\Theta\,h) = h$ (\rocq{Icones.homs.bang.linK}, the staged
+$\mathrm{lin}(\Theta\,h) = h$ (\rocq{Icones.homs.bang.linK}, the
 uniqueness \rocq{Icones.axioms.exp\_interface.lin\_unique} with
 $f := \Theta\,h$).
 \end{definition}
@@ -655,15 +647,17 @@ proved data:
 \begin{proof}
 Each field is one of the proved lemmas above (or a staged Seely datum);
 the witness \rocq{Icones.homs.seely.ICones\_Seely} just assembles them.
-The only unproved inputs are the staged tensor, exponential and Seely
-symbols, discharged with M-SAFT.
+The only unproved inputs are the staged \emph{tensor} and \emph{Seely}
+symbols (the exponential's are now discharged, \S\ref{sec:exp-staging}),
+to be discharged with M-SAFT.
 \end{proof}
 
 \section{Status}\label{sec:exp-status}
 
-\paragraph{Delivered (mechanised modulo the interfaces).}
-The exponential comonad of \S9 is fully delivered, axiom-clean apart
-from the staged symbols: the hom-bijection $\Theta$
+\paragraph{The comonad: delivered and axiom-free.}
+The exponential comonad of \S9 is fully delivered and \textbf{axiom-free}
+(the $E \dashv \mathrm{Der}$ interface is discharged,
+\S\ref{sec:exp-staging}): the hom-bijection $\Theta$
 (\rocq{Icones.homs.bang.Theta}), promotion (\rocq{Icones.homs.bang.prom}),
 the promotion extensionality \rocq{Icones.homs.bang.bang\_ext} (the
 $n = 1$ case of paper Lemma \texttt{tens-excl-equal-charact}, the
@@ -704,38 +698,33 @@ field (the binary counit square in the projected form noted in
 \S\ref{sec:seely-coherence}). \autoref{thm:seely} is thus delivered in
 full, modulo the staged isos.
 
-\paragraph{Staged (to be discharged by M-SAFT).}
-The deep input remains the \emph{existence} of the left adjoint $E$ and
-of the Seely isos. The exponential interface is the five
-universal-arrow declarations of \texttt{theories/axioms/exp\_interface.v}
-(\S\ref{sec:exp-staging}): \rocq{Icones.axioms.exp\_interface.Bang},
-\rocq{Icones.axioms.exp\_interface.nl},
-\rocq{Icones.axioms.exp\_interface.lin},
-\rocq{Icones.axioms.exp\_interface.lin\_beta} and
-\rocq{Icones.axioms.exp\_interface.lin\_unique}. The Seely interface is
-the staged isos of \texttt{theories/axioms/seely\_interface.v}:
+\paragraph{What remains staged.}
+The $E \dashv \mathrm{Der}$ interface is now \textbf{discharged}
+(\S\ref{sec:exp-staging}: \texttt{der\_continuous.v} Theorem 7.34 +
+\texttt{bang\_construct.v}), so the comonad is axiom-free and
+\texttt{exp\_interface.v}'s declarations are proved theorems. What
+remains staged for the Seely \emph{category} is the Seely isos of
+\texttt{theories/axioms/seely\_interface.v}:
 \rocq{Icones.axioms.seely\_interface.Seely2} with its characterisation
 \rocq{Icones.axioms.seely\_interface.Seely2E} and naturality
 \rocq{Icones.axioms.seely\_interface.Seely2\_natural}, together with the
 unit iso \rocq{Icones.axioms.seely\_interface.Seely0} and its
-characterisation \rocq{Icones.axioms.seely\_interface.Seely0E}. The
-discharge is the \emph{same}
-M-SAFT as the tensor (\texttt{PLAN.md} \S13.4, building on \S13.1):
-$E$ is the left adjoint of the limit-preserving $\mathrm{Der}$ by the
-Special Adjoint Functor Theorem for $\ICones$, gated on completing
-well-poweredness (\S13.1) --- the shared bottleneck for $\otimes$ and
-$\mathord{!}$. The Seely isos are discharged by the same SAFT together
-with the representable-functor Yoneda construction. When SAFT lands,
-every \texttt{Parameter}/\texttt{Axiom} of both interfaces becomes a
-theorem and the interface files are deleted, returning the project to
-zero project axioms. The MVP headline theorem (paper Theorem~6.5,
-Chapter~\ref{ch:skern}) is independent of all of these interfaces.
+characterisation \rocq{Icones.axioms.seely\_interface.Seely0E}; and,
+since the Seely structure builds on $\otimes$, the tensor's
+\texttt{saft\_interface.v} (Chapter~\ref{ch:tensor}, discharge in
+progress). The Seely isos are discharged by the same M-SAFT plus the
+representable-functor Yoneda construction (\texttt{PLAN.md} \S13.4,
+building on the well-poweredness of \S13.1). When those land, the
+remaining interface files are deleted, returning the project to zero
+project axioms. The MVP headline theorem (paper Theorem~6.5,
+Chapter~\ref{ch:skern}) is independent of all of these.
 
 \paragraph{Future \S9 continuation and out of scope.}
-Two further pieces of paper \S9 are planned (\texttt{PLAN.md} \S13.5)
-but not part of this milestone: the $\mathord{!}$-coalgebra structure on
-$\mathcal{C}_{\mathrm{meas}}(X)$, and the fixpoint operators ---
-the latter \emph{constructive and axiom-free}, built directly from the
-$\omega$-cpo structure of the integrable cones, independently of the
-staged adjunction. Paper \S8 (analytic functions and the category
-ACONES) remains out of scope for this iteration.
+The fixpoint operators of paper \S9.2 are \textbf{done and axiom-free}
+(the Kleene least fixpoint on the unit-ball $\omega$-cpo and the
+combinator $Y$ as an $\mathbf{SCones}$ morphism, built directly from the
+$\omega$-cpo structure, independently of any staged interface). One
+further piece of \S9 is planned (\texttt{PLAN.md} \S13.5) but not yet
+formalised: the $\mathord{!}$-coalgebra structure on
+$\mathcal{C}_{\mathrm{meas}}(X)$ (\S9.1). Paper \S8 (analytic functions
+and the category ACONES) remains out of scope for this iteration.
