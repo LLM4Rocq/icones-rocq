@@ -335,6 +335,14 @@ rewrite /Theta ders_comp -scones_compA.
 by rewrite -/(Theta (lin f)) ThetaK.
 Qed.
 
+(** Dual exponential naturality of [Θ]: [Θ (g ∘ h) = ders g ∘ Θ h].  The
+    [SCones]-side reading of [lin_natural]; immediate from [ders_comp] and
+    associativity of [scones_comp]. *)
+Lemma Theta_comp (B C D : ICone.type Ar)
+    (g : icones_hom Ar C D) (h : icones_hom Ar (Bang Ar B) C) :
+  Theta (icones_comp g h) = scones_comp (ders g) (Theta h).
+Proof. by rewrite /Theta ders_comp -scones_compA. Qed.
+
 (** ** Paper §9 — the unit Seely isomorphism [\Seelyz] (DISCHARGED)
 
     The unit Seely iso [Seely0 : 1 ≅ !⊤], built by the contravariant
@@ -943,6 +951,7 @@ End Seely.
 Arguments linhom_icones {R Ar C D} phi Hphi.
 Arguments linhom_iconesE {R Ar C D} phi Hphi x.
 Arguments lin_natural {R Ar B C D} g f.
+Arguments Theta_comp {R Ar B C D} g h.
 Arguments cs {R Ar C} c Hc.
 Arguments csE {R Ar C} c Hc x.
 Arguments psi0 {R Ar C} f.
