@@ -3321,6 +3321,688 @@ End TensorHomIso.
 
 Arguments tensor_hom_iso {R Ar} B C D.
 
+(** ** Morphism-level pure-tensor extensionality (Paper Prop 5.14)
+
+    Re-derived inside the module from [tensor_curry_inj] + [linhom_eq] +
+    [tensor_curryEp], exactly as [tensor.v]'s [tensor_ext]/[tensor_ext3]
+    (which live outside the module).  Needed to discharge the
+    cancellation laws of the four structural isos. *)
+
+Section TensExt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma tens_ext (B C D : ICone.type Ar)
+    (f g : icones_hom Ar (tensor B C) D) :
+  (forall (x : B) (y : C), f (ptensor x y) = g (ptensor x y)) -> f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: icones_hom_eq => x /=.
+apply: linhom_eq => y.
+by rewrite !tensor_curryEp Hfg.
+Qed.
+
+Lemma tens_ext3 (A B C D : ICone.type Ar)
+    (f g : icones_hom Ar (tensor (tensor A B) C) D) :
+  (forall (x : A) (y : B) (z : C),
+     f (ptensor (ptensor x y) z) = g (ptensor (ptensor x y) z)) -> f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: tens_ext => x y.
+apply: linhom_eq => z.
+by rewrite !tensor_curryEp Hfg.
+Qed.
+
+(** Right-nested ternary extensionality, for [A⊗(B⊗C)]: reduce to
+    [linhom_tensor_ext] on the inner [(B⊗C)⊸D]. *)
+Lemma tens_ext3r (A B C D : ICone.type Ar)
+    (f g : icones_hom Ar (tensor A (tensor B C)) D) :
+  (forall (x : A) (y : B) (z : C),
+     f (ptensor x (ptensor y z)) = g (ptensor x (ptensor y z))) -> f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: icones_hom_eq => x /=.
+apply: linhom_tensor_ext => y z.
+by rewrite !tensor_curryEp Hfg.
+Qed.
+
+End TensExt.
+
+Arguments tens_ext {R Ar B C D}.
+Arguments tens_ext3 {R Ar A B C D}.
+Arguments tens_ext3r {R Ar A B C D}.
+
+(** ** Paper §5.5, Eq 5.2 — the associator [α : (A⊗B)⊗C ≅ A⊗(B⊗C)]
+
+    Built explicitly (à la [seely.v]) rather than via Yoneda: the
+    underlying [ICones] morphism is determined by its pure-tensor value
+    through [tensor_uncurry] + [tensor_curryEp]/[tensor_uncurryK], and the
+    round-trips are pure-tensor extensionality facts ([tens_ext3]). *)
+
+Section TensorAssocIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables A B C : ICone.type Ar.
+
+Local Notation "x '⊗p' y" := (ptensor x y) (at level 40, left associativity).
+
+(** Forward curried datum [a ↦ b ↦ c ↦ a ⊗ (b ⊗ c)] :
+    [Φ ∘ τ_{A,B⊗C}]. *)
+Definition assoc_fwd_g :
+    icones_hom Ar A (linhom_car Ar B (linhom_car Ar C (tensor A (tensor B C)))) :=
+  icones_comp (iso_fwd (tensor_hom_iso B C (tensor A (tensor B C))))
+              (tauL A (tensor B C)).
+
+Lemma assoc_fwd_gE (a : A) (b : B) (c : C) :
+  linhom_fun (linhom_fun (assoc_fwd_g a) b) c = a ⊗p (b ⊗p c).
+Proof.
+rewrite -[assoc_fwd_g a]/(iso_fwd
+  (tensor_hom_iso B C (tensor A (tensor B C))) ((tauL A (tensor B C)) a)).
+rewrite Phi_iconesE.
+by rewrite -[linhom_fun ((tauL A (tensor B C)) a) _]/(ptensor a (ptensor b c)).
+Qed.
+
+Definition tensor_assoc_fwd :
+    icones_hom Ar (tensor (tensor A B) C) (tensor A (tensor B C)) :=
+  tensor_uncurry (tensor_uncurry assoc_fwd_g).
+
+Lemma tensor_assoc_fwdE (a : A) (b : B) (c : C) :
+  tensor_assoc_fwd ((a ⊗p b) ⊗p c) = a ⊗p (b ⊗p c).
+Proof.
+rewrite /tensor_assoc_fwd.
+rewrite -(tensor_curryEp (tensor_uncurry (tensor_uncurry assoc_fwd_g))
+            (ptensor a b) c).
+rewrite tensor_uncurryK.
+rewrite -(tensor_curryEp (tensor_uncurry assoc_fwd_g) a b).
+rewrite tensor_uncurryK.
+exact: assoc_fwd_gE.
+Qed.
+
+(** Backward curried datum [a ↦ (b⊗c) ↦ (a⊗b)⊗c] :
+    [Ψ ∘ (double-curry of id)]. *)
+Definition assoc_bwd_g :
+    icones_hom Ar A
+      (linhom_car Ar (tensor B C) (tensor (tensor A B) C)) :=
+  icones_comp (iso_bwd (tensor_hom_iso B C (tensor (tensor A B) C)))
+              (tensor_curry (tensor_curry
+                 (icones_id Ar (tensor (tensor A B) C)))).
+
+Lemma assoc_bwd_gE (a : A) (b : B) (c : C) :
+  linhom_fun (assoc_bwd_g a) (b ⊗p c) = (a ⊗p b) ⊗p c.
+Proof.
+rewrite -[assoc_bwd_g a]/(iso_bwd
+  (tensor_hom_iso B C (tensor (tensor A B) C))
+  ((tensor_curry (tensor_curry (icones_id Ar (tensor (tensor A B) C)))) a)).
+rewrite Psi_iconesE.
+rewrite (tensor_curryEp (tensor_curry (icones_id Ar (tensor (tensor A B) C))) a b).
+by rewrite (tensor_curryEp (icones_id Ar (tensor (tensor A B) C)) (ptensor a b) c).
+Qed.
+
+Definition tensor_assoc_bwd :
+    icones_hom Ar (tensor A (tensor B C)) (tensor (tensor A B) C) :=
+  tensor_uncurry assoc_bwd_g.
+
+Lemma tensor_assoc_bwdE (a : A) (b : B) (c : C) :
+  tensor_assoc_bwd (a ⊗p (b ⊗p c)) = (a ⊗p b) ⊗p c.
+Proof.
+rewrite /tensor_assoc_bwd.
+rewrite -(tensor_curryEp (tensor_uncurry assoc_bwd_g) a (ptensor b c)).
+rewrite tensor_uncurryK.
+exact: assoc_bwd_gE.
+Qed.
+
+Lemma tensor_assoc_fwdK :
+  icones_comp tensor_assoc_bwd tensor_assoc_fwd =
+  icones_id Ar (tensor (tensor A B) C).
+Proof.
+apply: tens_ext3 => x y z.
+rewrite -[LHS]/(tensor_assoc_bwd (tensor_assoc_fwd ((x ⊗p y) ⊗p z))).
+by rewrite tensor_assoc_fwdE tensor_assoc_bwdE.
+Qed.
+
+Lemma tensor_assoc_bwdK :
+  icones_comp tensor_assoc_fwd tensor_assoc_bwd =
+  icones_id Ar (tensor A (tensor B C)).
+Proof.
+apply: tens_ext3r => x y z.
+rewrite -[LHS]/(tensor_assoc_fwd (tensor_assoc_bwd (x ⊗p (y ⊗p z)))).
+by rewrite tensor_assoc_bwdE tensor_assoc_fwdE.
+Qed.
+
+Definition tensor_assoc_iso :
+    icones_iso Ar (tensor (tensor A B) C) (tensor A (tensor B C)) :=
+  icones_isoP tensor_assoc_fwd tensor_assoc_bwd
+    tensor_assoc_fwdK tensor_assoc_bwdK.
+
+(** Paper Eq 5.2: [α((x ⊗ y) ⊗ z) = x ⊗ (y ⊗ z)]. *)
+Lemma tensor_assocE (x : A) (y : B) (z : C) :
+  iso_fwd tensor_assoc_iso ((x ⊗p y) ⊗p z) = x ⊗p (y ⊗p z).
+Proof. exact: tensor_assoc_fwdE. Qed.
+
+End TensorAssocIso.
+
+Arguments tensor_assoc_iso {R Ar} A B C.
+Arguments tensor_assocE {R Ar A B C}.
+
+(** ** Bilinearity of the pure tensor — Paper §5.4
+
+    Re-derived in-module (cf. [smcc.v]'s [ptensorZl]/[ptensorZr], stated
+    there with [tensor.v]'s [tau]); here through [tauL]. *)
+
+Section PTensorBilinear.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma ptensorZr (B C : ICone.type Ar) (r : {nonneg R}) (x : B) (y : C) :
+  ptensor x (precone_scale r y) = precone_scale r (ptensor x y).
+Proof.
+rewrite /ptensor /linhom_fun.
+by have [_ _ ->] := linhom_pre_linear (linhom_pre_of ((tauL B C) x)).
+Qed.
+
+Lemma ptensorZl (B C : ICone.type Ar) (r : {nonneg R}) (x : B) (y : C) :
+  ptensor (precone_scale r x) y = precone_scale r (ptensor x y).
+Proof.
+rewrite /ptensor.
+have [_ _ HZ] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones
+  (tauL B C))).
+by rewrite -[(tauL B C) (precone_scale r x)]/(cones_hom_fun _ _) HZ.
+Qed.
+
+End PTensorBilinear.
+
+Arguments ptensorZr {R Ar B C}.
+Arguments ptensorZl {R Ar B C}.
+
+(** ** Paper §5.5, Eq 5.3 — the right unitor [ρ : A⊗1 ≅ A]
+
+    Forward = [tensor_uncurry lo_lift] (so [ρ(x⊗u) = u·x]); backward
+    [a ↦ a⊗1] = [eval1 ∘ τ].  Round-trips via [tens_ext] + bilinearity. *)
+
+Section TensorRunitIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable A : ICone.type Ar.
+Local Notation One := (cone_one_car Ar).
+Local Notation "x '⊗p' y" := (ptensor x y) (at level 40, left associativity).
+
+(** [c1_val u · 1 = u] inside the unit cone. *)
+Lemma c1one_scaleK (u : One) :
+  precone_scale (c1_val u) (c1_one Ar) = u.
+Proof.
+apply: cone_one_eq; apply: nngnum_inj.
+rewrite /c1_one /precone_scale /=.
+by rewrite mulr1.
+Qed.
+
+Definition tensor_runit_fwd : icones_hom Ar (tensor A One) A :=
+  tensor_uncurry (@lo_lift R Ar A).
+
+Lemma tensor_runit_fwdE (x : A) (u : One) :
+  tensor_runit_fwd (x ⊗p u) = precone_scale (c1_val u) x.
+Proof.
+rewrite /tensor_runit_fwd.
+rewrite -(tensor_curryEp (tensor_uncurry (@lo_lift R Ar A)) x u).
+rewrite tensor_uncurryK.
+exact: lo_liftE.
+Qed.
+
+Definition tensor_runit_bwd : icones_hom Ar A (tensor A One) :=
+  icones_comp (@eval1 R Ar (tensor A One)) (tauL A One).
+
+Lemma tensor_runit_bwdE (a : A) :
+  tensor_runit_bwd a = a ⊗p (c1_one Ar).
+Proof.
+rewrite -[tensor_runit_bwd a]/(eval1 ((tauL A One) a)).
+by rewrite eval1E.
+Qed.
+
+Lemma tensor_runit_fwdK :
+  icones_comp tensor_runit_bwd tensor_runit_fwd =
+  icones_id Ar (tensor A One).
+Proof.
+apply: tens_ext => x u.
+rewrite -[LHS]/(tensor_runit_bwd (tensor_runit_fwd (x ⊗p u))).
+rewrite tensor_runit_fwdE tensor_runit_bwdE.
+by rewrite ptensorZl -ptensorZr c1one_scaleK.
+Qed.
+
+Lemma tensor_runit_bwdK :
+  icones_comp tensor_runit_fwd tensor_runit_bwd = icones_id Ar A.
+Proof.
+apply: icones_hom_eq => a.
+rewrite -[LHS]/(tensor_runit_fwd (tensor_runit_bwd a)).
+rewrite tensor_runit_bwdE tensor_runit_fwdE.
+by rewrite (_ : c1_val (c1_one Ar) = 1%:nng) ?precone_scale_1.
+Qed.
+
+Definition tensor_runit_iso : icones_iso Ar (tensor A One) A :=
+  icones_isoP tensor_runit_fwd tensor_runit_bwd
+    tensor_runit_fwdK tensor_runit_bwdK.
+
+(** Paper Eq 5.3: [ρ(x ⊗ u) = u · x]. *)
+Lemma tensor_runitE (x : A) (u : One) :
+  iso_fwd tensor_runit_iso (x ⊗p u) = precone_scale (c1_val u) x.
+Proof. exact: tensor_runit_fwdE. Qed.
+
+End TensorRunitIso.
+
+Arguments tensor_runit_iso {R Ar} A.
+Arguments tensor_runitE {R Ar A}.
+
+(** ** Paper §5.5, Eq 5.3 — the left unitor [λ : 1⊗A ≅ A]
+
+    Forward = [tensor_uncurry] of [u ↦ (c1_val u)·id_A] (built as
+    [lin_pt (linhom_id A)] viewed as an [icones_hom 1 (A⊸A)]); backward
+    [a ↦ 1⊗a].  Round-trips via [tens_ext] + bilinearity. *)
+
+Section TensorLunitIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable A : ICone.type Ar.
+Local Notation One := (cone_one_car Ar).
+Local Notation "x '⊗p' y" := (ptensor x y) (at level 40, left associativity).
+
+(** The curried datum [u ↦ (c1_val u)·id_A] as an [icones_hom 1 (A⊸A)];
+    [id_A] is the linhom [icones_to_linhom (icones_id A)]. *)
+Local Notation idA := (icones_to_linhom (icones_id Ar A)).
+
+Lemma lunit_g_norm : cone_norm (lin_pt idA) <= 1.
+Proof.
+apply: le_trans (lo_lift_norm_le1 idA) _.
+exact: icones_to_linhom_norm_le1.
+Qed.
+
+Definition lunit_g : icones_hom Ar One (linhom_car Ar A A) :=
+  linhom_icones (lin_pt idA) lunit_g_norm.
+
+Lemma lunit_gE (u : One) (x : A) :
+  linhom_fun (lunit_g u) x = precone_scale (c1_val u) x.
+Proof.
+rewrite -[lunit_g u]/(hfun (linhom_icones _ _) u) linhom_iconesE lin_ptE.
+rewrite -[linhom_fun (precone_scale (c1_val u) idA) x]
+  /(precone_scale (c1_val u) (linhom_fun idA x)).
+by rewrite icones_to_linhomE.
+Qed.
+
+Definition tensor_lunit_fwd : icones_hom Ar (tensor One A) A :=
+  tensor_uncurry lunit_g.
+
+Lemma tensor_lunit_fwdE (u : One) (x : A) :
+  tensor_lunit_fwd (u ⊗p x) = precone_scale (c1_val u) x.
+Proof.
+rewrite /tensor_lunit_fwd.
+rewrite -(tensor_curryEp (tensor_uncurry lunit_g) u x).
+rewrite tensor_uncurryK.
+exact: lunit_gE.
+Qed.
+
+Lemma lunit_bwd_norm :
+  cone_norm ((tauL One A) (c1_one Ar)) <= 1.
+Proof.
+apply: le_trans (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones
+  (tauL One A))) (c1_one Ar)) _.
+by rewrite -[cone_norm (c1_one Ar)]/(c1_norm (c1_one Ar)) /c1_norm /c1_one.
+Qed.
+
+Definition tensor_lunit_bwd : icones_hom Ar A (tensor One A) :=
+  linhom_icones ((tauL One A) (c1_one Ar)) lunit_bwd_norm.
+
+Lemma tensor_lunit_bwdE (a : A) :
+  tensor_lunit_bwd a = (c1_one Ar) ⊗p a.
+Proof.
+rewrite -[tensor_lunit_bwd a]/(hfun (linhom_icones _ _) a) linhom_iconesE.
+by rewrite -[linhom_fun ((tauL One A) (c1_one Ar)) a]/(ptensor (c1_one Ar) a).
+Qed.
+
+Lemma tensor_lunit_fwdK :
+  icones_comp tensor_lunit_bwd tensor_lunit_fwd =
+  icones_id Ar (tensor One A).
+Proof.
+apply: tens_ext => u x.
+rewrite -[LHS]/(tensor_lunit_bwd (tensor_lunit_fwd (u ⊗p x))).
+rewrite tensor_lunit_fwdE tensor_lunit_bwdE.
+by rewrite ptensorZr -ptensorZl c1one_scaleK.
+Qed.
+
+Lemma tensor_lunit_bwdK :
+  icones_comp tensor_lunit_fwd tensor_lunit_bwd = icones_id Ar A.
+Proof.
+apply: icones_hom_eq => a.
+rewrite -[LHS]/(tensor_lunit_fwd (tensor_lunit_bwd a)).
+rewrite tensor_lunit_bwdE tensor_lunit_fwdE.
+by rewrite (_ : c1_val (c1_one Ar) = 1%:nng) ?precone_scale_1.
+Qed.
+
+Definition tensor_lunit_iso : icones_iso Ar (tensor One A) A :=
+  icones_isoP tensor_lunit_fwd tensor_lunit_bwd
+    tensor_lunit_fwdK tensor_lunit_bwdK.
+
+(** Paper Eq 5.3: [λ(u ⊗ x) = u · x]. *)
+Lemma tensor_lunitE (u : One) (x : A) :
+  iso_fwd tensor_lunit_iso (u ⊗p x) = precone_scale (c1_val u) x.
+Proof. exact: tensor_lunit_fwdE. Qed.
+
+End TensorLunitIso.
+
+Arguments tensor_lunit_iso {R Ar} A.
+Arguments tensor_lunitE {R Ar A}.
+
+(** ** The Fubini swap [swap_lin_lin] (Paper Lemma 5.5 core)
+
+    Given [f : B1 → (B2 ⊸ C)], the transpose [swap_lin_lin_hom f :
+    B2 → (B1 ⊸ C)] with [(swap f)(b2)(b1) = f(b1)(b2)], a genuine
+    [icones_hom].  Inner element [linhom_comp (eval_at b2)
+    (icones_to_linhom f)]; the OUTER measurability is the already-proved
+    [swap_lin_path] (path-preservation [swap_lin_pres_path]), Pettis via
+    each [f b1]'s [linhom_pres_int] + the pointwise [linhom_int_eval]. *)
+Section SwapLinLin.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B1 B2 C : ICone.type Ar).
+Variable f : icones_hom Ar B1 (linhom_car Ar B2 C).
+
+Definition swap_lin_fun (b2 : B2) : linhom_car Ar B1 C :=
+  linhom_comp (eval_at b2) (icones_to_linhom f).
+
+Lemma swap_lin_funE (b2 : B2) (b1 : B1) :
+  linhom_fun (swap_lin_fun b2) b1 = linhom_fun (f b1) b2.
+Proof.
+rewrite /swap_lin_fun !linhom_compE eval_atE icones_to_linhomE.
+by [].
+Qed.
+
+End SwapLinLin.
+
+Section SwapLinLin2.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B1 B2 C : ICone.type Ar).
+Variable f : icones_hom Ar B1 (linhom_car Ar B2 C).
+
+Local Notation sl := (@swap_lin_fun R Ar B1 B2 C f).
+
+Lemma swap_lin_linear : is_linear sl.
+Proof.
+split.
+- apply: linhom_eq => b1; rewrite !swap_lin_funE.
+  have [Z0 _ _] := linhom_pre_linear (linhom_pre_of (f b1)).
+  rewrite -[linhom_fun (f b1) 0%PC]/(linhom_pre_fun (linhom_pre_of (f b1)) 0%PC) Z0.
+  by rewrite [linhom_fun (0%PC : linhom_car Ar B1 C) b1]/= /linhom_zero_fun.
+- move=> x y; apply: linhom_eq => b1; rewrite !swap_lin_funE.
+  have [_ HD _] := linhom_pre_linear (linhom_pre_of (f b1)).
+  rewrite -[linhom_fun (f b1) (x + y)%PC]
+    /(linhom_pre_fun (linhom_pre_of (f b1)) (x + y)%PC) HD.
+  rewrite -[linhom_fun (sl x + sl y)%PC b1]
+    /(linhom_fun (swap_lin_fun f x + swap_lin_fun f y)%PC b1).
+  rewrite -[linhom_fun (swap_lin_fun f x + swap_lin_fun f y)%PC b1]
+    /(precone_add (linhom_fun (swap_lin_fun f x) b1)
+                  (linhom_fun (swap_lin_fun f y) b1)).
+  by rewrite !swap_lin_funE.
+- move=> r x; apply: linhom_eq => b1; rewrite !swap_lin_funE.
+  have [_ _ HZ] := linhom_pre_linear (linhom_pre_of (f b1)).
+  rewrite -[linhom_fun (f b1) (r *: x)%PC]
+    /(linhom_pre_fun (linhom_pre_of (f b1)) (r *: x)%PC) HZ.
+  rewrite -[linhom_fun (r *: swap_lin_fun f x)%PC b1]
+    /(precone_scale r (linhom_fun (swap_lin_fun f x) b1)).
+  by rewrite swap_lin_funE.
+Qed.
+
+Lemma swap_lin_norm (b2 : B2) : cone_norm (sl b2) <= cone_norm b2.
+Proof.
+rewrite -[cone_norm (sl b2)]/(linhom_norm (sl b2)).
+apply: linhom_norm_sup_lub => b1 Hb1.
+rewrite swap_lin_funE.
+apply: le_trans (linhom_norm_apply_le (lexx (cone_norm (f b1))) b2) _.
+rewrite -[X in _ <= X]mul1r.
+apply: ler_wpM2r; first exact: cone_norm_ge0.
+apply: le_trans (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones f)) b1) _.
+exact: Hb1.
+Qed.
+
+Lemma swap_lin_continuous : is_omega_continuous sl.
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: (@linhom_mcone_M_sep _ _ B1 C) => p [β [βub [mC [mCM Hp]]]].
+rewrite Hp /linhom_test /linhom_test_fun /=.
+set s := ar_zero_pt Ar.
+rewrite swap_lin_funE.
+set φ := (f : icones_hom _ _ _) (path_fun β s).
+have φcont : is_omega_continuous (linhom_fun φ).
+  by rewrite -[linhom_fun φ]/(linhom_pre_fun (linhom_pre_of φ));
+     exact: linhom_pre_continuous.
+rewrite (linhom_sup_fun_test_sup (u := sl \o u) fuch fub1 mC s (path_fun β s)).
+have Hch : forall n, precone_le (linhom_fun φ (u n)) (linhom_fun φ (u n.+1)).
+  move=> n; have [w Hw] := uch n.
+  exists (linhom_fun φ w).
+  have [_ HD _] := linhom_pre_linear (linhom_pre_of φ).
+  by rewrite Hw -[linhom_fun φ _]/(φ _) HD.
+have φnorm : linhom_norm φ <= 1.
+  rewrite /φ.
+  apply: le_trans
+    (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones f)) (path_fun β s)) _.
+  by apply: le_trans (path_norm_ub β s) _; exact: βub.
+have Hub : forall n, cone_norm (linhom_fun φ (u n)) <= 1.
+  move=> n; apply: le_trans (linhom_norm_apply_le (lexx _) (u n)) _.
+  rewrite -[X in _ <= X]mulr1; apply: ler_pM;
+    [exact: linhom_norm_ge0|exact: cone_norm_ge0|exact: φnorm|exact: ub1].
+rewrite (φcont u uch ub1 Hch Hub).
+rewrite (eval_at_test_sup_ball Hch Hub mC s).
+congr (sup _); apply: eq_imagel => n _ /=.
+by rewrite swap_lin_funE.
+Qed.
+
+Lemma swap_lin_pres_path
+    (W : ar_obj Ar) (δ : ar_carrier Ar W -> B2) :
+  is_measurable_path δ ->
+  is_measurable_path (fun w => sl (δ w)).
+Proof.
+move=> Hδ.
+have [[Mδ HMδ] Hδm] := Hδ.
+have Mδ_ge0 : 0 <= Mδ.
+  by apply: le_trans (HMδ (ar_point Ar W)); exact: cone_norm_ge0.
+split.
+  exists Mδ => w.
+  by apply: le_trans (swap_lin_norm (δ w)) _; exact: HMδ.
+move=> Z p [β [βub [mC [mCM ->]]]].
+(* The [B2⊸C]-path [s ↦ f(β s)], which [f] preserves. *)
+have Hfβ : is_measurable_path (fun s => (f : icones_hom _ _ _) (path_fun β s)).
+  exact: (mcones_hom_pres_path (icones_hom_mcones f) Z (path_fun β) (path_is_path β)).
+have S_pos : 0 < Mδ + 1 by apply: le_lt_trans Mδ_ge0 _; rewrite ltrDl ltr01.
+have Sinv_ge0 : 0 <= (Mδ + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+(* Reindex [f(β ·)] (over Z) to a path at arity [ar_prod Z W] picking Z. *)
+pose Pfst : ar_carrier Ar (ar_prod Ar Z W) -> linhom_car Ar B2 C
+  := fun q => (f : icones_hom _ _ _) (path_fun β (ar_prod_fst Z W q)).
+have HPfst : is_measurable_path Pfst.
+  exact: (reindex_path_measurable (ar_prod_fst Z W) Hfβ).
+(* The rescaled [B2]-path [δ ∘ snd] at arity [ar_prod Z W], unit ball. *)
+pose γ0 : path_car Ar (ar_prod Ar Z W) B2 :=
+  MkPath (reindex_path_measurable (ar_prod_snd Z W) Hδ).
+pose γsnd : ar_carrier Ar (ar_prod Ar Z W) -> B2 :=
+  fun q => precone_scale Sinv (δ (ar_prod_snd Z W q)).
+have Hγsnd : is_measurable_path γsnd.
+  exact: (path_scale_is_path Sinv γ0).
+pose γA : path_car Ar (ar_prod Ar Z W) B2 := MkPath Hγsnd.
+have γA_ub : cone_norm γA <= 1.
+  rewrite /cone_norm /=.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [q ->] /=.
+  rewrite /γsnd cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  apply: le_trans (HMδ (ar_prod_snd Z W q)) _.
+  by rewrite lerDl ler01.
+(* The C-test reindexed to pick the Z-coordinate. *)
+pose mCfst : test_of Ar (ar_prod Ar Z W) C := test_reindex (ar_prod_fst Z W) mC.
+have mCfstM : mcone_M (ar_prod Ar Z W) mCfst by exact: mcone_M_comp.
+(* Test [Pfst] against the internal-hom test [γA ▷ mCfst]. *)
+pose mBC : test_of Ar (ar_prod Ar Z W) (linhom_car Ar B2 C) :=
+  linhom_test γA γA_ub mCfst mCfstM.
+have mBCM : mcone_M (ar_prod Ar Z W) mBC.
+  by exists γA, γA_ub, mCfst, mCfstM.
+have [_ HPfstm] := HPfst.
+have HPtest := HPfstm (ar_prod Ar Z W) mBC mBCM.
+pose ψ (sw : (ar_carrier Ar Z * ar_carrier Ar W)%type) :
+  (ar_carrier Ar (ar_prod Ar Z W) * ar_carrier Ar (ar_prod Ar Z W))%type :=
+  (ar_prod_cast (sw.1, sw.2), ar_prod_cast (sw.1, sw.2)).
+have ψ_meas : measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar W)%type] ψ.
+  apply: measurable_fun_pair.
+  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z W)).
+    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z W)).
+    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+rewrite (_ : (fun p0 : (ar_carrier Ar Z * ar_carrier Ar W)%type =>
+                linhom_test β βub mC mCM p0.1 (sl (δ p0.2))) =
+             (fun sw : (ar_carrier Ar Z * ar_carrier Ar W)%type =>
+                (Mδ + 1) * (mBC (ψ sw).1 (Pfst (ψ sw).2)))); last first.
+  apply: funext => sw.
+  rewrite /ψ /mBC /Pfst /linhom_test /linhom_test_fun /=.
+  rewrite /mCfst /test_reindex /test_reindex_fun /=.
+  rewrite /ar_prod_fst /ar_prod_fst_fun !ar_prod_castK /=.
+  rewrite swap_lin_funE /γsnd.
+  have HsndE : ar_prod_snd Z W (ar_prod_cast (sw.1, sw.2)) = sw.2.
+    by rewrite -[ar_prod_snd Z W _]/(ar_prod_snd_fun (ar_prod_cast (sw.1, sw.2)))
+       /ar_prod_snd_fun ar_prod_castK.
+  rewrite HsndE.
+  have [_ _ HZ] := linhom_pre_linear (linhom_pre_of (f (path_fun β sw.1))).
+  rewrite -[linhom_fun (f (path_fun β sw.1)) (Sinv *: δ sw.2)%PC]
+    /(linhom_pre_fun (linhom_pre_of (f (path_fun β sw.1))) (Sinv *: δ sw.2)%PC) HZ /=.
+  rewrite test_linZ /=.
+  by rewrite mulrA mulfV ?mul1r // gt_eqF.
+apply: measurable_funM; first exact: measurable_cst.
+exact: (measurable_comp (F := setT) measurableT (subsetT _) HPtest ψ_meas).
+Qed.
+
+(** *** Pettis: integral-preservation of the swap. *)
+Definition swap_lin_cones : cones_hom B2 (linhom_car Ar B1 C) :=
+  ConesHom sl swap_lin_linear swap_lin_continuous swap_lin_norm.
+
+Definition swap_lin_mcones : mcones_hom Ar B2 (linhom_car Ar B1 C) :=
+  MkMConesHom swap_lin_cones
+    (fun W δ Hδ => swap_lin_pres_path (W:=W) (δ:=δ) Hδ).
+
+Lemma swap_lin_pres_int
+    (W : ar_obj Ar) (δ : ar_carrier Ar W -> B2)
+    (Hδ : is_measurable_path δ) (µ : fmeas R (ar_carrier Ar W)) :
+  cones_hom_fun (mcones_hom_cones swap_lin_mcones) (icone_integral δ Hδ µ) =
+  icone_integral
+    (fun w => cones_hom_fun (mcones_hom_cones swap_lin_mcones) (δ w))
+    (mcones_hom_pres_path swap_lin_mcones W δ Hδ) µ.
+Proof.
+rewrite -[cones_hom_fun _ _]/(sl (icone_integral δ Hδ µ)).
+apply: linhom_eq => b1.
+rewrite swap_lin_funE.
+(* f b1 is a linhom; it preserves the B2-integral, pointwise via Pettis. *)
+have Hpres := linhom_pres_int (f b1) W δ Hδ µ.
+rewrite -[linhom_fun (f b1) (icone_integral δ Hδ µ)]
+  /(linhom_pre_fun (linhom_pre_of (f b1)) (icone_integral δ Hδ µ)).
+rewrite Hpres.
+(* RHS: the (B1⊸C)-integral is pointwise at b1 via linhom_int_eval. *)
+rewrite (linhom_int_eval
+  (C:=B1) (D:=C) (Y':=W)
+  (η := fun w => sl (δ w))
+  (mcones_hom_pres_path swap_lin_mcones W δ Hδ) µ b1).
+apply: icone_integral_eqP => m mM z.
+under eq_integral => r _ do rewrite swap_lin_funE.
+exact: (icone_integralP (fun r => f b1 (δ r))
+  (linhom_pre_pres_path (f b1) W δ Hδ) µ m mM z).
+Qed.
+
+Definition swap_lin_lin_hom : icones_hom Ar B2 (linhom_car Ar B1 C) :=
+  MkIConesHom swap_lin_mcones swap_lin_pres_int.
+
+Lemma swap_lin_lin_homE (b2 : B2) (b1 : B1) :
+  linhom_fun (swap_lin_lin_hom b2) b1 = linhom_fun (f b1) b2.
+Proof. by rewrite -[swap_lin_lin_hom b2]/(sl b2) swap_lin_funE. Qed.
+
+End SwapLinLin2.
+
+
+Arguments swap_lin_fun {R Ar B1 B2 C} f b2.
+Arguments swap_lin_funE {R Ar B1 B2 C} f b2 b1.
+Arguments swap_lin_lin_hom {R Ar B1 B2 C} f.
+Arguments swap_lin_lin_homE {R Ar B1 B2 C} f b2 b1.
+
+(** ** Paper §5.5, Eq 5.4 — the braiding [σ : A⊗B ≅ B⊗A]
+
+    Forward = [tensor_uncurry] of the Fubini swap of [τ_{B,A}]:
+    [g_braid := swap_lin_lin_hom (τ_{B,A}) : A → (B ⊸ B⊗A)] computes
+    [g_braid a b = b ⊗ a], so [σ(a⊗b) = b⊗a].  Backward is the symmetric
+    swap; round-trips via [tens_ext] ([σ(σ(x⊗y)) = σ(y⊗x) = x⊗y]). *)
+
+Section TensorBraidIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables A B : ICone.type Ar.
+
+Local Notation "x '⊗p' y" := (ptensor x y) (at level 40, left associativity).
+
+Definition braid_g : icones_hom Ar A (linhom_car Ar B (tensor B A)) :=
+  swap_lin_lin_hom (tauL B A).
+
+Lemma braid_gE (a : A) (b : B) :
+  linhom_fun (braid_g a) b = b ⊗p a.
+Proof. by rewrite /braid_g swap_lin_lin_homE. Qed.
+
+Definition tensor_braid_fwd : icones_hom Ar (tensor A B) (tensor B A) :=
+  tensor_uncurry braid_g.
+
+Lemma tensor_braid_fwdE (a : A) (b : B) :
+  tensor_braid_fwd (a ⊗p b) = b ⊗p a.
+Proof.
+rewrite /tensor_braid_fwd.
+rewrite -(tensor_curryEp (tensor_uncurry braid_g) a b).
+rewrite tensor_uncurryK.
+exact: braid_gE.
+Qed.
+
+Definition braid_g' : icones_hom Ar B (linhom_car Ar A (tensor A B)) :=
+  swap_lin_lin_hom (tauL A B).
+
+Lemma braid_g'E (b : B) (a : A) :
+  linhom_fun (braid_g' b) a = a ⊗p b.
+Proof. by rewrite /braid_g' swap_lin_lin_homE. Qed.
+
+Definition tensor_braid_bwd : icones_hom Ar (tensor B A) (tensor A B) :=
+  tensor_uncurry braid_g'.
+
+Lemma tensor_braid_bwdE (b : B) (a : A) :
+  tensor_braid_bwd (b ⊗p a) = a ⊗p b.
+Proof.
+rewrite /tensor_braid_bwd.
+rewrite -(tensor_curryEp (tensor_uncurry braid_g') b a).
+rewrite tensor_uncurryK.
+exact: braid_g'E.
+Qed.
+
+Lemma tensor_braid_fwdK :
+  icones_comp tensor_braid_bwd tensor_braid_fwd =
+  icones_id Ar (tensor A B).
+Proof.
+apply: tens_ext => x y.
+rewrite -[LHS]/(tensor_braid_bwd (tensor_braid_fwd (x ⊗p y))).
+by rewrite tensor_braid_fwdE tensor_braid_bwdE.
+Qed.
+
+Lemma tensor_braid_bwdK :
+  icones_comp tensor_braid_fwd tensor_braid_bwd =
+  icones_id Ar (tensor B A).
+Proof.
+apply: tens_ext => y x.
+rewrite -[LHS]/(tensor_braid_fwd (tensor_braid_bwd (y ⊗p x))).
+by rewrite tensor_braid_bwdE tensor_braid_fwdE.
+Qed.
+
+Definition tensor_braid_iso : icones_iso Ar (tensor A B) (tensor B A) :=
+  icones_isoP tensor_braid_fwd tensor_braid_bwd
+    tensor_braid_fwdK tensor_braid_bwdK.
+
+(** Paper Eq 5.4: [σ(x ⊗ y) = y ⊗ x]. *)
+Lemma tensor_braidE (x : A) (y : B) :
+  iso_fwd tensor_braid_iso (x ⊗p y) = y ⊗p x.
+Proof. exact: tensor_braid_fwdE. Qed.
+
+End TensorBraidIso.
+
+Arguments tensor_braid_iso {R Ar} A B.
+Arguments tensor_braidE {R Ar A B}.
+
+
 End Icones_tensor_iso.
 
 (**md**************************************************************************)
@@ -3438,10 +4120,68 @@ End Icones_tensor_iso.
 (*      [Psi_iconesE]+[Phi_iconesE]) and [Φ(Ψ h)=h] ([PhiPsi]).               *)
 (*      [Arguments tensor_hom_iso {R Ar} B C D] — matches Param #10 exactly.   *)
 (*                                                                            *)
+(*  ★ P5 (α/λ/ρ) — DONE: three of the four structural isos, AXIOM-FREE        *)
+(*    (Print Assumptions each = the 3 classical [boolp] axioms; NO            *)
+(*    [saft_interface]).  Built explicitly via [icones_isoP] (à la            *)
+(*    [seely.v]) — NOT [yoneda_iso] (the in-file [yoneda_iso] is the          *)
+(*    VARY-DOMAIN Yoneda [ICones(-,X)≅ICones(-,Y)], the wrong variance for    *)
+(*    the tensor adjunction, which is natural in the CODOMAIN).  The forward  *)
+(*    maps are [tensor_uncurry] of an explicit curried datum; the […E] laws   *)
+(*    read off by [tensor_curryEp]+[tensor_uncurryK]; round-trips by the      *)
+(*    in-module pure-tensor extensionality [tens_ext]/[tens_ext3]/[tens_ext3r]*)
+(*    (re-derived from [tensor_curry_inj]+[linhom_tensor_ext]+[tensor_curryEp]*)
+(*    — [tensor.v]'s [tensor_ext]/[tensor_ext3] live outside the module):     *)
+(*    - [tensor_assoc_iso] + [tensor_assocE] (Eq 5.2): fwd = uncurry∘uncurry  *)
+(*      of [Φ∘τ_{A,B⊗C}]; bwd = uncurry of [Ψ∘(double-curry id)].             *)
+(*      [Arguments tensor_assoc_iso {R Ar} A B C] (matches Param #11).        *)
+(*    - [tensor_runit_iso]+[tensor_runitE] (Eq 5.3, ρ): fwd = uncurry         *)
+(*      [lo_lift]; bwd = [eval1∘τ_{A,1}]; value [precone_scale (c1_val u) x]. *)
+(*    - [tensor_lunit_iso]+[tensor_lunitE] (Eq 5.3, λ): fwd = uncurry of      *)
+(*      [u↦(c1_val u)·id_A] ([lin_pt(icones_to_linhom id)]); bwd = [τ_{1,A} 1]*)
+(*      as a [linhom_icones].  Unitor round-trips use the in-module           *)
+(*      bilinearity [ptensorZl]/[ptensorZr] + the unit-cone fact              *)
+(*      [c1one_scaleK : (c1_val u)·1 = u].                                     *)
+(*    Discharges Parameters #11–#16 (10 already done → 16/18).                *)
+(*                                                                            *)
+(*  ★★ P5 (σ) — DONE: the braiding [tensor_braid_iso]+[tensor_braidE]         *)
+(*    (Eq 5.4, Params #17–#18), AXIOM-FREE (Print Assumptions                 *)
+(*    [tensor_braid_iso] = 3 boolp).  Built on the Fubini swap                 *)
+(*    [swap_lin_lin_hom f : B2→(B1⊸C)] of [f : B1→(B2⊸C)]                      *)
+(*    ([(swap f)(b2)(b1) = f(b1)(b2)]) — a genuine [icones_hom]: inner         *)
+(*    element [linhom_comp (eval_at b2) (icones_to_linhom f)]; the FIVE        *)
+(*    fields are [swap_lin_{linear,norm,continuous,pres_path,pres_int}]:       *)
+(*    continuity via [linhom_mcone_M_sep] + the inner linhom's ω-continuity    *)
+(*    + [eval_at_test_sup_ball]; PATH via the already-proved [swap_lin_path]   *)
+(*    (the [ar_prod Z×W] diagonal reindexing, mirroring [swap_inner_path]);    *)
+(*    Pettis via each [f b1]'s [linhom_pres_int] + the pointwise              *)
+(*    [linhom_int_eval] + [icone_integral_eqP].  Then [σ_fwd := tensor_uncurry*)
+(*    (swap_lin_lin_hom (τ_{B,A}))] computes [σ(a⊗b)=b⊗a] by                   *)
+(*    [tensor_curryEp]+[tensor_uncurryK]+[swap_lin_lin_homE]; backward is the  *)
+(*    symmetric swap; round-trips by [tens_ext].                              *)
+(*    [Arguments tensor_braid_iso {R Ar} A B] (matches Param #17).            *)
+(*    ⇒ ALL 8 structural params #11–#18 discharged → 18/18.                   *)
+(*                                                                            *)
 (* REMAINING ROUTE (concrete; next iteration):                               *)
-(*  P5 — structural isos α/λ/ρ/σ + …E laws via [yoneda_iso] + prereq isos     *)
-(*    [linhom_one_iso] (1⊸C≅C), [hom_one_bij] (ICones(1,B⊸C)≅ICones(B,C)),    *)
-(*    [swap_lin_lin] (B1⊸(B2⊸C)≅B2⊸(B1⊸C), Fubini core = [swap_lin_path]).    *)
-(*    Discharges Parameters #11–#18.                                          *)
-(*  P6 — re-point tensor.v/smcc.v off saft_interface; delete saft_interface.v.*)
+(*  P6 — flip [tensor.v]/[smcc.v]/[seely*.v] off [saft_interface] + DELETE it.*)
+(*    All 18 staged Parameters are proved here, so the mechanical re-point    *)
+(*    ([Require]+[Import] the [Icones_tensor_*] modules; re-assert            *)
+(*    [Arguments tensor {R} Ar B C]; [Require tensor] LAST so its            *)
+(*    [ptensor]/[tau] shadow the modules' homonyms) makes [ICones_smcc]       *)
+(*    (Thm 5.15) + the anchor axiom-free.  ⚠ ONE SNAG, the reason P6 is       *)
+(*    deferred: the discharged iso OBJECTS ([tensor_assoc_iso] … and the      *)
+(*    bifunctor [tensor_mor]) are now TRANSPARENT Definitions (formerly       *)
+(*    opaque [Parameter]s), so a bare [/=] in the downstream COHERENCE proofs *)
+(*    ([smcc.v] triangle/pentagon/hexagon/braid-invol; several [seely.v]      *)
+(*    promotion lemmas) unfolds them into the [tensor_construct] internals    *)
+(*    and breaks the [...Ep]/[tensor_morE] rewrites.  FIX (next iter): add    *)
+(*    [Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid] *)
+(*    (and [ptensor]/[tau]) in [smcc.v] right after their [...Ep] laws, and   *)
+(*    likewise in [seely.v] after its imports — this restores the staged      *)
+(*    (opaque) [simpl] behaviour while [conversion] still computes the [...E] *)
+(*    values (so e.g. [seely.v]'s [lunit_bwd_prom] becomes                    *)
+(*    [apply: iso_fwd_inj; by rewrite iso_can'.]).  [smcc.v] + [tensor.v]     *)
+(*    flip cleanly with this; a few [seely.v] [change]-fold lemmas whose tails*)
+(*    now reduce early also need their redundant steps trimmed.  Verified     *)
+(*    locally that [tensor.v]+[smcc.v] compile off [saft_interface] with the  *)
+(*    [Opaque] seals; [seely.v] needs the per-lemma trims above.              *)
 (******************************************************************************)
