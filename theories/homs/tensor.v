@@ -1,11 +1,13 @@
 (**md**************************************************************************)
 (* # The tensor product on [ICones] — Paper §5.4–§5.5                         *)
 (*                                                                            *)
-(*   This file derives the tensor theory on [ICones] AGAINST the staging      *)
-(*   contract [Icones.axioms.saft_interface] (the SAFT/tensor universal       *)
-(*   property, exposed as temporary [Parameter]s, PLAN §13).  Everything      *)
-(*   here is a real proof; the only unproved facts are the staged             *)
-(*   [Parameter]s consumed from the contract.                                 *)
+(*   This file derives the tensor theory on [ICones].  The SAFT/tensor        *)
+(*   universal property — formerly the staged contract                        *)
+(*   [Icones.axioms.saft_interface] — is now DISCHARGED: the proved           *)
+(*   counterparts live in [tensor_construct.v]/[tensor_hom_iso.v]/            *)
+(*   [tensor_iso.v] (modules [Icones_tensor_construct]/[..._hom_iso]/         *)
+(*   [..._iso]) and are [Export]ed below, replacing the deleted interface.    *)
+(*   Everything here is a real proof; there are no unproved tensor facts.     *)
 (*                                                                            *)
 (*   Deliverables (paper references):                                         *)
 (*   - [tau B C] : the universal map [B → (C ⊸ B ⊗ C)] (Paper §5.4), and      *)
@@ -18,7 +20,7 @@
 (*   - [tensor_hom_iso] re-exported as Thm 5.12; [tensor_curryK_inj] the      *)
 (*     injectivity of [Φ].                                                    *)
 (*   - [tensor_norm_le] : the [≤] half of Thm 5.13 (derived); [tensor_normM]  *)
-(*     the full equality (staged, Thm 5.13).                                  *)
+(*     the full equality (Thm 5.13, proved in [tensor_hom_iso.v]).            *)
 (*   - [tensor_ext] : Prop 5.14, pure-tensor extensionality (binary case).    *)
 (******************************************************************************)
 
@@ -38,13 +40,39 @@ Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
-Require Import Icones.axioms.saft_interface.
+Require Import Icones.homs.tensor_construct.
+Require Import Icones.homs.tensor_hom_iso.
+Require Import Icones.homs.tensor_iso.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
+
+(** P6 — the tensor SAFT contract is DISCHARGED.  [Export] (not merely
+    [Import]) the proved counterparts of the former [saft_interface]
+    Parameters, so that every downstream consumer of [tensor.v] inherits
+    them automatically (exactly as it formerly inherited the staged
+    [Parameter]s):
+    [tensor]/[tensor_curry]/[tensor_uncurry]/[tensor_curryK]/
+    [tensor_curry_natural_post] from [Icones_tensor_construct],
+    [tensor_normM] from [Icones_tensor_hom_iso], and the Thm 5.12 iso
+    [tensor_hom_iso] together with the structural isos
+    [tensor_assoc_iso]/[tensor_lunit_iso]/[tensor_runit_iso]/
+    [tensor_braid_iso] (and their pure-tensor [...E] laws) from
+    [Icones_tensor_iso].  These re-exports replace the staged contract.
+    [tensor.v]'s own [ptensor]/[tau]/[tensor_mor] are defined BELOW these
+    [Export]s, so they shadow the modules' homonyms (notably the [ptensor]
+    of [Icones_tensor_hom_iso]) in [tensor.v] and in every consumer. *)
+Export Icones_tensor_construct.
+Export Icones_tensor_hom_iso.
+Export Icones_tensor_iso.
+
+(** The proved [tensor] has [Ar] implicit; this file (and its downstream
+    consumers) write [tensor Ar B C], so re-assert the contract's
+    signature with [Ar] explicit. *)
+Arguments tensor {R} Ar B C.
 
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
@@ -171,8 +199,8 @@ Qed.
     The [≤] direction [‖x ⊗ y‖ ≤ ‖x‖ · ‖y‖] is derived from
     norm-decrease of [τ] (an [icones_hom], hence a [cones_hom]):
     [‖τ(x)‖ ≤ ‖x‖] and [‖τ(x)(y)‖ ≤ ‖τ(x)‖ · ‖y‖].  The full equality
-    is the staged [tensor_normM] (its converse needs the dual
-    separation Prop 3.11 and the [Φ⁻¹] of Thm 5.12). *)
+    is the proved [tensor_normM] (from [tensor_hom_iso.v]; its converse
+    needs the dual separation Prop 3.11 and the [Φ⁻¹] of Thm 5.12). *)
 
 Lemma tensor_norm_le (B C : ICone.type Ar) (x : B) (y : C) :
   cone_norm (x ⊗p y) <= cone_norm x * cone_norm y.
@@ -184,7 +212,8 @@ rewrite ler_wpM2r ?cone_norm_ge0 //.
 exact: (cones_hom_norm_le1 (tau B C) x).
 Qed.
 
-(** Paper Theorem 5.13: [‖x ⊗ y‖ = ‖x‖ · ‖y‖] (staged converse). *)
+(** Paper Theorem 5.13: [‖x ⊗ y‖ = ‖x‖ · ‖y‖] (via the proved
+    [tensor_normM]). *)
 Lemma tensor_normME (B C : ICone.type Ar) (x : B) (y : C) :
   cone_norm (x ⊗p y) = cone_norm x * cone_norm y.
 Proof. exact: tensor_normM. Qed.
