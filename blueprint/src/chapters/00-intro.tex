@@ -24,9 +24,8 @@ lemma, proposition and theorem to the corresponding Rocq declaration
 in the source tree under \texttt{theories/}.
 
 \paragraph{Scope.}
-The Rocq development currently covers the \emph{MVP} of the
-formalisation plan (see \texttt{PLAN.md} at the root of the
-repository):
+The Rocq development covers paper \S2--\S9 (see \texttt{PLAN.md} at the
+root of the repository):
 \begin{itemize}
   \item paper \S2 --- cones, the category $\Cones$ (M1);
   \item paper \S3 --- measurable cones, paths, $\FMeas$, the
@@ -35,14 +34,25 @@ repository):
     cone-Fubini, completeness and well-poweredness of $\ICones$ (M3);
   \item paper \S5.1 + \S5.2 --- the concrete internal hom
     $A \lin B$ as a $\Cone$, $\MCone$, then $\ICone$ structure (M4);
-  \item paper \S6 + MVP --- the substochastic-kernel category $\Skern$
+  \item paper \S6 --- the substochastic-kernel category $\Skern$
     and the fully-faithful embedding $\Skern \hookrightarrow \ICones$
-    (Theorem~6.5, M5).
+    (Theorem~6.5, the axiom-free regression anchor, M5);
+  \item paper \S5.3--\S5.5 --- the tensor product $\otimes$ and the
+    symmetric monoidal closed structure (Theorem~5.15,
+    Chapter~\ref{ch:tensor}), now \emph{axiom-free};
+  \item paper \S7 --- the stable cartesian closed category
+    $\mathbf{SCones}$ (Theorem~7.32, Chapter~\ref{ch:stable});
+  \item paper \S9 --- the exponential $\mathord{!}$ comonad
+    (axiom-free) and the Seely category (Chapter~\ref{ch:exponential}),
+    plus the \S9.2 fixpoints.
 \end{itemize}
-Out of scope (for the MVP): the tensor product $\otimes$, the
-exponential $\mathord{!}$, stable / analytic functions
-(\S5.3--\S5.5, \S7, \S8), the LNL adjunction (\S9), and the PCS
-embedding (\S10).
+The framing is an \emph{axiom-free core} versus a single remaining
+\emph{staged} interface: everything above is axiom-free except the
+\emph{existence} of the Seely isomorphisms, mechanised modulo
+\texttt{theories/axioms/seely\_interface.v} (the SAFT/Yoneda
+representability content; see Chapter~\ref{ch:exponential}). Out of
+scope for this iteration: paper \S8 (analytic functions, $\mathrm{ACONES}$)
+and the PCS embedding (\S10).
 
 \paragraph{How to read this blueprint.}
 Each chapter mirrors a paper section (or, in some cases, a small
@@ -56,7 +66,9 @@ populate the dependency graph shown in the web version of the
 blueprint.
 
 \paragraph{Status.}
-At the time of this scaffolding the chapters are intentionally empty
-stubs. Wave~2 of the documentation effort populates them with the
-actual statements and informal proofs, paragraph by paragraph,
-working from the Rocq sources outward.
+All chapters are populated with the actual statements and informal
+proofs, mirroring the Rocq sources. The development is \texttt{Admitted}-free
+and, apart from the single staged \texttt{seely\_interface}, uses only
+the three classical-logic axioms inherited from
+\texttt{mathcomp-analysis}; see each chapter's closing ``Status''
+section for the precise per-chapter axiom budget.

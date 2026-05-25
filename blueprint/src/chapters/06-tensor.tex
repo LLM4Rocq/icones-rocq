@@ -5,18 +5,26 @@
 %   theories/homs/icones_iso.v       isos in ICones (groupoid structure)
 %   theories/mcones/test_pullback.v  Def 3.13 test-side characterisation
 %   theories/homs/linhom_functor.v   Prop 5.8, the internal-hom functor
-%   theories/axioms/saft_interface.v the ~18 staged SAFT/tensor Parameters
-%   theories/homs/tensor.v           §5.4: τ, x⊗y, Eq 5.1, Thm 5.12/5.13,
-%                                    Prop 5.14
+%   theories/homs/tensor_construct.v the concrete SAFT construction of the
+%                                    tensor object, curry/uncurry, Eq-5.1
+%                                    naturality (formerly saft_interface)
+%   theories/homs/tensor_hom_iso.v   Thm 5.12 iso + Thm 5.13 norm equation
+%   theories/homs/tensor_iso.v       the structural isos α/λ/ρ/σ (existence
+%                                    + computation laws), Eqs 5.2--5.4
+%   theories/homs/tensor.v           §5.4 re-export layer: τ, x⊗y, Eq 5.1,
+%                                    Thm 5.12/5.13, Prop 5.14 (Opaque seals)
 %   theories/homs/smcc.v             §5.5: α/λ/ρ/σ + derived coherence,
 %                                    Thm 5.15 (ICones is SMCC)
 %
-% Honesty note: tensor.v and smcc.v are mechanised *modulo* the staging
-% interface saft_interface.v (the SAFT/Yoneda representability content).
-% The structural-iso EXISTENCE is staged (\notready); the monoidal
-% coherence and the consequences are genuinely PROVED from the interface
-% (\rocqok). The MVP headline (Thm 6.5, Chapter \ref{ch:skern}) does not
-% depend on this interface.
+% Status note: this chapter is now AXIOM-FREE. The former staging interface
+% theories/axioms/saft_interface.v (the ~18 SAFT/Yoneda representability
+% Parameters) has been DISCHARGED, as genuine theorems, by the concrete SAFT
+% construction (tensor_construct.v / tensor_hom_iso.v / tensor_iso.v), and
+% DELETED. tensor.v re-exports the proved modules under Opaque seals. Every
+% statement below — the tensor object, the structural-iso existence, the
+% monoidal coherence — is \rocqok, resting only on the three classical
+% mathcomp-analysis axioms. The headline Thm 6.5 (Chapter \ref{ch:skern})
+% is independent of all of this.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{The tensor product and the symmetric monoidal closed
@@ -40,13 +48,13 @@ $\otimes$ is available.
 The material lives under \texttt{theories/homs/icones\_iso.v} (isos in
 $\ICones$), \texttt{theories/mcones/test\_pullback.v} (the Def~3.13
 test-side characterisation), \texttt{theories/homs/linhom\_functor.v}
-(the morphism-level internal-hom functor, Prop~5.8),
+(the morphism-level internal-hom functor, Prop~5.8), the concrete SAFT
+construction \texttt{theories/homs/\{tensor\_construct,
+tensor\_hom\_iso, tensor\_iso\}.v}, the re-export layer
 \texttt{theories/homs/tensor.v} (\S5.4) and
-\texttt{theories/homs/smcc.v} (\S5.5), with the SAFT/tensor universal
-property collected as a staging interface in
-\texttt{theories/axioms/saft\_interface.v}.
+\texttt{theories/homs/smcc.v} (\S5.5).
 
-\section{Staging strategy: the SAFT/tensor interface}%
+\section{The SAFT construction of $\otimes$, now discharged}%
 \label{sec:tensor-staging}
 
 This is the central design decision of the chapter, and we state it up
@@ -55,103 +63,115 @@ from SAFT --- the existence of a tensor object $B \otimes C$
 representing the functor $D \mapsto \ICones(B, C \lin D)$, and the
 existence of the structural isomorphisms $\alpha/\lambda/\rho/\sigma$
 produced by Yoneda (paper Lemma~5.5) --- is the deep, non-elementary
-input to the monoidal structure. The Rocq development \emph{stages}
-this content: it is collected as a small interface of approximately
-$18$ \texttt{Parameter}s in
-\texttt{theories/axioms/saft\_interface.v}, and the \emph{consequences}
-(\texttt{tensor.v}, \texttt{smcc.v}) are mechanised \emph{modulo} this
-interface. Every \texttt{Parameter} in the interface is an
-intentional, temporary axiom, flagged in the source with
-\texttt{STAGING: discharge via M-SAFT, PLAN \S13.1; then delete}. No
-other part of the project is left unproved, and there is no
-\Admitted{} anywhere.
+input to the monoidal structure. An earlier iteration \emph{staged}
+this content as a small interface of $\approx 18$ \texttt{Parameter}s
+in \texttt{theories/axioms/saft\_interface.v}. That interface is now
+\textbf{discharged}: the Special Adjoint Functor Theorem for $\ICones$
+is mechanised concretely --- $B \otimes C$ is built as a wide
+intersection on a coseparator power
+(\texttt{theories/homs/tensor\_construct.v}, the \texttt{wi\_obj}
+machinery of \S13.1), and the structural isos and norm equation follow
+(\texttt{tensor\_hom\_iso.v}, \texttt{tensor\_iso.v}) --- so every former
+\texttt{Parameter} is now a genuine \texttt{Definition}/\texttt{Lemma},
+and \texttt{saft\_interface.v} has been \emph{deleted}. The whole
+chapter therefore rests only on the three classical mathcomp-analysis
+axioms; there is no project axiom and no \Admitted{} anywhere.
 
-We are precise about what is staged and what is proved:
+The re-export layer \texttt{theories/homs/tensor.v}
+\texttt{Export}s the three construction modules and seals the SAFT data
+with \texttt{Strategy opaque} + \texttt{Arguments \ldots : simpl never},
+so that the downstream proofs (\texttt{smcc.v}, \texttt{seely.v}),
+calibrated to the former opaque \texttt{Parameter}s, compile unchanged;
+this is a presentation choice, not a logical one --- the data underneath
+is fully proved.
+
+We are precise about what each layer contributes:
 \begin{enumerate}
   \item[(a)] The substantive monoidal coherence --- the triangle,
     pentagon and braiding-hexagon identities, and the symmetry law
-    $\sigma \circ \sigma = \id$ --- is \emph{genuinely proved} from
-    the interface, via the pure-tensor tree-extensionality of paper
-    Proposition~5.14 (\S\ref{sec:tensor-ext}).
-  \item[(b)] Only the structural-iso \emph{existence} (the
-    Lemma-5.5/Yoneda content) and the universal property of $\otimes$
-    are staged: the tensor object former, the hom-bijection $\Phi$ and
-    its naturality, the Thm~5.12 element-level iso, the Thm~5.13 norm
-    equation, and the four structural isos $\alpha/\lambda/\rho/\sigma$
-    of Eqs~5.2--5.4 together with their pure-tensor computation laws.
-  \item[(c)] The plan (\texttt{PLAN.md} \S13.1, milestone
-    ``M-SAFT'') is to discharge every \texttt{Parameter} by proving
-    SAFT for $\ICones$, after which each \texttt{Parameter} is
-    replaced by a theorem and \texttt{saft\_interface.v} is deleted,
-    reaching zero project axioms.
-  \item[(d)] The MVP headline theorem --- paper Theorem~6.5, the fully
+    $\sigma \circ \sigma = \id$ --- is proved via the pure-tensor
+    tree-extensionality of paper Proposition~5.14
+    (\S\ref{sec:tensor-ext}).
+  \item[(b)] The SAFT-supplied data --- the tensor object former, the
+    hom-bijection $\Phi$ and its naturality, the Thm~5.12 element-level
+    iso, the Thm~5.13 norm equation, and the four structural isos
+    $\alpha/\lambda/\rho/\sigma$ of Eqs~5.2--5.4 together with their
+    pure-tensor computation laws --- is the content of
+    \texttt{tensor\_construct.v} / \texttt{tensor\_hom\_iso.v} /
+    \texttt{tensor\_iso.v}, all proved.
+  \item[(c)] This discharge (\texttt{PLAN.md} \S13.1, milestone
+    ``M-SAFT'') brought the tensor / SMC-closed development from the
+    staged tier into the axiom-free core; only the Seely-iso existence
+    (Chapter~\ref{ch:exponential}) now remains staged.
+  \item[(d)] The headline theorem --- paper Theorem~6.5, the fully
     faithful embedding $\Skern \to \ICones$ of
-    Chapter~\ref{ch:skern} --- does \emph{not} depend on this
-    interface; the staging is confined to the $\otimes$/SMC-closed
-    development of this chapter.
+    Chapter~\ref{ch:skern} --- never depended on this content; it is
+    independent of the entire $\otimes$/SMC-closed development.
 \end{enumerate}
 
-\paragraph{The $18$ staged \texttt{Parameter}s, grouped.}
-The interface is stated in a single section over a real type $R$ and a
-measurable subcategory $\Ar$, with local notations $C \lin D :=
+\paragraph{The SAFT-supplied data, grouped.}
+The construction is stated over a real type $R$ and a measurable
+subcategory $\Ar$, with local notations $C \lin D :=
 \texttt{linhom\_car}\,\Ar\,C\,D$ and $B \otimes C := \texttt{tensor}\,\Ar\,B\,C$.
-The \texttt{Parameter}s fall into five groups.
+The proved data fall into five groups.
 
 \begin{itemize}
   \item \emph{The representing object.}\label{def:tensor-object}
-    \rocq{Icones.axioms.saft\_interface.tensor}\notready{} ---
-    the opaque tensor object former $B \otimes C$ (paper \S5.4,
-    Remark~5.1, which gives no explicit carrier).
+    \rocq{Icones.homs.tensor.tensor}\rocqok{} ---
+    the tensor object former $B \otimes C$ (paper \S5.4, Remark~5.1,
+    which gives no explicit carrier), built in \texttt{tensor\_construct.v}
+    concretely as a wide intersection $\texttt{wi\_obj}$ on a coseparator
+    power and re-exported by \texttt{tensor.v}.
   \item \emph{The hom-bijection $\Phi$ and its inverse (paper Thm~5.9 /
     Eq~5.1).} The forward map
-    \rocq{Icones.axioms.saft\_interface.tensor\_curry}\notready{}
+    \rocq{Icones.homs.tensor.tensor\_curry}\rocqok{}
     $:\ICones(B \otimes C, D) \to \ICones(B, C \lin D)$, the inverse
-    \rocq{Icones.axioms.saft\_interface.tensor\_uncurry}\notready{},
+    \rocq{Icones.homs.tensor.tensor\_uncurry}\rocqok{},
     and the two round-trip cancellations
-    \rocq{Icones.axioms.saft\_interface.tensor\_curryK}\notready{},
-    \rocq{Icones.axioms.saft\_interface.tensor\_uncurryK}\notready{}.
+    \rocq{Icones.homs.tensor.tensor\_curryK}\rocqok{},
+    \rocq{Icones.homs.tensor.tensor\_uncurryK}\rocqok{}
+    (all proved in \texttt{tensor\_construct.v}).
   \item \emph{Naturality of $\Phi$.} Naturality in $D$ stated
     existentially
-    (\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_D}\notready{}),
+    (\rocq{Icones.homs.tensor.tensor\_curry\_natural\_D}\rocqok{}),
     naturality in $B$
-    (\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_B}\notready{}),
-    and the \emph{concrete} naturality in $D$ whose existential witness
+    (\rocq{Icones.homs.tensor.tensor\_curry\_natural\_B}\rocqok{}),
+    and the \emph{concrete} naturality in $D$ whose witness
     is the explicit hom-functor action $C \lin h$
-    (\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_post}\notready{}).
+    (\rocq{Icones.homs.tensor.tensor\_curry\_natural\_post}\rocqok{}).
     The last one is the workhorse: it yields Eq~5.1 below.
   \item \emph{Element-level packaging and the norm equation.} The
     Thm~5.12 iso of integrable cones
-    \rocq{Icones.axioms.saft\_interface.tensor\_hom\_iso}\notready{}
+    \rocq{Icones.homs.tensor.tensor\_hom\_Phi}\rocqok{}
     and the Thm~5.13 norm equation
-    \rocq{Icones.axioms.saft\_interface.tensor\_normM}\notready{}.
+    \rocq{Icones.homs.tensor.tensor\_normM}\rocqok{}
+    (proved in \texttt{tensor\_hom\_iso.v}).
   \item \emph{Structural-iso existence and their computation laws (paper
-    Eqs~5.2--5.4).} The associator
-    \rocq{Icones.axioms.saft\_interface.tensor\_assoc\_iso}\notready{}
+    Eqs~5.2--5.4), proved in \texttt{tensor\_iso.v}.} The associator
+    \rocq{Icones.homs.tensor.tensor\_assoc\_iso}\rocqok{}
     with
-    \rocq{Icones.axioms.saft\_interface.tensor\_assocE}\notready{}, the
+    \rocq{Icones.homs.tensor.tensor\_assocE}\rocqok{}, the
     unitors
-    \rocq{Icones.axioms.saft\_interface.tensor\_lunit\_iso}\notready{}
+    \rocq{Icones.homs.tensor.tensor\_lunit\_iso}\rocqok{}
     /
-    \rocq{Icones.axioms.saft\_interface.tensor\_runit\_iso}\notready{}
+    \rocq{Icones.homs.tensor.tensor\_runit\_iso}\rocqok{}
     with
-    \rocq{Icones.axioms.saft\_interface.tensor\_lunitE}\notready{} /
-    \rocq{Icones.axioms.saft\_interface.tensor\_runitE}\notready{}, and
+    \rocq{Icones.homs.tensor.tensor\_lunitE}\rocqok{} /
+    \rocq{Icones.homs.tensor.tensor\_runitE}\rocqok{}, and
     the braiding
-    \rocq{Icones.axioms.saft\_interface.tensor\_braid\_iso}\notready{}
+    \rocq{Icones.homs.tensor.tensor\_braid\_iso}\rocqok{}
     with
-    \rocq{Icones.axioms.saft\_interface.tensor\_braidE}\notready{}.
+    \rocq{Icones.homs.tensor.tensor\_braidE}\rocqok{}.
 \end{itemize}
 
-\begin{remark}[A known gap in the interface, deferred to M-SAFT]
-Naturality of $\Phi$ in the $C$ slot is \emph{not} stated, because it
+\begin{remark}[Naturality of $\Phi$ in the $C$ slot]
+Naturality of $\Phi$ in the $C$ slot is not used by the chapter: it
 needs the contravariant functorial action $\lin$ in its left argument,
-$\texttt{linhom\_pre\_icones}\,v : (C \lin D) \to (C' \lin D)$, in a
-shape the interface does not pin down. The tensor milestone of this
-chapter consumes only naturality in $D$ and $B$; naturality in $C$ is
-needed only for the symmetry coherence, which is instead derived from
-the pure-tensor computation law $\sigma(x \otimes y) = y \otimes x$.
-The $C$-slot square is to be added when SAFT lands (a \texttt{TODO} in
-\texttt{saft\_interface.v}).
+$\texttt{linhom\_pre\_icones}\,v : (C \lin D) \to (C' \lin D)$, whereas
+the development consumes only naturality in $D$ and $B$. Naturality in
+$C$ would be needed only for the symmetry coherence, which is instead
+derived directly from the pure-tensor computation law $\sigma(x \otimes
+y) = y \otimes x$.
 \end{remark}
 
 \section{Prerequisites for $\otimes$ (paper \S5.3)}%
@@ -367,11 +387,11 @@ Chapter~\ref{ch:linhom}.
 
 \section{The tensor product (paper \S5.4)}\label{sec:tensor-build}
 
-Throughout this section we work modulo the staging interface
-(\S\ref{sec:tensor-staging}), with local notations $C \lin D :=
-\texttt{linhom\_car}\,\Ar\,C\,D$ and $B \otimes C := \texttt{tensor}\,\Ar\,B\,C$.
-Everything below is a genuine proof; the only unproved inputs are the
-staged \texttt{Parameter}s it consumes.
+Throughout this section we use the local notations $C \lin D :=
+\texttt{linhom\_car}\,\Ar\,C\,D$ and $B \otimes C := \texttt{tensor}\,\Ar\,B\,C$,
+with $\otimes$ now the proved SAFT construction
+(\S\ref{sec:tensor-staging}). Everything below is a genuine proof
+resting only on the classical base.
 
 \subsection{The universal map $\tau$ and the pure tensor}%
 \label{sec:tau}
@@ -408,8 +428,8 @@ and pointwise $\Phi(f)(x)(y) = f(x \otimes y)$
 
 \begin{proof}
 From the concrete naturality of $\Phi$ in $D$
-(\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_post},
-modulo the staged interface, \S\ref{sec:tensor-staging}) with $h := f$
+(\rocq{Icones.homs.tensor.tensor\_curry\_natural\_post},
+\S\ref{sec:tensor-staging}) with $h := f$
 and $f_0 := \id_{B \otimes C}$: $\Phi(f) = \Phi(f \circ \id) = (C \lin
 f) \circ \Phi(\id) = (C \lin f) \circ \tau$. Pointwise, evaluating the
 post-composition action through
@@ -435,8 +455,7 @@ $\tau_{B_2,C_2} \circ f$ in the hom-slot by $g$.
 \rocq{Icones.homs.tensor.tensor\_mor\_id}\rocqok
 \uses{def:tensor-mor}
 $\id_B \otimes \id_C = \id_{B \otimes C}$
-(\rocq{Icones.homs.tensor.tensor\_mor\_id}), modulo the staged
-interface.
+(\rocq{Icones.homs.tensor.tensor\_mor\_id}).
 \end{lemma}
 
 \begin{proof}
@@ -445,11 +464,11 @@ to the identity on $C \lin B \otimes C$ via
 $\texttt{linhom\_map\_icones\_id}$
 (\autoref{lem:linhom-functoriality}); what remains is
 $\texttt{tensor\_uncurry}(\texttt{tensor\_curry}(\id)) = \id$ by the
-staged round-trip
-\rocq{Icones.axioms.saft\_interface.tensor\_curryK}.
+round-trip
+\rocq{Icones.homs.tensor.tensor\_curryK}.
 \end{proof}
 
-\begin{remark}[Composition law deferred]
+\begin{remark}[Composition law not yet mechanised]
 The header of \texttt{theories/homs/tensor.v} delivers only the
 \emph{identity} law of the bifunctor; the composition law
 $(f_2 \circ f_1) \otimes (g_2 \circ g_1) = (f_2 \otimes g_2) \circ (f_1
@@ -457,8 +476,9 @@ $(f_2 \circ f_1) \otimes (g_2 \circ g_1) = (f_2 \otimes g_2) \circ (f_1
 for any coherence diagram of \S\ref{sec:smcc} (each of those is checked
 on pure tensors via Prop~5.14), and the SMC-closed bundle
 (\autoref{thm:thm515}) records only the identity law in its
-\texttt{smcc\_mor\_id} field. The general composition law is deferred
-to the M-SAFT discharge together with the rest of the interface.
+\texttt{smcc\_mor\_id} field. The general composition law is left as a
+straightforward extension; it is the only piece of the bifunctor data
+not yet recorded.
 \end{remark}
 
 \subsection{Theorem 5.12: the hom-tensor adjunction iso}%
@@ -473,9 +493,9 @@ of integrable cones
   (B \otimes C) \lin D \;\cong\; B \lin (C \lin D),
 \]
 packaged as the \texttt{icones\_iso}
-\rocq{Icones.homs.tensor.tensor\_hom\_Phi} (re-exporting the staged
-\rocq{Icones.axioms.saft\_interface.tensor\_hom\_iso}, modulo the
-interface). Its forward/backward maps are
+\rocq{Icones.homs.tensor.tensor\_hom\_Phi} (built on the proved
+\texttt{tensor\_iso.v} iso \texttt{tensor\_hom\_iso}). Its
+forward/backward maps are
 \rocq{Icones.homs.tensor.tensor\_hom\_fwd} /
 \rocq{Icones.homs.tensor.tensor\_hom\_bwd}, and the forward map is
 bijective (\rocq{Icones.homs.tensor.tensor\_hom\_fwd\_bij}).
@@ -484,9 +504,8 @@ bijective (\rocq{Icones.homs.tensor.tensor\_hom\_fwd\_bij}).
 At the morphism level, $\Phi = \texttt{tensor\_curry}$ is injective
 because \texttt{tensor\_uncurry} is a left inverse: this is
 \rocq{Icones.homs.tensor.tensor\_curry\_inj}\rocqok, proved directly
-from the staged
-\rocq{Icones.axioms.saft\_interface.tensor\_curryK}. Injectivity is the
-engine of the extensionality principle below.
+from \rocq{Icones.homs.tensor.tensor\_curryK}. Injectivity
+is the engine of the extensionality principle below.
 
 \subsection{Theorem 5.13: multiplicativity of the tensor norm}%
 \label{sec:thm513}
@@ -507,11 +526,10 @@ $\tau$ (an $\icones_{\mathrm{hom}}$, hence a $\cones_{\mathrm{hom}}$):
 $\cnorm{x \otimes y} = \cnorm{\tau(x)(y)} \le \cnorm{\tau(x)} \cdot
 \cnorm{y} \le \cnorm{x} \cdot \cnorm{y}$. The converse $\ge$ needs the
 dual-separation Prop~3.11 together with the element-level inverse
-$\Phi^{-1}$ of \autoref{thm:thm512}, both supplied by the SAFT
-discharge; the full equality
-\rocq{Icones.homs.tensor.tensor\_normME} therefore rests on the staged
-\rocq{Icones.axioms.saft\_interface.tensor\_normM} (modulo the
-interface, \S\ref{sec:tensor-staging}).
+$\Phi^{-1}$ of \autoref{thm:thm512}; the full equality
+\rocq{Icones.homs.tensor.tensor\_normME} re-exports the proved
+\rocq{Icones.homs.tensor.tensor\_normM} of \texttt{tensor\_hom\_iso.v}
+(\S\ref{sec:tensor-staging}).
 \end{proof}
 
 \subsection{Proposition 5.14: pure-tensor extensionality}%
@@ -561,7 +579,7 @@ than \autoref{lem:tensor-ext3}, for the tree $((A \otimes B) \otimes C)
 \section{The symmetric monoidal closed structure (paper \S5.5)}%
 \label{sec:smcc}
 
-We assemble the SMC closed structure on top of $\otimes$ and the staged
+We assemble the SMC closed structure on top of $\otimes$ and the proved
 structural isos, with $1 := \texttt{cone\_one\_car}\,\Ar$ the monoidal
 unit (the integrable cone $\Rnn$ of Chapter~\ref{ch:icones}).
 
@@ -600,7 +618,7 @@ A$ (\rocq{Icones.homs.smcc.tensor\_runit}), and the braiding
 $\sigma_{A,B} : A \otimes B \cong B \otimes A$
 (\rocq{Icones.homs.smcc.tensor\_braid}) are the
 \texttt{icones\_iso}s re-exported under their paper names from the
-staged structural-iso \texttt{Parameter}s. Each comes with its
+proved structural isos of \texttt{tensor\_iso.v}. Each comes with its
 pure-tensor computation law:
 \[
   \alpha\bigl((x \otimes y) \otimes z\bigr) = x \otimes (y \otimes z),
@@ -613,23 +631,22 @@ namely \rocq{Icones.homs.smcc.tensor\_assocEp},
 \rocq{Icones.homs.smcc.tensor\_lunitEp},
 \rocq{Icones.homs.smcc.tensor\_runitEp},
 \rocq{Icones.homs.smcc.tensor\_braidEp} (here $u \in 1 = \Rnn$ acts by
-scaling). These restate the staged computation laws
-\rocq{Icones.axioms.saft\_interface.tensor\_assocE} etc.\ (modulo the
-interface, \S\ref{sec:tensor-staging}).
+scaling). These restate the proved computation laws
+\rocq{Icones.homs.tensor.tensor\_assocE} etc.\ of \texttt{tensor\_iso.v}
+(\S\ref{sec:tensor-staging}).
 \end{definition}
 
 The bifunctor action computes on pure tensors:
 $(f \otimes g)(x \otimes y) = (f\,x) \otimes (g\,y)$, namely
-\rocq{Icones.homs.smcc.tensor\_morE}\rocqok, derived from the staged
-round-trip \rocq{Icones.axioms.saft\_interface.tensor\_uncurryK} and
+\rocq{Icones.homs.smcc.tensor\_morE}\rocqok, derived from the
+round-trip \rocq{Icones.homs.tensor.tensor\_uncurryK} and
 Eq~5.1.
 
 \subsection{The derived coherence laws}\label{sec:coherence}
 
-The point of \S\ref{sec:tensor-ext} is that, although the structural
-\emph{isos} are staged, every coherence \emph{law} between them is
-genuinely \emph{proved}, by checking the two sides agree on (iterated)
-pure tensors and reading off the computation laws.
+The point of \S\ref{sec:tensor-ext} is that every coherence \emph{law}
+between the structural isos is \emph{proved}, by checking the two sides
+agree on (iterated) pure tensors and reading off the computation laws.
 
 \begin{lemma}[Symmetry law, paper Eq 5.4]\label{lem:braid-invol}
 \rocq{Icones.homs.smcc.tensor\_braid\_invol}\rocqok
@@ -713,17 +730,18 @@ proved data:
 
 \begin{proof}
 Each field is one of the proved lemmas above; the bundle
-\rocq{Icones.homs.smcc.ICones\_smcc} just assembles them. The only
-unproved inputs are the staged structural isos and their computation
-laws (paper Eqs~5.2--5.4) and the universal property of $\otimes$,
-discharged with the rest of the SAFT contract.
+\rocq{Icones.homs.smcc.ICones\_smcc} just assembles them. The structural
+isos and their computation laws (paper Eqs~5.2--5.4) and the universal
+property of $\otimes$ are the proved SAFT data of \texttt{tensor\_iso.v}
+/ \texttt{tensor\_construct.v}, so every input is closed by \Qed{}.
 \end{proof}
 
 \section{Status}\label{sec:tensor-status}
 
-\paragraph{Delivered (mechanised modulo the interface).}
-The three prerequisites of \S5.3 are fully proved with no project
-axioms: isos in $\ICones$ with their groupoid structure
+\paragraph{Delivered (axiom-free).}
+The whole chapter is mechanised with no project axioms, resting only on
+the three classical mathcomp-analysis axioms. The three prerequisites of
+\S5.3 are fully proved: isos in $\ICones$ with their groupoid structure
 (\rocq{Icones.homs.icones\_iso.icones\_iso}), the Def~3.13 test-pullback
 characterisation
 (\rocq{Icones.mcones.test\_pullback.test\_pullback\_meas},
@@ -731,38 +749,37 @@ characterisation
 \rocq{Icones.mcones.test\_pullback.test\_pullback\_cont}), and the
 morphism-level internal-hom functor of Prop~5.8
 (\rocq{Icones.homs.linhom\_functor.linhom\_map\_icones}, its one-sided
-actions, and functoriality). On top of the staging interface, the
-tensor theory of \S5.4 (the universal map $\tau$ and pure tensor, Eq~5.1,
-bifunctor identity law, Thm~5.12, the $\le$ half of Thm~5.13, and the
+actions, and functoriality). On top of the now-proved SAFT construction,
+the tensor theory of \S5.4 (the universal map $\tau$ and pure tensor,
+Eq~5.1, bifunctor identity law, Thm~5.12, Thm~5.13, and the
 binary/ternary/quaternary pure-tensor extensionality of Prop~5.14) and
 the SMC closed structure of \S5.5 (the structural isos, the
-\emph{proved} symmetry/triangle/pentagon/hexagon coherence, and the
-bundle \rocq{Icones.homs.smcc.ICones\_smcc} witnessing Theorem~5.15)
-are all mechanised --- with the substantive coherence content genuinely
-\Qed{}'d, not assumed.
+symmetry/triangle/pentagon/hexagon coherence, and the bundle
+\rocq{Icones.homs.smcc.ICones\_smcc} witnessing Theorem~5.15) are all
+\Qed{}'d.
 
-\paragraph{Staged (to be discharged by M-SAFT).}
-The deep representability content remains the $\approx 18$
-\texttt{Parameter}s of \texttt{theories/axioms/saft\_interface.v}
-(\S\ref{sec:tensor-staging}): the tensor object former
-(\rocq{Icones.axioms.saft\_interface.tensor}), the hom-bijection and its
-naturality (\rocq{Icones.axioms.saft\_interface.tensor\_curry},
-\rocq{Icones.axioms.saft\_interface.tensor\_uncurry},
-\rocq{Icones.axioms.saft\_interface.tensor\_curry\_natural\_post}),
-the Thm~5.12 iso (\rocq{Icones.axioms.saft\_interface.tensor\_hom\_iso}),
-the Thm~5.13 norm equation
-(\rocq{Icones.axioms.saft\_interface.tensor\_normM}), and the structural
+\paragraph{The SAFT construction (formerly staged, now discharged).}
+The deep representability content --- formerly the $\approx 18$
+\texttt{Parameter}s of \texttt{theories/axioms/saft\_interface.v}, now
+the proved declarations of
+\texttt{theories/homs/\{tensor\_construct, tensor\_hom\_iso,
+tensor\_iso\}.v} (\S\ref{sec:tensor-staging}) --- comprises the tensor
+object former (\rocq{Icones.homs.tensor.tensor}), the hom-bijection and
+its naturality (\rocq{Icones.homs.tensor.tensor\_curry},
+\rocq{Icones.homs.tensor.tensor\_uncurry},
+\rocq{Icones.homs.tensor.tensor\_curry\_natural\_post}), the Thm~5.12
+iso (\rocq{Icones.homs.tensor.tensor\_hom\_Phi}), the Thm~5.13 norm
+equation (\rocq{Icones.homs.tensor.tensor\_normM}), and the structural
 isos of Eqs~5.2--5.4
-(\rocq{Icones.axioms.saft\_interface.tensor\_assoc\_iso},
-\rocq{Icones.axioms.saft\_interface.tensor\_lunit\_iso},
-\rocq{Icones.axioms.saft\_interface.tensor\_runit\_iso},
-\rocq{Icones.axioms.saft\_interface.tensor\_braid\_iso}) with their
-computation laws. The plan
-(\texttt{PLAN.md} \S13.1, ``M-SAFT'') is to discharge every
-\texttt{Parameter} by proving the Special Adjoint Functor Theorem for
-$\ICones$, after which \texttt{saft\_interface.v} is deleted and the
-project returns to zero project axioms. The bifunctor composition law
-(\S\ref{sec:tensor-mor}) and the naturality of $\Phi$ in the $C$ slot
-(\S\ref{sec:tensor-staging}) are deferred together with the discharge.
-The MVP headline theorem (paper Theorem~6.5,
-Chapter~\ref{ch:skern}) is independent of this interface.
+(\rocq{Icones.homs.tensor.tensor\_assoc\_iso},
+\rocq{Icones.homs.tensor.tensor\_lunit\_iso},
+\rocq{Icones.homs.tensor.tensor\_runit\_iso},
+\rocq{Icones.homs.tensor.tensor\_braid\_iso}) with their computation
+laws. The Special Adjoint Functor Theorem for $\ICones$ is mechanised
+concretely (\texttt{PLAN.md} \S13.1, ``M-SAFT''), so
+\texttt{saft\_interface.v} has been deleted and the chapter returns zero
+project axioms. The only piece not yet recorded is the bifunctor
+composition law (\S\ref{sec:tensor-mor}); naturality of $\Phi$ in the
+$C$ slot is not used (\S\ref{sec:tensor-staging}). The headline theorem
+(paper Theorem~6.5, Chapter~\ref{ch:skern}) is independent of this
+development.
