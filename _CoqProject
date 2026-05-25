@@ -37,6 +37,7 @@ theories/homs/linhom_functor.v
 theories/homs/limpl_continuous.v
 theories/homs/tensor_construct.v
 theories/homs/tensor_hom_iso.v
+theories/homs/tensor_iso.v
 theories/kernels/skern.v
 theories/kernels/thm65.v
 theories/stable/local_cone.v
