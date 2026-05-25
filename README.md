@@ -15,7 +15,7 @@ Thomas Ehrhard and Guillaume Geoffroy
 ## Status
 
 A formalization of paper **§2 – §9** (paper §8, analytic functions, is
-out of scope). ~40k lines of Rocq across 45 files, **zero `Admitted`**.
+out of scope). ~48k lines of Rocq across 49 files, **zero `Admitted`**.
 Every remaining project-specific axiom is confined to a *single*
 clearly-marked *staging interface* under `theories/axioms/`; everything
 else uses only the three classical-logic axioms inherited from
