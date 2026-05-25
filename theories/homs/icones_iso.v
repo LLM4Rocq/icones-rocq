@@ -279,3 +279,59 @@ Definition yoneda_iso : icones_iso Ar X Y :=
 End YonedaIso.
 
 Arguments yoneda_iso {R Ar X Y}.
+
+(** ** Co-Yoneda: a CONTRAVARIANT natural hom-bijection induces an iso
+
+    The contravariant dual of [yoneda_iso].  Given, for every object [A],
+    a bijection [psi A : ICones(X, A) → ICones(Y, A)] with inverse
+    [psiV A], whose round-trips [psiK]/[psiVK] hold and which is *natural
+    in [A] by POSTcomposition* ([psi (g ∘ f) = g ∘ psi f], [psiV (g ∘ f) =
+    g ∘ psiV f]), the representing object morphisms assemble into an iso
+    [X ≅ Y].  Since the representables are contravariant, the FORWARD
+    [X → Y] is [psiV id_Y] (a morphism [X → Y]) and the BACKWARD [Y → X]
+    is [psi id_X].  As in [yoneda_iso] the morphisms are *outputs of the
+    bijection* (already [icones_hom]s), so no structure obligation
+    arises.  This is the assembly tool for comparing contravariant
+    representables (e.g. the Seely-iso bijection chain in [seely.v]). *)
+
+Section CoYonedaIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ICone.type Ar.
+Variable psi : forall A : ICone.type Ar, icones_hom Ar X A -> icones_hom Ar Y A.
+Variable psiV : forall A : ICone.type Ar, icones_hom Ar Y A -> icones_hom Ar X A.
+Hypothesis psiK : forall (A : ICone.type Ar) (f : icones_hom Ar X A),
+  psiV (psi f) = f.
+Hypothesis psiVK : forall (A : ICone.type Ar) (g : icones_hom Ar Y A),
+  psi (psiV g) = g.
+Hypothesis psi_nat : forall (A A' : ICone.type Ar)
+  (f : icones_hom Ar X A) (g : icones_hom Ar A A'),
+  psi (icones_comp g f) = icones_comp g (psi f).
+Hypothesis psiV_nat : forall (A A' : ICone.type Ar)
+  (f : icones_hom Ar Y A) (g : icones_hom Ar A A'),
+  psiV (icones_comp g f) = icones_comp g (psiV f).
+
+(** [bwd ∘ fwd = id_X], where [fwd = psiV id_Y : X → Y] and
+    [bwd = psi id_X : Y → X].  Read off via [psiV] postcomposition
+    naturality: [psi id_X ∘ psiV id_Y = psiV (psi id_X ∘ id_Y) =
+    psiV (psi id_X) = id_X] (by [psiV_nat], [icones_compIr], [psiK]). *)
+Lemma co_yoneda_iso_fwdK :
+  icones_comp (psi (icones_id Ar X)) (psiV (icones_id Ar Y)) =
+  icones_id Ar X.
+Proof.
+by rewrite -psiV_nat icones_compIr psiK.
+Qed.
+
+Lemma co_yoneda_iso_bwdK :
+  icones_comp (psiV (icones_id Ar Y)) (psi (icones_id Ar X)) =
+  icones_id Ar Y.
+Proof.
+by rewrite -psi_nat icones_compIr psiVK.
+Qed.
+
+Definition co_yoneda_iso : icones_iso Ar X Y :=
+  icones_isoP (psiV (icones_id Ar Y)) (psi (icones_id Ar X))
+    co_yoneda_iso_fwdK co_yoneda_iso_bwdK.
+
+End CoYonedaIso.
+
+Arguments co_yoneda_iso {R Ar X Y}.
