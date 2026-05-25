@@ -2167,6 +2167,755 @@ End PathTensToOneGen.
 
 Arguments path_tens_to_one {R Ar B C X} η ηbound ηpt.
 
+(** ** [path_tens_to_X] — Paper [lemma:path-tens-to-one] at GENERAL codomain
+
+    The P4 generalisation of [path_tens_to_one] from the scalar codomain
+    [1] to an arbitrary integrable cone [D].  A function
+    [η : X → (B⊗C)⊸D] that is BOUNDED and measurable ON PURE TENSORS
+    (against every [D]-test) is a genuine measurable path of [(B⊗C)⊸D].
+
+    The construction is the P3 one VERBATIM with [D] in place of the inner
+    scalar [1]: [lin_pt (C:=D)] / [lo_lift (C:=D)] (already general-[C]);
+    the inner codomain becomes [Path(X, 1⊸D)]; [lfun_path_swap] runs with
+    [C':=1], [D':=D]; [lin_pt_unit] recovers values.  The ONLY change is in
+    the three test-driven fields ([pt_inner_path], the [eta]-slot
+    path/integral preservation), where the singleton [1]-test [id_test]
+    (value [c1_val]) is replaced by a GENERAL [D]-test [mD] (value
+    [test_fun mD s ·]); the pure-tensor hypothesis [ηpt] is correspondingly
+    stated against an arbitrary [D]-test. *)
+
+Section PathTensToX.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B C D : ICone.type Ar).
+Variable (X : ar_obj Ar).
+Local Notation One := (cone_one_car Ar).
+Local Notation BC := (tensor B C).
+Local Notation L1D := (linhom_car Ar One D).
+Local Notation PX := (path_car Ar X L1D).
+
+Variable η : ar_carrier Ar X -> linhom_car Ar BC D.
+Hypothesis Hη1 : forall r, cone_norm (η r) <= 1.
+
+(** The pure-tensor joint-measurability hypothesis, at a general [D]-test:
+    for any arity [Z], any [D]-test [mD ∈ M_Z(D)], any arrow [φ : Z → X],
+    and any measurable [B]-path [β], [C]-path [γ] over [Z], the scalar
+    [s ↦ mD(s, η(φ s)(β s ⊗ γ s))] is measurable on [Z].  Test position
+    and [η]-index both move with the SAME [s] (the joint form delivered by
+    a measurable path [H] of [B⊸(C⊸D)] via [Psi_innerE]). *)
+Hypothesis ηpt :
+  forall (Z : ar_obj Ar) (mD : test_of Ar Z D) (mDM : mcone_M Z mD)
+         (φ : ar_hom Ar Z X)
+         (β : ar_carrier Ar Z -> B) (γ : ar_carrier Ar Z -> C),
+    is_measurable_path β -> is_measurable_path γ ->
+    measurable_fun [set: ar_carrier Ar Z]
+      (fun s => test_fun mD s (linhom_fun (η (φ s)) (ptensor (β s) (γ s)))).
+
+(** The composite integrable map [pt_Q b r : C ⊸ (1⊸D)], the map
+    [c ↦ lin_pt (η r (b⊗c))], as [lo_lift ∘ (η r) ∘ (τ b)]. *)
+Definition ptX_Q (b : B) (r : ar_carrier Ar X) : linhom_car Ar C L1D :=
+  linhom_comp (icones_to_linhom (lo_lift (C:=D)))
+    (linhom_comp (η r) (hfun (tauL B C) b)).
+
+Lemma ptX_QE (b : B) (r : ar_carrier Ar X) (c : C) :
+  linhom_fun (ptX_Q b r) c = lin_pt (linhom_fun (η r) (ptensor b c)).
+Proof.
+rewrite /ptX_Q !linhom_compE icones_to_linhomE.
+rewrite -[hfun (lo_lift (C:=D)) _]/(lin_pt _).
+by rewrite -/(ptensor b c).
+Qed.
+
+(** The inner path [r ↦ ptX_Q b r c = lin_pt (η r (b⊗c)) : Path(X, 1⊸D)]
+    is measurable, by [lo_lift_pres_path] from the [D]-path
+    [r ↦ η r (b⊗c)].  Its joint measurability against a [D]-test [m] at
+    arity [Z] is the pure-tensor hypothesis [ηpt] at arity [ar_prod Z X],
+    with the [D]-test [m] reindexed to read the [Z]-coordinate
+    ([test_reindex (ar_prod_fst Z X)]), the [η]-index selected by
+    [ar_prod_snd], and constant tensor factors [b], [c]. *)
+Lemma ptX_inner_path (b : B) (c : C) :
+  is_measurable_path (fun r => linhom_fun (ptX_Q b r) c).
+Proof.
+have Hbase : is_measurable_path (fun r => linhom_fun (η r) (ptensor b c)).
+  split.
+    exists (cone_norm (ptensor b c)) => r.
+    apply: le_trans (linhom_norm_apply_le (lexx _) (ptensor b c)) _.
+    by rewrite -[X in _ <= X]mul1r; apply: ler_wpM2r;
+       [exact: cone_norm_ge0|exact: Hη1].
+  move=> Z m mM.
+  pose mZ : test_of Ar (ar_prod Ar Z X) D := test_reindex (ar_prod_fst Z X) m.
+  have mZM : mcone_M (ar_prod Ar Z X) mZ by exact: mcone_M_comp.
+  have HZX := ηpt mZM (ar_prod_snd Z X)
+    (@const_path_measurable R Ar B (ar_prod Ar Z X) b)
+    (@const_path_measurable R Ar C (ar_prod Ar Z X) c).
+  rewrite (_ : (fun p : ar_carrier Ar Z * ar_carrier Ar X =>
+     test_fun m p.1 (linhom_fun (η p.2) (ptensor b c))) =
+     (fun s : ar_carrier Ar (ar_prod Ar Z X) =>
+      test_fun mZ s (linhom_fun (η (ar_prod_snd Z X s)) (ptensor b c)))
+       \o (@ar_prod_cast R Ar Z X)); last first.
+    apply: funext => p.
+    rewrite /= /mZ /test_reindex /test_reindex_fun /=.
+    rewrite /ar_prod_snd /ar_prod_snd_fun /ar_prod_fst /ar_prod_fst_fun
+            !ar_prod_castK /=.
+    by [].
+  exact: (measurable_comp (F := setT) measurableT (subsetT _) HZX
+            (ar_prod_cast_meas Ar Z X)).
+have := lo_lift_pres_path (C:=D) (W:=X)
+  (γ:=fun r => linhom_fun (η r) (ptensor b c)) Hbase.
+by under [in X0 in is_measurable_path X0 -> _]eq_fun do rewrite -ptX_QE.
+Qed.
+
+Definition etaX_path (b : B) (c : C) : PX := MkPath (ptX_inner_path b c).
+
+Lemma etaX_pathE (b : B) (c : C) (r : ar_carrier Ar X) :
+  path_fun (etaX_path b c) r = lin_pt (linhom_fun (η r) (ptensor b c)).
+Proof. by rewrite /etaX_path /= ptX_QE. Qed.
+
+Lemma etaX_pathQ (b : B) (c : C) (r : ar_carrier Ar X) :
+  path_fun (etaX_path b c) r = linhom_fun (ptX_Q b r) c.
+Proof. by rewrite etaX_pathE ptX_QE. Qed.
+
+(** *** The inner map [etaX_inner b : C ⊸ Path(X, 1⊸D)] (fixed [b]). *)
+
+Section EtaXInner.
+Variable b : B.
+
+Lemma etaX_inner_linear : is_linear (etaX_path b).
+Proof.
+have Qlin r := linhom_pre_linear (linhom_pre_of (ptX_Q b r)).
+split.
+- apply: path_eq => r /=.
+  have [Z0 _ _] := Qlin r.
+  rewrite -[linhom_fun (ptX_Q b r) 0%PC]/(linhom_pre_fun (linhom_pre_of (ptX_Q b r)) 0%PC).
+  by rewrite Z0 /path_zero_fun.
+- move=> c1 c2; apply: path_eq => r /=.
+  have [_ HD _] := Qlin r.
+  rewrite -[linhom_fun (ptX_Q b r) (c1 + c2)%PC]
+            /(linhom_pre_fun (linhom_pre_of (ptX_Q b r)) (c1 + c2)%PC).
+  by rewrite HD.
+- move=> s c; apply: path_eq => r /=.
+  have [_ _ HZ] := Qlin r.
+  rewrite -[linhom_fun (ptX_Q b r) (s *: c)%PC]
+            /(linhom_pre_fun (linhom_pre_of (ptX_Q b r)) (s *: c)%PC).
+  by rewrite HZ.
+Qed.
+
+Lemma etaX_inner_bounded :
+  exists M : R, forall c : C, cnorm c <= 1 -> cnorm (etaX_path b c) <= M.
+Proof.
+exists (cone_norm b) => c Hc.
+rewrite -[cnorm (etaX_path b c)]/(path_norm (etaX_path b c)).
+apply: ge_sup; first exact: path_normset_nonempty.
+move=> _ [r ->] /=.
+rewrite ptX_QE.
+apply: le_trans (lo_lift_norm_le1 (linhom_fun (η r) (ptensor b c))) _.
+apply: le_trans (linhom_norm_apply_le (lexx _) (ptensor b c)) _.
+have HbcN : cone_norm (ptensor b c) <= cone_norm b.
+  apply: le_trans (ptensor_norm_le b c) _.
+  by rewrite -[X in _ <= X]mulr1; apply: ler_wpM2l; [exact: cone_norm_ge0|exact: Hc].
+apply: le_trans (ler_wpM2r (cone_norm_ge0 _) (Hη1 r)) _.
+by rewrite mul1r.
+Qed.
+
+Lemma etaX_inner_continuous : is_omega_continuous (etaX_path b).
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: path_eq => r /=.
+rewrite /path_sup_ball_fun.
+have Qcont : is_omega_continuous (linhom_fun (ptX_Q b r)).
+  by rewrite -[linhom_fun (ptX_Q b r)]/(linhom_pre_fun (linhom_pre_of (ptX_Q b r)));
+     exact: linhom_pre_continuous.
+rewrite (Qcont u uch ub1 (path_sup_ball_chain_pw fuch r) (path_sup_ball_ub1_pw fub1 r)).
+exact: cone_sup_ball_irr.
+Qed.
+
+(** Path-preservation in [c]: tests of [Path(X,1⊸D)] are [φ ▷ (ζ ▷ mD)]
+    with [φ:Y→X], [ζ] a [1]-path, [mD] a [D]-test.  The value at
+    [etaX_path b (δ w)] is [c1_val(ζ s) · mD(s, η (φ s)(b ⊗ δ w))] — the
+    product of [ζ]'s measurable [1]-section and the pure-tensor scalar,
+    whose joint measurability is [ηpt] at arity [ar_prod Y W] (test [mD]
+    reindexed by [ar_prod_fst], [η]-index [φ ∘ fst], moving [C]-factor
+    [δ ∘ snd]). *)
+Lemma etaX_inner_pres_path (W : ar_obj Ar) (δ : ar_carrier Ar W -> C) :
+  is_measurable_path δ ->
+  is_measurable_path (fun w => etaX_path b (δ w)).
+Proof.
+move=> Hδ.
+have [[Mδ HMδ] Hδm] := Hδ.
+have Mδ_ge0 : 0 <= Mδ.
+  by apply: le_trans (HMδ (ar_point Ar W)); exact: cone_norm_ge0.
+split.
+  exists (cone_norm b * Mδ)%R => w.
+  rewrite -[cnorm (etaX_path b (δ w))]/(path_norm (etaX_path b (δ w))).
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [r ->] /=.
+  rewrite ptX_QE.
+  apply: le_trans (lo_lift_norm_le1 (linhom_fun (η r) (ptensor b (δ w)))) _.
+  apply: le_trans (linhom_norm_apply_le (lexx _) (ptensor b (δ w))) _.
+  apply: le_trans (ler_wpM2l (cone_norm_ge0 (η r)) (ptensor_norm_le b (δ w))) _.
+  rewrite mulrA.
+  apply: ler_pM.
+  - by rewrite mulr_ge0 // cone_norm_ge0.
+  - exact: cone_norm_ge0.
+  - rewrite -[X in _ <= X]mul1r; apply: ler_pM;
+      [exact: cone_norm_ge0|exact: cone_norm_ge0|exact: Hη1|exact: lexx].
+  - exact: HMδ.
+move=> Y p pM.
+have [φ [m1 [m1M Hp]]] : path_mcone_M (Y := Y) p by exact: pM.
+have [ζ [ζub [mD [mDM Hm1]]]] : linhom_mcone_M (Y := Y) m1 by exact: m1M.
+subst p m1.
+rewrite (_ : (fun p : ar_carrier Ar Y * ar_carrier Ar W =>
+   path_test φ (linhom_test ζ ζub mD mDM) m1M p.1 (etaX_path b (δ p.2))) =
+   (fun p => (c1_val (path_fun ζ p.1))%:num *
+             test_fun mD p.1 (linhom_fun (η (φ p.1)) (ptensor b (δ p.2))))); last first.
+  apply: funext => p.
+  rewrite /path_test /= /path_test_fun /=.
+  rewrite /linhom_test /= /linhom_test_fun /=.
+  rewrite ptX_QE lin_ptE.
+  by rewrite test_linZ.
+apply: measurable_funM.
+- rewrite (_ : (fun x : ar_carrier Ar Y * ar_carrier Ar W => (c1_val (ζ x.1))%:num) =
+     (fun s' : ar_carrier Ar Y =>
+        ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar) (ar_zero_pt Ar) (path_fun ζ s'))
+       \o fst); last by apply: funext => x;
+       rewrite /= /ConeOneMConeAux.id_test /= /ConeOneMConeAux.id_test_fun.
+  apply: (measurable_comp (F := setT) measurableT (subsetT _) _ measurable_fst).
+  exact: (measurable_test_path_section (B := cone_one_car Ar)
+            (m := ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar))
+            (erefl) (path_is_path ζ) (ar_zero_pt Ar)).
+- pose φfw : ar_hom Ar (ar_prod Ar Y W) X :=
+    [the {mfun _ >-> _} of φ \o ar_prod_fst Y W].
+  pose mDfw : test_of Ar (ar_prod Ar Y W) D := test_reindex (ar_prod_fst Y W) mD.
+  have mDfwM : mcone_M (ar_prod Ar Y W) mDfw by exact: mcone_M_comp.
+  have HYW := ηpt mDfwM φfw
+    (@const_path_measurable R Ar B (ar_prod Ar Y W) b)
+    (reindex_path_measurable (ar_prod_snd Y W) Hδ).
+  rewrite (_ : (fun x : ar_carrier Ar Y * ar_carrier Ar W =>
+     test_fun mD x.1 (linhom_fun (η (φ x.1)) (ptensor b (δ x.2)))) =
+     (fun s : ar_carrier Ar (ar_prod Ar Y W) =>
+      test_fun mDfw s
+        (linhom_fun (η (φfw s)) (ptensor b (δ (ar_prod_snd Y W s)))))
+       \o (@ar_prod_cast R Ar Y W)); last first.
+    apply: funext => p.
+    rewrite /φfw /mDfw /test_reindex /test_reindex_fun /=.
+    rewrite /ar_prod_fst /ar_prod_fst_fun /ar_prod_snd /ar_prod_snd_fun
+            !ar_prod_castK /=.
+    by [].
+  exact: (measurable_comp (F := setT) measurableT (subsetT _) HYW
+            (ar_prod_cast_meas Ar Y W)).
+Qed.
+
+Definition etaX_inner_pre : linhom_pre Ar C PX :=
+  MkLinhomPre (etaX_path b) etaX_inner_linear etaX_inner_continuous
+              etaX_inner_bounded
+              (fun W δ Hδ => etaX_inner_pres_path (W:=W) (δ:=δ) Hδ).
+
+(** Integral-preservation in [c]: by [icone_integral_eqP] on [Path(X,1⊸D)]
+    at an arity-0 path-test [φ ▷ (ζ ▷ mD)].  The value at [etaX_path b c]
+    is [c1_val(ζ z) · mD(z, η (φ z)(b ⊗ c))]; the [(B⊗C)⊸D]-section
+    [c ↦ η (φ z)(b ⊗ c)] is the integral-preserving composite
+    [LL := (η (φ z)) ∘ (τ b)], so [mD(z, LL(∫δ)) = ∫ mD(z, LL(δ w))] by
+    [LL]'s integral law + the [D]-test [icone_integralP], and the scalar
+    [c1_val(ζ z)] factors out via [ge0_integralZl_EFin]. *)
+Lemma etaX_inner_pres_int (W : ar_obj Ar) (δ : ar_carrier Ar W -> C)
+    (Hδ : is_measurable_path δ) (µ : fmeas R (ar_carrier Ar W)) :
+  linhom_pre_fun etaX_inner_pre (icone_integral δ Hδ µ) =
+  icone_integral
+    (fun w => linhom_pre_fun etaX_inner_pre (δ w))
+    (linhom_pre_pres_path etaX_inner_pre W δ Hδ) µ.
+Proof.
+rewrite -[linhom_pre_fun etaX_inner_pre]/(etaX_path b).
+have HE : icone_integral (fun w => etaX_path b (δ w))
+            (etaX_inner_pres_path Hδ) µ =
+          icone_integral (fun w => etaX_path b (δ w))
+            (linhom_pre_pres_path etaX_inner_pre W δ Hδ) µ.
+  by congr icone_integral; exact: Prop_irrelevance.
+rewrite -HE.
+apply: icone_integral_eqP => p pM z.
+have [φ [m1 [m1M Hp]]] : path_mcone_M (Y := ar_zero Ar) p by exact: pM.
+have [ζ [ζub [mD [mDM Hm1]]]] : linhom_mcone_M (Y := ar_zero Ar) m1 by exact: m1M.
+subst p m1.
+set K : R := (c1_val (path_fun ζ z))%:num.
+have valE : forall c : C,
+    path_test φ (linhom_test ζ ζub mD mDM) m1M z (etaX_path b c) =
+    K * test_fun mD z (linhom_fun (η (φ z)) (ptensor b c)).
+  move=> c.
+  rewrite /path_test /= /path_test_fun /= /linhom_test /= /linhom_test_fun /=.
+  rewrite ptX_QE lin_ptE test_linZ.
+  by rewrite /K.
+rewrite valE.
+under [in RHS]eq_integral => r _ do rewrite valE.
+pose r0 := φ z.
+pose LL : linhom_car Ar C D := linhom_comp (η r0) (hfun (tauL B C) b).
+have LLE : forall c : C, linhom_fun (η r0) (ptensor b c) = linhom_fun LL c.
+  by move=> c; rewrite /LL linhom_compE -/(ptensor b c).
+rewrite -/r0.
+under [in RHS]eq_integral => r _ do rewrite LLE.
+rewrite LLE.
+have HLLint := linhom_pres_int LL W δ Hδ µ.
+have Hsec : test_fun mD z (linhom_fun LL (icone_integral δ Hδ µ)) =
+  fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar W])
+          (test_fun mD z (linhom_fun LL (δ r)))%:E).
+  rewrite -[linhom_fun LL (icone_integral δ Hδ µ)]/(LL (icone_integral δ Hδ µ)).
+  rewrite HLLint.
+  have := icone_integralP (fun r => LL (δ r)) (linhom_pre_pres_path LL W δ Hδ) µ
+            mD mDM z.
+  by [].
+rewrite Hsec.
+have Kge0 : 0 <= K by rewrite /K.
+have meas_f : measurable_fun [set: ar_carrier Ar W]
+    (fun r => (test_fun mD z (linhom_fun LL (δ r)))%:E).
+  apply/measurable_EFinP.
+  exact: (measurable_test_path_section (B := D)
+            (m := mD) mDM (linhom_pre_pres_path LL W δ Hδ) z).
+under [in RHS]eq_integral => r _ do rewrite EFinM.
+rewrite lebesgue_integral_nonneg.ge0_integralZl_EFin//;
+  last by move=> r _; rewrite lee_fin test_ge0.
+rewrite fineM//.
+rewrite ge0_fin_numE; last by apply: integral_ge0 => r _; rewrite lee_fin test_ge0.
+have [[Mδ HMδ] _] := Hδ.
+apply: (@le_lt_trans _ _
+  (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar W]) (cone_norm LL * Mδ)%:E)%E).
+  apply: (ge0_le_integral _ measurableT _ meas_f (measurable_cst _)).
+  - by move=> r _; rewrite lee_fin test_ge0.
+  - move=> r _; rewrite lee_fin.
+    apply: le_trans (test_norm_le mD z (linhom_fun LL (δ r))) _.
+    apply: le_trans (linhom_norm_apply_le (lexx _) (δ r)) _.
+    by apply: ler_wpM2l; [exact: linhom_norm_ge0|exact: HMδ].
+rewrite -[(fun=> _)]/(cst (cone_norm LL * Mδ)%:E)
+        lebesgue_integral_nonneg.integral_cst//.
+by rewrite ltey_eq fin_numM// fmeas_setT_fin.
+Qed.
+
+End EtaXInner.
+
+(** The inner element [etaX_inner b : C ⊸ Path(X, 1⊸D)]. *)
+Definition etaX_inner (b : B) : linhom_car Ar C PX :=
+  MkLinhom (etaX_inner_pre b) (@etaX_inner_pres_int b).
+
+Lemma etaX_innerE (b : B) (c : C) (r : ar_carrier Ar X) :
+  path_fun (linhom_fun (etaX_inner b) c) r =
+  lin_pt (linhom_fun (η r) (ptensor b c)).
+Proof. by rewrite -[linhom_fun (etaX_inner b) c]/(etaX_path b c) etaX_pathE. Qed.
+
+(** Bilinearity of the pure tensor in the [B]-slot. *)
+Lemma ptX_linB (b1 b2 : B) (c : C) :
+  ptensor (b1 + b2)%PC c = (ptensor b1 c + ptensor b2 c)%PC.
+Proof.
+have [_ HD _] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones (tauL B C))).
+rewrite /ptensor.
+rewrite -[hfun (tauL B C) (b1 + b2)%PC]
+          /(cones_hom_fun (mcones_hom_cones (icones_hom_mcones (tauL B C))) (b1 + b2)%PC).
+rewrite HD.
+by rewrite [linhom_fun (_ + _)%PC c]/linhom_fun /= /linhom_add_fun /=.
+Qed.
+
+Lemma ptX_zeroB (c : C) : ptensor (0%PC : B) c = (0%PC : BC).
+Proof.
+have [Z0 _ _] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones (tauL B C))).
+rewrite /ptensor.
+rewrite -[hfun (tauL B C) (0%PC : B)]
+          /(cones_hom_fun (mcones_hom_cones (icones_hom_mcones (tauL B C))) (0%PC : B)).
+rewrite Z0.
+by rewrite [linhom_fun (0%PC : linhom_car Ar C BC) c]/linhom_fun /= /linhom_zero_fun.
+Qed.
+
+Lemma ptX_scaleB (s : {nonneg R}) (b : B) (c : C) :
+  ptensor (s *: b)%PC c = (s *: ptensor b c)%PC.
+Proof.
+have [_ _ HZ] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones (tauL B C))).
+rewrite /ptensor.
+rewrite -[hfun (tauL B C) (s *: b)%PC]
+          /(cones_hom_fun (mcones_hom_cones (icones_hom_mcones (tauL B C))) (s *: b)%PC).
+rewrite HZ.
+by rewrite [linhom_fun (s *: _)%PC c]/linhom_fun /= /linhom_scale_fun.
+Qed.
+
+(** *** The outer morphism [etaX' : ICones(B, C ⊸ Path(X, 1⊸D))]. *)
+
+Lemma etaX_outer_linear : is_linear etaX_inner.
+Proof.
+split.
+- apply: linhom_eq => c; apply: path_eq => r /=.
+  rewrite ptX_QE ptX_zeroB.
+  have [Z0 _ _] := linhom_pre_linear (linhom_pre_of (η r)).
+  rewrite -[linhom_fun (η r) 0%PC]/(linhom_pre_fun (linhom_pre_of (η r)) 0%PC) Z0.
+  have [Z0' _ _] := @lo_lift_linear R Ar D.
+  rewrite -[lin_pt 0%PC]/(lin_pt (C:=D) 0%PC) Z0'.
+  by rewrite /path_zero_fun.
+- move=> b1 b2; apply: linhom_eq => c; apply: path_eq => r /=.
+  rewrite !ptX_QE ptX_linB.
+  have [_ HD _] := linhom_pre_linear (linhom_pre_of (η r)).
+  rewrite -[linhom_fun (η r) (ptensor b1 c + ptensor b2 c)%PC]
+            /(linhom_pre_fun (linhom_pre_of (η r)) (ptensor b1 c + ptensor b2 c)%PC) HD.
+  have [_ HD' _] := @lo_lift_linear R Ar D.
+  rewrite -[lin_pt (linhom_fun (η r) (ptensor b1 c) + linhom_fun (η r) (ptensor b2 c))%PC]
+            /(lin_pt (C:=D)
+                (linhom_fun (η r) (ptensor b1 c) + linhom_fun (η r) (ptensor b2 c))%PC) HD'.
+  by [].
+- move=> s b; apply: linhom_eq => c; apply: path_eq => r /=.
+  rewrite !ptX_QE ptX_scaleB.
+  have [_ _ HZ] := linhom_pre_linear (linhom_pre_of (η r)).
+  rewrite -[linhom_fun (η r) (s *: ptensor b c)%PC]
+            /(linhom_pre_fun (linhom_pre_of (η r)) (s *: ptensor b c)%PC) HZ.
+  have [_ _ HZ'] := @lo_lift_linear R Ar D.
+  rewrite -[lin_pt (s *: linhom_fun (η r) (ptensor b c))%PC]
+            /(lin_pt (C:=D) (s *: linhom_fun (η r) (ptensor b c))%PC) HZ'.
+  by [].
+Qed.
+
+Lemma etaX_outer_norm (b : B) : cone_norm (etaX_inner b) <= cone_norm b.
+Proof.
+rewrite -[cone_norm (etaX_inner b)]/(linhom_norm (etaX_inner b)).
+apply: linhom_norm_sup_lub => c Hc.
+rewrite -[cnorm (linhom_fun (etaX_inner b) c)]/(path_norm (linhom_fun (etaX_inner b) c)).
+apply: ge_sup; first exact: path_normset_nonempty.
+move=> _ [r ->].
+rewrite etaX_innerE.
+apply: le_trans (lo_lift_norm_le1 (linhom_fun (η r) (ptensor b c))) _.
+apply: le_trans (linhom_norm_apply_le (lexx _) (ptensor b c)) _.
+have HbcN : cone_norm (ptensor b c) <= cone_norm b.
+  apply: le_trans (ptensor_norm_le b c) _.
+  by rewrite -[X in _ <= X]mulr1; apply: ler_wpM2l; [exact: cone_norm_ge0|exact: Hc].
+apply: le_trans (ler_wpM2r (cone_norm_ge0 _) (Hη1 r)) _.
+by rewrite mul1r.
+Qed.
+
+(** The [b]-slot composite integrable map [ptX_QB c r : B ⊸ (1⊸D)],
+    [b ↦ lin_pt (η r (b⊗c))] = [lo_lift ∘ (η r) ∘ (eval_at c) ∘ τ]. *)
+Definition ptX_QB (c : C) (r : ar_carrier Ar X) : linhom_car Ar B L1D :=
+  linhom_comp (icones_to_linhom (lo_lift (C:=D)))
+    (linhom_comp (η r) (linhom_comp (eval_at c) (icones_to_linhom (tauL B C)))).
+
+Lemma ptX_QBE (c : C) (r : ar_carrier Ar X) (b : B) :
+  linhom_fun (ptX_QB c r) b = lin_pt (linhom_fun (η r) (ptensor b c)).
+Proof.
+rewrite /ptX_QB !linhom_compE icones_to_linhomE.
+rewrite -[hfun (lo_lift (C:=D)) _]/(lin_pt _).
+rewrite eval_atE icones_to_linhomE.
+by rewrite -/(ptensor b c).
+Qed.
+
+Lemma etaX_outer_continuous : is_omega_continuous etaX_inner.
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: (@linhom_mcone_M_sep _ _ C PX) => p.
+move=> [γC [γCub [mPX [mPXM Hp]]]].
+have [φ [m1 [m1M HmPX]]] : path_mcone_M (Y := ar_zero Ar) mPX by exact: mPXM.
+have [ζ [ζub [m2 [m2M Hm1]]]] : linhom_mcone_M (Y := ar_zero Ar) m1 by exact: m1M.
+rewrite Hp /linhom_test /linhom_test_fun /=.
+set s0 := ar_zero_pt Ar.
+have mPXred : forall (γ : PX),
+    mPX s0 γ = m2 s0 (linhom_fun (path_fun γ (φ s0)) (path_fun ζ s0)).
+  move=> γ.
+  by rewrite HmPX /path_test /= /path_test_fun /= Hm1
+             /linhom_test /= /linhom_test_fun /=.
+rewrite !mPXred.
+set c' := path_fun γC s0.
+set r0 := φ s0.
+rewrite -[linhom_fun (etaX_inner (cone_sup_ball u uch ub1)) c']
+          /(etaX_path (cone_sup_ball u uch ub1) c').
+rewrite etaX_pathE -ptX_QBE.
+have Hc'1 : cone_norm c' <= 1.
+  by apply: le_trans (path_norm_ub γC s0) _; rewrite -[path_norm γC]/(cnorm γC).
+set φlh := ptX_QB c' r0.
+have φcont : is_omega_continuous (linhom_fun φlh).
+  by rewrite -[linhom_fun φlh]/(linhom_pre_fun (linhom_pre_of φlh));
+     exact: linhom_pre_continuous.
+have φnorm : linhom_norm φlh <= 1.
+  rewrite -[linhom_norm φlh]/(cone_norm φlh).
+  apply: linhom_norm_sup_lub => b Hb.
+  rewrite ptX_QBE.
+  apply: le_trans (lo_lift_norm_le1 (linhom_fun (η r0) (ptensor b c'))) _.
+  apply: le_trans (linhom_norm_apply_le (lexx _) (ptensor b c')) _.
+  apply: le_trans (ler_wpM2r (cone_norm_ge0 _) (Hη1 r0)) _.
+  rewrite mul1r.
+  apply: le_trans (ptensor_norm_le b c') _.
+  by apply: mulr_ile1; [exact: cone_norm_ge0|exact: cone_norm_ge0|exact: Hb|exact: Hc'1].
+have Hch : forall n, precone_le (linhom_fun φlh (u n)) (linhom_fun φlh (u n.+1)).
+  move=> n; have [w Hw] := uch n.
+  exists (linhom_fun φlh w).
+  have [_ HD _] := linhom_pre_linear (linhom_pre_of φlh).
+  by rewrite Hw -[linhom_fun φlh _]/(linhom_pre_fun (linhom_pre_of φlh) _) HD.
+have Hub : forall n, cone_norm (linhom_fun φlh (u n)) <= 1.
+  move=> n; apply: le_trans (linhom_norm_apply_le (lexx _) (u n)) _.
+  rewrite -[X in _ <= X]mulr1; apply: ler_pM;
+    [exact: linhom_norm_ge0|exact: cone_norm_ge0|exact: φnorm|exact: ub1].
+rewrite (φcont u uch ub1 Hch Hub).
+rewrite -[linhom_fun (cone_sup_ball (linhom_fun φlh \o u) Hch Hub) (ζ s0)]
+          /(linhom_sup_fun Hch Hub (ζ s0)).
+rewrite (linhom_sup_fun_test_sup Hch Hub m2 s0 (ζ s0)).
+rewrite -[r0]/(φ s0).
+rewrite -(mPXred (linhom_fun (cone_sup_ball (etaX_inner \o u) fuch fub1) c')).
+rewrite -[linhom_fun (cone_sup_ball (etaX_inner \o u) fuch fub1) c']
+          /(linhom_sup_fun fuch fub1 c').
+rewrite (linhom_sup_fun_test_sup fuch fub1 mPX s0 c').
+congr (sup _); apply: eq_imagel => n _ /=.
+rewrite (mPXred (linhom_fun (etaX_inner (u n)) c')).
+congr (m2 s0 (linhom_fun _ (ζ s0))).
+rewrite -[linhom_fun (etaX_inner (u n)) c' (φ s0)]
+          /(path_fun (linhom_fun (etaX_inner (u n)) c') (φ s0)).
+rewrite etaX_innerE.
+by rewrite ptX_QBE.
+Qed.
+
+(** Path-preservation in [b]. *)
+Lemma etaX_outer_pres_path (W : ar_obj Ar) (δb : ar_carrier Ar W -> B) :
+  is_measurable_path δb ->
+  is_measurable_path (fun w => etaX_inner (δb w)).
+Proof.
+move=> Hδb.
+have [[Mδ HMδ] Hδbm] := Hδb.
+have Mδ_ge0 : 0 <= Mδ.
+  by apply: le_trans (HMδ (ar_point Ar W)); exact: cone_norm_ge0.
+split.
+  exists Mδ => w.
+  by apply: le_trans (etaX_outer_norm (δb w)) _; exact: HMδ.
+move=> Y p pM.
+have [γC [γCub [mPX [mPXM Hp]]]] : linhom_mcone_M (Y := Y) p by exact: pM.
+have [φ [m1 [m1M HmPX]]] : path_mcone_M (Y := Y) mPX by exact: mPXM.
+have [ζ [ζub [mD [mDM Hm1]]]] : linhom_mcone_M (Y := Y) m1 by exact: m1M.
+subst p mPX m1.
+rewrite (_ : (fun p : ar_carrier Ar Y * ar_carrier Ar W =>
+   linhom_test γC γCub (path_test φ (linhom_test ζ ζub mD mDM) m1M) mPXM p.1
+     (etaX_inner (δb p.2))) =
+   (fun p => (c1_val (path_fun ζ p.1))%:num *
+             test_fun mD p.1 (linhom_fun (η (φ p.1))
+                        (ptensor (δb p.2) (path_fun γC p.1))))); last first.
+  apply: funext => p.
+  rewrite /linhom_test /= /linhom_test_fun /=.
+  rewrite ptX_QE lin_ptE test_linZ.
+  by [].
+apply: measurable_funM.
+- rewrite (_ : (fun x : ar_carrier Ar Y * ar_carrier Ar W => (c1_val (ζ x.1))%:num) =
+     (fun s' : ar_carrier Ar Y =>
+        ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar) (ar_zero_pt Ar) (path_fun ζ s'))
+       \o fst); last by apply: funext => x;
+       rewrite /= /ConeOneMConeAux.id_test /= /ConeOneMConeAux.id_test_fun.
+  apply: (measurable_comp (F := setT) measurableT (subsetT _) _ measurable_fst).
+  exact: (measurable_test_path_section (B := cone_one_car Ar)
+            (m := ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar))
+            (erefl) (path_is_path ζ) (ar_zero_pt Ar)).
+- pose φfw : ar_hom Ar (ar_prod Ar Y W) X :=
+    [the {mfun _ >-> _} of φ \o ar_prod_fst Y W].
+  pose mDfw : test_of Ar (ar_prod Ar Y W) D := test_reindex (ar_prod_fst Y W) mD.
+  have mDfwM : mcone_M (ar_prod Ar Y W) mDfw by exact: mcone_M_comp.
+  have HYW := ηpt mDfwM φfw
+    (reindex_path_measurable (ar_prod_snd Y W) Hδb)
+    (reindex_path_measurable (ar_prod_fst Y W) (path_is_path γC)).
+  rewrite (_ : (fun x : ar_carrier Ar Y * ar_carrier Ar W =>
+     test_fun mD x.1 (linhom_fun (η (φ x.1)) (ptensor (δb x.2) (path_fun γC x.1)))) =
+     (fun s : ar_carrier Ar (ar_prod Ar Y W) =>
+      test_fun mDfw s
+        (linhom_fun (η (φfw s))
+           (ptensor (δb (ar_prod_snd Y W s)) (path_fun γC (ar_prod_fst Y W s)))))
+       \o (@ar_prod_cast R Ar Y W)); last first.
+    apply: funext => p.
+    rewrite /φfw /mDfw /test_reindex /test_reindex_fun /=.
+    rewrite /ar_prod_fst /ar_prod_fst_fun /ar_prod_snd /ar_prod_snd_fun
+            !ar_prod_castK /=.
+    by [].
+  exact: (measurable_comp (F := setT) measurableT (subsetT _) HYW
+            (ar_prod_cast_meas Ar Y W)).
+Qed.
+
+(** Integral-preservation in [b]. *)
+Lemma etaX_outer_pres_int (W : ar_obj Ar) (δb : ar_carrier Ar W -> B)
+    (Hδb : is_measurable_path δb) (µ : fmeas R (ar_carrier Ar W)) :
+  etaX_inner (icone_integral δb Hδb µ) =
+  icone_integral (fun w => etaX_inner (δb w)) (etaX_outer_pres_path Hδb) µ.
+Proof.
+apply: icone_integral_eqP => p pM z.
+have [γC [γCub [mPX [mPXM Hp]]]] : linhom_mcone_M (Y := ar_zero Ar) p by exact: pM.
+have [φ [m1 [m1M HmPX]]] : path_mcone_M (Y := ar_zero Ar) mPX by exact: mPXM.
+have [ζ [ζub [mD [mDM Hm1]]]] : linhom_mcone_M (Y := ar_zero Ar) m1 by exact: m1M.
+subst p mPX m1.
+set K : R := (c1_val (path_fun ζ z))%:num.
+set c' := path_fun γC z.
+set r0 := φ z.
+have valE : forall b : B,
+    linhom_test γC γCub (path_test φ (linhom_test ζ ζub mD mDM) m1M) mPXM z
+      (etaX_inner b) =
+    K * test_fun mD z (linhom_fun (η r0) (ptensor b c')).
+  move=> b.
+  rewrite /linhom_test /= /linhom_test_fun /=.
+  rewrite /path_test /= /path_test_fun /=.
+  rewrite ptX_QE lin_ptE test_linZ.
+  by rewrite /K /c' /r0.
+rewrite valE.
+under [in RHS]eq_integral => w _ do rewrite valE.
+pose LLb : linhom_car Ar B D :=
+  linhom_comp (η r0) (linhom_comp (eval_at c') (icones_to_linhom (tauL B C))).
+have LLbE : forall b : B, linhom_fun (η r0) (ptensor b c') = linhom_fun LLb b.
+  move=> b; rewrite /LLb !linhom_compE icones_to_linhomE eval_atE.
+  by rewrite -/(ptensor b c').
+rewrite LLbE.
+under [in RHS]eq_integral => w _ do rewrite LLbE.
+have HLLbint := linhom_pres_int LLb W δb Hδb µ.
+have Hsec : test_fun mD z (linhom_fun LLb (icone_integral δb Hδb µ)) =
+  fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar W])
+          (test_fun mD z (linhom_fun LLb (δb r)))%:E).
+  rewrite -[linhom_fun LLb (icone_integral δb Hδb µ)]/(LLb (icone_integral δb Hδb µ)).
+  rewrite HLLbint.
+  have := icone_integralP (fun r => LLb (δb r)) (linhom_pre_pres_path LLb W δb Hδb) µ
+            mD mDM z.
+  by [].
+rewrite Hsec.
+have Kge0 : 0 <= K by rewrite /K.
+have meas_f : measurable_fun [set: ar_carrier Ar W]
+    (fun r => (test_fun mD z (linhom_fun LLb (δb r)))%:E).
+  apply/measurable_EFinP.
+  exact: (measurable_test_path_section (B := D)
+            (m := mD) mDM (linhom_pre_pres_path LLb W δb Hδb) z).
+under [in RHS]eq_integral => r _ do rewrite EFinM.
+rewrite lebesgue_integral_nonneg.ge0_integralZl_EFin//;
+  last by move=> r _; rewrite lee_fin test_ge0.
+rewrite fineM//.
+rewrite ge0_fin_numE; last by apply: integral_ge0 => r _; rewrite lee_fin test_ge0.
+have [[Mδ HMδ] _] := Hδb.
+apply: (@le_lt_trans _ _
+  (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar W]) (cone_norm LLb * Mδ)%:E)%E).
+  apply: (ge0_le_integral _ measurableT _ meas_f (measurable_cst _)).
+  - by move=> r _; rewrite lee_fin test_ge0.
+  - move=> r _; rewrite lee_fin.
+    apply: le_trans (test_norm_le mD z (linhom_fun LLb (δb r))) _.
+    apply: le_trans (linhom_norm_apply_le (lexx _) (δb r)) _.
+    by apply: ler_wpM2l; [exact: linhom_norm_ge0|exact: HMδ].
+rewrite -[(fun=> _)]/(cst (cone_norm LLb * Mδ)%:E)
+        lebesgue_integral_nonneg.integral_cst//.
+by rewrite ltey_eq fin_numM// fmeas_setT_fin.
+Qed.
+
+(** *** Assembly of [etaX' : ICones(B, C ⊸ Path(X, 1⊸D))]. *)
+Definition etaX_outer_cones : cones_hom B (linhom_car Ar C PX) :=
+  ConesHom etaX_inner etaX_outer_linear etaX_outer_continuous etaX_outer_norm.
+
+Definition etaX_outer_mcones : mcones_hom Ar B (linhom_car Ar C PX) :=
+  MkMConesHom etaX_outer_cones
+    (fun W δb Hδb => etaX_outer_pres_path (W:=W) (δb:=δb) Hδb).
+
+Lemma etaX_outer_mcones_pres_int
+    (W : ar_obj Ar) (δb : ar_carrier Ar W -> B)
+    (Hδb : is_measurable_path δb) (µ : fmeas R (ar_carrier Ar W)) :
+  cones_hom_fun (mcones_hom_cones etaX_outer_mcones) (icone_integral δb Hδb µ) =
+  icone_integral
+    (fun w => cones_hom_fun (mcones_hom_cones etaX_outer_mcones) (δb w))
+    (mcones_hom_pres_path etaX_outer_mcones W δb Hδb) µ.
+Proof.
+rewrite -[cones_hom_fun _ _]/(etaX_inner (icone_integral δb Hδb µ)).
+rewrite (etaX_outer_pres_int Hδb µ).
+by congr icone_integral; exact: Prop_irrelevance.
+Qed.
+
+Definition etaX' : icones_hom Ar B (linhom_car Ar C PX) :=
+  MkIConesHom etaX_outer_mcones etaX_outer_mcones_pres_int.
+
+Lemma etaX'E (b : B) (c : C) (r : ar_carrier Ar X) :
+  path_fun (linhom_fun ((etaX' : icones_hom _ _ _) b) c) r =
+  lin_pt (linhom_fun (η r) (ptensor b c)).
+Proof. by rewrite -[(etaX' : icones_hom _ _ _) b]/(etaX_inner b) etaX_innerE. Qed.
+
+(** *** Paper [lemma:path-tens-to-one] at codomain [D] (norm-≤1 case).
+
+    Uncurry [etaX'] to [euc : ICones(B⊗C, Path(X, 1⊸D))]; apply
+    [lfun_path_swap] (with [B':=B⊗C], [C':=1], [D':=D]) to get
+    [h : ICones(1, Path(X, (B⊗C)⊸D))].  Then [path_fun (h 1) r = η r] by
+    [linhom_tensor_ext] (pure-tensor extensionality): on a pure tensor
+    [b⊗c], [(h 1)(r)(b⊗c) = euc(b⊗c)(r)(1) = lin_pt(η r (b⊗c))(1)
+    = η r (b⊗c)] (by [tensor_uncurryK], [etaX'E], [lin_pt_unit]). *)
+Lemma path_tens_to_X_unit : is_measurable_path η.
+Proof.
+pose euc : icones_hom Ar BC PX := tensor_uncurry etaX'.
+pose h := lfun_path_swap (X:=X) (B:=BC) (C:=cone_one_car Ar) (D:=D) euc.
+have key : forall r, path_fun ((h : icones_hom _ _ _) (c1_one Ar)) r = η r.
+  move=> r.
+  apply: linhom_tensor_ext => b c.
+  rewrite (lfun_path_swapE euc (c1_one Ar) r (ptensor b c)).
+  have Huncbc : path_fun ((euc : icones_hom _ _ _) (ptensor b c)) r =
+                lin_pt (linhom_fun (η r) (ptensor b c)).
+    rewrite /euc.
+    have HH := tensor_curryEp (tensor_uncurry etaX') b c.
+    rewrite tensor_uncurryK in HH.
+    rewrite -HH.
+    rewrite -[linhom_fun (hfun etaX' b) c r]/(path_fun (linhom_fun (hfun etaX' b) c) r).
+    by rewrite -[hfun etaX' b]/(etaX_inner b) etaX_innerE.
+  rewrite Huncbc.
+  by rewrite lin_pt_unit.
+have Heq : η = (fun r => path_fun ((h : icones_hom _ _ _) (c1_one Ar)) r).
+  by apply: funext => r; rewrite key.
+rewrite Heq.
+exact: (path_is_path ((h : icones_hom _ _ _) (c1_one Ar))).
+Qed.
+
+End PathTensToX.
+
+Arguments path_tens_to_X_unit {R Ar B C D X} η Hη1 ηpt.
+
+(** ** [path_tens_to_X] — the general (merely BOUNDED) case at codomain [D] *)
+
+Section PathTensToXGen.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B C D : ICone.type Ar).
+Variable (X : ar_obj Ar).
+Local Notation One := (cone_one_car Ar).
+Local Notation BC := (tensor B C).
+Variable η : ar_carrier Ar X -> linhom_car Ar BC D.
+Hypothesis ηbound : exists M : R, forall r, cone_norm (η r) <= M.
+Hypothesis ηpt :
+  forall (Z : ar_obj Ar) (mD : test_of Ar Z D) (mDM : mcone_M Z mD)
+         (φ : ar_hom Ar Z X)
+         (β : ar_carrier Ar Z -> B) (γ : ar_carrier Ar Z -> C),
+    is_measurable_path β -> is_measurable_path γ ->
+    measurable_fun [set: ar_carrier Ar Z]
+      (fun s => test_fun mD s (linhom_fun (η (φ s)) (ptensor (β s) (γ s)))).
+
+Lemma path_tens_to_X : is_measurable_path η.
+Proof.
+have [M HM] := ηbound.
+have M_ge0 : 0 <= M by apply: le_trans (HM (ar_point Ar X)); exact: cone_norm_ge0.
+have S_pos : 0 < M + 1 by apply: le_lt_trans M_ge0 _; rewrite ltrDl ltr01.
+have Sinv_ge0 : 0 <= (M + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+pose Spos : {nonneg R} := NngNum (ltW S_pos).
+pose ηs (r : ar_carrier Ar X) : linhom_car Ar BC D := linhom_scale Sinv (η r).
+have Hηs1 : forall r, cone_norm (ηs r) <= 1.
+  move=> r.
+  rewrite -[cone_norm (ηs r)]/(linhom_norm (ηs r)) /ηs linhom_normh /=.
+  rewrite mulrC -ler_pdivlMr ?invr_gt0 // mul1r invrK.
+  by apply: le_trans (HM r) _; rewrite lerDl ler01.
+have ηspt : forall (Z : ar_obj Ar) (mD : test_of Ar Z D) (mDM : mcone_M Z mD)
+    (φ : ar_hom Ar Z X)
+    (β : ar_carrier Ar Z -> B) (γ : ar_carrier Ar Z -> C),
+    is_measurable_path β -> is_measurable_path γ ->
+    measurable_fun [set: ar_carrier Ar Z]
+      (fun s => test_fun mD s (linhom_fun (ηs (φ s)) (ptensor (β s) (γ s)))).
+  move=> Z mD mDM φ β γ Hβ Hγ.
+  rewrite (_ : (fun s =>
+      test_fun mD s (linhom_fun (ηs (φ s)) (ptensor (β s) (γ s)))) =
+    (fun s => Sinv%:num *
+      test_fun mD s (linhom_fun (η (φ s)) (ptensor (β s) (γ s))))); last first.
+    apply: funext => s.
+    rewrite /ηs.
+    rewrite -[linhom_fun (Sinv *: η (φ s))%PC (ptensor (β s) (γ s))]
+              /(linhom_scale_fun Sinv (η (φ s)) (ptensor (β s) (γ s))).
+    by rewrite /linhom_scale_fun /= test_linZ.
+  by apply: measurable_funM; [exact: measurable_cst|exact: (ηpt mDM φ Hβ Hγ)].
+have HηsP := path_tens_to_X_unit ηs Hηs1 ηspt.
+have Heq : η = (fun r => precone_scale Spos (ηs r)).
+  apply: funext => r; apply: linhom_eq => z.
+  rewrite -[linhom_fun (Spos *: ηs r)%PC z]/(linhom_scale_fun Spos (ηs r) z)
+            /linhom_scale_fun /=.
+  rewrite -[linhom_fun (ηs r) z]/(linhom_scale_fun Sinv (η r) z) /linhom_scale_fun /=.
+  rewrite -precone_scale_A.
+  have -> : (widen_itv (Spos%:num * Sinv%:num)%:itv : {nonneg R}) = 1%:nng.
+    by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+  by rewrite precone_scale_1.
+rewrite Heq.
+exact: (path_scale_is_path Spos (MkPath HηsP)).
+Qed.
+
+End PathTensToXGen.
+
+Arguments path_tens_to_X {R Ar B C D X} η ηbound ηpt.
+
 End Icones_tensor_iso.
 
 (**md**************************************************************************)
@@ -2250,23 +2999,26 @@ End Icones_tensor_iso.
 (*      unit ball by [(M+1)⁻¹] + [path_scale_is_path].                        *)
 (*    [Arguments path_tens_to_one {R Ar B C X} η ηbound ηpt].                 *)
 (*                                                                            *)
+(*  ★ P4 part 1 — DONE: [path_tens_to_X] (Paper [lemma:path-tens-to-one] at   *)
+(*    a GENERAL codomain [D]), AXIOM-FREE (Print Assumptions = 3 boolp).  The  *)
+(*    P3 construction VERBATIM with [D] in place of the inner scalar [1]:      *)
+(*    [lin_pt (C:=D)] / [lo_lift (C:=D)] (already general-[C]); the inner       *)
+(*    codomain becomes [Path(X, 1⊸D)] ([etaX_*]); [lfun_path_swap] runs with  *)
+(*    [C':=1], [D':=D]; [lin_pt_unit] recovers values.  The ONLY change vs P3 *)
+(*    is in the three test-driven fields ([ptX_inner_path], the [etaX]-slot   *)
+(*    path/integral preservation), where the singleton [1]-test [id_test]      *)
+(*    (value [c1_val]) becomes a GENERAL [D]-test [mD] (value [test_fun mD s]) *)
+(*    reindexed via [test_reindex (ar_prod_fst …)] + [mcone_M_comp]; the       *)
+(*    pure-tensor hypothesis [ηpt] is stated against an arbitrary [D]-test.    *)
+(*    [Arguments path_tens_to_X {R Ar B C D X} η ηbound ηpt].                  *)
+(*                                                                            *)
 (* REMAINING ROUTE (concrete; next iteration):                               *)
-(*  P4 — [Psi_icones] + [tensor_hom_iso] (the milestone, Parameter #10):      *)
+(*  P4 parts 2–3 — [Psi_icones] + [tensor_hom_iso] (the milestone, Param #10):*)
 (*    Ψ as [icones_hom (B⊸(C⊸D)) ((B⊗C)⊸D)], underlying map [Psi_inner]      *)
 (*    (DONE on main: [Psi_innerE] gives [Ψ(h)(b⊗c) = h(b)(c)]).               *)
-(*    - PATH field: for a measurable path [H] of [B⊸(C⊸D)], show             *)
-(*      [r ↦ Psi_inner (H r)] is a measurable path of [(B⊗C)⊸D].  Apply       *)
-(*      [path_tens_to_one] AT GENERAL CODOMAIN D — so first GENERALISE        *)
-(*      [path_tens_to_one] from codomain [1] to a general ICone [D]           *)
-(*      (a [path_tens_to_X]): EITHER redo the construction with [eval_at_D]   *)
-(*      composites in place of [lin_pt]/[lo_lift] (the [1⊸1] codomain becomes *)
-(*      [D ⊸ D]?), OR reduce D-tests to the [1]-cone via D's Prop 3.11        *)
-(*      [mcone_norm_le_pairing_ub] (test [m : D-test] ↦ scalar [m(·)], so a   *)
-(*      [(B⊗C)⊸D]-path tested by [θ ▷ m] becomes a [(B⊗C)⊸1]-style scalar     *)
-(*      path — feed [path_tens_to_one] at [η r := (eval_at-m) ∘ (H r as       *)
-(*      (B⊗C)⊸D via Psi_inner)]).  [Psi_inner]'s pure-tensor measurability    *)
-(*      ([ηpt] for [r ↦ Psi_inner(H r)]) comes from [Psi_innerE] +            *)
-(*      [H]'s own path-preservation (the [(s,r) ↦ ...(H r)(β s)(γ s)] joint   *)
+(*    - PATH field: apply [path_tens_to_X] to [r ↦ Psi_inner (H r)]; its       *)
+(*      pure-tensor measurability ([ηpt]) comes from [Psi_innerE] + [H]'s own *)
+(*      path-preservation (the [(s,r) ↦ mD(s,(H r)(β s)(γ s))] joint           *)
 (*      measurability, via the nested [B⊸(C⊸D)] test family + [ar_prod]).     *)
 (*    - INTEGRAL field: via [Phi_icones] INJECTIVE ([iso_fwd_inj] once Φ is   *)
 (*      shown to have a left inverse Ψ, OR directly: Φ(Ψ h) = h by [cod_eq] + *)
