@@ -657,10 +657,242 @@ Lemma lfps_bounded :
   exists M : R, forall y : C, cnorm y <= 1 -> cnorm (lfps y) <= M.
 Proof. by exists 1 => y Hy; apply: le_trans (lfps_norm_le y) _. Qed.
 
+(** Helper: for a fixed [r], the inner map [y ↦ swap_inner f r y : B⊸D] is
+    ω-continuous in [y].  Reduce via [linhom_mcone_M_sep] on the codomain
+    [B⊸D]: an arity-0 test is [β ▷ mD]; the value at [swap_inner f r y] is
+    [mD(s, f(β s)(r)(y))], and [φ := path_fun (f (β s)) r : C⊸D] is itself
+    ω-continuous, so both sides collapse to [sup_n mD(s, φ(u n))] —
+    LHS via [φ]'s ω-continuity + [eval_at_test_sup_ball], RHS via the
+    [B⊸D]-sup-ball law [linhom_sup_fun_test_sup]. *)
+Lemma swap_inner_continuous (r : ar_carrier Ar X) :
+  is_omega_continuous (fun y => swap_inner f r y).
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: (@linhom_mcone_M_sep _ _ B D) => p [β [βub [mD [mDM Hp]]]].
+rewrite Hp /linhom_test /linhom_test_fun /=.
+set s := ar_zero_pt Ar.
+rewrite swap_innerE.
+(* φ := path_fun (f (β s)) r : C⊸D, ω-continuous in its argument. *)
+set φ := path_fun ((f : icones_hom _ _ _) (path_fun β s)) r.
+have φcont : is_omega_continuous (linhom_fun φ).
+  by rewrite -[linhom_fun φ]/(linhom_pre_fun (linhom_pre_of φ));
+     exact: linhom_pre_continuous.
+(* RHS: the [B⊸D]-sup-ball applied at [β s] is the [linhom_sup_fun]. *)
+rewrite (linhom_sup_fun_test_sup (u := [eta swap_inner f r] \o u)
+           fuch fub1 mD s (path_fun β s)).
+(* LHS: φ (cone_sup_ball u …) = cone_sup_ball (φ∘u) … by ω-cont of φ. *)
+have Hch : forall n, precone_le (linhom_fun φ (u n)) (linhom_fun φ (u n.+1)).
+  move=> n; have [w Hw] := uch n.
+  exists (linhom_fun φ w).
+  have [_ HD _] := linhom_pre_linear (linhom_pre_of φ).
+  by rewrite Hw -[linhom_fun φ _]/(φ _) HD.
+have φnorm : linhom_norm φ <= 1.
+  rewrite /φ.
+  apply: le_trans (path_norm_ub ((f : icones_hom _ _ _) (path_fun β s)) r) _.
+  apply: le_trans
+    (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones f)) (path_fun β s)) _.
+  by apply: le_trans (path_norm_ub β s) _; exact: βub.
+have Hub : forall n, cone_norm (linhom_fun φ (u n)) <= 1.
+  move=> n; apply: le_trans (linhom_norm_apply_le (lexx _) (u n)) _.
+  rewrite -[X in _ <= X]mulr1; apply: ler_pM;
+    [exact: linhom_norm_ge0|exact: cone_norm_ge0|exact: φnorm|exact: ub1].
+rewrite (φcont u uch ub1 Hch Hub).
+rewrite (eval_at_test_sup_ball Hch Hub mD s).
+congr (sup _); apply: eq_imagel => n _ /=.
+by rewrite swap_innerE.
+Qed.
+
+(** ω-continuity of [lfps] (into the [Path] codomain).  [cone_sup_ball]
+    in [Path(X, B⊸D)] is pointwise ([path_sup_ball_fun]); the value at
+    [r] of [lfps] is [swap_inner f r], so the identity reduces, at each
+    [r], to [swap_inner_continuous r] (modulo [cone_sup_ball_irr]). *)
+Lemma lfps_continuous : is_omega_continuous lfps.
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: path_eq => r /=.
+rewrite /path_sup_ball_fun.
+rewrite (swap_inner_continuous uch ub1
+  (path_sup_ball_chain_pw fuch r) (path_sup_ball_ub1_pw fub1 r)).
+exact: cone_sup_ball_irr.
+Qed.
+
+(** Path-preservation of [lfps]: for a measurable [C]-path [δ : W → C],
+    [w ↦ lfps (δ w)] is a measurable path of [Path(X, B⊸D)].
+
+    Reduce via the [Path(X,B⊸D)] test family: a test is [φ ▷ m] with
+    [φ : Z → X] an arrow and [m] a [B⊸D]-test [= β ▷ mD].  The value at
+    [lfps (δ w)] is [mD(s, f(β s)(φ s)(δ w))].  We obtain its joint
+    measurability in [(s, w)] by testing the [Path(X,C⊸D)]-path
+    [s ↦ f(β s)] (which [f] preserves), reindexed to the product arity
+    [Z × W], against the test that picks the [X]-coordinate via
+    [φ ∘ fst], evaluates the inner [C⊸D] at the rescaled [δ ∘ snd]
+    (unit ball), and tests [D] with [mD ∘ fst]; then pull back along the
+    diagonal and rescale. *)
+Lemma lfps_pres_path
+    (W : ar_obj Ar) (δ : ar_carrier Ar W -> C) :
+  is_measurable_path δ ->
+  is_measurable_path (fun w => lfps (δ w)).
+Proof.
+move=> Hδ.
+have [[Mδ HMδ] Hδm] := Hδ.
+have Mδ_ge0 : 0 <= Mδ.
+  by apply: le_trans (HMδ (ar_point Ar W)); exact: cone_norm_ge0.
+split.
+  exists Mδ => w.
+  by apply: le_trans (lfps_norm_le (δ w)) _; exact: HMδ.
+move=> Z p [φ [m [mM ->]]].
+have [β [βub [mD [mDM Hm]]]] : linhom_mcone_M (Y := Z) m by exact: mM.
+subst m.
+(* The [Path(X,C⊸D)]-path [s ↦ f(β s)], which [f] preserves. *)
+have Hfβ : is_measurable_path (fun s => (f : icones_hom _ _ _) (path_fun β s)).
+  exact: (mcones_hom_pres_path (icones_hom_mcones f) Z (path_fun β) (path_is_path β)).
+(* Rescale [δ] into the unit ball uniformly by [(Mδ+1)⁻¹]. *)
+have S_pos : 0 < Mδ + 1 by apply: le_lt_trans Mδ_ge0 _; rewrite ltrDl ltr01.
+have Sinv_ge0 : 0 <= (Mδ + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+(* Reindex [f(β ·)] (over Z) to a path at arity [ar_prod Z W] picking Z. *)
+pose Pfst : ar_carrier Ar (ar_prod Ar Z W) -> path_car Ar X (linhom_car Ar C D)
+  := fun q => (f : icones_hom _ _ _) (path_fun β (ar_prod_fst Z W q)).
+have HPfst : is_measurable_path Pfst.
+  exact: (reindex_path_measurable (ar_prod_fst Z W) Hfβ).
+(* The rescaled [C]-path [δ ∘ snd] at arity [ar_prod Z W], unit ball. *)
+pose δsnd : ar_carrier Ar (ar_prod Ar Z W) -> C :=
+  fun q => precone_scale Sinv (δ (ar_prod_snd Z W q)).
+have Hδscaled : is_measurable_path (fun w => precone_scale Sinv (δ w)).
+  exact: (path_scale_is_path Sinv (MkPath Hδ)).
+have Hδsnd : is_measurable_path δsnd.
+  exact: (reindex_path_measurable (ar_prod_snd Z W) Hδscaled).
+pose δA : path_car Ar (ar_prod Ar Z W) C := MkPath Hδsnd.
+have δA_ub : cone_norm δA <= 1.
+  rewrite /cone_norm /=.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [q ->] /=.
+  rewrite /δsnd cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by apply: le_trans (HMδ (ar_prod_snd Z W q)) _; rewrite lerDl.
+(* The C⊸D-test: evaluate at δA, test with mD reindexed to pick Z. *)
+pose mDfst : test_of Ar (ar_prod Ar Z W) D := test_reindex (ar_prod_fst Z W) mD.
+have mDfstM : mcone_M (ar_prod Ar Z W) mDfst by exact: mcone_M_comp.
+pose mCD : test_of Ar (ar_prod Ar Z W) (linhom_car Ar C D) :=
+  linhom_test δA δA_ub mDfst mDfstM.
+have mCDM : mcone_M (ar_prod Ar Z W) mCD.
+  by exists δA, δA_ub, mDfst, mDfstM.
+(* The Path(X,C⊸D)-test picking X-coordinate via [φ ∘ fst]. *)
+pose φfst : ar_hom Ar (ar_prod Ar Z W) X :=
+  [the {mfun _ >-> _} of φ \o ar_prod_fst Z W].
+pose mP : test_of Ar (ar_prod Ar Z W) (path_car Ar X (linhom_car Ar C D)) :=
+  path_test φfst mCD mCDM.
+have mPM : mcone_M (ar_prod Ar Z W) mP by exists φfst, mCD, mCDM.
+have [_ HPfstm] := HPfst.
+have HPtest := HPfstm (ar_prod Ar Z W) mP mPM.
+pose ψ (sw : (ar_carrier Ar Z * ar_carrier Ar W)%type) :
+  (ar_carrier Ar (ar_prod Ar Z W) * ar_carrier Ar (ar_prod Ar Z W))%type :=
+  (ar_prod_cast (sw.1, sw.2), ar_prod_cast (sw.1, sw.2)).
+have ψ_meas : measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar W)%type] ψ.
+  apply: measurable_fun_pair.
+  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z W)).
+    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z W)).
+    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+rewrite (_ : (fun p0 : (ar_carrier Ar Z * ar_carrier Ar W)%type =>
+                path_test φ (linhom_test β βub mD mDM) mM p0.1 (lfps (δ p0.2))) =
+             (fun sw : (ar_carrier Ar Z * ar_carrier Ar W)%type =>
+                (Mδ + 1) * (mP (ψ sw).1 (Pfst (ψ sw).2)))); last first.
+  apply: funext => sw.
+  rewrite /ψ /mP /Pfst /path_test /= /path_test_fun /=.
+  rewrite /mCD /linhom_test /linhom_test_fun /= /δA /=.
+  rewrite /mDfst /test_reindex /test_reindex_fun /=.
+  rewrite /φfst /=.
+  rewrite /ar_prod_fst /ar_prod_fst_fun /ar_prod_snd /ar_prod_snd_fun !ar_prod_castK /=.
+  rewrite /lfps /= swap_innerE.
+  have Hδeval : δsnd (ar_prod_cast (sw.1, sw.2)) = (Sinv *: δ sw.2)%PC.
+    by rewrite /δsnd /= /ar_prod_snd_fun ar_prod_castK.
+  rewrite Hδeval.
+  have [_ _ HZ] :=
+    linhom_pre_linear (linhom_pre_of (path_fun ((f : icones_hom _ _ _) (β sw.1)) (φ sw.1))).
+  rewrite -[linhom_fun (path_fun _ (φ sw.1)) (Sinv *: δ sw.2)%PC]
+            /((path_fun ((f : icones_hom _ _ _) (β sw.1)) (φ sw.1)) (Sinv *: δ sw.2)%PC).
+  rewrite HZ /= test_linZ /=.
+  by rewrite mulrA mulfV ?mul1r // gt_eqF.
+apply: measurable_funM; first exact: measurable_cst.
+exact: (measurable_comp (F := setT) measurableT (subsetT _) HPtest ψ_meas).
+Qed.
+
+(** Integral-preservation of [lfps]: [lfps (∫δ) = ∫ (lfps ∘ δ)] in
+    [Path(X, B⊸D)].  By [icone_integral_eqP] it suffices to check the
+    Pettis specification at arity-0 path-tests [const_r r ▷ (β ▷ mD)].
+    The value at [lfps z] reduces (via [lfpsE]) to [mD(z, φ(z'))] with
+    [φ := f(β z')(r) : C⊸D] (a genuine integral-preserving [linhom]) and
+    [z' ∈ C], so both sides equal [fine ∫ mD(z, φ(δ w)) dµ] — the LHS via
+    [φ]'s integral law + the [D]-integral Pettis spec, the RHS via the
+    section-integral identity. *)
+Lemma lfps_pres_int
+    (W : ar_obj Ar) (δ : ar_carrier Ar W -> C)
+    (Hδ : is_measurable_path δ) (µ : fmeas R (ar_carrier Ar W)) :
+  lfps (icone_integral δ Hδ µ) =
+  icone_integral (fun w => lfps (δ w)) (lfps_pres_path Hδ) µ.
+Proof.
+apply: icone_integral_eqP => p pM z.
+have [φa [m [mM ->]]] : path_mcone_M (Y := ar_zero Ar) p by exact: pM.
+have [β [βub [mD [mDM Hm]]]] : linhom_mcone_M (Y := ar_zero Ar) m by exact: mM.
+subst m.
+(* φ := f(β (φa z))(r) where r := φa z : the X-coordinate of the path test. *)
+set r := φa z.
+set φ := path_fun ((f : icones_hom _ _ _) (path_fun β z)) r.
+(* LHS reduces to [mD z (φ (∫δ))]. *)
+have LE : test_fun (path_test φa (linhom_test β βub mD mDM) mM) z
+            (lfps (icone_integral δ Hδ µ)) =
+          test_fun mD z (linhom_fun φ (icone_integral δ Hδ µ)).
+  rewrite /path_test /= /path_test_fun /=
+          /linhom_test /linhom_test_fun /= /lfps /= swap_innerE.
+  by [].
+rewrite LE.
+(* [φ (∫δ) = ∫ (φ ∘ δ)] by [φ]'s integral law. *)
+rewrite -[linhom_fun φ (icone_integral δ Hδ µ)]/(φ (icone_integral δ Hδ µ)).
+rewrite (linhom_pres_int φ W δ Hδ µ).
+(* The [D]-integral Pettis spec against [mD]. *)
+rewrite (icone_integralP _ (linhom_pre_pres_path φ W δ Hδ) µ mD mDM z).
+(* The integrands match pointwise. *)
+congr (fine _); apply: eq_integral => w _; congr (_%:E).
+rewrite /path_test /= /path_test_fun /=
+        /linhom_test /linhom_test_fun /= /lfps /= swap_innerE.
+by [].
+Qed.
+
+(** [lfun_path_swap f : ICones(C, Path(X, B⊸D))], assembled from the five
+    [lfps] fields (Paper [lemma:lfun-path-swap]). *)
+Definition lfps_cones : cones_hom C PBD :=
+  ConesHom lfps lfps_linear lfps_continuous lfps_norm_le.
+
+Definition lfps_mcones : mcones_hom Ar C PBD :=
+  MkMConesHom lfps_cones (fun W δ Hδ => lfps_pres_path (W:=W) (δ:=δ) Hδ).
+
+Lemma lfps_mcones_pres_int
+    (W : ar_obj Ar) (δ : ar_carrier Ar W -> C)
+    (Hδ : is_measurable_path δ) (µ : fmeas R (ar_carrier Ar W)) :
+  cones_hom_fun (mcones_hom_cones lfps_mcones) (icone_integral δ Hδ µ) =
+  icone_integral
+    (fun w => cones_hom_fun (mcones_hom_cones lfps_mcones) (δ w))
+    (mcones_hom_pres_path lfps_mcones W δ Hδ) µ.
+Proof.
+rewrite -[cones_hom_fun _ _]/(lfps (icone_integral δ Hδ µ)) (lfps_pres_int Hδ µ).
+by congr icone_integral; exact: Prop_irrelevance.
+Qed.
+
+Definition lfun_path_swap : icones_hom Ar C PBD :=
+  MkIConesHom lfps_mcones lfps_mcones_pres_int.
+
+Lemma lfun_path_swapE (y : C) (r : ar_carrier Ar X) (x : B) :
+  linhom_fun (path_fun ((lfun_path_swap : icones_hom _ _ _) y) r) x =
+  linhom_fun (path_fun ((f : icones_hom _ _ _) x) r) y.
+Proof. by rewrite -[(lfun_path_swap : icones_hom _ _ _) y]/(lfps y) lfpsE. Qed.
+
 End LfunPathSwap.
 
 Arguments lfps {R Ar X B C D} f y.
 Arguments lfpsE {R Ar X B C D} f y r x.
+Arguments lfun_path_swap {R Ar X B C D} f.
+Arguments lfun_path_swapE {R Ar X B C D} f y r x.
 
 
 End Icones_tensor_iso.
@@ -687,24 +919,37 @@ End Icones_tensor_iso.
 (*      B⊸D (the hardest measurability step; [swap_lin_path]-style            *)
 (*      [ar_prod] reindexing).                                                *)
 (*                                                                            *)
-(*  P2 (assembly, partial) — [lfps f : C -> Path(X, B⊸D)] (value             *)
+(*  P2 (assembly) — [lfps f : C -> Path(X, B⊸D)] (value                      *)
 (*    [y ↦ MkPath (swap_inner_path f y)]) with [lfpsE] computation, and       *)
 (*    [lfps_linear] / [lfps_norm_le] / [lfps_bounded] DONE.                    *)
 (*                                                                            *)
+(*  ★ P2 (rest) — DONE: [lfun_path_swap : icones_hom C (Path(X, B⊸D))]        *)
+(*    (Paper [lemma:lfun-path-swap]), assembled from [lfps] with all five     *)
+(*    [icones_hom] fields proved (+ [lfun_path_swapE] computation):           *)
+(*    - [swap_inner_continuous] / [lfps_continuous]: ω-continuity, via        *)
+(*      [linhom_mcone_M_sep] + [linhom_sup_fun_test_sup] + the inner          *)
+(*      [linhom]'s own ω-continuity + [eval_at_test_sup_ball], then [path]'s  *)
+(*      pointwise [cone_sup_ball].                                            *)
+(*    - [lfps_pres_path]: PATH-preservation, the [swap_inner_path]-style      *)
+(*      [ar_prod] reindexing/Pettis, one codomain-layer up, rescaling the     *)
+(*      moving [C]-path into the unit ball + diagonal pullback.               *)
+(*    - [lfps_pres_int]: INTEGRAL-preservation, via [icone_integral_eqP] +    *)
+(*      the inner [linhom]'s [linhom_pres_int] + the D-integral Pettis spec.  *)
+(*    Verified AXIOM-FREE (Print Assumptions [lfun_path_swap] = 3 boolp).     *)
+(*                                                                            *)
 (* REMAINING ROUTE (concrete; next iteration):                               *)
-(*  P2 (rest) — [lfun_path_swap : icones_hom C (Path(X, B⊸D))] from [lfps]:   *)
-(*    remaining three [icones_hom] fields are ω-continuity (Path-(Mssep) +    *)
-(*    a Path-sup test computation), PATH-preservation (for a C-path γ over W, *)
-(*    w ↦ lfps(γ w) a measurable path of Path(X,B⊸D)) and                     *)
-(*    INTEGRAL-preservation — the two latter are reindexing/Pettis proofs of  *)
-(*    the same shape as [swap_inner_path] / [linhom_int_eval], one            *)
-(*    codomain-layer up.                                                      *)
 (*  P3 — [path_tens_to_one]: η : X → (B⊗C)⊸1 bounded + pure-tensor measurable *)
-(*    ⇒ a genuine path.  Build η' : B → (C ⊸ Path(X,1)) from the pure-tensor  *)
-(*    data; η' preserves integrals "since ⊗ preserves integrals"              *)
-(*    ([Phi_icones]'s [tensor_path] machinery); set η'' := Psi_inner η' at    *)
-(*    codomain Path(X,1) (TYPES — Path is an ICone); apply [lfun_path_swap]   *)
-(*    to get h; conclude η = h(1) by [linhom_tensor_ext] (pure-tensor ext).   *)
+(*    ⇒ a genuine path.  Build η' : B → (C ⊸ Path(X, 1⊸1)) from the          *)
+(*    pure-tensor data (lifting each scalar η(r)(x⊗y) ∈ 1 into [1⊸1] by the   *)
+(*    "scale-by" map [line_fun]); η' preserves integrals "since ⊗ preserves   *)
+(*    integrals" ([tensor_path] machinery); set η'' := tensor_uncurry η' :    *)
+(*    icones_hom (B⊗C) (Path(X, 1⊸1)); apply [lfun_path_swap] (with B':=B⊗C,  *)
+(*    C':=D':=1) → h : icones_hom 1 (Path(X, (B⊗C)⊸1)); conclude η = h(1) by  *)
+(*    [linhom_tensor_ext] (pure-tensor ext).                                  *)
+(*    PREREQ for the [1] ↔ [1⊸1] bridge: a small iso [cone_one_car ≅          *)
+(*    (cone_one_car ⊸ cone_one_car)] (forward = [line_fun]-style scale map,   *)
+(*    backward = eval-at-unit) — this is the [linhom_one_iso] (1⊸C≅C) of P5   *)
+(*    specialised to C:=1, and is the only missing piece to start P3.         *)
 (*  P4 — [Psi_icones] + [tensor_hom_iso]: Ψ's path field via P3 (applied to   *)
 (*    Ψ), Ψ's integral field via [Phi_icones] injective + [Phi_pres_int];     *)
 (*    assemble [icones_iso_of_cancel Phi_icones Psi_icones] (round-trips from  *)
