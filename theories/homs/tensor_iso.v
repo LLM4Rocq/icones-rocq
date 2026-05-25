@@ -3321,6 +3321,170 @@ End TensorHomIso.
 
 Arguments tensor_hom_iso {R Ar} B C D.
 
+(** ** Morphism-level pure-tensor extensionality (Paper Prop 5.14)
+
+    Re-derived inside the module from [tensor_curry_inj] + [linhom_eq] +
+    [tensor_curryEp], exactly as [tensor.v]'s [tensor_ext]/[tensor_ext3]
+    (which live outside the module).  Needed to discharge the
+    cancellation laws of the four structural isos. *)
+
+Section TensExt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma tens_ext (B C D : ICone.type Ar)
+    (f g : icones_hom Ar (tensor B C) D) :
+  (forall (x : B) (y : C), f (ptensor x y) = g (ptensor x y)) -> f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: icones_hom_eq => x /=.
+apply: linhom_eq => y.
+by rewrite !tensor_curryEp Hfg.
+Qed.
+
+Lemma tens_ext3 (A B C D : ICone.type Ar)
+    (f g : icones_hom Ar (tensor (tensor A B) C) D) :
+  (forall (x : A) (y : B) (z : C),
+     f (ptensor (ptensor x y) z) = g (ptensor (ptensor x y) z)) -> f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: tens_ext => x y.
+apply: linhom_eq => z.
+by rewrite !tensor_curryEp Hfg.
+Qed.
+
+(** Right-nested ternary extensionality, for [A⊗(B⊗C)]: reduce to
+    [linhom_tensor_ext] on the inner [(B⊗C)⊸D]. *)
+Lemma tens_ext3r (A B C D : ICone.type Ar)
+    (f g : icones_hom Ar (tensor A (tensor B C)) D) :
+  (forall (x : A) (y : B) (z : C),
+     f (ptensor x (ptensor y z)) = g (ptensor x (ptensor y z))) -> f = g.
+Proof.
+move=> Hfg.
+apply: tensor_curry_inj.
+apply: icones_hom_eq => x /=.
+apply: linhom_tensor_ext => y z.
+by rewrite !tensor_curryEp Hfg.
+Qed.
+
+End TensExt.
+
+Arguments tens_ext {R Ar B C D}.
+Arguments tens_ext3 {R Ar A B C D}.
+Arguments tens_ext3r {R Ar A B C D}.
+
+(** ** Paper §5.5, Eq 5.2 — the associator [α : (A⊗B)⊗C ≅ A⊗(B⊗C)]
+
+    Built explicitly (à la [seely.v]) rather than via Yoneda: the
+    underlying [ICones] morphism is determined by its pure-tensor value
+    through [tensor_uncurry] + [tensor_curryEp]/[tensor_uncurryK], and the
+    round-trips are pure-tensor extensionality facts ([tens_ext3]). *)
+
+Section TensorAssocIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables A B C : ICone.type Ar.
+
+Local Notation "x '⊗p' y" := (ptensor x y) (at level 40, left associativity).
+
+(** Forward curried datum [a ↦ b ↦ c ↦ a ⊗ (b ⊗ c)] :
+    [Φ ∘ τ_{A,B⊗C}]. *)
+Definition assoc_fwd_g :
+    icones_hom Ar A (linhom_car Ar B (linhom_car Ar C (tensor A (tensor B C)))) :=
+  icones_comp (iso_fwd (tensor_hom_iso B C (tensor A (tensor B C))))
+              (tauL A (tensor B C)).
+
+Lemma assoc_fwd_gE (a : A) (b : B) (c : C) :
+  linhom_fun (linhom_fun (assoc_fwd_g a) b) c = a ⊗p (b ⊗p c).
+Proof.
+rewrite -[assoc_fwd_g a]/(iso_fwd
+  (tensor_hom_iso B C (tensor A (tensor B C))) ((tauL A (tensor B C)) a)).
+rewrite Phi_iconesE.
+by rewrite -[linhom_fun ((tauL A (tensor B C)) a) _]/(ptensor a (ptensor b c)).
+Qed.
+
+Definition tensor_assoc_fwd :
+    icones_hom Ar (tensor (tensor A B) C) (tensor A (tensor B C)) :=
+  tensor_uncurry (tensor_uncurry assoc_fwd_g).
+
+Lemma tensor_assoc_fwdE (a : A) (b : B) (c : C) :
+  tensor_assoc_fwd ((a ⊗p b) ⊗p c) = a ⊗p (b ⊗p c).
+Proof.
+rewrite /tensor_assoc_fwd.
+rewrite -(tensor_curryEp (tensor_uncurry (tensor_uncurry assoc_fwd_g))
+            (ptensor a b) c).
+rewrite tensor_uncurryK.
+rewrite -(tensor_curryEp (tensor_uncurry assoc_fwd_g) a b).
+rewrite tensor_uncurryK.
+exact: assoc_fwd_gE.
+Qed.
+
+(** Backward curried datum [a ↦ (b⊗c) ↦ (a⊗b)⊗c] :
+    [Ψ ∘ (double-curry of id)]. *)
+Definition assoc_bwd_g :
+    icones_hom Ar A
+      (linhom_car Ar (tensor B C) (tensor (tensor A B) C)) :=
+  icones_comp (iso_bwd (tensor_hom_iso B C (tensor (tensor A B) C)))
+              (tensor_curry (tensor_curry
+                 (icones_id Ar (tensor (tensor A B) C)))).
+
+Lemma assoc_bwd_gE (a : A) (b : B) (c : C) :
+  linhom_fun (assoc_bwd_g a) (b ⊗p c) = (a ⊗p b) ⊗p c.
+Proof.
+rewrite -[assoc_bwd_g a]/(iso_bwd
+  (tensor_hom_iso B C (tensor (tensor A B) C))
+  ((tensor_curry (tensor_curry (icones_id Ar (tensor (tensor A B) C)))) a)).
+rewrite Psi_iconesE.
+rewrite (tensor_curryEp (tensor_curry (icones_id Ar (tensor (tensor A B) C))) a b).
+by rewrite (tensor_curryEp (icones_id Ar (tensor (tensor A B) C)) (ptensor a b) c).
+Qed.
+
+Definition tensor_assoc_bwd :
+    icones_hom Ar (tensor A (tensor B C)) (tensor (tensor A B) C) :=
+  tensor_uncurry assoc_bwd_g.
+
+Lemma tensor_assoc_bwdE (a : A) (b : B) (c : C) :
+  tensor_assoc_bwd (a ⊗p (b ⊗p c)) = (a ⊗p b) ⊗p c.
+Proof.
+rewrite /tensor_assoc_bwd.
+rewrite -(tensor_curryEp (tensor_uncurry assoc_bwd_g) a (ptensor b c)).
+rewrite tensor_uncurryK.
+exact: assoc_bwd_gE.
+Qed.
+
+Lemma tensor_assoc_fwdK :
+  icones_comp tensor_assoc_bwd tensor_assoc_fwd =
+  icones_id Ar (tensor (tensor A B) C).
+Proof.
+apply: tens_ext3 => x y z.
+rewrite -[LHS]/(tensor_assoc_bwd (tensor_assoc_fwd ((x ⊗p y) ⊗p z))).
+by rewrite tensor_assoc_fwdE tensor_assoc_bwdE.
+Qed.
+
+Lemma tensor_assoc_bwdK :
+  icones_comp tensor_assoc_fwd tensor_assoc_bwd =
+  icones_id Ar (tensor A (tensor B C)).
+Proof.
+apply: tens_ext3r => x y z.
+rewrite -[LHS]/(tensor_assoc_fwd (tensor_assoc_bwd (x ⊗p (y ⊗p z)))).
+by rewrite tensor_assoc_bwdE tensor_assoc_fwdE.
+Qed.
+
+Definition tensor_assoc_iso :
+    icones_iso Ar (tensor (tensor A B) C) (tensor A (tensor B C)) :=
+  icones_isoP tensor_assoc_fwd tensor_assoc_bwd
+    tensor_assoc_fwdK tensor_assoc_bwdK.
+
+(** Paper Eq 5.2: [α((x ⊗ y) ⊗ z) = x ⊗ (y ⊗ z)]. *)
+Lemma tensor_assocE (x : A) (y : B) (z : C) :
+  iso_fwd tensor_assoc_iso ((x ⊗p y) ⊗p z) = x ⊗p (y ⊗p z).
+Proof. exact: tensor_assoc_fwdE. Qed.
+
+End TensorAssocIso.
+
+Arguments tensor_assoc_iso {R Ar} A B C.
+Arguments tensor_assocE {R Ar A B C}.
+
 End Icones_tensor_iso.
 
 (**md**************************************************************************)
