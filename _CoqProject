@@ -45,6 +45,7 @@ theories/stable/stablehom.v
 theories/stable/findiff.v
 theories/stable/compose.v
 theories/stable/scones_cat.v
+theories/stable/der_continuous.v
 theories/stable/scones_ccc.v
 theories/stable/fixpoint.v
 theories/axioms/saft_interface.v
