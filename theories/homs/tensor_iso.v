@@ -2916,6 +2916,411 @@ End PathTensToXGen.
 
 Arguments path_tens_to_X {R Ar B C D X} η ηbound ηpt.
 
+(** ** Thm 5.12 [tensor_hom_iso] — the inverse [Ψ] as an [icones_hom]
+
+    The inverse [Ψ : B⊸(C⊸D) → (B⊗C)⊸D] sends [h] to [Psi_inner h] (the
+    element [b⊗c ↦ h(b)(c)], Paper Eq 5.1 inverse).  Each structure
+    field reduces, via the pure-tensor law [Psi_innerE] and the
+    pure-tensor extensionality [linhom_tensor_ext] (Prop 5.14), to a
+    fact about [h] itself:
+    - LINEARITY: equalities of [(B⊗C)⊸D] elements, reduced by
+      [linhom_tensor_ext] to pointwise [Psi_innerE] + the pointwise
+      structure of [B⊸(C⊸D)].
+    - NORM [≤1]: [Psi_inner h] equals (by [linhom_tensor_ext]) the EXACT
+      [‖h‖]-rescaling [‖h‖ · icones_to_linhom(tensor_uncurry(‖h‖⁻¹·h))],
+      whose operator norm is [‖h‖ · ‖icones_to_linhom(…)‖ ≤ ‖h‖] by
+      [icones_to_linhom_norm_le1].  The [‖h‖ = 0] edge is closed by
+      [cone_normz] ([h = 0]).
+    - ω-CONTINUITY: reduced by [linhom_tensor_ext] to a [D]-equation at
+      [b⊗c], then by [mcone_M_sep] to a real-sup identity, with the
+      "evaluate at [b] then [c]" map [ev_bc := eval_at c ∘ eval_at b :
+      (B⊸(C⊸D)) ⊸ D] supplying the [linhom] ω-continuity ([test_of_sup])
+      on the LHS and [linhom_sup_fun_test_sup] the RHS.
+    - PATH-preservation: [r ↦ Psi_inner (H r)] is a measurable path by
+      [path_tens_to_X] (codomain [D]); its pure-tensor hypothesis [ηpt]
+      is [H]'s own path-preservation read through [Psi_innerE].
+    - INTEGRAL-preservation: via [Φ(Ψ h) = h] ([cod_eq] + pointwise
+      [Phi_iconesE]/[Psi_innerE]) + [Φ]'s integral law [Phi_pres_int]. *)
+
+Section PsiIConesHom.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+Local Notation BC := (tensor B C).
+Local Notation Dom := (linhom_car Ar B (linhom_car Ar C D)).
+Local Notation Cod := (linhom_car Ar BC D).
+
+(** The underlying map [Ψ : Dom → Cod]. *)
+Definition Psi_map (h : Dom) : Cod := Psi_inner h.
+
+(** *** Linearity of [Ψ] — pure [Psi_innerE] + linearity of [h]. *)
+Lemma Psi_linear : is_linear Psi_map.
+Proof.
+split.
+- apply: linhom_tensor_ext => b c; rewrite /Psi_map Psi_innerE.
+  rewrite [linhom_fun (0%PC : Cod) (ptensor b c)]/linhom_fun /= /linhom_zero_fun.
+  have Z0d : linhom_fun (0%PC : Dom) b = (0%PC : linhom_car Ar C D).
+    by have [Z0 _ _] := linhom_pre_linear (linhom_pre_of (0%PC : Dom)); exact: Z0.
+  rewrite Z0d.
+  by rewrite [linhom_fun (0%PC : linhom_car Ar C D) c]/linhom_fun /= /linhom_zero_fun.
+- move=> h1 h2; apply: linhom_tensor_ext => b c.
+  rewrite /Psi_map Psi_innerE.
+  rewrite [linhom_fun (Psi_inner h1 + Psi_inner h2)%PC (ptensor b c)]/linhom_fun /=
+          /linhom_add_fun.
+  rewrite -!/(linhom_fun (Psi_inner _) (ptensor b c)) !Psi_innerE.
+  rewrite [linhom_fun (h1 + h2)%PC b]/linhom_fun /= /linhom_add_fun.
+  by rewrite [linhom_fun (_ + _)%PC c]/linhom_fun /= /linhom_add_fun.
+- move=> r h; apply: linhom_tensor_ext => b c.
+  rewrite /Psi_map Psi_innerE.
+  rewrite [linhom_fun (r *: Psi_inner h)%PC (ptensor b c)]/linhom_fun /=
+          /linhom_scale_fun.
+  rewrite -!/(linhom_fun (Psi_inner _) (ptensor b c)) !Psi_innerE.
+  rewrite [linhom_fun (r *: h)%PC b]/linhom_fun /= /linhom_scale_fun.
+  by rewrite [linhom_fun (_ *: _)%PC c]/linhom_fun /= /linhom_scale_fun.
+Qed.
+
+(** *** Norm decrease [‖Ψ h‖ ≤ ‖h‖] via the [‖h‖]-rescaling identity. *)
+
+Lemma Psi_norm_le1 (h : Dom) : cone_norm (Psi_map h) <= cone_norm h.
+Proof.
+have nh_ge0 : 0 <= cone_norm h by exact: cone_norm_ge0.
+have nhinv_ge0 : 0 <= (cone_norm h)^-1 by rewrite invr_ge0.
+pose nh : {nonneg R} := NngNum nh_ge0.
+pose nhinv : {nonneg R} := NngNum nhinv_ge0.
+pose g : linhom_car Ar B (linhom_car Ar C D) := linhom_scale nhinv h.
+have Hg : cone_norm g <= 1.
+  rewrite -[cone_norm g]/(linhom_norm g) /g linhom_normh /=.
+  have [/eqP h0 | hpos] := boolP (cone_norm h == 0).
+    by rewrite h0 invr0 mul0r.
+  by rewrite mulVf// lexx.
+pose Q : Cod :=
+  linhom_scale nh (icones_to_linhom (tensor_uncurry (linhom_icones g Hg))).
+have HQE : Q = Psi_map h.
+  apply: linhom_tensor_ext => b c.
+  rewrite /Q /Psi_map Psi_innerE.
+  rewrite -[linhom_fun (linhom_scale nh _) (ptensor b c)]
+            /(linhom_scale_fun nh _ (ptensor b c)) /linhom_scale_fun /=.
+  rewrite icones_to_linhomE.
+  rewrite -[hfun (tensor_uncurry (linhom_icones g Hg)) (ptensor b c)]
+            /((tensor_uncurry (linhom_icones g Hg) : icones_hom _ _ _) (ptensor b c)).
+  have HH := tensor_curryEp (tensor_uncurry (linhom_icones g Hg)) b c.
+  rewrite tensor_uncurryK in HH.
+  rewrite -/(ptensor b c) in HH.
+  rewrite -HH (linhom_iconesE g Hg b).
+  rewrite /g -[linhom_fun (linhom_scale nhinv h) b]/(linhom_scale_fun nhinv h b)
+            /linhom_scale_fun /=.
+  rewrite -[linhom_fun (linhom_scale nhinv (linhom_fun h b)) c]
+            /(linhom_scale_fun nhinv (linhom_fun h b) c) /linhom_scale_fun /=.
+  rewrite -precone_scale_A.
+  have [/eqP h0 | hpos] := boolP (cone_norm h == 0).
+    have hz : h = (0%PC : Dom) by apply: cone_normz; rewrite -[cone_norm h]/(cnorm h) h0.
+    rewrite hz.
+    have ->: linhom_fun (linhom_fun (0%PC : Dom) b) c = (precone_zero : D) by [].
+    by rewrite precone_scale_0r.
+  have -> : (widen_itv (nh%:num * nhinv%:num)%:itv : {nonneg R}) = 1%:nng.
+    by apply: val_inj => /=; rewrite mulfV.
+  by rewrite precone_scale_1.
+rewrite -HQE /Q.
+rewrite -[cone_norm (linhom_scale nh _)]/(linhom_norm (linhom_scale nh _)) linhom_normh /=.
+rewrite -[cone_norm h]/(nh%:num) -[X in _ <= X]mulr1.
+apply: ler_wpM2l; first exact: nngnum_ge0.
+exact: icones_to_linhom_norm_le1.
+Qed.
+
+(** *** ω-continuity of [Ψ].
+
+    Reduce by [linhom_tensor_ext] to a [D]-equation at [b⊗c]; then by
+    [mcone_M_sep] to a real-sup identity at each [D]-test [mD].  The
+    inner [c] is rescaled into the unit ball ([c' := (‖c‖+1)⁻¹·c]) so
+    that [γ_{c'} ▷ mD] is a genuine [C⊸D]-test; the [b]-sup is then
+    unfolded by [linhom_sup_fun_test_sup] on [Dom = B⊸(C⊸D)] (which
+    rescales [b] internally), and the [Cod = (B⊗C)⊸D] sup by another
+    [linhom_sup_fun_test_sup] at [b⊗c]; both give the scaled real-sup
+    [sup_n mD(s₀, u_n(b)(c'))], matched by [sup_scaleM]. *)
+Lemma Psi_continuous : is_omega_continuous Psi_map.
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: linhom_tensor_ext => b c.
+set s0 := ar_zero_pt Ar.
+apply: mcone_M_sep => mD mDM.
+have S_pos : 0 < cone_norm c + 1 by exact: cnorm_succ_pos.
+have Sinv_ge0 : 0 <= (cone_norm c + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sinv : {nonneg R} := NngNum Sinv_ge0.
+pose c' : C := precone_scale Sinv c.
+have Hc'_unit : cone_norm c' <= 1.
+  rewrite /c' cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  by rewrite -[X in X <= _]addr0 lerD2l ler01.
+have Hγc' : cone_norm (const_x_path c') <= 1.
+  by rewrite /cone_norm /= const_x_path_normE.
+pose mCD : test_of Ar (ar_zero Ar) (linhom_car Ar C D) :=
+  linhom_test (const_x_path c') Hγc' mD mDM.
+have mCDM : linhom_mcone_M (Y := ar_zero Ar) mCD.
+  by exists (const_x_path c'), Hγc', mD, mDM.
+(* The c-rescaling: for any h : Dom, mD(s₀, h(b)(c)) = (‖c‖+1)·mCD(s₀, h(b)). *)
+have rescE : forall h : Dom,
+    test_fun mD s0 (linhom_fun (Psi_inner h) (ptensor b c)) =
+    (cone_norm c + 1) * test_fun mCD s0 (linhom_fun h b).
+  move=> h; rewrite Psi_innerE.
+  rewrite /mCD /linhom_test /linhom_test_fun /= /const_x_path /const_x_path_arity /=.
+  have [_ _ HZ] := linhom_pre_linear (linhom_pre_of (linhom_fun h b)).
+  rewrite /c'.
+  rewrite -[linhom_fun (linhom_fun h b) (Sinv *: c)%PC]
+            /((linhom_fun h b) (Sinv *: c)%PC).
+  rewrite HZ test_linZ /=.
+  by rewrite mulrA mulfV ?mul1r // gt_eqF.
+(* LHS: mD(s₀, Ψ(sup u)(b⊗c)) = (‖c‖+1)·mCD(s₀, (sup u)(b)). *)
+rewrite -[X in test_fun mD s0 (linhom_fun X (ptensor b c))]
+          /(Psi_map (cone_sup_ball u uch ub1)).
+rewrite (rescE (cone_sup_ball u uch ub1)).
+rewrite -[linhom_fun (cone_sup_ball u uch ub1) b]/(linhom_sup_fun uch ub1 b).
+rewrite (linhom_sup_fun_test_sup uch ub1 mCD s0 b).
+(* RHS: mD(s₀, (sup_n Ψ(u_n))(b⊗c)). *)
+rewrite -[linhom_fun (cone_sup_ball (Psi_map \o u) fuch fub1) (ptensor b c)]
+          /(linhom_sup_fun fuch fub1 (ptensor b c)).
+rewrite (linhom_sup_fun_test_sup fuch fub1 mD s0 (ptensor b c)).
+(* Both real-sup sets coincide via [rescE] on each [u_n]. *)
+have HsupS : has_sup [set test_fun mCD s0 (linhom_fun (u n) b) | n in [set: nat]].
+  split; first by exists (test_fun mCD s0 (linhom_fun (u 0%N) b)), 0%N.
+  exists (cone_norm b) => _ [n _ <-].
+  apply: le_trans (test_norm_le mCD s0 (linhom_fun (u n) b)) _.
+  apply: le_trans (linhom_norm_apply_le (lexx _) b) _.
+  rewrite -[X in _ <= X]mul1r; apply: ler_wpM2r;
+    [exact: cone_norm_ge0|exact: ub1].
+rewrite sup_scaleM; first last.
+- by case: HsupS.
+- by case: HsupS.
+- exact: ltW.
+have evalE : forall n,
+    test_fun mD s0 (linhom_fun (Psi_map (u n)) (ptensor b c)) =
+    (cone_norm c + 1) * test_fun mCD s0 (linhom_fun (u n) b).
+  by move=> n; rewrite -[linhom_fun (Psi_map (u n)) (ptensor b c)]
+               /(linhom_fun (Psi_inner (u n)) (ptensor b c)) (rescE (u n)).
+congr (sup _); rewrite eqEsubset; split.
+- move=> _ [_ [n _ <-] <-]; exists n => //; exact: esym (evalE n).
+- move=> _ [n _ <-]; rewrite evalE.
+  by exists (test_fun mCD s0 (linhom_fun (u n) b)) => //; exists n.
+Qed.
+
+(** *** Boundedness of [Ψ] (operator norm [≤ 1]). *)
+Lemma Psi_bounded :
+  exists M : R, forall h : Dom, cnorm h <= 1 -> cnorm (Psi_map h) <= M.
+Proof. by exists 1 => h Hh; apply: le_trans (Psi_norm_le1 h) _. Qed.
+
+(** [Ψ] packaged as a [cones_hom]. *)
+Definition Psi_cones : cones_hom Dom Cod :=
+  ConesHom Psi_map Psi_linear Psi_continuous Psi_norm_le1.
+
+(** *** Measurable-path preservation of [Ψ] — via [path_tens_to_X].
+
+    For a measurable path [H] of [B⊸(C⊸D)], [r ↦ Psi_inner (H r)] is a
+    measurable path of [(B⊗C)⊸D] by [path_tens_to_X]: it is bounded
+    ([Psi_norm_le1] + [H]'s bound) and measurable on pure tensors.  The
+    pure-tensor hypothesis [ηpt] — [s ↦ mD(s, (H(φ s))(β s)(γ s))]
+    measurable on [Z] — is [H]'s own path-preservation tested against the
+    nested [Dom]-test [β' ▷ (γ' ▷ mD)] (with [β], [γ] rescaled into the
+    unit ball, recovered by [test_linZ]) composed with the diagonal
+    [s ↦ (s, φ s)]. *)
+Lemma Psi_pres_path
+    (W : ar_obj Ar) (H : ar_carrier Ar W -> Dom) :
+  is_measurable_path H ->
+  is_measurable_path (fun r => Psi_map (H r)).
+Proof.
+move=> HH.
+have [[MH HMH] HHm] := HH.
+have MH_ge0 : 0 <= MH by apply: le_trans (HMH (ar_point Ar W)); exact: cone_norm_ge0.
+apply: (@path_tens_to_X _ _ B C D W (fun r => Psi_map (H r))).
+  exists MH => r; apply: le_trans (Psi_norm_le1 (H r)) _; exact: HMH.
+move=> Z mD mDM φ β γ Hβ Hγ.
+(* Rescale β, γ into the unit ball. *)
+have [[Mβ HMβ] _] := Hβ.
+have [[Mγ HMγ] _] := Hγ.
+have Mβ_ge0 : 0 <= Mβ by apply: le_trans (HMβ (ar_point Ar Z)); exact: cone_norm_ge0.
+have Mγ_ge0 : 0 <= Mγ by apply: le_trans (HMγ (ar_point Ar Z)); exact: cone_norm_ge0.
+have Sβ_pos : 0 < Mβ + 1 by apply: le_lt_trans Mβ_ge0 _; rewrite ltrDl ltr01.
+have Sγ_pos : 0 < Mγ + 1 by apply: le_lt_trans Mγ_ge0 _; rewrite ltrDl ltr01.
+have Sβinv_ge0 : 0 <= (Mβ + 1)^-1 by rewrite invr_ge0 ltW.
+have Sγinv_ge0 : 0 <= (Mγ + 1)^-1 by rewrite invr_ge0 ltW.
+pose Sβinv : {nonneg R} := NngNum Sβinv_ge0.
+pose Sγinv : {nonneg R} := NngNum Sγinv_ge0.
+pose β' (s : ar_carrier Ar Z) : B := precone_scale Sβinv (β s).
+pose γ' (s : ar_carrier Ar Z) : C := precone_scale Sγinv (γ s).
+have Hβ' : is_measurable_path β' by exact: (path_scale_is_path Sβinv (MkPath Hβ)).
+have Hγ' : is_measurable_path γ' by exact: (path_scale_is_path Sγinv (MkPath Hγ)).
+have Hβ'1 : forall s, cone_norm (β' s) <= 1.
+  move=> s; rewrite /β' cone_normh /=.
+  rewrite mulrC -ler_pdivlMr ?invr_gt0 // mul1r invrK.
+  by apply: le_trans (HMβ s) _; rewrite lerDl ler01.
+have Hγ'1 : forall s, cone_norm (γ' s) <= 1.
+  move=> s; rewrite /γ' cone_normh /=.
+  rewrite mulrC -ler_pdivlMr ?invr_gt0 // mul1r invrK.
+  by apply: le_trans (HMγ s) _; rewrite lerDl ler01.
+pose Pβ' : path_car Ar Z B := MkPath Hβ'.
+pose Pγ' : path_car Ar Z C := MkPath Hγ'.
+have Pβ'ub : cone_norm Pβ' <= 1.
+  rewrite /cone_norm /=; apply: ge_sup; first exact: path_normset_nonempty.
+  by move=> _ [s ->] /=; exact: Hβ'1.
+have Pγ'ub : cone_norm Pγ' <= 1.
+  rewrite /cone_norm /=; apply: ge_sup; first exact: path_normset_nonempty.
+  by move=> _ [s ->] /=; exact: Hγ'1.
+pose mCD : test_of Ar Z (linhom_car Ar C D) :=
+  linhom_test Pγ' Pγ'ub mD mDM.
+have mCDM : linhom_mcone_M (Y := Z) mCD by exists Pγ', Pγ'ub, mD, mDM.
+pose p : test_of Ar Z Dom := linhom_test Pβ' Pβ'ub mCD mCDM.
+have pM : linhom_mcone_M (Y := Z) p by exists Pβ', Pβ'ub, mCD, mCDM.
+(* H's path-preservation, composed with the diagonal [s ↦ (s, φ s)]. *)
+have Hbase := HHm Z p pM.
+have Hdiag : measurable_fun [set: ar_carrier Ar Z]
+    (fun s => p s (H (φ s))).
+  rewrite (_ : (fun s => p s (H (φ s))) =
+    (fun q : (ar_carrier Ar Z * ar_carrier Ar W)%type => p q.1 (H q.2))
+      \o (fun s => (s, φ s))); last by apply: funext.
+  apply: (measurable_comp (F := setT) measurableT (subsetT _) Hbase).
+  by apply: measurable_fun_pair; [exact: measurable_id|exact: measurable_funPT].
+(* Rewrite the goal as [Sβ · Sγ · (s ↦ p s (H(φ s)))]. *)
+rewrite (_ : (fun s => test_fun mD s (linhom_fun (Psi_map (H (φ s)))
+                (ptensor (β s) (γ s)))) =
+   (fun s => (Mβ + 1) * ((Mγ + 1) * p s (H (φ s))))); last first.
+  apply: funext => s.
+  rewrite /Psi_map Psi_innerE.
+  rewrite /p /mCD /linhom_test /linhom_test_fun /=.
+  have [_ _ HZβ] := linhom_pre_linear (linhom_pre_of (H (φ s))).
+  have [_ _ HZγ] :=
+    linhom_pre_linear (linhom_pre_of (linhom_fun (H (φ s)) (β s))).
+  rewrite /Pβ' /Pγ' /= /β' /γ'.
+  rewrite -[linhom_fun (H (φ s)) (Sβinv *: β s)%PC]/((H (φ s)) (Sβinv *: β s)%PC).
+  rewrite HZβ.
+  rewrite -[linhom_fun (Sβinv *: linhom_fun (H (φ s)) (β s))%PC (Sγinv *: γ s)%PC]
+            /(linhom_scale_fun Sβinv (linhom_fun (H (φ s)) (β s)) (Sγinv *: γ s)%PC).
+  rewrite /linhom_scale_fun /=.
+  rewrite -[linhom_fun (linhom_fun (H (φ s)) (β s)) (Sγinv *: γ s)%PC]
+            /((linhom_fun (H (φ s)) (β s)) (Sγinv *: γ s)%PC).
+  rewrite HZγ !test_linZ /=.
+  rewrite [RHS]mulrCA.
+  rewrite [(Mβ + 1) * ((Mβ + 1)^-1 * _)]mulrA mulfV ?gt_eqF // mul1r.
+  by rewrite mulrA mulfV ?gt_eqF // mul1r.
+apply: measurable_funM; first exact: measurable_cst.
+by apply: measurable_funM; [exact: measurable_cst|exact: Hdiag].
+Qed.
+
+(** [Ψ] packaged as an [mcones_hom]. *)
+Definition Psi_mcones : mcones_hom Ar Dom Cod :=
+  MkMConesHom Psi_cones (fun W H HH => Psi_pres_path (W:=W) (H:=H) HH).
+
+(** *** Integral-preservation of [Ψ].
+
+    Via [Φ] being a left inverse: [Φ(Ψ h) = h] ([cod_eq] + pointwise
+    [Phi_iconesE]/[Psi_innerE]).  Both [Φ] and [Ψ] preserve paths, and
+    [Φ] preserves integrals ([Phi_pres_int]); applying [Φ]'s integral law
+    to the [Ψ]-image and cancelling [Φ] by injectivity yields [Ψ]'s. *)
+Lemma PhiPsi (h : Dom) : Phi_map (Psi_map h) = h.
+Proof.
+apply: cod_eq => b c.
+rewrite -[linhom_fun (linhom_fun (Phi_map (Psi_map h)) b) c]
+          /(linhom_fun (linhom_fun
+             (cones_hom_fun (mcones_hom_cones (icones_hom_mcones Phi_icones))
+                (Psi_map h)) b) c).
+by rewrite Phi_iconesE /Psi_map Psi_innerE.
+Qed.
+
+(** [Φ] is injective ([Φ(g₁)=Φ(g₂)] ⇒ pure-tensor agreement ⇒ [g₁=g₂]). *)
+Lemma Phi_inj : injective (Phi_map (B:=B) (C:=C) (D:=D)).
+Proof.
+move=> g1 g2 Heq.
+apply: linhom_tensor_ext => b c.
+have := f_equal (fun w : Dom => linhom_fun (linhom_fun w b) c) Heq.
+by rewrite /Phi_map !Phi_innerE.
+Qed.
+
+Lemma Psi_pres_int
+    (W : ar_obj Ar) (H : ar_carrier Ar W -> Dom)
+    (HH : is_measurable_path H) (µ : fmeas R (ar_carrier Ar W)) :
+  cones_hom_fun (mcones_hom_cones Psi_mcones) (icone_integral H HH µ) =
+  icone_integral
+    (fun r => cones_hom_fun (mcones_hom_cones Psi_mcones) (H r))
+    (mcones_hom_pres_path Psi_mcones W H HH) µ.
+Proof.
+rewrite -[cones_hom_fun (mcones_hom_cones Psi_mcones) (icone_integral H HH µ)]
+          /(Psi_map (icone_integral H HH µ)).
+(* Apply the injective [Φ] to both sides. *)
+apply: Phi_inj.
+rewrite PhiPsi.
+(* RHS: Φ(∫ (Ψ∘H)) = ∫ (Φ∘Ψ∘H) = ∫ H by [Phi_pres_int] + [PhiPsi]. *)
+set PsiH := fun r => cones_hom_fun (mcones_hom_cones Psi_mcones) (H r).
+set HPsiH := mcones_hom_pres_path Psi_mcones W H HH.
+rewrite -[Phi_map (icone_integral PsiH HPsiH µ)]
+          /(cones_hom_fun (mcones_hom_cones (@Phi_mcones _ _ B C D))
+              (icone_integral PsiH HPsiH µ)).
+rewrite (@Phi_pres_int _ _ B C D W PsiH HPsiH µ).
+(* The integrand [Φ(Ψ(H r))] equals [H r] pointwise; integrals agree. *)
+have Hfun : (fun r => cones_hom_fun (mcones_hom_cones (@Phi_mcones _ _ B C D)) (PsiH r))
+            = H.
+  apply: funext => r.
+  rewrite -[cones_hom_fun (mcones_hom_cones (@Phi_mcones _ _ B C D)) (PsiH r)]
+            /(Phi_map (Psi_map (H r))).
+  exact: PhiPsi.
+move: (mcones_hom_pres_path (@Phi_mcones _ _ B C D) W PsiH HPsiH).
+rewrite Hfun => HH'.
+by congr icone_integral; exact: Prop_irrelevance.
+Qed.
+
+(** [Ψ] packaged as a genuine [icones_hom] (Thm 5.12 inverse). *)
+Definition Psi_icones : icones_hom Ar Dom Cod :=
+  MkIConesHom Psi_mcones Psi_pres_int.
+
+Lemma Psi_iconesE (h : Dom) (b : B) (c : C) :
+  linhom_fun
+    (cones_hom_fun (mcones_hom_cones (icones_hom_mcones Psi_icones)) h)
+    (ptensor b c)
+  = linhom_fun (linhom_fun h b) c.
+Proof. by rewrite -[cones_hom_fun _ _]/(Psi_map h) /Psi_map Psi_innerE. Qed.
+
+End PsiIConesHom.
+
+Arguments Psi_map {R Ar B C D}.
+Arguments Psi_icones {R Ar B C D}.
+Arguments Psi_iconesE {R Ar B C D}.
+Arguments PhiPsi {R Ar B C D}.
+Arguments Phi_inj {R Ar B C D}.
+
+(** ** Thm 5.12 [tensor_hom_iso] — the FULL iso [(B⊗C)⊸D ≅ B⊸(C⊸D)]
+
+    Assembled from the forward [Φ = Phi_icones] and the inverse
+    [Ψ = Psi_icones] via [icones_iso_of_cancel].  The round-trips are
+    pure-tensor extensionality facts:
+    - [Φ(Ψ h) = h] is [PhiPsi];
+    - [Ψ(Φ g) = g] is [linhom_tensor_ext] ([Ψ(Φ g)] and [g] agree on
+      pure tensors via [Psi_iconesE] + [Phi_iconesE]). *)
+
+Section TensorHomIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+Local Notation BC := (tensor B C).
+Local Notation Dom := (linhom_car Ar BC D).
+Local Notation Cod := (linhom_car Ar B (linhom_car Ar C D)).
+
+Lemma PsiPhi (g : Dom) : Psi_map (Phi_map g) = g.
+Proof.
+apply: linhom_tensor_ext => b c.
+rewrite -[linhom_fun (Psi_map (Phi_map g)) (ptensor b c)]
+          /(linhom_fun (cones_hom_fun
+             (mcones_hom_cones (icones_hom_mcones Psi_icones)) (Phi_map g))
+            (ptensor b c)).
+rewrite Psi_iconesE.
+rewrite -[linhom_fun (linhom_fun (Phi_map g) b) c]
+          /(linhom_fun (linhom_fun
+             (cones_hom_fun (mcones_hom_cones (icones_hom_mcones Phi_icones)) g) b) c).
+by rewrite Phi_iconesE.
+Qed.
+
+Definition tensor_hom_iso : icones_iso Ar Dom Cod :=
+  icones_iso_of_cancel Phi_icones Psi_icones PsiPhi PhiPsi.
+
+End TensorHomIso.
+
+Arguments tensor_hom_iso {R Ar} B C D.
+
 End Icones_tensor_iso.
 
 (**md**************************************************************************)
@@ -3012,23 +3417,28 @@ End Icones_tensor_iso.
 (*    pure-tensor hypothesis [ηpt] is stated against an arbitrary [D]-test.    *)
 (*    [Arguments path_tens_to_X {R Ar B C D X} η ηbound ηpt].                  *)
 (*                                                                            *)
+(*  ★★ P4 parts 2–3 — DONE: [Psi_icones] + [tensor_hom_iso] (MILESTONE,        *)
+(*    discharges [saft_interface] Parameter #10), AXIOM-FREE (verified         *)
+(*    Print Assumptions [tensor_hom_iso] = 3 boolp; NO [saft_interface]).      *)
+(*    - [Psi_icones : icones_hom (B⊸(C⊸D)) ((B⊗C)⊸D)], map [Psi_inner].       *)
+(*      LINEARITY: [linhom_tensor_ext] + pointwise [Psi_innerE].  NORM-≤1:     *)
+(*      [Psi_inner h] equals (by [linhom_tensor_ext]) the EXACT [‖h‖]-rescaling*)
+(*      [‖h‖·icones_to_linhom(tensor_uncurry(‖h‖⁻¹·h))], norm ≤ ‖h‖·1 by       *)
+(*      [icones_to_linhom_norm_le1]; the [‖h‖=0] edge closed by [cone_normz].  *)
+(*      ω-CONTINUITY: [linhom_tensor_ext] → [D]-equation at [b⊗c] →            *)
+(*      [mcone_M_sep] real-sup identity, [c] rescaled to the unit ball, two    *)
+(*      [linhom_sup_fun_test_sup] + [sup_scaleM].  PATH: [Psi_pres_path] via   *)
+(*      [path_tens_to_X], [ηpt] = [H]'s path-preservation through [Psi_innerE]*)
+(*      tested against the nested [Dom]-test [β'▷(γ'▷mD)] + diagonal [(id,φ)]. *)
+(*      INTEGRAL: [Psi_pres_int] via [Phi_inj] (Φ injective by                 *)
+(*      [linhom_tensor_ext]+[Phi_iconesE]) + [Phi_pres_int] + [PhiPsi]         *)
+(*      ([Φ(Ψ h)=h]).                                                          *)
+(*    - [tensor_hom_iso := icones_iso_of_cancel Phi_icones Psi_icones]; the    *)
+(*      round-trips are [Ψ(Φ g)=g] ([PsiPhi], [linhom_tensor_ext] +           *)
+(*      [Psi_iconesE]+[Phi_iconesE]) and [Φ(Ψ h)=h] ([PhiPsi]).               *)
+(*      [Arguments tensor_hom_iso {R Ar} B C D] — matches Param #10 exactly.   *)
+(*                                                                            *)
 (* REMAINING ROUTE (concrete; next iteration):                               *)
-(*  P4 parts 2–3 — [Psi_icones] + [tensor_hom_iso] (the milestone, Param #10):*)
-(*    Ψ as [icones_hom (B⊸(C⊸D)) ((B⊗C)⊸D)], underlying map [Psi_inner]      *)
-(*    (DONE on main: [Psi_innerE] gives [Ψ(h)(b⊗c) = h(b)(c)]).               *)
-(*    - PATH field: apply [path_tens_to_X] to [r ↦ Psi_inner (H r)]; its       *)
-(*      pure-tensor measurability ([ηpt]) comes from [Psi_innerE] + [H]'s own *)
-(*      path-preservation (the [(s,r) ↦ mD(s,(H r)(β s)(γ s))] joint           *)
-(*      measurability, via the nested [B⊸(C⊸D)] test family + [ar_prod]).     *)
-(*    - INTEGRAL field: via [Phi_icones] INJECTIVE ([iso_fwd_inj] once Φ is   *)
-(*      shown to have a left inverse Ψ, OR directly: Φ(Ψ h) = h by [cod_eq] + *)
-(*      [Phi_iconesE]/[Psi_innerE] pointwise) + Φ's integral law [Phi_pres_int*)
-(*      to transport [∫] across.  Norm-≤1 free by the [‖h‖]-rescaling.        *)
-(*    - ASSEMBLE [tensor_hom_iso := icones_iso_of_cancel Phi_icones           *)
-(*      Psi_icones]; round-trips [Ψ(Φ g) = g] by [linhom_tensor_ext] (agree   *)
-(*      on pure tensors via [Phi_iconesE]+[Psi_innerE]) and [Φ(Ψ h) = h] by   *)
-(*      [cod_eq] (pointwise [Phi_iconesE]+[Psi_innerE]).                      *)
-(*      [Arguments tensor_hom_iso {R Ar} B C D].                              *)
 (*  P5 — structural isos α/λ/ρ/σ + …E laws via [yoneda_iso] + prereq isos     *)
 (*    [linhom_one_iso] (1⊸C≅C), [hom_one_bij] (ICones(1,B⊸C)≅ICones(B,C)),    *)
 (*    [swap_lin_lin] (B1⊸(B2⊸C)≅B2⊸(B1⊸C), Fubini core = [swap_lin_path]).    *)
