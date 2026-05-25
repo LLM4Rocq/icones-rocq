@@ -895,6 +895,462 @@ Arguments lfun_path_swap {R Ar X B C D} f.
 Arguments lfun_path_swapE {R Ar X B C D} f y r x.
 
 
+(** ** Prereq for P3/P5 — the unit iso [1 ⊸ C ≅ C] ([linhom_one_iso])
+
+    Paper §5.5 (Eq 5.3 ingredient): the canonical iso of integrable
+    cones [1 ⊸ C ≅ C], with forward "evaluate at the unit [1 ∈ R≥0]"
+    and inverse the "linear point" [c ↦ (s ↦ (c1_val s) ·: c)].  Both
+    directions are genuine [icones_hom]s.  Needed for P3 (the
+    [1 ↔ 1⊸1] bridge in [path_tens_to_one]) and later for the unitors
+    [λ]/[ρ]. *)
+
+(** *** The "linear point" inner map [lin_pt c : 1 ⊸ C]
+
+    For a fixed [c : C], the map [s ↦ (c1_val s) ·: c] from the unit
+    cone to [C].  Structurally identical to [tensor_hom_iso]'s
+    [line_fun] (a fixed vector scaled by the unit-cone variable), with
+    codomain a plain ICone [C] rather than an internal hom. *)
+
+Section LinPt.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable C : ICone.type Ar.
+Variable c : C.
+Local Notation One := (cone_one_car Ar).
+
+Definition lin_pt_fun (s : One) : C := precone_scale (c1_val s) c.
+
+Lemma lin_pt_linear : is_linear lin_pt_fun.
+Proof.
+rewrite /lin_pt_fun; split.
+- by rewrite (_ : c1_val (0%PC : One) = 0%:nng) ?precone_scale_0l //.
+- by move=> x y; rewrite -precone_scale_DAl; congr precone_scale.
+- by move=> r x; rewrite -precone_scale_A; congr precone_scale.
+Qed.
+
+Lemma lin_pt_norm_le (s : One) :
+  cone_norm (lin_pt_fun s) <= cone_norm s * cone_norm c.
+Proof.
+rewrite /lin_pt_fun cone_normh.
+by rewrite -[cone_norm s]/((c1_val s)%:num).
+Qed.
+
+Lemma lin_pt_bounded :
+  exists M : R, forall s : One, cnorm s <= 1 -> cnorm (lin_pt_fun s) <= M.
+Proof.
+exists (cone_norm c) => s Hs.
+apply: le_trans (lin_pt_norm_le s) _.
+by rewrite -[X in _ <= X]mul1r; apply: ler_wpM2r => //; exact: cone_norm_ge0.
+Qed.
+
+(** ω-continuity in [s]: mirrors [tensor_hom_iso.line_continuous]; the
+    sup commutes with scaling a fixed vector by the unit-cone variable. *)
+Lemma lin_pt_continuous : is_omega_continuous lin_pt_fun.
+Proof.
+move=> u uch ub1 fuch fub1.
+set L := c1_val (cone_sup_ball u uch ub1).
+set sb := cone_sup_ball (lin_pt_fun \o u) fuch fub1.
+have HuL : forall n, ((c1_val (u n))%:num <= L%:num)%R.
+  move=> n.
+  have := cone_sup_ball_ub u uch ub1 n.
+  by move=> /(cone_normp _ _); rewrite /cone_norm /= /c1_norm /=.
+have s_le : (sb <=p lin_pt_fun (cone_sup_ball u uch ub1))%PC.
+  apply: cone_sup_ball_lub => n; apply: (linear_increasing (lin_pt_linear)).
+  exact: cone_sup_ball_ub.
+apply/esym/precone_le_anti => //.
+have [t Ht] := s_le.
+have t_bound : forall n,
+    (cone_norm t <= (L%:num - (c1_val (u n))%:num) * cone_norm c)%R.
+  move=> n.
+  have [w Hw] : (lin_pt_fun (u n) <=p sb)%PC by exact: cone_sup_ball_ub.
+  have dn_ge0 : (0 <= L%:num - (c1_val (u n))%:num)%R by rewrite subr_ge0 HuL.
+  pose dn : {nonneg R} := NngNum dn_ge0.
+  have E1 : lin_pt_fun (cone_sup_ball u uch ub1) =
+            (lin_pt_fun (u n) + precone_scale dn c)%PC.
+    rewrite /lin_pt_fun -[(_ + _)%PC]/(precone_add (precone_scale (c1_val (u n)) c)
+                                       (precone_scale dn c)).
+    rewrite -precone_scale_DAl; congr (precone_scale _ c); apply: val_inj => /=.
+    by rewrite addrC subrK.
+  have E2 : lin_pt_fun (cone_sup_ball u uch ub1) =
+            (lin_pt_fun (u n) + (w + t))%PC.
+    by rewrite Ht Hw -precone_addA.
+  have Heq : precone_scale dn c = (w + t)%PC.
+    by apply: (@precone_cancel _ _ (lin_pt_fun (u n))); rewrite -E1 -E2.
+  have t_le : (t <=p precone_scale dn c)%PC.
+    by rewrite Heq precone_addC; exists w.
+  have := cone_normp _ _ t_le.
+  by rewrite cone_normh.
+have LsupE : L%:num = sup [set (c1_val (u n))%:num | n in [set: nat]].
+  exact: c1_sup_ball_E.
+have t_norm0 : (cone_norm t <= 0)%R.
+  apply/unstable.ler_gtP => e e_pos.
+  have hs : has_sup [set (c1_val (u n))%:num | n in [set: nat]].
+    split; first by exists (c1_val (u 0%N))%:num, 0%N.
+    by exists 1 => _ [n _ <-]; have := ub1 n; rewrite /cone_norm /= /c1_norm /=.
+  set nc := cone_norm c.
+  have nc_ge0 : (0 <= nc)%R by exact: cone_norm_ge0.
+  have den_pos : (0 < nc + 1)%R by rewrite ltr_pwDr // ler01.
+  have e'_pos : (0 < e / (nc + 1))%R by rewrite divr_gt0.
+  have [a [n _ Hae] Ha] := sup_adherent e'_pos hs.
+  move: Ha; rewrite -Hae -LsupE => Ha.
+  apply: le_trans (t_bound n) _.
+  rewrite -/nc.
+  apply: le_trans (_ : (e / (nc + 1)) * nc <= e)%R.
+    rewrite ler_wpM2r //; apply: ltW.
+    by rewrite ltrBlDr addrC -ltrBlDr.
+  rewrite -mulrA ler_piMr ?ltW //.
+  rewrite mulrC ltr_pdivrMr // mul1r ltrDl.
+  exact: ltr01.
+have t0 : t = precone_zero.
+  by apply: cone_normz; apply/le_anti; rewrite t_norm0 cone_norm_ge0.
+by rewrite Ht t0 precone_addr0; exact: precone_le_refl.
+Qed.
+
+(** Path-preservation in [s]: tests of [C] are arbitrary [m]; the
+    pulled-back test of [lin_pt c ∘ γ] factors as
+    [c1_val(γ s) · m(s, c)] — a product of two measurable functions. *)
+Lemma lin_pt_pres_path (X : ar_obj Ar) (γ : ar_carrier Ar X -> One) :
+  is_measurable_path γ ->
+  is_measurable_path (fun s => lin_pt_fun (γ s)).
+Proof.
+move=> Hγ.
+have [[M HM] _] := Hγ.
+split.
+  exists (M * cone_norm c) => s.
+  apply: le_trans (lin_pt_norm_le (γ s)) _.
+  by apply: ler_wpM2r; [exact: cone_norm_ge0|exact: HM].
+move=> Y m mM.
+have -> : (fun q : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+            test_fun m q.1 (lin_pt_fun (γ q.2))) =
+          (fun q => (c1_val (γ q.2))%:num * test_fun m q.1 c).
+  by apply: funext => q; rewrite /lin_pt_fun test_linZ.
+rewrite [X in measurable_fun _ X](_ : _ =
+  ((fun s => test_fun m s c) \o fst) \*
+  ((fun s => (c1_val (γ s))%:num) \o snd)); last first.
+  by apply: funext => q; rewrite /GRing.mul /= mulrC.
+apply: measurable_funM.
+- apply: (measurable_comp (F := setT) measurableT (subsetT _) _ measurable_fst).
+  have Hconst := @const_path_measurable R Ar C Y c.
+  have [_ Hcm] := Hconst.
+  have Hbase := Hcm Y m mM.
+  have -> : (fun s : ar_carrier Ar Y => test_fun m s c) =
+            (fun p : ar_carrier Ar Y * ar_carrier Ar Y => test_fun m p.1 c)
+              \o (fun s => (s, s)).
+    by apply: funext.
+  apply: (measurable_comp (F := setT) measurableT (subsetT _) Hbase).
+  by apply: measurable_fun_pair; exact: measurable_id.
+- apply: (measurable_comp (F := setT) measurableT (subsetT _) _ measurable_snd).
+  exact: (measurable_test_path_section (B := cone_one_car Ar)
+            (m := ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar))
+            (erefl) Hγ (ar_zero_pt Ar)).
+Qed.
+
+Definition lin_pt_pre : linhom_pre Ar One C :=
+  MkLinhomPre lin_pt_fun lin_pt_linear lin_pt_continuous
+              lin_pt_bounded
+              (fun X g Hg => lin_pt_pres_path (X:=X) (γ:=g) Hg).
+
+(** Integral-preservation in [s]: by [icone_integral_eqP] on [C]; the
+    obligation reduces (via [test_linZ] + the [1]-cone integral
+    [icone_integralP] against [id_test]) to the scalar identity
+    [c1_val(∫β) · K = ∫ (c1_val(β s) · K)]. *)
+Lemma lin_pt_pres_int
+  (X : ar_obj Ar) (β : ar_carrier Ar X -> One)
+  (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X)) :
+  linhom_pre_fun lin_pt_pre (icone_integral β Hβ µ) =
+  icone_integral
+    (fun s => linhom_pre_fun lin_pt_pre (β s))
+    (linhom_pre_pres_path lin_pt_pre X β Hβ) µ.
+Proof.
+apply: icone_integral_eqP => p pM s.
+rewrite /= /lin_pt_fun test_linZ.
+set K : R := test_fun p s c.
+have HcInt : (c1_val (icone_integral β Hβ µ))%:num =
+  fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+          ((c1_val (β r))%:num)%:E).
+  have := icone_integralP β Hβ µ
+            (ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar)) erefl
+            (ar_zero_pt Ar).
+  by [].
+rewrite HcInt.
+rewrite [in RHS](eq_integral (fun r => (((c1_val (β r))%:num)%:E * K%:E)%E));
+  last by move=> r _; rewrite /= test_linZ -/K -EFinM.
+have Hmeas_c : measurable_fun [set: ar_carrier Ar X]
+    (fun x : ar_carrier Ar X => ((c1_val (β x))%:num)%:E).
+  apply/measurable_EFinP.
+  exact: (measurable_test_path_section (B := cone_one_car Ar)
+            (m := ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar))
+            (erefl) Hβ (ar_zero_pt Ar)).
+have [Mb HMb] : exists M : R, forall r, ((c1_val (β r))%:num <= M)%R.
+  by have := Hβ; case=> -[Mb HMb] _; exists Mb => r;
+     have := HMb r; rewrite /cone_norm /= /c1_norm /=.
+have Kge0 : (0 <= K)%R by rewrite /K; exact: test_ge0.
+have Hfin : (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+              ((c1_val (β r))%:num)%:E < +oo)%E.
+  apply: (@le_lt_trans _ _
+    (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) Mb%:E)%E).
+    apply: (ge0_le_integral _ measurableT _ Hmeas_c (measurable_cst _)).
+    - by move=> r _; rewrite lee_fin.
+    - by move=> r _; rewrite lee_fin HMb.
+  rewrite -[(fun=> Mb%:E)]/(cst Mb%:E) lebesgue_integral_nonneg.integral_cst//.
+  by rewrite ltey_eq fin_numM// fmeas_setT_fin.
+rewrite lebesgue_integral_nonneg.ge0_integralZr//;
+  try by move=> r _; rewrite lee_fin.
+rewrite fineM//.
+by rewrite ge0_fin_numE//; apply: integral_ge0 => r _; rewrite lee_fin.
+Qed.
+
+Definition lin_pt : linhom_car Ar One C :=
+  MkLinhom lin_pt_pre lin_pt_pres_int.
+
+Lemma lin_ptE (s : One) :
+  linhom_fun lin_pt s = precone_scale (c1_val s) c.
+Proof. by []. Qed.
+
+(** [lin_pt c] evaluated at the unit [1] is [c]. *)
+Lemma lin_pt_unit :
+  linhom_fun lin_pt (MkConeOne Ar 1%:nng) = c.
+Proof. by rewrite lin_ptE (_ : c1_val _ = 1%:nng) ?precone_scale_1. Qed.
+
+End LinPt.
+
+Arguments lin_pt {R Ar C} c.
+Arguments lin_ptE {R Ar C} c s.
+Arguments lin_pt_unit {R Ar C} c.
+
+
+(** *** The unit iso [1 ⊸ C ≅ C] ([linhom_one_iso])
+
+    Forward [eval1] = "evaluate at the unit [1]" (= [eval_at 1], norm
+    [≤ 1]); backward [lo_lift] = the linear-point map [c ↦ lin_pt c].
+    Both are genuine [icones_hom]s; the round-trips are
+    [eval1 (lin_pt c) = c] ([lin_pt_unit]) and
+    [lin_pt (φ 1) = φ] (linearity of [φ] in the unit-cone argument). *)
+
+Section LinhomOneIso.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable C : ICone.type Ar.
+Local Notation One := (cone_one_car Ar).
+Local Notation L := (linhom_car Ar One C).
+
+(** The unit element [1 ∈ 1 = R≥0]. *)
+Definition c1_one : One := MkConeOne Ar 1%:nng.
+
+(** **** Forward: evaluate at the unit *)
+
+Lemma eval1_norm : cone_norm (eval_at c1_one : linhom_car Ar L C) <= 1.
+Proof.
+rewrite -[cone_norm _]/(linhom_norm _).
+apply: linhom_norm_sup_lub => φ Hφ.
+rewrite eval_atE.
+apply: le_trans (linhom_norm_apply_le (lexx _) _) _.
+rewrite (_ : cone_norm c1_one = 1); first by rewrite mulr1.
+by rewrite /cone_norm /= /c1_norm /=.
+Qed.
+
+Definition eval1 : icones_hom Ar L C := linhom_icones (eval_at c1_one) eval1_norm.
+
+Lemma eval1E (φ : L) : eval1 φ = linhom_fun φ c1_one.
+Proof. by rewrite -[eval1 φ]/(hfun (linhom_icones _ _) φ) linhom_iconesE eval_atE. Qed.
+
+(** **** Backward: the linear-point map [c ↦ lin_pt c] *)
+
+Lemma lo_lift_linear : is_linear (lin_pt (C:=C)).
+Proof.
+split.
+- apply: linhom_eq => s; rewrite lin_ptE precone_scale_0r.
+  by rewrite -[linhom_fun _ s]/(linhom_fun (linhom_zero One C) s).
+- move=> x y; apply: linhom_eq => s.
+  rewrite lin_ptE.
+  rewrite -[linhom_fun (lin_pt x + lin_pt y)%PC s]
+            /(linhom_add_fun (lin_pt x) (lin_pt y) s).
+  rewrite /linhom_add_fun /= !lin_ptE.
+  by rewrite precone_scale_DAr.
+- move=> r x; apply: linhom_eq => s.
+  rewrite lin_ptE.
+  rewrite -[linhom_fun (r *: lin_pt x)%PC s]/(linhom_scale_fun r (lin_pt x) s).
+  rewrite /linhom_scale_fun /= !lin_ptE.
+  rewrite -!precone_scale_A; congr precone_scale.
+  apply: val_inj => /=.
+  by rewrite !nng_mulE mulrC.
+Qed.
+
+Lemma lo_lift_norm_le1 (c : C) : cone_norm (lin_pt c) <= cone_norm c.
+Proof.
+rewrite -[cone_norm (lin_pt c)]/(linhom_norm (lin_pt c)).
+apply: linhom_norm_sup_lub => s Hs.
+rewrite lin_ptE.
+rewrite cone_normh -[X in _ <= X]mul1r.
+apply: ler_wpM2r; first exact: cone_norm_ge0.
+by rewrite -[(c1_val s)%:num]/(cone_norm s).
+Qed.
+
+(** ω-continuity in [c]: via [linhom_mcone_M_sep] + [linhom_sup_fun_test_sup];
+    each [C]-test reduces (via [test_linZ]) to scaling the [C]-sup. *)
+Lemma lo_lift_continuous : is_omega_continuous (lin_pt (C:=C)).
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: (@linhom_mcone_M_sep _ _ One C) => p [δ [δub [m [mM Hp]]]].
+rewrite Hp /linhom_test /linhom_test_fun /=.
+set s := ar_zero_pt Ar.
+rewrite lin_ptE.
+rewrite (linhom_sup_fun_test_sup (u := [eta lin_pt (C:=C)] \o u)
+           fuch fub1 m s (path_fun δ s)).
+rewrite test_linZ.
+rewrite (eval_at_test_sup_ball uch ub1 m s).
+rewrite [in RHS](_ :
+  [set m s (linhom_fun (([eta lin_pt] \o u) n) (path_fun δ s)) | n in [set: nat]] =
+  [set (c1_val (path_fun δ s))%:num * m s (u n) | n in [set: nat]]); last first.
+  by apply: eq_imagel => n _ /=; rewrite lin_ptE test_linZ.
+have HsupS : has_sup [set m s (u n) | n in [set: nat]].
+  split; first by exists (m s (u 0%N)), 0%N.
+  by exists 1 => _ [n _ <-]; apply: le_trans (test_le1 m s (ub1 n)).
+rewrite sup_scaleM //.
+- congr (sup _); rewrite eqEsubset; split.
+    by move=> _ [_ [n _ <-] <-]; exists n.
+  by move=> _ [n _ <-]; exists (m s (u n)) => //; exists n.
+- by case: HsupS.
+- by case: HsupS.
+Qed.
+
+Lemma lo_lift_bounded :
+  exists M : R, forall c : C, cnorm c <= 1 -> cnorm (lin_pt c) <= M.
+Proof. by exists 1 => c Hc; apply: le_trans (lo_lift_norm_le1 c) _. Qed.
+
+(** Path-preservation in [c]: tests of [1⊸C] are [δ ▷ m]; the value at
+    [lin_pt (γ w)] factors as [c1_val(δ s) · m(s, γ w)] — a product of a
+    measurable [s]-function and the jointly-measurable [m(s, γ w)]. *)
+Lemma lo_lift_pres_path (W : ar_obj Ar) (γ : ar_carrier Ar W -> C) :
+  is_measurable_path γ ->
+  is_measurable_path (fun w => lin_pt (γ w)).
+Proof.
+move=> Hγ.
+have [[M HM] Hγm] := Hγ.
+split.
+  exists M => w; apply: le_trans (lo_lift_norm_le1 (γ w)) _; exact: HM.
+move=> Y p [δ [δub [m [mM ->]]]].
+rewrite /linhom_test /=.
+have -> : (fun q : (ar_carrier Ar Y * ar_carrier Ar W)%type =>
+            linhom_test_fun δ m q.1 (lin_pt (γ q.2))) =
+          (fun q => (c1_val (path_fun δ q.1))%:num * test_fun m q.1 (γ q.2)).
+  by apply: funext => q; rewrite /linhom_test_fun /= lin_ptE test_linZ.
+rewrite [X in measurable_fun _ X](_ : _ =
+  ((fun s => (c1_val (path_fun δ s))%:num) \o fst) \*
+  (fun q => test_fun m q.1 (γ q.2))); last first.
+  by apply: funext => q.
+apply: measurable_funM.
+- apply: (measurable_comp (F := setT) measurableT (subsetT _) _ measurable_fst).
+  exact: (measurable_test_path_section (B := cone_one_car Ar)
+            (m := ConeOneMConeAux.id_test (R:=R) (Ar:=Ar) (ar_zero Ar))
+            (erefl) (path_is_path δ) (ar_zero_pt Ar)).
+- exact: (Hγm Y m mM).
+Qed.
+
+Definition lo_lift_pre : linhom_pre Ar C L :=
+  MkLinhomPre (lin_pt (C:=C)) lo_lift_linear lo_lift_continuous
+              lo_lift_bounded
+              (fun W g Hg => lo_lift_pres_path (W:=W) (γ:=g) Hg).
+
+(** Integral-preservation in [c]: by [icone_integral_eqP] on [1⊸C]; tests
+    are [δ ▷ m], for which the obligation reduces (via [test_linZ] + the
+    [C]-integral Pettis spec) to the scalar identity
+    [c1_val(δ s) · m(s, ∫γ) = ∫ (c1_val(δ s) · m(s, γ w))]. *)
+Lemma lo_lift_pres_int (W : ar_obj Ar) (γ : ar_carrier Ar W -> C)
+  (Hγ : is_measurable_path γ) (µ : fmeas R (ar_carrier Ar W)) :
+  linhom_pre_fun lo_lift_pre (icone_integral γ Hγ µ) =
+  icone_integral
+    (fun w => linhom_pre_fun lo_lift_pre (γ w))
+    (linhom_pre_pres_path lo_lift_pre W γ Hγ) µ.
+Proof.
+apply: icone_integral_eqP => p pM s.
+have [δ [δub [m [mM ->]]]] : linhom_mcone_M (Y := ar_zero Ar) p by exact: pM.
+rewrite /= /linhom_test /linhom_test_fun /= !lin_ptE !test_linZ.
+set Ks : R := (c1_val (path_fun δ s))%:num.
+(* LHS: Ks * m(s, ∫γ) = Ks * ∫ m(s, γ w) by the C-integral Pettis spec. *)
+rewrite (icone_integralP γ Hγ µ m mM s).
+(* The integrand of the [C]-section [r ↦ m s (γ r)] is bounded measurable. *)
+have meas_g : measurable_fun [set: ar_carrier Ar W]
+    (fun w => (test_fun m s (γ w))%:E).
+  apply/measurable_EFinP.
+  have [_ Hγm] := Hγ.
+  have Hb := Hγm (ar_zero Ar) m mM.
+  have -> : (fun w => test_fun m s (γ w)) =
+            (fun q : ar_carrier Ar (ar_zero Ar) * ar_carrier Ar W =>
+               test_fun m q.1 (γ q.2)) \o (fun w => (s, w)).
+    by apply: funext.
+  apply: (measurable_comp (F := setT) measurableT (subsetT _) Hb).
+  by apply: measurable_fun_pair; [exact: measurable_cst|exact: measurable_id].
+(* RHS integrand: c1_val(δ s) * m(s, γ w) = Ks%:E * (m s (γ w))%:E. *)
+under [in RHS]eq_integral => w _ do rewrite /= lin_ptE test_linZ EFinM.
+rewrite lebesgue_integral_nonneg.ge0_integralZl_EFin//.
+- rewrite fineM// /Ks ge0_fin_numE;
+    last by apply: integral_ge0 => w _; rewrite lee_fin test_ge0.
+  have [[Mb HMb] _] := Hγ.
+  apply: (@le_lt_trans _ _
+    (\int[fmeas_mu µ]_(w in [set: ar_carrier Ar W]) Mb%:E)%E).
+    apply: (ge0_le_integral _ measurableT _ meas_g (measurable_cst _)).
+    - by move=> w _; rewrite lee_fin test_ge0.
+    - by move=> w _; rewrite lee_fin; apply: le_trans (test_norm_le m s (γ w)) _.
+  rewrite -[(fun=> Mb%:E)]/(cst Mb%:E) lebesgue_integral_nonneg.integral_cst//.
+  by rewrite ltey_eq fin_numM// fmeas_setT_fin.
+- by move=> w _; rewrite lee_fin test_ge0.
+Qed.
+
+Definition lo_lift_mcones : mcones_hom Ar C L :=
+  MkMConesHom (ConesHom (lin_pt (C:=C)) lo_lift_linear lo_lift_continuous
+                lo_lift_norm_le1)
+    (fun W g Hg => lo_lift_pres_path (W:=W) (γ:=g) Hg).
+
+Lemma lo_lift_mcones_pres_int (W : ar_obj Ar) (γ : ar_carrier Ar W -> C)
+  (Hγ : is_measurable_path γ) (µ : fmeas R (ar_carrier Ar W)) :
+  cones_hom_fun (mcones_hom_cones lo_lift_mcones) (icone_integral γ Hγ µ) =
+  icone_integral
+    (fun w => cones_hom_fun (mcones_hom_cones lo_lift_mcones) (γ w))
+    (mcones_hom_pres_path lo_lift_mcones W γ Hγ) µ.
+Proof.
+rewrite -[cones_hom_fun _ _]/(lin_pt (icone_integral γ Hγ µ)).
+rewrite -[lin_pt _]/(linhom_pre_fun lo_lift_pre (icone_integral γ Hγ µ)).
+rewrite (lo_lift_pres_int Hγ µ).
+by congr icone_integral; exact: Prop_irrelevance.
+Qed.
+
+Definition lo_lift : icones_hom Ar C L :=
+  MkIConesHom lo_lift_mcones lo_lift_mcones_pres_int.
+
+Lemma lo_liftE (c : C) (s : One) :
+  linhom_fun (lo_lift c) s = precone_scale (c1_val s) c.
+Proof. by rewrite -[lo_lift c]/(lin_pt c) lin_ptE. Qed.
+
+(** **** The iso [1 ⊸ C ≅ C] *)
+
+Lemma linhom_one_fwdK (φ : L) : lo_lift (eval1 φ) = φ.
+Proof.
+apply: linhom_eq => s.
+rewrite lo_liftE eval1E.
+(* [c1_val s · φ(1) = φ(c1_val s · 1) = φ s], by linearity of [φ]. *)
+have [_ _ HZ] := linhom_pre_linear (linhom_pre_of φ).
+rewrite -[precone_scale (c1_val s) (linhom_fun φ c1_one)]
+          /(precone_scale (c1_val s) (linhom_pre_fun (linhom_pre_of φ) c1_one)).
+rewrite -HZ.
+congr (linhom_fun φ _).
+by apply: cone_one_eq; apply: val_inj => /=; rewrite mulr1.
+Qed.
+
+Lemma linhom_one_bwdK (c : C) : eval1 (lo_lift c) = c.
+Proof. by rewrite eval1E lo_liftE (_ : c1_val c1_one = 1%:nng) ?precone_scale_1. Qed.
+
+Definition linhom_one_iso : icones_iso Ar L C :=
+  icones_iso_of_cancel eval1 lo_lift linhom_one_fwdK linhom_one_bwdK.
+
+End LinhomOneIso.
+
+Arguments c1_one {R} Ar.
+Arguments eval1 {R Ar C}.
+Arguments eval1E {R Ar C} φ.
+Arguments lo_lift {R Ar C}.
+Arguments lo_liftE {R Ar C} c s.
+Arguments linhom_one_iso {R Ar} C.
+
+
 End Icones_tensor_iso.
 
 (**md**************************************************************************)
@@ -937,19 +1393,47 @@ End Icones_tensor_iso.
 (*      the inner [linhom]'s [linhom_pres_int] + the D-integral Pettis spec.  *)
 (*    Verified AXIOM-FREE (Print Assumptions [lfun_path_swap] = 3 boolp).     *)
 (*                                                                            *)
+(*  ★ PREREQ — DONE: [linhom_one_iso C : icones_iso (1⊸C) C] (the unit iso    *)
+(*    [1 ⊸ C ≅ C], Paper §5.5 / Eq 5.3 ingredient), AXIOM-FREE (verified      *)
+(*    Print Assumptions = 3 boolp):                                          *)
+(*    - [lin_pt c : 1⊸C] — the linear-point map [s ↦ (c1_val s)·c]; all       *)
+(*      five [linhom_car] fields ([lin_pt_continuous] mirrors                 *)
+(*      [tensor_hom_iso.line_continuous]; [lin_pt_pres_int] via the [1]-cone  *)
+(*      [icone_integralP] at [id_test]).                                      *)
+(*    - forward [eval1 := eval_at 1] (norm ≤ 1, via [eval1_norm]); backward   *)
+(*      [lo_lift := c ↦ lin_pt c] as a full [icones_hom C (1⊸C)]              *)
+(*      ([lo_lift_continuous] via [linhom_mcone_M_sep] + [sup_scaleM];        *)
+(*      [lo_lift_pres_int] via the [1⊸C]-test [δ▷m] + the [C]-integral        *)
+(*      Pettis spec + [ge0_integralZl_EFin]).                                 *)
+(*    - round-trips [linhom_one_fwdK] (linearity of [φ] at the unit) /        *)
+(*      [linhom_one_bwdK] ([lin_pt_unit]); iso via [icones_iso_of_cancel].    *)
+(*    Reusable for P3 (the [1]↔[1⊸1] bridge) AND P5's unitor [ρ].            *)
+(*                                                                            *)
 (* REMAINING ROUTE (concrete; next iteration):                               *)
 (*  P3 — [path_tens_to_one]: η : X → (B⊗C)⊸1 bounded + pure-tensor measurable *)
 (*    ⇒ a genuine path.  Build η' : B → (C ⊸ Path(X, 1⊸1)) from the          *)
-(*    pure-tensor data (lifting each scalar η(r)(x⊗y) ∈ 1 into [1⊸1] by the   *)
-(*    "scale-by" map [line_fun]); η' preserves integrals "since ⊗ preserves   *)
-(*    integrals" ([tensor_path] machinery); set η'' := tensor_uncurry η' :    *)
-(*    icones_hom (B⊗C) (Path(X, 1⊸1)); apply [lfun_path_swap] (with B':=B⊗C,  *)
-(*    C':=D':=1) → h : icones_hom 1 (Path(X, (B⊗C)⊸1)); conclude η = h(1) by  *)
-(*    [linhom_tensor_ext] (pure-tensor ext).                                  *)
-(*    PREREQ for the [1] ↔ [1⊸1] bridge: a small iso [cone_one_car ≅          *)
-(*    (cone_one_car ⊸ cone_one_car)] (forward = [line_fun]-style scale map,   *)
-(*    backward = eval-at-unit) — this is the [linhom_one_iso] (1⊸C≅C) of P5   *)
-(*    specialised to C:=1, and is the only missing piece to start P3.         *)
+(*    pure-tensor data (lifting each scalar η(r)(x⊗y) ∈ 1 into [1⊸1] via      *)
+(*    [lin_pt] at [C:=1], i.e. [lin_pt (η r (x⊗y)) : 1⊸1] whose value at the  *)
+(*    unit [1] is [η r (x⊗y)] by [lin_pt_unit]); η' preserves integrals       *)
+(*    "since ⊗ preserves integrals" ([tensor_path] machinery); set            *)
+(*    η'' := tensor_uncurry η' : icones_hom (B⊗C) (Path(X, 1⊸1)); apply       *)
+(*    [lfun_path_swap] (with B':=B⊗C, C':=D':=1) → h : icones_hom 1           *)
+(*    (Path(X, (B⊗C)⊸1)); conclude η = h(1) by [linhom_tensor_ext] (pure-     *)
+(*    tensor ext).  PREREQ [linhom_one_iso] now AVAILABLE (above).            *)
+(*    NEXT STEP (precise): the one remaining bottleneck is building [η'] as a *)
+(*    genuine [icones_hom B (C ⊸ Path(X, 1⊸1))].  Sub-steps:                  *)
+(*    (a) inner path: [r ↦ lin_pt (η r (b⊗c)) : Path(X,1⊸1)] is measurable —  *)
+(*        reduces (via [lo_lift]/[lin_pt] path-preservation, with the [1⊸1]   *)
+(*        codomain) to [r ↦ η r (b⊗c) : 1] being a measurable path, which is  *)
+(*        the pure-tensor measurability HYPOTHESIS (state it as: for each B-  *)
+(*        path β, C-path γ over Z, [(s,r) ↦ c1_val(η r (β s ⊗ γ s))] is       *)
+(*        jointly measurable — fed by [tensor_path]'s pure-tensor path).      *)
+(*    (b) [η'(b) : C ⊸ Path(X,1⊸1)] (5 fields, linear/ω-cont/path/int in c);  *)
+(*    (c) [η' : B → (C⊸Path(X,1⊸1))] (5 fields in b).  The integral fields    *)
+(*        (b)/(c) are "since ⊗ preserves integrals" — use the [Path]-integral *)
+(*        pointwise law [path_int_eval] + the [1]-cone [icone_integralP] +    *)
+(*        [tensor_path].  This [η'] is ~comparable in size to [lfun_path_swap]*)
+(*        (≈3 nested morphism layers); budget a full session.                 *)
 (*  P4 — [Psi_icones] + [tensor_hom_iso]: Ψ's path field via P3 (applied to   *)
 (*    Ψ), Ψ's integral field via [Phi_icones] injective + [Phi_pres_int];     *)
 (*    assemble [icones_iso_of_cancel Phi_icones Psi_icones] (round-trips from  *)
