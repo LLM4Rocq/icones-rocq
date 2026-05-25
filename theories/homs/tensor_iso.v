@@ -583,5 +583,136 @@ End SwapInnerPath.
 
 Arguments swap_inner_path {R Ar X B C D} f y.
 
+(** ** Paper [lemma:lfun-path-swap] — assembled as an [icones_hom]
+
+    [lfun_path_swap f : icones_hom C (Path(X, B⊸D))], the transpose
+    [y ↦ (r ↦ (x ↦ f(x)(r)(y)))], with computation law [lfun_path_swapE]:
+    [(lfun_path_swap f y)(r)(x) = f(x)(r)(y)]. *)
+
+Section LfunPathSwap.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B C D : ICone.type Ar).
+Variable f : icones_hom Ar B (path_car Ar X (linhom_car Ar C D)).
+
+Local Notation PBD := (path_car Ar X (linhom_car Ar B D)).
+
+(** The transpose value [lfps y : Path(X, B⊸D)]. *)
+Definition lfps (y : C) : PBD := MkPath (swap_inner_path f y).
+
+Lemma lfpsE (y : C) (r : ar_carrier Ar X) (x : B) :
+  linhom_fun (path_fun (lfps y) r) x =
+  linhom_fun (path_fun ((f : icones_hom _ _ _) x) r) y.
+Proof. by rewrite /lfps /= swap_innerE. Qed.
+
+Lemma lfps_linear : is_linear lfps.
+Proof.
+split.
+- apply: path_eq => r /=; apply: linhom_eq => x.
+  rewrite swap_innerE.
+  have [Z0 _ _] :=
+    linhom_pre_linear (linhom_pre_of (path_fun ((f : icones_hom _ _ _) x) r)).
+  rewrite -[linhom_fun (path_fun ((f : icones_hom _ _ _) x) r) 0%PC]
+            /(path_fun ((f : icones_hom _ _ _) x) r 0%PC).
+  rewrite Z0.
+  by rewrite [linhom_fun (path_zero_fun (linhom_car Ar B D) r) x]/= /path_zero_fun /=
+             [linhom_fun (0%PC : linhom_car Ar B D) x]/= /linhom_zero_fun.
+- move=> y1 y2; apply: path_eq => r /=; apply: linhom_eq => x.
+  rewrite swap_innerE.
+  rewrite [linhom_fun (swap_inner f r y1 + swap_inner f r y2)%PC x]/linhom_fun /=
+          /linhom_add_fun.
+  rewrite -!/(linhom_fun (swap_inner f r y1) x) -!/(linhom_fun (swap_inner f r y2) x).
+  rewrite !swap_innerE.
+  have [_ HD _] :=
+    linhom_pre_linear (linhom_pre_of (path_fun ((f : icones_hom _ _ _) x) r)).
+  rewrite -[linhom_fun (path_fun ((f : icones_hom _ _ _) x) r) (y1 + y2)%PC]
+            /(path_fun ((f : icones_hom _ _ _) x) r (y1 + y2)%PC).
+  by rewrite HD.
+- move=> s y; apply: path_eq => r /=; apply: linhom_eq => x.
+  rewrite swap_innerE.
+  rewrite [linhom_fun (s *: swap_inner f r y)%PC x]/linhom_fun /= /linhom_scale_fun.
+  rewrite -!/(linhom_fun (swap_inner f r y) x) !swap_innerE.
+  have [_ _ HZ] :=
+    linhom_pre_linear (linhom_pre_of (path_fun ((f : icones_hom _ _ _) x) r)).
+  rewrite -[linhom_fun (path_fun ((f : icones_hom _ _ _) x) r) (s *: y)%PC]
+            /(path_fun ((f : icones_hom _ _ _) x) r (s *: y)%PC).
+  by rewrite HZ.
+Qed.
+
+Lemma lfps_norm_le (y : C) : cone_norm (lfps y) <= cone_norm y.
+Proof.
+rewrite /cone_norm /=.
+apply: ge_sup; first exact: path_normset_nonempty.
+move=> _ [r ->] /=.
+rewrite -[cnorm (swap_inner f r y)]/(linhom_norm (swap_inner f r y)).
+apply: linhom_norm_sup_lub => x Hx.
+rewrite swap_innerE.
+have Hphi : cone_norm (path_fun ((f : icones_hom _ _ _) x) r) <= 1.
+  apply: le_trans (path_norm_ub ((f : icones_hom _ _ _) x) r) _.
+  apply: le_trans (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones f)) x) _.
+  exact: Hx.
+by have := linhom_norm_apply_le Hphi y; rewrite mul1r.
+Qed.
+
+Lemma lfps_bounded :
+  exists M : R, forall y : C, cnorm y <= 1 -> cnorm (lfps y) <= M.
+Proof. by exists 1 => y Hy; apply: le_trans (lfps_norm_le y) _. Qed.
+
+End LfunPathSwap.
+
+Arguments lfps {R Ar X B C D} f y.
+Arguments lfpsE {R Ar X B C D} f y r x.
+
 
 End Icones_tensor_iso.
+
+(**md**************************************************************************)
+(* # STATUS — tensor_hom_iso discharge (this file)                            *)
+(*                                                                            *)
+(* DONE (axiom-free; Print Assumptions = the 3 classical [boolp] axioms only, *)
+(* NO [saft_interface] symbols):                                              *)
+(*                                                                            *)
+(*  P1 — pointwise integral-evaluation foundation:                            *)
+(*    - [path_int_eval] / [path_int_section_meas] (Thm 4.12): the Path(X,B)   *)
+(*      integral is pointwise.                                                *)
+(*    - [eval_path r] : Path(X,E) ⊸ E (a [linhom_car], norm ≤ 1).             *)
+(*    - [linhom_int_eval] / [linhom_int_section_meas] (Lemma 5.4): the C⊸D    *)
+(*      integral is pointwise.                                                *)
+(*    - [eval_at y] : (C⊸D) ⊸ D (a [linhom_car], norm ≤ ‖y‖), ω-continuity    *)
+(*      via [mcone_M_sep] + [linhom_sup_fun_test_sup] + [eval_at_test_sup_ball].*)
+(*                                                                            *)
+(*  P2 (core) — toward Paper [lemma:lfun-path-swap]:                          *)
+(*    - [swap_inner f r y : B⊸D] (x ↦ f(x)(r)(y)) via [linhom_comp] of        *)
+(*      [eval_at]/[eval_path]; [swap_innerE] computation.                     *)
+(*    - ★ [swap_inner_path]: r ↦ swap_inner f r y is a measurable path of     *)
+(*      B⊸D (the hardest measurability step; [swap_lin_path]-style            *)
+(*      [ar_prod] reindexing).                                                *)
+(*                                                                            *)
+(*  P2 (assembly, partial) — [lfps f : C -> Path(X, B⊸D)] (value             *)
+(*    [y ↦ MkPath (swap_inner_path f y)]) with [lfpsE] computation, and       *)
+(*    [lfps_linear] / [lfps_norm_le] / [lfps_bounded] DONE.                    *)
+(*                                                                            *)
+(* REMAINING ROUTE (concrete; next iteration):                               *)
+(*  P2 (rest) — [lfun_path_swap : icones_hom C (Path(X, B⊸D))] from [lfps]:   *)
+(*    remaining three [icones_hom] fields are ω-continuity (Path-(Mssep) +    *)
+(*    a Path-sup test computation), PATH-preservation (for a C-path γ over W, *)
+(*    w ↦ lfps(γ w) a measurable path of Path(X,B⊸D)) and                     *)
+(*    INTEGRAL-preservation — the two latter are reindexing/Pettis proofs of  *)
+(*    the same shape as [swap_inner_path] / [linhom_int_eval], one            *)
+(*    codomain-layer up.                                                      *)
+(*  P3 — [path_tens_to_one]: η : X → (B⊗C)⊸1 bounded + pure-tensor measurable *)
+(*    ⇒ a genuine path.  Build η' : B → (C ⊸ Path(X,1)) from the pure-tensor  *)
+(*    data; η' preserves integrals "since ⊗ preserves integrals"              *)
+(*    ([Phi_icones]'s [tensor_path] machinery); set η'' := Psi_inner η' at    *)
+(*    codomain Path(X,1) (TYPES — Path is an ICone); apply [lfun_path_swap]   *)
+(*    to get h; conclude η = h(1) by [linhom_tensor_ext] (pure-tensor ext).   *)
+(*  P4 — [Psi_icones] + [tensor_hom_iso]: Ψ's path field via P3 (applied to   *)
+(*    Ψ), Ψ's integral field via [Phi_icones] injective + [Phi_pres_int];     *)
+(*    assemble [icones_iso_of_cancel Phi_icones Psi_icones] (round-trips from  *)
+(*    [Phi_innerE]/[Psi_innerE]/[linhom_tensor_ext]).  Discharges Parameter   *)
+(*    #10 [tensor_hom_iso].                                                    *)
+(*  P5 — structural isos α/λ/ρ/σ + …E laws via [yoneda_iso] + prereq isos     *)
+(*    [linhom_one_iso] (1⊸C≅C), [hom_one_bij] (ICones(1,B⊸C)≅ICones(B,C)),    *)
+(*    [swap_lin_lin] (B1⊸(B2⊸C)≅B2⊸(B1⊸C), Fubini core = [swap_lin_path]).    *)
+(*    Discharges Parameters #11–#18.                                          *)
+(*  P6 — re-point tensor.v/smcc.v off saft_interface; delete saft_interface.v.*)
+(******************************************************************************)
