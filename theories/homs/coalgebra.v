@@ -197,8 +197,12 @@ Lemma Coalg_coassoc (X : ar_obj Ar) :
   icones_comp (bang_fmap (Coalg X)) (Coalg X).
 Proof.
 apply: (dirac_dense (X:=X)) => r.
-rewrite !Lfun_comp (Coalg_dirac (X:=X) r).
-Admitted.
+rewrite Lfun_comp (Coalg_dirac (X:=X) r).
+rewrite (dig_prom (dirac_fmeas r) (dirac_ball r)).
+rewrite Lfun_comp (Coalg_dirac (X:=X) r).
+by rewrite (bang_fmap_prom (Coalg X) (dirac_fmeas r) (dirac_ball r))
+           (Coalg_dirac (X:=X) r).
+Qed.
 
 End Coalgebra.
 
