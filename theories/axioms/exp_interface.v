@@ -1,48 +1,41 @@
 (**md**************************************************************************)
-(* # STAGING CONTRACT — the exponential / SAFT interface (Paper §9)          *)
+(* # DISCHARGED — the exponential / SAFT interface (Paper §9)                 *)
 (*                                                                            *)
-(* PLAN.md §13.4 builds the exponential comonad [! = E ∘ Der] on [ICones]     *)
-(* from the linear/non-linear adjunction [E ⊣ Der], itself a consequence of   *)
-(* a PROVED Special Adjoint Functor Theorem (SAFT, §13.1).  We use the same   *)
-(* *staged* layout as the tensor ([theories/axioms/saft_interface.v]):        *)
+(* This file FORMERLY staged the linear/non-linear adjunction [E ⊣ Der] in    *)
+(* its universal-arrow form as five temporary [Parameter]/[Axiom]s            *)
+(* ([Bang], [nl], [lin], [lin_beta], [lin_unique]) — exactly the §13.4        *)
+(* content the comonad milestone [theories/homs/bang.v] consumes.             *)
 (*                                                                            *)
-(*   1. (THIS FILE) declare the adjunction [E ⊣ Der] in its UNIVERSAL-ARROW   *)
-(*      form — a handful of temporary [Parameter]s/[Axiom]s, exactly the      *)
-(*      content the comonad milestone consumes;                               *)
-(*   2. build the comonad [!] and its laws against this interface             *)
-(*      ([theories/homs/bang.v]) — all as THEOREMS modulo this contract;      *)
-(*   3. DISCHARGE the interface by proving SAFT (milestone M-SAFT, §13.1):    *)
-(*      [E] is the left adjoint of [Der], after which every [Parameter]/      *)
-(*      [Axiom] below becomes a theorem and THIS FILE IS DELETED.             *)
+(* Those declarations are now DISCHARGED, as genuine AXIOM-FREE theorems,     *)
+(* by the concrete SAFT construction [Icones.homs.bang_construct] (the        *)
+(* exponential analog of the tensor's [tensor_construct.v], with the          *)
+(* limit-preserving functor [Der] in place of [(C ⊸ −)]; Der's limit          *)
+(* preservation is [theories/stable/der_continuous.v], paper Thm 7.34).       *)
 (*                                                                            *)
-(* Every declaration here is therefore an INTENTIONAL, TEMPORARY AXIOM,       *)
-(* flagged `STAGING: discharge via M-SAFT (E = left adjoint of Der by SAFT),  *)
-(* PLAN §13.4; then delete`.  Nothing else in the project is left unproved,   *)
-(* and there are no [Admitted].  In particular Theorem 6.5 (Skern → ICones    *)
-(* fully faithful) is INDEPENDENT of this interface.                          *)
+(* This file is kept (rather than deleted) because [seely_interface.v] and    *)
+(* [homs/seely.v] still import it for the [Bang]/[nl] symbols of the Seely    *)
+(* structure; turning the [Parameter]/[Axiom]s into [Definition]/[Lemma]s     *)
+(* backed by [bang_construct] discharges the staging IN PLACE, so every       *)
+(* downstream file (including the Seely development) now rests on the proved   *)
+(* adjunction with NO change to the consumers.                                *)
 (*                                                                            *)
-(* ## The universal-arrow presentation of [E ⊣ Der]                          *)
+(* The re-exported data is sealed [Strategy never], reproducing the           *)
+(* irreducibility the former [Parameter]s had under [simpl]/[/=], so the       *)
+(* comonad / Seely proofs — calibrated to opaque symbols — are unaffected.    *)
 (*                                                                            *)
-(* The functor [Der : ICones → SCones] is the dereliction inclusion [ders]    *)
-(* of [theories/stable/scones_cat.v] — the identity on objects and on         *)
-(* underlying functions, clamped off the unit ball.  Its left adjoint [E]     *)
-(* exists by SAFT.  We present [E ⊣ Der] by its universal arrows:             *)
+(* ## The universal-arrow presentation of [E ⊣ Der] (now PROVED)             *)
 (*                                                                            *)
-(*   - [Bang B = E B = !B] : the object map of [E] (the SAFT output; no       *)
-(*     concrete carrier, mirroring Remark 5.1 for the tensor).                *)
-(*   - [nl B : B → !B] in [SCones] : the unit [η_B] of the adjunction, the    *)
-(*     "universal nonlinear map" on [B] (paper [\Unistab_B]).                  *)
-(*   - [lin f : !B → C] in [ICones] : for each stable map [f : B → C], the    *)
-(*     UNIQUE linear map factoring [f] through [nl_B] (paper [Θ⁻¹ f]).        *)
+(*   - [Bang B = E B = !B] : the object map of [E] (= [wi_obj] over the       *)
+(*     coseparator power [1^{SCones(B,1)}], [bang_construct.v]).               *)
+(*   - [nl B : B → !B] in [SCones] : the unit [η_B], the universal nonlinear  *)
+(*     map (the co-restriction of the universal tuple, via Der's equaliser    *)
+(*     preservation).                                                          *)
+(*   - [lin f : !B → C] in [ICones] : the unique linear factoriser (the SAFT  *)
+(*     comma-category mediator, the coseparator-power reindex + pullback).     *)
 (*                                                                            *)
-(* Together [lin_beta] (existence) and [lin_unique] (uniqueness) say that      *)
-(* [lin f] is THE unique linear [h : !B → C] with [ders h ∘ nl_B = f], i.e.   *)
-(* the natural bijection                                                      *)
-(*                                                                            *)
-(*   [Θ : icones_hom (Bang B) C  ≃  scones_hom B C],                          *)
-(*   [Θ h := scones_comp (ders h) (nl B)],   inverse [lin].                   *)
-(*                                                                            *)
-(* This is exactly the §9 data the comonad [!] is built from in [bang.v].     *)
+(*   [lin_beta] (existence) and [lin_unique] (uniqueness) are the two halves  *)
+(*   of the universal property of [nl_B], the natural bijection               *)
+(*   [Θ : icones_hom (Bang B) C ≃ scones_hom B C].                            *)
 (******************************************************************************)
 
 From HB Require Import structures.
@@ -59,6 +52,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.stable.scones_cat.
+Require Import Icones.homs.bang_construct.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -74,63 +68,59 @@ Variables (R : realType) (Ar : MeasSubcat R).
 
 (** ** The exponential object former — Paper §9, [\Estab]/[\Excls]
 
-    [Bang B = E B = !B] is the object map of the left adjoint [E] of the
-    dereliction inclusion [Der = ders].  SAFT guarantees its existence but
-    gives no concrete carrier (cf. Remark 5.1 for the tensor). *)
+    [Bang B = E B = !B], now the proved SAFT construction of
+    [bang_construct.v]. *)
+Definition Bang (B : ICone.type Ar) : ICone.type Ar :=
+  Icones_bang_construct.Bang B.
 
-(* STAGING: discharge via M-SAFT (E = left adjoint of Der by SAFT),
-   PLAN §13.4; then delete *)
-Parameter Bang : ICone.type Ar -> ICone.type Ar.
+(** ** The unit / universal nonlinear map — Paper §9, [\Unistab_B] *)
+Definition nl (B : ICone.type Ar) : scones_hom B (Bang B) :=
+  Icones_bang_construct.nl B.
 
-(** ** The unit / universal nonlinear map — Paper §9, [\Unistab_B]
-
-    [nl B : B → !B] in [SCones] is the unit [η_B] of [E ⊣ Der], the
-    "universal nonlinear map" on [B]. *)
-
-(* STAGING: discharge via M-SAFT (E = left adjoint of Der by SAFT),
-   PLAN §13.4; then delete *)
-Parameter nl : forall B : ICone.type Ar, scones_hom B (Bang B).
-
-(** ** The linear factoriser — Paper §9, [Θ⁻¹]
-
-    For each stable map [f : B → C], [lin f : !B → C] is the unique LINEAR
-    map factoring [f] through [nl_B]. *)
-
-(* STAGING: discharge via M-SAFT (E = left adjoint of Der by SAFT),
-   PLAN §13.4; then delete *)
-Parameter lin :
-  forall B C : ICone.type Ar, scones_hom B C -> icones_hom Ar (Bang B) C.
+(** ** The linear factoriser — Paper §9, [Θ⁻¹] *)
+Definition lin (B C : ICone.type Ar) (f : scones_hom B C) :
+    icones_hom Ar (Bang B) C :=
+  Icones_bang_construct.lin f.
 
 (** ** Universal property of [nl_B] (existence half) — Paper §9
 
-    [ders (lin f) ∘ nl_B = f] in [SCones]: the linear map [lin f] does
-    factor the stable map [f] through the unit. *)
-
-(* STAGING: discharge via M-SAFT (E = left adjoint of Der by SAFT),
-   PLAN §13.4; then delete *)
-Axiom lin_beta :
-  forall (B C : ICone.type Ar) (f : scones_hom B C),
-    scones_comp (ders (lin f)) (nl B) = f.
+    [ders (lin f) ∘ nl_B = f] in [SCones]. *)
+Lemma lin_beta (B C : ICone.type Ar) (f : scones_hom B C) :
+  scones_comp (ders (lin f)) (nl B) = f.
+Proof. exact: (Icones_bang_construct.lin_beta_construct f). Qed.
 
 (** ** Universal property of [nl_B] (uniqueness half) — Paper §9
 
-    Any linear [h : !B → C] factoring [f] through the unit equals [lin f].
-    Together with [lin_beta] this is the natural bijection
-    [Θ : icones_hom (Bang B) C ≃ scones_hom B C]. *)
-
-(* STAGING: discharge via M-SAFT (E = left adjoint of Der by SAFT),
-   PLAN §13.4; then delete *)
-Axiom lin_unique :
-  forall (B C : ICone.type Ar) (f : scones_hom B C)
-         (h : icones_hom Ar (Bang B) C),
-    scones_comp (ders h) (nl B) = f -> h = lin f.
+    Any linear [h : !B → C] factoring [f] through the unit equals [lin f]. *)
+Lemma lin_unique (B C : ICone.type Ar) (f : scones_hom B C)
+    (h : icones_hom Ar (Bang B) C) :
+  scones_comp (ders h) (nl B) = f -> h = lin f.
+Proof. exact: (Icones_bang_construct.lin_unique_construct f h). Qed.
 
 End ExpInterface.
 
-(** [Bang] and the universal-property data should print with their object
-    arguments explicit. *)
+(** [Bang] and the universal-property data print with their object
+    arguments explicit (unchanged from the staged signature). *)
 Arguments Bang {R} Ar B.
 Arguments nl {R Ar} B.
 Arguments lin {R Ar B C}.
 Arguments lin_beta {R Ar B C}.
 Arguments lin_unique {R Ar B C}.
+
+(** Seal the proved adjunction data so [simpl]/[/=] never unfolds it into
+    the [wi_obj] SAFT construction underneath, reproducing the
+    irreducibility the former [Parameter]s had.  Both [Strategy never]
+    (δ-priority) and [simpl never] (the [simpl] flag) are set, on the
+    re-exports here AND on the underlying [bang_construct] constants, so
+    the comonad ([bang.v]) and Seely ([seely.v]) proofs — calibrated to
+    opaque symbols — build unchanged under [coqc]. *)
+Strategy opaque
+  [Bang nl lin
+   Icones_bang_construct.Bang Icones_bang_construct.nl
+   Icones_bang_construct.lin].
+Arguments Bang {R} Ar B : simpl never.
+Arguments nl {R Ar} B : simpl never.
+Arguments lin {R Ar B C} f : simpl never.
+Arguments Icones_bang_construct.Bang {R Ar} B : simpl never.
+Arguments Icones_bang_construct.nl {R Ar} B : simpl never.
+Arguments Icones_bang_construct.lin {R Ar B C} f : simpl never.
