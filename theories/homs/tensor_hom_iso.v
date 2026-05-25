@@ -1076,6 +1076,275 @@ End LinhomTensorExt.
 
 Arguments linhom_tensor_ext {R Ar B C D}.
 
+(** ** Thm 5.12 [tensor_hom_iso] — the forward map [Φ] as an [icones_hom]
+
+    The forward [Φ : (B⊗C)⊸D → B⊸(C⊸D)] sends [g] to [Phi_inner g] (the
+    element [b ↦ (c ↦ g(b⊗c))]).  We package the map [g ↦ Phi_inner g] as
+    a genuine [icones_hom] between the hom-cones.  EVERY structure field
+    reduces, via the pointwise law [Phi_innerE], the pointwise codomain
+    structure of [B⊸(C⊸D)] ([linhom_eq], [linhom_test], pointwise sup),
+    and the proved [tensor_normM]/[tensor_path], to a fact about [g]
+    itself (its own linearity / continuity / norm / path / integral) —
+    NO from-scratch sup-ball analysis. *)
+
+Section PhiIConesHom.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C D : ICone.type Ar.
+
+Local Notation BC := (tensor B C).
+Local Notation Dom := (linhom_car Ar BC D).
+Local Notation Cod := (linhom_car Ar B (linhom_car Ar C D)).
+
+(** The underlying map [Φ : Dom → Cod]. *)
+Definition Phi_map (g : Dom) : Cod := Phi_inner g.
+
+(** Extensional principle for [Cod]: two elements are equal iff they
+    agree on all [b] then all [c]. *)
+Lemma cod_eq (f1 f2 : Cod) :
+  (forall (b : B) (c : C),
+     linhom_fun (linhom_fun f1 b) c = linhom_fun (linhom_fun f2 b) c) ->
+  f1 = f2.
+Proof.
+by move=> H; apply: linhom_eq => b; apply: linhom_eq => c; exact: H.
+Qed.
+
+(** *** Linearity of [Φ] — pure [Phi_innerE] + linearity of [g]. *)
+Lemma Phi_linear : is_linear Phi_map.
+Proof.
+split.
+- apply: cod_eq => b c; rewrite /Phi_map Phi_innerE.
+  rewrite [linhom_fun (linhom_zero BC D) (ptensor b c)]/linhom_fun /=
+          /linhom_zero_fun.
+  have ZcodE : linhom_fun (0%PC : Cod) b = (0%PC : linhom_car Ar C D).
+    by have [Z0c _ _] := linhom_pre_linear (linhom_pre_of (0%PC : Cod));
+       exact: Z0c.
+  rewrite ZcodE.
+  by rewrite [linhom_fun (0%PC : linhom_car Ar C D) c]/linhom_fun /=
+             /linhom_zero_fun.
+- move=> g1 g2; apply: cod_eq => b c.
+  rewrite /Phi_map Phi_innerE.
+  rewrite [linhom_fun (g1 + g2)%PC (ptensor b c)]/linhom_fun /= /linhom_add_fun.
+  rewrite -!/(linhom_fun _ (ptensor b c)) -!Phi_innerE.
+  rewrite [linhom_fun (Phi_inner g1 + Phi_inner g2)%PC b]/linhom_fun /=
+          /linhom_add_fun.
+  by rewrite [linhom_fun (_ + _)%PC c]/linhom_fun /= /linhom_add_fun.
+- move=> r g; apply: cod_eq => b c.
+  rewrite /Phi_map Phi_innerE.
+  rewrite [linhom_fun (r *: g)%PC (ptensor b c)]/linhom_fun /= /linhom_scale_fun.
+  rewrite -!/(linhom_fun _ (ptensor b c)) -!Phi_innerE.
+  rewrite [linhom_fun (r *: Phi_inner g)%PC b]/linhom_fun /= /linhom_scale_fun.
+  by rewrite [linhom_fun (_ *: _)%PC c]/linhom_fun /= /linhom_scale_fun.
+Qed.
+
+(** *** Norm decrease [‖Φ g‖ ≤ ‖g‖] — via [tensor_normM]. *)
+Lemma Phi_norm_le1 (g : Dom) : cone_norm (Phi_map g) <= cone_norm g.
+Proof.
+rewrite [cone_norm (Phi_map g)]/= [cone_norm g]/=.
+apply: linhom_norm_sup_lub => b Hb.
+(* ‖Phi g b‖ ≤ ‖g‖ · ‖b‖ ≤ ‖g‖, since (Phi g b)(c) = g(b⊗c). *)
+rewrite -[cone_norm (linhom_fun (Phi_map g) b)]/(linhom_norm (linhom_fun (Phi_map g) b)).
+apply: linhom_norm_sup_lub => c Hc.
+rewrite /Phi_map Phi_innerE.
+apply: le_trans (linhom_norm_apply_le (lexx _) (ptensor b c)) _.
+rewrite -[cone_norm (ptensor b c)]/(cone_norm (ptensor b c)).
+have Hbc : cone_norm (ptensor b c) <= 1.
+  apply: le_trans (ptensor_norm_le b c) _.
+  by rewrite -[X in _ <= X]mulr1; apply: ler_pM => //; exact: cone_norm_ge0.
+rewrite -[X in _ <= X]mulr1.
+by apply: ler_wpM2l => //; exact: linhom_norm_ge0.
+Qed.
+
+(** *** ω-continuity of [Φ].
+
+    By [linhom_mcone_M_sep] for the codomain [B⊸(C⊸D)] it suffices, for
+    an arity-0 test [β ▷ (γ ▷ m)] (with [β] a [B]-path, [γ] a [C]-path,
+    [m] a [D]-test), to show both sides have the same value, which is
+    [sup_n m(s, u_n((β s)⊗(γ s)))]: the LHS via [linhom_sup_fun_test_sup]
+    on the domain [(B⊗C)⊸D] at [(β s)⊗(γ s)], the RHS via
+    [linhom_sup_fun_test_sup] on [B⊸(C⊸D)] at [β s] with test [γ ▷ m].
+    [Phi_innerE] bridges [Φ(u_n)(β s)(γ s) = u_n((β s)⊗(γ s))]. *)
+Lemma Phi_continuous : is_omega_continuous Phi_map.
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: (@linhom_mcone_M_sep _ _ B (linhom_car Ar C D)) => p.
+move=> [β [βub [m1 [m1M Hp]]]].
+(* [m1] is a test of [C⊸D] in [mcone_M]; since the [C⊸D] test family is
+   exactly [linhom_mcone_M], destructure it as [γ ▷ m]. *)
+have [γ [γub [m [mM Hm1]]]] : linhom_mcone_M (Y := ar_zero Ar) m1 by exact: m1M.
+rewrite Hp /linhom_test /linhom_test_fun /=.
+rewrite Hm1 /linhom_test /linhom_test_fun /=.
+set s := ar_zero_pt Ar.
+(* LHS value: m s (Φ(sup u)(β s)(γ s)) = m s ((sup u)((β s)⊗(γ s))). *)
+have LHSe : test_fun m s
+    (linhom_fun (linhom_fun (Phi_map (cone_sup_ball u uch ub1)) (path_fun β s))
+                (path_fun γ s)) =
+    test_fun m s
+      (linhom_fun (cone_sup_ball u uch ub1)
+         (ptensor (path_fun β s) (path_fun γ s))).
+  by rewrite /Phi_map Phi_innerE.
+rewrite LHSe.
+(* RHS value: (γ ▷ m) s ((sup(Φ∘u))(β s)), via [linhom_sup_fun_test_sup]
+   at the [B⊸(C⊸D)] level. *)
+have RHSe : test_fun m s
+    (linhom_fun
+       (linhom_fun (cone_sup_ball (Phi_map \o u) fuch fub1) (path_fun β s))
+       (path_fun γ s)) =
+    test_fun (linhom_test γ γub m mM) s
+      (linhom_fun (cone_sup_ball (Phi_map \o u) fuch fub1) (path_fun β s)).
+  by rewrite /linhom_test /linhom_test_fun.
+rewrite RHSe.
+have RHS_b : linhom_fun (cone_sup_ball (Phi_map \o u) fuch fub1) (path_fun β s) =
+    linhom_sup_fun fuch fub1 (path_fun β s) by [].
+rewrite RHS_b.
+rewrite (linhom_sup_fun_test_sup fuch fub1 (linhom_test γ γub m mM) s
+           (path_fun β s)).
+(* LHS via [linhom_sup_fun_test_sup] on the domain. *)
+have LHS_z : linhom_fun (cone_sup_ball u uch ub1)
+    (ptensor (path_fun β s) (path_fun γ s)) =
+    linhom_sup_fun uch ub1 (ptensor (path_fun β s) (path_fun γ s)) by [].
+rewrite LHS_z.
+rewrite (linhom_sup_fun_test_sup uch ub1 m s
+           (ptensor (path_fun β s) (path_fun γ s))).
+(* Both real-sup sets coincide, via [Phi_innerE] on each [u_n]. *)
+congr (sup _).
+apply: eq_imagel => n _ /=.
+by rewrite /linhom_test /linhom_test_fun /Phi_map Phi_innerE.
+Qed.
+
+(** *** Boundedness of [Φ] (operator norm [≤ 1]). *)
+Lemma Phi_bounded :
+  exists M : R, forall g : Dom, cnorm g <= 1 -> cnorm (Phi_map g) <= M.
+Proof. by exists 1 => g Hg; apply: le_trans (Phi_norm_le1 g) _. Qed.
+
+(** *** Measurable-path preservation of [Φ].
+
+    For a measurable path [G] of [(B⊗C)⊸D] we must show [r ↦ Φ(G r)] is
+    a measurable path of [B⊸(C⊸D)].  By the codomain test family it
+    suffices, for a unit-ball [B]-path [β], a unit-ball [C]-path [γ] (both
+    at arity [Y]) and a [D]-test [m], to prove
+      [(s, r) ↦ m(s, (G r)((β s)⊗(γ s)))]
+    measurable on [Y × W].  We test the [(B⊗C)⊸D]-path [G] against the
+    [(B⊗C)]-test [θ ▷ m], where [θ s := (β s)⊗(γ s)] is the [tensor_path]
+    (measurable by [tensor_path]); pulling back along the diagonal in [s]
+    gives exactly the required measurability. *)
+Lemma Phi_pres_path
+    (W : ar_obj Ar) (G : ar_carrier Ar W -> Dom) :
+  is_measurable_path G ->
+  is_measurable_path (fun r => Phi_map (G r)).
+Proof.
+move=> HG.
+have [[MG HMG] HGm] := HG.
+have MG_ge0 : 0 <= MG.
+  by apply: le_trans (HMG (ar_point Ar W)); exact: cone_norm_ge0.
+split.
+  exists MG => r.
+  by apply: le_trans (Phi_norm_le1 (G r)) _; exact: HMG.
+move=> Y p [β [βub [m1 [m1M ->]]]].
+have [γ [γub [m [mM Hm1]]]] : linhom_mcone_M (Y := Y) m1 by exact: m1M.
+(* The [(B⊗C)]-path [θ s = (β s)⊗(γ s)] at arity [Y], of norm ≤ 1. *)
+have Hθ : is_measurable_path (fun s => ptensor (path_fun β s) (path_fun γ s)).
+  exact: (tensor_path (path_fun β) γ (path_is_path β) γub).
+pose θ : path_car Ar Y BC := MkPath Hθ.
+have θub : cone_norm θ <= 1.
+  rewrite /cone_norm /=.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [s ->] /=.
+  apply: le_trans (ptensor_norm_le (path_fun β s) (path_fun γ s)) _.
+  rewrite -[X in _ <= X]mulr1.
+  apply: ler_pM; [exact: cone_norm_ge0|exact: cone_norm_ge0| |].
+  - by apply: le_trans (path_norm_ub β s) _; exact: βub.
+  - by apply: le_trans (path_norm_ub γ s) _; exact: γub.
+(* Test [G] (a path of [(B⊗C)⊸D]) against the [(B⊗C)⊸D]-test [θ ▷ m]:
+   this is in [G]'s measurability structure and yields measurability of
+   [(s, r) ↦ m(s, (G r)((β s)⊗(γ s)))] directly. *)
+have HGtest := HGm Y (linhom_test θ θub m mM)
+  (ex_intro _ θ (ex_intro _ θub (ex_intro _ m (ex_intro _ mM (erefl _))))).
+rewrite (_ : (fun p0 : (ar_carrier Ar Y * ar_carrier Ar W)%type =>
+     linhom_test β βub m1 m1M p0.1 (Phi_map (G p0.2))) =
+     (fun p0 => linhom_test θ θub m mM p0.1 (G p0.2))).
+  exact: HGtest.
+apply: funext => q.
+rewrite /linhom_test /linhom_test_fun /=.
+rewrite Hm1 /linhom_test /linhom_test_fun /=.
+by rewrite /Phi_map Phi_innerE.
+Qed.
+
+(** [Φ] packaged as a [cones_hom] and an [mcones_hom]. *)
+Definition Phi_cones : cones_hom Dom Cod :=
+  ConesHom Phi_map Phi_linear Phi_continuous Phi_norm_le1.
+
+Definition Phi_mcones : mcones_hom Ar Dom Cod :=
+  MkMConesHom Phi_cones (fun W G HG => Phi_pres_path (W:=W) (G:=G) HG).
+
+(** *** Integral-preservation of [Φ].
+
+    By [icone_integral_eqP] on [B⊸(C⊸D)] it suffices to verify the
+    Pettis specification: for an arity-0 test [β ▷ (γ ▷ m)] of the
+    codomain, [(β▷(γ▷m))(s, Φ(∫G)) = fine ∫ (β▷(γ▷m))(s, Φ(G r)) dµ].  By
+    [Phi_innerE] both sides rewrite to the [(B⊗C)]-test [θ ▷ m] (with
+    [θ] the [tensor_path]) applied to [∫G] resp. [G r], so the identity
+    is exactly the Pettis specification of [∫G] in [(B⊗C)⊸D] against the
+    test [θ ▷ m] — i.e. [icone_integralP] for [G]. *)
+Lemma Phi_pres_int
+    (W : ar_obj Ar) (G : ar_carrier Ar W -> Dom)
+    (HG : is_measurable_path G) (µ : fmeas R (ar_carrier Ar W)) :
+  cones_hom_fun (mcones_hom_cones Phi_mcones) (icone_integral G HG µ) =
+  icone_integral
+    (fun r => cones_hom_fun (mcones_hom_cones Phi_mcones) (G r))
+    (mcones_hom_pres_path Phi_mcones W G HG) µ.
+Proof.
+apply: icone_integral_eqP => p pM s.
+move: pM => [β [βub [m1 [m1M Hp]]]].
+have [γ [γub [m [mM Hm1]]]] : linhom_mcone_M (Y := ar_zero Ar) m1 by exact: m1M.
+(* The [(B⊗C)]-path [θ s' = (β s')⊗(γ s')], norm ≤ 1. *)
+have Hθ : is_measurable_path (fun s' => ptensor (path_fun β s') (path_fun γ s')).
+  exact: (tensor_path (path_fun β) γ (path_is_path β) γub).
+pose θ : path_car Ar (ar_zero Ar) BC := MkPath Hθ.
+have θub : cone_norm θ <= 1.
+  rewrite /cone_norm /=.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [s' ->] /=.
+  apply: le_trans (ptensor_norm_le (path_fun β s') (path_fun γ s')) _.
+  rewrite -[X in _ <= X]mulr1.
+  apply: ler_pM; [exact: cone_norm_ge0|exact: cone_norm_ge0| |].
+  - by apply: le_trans (path_norm_ub β s') _; exact: βub.
+  - by apply: le_trans (path_norm_ub γ s') _; exact: γub.
+(* The Pettis spec of [∫G] in [(B⊗C)⊸D] against the [(B⊗C)⊸D]-test [θ ▷ m]. *)
+have HGint := icone_integralP G HG µ (linhom_test θ θub m mM)
+  (ex_intro _ θ (ex_intro _ θub (ex_intro _ m (ex_intro _ mM (erefl _)))))
+  s.
+(* LHS: (β▷(γ▷m))(s, Φ(∫G)) = m(s, (∫G)(θ s)) = (θ▷m)(s, ∫G). *)
+have ->: test_fun p s
+    (cones_hom_fun (mcones_hom_cones Phi_mcones) (icone_integral G HG µ)) =
+    test_fun (linhom_test θ θub m mM) s (icone_integral G HG µ).
+  rewrite Hp /linhom_test /linhom_test_fun /=.
+  rewrite Hm1 /linhom_test /linhom_test_fun /=.
+  by rewrite /Phi_map Phi_innerE.
+rewrite HGint.
+(* RHS: the integrand [(β▷(γ▷m))(s, Φ(G r)) = (θ▷m)(s, G r)] pointwise. *)
+congr (fine _); apply: eq_integral => r _; congr (_%:E).
+rewrite Hp /linhom_test /linhom_test_fun /=.
+rewrite Hm1 /linhom_test /linhom_test_fun /=.
+by rewrite /Phi_map Phi_innerE.
+Qed.
+
+(** [Φ] packaged as a genuine [icones_hom] (Thm 5.12 forward). *)
+Definition Phi_icones : icones_hom Ar Dom Cod :=
+  MkIConesHom Phi_mcones Phi_pres_int.
+
+Lemma Phi_iconesE (g : Dom) (b : B) (c : C) :
+  linhom_fun
+    (linhom_fun
+       (cones_hom_fun (mcones_hom_cones (icones_hom_mcones Phi_icones)) g) b) c
+  = linhom_fun g (ptensor b c).
+Proof. by rewrite -[cones_hom_fun _ _]/(Phi_map g) /Phi_map Phi_innerE. Qed.
+
+End PhiIConesHom.
+
+Arguments Phi_map {R Ar B C D}.
+Arguments Phi_icones {R Ar B C D}.
+Arguments Phi_iconesE {R Ar B C D}.
+
 (**md**************************************************************************)
 (* # STATUS — T2A                                                             *)
 (*                                                                            *)
