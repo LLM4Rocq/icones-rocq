@@ -352,10 +352,16 @@ Lemma FMeas_fmap_is_coalg_mor (X Y : ar_obj Ar) (φ : ar_hom Ar X Y) :
 Proof.
 rewrite /is_coalg_mor /=.
 apply: (dirac_dense (X:=X)) => r.
-rewrite !Lfun_comp.
-rewrite (FMeas_fmap_dirac φ r) (Coalg_dirac Y (φ r)).
-rewrite (Coalg_dirac X r).
-Admitted.
+have Hball : cone_norm (dirac_fmeas r : FMeas X) <= 1.
+  rewrite dirac_fmeas_norm; exact: lexx.
+(* LHS: [Coalg_Y(FMeas(φ)(δ_X r)) = Coalg_Y(δ_Y(φ r)) = (δ_Y(φ r))!]. *)
+rewrite Lfun_comp (FMeas_fmap_dirac φ r) (Coalg_dirac Y (φ r)).
+(* RHS: [(!FMeas(φ))(Coalg_X(δ_X r)) = (!FMeas(φ))((δ_X r)!)
+   = (FMeas(φ)(δ_X r))! = (δ_Y(φ r))!]. *)
+rewrite Lfun_comp (Coalg_dirac X r).
+by rewrite (bang_fmap_prom (FMeas_fmap φ) (dirac_fmeas r) Hball)
+           (FMeas_fmap_dirac φ r).
+Qed.
 
 End FMeasFunctor.
 
