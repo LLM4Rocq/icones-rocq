@@ -15,15 +15,19 @@ Thomas Ehrhard and Guillaume Geoffroy
 ## Status
 
 A formalization of paper **§2 – §9** (paper §8, analytic functions, is
-out of scope). ~40k lines of Rocq across 45 files, **zero `Admitted`**.
-Every project-specific axiom is confined to three clearly-marked
-*staging interfaces* under `theories/axioms/`; everything else uses only
-the three classical-logic axioms inherited from `mathcomp-analysis`
-(`propositional_extensionality`, `functional_extensionality_dep`,
-`constructive_indefinite_description`). The development therefore splits
-into an **axiom-free core** and a **staged tier** — the latter
-mechanized *modulo* those interfaces, to be discharged by proving SAFT
-for `ICones` (see [`PLAN.md`](./PLAN.md) §13).
+out of scope). ~48k lines of Rocq across 49 files, **zero `Admitted`**.
+Every remaining project-specific axiom is confined to a *single*
+clearly-marked *staging interface* under `theories/axioms/`; everything
+else uses only the three classical-logic axioms inherited from
+`mathcomp-analysis` (`propositional_extensionality`,
+`functional_extensionality_dep`, `constructive_indefinite_description`).
+The development therefore splits into an **axiom-free core** and a
+(now single-interface) **staged tier**. The tensor `⊗` / SMCC structure
+and the exponential `!` comonad have both been **discharged** — they
+moved out of the staged tier into the axiom-free core — leaving only the
+*existence* of the Seely isomorphisms staged, mechanized *modulo*
+`seely_interface`, to be discharged by proving SAFT for `ICones`
+(see [`PLAN.md`](./PLAN.md) §13).
 
 ### Axiom-free core (zero project axioms)
 
@@ -40,58 +44,75 @@ for `ICones` (see [`PLAN.md`](./PLAN.md) §13).
   the composition theorem **Theorem 7.30**, and **Theorem 7.32** in
   full — `SCones` is cartesian closed (products, evaluation, currying) —
   together with the dereliction functor `Der : ICones → SCones`.
+- **The symmetric monoidal closed structure** (paper §5.3 – §5.5): the
+  tensor `⊗`, **Theorem 5.12** (`(B⊗C)⊸D ≃ B⊸(C⊸D)`, `tensor_hom_iso`),
+  Theorem 5.13 (multiplicativity of the tensor norm), and **Theorem 5.15**
+  (`ICones` is an SMCC, `homs.smcc.ICones_smcc`), with the four structural
+  isos `α/λ/ρ/σ` and all coherence (triangle / pentagon / hexagon,
+  `σ² = id`) *proved*. **This is now fully discharged and axiom-free**:
+  the former `theories/axioms/saft_interface.v` (18 `Parameter`s) was
+  proved via the concrete SAFT construction and **deleted**; `tensor.v`
+  re-exports the proved modules (`tensor_construct.v`, `tensor_hom_iso.v`,
+  `tensor_iso.v`) under `Opaque` seals.
 - **Least-fixpoint operators** (paper §9.2): the Kleene fixpoint on the
   cone unit-ball ω-cpo and the fixpoint combinator `Y` as an `SCones`
   morphism.
 - **The exponential `!` comonad** (paper §9, the `E ⊣ Der`
   linear/non-linear adjunction): `Der : ICones → SCones` preserves all
-  limits (**Theorem 7.34**, `stable/der_continuous.v`), so the Special
-  Adjoint Functor Theorem yields the left adjoint `E`; the induced
-  comonad `! = E∘Der` (counit `der`, comultiplication `dig`, and all
-  comonad laws) is constructed in `homs/bang_construct.v` and is
-  **axiom-free** — the `E ⊣ Der` interface (`exp_interface`) is fully
-  discharged (the first of the three staging interfaces to be retired).
+  limits (**Theorem 7.34**, `der_preserves_limits` in
+  `stable/der_continuous.v`), so the Special Adjoint Functor Theorem
+  yields the left adjoint `E`; the induced comonad `! = E∘Der` (counit
+  `der`, comultiplication `dig`, and all comonad laws,
+  `homs.bang.Bang_comonad`) is constructed in `homs/bang_construct.v`
+  and is **axiom-free** — the `E ⊣ Der` interface (`exp_interface`) was
+  discharged in place (its `Parameter`s/`Axiom`s became
+  `Definition`s/`Lemma`s backed by `bang_construct`).
 - **Towards SAFT** ([`PLAN.md`](./PLAN.md) §13.1): `ICones`
   **well-poweredness** (paper Theorem 4.18) genuinely proved, the
   subobject-intersection machinery, and **Theorem 5.9** (`(C ⊸ −)`
   preserves all limits) — the ingredients that will discharge the
   staged tier.
 
-### Staged tier (mechanized modulo the SAFT interfaces)
+### Staged tier (the one remaining interface: `seely_interface`)
 
-These results are fully proved *relative to* a small set of
-`Parameter`s — the SAFT/Yoneda *representability* content the paper
-obtains via Freyd's Special Adjoint Functor Theorem — quarantined under
-`theories/axioms/`. **`exp_interface` has now been discharged** (the
-`!` comonad above is axiom-free); the two remaining staged interfaces
-are `saft_interface` (the tensor — discharge in progress: 9/18
-Parameters proved, `tensor_hom_iso` underway) and `seely_interface`
-(the Seely isomorphisms).
+The staged tier has shrunk to a single interface. Both
+`saft_interface` (the tensor — discharged and **deleted**) and
+`exp_interface` (the `E ⊣ Der` adjunction — discharged **in place**)
+are now part of the axiom-free core above. What remains staged is the
+*existence* of the Seely isomorphisms, fully proved *relative to* the
+five `Parameter`s/`Axiom`s of `theories/axioms/seely_interface.v`
+(`Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`) — the
+SAFT/Yoneda *representability* content the paper obtains via Freyd's
+Special Adjoint Functor Theorem.
 
-- **The symmetric monoidal closed structure** (paper §5.3 – §5.5): the
-  tensor `⊗`, **Theorem 5.12** (`(B⊗C)⊸D ≃ B⊸(C⊸D)`), Theorem 5.13, and
-  **Theorem 5.15** (`ICones` is an SMCC), with all coherence
-  (triangle / pentagon / hexagon, `σ² = id`) *derived*. The
-  morphism-level internal-hom functor `h ⊸ g` (Prop 5.8) and `ICones`
-  isomorphisms are themselves axiom-free
-  (`homs/{linhom_functor,icones_iso}.v`, `mcones/test_pullback.v`).
-- **The Seely category** (paper §9): **`ICones` is a Seely category** —
-  the now-axiom-free comonad `!` made a strong monoidal comonad. The
-  Seely isomorphisms (`!A ⊗ !B ≅ !(A & B)`, `1 ≅ !⊤`) are staged in
-  `seely_interface.v` (characterized on promoted pure tensors; the
-  coherence is *derived*); since they also rest on the tensor `⊗`, the
-  Seely category becomes axiom-free once `saft_interface` and
-  `seely_interface` are discharged.
+- **The Seely category** (paper §9, Theorem 9.5,
+  `homs.seely.ICones_Seely`): **`ICones` is a Seely category** — the
+  axiom-free comonad `!` made a strong monoidal comonad against the
+  axiom-free tensor `⊗`. *All* the coherence **laws** are proved
+  (`seely_comult`, `seely_assoc`, `seely_braid`, `seely_lunit`,
+  `seely_runit`, the dereliction squares), each via the `!`-tensor
+  promotion extensionality (paper Lemma `tens-excl-equal-charact`). Only
+  the *existence* of the Seely isomorphisms `!A ⊗ !B ≅ !(A & B)`
+  (`Seely2`) and `1 ≅ !⊤` (`Seely0`), characterized on promoted pure
+  tensors, remains staged in `seely_interface.v`. The remaining
+  discharge work is **Lemma 9.4** (`B ⇒ (C⊸D) ≅ C ⊸ (B⇒D)`, natural)
+  plus the unit point-bijection (`SCones(⊤,C) ≃ ICones(1,C)`); the
+  contravariant-Yoneda assembly tool `co_yoneda_iso`
+  (`homs.icones_iso`) is already merged.
 
-The axiom-free core does **not** depend on any staging interface —
-`Skern_to_ICones_fully_faithful` and everything in the core stay
-axiom-clean regardless of the staged tier.
+The axiom-free core does **not** depend on `seely_interface` —
+`Skern_to_ICones_fully_faithful`, the tensor/SMCC, the `!` comonad, and
+everything else in the core stay axiom-clean regardless of the staged
+tier.
 
-**Out of scope / future work** ([`PLAN.md`](./PLAN.md)): discharging the
-staged interfaces via M-SAFT (§13.1 – §13.4), which moves the staged
-tier into the axiom-free core; paper §8 (analytic functions, `ACones`);
-and the probabilistic-coherence-space embedding. `PLAN.md` has the full
-roadmap (milestones M1 – M5 and the §13 axiom-free plan).
+**In progress / future work** ([`PLAN.md`](./PLAN.md)): discharging the
+last staged interface (`seely_interface`) — Lemma 9.4 plus the unit
+point-bijection — which would move the Seely category into the
+axiom-free core; **Theorem 9.7** (`FMeas(X)` is a `!`-coalgebra, paper
+§9.1) is currently being formalized in `theories/homs/coalgebra.v` (not
+yet merged); paper §8 (analytic functions, `ACones`); and the
+probabilistic-coherence-space embedding. `PLAN.md` has the full roadmap
+(milestones M1 – M5 and the §13 axiom-free plan).
 
 ## Build
 
@@ -122,15 +143,15 @@ theories/
 ├── icones/     -- Pettis integral, integrable cones, Fubini, completeness,  (paper §4, M3)
 │                  well-poweredness + SAFT machinery (representable)         (paper §4.18, §13.1)
 ├── homs/       -- internal hom C ⊸ D (linhom), iso of Thm 6.1 (bilin),      (paper §5.1/§5.2 + §6, M4/M5)
-│                  isos in ICones (icones_iso), the h⊸g functor              (paper §5.3)
-│                  (linhom_functor), (C⊸−) preserves limits                  (Thm 5.9)
-│                  (limpl_continuous); tensor ⊗ + SMCC                       (paper §5.3–§5.5, staged,
-│                  (tensor/_construct/_hom_iso/_iso, smcc);                    discharge in progress)
+│                  isos in ICones (icones_iso, co_yoneda_iso), the h⊸g       (paper §5.3)
+│                  functor (linhom_functor), (C⊸−) preserves limits          (Thm 5.9)
+│                  (limpl_continuous); tensor ⊗ + SMCC — AXIOM-FREE          (paper §5.3–§5.5, Thm 5.15,
+│                  (tensor/_construct/_hom_iso/_iso, smcc);                    discharged)
 │                  the ! comonad — AXIOM-FREE (bang, bang_construct)         (paper §9, E⊣Der)
-│                  + the Seely category (seely, staged)                      (paper §9)
-├── axioms/     -- staged SAFT interfaces: tensor (saft_interface,           (paper §5.4 / §9)
-│                  in progress) + Seely (seely_interface); exp_interface
-│                  DISCHARGED (the ! comonad is axiom-free)
+│                  + the Seely category (seely, modulo seely_interface)      (paper §9, Thm 9.5)
+├── axioms/     -- the one remaining staged interface: the Seely-iso         (paper §9)
+│                  existence (seely_interface, 5 decls); exp_interface
+│                  DISCHARGED in place; saft_interface DISCHARGED + DELETED
 ├── stable/     -- local cones, total monotonicity, the stable hom B ⇒ₛ C,   (paper §7)
 │                  finite differences (Thm 7.19), the composition theorem
 │                  (Thm 7.30), the cartesian closed SCones (Thm 7.32:
@@ -157,9 +178,9 @@ per milestone:
 - `chapters/03-icones.tex` — paper §4 (M3)
 - `chapters/04-linhom.tex` — paper §5.1 + §5.2 (M4)
 - `chapters/05-skern.tex` — paper §6, the kernel embedding (M5)
-- `chapters/06-tensor.tex` — paper §5.3–§5.5, the tensor + SMCC (staged)
+- `chapters/06-tensor.tex` — paper §5.3–§5.5, the tensor + SMCC (axiom-free)
 - `chapters/07-stable.tex` — paper §7, the stable CCC `SCones`
-- `chapters/08-exponential.tex` — paper §9, the exponential `!` (comonad discharged, axiom-free) + Seely category (staged)
+- `chapters/08-exponential.tex` — paper §9, the exponential `!` (comonad, axiom-free) + Seely category (modulo `seely_interface`)
 
 To build locally:
 
@@ -191,10 +212,11 @@ Run [`./verify.sh`](./verify.sh) to clean-rebuild the project and
 `Icones.kernels.thm65.Skern_to_ICones_fully_faithful` (paper Theorem
 6.5, the capstone of the kernel-embedding core). The expected output
 lists only the classical-logic axioms inherited from `mathcomp-analysis`.
-The project's own `Axiom`/`Parameter` declarations are confined to the
-three staging interfaces under `theories/axioms/`; everything else —
-including this anchor — contains zero `Axiom` declarations and zero
-`Admitted` lemmas.
+The project's own `Axiom`/`Parameter` declarations are now confined to a
+single staging interface (`theories/axioms/seely_interface.v`, the
+Seely-iso existence); everything else — including this anchor, the
+tensor/SMCC, and the `!` comonad — contains zero `Axiom` declarations
+and zero `Admitted` lemmas.
 
 ## Paper sources
 
