@@ -184,40 +184,13 @@ Axiom Seely2_natural :
     icones_comp (iso_fwd (Seely2 B1' B2'))
                 (tensor_mor (bang_fmap f1) (bang_fmap f2)).
 
-(** ** Paper §9 — the unit Seely isomorphism [\Seelyz]
+(** ** Paper §9 — the unit Seely isomorphism [\Seelyz] — DISCHARGED
 
-    Dual to [Seely2], from the same chain of natural bijections and the
-    Yoneda Lemma [functor-yoneda-iso] (paper line 7507, "Similarly"), one
-    obtains a natural iso
-
-      [Seely0 : 1 ≅ !⊤]
-
-    where [1 = cone_one_car Ar] is the monoidal unit and [⊤ = Stop] is
-    the terminal object.  It is characterised (paper line 7508) by
-
-      [Seely0(t) = t · (0!)]
-
-    i.e. [Seely0] sends the scalar [t ∈ 1 = R≥0] to the [t]-scaling of
-    the promotion of the terminal object's (unique) zero point [0 ∈ ⊤].
-    By the [n=1] promotion extensionality and linearity this single
-    equation pins [Seely0] down, exactly as [Seely2E] pins [Seely2].
-
-    SAFT/Yoneda is what we STAGE; we keep the iso and its
-    characterisation. *)
-
-(* STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete *)
-Parameter Seely0 : icones_iso Ar (cone_one_car Ar) (Bang Ar Stop).
-
-(** Paper line 7508: the characterising equation of [Seely0].  The
-    terminal zero point is [precone_zero : Stop] (all points of [⊤] are
-    equal, [Stop_is0]); its promotion is [(precone_zero)!], scaled by the
-    scalar [c1_val t ∈ R≥0] carried by [t ∈ 1]. *)
-
-(* STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete *)
-Axiom Seely0E :
-  forall t : cone_one_car Ar,
-    iso_fwd Seely0 t =
-    precone_scale (c1_val t) (prom (precone_zero : Stop)).
+    The unit Seely iso [Seely0 : 1 ≅ !⊤] and its characterisation
+    [Seely0(t) = t·(0!)] are now PROVED in [theories/homs/seely.v] (via
+    the contravariant Yoneda lemma [co_yoneda_iso] on the natural
+    hom-bijection [ICones(1,C) ≃ ICones(!⊤,C)]); they are no longer
+    staged here. *)
 
 End SeelyInterface.
 
@@ -232,5 +205,3 @@ Arguments Stop_eq {R Ar}.
 Arguments Stop_is0 {R Ar}.
 Arguments Stop_mor {R Ar} B.
 Arguments Stop_mor_unique {R Ar B}.
-Arguments Seely0 {R Ar}.
-Arguments Seely0E {R Ar}.
