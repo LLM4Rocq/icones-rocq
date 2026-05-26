@@ -50,6 +50,7 @@ theories/stable/scones_cat.v
 theories/stable/der_continuous.v
 theories/stable/scones_ccc.v
 theories/stable/fixpoint.v
+theories/stable/stab_lin_swap.v
 theories/homs/tensor.v
 theories/homs/smcc.v
 theories/axioms/exp_interface.v
