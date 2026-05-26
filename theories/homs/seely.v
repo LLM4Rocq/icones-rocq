@@ -92,6 +92,7 @@ Require Import Icones.icones.icone.
 Require Import Icones.icones.examples_icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.stable.totmono.
+Require Import Icones.stable.stablehom.
 Require Import Icones.stable.scones_cat.
 Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.linhom.
@@ -342,6 +343,348 @@ Lemma Theta_comp (B C D : ICone.type Ar)
     (g : icones_hom Ar C D) (h : icones_hom Ar (Bang Ar B) C) :
   Theta (icones_comp g h) = scones_comp (ders g) (Theta h).
 Proof. by rewrite /Theta ders_comp -scones_compA. Qed.
+
+(** ** Paper §9 — the binary Seely isomorphism [\Seelyt] — DISCHARGED
+
+    [Seely2 : !B1 ⊗ !B2 ≅ !(B1 & B2)] is built by the paper's chain of
+    natural-in-[C] bijections (content.tex ~7482–7506):
+
+      [ICONES(!(B1&B2), C)
+        ≅ STAB(B1&B2, C)              (E⊣Der bijection Θ)
+        ≅ STAB(B1, B2 ⇒ₛ C)           (SCones CCC curry)
+        ≅ ICONES(!B1, B2 ⇒ₛ C)        (E⊣Der)
+        ≅ ICONES(1, !B1 ⊸ (B2 ⇒ₛ C))  (1⊸X ≅ X)
+        ≅ ICONES(1, B2 ⇒ₛ (!B1 ⊸ C))  (** stab_lin_swap = Lemma 9.4 **)
+        ≅ STAB(⊤, B2 ⇒ₛ (!B1 ⊸ C))    (SCones(⊤,C) ≅ ICONES(1,C))
+        ≅ STAB(B2, !B1 ⊸ C)           (SCones CCC, ⊤ terminal)
+        ≅ ICONES(!B2, !B1 ⊸ C)        (E⊣Der)
+        ≅ ICONES(!B2 ⊗ !B1, C)        (tensor_hom_iso, Thm 5.12)
+        ≅ ICONES(!B1 ⊗ !B2, C)        (tensor braiding σ)]
+
+    We realize this chain at the *element level* (the [1]-detour of
+    steps 5/7 collapses through the element bridge [icones_to_linhom],
+    and [STAB(⊤,−)≅ICONES(1,−)]+curry through [lin]): the forward map
+    [psiV] of the chain (applied to [id]) is [Seely2]'s forward, the
+    backward map [psi] is its inverse.  Each leg uses an EXISTING
+    morphism — [Θ]/[lin] ([E⊣Der]), [curry]/[Ev]/[gpair]
+    ([scones_ccc.v]), [tensor_curry]/[tensor_uncurry] (Thm 5.12) and the
+    braiding [tensor_braid] — except step 5/6, the SINGLE use of paper
+    Lemma 9.4 [stab_lin_swap], flagged STAGED below.  Bijectivity is the
+    pure-tensor extensionality [tens_excl_charact] (forward composite)
+    and the [n=1] [bang_ext] (backward composite); the characterisation
+    [Seely2E] is the chain's pure-tensor computation [psiV_prom]. *)
+
+(* STAGED: Lemma 9.4, sibling team *)
+(* INTERIM — to be replaced by the sibling team's proved lemma at merge.
+   The committed branch carries this ONE [Admitted] (and its element law
+   [stab_lin_swapE]); the merge wires in the sibling's proof. *)
+Lemma stab_lin_swap (B C D : ICone.type Ar) :
+  icones_iso Ar (stablehom B (linhom_car Ar C D)) (linhom_car Ar C (stablehom B D)).
+Proof. Admitted.
+
+(* STAGED: Lemma 9.4 element law, sibling team — the swap exchanges the
+   two argument orders: [swap(g)(c)(b) = g(b)(c)]. *)
+Lemma stab_lin_swapE (B C D : ICone.type Ar)
+    (g : stablehom B (linhom_car Ar C D)) (b : B) (c : C) :
+  sh_fun (linhom_fun (Lfun (iso_fwd (stab_lin_swap B C D)) g) c) b =
+  linhom_fun (sh_fun g b) c.
+Proof. Admitted.
+
+(** Derived [iso_bwd] form of the swap law: [swap⁻¹(h)(b)(c) = h(c)(b)]. *)
+Lemma stab_lin_swap_bwdE (B C D : ICone.type Ar)
+    (h : linhom_car Ar C (stablehom B D)) (b : B) (c : C) :
+  linhom_fun (sh_fun (Lfun (iso_bwd (stab_lin_swap B C D)) h) b) c =
+  sh_fun (linhom_fun h c) b.
+Proof.
+have := stab_lin_swapE (Lfun (iso_bwd (stab_lin_swap B C D)) h) b c.
+rewrite -[Lfun (iso_fwd (stab_lin_swap B C D)) _]/(Lfun (iso_fwd (stab_lin_swap B C D))
+  (Lfun (iso_bwd (stab_lin_swap B C D)) h)).
+by rewrite (iso_can' (stab_lin_swap B C D) h).
+Qed.
+
+(** ** Element ↔ morphism bridges (reused). *)
+
+(** A unit-ball [stablehom B C] point as an [scones_hom]. *)
+Lemma sh_sc_norm (B C : ICone.type Ar) (g : stablehom B C) :
+  sh_norm g <= 1 -> sc_norm (sh_fun g) <= 1.
+Proof.
+move=> Hg; apply: sc_norm_lub => x Hx.
+apply: le_trans (sh_norm_ub g x Hx) Hg.
+Qed.
+
+Definition sh_to_scones (B C : ICone.type Ar) (g : stablehom B C)
+    (Hg : sh_norm g <= 1) : scones_hom B C :=
+  MkSconesHom (sh_fun g) (sh_meas_stable g) (sh_sc_norm Hg) (sh_offball g).
+
+Lemma sh_to_sconesE (B C : ICone.type Ar) (g : stablehom B C)
+    (Hg : sh_norm g <= 1) (x : B) :
+  sc_fun (sh_to_scones Hg) x = sh_fun g x.
+Proof. by []. Qed.
+
+(** An [scones_hom B C] as a [stablehom B C] (forgetting the norm bound). *)
+Definition sc_to_sh (B C : ICone.type Ar) (g : scones_hom B C) : stablehom B C :=
+  MkStablehom (sc_fun g) (sc_meas_stable g) (sc_offball g).
+
+Lemma sc_to_shE (B C : ICone.type Ar) (g : scones_hom B C) (x : B) :
+  sh_fun (sc_to_sh g) x = sc_fun g x.
+Proof. by []. Qed.
+
+(** ** SCones uncurry (the inverse of [curry], from [Ev]/[gpair]). *)
+
+Definition suncurry (B1 B2 C : ICone.type Ar)
+    (g : scones_hom B1 (stablehom B2 C)) : scones_hom (sprod B1 B2) C :=
+  scones_comp (Ev B2 C) (gpair g).
+
+(** [suncurry g (⟨x1,x2⟩) = (g x1)(x2)] on the unit ball. *)
+Lemma suncurryE (B1 B2 C : ICone.type Ar)
+    (g : scones_hom B1 (stablehom B2 C)) (x1 : B1) (x2 : B2) :
+  cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+  sc_fun (suncurry g) (sprod_pair x1 x2) = sh_fun (sc_fun g x1) x2.
+Proof. by move=> Hx1 Hx2; rewrite /suncurry (gpair_evE g Hx1 Hx2). Qed.
+
+(** [lin f] on a promoted point reads off [f]. *)
+Lemma lin_prom (B C : ICone.type Ar) (f : scones_hom B C) (x : B) :
+  cone_norm x <= 1 -> Lfun (lin f) x! = sc_fun f x.
+Proof. by move=> Hx; rewrite -(Theta_prom (lin f) x Hx) ThetaK. Qed.
+
+(** ** The forward chain [psiV : ICONES(!(B1&B2), C) → ICONES(!B1⊗!B2, C)] *)
+
+Section ForwardChain.
+Variables (B1 B2 C : ICone.type Ar).
+
+(* steps 1–4: [ICONES(!(B1&B2), C) → ICONES(!B1, B2⇒ₛC)] *)
+Definition pv4 (t : icones_hom Ar (Bang Ar (sprod B1 B2)) C) :
+    icones_hom Ar (Bang Ar B1) (stablehom B2 C) :=
+  lin (curry (Theta t)).
+
+(* the swapped element [B2⇒ₛ(!B1⊸C)] (step 6), with its norm bound *)
+Definition pvsw (t : icones_hom Ar (Bang Ar (sprod B1 B2)) C) :
+    stablehom B2 (linhom_car Ar (Bang Ar B1) C) :=
+  Lfun (iso_bwd (stab_lin_swap B2 (Bang Ar B1) C)) (icones_to_linhom (pv4 t)).
+
+Lemma pvsw_norm (t : icones_hom Ar (Bang Ar (sprod B1 B2)) C) :
+  sh_norm (pvsw t) <= 1.
+Proof.
+rewrite -[sh_norm _]/(cone_norm (pvsw t)) /pvsw.
+apply: le_trans (cones_hom_norm_le1 _ _) _.
+exact: icones_to_linhom_norm_le1.
+Qed.
+
+(* steps 7–9: [→ ICONES(!B2 ⊗ !B1, C)] *)
+Definition pv9 (t : icones_hom Ar (Bang Ar (sprod B1 B2)) C) :
+    icones_hom Ar (Bang Ar B2) (linhom_car Ar (Bang Ar B1) C) :=
+  lin (sh_to_scones (pvsw_norm t)).
+
+Definition pv10 (t : icones_hom Ar (Bang Ar (sprod B1 B2)) C) :
+    icones_hom Ar (tensor Ar (Bang Ar B2) (Bang Ar B1)) C :=
+  tensor_uncurry (pv9 t).
+
+(* step 10: braid [!B1⊗!B2 → !B2⊗!B1], then [pv10] *)
+Definition psiV (t : icones_hom Ar (Bang Ar (sprod B1 B2)) C) :
+    icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C :=
+  icones_comp (pv10 t) (iso_fwd (tensor_braid (Bang Ar B1) (Bang Ar B2))).
+
+(** The defining computation: [psiV t (x1! ⊗ x2!) = t (⟨x1,x2⟩!)]. *)
+Lemma psiV_prom (t : icones_hom Ar (Bang Ar (sprod B1 B2)) C)
+    (x1 : B1) (x2 : B2) :
+  cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+  Lfun (psiV t) (x1! ⊗p x2!) = Lfun t (sprod_pair x1 x2)!.
+Proof.
+move=> Hx1 Hx2.
+have Hp : cone_norm (sprod_pair x1 x2) <= 1 by exact: sprod_pair_norm_le1.
+(* step 10: braid [!B1⊗!B2 → !B2⊗!B1] *)
+rewrite /psiV /=.
+rewrite -[iso_fwd (tensor_braid (Bang Ar B1) (Bang Ar B2)) _]
+          /(Lfun (iso_fwd (tensor_braid (Bang Ar B1) (Bang Ar B2))) (x1! ⊗p x2!)).
+rewrite -[ptensor x1! x2!]/(x1! ⊗p x2!) tensor_braidEp.
+(* step 9: [pv10 = tensor_uncurry (pv9 t)], read on the pure tensor *)
+rewrite /pv10 -(tensor_curryE (tensor_uncurry (pv9 t)) x2! x1!) tensor_uncurryK.
+(* steps 7–8: [pv9 t = lin (sh_to_scones (pvsw t))] on [x2!] *)
+rewrite /pv9 (lin_prom (sh_to_scones (pvsw_norm t)) Hx2) sh_to_sconesE.
+(* step 6: the [stab_lin_swap] inverse law *)
+rewrite /pvsw (stab_lin_swap_bwdE (icones_to_linhom (pv4 t)) x2 x1!) icones_to_linhomE.
+(* steps 1–4: [pv4 t = lin (curry (Theta t))] read on [x1!], then [x2] *)
+rewrite /pv4 (lin_prom (curry (Theta t)) Hx1).
+rewrite -[sc_fun (curry (Theta t)) x1 x2]/(sh_fun (sc_fun (curry (Theta t)) x1) x2).
+rewrite (curry_appE (Theta t) x1 x2 Hx1 Hx2).
+by rewrite (Theta_prom t (sprod_pair x1 x2) Hp).
+Qed.
+
+End ForwardChain.
+
+(** ** The backward chain [psi : ICONES(!B1⊗!B2, C) → ICONES(!(B1&B2), C)] *)
+
+Section BackwardChain.
+Variables (B1 B2 C : ICone.type Ar).
+
+(* reverse step 10 + step 9 *)
+Definition pb9 (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C) :
+    icones_hom Ar (Bang Ar B2) (linhom_car Ar (Bang Ar B1) C) :=
+  tensor_curry (icones_comp s (iso_bwd (tensor_braid (Bang Ar B1) (Bang Ar B2)))).
+
+(* reverse steps 7–8: [Theta], then as [stablehom]; then reverse step 6:
+   the [stab_lin_swap] forward. *)
+Definition pbsw (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C) :
+    linhom_car Ar (Bang Ar B1) (stablehom B2 C) :=
+  Lfun (iso_fwd (stab_lin_swap B2 (Bang Ar B1) C)) (sc_to_sh (Theta (pb9 s))).
+
+Lemma pbsw_norm (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C) :
+  cone_norm (pbsw s) <= 1.
+Proof.
+rewrite /pbsw.
+apply: le_trans (cones_hom_norm_le1 _ _) _.
+rewrite -[cone_norm _]/(sh_norm (sc_to_sh (Theta (pb9 s)))).
+apply: sh_norm_lub => x Hx; rewrite sc_to_shE.
+exact: (sc_image_ball (Theta (pb9 s)) Hx).
+Qed.
+
+(* reverse steps 1–4: element [→ ICONES(!B1, B2⇒ₛC)], [Theta], [suncurry], [lin] *)
+Definition pb4 (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C) :
+    icones_hom Ar (Bang Ar B1) (stablehom B2 C) :=
+  linhom_icones (phi := pbsw s) (pbsw_norm s).
+
+Definition psi (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C) :
+    icones_hom Ar (Bang Ar (sprod B1 B2)) C :=
+  lin (suncurry (Theta (pb4 s))).
+
+(** The defining computation: [psi s (⟨x1,x2⟩!) = s (x1! ⊗ x2!)]. *)
+Lemma psi_prom (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C)
+    (x1 : B1) (x2 : B2) :
+  cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+  Lfun (psi s) (sprod_pair x1 x2)! = Lfun s (x1! ⊗p x2!).
+Proof.
+move=> Hx1 Hx2.
+have Hp1 : cone_norm x1! <= 1 by exact: prom_ball.
+have Hp2 : cone_norm x2! <= 1 by exact: prom_ball.
+have Hp : cone_norm (sprod_pair x1 x2) <= 1 by exact: sprod_pair_norm_le1.
+(* [lin (suncurry (Theta (pb4 s)))] on [⟨x1,x2⟩!] *)
+rewrite /psi (lin_prom (suncurry (Theta (pb4 s))) Hp).
+rewrite (suncurryE (Theta (pb4 s)) Hx1 Hx2).
+(* [Theta (pb4 s)] on [x1] = [pb4 s] on [x1!] *)
+rewrite (Theta_prom (pb4 s) x1 Hx1).
+(* [pb4 s = linhom_icones (pbsw s)] *)
+rewrite /pb4 (linhom_iconesE (pbsw_norm s)).
+(* the [stab_lin_swap] forward law *)
+rewrite /pbsw (stab_lin_swapE (sc_to_sh (Theta (pb9 s))) x2 x1!) sc_to_shE.
+(* [Theta (pb9 s)] on [x2] = [pb9 s] on [x2!] *)
+rewrite (Theta_prom (pb9 s) x2 Hx2).
+(* [pb9 s = tensor_curry (s ∘ braid⁻¹)] read on [x2!], [x1!] *)
+rewrite /pb9 (tensor_curryE (icones_comp s (iso_bwd (tensor_braid (Bang Ar B1) (Bang Ar B2)))) x2! x1!).
+rewrite /=.
+rewrite -[iso_bwd (tensor_braid (Bang Ar B1) (Bang Ar B2)) _]
+          /(Lfun (iso_bwd (tensor_braid (Bang Ar B1) (Bang Ar B2))) (x2! ⊗p x1!)).
+(* braid⁻¹ (x2! ⊗ x1!) = x1! ⊗ x2! *)
+have Hbr : Lfun (iso_bwd (tensor_braid (Bang Ar B1) (Bang Ar B2))) (x2! ⊗p x1!) = x1! ⊗p x2!.
+  apply: (iso_fwd_inj (tensor_braid (Bang Ar B1) (Bang Ar B2))).
+  rewrite (iso_can' (tensor_braid (Bang Ar B1) (Bang Ar B2)) (x2! ⊗p x1!)).
+  by rewrite -[iso_fwd _ _]/(Lfun (iso_fwd (tensor_braid (Bang Ar B1) (Bang Ar B2))) (x1! ⊗p x2!)) tensor_braidEp.
+by rewrite Hbr.
+Qed.
+
+End BackwardChain.
+
+(** ** The binary Seely isomorphism [Seely2 : !B1⊗!B2 ≅ !(B1&B2)] *)
+
+Section Seely2Iso.
+Variables B1 B2 : ICone.type Ar.
+
+(** Forward [!B1⊗!B2 → !(B1&B2)] = [psiV id]; backward = [psi id]. *)
+Definition S2fwd : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2))
+                                  (Bang Ar (sprod B1 B2)) :=
+  psiV (icones_id Ar (Bang Ar (sprod B1 B2))).
+Definition S2bwd : icones_hom Ar (Bang Ar (sprod B1 B2))
+                                  (tensor Ar (Bang Ar B1) (Bang Ar B2)) :=
+  psi (icones_id Ar (tensor Ar (Bang Ar B1) (Bang Ar B2))).
+
+Lemma S2fwdE (x1 : B1) (x2 : B2) :
+  cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+  Lfun S2fwd (x1! ⊗p x2!) = (sprod_pair x1 x2)!.
+Proof. by move=> Hx1 Hx2; rewrite /S2fwd (psiV_prom _ Hx1 Hx2). Qed.
+
+Lemma S2bwdE (x1 : B1) (x2 : B2) :
+  cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+  Lfun S2bwd (sprod_pair x1 x2)! = x1! ⊗p x2!.
+Proof. by move=> Hx1 Hx2; rewrite /S2bwd (psi_prom _ Hx1 Hx2). Qed.
+
+Lemma S2_fwdK : icones_comp S2bwd S2fwd =
+  icones_id Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)).
+Proof.
+apply: tens_excl_charact => x1 x2 Hx1 Hx2.
+rewrite -[Lfun (icones_comp S2bwd S2fwd) _]/(Lfun S2bwd (Lfun S2fwd (x1! ⊗p x2!))).
+by rewrite (S2fwdE Hx1 Hx2) (S2bwdE Hx1 Hx2).
+Qed.
+
+Lemma S2_bwdK : icones_comp S2fwd S2bwd =
+  icones_id Ar (Bang Ar (sprod B1 B2)).
+Proof.
+apply: bang_ext => q Hq.
+have Hq1 : cone_norm (sprod_fst q) <= 1 by exact: sprod_fst_ball.
+have Hq2 : cone_norm (sprod_snd q) <= 1 by exact: sprod_snd_ball.
+rewrite -[Lfun (icones_comp S2fwd S2bwd) q!]/(Lfun S2fwd (Lfun S2bwd q!)).
+rewrite [in Lfun S2bwd q!](sprod_eta q).
+rewrite (S2bwdE Hq1 Hq2) (S2fwdE Hq1 Hq2).
+by rewrite -(sprod_eta q).
+Qed.
+
+(** Paper §9 [\Seelyt]: the binary Seely iso [!B1 ⊗ !B2 ≅ !(B1 & B2)]. *)
+Definition Seely2 : icones_iso Ar (tensor Ar (Bang Ar B1) (Bang Ar B2))
+                                   (Bang Ar (sprod B1 B2)) :=
+  icones_isoP S2fwd S2bwd S2_fwdK S2_bwdK.
+
+(** Paper line 7501: [Seely2(x1! ⊗ x2!) = ⟨x1,x2⟩!]. *)
+Lemma Seely2E (x1 : B1) (x2 : B2) :
+  cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+  iso_fwd Seely2 (x1! ⊗p x2!) = (sprod_pair x1 x2)!.
+Proof. exact: S2fwdE. Qed.
+
+End Seely2Iso.
+
+(** Keep [Seely2E]'s pure-tensor points explicit (matching the former
+    staged interface), so the existing coherence proofs below
+    ([seely_comult]/[seely_assoc]/...) use it unchanged. *)
+Arguments Seely2E {B1 B2} x1 x2.
+
+(** Seal [Seely2] (now a TRANSPARENT [Definition], unlike the former
+    staged [Parameter]) so a bare [/=] in the Seely coherence proofs below
+    does not unfold it into [S2fwd]/[psiV]/... and break the [Seely2E]
+    rewrites; [Seely2E] still reads off its pure-tensor values. *)
+Opaque Seely2.
+
+(** [sprod_mor f1 f2 ⟨x1,x2⟩ = ⟨f1 x1, f2 x2⟩]. *)
+Lemma sprod_morE (B1 B2 B1' B2' : ICone.type Ar)
+    (f1 : icones_hom Ar B1 B1') (f2 : icones_hom Ar B2 B2') (x1 : B1) (x2 : B2) :
+  Lfun (sprod_mor f1 f2) (sprod_pair x1 x2) =
+  sprod_pair (Lfun f1 x1) (Lfun f2 x2).
+Proof. by apply: cones_prod_eq => -[]. Qed.
+
+(** ** Naturality of [Seely2] in both slots — Paper line 7494
+
+    Direct from [Seely2E] via the [n=2] promotion extensionality
+    [tens_excl_charact]: both sides send [x1! ⊗ x2!] to [⟨f1 x1, f2 x2⟩!]. *)
+Lemma Seely2_natural (B1 B2 B1' B2' : ICone.type Ar)
+    (f1 : icones_hom Ar B1 B1') (f2 : icones_hom Ar B2 B2') :
+  icones_comp (bang_fmap (sprod_mor f1 f2)) (iso_fwd (Seely2 B1 B2)) =
+  icones_comp (iso_fwd (Seely2 B1' B2'))
+              (tensor_mor (bang_fmap f1) (bang_fmap f2)).
+Proof.
+apply: tens_excl_charact => x1 x2 Hx1 Hx2.
+have Hf1 : cone_norm (Lfun f1 x1) <= 1.
+  exact: le_trans (cones_hom_norm_le1 _ x1) Hx1.
+have Hf2 : cone_norm (Lfun f2 x2) <= 1.
+  exact: le_trans (cones_hom_norm_le1 _ x2) Hx2.
+have Hp : cone_norm (sprod_pair x1 x2) <= 1 by exact: sprod_pair_norm_le1.
+(* LHS *)
+rewrite -[Lfun (icones_comp (bang_fmap (sprod_mor f1 f2)) (iso_fwd (Seely2 B1 B2))) _]
+          /(Lfun (bang_fmap (sprod_mor f1 f2)) (Lfun (iso_fwd (Seely2 B1 B2)) (x1! ⊗p x2!))).
+rewrite (Seely2E x1 x2 Hx1 Hx2).
+rewrite (bang_fmap_prom (sprod_mor f1 f2) (sprod_pair x1 x2) Hp) sprod_morE.
+(* RHS *)
+rewrite -[Lfun (icones_comp (iso_fwd (Seely2 B1' B2')) (tensor_mor (bang_fmap f1) (bang_fmap f2))) _]
+          /(Lfun (iso_fwd (Seely2 B1' B2')) (Lfun (tensor_mor (bang_fmap f1) (bang_fmap f2)) (x1! ⊗p x2!))).
+rewrite tensor_morE.
+rewrite (bang_fmap_prom f1 x1 Hx1) (bang_fmap_prom f2 x2 Hx2).
+by rewrite (Seely2E (Lfun f1 x1) (Lfun f2 x2) Hf1 Hf2).
+Qed.
 
 (** ** Paper §9 — the unit Seely isomorphism [\Seelyz] (DISCHARGED)
 
@@ -952,6 +1295,15 @@ Arguments linhom_icones {R Ar C D} phi Hphi.
 Arguments linhom_iconesE {R Ar C D} phi Hphi x.
 Arguments lin_natural {R Ar B C D} g f.
 Arguments Theta_comp {R Ar B C D} g h.
+Arguments stab_lin_swap {R Ar} B C D.
+Arguments stab_lin_swapE {R Ar B C D} g b c.
+Arguments suncurry {R Ar B1 B2 C} g.
+Arguments suncurryE {R Ar B1 B2 C} g {x1 x2}.
+Arguments lin_prom {R Ar B C} f {x}.
+Arguments Seely2 {R Ar} B1 B2.
+Arguments Seely2E {R Ar B1 B2} x1 x2.
+Arguments sprod_morE {R Ar B1 B2 B1' B2'} f1 f2 x1 x2.
+Arguments Seely2_natural {R Ar B1 B2 B1' B2'} f1 f2.
 Arguments cs {R Ar C} c Hc.
 Arguments csE {R Ar C} c Hc x.
 Arguments psi0 {R Ar C} f.

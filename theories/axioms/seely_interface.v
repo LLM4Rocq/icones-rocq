@@ -1,5 +1,5 @@
 (**md**************************************************************************)
-(* # STAGING CONTRACT — the Seely isomorphisms (Paper §9)                     *)
+(* # The Seely isomorphisms (Paper §9) — STAGING DISCHARGED                    *)
 (*                                                                            *)
 (* PLAN.md §13.4 makes the exponential comonad [! = E ∘ Der] a *strong        *)
 (* monoidal* comonad, turning [ICones] into a Seely category (Melliès).  The  *)
@@ -8,38 +8,27 @@
 (*   Seely2_{B1,B2} : !B1 ⊗ !B2  ≅  !(B1 & B2)     (paper [\Seelyt])          *)
 (*   Seely0         :        1   ≅  !⊤             (paper [\Seelyz])          *)
 (*                                                                            *)
-(* The paper (lines 7452–7513) CONSTRUCTS these isos via a chain of natural   *)
-(* bijections [STAB/ICONES(...)≅...] and the representable-functor Yoneda     *)
-(* lemma (Lemma [functor-yoneda-iso]) — exactly the Special-Adjoint-Functor   *)
-(* / Yoneda machinery we do not yet expose at the element level.  We use the  *)
-(* same *staged* layout as the tensor ([theories/axioms/saft_interface.v])    *)
-(* and the exponential ([theories/axioms/exp_interface.v]):                   *)
+(* Both are now PROVED in [theories/homs/seely.v] — they are no longer        *)
+(* staged here:                                                               *)
 (*                                                                            *)
-(*   1. (THIS FILE) declare the EXISTENCE of [Seely2]/[Seely0] together with  *)
-(*      their characterising equations on promotions of pure tensors — a      *)
-(*      handful of temporary [Parameter]s/[Axiom]s, exactly the §13.4 content *)
-(*      the Seely milestone consumes;                                         *)
-(*   2. DERIVE the Seely-category coherence ([theories/homs/seely.v]) — all    *)
-(*      as THEOREMS modulo this contract, via the [n=2] promotion             *)
-(*      extensionality [tens_excl_charact] (paper Lemma                       *)
-(*      [tens-excl-equal-charact]), exactly as [smcc.v] derives the SMC        *)
-(*      coherence from the pure-tensor extensionality [tensor_ext];           *)
-(*   3. DISCHARGE the interface by proving SAFT + the Yoneda construction      *)
-(*      (M-SAFT, PLAN §13.1/§13.4), after which every [Parameter]/[Axiom]      *)
-(*      below becomes a theorem and THIS FILE IS DELETED.                      *)
+(*   - [Seely0] / [Seely0E] (the unit iso, paper [\Seelyz]) is built by the   *)
+(*     contravariant Yoneda lemma [co_yoneda_iso] on the natural             *)
+(*     hom-bijection [ICones(1, C) ≃ ICones(!⊤, C)];                          *)
+(*   - [Seely2] / [Seely2E] / [Seely2_natural] (the binary iso, paper        *)
+(*     [\Seelyt]) is built by the paper's chain of natural-in-[C] bijections  *)
+(*     (content.tex ~7482–7506), realized at the element level via the       *)
+(*     [E ⊣ Der] adjunction [Θ]/[lin], the [SCones] CCC [curry]/[Ev], the    *)
+(*     tensor–hom iso / braiding, and — at exactly ONE step — paper Lemma 9.4 *)
+(*     [stab_lin_swap].  Bijectivity is the [n=2] promotion extensionality    *)
+(*     [tens_excl_charact]; [Seely2E] is the chain's pure-tensor computation; *)
+(*     [Seely2_natural] follows from [Seely2E] + [tens_excl_charact].         *)
 (*                                                                            *)
-(* Every declaration here is therefore an INTENTIONAL, TEMPORARY AXIOM,       *)
-(* flagged `STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete`. *)
-(*                                                                            *)
-(* ## What is staged, and why it is the right contract                        *)
-(*                                                                            *)
-(* The paper itself stresses (line 7505): the equation                        *)
-(*   [Seely2_{B1,B2}(x1! ⊗ x2!) = ⟨x1,x2⟩!]                                   *)
-(* FULLY CHARACTERISES [Seely2] by Lemma [tens-excl-equal-charact] (the [n=2] *)
-(* promotion extensionality, proved as [tens_excl_charact] in [seely.v]).     *)
-(* So we stage exactly the data the paper keeps after Yoneda: the iso itself  *)
-(* and its action on [x1! ⊗ x2!] (resp. [Seely0] and its action on [t]).      *)
-(* Naturality of [Seely2] in both slots is part of the staged Yoneda output.  *)
+(* What this file STILL provides are the genuine (non-staged) definitions     *)
+(* the Seely structure needs: the terminal cone [⊤ = Stop] (and its          *)
+(* terminality) and the binary-product bifunctor action [f1 & f2 =           *)
+(* sprod_mor].  No [Parameter]/[Axiom] remains; the only outstanding gap of   *)
+(* [theories/homs/seely.v] is the flagged interim [stab_lin_swap] (paper      *)
+(* Lemma 9.4, to be wired in from the sibling proof).                         *)
 (******************************************************************************)
 
 From HB Require Import structures.
@@ -99,21 +88,13 @@ Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
     SAFT/Yoneda is what we STAGE; we keep the iso and its
     characterisation, which by [tens_excl_charact] pins it down. *)
 
-(* STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete *)
-Parameter Seely2 :
-  forall B1 B2 : ICone.type Ar,
-    icones_iso Ar (Bang Ar B1 ⊗ Bang Ar B2) (Bang Ar (sprod B1 B2)).
-
-(** Paper line 7501: the characterising equation of [Seely2] on
-    promotions of pure tensors.  By [tens_excl_charact] (the [n=2]
-    promotion extensionality, paper Lemma [tens-excl-equal-charact])
-    this single equation fully determines [Seely2]. *)
-
-(* STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete *)
-Axiom Seely2E :
-  forall (B1 B2 : ICone.type Ar) (x1 : B1) (x2 : B2),
-    cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
-    iso_fwd (Seely2 B1 B2) (x1! ⊗p x2!) = (sprod_pair x1 x2)!.
+(** DISCHARGED.  [Seely2 : !B1⊗!B2 ≅ !(B1&B2)] and its characterisation
+    [Seely2E] on promotions of pure tensors are now PROVED in
+    [theories/homs/seely.v] (the paper's natural-in-[C] bijection chain
+    of content.tex ~7482, folded to the element level via the [E ⊣ Der]
+    adjunction [Θ]/[lin], the [SCones] CCC [curry]/[Ev], [tensor_hom_iso]
+    / the braiding, and — at exactly one step — paper Lemma 9.4
+    [stab_lin_swap]).  They are no longer staged here. *)
 
 (** ** The terminal integrable cone [⊤] — Paper §9 ([\Stop])
 
@@ -163,26 +144,13 @@ Definition sprod_mor (B1 B2 B1' B2' : ICone.type Ar)
        then icones_comp f1 (icones_proj true)
        else icones_comp f2 (icones_proj false)).
 
-(** ** Naturality of [Seely2] — Paper §9, line 7494 (the Yoneda output)
+(** ** Naturality of [Seely2] — Paper §9, line 7494 — DISCHARGED
 
-    [Seely2] is a natural transformation in both arguments: the square
-
-      [!B1 ⊗ !B2  --Seely2-->  !(B1 & B2)]
-      [   |!f1 ⊗ !f2              |!(f1 & f2)]
-      [!B1' ⊗ !B2' --Seely2--> !(B1' & B2')]
-
-    commutes, i.e. [!(f1 & f2) ∘ Seely2_{B1,B2} = Seely2_{B1',B2'} ∘
-    (!f1 ⊗ !f2)].  This is exactly the naturality the Yoneda lemma
-    delivers (paper line 7494); we stage it in morphism form.  The
-    bifunctor [!f1 ⊗ !f2] is the tensor action [tensor_mor]. *)
-
-(* STAGING: discharge via M-SAFT + Yoneda, PLAN §13.4; then delete *)
-Axiom Seely2_natural :
-  forall (B1 B2 B1' B2' : ICone.type Ar)
-         (f1 : icones_hom Ar B1 B1') (f2 : icones_hom Ar B2 B2'),
-    icones_comp (bang_fmap (sprod_mor f1 f2)) (iso_fwd (Seely2 B1 B2)) =
-    icones_comp (iso_fwd (Seely2 B1' B2'))
-                (tensor_mor (bang_fmap f1) (bang_fmap f2)).
+    [Seely2] is a natural transformation in both arguments; the square
+    [!(f1 & f2) ∘ Seely2_{B1,B2} = Seely2_{B1',B2'} ∘ (!f1 ⊗ !f2)] is now
+    PROVED as [Seely2_natural] in [theories/homs/seely.v] (directly from
+    [Seely2E] via the [n=2] promotion extensionality [tens_excl_charact]),
+    and is no longer staged here. *)
 
 (** ** Paper §9 — the unit Seely isomorphism [\Seelyz] — DISCHARGED
 
@@ -194,12 +162,7 @@ Axiom Seely2_natural :
 
 End SeelyInterface.
 
-(** [Seely2] and its characterisation should print with the object
-    arguments explicit. *)
-Arguments Seely2 {R Ar} B1 B2.
-Arguments Seely2E {R Ar B1 B2}.
 Arguments sprod_mor {R Ar B1 B2 B1' B2'}.
-Arguments Seely2_natural {R Ar B1 B2 B1' B2'}.
 Arguments Stop {R} Ar.
 Arguments Stop_eq {R Ar}.
 Arguments Stop_is0 {R Ar}.
