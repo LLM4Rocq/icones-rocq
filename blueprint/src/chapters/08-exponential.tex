@@ -3,37 +3,39 @@
 %
 % Mirrors:
 %   theories/stable/der_continuous.v  Der preserves all limits (Thm 7.34)
-%   theories/homs/bang_construct.v    E ⊣ Der DISCHARGED: Bang/nl/lin +
-%                                     lin_beta/lin_unique as theorems (SAFT
-%                                     wi_obj, R:=Der; mirrors tensor_construct)
-%   theories/axioms/exp_interface.v   the E ⊣ Der adjunction (5 decls Bang/nl/
-%                                     lin/lin_beta/lin_unique) — now Definitions
-%                                     /Lemmas backed by bang_construct (discharged
-%                                     in place), universal-arrow form, bijection Θ
+%   theories/homs/bang_construct.v    E ⊣ Der: Bang/nl/lin + lin_beta/lin_unique
+%                                     as theorems (SAFT wi_obj, R:=Der; mirrors
+%                                     tensor_construct)
+%   theories/homs/exp_adjunction.v    the E ⊣ Der adjunction (5 decls Bang/nl/
+%                                     lin/lin_beta/lin_unique) — Definitions/Lemmas
+%                                     backed by bang_construct, universal-arrow
+%                                     form, bijection Θ (was axioms/exp_interface.v)
 %   theories/homs/bang.v              the comonad ! = E∘Der (axiom-free): Θ,
 %                                     bang_ext, bang_fmap (+_prom/_id/_comp),
 %                                     der/dig (+_prom), the comonad laws, the
 %                                     Comonad record + Bang_comonad
-%   theories/axioms/seely_interface.v the staged Seely isos: Seely2/Seely2E/
-%                                     Seely2_natural + Seely0/Seely0E
+%   theories/homs/seely_defs.v        the genuine Stop/Stop_mor/sprod_mor defs
+%                                     (terminal cone, product bifunctor action;
+%                                     was axioms/seely_interface.v)
+%   theories/stable/stab_lin_swap.v   Lemma 9.4: stab_lin_swap, the natural iso
+%                                     (B⇒ₛ(C⊸D)) ≅ (C⊸(B⇒ₛD)) feeding Seely2
 %   theories/homs/seely.v             tens_excl_charact, linhom_icones,
-%                                     seely_comult, the SeelyCategory record +
-%                                     ICones_Seely
+%                                     Seely2/Seely2E/Seely2_natural,
+%                                     Seely0/Seely0E (now PROVED), seely_comult,
+%                                     the SeelyCategory record + ICones_Seely
+%   theories/homs/coalgebra.v         Thm 9.7: FMeas(X) is a !-coalgebra (Coalg,
+%                                     Coalg_counit/Coalg_coassoc, FMeas_coalgebra)
+%                                     + functor ARCAT → EM(ICones)
 %
-% Status note: the E ⊣ Der adjunction is DISCHARGED (der_continuous.v +
-% bang_construct.v), so bang.v / the ! comonad is AXIOM-FREE (Bang_comonad is
-% axiom-clean). The tensor ⊗ is ALSO discharged (Chapter 6, saft_interface.v
-% deleted), so seely.v is now mechanised modulo a SINGLE interface:
-% seely_interface.v (the Seely-iso EXISTENCE, 5 decls). The comonad and ALL its
-% laws, the n-ary !-tensor extensionality, and the derived Seely coherence are
-% genuinely PROVED (\rocqok); only the EXISTENCE of the Seely isos is staged
-% (\notready). The discharge is the remaining M-SAFT/Yoneda content (PLAN §13.4):
-% Lemma 9.4 + the unit point-bijection, using the merged co_yoneda_iso. The
-% headline (Thm 6.5, Chapter \ref{ch:skern}) does not depend on any of these.
-%
-% In-progress note: Thm 9.7 (FMeas(X) is a !-coalgebra, §9.1) is being
-% formalised concurrently in theories/homs/coalgebra.v; it is NOT yet merged
-% and is described here only as underway, with no \rocqok claim.
+% Status note: the WHOLE chapter is AXIOM-FREE — zero project axioms. The
+% E ⊣ Der adjunction is discharged (der_continuous.v + bang_construct.v), so
+% bang.v / the ! comonad is axiom-free (Bang_comonad axiom-clean). The tensor ⊗
+% is discharged (Chapter 6, axioms/saft_interface.v deleted). And the Seely
+% isomorphisms themselves (Seely2/Seely0) are now PROVED in seely.v via the iso
+% chain through Lemma 9.4 (stab_lin_swap) — they are no longer staged. ICones_Seely
+% (Thm 9.5) and the FMeas !-coalgebra (Thm 9.7, coalgebra.v) are both done and
+% axiom-clean. The theories/axioms/ directory has been deleted. The headline
+% (Thm 6.5, Chapter \ref{ch:skern}) does not depend on any of these.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{The exponential and the Seely category}\label{ch:exponential}
@@ -67,13 +69,17 @@ is the left adjoint of the limit-preserving $\mathrm{Der}$, exactly as
 $\otimes$ is obtained from the limit-preserving internal hom $C \lin -$.
 
 The material lives under \texttt{theories/homs/bang\_construct.v} (the
-$E \dashv \mathrm{Der}$ SAFT construction, now proved),
-\texttt{theories/homs/bang.v} (the comonad $\mathord{!}$) and
-\texttt{theories/homs/seely.v} (the Seely category). The adjunction is
-discharged in place in \texttt{theories/axioms/exp\_interface.v} (its
-\texttt{Parameter}s are now \texttt{Definition}s/\texttt{Lemma}s backed
-by \texttt{bang\_construct}); the Seely isomorphisms remain the project's
-single staging interface, \texttt{theories/axioms/seely\_interface.v}.
+$E \dashv \mathrm{Der}$ SAFT construction), the proved $E \dashv
+\mathrm{Der}$ adjunction \texttt{theories/homs/exp\_adjunction.v}
+($\texttt{Bang}/\texttt{nl}/\texttt{lin}/\texttt{lin\_beta}/\texttt{lin\_unique}$),
+\texttt{theories/homs/bang.v} (the comonad $\mathord{!}$),
+\texttt{theories/homs/seely\_defs.v} (the terminal cone $\top$ and the
+product bifunctor action $\texttt{sprod\_mor}$) and
+\texttt{theories/homs/seely.v} (the Seely category, with the Seely
+isomorphisms $\mathrm{Seely2}$/$\mathrm{Seely0}$ now \emph{proved}). The
+adjunction and the Seely isomorphisms are both \textbf{fully proved and
+axiom-free}: there is no longer any \texttt{theories/axioms/} staging
+interface anywhere in the project.
 
 \section{The $E \dashv \mathrm{Der}$ adjunction (paper \S9), discharged}%
 \label{sec:exp-staging}
@@ -82,7 +88,7 @@ The deep input to the exponential is the \emph{existence} of the left
 adjoint $E$ of $\mathrm{Der}$, which the paper obtains from SAFT and for
 which it gives \emph{no} concrete carrier --- the explicit parallel of
 Remark~5.1 for the tensor. The Rocq development originally \emph{staged}
-this content (a minimal \emph{universal-arrow} interface in
+this content (a minimal \emph{universal-arrow} interface in a former
 \texttt{theories/axioms/exp\_interface.v}); it is now \textbf{discharged}
 --- proved axiom-free --- so the $\mathord{!}$ comonad depends only on
 the classical base. The discharge mirrors the tensor's T1, instantiated
@@ -91,16 +97,16 @@ proves $\mathrm{Der}$ preserves all limits (\textbf{Theorem 7.34}), so
 the Special Adjoint Functor Theorem produces $E$, which
 \texttt{theories/homs/bang\_construct.v} constructs concretely as a wide
 intersection on a coseparator power (the same SAFT machinery as
-\texttt{tensor\_construct.v}). The five declarations of
-\texttt{exp\_interface.v} are now \texttt{Definition}s/\texttt{Lemma}s
-backed by \texttt{bang\_construct}; they are \emph{retained in place}
-(not deleted) because the still-staged Seely development
-(\texttt{seely.v}, \texttt{seely\_interface.v}) imports
-$\mathord{!}$/$\mathrm{nl}$ and must share the same $\mathord{!}$ ---
-\texttt{Strategy opaque} + \texttt{Arguments \ldots : simpl never}
-reproduce the former \texttt{Parameter} irreducibility so those
-consumers compile unchanged. There is no \Admitted{} anywhere, and
-\rocq{Icones.homs.bang.Bang\_comonad} is axiom-clean.
+\texttt{tensor\_construct.v}). The five declarations of the adjunction
+now live, as genuine \texttt{Definition}s/\texttt{Lemma}s backed by
+\texttt{bang\_construct}, in \texttt{theories/homs/exp\_adjunction.v}
+(the former \texttt{axioms/exp\_interface.v}, renamed once it held no
+axioms); \texttt{Strategy opaque} + \texttt{Arguments \ldots : simpl
+never} reproduce the former \texttt{Parameter} irreducibility so the
+downstream consumers (\texttt{bang.v}, \texttt{seely.v}) share the same
+$\mathord{!}$/$\mathrm{nl}$ and compile unchanged. There is no
+\Admitted{} anywhere, and \rocq{Icones.homs.bang.Bang\_comonad} is
+axiom-clean.
 
 \begin{theorem}[$\mathrm{Der}$ preserves all limits, paper Theorem 7.34]
 \label{thm:der-continuous}
@@ -121,37 +127,38 @@ The adjunction is presented by the natural bijection
   \qquad
   \Theta\,h \;:=\; \mathrm{Der}(h) \circ \mathrm{nl}_B,
 \]
-whose five universal-arrow components are now proved (no longer
-\notready):
+whose five universal-arrow components are all proved
+(\texttt{theories/homs/exp\_adjunction.v}):
 \begin{itemize}
   \item \emph{The exponential object former} $\mathord{!}B = E\,B$
     (paper $E$).\label{def:bang-object}
-    \rocq{Icones.axioms.exp\_interface.Bang}\rocqok{} --- now the
+    \rocq{Icones.homs.exp\_adjunction.Bang}\rocqok{} --- now the
     concrete wide intersection of \texttt{bang\_construct}, not an
     opaque carrier.
   \item \emph{The unit / universal nonlinear map} (paper
-    $\textsf{Unistab}_B$). \rocq{Icones.axioms.exp\_interface.nl}\rocqok{}
+    $\textsf{Unistab}_B$). \rocq{Icones.homs.exp\_adjunction.nl}\rocqok{}
     --- the unit $\eta_B = \mathrm{nl}_B : B \to \mathord{!}B$, a
     $\mathbf{SCones}$-morphism.
   \item \emph{The linear factoriser} (paper $\Theta^{-1}$).
-    \rocq{Icones.axioms.exp\_interface.lin}\rocqok{} --- the SAFT
+    \rocq{Icones.homs.exp\_adjunction.lin}\rocqok{} --- the SAFT
     mediator, built like $\texttt{tensor\_uncurry}$.
   \item \emph{The existence half} of the universal property.
-    \rocq{Icones.axioms.exp\_interface.lin\_beta}\rocqok{} ---
+    \rocq{Icones.homs.exp\_adjunction.lin\_beta}\rocqok{} ---
     $\mathrm{Der}(\mathrm{lin}\,f) \circ \mathrm{nl}_B = f$.
   \item \emph{The uniqueness half} of the universal property.
-    \rocq{Icones.axioms.exp\_interface.lin\_unique}\rocqok{} ---
+    \rocq{Icones.homs.exp\_adjunction.lin\_unique}\rocqok{} ---
     proved by the equaliser-of-candidates + intersection-minimality
     argument (like $\texttt{tensor\_curry\_inj}$). With \texttt{lin\_beta}
     this makes $\Theta$ and $\mathrm{lin}$ mutually inverse.
 \end{itemize}
 
-\paragraph{What remains staged.} After this discharge, and after the
-tensor's discharge (Chapter~\ref{ch:tensor}, \texttt{saft\_interface.v}
-deleted), the \emph{only} staged interface left in the whole project is
-the Seely-iso existence of \texttt{seely\_interface.v}
-(\S\ref{sec:seely-isos}). The headline theorem (paper Theorem~6.5,
-Chapter~\ref{ch:skern}) depends on none of these.
+\paragraph{Nothing remains staged.} After this discharge, and after the
+tensor's discharge (Chapter~\ref{ch:tensor}), and after the Seely
+isomorphisms themselves are proved (\S\ref{sec:seely-isos}), the project
+carries \emph{no} \texttt{theories/axioms/} staging interface at all:
+the \texttt{axioms/} directory has been deleted, and every former
+\texttt{Parameter} is a proved theorem. The headline theorem (paper
+Theorem~6.5, Chapter~\ref{ch:skern}) depends on none of this.
 
 \section{The exponential comonad $\mathord{!}$ (paper \S9)}%
 \label{sec:comonad}
@@ -172,9 +179,9 @@ $\Theta\,h := \mathrm{Der}(h) \circ \mathrm{nl}_B$
 (\rocq{Icones.homs.bang.Theta}, where $\mathrm{Der} = \texttt{ders}$).
 It is inverse to the factoriser $\mathrm{lin}$: $\Theta(\mathrm{lin}\,f)
 = f$ (\rocq{Icones.homs.bang.ThetaK}, directly
-\rocq{Icones.axioms.exp\_interface.lin\_beta}) and
+\rocq{Icones.homs.exp\_adjunction.lin\_beta}) and
 $\mathrm{lin}(\Theta\,h) = h$ (\rocq{Icones.homs.bang.linK}, the
-uniqueness \rocq{Icones.axioms.exp\_interface.lin\_unique} with
+uniqueness \rocq{Icones.homs.exp\_adjunction.lin\_unique} with
 $f := \Theta\,h$).
 \end{definition}
 
@@ -393,10 +400,12 @@ isomorphisms}
 \]
 natural and coherent with the monoidal and cartesian structure. The
 tensor (\autoref{sec:tensor-staging}) and the exponential
-(\S\ref{sec:exp-staging}) are both discharged, so this section works
-modulo the \emph{single} remaining interface --- the Seely-iso existence
-of \texttt{theories/axioms/seely\_interface.v}; the coherence
-\emph{laws} are then genuinely proved.
+(\S\ref{sec:exp-staging}) are both discharged, and so now are the Seely
+isomorphisms themselves (\S\ref{sec:seely-isos}): their existence is
+built by a finite chain of proved isos (tensor--hom iso, braiding) with
+\textbf{Lemma~9.4} ($\texttt{stab\_lin\_swap}$) at exactly one step. The
+coherence \emph{laws} are then genuinely proved on promoted pure
+tensors. The whole section is axiom-free.
 
 \subsection{The $\mathord{!}$-tensor extensionality}\label{sec:tens-excl}
 
@@ -467,48 +476,86 @@ tensor extensionality \autoref{lem:tensor-ext3}; it feeds the
 associativity Seely-coherence square.
 \end{remark}
 
-\subsection{The staged Seely isomorphisms}\label{sec:seely-isos}
+\subsection{The Seely isomorphisms, proved}\label{sec:seely-isos}
 
 The tensor's structural isos $\alpha/\lambda/\rho/\sigma$
-(\autoref{def:struct-isos}) are now proved (Chapter~\ref{ch:tensor}),
-but the \emph{existence} of the Seely isos --- the remaining Yoneda
-content --- is still \emph{staged}, and we \emph{derive} the coherence
-from it. The isos and their characterising equations on promoted pure
-tensors are collected in \texttt{theories/axioms/seely\_interface.v},
-each flagged \texttt{STAGING: discharge via M-SAFT + Yoneda, PLAN
-\S13.4; then delete}. This is the project's \emph{single} remaining
-staged interface. The concrete discharge plan is \textbf{Lemma~9.4}
-($B \Rightarrow (C \lin D) \cong C \lin (B \Rightarrow D)$, natural ---
-the largest remaining piece) together with the unit point-bijection
-$\mathbf{SCones}(\top, C) \simeq \ICones(1, C)$; the contravariant
-Yoneda assembly tool \rocq{Icones.homs.icones\_iso.co\_yoneda\_iso} is
-already merged.
+(\autoref{def:struct-isos}) are proved (Chapter~\ref{ch:tensor}), and so
+now are the Seely isos. Their existence --- the Yoneda content the paper
+extracts from SAFT --- is no longer staged: $\mathrm{Seely2}$ is built
+as a finite composite of proved isomorphisms (the tensor--hom iso of
+\autoref{thm:thm512} and the tensor braiding), threading through
+\textbf{Lemma~9.4} ($\texttt{stab\_lin\_swap}$) at exactly one step;
+$\mathrm{Seely0}$ is built from the terminal-cone universal property.
+Their defining equations on promoted pure tensors are then read off, and
+bijectivity / naturality follow from the promotion extensionality
+\autoref{lem:tens-excl-charact}. The genuine terminal-cone and
+product-bifunctor data they rest on
+(\rocq{Icones.homs.seely\_defs.Stop}, \rocq{Icones.homs.seely\_defs.Stop\_mor},
+\rocq{Icones.homs.seely\_defs.sprod\_mor}) live in
+\texttt{theories/homs/seely\_defs.v}, and the contravariant Yoneda
+assembly tool \rocq{Icones.homs.icones\_iso.co\_yoneda\_iso} supports the
+iso construction.
+
+\begin{lemma}[The stable/linear swap, paper Lemma 9.4]\label{lem:stab-lin-swap}
+\rocq{Icones.stable.stab\_lin\_swap.stab\_lin\_swap}\rocqok
+\uses{def:linhom-car, thm:scones-prod}
+For integrable cones $B$, $C$, $D$ there is a natural isomorphism in
+$\ICones$
+\[
+  (B \Rightarrow_s (C \lin D)) \;\cong\; (C \lin (B \Rightarrow_s D)),
+\]
+the stable-outer Fubini swap, where $B \Rightarrow_s X$ is the
+$\mathbf{SCones}$ internal hom (an \texttt{iconeType}) and $C \lin D$ is
+the linear hom. The forward map sends a stable $f$, $x \mapsto f(x) : C
+\lin D$, to $y \mapsto (x \mapsto f(x)(y))$ --- linear in $y$, stable in
+$x$ ($0$-extended off the unit ball of $B$); the backward map sends $g :
+C \lin (B \Rightarrow_s D)$ to $x \mapsto (y \mapsto g(y)(x))$
+(\rocq{Icones.stable.stab\_lin\_swap.stab\_lin\_swap\_fwdE},
+\rocq{Icones.stable.stab\_lin\_swap.stab\_lin\_swap\_bwdE}), with
+naturality in all three slots
+(\rocq{Icones.stable.stab\_lin\_swap.stab\_lin\_swap\_nat1},
+\rocq{Icones.stable.stab\_lin\_swap.stab\_lin\_swap\_nat2},
+\rocq{Icones.stable.stab\_lin\_swap.stab\_lin\_swap\_nat3}).
+\end{lemma}
+
+\begin{proof}
+The two maps are mutual inverses by construction, and each is a genuine
+$\ICones$-morphism: linearity, $\omega$-continuity and path/integral
+preservation transfer from $f$ resp.\ $g$ by interchanging the inner and
+outer arguments. The integral-preservation direction is the
+stable-outer cone-Fubini interchange (Chapter~\ref{ch:icones}): the
+Pettis integral of $y \mapsto (x \mapsto f(x)(y))$ along a path commutes
+with evaluation at $x$, because each $f(x)$ is linear and integral
+preserving. This is the one place where the construction of
+$\mathrm{Seely2}$ needs more than the formal tensor/hom isos.
+\end{proof}
 
 \begin{definition}[The binary Seely iso, paper \S9]\label{def:seely2}
-\rocq{Icones.axioms.seely\_interface.Seely2}\notready{}
-\rocq{Icones.axioms.seely\_interface.Seely2E}\notready{}
-\uses{def:icones-iso, def:prom, sec:exp-staging}
+\rocq{Icones.homs.seely.Seely2}\rocqok{}
+\rocq{Icones.homs.seely.Seely2E}\rocqok{}
+\uses{def:icones-iso, def:prom, sec:exp-staging, lem:stab-lin-swap,
+lem:tens-excl-charact, thm:thm512}
 The binary Seely isomorphism is the \texttt{icones\_iso}
 \[
   \mathrm{Seely2}_{B_1,B_2} : \mathord{!}B_1 \otimes \mathord{!}B_2
   \;\cong\; \mathord{!}(B_1 \mathbin{\&} B_2)
 \]
-(\rocq{Icones.axioms.seely\_interface.Seely2}), staged together with its
-characterising equation on promoted pure tensors (paper's explicit
+(\rocq{Icones.homs.seely.Seely2}), \emph{proved} via the iso chain
+(tensor--hom iso, braiding, \autoref{lem:stab-lin-swap}), together with
+its characterising equation on promoted pure tensors (paper's explicit
 formula): for $\cnorm{x_1} \leq 1$, $\cnorm{x_2} \leq 1$,
 \[
   \mathrm{Seely2}(x_1! \otimes x_2!) = \langle x_1, x_2 \rangle!
 \]
-(\rocq{Icones.axioms.seely\_interface.Seely2E}, where $\langle x_1, x_2
+(\rocq{Icones.homs.seely.Seely2E}, where $\langle x_1, x_2
 \rangle = \texttt{sprod\_pair}\,x_1\,x_2$). By
 \autoref{lem:tens-excl-charact} this single equation \emph{fully
-determines} $\mathrm{Seely2}$. The staged interface also supplies the
-naturality of $\mathrm{Seely2}$ in both slots
-(\rocq{Icones.axioms.seely\_interface.Seely2\_natural}, the square
+determines} $\mathrm{Seely2}$, from which naturality in both slots
+follows
+(\rocq{Icones.homs.seely.Seely2\_natural}, the square
 $\mathord{!}(f_1 \mathbin{\&} f_2) \circ \mathrm{Seely2} = \mathrm{Seely2}
 \circ (\mathord{!}f_1 \otimes \mathord{!}f_2)$, with the binary-product
-bifunctor action \rocq{Icones.axioms.seely\_interface.sprod\_mor}), the
-Yoneda output.
+bifunctor action \rocq{Icones.homs.seely\_defs.sprod\_mor}).
 \end{definition}
 
 \begin{remark}[The unit Seely iso $\mathrm{Seely0}$]
@@ -516,23 +563,23 @@ The unit Seely iso $\mathrm{Seely0} : 1 \cong \mathord{!}\top$ (paper's
 $\textsf{Seely}_0$, ``similarly'') is the second half of the strong-monoidal
 structure. Stating it cleanly requires the terminal object $\top$ as the
 empty product; the terminal cone
-\rocq{Icones.axioms.seely\_interface.Stop}\rocqok{} and its universal map
-are proved infrastructure. The iso
-\rocq{Icones.axioms.seely\_interface.Seely0}\notready{} is staged on the
+\rocq{Icones.homs.seely\_defs.Stop}\rocqok{} and its universal map
+\rocq{Icones.homs.seely\_defs.Stop\_mor}\rocqok{} are proved
+infrastructure. The iso
+\rocq{Icones.homs.seely.Seely0}\rocqok{} is \emph{proved} on the
 same footing as $\mathrm{Seely2}$, with a characterising equation
 $\mathrm{Seely0}(t) = t \cdot (0!)$
-(\rocq{Icones.axioms.seely\_interface.Seely0E}\notready{}) pinned down by
-the $n = 0$ extensionality. \texttt{Seely0} and \texttt{Seely0E} are two
-of the five remaining staged declarations of \texttt{seely\_interface.v}.
+(\rocq{Icones.homs.seely.Seely0E}\rocqok{}) pinned down by
+the $n = 0$ extensionality.
 \end{remark}
 
 \subsection{The derived Seely coherence}\label{sec:seely-coherence}
 
 As in \autoref{sec:coherence} for the tensor, the point of
-\autoref{lem:tens-excl-charact} is that, although the Seely \emph{isos}
-are staged, every Seely-category coherence \emph{law} is genuinely
-\emph{proved}, by checking the two sides agree on promoted pure tensors
-$x_1! \otimes x_2!$ and reading off the computation laws
+\autoref{lem:tens-excl-charact} is that every Seely-category coherence
+\emph{law} is genuinely \emph{proved}, by checking the two sides agree on
+promoted pure tensors $x_1! \otimes x_2!$ and reading off the
+computation laws
 ($\mathrm{Seely2E}$, $\mathrm{dig\_prom}$, $\mathrm{bang\_fmap\_prom}$,
 $\texttt{tensor\_morE}$) together with the projection/tuple laws of
 \texttt{scones\_ccc.v}.
@@ -607,7 +654,7 @@ $B_1 \mathbin{\&} B_2 \leftrightarrow B_1 \otimes B_2$ to phrase it
 through, it is recorded in projected form ($\mathrm{seely\_der1}$ /
 $\mathrm{seely\_der2}$, one equation per projection), which carries the
 same content --- a product map is determined by its projections. Nothing
-is axiomatised beyond the staged Seely isos.
+is axiomatised: every law, and the Seely isos themselves, are proved.
 
 \subsection{$\ICones$ is a Seely category}\label{sec:seely-thm}
 
@@ -636,10 +683,10 @@ proved data:
     iso relates to the tensor;
   \item the binary Seely iso $\mathrm{Seely2}$ (\autoref{def:seely2})
     with its characterisation on promoted pure tensors and its
-    naturality (the staged Yoneda data);
+    naturality (the proved Yoneda data, via \autoref{lem:stab-lin-swap});
   \item the unit Seely iso $\mathrm{Seely0} : 1 \cong \mathord{!}\top$
-    (\rocq{Icones.axioms.seely\_interface.Seely0}) over the terminal cone
-    \rocq{Icones.axioms.seely\_interface.Stop}, with its characterisation
+    (\rocq{Icones.homs.seely.Seely0}) over the terminal cone
+    \rocq{Icones.homs.seely\_defs.Stop}, with its characterisation
     $\mathrm{Seely0}(t) = t \cdot 0!$;
   \item the full strong-monoidal coherence ---
     \rocq{Icones.homs.seely.seely\_assoc},
@@ -655,13 +702,12 @@ proved data:
 \end{theorem}
 
 \begin{proof}
-Each field is one of the proved lemmas above (or a staged Seely datum);
-the witness \rocq{Icones.homs.seely.ICones\_Seely} just assembles them.
-The tensor and the exponential are now discharged
-(Chapters~\ref{ch:tensor},~\ref{ch:exponential}, \S\ref{sec:exp-staging}),
-so the \emph{only} unproved inputs are the staged Seely-iso existence
-symbols (\texttt{Seely2}/\texttt{Seely0}), to be discharged with the
-remaining M-SAFT/Yoneda content.
+Each field is one of the proved lemmas above; the witness
+\rocq{Icones.homs.seely.ICones\_Seely} just assembles them. The tensor,
+the exponential and the Seely isomorphisms are all discharged
+(Chapters~\ref{ch:tensor},~\ref{ch:exponential}, \S\ref{sec:exp-staging},
+\S\ref{sec:seely-isos}), so there are no unproved inputs: $\ICones$ is a
+Seely category with zero project axioms.
 \end{proof}
 
 \section{Status}\label{sec:exp-status}
@@ -694,7 +740,7 @@ square, proved), and the Seely-category bundle
 \autoref{thm:seely}.
 
 \paragraph{The full Seely-category coherence.}
-The terminal cone $\top$ (\rocq{Icones.axioms.seely\_interface.Stop}),
+The terminal cone $\top$ (\rocq{Icones.homs.seely\_defs.Stop}),
 the unit Seely iso $\mathrm{Seely0}$, the ternary extensionality
 \rocq{Icones.homs.seely.tens\_excl\_charact3}, and the remaining
 Melli\`es coherence squares (\rocq{Icones.homs.seely.seely\_assoc},
@@ -708,41 +754,65 @@ Melli\`es coherence squares (\rocq{Icones.homs.seely.seely\_assoc},
 $\mathrm{SeelyCategory}$ record carries every Melli\`es law as a proved
 field (the binary counit square in the projected form noted in
 \S\ref{sec:seely-coherence}). \autoref{thm:seely} is thus delivered in
-full, modulo the staged isos.
+full.
 
-\paragraph{What remains staged.}
-The $E \dashv \mathrm{Der}$ interface is now \textbf{discharged}
+\paragraph{Fully discharged --- zero project axioms.}
+The $E \dashv \mathrm{Der}$ adjunction is \textbf{discharged}
 (\S\ref{sec:exp-staging}: \texttt{der\_continuous.v} Theorem 7.34 +
-\texttt{bang\_construct.v}), so the comonad is axiom-free and
-\texttt{exp\_interface.v}'s declarations are proved theorems. The
-tensor's \texttt{saft\_interface.v} is likewise discharged and deleted
-(Chapter~\ref{ch:tensor}). The \emph{single} staged interface left in
-the whole project is therefore the Seely-iso existence of
-\texttt{theories/axioms/seely\_interface.v}: its five declarations are
-\rocq{Icones.axioms.seely\_interface.Seely2} with its characterisation
-\rocq{Icones.axioms.seely\_interface.Seely2E} and naturality
-\rocq{Icones.axioms.seely\_interface.Seely2\_natural}, together with the
-unit iso \rocq{Icones.axioms.seely\_interface.Seely0} and its
-characterisation \rocq{Icones.axioms.seely\_interface.Seely0E}. They are
-discharged by the remaining M-SAFT/Yoneda content (\texttt{PLAN.md}
-\S13.4, building on the well-poweredness of \S13.1): concretely
-\textbf{Lemma~9.4} ($B \Rightarrow (C \lin D) \cong C \lin (B \Rightarrow
-D)$, natural) plus the unit point-bijection $\mathbf{SCones}(\top, C)
-\simeq \ICones(1, C)$, using the merged contravariant-Yoneda tool
-\rocq{Icones.homs.icones\_iso.co\_yoneda\_iso}. When those land,
-\texttt{seely\_interface.v} is deleted and the project reaches zero
-project axioms. The headline theorem (paper Theorem~6.5,
-Chapter~\ref{ch:skern}) is independent of all of these.
+\texttt{bang\_construct.v}), so the comonad is axiom-free and the five
+declarations of \texttt{theories/homs/exp\_adjunction.v} (the former
+\texttt{axioms/exp\_interface.v}) are proved theorems. The tensor's
+former \texttt{axioms/saft\_interface.v} is likewise discharged and
+deleted (Chapter~\ref{ch:tensor}). And the Seely isomorphisms themselves
+--- \rocq{Icones.homs.seely.Seely2} with its characterisation
+\rocq{Icones.homs.seely.Seely2E} and naturality
+\rocq{Icones.homs.seely.Seely2\_natural}, together with the
+unit iso \rocq{Icones.homs.seely.Seely0} and its
+characterisation \rocq{Icones.homs.seely.Seely0E} --- are now proved
+in \texttt{theories/homs/seely.v}, by the M-SAFT/Yoneda content
+(\texttt{PLAN.md} \S13.4, building on the well-poweredness of \S13.1):
+\textbf{Lemma~9.4} \rocq{Icones.stable.stab\_lin\_swap.stab\_lin\_swap}
+($(B \Rightarrow_s (C \lin D)) \cong (C \lin (B \Rightarrow_s D))$,
+natural) for $\mathrm{Seely2}$, the terminal-cone universal property of
+\texttt{theories/homs/seely\_defs.v} for $\mathrm{Seely0}$, and the
+contravariant-Yoneda tool
+\rocq{Icones.homs.icones\_iso.co\_yoneda\_iso}. Consequently the
+\texttt{theories/axioms/} directory has been deleted, and the project
+reaches \textbf{zero project axioms}. The headline theorem (paper
+Theorem~6.5, Chapter~\ref{ch:skern}) is independent of all of these.
+
+\paragraph{The $\mathord{!}$-coalgebra of $\FMeas$ (paper Theorem 9.7).}
+For each measurable space $X$ ($\mathrm{ARCAT}$ object), the integrable
+cone $\FMeas(X)$ (paper $\mathcal{C}_{\mathrm{meas}}(X)$) carries a
+$\mathord{!}$-coalgebra structure for the comonad $(\mathord{!},
+\mathrm{der}, \mathrm{dig})$ --- the coalgebra map
+\rocq{Icones.homs.coalgebra.Coalg} ($\FMeas(X) \lin \mathord{!}\FMeas(X)$,
+$\delta_X r \mapsto (\delta_X r)!$, \rocq{Icones.homs.coalgebra.Coalg\_dirac})
+and the two coalgebra laws \rocq{Icones.homs.coalgebra.Coalg\_counit} /
+\rocq{Icones.homs.coalgebra.Coalg\_coassoc}, proved through the
+Dirac-density engine \rocq{Icones.homs.coalgebra.dirac\_dense} (two
+$\ICones$ maps out of $\FMeas(X)$ agreeing on every $\delta_X r$ are
+equal). The assignment $X \mapsto (\FMeas X,\,\mathrm{Coalg}_X)$ is a
+functor $\mathrm{ARCAT} \to \mathrm{EM}(\ICones)$ into the
+Eilenberg–Moore category of $\mathord{!}$: the carrier
+\rocq{Icones.homs.coalgebra.FMeas\_coalgebra}, the morphism action
+\rocq{Icones.homs.coalgebra.FMeas\_fmap} (pushforward), and the
+coalgebra-morphism law \rocq{Icones.homs.coalgebra.FMeas\_fmap\_is\_coalg\_mor}
+(with \rocq{Icones.homs.coalgebra.coalg\_mor\_id} /
+\rocq{Icones.homs.coalgebra.coalg\_mor\_comp}). This milestone is
+\textbf{done and axiom-free}, independent of the tensor $\otimes$ and the
+Seely structure.
 
 \paragraph{Future \S9 continuation and out of scope.}
 The fixpoint operators of paper \S9.2 are \textbf{done and axiom-free}
 (the Kleene least fixpoint on the unit-ball $\omega$-cpo and the
 combinator $Y$ as an $\mathbf{SCones}$ morphism, built directly from the
-$\omega$-cpo structure, independently of any staged interface). One
-further piece of \S9 is \textbf{currently underway} (\texttt{PLAN.md}
-\S13.5), being formalised in \texttt{theories/homs/coalgebra.v}: paper
-\textbf{Theorem~9.7}, the $\mathord{!}$-coalgebra structure on
-$\mathcal{C}_{\mathrm{meas}}(X) = \FMeas(X)$ (\S9.1). It is not yet
-merged, so it carries no \rocqok claim here. Paper \S8 (analytic
-functions and the category ACONES) remains out of scope for this
-iteration.
+$\omega$-cpo structure). What remains \emph{open} is genuinely beyond
+the present chapter: the \S9 Eilenberg–Moore \emph{full-subcategory}
+theorem ($\mathrm{ARCAT}$ on Polish/standard-Borel spaces embeds as a
+full subcategory of $\mathrm{EM}(\mathord{!})$ --- \autoref{thm:seely}
+and the coalgebra above give the comparison functor, but the fullness
+needs a Polish/standard-Borel layer not yet formalised), paper \S8
+(analytic functions and the category $\mathrm{ACONES}$), and the \S10
+PCS embedding. These are the remaining open chapters; the linear-logic
+model \emph{through} \S9 is complete and axiom-free.

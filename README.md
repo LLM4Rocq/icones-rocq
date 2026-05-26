@@ -14,22 +14,31 @@ Thomas Ehrhard and Guillaume Geoffroy
 
 ## Status
 
-A formalization of paper **§2 – §9** (paper §8, analytic functions, is
-out of scope). ~48k lines of Rocq across 49 files, **zero `Admitted`**.
-Every remaining project-specific axiom is confined to a *single*
-clearly-marked *staging interface* under `theories/axioms/`; everything
-else uses only the three classical-logic axioms inherited from
+A formalization of paper **§2 – §9**: the full linear-logic model of
+`ICones` through the Seely category and the `!`-coalgebra structure of
+`FMeas` (paper §8, analytic functions, and a few §9/§10 results are
+still open — see [Open chapters](#open-chapters)). ~48k lines of Rocq
+across 51 files, **zero `Admitted`**.
+The development is **fully axiom-free — zero project axioms**: every
+result uses only the three classical-logic axioms inherited from
 `mathcomp-analysis` (`propositional_extensionality`,
-`functional_extensionality_dep`, `constructive_indefinite_description`).
-The development therefore splits into an **axiom-free core** and a
-(now single-interface) **staged tier**. The tensor `⊗` / SMCC structure
-and the exponential `!` comonad have both been **discharged** — they
-moved out of the staged tier into the axiom-free core — leaving only the
-*existence* of the Seely isomorphisms staged, mechanized *modulo*
-`seely_interface`, to be discharged by proving SAFT for `ICones`
-(see [`PLAN.md`](./PLAN.md) §13).
+`functional_extensionality_dep`, `constructive_indefinite_description`)
+and nothing else.
 
-### Axiom-free core (zero project axioms)
+There is **no staged tier** and **no `theories/axioms/` interfaces**.
+An earlier iteration framed the project as an *axiom-free core* versus a
+*staged tier* of representability content (the tensor `⊗`, the
+exponential `!`, the Seely isomorphisms) parked behind `Parameter`
+interfaces, pending Freyd's Special Adjoint Functor Theorem (SAFT) for
+`ICones`. That tier has now been **entirely discharged** by the concrete
+M-SAFT construction (see [`PLAN.md`](./PLAN.md) §13): the whole
+linear-logic model **through paper §9** — the tensor SMCC, the `!`
+comonad, the Seely category, and the `!`-coalgebra structure of `FMeas` —
+rests on zero project axioms. What remains *open* is genuinely beyond §9
+(the §8 analytic exponential, the §9 Eilenberg–Moore full-subcategory
+theorem, and the §10 PCS embedding; see [Open chapters](#open-chapters)).
+
+### Zero project axioms
 
 - **Cones, measurable cones, integrable cones** (paper §2 – §4): the
   `PreCone → Cone → MCone → ICone` Hierarchy-Builder tower, the Pettis
@@ -63,56 +72,61 @@ moved out of the staged tier into the axiom-free core — leaving only the
   `stable/der_continuous.v`), so the Special Adjoint Functor Theorem
   yields the left adjoint `E`; the induced comonad `! = E∘Der` (counit
   `der`, comultiplication `dig`, and all comonad laws,
-  `homs.bang.Bang_comonad`) is constructed in `homs/bang_construct.v`
-  and is **axiom-free** — the `E ⊣ Der` interface (`exp_interface`) was
-  discharged in place (its `Parameter`s/`Axiom`s became
-  `Definition`s/`Lemma`s backed by `bang_construct`).
-- **Towards SAFT** ([`PLAN.md`](./PLAN.md) §13.1): `ICones`
-  **well-poweredness** (paper Theorem 4.18) genuinely proved, the
-  subobject-intersection machinery, and **Theorem 5.9** (`(C ⊸ −)`
-  preserves all limits) — the ingredients that will discharge the
-  staged tier.
-
-### Staged tier (the one remaining interface: `seely_interface`)
-
-The staged tier has shrunk to a single interface. Both
-`saft_interface` (the tensor — discharged and **deleted**) and
-`exp_interface` (the `E ⊣ Der` adjunction — discharged **in place**)
-are now part of the axiom-free core above. What remains staged is the
-*existence* of the Seely isomorphisms, fully proved *relative to* the
-five `Parameter`s/`Axiom`s of `theories/axioms/seely_interface.v`
-(`Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`) — the
-SAFT/Yoneda *representability* content the paper obtains via Freyd's
-Special Adjoint Functor Theorem.
-
-- **The Seely category** (paper §9, Theorem 9.5,
+  `homs.bang.Bang_comonad`) is constructed concretely in
+  `homs/bang_construct.v`. The `E ⊣ Der` adjunction itself
+  (`Bang`/`nl`/`lin`/`lin_beta`/`lin_unique`) is the **proved**
+  `homs/exp_adjunction.v` — genuine `Definition`s/`Lemma`s backed by
+  `bang_construct`, not a `Parameter` interface.
+- **The Seely category** (paper §9, **Theorem 9.5**,
   `homs.seely.ICones_Seely`): **`ICones` is a Seely category** — the
   axiom-free comonad `!` made a strong monoidal comonad against the
-  axiom-free tensor `⊗`. *All* the coherence **laws** are proved
+  axiom-free tensor `⊗`. Both the *existence* of the Seely isomorphisms
+  `!A ⊗ !B ≅ !(A & B)` (`Seely2`) and `1 ≅ !⊤` (`Seely0`) — characterized
+  on promoted pure tensors — and *all* the coherence **laws**
   (`seely_comult`, `seely_assoc`, `seely_braid`, `seely_lunit`,
-  `seely_runit`, the dereliction squares), each via the `!`-tensor
-  promotion extensionality (paper Lemma `tens-excl-equal-charact`). Only
-  the *existence* of the Seely isomorphisms `!A ⊗ !B ≅ !(A & B)`
-  (`Seely2`) and `1 ≅ !⊤` (`Seely0`), characterized on promoted pure
-  tensors, remains staged in `seely_interface.v`. The remaining
-  discharge work is **Lemma 9.4** (`B ⇒ (C⊸D) ≅ C ⊸ (B⇒D)`, natural)
-  plus the unit point-bijection (`SCones(⊤,C) ≃ ICones(1,C)`); the
-  contravariant-Yoneda assembly tool `co_yoneda_iso`
-  (`homs.icones_iso`) is already merged.
+  `seely_runit`, the dereliction squares) are now **proved** in
+  `homs/seely.v`, each via the `!`-tensor promotion extensionality
+  (paper Lemma `tens-excl-equal-charact`). The construction of `Seely2`
+  feeds through **Lemma 9.4** (`stab_lin_swap`, the natural iso
+  `(B⇒ₛ(C⊸D)) ≅ (C⊸(B⇒ₛD))`, the stable-outer Fubini swap, in
+  `stable/stab_lin_swap.v`); the genuine terminal-cone / product-bifunctor
+  data it rests on (`Stop`, `Stop_mor`, `sprod_mor`) live in
+  `homs/seely_defs.v`. The contravariant-Yoneda assembly tool
+  `co_yoneda_iso` (`homs.icones_iso`) supports the iso construction.
+- **The `!`-coalgebra structure of `FMeas`** (paper §9.1, **Theorem
+  9.7**, `homs/coalgebra.v`): each measurable space `X` makes `FMeas(X)`
+  a `!`-coalgebra `Coalg X : FMeas(X) ⊸ !FMeas(X)` (`Coalg`,
+  `Coalg_counit`, `Coalg_coassoc`, `FMeas_coalgebra`), and the
+  assignment `X ↦ (FMeas X, Coalg X)` is a functor `ARCAT → EM(ICones)`
+  into the Eilenberg–Moore category of `!` (`FMeas_fmap`,
+  `FMeas_fmap_is_coalg_mor`). The proof engine is `dirac_dense` (two
+  `ICones` maps out of `FMeas(X)` agreeing on every Dirac path are
+  equal). **Done and axiom-free.**
+- **The SAFT machinery** ([`PLAN.md`](./PLAN.md) §13.1): `ICones`
+  **well-poweredness** (paper Theorem 4.18) genuinely proved, the
+  subobject-intersection machinery, and **Theorem 5.9** (`(C ⊸ −)`
+  preserves all limits) — the ingredients that discharged the tensor and
+  exponential SAFT constructions.
 
-The axiom-free core does **not** depend on `seely_interface` —
-`Skern_to_ICones_fully_faithful`, the tensor/SMCC, the `!` comonad, and
-everything else in the core stay axiom-clean regardless of the staged
-tier.
+The whole linear-logic model through §9 —
+`Skern_to_ICones_fully_faithful`, the tensor/SMCC, the `!` comonad, the
+Seely category, and the `FMeas` `!`-coalgebra — is axiom-clean: each
+depends only on the three classical `boolp` axioms above.
 
-**In progress / future work** ([`PLAN.md`](./PLAN.md)): discharging the
-last staged interface (`seely_interface`) — Lemma 9.4 plus the unit
-point-bijection — which would move the Seely category into the
-axiom-free core; **Theorem 9.7** (`FMeas(X)` is a `!`-coalgebra, paper
-§9.1) is currently being formalized in `theories/homs/coalgebra.v` (not
-yet merged); paper §8 (analytic functions, `ACones`); and the
-probabilistic-coherence-space embedding. `PLAN.md` has the full roadmap
-(milestones M1 – M5 and the §13 axiom-free plan).
+### Open chapters
+
+Still open (and genuinely beyond §9):
+
+- **paper §8** — the analytic exponential and the category `ACONES`
+  (analytic functions);
+- **paper §9** — the Eilenberg–Moore *full-subcategory* theorem (`ARCAT`
+  on Polish/standard-Borel spaces embeds as a full subcategory of
+  `EM(!)`), which needs a Polish / standard-Borel layer not yet
+  formalized;
+- **paper §10** — the probabilistic-coherence-space (PCS) embedding.
+
+`PLAN.md` has the full roadmap (milestones M1 – M5 and the §13
+axiom-free plan).
 
 ## Build
 
@@ -145,18 +159,18 @@ theories/
 ├── homs/       -- internal hom C ⊸ D (linhom), iso of Thm 6.1 (bilin),      (paper §5.1/§5.2 + §6, M4/M5)
 │                  isos in ICones (icones_iso, co_yoneda_iso), the h⊸g       (paper §5.3)
 │                  functor (linhom_functor), (C⊸−) preserves limits          (Thm 5.9)
-│                  (limpl_continuous); tensor ⊗ + SMCC — AXIOM-FREE          (paper §5.3–§5.5, Thm 5.15,
-│                  (tensor/_construct/_hom_iso/_iso, smcc);                    discharged)
-│                  the ! comonad — AXIOM-FREE (bang, bang_construct)         (paper §9, E⊣Der)
-│                  + the Seely category (seely, modulo seely_interface)      (paper §9, Thm 9.5)
-├── axioms/     -- the one remaining staged interface: the Seely-iso         (paper §9)
-│                  existence (seely_interface, 5 decls); exp_interface
-│                  DISCHARGED in place; saft_interface DISCHARGED + DELETED
+│                  (limpl_continuous); tensor ⊗ + SMCC — AXIOM-FREE          (paper §5.3–§5.5, Thm 5.15)
+│                  (tensor/_construct/_hom_iso/_iso, smcc);
+│                  the ! comonad — AXIOM-FREE (bang, bang_construct),         (paper §9, E⊣Der)
+│                  the proved E⊣Der adjunction (exp_adjunction);
+│                  the Seely category — AXIOM-FREE (seely, seely_defs)       (paper §9, Thm 9.5)
+│                  and the FMeas !-coalgebra (coalgebra)                     (paper §9.1, Thm 9.7)
 ├── stable/     -- local cones, total monotonicity, the stable hom B ⇒ₛ C,   (paper §7)
 │                  finite differences (Thm 7.19), the composition theorem
 │                  (Thm 7.30), the cartesian closed SCones (Thm 7.32:
 │                  scones_cat + scones_ccc), fixpoints (fixpoint, §9.2),
-│                  and Der preserves limits (der_continuous, Thm 7.34)
+│                  Der preserves limits (der_continuous, Thm 7.34), and the
+│                  stable/linear swap iso (stab_lin_swap, Lemma 9.4)         (paper §9)
 └── kernels/    -- substochastic kernels Skern and the embedding Thm 6.5     (paper §6, M5)
 ```
 
@@ -180,7 +194,7 @@ per milestone:
 - `chapters/05-skern.tex` — paper §6, the kernel embedding (M5)
 - `chapters/06-tensor.tex` — paper §5.3–§5.5, the tensor + SMCC (axiom-free)
 - `chapters/07-stable.tex` — paper §7, the stable CCC `SCones`
-- `chapters/08-exponential.tex` — paper §9, the exponential `!` (comonad, axiom-free) + Seely category (modulo `seely_interface`)
+- `chapters/08-exponential.tex` — paper §9, the exponential `!` comonad, the Seely category (Thm 9.5), and the `FMeas` `!`-coalgebra (Thm 9.7) — all axiom-free
 
 To build locally:
 
@@ -203,7 +217,7 @@ marked a required status check (not because failures are hidden).
 
 The Rocq build itself is gated by
 [`.github/workflows/build.yml`](./.github/workflows/build.yml), which
-runs `make` and the axiom-free-core axiom check on every push and PR.
+runs `make` and the axiom check on every push and PR.
 
 ## Reproducing the axiom-free anchor
 
@@ -212,11 +226,12 @@ Run [`./verify.sh`](./verify.sh) to clean-rebuild the project and
 `Icones.kernels.thm65.Skern_to_ICones_fully_faithful` (paper Theorem
 6.5, the capstone of the kernel-embedding core). The expected output
 lists only the classical-logic axioms inherited from `mathcomp-analysis`.
-The project's own `Axiom`/`Parameter` declarations are now confined to a
-single staging interface (`theories/axioms/seely_interface.v`, the
-Seely-iso existence); everything else — including this anchor, the
-tensor/SMCC, and the `!` comonad — contains zero `Axiom` declarations
-and zero `Admitted` lemmas.
+The project carries **no `Axiom`/`Parameter`** declarations of its own:
+every result — including this anchor, the tensor/SMCC, the `!` comonad,
+the Seely category, and the `FMeas` `!`-coalgebra — contains zero `Axiom`
+declarations and zero `Admitted` lemmas, and depends only on the three
+classical `boolp` axioms (`propositional_extensionality`,
+`functional_extensionality_dep`, `constructive_indefinite_description`).
 
 ## Paper sources
 

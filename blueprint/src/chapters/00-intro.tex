@@ -42,17 +42,30 @@ root of the repository):
     Chapter~\ref{ch:tensor}), now \emph{axiom-free};
   \item paper \S7 --- the stable cartesian closed category
     $\mathbf{SCones}$ (Theorem~7.32, Chapter~\ref{ch:stable});
-  \item paper \S9 --- the exponential $\mathord{!}$ comonad
-    (axiom-free) and the Seely category (Chapter~\ref{ch:exponential}),
-    plus the \S9.2 fixpoints.
+  \item paper \S9 --- the exponential $\mathord{!}$ comonad, the Seely
+    category (Theorem~9.5) and the $\mathord{!}$-coalgebra structure of
+    $\FMeas$ (Theorem~9.7, Chapter~\ref{ch:exponential}), plus the \S9.2
+    fixpoints.
 \end{itemize}
-The framing is an \emph{axiom-free core} versus a single remaining
-\emph{staged} interface: everything above is axiom-free except the
-\emph{existence} of the Seely isomorphisms, mechanised modulo
-\texttt{theories/axioms/seely\_interface.v} (the SAFT/Yoneda
-representability content; see Chapter~\ref{ch:exponential}). Out of
-scope for this iteration: paper \S8 (analytic functions, $\mathrm{ACONES}$)
-and the PCS embedding (\S10).
+The whole development is \textbf{fully axiom-free}: every result rests
+on \emph{zero} project axioms, using only the three classical-logic
+axioms inherited from \mathcompA{}
+(\texttt{propositional\_extensionality},
+\texttt{functional\_extensionality\_dep},
+\texttt{constructive\_indefinite\_description}). An earlier iteration
+framed the project as an \emph{axiom-free core} versus a \emph{staged
+tier} of SAFT/Yoneda representability content (the tensor $\otimes$, the
+exponential $\mathord{!}$, the Seely isomorphisms) parked behind
+\texttt{Parameter} interfaces under \texttt{theories/axioms/}; that tier
+has now been \emph{entirely discharged} by the concrete M-SAFT
+construction. There is no staged tier and no \texttt{theories/axioms/}
+directory: the linear-logic model \emph{through} paper~\S9 is complete
+and axiom-free. What remains open is genuinely beyond \S9: paper \S8
+(analytic functions, the category $\mathrm{ACONES}$), the \S9
+Eilenberg–Moore full-subcategory theorem ($\mathrm{ARCAT}$ on
+Polish/standard-Borel spaces $\hookrightarrow \mathrm{EM}(\mathord{!})$,
+needing a Polish/standard-Borel layer not yet formalised) and the PCS
+embedding (\S10).
 
 \paragraph{How to read this blueprint.}
 Each chapter mirrors a paper section (or, in some cases, a small
@@ -67,8 +80,8 @@ blueprint.
 
 \paragraph{Status.}
 All chapters are populated with the actual statements and informal
-proofs, mirroring the Rocq sources. The development is \texttt{Admitted}-free
-and, apart from the single staged \texttt{seely\_interface}, uses only
-the three classical-logic axioms inherited from
-\texttt{mathcomp-analysis}; see each chapter's closing ``Status''
+proofs, mirroring the Rocq sources. The development is
+\texttt{Admitted}-free and \textbf{fully axiom-free}: it uses only the
+three classical-logic axioms inherited from \texttt{mathcomp-analysis},
+with \emph{zero} project axioms; see each chapter's closing ``Status''
 section for the precise per-chapter axiom budget.
