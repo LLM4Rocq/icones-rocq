@@ -66,6 +66,7 @@ Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.fubini.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
+Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.tensor_hom_iso.
 Require Import Icones.homs.tensor_iso.
@@ -1394,3 +1395,203 @@ End StabLinSwapIso.
 
 Arguments stab_lin_swap_fwdE {R Ar B C D} f y x.
 Arguments stab_lin_swap_bwdE {R Ar B C D} g x y.
+
+(** ** Post-composition of a stable map by a linear morphism
+
+    For [h : icones_hom D D'], post-composition [s ↦ h ∘ s] sends
+    [B ⇒ₛ D] to [B ⇒ₛ D'] (the [B ⇒ₛ -] functor action on [h]):
+    stability of [h ∘ s] is [meas_stable_comp] after rescaling [s] into
+    the unit ball; off [B_B] it is [h 0 = 0].  This is the [SCones]-side
+    functorial action used in the naturality of [stab_lin_swap]. *)
+
+Section ShPostc.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B D D' : ICone.type Ar.
+Local Open Scope precone_scope.
+Variable h : icones_hom Ar D D'.
+
+Lemma sh_postc_meas_stable (s : stablehom B D) :
+  is_meas_stable
+    (fun x => cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) (sh_fun s x)).
+Proof.
+have t_pos : (0 < sh_norm s + 1)%R by exact: cnorm_succ_pos.
+have tinv_ge0 : (0 <= (sh_norm s + 1)^-1)%R by rewrite invr_ge0 ltW.
+pose t : {nonneg R} := NngNum (ltW t_pos).
+pose tinv : {nonneg R} := NngNum tinv_ge0.
+pose s' := sh_scale tinv s.
+have s'norm : sh_norm s' <= 1.
+  by rewrite /s' sh_normh /= mulrC -ler_pdivlMr ?invr_gt0 // mul1r invrK lerDl ler01.
+have s'ball : forall x, cone_norm x <= 1 -> cone_norm (sh_fun s' x) <= 1.
+  by move=> x Hx; apply: le_trans (sh_norm_ub s' x Hx) _.
+set hf := cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)).
+have Hh'ms : is_meas_stable (fun x => hf (sh_fun s' x)).
+  apply: (meas_stable_comp (sh_fun s') hf).
+  - exact: sh_meas_stable.
+  - exact: (icones_meas_stable h).
+  - exact: s'ball.
+have HE : (fun x => hf (sh_fun s x)) = stm_scale t (fun x => hf (sh_fun s' x)).
+  apply: funext => x.
+  rewrite /stm_scale /s' /stm_scale.
+  rewrite -[sh_fun (sh_scale tinv s) x]/(sh_scale tinv s x) sh_scaleE.
+  have [_ _ HZ] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones h)).
+  rewrite /hf HZ -precone_scale_A.
+  have -> : (t%:num * tinv%:num)%:nng = 1%:nng :> {nonneg R}.
+    by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+  by rewrite precone_scale_1.
+rewrite HE.
+have [Hs Hp] := Hh'ms.
+split; first exact: (stable_scale t Hs).
+exact: (meas_stable_scale t Hp).
+Qed.
+
+Lemma sh_postc_offball (s : stablehom B D) (x : B) :
+  ~~ (cone_norm x <= 1) ->
+  cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) (sh_fun s x) = 0.
+Proof.
+move=> Hx; rewrite (sh_offball s x Hx).
+have [Z0 _ _] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones h)).
+exact: Z0.
+Qed.
+
+Definition sh_postc (s : stablehom B D) : stablehom B D' :=
+  MkStablehom
+    (fun x => cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) (sh_fun s x))
+    (sh_postc_meas_stable s) (@sh_postc_offball s).
+
+Lemma sh_postcE (s : stablehom B D) (x : B) :
+  sh_fun (sh_postc s) x =
+  cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) (sh_fun s x).
+Proof. by []. Qed.
+
+End ShPostc.
+
+Arguments sh_postc {R Ar B D D'} h s.
+Arguments sh_postcE {R Ar B D D'} h s x.
+
+(** ** Pre-composition of a stable map by a linear morphism
+
+    For [k : icones_hom B' B], pre-composition [s ↦ s ∘ k] sends
+    [B ⇒ₛ X] to [B' ⇒ₛ X] (the contravariant [- ⇒ₛ X] functor action on
+    [k]), 0-extended off [B'_{B'}] (the clamp [sc_clamp]).  Stability of
+    [s ∘ k] is [meas_stable_comp] ([k] nonexpansive, so its image stays
+    in [B_B], no rescaling).  Used in the naturality of [stab_lin_swap]
+    in the first argument. *)
+
+Section ShPrec.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B B' X : ICone.type Ar.
+Local Open Scope precone_scope.
+Variable k : icones_hom Ar B' B.
+
+Lemma sh_prec_bare_ms (s : stablehom B X) :
+  is_meas_stable
+    (fun x' => sh_fun s (cones_hom_fun (mcones_hom_cones (icones_hom_mcones k)) x')).
+Proof.
+apply: (meas_stable_comp
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones k))) (sh_fun s)).
+- exact: (icones_meas_stable k).
+- exact: sh_meas_stable.
+- move=> x' Hx'.
+  apply: le_trans (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones k)) x') _.
+  exact: Hx'.
+Qed.
+
+Definition sh_prec (s : stablehom B X) : stablehom B' X :=
+  MkStablehom
+    (sc_clamp (fun x' =>
+       sh_fun s (cones_hom_fun (mcones_hom_cones (icones_hom_mcones k)) x')))
+    (sc_clamp_meas_stable (sh_prec_bare_ms s)) (sc_clamp_offball_field _).
+
+Lemma sh_precE (s : stablehom B X) (x' : B') :
+  cone_norm x' <= 1 ->
+  sh_fun (sh_prec s) x' =
+  sh_fun s (cones_hom_fun (mcones_hom_cones (icones_hom_mcones k)) x').
+Proof. by move=> Hx'; rewrite /sh_prec /= (sc_clamp_ball Hx'). Qed.
+
+End ShPrec.
+
+Arguments sh_prec {R Ar B B' X} k s.
+Arguments sh_precE {R Ar B B' X} k s {x'}.
+
+(** ** Naturality of [stab_lin_swap] — Paper Lemma 9.4
+
+    The swap [f ↦ (y ↦ x ↦ f(x)(y))] is natural in all three arguments.
+    All three squares commute pointwise because every term reads
+    [f(x)(y)] (suitably reindexed by the morphism); the [Seely2] chain
+    consumes naturality in the third argument [D] ([stab_lin_swap_nat3]).
+    We state them at the underlying-function level, with the functorial
+    actions [sh_postc]/[linhom_post_icones] (covariant in [D]),
+    [linhom_pre_icones]/[linhom_prec] (contravariant in [C]) and
+    [sh_prec] (contravariant in [B]). *)
+
+Section StabLinSwapNat.
+Variables (R : realType) (Ar : MeasSubcat R).
+Local Open Scope precone_scope.
+
+(** Naturality in [D] (third argument; the one consumed by [Seely2]):
+    post-composing by [h : D ⊸ D'].  On [B ⇒ₛ (C ⊸ D)], [h] acts by
+    [sh_postc (C ⊸ h)]; on [C ⊸ (B ⇒ₛ D)], by [C ⊸ (B ⇒ₛ h)] read as
+    post-composition by [sh_postc h].  Both read [h(f(x)(y))]. *)
+Lemma stab_lin_swap_nat3 (B C D D' : ICone.type Ar)
+    (h : icones_hom Ar D D')
+    (f : stablehom B (linhom_car Ar C D))
+    (y : C) (x : B) :
+  sh_fun (linhom_fun (sls_fwd (sh_postc (linhom_post_icones h) f)) y) x =
+  sh_fun (sh_postc h (linhom_fun (sls_fwd f) y)) x.
+Proof.
+rewrite sls_fwdE sh_postcE.
+rewrite sh_postcE sls_fwdE.
+rewrite -[cones_hom_fun (mcones_hom_cones (icones_hom_mcones (linhom_post_icones h)))
+            (sh_fun f x)]/(linhom_post h (sh_fun f x)).
+rewrite /linhom_post.
+by rewrite (linhom_map_funE (icones_id Ar C) h (sh_fun f x) y).
+Qed.
+
+(** Naturality in [C] (second argument): pre-composing by [k : C' ⊸ C].
+    On [B ⇒ₛ (C ⊸ D)], [k] acts by [sh_postc (k ⊸ D)]; on
+    [C ⊸ (B ⇒ₛ D)], by [linhom_prec k].  Both read [f(x)(k y')]. *)
+Lemma stab_lin_swap_nat2 (B C C' D : ICone.type Ar)
+    (k : icones_hom Ar C' C)
+    (f : stablehom B (linhom_car Ar C D))
+    (y' : C') (x : B) :
+  sh_fun (linhom_fun (sls_fwd (sh_postc (linhom_pre_icones k) f)) y') x =
+  sh_fun (linhom_fun (linhom_prec k (sls_fwd f)) y') x.
+Proof.
+rewrite sls_fwdE sh_postcE.
+rewrite -[cones_hom_fun (mcones_hom_cones (icones_hom_mcones (linhom_pre_icones k)))
+            (sh_fun f x)]/(linhom_pre_act k (sh_fun f x)).
+rewrite /linhom_pre_act (linhom_map_funE k (icones_id Ar D) (sh_fun f x) y').
+rewrite -[icones_id Ar D (linhom_fun (f x) (k y'))]
+  /(cones_hom_fun (mcones_hom_cones (icones_hom_mcones (icones_id Ar D)))
+      (linhom_fun (f x) (k y'))).
+rewrite -[linhom_fun (linhom_prec k (sls_fwd f)) y']
+  /(linhom_fun (linhom_map_fun k (icones_id Ar (stablehom B D)) (sls_fwd f)) y').
+rewrite (linhom_map_funE k (icones_id Ar (stablehom B D)) (sls_fwd f) y').
+by rewrite sls_fwdE.
+Qed.
+
+(** Naturality in [B] (first argument): pre-composing by [k : B' ⊸ B].
+    On [B ⇒ₛ (C ⊸ D)], [k] acts by [sh_prec k]; on [C ⊸ (B ⇒ₛ D)], by
+    [C ⊸ (k ⇒ₛ D)] read as post-composition by [sh_prec k].  Both read
+    [f(k x')(y)] (off [B'_{B'}] both are [0] by the clamp). *)
+Lemma stab_lin_swap_nat1 (B B' C D : ICone.type Ar)
+    (k : icones_hom Ar B' B)
+    (f : stablehom B (linhom_car Ar C D))
+    (y : C) (x' : B') :
+  sh_fun (linhom_fun (sls_fwd (sh_prec k f)) y) x' =
+  sh_fun (sh_prec k (linhom_fun (sls_fwd f) y)) x'.
+Proof.
+have [Hx' | Hx'] := boolP (cone_norm x' <= 1); last first.
+  by rewrite (sh_offball (linhom_fun (sls_fwd (sh_prec k f)) y) x' Hx')
+             (sh_offball (sh_prec k (linhom_fun (sls_fwd f) y)) x' Hx').
+rewrite sls_fwdE.
+rewrite (sh_precE k f Hx').
+rewrite (sh_precE k (linhom_fun (sls_fwd f) y) Hx').
+by rewrite sls_fwdE.
+Qed.
+
+End StabLinSwapNat.
+
+Arguments stab_lin_swap_nat3 {R Ar B C D D'} h f y x.
+Arguments stab_lin_swap_nat2 {R Ar B C C' D} k f y' x.
+Arguments stab_lin_swap_nat1 {R Ar B B' C D} k f y x'.
