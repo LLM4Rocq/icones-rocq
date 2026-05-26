@@ -65,8 +65,8 @@ existence of the structural isomorphisms $\alpha/\lambda/\rho/\sigma$
 produced by Yoneda (paper Lemma~5.5) --- is the deep, non-elementary
 input to the monoidal structure. An earlier iteration \emph{staged}
 this content as a small interface of $\approx 18$ \texttt{Parameter}s
-in \texttt{theories/axioms/saft\_interface.v}. That interface is now
-\textbf{discharged}: the Special Adjoint Functor Theorem for $\ICones$
+in a former \texttt{theories/axioms/saft\_interface.v}. That interface is
+now \textbf{discharged}: the Special Adjoint Functor Theorem for $\ICones$
 is mechanised concretely --- $B \otimes C$ is built as a wide
 intersection on a coseparator power
 (\texttt{theories/homs/tensor\_construct.v}, the \texttt{wi\_obj}
@@ -100,9 +100,11 @@ We are precise about what each layer contributes:
     \texttt{tensor\_construct.v} / \texttt{tensor\_hom\_iso.v} /
     \texttt{tensor\_iso.v}, all proved.
   \item[(c)] This discharge (\texttt{PLAN.md} \S13.1, milestone
-    ``M-SAFT'') brought the tensor / SMC-closed development from the
-    staged tier into the axiom-free core; only the Seely-iso existence
-    (Chapter~\ref{ch:exponential}) now remains staged.
+    ``M-SAFT'') made the tensor / SMC-closed development axiom-free. The
+    same M-SAFT machinery later discharged the exponential $\mathord{!}$
+    and the Seely isomorphisms (Chapter~\ref{ch:exponential}), so the
+    whole linear-logic model through \S9 now rests on zero project
+    axioms; there is no staged tier left.
   \item[(d)] The headline theorem --- paper Theorem~6.5, the fully
     faithful embedding $\Skern \to \ICones$ of
     Chapter~\ref{ch:skern} --- never depended on this content; it is
@@ -760,8 +762,8 @@ symmetry/triangle/pentagon/hexagon coherence, and the bundle
 
 \paragraph{The SAFT construction (formerly staged, now discharged).}
 The deep representability content --- formerly the $\approx 18$
-\texttt{Parameter}s of \texttt{theories/axioms/saft\_interface.v}, now
-the proved declarations of
+\texttt{Parameter}s of the now-deleted
+\texttt{theories/axioms/saft\_interface.v}, now the proved declarations of
 \texttt{theories/homs/\{tensor\_construct, tensor\_hom\_iso,
 tensor\_iso\}.v} (\S\ref{sec:tensor-staging}) --- comprises the tensor
 object former (\rocq{Icones.homs.tensor.tensor}), the hom-bijection and
