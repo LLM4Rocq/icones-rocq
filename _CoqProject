@@ -53,8 +53,8 @@ theories/stable/fixpoint.v
 theories/stable/stab_lin_swap.v
 theories/homs/tensor.v
 theories/homs/smcc.v
-theories/axioms/exp_interface.v
+theories/homs/exp_adjunction.v
 theories/homs/bang.v
-theories/axioms/seely_interface.v
+theories/homs/seely_defs.v
 theories/homs/seely.v
 theories/homs/coalgebra.v

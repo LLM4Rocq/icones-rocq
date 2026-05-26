@@ -4,7 +4,7 @@
 (*   [th:Icones-adjoint-functor], the [E ⊣ Der] adjunction).                  *)
 (*                                                                            *)
 (* This file DISCHARGES, as genuine theorems about a concrete construction,   *)
-(* the five [Parameter]/[Axiom]s of [theories/axioms/exp_interface.v]:        *)
+(* the five [Parameter]/[Axiom]s of [theories/homs/exp_adjunction.v]:         *)
 (*                                                                            *)
 (*   Bang, nl, lin, lin_beta, lin_unique                                      *)
 (*                                                                            *)
