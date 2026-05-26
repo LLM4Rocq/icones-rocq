@@ -103,6 +103,7 @@ Require Import Icones.homs.smcc.
 Require Import Icones.axioms.exp_interface.
 Require Import Icones.homs.bang.
 Require Import Icones.axioms.seely_interface.
+Require Icones.stable.stab_lin_swap.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -374,21 +375,19 @@ Proof. by rewrite /Theta ders_comp -scones_compA. Qed.
     and the [n=1] [bang_ext] (backward composite); the characterisation
     [Seely2E] is the chain's pure-tensor computation [psiV_prom]. *)
 
-(* STAGED: Lemma 9.4, sibling team *)
-(* INTERIM — to be replaced by the sibling team's proved lemma at merge.
-   The committed branch carries this ONE [Admitted] (and its element law
-   [stab_lin_swapE]); the merge wires in the sibling's proof. *)
-Lemma stab_lin_swap (B C D : ICone.type Ar) :
-  icones_iso Ar (stablehom B (linhom_car Ar C D)) (linhom_car Ar C (stablehom B D)).
-Proof. Admitted.
+(** Lemma 9.4 — wired in from the proved [theories/stable/stab_lin_swap.v]
+    (referenced qualified to avoid importing its helper names). *)
+Definition stab_lin_swap (B C D : ICone.type Ar) :
+    icones_iso Ar (stablehom B (linhom_car Ar C D))
+      (linhom_car Ar C (stablehom B D)) :=
+  @Icones.stable.stab_lin_swap.stab_lin_swap R Ar B C D.
 
-(* STAGED: Lemma 9.4 element law, sibling team — the swap exchanges the
-   two argument orders: [swap(g)(c)(b) = g(b)(c)]. *)
+(** Element law of the forward swap: [swap(g)(c)(b) = g(b)(c)]. *)
 Lemma stab_lin_swapE (B C D : ICone.type Ar)
     (g : stablehom B (linhom_car Ar C D)) (b : B) (c : C) :
   sh_fun (linhom_fun (Lfun (iso_fwd (stab_lin_swap B C D)) g) c) b =
   linhom_fun (sh_fun g b) c.
-Proof. Admitted.
+Proof. exact: Icones.stable.stab_lin_swap.stab_lin_swap_fwdE. Qed.
 
 (** Derived [iso_bwd] form of the swap law: [swap⁻¹(h)(b)(c) = h(c)(b)]. *)
 Lemma stab_lin_swap_bwdE (B C D : ICone.type Ar)
