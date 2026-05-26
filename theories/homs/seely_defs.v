@@ -50,7 +50,7 @@ Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.tensor.
-Require Import Icones.axioms.exp_interface.
+Require Import Icones.homs.exp_adjunction.
 Require Import Icones.homs.bang.
 
 Set Implicit Arguments.

@@ -2,7 +2,7 @@
 (** * The exponential comonad [!] on [ICones] — Paper §9
 
     From the staged linear/non-linear adjunction [E ⊣ Der]
-    ([theories/axioms/exp_interface.v]) we DERIVE — as genuine theorems
+    ([theories/homs/exp_adjunction.v]) we DERIVE — as genuine theorems
     modulo that universal-arrow interface — the exponential comonad
     [(!, der, dig)] of paper §9, the model of the [!] modality of [LL].
 
@@ -55,7 +55,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.stable.scones_cat.
-Require Import Icones.axioms.exp_interface.
+Require Import Icones.homs.exp_adjunction.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

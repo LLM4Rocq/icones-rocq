@@ -45,7 +45,7 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.
 From mathcomp.reals Require Import reals.
-From mathcomp.algebra Require Import interval_inference.
+From mathcomp.algebra Require Import interval_inference archimedean.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
@@ -61,6 +61,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
+Import archimedean.Num.Theory.
 
 Local Open Scope ring_scope.
 
@@ -1278,8 +1279,8 @@ have tb : forall m, cone_norm t <= m.+2%:R^-1.
 have t_norm0 : (cone_norm t <= 0)%R.
   apply/unstable.ler_gtP => e e_pos.
   have e_pos' : (0 < e^-1)%R by rewrite invr_gt0.
-  have HN := archimedean.Num.Theory.archi_boundP (ltW e_pos').
-  set N := archimedean.Num.bound e^-1 in HN.
+  have HN := archi_boundP (ltW e_pos').
+  set N := Num.bound e^-1 in HN.
   apply: le_trans (tb N) _.
   rewrite -[e]invrK lef_pV2 ?posrE ?invr_gt0 ?ltr0n//.
   apply: le_trans (ltW HN) _; rewrite ler_nat.

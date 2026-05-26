@@ -2,10 +2,10 @@
 (** * [ICones] is a Seely category — Paper §9
 
     From the staged exponential comonad [!] ([theories/homs/bang.v],
-    modulo [theories/axioms/exp_interface.v]), the now-AXIOM-FREE
+    modulo [theories/homs/exp_adjunction.v]), the now-AXIOM-FREE
     symmetric monoidal tensor [⊗] ([theories/homs/tensor.v]/[smcc.v]; the
     SAFT contract [saft_interface.v] is discharged and deleted) and the
-    staged Seely isomorphisms ([theories/axioms/seely_interface.v]) we
+    staged Seely isomorphisms ([theories/homs/seely_defs.v]) we
     DERIVE — as genuine theorems modulo the remaining (exp/Seely)
     interfaces — that [!] is a *strong monoidal comonad*, i.e. [ICones]
     is a *Seely category* in the sense of Melliès (paper §9, lines
@@ -100,9 +100,9 @@ Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
-Require Import Icones.axioms.exp_interface.
+Require Import Icones.homs.exp_adjunction.
 Require Import Icones.homs.bang.
-Require Import Icones.axioms.seely_interface.
+Require Import Icones.homs.seely_defs.
 Require Icones.stable.stab_lin_swap.
 
 Set Implicit Arguments.

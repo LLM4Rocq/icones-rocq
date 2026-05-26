@@ -12,7 +12,7 @@
 (* limit-preserving functor [Der] in place of [(C ⊸ −)]; Der's limit          *)
 (* preservation is [theories/stable/der_continuous.v], paper Thm 7.34).       *)
 (*                                                                            *)
-(* This file is kept (rather than deleted) because [seely_interface.v] and    *)
+(* This file is kept (rather than deleted) because [seely_defs.v] and         *)
 (* [homs/seely.v] still import it for the [Bang]/[nl] symbols of the Seely    *)
 (* structure; turning the [Parameter]/[Axiom]s into [Definition]/[Lemma]s     *)
 (* backed by [bang_construct] discharges the staging IN PLACE, so every       *)
