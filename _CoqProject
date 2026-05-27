@@ -60,3 +60,4 @@ theories/homs/seely.v
 theories/homs/coalgebra.v
 theories/homs/em_cat.v
 theories/homs/em_seely_comonoid.v
+theories/homs/em_cartesian.v
