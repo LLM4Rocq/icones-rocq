@@ -212,3 +212,123 @@ End TerminalComonoidal.
 Arguments coalg_d_EMterm_one1 {R Ar}.
 Arguments coalg_e_EMterm_one1 {R Ar}.
 Arguments EMComon_term {R Ar}.
+
+(** ** The CBV computation monad [T] induced by [U ⊣ !̃]
+
+    On the value category [EM(!)] the adjunction [U ⊣ !̃] of [em_cat.v]
+    induces the monad [T = !̃ ∘ U] (Melliès p141: the linear-category route's
+    CBV computation monad).  [T P = !̃(U P) = bang_cofree (coalg_obj P)]; the
+    unit is the coalgebra structure map ([adj_unit]) and the multiplication
+    is [!̃] of the counit ([der]).  This is the [!]-induced "make duplicable"
+    monad; the *probabilistic* content of CBV is NOT in [T] but in [sample]
+    (the Theorem-9.7 coalgebra structure), interpreted below.
+
+    We expose Kleisli composition [kcomp] and prove the three monad laws,
+    which give the [let] equations. *)
+Section CBVMonad.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Bg := (@Bang R Ar).
+
+(** [T P = !̃(U P)]. *)
+Definition Tobj (P : Coalgebra Ar) : Coalgebra Ar := bang_cofree (U_obj P).
+
+(** Functorial action [T h = !̃(U h)]. *)
+Definition Tmap (P Q : Coalgebra Ar) (h : coalg_hom P Q) :
+    coalg_hom (Tobj P) (Tobj Q) := bang_cofree_hom (U_mor h).
+
+(** Unit [η_P = coalg_str P : P → T P] (= [adj_unit]). *)
+Definition tunit_eta (P : Coalgebra Ar) : coalg_hom P (Tobj P) := adj_unit P.
+
+(** Multiplication [µ_S = !̃(ε_{U S}) : T(T S) → T S]. *)
+Definition tmul (S : Coalgebra Ar) : coalg_hom (Tobj (Tobj S)) (Tobj S) :=
+  bang_cofree_hom (adj_counit (U_obj S)).
+
+(** Kleisli extension [f† = µ ∘ T f : T P → T Q] for [f : P → T Q]. *)
+Definition kbind (P Q : Coalgebra Ar) (f : coalg_hom P (Tobj Q)) :
+    coalg_hom (Tobj P) (Tobj Q) := coalg_comp (tmul Q) (Tmap f).
+
+(** Kleisli composition [g ⋄ f = f† ∘ g... ] — for [f : P → T Q],
+    [g : Q → T S]: [kcomp g f = g† ∘ f : P → T S]. *)
+Definition kcomp (P Q S : Coalgebra Ar)
+    (g : coalg_hom Q (Tobj S)) (f : coalg_hom P (Tobj Q)) :
+    coalg_hom P (Tobj S) := coalg_comp (kbind g) f.
+
+(** *** The monad laws (= the CBV [let] laws)
+
+    All three reduce, via the faithful [U] ([coalg_hom_eqP]), to the comonad
+    laws of [bang.v] ([comonad_counitL]/[comonad_counitR]/[comonad_coassoc],
+    [dig_nat]/[der_nat]) and the coalgebra laws of the arguments. *)
+
+(** Right unit / left-identity Kleisli law: [kcomp f η = f].  Underlying:
+    [!ε ∘ !(U f) ∘ a = !ε ∘ dig ∘ U f = U f] (coalgebra-morphism of [f] +
+    [comonad_counitR]). *)
+Lemma kcomp_etaR (P Q : Coalgebra Ar) (f : coalg_hom P (Tobj Q)) :
+  kcomp f (tunit_eta P) = f.
+Proof.
+apply: coalg_hom_eqP.
+rewrite /kcomp /kbind /Tmap /tmul /tunit_eta /Tobj !coalg_comp_mor /=.
+have Hf := ch_is_mor f; rewrite /is_coalg_mor /= in Hf.
+rewrite /adj_counit /U_mor.
+rewrite -icones_compA -Hf.
+rewrite icones_compA (comonad_counitR (U_obj Q)).
+by rewrite icones_compIl.
+Qed.
+
+(** Left unit / right-identity Kleisli law: [kcomp η f = f].  Underlying:
+    [!ε ∘ !(U η) ∘ U f = !(ε ∘ U η) ∘ U f = U f]
+    (with [ε ∘ U η = adj_triangleL = id]). *)
+Lemma kcomp_etaL (P Q : Coalgebra Ar) (f : coalg_hom P (Tobj Q)) :
+  kcomp (tunit_eta Q) f = f.
+Proof.
+apply: coalg_hom_eqP.
+rewrite /kcomp /kbind /Tmap /tmul /tunit_eta /Tobj !coalg_comp_mor /=.
+rewrite /adj_counit /U_mor.
+rewrite -(bang_fmap_comp (der (U_obj Q)) (coalg_str Q)).
+have := adj_triangleL Q; rewrite /adj_phi /adj_counit /U_mor => ->.
+by rewrite bang_fmap_id icones_compIl.
+Qed.
+
+(** The adjunction bijection [adj_phi] is a FUNCTOR from the Kleisli
+    category of [T] to [IC]: [Φ(g ⋄ f) = Φ(g) ∘ Φ(f)] (with [Φ(η_P) = id],
+    [adj_triangleL]).  Underlying: [ε ∘ !(ε∘U g) ∘ U f = (ε∘U g) ∘ (ε∘U f)]
+    via [der_nat (ε∘U g)].  This is the slick engine for the monad laws:
+    since [adj_phi] is a bijection ([adj_phiK]/[adj_psiK]), every Kleisli
+    equation reduces to an [icones_comp] equation. *)
+Lemma adj_phi_kcomp (P Q S : Coalgebra Ar)
+    (g : coalg_hom Q (Tobj S)) (f : coalg_hom P (Tobj Q)) :
+  adj_phi (kcomp g f) = icones_comp (adj_phi g) (adj_phi f).
+Proof.
+rewrite /kcomp /kbind /Tmap /tmul /adj_phi /adj_counit /U_mor !coalg_comp_mor /=.
+rewrite -(bang_fmap_comp (der (U_obj S)) (ch_mor g)).
+rewrite (icones_compA (der (U_obj S)) (bang_fmap (icones_comp (der (U_obj S)) (ch_mor g))) (ch_mor f)).
+rewrite -(der_nat (icones_comp (der (U_obj S)) (ch_mor g))).
+by rewrite -!icones_compA.
+Qed.
+
+(** [adj_phi] is injective (it is a bijection by [adj_psiK]). *)
+Lemma adj_phi_inj (P : Coalgebra Ar) (B : ICone.type Ar)
+    (a b : coalg_hom P (bang_cofree B)) : adj_phi a = adj_phi b -> a = b.
+Proof. by move=> Hab; rewrite -(adj_psiK a) -(adj_psiK b) Hab. Qed.
+
+(** Associativity of Kleisli composition: [kcomp (kcomp h g) f =
+    kcomp h (kcomp g f)].  Immediate from [adj_phi_kcomp] + [icones_compA]
+    + injectivity of [adj_phi]. *)
+Lemma kcomp_A (P Q S T : Coalgebra Ar)
+    (h : coalg_hom S (Tobj T)) (g : coalg_hom Q (Tobj S)) (f : coalg_hom P (Tobj Q)) :
+  kcomp (kcomp h g) f = kcomp h (kcomp g f).
+Proof. by apply: adj_phi_inj; rewrite !adj_phi_kcomp icones_compA. Qed.
+
+End CBVMonad.
+
+Arguments Tobj {R Ar} P.
+Arguments Tmap {R Ar P Q} h.
+Arguments tunit_eta {R Ar} P.
+Arguments tmul {R Ar} S.
+Arguments kbind {R Ar P Q} f.
+Arguments kcomp {R Ar P Q S} g f.
+Arguments adj_phi_kcomp {R Ar P Q S} g f.
+Arguments adj_phi_inj {R Ar P B} a b.
+Arguments kcomp_etaR {R Ar P Q} f.
+Arguments kcomp_etaL {R Ar P Q} f.
+Arguments kcomp_A {R Ar P Q S T} h g f.
