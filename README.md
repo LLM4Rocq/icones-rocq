@@ -96,12 +96,17 @@ Every result above depends only on the three standard classical-logic axioms inh
 `Admitted`** anywhere (~52k lines across 53 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
-This is worth a note because the tensor `⊗`, the exponential `!`, and the Seely isomorphisms
-*exist*, in the paper, only abstractly — Ehrhard and Geoffroy obtain them non-constructively
-via Freyd's Special Adjoint Functor Theorem, with no formula. The formalization instead
-**constructs them concretely** (a wide-intersection / representability argument; see
-[`PLAN.md`](./PLAN.md) §13), so the development carries no `Parameter`/`Axiom` interfaces and
-nothing is left "assumed."
+This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
+obtained — in both the paper and this formalization — via **Freyd's Special Adjoint Functor
+Theorem** (SAFT): the functor `C ⊸ −` preserves limits, and `ICones` is complete,
+well-powered, and has a coseparator, so it has a left adjoint. The paper invokes SAFT without
+exhibiting a carrier (Remark 5.1 gives no explicit formula for `⊗`). The formalization follows
+the **same route**, but — since Coq cannot cite SAFT as a black box — it **mechanizes the SAFT
+argument itself**: it proves `ICones` well-powered and runs Freyd's construction, building the
+adjoint as a wide intersection of subobjects of a coseparator power
+(`theories/icones/representable.v`, `theories/homs/tensor_construct.v`). So these are the same
+SAFT-given objects as in the paper, with their construction fully spelled out — which is what
+lets the development carry no `Parameter`/`Axiom` interfaces and leave nothing "assumed."
 
 ## Status
 
