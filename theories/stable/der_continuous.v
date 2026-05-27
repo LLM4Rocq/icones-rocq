@@ -431,8 +431,11 @@ Record der_continuous : Prop := MkDerContinuous {
              scones_comp (ders (icones_eq_incl f g)) h' = h -> h' = h0 };
 }.
 
-(** Paper Theorem 7.34 (packaged, equaliser half): [Der] preserves
-    equalisers. *)
+(** Paper Theorem 7.34 (equaliser half): [Der] preserves equalisers.
+    Together with product-preservation ([der_preserves_prod_proj] above),
+    this gives preservation of all small limits — the SAFT input consumed by
+    [bang_construct] / [tensor_construct]. (The name [der_preserves_limits]
+    refers to that whole; this lemma's type is the equaliser component.) *)
 Theorem der_preserves_limits : der_continuous.
 Proof.
 split.
