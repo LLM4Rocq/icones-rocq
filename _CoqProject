@@ -58,3 +58,4 @@ theories/homs/bang.v
 theories/homs/seely_defs.v
 theories/homs/seely.v
 theories/homs/coalgebra.v
+theories/homs/em_cat.v
