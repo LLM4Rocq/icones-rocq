@@ -1,0 +1,1160 @@
+(**md**************************************************************************)
+(** * The cartesian structure of [EM(!)] — CBV §3 (Melliès Prop 26–28)
+
+    Step 3 of the call-by-value roadmap
+    ([/home/rocq/prime_gap/icones-cbv-plan.md], Phase C).  We equip the
+    Eilenberg–Moore category [EM(!)] of the exponential comonad [!] with
+    the cartesian structure whose product is carried by the *linear* tensor
+    [⊗] (NOT the cartesian [&]) and whose terminal object is the tensor
+    unit [1].  This is the content of Melliès' Proposition 28 (the only
+    genuinely non-formal step of the linear-category axiomatisation).
+
+    **Which path is delivered.**  Melliès himself flags Prop 28 / Cor 20 —
+    "the diagonal [d_A] is a coalgebra morphism" — as "not so immediate",
+    and our concrete model confirms this: on a *general* coalgebra [(A,a)]
+    the transported comonoid maps [d_A = (ε⊗ε)∘d_{!A}∘a] and
+    [e_A = e_{!A}∘a] are built from [d_bang]/[e_bang], which only *compute*
+    on PROMOTED points [x!]; for an arbitrary carrier [a x] is not promoted,
+    so neither the comonoid laws nor the coalgebra-morphism square reduces.
+    We therefore deliver the expert's authorised **"à défaut" fallback**:
+    the cartesian structure on the **rich subcategory** of [EM(!)] spanned
+    by the cofree coalgebras [!̃B] and the Theorem-9.7 coalgebras
+    [FMeas(X)] — exactly the objects whose structure map sends a SPANNING
+    set of points to promoted ones ([dig_B] sends [x!↦(x!)!] on [!̃B];
+    [Coalg_X] sends [δ_X r ↦ (δ_X r)!] on [FMeas(X)]), so the comonoid laws
+    and Cor 20 reduce via [bang_ext] / [dirac_dense].  This subcategory is
+    *sufficient for CBV* and contains the 9.7 coalgebras, as the expert
+    requested.
+
+    What IS general (no Cor 20 needed) and what is per-object:
+    - GENERAL (every coalgebra): the lax-monoidal map [m_bang], the product
+      coalgebra [EM_prod] and the terminal coalgebra [EM_term] (the
+      [⊗]/[1] structure lifted to [EM(!)] by Lack), and the comonoid
+      *definitions* [coalg_d]/[coalg_e] (Eq 88).
+    - PER-OBJECT (the comonoidal predicate [EMComon]): the four comonoid
+      laws + the two coalgebra-morphism squares (Prop 26/27 + Cor 20).
+      Proved for [bang_cofree B] (via [bang_ext], reusing step 2's
+      [d_bang]/[e_bang] LC2–LC4) and for [FMeas_coalgebra X] (via
+      [dirac_dense]).
+    - The cartesian universal property (projections, diagonal, pairing,
+      terminal map) is built generically from a pair of [EMComon] objects
+      (Cor 17) — so any two objects of the rich subcategory have their
+      [⊗]-product as a categorical product in [EM(!)].
+
+    Contents:
+    - [m_bang A B : !A⊗!B ⊸ !(A⊗B)] — the lax symmetric-monoidal structure
+      map of [!], with [m_bang_prom]: [m(x!⊗y!) = (x⊗y)!]; the
+      compatibility lemmas [der_m_bang], [tens_cofree_str_m_bang],
+      [m_bang_is_coalg_mor].
+    - [EM_prod_str]/[EM_prod] — the product coalgebra [(A⊗B, m∘(a⊗b))];
+      [EM_term] — the terminal coalgebra [(1, ·)] ([= unit_cofree]).
+    - [coalg_d]/[coalg_e] — the Eq-88 transported comonoid on every
+      coalgebra.
+    - [EMComon P] — the per-object record: comonoid laws + [coalg_d],
+      [coalg_e] coalgebra morphisms; witnesses [EMComon_cofree] (Prop on
+      [!̃B]) and [EMComon_FMeas] (Prop on [FMeas X]).
+    - the projections [em_proj1]/[em_proj2], pairing [em_pair], diagonal,
+      and the cartesian universal property [em_proj1_pair]/[em_proj2_pair]/
+      [em_pair_unique]; terminal [em_term_mor]/[em_term_unique].
+    - the headline bundle [ICones_EM_cartesian] + the richness witnesses. *)
+
+From HB Require Import structures.
+From mathcomp Require Import all_ssreflect ssralg ssrnum.
+From mathcomp.classical Require Import boolp classical_sets functions.
+From mathcomp.reals Require Import reals.
+From mathcomp.algebra Require Import interval_inference.
+From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import measure dirac_measure.
+
+Require Import Icones.cones.precone.
+Require Import Icones.cones.basic_lemmas.
+Require Import Icones.cones.cone.
+Require Import Icones.cones.cone_cat.
+Require Import Icones.mcones.ar.
+Require Import Icones.mcones.mcone.
+Require Import Icones.mcones.fmeas.
+Require Import Icones.mcones.path.
+Require Import Icones.mcones.mcone_cat.
+Require Import Icones.icones.icone.
+Require Import Icones.icones.examples_icone.
+Require Import Icones.icones.icone_cat.
+Require Import Icones.stable.scones_cat.
+Require Import Icones.stable.scones_ccc.
+Require Import Icones.homs.icones_iso.
+Require Import Icones.homs.linhom.
+Require Import Icones.homs.bilin.
+Require Import Icones.homs.tensor.
+Require Import Icones.homs.smcc.
+Require Import Icones.homs.exp_adjunction.
+Require Import Icones.homs.bang.
+Require Import Icones.homs.seely_defs.
+Require Import Icones.homs.seely.
+Require Import Icones.homs.coalgebra.
+Require Import Icones.homs.em_cat.
+Require Import Icones.homs.em_seely_comonoid.
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
+
+Import Order.TTheory GRing.Theory Num.Theory.
+
+(** Seal the tensor/Seely data, as in [seely.v]/[em_seely_comonoid.v], so a
+    bare [/=] does not unfold the [tensor_construct] internals (which would
+    break the [tensor_morE]/[...Ep] rewrites).
+
+    We ALSO seal the comonad/Seely-comonoid maps [dig]/[der]/[bang_fmap]/
+    [prom]/[d_bang]/[e_bang]/[tens_cofree_str]/[unit_cofree_str]/[Coalg].
+    These are TRANSPARENT [lin]/[scones] constructions whose internals are
+    enormous; without sealing, [rewrite Lfun_comp] (and [/=]) traverse and
+    unfold them, blowing up / diverging.  Sealed, the [_prom]/[_dirac]/
+    [...E] equational lemmas still rewrite (opacity never blocks rewriting
+    WITH an equation), but tactic SCANS stay syntactic and fast. *)
+Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
+       ptensor tau Seely2.
+Opaque dig der prom bang_fmap d_bang e_bang unit_cofree_str Coalg.
+(* [tens_cofree_str] and [m_bang] are sealed LATER (after the lemmas that
+   need to unfold them: [m_bang_prom]/[tens_cofree_str_m_bang]). *)
+
+Local Open Scope classical_set_scope.
+Local Open Scope ring_scope.
+
+Section EMCartesian.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Local Notation "B '⊗' C" := (tensor Ar B C)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation Bg := (@Bang R Ar).
+
+(** ** The lax symmetric-monoidal structure map [m_{A,B}]
+
+    [m_{A,B} : !A ⊗ !B ⊸ !(A⊗B)] makes [!] a lax symmetric monoidal
+    endofunctor of [(⊗,1)] and so lifts [⊗] to [EM(!)].  We build it from
+    step 2's [tens_cofree_str] (the transport of [dig] across [Seely2]) and
+    the counit [der]:
+      [m_{A,B} = !(ε_A ⊗ ε_B) ∘ tens_cofree_str_{A,B}].
+    This sidesteps the absent canonical comparison [A&B → A⊗B]: we go
+    [!A⊗!B → !(!A⊗!B) → !(A⊗B)] using [der⊗der], never [&→⊗]. *)
+Definition m_bang (A B : ICone.type Ar) :
+    icones_hom Ar (Bg A ⊗ Bg B) (Bg (A ⊗ B)) :=
+  icones_comp (bang_fmap (tensor_mor (der A) (der B))) (tens_cofree_str A B).
+
+(** A pure-tensor product of two unit-ball points is in the unit ball. *)
+Lemma ptensor_prom_ball (A B : ICone.type Ar) (x : A) (y : B) :
+  cone_norm x <= 1 -> cone_norm y <= 1 -> cone_norm (x ⊗p y) <= 1.
+Proof.
+move=> Hx Hy.
+apply: le_trans (tensor_norm_le _ _) _; rewrite -[1]mulr1.
+by apply: ler_pM => //; [exact: cone_norm_ge0 | exact: cone_norm_ge0].
+Qed.
+Arguments ptensor_prom_ball {A B x y}.
+
+(** The step-2 transported structure sends a promoted pure tensor to its
+    promotion: [tens_cofree_str_{A,B}(x! ⊗ y!) = (x! ⊗ y!)!].  (Factored
+    from the [tens_cofree_coassoc] computation of step 2.) *)
+Lemma tens_cofree_str_prom (A B : ICone.type Ar) (x : A) (y : B) :
+  cone_norm x <= 1 -> cone_norm y <= 1 ->
+  Lfun (tens_cofree_str A B) (x! ⊗p y!) = (x! ⊗p y!)!.
+Proof.
+move=> Hx Hy.
+have Hp : cone_norm (sprod_pair x y) <= 1 by exact: sprod_pair_norm_le1.
+have Hpp : cone_norm (sprod_pair x y)! <= 1 by exact: prom_ball.
+rewrite /tens_cofree_str.
+rewrite -[Lfun (icones_comp (bang_fmap (iso_bwd (Seely2 A B))) _) _]
+        /(Lfun (bang_fmap (iso_bwd (Seely2 A B)))
+          (Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) (x! ⊗p y!))).
+rewrite -[Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) _]
+        /(Lfun (dig (sprod A B)) (Lfun (iso_fwd (Seely2 A B)) (x! ⊗p y!))).
+rewrite (Seely2E x y Hx Hy) (dig_prom (sprod_pair x y) Hp).
+rewrite (bang_fmap_prom (iso_bwd (Seely2 A B)) (sprod_pair x y)! Hpp).
+congr (prom _).
+apply: (iso_fwd_inj (Seely2 A B)).
+rewrite -[Lfun (iso_fwd (Seely2 A B)) (Lfun (iso_bwd (Seely2 A B)) _)]
+        /(Lfun (icones_comp (iso_fwd (Seely2 A B)) (iso_bwd (Seely2 A B))) (sprod_pair x y)!).
+rewrite iso_bwdK -[Lfun (icones_id _ _) _]/((sprod_pair x y)!).
+by rewrite (Seely2E x y Hx Hy).
+Qed.
+Arguments tens_cofree_str_prom {A B x y}.
+
+(** [m_{A,B}(x! ⊗ y!) = (x ⊗ y)!] for unit-ball points: [tens_cofree_str]
+    sends [x!⊗y!] to [(x!⊗y!)!], then [!(ε⊗ε)] sends it to
+    [((ε⊗ε)(x!⊗y!))! = (x⊗y)!]. *)
+Lemma m_bang_prom (A B : ICone.type Ar) (x : A) (y : B) :
+  cone_norm x <= 1 -> cone_norm y <= 1 ->
+  Lfun (m_bang A B) (x! ⊗p y!) = (x ⊗p y)!.
+Proof.
+move=> Hx Hy.
+have Hpt : cone_norm (x! ⊗p y!) <= 1 by exact: ptensor_prom_ball (prom_ball Hx) (prom_ball Hy).
+rewrite /m_bang.
+rewrite -[Lfun (icones_comp (bang_fmap (tensor_mor (der A) (der B))) (tens_cofree_str A B)) _]
+        /(Lfun (bang_fmap (tensor_mor (der A) (der B))) (Lfun (tens_cofree_str A B) (x! ⊗p y!))).
+rewrite (tens_cofree_str_prom Hx Hy).
+rewrite (bang_fmap_prom (tensor_mor (der A) (der B)) (x! ⊗p y!) Hpt).
+by rewrite tensor_morE (der_prom x Hx) (der_prom y Hy).
+Qed.
+Arguments m_bang_prom {A B x y}.
+
+(** Seal [m_bang] now that its pointwise law [m_bang_prom] is proved (cf.
+    the comonad-map sealing above): downstream proofs only use the [_prom]
+    equation, never the [icones_comp]/[bang_fmap] internals. *)
+Opaque m_bang.
+
+(** [der_{A⊗B} ∘ m_{A,B} = ε_A ⊗ ε_B] (the monoidal-comonad counit
+    compatibility), as maps out of [!A⊗!B].  Both send [x!⊗y!] to [x⊗y].
+    Used for the product-coalgebra counit law. *)
+Lemma der_m_bang (A B : ICone.type Ar) :
+  icones_comp (der (A ⊗ B)) (m_bang A B) =
+  tensor_mor (der A) (der B).
+Proof.
+apply: tens_excl_charact => x y Hx Hy.
+rewrite -[Lfun (icones_comp (der (A ⊗ B)) (m_bang A B)) _]
+        /(Lfun (der (A ⊗ B)) (Lfun (m_bang A B) (x! ⊗p y!))).
+rewrite (m_bang_prom Hx Hy) (der_prom (x ⊗p y) (ptensor_prom_ball Hx Hy)).
+by rewrite tensor_morE (der_prom x Hx) (der_prom y Hy).
+Qed.
+
+(** [tens_cofree_str_{A,B} = m_{!A,!B} ∘ (dig_A ⊗ dig_B)], as maps out of
+    [!A⊗!B].  Both send [x!⊗y!] to [(x!⊗y!)!].  This rewrites the step-2
+    transported structure into [m]-shape for the coassoc chase. *)
+Lemma tens_cofree_str_m_bang (A B : ICone.type Ar) :
+  tens_cofree_str A B =
+  icones_comp (m_bang (Bg A) (Bg B)) (tensor_mor (dig A) (dig B)).
+Proof.
+apply: tens_excl_charact => x y Hx Hy.
+(* LHS: [tens_cofree_str (x!⊗y!) = (x!⊗y!)!]. *)
+have Hstr : Lfun (tens_cofree_str A B) (x! ⊗p y!) = (x! ⊗p y!)!.
+  have Hp : cone_norm (sprod_pair x y) <= 1 by exact: sprod_pair_norm_le1.
+  have Hpp : cone_norm (sprod_pair x y)! <= 1 by exact: prom_ball.
+  rewrite /tens_cofree_str.
+  rewrite -[Lfun (icones_comp (bang_fmap (iso_bwd (Seely2 A B))) _) _]
+          /(Lfun (bang_fmap (iso_bwd (Seely2 A B)))
+            (Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) (x! ⊗p y!))).
+  rewrite -[Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) _]
+          /(Lfun (dig (sprod A B)) (Lfun (iso_fwd (Seely2 A B)) (x! ⊗p y!))).
+  rewrite (Seely2E x y Hx Hy) (dig_prom (sprod_pair x y) Hp).
+  rewrite (bang_fmap_prom (iso_bwd (Seely2 A B)) (sprod_pair x y)! Hpp).
+  congr (prom _).
+  apply: (iso_fwd_inj (Seely2 A B)).
+  rewrite -[Lfun (iso_fwd (Seely2 A B)) (Lfun (iso_bwd (Seely2 A B)) _)]
+          /(Lfun (icones_comp (iso_fwd (Seely2 A B)) (iso_bwd (Seely2 A B))) (sprod_pair x y)!).
+  rewrite iso_bwdK -[Lfun (icones_id _ _) _]/((sprod_pair x y)!).
+  by rewrite (Seely2E x y Hx Hy).
+rewrite Hstr.
+(* RHS: [m_{!A,!B}((dig⊗dig)(x!⊗y!)) = m_{!A,!B}((x!)!⊗(y!)!) = (x!⊗y!)!]. *)
+rewrite -[Lfun (icones_comp (m_bang (Bg A) (Bg B)) (tensor_mor (dig A) (dig B))) _]
+        /(Lfun (m_bang (Bg A) (Bg B)) (Lfun (tensor_mor (dig A) (dig B)) (x! ⊗p y!))).
+rewrite tensor_morE (dig_prom x Hx) (dig_prom y Hy).
+by rewrite (m_bang_prom (prom_ball Hx) (prom_ball Hy)).
+Qed.
+
+(** Seal [tens_cofree_str] now that the two lemmas needing to unfold it
+    ([m_bang_prom], [tens_cofree_str_m_bang]) are proved. *)
+Opaque tens_cofree_str.
+
+(** The structure map of [tens_cofree A B] is [tens_cofree_str A B]
+    (definitional projection; stated as a lemma so [rewrite] can fold it
+    WITHOUT the heavyweight [/=] that would expand [m_bang]/[tens_cofree_str]
+    into their [lin]/[scones] internals and diverge). *)
+Lemma tens_cofree_strE (A B : ICone.type Ar) :
+  coalg_str (tens_cofree A B) = tens_cofree_str A B.
+Proof. by []. Qed.
+
+(** [m_{A,B}] is a coalgebra morphism [tens_cofree A B → !̃(A⊗B)]:
+    [dig_{A⊗B} ∘ m_{A,B} = !(m_{A,B}) ∘ tens_cofree_str_{A,B}].  Both send
+    [x!⊗y!] to [((x⊗y)!)!]. *)
+Lemma m_bang_is_coalg_mor (A B : ICone.type Ar) :
+  is_coalg_mor (tens_cofree A B) (bang_cofree (A ⊗ B)) (m_bang A B).
+Proof.
+rewrite /is_coalg_mor (bang_cofree_str (A ⊗ B)) (tens_cofree_strE A B).
+apply: tens_excl_charact => x y Hx Hy.
+have Hpt : cone_norm (x! ⊗p y!) <= 1
+  by exact: ptensor_prom_ball (prom_ball Hx) (prom_ball Hy).
+(* The RHS carries the heavy [tens_cofree_str]/[m_bang] terms, so EVERY
+   rewrite below is scoped to [in LHS]/[in RHS] to avoid whole-goal
+   conversion scans (which diverge on those [lin]/[scones] internals). *)
+(* LHS: [dig (m (x!⊗y!)) = dig ((x⊗y)!) = ((x⊗y)!)!]. *)
+rewrite [in LHS]Lfun_comp [in LHS](m_bang_prom Hx Hy).
+rewrite [in LHS](dig_prom (x ⊗p y) (ptensor_prom_ball Hx Hy)).
+(* RHS: [!m (tens_cofree_str (x!⊗y!)) = !m ((x!⊗y!)!) = (m(x!⊗y!))!
+        = ((x⊗y)!)!]. *)
+rewrite [in RHS]Lfun_comp [in RHS](tens_cofree_str_prom Hx Hy).
+rewrite [in RHS](bang_fmap_prom (m_bang A B) (x! ⊗p y!) Hpt).
+by rewrite [in RHS](m_bang_prom Hx Hy).
+Qed.
+
+(** Monoidal-comonad coassociativity of [m] (direct equation form):
+    [dig_{A⊗B} ∘ m_{A,B} = !(m_{A,B}) ∘ m_{!A,!B} ∘ (dig_A ⊗ dig_B)].
+    Combines [m_bang_is_coalg_mor] (with [coalg_str] projected to [dig]/
+    [tens_cofree_str]) and [tens_cofree_str_m_bang]. *)
+Lemma m_bang_coassoc (A B : ICone.type Ar) :
+  icones_comp (dig (A ⊗ B)) (m_bang A B) =
+  icones_comp (bang_fmap (m_bang A B))
+    (icones_comp (m_bang (Bg A) (Bg B)) (tensor_mor (dig A) (dig B))).
+Proof.
+have H := m_bang_is_coalg_mor A B.
+rewrite /is_coalg_mor (bang_cofree_str (A ⊗ B)) (tens_cofree_strE A B) in H.
+by rewrite H (tens_cofree_str_m_bang A B).
+Qed.
+
+(** ** Bifunctoriality of [⊗] on morphisms (a small local helper)
+
+    [(g1 ∘ f1) ⊗ (g2 ∘ f2) = (g1 ⊗ g2) ∘ (f1 ⊗ f2)].  Agreement on pure
+    tensors by [tensor_morE]. *)
+Lemma tensor_mor_comp (B1 B2 B3 C1 C2 C3 : ICone.type Ar)
+    (g1 : icones_hom Ar B2 B3) (f1 : icones_hom Ar B1 B2)
+    (g2 : icones_hom Ar C2 C3) (f2 : icones_hom Ar C1 C2) :
+  tensor_mor (icones_comp g1 f1) (icones_comp g2 f2) =
+  icones_comp (tensor_mor g1 g2) (tensor_mor f1 f2).
+Proof.
+apply: tensor_ext => x y.
+rewrite tensor_morE.
+rewrite -[Lfun (icones_comp (tensor_mor g1 g2) (tensor_mor f1 f2)) _]
+        /(Lfun (tensor_mor g1 g2) (Lfun (tensor_mor f1 f2) (x ⊗p y))).
+by rewrite !tensor_morE.
+Qed.
+
+(** Naturality of [m]: [m_{A',B'} ∘ (!f ⊗ !g) = !(f⊗g) ∘ m_{A,B}].
+    On [x!⊗y!] both sides give [(f x ⊗ g y)!]. *)
+Lemma m_bang_nat (A A' B B' : ICone.type Ar)
+    (f : icones_hom Ar A A') (g : icones_hom Ar B B') :
+  icones_comp (m_bang A' B') (tensor_mor (bang_fmap f) (bang_fmap g)) =
+  icones_comp (bang_fmap (tensor_mor f g)) (m_bang A B).
+Proof.
+apply: tens_excl_charact => x y Hx Hy.
+(* LHS *)
+rewrite -[Lfun (icones_comp (m_bang A' B') (tensor_mor (bang_fmap f) (bang_fmap g))) _]
+        /(Lfun (m_bang A' B') (Lfun (tensor_mor (bang_fmap f) (bang_fmap g)) (x! ⊗p y!))).
+rewrite tensor_morE (bang_fmap_prom f x Hx) (bang_fmap_prom g y Hy).
+have Hf : cone_norm (Lfun f x) <= 1 by exact: (ders_lin_ball f Hx).
+have Hg : cone_norm (Lfun g y) <= 1 by exact: (ders_lin_ball g Hy).
+rewrite (m_bang_prom Hf Hg).
+(* RHS *)
+rewrite -[Lfun (icones_comp (bang_fmap (tensor_mor f g)) (m_bang A B)) _]
+        /(Lfun (bang_fmap (tensor_mor f g)) (Lfun (m_bang A B) (x! ⊗p y!))).
+rewrite (m_bang_prom Hx Hy).
+rewrite (bang_fmap_prom (tensor_mor f g) (x ⊗p y) (ptensor_prom_ball Hx Hy)).
+by rewrite tensor_morE.
+Qed.
+
+(** ** The product coalgebra [EM_prod] — Paper §7.4, the lifted [⊗]
+
+    For coalgebras [(A,a)] and [(B,b)], the product carrier is the LINEAR
+    tensor [A⊗B] with structure map [s = m_{A,B} ∘ (a⊗b) : A⊗B ⊸ !(A⊗B)].
+    Both coalgebra laws are GENERAL (every coalgebra), proved through the
+    [m_bang] compatibility lemmas above (whose domain [!A⊗!B] is reducible
+    by [tens_excl_charact]) — no Cor 20 needed. *)
+
+Definition EM_prod_str (P Q : Coalgebra Ar) :
+    icones_hom Ar (coalg_obj P ⊗ coalg_obj Q) (Bg (coalg_obj P ⊗ coalg_obj Q)) :=
+  icones_comp (m_bang (coalg_obj P) (coalg_obj Q))
+    (tensor_mor (coalg_str P) (coalg_str Q)).
+
+(** Counit law: [der ∘ s = id].
+    [der ∘ m ∘ (a⊗b) = (der⊗der) ∘ (a⊗b) = (der∘a)⊗(der∘b) = id⊗id = id]. *)
+Lemma EM_prod_counit (P Q : Coalgebra Ar) :
+  icones_comp (der (coalg_obj P ⊗ coalg_obj Q)) (EM_prod_str P Q) =
+  icones_id Ar (coalg_obj P ⊗ coalg_obj Q).
+Proof.
+rewrite /EM_prod_str icones_compA (der_m_bang (coalg_obj P) (coalg_obj Q)).
+rewrite -(tensor_mor_comp (der (coalg_obj P)) (coalg_str P)
+                          (der (coalg_obj Q)) (coalg_str Q)).
+by rewrite (coalg_counit P) (coalg_counit Q) tensor_mor_id.
+Qed.
+
+(** Coassociativity: [dig ∘ s = !s ∘ s]. *)
+Lemma EM_prod_coassoc (P Q : Coalgebra Ar) :
+  icones_comp (dig (coalg_obj P ⊗ coalg_obj Q)) (EM_prod_str P Q) =
+  icones_comp (bang_fmap (EM_prod_str P Q)) (EM_prod_str P Q).
+Proof.
+rewrite /EM_prod_str.
+(* Reassociate the LHS [dig ∘ (m ∘ (a⊗b)) → (dig ∘ m) ∘ (a⊗b)] (scoped so
+   the [!s∘s] RHS, whose [m∘(a⊗b)] is hidden under the opaque [bang_fmap],
+   is never disturbed), then pull [dig∘m] out by [m_bang_coassoc]. *)
+rewrite [in LHS]icones_compA [in LHS](m_bang_coassoc (coalg_obj P) (coalg_obj Q)).
+(* fully right-associate the LHS *)
+rewrite -[in LHS]icones_compA -[in LHS]icones_compA.
+(* combine [(dig⊗dig) ∘ (a⊗b)] = [(dig∘a)⊗(dig∘b)] *)
+rewrite -[in LHS](tensor_mor_comp (dig (coalg_obj P)) (coalg_str P)
+                          (dig (coalg_obj Q)) (coalg_str Q)).
+rewrite [in LHS](coalg_coassoc P) [in LHS](coalg_coassoc Q).
+(* split [(!a∘a)⊗(!b∘b)] = [(!a⊗!b) ∘ (a⊗b)] *)
+rewrite [in LHS](tensor_mor_comp (bang_fmap (coalg_str P)) (coalg_str P)
+                         (bang_fmap (coalg_str Q)) (coalg_str Q)).
+(* LHS now [!m ∘ (m!! ∘ ((!a⊗!b) ∘ (a⊗b)))]; pull [!(a⊗b)] across [m!!] *)
+rewrite [in LHS](icones_compA (m_bang (Bg (coalg_obj P)) (Bg (coalg_obj Q)))).
+rewrite [in LHS](m_bang_nat (coalg_str P) (coalg_str Q)).
+(* LHS now [!m ∘ ((!(a⊗b) ∘ m) ∘ (a⊗b))]; reassociate to expose [!m ∘ !(a⊗b)] *)
+rewrite [in LHS](icones_compA (bang_fmap (m_bang (coalg_obj P) (coalg_obj Q)))).
+rewrite [in LHS](icones_compA (bang_fmap (m_bang (coalg_obj P) (coalg_obj Q)))).
+rewrite -[in LHS](bang_fmap_comp (m_bang (coalg_obj P) (coalg_obj Q))
+                         (tensor_mor (coalg_str P) (coalg_str Q))).
+(* LHS is now [((!(m∘(a⊗b)) ∘ m) ∘ (a⊗b))] = [!(m∘(a⊗b)) ∘ (m∘(a⊗b))] = RHS *)
+by rewrite -[in LHS]icones_compA.
+Qed.
+
+Definition EM_prod (P Q : Coalgebra Ar) : Coalgebra Ar :=
+  MkCoalgebra (EM_prod_counit P Q) (EM_prod_coassoc P Q).
+
+Lemma EM_prod_obj (P Q : Coalgebra Ar) :
+  coalg_obj (EM_prod P Q) = (coalg_obj P ⊗ coalg_obj Q).
+Proof. by []. Qed.
+
+Lemma EM_prod_str_E (P Q : Coalgebra Ar) :
+  coalg_str (EM_prod P Q) = EM_prod_str P Q.
+Proof. by []. Qed.
+
+(** ** The terminal coalgebra [EM_term]
+
+    The tensor unit [1] with the step-2 transported structure
+    [unit_cofree_str] is the terminal object of [EM(!)]: every coalgebra
+    has a unique morphism into it. *)
+Definition EM_term : Coalgebra Ar := unit_cofree.
+
+Lemma EM_term_obj : coalg_obj EM_term = cone_one_car Ar.
+Proof. by []. Qed.
+
+(** ** The transported comonoid on every coalgebra — Eq 88
+
+    For a coalgebra [(A,a)] the comonoid maps are transported from the
+    Seely comonoid on the cofree object [!A] along the retraction
+    [A —a→ !A —ε→ A] ([ε∘a = id], [coalg_counit]):
+      [coalg_d = (ε⊗ε) ∘ d_{!A} ∘ a : A ⊸ A⊗A]   (Eq 88, diagonal)
+      [coalg_e = e_{!A} ∘ a : A ⊸ 1]              (Eq 88, counit).
+    These are GENERAL definitions; the comonoid laws and the
+    coalgebra-morphism squares (Cor 20) are per-object ([EMComon]). *)
+Definition coalg_d (P : Coalgebra Ar) :
+    icones_hom Ar (coalg_obj P) (coalg_obj P ⊗ coalg_obj P) :=
+  icones_comp (tensor_mor (der (coalg_obj P)) (der (coalg_obj P)))
+    (icones_comp (d_bang (coalg_obj P)) (coalg_str P)).
+
+Definition coalg_e (P : Coalgebra Ar) :
+    icones_hom Ar (coalg_obj P) (cone_one_car Ar) :=
+  icones_comp (e_bang (coalg_obj P)) (coalg_str P).
+
+(** ** The per-object comonoidal structure — Prop 26/27 + Cor 20
+
+    [EMComon P] bundles the facts that Melliès' Prop 28 establishes for a
+    coalgebra [P], and which in our model reduce on a SPANNING set of
+    promoted points (so are provable for [!̃B] via [bang_ext] and for
+    [FMeas X] via [dirac_dense]):
+    - the four commutative-comonoid laws for [(coalg_obj P, coalg_d, coalg_e)]
+      (coassociativity, both counits, cocommutativity) — Prop 27;
+    - [coalg_d P] is a coalgebra morphism [P → EM_prod P P] — Cor 20;
+    - [coalg_e P] is a coalgebra morphism [P → EM_term] — Prop 26 (easy).
+
+    From a pair of [EMComon] objects we derive the cartesian universal
+    property (Cor 17) below.  Objects carrying [EMComon] are exactly the
+    expert's "rich subcategory" — they include the cofree coalgebras and
+    the Theorem-9.7 coalgebras. *)
+Record EMComon (P : Coalgebra Ar) : Type := MkEMComon {
+  emc_coassoc :
+    icones_comp (iso_fwd (tensor_assoc (coalg_obj P) (coalg_obj P) (coalg_obj P)))
+      (icones_comp (tensor_mor (coalg_d P) (icones_id Ar (coalg_obj P))) (coalg_d P)) =
+    icones_comp (tensor_mor (icones_id Ar (coalg_obj P)) (coalg_d P)) (coalg_d P);
+  emc_counitL :
+    icones_comp (iso_fwd (tensor_lunit (coalg_obj P)))
+      (icones_comp (tensor_mor (coalg_e P) (icones_id Ar (coalg_obj P))) (coalg_d P)) =
+    icones_id Ar (coalg_obj P);
+  emc_counitR :
+    icones_comp (iso_fwd (tensor_runit (coalg_obj P)))
+      (icones_comp (tensor_mor (icones_id Ar (coalg_obj P)) (coalg_e P)) (coalg_d P)) =
+    icones_id Ar (coalg_obj P);
+  emc_cocomm :
+    icones_comp (iso_fwd (tensor_braid (coalg_obj P) (coalg_obj P))) (coalg_d P) =
+    coalg_d P;
+  emc_d_mor : is_coalg_mor P (EM_prod P P) (coalg_d P);
+  emc_e_mor : is_coalg_mor P EM_term (coalg_e P);
+}.
+
+End EMCartesian.
+
+Arguments m_bang {R Ar} A B.
+Arguments ptensor_prom_ball {R Ar A B x y}.
+Arguments m_bang_prom {R Ar A B x y}.
+Arguments der_m_bang {R Ar} A B.
+Arguments tens_cofree_str_m_bang {R Ar} A B.
+Arguments m_bang_is_coalg_mor {R Ar} A B.
+Arguments tensor_mor_comp {R Ar B1 B2 B3 C1 C2 C3} g1 f1 g2 f2.
+Arguments m_bang_nat {R Ar A A' B B'} f g.
+Arguments EM_prod_str {R Ar} P Q.
+Arguments EM_prod {R Ar} P Q.
+Arguments EM_term {R Ar}.
+Arguments coalg_d {R Ar} P.
+Arguments coalg_e {R Ar} P.
+Arguments EMComon {R Ar} P.
+Arguments emc_coassoc {R Ar P}.
+Arguments emc_counitL {R Ar P}.
+Arguments emc_counitR {R Ar P}.
+Arguments emc_cocomm {R Ar P}.
+Arguments emc_d_mor {R Ar P}.
+Arguments emc_e_mor {R Ar P}.
+
+(** ** Witness 1 — the cofree coalgebras [!̃B] are comonoidal
+
+    On [bang_cofree B] the Eq-88 comonoid recovers EXACTLY the step-2 Seely
+    comonoid [d_bang]/[e_bang], so every [EMComon] field is a step-2 lemma
+    ([comonoid_*], [d_bang_is_coalg_mor], [e_bang_is_coalg_mor]). *)
+Section CofreeComonoidal.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "B '⊗' C" := (tensor Ar B C)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation Bg := (@Bang R Ar).
+
+(** [coalg_d (!̃B) = d_bang B].  On [x!]:
+    [coalg_d (x!) = (ε⊗ε)(d_{!B}(dig_B(x!))) = (ε⊗ε)(d_{!B}((x!)!))
+    = (ε⊗ε)((x!)! ⊗ (x!)!) = x! ⊗ x! = d_bang B (x!)]. *)
+Lemma coalg_d_cofree (B : ICone.type Ar) :
+  coalg_d (bang_cofree B) = d_bang B.
+Proof.
+rewrite /coalg_d; apply: bang_ext => x Hx.
+rewrite -[Lfun (icones_comp (tensor_mor (der (Bg B)) (der (Bg B)))
+                  (icones_comp (d_bang (Bg B)) (coalg_str (bang_cofree B)))) x!]
+        /(Lfun (tensor_mor (der (Bg B)) (der (Bg B)))
+          (Lfun (icones_comp (d_bang (Bg B)) (coalg_str (bang_cofree B))) x!)).
+rewrite -[Lfun (icones_comp (d_bang (Bg B)) (coalg_str (bang_cofree B))) x!]
+        /(Lfun (d_bang (Bg B)) (Lfun (coalg_str (bang_cofree B)) x!)).
+rewrite bang_cofree_str (dig_prom x Hx) (d_bang_prom x! (prom_ball Hx)).
+rewrite (tensor_morE (der (Bg B)) (der (Bg B)) (x!)! (x!)!).
+rewrite (der_prom x! (prom_ball Hx)).
+by rewrite (d_bang_prom x Hx).
+Qed.
+
+(** [coalg_e (!̃B) = e_bang B].  On [x!]:
+    [coalg_e (x!) = e_{!B}(dig_B(x!)) = e_{!B}((x!)!) = 1 = e_bang B (x!)]. *)
+Lemma coalg_e_cofree (B : ICone.type Ar) :
+  coalg_e (bang_cofree B) = e_bang B.
+Proof.
+rewrite /coalg_e; apply: bang_ext => x Hx.
+rewrite -[Lfun (icones_comp (e_bang (Bg B)) (coalg_str (bang_cofree B))) x!]
+        /(Lfun (e_bang (Bg B)) (Lfun (coalg_str (bang_cofree B)) x!)).
+rewrite bang_cofree_str (dig_prom x Hx).
+by rewrite (e_bang_prom x! (prom_ball Hx)) (e_bang_prom x Hx).
+Qed.
+
+(** The product coalgebra of two cofree objects has the same structure map
+    as the step-2 transported coalgebra [tens_cofree B B]
+    ([EM_prod_str = m ∘ (dig ⊗ dig) = tens_cofree_str], by
+    [tens_cofree_str_m_bang]). *)
+Lemma EM_prod_str_cofree (B : ICone.type Ar) :
+  EM_prod_str (bang_cofree B) (bang_cofree B) = tens_cofree_str B B.
+Proof.
+by rewrite /EM_prod_str /= -(tens_cofree_str_m_bang B B).
+Qed.
+
+(** Hence the [EMComon] structure on every cofree coalgebra. *)
+Lemma EMComon_cofree (B : ICone.type Ar) : EMComon (bang_cofree B).
+Proof.
+have Hd := coalg_d_cofree B; have He := coalg_e_cofree B.
+apply: MkEMComon.
+- rewrite Hd; exact: (comonoid_coassoc B).
+- rewrite Hd He; exact: (comonoid_counitL B).
+- rewrite Hd He; exact: (comonoid_counitR B).
+- rewrite Hd; exact: (comonoid_cocomm B).
+- (* [coalg_d (!̃B)] is a coalgebra morphism [!̃B → EM_prod (!̃B)(!̃B)].
+     Reduce to [d_bang_is_coalg_mor] after rewriting [coalg_d = d_bang]
+     and [EM_prod_str = tens_cofree_str]. *)
+  rewrite /is_coalg_mor EM_prod_str_E EM_prod_str_cofree Hd.
+  exact: (d_bang_is_coalg_mor B).
+- (* [coalg_e (!̃B)] is a coalgebra morphism [!̃B → EM_term = unit_cofree]. *)
+  rewrite /is_coalg_mor He.
+  exact: (e_bang_is_coalg_mor B).
+Qed.
+
+End CofreeComonoidal.
+
+Arguments coalg_d_cofree {R Ar} B.
+Arguments coalg_e_cofree {R Ar} B.
+Arguments EM_prod_str_cofree {R Ar} B.
+Arguments EMComon_cofree {R Ar} B.
+
+(** ** Witness 2 — the Theorem-9.7 coalgebras [FMeas(X)] are comonoidal
+
+    On [FMeas_coalgebra X] the structure map [Coalg_X] sends the Dirac
+    basis [δ_X r] to the promoted point [(δ_X r)!] ([Coalg_dirac]), so the
+    Eq-88 comonoid maps compute on the [δ_X r] and every [EMComon] field
+    discharges by the [dirac_dense] extensionality (Paper [th:dirac-dense]).
+    This is precisely the expert's "à défaut" requirement: the rich
+    subcategory CONTAINS the 9.7 coalgebras. *)
+Section FMeasComonoidal.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "B '⊗' C" := (tensor Ar B C)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation Bg := (@Bang R Ar).
+
+(** [‖δ_X r‖ ≤ 1]. *)
+Let dirac_ball (X : ar_obj Ar) (r : ar_carrier Ar X) :
+  cone_norm (dirac_fmeas r : FMeas X) <= 1.
+Proof. rewrite dirac_fmeas_norm; exact: lexx. Qed.
+
+(** The structure map of the 9.7 coalgebra is [Coalg X] (definitional;
+    stated as a lemma so [rewrite] folds it without [/=]). *)
+Lemma coalg_str_FMeas (X : ar_obj Ar) :
+  coalg_str (FMeas_coalgebra X) = Coalg X.
+Proof. by []. Qed.
+
+(** [coalg_d (FMeas X) (δ_X r) = δ_X r ⊗ δ_X r]. *)
+Lemma coalg_d_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
+  Lfun (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r) =
+  (dirac_fmeas r : FMeas X) ⊗p (dirac_fmeas r : FMeas X).
+Proof.
+rewrite /coalg_d.
+rewrite -[Lfun (icones_comp (tensor_mor (der (FMeas X)) (der (FMeas X)))
+                  (icones_comp (d_bang (FMeas X)) (coalg_str (FMeas_coalgebra X))))
+            (dirac_fmeas r)]
+        /(Lfun (tensor_mor (der (FMeas X)) (der (FMeas X)))
+          (Lfun (icones_comp (d_bang (FMeas X)) (coalg_str (FMeas_coalgebra X)))
+            (dirac_fmeas r))).
+rewrite -[Lfun (icones_comp (d_bang (FMeas X)) (coalg_str (FMeas_coalgebra X)))
+            (dirac_fmeas r)]
+        /(Lfun (d_bang (FMeas X)) (Lfun (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r))).
+rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
+rewrite (d_bang_prom (dirac_fmeas r) (dirac_ball r)).
+rewrite (tensor_morE (der (FMeas X)) (der (FMeas X))
+          (dirac_fmeas r : FMeas X)! (dirac_fmeas r : FMeas X)!).
+by rewrite (der_prom (dirac_fmeas r : FMeas X) (dirac_ball r)).
+Qed.
+
+(** [coalg_e (FMeas X) (δ_X r) = 1] (the unit point [one1]). *)
+Lemma coalg_e_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
+  Lfun (coalg_e (FMeas_coalgebra X)) (dirac_fmeas r) = one1.
+Proof.
+rewrite /coalg_e.
+rewrite -[Lfun (icones_comp (e_bang (FMeas X)) (coalg_str (FMeas_coalgebra X)))
+            (dirac_fmeas r)]
+        /(Lfun (e_bang (FMeas X)) (Lfun (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r))).
+rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
+by rewrite (e_bang_prom (dirac_fmeas r) (dirac_ball r)).
+Qed.
+
+(** The [EMComon] structure on every 9.7 coalgebra.  Every field reduces on
+    the Dirac basis [δ_X r] via [dirac_dense]; we keep the heavy [m_bang]/
+    [bang_fmap] sealed and peel compositions with explicit [Lfun_comp]
+    instances + explicit [tensor_morE] (so no whole-goal conversion scan
+    diverges, and [δ_X r] is pinned to its [FMeas X] view throughout). *)
+Lemma EMComon_FMeas (X : ar_obj Ar) : EMComon (FMeas_coalgebra X).
+Proof.
+have D := coalg_d_dirac (X:=X); have E := coalg_e_dirac (X:=X).
+have idd r : Lfun (icones_id Ar (FMeas X)) (dirac_fmeas r) = (dirac_fmeas r : FMeas X)
+  by [].
+have e1 : c1_val (one1 : cone_one_car Ar) = 1%:nng by [].
+apply: MkEMComon.
+- (* coassoc: on [δ_X r] both sides are [δ ⊗ (δ ⊗ δ)]. *)
+  apply: (dirac_dense (X:=X)) => r.
+  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_assoc (FMeas X) (FMeas X) (FMeas X)))
+            (icones_comp (tensor_mor (coalg_d (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
+               (coalg_d (FMeas_coalgebra X))) (dirac_fmeas r)).
+  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (coalg_d (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
+            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite D (tensor_morE (coalg_d (FMeas_coalgebra X)) (icones_id Ar (FMeas X))
+              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
+  rewrite D idd tensor_assocEp.
+  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (icones_id Ar (FMeas X)) (coalg_d (FMeas_coalgebra X)))
+            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite D (tensor_morE (icones_id Ar (FMeas X)) (coalg_d (FMeas_coalgebra X))
+              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
+  by rewrite idd D.
+- (* counitL: [λ ((e⊗id)(δ⊗δ)) = λ(1⊗δ) = δ]. *)
+  apply: (dirac_dense (X:=X)) => r.
+  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_lunit (FMeas X)))
+            (icones_comp (tensor_mor (coalg_e (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
+               (coalg_d (FMeas_coalgebra X))) (dirac_fmeas r)).
+  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (coalg_e (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
+            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite D (tensor_morE (coalg_e (FMeas_coalgebra X)) (icones_id Ar (FMeas X))
+              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
+  rewrite E idd tensor_lunitEp.
+  by rewrite e1 precone_scale_1.
+- (* counitR: symmetric. *)
+  apply: (dirac_dense (X:=X)) => r.
+  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_runit (FMeas X)))
+            (icones_comp (tensor_mor (icones_id Ar (FMeas X)) (coalg_e (FMeas_coalgebra X)))
+               (coalg_d (FMeas_coalgebra X))) (dirac_fmeas r)).
+  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (icones_id Ar (FMeas X)) (coalg_e (FMeas_coalgebra X)))
+            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite D (tensor_morE (icones_id Ar (FMeas X)) (coalg_e (FMeas_coalgebra X))
+              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
+  rewrite E idd tensor_runitEp.
+  by rewrite e1 precone_scale_1.
+- (* cocomm: [σ(δ⊗δ) = δ⊗δ]. *)
+  apply: (dirac_dense (X:=X)) => r.
+  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_braid (FMeas X) (FMeas X)))
+            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
+  by rewrite D tensor_braidEp.
+- (* [coalg_d] is a coalgebra morphism [FMeas X → EM_prod (FMeas X)(FMeas X)].
+     On [δ_X r]: LHS [s(δ⊗δ) = m((Coalg⊗Coalg)(δ⊗δ)) = m(δ!⊗δ!) = (δ⊗δ)!];
+     RHS [!(coalg_d)(Coalg(δ)) = !(coalg_d)(δ!) = (coalg_d δ)! = (δ⊗δ)!]. *)
+  rewrite /is_coalg_mor EM_prod_str_E.
+  apply: (dirac_dense (X:=X)) => r.
+  rewrite (@Lfun_comp _ _ _ _ _ (EM_prod_str (FMeas_coalgebra X) (FMeas_coalgebra X))
+            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite D /EM_prod_str.
+  rewrite (@Lfun_comp _ _ _ _ _ (m_bang (FMeas X) (FMeas X))
+            (tensor_mor (coalg_str (FMeas_coalgebra X)) (coalg_str (FMeas_coalgebra X)))
+            ((dirac_fmeas r : FMeas X) ⊗p (dirac_fmeas r : FMeas X))).
+  rewrite (tensor_morE (coalg_str (FMeas_coalgebra X)) (coalg_str (FMeas_coalgebra X))
+            (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
+  rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
+  rewrite (m_bang_prom (dirac_ball r) (dirac_ball r)).
+  rewrite (@Lfun_comp _ _ _ _ _ (bang_fmap (coalg_d (FMeas_coalgebra X)))
+            (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
+  rewrite (bang_fmap_prom (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r) (dirac_ball r)).
+  by rewrite D.
+- (* [coalg_e] is a coalgebra morphism [FMeas X → EM_term = unit_cofree].
+     On [δ_X r]: LHS [unit_cofree_str(e(δ)) = unit_cofree_str(1) = 1!];
+     RHS [!(coalg_e)(Coalg(δ)) = !(coalg_e)(δ!) = (coalg_e δ)! = 1!]. *)
+  rewrite /is_coalg_mor.
+  apply: (dirac_dense (X:=X)) => r.
+  rewrite (@Lfun_comp _ _ _ _ _ (coalg_str EM_term) (coalg_e (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite E -[coalg_str EM_term]/(unit_cofree_str) unit_cofree_str_one1.
+  rewrite (@Lfun_comp _ _ _ _ _ (bang_fmap (coalg_e (FMeas_coalgebra X)))
+            (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r)).
+  rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
+  rewrite (bang_fmap_prom (coalg_e (FMeas_coalgebra X)) (dirac_fmeas r) (dirac_ball r)).
+  by rewrite E.
+Qed.
+
+End FMeasComonoidal.
+
+Arguments coalg_d_dirac {R Ar X} r.
+Arguments coalg_e_dirac {R Ar X} r.
+Arguments EMComon_FMeas {R Ar} X.
+
+(** ** The cartesian universal property — Melliès Corollary 17
+
+    From a pair of comonoidal objects we build the binary-product universal
+    property of [(EM_prod, EM_term)] in [EM(!)].  The pieces:
+    - [EM_prod_mor] — [⊗] is a bifunctor ON [EM(!)] (tensor of coalgebra
+      morphisms is a coalgebra morphism), GENERAL;
+    - [coalg_mor_is_comonoid] — every coalgebra morphism is a comonoid
+      morphism (Melliès' "nearly immediate" naturality), GENERAL;
+    - the projections, pairing and diagonal, and the [β]/[η] laws of the
+      product, plus the terminal universal property. *)
+Section CartesianUP.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "B '⊗' C" := (tensor Ar B C)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation Bg := (@Bang R Ar).
+
+(** *** [⊗] is a bifunctor on [EM(!)] (GENERAL)
+
+    If [f : P → P'] and [g : Q → Q'] are coalgebra morphisms then
+    [f ⊗ g : EM_prod P Q → EM_prod P' Q'] is a coalgebra morphism. *)
+Lemma EM_prod_mor (P P' Q Q' : Coalgebra Ar)
+    (f : icones_hom Ar (coalg_obj P) (coalg_obj P'))
+    (g : icones_hom Ar (coalg_obj Q) (coalg_obj Q')) :
+  is_coalg_mor P P' f -> is_coalg_mor Q Q' g ->
+  is_coalg_mor (EM_prod P Q) (EM_prod P' Q') (tensor_mor f g).
+Proof.
+move=> Hf Hg.
+rewrite /is_coalg_mor.
+rewrite (EM_prod_str_E P' Q') (EM_prod_str_E P Q) /EM_prod_str.
+(* LHS: [m' ∘ (a'⊗b') ∘ (f⊗g) = m' ∘ ((a'∘f)⊗(b'∘g))
+        = m' ∘ ((!f∘a)⊗(!g∘b)) = m' ∘ (!f⊗!g) ∘ (a⊗b)
+        = !(f⊗g) ∘ m ∘ (a⊗b)]. *)
+rewrite -icones_compA -(tensor_mor_comp (coalg_str P') f (coalg_str Q') g).
+rewrite /is_coalg_mor in Hf Hg; rewrite Hf Hg.
+rewrite (tensor_mor_comp (bang_fmap f) (coalg_str P) (bang_fmap g) (coalg_str Q)).
+rewrite (icones_compA (m_bang (coalg_obj P') (coalg_obj Q'))) (m_bang_nat f g).
+by rewrite -!icones_compA.
+Qed.
+
+(** *** Naturality of the unitors and braiding w.r.t. plain maps
+
+    Small SMC helpers (no [!] content), by [tensor_ext]. *)
+Lemma tensor_runit_nat (A A' : ICone.type Ar) (f : icones_hom Ar A A') :
+  icones_comp (iso_fwd (tensor_runit A')) (tensor_mor f (icones_id Ar (cone_one_car Ar))) =
+  icones_comp f (iso_fwd (tensor_runit A)).
+Proof.
+apply: tensor_ext => x u.
+rewrite -[Lfun (icones_comp (iso_fwd (tensor_runit A')) (tensor_mor f (icones_id Ar (cone_one_car Ar)))) _]
+        /(Lfun (iso_fwd (tensor_runit A')) (Lfun (tensor_mor f (icones_id Ar (cone_one_car Ar))) (x ⊗p u))).
+rewrite tensor_morE.
+have idu : Lfun (icones_id Ar (cone_one_car Ar)) u = u by [].
+rewrite idu tensor_runitEp.
+rewrite -[Lfun (icones_comp f (iso_fwd (tensor_runit A))) _]
+        /(Lfun f (Lfun (iso_fwd (tensor_runit A)) (x ⊗p u))).
+rewrite tensor_runitEp.
+by have [_ _ ->] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones f)).
+Qed.
+
+Lemma tensor_lunit_nat (A A' : ICone.type Ar) (f : icones_hom Ar A A') :
+  icones_comp (iso_fwd (tensor_lunit A')) (tensor_mor (icones_id Ar (cone_one_car Ar)) f) =
+  icones_comp f (iso_fwd (tensor_lunit A)).
+Proof.
+apply: tensor_ext => u x.
+rewrite -[Lfun (icones_comp (iso_fwd (tensor_lunit A')) (tensor_mor (icones_id Ar (cone_one_car Ar)) f)) _]
+        /(Lfun (iso_fwd (tensor_lunit A')) (Lfun (tensor_mor (icones_id Ar (cone_one_car Ar)) f) (u ⊗p x))).
+rewrite tensor_morE.
+have idu : Lfun (icones_id Ar (cone_one_car Ar)) u = u by [].
+rewrite idu tensor_lunitEp.
+rewrite -[Lfun (icones_comp f (iso_fwd (tensor_lunit A))) _]
+        /(Lfun f (Lfun (iso_fwd (tensor_lunit A)) (u ⊗p x))).
+rewrite tensor_lunitEp.
+by have [_ _ ->] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones f)).
+Qed.
+
+(** *** Every coalgebra morphism is a comonoid morphism (GENERAL)
+
+    For a coalgebra morphism [g : (Z,z) → (B,b)]:
+    [coalg_e B ∘ g = coalg_e Z]  and  [coalg_d B ∘ g = (g⊗g) ∘ coalg_d Z].
+    Uses the naturality of the Seely comonoid [d_bang]/[e_bang] (proved by
+    [bang_ext]) + counit naturality [der_nat]. *)
+
+(** Naturality of [e_bang]: [e_{B} ∘ !g = e_{Z}].  On [x!] both give [1]. *)
+Lemma e_bang_nat (Z B : ICone.type Ar) (g : icones_hom Ar Z B) :
+  icones_comp (e_bang B) (bang_fmap g) = e_bang Z.
+Proof.
+apply: bang_ext => x Hx.
+rewrite -[Lfun (icones_comp (e_bang B) (bang_fmap g)) x!]
+        /(Lfun (e_bang B) (Lfun (bang_fmap g) x!)).
+by rewrite (bang_fmap_prom g x Hx) (e_bang_prom (Lfun g x) (ders_lin_ball g Hx))
+           (e_bang_prom x Hx).
+Qed.
+
+(** Naturality of [d_bang]: [d_{B} ∘ !g = (!g ⊗ !g) ∘ d_{Z}].
+    On [x!]: LHS [d_B((g x)!) = (g x)! ⊗ (g x)!];
+    RHS [(!g⊗!g)(x!⊗x!) = (g x)! ⊗ (g x)!]. *)
+Lemma d_bang_nat (Z B : ICone.type Ar) (g : icones_hom Ar Z B) :
+  icones_comp (d_bang B) (bang_fmap g) =
+  icones_comp (tensor_mor (bang_fmap g) (bang_fmap g)) (d_bang Z).
+Proof.
+apply: bang_ext => x Hx.
+rewrite -[Lfun (icones_comp (d_bang B) (bang_fmap g)) x!]
+        /(Lfun (d_bang B) (Lfun (bang_fmap g) x!)).
+rewrite (bang_fmap_prom g x Hx) (d_bang_prom (Lfun g x) (ders_lin_ball g Hx)).
+rewrite -[Lfun (icones_comp (tensor_mor (bang_fmap g) (bang_fmap g)) (d_bang Z)) x!]
+        /(Lfun (tensor_mor (bang_fmap g) (bang_fmap g)) (Lfun (d_bang Z) x!)).
+by rewrite (d_bang_prom x Hx) tensor_morE (bang_fmap_prom g x Hx).
+Qed.
+
+(** Comonoid-morphism, counit half: [coalg_e B ∘ g = coalg_e Z]. *)
+Lemma coalg_mor_e (Z B : Coalgebra Ar)
+    (g : icones_hom Ar (coalg_obj Z) (coalg_obj B)) :
+  is_coalg_mor Z B g -> icones_comp (coalg_e B) g = coalg_e Z.
+Proof.
+rewrite /is_coalg_mor /coalg_e => Hg.
+rewrite -icones_compA Hg icones_compA (e_bang_nat g).
+by [].
+Qed.
+
+(** Comonoid-morphism, comultiplication half:
+    [coalg_d B ∘ g = (g⊗g) ∘ coalg_d Z]. *)
+Lemma coalg_mor_d (Z B : Coalgebra Ar)
+    (g : icones_hom Ar (coalg_obj Z) (coalg_obj B)) :
+  is_coalg_mor Z B g ->
+  icones_comp (coalg_d B) g =
+  icones_comp (tensor_mor g g) (coalg_d Z).
+Proof.
+rewrite /is_coalg_mor /coalg_d => Hg.
+(* [coalg_d B ∘ g = (εB⊗εB) ∘ d_B ∘ b ∘ g
+                  = (εB⊗εB) ∘ d_B ∘ !g ∘ z    (g coalg mor)
+                  = (εB⊗εB) ∘ (!g⊗!g) ∘ d_Z ∘ z   (d_bang nat)
+                  = ((εB∘!g)⊗(εB∘!g)) ∘ d_Z ∘ z
+                  = ((g∘εZ)⊗(g∘εZ)) ∘ d_Z ∘ z   (der_nat)
+                  = (g⊗g) ∘ (εZ⊗εZ) ∘ d_Z ∘ z]. *)
+(* Peel with TARGETED [icones_compA] only (a blanket [-!icones_compA]
+   would cascade into the opaque [tensor_mor]/[d_bang] internals). *)
+rewrite -(icones_compA (tensor_mor (der (coalg_obj B)) (der (coalg_obj B)))).
+rewrite -(icones_compA (d_bang (coalg_obj B))) Hg.
+rewrite (icones_compA (d_bang (coalg_obj B))) (d_bang_nat g).
+rewrite (icones_compA (tensor_mor (der (coalg_obj B)) (der (coalg_obj B)))).
+rewrite (icones_compA (tensor_mor (der (coalg_obj B)) (der (coalg_obj B))))
+        -(tensor_mor_comp (der (coalg_obj B)) (bang_fmap g)
+                          (der (coalg_obj B)) (bang_fmap g))
+        -(der_nat g) (tensor_mor_comp g (der (coalg_obj Z)) g (der (coalg_obj Z))).
+by rewrite -(icones_compA (icones_comp (tensor_mor g g)
+              (tensor_mor (der (coalg_obj Z)) (der (coalg_obj Z)))))
+           -(icones_compA (tensor_mor g g)).
+Qed.
+
+End CartesianUP.
+
+Arguments EM_prod_mor {R Ar P P' Q Q'} f g.
+Arguments tensor_runit_nat {R Ar A A'} f.
+Arguments tensor_lunit_nat {R Ar A A'} f.
+Arguments e_bang_nat {R Ar Z B} g.
+Arguments d_bang_nat {R Ar Z B} g.
+Arguments coalg_mor_e {R Ar Z B} g.
+Arguments coalg_mor_d {R Ar Z B} g.
+
+(** ** Products, projections, pairing, diagonal and their laws
+
+    With the comonoid data on the objects, the [⊗]-product becomes the
+    CATEGORICAL product in [EM(!)] (Cor 17).  We package the cartesian data
+    over BUNDLED coalgebra morphisms ([coalg_hom] of [em_cat.v]).  Pairing
+    and diagonal use the comonoid diagonal of the DOMAIN; projections use
+    the comonoid counit of the discarded factor. *)
+Section CartesianData.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "B '⊗' C" := (tensor Ar B C)
+  (at level 40, left associativity) : ring_scope.
+Local Notation Bg := (@Bang R Ar).
+
+(** *** The pairing [⟨f,g⟩ = (f⊗g) ∘ d_Z]
+
+    For coalgebra morphisms [f : Z → P], [g : Z → Q], the pairing into the
+    product is a coalgebra morphism [Z → EM_prod P Q]: it is the composite
+    of the diagonal [coalg_d Z : Z → EM_prod Z Z] ([emc_d_mor]) and the
+    bifunctor action [f ⊗ g : EM_prod Z Z → EM_prod P Q] ([EM_prod_mor]). *)
+Definition em_pair_mor (Z P Q : Coalgebra Ar)
+    (f : icones_hom Ar (coalg_obj Z) (coalg_obj P))
+    (g : icones_hom Ar (coalg_obj Z) (coalg_obj Q)) :
+    icones_hom Ar (coalg_obj Z) (coalg_obj P ⊗ coalg_obj Q) :=
+  icones_comp (tensor_mor f g) (coalg_d Z).
+
+Lemma em_pair_is_mor (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+    (f : icones_hom Ar (coalg_obj Z) (coalg_obj P))
+    (g : icones_hom Ar (coalg_obj Z) (coalg_obj Q)) :
+  is_coalg_mor Z P f -> is_coalg_mor Z Q g ->
+  is_coalg_mor Z (EM_prod P Q) (em_pair_mor f g).
+Proof.
+move=> Hf Hg; rewrite /em_pair_mor.
+apply: (coalg_mor_comp (P := Z) (Q := EM_prod Z Z) (S := EM_prod P Q)).
+- exact: (EM_prod_mor f g Hf Hg).
+- exact: (emc_d_mor hZ).
+Qed.
+
+(** Bundled pairing of [coalg_hom]s. *)
+Definition em_pair (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+    (f : coalg_hom Z P) (g : coalg_hom Z Q) : coalg_hom Z (EM_prod P Q) :=
+  MkCoalgHom (em_pair_is_mor hZ (ch_is_mor f) (ch_is_mor g)).
+
+(** *** The projections
+
+    [em_proj1 = ρ_P ∘ (id_P ⊗ coalg_e Q) : P⊗Q → P],
+    [em_proj2 = λ_Q ∘ (coalg_e P ⊗ id_Q) : P⊗Q → Q]. *)
+Definition em_proj1_mor (P Q : Coalgebra Ar) :
+    icones_hom Ar (coalg_obj P ⊗ coalg_obj Q) (coalg_obj P) :=
+  icones_comp (iso_fwd (tensor_runit (coalg_obj P)))
+    (tensor_mor (icones_id Ar (coalg_obj P)) (coalg_e Q)).
+
+Definition em_proj2_mor (P Q : Coalgebra Ar) :
+    icones_hom Ar (coalg_obj P ⊗ coalg_obj Q) (coalg_obj Q) :=
+  icones_comp (iso_fwd (tensor_lunit (coalg_obj Q)))
+    (tensor_mor (coalg_e P) (icones_id Ar (coalg_obj Q))).
+
+(** *** The product [β]-laws (Cor 17): [π1 ∘ ⟨f,g⟩ = f], [π2 ∘ ⟨f,g⟩ = g]
+
+    Pure [icones_hom] equations (no coalgebra side): the discarded factor is
+    erased by the comonoid counit law [emc_counitR]/[emc_counitL] of the
+    domain [Z], after [tensor_mor_comp] and the comonoid-morphism counit
+    identity [coalg_mor_e]. *)
+Lemma em_proj1_pair (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+    (f : icones_hom Ar (coalg_obj Z) (coalg_obj P))
+    (g : icones_hom Ar (coalg_obj Z) (coalg_obj Q)) :
+  is_coalg_mor Z Q g ->
+  icones_comp (em_proj1_mor P Q) (em_pair_mor f g) = f.
+Proof.
+move=> Hg; rewrite /em_proj1_mor /em_pair_mor.
+(* [ρ ∘ (id⊗eQ) ∘ (f⊗g) ∘ d_Z]; peel with TARGETED [icones_compA] (a blanket
+   [-!icones_compA] would cascade into the opaque [tensor_mor]/[coalg_d]
+   internals). *)
+rewrite -(icones_compA (iso_fwd (tensor_runit (coalg_obj P)))).
+rewrite (icones_compA (tensor_mor (icones_id Ar (coalg_obj P)) (coalg_e Q))).
+rewrite -(tensor_mor_comp (icones_id Ar (coalg_obj P)) f (coalg_e Q) g).
+rewrite icones_compIl (coalg_mor_e g Hg).
+(* [(f ⊗ coalg_e Z) = (f∘id_Z) ⊗ (id_1∘coalg_e Z) = (f⊗id_1) ∘ (id_Z⊗coalg_e Z)]. *)
+rewrite -{1}(icones_compIr f) -(icones_compIl (coalg_e Z)).
+rewrite (tensor_mor_comp f (icones_id Ar (coalg_obj Z))
+                         (icones_id Ar (cone_one_car Ar)) (coalg_e Z)).
+(* [ρ_P ∘ (f ⊗ id_1) = f ∘ ρ_Z]. *)
+rewrite (icones_compA (iso_fwd (tensor_runit (coalg_obj P)))).
+rewrite (icones_compA (iso_fwd (tensor_runit (coalg_obj P)))).
+rewrite (tensor_runit_nat f).
+(* [f ∘ (ρ_Z ∘ (id_Z⊗coalg_e Z) ∘ d_Z) = f ∘ id = f]. *)
+rewrite -(icones_compA (icones_comp f (iso_fwd (tensor_runit (coalg_obj Z))))).
+rewrite -(icones_compA f).
+by rewrite (emc_counitR hZ) icones_compIr.
+Qed.
+
+Lemma em_proj2_pair (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+    (f : icones_hom Ar (coalg_obj Z) (coalg_obj P))
+    (g : icones_hom Ar (coalg_obj Z) (coalg_obj Q)) :
+  is_coalg_mor Z P f ->
+  icones_comp (em_proj2_mor P Q) (em_pair_mor f g) = g.
+Proof.
+move=> Hf; rewrite /em_proj2_mor /em_pair_mor.
+rewrite -(icones_compA (iso_fwd (tensor_lunit (coalg_obj Q)))).
+rewrite (icones_compA (tensor_mor (coalg_e P) (icones_id Ar (coalg_obj Q)))).
+rewrite -(tensor_mor_comp (coalg_e P) f (icones_id Ar (coalg_obj Q)) g).
+rewrite icones_compIl (coalg_mor_e f Hf).
+(* [(coalg_e Z ⊗ g) = (id_1⊗g) ∘ (coalg_e Z⊗id_Z)]. *)
+rewrite -{1}(icones_compIl (coalg_e Z)) -(icones_compIr g).
+rewrite (tensor_mor_comp (icones_id Ar (cone_one_car Ar)) (coalg_e Z)
+                         g (icones_id Ar (coalg_obj Z))).
+(* [λ_Q ∘ (id_1 ⊗ g) = g ∘ λ_Z]. *)
+rewrite (icones_compA (iso_fwd (tensor_lunit (coalg_obj Q)))).
+rewrite (icones_compA (iso_fwd (tensor_lunit (coalg_obj Q)))).
+rewrite (tensor_lunit_nat g).
+rewrite -(icones_compA (icones_comp g (iso_fwd (tensor_lunit (coalg_obj Z))))).
+rewrite -(icones_compA g).
+by rewrite (emc_counitL hZ) icones_compIr.
+Qed.
+
+(** *** The diagonal [Δ_P = ⟨id,id⟩ = coalg_d P]
+
+    The diagonal is the comonoid comultiplication itself (a coalgebra
+    morphism [P → EM_prod P P] by [emc_d_mor]); equivalently the pairing of
+    [id] with [id]. *)
+Lemma em_diag_pair (P : Coalgebra Ar) :
+  em_pair_mor (icones_id Ar (coalg_obj P)) (icones_id Ar (coalg_obj P)) = coalg_d P.
+Proof.
+by rewrite /em_pair_mor tensor_mor_id icones_compIl.
+Qed.
+
+End CartesianData.
+
+Arguments em_pair_mor {R Ar Z P Q} f g.
+Arguments em_pair_is_mor {R Ar Z P Q} hZ {f g}.
+Arguments em_pair {R Ar Z P Q} hZ f g.
+Arguments em_proj1_mor {R Ar} P Q.
+Arguments em_proj2_mor {R Ar} P Q.
+Arguments em_proj1_pair {R Ar Z P Q} hZ {f g}.
+Arguments em_proj2_pair {R Ar Z P Q} hZ {f g}.
+Arguments em_diag_pair {R Ar} P.
+
+(** ** The terminal object [EM_term = (1, ·)] — Cor 17 (nullary case)
+
+    [EM_term] is terminal in [EM(!)]: the unique morphism from every
+    coalgebra [P] is [coalg_e P], and any coalgebra morphism into [EM_term]
+    equals it (because every coalgebra morphism is a comonoid morphism, and
+    the comonoid counit of [EM_term] is the identity). *)
+Section Terminal.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation Bg := (@Bang R Ar).
+
+(** The counit of the terminal coalgebra is the identity:
+    [coalg_e EM_term = id_1]. *)
+Lemma coalg_e_term : coalg_e (EM_term : Coalgebra Ar) = icones_id Ar (cone_one_car Ar).
+Proof.
+apply: one_ext.
+rewrite -[coalg_e EM_term]/(icones_comp (e_bang (cone_one_car Ar)) unit_cofree_str).
+rewrite -[Lfun (icones_comp (e_bang (cone_one_car Ar)) unit_cofree_str) one1]
+        /(Lfun (e_bang (cone_one_car Ar)) (Lfun unit_cofree_str one1)).
+rewrite unit_cofree_str_one1.
+have H1 : cone_norm (one1 : cone_one_car Ar) <= 1.
+  by rewrite (_ : cone_norm one1 = 1) // /cone_norm /= /c1_norm.
+by rewrite (e_bang_prom one1 H1).
+Qed.
+
+(** [coalg_e P] is the canonical morphism [P → EM_term] (a coalgebra
+    morphism for comonoidal [P], [emc_e_mor]). *)
+Definition em_term_mor (P : Coalgebra Ar) (hP : EMComon P) :
+    coalg_hom P EM_term :=
+  MkCoalgHom (emc_e_mor hP).
+
+(** Uniqueness: any coalgebra morphism [h : P → EM_term] equals [coalg_e P].
+    [coalg_mor_e h] gives [coalg_e EM_term ∘ h = coalg_e P], and
+    [coalg_e EM_term = id], so [h = coalg_e P]. *)
+Lemma em_term_unique (P : Coalgebra Ar)
+    (h : icones_hom Ar (coalg_obj P) (coalg_obj (EM_term : Coalgebra Ar))) :
+  is_coalg_mor P EM_term h -> h = coalg_e P.
+Proof.
+move=> Hh.
+have := coalg_mor_e h Hh.
+by rewrite coalg_e_term icones_compIl.
+Qed.
+
+End Terminal.
+
+Arguments coalg_e_term {R Ar}.
+Arguments em_term_mor {R Ar P} hP.
+Arguments em_term_unique {R Ar P} h.
+
+(** ** The headline bundle — Melliès Corollary 17 / Proposition 28
+
+    [(EM(!), ⊗, 1)] is CARTESIAN on the rich subcategory of comonoidal
+    objects: every two comonoidal objects have a [⊗]-product with
+    projections, pairing and the [β]-laws, and the tensor unit is terminal.
+    The record packages the cartesian data + laws over the [EM(!)] category
+    of [em_cat.v]; the field types reference the LINEAR tensor [⊗] (NOT the
+    cartesian [&]) — see [cart_prod_obj]. *)
+Record EM_Cartesian (R : realType) (Ar : MeasSubcat R) : Type := MkEMCartesian {
+  (* binary product carried by the linear ⊗, and terminal = tensor unit *)
+  cart_prod : Coalgebra Ar -> Coalgebra Ar -> Coalgebra Ar;
+  cart_term : Coalgebra Ar;
+  (* the product carrier is the LINEAR tensor of the carriers (NOT [&]) *)
+  cart_prod_obj : forall P Q : Coalgebra Ar,
+    coalg_obj (cart_prod P Q) = tensor Ar (coalg_obj P) (coalg_obj Q);
+  (* projections (underlying maps) and the pairing of coalgebra morphisms
+     out of a comonoidal object *)
+  cart_proj1 : forall P Q : Coalgebra Ar,
+    icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj P);
+  cart_proj2 : forall P Q : Coalgebra Ar,
+    icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj Q);
+  cart_pair : forall (Z P Q : Coalgebra Ar) (hZ : EMComon Z),
+    coalg_hom Z P -> coalg_hom Z Q -> coalg_hom Z (cart_prod P Q);
+  (* the β-laws of the product (Cor 17) *)
+  cart_beta1 : forall (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+    (f : coalg_hom Z P) (g : coalg_hom Z Q),
+    icones_comp (cart_proj1 P Q) (ch_mor (cart_pair hZ f g)) = ch_mor f;
+  cart_beta2 : forall (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+    (f : coalg_hom Z P) (g : coalg_hom Z Q),
+    icones_comp (cart_proj2 P Q) (ch_mor (cart_pair hZ f g)) = ch_mor g;
+  (* terminal universal property: canonical map + uniqueness *)
+  cart_term_mor : forall (P : Coalgebra Ar), EMComon P -> coalg_hom P cart_term;
+  cart_term_unique : forall (P : Coalgebra Ar)
+    (h : icones_hom Ar (coalg_obj P) (coalg_obj cart_term))
+    (hP : EMComon P),
+    is_coalg_mor P cart_term h -> h = ch_mor (cart_term_mor (P := P) hP);
+}.
+
+Arguments EM_Cartesian {R} Ar.
+
+(** *** The canonical cartesian structure of [EM(!)]
+
+    Products [= EM_prod], terminal [= EM_term], projections [= em_proj1/2],
+    pairing [= em_pair], β-laws [= em_proj1/2_pair], terminal UP
+    [= em_term_mor]/[em_term_unique].  Headline result. *)
+Definition ICones_EM_cartesian (R : realType) (Ar : MeasSubcat R) :
+    EM_Cartesian Ar :=
+  {| cart_prod := @EM_prod R Ar;
+     cart_term := @EM_term R Ar;
+     cart_prod_obj := @EM_prod_obj R Ar;
+     cart_proj1 := @em_proj1_mor R Ar;
+     cart_proj2 := @em_proj2_mor R Ar;
+     cart_pair := fun Z P Q hZ f g => @em_pair R Ar Z P Q hZ f g;
+     cart_beta1 := fun Z P Q hZ f g =>
+       @em_proj1_pair R Ar Z P Q hZ (ch_mor f) (ch_mor g) (ch_is_mor g);
+     cart_beta2 := fun Z P Q hZ f g =>
+       @em_proj2_pair R Ar Z P Q hZ (ch_mor f) (ch_mor g) (ch_is_mor f);
+     cart_term_mor := fun P hP => @em_term_mor R Ar P hP;
+     cart_term_unique := fun P h hP Hh => @em_term_unique R Ar P h Hh |}.
+
+(** *** Richness — the rich subcategory contains the generators
+
+    The [EMComon] predicate (membership in the rich cartesian subcategory)
+    holds for the cofree coalgebras [!̃B] and for the Theorem-9.7 coalgebras
+    [FMeas(X)], and is closed under nothing extra is claimed; these two
+    families are exactly the expert's required generators. *)
+Definition ICones_EM_cartesian_cofree (R : realType) (Ar : MeasSubcat R)
+    (B : ICone.type Ar) : EMComon (bang_cofree B) := EMComon_cofree B.
+
+Definition ICones_EM_cartesian_FMeas (R : realType) (Ar : MeasSubcat R)
+    (X : ar_obj Ar) : EMComon (FMeas_coalgebra X) := EMComon_FMeas X.
+
