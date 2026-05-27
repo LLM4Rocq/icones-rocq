@@ -814,6 +814,184 @@ rewrite tensor_lunitEp.
 by have [_ _ ->] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones f)).
 Qed.
 
+
+(** ** Naturality of the associator and braiding (SMC helpers, no [!])
+
+    Companions to [tensor_runit_nat]/[tensor_lunit_nat], proved by
+    pure-tensor extensionality. *)
+Lemma tensor_braid_nat (A A' C C' : ICone.type Ar)
+    (f : icones_hom Ar A A') (g : icones_hom Ar C C') :
+  icones_comp (iso_fwd (tensor_braid A' C')) (tensor_mor f g) =
+  icones_comp (tensor_mor g f) (iso_fwd (tensor_braid A C)).
+Proof.
+apply: tensor_ext => x y.
+rewrite -[Lfun (icones_comp (iso_fwd (tensor_braid A' C')) (tensor_mor f g)) _]
+        /(Lfun (iso_fwd (tensor_braid A' C')) (Lfun (tensor_mor f g) (x ⊗p y))).
+rewrite tensor_morE tensor_braidEp.
+rewrite -[Lfun (icones_comp (tensor_mor g f) (iso_fwd (tensor_braid A C))) _]
+        /(Lfun (tensor_mor g f) (Lfun (iso_fwd (tensor_braid A C)) (x ⊗p y))).
+by rewrite tensor_braidEp tensor_morE.
+Qed.
+
+Lemma tensor_assoc_nat (A A' B B' C C' : ICone.type Ar)
+    (f : icones_hom Ar A A') (g : icones_hom Ar B B') (h : icones_hom Ar C C') :
+  icones_comp (iso_fwd (tensor_assoc A' B' C'))
+    (tensor_mor (tensor_mor f g) h) =
+  icones_comp (tensor_mor f (tensor_mor g h)) (iso_fwd (tensor_assoc A B C)).
+Proof.
+apply: tensor_ext3 => x y z.
+rewrite -[Lfun (icones_comp (iso_fwd (tensor_assoc A' B' C'))
+                  (tensor_mor (tensor_mor f g) h)) _]
+        /(Lfun (iso_fwd (tensor_assoc A' B' C'))
+          (Lfun (tensor_mor (tensor_mor f g) h) ((x ⊗p y) ⊗p z))).
+rewrite tensor_morE tensor_morE tensor_assocEp.
+rewrite -[Lfun (icones_comp (tensor_mor f (tensor_mor g h)) (iso_fwd (tensor_assoc A B C))) _]
+        /(Lfun (tensor_mor f (tensor_mor g h)) (Lfun (iso_fwd (tensor_assoc A B C)) ((x ⊗p y) ⊗p z))).
+by rewrite tensor_assocEp tensor_morE tensor_morE.
+Qed.
+
+
+Lemma lcancel_mono (W A0 B0 : ICone.type Ar)
+    (i : icones_hom Ar A0 B0) (r : icones_hom Ar B0 A0)
+    (f g : icones_hom Ar W A0) :
+  icones_comp r i = icones_id Ar A0 ->
+  icones_comp i f = icones_comp i g -> f = g.
+Proof.
+move=> Hri Heq.
+have H := congr1 (fun k => icones_comp r k) Heq.
+rewrite !icones_compA in H.
+rewrite Hri in H.
+rewrite !icones_compIl in H.
+exact: H.
+Qed.
+
+(** ** Proposition 27 — a retract of a commutative comonoid is one
+
+    Generic SMC transport (no [!] content): given a commutative comonoid
+    [(B, dB, eB)] and a retraction [A —i→ B —r→ A] ([r∘i = id]) with the
+    transported maps [dA := (r⊗r)∘dB∘i], [eA := eB∘i] satisfying Diagram (85)
+    [(i⊗i)∘dA = dB∘i], the triple [(A, dA, eA)] is a commutative comonoid.
+    Each law is proved by left-cancelling the split mono [i] (resp. [i⊗i],
+    [i⊗(i⊗i)]) and reducing to the corresponding [B]-law via (85) and the
+    naturality of the structural isos.  This is Melliès' Prop 27 diagram
+    chase, organised as explicit [have]-factorisations to keep the
+    associativity bookkeeping robust. *)
+Section ComonoidTransport.
+Variables (A B : ICone.type Ar).
+Variables (dB : icones_hom Ar B (B ⊗ B)) (eB : icones_hom Ar B (cone_one_car Ar)).
+Variables (i : icones_hom Ar A B) (r : icones_hom Ar B A).
+Hypothesis Hri : icones_comp r i = icones_id Ar A.
+Hypothesis HBcoassoc :
+  icones_comp (iso_fwd (tensor_assoc B B B))
+    (icones_comp (tensor_mor dB (icones_id Ar B)) dB) =
+  icones_comp (tensor_mor (icones_id Ar B) dB) dB.
+Hypothesis HBcounitL :
+  icones_comp (iso_fwd (tensor_lunit B))
+    (icones_comp (tensor_mor eB (icones_id Ar B)) dB) = icones_id Ar B.
+Hypothesis HBcounitR :
+  icones_comp (iso_fwd (tensor_runit B))
+    (icones_comp (tensor_mor (icones_id Ar B) eB) dB) = icones_id Ar B.
+Hypothesis HBcocomm :
+  icones_comp (iso_fwd (tensor_braid B B)) dB = dB.
+Local Notation dA := (icones_comp (tensor_mor r r) (icones_comp dB i)).
+Local Notation eA := (icones_comp eB i).
+Hypothesis H85 : icones_comp (tensor_mor i i) dA = icones_comp dB i.
+
+(* (i⊗i) is split mono with left inverse (r⊗r) *)
+Let Hri2 : icones_comp (tensor_mor r r) (tensor_mor i i) = icones_id Ar (A ⊗ A).
+Proof. by rewrite -(tensor_mor_comp r i r i) Hri tensor_mor_id. Qed.
+
+Lemma transp_counitL :
+  icones_comp (iso_fwd (tensor_lunit A))
+    (icones_comp (tensor_mor eA (icones_id Ar A)) dA) = icones_id Ar A.
+Proof.
+apply: (lcancel_mono (i := i) (r := r) Hri); rewrite icones_compIr.
+(* eA ⊗ i = (eB ⊗ id_B) ∘ (i ⊗ i) *)
+have F : tensor_mor eA i = icones_comp (tensor_mor eB (icones_id Ar B)) (tensor_mor i i).
+  by rewrite -(tensor_mor_comp eB i (icones_id Ar B) i) icones_compIl.
+(* i ∘ λ_A = λ_B ∘ (id_1 ⊗ i) ; combine with (eA ⊗ id_A) into eA ⊗ i *)
+rewrite (icones_compA i (iso_fwd (tensor_lunit A))) -(tensor_lunit_nat i).
+rewrite -(icones_compA (iso_fwd (tensor_lunit B))).
+rewrite (icones_compA (tensor_mor (icones_id Ar (cone_one_car Ar)) i)).
+rewrite -(tensor_mor_comp (icones_id Ar (cone_one_car Ar)) eA i (icones_id Ar A)).
+rewrite icones_compIl icones_compIr.
+(* now λ_B ∘ ((eA⊗i) ∘ dA) ; rewrite eA⊗i, apply (85), then B-counitL *)
+rewrite F.
+rewrite -(icones_compA (tensor_mor eB (icones_id Ar B)) (tensor_mor i i) dA) H85.
+rewrite (icones_compA (tensor_mor eB (icones_id Ar B)) dB i).
+rewrite (icones_compA (iso_fwd (tensor_lunit B)) (icones_comp (tensor_mor eB (icones_id Ar B)) dB) i).
+by rewrite HBcounitL icones_compIl.
+Qed.
+
+Lemma transp_counitR :
+  icones_comp (iso_fwd (tensor_runit A))
+    (icones_comp (tensor_mor (icones_id Ar A) eA) dA) = icones_id Ar A.
+Proof.
+apply: (lcancel_mono (i := i) (r := r) Hri); rewrite icones_compIr.
+have F : tensor_mor i eA = icones_comp (tensor_mor (icones_id Ar B) eB) (tensor_mor i i).
+  by rewrite -(tensor_mor_comp (icones_id Ar B) i eB i) icones_compIl.
+rewrite (icones_compA i (iso_fwd (tensor_runit A))) -(tensor_runit_nat i).
+rewrite -(icones_compA (iso_fwd (tensor_runit B))).
+rewrite (icones_compA (tensor_mor i (icones_id Ar (cone_one_car Ar)))).
+rewrite -(tensor_mor_comp i (icones_id Ar A) (icones_id Ar (cone_one_car Ar)) eA).
+rewrite icones_compIl icones_compIr.
+rewrite F.
+rewrite -(icones_compA (tensor_mor (icones_id Ar B) eB) (tensor_mor i i) dA) H85.
+rewrite (icones_compA (tensor_mor (icones_id Ar B) eB) dB i).
+rewrite (icones_compA (iso_fwd (tensor_runit B)) (icones_comp (tensor_mor (icones_id Ar B) eB) dB) i).
+by rewrite HBcounitR icones_compIl.
+Qed.
+
+Lemma transp_cocomm :
+  icones_comp (iso_fwd (tensor_braid A A)) dA = dA.
+Proof.
+apply: (lcancel_mono (i := tensor_mor i i) (r := tensor_mor r r) Hri2).
+(* (i⊗i) ∘ σ_A = σ_B ∘ (i⊗i) *)
+rewrite (icones_compA (tensor_mor i i) (iso_fwd (tensor_braid A A))).
+rewrite -(tensor_braid_nat i i).
+rewrite -(icones_compA (iso_fwd (tensor_braid B B)) (tensor_mor i i) dA) H85.
+rewrite (icones_compA (iso_fwd (tensor_braid B B)) dB i) HBcocomm.
+by [].
+Qed.
+
+Lemma transp_coassoc :
+  icones_comp (iso_fwd (tensor_assoc A A A))
+    (icones_comp (tensor_mor dA (icones_id Ar A)) dA) =
+  icones_comp (tensor_mor (icones_id Ar A) dA) dA.
+Proof.
+apply: (lcancel_mono (i := tensor_mor i (tensor_mor i i))
+                     (r := tensor_mor r (tensor_mor r r))).
+  rewrite -(tensor_mor_comp r i (tensor_mor r r) (tensor_mor i i)) Hri.
+  by rewrite Hri2 tensor_mor_id.
+(* factorisations *)
+have FL : tensor_mor (icones_comp dB i) i
+        = icones_comp (tensor_mor dB (icones_id Ar B)) (tensor_mor i i).
+  by rewrite -(tensor_mor_comp dB i (icones_id Ar B) i) icones_compIl.
+have FR : tensor_mor i (icones_comp dB i)
+        = icones_comp (tensor_mor (icones_id Ar B) dB) (tensor_mor i i).
+  by rewrite -(tensor_mor_comp (icones_id Ar B) i dB i) icones_compIl.
+(* LHS: reduce to ((id_B⊗dB)∘dB)∘i via assoc-naturality, (85), B-coassoc *)
+rewrite (icones_compA (tensor_mor i (tensor_mor i i)) (iso_fwd (tensor_assoc A A A))).
+rewrite -(tensor_assoc_nat i i i).
+rewrite -(icones_compA (iso_fwd (tensor_assoc B B B))).
+rewrite (icones_compA (tensor_mor (tensor_mor i i) i) (tensor_mor dA (icones_id Ar A)) dA).
+rewrite -(tensor_mor_comp (tensor_mor i i) dA i (icones_id Ar A)).
+rewrite H85 icones_compIr FL.
+rewrite -(icones_compA (tensor_mor dB (icones_id Ar B)) (tensor_mor i i) dA) H85.
+rewrite (icones_compA (tensor_mor dB (icones_id Ar B)) dB i).
+rewrite (icones_compA (iso_fwd (tensor_assoc B B B))
+  (icones_comp (tensor_mor dB (icones_id Ar B)) dB) i).
+rewrite HBcoassoc.
+(* RHS: reduce to the same ((id_B⊗dB)∘dB)∘i *)
+rewrite (icones_compA (tensor_mor i (tensor_mor i i)) (tensor_mor (icones_id Ar A) dA) dA).
+rewrite -(tensor_mor_comp i (icones_id Ar A) (tensor_mor i i) dA).
+rewrite icones_compIr H85 FR.
+rewrite -(icones_compA (tensor_mor (icones_id Ar B) dB) (tensor_mor i i) dA) H85.
+by rewrite (icones_compA (tensor_mor (icones_id Ar B) dB) dB i).
+Qed.
+
+End ComonoidTransport.
+
 (** *** Every coalgebra morphism is a comonoid morphism (GENERAL)
 
     For a coalgebra morphism [g : (Z,z) → (B,b)]:
@@ -888,6 +1066,7 @@ by rewrite -(icones_compA (icones_comp (tensor_mor g g)
            -(icones_compA (tensor_mor g g)).
 Qed.
 
+
 End CartesianUP.
 
 Arguments EM_prod_mor {R Ar P P' Q Q'} f g.
@@ -897,6 +1076,150 @@ Arguments e_bang_nat {R Ar Z B} g.
 Arguments d_bang_nat {R Ar Z B} g.
 Arguments coalg_mor_e {R Ar Z B} g.
 Arguments coalg_mor_d {R Ar Z B} g.
+Arguments tensor_braid_nat {R Ar A A' C C'} f g.
+Arguments tensor_assoc_nat {R Ar A A' B B' C C'} f g h.
+Arguments lcancel_mono {R Ar W A0 B0} i r {f g}.
+
+(** ** The unconditional comonoid — Melliès Prop 26/27/28 + Cor 20
+
+    [EMComon P] holds for EVERY [!]-coalgebra [P] (NOT just the cofree /
+    [FMeas] generators): the transported comonoid [coalg_d]/[coalg_e]
+    (Eq 88) satisfies the four commutative-comonoid laws (transported from
+    the Seely comonoid on [!A] by Prop 27 = [transp_*]) AND the two
+    coalgebra-morphism squares — the [coalg_d]-half being exactly Melliès'
+    "not so immediate" step, discharged here by the structural lifting
+    [coalg_mor_lift] (Cor 20) off the retraction [(coalg_str ⊗ coalg_str)]
+    / [(der ⊗ der)], NOT by any point computation.  This makes the whole
+    Eilenberg–Moore category [EM(!)] cartesian (Prop 28). *)
+Section EMComonAll.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation "B '⊗' C" := (tensor Ar B C)
+  (at level 40, left associativity) : ring_scope.
+Local Notation Bg := (@Bang R Ar).
+
+Lemma diagram81 (P : Coalgebra Ar) :
+  icones_comp (tensor_mor (coalg_str P) (coalg_str P)) (coalg_d P) =
+  icones_comp (d_bang (coalg_obj P)) (coalg_str P).
+Proof.
+have H := coalg_mor_d (Z := P) (B := bang_cofree (coalg_obj P))
+  (coalg_str P) (adj_unit_is_mor P).
+rewrite (coalg_d_cofree (coalg_obj P)) in H.
+by rewrite H.
+Qed.
+
+Lemma diagram89e (P : Coalgebra Ar) :
+  icones_comp (e_bang (coalg_obj P)) (coalg_str P) = coalg_e P.
+Proof.
+have H := coalg_mor_e (Z := P) (B := bang_cofree (coalg_obj P))
+  (coalg_str P) (adj_unit_is_mor P).
+by rewrite (coalg_e_cofree (coalg_obj P)) in H.
+Qed.
+
+Lemma coalg_mor_lift (X PA QB : Coalgebra Ar)
+    (i : icones_hom Ar (coalg_obj PA) (coalg_obj QB))
+    (r : icones_hom Ar (coalg_obj QB) (coalg_obj PA))
+    (f : icones_hom Ar (coalg_obj X) (coalg_obj PA)) :
+  is_coalg_mor PA QB i ->
+  icones_comp r i = icones_id Ar (coalg_obj PA) ->
+  is_coalg_mor X QB (icones_comp i f) ->
+  is_coalg_mor X PA f.
+Proof.
+rewrite /is_coalg_mor => Hi Hri Hif.
+have D67 : icones_comp (bang_fmap r) (icones_comp (coalg_str QB) i) = coalg_str PA.
+  rewrite Hi icones_compA -(bang_fmap_comp r i) Hri.
+  by rewrite bang_fmap_id icones_compIl.
+have D66 : icones_comp (bang_fmap r) (icones_comp (coalg_str QB) (icones_comp i f))
+           = icones_comp (bang_fmap f) (coalg_str X).
+  rewrite Hif icones_compA -(bang_fmap_comp r (icones_comp i f)).
+  rewrite (icones_compA r i f) Hri icones_compIl.
+  by [].
+rewrite -D67.
+rewrite -(icones_compA (bang_fmap r) (icones_comp (coalg_str QB) i) f).
+rewrite -(icones_compA (coalg_str QB) i f).
+exact: D66.
+Qed.
+
+(* coalg_e is a coalg mor P -> EM_term, general *)
+Lemma coalg_e_is_mor_gen (P : Coalgebra Ar) :
+  is_coalg_mor P EM_term (coalg_e P).
+Proof.
+rewrite -(diagram89e P).
+apply: (coalg_mor_comp (P := P) (Q := bang_cofree (coalg_obj P)) (S := EM_term)).
+- exact: (e_bang_is_coalg_mor (coalg_obj P)).
+- exact: (adj_unit_is_mor P).
+Qed.
+
+(* coalg_d is a coalg mor P -> EM_prod P P, general (Cor 20) *)
+Lemma coalg_d_is_mor_gen (P : Coalgebra Ar) :
+  is_coalg_mor P (EM_prod P P) (coalg_d P).
+Proof.
+pose A := coalg_obj P.
+have Hi : is_coalg_mor (EM_prod P P)
+    (EM_prod (bang_cofree A) (bang_cofree A))
+    (tensor_mor (coalg_str P) (coalg_str P)).
+  by apply: EM_prod_mor; exact: (adj_unit_is_mor P).
+have Hri : icones_comp (tensor_mor (der A) (der A))
+    (tensor_mor (coalg_str P) (coalg_str P)) = icones_id Ar (A ⊗ A).
+  rewrite -(tensor_mor_comp (der A) (coalg_str P) (der A) (coalg_str P)).
+  by rewrite (coalg_counit P) tensor_mor_id.
+have Hdm : is_coalg_mor (bang_cofree A) (EM_prod (bang_cofree A) (bang_cofree A))
+    (d_bang A).
+  rewrite /is_coalg_mor EM_prod_str_E EM_prod_str_cofree.
+  exact: (d_bang_is_coalg_mor A).
+have Hif : is_coalg_mor P (EM_prod (bang_cofree A) (bang_cofree A))
+    (icones_comp (tensor_mor (coalg_str P) (coalg_str P)) (coalg_d P)).
+  rewrite (diagram81 P).
+  apply: (coalg_mor_comp (P := P) (Q := bang_cofree A)
+            (S := EM_prod (bang_cofree A) (bang_cofree A))).
+  - exact: Hdm.
+  - exact: (adj_unit_is_mor P).
+apply: (coalg_mor_lift (X := P) (PA := EM_prod P P)
+          (QB := EM_prod (bang_cofree A) (bang_cofree A))
+          (i := tensor_mor (coalg_str P) (coalg_str P))
+          (r := tensor_mor (der A) (der A))).
+- exact: Hi.
+- exact: Hri.
+- exact: Hif.
+Qed.
+
+Lemma EMComon_all (P : Coalgebra Ar) : EMComon P.
+Proof.
+pose A := coalg_obj P.
+have Hri : icones_comp (der A) (coalg_str P) = icones_id Ar A
+  by exact: (coalg_counit P).
+have HcoalgdE : coalg_d P =
+  icones_comp (tensor_mor (der A) (der A)) (icones_comp (d_bang A) (coalg_str P))
+  by rewrite /coalg_d.
+have HcoalgeE : coalg_e P = icones_comp (e_bang A) (coalg_str P)
+  by rewrite /coalg_e.
+(* Diagram (85) for this retraction = Diagram (81). *)
+have H85 : icones_comp (tensor_mor (coalg_str P) (coalg_str P))
+    (icones_comp (tensor_mor (der A) (der A)) (icones_comp (d_bang A) (coalg_str P)))
+  = icones_comp (d_bang A) (coalg_str P).
+  by rewrite -HcoalgdE; exact: (diagram81 P).
+apply: MkEMComon.
+- rewrite HcoalgdE.
+  apply: transp_coassoc;
+    [exact: Hri | exact: (comonoid_coassoc A) | exact: H85].
+- rewrite HcoalgdE HcoalgeE.
+  apply: transp_counitL; [exact: Hri | exact: (comonoid_counitL A) | exact: H85].
+- rewrite HcoalgdE HcoalgeE.
+  apply: transp_counitR; [exact: Hri | exact: (comonoid_counitR A) | exact: H85].
+- rewrite HcoalgdE.
+  apply: transp_cocomm; [exact: Hri | exact: (comonoid_cocomm A) | exact: H85].
+- exact: (coalg_d_is_mor_gen P).
+- exact: (coalg_e_is_mor_gen P).
+Qed.
+
+End EMComonAll.
+
+Arguments diagram81 {R Ar} P.
+Arguments diagram89e {R Ar} P.
+Arguments coalg_mor_lift {R Ar X PA QB} i r f.
+Arguments coalg_e_is_mor_gen {R Ar} P.
+Arguments coalg_d_is_mor_gen {R Ar} P.
+Arguments EMComon_all {R Ar} P.
 
 (** ** Products, projections, pairing, diagonal and their laws
 
