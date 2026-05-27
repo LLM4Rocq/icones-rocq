@@ -15,39 +15,55 @@
     [EMComon] is not closed under products), so a value-CCC is unavailable;
     we make no closure claim.
 
-    **The semantic domain (the value category).**  Value types denote objects
-    of the *cartesian rich subcategory* of [EM(!)]: a [Coalgebra Ar] bundled
-    with its [EMComon] witness ([vtype] below).  The generators are the
-    Theorem-9.7 coalgebras [FMeas X] ([EMComon_FMeas]); the unit type denotes
-    the terminal coalgebra [EM_term] and products the [EM_prod] of carriers.
-    For unit and products to live in the rich subcategory we prove the two
-    missing comonoidality facts [EMComon_term] and [EMComon_prod] here (the
-    [d_A]/[e_A]-are-coalgebra-morphism step that Melliès flags as Cor 20 — we
-    discharge it on the rich generators via the comonoid-morphism lemmas
-    [coalg_mor_d]/[coalg_mor_e] of [em_cartesian.v], which ARE general).
+    **The semantic domain (the value category).**  Types denote objects of
+    the *cartesian rich subcategory* of [EM(!)] from [em_cartesian.v].  We
+    split types into:
+    - *comonoidal context types* [cty] ([cunit], [cbase X]) — the ONLY types
+      that carry an [EMComon] witness, hence the only ones usable as the
+      (single-variable) context: [cunit ↦ EM_term], [cbase X ↦ FMeas X]
+      (the Theorem-9.7 coalgebras).  We prove [EMComon_term] here (the
+      terminal's comonoidality, which [em_cartesian.v] left open — it only
+      covered the cofree [!̃B] and the [FMeas X]); [EMComon_FMeas] supplies
+      the base case.
+    - *value types* [vty] — a context type [vcty G] or a binary PRODUCT
+      [vprod G H] of two context types, denoted [EM_prod] of the carriers.
+
+    HONEST SCOPE: [EMComon] is NOT closed under [EM_prod] (the [d_A]-is-a-
+    coalgebra-morphism step Melliès flags as Cor 20, step 3 open), so a
+    product is a value type but NEVER a context type, and product factors are
+    restricted to context types so the projections [em_proj1]/[em_proj2]
+    (which discard a comonoidal factor) are coalgebra morphisms.  No closure
+    is assumed or claimed.
 
     **Computations and the monad.**  The CBV computation monad is the monad
     [T] induced by the adjunction [U ⊣ !̃] on the value category, [T P =
     !̃(U P) = bang_cofree (coalg_obj P)].  Its unit is [adj_unit] and Kleisli
-    extension is built from the adjunction bijection [adj_phi]/[adj_psi].  A
-    computation [Γ ⊢ M : τ] denotes a coalgebra morphism [⟦Γ⟧ → T⟦τ⟧];
-    a value [Γ ⊢ V : τ] a coalgebra morphism [⟦Γ⟧ → ⟦τ⟧].  Contexts are
-    single-variable (one free variable of a value type); substitution is
-    composition.
+    composition [kcomp] is built from the adjunction.  A computation
+    [Γ ⊢ M : τ] denotes a Kleisli arrow [⟦Γ⟧ → T⟦τ⟧]; a value [Γ ⊢ V : τ]
+    a coalgebra morphism [⟦Γ⟧ → ⟦τ⟧].  Contexts are single-variable;
+    substitution is composition.
 
     **[sample] and probabilistic content.**  [sample] over a base space [X]
     denotes the Theorem-9.7 coalgebra structure map [Coalg X] (= the integral
     operator [µ ↦ ∫ (δ_X r)! dµ], [int_to_linhom (bang_dirac_path X)]); its
-    action on a Dirac value [δ_X r] is [(δ_X r)!] ([Coalg_dirac]), and the
-    equational engine is [dirac_dense].
+    action on a Dirac value [δ_X r] is [(δ_X r)!] ([Coalg_dirac]).  In this
+    [!]-induced monad [sample] coincides with the monadic [return] on measure
+    values (the unit on [FMeas X] IS the integration-of-Diracs map): a genuine
+    feature of the cones model, recorded honestly ([cpD_sample_ret]).
 
     Contents:
-    - the syntax: types [vty], values [vl], computations [cp], typing as
-      Rocq inductives;
-    - the type interpretation [tyD] into the rich subcategory [vtype];
-    - the term interpretation [vlD]/[cpD] as coalgebra morphisms;
-    - the soundness core: totality (by construction), the monad/[let] laws,
-      the product β-laws, and the [sample] = integral statement. *)
+    - [EMComon_term] — comonoidality of the terminal coalgebra;
+    - the CBV monad [T] ([Tobj]/[tunit_eta]/[kcomp]) + its three monad laws
+      ([kcomp_etaR]/[kcomp_etaL]/[kcomp_A], via [adj_phi_kcomp]);
+    - the projections as coalgebra morphisms ([em_proj1]/[em_proj2]);
+    - the syntax: [cty], [vty], values [vl], computations [cp] (Rocq
+      inductives, intrinsically typed);
+    - the type interpretation [ctyD]/[ctyComon]/[vtyD];
+    - the term interpretation [vlD]/[cpD] (TOTAL by construction);
+    - the soundness core: the [let] laws ([cpD_let_retvar]/[cpD_letret]/
+      [cpD_letassoc]), the product β-laws ([vlD_fst_pair]/[vlD_snd_pair]),
+      and the [sample] semantics ([cpD_sample_mor]/[cpD_sample_var_dirac]/
+      [cpD_sample_is_integral]). *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -697,3 +713,42 @@ Arguments cpD_sample_mor {R Ar G X} V.
 Arguments cpD_sample_ret {R Ar G X} V.
 Arguments cpD_sample_var_dirac {R Ar X} r.
 Arguments cpD_sample_is_integral {R Ar} X.
+
+(** ** A worked example program
+
+    The program [Γ = x : base X ⊢  let y = sample x in return (y, ()) :
+    base X * unit].  It samples the input measure [x] and pairs the result
+    with the unit.  This exercises [sample], [let]-sequencing, pairing, and
+    the unit value in one well-typed term, and its denotation is total (a
+    coalgebra morphism), computed by [cpD]. *)
+Section Example.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (X : ar_obj Ar).
+
+Definition ex_prog : cp (cbase X) (vprod (cbase X) cunit) :=
+  c_let (c_sample v_var) (c_ret (v_pair v_var v_unit)).
+
+(** It denotes a (total) Kleisli arrow
+    [FMeas X → T (EM_prod (FMeas X) EM_term)]. *)
+Definition ex_denot :
+    coalg_hom (ctyD (cbase X)) (Tobj (vtyD (vprod (cbase X) cunit))) :=
+  cpD ex_prog.
+
+(** Since [sample x] denotes [η ∘ ⟦x⟧] (the [!]-monad identifies it with
+    [return x], [cpD_sample_ret]), the program reduces by the left-unit law
+    to the continuation composed with the value [x] (= [id]): the denotation
+    is the continuation pairing-with-unit, precomposed with the sample
+    structure. *)
+Lemma ex_denot_E :
+  ex_denot =
+  coalg_comp (cpD (c_ret (v_pair (v_var (G := cbase X)) v_unit)))
+             (vlD (v_var (G := cbase X))).
+Proof.
+rewrite /ex_denot /ex_prog cpD_letE (cpD_sample_ret v_var) -cpD_letE.
+exact: (cpD_letret v_var (c_ret (v_pair v_var v_unit))).
+Qed.
+
+End Example.
+
+Arguments ex_prog {R Ar} X.
+Arguments ex_denot {R Ar} X.
