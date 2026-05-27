@@ -9,9 +9,9 @@
     between the forgetful functor [U] and the cofree functor [!̃] of
     [em_cat.v], with the monoidal structures of [smcc.v] (on [ICones]) and
     [em_cartesian.v] (the lifted [⊗] on [EM(!)]).  Together with the
-    cartesian structure on the rich subcategory of comonoidal coalgebras
-    ([em_cartesian.v]'s [ICones_EM_cartesian] + [EMComon_cofree]/
-    [EMComon_FMeas]) this is the CBV/LNL data.
+    cartesian structure on the FULL [EM(!)] ([em_cartesian.v]'s
+    [ICones_EM_cartesian], cartesian for ALL coalgebras by [EMComon_all])
+    this is the CBV/LNL data.
 
     This is mostly ASSEMBLY of pieces that already exist, with one genuine
     block of new content: the lax-monoidal coherence of [!̃] at the
@@ -21,13 +21,14 @@
     structural-iso [...Ep] laws, exactly as [seely.v]/[em_seely_comonoid.v]
     discharge their coherence diagrams.
 
-    Honest scope (respecting step 3's caveats):
+    Scope:
     - The monoidal ADJUNCTION [U ⊣ !̃] is over the FULL [EM(!)] (it needs no
-      cartesianness).  The cartesian "value category" is only the RICH
-      SUBCATEGORY of comonoidal ([EMComon]) coalgebras (which contains [!̃B]
-      and [FMeas X]) — recorded honestly in the [CBV_Model] fields.
-    - [EMComon] is NOT proved closed under [EM_prod] (step 3 left this open).
-      We do NOT assume or assert that closure anywhere here.
+      cartesianness).  The cartesian "value category" is the FULL [EM(!)]
+      itself — every [!]-coalgebra carries the transported commutative
+      comonoid ([EMComon_all]), so [(EM(!), ⊗, 1)] is cartesian (Melliès
+      Prop 28), NOT merely a rich subcategory.  In particular the cofree
+      coalgebras [!̃B] and the Theorem-9.7 coalgebras [FMeas X] are objects
+      of this cartesian category, but no subcategory restriction is needed.
 
     Contents:
     - the [m_bang] coherence lemmas (NEW): [m_bang_assoc] (associativity),
@@ -678,12 +679,12 @@ Arguments adj_unit_monoidal0 {R Ar}.
 
     - [cbv_smcc] : the SMC [(ICones, ⊗, 1)] ([smcc.v]);
     - [cbv_em] : the EM category [EM(!)] ([em_cat.v]);
-    - [cbv_cart] : the CARTESIAN structure on the rich subcategory of
-      comonoidal coalgebras ([em_cartesian.v]) — the VALUE category; with
-      the richness witnesses [cbv_rich_cofree]/[cbv_rich_fmeas] showing the
-      generators (cofree coalgebras [!̃B] and the Theorem-9.7 coalgebras
-      [FMeas X]) lie in it.  ⚠ HONEST: this is NOT the full [EM(!)], and
-      [EMComon] is not claimed closed under [EM_prod] (step 3 open);
+    - [cbv_cart] : the CARTESIAN structure on the FULL [EM(!)]
+      ([em_cartesian.v]) — the VALUE category.  Every [!]-coalgebra carries
+      the transported commutative comonoid ([EMComon_all]), so the product
+      universal property holds for ALL coalgebras (Melliès Prop 28); the
+      cofree coalgebras [!̃B] and the Theorem-9.7 coalgebras [FMeas X] are
+      among its objects, but no subcategory restriction is needed;
     - the MONOIDAL ADJUNCTION [U ⊣ !̃] over the FULL [EM(!)] (needs no
       cartesianness): the functors [cbv_U_obj]/[cbv_U_mor] and
       [cbv_bang_obj]/[cbv_bang_mor], the (co)units
@@ -706,11 +707,10 @@ Record CBV_Model (R : realType) (Ar : MeasSubcat R) : Type := MkCBVModel {
   cbv_smcc : ICones_SMCC Ar;
   (* the Eilenberg–Moore category [EM(!)] of the exponential comonad *)
   cbv_em : EM_Cat Ar;
-  (* the cartesian VALUE category: the rich subcategory of comonoidal
-     coalgebras, with its [⊗]-product / [1]-terminal (NOT [&]/[⊤]) *)
+  (* the cartesian VALUE category: the FULL Eilenberg–Moore category
+     [EM(!)] (every coalgebra is comonoidal, [EMComon_all]), with its
+     [⊗]-product / [1]-terminal (NOT [&]/[⊤]) *)
   cbv_cart : EM_Cartesian Ar;
-  cbv_rich_cofree : forall B : ICone.type Ar, EMComon (bang_cofree B);
-  cbv_rich_fmeas : forall X : ar_obj Ar, EMComon (FMeas_coalgebra X);
 
   (* the monoidal adjunction [U ⊣ !̃] over the FULL [EM(!)] *)
   cbv_U_obj : Coalgebra Ar -> ICone.type Ar;
@@ -795,8 +795,6 @@ Definition ICones_CBV (R : realType) (Ar : MeasSubcat R) : CBV_Model Ar :=
   {| cbv_smcc := ICones_smcc Ar;
      cbv_em := ICones_EM Ar;
      cbv_cart := ICones_EM_cartesian Ar;
-     cbv_rich_cofree := @EMComon_cofree R Ar;
-     cbv_rich_fmeas := @EMComon_FMeas R Ar;
      cbv_U_obj := @U_obj R Ar;
      cbv_U_mor := @U_mor R Ar;
      cbv_bang_obj := @bang_cofree R Ar;

@@ -9,37 +9,33 @@
     unit [1].  This is the content of Melliès' Proposition 28 (the only
     genuinely non-formal step of the linear-category axiomatisation).
 
-    **Which path is delivered.**  Melliès himself flags Prop 28 / Cor 20 —
-    "the diagonal [d_A] is a coalgebra morphism" — as "not so immediate",
-    and our concrete model confirms this: on a *general* coalgebra [(A,a)]
-    the transported comonoid maps [d_A = (ε⊗ε)∘d_{!A}∘a] and
-    [e_A = e_{!A}∘a] are built from [d_bang]/[e_bang], which only *compute*
-    on PROMOTED points [x!]; for an arbitrary carrier [a x] is not promoted,
-    so neither the comonoid laws nor the coalgebra-morphism square reduces.
-    We therefore deliver the expert's authorised **"à défaut" fallback**:
-    the cartesian structure on the **rich subcategory** of [EM(!)] spanned
-    by the cofree coalgebras [!̃B] and the Theorem-9.7 coalgebras
-    [FMeas(X)] — exactly the objects whose structure map sends a SPANNING
-    set of points to promoted ones ([dig_B] sends [x!↦(x!)!] on [!̃B];
-    [Coalg_X] sends [δ_X r ↦ (δ_X r)!] on [FMeas(X)]), so the comonoid laws
-    and Cor 20 reduce via [bang_ext] / [dirac_dense].  This subcategory is
-    *sufficient for CBV* and contains the 9.7 coalgebras, as the expert
-    requested.
+    **Which path is delivered.**  The FULL [EM(!)] — every [!]-coalgebra,
+    not a subcategory.  Melliès flags Prop 28 / Cor 20 — "the diagonal
+    [d_A] is a coalgebra morphism" — as "not so immediate", and the right
+    proof is STRUCTURAL (a retraction/lifting argument), NOT a point
+    computation: the transported maps [d_A = (ε⊗ε)∘d_{!A}∘a],
+    [e_A = e_{!A}∘a] (Eq 88) are built from [d_bang]/[e_bang], which only
+    *compute* on promoted points [x!] — and for a general coalgebra [a x]
+    is not promoted — so a point argument cannot work.  Instead we follow
+    Melliès verbatim:
+    - **Prop 26** ([diagram81]): the structure map [a] is a comonoid
+      morphism [P → !̃A], i.e. [(a⊗a)∘d_A = d_{!A}∘a].  In our model this
+      is the already-GENERAL [coalg_mor_d] at the unit [a] + [coalg_d_cofree].
+    - **Prop 27** ([transp_*]): a retract of a commutative comonoid is one.
+      A generic SMC transport by split-mono cancellation ([lcancel_mono]) +
+      the associator/braiding/unitor naturality + Diagram (85) = [diagram81].
+    - **Cor 20** ([coalg_mor_lift], Melliès §6.11 Prop 20): the lifting
+      property — if [i] is a coalgebra morphism with a retraction
+      [r∘i = id] and [i∘f] is a coalgebra morphism, then [f] is.  Applied
+      at the retraction [(a⊗a) / (ε⊗ε)] this shows [d_A] is a coalgebra
+      morphism ([coalg_d_is_mor_gen]); [e_A] is the easy composite
+      ([coalg_e_is_mor_gen]).
+    - **Cor 17**: the resulting commutative comonoid on every object makes
+      [(EM(!), ⊗, 1)] cartesian.
 
-    What IS general (no Cor 20 needed) and what is per-object:
-    - GENERAL (every coalgebra): the lax-monoidal map [m_bang], the product
-      coalgebra [EM_prod] and the terminal coalgebra [EM_term] (the
-      [⊗]/[1] structure lifted to [EM(!)] by Lack), and the comonoid
-      *definitions* [coalg_d]/[coalg_e] (Eq 88).
-    - PER-OBJECT (the comonoidal predicate [EMComon]): the four comonoid
-      laws + the two coalgebra-morphism squares (Prop 26/27 + Cor 20).
-      Proved for [bang_cofree B] (via [bang_ext], reusing step 2's
-      [d_bang]/[e_bang] LC2–LC4) and for [FMeas_coalgebra X] (via
-      [dirac_dense]).
-    - The cartesian universal property (projections, diagonal, pairing,
-      terminal map) is built generically from a pair of [EMComon] objects
-      (Cor 17) — so any two objects of the rich subcategory have their
-      [⊗]-product as a categorical product in [EM(!)].
+    The bundling of all this is [EMComon_all : forall P, EMComon P] —
+    UNCONDITIONAL — and hence the cartesian universal property holds for
+    ALL coalgebras (no per-object [EMComon] hypothesis threaded anymore).
 
     Contents:
     - [m_bang A B : !A⊗!B ⊸ !(A⊗B)] — the lax symmetric-monoidal structure
@@ -49,14 +45,15 @@
     - [EM_prod_str]/[EM_prod] — the product coalgebra [(A⊗B, m∘(a⊗b))];
       [EM_term] — the terminal coalgebra [(1, ·)] ([= unit_cofree]).
     - [coalg_d]/[coalg_e] — the Eq-88 transported comonoid on every
-      coalgebra.
-    - [EMComon P] — the per-object record: comonoid laws + [coalg_d],
-      [coalg_e] coalgebra morphisms; witnesses [EMComon_cofree] (Prop on
-      [!̃B]) and [EMComon_FMeas] (Prop on [FMeas X]).
+      coalgebra; [EMComon P] — the comonoidal predicate (comonoid laws +
+      [coalg_d]/[coalg_e] coalgebra morphisms).
+    - [diagram81]/[transp_*]/[coalg_mor_lift]/[coalg_d_is_mor_gen]/
+      [coalg_e_is_mor_gen] — Melliès Prop 26/27 + Cor 20; [EMComon_all] —
+      the headline unconditional comonoid.
     - the projections [em_proj1]/[em_proj2], pairing [em_pair], diagonal,
-      and the cartesian universal property [em_proj1_pair]/[em_proj2_pair]/
-      [em_pair_unique]; terminal [em_term_mor]/[em_term_unique].
-    - the headline bundle [ICones_EM_cartesian] + the richness witnesses. *)
+      and the cartesian universal property [em_proj1_pair]/[em_proj2_pair];
+      terminal [em_term_mor]/[em_term_unique] — all for EVERY coalgebra.
+    - the headline bundle [ICones_EM_cartesian] (the FULL [EM(!)] cartesian). *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -425,8 +422,9 @@ Proof. by []. Qed.
     [A —a→ !A —ε→ A] ([ε∘a = id], [coalg_counit]):
       [coalg_d = (ε⊗ε) ∘ d_{!A} ∘ a : A ⊸ A⊗A]   (Eq 88, diagonal)
       [coalg_e = e_{!A} ∘ a : A ⊸ 1]              (Eq 88, counit).
-    These are GENERAL definitions; the comonoid laws and the
-    coalgebra-morphism squares (Cor 20) are per-object ([EMComon]). *)
+    These are the comonoid maps of [EMComon]; the comonoid laws and the
+    coalgebra-morphism squares (Cor 20) hold for EVERY coalgebra
+    ([EMComon_all]). *)
 Definition coalg_d (P : Coalgebra Ar) :
     icones_hom Ar (coalg_obj P) (coalg_obj P ⊗ coalg_obj P) :=
   icones_comp (tensor_mor (der (coalg_obj P)) (der (coalg_obj P)))
@@ -436,21 +434,19 @@ Definition coalg_e (P : Coalgebra Ar) :
     icones_hom Ar (coalg_obj P) (cone_one_car Ar) :=
   icones_comp (e_bang (coalg_obj P)) (coalg_str P).
 
-(** ** The per-object comonoidal structure — Prop 26/27 + Cor 20
+(** ** The comonoidal structure — Prop 26/27 + Cor 20
 
     [EMComon P] bundles the facts that Melliès' Prop 28 establishes for a
-    coalgebra [P], and which in our model reduce on a SPANNING set of
-    promoted points (so are provable for [!̃B] via [bang_ext] and for
-    [FMeas X] via [dirac_dense]):
+    coalgebra [P]:
     - the four commutative-comonoid laws for [(coalg_obj P, coalg_d, coalg_e)]
       (coassociativity, both counits, cocommutativity) — Prop 27;
     - [coalg_d P] is a coalgebra morphism [P → EM_prod P P] — Cor 20;
     - [coalg_e P] is a coalgebra morphism [P → EM_term] — Prop 26 (easy).
 
-    From a pair of [EMComon] objects we derive the cartesian universal
-    property (Cor 17) below.  Objects carrying [EMComon] are exactly the
-    expert's "rich subcategory" — they include the cofree coalgebras and
-    the Theorem-9.7 coalgebras. *)
+    [EMComon P] holds for EVERY coalgebra ([EMComon_all], proved further
+    down via the structural Cor-20 lifting — NOT a point computation).  From
+    it the cartesian universal property (Cor 17) is derived for ALL
+    coalgebras below — [(EM(!), ⊗, 1)] is cartesian (Prop 28). *)
 Record EMComon (P : Coalgebra Ar) : Type := MkEMComon {
   emc_coassoc :
     icones_comp (iso_fwd (tensor_assoc (coalg_obj P) (coalg_obj P) (coalg_obj P)))
@@ -551,189 +547,18 @@ Proof.
 by rewrite /EM_prod_str /= -(tens_cofree_str_m_bang B B).
 Qed.
 
-(** Hence the [EMComon] structure on every cofree coalgebra. *)
-Lemma EMComon_cofree (B : ICone.type Ar) : EMComon (bang_cofree B).
-Proof.
-have Hd := coalg_d_cofree B; have He := coalg_e_cofree B.
-apply: MkEMComon.
-- rewrite Hd; exact: (comonoid_coassoc B).
-- rewrite Hd He; exact: (comonoid_counitL B).
-- rewrite Hd He; exact: (comonoid_counitR B).
-- rewrite Hd; exact: (comonoid_cocomm B).
-- (* [coalg_d (!̃B)] is a coalgebra morphism [!̃B → EM_prod (!̃B)(!̃B)].
-     Reduce to [d_bang_is_coalg_mor] after rewriting [coalg_d = d_bang]
-     and [EM_prod_str = tens_cofree_str]. *)
-  rewrite /is_coalg_mor EM_prod_str_E EM_prod_str_cofree Hd.
-  exact: (d_bang_is_coalg_mor B).
-- (* [coalg_e (!̃B)] is a coalgebra morphism [!̃B → EM_term = unit_cofree]. *)
-  rewrite /is_coalg_mor He.
-  exact: (e_bang_is_coalg_mor B).
-Qed.
+(** ([coalg_d_cofree]/[coalg_e_cofree]/[EM_prod_str_cofree] are the
+    load-bearing facts: they feed [diagram81]/[diagram89e]/
+    [coalg_d_is_mor_gen], i.e. the GENERAL Cor-20 argument.  The comonoidal
+    structure on the cofree coalgebras themselves is now just the
+    unconditional [EMComon_all] specialised — see [EMComon_cofree]
+    below.) *)
 
 End CofreeComonoidal.
 
 Arguments coalg_d_cofree {R Ar} B.
 Arguments coalg_e_cofree {R Ar} B.
 Arguments EM_prod_str_cofree {R Ar} B.
-Arguments EMComon_cofree {R Ar} B.
-
-(** ** Witness 2 — the Theorem-9.7 coalgebras [FMeas(X)] are comonoidal
-
-    On [FMeas_coalgebra X] the structure map [Coalg_X] sends the Dirac
-    basis [δ_X r] to the promoted point [(δ_X r)!] ([Coalg_dirac]), so the
-    Eq-88 comonoid maps compute on the [δ_X r] and every [EMComon] field
-    discharges by the [dirac_dense] extensionality (Paper [th:dirac-dense]).
-    This is precisely the expert's "à défaut" requirement: the rich
-    subcategory CONTAINS the 9.7 coalgebras. *)
-Section FMeasComonoidal.
-Variables (R : realType) (Ar : MeasSubcat R).
-
-Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-Local Notation "B '⊗' C" := (tensor Ar B C)
-  (at level 40, left associativity) : ring_scope.
-Local Notation "x '⊗p' y" := (ptensor x y)
-  (at level 40, left associativity) : ring_scope.
-Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
-Local Notation Bg := (@Bang R Ar).
-
-(** [‖δ_X r‖ ≤ 1]. *)
-Let dirac_ball (X : ar_obj Ar) (r : ar_carrier Ar X) :
-  cone_norm (dirac_fmeas r : FMeas X) <= 1.
-Proof. rewrite dirac_fmeas_norm; exact: lexx. Qed.
-
-(** The structure map of the 9.7 coalgebra is [Coalg X] (definitional;
-    stated as a lemma so [rewrite] folds it without [/=]). *)
-Lemma coalg_str_FMeas (X : ar_obj Ar) :
-  coalg_str (FMeas_coalgebra X) = Coalg X.
-Proof. by []. Qed.
-
-(** [coalg_d (FMeas X) (δ_X r) = δ_X r ⊗ δ_X r]. *)
-Lemma coalg_d_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
-  Lfun (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r) =
-  (dirac_fmeas r : FMeas X) ⊗p (dirac_fmeas r : FMeas X).
-Proof.
-rewrite /coalg_d.
-rewrite -[Lfun (icones_comp (tensor_mor (der (FMeas X)) (der (FMeas X)))
-                  (icones_comp (d_bang (FMeas X)) (coalg_str (FMeas_coalgebra X))))
-            (dirac_fmeas r)]
-        /(Lfun (tensor_mor (der (FMeas X)) (der (FMeas X)))
-          (Lfun (icones_comp (d_bang (FMeas X)) (coalg_str (FMeas_coalgebra X)))
-            (dirac_fmeas r))).
-rewrite -[Lfun (icones_comp (d_bang (FMeas X)) (coalg_str (FMeas_coalgebra X)))
-            (dirac_fmeas r)]
-        /(Lfun (d_bang (FMeas X)) (Lfun (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r))).
-rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
-rewrite (d_bang_prom (dirac_fmeas r) (dirac_ball r)).
-rewrite (tensor_morE (der (FMeas X)) (der (FMeas X))
-          (dirac_fmeas r : FMeas X)! (dirac_fmeas r : FMeas X)!).
-by rewrite (der_prom (dirac_fmeas r : FMeas X) (dirac_ball r)).
-Qed.
-
-(** [coalg_e (FMeas X) (δ_X r) = 1] (the unit point [one1]). *)
-Lemma coalg_e_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
-  Lfun (coalg_e (FMeas_coalgebra X)) (dirac_fmeas r) = one1.
-Proof.
-rewrite /coalg_e.
-rewrite -[Lfun (icones_comp (e_bang (FMeas X)) (coalg_str (FMeas_coalgebra X)))
-            (dirac_fmeas r)]
-        /(Lfun (e_bang (FMeas X)) (Lfun (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r))).
-rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
-by rewrite (e_bang_prom (dirac_fmeas r) (dirac_ball r)).
-Qed.
-
-(** The [EMComon] structure on every 9.7 coalgebra.  Every field reduces on
-    the Dirac basis [δ_X r] via [dirac_dense]; we keep the heavy [m_bang]/
-    [bang_fmap] sealed and peel compositions with explicit [Lfun_comp]
-    instances + explicit [tensor_morE] (so no whole-goal conversion scan
-    diverges, and [δ_X r] is pinned to its [FMeas X] view throughout). *)
-Lemma EMComon_FMeas (X : ar_obj Ar) : EMComon (FMeas_coalgebra X).
-Proof.
-have D := coalg_d_dirac (X:=X); have E := coalg_e_dirac (X:=X).
-have idd r : Lfun (icones_id Ar (FMeas X)) (dirac_fmeas r) = (dirac_fmeas r : FMeas X)
-  by [].
-have e1 : c1_val (one1 : cone_one_car Ar) = 1%:nng by [].
-apply: MkEMComon.
-- (* coassoc: on [δ_X r] both sides are [δ ⊗ (δ ⊗ δ)]. *)
-  apply: (dirac_dense (X:=X)) => r.
-  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_assoc (FMeas X) (FMeas X) (FMeas X)))
-            (icones_comp (tensor_mor (coalg_d (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
-               (coalg_d (FMeas_coalgebra X))) (dirac_fmeas r)).
-  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (coalg_d (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
-            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite D (tensor_morE (coalg_d (FMeas_coalgebra X)) (icones_id Ar (FMeas X))
-              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
-  rewrite D idd tensor_assocEp.
-  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (icones_id Ar (FMeas X)) (coalg_d (FMeas_coalgebra X)))
-            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite D (tensor_morE (icones_id Ar (FMeas X)) (coalg_d (FMeas_coalgebra X))
-              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
-  by rewrite idd D.
-- (* counitL: [λ ((e⊗id)(δ⊗δ)) = λ(1⊗δ) = δ]. *)
-  apply: (dirac_dense (X:=X)) => r.
-  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_lunit (FMeas X)))
-            (icones_comp (tensor_mor (coalg_e (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
-               (coalg_d (FMeas_coalgebra X))) (dirac_fmeas r)).
-  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (coalg_e (FMeas_coalgebra X)) (icones_id Ar (FMeas X)))
-            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite D (tensor_morE (coalg_e (FMeas_coalgebra X)) (icones_id Ar (FMeas X))
-              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
-  rewrite E idd tensor_lunitEp.
-  by rewrite e1 precone_scale_1.
-- (* counitR: symmetric. *)
-  apply: (dirac_dense (X:=X)) => r.
-  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_runit (FMeas X)))
-            (icones_comp (tensor_mor (icones_id Ar (FMeas X)) (coalg_e (FMeas_coalgebra X)))
-               (coalg_d (FMeas_coalgebra X))) (dirac_fmeas r)).
-  rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor (icones_id Ar (FMeas X)) (coalg_e (FMeas_coalgebra X)))
-            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite D (tensor_morE (icones_id Ar (FMeas X)) (coalg_e (FMeas_coalgebra X))
-              (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
-  rewrite E idd tensor_runitEp.
-  by rewrite e1 precone_scale_1.
-- (* cocomm: [σ(δ⊗δ) = δ⊗δ]. *)
-  apply: (dirac_dense (X:=X)) => r.
-  rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_braid (FMeas X) (FMeas X)))
-            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
-  by rewrite D tensor_braidEp.
-- (* [coalg_d] is a coalgebra morphism [FMeas X → EM_prod (FMeas X)(FMeas X)].
-     On [δ_X r]: LHS [s(δ⊗δ) = m((Coalg⊗Coalg)(δ⊗δ)) = m(δ!⊗δ!) = (δ⊗δ)!];
-     RHS [!(coalg_d)(Coalg(δ)) = !(coalg_d)(δ!) = (coalg_d δ)! = (δ⊗δ)!]. *)
-  rewrite /is_coalg_mor EM_prod_str_E.
-  apply: (dirac_dense (X:=X)) => r.
-  rewrite (@Lfun_comp _ _ _ _ _ (EM_prod_str (FMeas_coalgebra X) (FMeas_coalgebra X))
-            (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite D /EM_prod_str.
-  rewrite (@Lfun_comp _ _ _ _ _ (m_bang (FMeas X) (FMeas X))
-            (tensor_mor (coalg_str (FMeas_coalgebra X)) (coalg_str (FMeas_coalgebra X)))
-            ((dirac_fmeas r : FMeas X) ⊗p (dirac_fmeas r : FMeas X))).
-  rewrite (tensor_morE (coalg_str (FMeas_coalgebra X)) (coalg_str (FMeas_coalgebra X))
-            (dirac_fmeas r : FMeas X) (dirac_fmeas r : FMeas X)).
-  rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
-  rewrite (m_bang_prom (dirac_ball r) (dirac_ball r)).
-  rewrite (@Lfun_comp _ _ _ _ _ (bang_fmap (coalg_d (FMeas_coalgebra X)))
-            (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
-  rewrite (bang_fmap_prom (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r) (dirac_ball r)).
-  by rewrite D.
-- (* [coalg_e] is a coalgebra morphism [FMeas X → EM_term = unit_cofree].
-     On [δ_X r]: LHS [unit_cofree_str(e(δ)) = unit_cofree_str(1) = 1!];
-     RHS [!(coalg_e)(Coalg(δ)) = !(coalg_e)(δ!) = (coalg_e δ)! = 1!]. *)
-  rewrite /is_coalg_mor.
-  apply: (dirac_dense (X:=X)) => r.
-  rewrite (@Lfun_comp _ _ _ _ _ (coalg_str EM_term) (coalg_e (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite E -[coalg_str EM_term]/(unit_cofree_str) unit_cofree_str_one1.
-  rewrite (@Lfun_comp _ _ _ _ _ (bang_fmap (coalg_e (FMeas_coalgebra X)))
-            (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r)).
-  rewrite (coalg_str_FMeas X) (Coalg_dirac X r).
-  rewrite (bang_fmap_prom (coalg_e (FMeas_coalgebra X)) (dirac_fmeas r) (dirac_ball r)).
-  by rewrite E.
-Qed.
-
-End FMeasComonoidal.
-
-Arguments coalg_d_dirac {R Ar X} r.
-Arguments coalg_e_dirac {R Ar X} r.
-Arguments EMComon_FMeas {R Ar} X.
 
 (** ** The cartesian universal property — Melliès Corollary 17
 
@@ -1220,6 +1045,22 @@ Arguments coalg_mor_lift {R Ar X PA QB} i r f.
 Arguments coalg_e_is_mor_gen {R Ar} P.
 Arguments coalg_d_is_mor_gen {R Ar} P.
 Arguments EMComon_all {R Ar} P.
+
+(** *** The two distinguished families are comonoidal (trivial corollaries)
+
+    Now that [EMComon] holds unconditionally, the cofree coalgebras [!̃B]
+    and the Theorem-9.7 coalgebras [FMeas X] are comonoidal as immediate
+    specialisations of [EMComon_all] — no longer the special witnesses they
+    once were.  Kept as named facts for documentation / downstream
+    convenience. *)
+Definition EMComon_cofree (R : realType) (Ar : MeasSubcat R)
+    (B : ICone.type Ar) : EMComon (bang_cofree B) := EMComon_all (bang_cofree B).
+
+Definition EMComon_FMeas (R : realType) (Ar : MeasSubcat R)
+    (X : ar_obj Ar) : EMComon (FMeas_coalgebra X) := EMComon_all (FMeas_coalgebra X).
+
+Arguments EMComon_cofree {R Ar} B.
+Arguments EMComon_FMeas {R Ar} X.
 
 (** ** Products, projections, pairing, diagonal and their laws
 

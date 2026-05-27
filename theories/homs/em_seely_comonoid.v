@@ -35,8 +35,8 @@
     - **LC4** — [dig_A] is a comonoid morphism: [dig_comonoid_mult]
       (compatible with [d]) and [dig_comonoid_counit] (compatible with [e]).
 
-    Step 3 (the cartesian structure on [EM(!)], Melliès Prop 28 / Cor 20)
-    is NOT attempted here. *)
+    Step 3 (the cartesian structure on the FULL [EM(!)], Melliès Prop 28 /
+    Cor 20) is in [em_cartesian.v]. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.

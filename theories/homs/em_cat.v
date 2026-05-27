@@ -37,8 +37,8 @@
       [adj_psiK] and naturality [adj_phi_natL]/[adj_phi_natR], and the
       triangle identities [adj_triangleL]/[adj_triangleR].
 
-    Step 3 (the cartesian structure on [EM(!)], Melliès Prop 28 / Cor 20)
-    is NOT attempted here. *)
+    Step 3 (the cartesian structure on the FULL [EM(!)], Melliès Prop 28 /
+    Cor 20) is in [em_cartesian.v]. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
