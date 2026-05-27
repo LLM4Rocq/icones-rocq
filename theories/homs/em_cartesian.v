@@ -1248,7 +1248,7 @@ Definition em_pair_mor (Z P Q : Coalgebra Ar)
     icones_hom Ar (coalg_obj Z) (coalg_obj P ⊗ coalg_obj Q) :=
   icones_comp (tensor_mor f g) (coalg_d Z).
 
-Lemma em_pair_is_mor (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+Lemma em_pair_is_mor (Z P Q : Coalgebra Ar)
     (f : icones_hom Ar (coalg_obj Z) (coalg_obj P))
     (g : icones_hom Ar (coalg_obj Z) (coalg_obj Q)) :
   is_coalg_mor Z P f -> is_coalg_mor Z Q g ->
@@ -1257,13 +1257,13 @@ Proof.
 move=> Hf Hg; rewrite /em_pair_mor.
 apply: (coalg_mor_comp (P := Z) (Q := EM_prod Z Z) (S := EM_prod P Q)).
 - exact: (EM_prod_mor f g Hf Hg).
-- exact: (emc_d_mor hZ).
+- exact: (emc_d_mor (EMComon_all Z)).
 Qed.
 
 (** Bundled pairing of [coalg_hom]s. *)
-Definition em_pair (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+Definition em_pair (Z P Q : Coalgebra Ar)
     (f : coalg_hom Z P) (g : coalg_hom Z Q) : coalg_hom Z (EM_prod P Q) :=
-  MkCoalgHom (em_pair_is_mor hZ (ch_is_mor f) (ch_is_mor g)).
+  MkCoalgHom (em_pair_is_mor (ch_is_mor f) (ch_is_mor g)).
 
 (** *** The projections
 
@@ -1285,7 +1285,7 @@ Definition em_proj2_mor (P Q : Coalgebra Ar) :
     erased by the comonoid counit law [emc_counitR]/[emc_counitL] of the
     domain [Z], after [tensor_mor_comp] and the comonoid-morphism counit
     identity [coalg_mor_e]. *)
-Lemma em_proj1_pair (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+Lemma em_proj1_pair (Z P Q : Coalgebra Ar)
     (f : icones_hom Ar (coalg_obj Z) (coalg_obj P))
     (g : icones_hom Ar (coalg_obj Z) (coalg_obj Q)) :
   is_coalg_mor Z Q g ->
@@ -1310,10 +1310,10 @@ rewrite (tensor_runit_nat f).
 (* [f ∘ (ρ_Z ∘ (id_Z⊗coalg_e Z) ∘ d_Z) = f ∘ id = f]. *)
 rewrite -(icones_compA (icones_comp f (iso_fwd (tensor_runit (coalg_obj Z))))).
 rewrite -(icones_compA f).
-by rewrite (emc_counitR hZ) icones_compIr.
+by rewrite (emc_counitR (EMComon_all Z)) icones_compIr.
 Qed.
 
-Lemma em_proj2_pair (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+Lemma em_proj2_pair (Z P Q : Coalgebra Ar)
     (f : icones_hom Ar (coalg_obj Z) (coalg_obj P))
     (g : icones_hom Ar (coalg_obj Z) (coalg_obj Q)) :
   is_coalg_mor Z P f ->
@@ -1334,7 +1334,7 @@ rewrite (icones_compA (iso_fwd (tensor_lunit (coalg_obj Q)))).
 rewrite (tensor_lunit_nat g).
 rewrite -(icones_compA (icones_comp g (iso_fwd (tensor_lunit (coalg_obj Z))))).
 rewrite -(icones_compA g).
-by rewrite (emc_counitL hZ) icones_compIr.
+by rewrite (emc_counitL (EMComon_all Z)) icones_compIr.
 Qed.
 
 (** *** The diagonal [Δ_P = ⟨id,id⟩ = coalg_d P]
@@ -1351,12 +1351,12 @@ Qed.
 End CartesianData.
 
 Arguments em_pair_mor {R Ar Z P Q} f g.
-Arguments em_pair_is_mor {R Ar Z P Q} hZ {f g}.
-Arguments em_pair {R Ar Z P Q} hZ f g.
+Arguments em_pair_is_mor {R Ar Z P Q} {f g}.
+Arguments em_pair {R Ar Z P Q} f g.
 Arguments em_proj1_mor {R Ar} P Q.
 Arguments em_proj2_mor {R Ar} P Q.
-Arguments em_proj1_pair {R Ar Z P Q} hZ {f g}.
-Arguments em_proj2_pair {R Ar Z P Q} hZ {f g}.
+Arguments em_proj1_pair {R Ar Z P Q} {f g}.
+Arguments em_proj2_pair {R Ar Z P Q} {f g}.
 Arguments em_diag_pair {R Ar} P.
 
 (** ** The terminal object [EM_term = (1, ·)] — Cor 17 (nullary case)
@@ -1386,10 +1386,10 @@ by rewrite (e_bang_prom one1 H1).
 Qed.
 
 (** [coalg_e P] is the canonical morphism [P → EM_term] (a coalgebra
-    morphism for comonoidal [P], [emc_e_mor]). *)
-Definition em_term_mor (P : Coalgebra Ar) (hP : EMComon P) :
+    morphism for EVERY [P] by [emc_e_mor (EMComon_all P)]). *)
+Definition em_term_mor (P : Coalgebra Ar) :
     coalg_hom P EM_term :=
-  MkCoalgHom (emc_e_mor hP).
+  MkCoalgHom (emc_e_mor (EMComon_all P)).
 
 (** Uniqueness: any coalgebra morphism [h : P → EM_term] equals [coalg_e P].
     [coalg_mor_e h] gives [coalg_e EM_term ∘ h = coalg_e P], and
@@ -1406,17 +1406,19 @@ Qed.
 End Terminal.
 
 Arguments coalg_e_term {R Ar}.
-Arguments em_term_mor {R Ar P} hP.
+Arguments em_term_mor {R Ar} P.
 Arguments em_term_unique {R Ar P} h.
 
 (** ** The headline bundle — Melliès Corollary 17 / Proposition 28
 
-    [(EM(!), ⊗, 1)] is CARTESIAN on the rich subcategory of comonoidal
-    objects: every two comonoidal objects have a [⊗]-product with
-    projections, pairing and the [β]-laws, and the tensor unit is terminal.
-    The record packages the cartesian data + laws over the [EM(!)] category
-    of [em_cat.v]; the field types reference the LINEAR tensor [⊗] (NOT the
-    cartesian [&]) — see [cart_prod_obj]. *)
+    [(EM(!), ⊗, 1)] is CARTESIAN — for the FULL Eilenberg–Moore category,
+    NOT just a rich subcategory: since [EMComon] holds unconditionally
+    ([EMComon_all]), EVERY pair of coalgebras has a [⊗]-product with
+    projections, pairing and the [β]-laws, and the tensor unit is terminal
+    for EVERY coalgebra.  The record packages the cartesian data + laws over
+    the [EM(!)] category of [em_cat.v]; the field types reference the LINEAR
+    tensor [⊗] (NOT the cartesian [&]) — see [cart_prod_obj].  No per-object
+    [EMComon] hypothesis is threaded anymore. *)
 Record EM_Cartesian (R : realType) (Ar : MeasSubcat R) : Type := MkEMCartesian {
   (* binary product carried by the linear ⊗, and terminal = tensor unit *)
   cart_prod : Coalgebra Ar -> Coalgebra Ar -> Coalgebra Ar;
@@ -1425,26 +1427,25 @@ Record EM_Cartesian (R : realType) (Ar : MeasSubcat R) : Type := MkEMCartesian {
   cart_prod_obj : forall P Q : Coalgebra Ar,
     coalg_obj (cart_prod P Q) = tensor Ar (coalg_obj P) (coalg_obj Q);
   (* projections (underlying maps) and the pairing of coalgebra morphisms
-     out of a comonoidal object *)
+     out of ANY coalgebra *)
   cart_proj1 : forall P Q : Coalgebra Ar,
     icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj P);
   cart_proj2 : forall P Q : Coalgebra Ar,
     icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj Q);
-  cart_pair : forall (Z P Q : Coalgebra Ar) (hZ : EMComon Z),
+  cart_pair : forall (Z P Q : Coalgebra Ar),
     coalg_hom Z P -> coalg_hom Z Q -> coalg_hom Z (cart_prod P Q);
   (* the β-laws of the product (Cor 17) *)
-  cart_beta1 : forall (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+  cart_beta1 : forall (Z P Q : Coalgebra Ar)
     (f : coalg_hom Z P) (g : coalg_hom Z Q),
-    icones_comp (cart_proj1 P Q) (ch_mor (cart_pair hZ f g)) = ch_mor f;
-  cart_beta2 : forall (Z P Q : Coalgebra Ar) (hZ : EMComon Z)
+    icones_comp (cart_proj1 P Q) (ch_mor (cart_pair f g)) = ch_mor f;
+  cart_beta2 : forall (Z P Q : Coalgebra Ar)
     (f : coalg_hom Z P) (g : coalg_hom Z Q),
-    icones_comp (cart_proj2 P Q) (ch_mor (cart_pair hZ f g)) = ch_mor g;
-  (* terminal universal property: canonical map + uniqueness *)
-  cart_term_mor : forall (P : Coalgebra Ar), EMComon P -> coalg_hom P cart_term;
+    icones_comp (cart_proj2 P Q) (ch_mor (cart_pair f g)) = ch_mor g;
+  (* terminal universal property: canonical map + uniqueness, for EVERY P *)
+  cart_term_mor : forall (P : Coalgebra Ar), coalg_hom P cart_term;
   cart_term_unique : forall (P : Coalgebra Ar)
-    (h : icones_hom Ar (coalg_obj P) (coalg_obj cart_term))
-    (hP : EMComon P),
-    is_coalg_mor P cart_term h -> h = ch_mor (cart_term_mor (P := P) hP);
+    (h : icones_hom Ar (coalg_obj P) (coalg_obj cart_term)),
+    is_coalg_mor P cart_term h -> h = ch_mor (cart_term_mor P);
 }.
 
 Arguments EM_Cartesian {R} Ar.
@@ -1453,7 +1454,8 @@ Arguments EM_Cartesian {R} Ar.
 
     Products [= EM_prod], terminal [= EM_term], projections [= em_proj1/2],
     pairing [= em_pair], β-laws [= em_proj1/2_pair], terminal UP
-    [= em_term_mor]/[em_term_unique].  Headline result. *)
+    [= em_term_mor]/[em_term_unique].  Headline result: the FULL [EM(!)] is
+    cartesian. *)
 Definition ICones_EM_cartesian (R : realType) (Ar : MeasSubcat R) :
     EM_Cartesian Ar :=
   {| cart_prod := @EM_prod R Ar;
@@ -1461,23 +1463,11 @@ Definition ICones_EM_cartesian (R : realType) (Ar : MeasSubcat R) :
      cart_prod_obj := @EM_prod_obj R Ar;
      cart_proj1 := @em_proj1_mor R Ar;
      cart_proj2 := @em_proj2_mor R Ar;
-     cart_pair := fun Z P Q hZ f g => @em_pair R Ar Z P Q hZ f g;
-     cart_beta1 := fun Z P Q hZ f g =>
-       @em_proj1_pair R Ar Z P Q hZ (ch_mor f) (ch_mor g) (ch_is_mor g);
-     cart_beta2 := fun Z P Q hZ f g =>
-       @em_proj2_pair R Ar Z P Q hZ (ch_mor f) (ch_mor g) (ch_is_mor f);
-     cart_term_mor := fun P hP => @em_term_mor R Ar P hP;
-     cart_term_unique := fun P h hP Hh => @em_term_unique R Ar P h Hh |}.
-
-(** *** Richness — the rich subcategory contains the generators
-
-    The [EMComon] predicate (membership in the rich cartesian subcategory)
-    holds for the cofree coalgebras [!̃B] and for the Theorem-9.7 coalgebras
-    [FMeas(X)], and is closed under nothing extra is claimed; these two
-    families are exactly the expert's required generators. *)
-Definition ICones_EM_cartesian_cofree (R : realType) (Ar : MeasSubcat R)
-    (B : ICone.type Ar) : EMComon (bang_cofree B) := EMComon_cofree B.
-
-Definition ICones_EM_cartesian_FMeas (R : realType) (Ar : MeasSubcat R)
-    (X : ar_obj Ar) : EMComon (FMeas_coalgebra X) := EMComon_FMeas X.
+     cart_pair := fun Z P Q f g => @em_pair R Ar Z P Q f g;
+     cart_beta1 := fun Z P Q f g =>
+       @em_proj1_pair R Ar Z P Q (ch_mor f) (ch_mor g) (ch_is_mor g);
+     cart_beta2 := fun Z P Q f g =>
+       @em_proj2_pair R Ar Z P Q (ch_mor f) (ch_mor g) (ch_is_mor f);
+     cart_term_mor := fun P => @em_term_mor R Ar P;
+     cart_term_unique := fun P h Hh => @em_term_unique R Ar P h Hh |}.
 
