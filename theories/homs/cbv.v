@@ -332,3 +332,210 @@ Arguments adj_phi_inj {R Ar P B} a b.
 Arguments kcomp_etaR {R Ar P Q} f.
 Arguments kcomp_etaL {R Ar P Q} f.
 Arguments kcomp_A {R Ar P Q S T} h g f.
+
+(** ** The projections are coalgebra morphisms (when the discarded factor is
+    comonoidal)
+
+    [em_cartesian.v] exposes the projections [em_proj1_mor]/[em_proj2_mor] as
+    plain [icones_hom] (the β-laws are stated at that level).  To use them in
+    the value category we package them as coalgebra morphisms: when the
+    discarded factor is comonoidal ([EMComon]), the projection
+    [ρ ∘ (id ⊗ coalg_e)] is a composite of coalgebra morphisms — the unitor
+    [m_runit_coalg_mor]/[m_lunit_coalg_mor] of [cbv_adjunction.v] and the
+    bifunctor action [EM_prod_mor] on [id] and the comonoid counit
+    [emc_e_mor]. *)
+Section Projections.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma em_proj1_is_mor (P Q : Coalgebra Ar) (hQ : EMComon Q) :
+  is_coalg_mor (EM_prod P Q) P (em_proj1_mor P Q).
+Proof.
+rewrite /em_proj1_mor.
+apply: (coalg_mor_comp (P := EM_prod P Q) (Q := EM_prod P EM_term) (S := P)).
+- exact: (m_runit_coalg_mor P).
+- apply: (EM_prod_mor (P':=P) (Q':=EM_term) (icones_id Ar (coalg_obj P)) (coalg_e Q)).
+  + exact: (coalg_mor_id P).
+  + exact: (emc_e_mor hQ).
+Qed.
+
+Lemma em_proj2_is_mor (P Q : Coalgebra Ar) (hP : EMComon P) :
+  is_coalg_mor (EM_prod P Q) Q (em_proj2_mor P Q).
+Proof.
+rewrite /em_proj2_mor.
+apply: (coalg_mor_comp (P := EM_prod P Q) (Q := EM_prod EM_term Q) (S := Q)).
+- exact: (m_lunit_coalg_mor Q).
+- apply: (EM_prod_mor (P':=EM_term) (Q':=Q) (coalg_e P) (icones_id Ar (coalg_obj Q))).
+  + exact: (emc_e_mor hP).
+  + exact: (coalg_mor_id Q).
+Qed.
+
+(** The bundled projection coalgebra morphisms. *)
+Definition em_proj1 (P Q : Coalgebra Ar) (hQ : EMComon Q) :
+    coalg_hom (EM_prod P Q) P := MkCoalgHom (em_proj1_is_mor P hQ).
+
+Definition em_proj2 (P Q : Coalgebra Ar) (hP : EMComon P) :
+    coalg_hom (EM_prod P Q) Q := MkCoalgHom (em_proj2_is_mor Q hP).
+
+End Projections.
+
+Arguments em_proj1_is_mor {R Ar} P {Q} hQ.
+Arguments em_proj2_is_mor {R Ar P} Q hP.
+Arguments em_proj1 {R Ar} P {Q} hQ.
+Arguments em_proj2 {R Ar P} Q hP.
+
+(** ** The CBV calculus — syntax
+
+    A small first-order probabilistic call-by-value calculus, intrinsically
+    typed by Rocq inductives.  We separate two grammars:
+    - *comonoidal context types* [cty] — the types that carry [EMComon] and so
+      may be the type of the (single) free variable / [let]-bound variable:
+      the unit [cunit] and a base type [cbase X] per measurable space [X];
+    - *value types* [vty] — a comonoidal type [vcty G], or a binary PRODUCT
+      [vprod G H] of two comonoidal types.  (Products themselves are NOT
+      comonoidal — [EMComon] is not closed under [EM_prod], step 3 open — so a
+      product is a value type but never a context type; this is the honest
+      first-order restriction.)
+
+    Contexts are single-variable; substitution is composition.  The grammar
+    deliberately stays first-order: there are NO function/arrow types (the
+    value category is cartesian but NOT closed, see the file header). *)
+Section Syntax.
+Variable (R : realType) (Ar : MeasSubcat R).
+
+Inductive cty : Type :=
+  | cunit
+  | cbase (X : ar_obj Ar).
+
+Inductive vty : Type :=
+  | vcty (G : cty)
+  | vprod (G H : cty).
+
+(** Values [vl Γ τ] : a value of type [τ] with one free variable of
+    comonoidal type [Γ]. *)
+Inductive vl (G : cty) : vty -> Type :=
+  | v_var : vl G (vcty G)                              (* the variable [x] *)
+  | v_unit : vl G (vcty cunit)                         (* [()] *)
+  | v_pair (H K : cty) :
+      vl G (vcty H) -> vl G (vcty K) -> vl G (vprod H K)  (* [(V, W)] *)
+  | v_fst (H K : cty) : vl G (vprod H K) -> vl G (vcty H)  (* [fst V] *)
+  | v_snd (H K : cty) : vl G (vprod H K) -> vl G (vcty K). (* [snd V] *)
+
+(** Computations [cp Γ τ] : a computation of type [τ] with one free variable
+    of comonoidal type [Γ]. *)
+Inductive cp (G : cty) : vty -> Type :=
+  | c_ret (t : vty) : vl G t -> cp G t                   (* [return V] *)
+  | c_let (H : cty) (t : vty) :                          (* [let x = M in N] *)
+      cp G (vcty H) -> cp H t -> cp G t
+  | c_sample (X : ar_obj Ar) :                           (* [sample V] *)
+      vl G (vcty (cbase X)) -> cp G (vcty (cbase X)).
+
+End Syntax.
+
+Arguments cty {R} Ar.
+Arguments vty {R} Ar.
+Arguments cunit {R Ar}.
+Arguments cbase {R Ar} X.
+Arguments vcty {R Ar} G.
+Arguments vprod {R Ar} G H.
+Arguments vl {R Ar} G t.
+Arguments v_var {R Ar G}.
+Arguments v_unit {R Ar G}.
+Arguments v_pair {R Ar G H K} V W.
+Arguments v_fst {R Ar G H K} V.
+Arguments v_snd {R Ar G H K} V.
+Arguments cp {R Ar} G t.
+Arguments c_ret {R Ar G t} V.
+Arguments c_let {R Ar G H t} M N.
+Arguments c_sample {R Ar G X} V.
+
+(** ** The interpretation of types
+
+    Comonoidal context types denote the rich-subcategory generators
+    ([EM_term], [FMeas_coalgebra X]); value types denote their carriers and
+    [EM_prod]s.  [ctyComon] supplies the [EMComon] witness for every context
+    type (using [EMComon_term] of this file and [EMComon_FMeas] of
+    [em_cartesian.v]). *)
+Section TypeInterp.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** Context-type denotation, as a comonoidal coalgebra. *)
+Definition ctyD (G : cty Ar) : Coalgebra Ar :=
+  match G with
+  | cunit => EM_term
+  | cbase X => FMeas_coalgebra X
+  end.
+
+Definition ctyComon (G : cty Ar) : EMComon (ctyD G) :=
+  match G with
+  | cunit => EMComon_term
+  | cbase X => EMComon_FMeas X
+  end.
+
+(** Value-type denotation. *)
+Definition vtyD (t : vty Ar) : Coalgebra Ar :=
+  match t with
+  | vcty G => ctyD G
+  | vprod G H => EM_prod (ctyD G) (ctyD H)
+  end.
+
+(** A [vcty]-type denotes the same coalgebra as its context type (so the
+    variable rule [v_var : vl G (vcty G)] is [id] on [ctyD G]). *)
+Lemma vtyD_vcty (G : cty Ar) : vtyD (vcty G) = ctyD G.
+Proof. by []. Qed.
+
+End TypeInterp.
+
+Arguments ctyD {R Ar} G.
+Arguments ctyComon {R Ar} G.
+Arguments vtyD {R Ar} t.
+
+(** ** The interpretation of terms
+
+    Values denote coalgebra morphisms [⟦Γ⟧ → ⟦τ⟧] in the value category;
+    computations denote Kleisli arrows [⟦Γ⟧ → T⟦τ⟧].  Both are TOTAL by
+    construction (a structurally-recursive Rocq function on the intrinsically
+    typed syntax), which IS the well-definedness / totality part of
+    soundness. *)
+Section TermInterp.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** Value denotation [⟦Γ ⊢ V : τ⟧ : coalg_hom (ctyD Γ) (vtyD τ)].
+
+    - [v_var]   ↦ identity coalgebra morphism;
+    - [v_unit]  ↦ the terminal map ([em_term_mor]);
+    - [v_pair]  ↦ the cartesian pairing [em_pair] (domain [ctyD G] comonoidal);
+    - [v_fst]/[v_snd] ↦ postcompose with the projection [em_proj1]/[em_proj2]
+      (a coalgebra morphism since the discarded factor [ctyD K]/[ctyD H] is
+      comonoidal). *)
+Fixpoint vlD (G : cty Ar) (t : vty Ar) (V : vl G t) {struct V} :
+    coalg_hom (ctyD G) (vtyD t) :=
+  match V in vl _ t0 return coalg_hom (ctyD G) (vtyD t0) with
+  | v_var => coalg_id (ctyD G)
+  | v_unit => em_term_mor (ctyComon G)
+  | v_pair H K W1 W2 => em_pair (ctyComon G) (vlD W1) (vlD W2)
+  | v_fst H K W => coalg_comp (em_proj1 (ctyD H) (ctyComon K)) (vlD W)
+  | v_snd H K W => coalg_comp (em_proj2 (ctyD K) (ctyComon H)) (vlD W)
+  end.
+
+(** Computation denotation [⟦Γ ⊢ M : τ⟧ : coalg_hom (ctyD Γ) (Tobj (vtyD τ))]
+    — a Kleisli arrow.
+
+    - [c_ret V]   ↦ [η ∘ ⟦V⟧] (the monad unit after the value);
+    - [c_let M N] ↦ Kleisli composition [kcomp ⟦N⟧ ⟦M⟧]: [⟦M⟧ : Γ ⇝ H],
+      [⟦N⟧ : H ⇝ τ];
+    - [c_sample V] ↦ [η_{FMeas X} ∘ ⟦V⟧], i.e. the Theorem-9.7 coalgebra
+      structure [Coalg X] (= [coalg_str (FMeas_coalgebra X)] = [adj_unit])
+      after the value — the integration-of-Diracs map (see [cpD_sample_dirac]
+      / [cpD_sample_ret] below). *)
+Fixpoint cpD (G : cty Ar) (t : vty Ar) (M : cp G t) {struct M} :
+    coalg_hom (ctyD G) (Tobj (vtyD t)) :=
+  match M in cp _ t0 return coalg_hom (ctyD G) (Tobj (vtyD t0)) with
+  | c_ret t0 V => coalg_comp (tunit_eta (vtyD t0)) (vlD V)
+  | c_let H t0 N1 N2 => kcomp (cpD N2) (cpD N1)
+  | c_sample X V => coalg_comp (tunit_eta (vtyD (vcty (cbase X)))) (vlD V)
+  end.
+
+End TermInterp.
+
+Arguments vlD {R Ar G t} V.
+Arguments cpD {R Ar G t} M.
