@@ -539,3 +539,161 @@ End TermInterp.
 
 Arguments vlD {R Ar G t} V.
 Arguments cpD {R Ar G t} M.
+
+(** ** Soundness of the interpretation
+
+    Beyond totality (the interpretation is a total function on the
+    intrinsically-typed syntax, above), we prove the compositional
+    equations a CBV interpretation must satisfy:
+    - the [let] laws (the monad laws, in term form);
+    - the product β-laws;
+    - the [sample] semantics ([= Coalg X], the integral / Dirac law). *)
+Section Soundness.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Definitional unfoldings of [cpD] (stated as lemmas so [rewrite] folds
+    them cleanly without an aggressive [/=]). *)
+Lemma cpD_retE (G : cty Ar) (t : vty Ar) (V : vl G t) :
+  cpD (c_ret V) = coalg_comp (tunit_eta (vtyD t)) (vlD V).
+Proof. by []. Qed.
+
+Lemma cpD_letE (G H : cty Ar) (t : vty Ar) (M : cp G (vcty H)) (N : cp H t) :
+  cpD (c_let M N) = kcomp (cpD N) (cpD M).
+Proof. by []. Qed.
+
+Lemma cpD_sampleE (G : cty Ar) (X : ar_obj Ar) (V : vl G (vcty (cbase X))) :
+  cpD (c_sample V) = coalg_comp (tunit_eta (FMeas_coalgebra X)) (vlD V).
+Proof. by []. Qed.
+
+Lemma vlD_varE (G : cty Ar) : vlD (v_var (G := G)) = coalg_id (ctyD G).
+Proof. by []. Qed.
+
+Lemma vlD_pairE (G H K : cty Ar) (V : vl G (vcty H)) (W : vl G (vcty K)) :
+  vlD (v_pair V W) = em_pair (ctyComon G) (vlD V) (vlD W).
+Proof. by []. Qed.
+
+Lemma vlD_fstE (G H K : cty Ar) (V : vl G (vprod H K)) :
+  vlD (v_fst V) = coalg_comp (em_proj1 (ctyD H) (ctyComon K)) (vlD V).
+Proof. by []. Qed.
+
+Lemma vlD_sndE (G H K : cty Ar) (V : vl G (vprod H K)) :
+  vlD (v_snd V) = coalg_comp (em_proj2 (ctyD K) (ctyComon H)) (vlD V).
+Proof. by []. Qed.
+
+(** *** The [let] laws
+
+    [let x = M in (return x) = M] (right unit), [let x = (return V) in N =
+    N[V/x]] read as the composition [⟦N⟧ ∘ ⟦V⟧] (left unit), and
+    associativity of [let] (Kleisli associativity). *)
+
+(** Right unit: [⟦ let x = M in return x ⟧ = ⟦ M ⟧]. *)
+Lemma cpD_let_retvar (G H : cty Ar) (M : cp G (vcty H)) :
+  cpD (c_let M (c_ret v_var)) = cpD M.
+Proof.
+rewrite cpD_letE cpD_retE vlD_varE coalg_compIr.
+exact: kcomp_etaL.
+Qed.
+
+(** Left unit / [let]-of-[return] = substitution-as-composition:
+    [⟦ let x = return V in N ⟧ = ⟦N⟧ ∘ ⟦V⟧]
+    (the value [V] is substituted for [x] by precomposition). *)
+Lemma cpD_letret (G H : cty Ar) (t : vty Ar)
+    (V : vl G (vcty H)) (N : cp H t) :
+  cpD (c_let (c_ret V) N) = coalg_comp (cpD N) (vlD V).
+Proof.
+rewrite cpD_letE cpD_retE /kcomp.
+rewrite (coalg_compA (kbind (cpD N)) (tunit_eta (vtyD (vcty H))) (vlD V)).
+by rewrite -/(kcomp (cpD N) (tunit_eta (ctyD H))) kcomp_etaR.
+Qed.
+
+(** Associativity of [let]:
+    [⟦ let y = (let x = L in M) in N ⟧ = ⟦ let x = L in (let y = M in N) ⟧]. *)
+Lemma cpD_letassoc (G H K : cty Ar) (t : vty Ar)
+    (L : cp G (vcty H)) (M : cp H (vcty K)) (N : cp K t) :
+  cpD (c_let (c_let L M) N) = cpD (c_let L (c_let M N)).
+Proof. by rewrite !cpD_letE kcomp_A. Qed.
+
+(** *** The product β-laws
+
+    [⟦ fst (V, W) ⟧ = ⟦V⟧] and [⟦ snd (V, W) ⟧ = ⟦W⟧]. *)
+Lemma vlD_fst_pair (G H K : cty Ar) (V : vl G (vcty H)) (W : vl G (vcty K)) :
+  vlD (v_fst (v_pair V W)) = vlD V.
+Proof.
+apply: coalg_hom_eqP.
+rewrite vlD_fstE vlD_pairE coalg_comp_mor.
+rewrite -[ch_mor (em_proj1 (ctyD H) (ctyComon K))]/(em_proj1_mor (ctyD H) (ctyD K)).
+rewrite -[ch_mor (em_pair (ctyComon G) (vlD V) (vlD W))]
+        /(em_pair_mor (ch_mor (vlD V)) (ch_mor (vlD W))).
+exact: (em_proj1_pair (ctyComon G) (ch_is_mor (vlD W))).
+Qed.
+
+Lemma vlD_snd_pair (G H K : cty Ar) (V : vl G (vcty H)) (W : vl G (vcty K)) :
+  vlD (v_snd (v_pair V W)) = vlD W.
+Proof.
+apply: coalg_hom_eqP.
+rewrite vlD_sndE vlD_pairE coalg_comp_mor.
+rewrite -[ch_mor (em_proj2 (ctyD K) (ctyComon H))]/(em_proj2_mor (ctyD H) (ctyD K)).
+rewrite -[ch_mor (em_pair (ctyComon G) (vlD V) (vlD W))]
+        /(em_pair_mor (ch_mor (vlD V)) (ch_mor (vlD W))).
+exact: (em_proj2_pair (ctyComon G) (ch_is_mor (vlD V))).
+Qed.
+
+(** *** The [sample] semantics
+
+    [sample] over a base space [X] denotes the Theorem-9.7 coalgebra
+    structure map [Coalg X] composed with the value:
+    [⟦ sample V ⟧ = Coalg_X ∘ ⟦V⟧] (on the underlying [icones_hom]).  The
+    structure map [Coalg X = coalg_str (FMeas_coalgebra X) = int_to_linhom
+    (bang_dirac_path X)] IS the integral operator [µ ↦ ∫ (δ_X r)! dµ]. *)
+
+(** The underlying map of [⟦sample V⟧] is [Coalg X ∘ ⟦V⟧]. *)
+Lemma cpD_sample_mor (G : cty Ar) (X : ar_obj Ar) (V : vl G (vcty (cbase X))) :
+  ch_mor (cpD (c_sample V)) = icones_comp (Coalg X) (ch_mor (vlD V)).
+Proof. by rewrite cpD_sampleE coalg_comp_mor. Qed.
+
+(** [sample] = the monad [return] on measure values: the CBV computation
+    monad [T = !̃∘U] identifies "draw from a measure" with "return the
+    measure as a duplicable value", because its unit on [FMeas X] IS the
+    integration-of-Diracs map [Coalg X] (Theorem 9.7).  This is a genuine
+    feature of the cones model, recorded honestly. *)
+Lemma cpD_sample_ret (G : cty Ar) (X : ar_obj Ar) (V : vl G (vcty (cbase X))) :
+  cpD (c_sample V) = cpD (c_ret V).
+Proof. by []. Qed.
+
+(** [sample] = integral, on the Dirac basis: drawing from the point mass
+    [δ_X r] (the input, when [Γ = base X] and [V = x]) deterministically
+    yields the promoted Dirac [(δ_X r)!] — Paper [Coalg_dirac].  This is the
+    base case of the "draw [r ∼ µ] is an integral" identity, the precise
+    sense in which [sample]'s denotation is the integration of the Dirac
+    path against the measure. *)
+Lemma cpD_sample_var_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
+  Lfun (ch_mor (cpD (c_sample (G := cbase X) (X := X) v_var))) (dirac_fmeas r)
+    = prom (dirac_fmeas r).
+Proof.
+rewrite (cpD_sample_mor (G := cbase X) v_var) vlD_varE.
+rewrite -[ch_mor (coalg_id (ctyD (cbase X)))]/(icones_id Ar (FMeas X)).
+rewrite -[Lfun (icones_comp (Coalg X) (icones_id Ar (FMeas X))) (dirac_fmeas r)]
+        /(Lfun (Coalg X) (Lfun (icones_id Ar (FMeas X)) (dirac_fmeas r))).
+exact: (Coalg_dirac X r).
+Qed.
+
+(** [Coalg X] is literally the integral operator [int_to_linhom
+    (bang_dirac_path X)] of Theorem 6.1 — so [⟦sample⟧] integrates the
+    promoted Dirac path [r ↦ (δ_X r)!] against the measure value. *)
+Lemma cpD_sample_is_integral (X : ar_obj Ar) :
+  ch_mor (tunit_eta (FMeas_coalgebra X)) = Coalg X.
+Proof. by []. Qed.
+
+End Soundness.
+
+Arguments cpD_let_retvar {R Ar G H} M.
+Arguments cpD_letret {R Ar G H t} V N.
+Arguments cpD_letassoc {R Ar G H K t} L M N.
+Arguments vlD_fst_pair {R Ar G H K} V W.
+Arguments vlD_snd_pair {R Ar G H K} V W.
+Arguments cpD_sample_mor {R Ar G X} V.
+Arguments cpD_sample_ret {R Ar G X} V.
+Arguments cpD_sample_var_dirac {R Ar X} r.
+Arguments cpD_sample_is_integral {R Ar} X.
