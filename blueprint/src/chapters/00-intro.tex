@@ -25,7 +25,8 @@ in the source tree under \texttt{theories/}.
 
 \paragraph{Scope.}
 The Rocq development covers paper \S2--\S9 (see \texttt{PLAN.md} at the
-root of the repository):
+root of the repository), plus a beyond-the-paper call-by-value model
+(Chapter~\ref{ch:cbv}):
 \begin{itemize}
   \item paper \S2 --- cones, the category $\Cones$ (M1);
   \item paper \S3 --- measurable cones, paths, $\FMeas$, the
@@ -45,7 +46,13 @@ root of the repository):
   \item paper \S9 --- the exponential $\mathord{!}$ comonad, the Seely
     category (Theorem~9.5) and the $\mathord{!}$-coalgebra structure of
     $\FMeas$ (Theorem~9.7, Chapter~\ref{ch:exponential}), plus the \S9.2
-    fixpoints.
+    fixpoints;
+  \item \emph{beyond the paper} --- a \emph{call-by-value} model
+    following Melli\`es~\cite{mellies-categorical-semantics} \S7.4 (the
+    Eilenberg--Moore / coalgebra route), the paper's stated future work
+    (Chapter~\ref{ch:cbv}): the cartesian Eilenberg--Moore category of
+    $\mathord{!}$ carried by the linear $\otimes$ on the rich subcategory
+    of comonoidal coalgebras, and the monoidal adjunction to $\ICones$.
 \end{itemize}
 The whole development is \textbf{fully axiom-free}: every result rests
 on \emph{zero} project axioms, using only the three classical-logic
@@ -60,12 +67,18 @@ exponential $\mathord{!}$, the Seely isomorphisms) parked behind
 has now been \emph{entirely discharged} by the concrete M-SAFT
 construction. There is no staged tier and no \texttt{theories/axioms/}
 directory: the linear-logic model \emph{through} paper~\S9 is complete
-and axiom-free. What remains open is genuinely beyond \S9: paper \S8
-(analytic functions, the category $\mathrm{ACONES}$), the \S9
-Eilenberg–Moore full-subcategory theorem ($\mathrm{ARCAT}$ on
-Polish/standard-Borel spaces $\hookrightarrow \mathrm{EM}(\mathord{!})$,
-needing a Polish/standard-Borel layer not yet formalised) and the PCS
-embedding (\S10).
+and axiom-free. Beyond the paper, the call-by-value \emph{model
+structure} of Chapter~\ref{ch:cbv} is also built and axiom-free, with
+three honest caveats stated there (the cartesian structure lives on the
+rich subcategory of comonoidal coalgebras, not the full
+$\mathrm{EM}(\mathord{!})$; comonoidality is not proved closed under the
+product; and no CBV/CBPV calculus is yet interpreted). What remains open
+otherwise is genuinely beyond \S9: paper \S8 (analytic functions, the
+category $\mathrm{ACONES}$), the \S9 Eilenberg–Moore full-subcategory
+theorem ($\mathrm{ARCAT}$ on Polish/standard-Borel spaces
+$\hookrightarrow \mathrm{EM}(\mathord{!})$, needing a
+Polish/standard-Borel layer not yet formalised) and the PCS embedding
+(\S10).
 
 \paragraph{How to read this blueprint.}
 Each chapter mirrors a paper section (or, in some cases, a small

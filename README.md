@@ -63,8 +63,11 @@ in `monospace` are the corresponding Rocq declarations.
   faithfully** into `ICones` (`Skern_to_ICones_fully_faithful`). The cone model genuinely
   *extends* the established semantics to higher order; it does not quietly change it.
 - **Multiplicative linear logic (Theorem 5.15).** `ICones` is a **symmetric monoidal closed
-  category** (`ICones_smcc`): the tensor `⊗`, the linear hom `⊸`, and all the coherence
-  (associator, unitors, braiding; triangle, pentagon, hexagon).
+  category** (`ICones_smcc`): the tensor `⊗`, the linear hom `⊸`, the bifunctor action and
+  its identity law, the structural isomorphisms (associator, unitors, braiding) and the
+  coherence laws (triangle, pentagon, hexagon, braiding involution), and the closedness iso.
+  (The bifunctor's composition law and the naturality of the structural isos are proved as
+  standalone lemmas, not packed into the `ICones_SMCC` record.)
 - **The ordinary functional calculus + recursion (Theorem 7.32, §9.2).** The "stable" maps
   between cones form a **cartesian closed category** `SCones` (`SCones_ccc`) — a model of the
   non-linear simply-typed calculus — equipped with **least-fixpoint operators at every type**
@@ -73,7 +76,9 @@ in `monospace` are the corresponding Rocq declarations.
   (`Bang_comonad`), built from the linear/non-linear adjunction `E ⊣ Der`, makes `ICones` a
   **Seely category** (`ICones_Seely`) — a model of intuitionistic linear logic — via the
   isomorphisms `!A ⊗ !B ≅ !(A & B)` and `1 ≅ !⊤` (whose construction rests on Lemma 9.4,
-  `stab_lin_swap`).
+  `stab_lin_swap`). The adjoint `E` exists because the dereliction `Der` preserves all
+  limits — equalisers (`der_preserves_limits`) and products (`der_preserves_prod_proj`) —
+  feeding the same SAFT argument as the tensor.
 - **Sampling as a data type (Theorem 9.7).** Each measurable space `X` makes the cone of
   measures `FMeas(X)` a `!`-**coalgebra** (`FMeas_coalgebra`), and `X ↦ FMeas(X)` is a functor
   into the Eilenberg–Moore category of `!`. This is the structure that interprets sampling as
@@ -93,7 +98,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~52k lines across 53 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~54k lines across 55 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -108,14 +113,54 @@ adjoint as a wide intersection of subobjects of a coseparator power
 SAFT-given objects as in the paper, with their construction fully spelled out — which is what
 lets the development carry no `Parameter`/`Axiom` interfaces and leave nothing "assumed."
 
+## Beyond the paper: a call-by-value model
+
+The Ehrhard–Geoffroy paper stops at the §9 LNL / Seely model; a **call-by-value** (CBV)
+reading is its explicitly stated *future work* (the conclusion: *"In future work we will
+explain how this model can be used for interpreting call-by-value or even call-by-push-value
+… languages …"*). This repository takes a step in that direction along the
+**Eilenberg–Moore / coalgebra route** of **Melliès, *Categorical Semantics of Linear Logic*,
+§7.4** (the EM route gives CBV; the co-Kleisli route gives CBN, which is the cartesian closed
+`SCones` above). It is *beyond* the paper — not a paper-§ result.
+
+The CBV **model structure** is built and **axiom-free** (the four files below depend only on
+the same three classical `boolp` axioms as everything else — verified by `Print Assumptions`
+on `ICones_CBV`, `ICones_EM_cartesian`, `EMComon_cofree`, `EMComon_FMeas`):
+
+- **`theories/homs/em_cat.v`** — the **Eilenberg–Moore category** of the `!` comonad
+  (`ICones_EM`), the cofree functor `!̃ = bang_cofree` with `!̃B = (!B, dig B)`, the forgetful
+  functor `U`, and the **cofree adjunction `U ⊣ !̃`** (`adj_phi`/`adj_psi`, the round-trips
+  `adj_phiK`/`adj_psiK`, naturality, and the triangle identities
+  `adj_triangleL`/`adj_triangleR`).
+- **`theories/homs/em_seely_comonoid.v`** — the **commutative-comonoid** maps `d_bang`/`e_bang`
+  on `!A`, transported from the cartesian `(&, ⊤)` through the Seely isos `Seely2`/`Seely0`,
+  with the comonoid laws and the coalgebra / comonoid-morphism conditions (Melliès's LC2–LC4),
+  plus the symmetric-monoidal `tens_cofree`/`unit_cofree`.
+- **`theories/homs/em_cartesian.v`** — **`EM(!)` is cartesian, with the product carried by the
+  linear `⊗`** (not `&`) and the terminal object the tensor unit `1`: the headline
+  `ICones_EM_cartesian` (`EM_prod`, `EM_term`, projections, pairing, β-laws), the lax-monoidal
+  comparison `m_bang`, and the richness witnesses `EMComon_cofree` (the cofree `!̃B`) and
+  `EMComon_FMeas` (the Theorem-9.7 `FMeas(X)` coalgebras).
+- **`theories/homs/cbv_adjunction.v`** — the **(lax symmetric) monoidal adjunction `U ⊣ !̃`**
+  (Melliès Prop. 29), bundled as the record **`CBV_Model`** with the witness **`ICones_CBV`**.
+
+**Three honest caveats**, stated plainly in the sources and the blueprint:
+
+1. The cartesian structure is proved on the **rich subcategory** of comonoidal coalgebras
+   (`EMComon` — which contains `!̃B` and `FMeas(X)`), **not the full `EM(!)`**. The general
+   Proposition-28 / Corollary-20 step is deliberately deferred — Melliès himself flags it as
+   *"not so immediate"*, and the concrete model confirms it (the transported comonoid maps only
+   *compute* on promoted points).
+2. `EMComon` is **not** proved closed under the product `⊗`.
+3. The **interpretation of an actual CBV / CBPV calculus** (a `cbv.v`) is **not yet done** —
+   that is the remaining step toward the paper's stated future-work goal.
+
 ## Status
 
-Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free.
+Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free. Beyond the paper,
+the call-by-value model structure above is also built and axiom-free (with the three caveats
+stated).
 
-- **In progress:** a **call-by-value** layer — making the Eilenberg–Moore category of `!`
-  cartesian and exhibiting the monoidal adjunction to `ICones`, following Melliès's
-  *Categorical Semantics of Linear Logic* §7.4. The foundational pieces (the EM category, the
-  cofree adjunction, the comonoid structure) are done; the cartesianness step is under way.
 - **Open** (genuinely beyond §9): the **§8** analytic exponential and its category `ACONES`;
   the **§9** Eilenberg–Moore *full-subcategory* theorem (which needs a Polish / standard-Borel
   layer not yet formalized); and the **§10** probabilistic-coherence-space embedding.
@@ -132,7 +177,12 @@ theories/
 ├── icones/    Pettis integral, integrable cones, Fubini, completeness,   (§4)
 │              well-poweredness + the representability machinery
 ├── homs/      internal hom ⊸, tensor ⊗ + SMCC, the ! comonad + E⊣Der,    (§5, §9)
-│              the Seely category, the FMeas !-coalgebra, EM(!)
+│              the Seely category, the FMeas !-coalgebra;
+│              the call-by-value model (beyond the paper, Melliès §7.4):  (CBV)
+│                em_cat.v            EM(!) + the cofree adjunction U ⊣ !̃
+│                em_seely_comonoid.v the Seely comonoid d/e on !A (LC2–4)
+│                em_cartesian.v      EM(!) cartesian via ⊗ (rich subcat.)
+│                cbv_adjunction.v    the monoidal adjunction, ICones_CBV
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
 └── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
 ```
