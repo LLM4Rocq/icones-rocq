@@ -197,10 +197,10 @@ Local Open Scope ring_scope.
     A higher-order extension of [cbv.v]'s grammar.  The only new type
     constructor is [tfun A B] (the LNL arrow [!A ⊸ B]); products
     [tprod'], unit [tunit'] and the base types [tbase' X] are exactly
-    as in [cbv.v].  Values gain a lambda introduction [v_lam].  We do
-    NOT add an application constructor — see "Honest scope" in the
-    header.  This is the higher-order INTRODUCTION-only fragment, which
-    is exactly what the ported QBS example needs. *)
+    as in [cbv.v].  Values gain a lambda introduction [v_lam], and
+    computations gain a Moggi/CBPV-style application [c_app] (which
+    returns [T B], not [B] — see the "Honest scope" in the file
+    header). *)
 Section Syntax.
 Variable (R : realType) (Ar : MeasSubcat R).
 
