@@ -471,6 +471,42 @@ Lemma cpD'_appE (G : ty' Ar) (A B : ty' Ar)
   cpD' (c_app Vf Va) = app_kleisli (vlD' Vf) (vlD' Va).
 Proof. by []. Qed.
 
+(** *** The β-rule at the underlying-ICones level
+
+    [adj_phi (app_kleisli VF VA) = app_under VF VA] — round-trip of
+    [adj_psi] through [adj_phi] is the identity ([adj_phiK]).  This
+    gives the underlying linear hom of an application, without going
+    through the cofree coalgebra detour. *)
+Lemma adj_phi_app_kleisli (G A B : Coalgebra Ar)
+    (VF : coalg_hom G (bang_cofree (linhom_car Ar (Bang Ar (coalg_obj A))
+                                              (coalg_obj B))))
+    (VA : coalg_hom G A) :
+  adj_phi (app_kleisli VF VA) = app_under VF VA.
+Proof. exact: adj_phiK. Qed.
+
+(** *** The β-rule on a lambda: the underlying of [c_app (v_lam V) W]
+
+    Combine [adj_phi_app_kleisli] with [adj_phi_lam_coalg] to read
+    the underlying linear hom of [c_app (v_lam V) W] as
+    [eval_smcc ∘ (lam_under (vlD' V) ⊗ (bang_fmap (vlD' W) ∘ coalg_str))
+    ∘ coalg_d].  This is the standard β-reduction of an LNL CBV
+    application; full β-equivalence with the substituted body
+    [V[W/x]] would need a substitution lemma, which is a separate
+    development (not pursued here). *)
+Lemma adj_phi_cpD'_app_lam (G A B : ty' Ar)
+    (V : vl' (tprod' G A) B) (W : vl' G A) :
+  adj_phi (cpD' (c_app (v_lam V) W)) =
+  icones_comp (eval_smcc (Bang Ar (coalg_obj (tyD' A))) (coalg_obj (tyD' B)))
+    (icones_comp
+       (tensor_mor (lam_under (vlD' V))
+                   (icones_comp (bang_fmap (ch_mor (vlD' W)))
+                                (coalg_str (tyD' G))))
+       (coalg_d (tyD' G))).
+Proof.
+rewrite cpD'_appE adj_phi_app_kleisli /app_under.
+by rewrite vlD'_lamE adj_phi_lam_coalg.
+Qed.
+
 (** ** The higher-order example — [random_constant]
 
     [c_let (c_sample' v_var') (c_ret' (v_lam (v_fst' v_var')))] in
