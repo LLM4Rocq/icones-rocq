@@ -273,3 +273,50 @@ Arguments e_bind {R Ar R_obj G t1 t2} M K.
 Arguments e_sample {R Ar R_obj G X} mu.
 Arguments e_real {R Ar R_obj G} r.
 Arguments e_score {R Ar R_obj G} r.
+
+(** ** Type and context interpretation [tyD] / [ctxD]
+
+    Every type denotes a coalgebra of [EM(!)]:
+    [[
+       ⟦tunit⟧       = EM_term
+       ⟦tbase X⟧     = FMeas_coalgebra X         (Theorem 9.7)
+       ⟦tprod t1 t2⟧ = EM_prod ⟦t1⟧ ⟦t2⟧
+       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U⟦t2⟧)         (Kleisli exponential of [T])
+       ⟦tprob t⟧     = Tobj ⟦t⟧ = !̃(U⟦t⟧)        (CBV computation monad)
+    ]]
+
+    Contexts are interpreted with the HEAD of the list on the RIGHT:
+    [[
+       ⟦[]⟧      = EM_term
+       ⟦t :: G⟧  = EM_prod ⟦G⟧ ⟦t⟧.
+    ]]
+    With this orientation, the variable [hv_zero] (= the head) is the
+    SECOND component of the product (read by [em_proj2]), and [hv_succ]
+    strips off the head by reading the FIRST component (via [em_proj1]) and
+    recursing.  The orientation matches the [lam_coalg] / [app_kleisli]
+    helpers below: the body of [e_lam : expr (t1 :: G) t2 -> expr G (tfun
+    t1 t2)] is interpreted in [⟦t1 :: G⟧ = EM_prod ⟦G⟧ ⟦t1⟧] — exactly the
+    domain of the Kleisli-exponential curry of [cbv.v]. *)
+Section TypeInterp.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
+  match t with
+  | tunit => EM_term
+  | tbase X => FMeas_coalgebra X
+  | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
+  | tfun A B => bang_cofree (linhom_car Ar (coalg_obj (tyD A))
+                                          (coalg_obj (tyD B)))
+  | tprob t0 => Tobj (tyD t0)
+  end.
+
+Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
+  match G with
+  | nil => EM_term
+  | t :: G' => EM_prod (ctxD G') (tyD t)
+  end.
+
+End TypeInterp.
+
+Arguments tyD {R Ar} t.
+Arguments ctxD {R Ar} G.
