@@ -379,7 +379,8 @@ Arguments Skern_to_ICones_fully_faithful {R Ar} X Y.
 
     [Klin] preserves identity and composition: [Klin(δ_X) = id] in
     [ICones] and [Klin(κ_2 ∘ κ_1) = Klin(κ_2) ∘ Klin(κ_1)]. Stated
-    as supplementary facts, since fully faithful is the MVP. *)
+    as supplementary facts; the headline result of this file is
+    Theorem 6.5 (fully faithful) just above. *)
 
 Section SkernToIConesFunctoriality.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -442,7 +443,7 @@ Check (Skern_to_ICones_full :
                            (fmeas R (ar_carrier Ar Y)),
     exists κ : Skern_hom Ar X Y, Skern_to_ICones_mor κ = f).
 
-(** Paper Thm 6.5 — fully faithful, the MVP. *)
+(** Paper Thm 6.5 — fully faithful (the headline result). *)
 Check (Skern_to_ICones_fully_faithful X Y).
 
 End MVPSanity.
