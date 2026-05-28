@@ -1,9 +1,9 @@
-(** * Phase 1 — A lax monoidal map for [FMeas]: the product-measure layer
+(** * A lax monoidal map for [FMeas] — function level and [icones_hom] level
 
     Paper reference: §9, the symmetric monoidal structure of [FMeas].
 
     Mathematical content.  For [X, Y : ar_obj Ar], the product measure
-    [µ × ν] defines a candidate lax monoidal map
+    [µ × ν] defines a lax monoidal map
 
       [fmeas_lax_pre : FMeas X → FMeas Y → FMeas (ar_prod X Y),]
       [fmeas_lax_pre µ ν = pushforward of (µ ×_meas ν) along ar_prod_cast.]
@@ -12,7 +12,7 @@
     [(ar_carrier X * ar_carrier Y)%type]; [ar_prod_cast] is the
     propositional carrier cast to [ar_carrier (ar_prod X Y)].
 
-    Coverage in this file.
+    Coverage (function level).
 
     - [fmeas_lax_pre µ ν : fmeas R (ar_carrier Ar (ar_prod Ar X Y))]
       — the pushforward of the cartesian-product fmeas along
@@ -23,24 +23,39 @@
     - [fmeas_lax_pre_setT] / [fmeas_lax_pre_normE] — the total-mass
       product formula [(fmeas_lax_pre µ ν)(setT) = µ(setT)·ν(setT)] and
       the norm identity [‖fmeas_lax_pre µ ν‖ = ‖µ‖·‖ν‖].
-    - [fmeas_lax_pre_dirac] — the Dirac identity
+    - [fmeas_lax_pre_dirac] — the Dirac identity at the function level
       [fmeas_lax_pre (dirac_fmeas x) (dirac_fmeas y) =
          dirac_fmeas (ar_prod_cast (x, y))].
-      This is the load-bearing computational content used in
-      [theories/programs/ppl.v] to reduce arithmetic expressions on
-      Diracs.
 
-    Scope of Phase 1.  Wrapping [fmeas_lax_pre] into a full
-    [icones_hom Ar (tensor Ar (FMeas X) (FMeas Y)) (FMeas (ar_prod X Y))]
-    requires the bilinear analogue of paper Thm 6.1, which is the
-    same path-preservation-of-[int_to_linhom]-in-the-cone-variable
-    step deferred in [theories/homs/bilin.v] (file header, item
-    "Still deferred / follow-up"). The function-level
-    infrastructure delivered here is the prerequisite; lifting it
-    to the tensor [⊗] is a second piece of genuine missing
-    infrastructure (the "lax monoidal map as an [icones_hom]"
-    obligation), to be addressed in a follow-up that revisits the
-    deferred bilin.v item. *)
+    Coverage ([icones_hom] level — paper §9 packaging).
+
+    - [dirac_lax x : path_car Ar Y (FMeas (X × Y))] — the path
+      [y ↦ δ_{ar_prod_cast (x, y)}].
+    - [dirac_lax_is_path_of_paths] — [x ↦ dirac_lax x] is itself a
+      measurable path of [path_car Ar Y (FMeas (X × Y))].
+    - [fmeas_lax_pre_at_dirac x := int_to_linhom (dirac_lax x)]
+      — the inner [linhom_car Ar (FMeas Y) (FMeas (X × Y))] for fixed
+      [x], via paper Thm 6.1.
+    - [fmeas_lax_outer := int_to_linhom (x ↦ fmeas_lax_pre_at_dirac x)]
+      — the outer [linhom_car Ar (FMeas X) (FMeas Y ⊸ FMeas (X × Y))],
+      via paper Thm 6.1 applied at the [linhom_car] iCone using Phase A's
+      [int_to_linhom_pres_path_in_cone] for path-preservation in the
+      cone variable.
+    - [fmeas_lax X Y : icones_hom Ar (tensor (FMeas X) (FMeas Y))
+                                     (FMeas (X × Y))]
+      — the genuine lax-monoidal map at the ICones level, obtained by
+      [tensor_uncurry] from [fmeas_lax_outer] packaged as an
+      [icones_hom] via [linhom_icones].
+    - [fmeas_lax_pre_iterated] — the load-bearing Pettis/Tonelli
+      identity expressing [fmeas_lax_pre µ ν] on measurable [U] as
+      the iterated icone-integral of [dirac_lax].
+    - [fmeas_lax_E] — pointwise computation on the pure tensor:
+      [fmeas_lax X Y (µ ⊗p ν) = fmeas_lax_pre µ ν].
+    - [fmeas_lax_dirac] — the Dirac identity at the [icones_hom]
+      level:
+      [fmeas_lax X Y (δ_x ⊗p δ_y) = δ_{ar_prod_cast (x, y)}].
+      The load-bearing computational content used by
+      [theories/programs/ppl.v]. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -55,6 +70,7 @@ From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import dirac_measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
+From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import lebesgue_integral_fubini.
 
 Require Import Icones.prelude.classical_extra.
@@ -62,6 +78,8 @@ Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.prelude.ereal_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.cone_cat.
+Require Import Icones.cones.basic_lemmas.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -70,8 +88,20 @@ Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.examples_icone.
 Require Import Icones.icones.fubini.
+Require Import Icones.mcones.path.
+Require Import Icones.mcones.mcone_cat.
+Require Import Icones.mcones.test_pullback.
+Require Import Icones.icones.icone_cat.
+Require Import Icones.icones.representable.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
+Require Import Icones.homs.linhom_functor.
+Require Import Icones.homs.icones_iso.
+Require Import Icones.homs.limpl_continuous.
+Require Import Icones.homs.tensor_construct.
+Require Import Icones.homs.tensor_hom_iso.
+Require Import Icones.homs.tensor_iso.
+Require Import Icones.homs.tensor.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -352,3 +382,641 @@ End FmeasLaxPreDirac.
 Arguments dirac_prod_E {R Ar X Y} x y A.
 Arguments fmeas_lax_pre_dirac {R Ar X Y} x y.
 
+(** ** Phase B — packaging [fmeas_lax_pre] as an [icones_hom]
+
+    Paper §9: the symmetric monoidal structure of [FMeas].  Building
+    on Phase A ([int_to_linhom_pres_path_in_cone] in [bilin.v]) and
+    on the function-level [fmeas_lax_pre] / [fmeas_lax_pre_dirac]
+    delivered above, we package the lax monoidal map of [FMeas] as
+    a genuine [icones_hom]
+
+      [fmeas_lax X Y :
+         icones_hom Ar (FMeas X ⊗ FMeas Y) (FMeas (ar_prod X Y))]
+
+    with the load-bearing computation
+
+      [fmeas_lax X Y (δ_x ⊗p δ_y) = δ_{ar_prod_cast (x, y)}].
+
+    Strategy.  Use two nested applications of paper Thm 6.1
+    ([int_to_linhom] from [bilin.v]) and Phase A's
+    [int_to_linhom_pres_path_in_cone] (cone-variable path-preservation):
+
+    - Innermost path: [dirac_lax x : path_car Ar Y (FMeas (X × Y))],
+      the path [y ↦ δ_{ar_prod_cast (x, y)}].  Direct from
+      [dirac_fmeas_is_path] reindexed along [ar_prod_cast (x, _)].
+
+    - Inner linhom: [fmeas_lax_pre_at_dirac x :=
+         int_to_linhom (dirac_lax x) : FMeas Y ⊸ FMeas (X × Y)].
+
+    - Cone-variable path of inner linhoms: by Phase A,
+      [x ↦ fmeas_lax_pre_at_dirac x] is a measurable path of
+      [linhom_car Ar (FMeas Y) (FMeas (X × Y))], provided
+      [x ↦ dirac_lax x] is itself a measurable path of
+      [path_car Ar Y (FMeas (X × Y))].
+
+    - Outer linhom: [fmeas_lax_outer_pre := int_to_linhom (fun x =>
+        fmeas_lax_pre_at_dirac x)] is a [linhom_car Ar (FMeas X)
+        (linhom_car Ar (FMeas Y) (FMeas (X × Y)))].
+
+    - Packaging: a norm-[≤1] bound on [fmeas_lax_outer_pre] (proved
+      via the [‖fmeas_lax_pre µ ν‖ = ‖µ‖·‖ν‖] norm identity)
+      yields an [icones_hom Ar (FMeas X) (FMeas Y ⊸ FMeas (X × Y))]
+      through [linhom_icones]; then [tensor_uncurry] produces the
+      target [icones_hom (FMeas X ⊗ FMeas Y) (FMeas (X × Y))].
+
+    The pointwise identity [fmeas_lax (µ ⊗p ν) = fmeas_lax_pre µ ν]
+    ([fmeas_lax_E]) follows from [tensor_curryEp] composed with
+    [linhom_int_eval] (paper Lemma 5.4) and a single Tonelli step on
+    the indicator of [ar_prod_cast @^-1` U]. *)
+
+(** *** The Dirac path of products [dirac_lax x : Y → FMeas (X × Y)] *)
+
+Section DiracLaxPath.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+(** [dirac_lax_fun x y := δ_{ar_prod_cast (x, y)}] *)
+Definition dirac_lax_fun (x : ar_carrier Ar X) (y : ar_carrier Ar Y) :
+    fmeas R (ar_carrier Ar (ar_prod Ar X Y)) :=
+  dirac_fmeas (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)).
+
+(** For each fixed [x], [y ↦ dirac_lax_fun x y] is a measurable path
+    of [FMeas (X × Y)]. *)
+Lemma dirac_lax_is_path (x : ar_carrier Ar X) :
+  is_measurable_path
+    (Ar:=Ar) (C:=fmeas R (ar_carrier Ar (ar_prod Ar X Y)))
+    (X:=Y) (dirac_lax_fun x).
+Proof.
+split.
+  by exists 1 => y; rewrite /dirac_lax_fun dirac_fmeas_norm.
+move=> Z m mM.
+case: mM => [U [mU ->]].
+(* test_fun (fmeas_eU U) s (dirac_lax_fun x y)
+   = fine (\d_{ar_prod_cast (x, y)} U). *)
+apply: (eq_measurable_fun
+  (fun p : ar_carrier Ar Z * ar_carrier Ar Y =>
+     fine (\d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, p.2)) U
+           : \bar R))).
+  by move=> p _; rewrite /= /eU_fun /= /dirac_lax_fun dirac_fmeas_E.
+pose g (y : ar_carrier Ar Y) : \bar R :=
+  \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+have g_meas : measurable_fun setT g.
+  apply: (measurableT_comp (f := fun p => \d_p U)).
+  - exact: measurable_fun_dirac.
+  - apply: (measurableT_comp (f := ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y))).
+    + exact: (ar_prod_cast_meas Ar X Y).
+    + by apply: measurable_fun_pair; [exact: measurable_cst|exact: @measurable_id].
+have finecomp : measurable_fun setT
+                  (fun y : ar_carrier Ar Y => fine (g y)).
+  by apply: (measurableT_comp (f := fine)) => //; exact: fine_measurable.
+exact: (measurableT_comp finecomp measurable_snd).
+Qed.
+
+(** Packaged as a [path_car]. *)
+Definition dirac_lax (x : ar_carrier Ar X) :
+    path_car Ar Y (fmeas R (ar_carrier Ar (ar_prod Ar X Y))) :=
+  MkPath (dirac_lax_is_path x).
+
+(** The path-of-paths [x ↦ dirac_lax x] is a measurable path of
+    [path_car Ar Y (FMeas (X × Y))]. *)
+Lemma dirac_lax_is_path_of_paths :
+  is_measurable_path
+    (Ar:=Ar)
+    (C:=path_car Ar Y (fmeas R (ar_carrier Ar (ar_prod Ar X Y))))
+    (X:=X)
+    dirac_lax.
+Proof.
+split.
+  exists 1 => x.
+  rewrite /cone_norm /= /path_norm.
+  apply: ge_sup; first exact: path_normset_nonempty.
+  move=> _ [y ->] /=.
+  by rewrite /dirac_lax_fun dirac_fmeas_norm.
+move=> Z m mM.
+case: mM => [φ [m' [m'M ->]]].
+(* test_fun (path_test φ m' m'M) s (dirac_lax x)
+   = test_fun m' s (dirac_lax_fun x (φ s)). *)
+have [U [mU m'_eq]] : exists U (mU : measurable U),
+    m' = fmeas_eU (R := R) (X := ar_carrier Ar (ar_prod Ar X Y))
+                  (Ar := Ar) Z mU.
+  by case: m'M => U [mU ->]; exists U, mU.
+apply: (eq_measurable_fun
+  (fun p : ar_carrier Ar Z * ar_carrier Ar X =>
+     fine (\d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (p.2, φ p.1)) U
+           : \bar R))).
+  move=> p _ /=.
+  rewrite /path_test /= /path_test_fun /= /dirac_lax_fun.
+  by rewrite m'_eq /= /eU_fun /= dirac_fmeas_E.
+pose g (q : ar_carrier Ar X * ar_carrier Ar Y) : \bar R :=
+  \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) q) U.
+have g_meas : measurable_fun setT g.
+  apply: (measurableT_comp (f := fun p => \d_p U)).
+  - exact: measurable_fun_dirac.
+  - exact: (ar_prod_cast_meas Ar X Y).
+pose ψ (p : ar_carrier Ar Z * ar_carrier Ar X) :
+    ar_carrier Ar X * ar_carrier Ar Y :=
+  (p.2, φ p.1).
+have ψ_meas : measurable_fun
+  [set: ar_carrier Ar Z * ar_carrier Ar X] ψ.
+  apply: measurable_fun_pair; first exact: measurable_snd.
+  by apply: (measurableT_comp (f := φ));
+    [exact: measurable_funPT|exact: measurable_fst].
+have g_comp_ψ_meas : measurable_fun
+  [set: ar_carrier Ar Z * ar_carrier Ar X] (g \o ψ).
+  exact: (measurableT_comp g_meas ψ_meas).
+have finecomp : measurable_fun
+  [set: ar_carrier Ar Z * ar_carrier Ar X]
+  (fun p => fine ((g \o ψ) p)).
+  by apply: (measurableT_comp (f := fine)) => //; exact: fine_measurable.
+by [].
+Qed.
+
+End DiracLaxPath.
+
+Arguments dirac_lax_fun {R Ar X Y}.
+Arguments dirac_lax {R Ar X Y}.
+Arguments dirac_lax_is_path {R Ar X Y} x.
+Arguments dirac_lax_is_path_of_paths {R Ar} X Y.
+
+(** *** Inner linhom [fmeas_lax_pre_at_dirac x : FMeas Y ⊸ FMeas (X × Y)] *)
+
+Section FmeasLaxInner.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+(** The inner linhom at [x : X] is [int_to_linhom (dirac_lax x)].
+    By paper Thm 6.1, this is a [linhom_car Ar (FMeas Y) (FMeas (X × Y))].
+    Its underlying function is
+      [ν ↦ icone_integral (dirac_lax x) _ ν]. *)
+Definition fmeas_lax_pre_at_dirac (x : ar_carrier Ar X) :
+    linhom_car Ar (fmeas R (ar_carrier Ar Y))
+                  (fmeas R (ar_carrier Ar (ar_prod Ar X Y))) :=
+  int_to_linhom (dirac_lax x).
+
+(** By Phase A's [int_to_linhom_pres_path_in_cone] applied to the
+    measurable path-of-paths [dirac_lax_is_path_of_paths]. *)
+Lemma fmeas_lax_pre_at_dirac_is_path :
+  is_measurable_path
+    (Ar:=Ar)
+    (C:=linhom_car Ar (fmeas R (ar_carrier Ar Y))
+                      (fmeas R (ar_carrier Ar (ar_prod Ar X Y))))
+    (X:=X)
+    fmeas_lax_pre_at_dirac.
+Proof.
+exact:
+  (int_to_linhom_pres_path_in_cone dirac_lax (dirac_lax_is_path_of_paths X Y)).
+Qed.
+
+End FmeasLaxInner.
+
+Arguments fmeas_lax_pre_at_dirac {R Ar X Y}.
+Arguments fmeas_lax_pre_at_dirac_is_path {R Ar} X Y.
+
+(** *** Outer linhom [fmeas_lax_outer : FMeas X ⊸ (FMeas Y ⊸ FMeas (X × Y))] *)
+
+Section FmeasLaxOuter.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+Local Notation L := (linhom_car Ar (fmeas R (ar_carrier Ar Y))
+                                   (fmeas R (ar_carrier Ar (ar_prod Ar X Y)))).
+
+(** The path-of-linhoms is itself a measurable path in [L]. *)
+Definition fmeas_lax_outer_path : path_car Ar X L :=
+  MkPath (fmeas_lax_pre_at_dirac_is_path X Y).
+
+(** The outer linhom [µ ↦ int_to_linhom (fmeas_lax_outer_path)] gives
+    the [linhom_car Ar (FMeas X) L] we want. *)
+Definition fmeas_lax_outer :
+    linhom_car Ar (fmeas R (ar_carrier Ar X)) L :=
+  int_to_linhom fmeas_lax_outer_path.
+
+(** Its operator-norm is bounded by [path_norm] of [fmeas_lax_outer_path],
+    which is bounded by [1] (each inner linhom has norm [≤ 1] since
+    [‖fmeas_lax_pre (δ_x) ν‖ = ‖δ_x‖ · ‖ν‖ = ‖ν‖]). *)
+Lemma fmeas_lax_outer_path_norm_le1 :
+  cone_norm fmeas_lax_outer_path <= 1.
+Proof.
+rewrite /cone_norm /=.
+apply: ge_sup; first exact: path_normset_nonempty.
+move=> _ [x ->] /=.
+rewrite /fmeas_lax_pre_at_dirac.
+(* [linhom_norm (int_to_linhom (dirac_lax x)) <= path_norm (dirac_lax x)] *)
+apply: le_trans (int_to_linhom_norm_le (dirac_lax x)) _.
+(* path_norm (dirac_lax x) <= 1 because each dirac_lax_fun x y is unit-norm. *)
+rewrite /cone_norm /= /path_norm.
+apply: ge_sup; first exact: path_normset_nonempty.
+move=> _ [y ->] /=.
+by rewrite /dirac_lax_fun dirac_fmeas_norm.
+Qed.
+
+Lemma fmeas_lax_outer_norm_le1 : cone_norm fmeas_lax_outer <= 1.
+Proof.
+rewrite /fmeas_lax_outer.
+apply: le_trans (int_to_linhom_norm_le fmeas_lax_outer_path) _.
+exact: fmeas_lax_outer_path_norm_le1.
+Qed.
+
+(** The outer linhom as an [icones_hom] via [linhom_icones]. *)
+Definition fmeas_lax_outer_icones :
+    icones_hom Ar (fmeas R (ar_carrier Ar X)) L :=
+  linhom_icones fmeas_lax_outer fmeas_lax_outer_norm_le1.
+
+End FmeasLaxOuter.
+
+Arguments fmeas_lax_outer_path {R Ar} X Y.
+Arguments fmeas_lax_outer {R Ar} X Y.
+Arguments fmeas_lax_outer_icones {R Ar} X Y.
+
+(** *** [fmeas_lax X Y : icones_hom (FMeas X ⊗ FMeas Y) (FMeas (X × Y))]
+
+    The genuine lax-monoidal map at the [ICones] level, obtained by
+    [tensor_uncurry] from the outer [icones_hom]. *)
+
+Section FmeasLaxDef.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+Definition fmeas_lax :
+    icones_hom Ar
+      (tensor Ar (fmeas R (ar_carrier Ar X))
+                 (fmeas R (ar_carrier Ar Y)))
+      (fmeas R (ar_carrier Ar (ar_prod Ar X Y))) :=
+  tensor_uncurry (fmeas_lax_outer_icones X Y).
+
+End FmeasLaxDef.
+
+Arguments fmeas_lax {R Ar} X Y.
+
+
+(** *** Pettis-style Tonelli identity for [fmeas_lax_pre]
+
+    For measurable [U ⊆ ar_carrier (X × Y)], the pushed-forward measure
+    [fmeas_lax_pre µ ν] decomposes as the *iterated* icone-integral of
+    the path-of-paths
+    [dirac_lax x : Y → FMeas (X × Y)],
+    via the standard Tonelli identity on the indicator of
+    [ar_prod_cast @^-1` U].  This is the load-bearing step underlying
+    [fmeas_lax_E]. *)
+
+Section FmeasLaxIterated.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+(** Helper: [(δ_{ar_prod_cast(x, y)})(U) = \d_{ar_prod_cast(x, y)} U] as
+    an ereal on measurable [U]. *)
+Lemma dirac_lax_funE (x : ar_carrier Ar X) (y : ar_carrier Ar Y)
+    (U : set (ar_carrier Ar (ar_prod Ar X Y))) :
+  measurable U ->
+  fmeas_mu (dirac_lax_fun x y) U =
+  \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+Proof. by move=> mU; rewrite /dirac_lax_fun dirac_fmeas_E. Qed.
+
+(** Per-test Pettis equation for [icone_integral (dirac_lax x) _ ν]:
+    on measurable [U], the integral measures the [ν]-fraction of
+    [y]-fibres at [ar_prod_cast(x, ·)] hitting [U]. *)
+Lemma icone_integral_dirac_lax_E (x : ar_carrier Ar X)
+    (ν : fmeas R (ar_carrier Ar Y))
+    (U : set (ar_carrier Ar (ar_prod Ar X Y))) :
+  measurable U ->
+  fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U =
+  \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+    \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+Proof.
+move=> mU.
+have mMU : mcone_M (Ar:=Ar) (ar_zero Ar)
+              (fmeas_eU (R:=R) (X:=ar_carrier Ar (ar_prod Ar X Y))
+                        (Ar:=Ar) (ar_zero Ar) mU).
+  by exists U, mU.
+have HP := icone_integralP (dirac_lax_fun x) (dirac_lax_is_path x) ν _ mMU
+                           (ar_zero_pt Ar).
+have rwInteg : forall y : ar_carrier Ar Y,
+    \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U =
+    fmeas_mu (dirac_lax_fun x y) U.
+  by move=> y; rewrite (dirac_lax_funE _ _ mU).
+under [in RHS]eq_integral => y _ do rewrite rwInteg.
+have Hfin :
+    fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U
+    \is a fin_num.
+  exact: fmeas_fin.
+have Hintfin :
+    \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+      fmeas_mu (dirac_lax_fun x y) U \is a fin_num.
+  have intle :
+    \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+       fmeas_mu (dirac_lax_fun x y) U <=
+    fmeas_mu ν [set: ar_carrier Ar Y].
+    apply: (@le_trans _ _
+      (\int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y]) (1 : \bar R))); last first.
+      by rewrite integral_cst// mul1e.
+    apply: ge0_le_integral.
+    - exact: measurableT.
+    - by move=> y _; exact: measure_ge0.
+    - apply: (eq_measurable_fun
+        (fun y => \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U)).
+        by move=> y _; rewrite rwInteg.
+      have meas_d : measurable_fun setT
+        (fun p : ar_carrier Ar (ar_prod Ar X Y) => \d_p U : \bar R).
+        exact: measurable_fun_dirac.
+      have measc : measurable_fun setT
+        (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y))
+        by exact: (ar_prod_cast_meas Ar X Y).
+      have meas_pair : measurable_fun setT
+        (fun y : ar_carrier Ar Y =>
+           ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)).
+        apply: (measurableT_comp measc).
+        by apply: measurable_fun_pair;
+          [exact: measurable_cst|exact: @measurable_id].
+      exact: (measurableT_comp meas_d meas_pair).
+    - exact: measurable_cst.
+    - move=> y _.
+      rewrite -rwInteg.
+      apply: (@le_trans _ _
+        (\d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) setT)).
+      + by apply: le_measure => //; rewrite inE.
+      + by rewrite diracT.
+  rewrite ge0_fin_numE//; last by apply: integral_ge0 => y _; exact: measure_ge0.
+  apply: le_lt_trans intle _.
+  have HfinT : fmeas_mu ν [set: ar_carrier Ar Y] \is a fin_num
+    by exact: fmeas_setT_fin.
+  by rewrite ltey_eq HfinT.
+have HPE := HP.
+rewrite /fmeas_eU /eU_fun /= in HPE.
+rewrite -(fineK Hfin) -(fineK Hintfin); congr (_%:E).
+rewrite HPE.
+congr fine.
+apply: eq_integral => y _.
+have Hfiny : fmeas_mu (dirac_lax_fun x y) U \is a fin_num.
+  exact: fmeas_fin.
+by rewrite -[in RHS](fineK Hfiny).
+Qed.
+
+(** The fully iterated Pettis identity for [fmeas_lax_pre].  On
+    measurable [U], the pushed-forward product is the [µ ↦ ν ↦] iterated
+    icone-integral of [dirac_lax].  Proved via [fubini_tonelli1] on the
+    indicator of [ar_prod_cast @^-1` U]. *)
+Lemma fmeas_lax_pre_iterated
+    (µ : fmeas R (ar_carrier Ar X)) (ν : fmeas R (ar_carrier Ar Y))
+    (U : set (ar_carrier Ar (ar_prod Ar X Y))) :
+  measurable U ->
+  fmeas_mu (fmeas_lax_pre µ ν) U =
+  \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+    fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U.
+Proof.
+move=> mU.
+have rwInner : forall x : ar_carrier Ar X,
+  fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U =
+  \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+    \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+  by move=> x; exact: icone_integral_dirac_lax_E.
+under eq_integral => x _ do rewrite rwInner.
+rewrite fmeas_lax_preE//.
+have measc : measurable_fun setT
+  (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y))
+  by exact: (ar_prod_cast_meas Ar X Y).
+have mPreU : measurable
+    ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U).
+  rewrite -[X in measurable X]setTI; exact: measc.
+rewrite fmeas_prodE//.
+rewrite -[in LHS](setIT
+  ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U)) -integral_indic//.
+rewrite (@indic_fubini_tonelli1 _ _ _ _ _
+          (fmeas_fin_view µ) (fmeas_fin_view ν) _ mPreU).
+have eq_outer :
+    \int[fmeas_fin_view µ]_(x in [set: ar_carrier Ar X])
+      fubini_F (fmeas_fin_view ν) (EFin \o numfun.indic
+        ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U)) x =
+    \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+      fubini_F (fmeas_fin_view ν) (EFin \o numfun.indic
+        ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U)) x.
+  by apply: eq_measure_integral => V mV _; exact: fmeas_fin_viewE.
+rewrite eq_outer.
+apply: eq_integral => x _.
+rewrite (indic_fubini_tonelli_FE (fmeas_fin_view ν) mPreU).
+have meas_xsec : measurable
+    (xsection ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U) x).
+  exact: measurable_xsection.
+rewrite /=.
+rewrite -[LHS]/(fmeas_fin_view ν
+  (xsection ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U) x)).
+rewrite (fmeas_fin_viewE _ _ meas_xsec).
+rewrite -(setIT
+  (xsection ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U) x))
+  -integral_indic//.
+apply: eq_integral => y _.
+rewrite /numfun.indic /=.
+rewrite (mem_xsection x y
+  ((ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)) @^-1` U)).
+rewrite diracE.
+by congr (((_)%:R)%:E).
+Qed.
+
+End FmeasLaxIterated.
+
+Arguments dirac_lax_funE {R Ar X Y} x y U _.
+Arguments icone_integral_dirac_lax_E {R Ar X Y} x ν U _.
+Arguments fmeas_lax_pre_iterated {R Ar X Y} µ ν U _.
+
+(** *** [fmeas_lax_E] — pointwise computation on the pure tensor
+
+    [fmeas_lax X Y (µ ⊗p ν) = fmeas_lax_pre µ ν].
+
+    Proved by chaining
+    - [tensor_curryEp]+[tensor_uncurryK]: the SAFT defining
+      equation, reducing the LHS to
+      [linhom_fun (linhom_fun fmeas_lax_outer µ) ν];
+    - the [int_to_linhom] unfolding (the outer Pettis integral);
+    - paper Lemma 5.4 [linhom_int_eval] (evaluation commutes with
+      [linhom_car] integrals);
+    - the [int_to_linhom] unfolding for the inner integral;
+    - the Tonelli identity [fmeas_lax_pre_iterated].
+    The two icone-integrals are compared on every measurable [U]
+    via [fmeas_eq], using the Pettis equation and a finiteness
+    argument bounded by [‖ν‖]. *)
+
+Section FmeasLaxE.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Lemma fmeas_lax_E
+    (µ : fmeas R (ar_carrier Ar X))
+    (ν : fmeas R (ar_carrier Ar Y)) :
+  Lfun (fmeas_lax X Y)
+    (ptensor (B := fmeas R (ar_carrier Ar X))
+             (C := fmeas R (ar_carrier Ar Y)) µ ν) =
+  fmeas_lax_pre µ ν.
+Proof.
+(* Step 1: reduce LHS to [linhom_fun (linhom_fun fmeas_lax_outer µ) ν]. *)
+rewrite /fmeas_lax.
+have HtucK := tensor_uncurryK (fmeas_lax_outer_icones X Y).
+have HtcEp := tensor_curryEp (tensor_uncurry (fmeas_lax_outer_icones X Y))
+                             µ ν.
+rewrite -HtcEp HtucK.
+rewrite /fmeas_lax_outer_icones.
+rewrite (linhom_iconesE (fmeas_lax_outer X Y) _ µ).
+rewrite /fmeas_lax_outer.
+have rwOuter : linhom_fun (int_to_linhom (fmeas_lax_outer_path X Y)) µ =
+  icone_integral
+    (path_fun (fmeas_lax_outer_path X Y))
+    (path_is_path (fmeas_lax_outer_path X Y)) µ.
+  by [].
+rewrite rwOuter.
+(* Step 2: pull evaluation at ν inside via [linhom_int_eval]. *)
+rewrite (linhom_int_eval (path_is_path (fmeas_lax_outer_path X Y)) µ ν).
+(* Step 3: compare both fmeas on every measurable U. *)
+apply: fmeas_eq => U mU.
+(* RHS: fmeas_lax_pre µ ν U = \int[µ]_x fmeas_mu (icone_integral (dirac_lax x) _ ν) U
+   by fmeas_lax_pre_iterated. *)
+rewrite (fmeas_lax_pre_iterated µ ν U mU).
+(* The two integrands at x agree pointwise:
+   [linhom_fun (path_fun outer_path x) ν = icone_integral (dirac_lax_fun x) _ ν]
+   because [path_fun outer_path x = fmeas_lax_pre_at_dirac x =
+   int_to_linhom (dirac_lax x)] and [linhom_fun (int_to_linhom β) µ =
+   icone_integral β _ µ]. *)
+have Hmeas_outer :
+    is_measurable_path (fun r : ar_carrier Ar X =>
+      linhom_fun (path_fun (fmeas_lax_outer_path X Y) r) ν).
+  exact: (linhom_int_section_meas
+    (path_is_path (fmeas_lax_outer_path X Y)) ν).
+have mMU : mcone_M (Ar:=Ar) (ar_zero Ar)
+              (fmeas_eU (R:=R) (X:=ar_carrier Ar (ar_prod Ar X Y))
+                        (Ar:=Ar) (ar_zero Ar) mU).
+  by exists U, mU.
+have HP_outer := icone_integralP _ Hmeas_outer µ _ mMU (ar_zero_pt Ar).
+have Hfin :
+    fmeas_mu (icone_integral
+      (fun r : ar_carrier Ar X => linhom_fun (fmeas_lax_outer_path X Y r) ν)
+      Hmeas_outer µ) U \is a fin_num.
+  exact: fmeas_fin.
+have Hintfin :
+    \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+      fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U
+    \is a fin_num.
+  have inner_meas_setT : measurable_fun setT
+      (fun x : ar_carrier Ar X =>
+        fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U).
+    apply: (eq_measurable_fun
+      (fun x : ar_carrier Ar X =>
+        \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+          \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U)).
+      by move=> x _; rewrite (icone_integral_dirac_lax_E x ν U mU).
+    pose F (q : ar_carrier Ar X * ar_carrier Ar Y) : \bar R :=
+      \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) q) U.
+    have meas_d : measurable_fun setT
+      (fun p : ar_carrier Ar (ar_prod Ar X Y) => \d_p U : \bar R).
+      exact: measurable_fun_dirac.
+    have measc : measurable_fun setT
+      (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y))
+      by exact: (ar_prod_cast_meas Ar X Y).
+    have F_meas : measurable_fun setT F.
+      exact: (measurableT_comp meas_d measc).
+    have F_ge0 q : 0 <= F q by exact: measure_ge0.
+    have -> :
+      (fun x : ar_carrier Ar X =>
+       \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y]) F (x, y)) =
+      fubini_F (fmeas_fin_view ν) F.
+      apply: funext => x.
+      rewrite /fubini_F.
+      by apply: eq_measure_integral => V mV _; exact/esym/fmeas_fin_viewE.
+    apply: (@measurable_fun_fubini_tonelli_F _ _ _ _ _
+              (fmeas_fin_view ν) F).
+    - exact: F_meas.
+    - exact: F_ge0.
+  have intle :
+    \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+       fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U <=
+    \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+       fmeas_mu ν [set: ar_carrier Ar Y].
+    apply: ge0_le_integral.
+    - exact: measurableT.
+    - by move=> x _; exact: measure_ge0.
+    - exact: inner_meas_setT.
+    - exact: measurable_cst.
+    - move=> x _.
+      (* (icone_integral (dirac_lax_fun x) _ ν)(setT) <=
+         (icone_integral (dirac_lax_fun x) _ ν) [setT] = ν(setT). *)
+      rewrite (icone_integral_dirac_lax_E x ν U mU).
+      apply: (@le_trans _ _
+        (\int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y]) (1 : \bar R))); last first.
+        by rewrite integral_cst// mul1e.
+      apply: ge0_le_integral.
+      + exact: measurableT.
+      + by move=> y _; exact: measure_ge0.
+      + apply: (eq_measurable_fun
+          (fun y : ar_carrier Ar Y =>
+            \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U)).
+          by move=> y _.
+        have meas_d : measurable_fun setT
+          (fun p : ar_carrier Ar (ar_prod Ar X Y) => \d_p U : \bar R).
+          exact: measurable_fun_dirac.
+        have measc : measurable_fun setT
+          (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y))
+          by exact: (ar_prod_cast_meas Ar X Y).
+        have meas_pair : measurable_fun setT
+          (fun y : ar_carrier Ar Y =>
+             ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)).
+          apply: (measurableT_comp measc).
+          by apply: measurable_fun_pair;
+            [exact: measurable_cst|exact: @measurable_id].
+        exact: (measurableT_comp meas_d meas_pair).
+      + exact: measurable_cst.
+      + move=> y _.
+        apply: (@le_trans _ _ (\d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y)
+                                              (x, y)) setT)).
+          by apply: le_measure => //; rewrite inE.
+        by rewrite diracT.
+  rewrite ge0_fin_numE//; last
+    by apply: integral_ge0 => x _; exact: measure_ge0.
+  apply: le_lt_trans intle _.
+  rewrite integral_cst//.
+  have HfinNu : fmeas_mu ν [set: ar_carrier Ar Y] \is a fin_num
+    by exact: fmeas_setT_fin.
+  have HfinMu : fmeas_mu µ [set: ar_carrier Ar X] \is a fin_num
+    by exact: fmeas_setT_fin.
+  rewrite ltey_eq fin_numM//.
+have HPE := HP_outer.
+rewrite /fmeas_eU /eU_fun /= in HPE.
+have HrwIrr : Hmeas_outer =
+  linhom_int_section_meas (path_is_path (fmeas_lax_outer_path X Y)) ν.
+  exact: Prop_irrelevance.
+rewrite -HrwIrr.
+rewrite -(fineK Hfin) -(fineK Hintfin); congr (_%:E).
+rewrite HPE.
+congr fine.
+apply: eq_integral => x _.
+have Hfinx :
+  fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U
+    \is a fin_num.
+  exact: fmeas_fin.
+rewrite -[in RHS](fineK Hfinx).
+have rwInner :
+  linhom_fun (fmeas_lax_pre_at_dirac x) ν =
+  icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν.
+  by [].
+by rewrite rwInner.
+Qed.
+
+(** *** [fmeas_lax_dirac] — the load-bearing Dirac identity at ICones
+
+    [fmeas_lax (δ_x ⊗p δ_y) = δ_{ar_prod_cast (x, y)}].
+    Combines [fmeas_lax_E] with [fmeas_lax_pre_dirac]. *)
+Lemma fmeas_lax_dirac (x : ar_carrier Ar X) (y : ar_carrier Ar Y) :
+  Lfun (fmeas_lax X Y)
+    (ptensor (B := fmeas R (ar_carrier Ar X))
+             (C := fmeas R (ar_carrier Ar Y)) (dirac_fmeas x) (dirac_fmeas y)) =
+  dirac_fmeas (X := ar_prod Ar X Y)
+              (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)).
+Proof.
+rewrite (fmeas_lax_E (dirac_fmeas x) (dirac_fmeas y)).
+exact: fmeas_lax_pre_dirac.
+Qed.
+
+End FmeasLaxE.
+
+Arguments fmeas_lax_E {R Ar X Y} µ ν.
+Arguments fmeas_lax_dirac {R Ar X Y} x y.

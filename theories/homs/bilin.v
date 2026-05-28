@@ -97,6 +97,26 @@
       ([cone_norm (int_to_linhom β) = cone_norm β]), via
       [cones_iso_preserves_norm] (paper Lemma 2.21 / Prop 2.22).
 
+    Path-preservation in the cone variable — DELIVERED below.
+
+    - [int_to_linhom_pres_path_in_cone] — paper §6 follow-up to
+      Thm 6.1: for any measurable path [η : Y → Path(X, B)] (i.e.
+      [η] is a path of the [iconeType] [path_car Ar X B] of paths),
+      the function [r ↦ int_to_linhom (η r)] is a measurable path of
+      [linhom_car Ar (fmeas R X) B].  This is the
+      *independently-indexed joint-measurability* step: the measure
+      varies in the test arity [Z] (via the [path_car Ar Z (fmeas R X)]
+      that parameterises the [linhom_car] test) and the integrand
+      path varies in [Y] (via [η]).  Proof: package both into the
+      joint state [ar_carrier Z × ar_carrier Y] of
+      [icone_integral_joint_measurable], then specialise via the
+      diagonal [(z, r) ↦ (z, (z, r))]; the joint test-measurability
+      hypothesis is supplied by [η]'s joint-test field at arity
+      [ar_prod Z X] using
+      [path_test (ar_prod_snd) (test_reindex (ar_prod_fst) m)].
+      Used by [theories/homs/fmeas_lax.v] to bundle [fmeas_lax_pre]
+      as a real [icones_hom] (the genuine lax-monoidal map of [FMeas]).
+
     Still deferred / follow-up.
 
     - Upgrading the [Cones] iso to an [MCones] iso ([mcones_hom],
@@ -104,19 +124,16 @@
       iso ([icones_hom], adding [icones_hom_pres_int]).  Both
       [path_car Ar X B] and [linhom_car Ar (fmeas R X) B] are full
       [iconeType Ar], so the targets [mcones_iso] / [icones_iso]
-      (the latter via [Icones.homs.icones_iso]) are well-typed; what
-      is missing is (i) path-preservation of [int_to_linhom] /
-      [linhom_to_int] *in the cone variable* — measurability of
-      [r ↦ int_to_linhom (η r)] / [r ↦ linhom_to_int (η r)] as
-      paths of [linhom_car] / [path_car] — which needs an
-      independently-indexed joint-measurability step (the measure
-      and the integrand path vary over different arities, so
-      [icone_integral_joint_measurable] does not apply verbatim;
-      the [linhom_to_int] side reduces to a [dirac_path]-pushforward
-      test, not yet available), and (ii) integral-preservation in
-      the cone variable.
+      (the latter via [Icones.homs.icones_iso]) are well-typed.  The
+      forward [int_to_linhom] side now has its
+      path-preservation-in-the-cone-variable
+      ([int_to_linhom_pres_path_in_cone]); still missing is (i) the
+      symmetric [linhom_to_int] side (which reduces to a
+      [dirac_path]-pushforward test, not yet available), and (ii)
+      integral-preservation in the cone variable.
     - Naturality in [X] (via pushforward) and in [B] (via
       post-composition). *)
+
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -1476,3 +1493,193 @@ exact: (cones_iso_preserves_norm int_to_linhom_conesK int_to_linhom_conesK').
 Qed.
 
 End BilinConesIso.
+
+(** ** Path-preservation of [int_to_linhom] in the cone variable
+
+    Paper §6 follow-up to Thm 6.1.  Given a measurable path
+    [η : Y → Path(X, B)] — a path of the [iconeType] [path_car Ar X B]
+    of paths — the function
+
+      [r ↦ int_to_linhom (η r) : Y → FMeas(X) ⊸ B]
+
+    is itself a measurable path of [linhom_car Ar (fmeas R X) B].
+
+    This is the "path-preservation in the cone variable" of
+    [int_to_linhom] flagged in the file header.  Together with the
+    forward map's linearity / ω-continuity / norm-decrease, it is one
+    half of the data needed to upgrade the [Cones] iso of paper Thm
+    6.1 into an [MCones] iso.
+
+    Proof.  By the iCone test family of [linhom_car], a test on
+    [linhom_car Ar (fmeas R X) B] at arity [Z] is a [linhom_test γ γub
+    m mM] for some unit-ball path [γ : path_car Ar Z (fmeas R X)] and
+    some test [m : test_of Ar Z B].  Its value at
+    [int_to_linhom (η r)] is
+
+      [(z, r) ↦ test_fun m z
+                   (icone_integral (path_fun (η r)) _ (path_fun γ z))].
+
+    The measure parameter (via [γ]) and the integrand path (via [η])
+    vary over different arities — [γ z] in [z : Z], [η r] in [r : Y]
+    — so [icone_integral_joint_measurable] applies with the joint
+    measurable state [S := ar_carrier Z * ar_carrier Y] and the
+    constant-on-each-coordinate assignment
+    [β'(z,r) := path_fun (η r)], [κ'(z,r) := path_fun γ z], followed
+    by the diagonal [(z, r) ↦ (z, (z, r))] specialisation.  The joint
+    test-measurability hypothesis of [icone_integral_joint_measurable]
+    is supplied by reindexing [η]'s joint-test field through the
+    [path_car X B] test at arity [ar_prod Z X], using
+    [path_test (ar_prod_snd Z X) (test_reindex (ar_prod_fst Z X) m)]. *)
+
+Section IntToLinhomPathInCone.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X : ar_obj Ar) (B : ICone.type Ar).
+
+Lemma int_to_linhom_pres_path_in_cone
+    (Y : ar_obj Ar) (η : ar_carrier Ar Y -> path_car Ar X B) :
+  is_measurable_path η ->
+  is_measurable_path
+    (Ar:=Ar) (C:=linhom_car Ar (fmeas R (ar_carrier Ar X)) B)
+    (fun r => int_to_linhom (η r)).
+Proof.
+move=> Hη.
+have [[Mη HMη] Hηj] := Hη.
+have Mη_ge0 : 0 <= Mη.
+  by apply: le_trans (HMη (ar_point Ar Y)); exact: cone_norm_ge0.
+split.
+  exists Mη => r.
+  apply: le_trans _ (HMη r).
+  exact: int_to_linhom_norm_le.
+move=> Z mTest mTestM.
+case: mTestM => γ [γub [m [mM ->]]].
+(* Goal: measurable_fun [set: ar_carrier Z * ar_carrier Y]
+     (fun p => linhom_test_fun γ γub m mM p.1 (int_to_linhom (η p.2))). *)
+have rewE :
+  (fun p : (ar_carrier Ar Z * ar_carrier Ar Y)%type =>
+    test_fun (linhom_test γ γub m mM) p.1 (int_to_linhom (η p.2))) =
+  (fun p : (ar_carrier Ar Z * ar_carrier Ar Y)%type =>
+    test_fun m p.1
+      (icone_integral (path_fun (η p.2)) (path_is_path (η p.2))
+                      (path_fun γ p.1))).
+  by apply: funext.
+rewrite rewE.
+(* Apply [icone_integral_joint_measurable] with joint state
+   [S := ar_carrier Z * ar_carrier Y]. *)
+pose S_arg := (ar_carrier Ar Z * ar_carrier Ar Y)%type.
+pose β_arg : S_arg -> ar_carrier Ar X -> B :=
+  fun s r => path_fun (η s.2) r.
+pose κ_arg : S_arg -> fmeas R (ar_carrier Ar X) :=
+  fun s => path_fun γ s.1.
+have Hβ_arg : forall s, is_measurable_path (β_arg s).
+  by move=> s; exact: (path_is_path (η s.2)).
+(* (1) κ_arg set-evaluation measurable. *)
+have κ_meas_perU : forall U, measurable U ->
+  measurable_fun setT (fun s : S_arg => fmeas_mu (κ_arg s) U).
+  move=> U mU.
+  have mM_U : mcone_M (Ar:=Ar) (ar_zero Ar) (fmeas_eU (ar_zero Ar) mU).
+    by exists U, mU.
+  have [_ Hγm] := path_is_path γ.
+  have HmU_joint := Hγm _ _ mM_U.
+  have meas_fine :
+    measurable_fun setT
+      (fun z : ar_carrier Ar Z => fine (fmeas_mu (path_fun γ z) U)).
+    pose F (p : ar_carrier Ar (ar_zero Ar) * ar_carrier Ar Z) : R :=
+      test_fun (fmeas_eU (ar_zero Ar) mU) p.1 (path_fun γ p.2).
+    have HF : measurable_fun
+      [set: ar_carrier Ar (ar_zero Ar) * ar_carrier Ar Z] F.
+      exact: HmU_joint.
+    have -> : (fun z => fine (fmeas_mu (path_fun γ z) U)) =
+              (fun z => F (ar_zero_pt Ar, z)).
+      by apply: funext.
+    by apply: (measurableT_comp (f := F)).
+  have rewE2 :
+    (fun s : S_arg => fmeas_mu (κ_arg s) U) =
+    (fun s : S_arg => (fine (fmeas_mu (path_fun γ s.1) U))%:E).
+    apply: funext => s; rewrite /κ_arg fineK//.
+    exact: fmeas_fin.
+  rewrite rewE2.
+  apply/measurable_EFinP.
+  apply: (measurableT_comp (f := fun z => fine (fmeas_mu (path_fun γ z) U))).
+  - exact: meas_fine.
+  - exact: measurable_fst.
+(* (2) κ_arg uniformly bounded. *)
+have κ_bound : exists M : R, forall s, (fmeas_norm (κ_arg s) <= M)%R.
+  exists 1 => s; rewrite /κ_arg.
+  apply: le_trans (path_norm_ub γ s.1) _; exact: γub.
+(* (3) Joint test-measurability of the integrand. *)
+have HjointConst :
+  measurable_fun
+    [set: (ar_carrier Ar Z * (S_arg * ar_carrier Ar X))%type]
+    (fun p => test_fun m p.1 (β_arg p.2.1 p.2.2)).
+  pose mZX : test_of Ar (ar_prod Ar Z X) B :=
+    test_reindex (ar_prod_fst Z X) m.
+  have mZXM : mcone_M (Ar:=Ar) (ar_prod Ar Z X) mZX
+    by exact: mcone_M_comp.
+  pose path_test_on_η : test_of Ar (ar_prod Ar Z X) (path_car Ar X B) :=
+    path_test (X:=X) (B:=B) (ar_prod_snd Z X) mZX mZXM.
+  have path_test_M : mcone_M (Ar:=Ar) (ar_prod Ar Z X) path_test_on_η.
+    by exists (ar_prod_snd Z X), mZX, mZXM.
+  have Hηj_at := Hηj _ _ path_test_M.
+  (* Hηj_at : (q, y) ↦ test_fun path_test_on_η q (η y) is measurable
+     on (ar_prod Z X) × Y. Unfolds to
+     (q, y) ↦ test_fun m (ar_prod_fst q) (path_fun (η y) (ar_prod_snd q)). *)
+  pose ψ (p : ar_carrier Ar Z * (S_arg * ar_carrier Ar X)) :
+    (ar_carrier Ar (ar_prod Ar Z X) * ar_carrier Ar Y)%type :=
+    (ar_prod_cast (R:=R) (Ar:=Ar) (X:=Z) (Y:=X) (p.1, p.2.2), p.2.1.2).
+  have ψ_meas : measurable_fun
+    [set: (ar_carrier Ar Z * (S_arg * ar_carrier Ar X))%type] ψ.
+    apply: measurable_fun_pair.
+    + apply: (measurableT_comp (ar_prod_cast_meas Ar Z X)).
+      apply: measurable_fun_pair; first exact: measurable_fst.
+      apply: (measurableT_comp (f := snd)); first exact: measurable_snd.
+      exact: measurable_snd.
+    + apply: (measurableT_comp (f := snd)); first exact: measurable_snd.
+      apply: (measurableT_comp (f := fst)); first exact: measurable_fst.
+      exact: measurable_snd.
+  have -> :
+    (fun p : (ar_carrier Ar Z * (S_arg * ar_carrier Ar X))%type =>
+       test_fun m p.1 (β_arg p.2.1 p.2.2)) =
+    (fun q : (ar_carrier Ar (ar_prod Ar Z X) * ar_carrier Ar Y)%type =>
+       test_fun path_test_on_η q.1 (η q.2)) \o ψ.
+    apply: funext => p; rewrite /ψ /β_arg /=.
+    rewrite /path_test_on_η /= /path_test_fun /= /mZX
+            /test_reindex /= /test_reindex_fun /=.
+    by rewrite /ar_prod_fst /ar_prod_fst_fun /ar_prod_snd /ar_prod_snd_fun
+               !ar_prod_castK.
+  exact: (measurableT_comp Hηj_at ψ_meas).
+(* (4) Test-value bound. *)
+have Mβ_bd : exists M : R, forall z s r, (test_fun m z (β_arg s r) <= M)%R.
+  exists Mη => z s r; rewrite /β_arg.
+  apply: le_trans (test_norm_le _ _ _) _.
+  apply: le_trans (path_norm_ub (η s.2) r) _.
+  exact: HMη.
+have main :=
+  @icone_integral_joint_measurable R Ar B X _ S_arg
+     β_arg Hβ_arg κ_arg Z m mM κ_meas_perU κ_bound HjointConst Mβ_bd.
+(* main : measurable on Z × S_arg of
+   (z', s) ↦ test m z' (icone_integral (β_arg s) (Hβ_arg s) (κ_arg s)). *)
+(* Pull back through the diagonal (z, r) ↦ (z, (z, r)) on Z × Y. *)
+pose diag (p : (ar_carrier Ar Z * ar_carrier Ar Y)%type) :
+  (ar_carrier Ar Z * S_arg)%type :=
+  (p.1, (p.1, p.2)).
+have diag_meas : measurable_fun
+  [set: (ar_carrier Ar Z * ar_carrier Ar Y)%type] diag.
+  apply: measurable_fun_pair; first exact: measurable_fst.
+  apply: measurable_fun_pair;
+    [exact: measurable_fst|exact: measurable_snd].
+have -> :
+  (fun p : (ar_carrier Ar Z * ar_carrier Ar Y)%type =>
+     test_fun m p.1
+       (icone_integral (path_fun (η p.2)) (path_is_path (η p.2))
+                       (path_fun γ p.1))) =
+  (fun p : (ar_carrier Ar Z * S_arg)%type =>
+     test_fun m p.1
+       (icone_integral (β_arg p.2) (Hβ_arg p.2) (κ_arg p.2))) \o diag.
+  apply: funext => p; rewrite /diag /β_arg /κ_arg /=.
+  by congr (test_fun m p.1 (icone_integral _ _ _)); exact: Prop_irrelevance.
+exact: (measurableT_comp main diag_meas).
+Qed.
+
+End IntToLinhomPathInCone.
+
+Arguments int_to_linhom_pres_path_in_cone {R Ar X B Y} η.
