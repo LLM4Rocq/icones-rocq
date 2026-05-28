@@ -81,7 +81,7 @@ adjunction and the Seely isomorphisms are both \textbf{fully proved and
 axiom-free}: there is no longer any \texttt{theories/axioms/} staging
 interface anywhere in the project.
 
-\section{The $E \dashv \mathrm{Der}$ adjunction (paper \S9), discharged}%
+\section{The \texorpdfstring{$E \dashv \mathrm{Der}$}{E |- Der} adjunction (paper \S9), discharged}%
 \label{sec:exp-staging}
 
 The deep input to the exponential is the \emph{existence} of the left
@@ -160,7 +160,7 @@ the \texttt{axioms/} directory has been deleted, and every former
 \texttt{Parameter} is a proved theorem. The headline theorem (paper
 Theorem~6.5, Chapter~\ref{ch:skern}) depends on none of this.
 
-\section{The exponential comonad $\mathord{!}$ (paper \S9)}%
+\section{The exponential comonad \texorpdfstring{$\mathord{!}$}{!} (paper \S9)}%
 \label{sec:comonad}
 
 Since the $E \dashv \mathrm{Der}$ adjunction is now discharged
@@ -169,7 +169,7 @@ the comonad and all its laws depend only on the classical base
 (\rocq{Icones.homs.bang.Bang_comonad} is axiom-clean). We write
 $\mathord{!}B := \texttt{Bang}\,\Ar\,B$.
 
-\subsection{The hom-bijection $\Theta$ and promotion}\label{sec:theta}
+\subsection{The hom-bijection \texorpdfstring{$\Theta$}{X} and promotion}\label{sec:theta}
 
 \begin{definition}[The hom-bijection $\Theta$, paper \S9]\label{def:theta}
 \rocq{Icones.homs.bang.Theta}\rocqok\uses{lem:ders, sec:exp-staging}
@@ -209,8 +209,7 @@ $x!$ is its clamp of the underlying linear function, transparent again
 since $x!$ is in the ball by \autoref{def:prom}.
 \end{proof}
 
-\subsection{The extensionality principle (paper Lemma
-\texttt{tens-excl-equal-charact}, $n = 1$)}\label{sec:bang-ext}
+\subsection{The extensionality principle (paper Lemma \texttt{tens-excl-equal-charact}, \texorpdfstring{$n = 1$}{n=1})}\label{sec:bang-ext}
 
 This is the workhorse of the whole chapter: a linear map out of
 $\mathord{!}B$ is determined by its values on promoted points. It is
@@ -407,7 +406,7 @@ built by a finite chain of proved isos (tensor--hom iso, braiding) with
 coherence \emph{laws} are then genuinely proved on promoted pure
 tensors. The whole section is axiom-free.
 
-\subsection{The $\mathord{!}$-tensor extensionality}\label{sec:tens-excl}
+\subsection{The \texorpdfstring{$\mathord{!}$}{!}-tensor extensionality}\label{sec:tens-excl}
 
 The lever for the Seely category --- the exact analogue, for the
 $\mathord{!}$-tensor, of the pure-tensor extensionality
@@ -656,7 +655,7 @@ $\mathrm{seely\_der2}$, one equation per projection), which carries the
 same content --- a product map is determined by its projections. Nothing
 is axiomatised: every law, and the Seely isos themselves, are proved.
 
-\subsection{$\ICones$ is a Seely category}\label{sec:seely-thm}
+\subsection{\texorpdfstring{$\ICones$}{ICones} is a Seely category}\label{sec:seely-thm}
 
 \begin{theorem}[$\ICones$ is a Seely category, paper \S9
 (ref.\ Melli\`es~\cite{mellies-categorical-semantics})]\label{thm:seely}
@@ -781,7 +780,7 @@ contravariant-Yoneda tool
 reaches \textbf{zero project axioms}. The headline theorem (paper
 Theorem~6.5, Chapter~\ref{ch:skern}) is independent of all of these.
 
-\paragraph{The $\mathord{!}$-coalgebra of $\FMeas$ (paper Theorem 9.7).}
+\paragraph{The \texorpdfstring{$\mathord{!}$}{!}-coalgebra of \texorpdfstring{$\FMeas$}{FMeas} (paper Theorem 9.7).}
 For each measurable space $X$ ($\mathrm{ARCAT}$ object), the integrable
 cone $\FMeas(X)$ (paper $\mathcal{C}_{\mathrm{meas}}(X)$) carries a
 $\mathord{!}$-coalgebra structure for the comonad $(\mathord{!},

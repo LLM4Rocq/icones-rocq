@@ -54,17 +54,19 @@
 % Lowercase / Rocq-identifier variants used as prefixes for Rocq names
 % (e.g.\ \ar\_carrier renders as `ar_carrier' in sans-serif). These keep
 % prose like `\icones_{\mathrm{hom}}' from leaking raw LaTeX into HTML.
-\newcommand{\ar}{\mathsf{ar}}
-\newcommand{\cone}{\mathsf{cone}}
-\newcommand{\cones}{\mathsf{cones}}
-\newcommand{\mcones}{\mathsf{mcones}}
-\newcommand{\icones}{\mathsf{icones}}
-\newcommand{\fmeas}{\mathrm{fmeas}}
-\newcommand{\fine}{\mathrm{fine}}
-\newcommand{\measurable}{\mathsf{measurable}}
-\newcommand{\iconeType}{\mathsf{iconeType}}
-\newcommand{\isICone}{\mathsf{isICone}}
-\newcommand{\MeasSubcat}{\mathsf{MeasSubcat}}
+% All wrapped in \ensuremath{} so they work in both text and math mode.
+\newcommand{\ar}{\ensuremath{\mathsf{ar}}}
+\newcommand{\cone}{\ensuremath{\mathsf{cone}}}
+\newcommand{\cones}{\ensuremath{\mathsf{cones}}}
+\newcommand{\mcones}{\ensuremath{\mathsf{mcones}}}
+\newcommand{\icones}{\ensuremath{\mathsf{icones}}}
+\newcommand{\fmeas}{\ensuremath{\mathrm{fmeas}}}
+\newcommand{\fine}{\ensuremath{\mathrm{fine}}}
+\newcommand{\measurable}{\ensuremath{\mathsf{measurable}}}
+\newcommand{\iconeType}{\ensuremath{\mathsf{iconeType}}}
+\newcommand{\isICone}{\ensuremath{\mathsf{isICone}}}
+\newcommand{\MeasSubcat}{\ensuremath{\mathsf{MeasSubcat}}}
+\newcommand{\Prop}{\ensuremath{\mathsf{Prop}}}
 
 % Norms and unit balls used in chapter 7 (stable / SCones).
 % \Norm{f} is the operator norm of a stable map; \Cuball{P} is the closed

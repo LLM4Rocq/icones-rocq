@@ -7,7 +7,7 @@
 % linhom bijection at the function level (Def 5.6, round-trip identities).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{The internal hom $\lin$}\label{ch:linhom}
+\chapter{The internal hom \texorpdfstring{$\lin$}{->}}\label{ch:linhom}
 
 This chapter formalises paper \S5.1 and the parts of \S5.2 used by the
 kernel-embedding anchor: the \emph{concrete} construction of the internal hom $C \lin D$
@@ -32,7 +32,7 @@ concretely in \texttt{theories/homs/linhom.v}; $\otimes$ and
 $\mathord{!}$ are then constructed via the concrete M-SAFT machinery of
 \texttt{theories/icones/representable.v} on top of $\lin$.
 
-\section{The carrier $C \lin D$}\label{sec:linhom-carrier}
+\section{The carrier \texorpdfstring{$C \lin D$}{C -> D}}\label{sec:linhom-carrier}
 
 \begin{definition}[Def 5.2, integrable linear maps]\label{def:linhom-car}
 \rocq{Icones.homs.linhom.linhom_car}\rocqok\uses{def:icone}
@@ -67,7 +67,7 @@ are pointwise. They live as standalone definitions
 path-preservation / integral-preservation closed under pointwise
 operations).
 
-\section{The operator norm $\linhom\!$-$\!\text{norm}$}\label{sec:linhom-norm}
+\section{The operator norm \texorpdfstring{$\linhom\!$}{->hom\!}-\texorpdfstring{$\!\text{norm}$}{\!norm}}\label{sec:linhom-norm}
 
 \begin{definition}[Operator norm on $C \lin D$, paper \S5.1]
 \label{def:linhom-norm}
@@ -136,7 +136,7 @@ cross-terms, which is again $\le S_s$. The two halves combine by
 $\preceq$-antisymmetry.
 \end{proof}
 
-\section{The pointwise sup on $C \lin D$}\label{sec:linhom-sup-fun}
+\section{The pointwise sup on \texorpdfstring{$C \lin D$}{C -> D}}\label{sec:linhom-sup-fun}
 
 The cone-axiom (Normc) on $C \lin D$ requires a unit-ball chain
 $(f_n)_{n}$ in the linhom-carrier to admit a pointwise supremum.
@@ -194,7 +194,7 @@ The packaging is \rocq{Icones.homs.linhom.linhom_sup_ball}, a full
 \rocq{Icones.homs.linhom.linhom_sup_ball_norm}: $\cnorm{\sup_n f_n}
 \le 1$.
 
-\section{The difference helper $\linhom\!\text{-diff}$}\label{sec:linhom-diff}
+\section{The difference helper \texorpdfstring{$\linhom\!\text{-diff}$}{->hom\!-diff}}\label{sec:linhom-diff}
 
 The cone axiom (Normc) on $C \lin D$ requires \emph{both} that the
 sup is an upper bound for the chain and that it is the least upper
@@ -241,7 +241,7 @@ This helper is then re-used by \texttt{linhom\_sup\_ball\_ub} and
 \texttt{linhom\_sup\_ball\_lub}, avoiding duplication of the five
 field proofs.
 
-\section{Cone structure on $C \lin D$ (paper \S5.1)}%
+\section{Cone structure on \texorpdfstring{$C \lin D$}{C -> D} (paper \S5.1)}%
 \label{sec:linhom-cone}
 
 \begin{lemma}[$C \lin D$ is a precone]\label{lem:linhom-precone}
@@ -430,7 +430,7 @@ The HB instance \texttt{isICone.Build} (line 4563 of
 \texttt{iconeType Ar}; the sanity check
 \verb|Check (linhom_car Ar C D : iconeType Ar)| follows.
 
-\section{Bilinear maps and the $\lin$ bijection (paper \S5.2)}%
+\section{Bilinear maps and the \texorpdfstring{$\lin$}{->} bijection (paper \S5.2)}%
 \label{sec:bilin}
 
 Paper \S5.2 (Def~5.6) defines the integrable cone of bilinear maps
@@ -528,7 +528,7 @@ least-upper-bound property. The canonical-sup form
 bound (\texttt{linhom\_norm\_sup\_ub}) and a least-upper-bound
 property (\texttt{linhom\_norm\_sup\_lub}).
 
-\paragraph{The $(\cnorm{x} + 1)$-scaling pattern.}
+\paragraph{The \texorpdfstring{$(\cnorm{x} + 1)$}{(x + 1)}-scaling pattern.}
 Many proofs about $C \lin D$ first reduce an arbitrary $x \in C$
 to a unit-ball element $x' := (\cnorm{x} + 1)^{-1} x$, do the
 work on the unit ball, and rescale back by $S := \cnorm{x} + 1$.

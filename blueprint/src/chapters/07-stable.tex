@@ -15,7 +15,7 @@
 %   stable/scones_cat.v    §7.4 — the category SCones, Ders, products
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Stable functions and the category $\mathbf{SCones}$}\label{ch:stable}
+\chapter{Stable functions and the category \texorpdfstring{$\mathbf{SCones}$}{SCones}}\label{ch:stable}
 
 This chapter formalises paper \S7: the \emph{stable} (non-linear)
 functions between integrable cones --- the cone-theoretic analogue of
@@ -51,7 +51,7 @@ rescaled back pointwise. The first piece of \S7 infrastructure is
 therefore a genuinely radius-aware completeness and continuity layer
 (\texttt{omega\_general.v}), used pervasively below.
 
-\section{The radius-aware $\omega$-continuity foundation}%
+\section{The radius-aware \texorpdfstring{$\omega$}{omega}-continuity foundation}%
 \label{sec:omega-general}
 
 The cone mixin (Normc) materialises completeness only for the unit
@@ -112,7 +112,7 @@ translation, scaling and composition are Scott-continuous; the scaling
 corollary is the one that unblocks the non-linear scaling closure
 \autoref{lem:stable-closure} below.
 
-\section{The local cone $B_x$ --- paper \S7.1}\label{sec:local-cone}
+\section{The local cone \texorpdfstring{$B_x$}{B_x} --- paper \S7.1}\label{sec:local-cone}
 
 \begin{definition}[The local cone, paper \S7.1]\label{def:local-cone}
 \rocq{Icones.stable.local_cone.local_cone}\rocqok\uses{def:cone}
@@ -267,7 +267,7 @@ $f : C \to D$ is \emph{measurable stable}
 sends unit-ball measurable paths to measurable paths.
 \end{definition}
 
-\paragraph{Design note: radius-aware $\omega$-continuity.}
+\paragraph{Design note: radius-aware \texorpdfstring{$\omega$}{omega}-continuity.}
 The linear development's $\omega$-continuity
 (\texttt{is\_omega\_continuous}) restricts both input and image chains
 to the unit ball. For linear maps this is harmless --- domain rescaling
@@ -317,7 +317,7 @@ needed --- the $r < 1$ obstruction that previously blocked scaling is
 gone.
 \end{proof}
 
-\subsection{The stable internal hom $B \mathbin{\Rightarrow_s} C$}
+\subsection{The stable internal hom \texorpdfstring{$B \mathbin{\Rightarrow_s} C$}{B Rightarrow_s C}}
 
 \begin{definition}[The carrier $\mathtt{stablehom}$, paper Def 7.10]
 \label{def:stablehom}
@@ -333,7 +333,7 @@ proof-irrelevant extensionality
 equality.
 \end{definition}
 
-\paragraph{Design note: the $0$-extension carrier.}
+\paragraph{Design note: the \texorpdfstring{$0$}{0}-extension carrier.}
 The paper's stable maps are functions $f : B_B \to C$ defined only on
 the unit ball, with two such maps equal iff they agree on $B_B$. The
 formalisation keeps a \emph{total} carrier $B \to C$ but adds the
@@ -398,7 +398,7 @@ Pettis equation is \rocq{Icones.stable.stablehom.sh_int_car_pettis}.
 \section{Finite differences, Theorem 7.19, and composition --- paper \S7.3}%
 \label{sec:findiff}
 
-\subsection{Finite differences and $n$-increasingness}
+\subsection{Finite differences and \texorpdfstring{$n$}{n}-increasingness}
 
 The difference operators map a function $f : B_B \to C$ into a nested
 local cone $B_{\vec u} := B_{\sum_i u_i}$.
@@ -618,7 +618,7 @@ monotonicity, its $\omega$-continuity ingredient supplied by
 path-preservation \rocq{Icones.stable.compose.meas_path_comp}.
 \end{proof}
 
-\section{The category $\mathbf{SCones}$ --- paper \S7.4}\label{sec:scones}
+\section{The category \texorpdfstring{$\mathbf{SCones}$}{SCones} --- paper \S7.4}\label{sec:scones}
 
 \begin{definition}[Morphisms of $\mathbf{SCones}$]\label{def:scones-hom}
 \rocq{Icones.stable.scones_cat.scones_hom}\rocqok\uses{def:is-stable, def:icone}
@@ -634,7 +634,7 @@ is \rocq{Icones.stable.scones_cat.sc_norm} (with
 extensionality is \rocq{Icones.stable.scones_cat.scones_hom_eq}.
 \end{definition}
 
-\paragraph{Design note: morphisms as $0$-extended maps.}
+\paragraph{Design note: morphisms as \texorpdfstring{$0$}{0}-extended maps.}
 Like the internal hom $B \mathbin{\Rightarrow_s} C$ of
 \autoref{def:stablehom}, the $\mathbf{SCones}$ morphism record carries a
 canonical off-ball field
