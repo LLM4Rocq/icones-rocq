@@ -47,8 +47,12 @@
     - Test-functional monotonicity (proved): [test_fun_le] — tests
       are monotone along the precone order.
 
-    - ω-continuity in [β] / in [µ] / joint measurability of
-      [I^B_X ∘ ⟨η, κ⟩]: documented as TODOs (see end of file).
+    - ω-continuity in [β] (proved): [integral_omega_cont_path] —
+      Paper Lemma 4.7, separate continuity in the first argument.
+    - ω-continuity in [µ] (proved): [integral_omega_cont_meas] —
+      Paper Lemma 4.7, separate continuity in the second argument.
+    - Joint measurability of [I^B_X ∘ ⟨η, κ⟩] (proved): see
+      Section [JointMeasurability] near the end of the file.
       Lemma 4.6 (= [kernel_integral_measurable]) is the technical
       tool for the joint-measurability sub-claim.
 

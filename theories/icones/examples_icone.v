@@ -1,6 +1,6 @@
 (** * Integrable-cone instances for the running examples — Paper §4
 
-    Two [isICone] HB instances fully delivered, one partial:
+    Three [isICone] HB instances fully delivered:
 
     - [cone_one_car Ar] (paper's ⊥, the 1-dimensional [R≥0] cone wrapped
       in an [Ar]-indexed record) is integrable. The integral of
@@ -14,17 +14,15 @@
       **HB.instance isICone registered.**
 
     - [path_car Ar X B] for [B : iconeType Ar] (paper's Path(X, B))
-      is integrable when [B] is. **The integral candidate
-      [path_int_fun] is defined**, and **the Pettis equation at
-      arity 0 is proved** ([path_int_fun_pettis_ar0]). The full
-      [HB.instance isICone] registration additionally requires
-      proving that [path_int_fun] is itself a measurable path, which
-      by paper §4 (proof of Thm 4.12) routes through paper Lemma 4.6
-      (joint measurability of [s ↦ ∫ φ(s, r) κ(s, dr)]). Lemma 4.6 is
-      stubbed (`TODO`) in the wave-2a sibling file
-      [theories/icones/icone_integral.v]; once it lands the [isICone]
-      registration is a routine wrapping. **HB.instance isICone is
-      not yet registered for [path_car] — see comment at end of file.**
+      is integrable when [B] is. The integral candidate
+      [path_int_fun] is defined, the Pettis equation at arity 0 is
+      proved ([path_int_fun_pettis_ar0]), and measurability of
+      [path_int_fun] as a path is discharged via paper Lemma 4.6
+      ([kernel_integral_measurable] in [icone_integral.v]).
+      **HB.instance isICone registered for [path_car]** (see
+      [path_int_exists] and the HB.instance below) — cast
+      measurability is now part of the [MeasSubcat] record, so the
+      registration is unconditional.
 
     Paper reference: Theorems 4.5 and 4.12 (pages 1:24, 1:28).
 
