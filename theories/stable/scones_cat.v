@@ -44,7 +44,8 @@
       [SCones] too: [scones_proj] (= [ders] of the ICones projection)
       and the tupling [scones_tuple] with the universal property
       [scones_tuple_proj] / [scones_tuple_unique] — Theorem 7.32
-      (products part), now delivered thanks to the 0-extension.
+      (products part), delivered as Leibniz equalities thanks to the
+      0-extension.
 
     The cartesian-*closed* structure [Ev] + currying — which needs
     Lemma 7.27 (the [B ⇒ₛ C] internal hom of [stablehom.v]) — is built

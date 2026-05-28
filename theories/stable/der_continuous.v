@@ -29,12 +29,12 @@
 (*     faithful inclusion [cones_eq_val] — far simpler than the internal-hom  *)
 (*     co-restriction of [limpl_continuous.v] (Thm 5.9).                       *)
 (*                                                                            *)
-(*   This file is AXIOM-FREE relative to the classical base of                *)
-(*   mathcomp-analysis: it is pure [ICones]/[SCones] limit theory and depends *)
-(*   on NO staged interface.  Theorem 7.34 is the INPUT consumed by the       *)
-(*   M-SAFT machinery of [Icones.icones.representable] to build the left      *)
-(*   adjoint [E] of [Der] (the exponential, PLAN §13.4); it must not itself   *)
-(*   consume that interface.                                                  *)
+(*   This file is pure [ICones]/[SCones] limit theory, axiom-free               *)
+(*   relative to the classical base of mathcomp-analysis.  Theorem 7.34       *)
+(*   is the INPUT consumed by the M-SAFT machinery of                          *)
+(*   [Icones.icones.representable] to build the left adjoint [E] of [Der]     *)
+(*   (the exponential, PLAN §13.4); it must not itself consume the            *)
+(*   resulting exponential.                                                   *)
 (******************************************************************************)
 
 From HB Require Import structures.
@@ -406,9 +406,8 @@ Arguments der_eq_med_unique {R Ar D1 D2 f g H} h.
     the concrete per-consumer input that Theorem 7.34 feeds, via the
     M-SAFT machinery of [Icones.icones.representable], to construct the
     left adjoint [E] of [Der] (the exponential, PLAN §13.4).  This
-    limit-preservation is AXIOM-FREE and depends on NO staged interface:
-    it is the *input* to SAFT, not a consumer of the (later) exponential
-    structure. *)
+    limit-preservation is the *input* to SAFT, not a consumer of the
+    (later) exponential structure. *)
 
 Section DerContinuous.
 Variables (R : realType) (Ar : MeasSubcat R).

@@ -2524,8 +2524,7 @@ Qed.
 
 Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
 
-(** ** Status of §7.3 in this file
-       (what is delivered here, and the precise remaining walls)
+(** ** Status of §7.3 in this file (what is delivered here)
 
     Delivered (no [Admitted], no [Axiom]):
 
@@ -2535,9 +2534,10 @@ Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
       [B_S = local_cone S].  ω-continuity composes [findiff.v]'s
       [lc_val_scott] (ω-continuity of the inclusion [lc_val : B_S → B])
       with [f]'s [is_scott_continuous_unit], the shift [+ s] commuting
-      through the [B]-supremum by [sup_ball_addr].  *This is exactly the
-      composition that [findiff.v] could not perform — it cannot import
-      [diff_scott_at]/[is_scott_continuous_unit]; [compose.v] can.*
+      through the [B]-supremum by [sup_ball_addr].  (This composition
+      lives here rather than in [findiff.v] because it needs
+      [diff_scott_at]/[is_scott_continuous_unit] from [stablehom.v],
+      which [findiff.v] cannot import.)
 
     - **[stable_bigP]**: a finite [\sumP] of stable maps is stable (the
       stable analogue of [findiff.v]'s [totmono_bigP]).

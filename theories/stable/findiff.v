@@ -877,8 +877,8 @@ Arguments totmono_Delta1 {R B C} f u Hsu Hf.
     [B]-additive inequality [Sdiff_mono] (the [(u :: u⃗)]-difference
     instance of total monotonicity), after which the common summand
     [Σ⁻(x+u) + Σ⁻(x)] cancels on the left ([precone_le_addlI]).  This
-    discharges the operator-level half of the Lemma 7.17 clause that was
-    previously delivered only in subtraction-free [B]-form ([Sdiff_mono]). *)
+    is the operator-level half of the Lemma 7.17 clause; [Sdiff_mono]
+    earlier in this file is its subtraction-free [B]-form. *)
 
 Section DeltaMono.
 Variable R : realType.

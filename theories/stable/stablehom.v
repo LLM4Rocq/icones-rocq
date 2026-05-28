@@ -36,19 +36,18 @@
       [sh_norm_lub] / [sh_norm_ge0], and the cone-norm axioms (Normh)
       [sh_normh], (Normt) [sh_normt], (Normp) [sh_normp] — Lemma 7.14.
 
-    The full cone structure is now delivered (see the closing status
-    block): the **[isCone] HB instance is REGISTERED** — [stablehom B C :
-    coneType R].  (Normz) is unblocked by the canonical 0-extension
-    carrier (the [sh_offball] field), and (Normc) is discharged by the
-    pointwise supremum [sh_sup] together with the difference-is-stable
-    construction (Lemma 7.12 backward, [sh_diff]) supplying the precone-
-    order witnesses [sh_sup ⊖ uₙ] / [y ⊖ sh_sup] required by the
-    [cone_sup_ball] mixin.  The measurability structure [isMCone] (the
-    [γ ▷ m] test family, txt 3365) is also REGISTERED — [stablehom B C :
-    mconeType Ar].  Finally the integrability structure [isICone] (txt
-    3372/3373: "exactly as we did for [C ⊸ D] in §5.1") is REGISTERED —
-    [stablehom B C : iconeType Ar] — via the pointwise Pettis integral
-    [sh_int_fun]; see the closing status block.  File S7b is complete. *)
+    The full cone structure is delivered (see the closing status
+    block): the **[isCone] HB instance** — [stablehom B C : coneType R]
+    — with (Normz) discharged by the canonical 0-extension carrier (the
+    [sh_offball] field), and (Normc) by the pointwise supremum [sh_sup]
+    together with the difference-is-stable construction (Lemma 7.12
+    backward, [sh_diff]) supplying the precone-order witnesses
+    [sh_sup ⊖ uₙ] / [y ⊖ sh_sup] required by the [cone_sup_ball] mixin.
+    The measurability structure [isMCone] (the [γ ▷ m] test family,
+    txt 3365) is registered — [stablehom B C : mconeType Ar].  Finally
+    the integrability structure [isICone] (txt 3372/3373: "exactly as
+    we did for [C ⊸ D] in §5.1") is registered — [stablehom B C :
+    iconeType Ar] — via the pointwise Pettis integral [sh_int_fun]. *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.
