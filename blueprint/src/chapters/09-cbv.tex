@@ -575,6 +575,42 @@ identification of \rocq{Icones.homs.coalgebra.Coalg} with the
 integration-of-Diracs map otherwise.
 \end{proof}
 
+\paragraph{A worked example.}
+The program below exercises $\csample$, $\clet$-sequencing, pairing, and
+the unit value in one well-typed first-order term:
+\[
+   \Gamma \;=\; x : \base\,X
+   \;\;\vdash\;\;
+   \clet\,y = \csample\,x\,\mathtt{in}\,\creturn(y, ())
+   \;\;:\;\;
+   (\base\,X) \times \mathtt{1}.
+\]
+In the calculus's intrinsic syntax this is
+\rocq{Icones.homs.cbv.ex_prog}, of type
+$\mathtt{cp}\,(\base\,X)\,(\base\,X \times \mathtt{1})$, and its
+denotation
+\rocq{Icones.homs.cbv.ex_denot} : $\mathtt{coalg\_hom}\,\FMeas(X)\,
+(T\,(\EMprod\,\FMeas(X)\,\EMterm))$
+is total by construction (\rocq{Icones.homs.cbv.cpD}).
+\begin{lemma}[Reduction of the worked example]%
+\label{lem:cbv-example}
+\rocq{Icones.homs.cbv.ex_denot_E}\rocqok
+\uses{thm:cbv-soundness}
+On a measure type the $\mathord{!}$-induced monad identifies
+$\csample$ with $\creturn$ (\rocq{Icones.homs.cbv.cpD_sample_ret}), so
+the left-unit law collapses the binder and
+$\sem{\mathtt{ex\_prog}}$ rewrites to the continuation pairing-with-unit,
+precomposed with the value $x$.
+\end{lemma}
+\begin{proof}
+\rocq{Icones.homs.cbv.cpD_sample_ret} rewrites
+$\csample\,V$ as $\creturn\,V$ on a value of base type; the
+$\mathtt{let}$/$\mathtt{return}$ left-unit law
+(\rocq{Icones.homs.cbv.cpD_letret}, from
+\rocq{Icones.homs.cbv.kcomp_etaL} of \autoref{thm:cbv-soundness})
+then collapses the binder.
+\end{proof}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
 
