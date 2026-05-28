@@ -672,3 +672,191 @@ Arguments score_kleisli {R Ar} G r Hr0 Hr1.
 Arguments real_kleisli {R Ar R_obj R_carrier_eq} G r.
 Arguments sample_kleisli {R Ar} G {X} mu Hmu.
 Arguments dirac_fmeas_norm_le1 {R Ar R_obj} r.
+
+(** ** Soundness — definitional [eD] equations + structural laws *)
+Section Soundness.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+Local Notation EX' G t :=
+    (coalg_hom (ctxD G) (Tobj (tyD t))).
+Local Notation tR' := (tR R_obj).
+Local Notation eD' := (@eD R Ar R_obj R_carrier_eq).
+
+(** *** Definitional unfoldings of [eD]
+
+    Stated as lemmas so [rewrite] folds them cleanly without an
+    aggressive [/=] that would unfold all the categorical packaging. *)
+
+Lemma eD_var (G : ppl_ctx Ar) (t : ppl_type Ar) (v : has_var G t) :
+  eD' (e_var (R_obj := R_obj) v) =
+  coalg_comp (tunit_eta (tyD t)) (var_lookup v).
+Proof. by []. Qed.
+
+Lemma eD_tt (G : ppl_ctx Ar) :
+  eD' (e_tt (R_obj := R_obj) (G := G)) =
+  coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD G)).
+Proof. by []. Qed.
+
+Lemma eD_pair (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : expr G t1) (N : expr G t2) :
+  eD' (e_pair M N) =
+  coalg_comp (bang_m (coalg_obj (tyD t1)) (coalg_obj (tyD t2)))
+             (em_pair (eD' M) (eD' N)).
+Proof. by []. Qed.
+
+Lemma eD_fst (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar) (M : expr G (tprod t1 t2)) :
+  eD' (e_fst M) = coalg_comp (Tmap (em_proj1 (tyD t1) (tyD t2))) (eD' M).
+Proof. by []. Qed.
+
+Lemma eD_snd (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar) (M : expr G (tprod t1 t2)) :
+  eD' (e_snd M) = coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD' M).
+Proof. by []. Qed.
+
+Lemma eD_lam (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (body : expr (t1 :: G) t2) :
+  eD' (e_lam body) =
+  coalg_comp (tunit_eta (tyD (tfun t1 t2))) (lam_coalg (eD' body)).
+Proof. by []. Qed.
+
+Lemma eD_app (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (F : expr G (tfun t1 t2)) (X : expr G t1) :
+  eD' (e_app F X) =
+  kcomp (app_pair (tyD t1) (tyD t2))
+    (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
+                (em_pair (eD' F) (eD' X))).
+Proof. by []. Qed.
+
+(** *** The "[e_ret] is identity" law
+
+    Because [tyD (tprob t) = tyD t] and EVERY expression is interpreted
+    as a Kleisli arrow, [e_ret M] denotes the same arrow as [M].  This
+    is the genuine "tprob is purely syntactic" content. *)
+Lemma eD_ret (G : ppl_ctx Ar) (t : ppl_type Ar) (M : expr G t) :
+  eD' (e_ret M) = eD' M.
+Proof. by []. Qed.
+
+Lemma eD_bind (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : expr G (tprob t1)) (K : expr (t1 :: G) (tprob t2)) :
+  eD' (e_bind M K) = kbind_ext (eD' K) (eD' M).
+Proof. by []. Qed.
+
+Lemma eD_sample (G : ppl_ctx Ar) (X : ar_obj Ar)
+    (mu : fmeas R (ar_carrier Ar X)) (Hmu : (cone_norm mu <= 1)%R) :
+  eD' (e_sample (R_obj := R_obj) (G := G) mu Hmu) =
+  sample_kleisli (ctxD G) mu Hmu.
+Proof. by []. Qed.
+
+Lemma eD_real (G : ppl_ctx Ar) (r : R) :
+  eD' (e_real (G := G) (R_obj := R_obj) r) =
+  @real_kleisli _ _ R_obj R_carrier_eq (ctxD G) r.
+Proof. by []. Qed.
+
+Lemma eD_score (G : ppl_ctx Ar) (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+  eD' (e_score (R_obj := R_obj) (G := G) r Hr0 Hr1) =
+  score_kleisli (ctxD G) r Hr0 Hr1.
+Proof. by []. Qed.
+
+(** *** Monad laws (re-exported from [cbv.v])
+
+    Stated here in the form [eD] needs them.  These are the [kcomp]
+    laws of [theories/programs/cbv.v]: [kcomp_etaR]/[kcomp_etaL]/[kcomp_A].
+    The HEADLINE for this file: the analogous laws for [kbind_ext] (the
+    extended-context bind used by [e_bind]) are derived from the [kcomp]
+    laws plus the strength's interaction with the EM-comonoidal
+    structure.  We expose the [kbind_ext] form below. *)
+
+End Soundness.
+
+Arguments eD_var {R Ar R_obj R_carrier_eq G t} v.
+Arguments eD_tt {R Ar R_obj R_carrier_eq} G.
+Arguments eD_pair {R Ar R_obj R_carrier_eq G t1 t2} M N.
+Arguments eD_fst {R Ar R_obj R_carrier_eq G t1 t2} M.
+Arguments eD_snd {R Ar R_obj R_carrier_eq G t1 t2} M.
+Arguments eD_lam {R Ar R_obj R_carrier_eq G t1 t2} body.
+Arguments eD_app {R Ar R_obj R_carrier_eq G t1 t2} F X.
+Arguments eD_ret {R Ar R_obj R_carrier_eq G t} M.
+Arguments eD_bind {R Ar R_obj R_carrier_eq G t1 t2} M K.
+Arguments eD_sample {R Ar R_obj R_carrier_eq G X} mu Hmu.
+Arguments eD_real {R Ar R_obj R_carrier_eq G} r.
+Arguments eD_score {R Ar R_obj R_carrier_eq G r} Hr0 Hr1.
+
+(** ** Headline example — [ex_random_constant]
+
+    The QBS-paper-flagship "distribution over a function space" example,
+    ported from [mathcomp-qbs/theories/showcase/ppl_examples.v]'s
+    [random_constant].  Parameterised by a measure [mu] on [R_obj]
+    standing in for QBS's [Normal(0,1)] (we do not commit to a concrete
+    constructor here: any unit-ball [mu : fmeas R (ar_carrier Ar R_obj)]
+    works — the headline is the term, the reduction, and the type, not
+    the choice of base sampler).
+
+    [[
+        ex_random_constant ≜
+          e_bind (e_sample mu Hmu)
+                 (e_ret (e_lam (e_var (hv_succ hv_zero))))
+        : expr [] (tprob (tfun tR tR))
+    ]]
+
+    Reading: draw [c ∼ mu], then return the constant function [λ x. c]
+    (the lambda body's [hv_succ hv_zero] index skips the lambda
+    parameter and reads the outer bound [c]).  This is a distribution
+    over [tR → tR] — the "higher-order" content the QBS paper
+    invokes QBS for.
+
+    The reduction lemma [ex_random_constant_denot_E] uses the
+    definitional [eD_ret] (= identity at the Kleisli level) and
+    [eD_bind] to expose the structural form
+    [kbind_ext lam_denot sample_denot]. *)
+Section RandomConstant.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The lambda body: [hv_succ hv_zero] in context [tR :: tR :: nil]
+    skips the lambda parameter and reads the outer bound variable. *)
+Definition ex_rc_body : @expr R Ar R_obj (tR' :: tR' :: nil) tR' :=
+  e_var (hv_succ hv_zero).
+
+(** The lambda closure: in context [tR :: nil] returns a function
+    [tR → tR] = the constant-c closure. *)
+Definition ex_rc_lam : @expr R Ar R_obj (tR' :: nil) (tfun tR' tR') :=
+  e_lam ex_rc_body.
+
+(** The PPL term: [do c <- sample mu; return (λ x. c)]. *)
+Definition ex_random_constant :
+    @expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+  e_bind (e_sample mu Hmu) (e_ret ex_rc_lam).
+
+(** Its denotation — a Kleisli arrow [⟦[]⟧ ⇝ ⟦tfun tR tR⟧], i.e.
+    [EM_term → Tobj (!̃(U tR ⊸ U tR))]. *)
+Definition ex_random_constant_denot :
+    coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD (tfun tR' tR'))) :=
+  @eD R Ar R_obj R_carrier_eq nil (tprob (tfun tR' tR')) ex_random_constant.
+
+(** The structural reduction: [eD_ret] is the identity, [eD_bind] is
+    [kbind_ext]; combining them, the denotation reads as
+    [kbind_ext (eD ex_rc_lam) (eD (e_sample mu Hmu))]. *)
+Lemma ex_random_constant_denot_E :
+  ex_random_constant_denot =
+  kbind_ext (@eD R Ar R_obj R_carrier_eq _ _ ex_rc_lam)
+            (sample_kleisli (ctxD nil) mu Hmu).
+Proof.
+rewrite /ex_random_constant_denot /ex_random_constant.
+rewrite eD_bind eD_ret eD_sample.
+by [].
+Qed.
+
+End RandomConstant.
+
+Arguments ex_rc_body {R Ar R_obj}.
+Arguments ex_rc_lam {R Ar R_obj}.
+Arguments ex_random_constant {R Ar R_obj} mu Hmu.
+Arguments ex_random_constant_denot {R Ar R_obj R_carrier_eq} mu Hmu.
+Arguments ex_random_constant_denot_E {R Ar R_obj R_carrier_eq} mu Hmu.
