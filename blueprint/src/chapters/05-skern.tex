@@ -1,12 +1,12 @@
-% Chapter 5 --- Substochastic kernels and the MVP theorem
-% (paper §6 + MVP, milestone M5).
+% Chapter 5 --- Substochastic kernels and the kernel-embedding anchor
+% (paper §6, milestone M5).
 %
 % Mirrors theories/kernels/:
 %   skern.v   the category Skern of substochastic kernels (mathcomp-
 %             analysis fker-based, with the norm-≤-1 constraint)
 %   kernel_embedding.v   paper Thm 6.5 — Skern → ICones is fully faithful
 %
-% Wave 2 is populated. The two MVP money-theorem statements
+% Wave 2 is populated. The two headline-theorem statements
 % (Thm 6.1 round-trips and Thm 6.5 fully faithfulness) are tagged
 % \rocqok and \mathcompok: they are fully closed by Qed in the source
 % tree and depend only on axioms from mathcomp.classical.boolp
@@ -14,13 +14,13 @@
 % constructive_indefinite_description) — no project-specific axioms.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Substochastic kernels and the MVP theorem}\label{ch:skern}
+\chapter{Substochastic kernels and the kernel-embedding anchor}\label{ch:skern}
 
 This is the headline chapter of the formalisation: the substochastic
 kernel category $\Skern$ --- arguably the most natural source of
 denotational semantics for first-order probabilistic programming ---
 embeds fully and faithfully into $\ICones$ (paper Theorem~6.5). The
-proof of the MVP money theorem reduces, via paper Theorem~6.1 (the
+proof of the kernel-embedding anchor reduces, via paper Theorem~6.1 (the
 natural isomorphism $\Path(X, B) \simeq \FMeas(X) \lin B$), to two
 short corollaries of the round-trip identities established in
 Chapter~\ref{ch:linhom}. All material in this chapter lives under
@@ -223,7 +223,7 @@ constraint \rocq{Icones.cones.cone_cat.cones_hom_norm_le1}
 ($\cnorm{f(x)} \le \cnorm{x}$), whereas $I^B_X(\beta)$ is only
 bounded by $\cnorm{\beta}_\Path \cdot \cnorm{\mu}_\FMeas$ in general.
 A normalisation wrapper or a relaxation of the bound is needed for
-the full $\mcones$-iso packaging; we defer it. The MVP application
+the full $\mcones$-iso packaging; we defer it. The kernel-embedding anchor
 (Theorem~\ref{thm:thm65}) works directly with the
 unit-norm-constrained version through $\Skern$, which is the
 content of the next section.
@@ -469,9 +469,9 @@ $\mathsf{Klin}(\kappa) = f$ in $\ICones$, see
 \rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_mor_to_skern}.
 \end{proof}
 
-\section{Theorem 6.5 --- the MVP headline}\label{sec:thm65}
+\section{Theorem 6.5 --- the kernel-embedding anchor}\label{sec:thm65}
 
-\begin{theorem}[Paper Theorem~6.5, MVP money theorem]%
+\begin{theorem}[Paper Theorem~6.5, the kernel-embedding anchor]%
 \label{thm:thm65}\rocqok\mathcompok
 \rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_fully_faithful}%
 \uses{thm:thm65-faithful, thm:thm65-full}
@@ -492,7 +492,7 @@ Combine Theorems~\ref{thm:thm65-faithful} and~\ref{thm:thm65-full}.
 \section{Design choices and the axiom budget}\label{sec:skern-design}
 
 We close with a few remarks on the formalisation choices behind
-Theorem~\ref{thm:thm65}, and on the axiom budget of the entire MVP.
+Theorem~\ref{thm:thm65}, and on the axiom budget of the development.
 
 \paragraph{$\FMeas$ vs.\ \texttt{\{finite\_measure\}}.}
 Throughout we use the project's $\FMeas(X)$ record
@@ -530,14 +530,14 @@ Packaging the natural iso $\Path(X, B) \simeq \FMeas(X) \lin B$ as an
 $\mcones_{\mathrm{iso}}$ requires either a normalisation wrapper on
 $I^B_X(\beta)$ (whose operator norm is $\cnorm{\beta}_\Path$, not
 $1$) or a relaxation of the $\mcones_{\mathrm{hom}}$ pointwise
-norm-decrease constraint. We sidestep the difficulty for the MVP by
+norm-decrease constraint. We sidestep the difficulty for the anchor by
 stating Theorem~\ref{thm:thm65} directly for $\Skern_{\mathrm{hom}}$,
 which already carries the unit-norm constraint. The full
-$\mcones$-iso packaging and naturality in $X$ and $B$ are deferred
-beyond the MVP.
+$\mcones$-iso packaging and naturality in $X$ and $B$ are not needed
+for the kernel-embedding anchor.
 
 \paragraph{Axiom budget.}
-The MVP money theorem,
+The kernel-embedding anchor,
 \rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_fully_faithful}, is
 axiom-clean in the following sense: a \texttt{Print Assumptions}
 call on the theorem reports only the three classical axioms exported
@@ -552,13 +552,27 @@ No project-specific axiom is introduced. This is why both
 Theorem~\ref{thm:thm65} and all of its lemmas are tagged
 \rocqok\ and \mathcompok\ in this chapter.
 
-\paragraph{Closing the PLAN.md MVP target.}
-Theorem~\ref{thm:thm65} closes the MVP target spelled out in
+This is also the development's \emph{regression anchor}: every
+downstream wave (the tensor $\otimes$ and SMCC of
+Chapter~\ref{ch:tensor}, the stable category $\mathbf{SCones}$ of
+Chapter~\ref{ch:stable}, the exponential $\mathord{!}$ and the Seely
+category of Chapter~\ref{ch:exponential}, and the beyond-the-paper CBV
+model of Chapter~\ref{ch:cbv}) leaves the
+\texttt{Skern\_to\_ICones\_fully\_faithful} axiom budget unchanged ---
+verified by a \texttt{Print Assumptions} after each merge.
+
+\paragraph{The kernel-embedding anchor and the rest of the development.}
+Theorem~\ref{thm:thm65} delivers the M5 milestone of
 \texttt{PLAN.md}: paper \S2 (M1, $\Cones$), \S3 (M2, $\MCones$,
 $\FMeas$, $\Path$), \S4 (M3, $\ICones$, Pettis, cone-Fubini), \S5.1
-+ \S5.2 (M4, the internal hom $\lin$), and \S6 + MVP (M5, $\Skern$,
-Theorem~6.5) are all formalised. The development comprises
-$28$ commits up to the MVP-closing commit, plus the post-MVP audit
-and the present blueprint commits. The deferred items
-(\S5.3--\S5.5, \S7, \S8, \S9, \S10) are explicitly outside the MVP
-scope and remain subjects for follow-up work.
++ \S5.2 (M4, the internal hom $\lin$), and \S6 (M5, $\Skern$,
+Theorem~6.5) are all formalised. The full linear-logic model of
+paper \S5.3--\S5.5, \S7 and \S9 has since landed axiom-free
+(Chapters~\ref{ch:tensor}, \ref{ch:stable}, \ref{ch:exponential}); the
+beyond-the-paper CBV model of Chapter~\ref{ch:cbv} is also axiom-free.
+What remains genuinely open is paper \S8 (analytic functions, the
+category $\mathrm{ACONES}$), the \S9 Eilenberg--Moore full-subcategory
+theorem ($\mathrm{ARCAT}$ on Polish / standard-Borel spaces embeds into
+$\mathrm{EM}(\mathord{!})$ as a full subcategory --- needing a
+Polish / standard-Borel layer not yet formalised), and the \S10 PCS
+embedding.

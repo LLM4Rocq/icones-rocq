@@ -43,11 +43,16 @@
 %
 % Status note: the CBV model is built and AXIOM-FREE (only the three
 % classical boolp axioms): ICones_CBV, ICones_EM_cartesian, EMComon_all,
-% cpD_sample_var_dirac are all axiom-clean.  ONE honest deferral, stated
-% plainly below: the value category is cartesian but not yet known to be
-% CLOSED (the !A ⊸ B Girard decomposition is available linearly but no
-% value-CCC has been proved), so cbv.v interprets the FIRST-ORDER fragment
-% only; higher-order CBV / adequacy is out of scope here.
+% cpD_sample_var_dirac are all axiom-clean.  Higher-order CBV is also
+% interpreted via the LNL / CBPV bypass of theories/homs/ppl.v: function
+% types live via the Girard decomposition A → B = !A ⊸ B (the linear hom
+% out of !A, a cofree coalgebra), so no value-CCC is needed.  ppl.v
+% includes the QBS-style showcase ex_random_constant — a distribution
+% over a function space P(R → R), interpreted axiom-free.  ONE honest
+% remainder: value-level application v_app (vs computation-level c_app)
+% would need the SMCC evaluation map !A ⊸ B ⊗ !A → B to be a coalgebra
+% morphism (Melliès §6.3 / Bénabou); documented in ppl.v as APP_NOTE.
+% Adequacy / normalization / full-abstraction also out of scope here.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Beyond the paper: a call-by-value model (Melli\`es \S7.4)}%
@@ -85,14 +90,30 @@ general carrier); $U \dashv \widetilde{\mathord{!}}$ is therefore a
 \emph{linear / non-linear} adjunction with \emph{the} category of
 $\mathord{!}$-coalgebras as the cartesian non-linear / value side.
 
-\paragraph{The one honest deferral.}
-The value category is cartesian but \emph{not yet known to be closed}.
-The linear $\multimap$ is the SMC-closure of $\ICones$ and the Girard
-decomposition $A \to B = \mathord{!}A \multimap B$ is available
-linearly, but a value-CCC on $\mathrm{EM}(\mathord{!})$ has not been
-proved; accordingly \texttt{cbv.v} interprets the \emph{first-order}
-fragment only (unit, base, products, $\mathtt{let}$, $\mathtt{sample}$).
-Adequacy / normalization / full-abstraction is out of scope here.
+\paragraph{Higher-order CBV via Girard / CBPV.}
+The value category $\mathrm{EM}(\mathord{!})$ is cartesian but
+\emph{not yet known to be closed}. Rather than proving a value-CCC, we
+follow the LNL / CBPV bypass that ports the QBS-style PPL of
+LLM4Rocq/mathcomp-qbs: function types live via the Girard decomposition
+$A \to B \;=\; \mathord{!}A \multimap B$, a cofree coalgebra of the
+\emph{linear} hom out of $\mathord{!}A$; lambda is
+$\mathtt{tensor\_curry}$ of the body with $\mathrm{der}$ inserted, then
+$\Psi$ (the adjunction transpose) to land in $\mathrm{EM}(\mathord{!})$;
+application is a CBPV-style \emph{computation} $T B$ via
+$\Phi^{-1}$. This is \texttt{theories/homs/ppl.v}, also axiom-free
+(\autoref{sec:cbv-ppl}). The QBS showcase
+\rocq{Icones.homs.ppl.ex_random_constant} --- a distribution over a
+function space, \texttt{P}$(\mathbb{R}\to\mathbb{R})$ --- interprets
+soundly in the LNL setting.
+
+\paragraph{The one honest remainder.}
+\emph{Value-level} application $v_{\mathrm{app}}$ (as a value, not a
+computation) would require the SMCC evaluation map
+$\mathrm{ev} : (\mathord{!}A \multimap B) \otimes \mathord{!}A \to B$
+to itself be a coalgebra morphism (Melli\`es \S6.3 / B\'enabou). That
+is documented in \texttt{ppl.v} as the
+\texttt{APP\_NOTE}. Adequacy, normalization, and full-abstraction
+are also out of scope.
 
 \paragraph{Where the material lives.}
 \texttt{theories/homs/em\_cat.v} (the EM category, the cofree functor and
@@ -500,10 +521,10 @@ $\mathord{!}$-coalgebras as the cartesian non-linear / value side.
 \section{A first-order CBV calculus in the model}\label{sec:cbv-calculus}
 
 With \autoref{thm:cbv-model} the model is built; this section interprets
-a small CBV calculus into it. The interpretation is intentionally
-\emph{first-order} (the value category is cartesian but not yet known to
-be closed, see the deferral at the start of the chapter); the deliverable
-is a sound compositional semantics with the probabilistic primitive
+a small first-order CBV calculus into it, as the minimal Moggi-CBV
+demonstration. The higher-order companion via the LNL / CBPV bypass
+follows in \autoref{sec:cbv-ppl}. The deliverable here is a sound
+compositional semantics with the probabilistic primitive
 $\mathtt{sample}$ wired to the Theorem-9.7 integral, not an
 adequacy/normalization theorem.
 
@@ -612,6 +633,84 @@ then collapses the binder.
 \end{proof}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{A higher-order PPL via the Girard / CBPV bypass}%
+\label{sec:cbv-ppl}
+
+\autoref{sec:cbv-calculus} stops at first order because a closed
+structure on the value category $\mathrm{EM}(\mathord{!})$ has not
+been proved (\autoref{sec:cbv-status}). A higher-order companion is
+nevertheless available, by the standard \emph{LNL / CBPV} bypass: it
+ports the \texttt{ppl} branch of \texttt{LLM4Rocq/mathcomp-qbs} (the
+QBS-based PPL) into the cones model, interpreting function types via
+the Girard decomposition rather than a value-CCC. All of this lives in
+\texttt{theories/homs/ppl.v} and is axiom-free.
+
+\paragraph{The calculus.}
+The syntax is the previous one extended with arrows. Types are
+\rocq{Icones.homs.ppl.ty'} ($\mathtt{tunit'}$, $\mathtt{tbase'}\,X$,
+$\mathtt{tprod'}$, and $\mathtt{tfun}\,A\,B$), values
+\rocq{Icones.homs.ppl.vl'} are the previous ones plus
+$\mathtt{v\_lam}$, and computations \rocq{Icones.homs.ppl.cp'} are
+the previous ones plus a Moggi / CBPV-style \emph{value-to-computation}
+application $\mathtt{c\_app}\,V\,W : T\,B$ (the result lives in
+$T\,B$, not $B$).
+
+\paragraph{The interpretation.}
+Function types denote a \emph{cofree coalgebra of a linear hom}:
+\[
+  \sem{\mathtt{tfun}\,A\,B}
+  \;\;=\;\;
+  \widetilde{\mathord{!}}\,(\mathord{!}\,\sem{A} \multimap \sem{B}),
+\]
+where $\multimap$ is the SMC closure of $\ICones$
+(\autoref{thm:thm512}). $\mathtt{v\_lam}$ denotes $\Psi$ applied to
+$\mathtt{tensor\_curry}$ of the body precomposed with $\mathrm{der}$,
+landing in $\mathrm{EM}(\mathord{!})$ as the
+$\mathtt{tfun}$-cofree coalgebra; $\mathtt{c\_app}$ denotes the
+Kleisli-style $\Phi^{-1}$ on the linear evaluation map.
+
+\paragraph{Soundness.}
+The LNL $\beta$-rule
+\rocq{Icones.homs.ppl.adj_phi_cpD'_app_lam} records
+$\sem{\mathtt{c\_app}\,(\mathtt{v\_lam}\,V)\,W}$ at the underlying
+$\ICones$-level. Companion lemmas
+\rocq{Icones.homs.ppl.vlD'_lamE}\,/\,
+\rocq{Icones.homs.ppl.adj_phi_lam_coalg} and
+\rocq{Icones.homs.ppl.cpD'_appE}\,/\,
+\rocq{Icones.homs.ppl.adj_phi_app_kleisli} factor the value side
+through $\Phi$\,/\,$\Psi$.
+
+\paragraph{The QBS showcase.}
+The QBS paper's flagship higher-order example
+\[
+  \mathtt{ex\_random\_constant}
+  \;\;\equiv\;\;
+  \texttt{let } c\;=\;\mathtt{sample}\,X\;\texttt{ in }
+  \mathtt{return}\,(\lambda x.\,c)
+  \;\;:\;\;
+  \mathtt{P}\,(X \to X),
+\]
+a distribution over a function space
+(\rocq{Icones.homs.ppl.ex_random_constant}), is interpreted axiom-free
+in the LNL setting --- its denotation
+\rocq{Icones.homs.ppl.ex_random_constant_denot} reduces to the
+constant-lambda value
+(\rocq{Icones.homs.ppl.ex_random_constant_denot_E}). Classical
+measure-theoretic semantics famously cannot accommodate such an object;
+the LNL bypass on top of the integrable-cones model can.
+
+\paragraph{What is not yet covered.}
+\emph{Value-level} application $v_{\mathrm{app}}$ (returning $B$, not
+$T B$) would require the SMCC evaluation map
+$\mathrm{ev}_{!A,B} : (\mathord{!}A \multimap B) \otimes \mathord{!}A
+\to B$ to be a \emph{coalgebra morphism}, in the sense of Melli\`es
+\S6.3 / B\'enabou (the monoidal cofree adjunction's internal-hom
+counit). This is recorded as \texttt{APP\_NOTE} in
+\texttt{ppl.v}. Also not interpreted (orthogonal): booleans /
+coproducts (the cones model has no native sum type), and the
+QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior showcase.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
 
 \paragraph{Delivered and axiom-free.}
@@ -627,15 +726,18 @@ unconditional comonoidality witness
 \rocq{Icones.homs.em_cartesian.EMComon_all}
 (\autoref{lem:cbv-emcomon-all}); the LNL monoidal adjunction bundled as
 \rocq{Icones.homs.cbv_adjunction.ICones_CBV} (\autoref{thm:cbv-model});
-and the first-order CBV calculus and its sound interpretation
-(\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}).
+the first-order CBV calculus and its sound interpretation
+(\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}); and a
+higher-order companion via the LNL / CBPV bypass, including the QBS
+flagship showcase $\mathtt{ex\_random\_constant}$
+(\autoref{sec:cbv-ppl}, \rocq{Icones.homs.ppl.ex_random_constant_denot_E}).
 
-\paragraph{Open --- the one honest deferral.}
-The value category $\mathrm{EM}(\mathord{!})$ is cartesian but \emph{not
-yet known to be closed}. The linear $\multimap$ is the SMC-closure of
-$\ICones$ and the Girard decomposition $A \to B = \mathord{!}A
-\multimap B$ is available linearly, but a value-CCC on
-$\mathrm{EM}(\mathord{!})$ has not been proved; accordingly
-\autoref{sec:cbv-calculus} interprets the \emph{first-order} fragment
-only, and adequacy / normalization / full-abstraction for higher-order
-CBV is out of scope here.
+\paragraph{Open --- the one honest remainder.}
+A genuine value-CCC on $\mathrm{EM}(\mathord{!})$ is \emph{not yet
+proved}. The higher-order calculus of \autoref{sec:cbv-ppl} sidesteps
+this via the LNL / CBPV bypass (function types via Girard
+$A \to B = \mathord{!}A \multimap B$), but \emph{value-level}
+application would require the SMCC evaluation map to lift to a
+coalgebra morphism (the \texttt{APP\_NOTE} of \texttt{ppl.v}, Melli\`es
+\S6.3 / B\'enabou). Adequacy, normalization, and full-abstraction are
+also out of scope here.
