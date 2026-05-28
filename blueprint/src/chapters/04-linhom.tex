@@ -10,7 +10,7 @@
 \chapter{The internal hom $\lin$}\label{ch:linhom}
 
 This chapter formalises paper \S5.1 and the parts of \S5.2 used by the
-MVP: the \emph{concrete} construction of the internal hom $C \lin D$
+kernel-embedding anchor: the \emph{concrete} construction of the internal hom $C \lin D$
 of two integrable cones as a $\Cone$, then as an $\MCone$, then as an
 $\ICone$ (paper Lemma~5.4). The chapter also covers the function-level
 part of \S5.2: the bijection between bilinear maps $C_1, C_2 \to D$
@@ -25,11 +25,12 @@ its own measurability structure) \emph{or} abstractly via Freyd's
 SAFT-style argument applied to the limit-preserving functor
 $C \lin -\;$. The paper chooses the concrete route for the internal
 hom and reserves the abstract argument for the tensor product
-$\otimes$ and the exponential $\mathord{!}$, which are out of scope
-for the MVP. The Rocq formalisation follows the same split: the
-internal hom $\lin$ is built concretely in
-\texttt{theories/homs/linhom.v}; $\otimes$ and $\mathord{!}$ are
-deferred to a future milestone.
+$\otimes$ and the exponential $\mathord{!}$, both delivered (axiom-free)
+in Chapters~\ref{ch:tensor} and~\ref{ch:exponential}. The Rocq
+formalisation follows the same split: the internal hom $\lin$ is built
+concretely in \texttt{theories/homs/linhom.v}; $\otimes$ and
+$\mathord{!}$ are then constructed via the concrete M-SAFT machinery of
+\texttt{theories/icones/representable.v} on top of $\lin$.
 
 \section{The carrier $C \lin D$}\label{sec:linhom-carrier}
 
@@ -444,7 +445,7 @@ between elements of $C_1, C_2 \lin D$ and \emph{separately linear,
 $\omega$-continuous, measurable, integrable} bilinear functions
 $C_1 \& C_2 \to D$.
 
-For the MVP we deliver this bijection at the function level. A
+For the kernel-embedding anchor we deliver this bijection at the function level. A
 \emph{bilinear datum}
 (\rocq{Icones.homs.linhom.bilin_data}) is a function $f : C_1 \to
 C_2 \to D$ equipped with both a left-section
@@ -498,9 +499,10 @@ These function-level round-trips are exactly the data needed by
 \autoref{ch:skern} (the dirac round-trip in the
 faithfulness/fullness proof of paper Theorem~6.5). The morphism-level
 upgrade to an iso in $\ICones$ uses the full HB tower on
-\texttt{linhom\_car} delivered in \autoref{sec:linhom-icone}, but
-the explicit categorical statement is deferred together with the
-tensor product $\otimes$.
+\texttt{linhom\_car} delivered in \autoref{sec:linhom-icone}; the
+explicit categorical statement of paper Theorem~5.12
+($(B \otimes C) \lin D \simeq B \lin (C \lin D)$) is part of the tensor
+chapter (\autoref{thm:thm512}).
 
 \section{Design choices}\label{sec:linhom-design}
 
@@ -509,9 +511,12 @@ Paper \S5 sketches two routes to the cartesian closed structure on
 $\ICones$: the concrete construction of $C \lin D$ as a set of
 integrable linear maps with a hand-built measurability structure
 (paper \S5.1), and the abstract construction via SAFT applied to
-$C \lin -\;$. The MVP follows the concrete route for $\lin$. The
-tensor product $\otimes$ and the exponential $\mathord{!}$, which
-the paper builds via the abstract route, are out of MVP scope.
+$C \lin -\;$. The internal hom $\lin$ is built concretely in
+\texttt{theories/homs/linhom.v}; the tensor product $\otimes$ and the
+exponential $\mathord{!}$, which the paper builds via the abstract
+route, are constructed by the concrete M-SAFT machinery of
+\texttt{theories/icones/representable.v} in Chapters~\ref{ch:tensor}
+and~\ref{ch:exponential}.
 
 \paragraph{Canonical-sup norm.}
 M1's \texttt{linmap\_norm} extracts an upper bound on

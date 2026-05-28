@@ -1,5 +1,5 @@
 % Chapter 7 --- Stable functions and the category SCones
-% (paper §7, iteration 2).
+% (paper §7).
 %
 % Mirrors theories/stable/ and theories/cones/omega_general.v:
 %   cones/omega_general.v  radius-aware ω-continuity foundation (cone_sup_at,
@@ -40,10 +40,10 @@ logic: $\ICones$ embeds into $\mathbf{SCones}$ as the linear maps (the
 dereliction), and the future exponential will arise from the adjunction
 relating the two. This chapter is the gateway to that milestone.
 
-\paragraph{Strategy: from the unit-ball MVP to general radii.}
-The MVP (\autoref{ch:icones}, \autoref{ch:linhom}) only ever needed
-$\omega$-continuity on the \emph{unit ball}: for a linear map every
-bounded chain rescales into $B_B$, so the unit-ball notion
+\paragraph{Strategy: from the unit-ball linear setting to general radii.}
+The linear development (\autoref{ch:icones}, \autoref{ch:linhom}) only
+ever needed $\omega$-continuity on the \emph{unit ball}: for a linear
+map every bounded chain rescales into $B_B$, so the unit-ball notion
 \texttt{is\_omega\_continuous} of paper \S2.1 sufficed. A non-linear
 stable map breaks this --- scaling a stable $f$ by $r < 1$ produces an
 image chain of norm up to $1/r > 1$, which leaves the ball and cannot be
@@ -204,9 +204,10 @@ $\cnorm{x} < 1$. The formalisation therefore strengthens the section
 hypothesis to $\cnorm{x} < 1$ throughout: the local cone is defined only
 at strict-interior points. This loses nothing --- the paper uses local
 cones exactly for differentiation \emph{at interior points} --- and it
-is precisely where the MVP's simplified norm condition is satisfiable
-without weakening any cone axiom. The $\cnorm{x} \leq 1$ facts needed by
-the cone development are recovered from the strict bound by $\texttt{ltW}$.
+is precisely where the linear development's simplified norm condition
+is satisfiable without weakening any cone axiom. The
+$\cnorm{x} \leq 1$ facts needed by the cone development are recovered
+from the strict bound by $\texttt{ltW}$.
 
 \section{Total monotonicity and stable functions --- paper \S7.2}%
 \label{sec:totmono}
@@ -267,12 +268,13 @@ sends unit-ball measurable paths to measurable paths.
 \end{definition}
 
 \paragraph{Design note: radius-aware $\omega$-continuity.}
-The MVP's $\omega$-continuity (\texttt{is\_omega\_continuous}) restricts
-both input and image chains to the unit ball. For linear maps this is
-harmless --- domain rescaling brings any bounded chain into $B_P$ --- but
-a non-linear stable $f$ scaled by $r < 1$ has an image chain reaching
-norm $1/r > 1$, escaping the ball, with no pointwise rescaling. The fix
-is the unit-input Scott-continuity
+The linear development's $\omega$-continuity
+(\texttt{is\_omega\_continuous}) restricts both input and image chains
+to the unit ball. For linear maps this is harmless --- domain rescaling
+brings any bounded chain into $B_P$ --- but a non-linear stable $f$
+scaled by $r < 1$ has an image chain reaching norm $1/r > 1$, escaping
+the ball, with no pointwise rescaling. The fix is the unit-input
+Scott-continuity
 \rocq{Icones.stable.totmono.is_scott_continuous_unit}: the input chain
 stays in $B_P$ (the function's domain, where total monotonicity makes it
 monotone), while the image supremum is taken with the general-radius

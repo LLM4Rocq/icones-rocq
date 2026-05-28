@@ -51,6 +51,30 @@
 \newcommand{\Mtest}{\mathcal{M}}
 \newcommand{\borel}{\mathcal{B}}
 
+% Lowercase / Rocq-identifier variants used as prefixes for Rocq names
+% (e.g.\ \ar\_carrier renders as `ar_carrier' in sans-serif). These keep
+% prose like `\icones_{\mathrm{hom}}' from leaking raw LaTeX into HTML.
+\newcommand{\ar}{\mathsf{ar}}
+\newcommand{\cone}{\mathsf{cone}}
+\newcommand{\cones}{\mathsf{cones}}
+\newcommand{\mcones}{\mathsf{mcones}}
+\newcommand{\icones}{\mathsf{icones}}
+\newcommand{\fmeas}{\mathrm{fmeas}}
+\newcommand{\fine}{\mathrm{fine}}
+\newcommand{\measurable}{\mathsf{measurable}}
+\newcommand{\iconeType}{\mathsf{iconeType}}
+\newcommand{\isICone}{\mathsf{isICone}}
+\newcommand{\MeasSubcat}{\mathsf{MeasSubcat}}
+
+% Norms and unit balls used in chapter 7 (stable / SCones).
+% \Norm{f} is the operator norm of a stable map; \Cuball{P} is the closed
+% unit ball of a cone. \Mcca is a transparent decorator for prose like
+% `\Mcca X' that historically meant `the carrier of X' --- rendered as
+% the bare argument so the prose reads cleanly.
+\newcommand{\Norm}[1]{\lVert #1 \rVert}
+\newcommand{\Cuball}[1]{\overline{B}(#1)}
+\newcommand{\Mcca}{}
+
 % Integrable cones layer (paper §4)
 \newcommand{\ICone}{\mathsf{ICone}}
 \newcommand{\ICones}{\mathbf{ICones}}
@@ -60,7 +84,7 @@
 \newcommand{\lin}{\multimap}
 \newcommand{\linhom}{\multimap}
 
-% Kernels layer (paper §6 + MVP)
+% Kernels layer (paper §6)
 \newcommand{\Skern}{\mathbf{Skern}}
 \newcommand{\skernhom}[2]{#1 \overset{s}{\to} #2}
 
