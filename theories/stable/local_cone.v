@@ -513,9 +513,8 @@ Qed.
     [s = cone_sup_ball (n ↦ x + a_n ·: u)] (norm ≤ 1), and show
     [x + (gauge_sup u) ·: u = s]: the gap [t] (with
     [x + L ·: u = s + t]) satisfies [‖t‖ ≤ (L - a_n) ‖u‖ → 0], hence
-    [t = 0] by (Normz).  This is exactly the "scalar limit commutes with
-    [cone_sup_ball]" fact identified as the wave-1 blocker, here in the
-    only form actually needed. *)
+    [t = 0] by (Normz).  This is the "scalar limit commutes with
+    [cone_sup_ball]" fact, in the only form actually needed. *)
 Lemma gauge_sup_reach (u : P) (Hu0 : lc_val u <> precone_zero) :
   cone_norm (precone_add x
      (precone_scale (NngNum (gauge_sup_ge0 u)) (lc_val u))) <= 1.
@@ -1103,11 +1102,11 @@ End SupBallEq.
     Paper §7.1 (p. 1:56): "For each [X ∈ Ar] we define [M_X] as the set
     of all test functions [λr.λu. m(r, lc_val u)] for [m ∈ M^B_X]".  We
     build the pullback test [lc_test m : test_of Ar X B_x] and the
-    family [lc_mcone_M], and prove the (Mscomp) and (Mssep) closure
-    conditions.  See the status block below for why the simplified
-    (Msnorm) of [mcone.v] cannot be closed for [B_x] (the gauge / B-norm
-    gap), and hence why the [isMCone]/[isICone] HB instances are
-    *deferred* rather than registered. *)
+    family [lc_mcone_M] (which also admits the renormalized scalings
+    [c ·: lc_test m] needed for (Msnorm) of [mcone.v]; see the status
+    block below).  We prove the (Mscomp), (Mssep) and (Msnorm) closure
+    conditions; the [isMCone] / [isICone] HB instances are registered
+    further down. *)
 Section LocalMCone.
 Variable R : realType.
 Variable Ar : MeasSubcat R.
@@ -1715,7 +1714,7 @@ HB.instance Definition _ := @isICone.Build R Ar (local_cone x)
 End LocalICone.
 
 (**md**************************************************************)
-(** ** Status: what is proved, and what is deferred
+(** ** Status: what is proved
 
     Proved here.
     - Carrier [local_cone] with proof-irrelevant equality [lc_eq].
@@ -1728,8 +1727,8 @@ End LocalICone.
       bound [gauge_set_ub], the reach [gauge_sup] with [gauge_sup_ge0]
       and (for [u ≠ 0]) [gauge_sup_gt0], and the gauge norm [lc_norm]
       with [lc_norm_ge0], (Normz) [lc_normz] and [lc_norm0].
-    - The "scalar limit commutes with [cone_sup_ball]" fact (the wave-1
-      blocker), proved in the exact form needed inside [gauge_sup_reach]:
+    - The "scalar limit commutes with [cone_sup_ball]" fact, proved in
+      the exact form needed inside [gauge_sup_reach]:
       for an admissible chain [a_n ↑ gauge_sup u], the gap [t] between
       [x + (gauge_sup u) ·: u] and [cone_sup_ball (n ↦ x + a_n ·: u)]
       has [‖t‖ ≤ (gauge_sup u - a_n)‖u‖ → 0], hence [t = 0].  ([rmax]

@@ -162,27 +162,21 @@ End TmIncr.
 
 Arguments tm_incr_le {R P Q f} Hfm {x y}.
 
-(** ** Lemma 7.11 — nonneg scaling is now stable (full, all [r])
+(** ** Lemma 7.11 — nonneg scaling is stable (full, all [r])
 
-    [totmono.v] previously DEFERRED ω-continuity of [r *: f] for a
-    *stable* (nonlinear) [f] (and [stablehom.v] only patched the
-    [r ≥ 1] sub-case via domain-free rescaling).  With the migration to
-    Scott-continuity ([is_scott_continuous_unit], general image radius)
-    this is fully resolved in [totmono.v] by [stable_scale], for ALL
-    [r : {nonneg R}].  The [r < 1] obstruction is gone: the image chain
-    [r *: f∘u] is allowed to carry any radius [Mf], so no rescaling of
-    the domain is needed.  We therefore reuse [stable_scale] /
-    [meas_stable_scale] directly below; the old [stable_scale_cont_ge1]
-    workaround is retired. *)
+    [totmono.v]'s [stable_scale] handles ω-continuity of [r *: f] for
+    a *stable* (nonlinear) [f] at every [r : {nonneg R}], via Scott-
+    continuity ([is_scott_continuous_unit], general image radius): the
+    image chain [r *: f∘u] is allowed to carry any radius [Mf], so no
+    rescaling of the domain is needed.  We reuse [stable_scale] /
+    [meas_stable_scale] directly below. *)
 
 (** ** Lemma 7.11 — the pointwise operations as [stablehom] records
 
     The zero map, the pointwise sum and the nonneg scaling of stable
-    measurable maps are again stable measurable maps (Lemma 7.11).  With
-    [stable_scale] now proved in [totmono.v] (the migration payoff),
-    scaling is no longer blocked, so all three operations and the eleven
-    precone laws are available — we register the [isPrecone] HB instance
-    below. *)
+    measurable maps are again stable measurable maps (Lemma 7.11).
+    All three operations and the eleven precone laws are available —
+    we register the [isPrecone] HB instance below. *)
 
 Section StablehomOps.
 Variable R : realType.
@@ -340,7 +334,8 @@ End StablehomPreconeCheck.
     least-upper-bound and non-negativity properties; these are the
     norm facts of Lemma 7.14 that do not depend on the precone scaling
     operation.  (The cone axioms (Normh)/(Normz)/(Normt)/(Normp) and
-    (Normc) require the precone instance and are deferred with it.) *)
+    (Normc) require the precone instance and are delivered after it,
+    further down the file.) *)
 
 Local Open Scope classical_set_scope.
 
@@ -2650,25 +2645,25 @@ Check (stablehom B C : iconeType Ar).
 End StablehomIConeCheck.
 
 (**md**************************************************************)
-(** ** Status — what is delivered and what is deferred (and why)
+(** ** Status — what is delivered
 
     Delivered (no holes, no project axioms — only the ambient
     classical axioms propositional/functional extensionality and
     indefinite description, used pervasively across the development):
 
-    - **Carrier redesign — the canonical 0-extension.**  [stablehom B C]
-      now carries a third field [sh_offball : ∀ x, ¬(‖x‖ ≤ 1) → f x = 0]
+    - **The canonical 0-extension carrier.**  [stablehom B C] carries
+      a third field [sh_offball : ∀ x, ¬(‖x‖ ≤ 1) → f x = 0]
       forcing the map to vanish outside [B_B].  This makes [B_B]-
       behaviour determine [f] (two stable maps agreeing on [B_B] also
       agree off it — both are [0]), the property (Normz) needs.  All
       three operations [sh_zero]/[sh_add]/[sh_scale] carry the field
       ([sh_zero_offball]/[sh_add_offball]/[sh_scale_offball]) and the
-      **[isPrecone] HB instance survives**: [stablehom B C : preconeType
-      R].  Extensionality [stablehom_eq] is unchanged (the two proof
-      fields are [Prop]-irrelevant).
+      **[isPrecone] HB instance**: [stablehom B C : preconeType R].
+      Extensionality [stablehom_eq] reduces to function equality (the
+      two proof fields are [Prop]-irrelevant).
     - Lemma 7.12 (induced order) [sh_le_pointwise]; Lemma 7.14 norm
       [sh_norm] with (Normh)/(Normt)/(Normp).
-    - **(Normz) [sh_normz] — PROVED** (the payoff of the redesign):
+    - **(Normz) [sh_normz]** (the payoff of the 0-extension carrier):
       [‖f‖ = 0 ⇒ f = sh_zero].  On [B_B] the sup forces [f x = 0]; off
       [B_B] the field [sh_offball] gives [f x = 0]; hence [f = sh_zero].
     - **(Normc) supremum machinery — PROVED.**  The pointwise supremum

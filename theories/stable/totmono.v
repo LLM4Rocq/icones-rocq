@@ -31,12 +31,11 @@
       preserving on the unit ball.
     - Lemma 7.11 closure lemmas: the zero map, the pointwise sum
       [f + g] and the nonneg scaling [r *: f] preserve each of total
-      monotonicity, stability and measurability.  [stable_scale] (once
-      DEFERRED) is now proved via [r *: f = (r *: ·) ∘ f],
-      [scaler_scott_continuous] and the radius-aware suprema of
-      [omega_general.v].  (We deliver these as free-standing lemmas;
-      the precone *record* and its HB tower are the job of the next
-      file [stable/stablehom.v].)
+      monotonicity, stability and measurability.  [stable_scale] is
+      proved via [r *: f = (r *: ·) ∘ f], [scaler_scott_continuous]
+      and the radius-aware suprema of [omega_general.v].  (We deliver
+      these as free-standing lemmas; the precone *record* and its HB
+      tower are the job of the next file [stable/stablehom.v].)
 
     Design notes.
     - The cone sums of (7.1) range over the *finite* index sets
@@ -313,16 +312,16 @@ End SanityN2.
     [cone_sup_at_ball], which identifies [cone_sup_at] at radius [1]
     with [cone_sup_ball]).
 
-    This is the migration that fixes the nonlinear-scaling blocker: the
-    *image*-side radius is now general ([Mf] arbitrary), so nonneg
+    The *image*-side radius is general ([Mf] arbitrary), so nonneg
     scaling [r *: f] — whose image chain has norm up to [1/r > 1] for
-    [r < 1] — is Scott-continuous (see [stable_scale]).  The unrestric-
-    ted-input form [is_scott_continuous f] (all input radii) is too
-    strong for *nonlinear* stable maps: a stable [f : B_P → Q] is only
-    monotone on [B_P] (total monotonicity, [totmono_increasing]), so for
-    an input chain leaving [B_P] the image chain [f ∘ u] need not be
-    increasing and the commutation can fail.  Def 2.2 sidesteps this by
-    keeping the input chain in the ω-closed domain [A = B_P]. *)
+    [r < 1] — is Scott-continuous (see [stable_scale]).  The
+    unrestricted-input form [is_scott_continuous f] (all input radii)
+    is too strong for *nonlinear* stable maps: a stable [f : B_P → Q]
+    is only monotone on [B_P] (total monotonicity,
+    [totmono_increasing]), so for an input chain leaving [B_P] the
+    image chain [f ∘ u] need not be increasing and the commutation can
+    fail.  Def 2.2 sidesteps this by keeping the input chain in the
+    ω-closed domain [A = B_P]. *)
 
 Section Stable.
 Variable R : realType.
@@ -745,19 +744,19 @@ have [-> | rpos] := eqVneq r%:num 0%R; first by rewrite !mul0r.
 by rewrite ler_pM2l ?lt_def ?rpos ?rge0//; exact: HM.
 Qed.
 
-(** *** Stability of [r *: f] — the migration payoff
+(** *** Stability of [r *: f]
 
-    Previously the ω-continuity of [r *: f] was DEFERRED: under the
-    unit-ball-restricted [is_omega_continuous] the image chain
-    [r *: f∘u] in [B_Q] forced [‖f(uₙ)‖ ≤ 1/r], escaping [B_Q] for
-    [r < 1].  With Scott-continuity ([is_scott_continuous_unit]) the
-    image side carries a *general* radius [Mf], so the escape is
-    harmless.  We write [r *: f = (r *: ·) ∘ f] and chain:
-    [f] commutes with the unit-ball sup at image radius [Mf'] (its
-    [is_scott_continuous_unit] field, with [f ∘ u] increasing by total
-    monotonicity and bounded by the [is_stable] witness), and then the
-    *linear* [r *: ·] commutes with [cone_sup_at] at any radius
-    ([scaler_scott_continuous], [omega_general.v]). *)
+    With Scott-continuity ([is_scott_continuous_unit]) the image side
+    carries a *general* radius [Mf], so although the image chain
+    [r *: f∘u] in [B_Q] would force [‖f(uₙ)‖ ≤ 1/r] (escaping [B_Q]
+    for [r < 1]) under a unit-ball-restricted ω-continuity, the
+    Scott form lets the chain escape harmlessly.  We write
+    [r *: f = (r *: ·) ∘ f] and chain: [f] commutes with the unit-ball
+    sup at image radius [Mf'] (its [is_scott_continuous_unit] field,
+    with [f ∘ u] increasing by total monotonicity and bounded by the
+    [is_stable] witness), and then the *linear* [r *: ·] commutes with
+    [cone_sup_at] at any radius ([scaler_scott_continuous],
+    [omega_general.v]). *)
 Lemma stable_scale (r : {nonneg R}) (f : P -> Q) :
   is_stable f -> is_stable (stm_scale r f).
 Proof.

@@ -2385,11 +2385,11 @@ Arguments ninc_kfun {R C D} g Hg p B n f h Hf Hh Hbd.
     The remaining ingredient [totmono_comp] ([g ∘ f] totally monotonic,
     the [n = 0] corollary of Lemma 7.26) is delivered after this section
     via [ninc_kfun] + [is_n_increasing_totmono]; the three lemmas below then
-    assemble [stable_comp]/[meas_stable_comp].  Earlier this was blocked on
-    the bare-[B] wall (the forward bridge [is_totmono ⇒ ∀p, Sinc p] is false
-    on bare [B]); the *generic-source* induction of [ninc_kfun] — run on the
-    local-cone predicate [is_n_increasing], quantified over all source cones
-    — sidesteps the explicit nested-cone transport (see [ninc_kfun]). *)
+    assemble [stable_comp]/[meas_stable_comp].  The *generic-source*
+    induction of [ninc_kfun] — run on the local-cone predicate
+    [is_n_increasing], quantified over all source cones — sidesteps the
+    explicit nested-cone transport (see [ninc_kfun]; the bare-[B] forward
+    bridge [is_totmono ⇒ ∀p, Sinc p] is genuinely false). *)
 
 Section CompClosure.
 Variable R : realType.
@@ -2699,10 +2699,10 @@ Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
       bound supplied by [lc_step1] on the local cone.  **No nested-cone
       cast, no ω-continuity, no [Sinc] recursion** — the [SD_concat]
       identity reduces the higher difference's total monotonicity directly
-      to [f]'s, one arity up.  This closes the previously-deferred wall
-      (see below).
+      to [f]'s, one arity up.
 
-    Deferred (with the precise wall):
+    Design lesson — why the *forward* direction of B-side Theorem 7.19 is
+    not pursued:
 
     - **Forward direction [totmono_Sinc]** ([is_totmono f ⇒ ∀p, Sinc p f]).
       *Genuinely false on bare [B] as stated.*  [Sinc (p.+1) f] demands
@@ -2715,19 +2715,8 @@ Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
       reason the *converse* [Sinc_totmono] is the useful direction (and is
       delivered): [Sinc] is an *input* hypothesis there, supplied by
       [Sinc_dB] with its own bounds, never re-derived from [is_totmono].
-
-    *Resolved* — **[totmono_Delta]** (Lemma 7.20, [Δf] clause) is now
-    delivered above via the [SD_concat] identity [Spos_cat]/[Sneg_cat] +
-    [totmono_SD_cat].  The earlier accounts of this entry described two
-    *failed* routes (the [Sinc_totmono] route and the naive [m]- or
-    [n]-induction), both of which stalled on a plain-vs-shifted bound
-    mismatch or a circular centre-difference monotonicity.  The clean route
-    sidesteps both: it never asks for global total monotonicity of the
-    inner difference [SD f u⃗] (which it lacks), nor for any cons-recurrence
-    of functions satisfying only shifted inequalities; instead the parity
-    split [Spos_cat]/[Sneg_cat] reduces [Δf(u⃗)]'s total monotonicity at
-    arity [m] *directly* to [f]'s own total monotonicity at the
-    concatenated arity [n+m] — the discrete "[Dⁿ⁺ᵐ = Dᵐ ∘ Dⁿ]" composition.
+      [totmono_Delta] (Lemma 7.20, [Δf] clause) avoids this wall entirely
+      by going through the [SD_concat] identity rather than [Sinc].
 
     Lemma 7.26 (the Faà-di-Bruno-style main lemma) — the two cornerstones:
 
@@ -2750,7 +2739,7 @@ Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
       (Lemma 7.23 full telescope) on the shifted family [h(x+u) = h(x) +
       Δh(u)(x)] at the shifted centre [f(x+u) = f(x) + Δf(u)(x)].
 
-    Composition theorem (Thm 7.30) — the *unblocked* halves:
+    Composition theorem (Thm 7.30) — the non-totmono halves:
 
     - **[scott_comp]** (ω-continuity composes) / **[bounded_comp]**
       (boundedness composes) / **[meas_path_comp]** (path-preservation
@@ -2759,11 +2748,11 @@ Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
       are direct (ω-continuity via [cone_sup_at_ball]/[cone_sup_at_indep],
       [f]'s [≤ 1]-image keeping the chain/path in [B_C]).
 
-    *Resolved* — Lemma 7.26 and Theorem 7.30 (closure under composition):
+    Lemma 7.26 and Theorem 7.30 (closure under composition):
 
     - **[ninc_kfun]** (Lemma 7.26, the generic-source [p]-induction): for
       *every* source cone, arity, and admissible data, [kfun g f h⃗] is
-      [p]-increasing.  The earlier bare-[B] wall (the forward bridge
+      [p]-increasing.  The bare-[B] wall (the forward bridge
       [is_totmono ⇒ ∀p, Sinc p] is false on bare [B]) is sidestepped by
       running the induction on the *local-cone* predicate [is_n_increasing]
       (which recurses into [B_u]) and *quantifying it over all source
@@ -2793,10 +2782,7 @@ Arguments meas_stable_comp {R Ar B C D} f g Hf Hg Hfb.
       summation is realised on the local-cone [is_n_increasing], whose
       gauge norm makes the plain and shifted balls of [B_u] coincide.
 
-    Deferred:
-
-    - **Lemma 7.27** ([totmono_bilin]): [f : B × C → D] linear in arg 1 +
-      totmono in arg 2 ⇒ totmono on [B_B × B_C].  Independent of the wall
-      above, but needs the binary-product cone [B × C] with the [&]-norm
-      and the [Pε(n)] reindexing [inj_j] of Lemma 7.4 — fresh
-      product-cone infrastructure not yet in the development. *)
+    The content of **Lemma 7.27** is delivered in
+    [stable/scones_ccc.v] in the form actually consumed by the CCC: the
+    total monotonicity of the evaluation map [Ev : (B ⇒ₛ C) × B → C]
+    ([ev_totmono]). *)
