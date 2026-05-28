@@ -1,14 +1,12 @@
 (**md**************************************************************************)
 (** * [ICones] is a Seely category — Paper §9
 
-    From the staged exponential comonad [!] ([theories/homs/bang.v],
-    modulo [theories/homs/exp_adjunction.v]), the now-AXIOM-FREE
-    symmetric monoidal tensor [⊗] ([theories/homs/tensor.v]/[smcc.v]; the
-    SAFT contract [saft_interface.v] is discharged and deleted) and the
-    staged Seely isomorphisms ([theories/homs/seely_defs.v]) we
-    DERIVE — as genuine theorems modulo the remaining (exp/Seely)
-    interfaces — that [!] is a *strong monoidal comonad*, i.e. [ICones]
-    is a *Seely category* in the sense of Melliès (paper §9, lines
+    From the exponential comonad [!] ([theories/homs/bang.v], built on
+    [theories/homs/exp_adjunction.v] + [bang_construct.v]) and the
+    AXIOM-FREE symmetric monoidal tensor [⊗]
+    ([theories/homs/tensor.v]/[smcc.v]) we DERIVE — as genuine
+    theorems — that [!] is a *strong monoidal comonad*, i.e. [ICones] is
+    a *Seely category* in the sense of Melliès (paper §9, lines
     7515–7573, ref. [Mellies09]).
 
     The workhorse is the [n=2] promotion extensionality
@@ -66,11 +64,9 @@
     through, so it is recorded in projected form ([seely_der1]/[der2]),
     which carries the same content.
 
-    All results are THEOREMS modulo the remaining staged interfaces; the
-    tensor symbols are now AXIOM-FREE (SAFT discharged), so the only
-    non-classical assumptions left are the staged exponential symbols
-    ([Bang]/[nl]/[lin]/[lin_beta]/[lin_unique]) and the staged Seely
-    symbols ([Seely2]/[Seely2E]/[Seely2_natural] and [Seely0]/[Seely0E]). *)
+    All results are THEOREMS; the entire chain (tensor, exponential, Seely
+    isos) is now AXIOM-FREE — verified [Print Assumptions ICones_Seely]
+    = the three classical [boolp] axioms only. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -111,13 +107,11 @@ Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
 
-(** P6 — the tensor SAFT contract is DISCHARGED.  [tensor.v] (Required
-    above) [Export]s the proved tensor symbols, replacing the former
-    [saft_interface].  Re-seal the now-TRANSPARENT structural-iso /
-    bifunctor data so a bare [/=]/[simpl] in the Seely coherence proofs
-    below does not unfold the [tensor_construct] internals (which would
-    break the [tensor_assocEp]/[tensor_braidEp]/[tensor_morE]/[...Ep]
-    rewrites); [conversion] still computes their [...E] values, so the
+(** Seal the structural-iso / bifunctor data so a bare [/=]/[simpl] in
+    the Seely coherence proofs below does not unfold the
+    [tensor_construct] internals (which would break the
+    [tensor_assocEp]/[tensor_braidEp]/[tensor_morE]/[...Ep] rewrites);
+    [conversion] still computes their [...E] values, so the
     promotion-coherence proofs go through verbatim. *)
 Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
        tensor_curry tensor_uncurry ptensor tau.
@@ -638,13 +632,11 @@ Proof. exact: S2fwdE. Qed.
 
 End Seely2Iso.
 
-(** Keep [Seely2E]'s pure-tensor points explicit (matching the former
-    staged interface), so the existing coherence proofs below
-    ([seely_comult]/[seely_assoc]/...) use it unchanged. *)
+(** Keep [Seely2E]'s pure-tensor points explicit so the coherence proofs
+    below ([seely_comult]/[seely_assoc]/...) read the values uniformly. *)
 Arguments Seely2E {B1 B2} x1 x2.
 
-(** Seal [Seely2] (now a TRANSPARENT [Definition], unlike the former
-    staged [Parameter]) so a bare [/=] in the Seely coherence proofs below
+(** Seal [Seely2] so a bare [/=] in the Seely coherence proofs below
     does not unfold it into [S2fwd]/[psiV]/... and break the [Seely2E]
     rewrites; [Seely2E] still reads off its pure-tensor values. *)
 Opaque Seely2.
@@ -879,9 +871,9 @@ Qed.
 (** ** The Seely structure maps — Paper §9
 
     The two structural maps of a *Seely category*: the binary Seely iso
-    [Seely2] (re-exported from the staged interface) and the
-    [&]-projection tuple [⟨!π1, !π2⟩ : !(B1 & B2) → (!B1 & !B2)] used to
-    transport [dig] across [Seely2]. *)
+    [Seely2] (built above) and the [&]-projection tuple
+    [⟨!π1, !π2⟩ : !(B1 & B2) → (!B1 & !B2)] used to transport [dig]
+    across [Seely2]. *)
 
 (** The [&]-projections [π1]/[π2] on [sprod B1 B2]. *)
 Definition sproj1 (B1 B2 : ICone.type Ar) : icones_hom Ar (sprod B1 B2) B1 :=
@@ -1145,10 +1137,10 @@ Definition one1 : cone_one_car Ar := MkConeOne Ar 1%:nng.
 Lemma lunit_bwd_prom (B : ICone.type Ar) (x : B) :
   iso_bwd (tensor_lunit (Bang Ar B)) x! = ptensor one1 x!.
 Proof.
-(* P6 — with [tensor_lunit] sealed [Opaque], the staged change-fold no
-   longer applies; but [iso_fwd ∘ iso_bwd] cancels by [iso_can'] and the
-   forward unitor on the unit-scalar pure tensor [one1 ⊗ x!] computes to
-   [x!], so the residual goal closes by conversion. *)
+(* With [tensor_lunit] sealed [Opaque] a [change]-fold would not
+   apply; but [iso_fwd ∘ iso_bwd] cancels by [iso_can'] and the forward
+   unitor on the unit-scalar pure tensor [one1 ⊗ x!] computes to [x!],
+   so the residual goal closes by conversion. *)
 apply: (iso_fwd_inj (tensor_lunit (Bang Ar B))).
 by rewrite iso_can'.
 Qed.
@@ -1195,7 +1187,7 @@ have Hbwd : icones_comp f (iso_bwd (tensor_runit (Bang Ar A))) =
   exact: Hfg.
 rewrite -(icones_compIr f) -(icones_compIr g).
 rewrite -(iso_fwdK (tensor_runit (Bang Ar A))).
-(* P6 — [tensor_runit_bwd] is itself an [icones_comp]; a blanket
+(* [tensor_runit_bwd] is itself an [icones_comp]; a blanket
    [!icones_compA] would reassociate INTO it (defeating the [Opaque]
    seal) and break the [Hbwd] match.  Reassociate only the two outer
    composites by giving [icones_compA] explicit arguments. *)
@@ -1357,7 +1349,7 @@ Arguments seely_der2 {R Ar} A B.
       supplying [!], [!f], [der], [dig] and the comonad laws;
     - [sc_seely2]/[sc_seely2E]/[sc_seely2_nat] : the binary Seely iso
       [!A ⊗ !B ≅ !(A & B)], its characterisation on promoted pure tensors
-      and its naturality (the staged Yoneda data);
+      and its naturality (built via the natural-in-[C] Yoneda chain);
     - [sc_seely0]/[sc_seely0E] : the unit Seely iso [1 ≅ !⊤] (with [⊤] the
       terminal cone [Stop]) and its characterisation [Seely0(t) = t·0!];
     - [sc_assoc]/[sc_braid]/[sc_lunit]/[sc_runit] : the four
@@ -1372,23 +1364,21 @@ Arguments seely_der2 {R Ar} A B.
       counit/[Seely2] binary laws.
 
     The canonical witness [ICones_Seely] populates every field with the
-    proved lemmas; the tensor symbols are now AXIOM-FREE (SAFT
-    discharged), so the only unproved inputs left are the staged exp /
-    Seely symbols (PLAN §13).
+    proved lemmas; the entire chain is AXIOM-FREE.
 
-    Status of the Melliès coherence laws.  We DELIVER, as THEOREMS modulo
-    the staged interfaces (not axioms): the strong-monoidal-comonad data
-    ([!], [⊗], [&], [⊤], [Seely2], [Seely0]); the binary Seely iso, its
-    naturality and characterisation; the unit Seely iso and its
-    characterisation; the FULL symmetric-monoidal-functor coherence of
-    [(!, Seely2, Seely0)] — associativity, symmetry, left/right unit; the
-    comultiplication ([dig]) coherence the paper draws explicitly (line
-    7527); and the counit ([der]) compatibility laws.  Every coherence is
-    proved by the paper's recipe — reduce on promoted pure tensors via
+    Status of the Melliès coherence laws.  We DELIVER, as THEOREMS:
+    the strong-monoidal-comonad data ([!], [⊗], [&], [⊤], [Seely2],
+    [Seely0]); the binary Seely iso, its naturality and characterisation;
+    the unit Seely iso and its characterisation; the FULL
+    symmetric-monoidal-functor coherence of [(!, Seely2, Seely0)] —
+    associativity, symmetry, left/right unit; the comultiplication
+    ([dig]) coherence the paper draws explicitly (line 7527); and the
+    counit ([der]) compatibility laws.  Every coherence is proved by the
+    paper's recipe — reduce on promoted pure tensors via
     [tens_excl_charact]/[tens_excl_charact3l] (or the mixed unit
     extensionality), compute by [Seely2E]/[Seely0E]/[bang_fmap_prom]/
-    [tensor_morE] + the structural-iso E-laws — exactly the "easy by Lemma
-    [tens-excl-equal-charact]" of paper line 7521.
+    [tensor_morE] + the structural-iso E-laws — exactly the "easy by
+    Lemma [tens-excl-equal-charact]" of paper line 7521.
 
     The binary counit/[Seely2] square [der_{A&B} ∘ Seely2_{A,B}] is
     recorded only in its PROJECTED form ([sc_der1]/[sc_der2]): the product
@@ -1484,8 +1474,7 @@ Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
 Arguments SeelyCategory {R} Ar.
 
 (** Paper §9: the canonical Seely-category structure on [ICones], every
-    field populated by a proved lemma (the tensor is now axiom-free;
-    modulo the remaining staged exp / Seely interfaces). *)
+    field populated by a proved lemma (axiom-free). *)
 Definition ICones_Seely (R : realType) (Ar : MeasSubcat R) :
     SeelyCategory Ar :=
   {| sc_smcc := ICones_smcc Ar;

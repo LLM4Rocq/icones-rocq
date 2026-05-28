@@ -1,5 +1,5 @@
 (**md**************************************************************************)
-(* # The Seely isomorphisms (Paper §9) — STAGING DISCHARGED                    *)
+(* # Seely-structure definitions (Paper §9)                                    *)
 (*                                                                            *)
 (* PLAN.md §13.4 makes the exponential comonad [! = E ∘ Der] a *strong        *)
 (* monoidal* comonad, turning [ICones] into a Seely category (Melliès).  The  *)
@@ -8,8 +8,7 @@
 (*   Seely2_{B1,B2} : !B1 ⊗ !B2  ≅  !(B1 & B2)     (paper [\Seelyt])          *)
 (*   Seely0         :        1   ≅  !⊤             (paper [\Seelyz])          *)
 (*                                                                            *)
-(* Both are now PROVED in [theories/homs/seely.v] — they are no longer        *)
-(* staged here:                                                               *)
+(* Both isos are PROVED in [theories/homs/seely.v]:                            *)
 (*                                                                            *)
 (*   - [Seely0] / [Seely0E] (the unit iso, paper [\Seelyz]) is built by the   *)
 (*     contravariant Yoneda lemma [co_yoneda_iso] on the natural             *)
@@ -23,12 +22,9 @@
 (*     [tens_excl_charact]; [Seely2E] is the chain's pure-tensor computation; *)
 (*     [Seely2_natural] follows from [Seely2E] + [tens_excl_charact].         *)
 (*                                                                            *)
-(* What this file STILL provides are the genuine (non-staged) definitions     *)
-(* the Seely structure needs: the terminal cone [⊤ = Stop] (and its          *)
-(* terminality) and the binary-product bifunctor action [f1 & f2 =           *)
-(* sprod_mor].  No [Parameter]/[Axiom] remains; the only outstanding gap of   *)
-(* [theories/homs/seely.v] is the flagged interim [stab_lin_swap] (paper      *)
-(* Lemma 9.4, to be wired in from the sibling proof).                         *)
+(* What this file provides are the bare definitions the Seely structure       *)
+(* needs: the terminal cone [⊤ = Stop] (and its terminality) and the           *)
+(* binary-product bifunctor action [f1 & f2 = sprod_mor].                     *)
 (******************************************************************************)
 
 From HB Require Import structures.
@@ -85,16 +81,12 @@ Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
 
       [Seely2(x1! ⊗ x2!) = ⟨x1,x2⟩!].
 
-    SAFT/Yoneda is what we STAGE; we keep the iso and its
-    characterisation, which by [tens_excl_charact] pins it down. *)
-
-(** DISCHARGED.  [Seely2 : !B1⊗!B2 ≅ !(B1&B2)] and its characterisation
-    [Seely2E] on promotions of pure tensors are now PROVED in
-    [theories/homs/seely.v] (the paper's natural-in-[C] bijection chain
-    of content.tex ~7482, folded to the element level via the [E ⊣ Der]
-    adjunction [Θ]/[lin], the [SCones] CCC [curry]/[Ev], [tensor_hom_iso]
-    / the braiding, and — at exactly one step — paper Lemma 9.4
-    [stab_lin_swap]).  They are no longer staged here. *)
+    The iso and its characterisation are PROVED in [theories/homs/seely.v]
+    (the paper's natural-in-[C] bijection chain of content.tex ~7482,
+    folded to the element level via the [E ⊣ Der] adjunction [Θ]/[lin],
+    the [SCones] CCC [curry]/[Ev], [tensor_hom_iso] / the braiding, and —
+    at exactly one step — paper Lemma 9.4 [stab_lin_swap]); by
+    [tens_excl_charact] the characterisation pins the iso down. *)
 
 (** ** The terminal integrable cone [⊤] — Paper §9 ([\Stop])
 
@@ -103,9 +95,7 @@ Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
     empty product [icones_prod] over [Empty_set]: a point is a (vacuous)
     section [forall e : Empty_set, _], so by [cones_prod_eq] any two
     points are equal — there is a single point, the product zero, and a
-    unique morphism into [⊤] from every object.  This is a genuine
-    definition (like [sprod_mor] below); only the [Seely0] iso it carries
-    is staged. *)
+    unique morphism into [⊤] from every object. *)
 Definition Stop : ICone.type Ar :=
   icones_prod (fun e : Empty_set => match e return ICone.type Ar with end).
 
@@ -144,21 +134,19 @@ Definition sprod_mor (B1 B2 B1' B2' : ICone.type Ar)
        then icones_comp f1 (icones_proj true)
        else icones_comp f2 (icones_proj false)).
 
-(** ** Naturality of [Seely2] — Paper §9, line 7494 — DISCHARGED
+(** ** Naturality of [Seely2] — Paper §9, line 7494
 
     [Seely2] is a natural transformation in both arguments; the square
-    [!(f1 & f2) ∘ Seely2_{B1,B2} = Seely2_{B1',B2'} ∘ (!f1 ⊗ !f2)] is now
+    [!(f1 & f2) ∘ Seely2_{B1,B2} = Seely2_{B1',B2'} ∘ (!f1 ⊗ !f2)] is
     PROVED as [Seely2_natural] in [theories/homs/seely.v] (directly from
-    [Seely2E] via the [n=2] promotion extensionality [tens_excl_charact]),
-    and is no longer staged here. *)
+    [Seely2E] via the [n=2] promotion extensionality [tens_excl_charact]). *)
 
-(** ** Paper §9 — the unit Seely isomorphism [\Seelyz] — DISCHARGED
+(** ** Paper §9 — the unit Seely isomorphism [\Seelyz]
 
     The unit Seely iso [Seely0 : 1 ≅ !⊤] and its characterisation
-    [Seely0(t) = t·(0!)] are now PROVED in [theories/homs/seely.v] (via
-    the contravariant Yoneda lemma [co_yoneda_iso] on the natural
-    hom-bijection [ICones(1,C) ≃ ICones(!⊤,C)]); they are no longer
-    staged here. *)
+    [Seely0(t) = t·(0!)] are PROVED in [theories/homs/seely.v] (via the
+    contravariant Yoneda lemma [co_yoneda_iso] on the natural
+    hom-bijection [ICones(1,C) ≃ ICones(!⊤,C)]). *)
 
 End SeelyInterface.
 

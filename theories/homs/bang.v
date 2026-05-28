@@ -1,12 +1,12 @@
 (**md**************************************************************************)
 (** * The exponential comonad [!] on [ICones] — Paper §9
 
-    From the staged linear/non-linear adjunction [E ⊣ Der]
-    ([theories/homs/exp_adjunction.v]) we DERIVE — as genuine theorems
-    modulo that universal-arrow interface — the exponential comonad
-    [(!, der, dig)] of paper §9, the model of the [!] modality of [LL].
+    From the linear/non-linear adjunction [E ⊣ Der]
+    ([theories/homs/exp_adjunction.v], built on [bang_construct.v]) we
+    DERIVE — as genuine theorems — the exponential comonad [(!, der, dig)]
+    of paper §9, the model of the [!] modality of [LL].
 
-    The interface exposes the object map [Bang = E = !], the unit
+    [exp_adjunction.v] exposes the object map [Bang = E = !], the unit
     [nl B : B → !B] (the universal nonlinear map [\Unistab_B]), the linear
     factoriser [lin], and the two halves of the universal property of
     [nl_B] ([lin_beta]/[lin_unique]).  Everything below is built from
@@ -37,9 +37,8 @@
     comultiplication [dig = E(nl)], and the Lemmas [tens-excl-equal-charact]
     ([n=1]) and [excl-fun-prom].
 
-    All results are THEOREMS modulo the staged interface; the only
-    non-classical assumptions are the staged symbols
-    [Bang]/[nl]/[lin]/[lin_beta]/[lin_unique]. *)
+    All results are THEOREMS; verified [Print Assumptions Bang_comonad]
+    = the three classical [boolp] axioms only. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.

@@ -10,10 +10,9 @@
     Eilenberg–Moore category of [!].
 
     This milestone is AXIOM-FREE and independent of the tensor [⊗] /
-    Seely: [Bang] is now the proved SAFT construction
-    ([bang_construct.v], re-exported by [exp_interface.v]), and the
-    integration / Dirac-path layer of [bilin.v] (Theorem 6.1) is
-    axiom-free.
+    Seely: [Bang] is the proved SAFT construction ([bang_construct.v],
+    re-exported by [exp_adjunction.v]), and the integration / Dirac-path
+    layer of [bilin.v] (Theorem 6.1) is axiom-free.
 
     Contents:
     - [FMeas X] — the integrable cone [fmeas R (ar_carrier Ar X)].
