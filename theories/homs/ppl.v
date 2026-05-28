@@ -638,12 +638,21 @@ End Soundness.
 
 Arguments cpD'_letret {R Ar G H t} V N.
 Arguments cpD'_sample_ret {R Ar G Y} V.
+Arguments cpD'_appE {R Ar G A B} Vf Va.
 Arguments vlD'_varE {R Ar} G.
 Arguments vlD'_lamE {R Ar G A B} V.
 Arguments adj_phi_lam_coalg {R Ar G A B} VB.
+Arguments adj_phi_app_kleisli {R Ar G A B} VF VA.
+Arguments adj_phi_cpD'_app_lam {R Ar G A B} V W.
 Arguments ex_random_constant {R Ar} X.
 Arguments ex_random_constant_denot {R Ar} X.
 Arguments ex_random_constant_denot_E {R Ar} X.
+Arguments ex_random_constant_denot_at_ret {R Ar} X.
+Arguments ex_random_constant_value_E {R Ar} X.
+Arguments ex_random_constant_under_E {R Ar} X.
+Arguments ex_app_id {R Ar} X.
+Arguments ex_app_id_denot {R Ar} X.
+Arguments ex_app_id_denot_E {R Ar} X.
 
 (** ** [APP_NOTE] — promoting [c_app] (computation) to a value [v_app]
 
