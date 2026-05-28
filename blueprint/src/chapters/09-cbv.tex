@@ -44,15 +44,20 @@
 % Status note: the CBV model is built and AXIOM-FREE (only the three
 % classical boolp axioms): ICones_CBV, ICones_EM_cartesian, EMComon_all,
 % cpD_sample_var_dirac are all axiom-clean.  Higher-order CBV is also
-% interpreted via the LNL / CBPV bypass of theories/homs/ppl.v: function
-% types live via the Girard decomposition A → B = !A ⊸ B (the linear hom
-% out of !A, a cofree coalgebra), so no value-CCC is needed.  ppl.v
-% includes the QBS-style showcase ex_random_constant — a distribution
-% over a function space P(R → R), interpreted axiom-free.  ONE honest
-% remainder: value-level application v_app (vs computation-level c_app)
-% would need the SMCC evaluation map !A ⊸ B ⊗ !A → B to be a coalgebra
-% morphism (Melliès §6.3 / Bénabou); documented in ppl.v as APP_NOTE.
-% Adequacy / normalization / full-abstraction also out of scope here.
+% interpreted, in fine-grain Moggi-CBV style, by theories/homs/ppl.v:
+% function types denote the EM(!) Kleisli exponential
+%   ⟦tfun A B⟧ = !̃(U A ⊸ U B)
+% — the representing object for Hom_EM(- × A, T B) with T = !̃ ∘ U.
+% The four-step natural bijection (cofree U ⊣ !̃, U strict monoidal via
+% cbv_U_prod, SMCC closure of ICones, cofree U ⊣ !̃ again) yields lambda
+% and application directly; application is a computation INTRINSICALLY
+% in Moggi-CBV (that is what applying an effectful function is), NOT a
+% workaround for a missing structure.  ppl.v includes the QBS-style
+% showcase ex_random_constant — a distribution over a function space
+% P(R → R), interpreted axiom-free.  EM(!) is NOT cartesian closed and
+% is not expected to be (a structural fact); Kleisli exponentials are
+% what Moggi-CBV needs, and that is what ppl.v uses.  Adequacy /
+% normalization / full-abstraction are out of scope here.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Beyond the paper: a call-by-value model (Melli\`es \S7.4)}%
@@ -90,30 +95,48 @@ general carrier); $U \dashv \widetilde{\mathord{!}}$ is therefore a
 \emph{linear / non-linear} adjunction with \emph{the} category of
 $\mathord{!}$-coalgebras as the cartesian non-linear / value side.
 
-\paragraph{Higher-order CBV via Girard / CBPV.}
+\paragraph{Higher-order CBV via EM(!) Kleisli exponentials.}
 The value category $\mathrm{EM}(\mathord{!})$ is cartesian but
-\emph{not yet known to be closed}. Rather than proving a value-CCC, we
-follow the LNL / CBPV bypass that ports the QBS-style PPL of
-LLM4Rocq/mathcomp-qbs: function types live via the Girard decomposition
-$A \to B \;=\; \mathord{!}A \multimap B$, a cofree coalgebra of the
-\emph{linear} hom out of $\mathord{!}A$; lambda is
-$\mathtt{tensor\_curry}$ of the body with $\mathrm{der}$ inserted, then
-$\Psi$ (the adjunction transpose) to land in $\mathrm{EM}(\mathord{!})$;
-application is a CBPV-style \emph{computation} $T B$ via
-$\Phi^{-1}$. This is \texttt{theories/homs/ppl.v}, also axiom-free
-(\autoref{sec:cbv-ppl}). The QBS-paper showcase
-\texttt{ex\_random\_constant} --- a distribution over a
-function space, $\mathtt{P}(\mathbb{R}\to\mathbb{R})$ --- interprets
-soundly in the LNL setting.
+\emph{not} cartesian closed --- a structural fact about EM categories of
+linear-exponential comonads, not a missing diagram chase. What Moggi-CBV
+actually requires, however, are not full internal homs but
+\emph{Kleisli exponentials} for the CBV monad
+$T = \widetilde{\mathord{!}} \circ U$, and those
+$\mathrm{EM}(\mathord{!})$ does have. The natural-bijection chain
+%
+\begin{align*}
+  \mathrm{Hom}_{EM}(C \times A,\, T B)
+  &\;\cong\;\mathrm{Hom}_{IC}(U(C \times A),\, U B)
+        & \text{cofree } U \dashv \widetilde{\mathord{!}}\\
+  &\;\cong\;\mathrm{Hom}_{IC}(U C \otimes U A,\, U B)
+        & U \text{ strict monoidal}\\
+  &\;\cong\;\mathrm{Hom}_{IC}(U C,\, U A \multimap U B)
+        & \text{SMCC closure of } \ICones\\
+  &\;\cong\;\mathrm{Hom}_{EM}(C,\, \widetilde{\mathord{!}}(U A \multimap U B))
+        & \text{cofree } U \dashv \widetilde{\mathord{!}}
+\end{align*}
+%
+uses only the cofree adjunction, the strict monoidality of $U$
+($U(C \times A) = U C \otimes U A$ definitionally,
+\rocq{Icones.homs.cbv_adjunction.cbv_U_prod}), and the SMCC closure of
+$\ICones$; it does \emph{not} use any cartesian closure of
+$\mathrm{EM}(\mathord{!})$. The function-type interpretation that
+results is $\sem{\mathtt{tfun}\,A\,B} =
+\widetilde{\mathord{!}}\,(U A \multimap U B)$ (\autoref{sec:cbv-ppl}).
+This is \texttt{theories/homs/ppl.v}, fine-grain Moggi-CBV, axiom-free.
+The QBS-paper showcase \texttt{ex\_random\_constant} --- a distribution
+over a function space, $\mathtt{P}(\mathbb{R}\to\mathbb{R})$ ---
+interprets soundly via this Kleisli-exponential structure.
 
-\paragraph{The one honest remainder.}
-\emph{Value-level} application $v_{\mathrm{app}}$ (as a value, not a
-computation) would require the SMCC evaluation map
-$\mathrm{ev} : (\mathord{!}A \multimap B) \otimes \mathord{!}A \to B$
-to itself be a coalgebra morphism (Melli\`es \S6.3 / B\'enabou). That
-is documented in \texttt{ppl.v} as the
-\texttt{APP\_NOTE}. Adequacy, normalization, and full-abstraction
-are also out of scope.
+\paragraph{No further open milestones for higher-order CBV.}
+There is no ``value-level application'' that has been suppressed in
+favour of a Moggi-style computation: applying an effectful function to
+a value gives a computation \emph{by definition} of monadic CBV
+semantics. EM(!) being non-closed is structural and irrelevant.
+Adequacy, normalization, and full-abstraction are out of scope here,
+as are booleans / coproducts (no native sum type in the cones model)
+and the QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior
+showcase (orthogonal to the higher-order content shown here).
 
 \paragraph{Where the material lives.}
 \texttt{theories/homs/em\_cat.v} (the EM category, the cofree functor and
@@ -522,8 +545,8 @@ $\mathord{!}$-coalgebras as the cartesian non-linear / value side.
 
 With \autoref{thm:cbv-model} the model is built; this section interprets
 a small first-order CBV calculus into it, as the minimal Moggi-CBV
-demonstration. The higher-order companion via the LNL / CBPV bypass
-follows in \autoref{sec:cbv-ppl}. The deliverable here is a sound
+demonstration. The higher-order companion using the EM(!)
+Kleisli exponentials follows in \autoref{sec:cbv-ppl}. The deliverable here is a sound
 compositional semantics with the probabilistic primitive
 $\mathtt{sample}$ wired to the Theorem-9.7 integral, not an
 adequacy/normalization theorem.
@@ -633,51 +656,75 @@ then collapses the binder.
 \end{proof}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{A higher-order PPL via the Girard / CBPV bypass}%
+\section{A higher-order PPL via EM(!) Kleisli exponentials}%
 \label{sec:cbv-ppl}
 
-\autoref{sec:cbv-calculus} stops at first order because a closed
-structure on the value category $\mathrm{EM}(\mathord{!})$ has not
-been proved (\autoref{sec:cbv-status}). A higher-order companion is
-nevertheless available, by the standard \emph{LNL / CBPV} bypass: it
-ports the \texttt{ppl} branch of \texttt{LLM4Rocq/mathcomp-qbs} (the
-QBS-based PPL) into the cones model, interpreting function types via
-the Girard decomposition rather than a value-CCC. All of this lives in
-\texttt{theories/homs/ppl.v} and is axiom-free.
+\autoref{sec:cbv-calculus} stops at first order; the higher-order
+companion lives in \texttt{theories/homs/ppl.v} and ports the
+\texttt{ppl} branch of \texttt{LLM4Rocq/mathcomp-qbs} (the QBS-based
+PPL) to the cones model. It is fine-grain Moggi-CBV (one type sort,
+term-level value/computation distinction), interpreted into the
+EM(!) Kleisli-exponential structure for the CBV monad
+$T = \widetilde{\mathord{!}} \circ U$. All axiom-free.
 
 \paragraph{The calculus.}
-The syntax is the previous one extended with arrows. Types
+The syntax extends the previous one with arrows. Types
 \texttt{ty}$'$ are $\mathtt{tunit'}$, $\mathtt{tbase'}\,X$,
 $\mathtt{tprod'}$, and $\mathtt{tfun}\,A\,B$. Values
 \texttt{vl}$'$ are the previous ones plus $\mathtt{v\_lam}$, and
-computations \texttt{cp}$'$ are the previous ones plus a Moggi /
-CBPV-style \emph{value-to-computation} application
-$\mathtt{c\_app}\,V\,W : T\,B$ (the result lives in $T\,B$, not $B$).
+computations \texttt{cp}$'$ are the previous ones plus the
+application $\mathtt{c\_app}\,V\,W : T\,B$. Application is a
+\emph{computation} into $T B$ intrinsically: that is what applying
+an effectful function is in monadic CBV semantics, not a workaround
+for missing structure. The two inductives \texttt{vl}$'$ and
+\texttt{cp}$'$ are \emph{mutually inductive}, because the body of a
+lambda is a computation.
 
-\paragraph{The interpretation.}
-Function types denote a \emph{cofree coalgebra of a linear hom}:
+\paragraph{The interpretation: Kleisli exponentials.}
+Function types denote the EM(!) Kleisli exponential
 \[
   \sem{\mathtt{tfun}\,A\,B}
   \;\;=\;\;
-  \widetilde{\mathord{!}}\,(\mathord{!}\,\sem{A} \multimap \sem{B}),
+  \widetilde{\mathord{!}}\,(U\sem{A} \multimap U\sem{B}),
 \]
-where $\multimap$ is the SMC closure of $\ICones$
-(\autoref{thm:thm512}). $\mathtt{v\_lam}$ denotes $\Psi$ applied to
-$\mathtt{tensor\_curry}$ of the body precomposed with $\mathrm{der}$,
-landing in $\mathrm{EM}(\mathord{!})$ as the
-$\mathtt{tfun}$-cofree coalgebra; $\mathtt{c\_app}$ denotes the
-Kleisli-style $\Phi^{-1}$ on the linear evaluation map.
+i.e.\ the representing object for
+$\mathrm{Hom}_{EM}(- \times A,\, T B)$ --- \emph{no} extra
+$\mathord{!}$ on the domain. Lambda and application are the two
+directions of the four-step natural bijection of
+\autoref{ch:cbv} (cofree, $U$ strict monoidal, SMCC closure of
+$\ICones$, cofree). Concretely:
+%
+\begin{itemize}
+  \item $\mathtt{v\_lam}$ is realised as
+    $\mathrm{adj\_psi} \circ \mathtt{tensor\_curry} \circ
+     \mathrm{adj\_phi}$
+    (\rocq{Icones.homs.em_cat.adj_phi} for the cofree adjunction,
+     \rocq{Icones.homs.tensor.tensor_curry} for the SMCC closure,
+     \rocq{Icones.homs.em_cat.adj_psi} to land back in
+     $\mathrm{EM}(\mathord{!})$).
+  \item $\mathtt{c\_app}$ is the dual: apply $\mathrm{adj\_phi}$ to
+    the function value to get the underlying $\ICones$ map, then
+    pair with the argument via the comonoid diagonal
+    \rocq{Icones.homs.em_cartesian.coalg_d}, then
+    \rocq{Icones.homs.tensor.tensor_uncurry} to land in $U B$,
+    then $\mathrm{adj\_psi}$ to land in $T B$.
+\end{itemize}
+%
+No appeal to a non-existent cartesian closure of
+$\mathrm{EM}(\mathord{!})$ is made, and no
+``$\mathrm{ev}$-is-a-coalgebra-morphism'' obligation arises.
 
 \paragraph{Soundness.}
-The LNL $\beta$-rule \texttt{adj\_phi\_cpD}$'$\texttt{\_app\_lam}
-records $\sem{\mathtt{c\_app}\,(\mathtt{v\_lam}\,V)\,W}$ at the
-underlying $\ICones$-level. Companion lemmas
-\texttt{vlD}$'$\texttt{\_lamE} / \texttt{adj\_phi\_lam\_coalg} and
-\texttt{cpD}$'$\texttt{\_appE} / \texttt{adj\_phi\_app\_kleisli}
-factor the value side through $\Phi$ / $\Psi$. The PPL-monad
-identity $\sem{\mathtt{c\_sample}\,V} = \sem{\mathtt{c\_ret}\,V}$ on
-base types (\texttt{cpD}$'$\texttt{\_sample\_ret}) survives the
-extension to higher order.
+The Kleisli-exponential $\beta$-rule
+\texttt{adj\_phi\_cpD}$'$\texttt{\_app\_lam} records
+$\sem{\mathtt{c\_app}\,(\mathtt{v\_lam}\,V)\,W}$ at the underlying
+$\ICones$-level. Companion lemmas
+\texttt{cpD}$'$\texttt{\_appE},
+\texttt{cpD}$'$\texttt{\_letret} (left unit of the monad), and
+\texttt{cpD}$'$\texttt{\_sample\_ret} (on base types, the
+$\widetilde{!}\circ U$-induced monad identifies
+$\mathtt{sample}$ with $\mathtt{return}$) survive the extension to
+higher order.
 
 \paragraph{The QBS showcase.}
 The QBS paper's flagship higher-order example
@@ -689,10 +736,12 @@ The QBS paper's flagship higher-order example
   \;\;:\;\;
   \mathtt{P}\,(X \to X),
 \]
-a distribution over a function space, is interpreted axiom-free in the
-LNL setting --- its denotation reduces to the constant-lambda value.
-Classical measure-theoretic semantics famously cannot accommodate such
-an object; the LNL bypass on top of the integrable-cones model can.
+a distribution over a function space, is interpreted axiom-free ---
+its denotation reduces to the constant-lambda value. Classical
+measure-theoretic semantics famously cannot accommodate such an
+object (no $\sigma$-algebra on $X \to X$ makes evaluation and
+currying both measurable); the integrable-cones model, via the
+EM(!) Kleisli-exponential structure, does.
 
 \begin{lemma}[Higher-order PPL showcase, axiom-free]%
 \label{lem:ppl-random-constant}
@@ -702,31 +751,32 @@ an object; the LNL bypass on top of the integrable-cones model can.
 The denotation of $\mathtt{ex\_random\_constant}$ rewrites to the
 denotation of the constant-lambda value
 $\mathtt{return}\,(\mathtt{v\_lam}\,(\mathtt{v\_fst}\,(\mathtt{v\_var})))$,
-via the PPL-monad identities
+via the monad identities
 $\mathtt{c\_sample} = \mathtt{c\_ret}$ on base types and the
 $\mathtt{let}$-of-$\mathtt{return}$ left-unit law.
 \end{lemma}
 
 \begin{proof}
-The companion facts \texttt{adj\_phi\_lam\_coalg} and
-\texttt{adj\_phi\_app\_kleisli} factor lambda and application through
-the adjunction transpose $\Phi$; the on-base-type identity
-$\mathtt{c\_sample} = \mathtt{c\_ret}$ is a direct consequence of the
-$\widetilde{!}\circ U$-induced monad's left unit, since the base
-coalgebra is the cofree $\widetilde{!}(\FMeas\,X)$ and $\mathtt{sample}$
-is interpreted as $\eta = \mathrm{adj\_unit}$ there.
+$\mathtt{c\_sample} = \mathtt{c\_ret}$ on base types is a direct
+consequence of the $\widetilde{!}\circ U$-induced monad's left
+unit, since the base coalgebra is the cofree
+$\widetilde{!}(\FMeas\,X)$ and $\mathtt{sample}$ is interpreted as
+$\eta = \mathrm{adj\_unit}$ there. The
+$\mathtt{let}$-of-$\mathtt{return}$ left-unit law
+(\texttt{cpD}$'$\texttt{\_letret}, from
+\texttt{kcomp\_etaL}) then collapses the binder.
 \end{proof}
 
-\paragraph{What is not yet covered.}
-\emph{Value-level} application $v_{\mathrm{app}}$ (returning $B$, not
-$T B$) would require the SMCC evaluation map
-$\mathrm{ev}_{!A,B} : (\mathord{!}A \multimap B) \otimes \mathord{!}A
-\to B$ to be a \emph{coalgebra morphism}, in the sense of Melli\`es
-\S6.3 / B\'enabou (the monoidal cofree adjunction's internal-hom
-counit). This is recorded as \texttt{APP\_NOTE} in
-\texttt{ppl.v}. Also not interpreted (orthogonal): booleans /
-coproducts (the cones model has no native sum type), and the
-QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior showcase.
+\paragraph{What is not interpreted (and why it does not matter for
+this showcase).}
+Booleans / coproducts have no native sum type in the cones model
+(orthogonal to higher-order content). The QBS-paper's
+\texttt{qbs\_normalize} / Bayesian-posterior showcase is not
+interpreted either (it uses a different observable than the
+\texttt{ex\_random\_constant} example). EM(!) is not (and is not
+expected to be) cartesian closed; Kleisli exponentials are what
+Moggi-CBV needs and what the file uses, so there is no missing
+``value-level application'' that has been deferred.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
@@ -745,17 +795,20 @@ unconditional comonoidality witness
 (\autoref{lem:cbv-emcomon-all}); the LNL monoidal adjunction bundled as
 \rocq{Icones.homs.cbv_adjunction.ICones_CBV} (\autoref{thm:cbv-model});
 the first-order CBV calculus and its sound interpretation
-(\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}); and a
-higher-order companion via the LNL / CBPV bypass, including the QBS
-flagship showcase $\mathtt{ex\_random\_constant}$
+(\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}); and the
+higher-order PPL companion using the EM(!) Kleisli exponentials,
+including the QBS flagship showcase $\mathtt{ex\_random\_constant}$
 (\autoref{sec:cbv-ppl}, \autoref{lem:ppl-random-constant}).
 
-\paragraph{Open --- the one honest remainder.}
-A genuine value-CCC on $\mathrm{EM}(\mathord{!})$ is \emph{not yet
-proved}. The higher-order calculus of \autoref{sec:cbv-ppl} sidesteps
-this via the LNL / CBPV bypass (function types via Girard
-$A \to B = \mathord{!}A \multimap B$), but \emph{value-level}
-application would require the SMCC evaluation map to lift to a
-coalgebra morphism (the \texttt{APP\_NOTE} of \texttt{ppl.v}, Melli\`es
-\S6.3 / B\'enabou). Adequacy, normalization, and full-abstraction are
-also out of scope here.
+\paragraph{What is not interpreted, and why none of it is a deferred
+milestone.}
+$\mathrm{EM}(\mathord{!})$ is \emph{not} cartesian closed and is not
+expected to be --- a structural fact about EM categories of
+linear-exponential comonads, not a missing diagram chase. The
+Kleisli-exponential structure used in \autoref{sec:cbv-ppl} is what
+Moggi-CBV actually needs, and that holds axiom-free. The genuinely
+out-of-scope items are: adequacy, normalization, and full-abstraction
+(traditional metatheory, requiring more than a denotational model);
+booleans and coproducts (no native sum type in the cones model);
+and the QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior
+showcase (a different observable than the one ported here).
