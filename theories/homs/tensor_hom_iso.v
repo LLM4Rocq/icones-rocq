@@ -156,7 +156,7 @@ Arguments icones_to_linhom_norm_le1 {R Ar B X} h.
 (** ** Bridge: a norm-[≤1] [linhom_car] as an [icones_hom]
 
     The forward of [icones_to_linhom] (= [seely.v]'s [linhom_icones],
-    re-derived here to avoid importing the staged-interface chain).  A
+    re-derived here to avoid the downstream import chain).  A
     [linhom_car Ar C D] element [φ] of operator norm [≤ 1] is exactly the
     data of an [icones_hom Ar C D]; the per-point bound is
     [linhom_norm_apply_le] at [K = 1]. *)
@@ -272,10 +272,10 @@ Arguments linhom_compE {R Ar C D1 D2} g f.
 
 (** ** Local pure tensor [⊗p] and its computation law
 
-    We re-introduce, from the proved [tensor_construct] primitives (NOT
-    from the staged [tensor.v]/[smcc.v]), the universal map
-    [tauL := tensor_curry id] and the pure tensor [x ⊗p y := tauL(x)(y)],
-    together with [tensor_curryEp] (Paper Eq 5.1):
+    We re-introduce, directly from the [tensor_construct] primitives
+    (this file lives BELOW [tensor.v]/[smcc.v] in the import chain), the
+    universal map [tauL := tensor_curry id] and the pure tensor
+    [x ⊗p y := tauL(x)(y)], together with [tensor_curryEp] (Paper Eq 5.1):
     [Φ(h)(x)(y) = h(x ⊗p y)]. *)
 
 Section PureTensor.

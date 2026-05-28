@@ -65,7 +65,7 @@
       f].  Proved by extensionality, the Dirac approximation, and
       [linhom_pres_int f].
 
-    Wave-3 follow-up — DELIVERED below ([Cones] iso packaging).
+    [Cones] iso packaging — DELIVERED below.
 
     - [int_to_linhom_cones] / [linhom_to_int_cones] — paper Thm 6.1
       [I] and [K] packaged as morphisms in [Cones] ([cones_hom]),

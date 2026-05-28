@@ -339,7 +339,7 @@ Lemma Theta_comp (B C D : ICone.type Ar)
   Theta (icones_comp g h) = scones_comp (ders g) (Theta h).
 Proof. by rewrite /Theta ders_comp -scones_compA. Qed.
 
-(** ** Paper §9 — the binary Seely isomorphism [\Seelyt] — DISCHARGED
+(** ** Paper §9 — the binary Seely isomorphism [\Seelyt]
 
     [Seely2 : !B1 ⊗ !B2 ≅ !(B1 & B2)] is built by the paper's chain of
     natural-in-[C] bijections (content.tex ~7482–7506):
@@ -677,7 +677,7 @@ rewrite (bang_fmap_prom f1 x1 Hx1) (bang_fmap_prom f2 x2 Hx2).
 by rewrite (Seely2E (Lfun f1 x1) (Lfun f2 x2) Hf1 Hf2).
 Qed.
 
-(** ** Paper §9 — the unit Seely isomorphism [\Seelyz] (DISCHARGED)
+(** ** Paper §9 — the unit Seely isomorphism [\Seelyz]
 
     The unit Seely iso [Seely0 : 1 ≅ !⊤], built by the contravariant
     Yoneda lemma [co_yoneda_iso] from the natural hom-bijection

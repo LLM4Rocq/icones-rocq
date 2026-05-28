@@ -74,8 +74,8 @@ Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))
 
 (** ** The hom-bijection [Θ] — Paper §9
 
-    [Θ h := ders h ∘ nl_B], a [scones_hom B C].  Its inverse is the
-    staged [lin]. *)
+    [Θ h := ders h ∘ nl_B], a [scones_hom B C].  Its inverse is
+    [lin]. *)
 
 Definition Theta (B C : ICone.type Ar) (h : icones_hom Ar (Bang Ar B) C) :
     scones_hom B C :=
@@ -337,7 +337,7 @@ Record Comonad (R : realType) (Ar : MeasSubcat R) : Type :=
 Arguments Comonad {R} Ar.
 
 (** Paper §9: the exponential comonad [!] on [ICones], every field
-    populated by a proved lemma (modulo the staged [E ⊣ Der] interface). *)
+    populated by a proved lemma (axiom-free). *)
 Definition Bang_comonad (R : realType) (Ar : MeasSubcat R) : Comonad Ar :=
   {| cm_obj := @Bang R Ar;
      cm_fmap := @bang_fmap R Ar;
