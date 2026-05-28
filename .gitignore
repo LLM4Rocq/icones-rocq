@@ -18,7 +18,7 @@ Makefile.coq.conf
 rocq_mcp_cache_*.v
 
 # Claude Code local lock files (per-session)
-.claude/scheduled_tasks.lock
+.claude/
 
 # Python venv
 .venv/
