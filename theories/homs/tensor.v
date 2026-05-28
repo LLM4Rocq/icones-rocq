@@ -2,12 +2,11 @@
 (* # The tensor product on [ICones] — Paper §5.4–§5.5                         *)
 (*                                                                            *)
 (*   This file derives the tensor theory on [ICones].  The SAFT/tensor        *)
-(*   universal property — formerly the staged contract                        *)
-(*   [Icones.axioms.saft_interface] — is now DISCHARGED: the proved           *)
-(*   counterparts live in [tensor_construct.v]/[tensor_hom_iso.v]/            *)
-(*   [tensor_iso.v] (modules [Icones_tensor_construct]/[..._hom_iso]/         *)
-(*   [..._iso]) and are [Export]ed below, replacing the deleted interface.    *)
-(*   Everything here is a real proof; there are no unproved tensor facts.     *)
+(*   universal property is delivered by the proved modules                    *)
+(*   [tensor_construct.v]/[tensor_hom_iso.v]/[tensor_iso.v] (modules           *)
+(*   [Icones_tensor_construct]/[..._hom_iso]/[..._iso]); these are [Export]ed *)
+(*   below.  Everything here is a real proof; there are no unproved tensor    *)
+(*   facts.                                                                   *)
 (*                                                                            *)
 (*   Deliverables (paper references):                                         *)
 (*   - [tau B C] : the universal map [B → (C ⊸ B ⊗ C)] (Paper §5.4), and      *)
@@ -50,28 +49,25 @@ Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
 
-(** P6 — the tensor SAFT contract is DISCHARGED.  [Export] (not merely
-    [Import]) the proved counterparts of the former [saft_interface]
-    Parameters, so that every downstream consumer of [tensor.v] inherits
-    them automatically (exactly as it formerly inherited the staged
-    [Parameter]s):
+(** [Export] (not merely [Import]) the tensor symbols, so that every
+    downstream consumer of [tensor.v] inherits them automatically:
     [tensor]/[tensor_curry]/[tensor_uncurry]/[tensor_curryK]/
     [tensor_curry_natural_post] from [Icones_tensor_construct],
     [tensor_normM] from [Icones_tensor_hom_iso], and the Thm 5.12 iso
     [tensor_hom_iso] together with the structural isos
     [tensor_assoc_iso]/[tensor_lunit_iso]/[tensor_runit_iso]/
     [tensor_braid_iso] (and their pure-tensor [...E] laws) from
-    [Icones_tensor_iso].  These re-exports replace the staged contract.
-    [tensor.v]'s own [ptensor]/[tau]/[tensor_mor] are defined BELOW these
-    [Export]s, so they shadow the modules' homonyms (notably the [ptensor]
-    of [Icones_tensor_hom_iso]) in [tensor.v] and in every consumer. *)
+    [Icones_tensor_iso].  [tensor.v]'s own [ptensor]/[tau]/[tensor_mor]
+    are defined BELOW these [Export]s, so they shadow the modules'
+    homonyms (notably the [ptensor] of [Icones_tensor_hom_iso]) in
+    [tensor.v] and in every consumer. *)
 Export Icones_tensor_construct.
 Export Icones_tensor_hom_iso.
 Export Icones_tensor_iso.
 
-(** The proved [tensor] has [Ar] implicit; this file (and its downstream
-    consumers) write [tensor Ar B C], so re-assert the contract's
-    signature with [Ar] explicit. *)
+(** The exported [tensor] has [Ar] implicit; this file (and its downstream
+    consumers) write [tensor Ar B C], so re-assert the signature with [Ar]
+    explicit. *)
 Arguments tensor {R} Ar B C.
 
 Local Open Scope classical_set_scope.

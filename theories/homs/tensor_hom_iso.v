@@ -1,9 +1,8 @@
 (**md**************************************************************************)
-(* # Tensor discharge T2A — Thm 5.13 [tensor_normM] (DONE) + Thm 5.12 skeleton *)
+(* # Thm 5.13 [tensor_normM] + Thm 5.12 element-level skeleton                 *)
 (*                                                                            *)
-(* This file DISCHARGES, as a genuine AXIOM-FREE theorem about the concrete   *)
-(* [tensor_construct] construction, one of the remaining staged [Parameter]s  *)
-(* of [theories/axioms/saft_interface.v]:                                     *)
+(* This file proves, as a genuine AXIOM-FREE theorem about the concrete       *)
+(* [tensor_construct] construction:                                           *)
 (*                                                                            *)
 (*   tensor_normM    (Paper Thm 5.13 — [‖x ⊗ y‖ = ‖x‖ · ‖y‖])  — PROVED       *)
 (*                                                                            *)
@@ -12,26 +11,23 @@
 (*   tensor_path  ([s ↦ (β s) ⊗ (γ s)] is a measurable path in [B ⊗ C])       *)
 (*                                                                            *)
 (* (Paper [lemma:path-tens-to-one], via the reusable Fubini swap              *)
-(* [swap_lin_path]) — the stated "last blocker" of                            *)
+(* [swap_lin_path]) — the supporting machinery used by                        *)
 (*                                                                            *)
 (*   tensor_hom_iso  (Paper Thm 5.12 — [(B ⊗ C) ⊸ D ≅ B ⊸ (C ⊸ D)])           *)
 (*                                                                            *)
 (* whose element maps [Phi_inner]/[Psi_inner] (with the pointwise laws        *)
 (* [Phi_innerE]: [Φ(g)(b)(c) = g(b⊗c)] and [Psi_innerE]: [Ψ(h)(b⊗c) = h(b)(c)]*)
 (* and the pure-tensor extensionality [linhom_tensor_ext], constructive Prop  *)
-(* 5.14) are PROVED.  UPDATE: the full [icones_iso] packaging is now COMPLETED  *)
-(* in [tensor_iso.v] — the inverse's norm-decrease [‖Ψ h‖ ≤ ‖h‖] (the [≥] half  *)
-(* of the tensor-norm isometry) is discharged there, so [tensor_hom_iso] and    *)
-(* [ICones_smcc] (Thm 5.15) are axiom-free. This file is the element-level step.*)
+(* 5.14) are PROVED.  The full [icones_iso] packaging is COMPLETED in          *)
+(* [tensor_iso.v] — the inverse's norm-decrease [‖Ψ h‖ ≤ ‖h‖] (the [≥] half    *)
+(* of the tensor-norm isometry) is discharged there, so [tensor_hom_iso] and  *)
+(* [ICones_smcc] (Thm 5.15) are axiom-free.  This file is the element-level   *)
+(* step.                                                                      *)
 (*                                                                            *)
 (* It is AXIOM-FREE relative to the classical [boolp] base ([pselect]/[cid]/  *)
-(* extensionality) — NO [Axiom]/[Parameter]/[Admitted], and it does NOT       *)
-(* import [saft_interface]: the proved versions are built from scratch, in    *)
-(* their own module [Icones_tensor_hom_iso], from the proved [tensor_curry] / *)
-(* [tensor_uncurry] of [tensor_construct].                                    *)
-(*                                                                            *)
-(* The [tensor_normM] signature matches the [saft_interface] arguments        *)
-(* exactly: [tensor_normM {R Ar B C}].                                        *)
+(* extensionality) — NO [Axiom]/[Parameter]/[Admitted].  The definitions      *)
+(* live in their own module [Icones_tensor_hom_iso], built from the proved    *)
+(* [tensor_curry] / [tensor_uncurry] of [tensor_construct].                   *)
 (*                                                                            *)
 (* ## Reusable infrastructure built here                                      *)
 (*  - [icones_to_linhom] / [linhom_icones] : the element↔morphism bridges.    *)
@@ -160,7 +156,7 @@ Arguments icones_to_linhom_norm_le1 {R Ar B X} h.
 (** ** Bridge: a norm-[≤1] [linhom_car] as an [icones_hom]
 
     The forward of [icones_to_linhom] (= [seely.v]'s [linhom_icones],
-    re-derived here to avoid importing the staged-interface chain).  A
+    re-derived here to avoid the downstream import chain).  A
     [linhom_car Ar C D] element [φ] of operator norm [≤ 1] is exactly the
     data of an [icones_hom Ar C D]; the per-point bound is
     [linhom_norm_apply_le] at [K = 1]. *)
@@ -276,10 +272,10 @@ Arguments linhom_compE {R Ar C D1 D2} g f.
 
 (** ** Local pure tensor [⊗p] and its computation law
 
-    We re-introduce, from the proved [tensor_construct] primitives (NOT
-    from the staged [tensor.v]/[smcc.v]), the universal map
-    [tauL := tensor_curry id] and the pure tensor [x ⊗p y := tauL(x)(y)],
-    together with [tensor_curryEp] (Paper Eq 5.1):
+    We re-introduce, directly from the [tensor_construct] primitives
+    (this file lives BELOW [tensor.v]/[smcc.v] in the import chain), the
+    universal map [tauL := tensor_curry id] and the pure tensor
+    [x ⊗p y := tauL(x)(y)], together with [tensor_curryEp] (Paper Eq 5.1):
     [Φ(h)(x)(y) = h(x ⊗p y)]. *)
 
 Section PureTensor.
@@ -320,19 +316,15 @@ Arguments tensor_curryEp {R Ar B C D}.
     is the general composite [g ∘ τ(b) = linhom_comp g (tauL B C b)],
     with the defining pointwise law [Phi_valE]: [Φ(g)(b)(c) = g(b⊗c)].
 
-    ⚠ DEFERRED — the OUTER measurability/integral-preservation (the
-    [icones_hom] fields of [Φ] as a map BETWEEN the hom-cones [(B⊗C)⊸D]
-    and [B⊸(C⊸D)]) is the substantial Fubini step of the paper
+    The OUTER measurability/integral-preservation (the [icones_hom]
+    fields of [Φ] as a map BETWEEN the hom-cones [(B⊗C)⊸D] and
+    [B⊸(C⊸D)]) is the substantial Fubini step of the paper
     ([lemma:path-tens-to-one] + [lemma:swap-lin-path]).  It bottoms out
     in: [s ↦ (β s) ⊗ (γ s)] is a measurable path in [B ⊗ C] (the
-    measurability of [τ]).  Establishing THAT requires unfolding the
-    *selected* test family of the abstractly-constructed [B ⊗ C =
-    wi_obj] (an equaliser of products of the coseparator power [1^J] in
-    [tensor_construct] / [representable]) and threading each coordinate
-    [j ∈ J = ICones(B, C⊸1)] through a diagonal joint-measurability of
-    [j]'s path-preservation.  This deep dive into the [wi_obj] internals
-    is the remaining T2A obstruction; [Phi_val]/[Phi_valE] are the proved
-    algebraic skeleton on which it would be built.  See the file footer. *)
+    measurability of [τ]) — proved here as [tensor_path] — and the full
+    packaging [Phi_icones] (an [icones_hom (B⊗C)⊸D → B⊸(C⊸D)]) appears
+    later in this file.  [Phi_val]/[Phi_valE] below are the algebraic
+    skeleton. *)
 
 Section PhiSkeleton.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -722,8 +714,7 @@ by have [Z0 _ _] :=
   linhom_pre_linear (linhom_pre_of ((tauL B C : icones_hom _ _ _) x)).
 Qed.
 
-(** Paper Thm 5.13 (full): [‖x ⊗ y‖ = ‖x‖ · ‖y‖], matching the
-    [saft_interface] statement [tensor_normM]. *)
+(** Paper Thm 5.13 (full): [‖x ⊗ y‖ = ‖x‖ · ‖y‖]. *)
 Lemma tensor_normM (x : B) (y : C) :
   cone_norm (linhom_fun (tensor_curry (icones_id Ar (tensor B C)) x) y)
   = cone_norm x * cone_norm y.
@@ -1347,10 +1338,10 @@ Arguments Phi_iconesE {R Ar B C D}.
 
 
 (**md**************************************************************************)
-(* # STATUS — T2 (Thm 5.12 [tensor_hom_iso])                                   *)
+(* # STATUS — Thm 5.12 + Thm 5.13 element-level data, axiom-free               *)
 (*                                                                            *)
-(* DONE (axiom-free; verified Print Assumptions = the 3 classical [boolp]     *)
-(* axioms only, no [saft_interface] symbols):                                 *)
+(* DELIVERED (axiom-free; verified Print Assumptions = the 3 classical [boolp]*)
+(* axioms only):                                                              *)
 (*  - Thm 5.13 [tensor_normM] : [‖x ⊗ y‖ = ‖x‖ · ‖y‖], via [line_hom] +       *)
 (*    [np_pairing] (dual pairing) + Prop 3.11 adherence.                      *)
 (*  - [swap_lin_path] (Paper [lemma:swap-lin-path], the "Fubini swap") and    *)
@@ -1362,7 +1353,7 @@ Arguments Phi_iconesE {R Ar B C D}.
 (*    ([Ψ(h)(b⊗c) = h(b)(c)]); and [linhom_tensor_ext] (constructive Paper    *)
 (*    Prop 5.14: a [linhom_car (B⊗C) D] is determined by its pure-tensor       *)
 (*    values, via [tensor_curry_inj]).                                        *)
-(*  - ★ Thm 5.12 FORWARD as a genuine [icones_hom]: [Phi_icones] /            *)
+(*  - Thm 5.12 FORWARD as a genuine [icones_hom]: [Phi_icones] /              *)
 (*    [Phi_iconesE], the map [Φ : (B⊗C)⊸D → B⊸(C⊸D)] with all five            *)
 (*    structure fields proved (linear / ω-cont / norm-≤1 / path / integral).  *)
 (*    Each field reduces — via [Phi_innerE] + the pointwise codomain          *)
@@ -1374,36 +1365,11 @@ Arguments Phi_iconesE {R Ar B C D}.
 (*  - Reusable: [icones_to_linhom], [linhom_icones], [linhom_comp],           *)
 (*    [tauL]/[ptensor]/[tensor_curryEp], [line_hom], [Phi_val]/[Phi_valE].    *)
 (*                                                                            *)
-(* RESOLVED (was previously thought to be the blocker): the inverse's          *)
-(* *norm-decrease* [‖Ψ h‖ ≤ ‖h‖] IS provable, by identifying [Psi_inner h]    *)
-(* with the EXACT [‖h‖]-rescaling [‖h‖ · icones_to_linhom(tensor_uncurry      *)
-(* (‖h‖⁻¹·h))] (via [linhom_tensor_ext], the two agree on pure tensors) whose *)
-(* operator norm is [‖h‖ · ‖icones_to_linhom(…)‖ ≤ ‖h‖ · 1] by                *)
-(* [icones_to_linhom_norm_le1] — the [‖h‖]-scaling (NOT [‖h‖+1]) keeps the    *)
-(* built-in norm-≤1 of [tensor_uncurry].  [Ψ]'s linearity and ω-continuity    *)
-(* likewise reduce to pure tensors via [linhom_tensor_ext] (equalities).      *)
-(*                                                                            *)
-(* RESIDUAL OBSTRUCTION (blocks the full [icones_iso]) — the *inverse [Ψ]'s    *)
-(* PATH- and INTEGRAL-preservation* fields.  [Ψ : B⊸(C⊸D) → (B⊗C)⊸D].  Its    *)
-(* codomain [(B⊗C)⊸D] is tested against the family [{θ ▷ m}] for an           *)
-(* ARBITRARY measurable [(B⊗C)]-path [θ]; path-preservation needs, for a      *)
-(* measurable path [H] of [B⊸(C⊸D)], joint measurability of                   *)
-(*   [(s, r) ↦ m(s, (Ψ (H r))(θ s))]                                          *)
-(* where [θ s] is a GENERAL element of [B ⊗ C] (not a pure tensor) and        *)
-(* [Ψ (H r) = ‖H r‖ · tensor_uncurry((H r)')] is the SAFT mediator of         *)
-(* [tensor_construct], whose value at non-pure [θ s] is opaque ([cid]-built,  *)
-(* not natural/measurable in the input [H r]).  Unlike [Φ] — whose DOMAIN     *)
-(* tests reduce to pure tensors via [tensor_path], so its path/integral       *)
-(* fields close — [Ψ]'s CODOMAIN tests do NOT reduce to pure tensors:         *)
-(* [Psi_innerE]/[linhom_tensor_ext] control [Ψ(h)] only on pure tensors,      *)
-(* whereas these two fields quantify over non-pure [z ∈ B ⊗ C].  Closing      *)
-(* them needs EITHER a pure-tensor *path/measure density* on [B ⊗ C] (read    *)
-(* each [j ∈ J = ICones(B, C⊸1)] coordinate of [tensor_incl z]; a separate    *)
-(* [wi_obj]-internals theorem) OR a joint-in-[r] measurable family of the     *)
-(* [tensor_uncurry] mediators.  Without [Ψ]'s path/integral fields the         *)
-(* [icones_iso] assembly [icones_iso_of_cancel Φ Ψ] is blocked; the round-     *)
-(* trips [Ψ∘Φ = id]/[Φ∘Ψ = id] themselves follow from                         *)
-(* [Phi_innerE]/[Psi_innerE] + [linhom_tensor_ext].                           *)
+(* The inverse [Ψ]'s norm-decrease and the full [icones_iso] packaging are    *)
+(* completed in [tensor_iso.v] (the inverse's [‖Ψ h‖ ≤ ‖h‖] is by identifying *)
+(* [Psi_inner h] with the [‖h‖]-rescaling [‖h‖ · icones_to_linhom             *)
+(* (tensor_uncurry (‖h‖⁻¹·h))] via [linhom_tensor_ext]; [Ψ]'s linearity and   *)
+(* ω-continuity likewise reduce to pure tensors).  See [tensor_iso.v].        *)
 (******************************************************************************)
 
 End Icones_tensor_hom_iso.

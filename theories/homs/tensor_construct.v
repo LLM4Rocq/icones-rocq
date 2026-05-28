@@ -1,21 +1,17 @@
 (**md**************************************************************************)
-(* # Tensor discharge T1 — the tensor [B ⊗ C] as the SAFT left adjoint of     *)
+(* # Tensor construction — the tensor [B ⊗ C] as the SAFT left adjoint of     *)
 (*   [(C ⊸ −)], with the hom-bijection PROVED (Paper §5.4, Thm 5.9 +          *)
 (*   [th:Icones-adjoint-functor]).                                            *)
 (*                                                                            *)
-(* This file DISCHARGES, as genuine theorems about a concrete construction,   *)
-(* the first eight [Parameter]s of [theories/axioms/saft_interface.v]:        *)
+(* This file builds, as genuine theorems about a concrete construction,       *)
+(* the eight tensor-adjunction primitives:                                    *)
 (*                                                                            *)
 (*   tensor, tensor_curry, tensor_uncurry, tensor_curryK, tensor_uncurryK,    *)
 (*   tensor_curry_natural_post, tensor_curry_natural_D, tensor_curry_natural_B *)
 (*                                                                            *)
 (* It is AXIOM-FREE relative to the classical [boolp] base ([pselect]/[cid]/  *)
-(* extensionality) — NO [Axiom]/[Parameter]/[Admitted], and it does NOT       *)
-(* import [saft_interface]: the proved versions are built from scratch, in    *)
-(* their own module [Icones.homs.tensor_construct], so they do not clash with *)
-(* the interface's same-named [Parameter]s (consumers still import the        *)
-(* interface; this is the parallel proved development that milestone T2 will   *)
-(* eventually flip to).                                                        *)
+(* extensionality) — NO [Axiom]/[Parameter]/[Admitted].  The definitions live *)
+(* in their own module [Icones.homs.tensor_construct].                        *)
 (*                                                                            *)
 (* ## The construction (PLAN §13.1/§13.2, Riehl 4.6.11 with [Φ = {1}])         *)
 (*                                                                            *)
@@ -663,8 +659,8 @@ Lemma tensor_curryE (D : ICone.type Ar) (f : icones_hom Ar (tensor B C) D)
   (f : icones_hom _ _ _) (linhom_fun ((tau' B C : icones_hom _ _ _) x) y).
 Proof. by rewrite /tensor_curry /= linhom_map_funE /=. Qed.
 
-(** Naturality of [Φ] in [D] (existential form, the [saft_interface]
-    signature): the witness is [C ⊸ h = linhom_post_icones h]. *)
+(** Naturality of [Φ] in [D] (existential form): the witness is
+    [C ⊸ h = linhom_post_icones h]. *)
 Lemma tensor_curry_natural_D (D D' : ICone.type Ar)
     (h : icones_hom Ar D D') :
   exists hstar : icones_hom Ar (linhom_car Ar C D) (linhom_car Ar C D'),
@@ -691,7 +687,7 @@ Arguments tensor_curry_natural_D {R Ar B C D D'}.
     Write [1 = cone_one_car Ar].  Form the coseparator power of [D],
     [q D := 1^{ICones(D,1)}], with its canonical mono
     [GammaD : D ↪ q D] ([GammaD d . n = n d], a mono since [1]
-    cogenerates — Phase A.3 [icones_coseparator_inj]).  Reindex the
+    cogenerates — [icones_coseparator_inj]).  Reindex the
     power [p = 1^J] of [B ⊗ C] to [q D] along
     [θ : ICones(D,1) → J, n ↦ (C ⊸ n) ∘ g], giving [P : p → q D] with
     [P x . n = x . (θ n)].  The square
@@ -1142,8 +1138,7 @@ Qed.
 
 Arguments tensor_curryK {R Ar B C D} f.
 
-(** ** Naturality of [Φ] in [B] (existential form, the [saft_interface]
-       signature)
+(** ** Naturality of [Φ] in [B] (existential form)
 
     With both round-trips in hand, naturality in [B] is routine: for
     [u : B' → B], the functorial action on objects is
@@ -1189,8 +1184,7 @@ End TensorNaturalB.
 Arguments tensor_mor_l {R Ar B B' C} u.
 Arguments tensor_curry_natural_B_post {R Ar B B' C} u {D} f.
 
-(** Naturality of [Φ] in [B] (existential form, matching the
-    [saft_interface] [tensor_curry_natural_B] signature): the witness is
+(** Naturality of [Φ] in [B] (existential form): the witness is
     [tensor_mor_l u]. *)
 Lemma tensor_curry_natural_B (R : realType) (Ar : MeasSubcat R)
     (B B' C D : ICone.type Ar) (u : icones_hom Ar B' B) :
@@ -1205,10 +1199,10 @@ Qed.
 Arguments tensor_curry_natural_B {R Ar B B' C D} u.
 
 (**md**************************************************************************)
-(* # STATUS — ALL 8 T1 PARAMETERS DISCHARGED, AXIOM-FREE                       *)
+(* # STATUS — 8 TENSOR-ADJUNCTION PRIMITIVES, AXIOM-FREE                        *)
 (*                                                                            *)
-(* This file now DISCHARGES, as genuine theorems about the concrete           *)
-(* [wi_obj] construction, all eight [Parameter]s of [saft_interface.v]:        *)
+(* This file builds, as genuine theorems about the concrete [wi_obj]          *)
+(* construction, the eight tensor-adjunction primitives:                      *)
 (*                                                                            *)
 (*   tensor, tensor_curry, tensor_uncurry, tensor_curryK, tensor_uncurryK,    *)
 (*   tensor_curry_natural_post, tensor_curry_natural_D, tensor_curry_natural_B *)
@@ -1216,8 +1210,8 @@ Arguments tensor_curry_natural_B {R Ar B B' C D} u.
 (* Axiom-clean: [Print Assumptions] on [tensor_curryK], [tensor_curry_inj]    *)
 (* and [tensor_curry_natural_B] yields ONLY the three classical [boolp]       *)
 (* axioms — {propositional_extensionality, functional_extensionality_dep,     *)
-(* constructive_indefinite_description} — with NO [saft_interface] symbols     *)
-(* and NO project [Axiom]/[Parameter]/[Admitted].                             *)
+(* constructive_indefinite_description} — and NO project                       *)
+(* [Axiom]/[Parameter]/[Admitted].                                            *)
 (*                                                                            *)
 (* What this file PROVES:                                                      *)
 (*                                                                            *)
@@ -1245,7 +1239,7 @@ Arguments tensor_curry_natural_B {R Ar B B' C D} u.
 (* ## [tensor_curryK] via SAFT-uniqueness (equaliser of candidates +           *)
 (*    intersection minimality) — NOT joint-epicness of [tau']                  *)
 (*                                                                            *)
-(* The earlier "[tau'] is jointly epic / generates [B ⊗ C]" route was a dead   *)
+(* A "[tau'] is jointly epic / generates [B ⊗ C]" route would be a dead       *)
 (* end (no "maps OUT of the intersection are determined by [tau']" principle   *)
 (* is exported).  Instead [tensor_curry_inj] uses the standard SAFT-uniqueness *)
 (* argument:                                                                   *)
@@ -1271,8 +1265,8 @@ Arguments tensor_curry_natural_B {R Ar B B' C D} u.
 (* Routine, given both round-trips: [tensor_mor_l u := tensor_uncurry          *)
 (* (tau' B C ∘ u) : B' ⊗ C → B ⊗ C]; then [tensor_curry (f ∘ tensor_mor_l u) = *)
 (* tensor_curry f ∘ u] by [tensor_curry_natural_post] + [tensor_uncurryK]      *)
-(* ([tensor_curry_natural_B_post]).  The existential witness of the            *)
-(* [saft_interface] signature is [tensor_mor_l u].                             *)
+(* ([tensor_curry_natural_B_post]).  The existential witness is               *)
+(* [tensor_mor_l u].                                                          *)
 (******************************************************************************)
 
 End Icones_tensor_construct.

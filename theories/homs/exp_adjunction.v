@@ -1,29 +1,21 @@
 (**md**************************************************************************)
-(* # DISCHARGED — the exponential / SAFT interface (Paper §9)                 *)
+(* # The exponential / SAFT adjunction (Paper §9)                              *)
 (*                                                                            *)
-(* This file FORMERLY staged the linear/non-linear adjunction [E ⊣ Der] in    *)
-(* its universal-arrow form as five temporary [Parameter]/[Axiom]s            *)
-(* ([Bang], [nl], [lin], [lin_beta], [lin_unique]) — exactly the §13.4        *)
-(* content the comonad milestone [theories/homs/bang.v] consumes.             *)
+(* This file exposes the linear/non-linear adjunction [E ⊣ Der] in its         *)
+(* universal-arrow form as five symbols ([Bang], [nl], [lin], [lin_beta],     *)
+(* [lin_unique]) — the §13.4 content the comonad milestone                    *)
+(* [theories/homs/bang.v] consumes.                                           *)
 (*                                                                            *)
-(* Those declarations are now DISCHARGED, as genuine AXIOM-FREE theorems,     *)
-(* by the concrete SAFT construction [Icones.homs.bang_construct] (the        *)
-(* exponential analog of the tensor's [tensor_construct.v], with the          *)
-(* limit-preserving functor [Der] in place of [(C ⊸ −)]; Der's limit          *)
-(* preservation is [theories/stable/der_continuous.v], paper Thm 7.34).       *)
+(* The data are AXIOM-FREE theorems, supplied by the concrete SAFT             *)
+(* construction [Icones.homs.bang_construct] (the exponential analog of the   *)
+(* tensor's [tensor_construct.v], with the limit-preserving functor [Der] in  *)
+(* place of [(C ⊸ −)]; Der's limit preservation is                             *)
+(* [theories/stable/der_continuous.v], paper Thm 7.34).                        *)
 (*                                                                            *)
-(* This file is kept (rather than deleted) because [seely_defs.v] and         *)
-(* [homs/seely.v] still import it for the [Bang]/[nl] symbols of the Seely    *)
-(* structure; turning the [Parameter]/[Axiom]s into [Definition]/[Lemma]s     *)
-(* backed by [bang_construct] discharges the staging IN PLACE, so every       *)
-(* downstream file (including the Seely development) now rests on the proved   *)
-(* adjunction with NO change to the consumers.                                *)
+(* The re-exported data is sealed [Strategy never], so the comonad / Seely    *)
+(* proofs — calibrated to opaque symbols — go through unchanged under [/=].   *)
 (*                                                                            *)
-(* The re-exported data is sealed [Strategy never], reproducing the           *)
-(* irreducibility the former [Parameter]s had under [simpl]/[/=], so the       *)
-(* comonad / Seely proofs — calibrated to opaque symbols — are unaffected.    *)
-(*                                                                            *)
-(* ## The universal-arrow presentation of [E ⊣ Der] (now PROVED)             *)
+(* ## The universal-arrow presentation of [E ⊣ Der]                           *)
 (*                                                                            *)
 (*   - [Bang B = E B = !B] : the object map of [E] (= [wi_obj] over the       *)
 (*     coseparator power [1^{SCones(B,1)}], [bang_construct.v]).               *)
@@ -68,8 +60,7 @@ Variables (R : realType) (Ar : MeasSubcat R).
 
 (** ** The exponential object former — Paper §9, [\Estab]/[\Excls]
 
-    [Bang B = E B = !B], now the proved SAFT construction of
-    [bang_construct.v]. *)
+    [Bang B = E B = !B], the SAFT construction of [bang_construct.v]. *)
 Definition Bang (B : ICone.type Ar) : ICone.type Ar :=
   Icones_bang_construct.Bang B.
 
@@ -77,7 +68,10 @@ Definition Bang (B : ICone.type Ar) : ICone.type Ar :=
 Definition nl (B : ICone.type Ar) : scones_hom B (Bang B) :=
   Icones_bang_construct.nl B.
 
-(** ** The linear factoriser — Paper §9, [Θ⁻¹] *)
+(** ** The linear factoriser — Paper §9, [Θ⁻¹]
+
+    The unique [icones_hom (Bang B) C] factoring an [f : scones_hom B C]
+    through [nl B]. *)
 Definition lin (B C : ICone.type Ar) (f : scones_hom B C) :
     icones_hom Ar (Bang B) C :=
   Icones_bang_construct.lin f.
@@ -100,16 +94,15 @@ Proof. exact: (Icones_bang_construct.lin_unique_construct f h). Qed.
 End ExpInterface.
 
 (** [Bang] and the universal-property data print with their object
-    arguments explicit (unchanged from the staged signature). *)
+    arguments explicit. *)
 Arguments Bang {R} Ar B.
 Arguments nl {R Ar} B.
 Arguments lin {R Ar B C}.
 Arguments lin_beta {R Ar B C}.
 Arguments lin_unique {R Ar B C}.
 
-(** Seal the proved adjunction data so [simpl]/[/=] never unfolds it into
-    the [wi_obj] SAFT construction underneath, reproducing the
-    irreducibility the former [Parameter]s had.  Both [Strategy never]
+(** Seal the adjunction data so [simpl]/[/=] never unfolds it into the
+    [wi_obj] SAFT construction underneath.  Both [Strategy never]
     (δ-priority) and [simpl never] (the [simpl] flag) are set, on the
     re-exports here AND on the underlying [bang_construct] constants, so
     the comonad ([bang.v]) and Seely ([seely.v]) proofs — calibrated to

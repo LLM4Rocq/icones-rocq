@@ -3,13 +3,11 @@
 (*                                                                            *)
 (*   This file assembles the symmetric monoidal (closed) structure of         *)
 (*   [ICones] (paper Thm 5.15) on top of the tensor [⊗] of [tensor.v].        *)
-(*   The SAFT contract is now DISCHARGED (the former                          *)
-(*   [Icones.axioms.saft_interface] is deleted); the structural isos are the  *)
-(*   PROVED natural isos [tensor_assoc_iso] / [tensor_lunit_iso] /             *)
-(*   [tensor_runit_iso] / [tensor_braid_iso] (built in [tensor_iso.v], Thm    *)
-(*   5.12 / Lemma 5.5, paper Eqs 5.2–5.4), [Export]ed through [tensor.v]      *)
-(*   together with their pure-tensor computation laws.  Everything here is a  *)
-(*   real proof.                                                              *)
+(*   The structural isos are the natural isos [tensor_assoc_iso] /            *)
+(*   [tensor_lunit_iso] / [tensor_runit_iso] / [tensor_braid_iso] (built in   *)
+(*   [tensor_iso.v], Thm 5.12 / Lemma 5.5, paper Eqs 5.2–5.4), [Export]ed     *)
+(*   through [tensor.v] together with their pure-tensor computation laws.    *)
+(*   Everything here is a real proof.                                         *)
 (*                                                                            *)
 (*   Deliverables (paper references):                                         *)
 (*   - [tensor_assoc] / [tensor_lunit] / [tensor_runit] / [tensor_braid] :    *)
@@ -47,14 +45,13 @@ Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
 
-(** P6 — the tensor SAFT contract is DISCHARGED.  [tensor.v] now [Export]s
-    the proved tensor symbols (the former [saft_interface] Parameters:
-    [tensor]/[tensor_curry]/[tensor_uncurry]/[tensor_curryK]/[tensor_normM],
+(** [tensor.v] [Export]s the tensor symbols
+    ([tensor]/[tensor_curry]/[tensor_uncurry]/[tensor_curryK]/[tensor_normM],
     the Thm 5.12 iso [tensor_hom_iso] and the structural isos
     [tensor_assoc_iso]/[tensor_lunit_iso]/[tensor_runit_iso]/
     [tensor_braid_iso] with their pure-tensor [...E] laws), so importing it
     suffices.  [tensor.v]'s own [tau]/[ptensor]/[tensor_mor] shadow the
-    proved modules' homonyms, so the [⊗]/[⊗p] notations and
+    underlying modules' homonyms, so the [⊗]/[⊗p] notations and
     [ptensorE]/[tensor_morE] rewrites all refer to the same symbols. *)
 Require Import Icones.homs.tensor.
 
@@ -166,12 +163,10 @@ Lemma tensor_braidEp (A B : ICone.type Ar) (x : A) (y : B) :
   iso_fwd (tensor_braid A B) (x ⊗p y) = y ⊗p x.
 Proof. exact: tensor_braidE. Qed.
 
-(** P6 — seal the now-TRANSPARENT tensor data so a bare [/=]/[simpl] in
-    the coherence proofs below does not unfold the [tensor_construct]
-    internals (which would break the [...Ep]/[tensor_morE] rewrites).
-    [conversion] still computes the [...E] values, so the proofs go
-    through verbatim with the staged (opaque-Parameter) [simpl] behaviour
-    restored.  This is the documented P6 fix (cf. [tensor_iso.v] footer). *)
+(** Seal the tensor data so a bare [/=]/[simpl] in the coherence proofs
+    below does not unfold the [tensor_construct] internals (which would
+    break the [...Ep]/[tensor_morE] rewrites).  [conversion] still
+    computes the [...E] values, so the proofs go through verbatim. *)
 Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
        ptensor tau.
 
@@ -304,9 +299,8 @@ Arguments tensor_hexagon {R Ar} A B C.
       [(B ⊗ C) ⊸ D ≅ B ⊸ (C ⊸ D)] (here [tensor_hom_iso]).
 
     The canonical witness [ICones_smcc] populates every field with the
-    proved lemmas.  With the SAFT contract discharged (P6,
-    [saft_interface.v] deleted), [ICones_smcc] is AXIOM-FREE: it depends
-    on nothing beyond the three classical [boolp] axioms. *)
+    proved lemmas.  [ICones_smcc] is AXIOM-FREE: it depends on nothing
+    beyond the three classical [boolp] axioms. *)
 
 Record ICones_SMCC (R : realType) (Ar : MeasSubcat R) : Type :=
   MkIConesSMCC {

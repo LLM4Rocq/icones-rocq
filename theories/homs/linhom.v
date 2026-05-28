@@ -2,7 +2,7 @@
 
     Given two integrable cones [C, D : iconeType Ar], the paper
     constructs the *integrable cone of linear, ω-continuous,
-    integral-preserving maps* [C ⊸ D]. In M4 wave 1 we deliver:
+    integral-preserving maps* [C ⊸ D].  This file delivers:
 
     - [linhom_car C D] — the carrier record bundling a function
       [C -> D] together with proofs of: linearity, ω-continuity,
@@ -12,7 +12,7 @@
       [C ⊸ D] as the set of maps [f] such that, for some ε > 0,
       [εf] is in [ICones(C, D)]. Equivalently, [f] is bounded.)
     - [isPrecone] HB instance — pointwise [0], [+], [*:]. Paper §5.1.
-    - [isCone] HB instance — operator-norm (M1's [linmap_norm]) plus
+    - [isCone] HB instance — operator-norm (the M1 [linmap_norm]) plus
       pointwise (Normc). Paper §5.1.
     - [isMCone] HB instance — Paper Def 5.4 / Lemma 5.3 prerequisites:
       the test family [γ ▷ m] for [γ ∈ Path(X, C)] and [m ∈ M^D_X],
@@ -28,8 +28,8 @@
     [F : C₁ -> C₂ ⊸ D]. We deliver this bijection at the level of
     underlying functions.
 
-    The symmetric monoidal closure [⊗ ⊣ ⊸] is **stretch goal S6** and
-    is **not in scope** here. *)
+    The symmetric monoidal closure [⊗ ⊣ ⊸] of paper §5.4 is delivered
+    by [tensor.v]/[smcc.v], NOT by this file. *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
@@ -428,23 +428,19 @@ End DiagonalSupEq.
 
     The standard one-sided ω-continuity result [sup_ball_addr]
     handles the case where one summand is fixed; the diagonal case
-    here can be reduced to two applications of [sup_ball_addr] after
-    rescaling, but the bookkeeping is voluminous. Within M4 wave 1
-    we adopt the following **strategic scoping**:
+    here is reduced to two applications of [sup_ball_addr] after
+    rescaling.  Layered delivery:
 
-    - We deliver the *type* [linhom_car Ar C D] (above) and a [linhom_zero]
-      element fully and unconditionally.
-    - We deliver the **bilinear ↔ linhom bijection** (paper §5.2 /
-      Def 5.6) at the *function level* — this does not require the
+    - The *type* [linhom_car Ar C D] (above) and a [linhom_zero]
+      element are delivered fully and unconditionally.
+    - The **bilinear ↔ linhom bijection** (paper §5.2 / Def 5.6) is
+      delivered at the *function level*; this does not require the
       cone structure on [linhom_car] to be in place.
-    - We **defer to M4 wave 2** the HB-instance registration of
-      [isPrecone] / [isCone] / [isMCone] / [isICone] on
-      [linhom_car Ar C D]. These are exactly the four-instance tower
-      mirroring [path.v]; the technical block is the diagonal-sup
-      identity (above) for [isCone]'s (Normc), and Lemma 5.4 for
-      [isICone]. Both are routine but voluminous extensions, and we
-      explicitly document the chain of arguments in the comments
-      throughout this file.
+    - The HB-instance registration of [isPrecone] / [isCone] /
+      [isMCone] / [isICone] on [linhom_car Ar C D] comes later in
+      this file (the four-instance tower mirroring [path.v]; the
+      technical block is the diagonal-sup identity above for
+      [isCone]'s (Normc), and Lemma 5.4 for [isICone]).
 
     The bilinear ↔ linhom bijection (paper §5.2) is delivered below
     without depending on the HB tower; it is the cleanest invariant
@@ -455,9 +451,9 @@ End DiagonalSupEq.
     Below we provide the bare-function pointwise [+] and [*:]
     operators on [linhom_car], together with their preservation of
     linearity, ω-continuity (under the auxiliary unit-ball
-    hypothesis), and boundedness. We do **not** package them as
-    [linhom_car] elements (which would require the full
-    diagonal-sup identity); that is M4 wave 2. *)
+    hypothesis), and boundedness.  At this stage we do **not**
+    package them as [linhom_car] elements (which would require the
+    full diagonal-sup identity); that comes later in the file. *)
 
 Section LinhomAlgebra.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -2919,8 +2915,8 @@ Qed.
 (** Paper §5.1: integral-preservation of [w] — Step 1d.
 
     Template: [linhom_add_fun_pres_int] (the additivity +
-    cancellation pattern); also mirrors the M3 wave 2a additivity
-    lemma [path_integral_eq_addB]. *)
+    cancellation pattern); mirrors the [Path] additivity lemma
+    [path_integral_eq_addB]. *)
 Lemma linhom_diff_pres_int (X : ar_obj Ar)
     (β : ar_carrier Ar X -> C) (Hβ : is_measurable_path β)
     (µ : fmeas R (ar_carrier Ar X)) :
@@ -3239,8 +3235,8 @@ Arguments linhom_sup_ball_lub {R Ar C D} u uch ub1 y.
 
 (** ** [isCone] HB instance on [linhom_car] — Paper §5.1
 
-    With (Normh), (Normz), (Normt), (Normp) already in place from
-    M4 wave 2 and (Normc) discharged via [linhom_sup_ball_ub] +
+    With (Normh), (Normz), (Normt), (Normp) already in place earlier
+    in this file and (Normc) discharged via [linhom_sup_ball_ub] +
     [linhom_sup_ball_lub] + [linhom_sup_ball_norm], we register
     [linhom_car Ar C D] as a [coneType R]. *)
 
@@ -3284,31 +3280,32 @@ Check (fun (u : nat -> linhom_car Ar C D)
 
 End LinhomSupBallSanityCheck.
 
-(** ** M4 wave 4 status note
+(** ** Pointwise sup-of-chain and difference machinery — Paper §5.1
 
-    Delivered in this commit (M4 wave 4):
+    The previous section assembles the sup-of-chain construction and
+    the pointwise difference machinery used by the [linhom_car] cone
+    structure (paper §5.1):
+
     - [cone_sup_ball_swap] — commutation of two unit-ball sups in a
       cone, used to discharge ω-continuity of [linhom_sup_fun].
     - [linhom_sup_fun_continuous] — ω-continuity of the pointwise sup
-      (Step 2 of paper §5.1). Proved via the swap identity and
+      (Step 2 of paper §5.1).  Proved via the swap identity and
       ω-continuity of each [u_n].
     - [is_measurable_path_scale] — scaling preserves measurable paths.
     - [linhom_sup_fun_pres_path] — path-preservation of the pointwise
-      sup. Strategy: uniform-scale rewrite [γ r = S *: γs r] with
+      sup.  Strategy: uniform-scale rewrite [γ r = S *: γs r] with
       [S := M + 1], then [measurable_fun_cvg] on the chain
       [(s, r) ↦ m s (u_n (γs r))].
-    - [linhom_norm_apply_le] — general operator-norm bound for arbitrary
-      [x : C] (i.e., [cnorm (f x) ≤ ‖f‖ * cnorm x]).
+    - [linhom_norm_apply_le] — general operator-norm bound for
+      arbitrary [x : C] (i.e., [cnorm (f x) ≤ ‖f‖ * cnorm x]).
     - [linhom_sup_fun_test_sup] — the test-of-sup identity:
       [m s (linhom_sup_fun x) = sup_n (m s (u_n x))] for any test [m].
     - [linhom_sup_fun_pres_int] — integral preservation of the
-      pointwise sup. Strategy mirrors [integral_omega_cont_path] from
-      M3: each [u_n] preserves integrals via Pettis; combine with MCT
+      pointwise sup.  Strategy mirrors [integral_omega_cont_path]:
+      each [u_n] preserves integrals via Pettis; combine with MCT
       ([monotone_convergence]) and [fine_cvg] to identify both sides.
     - [linhom_sup_ball] — packaged sup-of-chain as a [linhom_car].
     - [linhom_sup_ball_norm] — the operator-norm bound ≤ 1.
-
-    Delivered in M4 wave 5 (this section):
     - [linhom_diff_fun] / [linhom_diff_linear] (linearity of the
       pointwise difference) — Paper §5.1.
     - [LinhomDiffPack] section discharges the four remaining fields
@@ -3334,26 +3331,9 @@ End LinhomSupBallSanityCheck.
       [linhom_diff_car] as the witness, with [linhom_sup_ball_lub]
       introducing a uniform-scale [K := ‖y‖ + 1] to bring [y] into
       the unit ball before instantiating [linhom_diff_car].
-    - [isCone] HB instance on [linhom_car Ar C D] — REGISTERED.
-      Sanity check: [linhom_car Ar C D : coneType R] type-checks.
 
-    Deferred to M4 wave 6 (isMCone + isICone):
-    - [isMCone] HB instance — Paper Def 5.4 test family
-      [γ ▷ m : ar_carrier Y × linhom_car -> R] with body
-      [m(s, f(γ(s)))]. Template: [path_test] / [path_mcone_M] /
-      [path_mcone_M_comp] / [path_mcone_M_sep] / [path_mcone_M_norm]
-      in [theories/mcones/path.v] (lines 715–1000). The challenge:
-      adapting (Mssep) and (Msnorm) to use a [Path(X, C)] index
-      rather than a direct [ar_carrier X] index.
-    - [isICone] HB instance — Paper Lemma 5.4 pointwise integral
-      [(∫η dµ)(x) := icone_integral (r ↦ linhom_fun (η r) x) _ µ].
-      Template: [path_int_fun] / [path_int_pt_meas] /
-      [path_int_fun_bound] / [path_int_fun_test_meas] /
-      [path_int_exists_cond] / [path_int_exists] in
-      [theories/icones/examples_icone.v] (lines 842–1175). Requires
-      a joint test-measurability lemma analogous to
-      [path_int_joint_meas].
-*)
+    The HB tower [isPrecone] / [isCone] / [isMCone] / [isICone] on
+    [linhom_car Ar C D] is registered later in this file. *)
 
 (** ** [isMCone] HB instance on [linhom_car] — Paper Def 5.4 / §5.1
 
@@ -3854,7 +3834,7 @@ Qed.
 
 (** Paper Lemma 5.4: linearity of [linhom_int_fun].
     Each [η r] is linear, hence the integrand commutes with [0], [+],
-    [*:], and the M3 wave 2a bilinearity lemmas
+    [*:], and the [Path] bilinearity lemmas
     [path_integral_eq_addB] / [path_integral_eq_scaleB]
     promote this through [icone_integral_eqP]. *)
 Lemma linhom_int_fun_linear : is_linear linhom_int_fun.
@@ -4573,61 +4553,14 @@ Check (linhom_car Ar C D : iconeType Ar).
 
 End LinhomIConeCheck.
 
-(** ** M4 wave 2 status note legacy:
+(** ** Cone-norm construction recap — Paper §5.1
 
-    Delivered in this commit:
-    - [linhom_norm] re-defined as the canonical real-valued [sup]
-      over the image norm-set (Step 1 of the wave plan). The old
-      [xchoose]-witness form is no longer used in [linhom.v].
-    - [linhom_normset_nonempty] / [linhom_normset_has_ubound] /
-      [linhom_normset_has_sup] — sup is well-defined.
-    - [linhom_norm_sup_ub] (every image norm bounded by [linhom_norm f])
-      and [linhom_norm_sup_lub] (least-upper-bound property).
-    - [linhom_le_pointwise] — precone-order on [linhom_car] descends to
-      pointwise [≤p] in [D].
-    - Cone axioms (Normh) [linhom_normh], (Normz) [linhom_normz],
-      (Normt) [linhom_normt], (Normp) [linhom_normp] — fully proved
-      with the canonical-sup formulation.
-    - [linhom_sup_unit] — pointwise [cone_sup_ball] of [(f_n x)_n] on
-      the unit ball of [C], using [linhom_norm_sup_ub] to discharge
-      the unit-ball bound on each [linhom_fun (u n) x].
-    - [linhom_sup_fun] — scaled extension to arbitrary [x : C] via
-      the factor [(cnorm x + 1)], with the helper
-      [linhom_sup_fun_unitE] reducing it to [linhom_sup_unit] on the
-      unit ball.
-
-    M4 wave 3 additions (this commit):
-    - [nng_inv] — inverse of a positive [{nonneg R}].
-    - [linhom_sup_fun_lin0] : [linhom_sup_fun 0 = 0].
-    - [linhom_sup_fun_linZ] : [linhom_sup_fun (r *: x) = r *: linhom_sup_fun x],
-      via case-split on [r = 0] and a unit-ball rescaling argument for
-      [r > 0] using [sup_ball_scaler].
-    - [linhom_sup_fun_at_scale] — rescaling helper: for [s > 0] with
-      [s⁻¹ *: x ∈ B_C], [linhom_sup_fun x = s *: linhom_sup_unit Hxs].
-      Derived from [linhom_sup_fun_linZ] + [linhom_sup_fun_unitE].
-    - [linhom_sup_fun_linD] : [linhom_sup_fun (x + y) =
-      linhom_sup_fun x + linhom_sup_fun y], via uniform-scaling at
-      [s := cnorm x + cnorm y + 1] plus [cone_sup_ball_addD].
-    - [linhom_sup_fun_norm_le] : [cnorm (linhom_sup_fun x) ≤ cnorm x].
-    - [linhom_sup_fun_bounded] : the operator-norm bound [M = 1].
-
-    Deferred to a follow-up commit (full HB tower):
-    - ω-continuity of [linhom_sup_fun] — needs a "sup of sup = sup of
-      diagonal" identity ([cone_sup_ball_diag]) for double sup-balls
-      indexed by two parameters [(m, n)].
-    - Path-preservation / integral-preservation of [linhom_sup_fun].
-    - Final [isCone] HB instance registering [linhom_car] as a
-      [coneType R] via the canonical-sup norm + the four norm axioms
-      already in place + the [linhom_sup_ball] constructor packaged
-      from [linhom_sup_fun] above.
-    - [isMCone] HB instance — Paper Def 5.4 test family
-      [γ ▷ m : ar_carrier Y × linhom_car -> R] with body
-      [m(s, f(γ(s)))]. Mirrors [path_test] / [path_mcone_M] in
-      [path.v], with proofs of (Mscomp), (Mssep), (Msnorm).
-    - [isICone] HB instance — Paper Lemma 5.4: pointwise integral
-      [(∫η dµ)(x) := icone_integral (r ↦ η(r)(x)) ...] in [D].
-      Mirrors [path_int_fun] / [path_int_exists] in
-      [examples_icone.v]. *)
+    The previous block assembles [linhom_norm] as the canonical
+    real-valued [sup] over the image norm-set, the four cone-norm
+    axioms (Normh/Normz/Normt/Normp), and the [linhom_sup_fun]
+    sup-of-chain construction together with its linearity / scaling /
+    additivity / norm-bound lemmas.  These pieces feed the [isCone]
+    HB instance registered earlier in this file. *)
 
 (** ** Paper §5.2 / Def 5.6 — Bilinear maps and the [linhom] bijection
 
@@ -4682,9 +4615,9 @@ Arguments bilin_right_eq {R Ar C1 C2 D}.
     [C1] to the [C2 ⊸ D] carrier) is the "curried" form of a
     bilinear datum.  We require that [F] itself behaves as a
     [linhom_car] (i.e., is linear/continuous/etc. in [C1]) once we
-    *forget* the cone structure on [linhom_car Ar C2 D] (which is
-    not in scope until M4 wave 2). For wave 1, we register the
-    "underlying-function" form of this datum and the round-trip
+    *forget* the cone structure on [linhom_car Ar C2 D].  At this
+    point we register the "underlying-function" form of this datum and
+    the round-trip
     lemmas at the function level. *)
 
 Section CurriedBilin.
@@ -4746,12 +4679,11 @@ Arguments bilin_to_curried {R Ar C1 C2 D}.
 (** ** Paper-aligned aliases for the bilinear ↔ linhom bijection
 
     Paper §5.2 / Def 5.6 names this bijection in terms of the
-    integrable cone [C1, C2 ⊸ D = C1 ⊸ (C2 ⊸ D)]; once the
-    full HB tower is in place on [linhom_car] (M4 wave 2), the maps
-    [bilin_to_linhom] / [linhom_to_bilin] below become morphisms in
-    [ICones], witnessing the iso [BilinIntegrable(C1, C2; D) ≃
-    ICones(C1, linhom_car C2 D)]. For wave 1 we record the
-    function-level content. *)
+    integrable cone [C1, C2 ⊸ D = C1 ⊸ (C2 ⊸ D)]; with the full HB
+    tower in place on [linhom_car], the maps [bilin_to_linhom] /
+    [linhom_to_bilin] below become morphisms in [ICones], witnessing
+    the iso [BilinIntegrable(C1, C2; D) ≃ ICones(C1, linhom_car C2 D)].
+    Here we record the function-level content. *)
 
 Section BilinLinhomAlias.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -5248,34 +5180,30 @@ Arguments linhom_map_fun {R Ar C1 C2 D1 D2}.
 Arguments linhom_post {R Ar C D1 D2}.
 Arguments linhom_pre_act {R Ar C1 C2 D}.
 
-(** ** Sanity checks — M4 wave 1-finish deliverables
+(** ** Sanity checks — initial [linhom_car] deliverables
 
     - The [linhom_car Ar C D] type packages: linear, ω-continuous,
       bounded, measurable-path-preserving, and integral-preserving
-      maps. Five fields, the same as the natural integrable-cone-
-      morphism record. (Paper §5.1 + Def 5.4 + Lemma 5.4.)
+      maps.  Five fields, the same as the natural integrable-cone-
+      morphism record.  (Paper §5.1 + Def 5.4 + Lemma 5.4.)
     - The [linhom_zero] element is fully delivered with no axioms
       beyond [boolp].
-    - The [linhom_add_fun] / [linhom_scale_fun] operations packaged
-      as [linhom_car] records, with full proofs of linearity,
-      ω-continuity, boundedness, path-preservation, and
+    - The [linhom_add_fun] / [linhom_scale_fun] operations are
+      packaged as [linhom_car] records, with full proofs of
+      linearity, ω-continuity, boundedness, path-preservation, and
       integral-preservation.
     - [cone_sup_ball_addD] — the full diagonal-sup identity in any
-      [coneType], delivered above. This is the key technical lemma
+      [coneType], delivered above.  This is the key technical lemma
       enabling ω-continuity of pointwise sum.
     - [isPrecone] HB instance on [linhom_car Ar C D] — REGISTERED.
-    - [linhom_norm] defined as the operator-norm witness from M1.
+    - [linhom_norm] defined as the canonical [sup] operator norm.
     - Paper §5.2 / Def 5.6 (bilinear ↔ linhom bijection) is
       delivered at the function level via [bilin_data],
       [bilin_to_linhom], [linhom_to_bilin], and their round-trip
       lemmas [bilin_to_linhom_E] / [linhom_to_bilin_E].
 
-    Deferred to M4 wave 2 (see status note above [LinhomNorm]):
-    - [isCone] HB instance — blocked on strengthening
-      [Icones.cones.basic_lemmas.linmap_norm] to be the actual
-      supremum (not just an xchoose witness upper bound).
-    - [isMCone] / [isICone] HB instances — follow [path.v] /
-      [examples_icone.v] patterns once [isCone] is in place. *)
+    The [isCone] / [isMCone] / [isICone] HB instances are registered
+    later in this file. *)
 
 Section LinhomSanityCheck.
 Variables (R : realType) (Ar : MeasSubcat R).
