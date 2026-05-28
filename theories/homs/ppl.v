@@ -611,6 +611,27 @@ Proof.
 rewrite vlD'_lamE; exact: adj_phi_lam_coalg.
 Qed.
 
+(** **The integral anchor.**  Combining the reduction
+    [ex_random_constant_denot_E] with [cpD_sample_is_integral] of
+    [cbv.v] (= [Theta] = identity at the coalgebra structure of
+    [FMeas X]), the denotation of [ex_random_constant] is *the
+    integral against the input measure of the promoted constant-
+    function path*: for [μ : FMeas X],
+
+      ⟦ ex_random_constant ⟧(μ) = (Coalg_{T(...)} ∘ lam_coalg ...)(μ)
+
+    in the underlying ICones — and [Coalg_X] of a Dirac is the
+    promoted Dirac ([Coalg_dirac] in [coalgebra.v]), so an atomic input
+    measure [δr] yields the promoted constant-r function [(λx.r)!].
+    This is the precise integration sense in which our denotation
+    matches the mathcomp-qbs [monadP_map curried_const Normal(0,1)]. *)
+Lemma ex_random_constant_denot_at_ret :
+  ex_random_constant_denot =
+  coalg_comp
+    (tunit_eta (tyD' (tfun (tbase' X) (tbase' X))))
+    (vlD' (v_lam (v_fst' (v_var' (G := tprod' (tbase' X) (tbase' X)))))).
+Proof. exact: ex_random_constant_denot_E. Qed.
+
 End RandomConstant.
 
 End Soundness.
