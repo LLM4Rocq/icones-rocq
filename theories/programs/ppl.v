@@ -208,9 +208,13 @@ Arguments tR {R Ar} R_obj.
     - [e_app] : DIRECT application;
     - [e_ret] : monadic return [tprob t];
     - [e_bind] : monadic bind [do x <- m; k];
-    - [e_sample] : sample from a fixed measure [µ : FMeas X];
-    - [e_real] : real literal [r : R] of type [tR];
-    - [e_score] : score by [r : R], returning [tprob tunit].
+    - [e_sample] : sample from a fixed measure [µ : FMeas X] in the unit
+      ball (the constructor carries the cone-norm bound [Hmu : ‖µ‖ ≤ 1]
+      that the [linhom_icones]-wrapping needs);
+    - [e_real] : real literal [r : R] of type [tR] (the Dirac at [r] has
+      unit norm — no bound proof needed);
+    - [e_score] : score by [r : R] with [0 ≤ r ≤ 1] proofs, returning
+      [tprob tunit].
 
     *** TODO: NOT IN THIS COMMIT (follow-up agent appends them) ***
 
@@ -253,10 +257,13 @@ Inductive expr : ppl_ctx Ar -> T -> Type :=
       expr G (tprob t1) -> expr (t1 :: G) (tprob t2) ->
       expr G (tprob t2)
   | e_sample (G : ppl_ctx Ar) (X : ar_obj Ar)
-             (mu : fmeas R (ar_carrier Ar X)) :
+             (mu : fmeas R (ar_carrier Ar X))
+             (Hmu : (cone_norm mu <= 1)%R) :
       expr G (tprob (tbase X))
   | e_real  (G : ppl_ctx Ar) (r : R) : expr G tR'
-  | e_score (G : ppl_ctx Ar) (r : R) : expr G (tprob tunit).
+  | e_score (G : ppl_ctx Ar) (r : R)
+            (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+      expr G (tprob tunit).
 
 End Syntax.
 
@@ -270,9 +277,9 @@ Arguments e_lam {R Ar R_obj G t1 t2} M.
 Arguments e_app {R Ar R_obj G t1 t2} F X.
 Arguments e_ret {R Ar R_obj G t} M.
 Arguments e_bind {R Ar R_obj G t1 t2} M K.
-Arguments e_sample {R Ar R_obj G X} mu.
+Arguments e_sample {R Ar R_obj G X} mu Hmu.
 Arguments e_real {R Ar R_obj G} r.
-Arguments e_score {R Ar R_obj G} r.
+Arguments e_score {R Ar R_obj G} r Hr0 Hr1.
 
 (** ** Type and context interpretation [tyD] / [ctxD]
 
@@ -282,8 +289,15 @@ Arguments e_score {R Ar R_obj G} r.
        ⟦tbase X⟧     = FMeas_coalgebra X         (Theorem 9.7)
        ⟦tprod t1 t2⟧ = EM_prod ⟦t1⟧ ⟦t2⟧
        ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U⟦t2⟧)         (Kleisli exponential of [T])
-       ⟦tprob t⟧     = Tobj ⟦t⟧ = !̃(U⟦t⟧)        (CBV computation monad)
+       ⟦tprob t⟧     = ⟦t⟧.
     ]]
+    The [tprob] marker is SYNTACTIC: every expression is interpreted
+    uniformly through the CBV computation monad [T = !̃ ∘ U] (every
+    [⟦expr G t⟧ ∈ coalg_hom (ctxD G) (Tobj (tyD t))]), and the
+    [e_ret]/[e_bind]/[e_sample]/etc. constructors all participate in
+    that monadic shape.  The [tprob] marker at the TYPE level does NOT
+    add a further [Tobj]: that would be a double-monad and is not what
+    the calculus intends.
 
     Contexts are interpreted with the HEAD of the list on the RIGHT:
     [[
@@ -307,7 +321,13 @@ Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
   | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
   | tfun A B => bang_cofree (linhom_car Ar (coalg_obj (tyD A))
                                           (coalg_obj (tyD B)))
-  | tprob t0 => Tobj (tyD t0)
+  (* [tprob t] is the SYNTACTIC marker for "this is a computation in
+     the probability monad".  Semantically every expression is
+     interpreted through the monad uniformly ([eD] wraps EVERY
+     denotation in [Tobj]), so [tyD (tprob t) = tyD t]: the [tprob]
+     marker does NOT add an extra layer of [Tobj] at the type-level
+     interpretation.  The monadic structure is in [eD], not [tyD]. *)
+  | tprob t0 => tyD t0
   end.
 
 Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
@@ -507,7 +527,148 @@ Arguments app_pair {R Ar} A B.
     - [e_sample mu] : the constant Kleisli arrow [G ⇝ FMeas X] whose
       value is [mu], composed through [tunit_eta] of [FMeas_coalgebra X].
     - [e_real r] : the constant Kleisli arrow [G ⇝ tR] whose value is the
-      Dirac at [R_to_carrier r] (a coalgebra morphism via [Coalg_dirac]).
-    - [e_score r] : the constant Kleisli arrow [G ⇝ tunit] whose value
-      is [r · η(⋆)] — i.e. [r] times the monad unit at unit.  See note
-      below for the precise formulation. *)
+      Dirac at [R_to_carrier r] (norm exactly [1]).
+    - [e_score r Hr0 Hr1] : the constant Kleisli arrow [G ⇝ tunit] whose
+      value is [r · η(⋆)] — i.e. [r] times the canonical element of the
+      unit cone; the two hypotheses [0 ≤ r] and [r ≤ 1] guarantee the
+      cone-norm bound that [linhom_icones] needs.
+
+    The three sample-style constructors ([e_sample]/[e_real]/[e_score])
+    share the same packaging pattern: build an [icones_hom] [coalg_obj G →
+    C] by composing the cone-eraser [coalg_e (ctxD G) : coalg_obj G →
+    cone_one_car] with the linear-point map [lin_pt c : cone_one_car → C]
+    at the chosen unit-ball value [c]; lift the result to a coalgebra
+    morphism into [Tobj] via [adj_psi] (which is UNCONDITIONAL — no
+    coalgebra-morphism side condition on the icones_hom). *)
+
+(** *** [const_kleisli c Hc] — the constant Kleisli arrow at [c]
+
+    For [c : C] in the unit ball (witness [Hc : ‖c‖ ≤ 1]) and any
+    coalgebra [G], produce a coalgebra morphism [G → bang_cofree C]
+    whose underlying value is the constant Dirac-at-[c]-style lift.
+    Concretely: [adj_psi (lin_pt c ∘ coalg_e G)]. *)
+Section ConstKleisli.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** A constant icones_hom out of any coalgebra, into [C], whose value is
+    the [lin_pt]-scaling of a unit-ball element [c]. *)
+Lemma lin_pt_norm_le1 (C : ICone.type Ar) (c : C) :
+    (cone_norm c <= 1)%R ->
+    (cone_norm (lin_pt c) <= 1)%R.
+Proof.
+move=> Hc.
+rewrite -[cone_norm _]/(linhom_norm (lin_pt c)).
+apply: linhom_norm_sup_lub => s Hs.
+apply: le_trans (lin_pt_norm_le c s) _.
+by rewrite -[1%R]mul1r; apply: ler_pM=> //;
+  [exact: cone_norm_ge0|exact: cone_norm_ge0].
+Qed.
+
+Definition const_icones (G : Coalgebra Ar) (C : ICone.type Ar) (c : C)
+    (Hc : (cone_norm c <= 1)%R) :
+    icones_hom Ar (coalg_obj G) C :=
+  icones_comp (linhom_icones (lin_pt c) (@lin_pt_norm_le1 C c Hc)) (coalg_e G).
+
+Definition const_kleisli (G : Coalgebra Ar) (C : ICone.type Ar) (c : C)
+    (Hc : (cone_norm c <= 1)%R) :
+    coalg_hom G (bang_cofree C) :=
+  adj_psi (@const_icones G C c Hc).
+
+End ConstKleisli.
+
+Arguments lin_pt_norm_le1 {R Ar C} c Hc.
+Arguments const_icones {R Ar} G {C} c Hc.
+Arguments const_kleisli {R Ar} G {C} c Hc.
+
+(** ** The term interpretation [eD] *)
+Section TermInterp.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+Local Notation T := (@ppl_type R Ar).
+Local Notation EX G t :=
+    (coalg_hom (ctxD G) (Tobj (tyD t))).
+
+(** [score_value r Hr0 Hr1 : cone_one_car Ar] — the element [r · one1] of
+    the unit cone, with norm exactly [r] (and in particular [≤ 1]). *)
+Definition score_value (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+    cone_one_car Ar :=
+  MkConeOne Ar (NngNum Hr0).
+
+Lemma score_value_norm_le1 (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+    (cone_norm (@score_value r Hr0 Hr1) <= 1)%R.
+Proof.
+by rewrite /cone_norm/= /c1_norm /=.
+Qed.
+
+(** The constant Kleisli arrow at the [score_value]. *)
+Definition score_kleisli (G : Coalgebra Ar) (r : R)
+    (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+    coalg_hom G (bang_cofree (cone_one_car Ar)) :=
+  @const_kleisli _ _ G (cone_one_car Ar) (@score_value r Hr0 Hr1)
+                 (@score_value_norm_le1 r Hr0 Hr1).
+
+(** Helper: Dirac in [FMeas R_obj] has norm exactly [1], hence [≤ 1]. *)
+Lemma dirac_fmeas_norm_le1 (r : ar_carrier Ar R_obj) :
+    (cone_norm (dirac_fmeas r : FMeas R_obj) <= 1)%R.
+Proof. by rewrite dirac_fmeas_norm. Qed.
+
+Definition real_kleisli (G : Coalgebra Ar) (r : R) :
+    coalg_hom G (Tobj (FMeas_coalgebra R_obj)) :=
+  @const_kleisli _ _ G (FMeas R_obj)
+    (dirac_fmeas (R_to_carrier R_carrier_eq r))
+    (dirac_fmeas_norm_le1 _).
+
+(** Sample with a unit-ball measure. *)
+Definition sample_kleisli (G : Coalgebra Ar) (X : ar_obj Ar)
+    (mu : fmeas R (ar_carrier Ar X))
+    (Hmu : (cone_norm mu <= 1)%R) :
+    coalg_hom G (Tobj (FMeas_coalgebra X)) :=
+  @const_kleisli _ _ G (FMeas X) mu Hmu.
+
+(** The denotation of an expression as a coalgebra (Kleisli) morphism. *)
+Fixpoint eD (G : ppl_ctx Ar) (t : T)
+    (M : @expr R Ar R_obj G t) {struct M} : EX G t :=
+  match M in expr G0 t0 return EX G0 t0 with
+  | e_var _ _ v =>
+      coalg_comp (tunit_eta (tyD _)) (var_lookup v)
+  | e_tt G0 =>
+      coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD G0))
+  | e_pair G0 t1 t2 M1 M2 =>
+      coalg_comp (bang_m (coalg_obj (tyD t1)) (coalg_obj (tyD t2)))
+                 (em_pair (eD M1) (eD M2))
+  | e_fst G0 t1 t2 M0 =>
+      coalg_comp (Tmap (em_proj1 (tyD t1) (tyD t2))) (eD M0)
+  | e_snd G0 t1 t2 M0 =>
+      coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD M0)
+  | e_lam G0 t1 t2 body =>
+      coalg_comp (tunit_eta (tyD (tfun t1 t2))) (lam_coalg (eD body))
+  | e_app G0 t1 t2 Vf Va =>
+      kcomp (app_pair (tyD t1) (tyD t2))
+        (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
+                    (em_pair (eD Vf) (eD Va)))
+  (* In this uniform-monadic semantics, [tyD (tprob t) = tyD t] (the
+     [tprob] marker is purely syntactic, see the [tyD] docstring), so
+     [e_ret M] denotes the SAME Kleisli arrow as [M] itself.  This is
+     consistent with treating EVERY expression as a Kleisli arrow into
+     [Tobj (tyD t)]. *)
+  | e_ret G0 t0 M0 => eD M0
+  | e_bind G0 t1 t2 M0 K =>
+      kbind_ext (eD K) (eD M0)
+  | e_sample G0 X mu Hmu =>
+      @sample_kleisli (ctxD G0) X mu Hmu
+  | e_real G0 r =>
+      @real_kleisli (ctxD G0) r
+  | e_score G0 r Hr0 Hr1 =>
+      @score_kleisli (ctxD G0) r Hr0 Hr1
+  end.
+
+End TermInterp.
+
+Arguments eD {R Ar R_obj R_carrier_eq G t} M.
+Arguments score_value {R Ar} r Hr0 Hr1.
+Arguments score_kleisli {R Ar} G r Hr0 Hr1.
+Arguments real_kleisli {R Ar R_obj R_carrier_eq} G r.
+Arguments sample_kleisli {R Ar} G {X} mu Hmu.
+Arguments dirac_fmeas_norm_le1 {R Ar R_obj} r.
