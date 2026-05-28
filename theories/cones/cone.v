@@ -14,11 +14,11 @@
       [cone_norm_ge0] below from (Normh) and (Normp).
     - (Normc) is encoded as a concrete [cone_sup_ball] operator (not as
       a sigma-type) for the same reason discussed in
-      [Icones.prelude.omegacpo]: downstream proofs in M2/M3 will need
-      direct access to the supremum. The operator takes a sequence
-      [u : nat -> P], a monotonicity witness in the cone order, and a
-      norm-bound witness; it returns an element [sup_ball u … : P]
-      with the three characterising properties.
+      [Icones.prelude.omegacpo]: downstream proofs need direct access
+      to the supremum. The operator takes a sequence [u : nat -> P], a
+      monotonicity witness in the cone order, and a norm-bound witness;
+      it returns an element [sup_ball u … : P] with the three
+      characterising properties.
 *)
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp.
@@ -106,7 +106,7 @@ HB.structure Definition Cone (R : realType) :=
     parser interaction in scopes (we hit "Syntax error: term level 99
     expected after '‖'"), the latter collides with mathcomp-analysis's
     absolute-value notation, and any project-local notation would have
-    to live inside its own scope which a downstream M2/M3 user must then
+    to live inside its own scope which a downstream user must then
     remember to open.  [cnorm] is a single-token abbreviation that
     composes with existing scopes without surprises. *)
 Notation cnorm := cone_norm.
