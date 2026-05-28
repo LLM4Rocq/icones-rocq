@@ -3,10 +3,10 @@
 
     This file is the §9.2 ("Fixpoint operators in the cartesian closed
     category") development, specialised to the concrete CCC [SCones].
-    It is deliberately **axiom-free**: it depends only on the cone
-    ω-cpo machinery ([cones/cone.v], [cones/omega_general.v]) and on the
-    cartesian-closed category [SCones] of [stable/scones_ccc.v] — it does
-    NOT use any staged interface (tensor / bang / Seely).
+    It depends only on the cone ω-cpo machinery ([cones/cone.v],
+    [cones/omega_general.v]) and on the cartesian-closed category
+    [SCones] of [stable/scones_ccc.v] — no tensor / bang / Seely
+    machinery is needed.
 
     The mathematical content is Kleene's least-fixpoint theorem on the
     unit-ball ω-cpo of an integrable cone, applied twice:

@@ -877,8 +877,8 @@ Arguments totmono_Delta1 {R B C} f u Hsu Hf.
     [B]-additive inequality [Sdiff_mono] (the [(u :: u⃗)]-difference
     instance of total monotonicity), after which the common summand
     [Σ⁻(x+u) + Σ⁻(x)] cancels on the left ([precone_le_addlI]).  This
-    discharges the operator-level half of the Lemma 7.17 clause that was
-    previously delivered only in subtraction-free [B]-form ([Sdiff_mono]). *)
+    is the operator-level half of the Lemma 7.17 clause; [Sdiff_mono]
+    earlier in this file is its subtraction-free [B]-form. *)
 
 Section DeltaMono.
 Variable R : realType.
@@ -915,8 +915,9 @@ Arguments Delta_mono {R B C} f Hf n w Hs x x' u.
 
     A function [f : B_B → C] is totally monotonic *iff* it is
     [n]-increasing for every [n].  We deliver the *forward* implication
-    here ([totmono_is_n_increasing]); the converse is deferred — see the
-    note at the end of the file. *)
+    here ([totmono_is_n_increasing]) and the *closed-ball converse*
+    [is_n_increasing_totmono] below (for [f] also
+    [is_scott_continuous_unit]). *)
 
 (** Forward implication (paper: induction on [k]).  For every [n], total
     monotonicity gives [n]-increasingness.  Generalising over [R B C f]
@@ -1608,8 +1609,9 @@ Arguments totmono_shift_le {R B C} g S s Hs Hsle.
       monotonic maps is totally monotonic ([totmono_bigP]).
     - [Δf(u⃗)] needs, in addition to total monotonicity, ω-continuity.  We
       record the [Δε] clauses (which need only [is_totmono f]) and the
-      pointwise-difference reading; the [Δf(u⃗)] clause via
-      [is_n_increasing_totmono] is deferred (see the status note). *)
+      pointwise-difference reading; the [Δf(u⃗)] clause is delivered in
+      [stable/compose.v] ([totmono_Delta], via the [SD_concat] identity,
+      and [scott_Delta] for the ω-continuity half). *)
 
 Section Lemma720.
 Variable R : realType.
@@ -1897,10 +1899,9 @@ Arguments Delta_le {R B C} f Hf {n} u Hs x.
     induction base of Lemma 7.26): the diagonal split there is a single
     application of the second [SD_add] identity of Lemma 7.22 (split the
     sole head of [u⃗+v⃗]), and the head term is [SD_cons].  The general
-    [n] case is documented as deferred in the status note (it needs an
-    interior-position split of the head-only [SD_add] engine — i.e.
-    prefix-concatenation of ['I_n] families and the attendant ordinal
-    casts — which the present engine does not yet provide). *)
+    [n] case is delivered in [stable/compose.v] as [SD_diag] / [SD_723]
+    via the diagonal sweep [SD_diag_sweep] over a fixed ['I_n] carrier
+    (no prefix-concatenation needed). *)
 
 Section Lemma723.
 Variable R : realType.
@@ -2289,7 +2290,8 @@ Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
       telescoping identity [SD (u⃗+v⃗)(xb+u) = SD u⃗ (xb) +
       SD (u, u⃗+v⃗)(xb) + SD (v₁)(xb+u₁)].  The head term is [SD_cons],
       the single hybrid term is one [SD_add] (split the sole head of
-      [u⃗+v⃗]).  The general-[n] case is deferred (see below).
+      [u⃗+v⃗]).  The general-[n] case ([SD_723]) lives in
+      [stable/compose.v].
     - **The cone [SnB]** ([SnB], full [coneType]): the family ['I_(n+1) → B]
       with pointwise operations and the total-sum norm [‖g‖ = ‖Σ_i g i‖_B]
       (Remark 7.24's [1 & ⋯ & 1 ⊸ B]).  All five norm axioms; (Normc)
@@ -2302,46 +2304,22 @@ Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
       shift-commutes fact [sup_ball_addr], and cancellation of the centre
       [precone_cancel]; the B-side chain proofs come from [lc_val_chain_mono]
       ([lc_leE]) and [lc_val_chain_ub1] ([lc_val_norm_le]).  This is the
-      "translate" half of the [scott_Delta] blocker below, now removed.
+      "translate" half of the [Δf(u⃗)] ω-continuity argument; the rest
+      ([scott_Delta]) lives in [stable/compose.v], which can import
+      [stable/stablehom.v]'s [diff_scott_at] (not importable here).
 
-    Deferred (need ω-continuity / Theorem 7.19 on the difference operator).
+    Delivered in [stable/compose.v] (which imports [stable/stablehom.v]).
     - **[scott_Delta]** / Lemma 7.20 [Δf(u⃗)] clause: ω-continuity, then
       total monotonicity, of the difference operator [Δf(u⃗)] itself.
-      Total monotonicity would follow from [is_n_increasing_totmono]
-      applied to [Δf(u⃗)] — [k]-increasing for all [k] by Lemma 7.16 —
-      *once* [Δf(u⃗)] is known [is_scott_continuous_unit].  Two ingredients
-      are now in place above: [lc_val_scott] (ω-continuity of the inclusion,
-      so the chain [lc_val xₙ + s_I] reads as a [B]-sup) and the dominated
-      shift [totmono_shift_le].  The precise blocker for the [Δε]
-      ω-continuity that remains: the summands are shifts
-      [g_{s_I}(x) = f(lc_val x + s_I)] of [f] by the *partial* sums
-      [s_I = Σ_{i∈I} uᵢ], read on the local cone [B_{u⃗}] centred at the
-      *full* sum [S = Σᵢ uᵢ].  Composing [f]'s [is_scott_continuous_unit]
-      after [lc_val_scott] needs the shifted chain [lc_val xₙ + s_I] to stay
-      in the unit ball [B_B] *and* its image sup to be read at a common
-      radius — this is the difference-of-ω-continuous engine [diff_scott_at]
-      (in [stable/stablehom.v], on the measure-theoretic dependency chain,
-      so NOT importable into this file without restructuring the loadpath).
-      Proving [scott_Delta] here therefore still needs [diff_scott_at] —
-      moved to [stable/compose.v] (which imports [stablehom.v]) rather than
-      added here.  No [Admitted] is left.
+      Uses [lc_val_scott] above + the dominated shift [totmono_shift_le]
+      and the difference-of-ω-continuous engine [diff_scott_at] of
+      [stablehom.v].
     - Lemma 7.23, *general* arity (the full [Δf(u⃗+v⃗)(x+u)] telescope):
-      the [n = 1] base ([SD_723_1]) is delivered.  The general case
-      decomposes as [SD_cons] (head term [Δf(u, u⃗+v⃗)]) plus the
-      *diagonal split* [SD (u⃗+v⃗)(xb) = SD u⃗(xb) + Σⱼ SD(hybⱼ)(xb+uⱼ)].
-      The latter recurses with a *committed [u]-prefix* on every family,
-      so its clean inductive form needs prefix-concatenation of ['I_n]
-      families ([pcat] via [lshift]/[rshift]/[split]) and the interior
-      split of the *head-only* [SD_add] engine — i.e. the ordinal-cast
-      [m + k.+1 = m.+1 + k] reindexing.  The [SD] engines ([SD_cons],
-      [SD_add]) are in place; only the prefix machinery is missing.
-    - Lemma 7.25 ([(x,u⃗) ↦ Δf(u⃗)(x)] increasing [B_SnB → C]): the
-      paper's "follows easily from Theorem 7.19" needs *joint*
-      centre/direction monotonicity (the [SnB] order moves both the centre
-      [x] and the directions [u⃗], whereas [Delta_mono] handles only a
-      moving centre at fixed directions).  This is now delivered in
-      [stable/compose.v] as [SnB_increasing], built on the joint
-      [SD_mono_full] monotonicity engine (centre [SD_mono_centre] + all
-      directions [SD_mono_dirs] via the symmetry [SD_perm]) — purely from
-      total monotonicity, with NO recourse to ω-continuity.  The [SnB] cone
-      it lives on is complete (delivered above). *)
+      [SD_diag] / [SD_723] via the diagonal sweep [SD_diag_sweep] over a
+      fixed ['I_n] carrier (no prefix-concatenation needed).
+    - Lemma 7.25 ([(x,u⃗) ↦ Δf(u⃗)(x)] increasing [B_SnB → C]):
+      [SnB_increasing], built on the joint [SD_mono_full] monotonicity
+      engine (centre [SD_mono_centre] + all directions [SD_mono_dirs] via
+      the symmetry [SD_perm]) — purely from total monotonicity, with NO
+      recourse to ω-continuity.  The [SnB] cone it lives on is complete
+      (delivered above). *)
