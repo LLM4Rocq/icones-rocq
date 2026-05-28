@@ -18,24 +18,6 @@
       type, binary products, and the higher-order arrow [tfun A B] = [!̃(U A
       ⊸ U B)] (the Kleisli exponential of the CBV computation monad).
 
-    ** Scope of this commit (C-partial: NO arithmetic yet) **
-
-    The full constructor list is in the [Inductive expr] below, but here is
-    what is intentionally NOT in this version:
-
-    - [e_add] : sum of two random variables of type [tprob tR];
-    - [e_mul] : product of two random variables of type [tprob tR];
-    - [ex_random_linear] : the QBS-style mixture example exercising [e_add]
-      / [e_mul].
-
-    These three pieces depend on the lax monoidal bundling of [FMeas]
-    ([theories/homs/fmeas_lax.v]'s [icones_hom] wrapping the function-level
-    [fmeas_lax_pre]), which is being added by a parallel agent.  A small
-    follow-up integration commit will EXTEND the [Inductive expr] with the
-    two arithmetic constructors and add the [ex_random_linear] example once
-    the bundle lands.  This file is consistent and axiom-free WITHOUT
-    [e_add]/[e_mul].
-
     ** The mathematical framework **
 
     Identical to [theories/programs/cbv.v]: the value category is the FULL
@@ -75,6 +57,8 @@ From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import measurable_realfun.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure dirac_measure.
 
 Require Import Icones.cones.precone.
@@ -102,6 +86,7 @@ Require Import Icones.homs.bang.
 Require Import Icones.homs.seely_defs.
 Require Import Icones.homs.seely.
 Require Import Icones.homs.coalgebra.
+Require Import Icones.homs.fmeas_lax.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
@@ -168,11 +153,9 @@ Arguments hv_succ {R Ar G t s} v.
 
     The PPL has a distinguished real-valued base type [tR] = [tbase R_obj]
     for a chosen [R_obj : ar_obj Ar] whose carrier IS the realType [R].  The
-    propositional cast [R_carrier_eq] is the witness; [e_real]/[e_score] use
-    it to translate an [R]-literal to a value in [ar_carrier Ar R_obj].
-
-    (No [e_add]/[e_mul] in this commit — the follow-up integration agent
-    appends them.) *)
+    propositional cast [R_carrier_eq] is the witness; [e_real]/[e_score]/
+    [e_add]/[e_mul] use it to translate an [R]-literal to a value in
+    [ar_carrier Ar R_obj]. *)
 
 Section RealObj.
 Variable (R : realType) (Ar : MeasSubcat R).
@@ -214,21 +197,11 @@ Arguments tR {R Ar} R_obj.
     - [e_real] : real literal [r : R] of type [tR] (the Dirac at [r] has
       unit norm — no bound proof needed);
     - [e_score] : score by [r : R] with [0 ≤ r ≤ 1] proofs, returning
-      [tprob tunit].
-
-    *** TODO: NOT IN THIS COMMIT (follow-up agent appends them) ***
-
-    The arithmetic constructors below are NOT YET in the inductive; they
-    depend on the [icones_hom] bundling of [FMeas]'s lax monoidal pre-map
-    that the parallel [theories/homs/fmeas_lax.v] agent is producing.  The
-    follow-up integration agent will append:
-    [[
-       | e_add  : forall G, expr G (tprob tR) -> expr G (tprob tR) ->
-                            expr G (tprob tR)
-       | e_mul  : forall G, expr G (tprob tR) -> expr G (tprob tR) ->
-                            expr G (tprob tR)
-    ]]
-    together with the example [ex_random_linear] that exercises them. *)
+      [tprob tunit];
+    - [e_add] : pointwise sum of two [tR]-valued computations
+      (interpretation: lax-monoidal pairing of the two pushforwards
+      followed by [FMeas]-functorial action of measurable [+]);
+    - [e_mul] : pointwise product, analogous to [e_add]. *)
 Section Syntax.
 Variable (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
@@ -263,7 +236,9 @@ Inductive expr : ppl_ctx Ar -> T -> Type :=
   | e_real  (G : ppl_ctx Ar) (r : R) : expr G tR'
   | e_score (G : ppl_ctx Ar) (r : R)
             (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
-      expr G (tprob tunit).
+      expr G (tprob tunit)
+  | e_add   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'
+  | e_mul   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'.
 
 End Syntax.
 
@@ -280,6 +255,8 @@ Arguments e_bind {R Ar R_obj G t1 t2} M K.
 Arguments e_sample {R Ar R_obj G X} mu Hmu.
 Arguments e_real {R Ar R_obj G} r.
 Arguments e_score {R Ar R_obj G} r Hr0 Hr1.
+Arguments e_add {R Ar R_obj G} M N.
+Arguments e_mul {R Ar R_obj G} M N.
 
 (** ** Type and context interpretation [tyD] / [ctxD]
 
@@ -580,11 +557,257 @@ Arguments lin_pt_norm_le1 {R Ar C} c Hc.
 Arguments const_icones {R Ar} G {C} c Hc.
 Arguments const_kleisli {R Ar} G {C} c Hc.
 
+(** ** Arithmetic lifts on the cone level — [add_lift] / [mul_lift]
+
+    For the distinguished real-valued base type [tR = tbase R_obj], we
+    package binary [+] and [×] on [R] as [icones_hom]s into [FMeas R_obj]:
+    [[
+        add_lift, mul_lift :
+          icones_hom Ar (FMeas R_obj ⊗ FMeas R_obj) (FMeas R_obj).
+    ]]
+    Construction.  Each of these is the composition
+    [[
+        FMeas_fmap op_meas ∘ fmeas_lax R_obj R_obj
+    ]]
+    where [op_meas : ar_hom (ar_prod R_obj R_obj) R_obj] is the
+    transport of the corresponding [R × R → R] operation across the
+    Type-level cast [R_carrier_eq], and [fmeas_lax R_obj R_obj] is the
+    icones-level lax monoidal of paper §9 ([theories/homs/fmeas_lax.v]).
+
+    The arithmetic [op_meas] requires the cast [R_carrier_eq] to be a
+    [measurable] function; we therefore add the hypothesis
+    [R_carrier_meas] to the section.  This is a Type-level cast, so
+    measurability is a separate fact not implied by the
+    [:> Type] equation. *)
+
+(** *** Casts and round-trip identities (independent of measurability) *)
+
+Section ArithCast.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+Definition carrier_to_R (c : ar_carrier Ar R_obj) : R :=
+  eq_rect _ (fun T : Type => T) c _ R_carrier_eq.
+
+Lemma carrier_to_RK (c : ar_carrier Ar R_obj) :
+  R_to_carrier R_carrier_eq (carrier_to_R c) = c.
+Proof.
+rewrite /R_to_carrier /carrier_to_R /eq_rect_r.
+by move: c; case: _ / R_carrier_eq=> c.
+Qed.
+
+Lemma R_to_carrierK (r : R) :
+  carrier_to_R (R_to_carrier R_carrier_eq r) = r.
+Proof.
+rewrite /R_to_carrier /carrier_to_R /eq_rect_r.
+by move: r; case: _ / R_carrier_eq=> r.
+Qed.
+
+End ArithCast.
+
+Arguments carrier_to_R {R Ar R_obj} R_carrier_eq c.
+Arguments carrier_to_RK {R Ar R_obj} R_carrier_eq c.
+Arguments R_to_carrierK {R Ar R_obj} R_carrier_eq r.
+
+(** *** Arithmetic lifts proper *)
+
+Section Arith.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Lemma carrier_to_R_meas :
+  measurable_fun [set: ar_carrier Ar R_obj] (carrier_to_R R_carrier_eq).
+Proof. exact: R_carrier_meas. Qed.
+
+(** [add_fun] and [mul_fun]: the two binary operations transported
+    through [R_carrier_eq] and [ar_prod_uncast] / [ar_prod_carrier_eq]. *)
+
+Definition add_fun (p : ar_carrier Ar (ar_prod Ar R_obj R_obj)) :
+    ar_carrier Ar R_obj :=
+  R_to_carrier R_carrier_eq
+    (carrier_to_R R_carrier_eq (ar_prod_uncast p).1 +
+     carrier_to_R R_carrier_eq (ar_prod_uncast p).2).
+
+Definition mul_fun (p : ar_carrier Ar (ar_prod Ar R_obj R_obj)) :
+    ar_carrier Ar R_obj :=
+  R_to_carrier R_carrier_eq
+    (carrier_to_R R_carrier_eq (ar_prod_uncast p).1 *
+     carrier_to_R R_carrier_eq (ar_prod_uncast p).2).
+
+(** [add_fun] is measurable. *)
+Lemma add_fun_meas : measurable_fun [set: _] add_fun.
+Proof.
+rewrite /add_fun.
+apply: (measurableT_comp (f := R_to_carrier R_carrier_eq));
+  first exact: R_to_carrier_meas.
+have meas_unc : measurable_fun [set: _]
+    (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj))
+  by exact: (ar_prod_uncast_meas Ar R_obj R_obj).
+have meas_fst :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
+  exact: (measurableT_comp measurable_fst meas_unc).
+have meas_snd :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
+  exact: (measurableT_comp measurable_snd meas_unc).
+have meas_fst_R :
+  measurable_fun [set: _]
+    (fun p => carrier_to_R R_carrier_eq
+                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
+  exact: (measurableT_comp carrier_to_R_meas meas_fst).
+have meas_snd_R :
+  measurable_fun [set: _]
+    (fun p => carrier_to_R R_carrier_eq
+                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
+  exact: (measurableT_comp carrier_to_R_meas meas_snd).
+exact: measurable_funD.
+Qed.
+
+Lemma mul_fun_meas : measurable_fun [set: _] mul_fun.
+Proof.
+rewrite /mul_fun.
+apply: (measurableT_comp (f := R_to_carrier R_carrier_eq));
+  first exact: R_to_carrier_meas.
+have meas_unc : measurable_fun [set: _]
+    (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj))
+  by exact: (ar_prod_uncast_meas Ar R_obj R_obj).
+have meas_fst :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
+  exact: (measurableT_comp measurable_fst meas_unc).
+have meas_snd :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
+  exact: (measurableT_comp measurable_snd meas_unc).
+have meas_fst_R :
+  measurable_fun [set: _]
+    (fun p => carrier_to_R R_carrier_eq
+                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
+  exact: (measurableT_comp carrier_to_R_meas meas_fst).
+have meas_snd_R :
+  measurable_fun [set: _]
+    (fun p => carrier_to_R R_carrier_eq
+                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
+  exact: (measurableT_comp carrier_to_R_meas meas_snd).
+exact: measurable_funM.
+Qed.
+
+HB.instance Definition _ :=
+  isMeasurableFun.Build _ _ _ _ add_fun add_fun_meas.
+
+HB.instance Definition _ :=
+  isMeasurableFun.Build _ _ _ _ mul_fun mul_fun_meas.
+
+Definition add_meas : ar_hom Ar (ar_prod Ar R_obj R_obj) R_obj := add_fun.
+Definition mul_meas : ar_hom Ar (ar_prod Ar R_obj R_obj) R_obj := mul_fun.
+
+(** Computation: [add_meas (ar_prod_cast (a, b)) = R_to_carrier (cR a + cR b)]. *)
+Lemma add_meas_cast (a b : ar_carrier Ar R_obj) :
+  add_meas (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (a, b)) =
+  R_to_carrier R_carrier_eq
+    (carrier_to_R R_carrier_eq a + carrier_to_R R_carrier_eq b).
+Proof.
+by rewrite -[LHS]/(add_fun (ar_prod_cast (a, b))) /add_fun ar_prod_castK.
+Qed.
+
+Lemma mul_meas_cast (a b : ar_carrier Ar R_obj) :
+  mul_meas (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (a, b)) =
+  R_to_carrier R_carrier_eq
+    (carrier_to_R R_carrier_eq a * carrier_to_R R_carrier_eq b).
+Proof.
+by rewrite -[LHS]/(mul_fun (ar_prod_cast (a, b))) /mul_fun ar_prod_castK.
+Qed.
+
+(** The arithmetic lifts as [icones_hom]s. *)
+
+Definition add_lift :
+    icones_hom Ar
+      (tensor Ar (FMeas R_obj) (FMeas R_obj))
+      (FMeas R_obj) :=
+  icones_comp (FMeas_fmap add_meas) (fmeas_lax R_obj R_obj).
+
+Definition mul_lift :
+    icones_hom Ar
+      (tensor Ar (FMeas R_obj) (FMeas R_obj))
+      (FMeas R_obj) :=
+  icones_comp (FMeas_fmap mul_meas) (fmeas_lax R_obj R_obj).
+
+(** [add_lift_dirac]: the load-bearing Dirac identity for [+]. *)
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Lemma add_lift_dirac (a b : R) :
+  Lfun add_lift
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
+       (dirac_fmeas (R_to_carrier R_carrier_eq a))
+       (dirac_fmeas (R_to_carrier R_carrier_eq b))) =
+  dirac_fmeas (R_to_carrier R_carrier_eq (a + b)).
+Proof.
+rewrite /add_lift.
+rewrite -[LHS]/(Lfun (FMeas_fmap add_meas)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
+       (dirac_fmeas (R_to_carrier R_carrier_eq a))
+       (dirac_fmeas (R_to_carrier R_carrier_eq b))))).
+rewrite (fmeas_lax_dirac (R_to_carrier R_carrier_eq a) (R_to_carrier R_carrier_eq b)).
+rewrite (FMeas_fmap_dirac add_meas
+  (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)
+                (R_to_carrier R_carrier_eq a, R_to_carrier R_carrier_eq b))).
+by rewrite add_meas_cast !R_to_carrierK.
+Qed.
+
+Lemma mul_lift_dirac (a b : R) :
+  Lfun mul_lift
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
+       (dirac_fmeas (R_to_carrier R_carrier_eq a))
+       (dirac_fmeas (R_to_carrier R_carrier_eq b))) =
+  dirac_fmeas (R_to_carrier R_carrier_eq (a * b)).
+Proof.
+rewrite /mul_lift.
+rewrite -[LHS]/(Lfun (FMeas_fmap mul_meas)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
+       (dirac_fmeas (R_to_carrier R_carrier_eq a))
+       (dirac_fmeas (R_to_carrier R_carrier_eq b))))).
+rewrite (fmeas_lax_dirac (R_to_carrier R_carrier_eq a) (R_to_carrier R_carrier_eq b)).
+rewrite (FMeas_fmap_dirac mul_meas
+  (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)
+                (R_to_carrier R_carrier_eq a, R_to_carrier R_carrier_eq b))).
+by rewrite mul_meas_cast !R_to_carrierK.
+Qed.
+
+End Arith.
+
+Arguments add_fun {R Ar R_obj} R_carrier_eq p.
+Arguments mul_fun {R Ar R_obj} R_carrier_eq p.
+Arguments add_meas {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments mul_meas {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments add_lift {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments mul_lift {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments add_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
+Arguments mul_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
+
 (** ** The term interpretation [eD] *)
 Section TermInterp.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 Local Notation T := (@ppl_type R Ar).
 Local Notation EX G t :=
@@ -662,11 +885,25 @@ Fixpoint eD (G : ppl_ctx Ar) (t : T)
       @real_kleisli (ctxD G0) r
   | e_score G0 r Hr0 Hr1 =>
       @score_kleisli (ctxD G0) r Hr0 Hr1
+  | e_add G0 M0 N0 =>
+      coalg_comp
+        (bang_cofree_hom
+          (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
+        (coalg_comp
+          (bang_m (FMeas R_obj) (FMeas R_obj))
+          (em_pair (eD M0) (eD N0)))
+  | e_mul G0 M0 N0 =>
+      coalg_comp
+        (bang_cofree_hom
+          (@mul_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
+        (coalg_comp
+          (bang_m (FMeas R_obj) (FMeas R_obj))
+          (em_pair (eD M0) (eD N0)))
   end.
 
 End TermInterp.
 
-Arguments eD {R Ar R_obj R_carrier_eq G t} M.
+Arguments eD {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} M.
 Arguments score_value {R Ar} r Hr0 Hr1.
 Arguments score_kleisli {R Ar} G r Hr0 Hr1.
 Arguments real_kleisli {R Ar R_obj R_carrier_eq} G r.
@@ -678,11 +915,18 @@ Section Soundness.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 Local Notation EX' G t :=
     (coalg_hom (ctxD G) (Tobj (tyD t))).
 Local Notation tR' := (tR R_obj).
-Local Notation eD' := (@eD R Ar R_obj R_carrier_eq).
+Local Notation eD' :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas).
 
 (** *** Definitional unfoldings of [eD]
 
@@ -758,6 +1002,26 @@ Lemma eD_score (G : ppl_ctx Ar) (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
   score_kleisli (ctxD G) r Hr0 Hr1.
 Proof. by []. Qed.
 
+Lemma eD_add (G : ppl_ctx Ar) (M N : expr G tR') :
+  eD' (e_add M N) =
+  coalg_comp
+    (bang_cofree_hom
+      (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
+    (coalg_comp
+       (bang_m (FMeas R_obj) (FMeas R_obj))
+       (em_pair (eD' M) (eD' N))).
+Proof. by []. Qed.
+
+Lemma eD_mul (G : ppl_ctx Ar) (M N : expr G tR') :
+  eD' (e_mul M N) =
+  coalg_comp
+    (bang_cofree_hom
+      (@mul_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
+    (coalg_comp
+       (bang_m (FMeas R_obj) (FMeas R_obj))
+       (em_pair (eD' M) (eD' N))).
+Proof. by []. Qed.
+
 (** *** Monad laws (re-exported from [cbv.v])
 
     Stated here in the form [eD] needs them.  These are the [kcomp]
@@ -769,18 +1033,20 @@ Proof. by []. Qed.
 
 End Soundness.
 
-Arguments eD_var {R Ar R_obj R_carrier_eq G t} v.
-Arguments eD_tt {R Ar R_obj R_carrier_eq} G.
-Arguments eD_pair {R Ar R_obj R_carrier_eq G t1 t2} M N.
-Arguments eD_fst {R Ar R_obj R_carrier_eq G t1 t2} M.
-Arguments eD_snd {R Ar R_obj R_carrier_eq G t1 t2} M.
-Arguments eD_lam {R Ar R_obj R_carrier_eq G t1 t2} body.
-Arguments eD_app {R Ar R_obj R_carrier_eq G t1 t2} F X.
-Arguments eD_ret {R Ar R_obj R_carrier_eq G t} M.
-Arguments eD_bind {R Ar R_obj R_carrier_eq G t1 t2} M K.
-Arguments eD_sample {R Ar R_obj R_carrier_eq G X} mu Hmu.
-Arguments eD_real {R Ar R_obj R_carrier_eq G} r.
-Arguments eD_score {R Ar R_obj R_carrier_eq G r} Hr0 Hr1.
+Arguments eD_var {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} v.
+Arguments eD_tt {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} G.
+Arguments eD_pair {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M N.
+Arguments eD_fst {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M.
+Arguments eD_snd {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M.
+Arguments eD_lam {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} body.
+Arguments eD_app {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} F X.
+Arguments eD_ret {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} M.
+Arguments eD_bind {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M K.
+Arguments eD_sample {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G X} mu Hmu.
+Arguments eD_real {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} r.
+Arguments eD_score {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G r} Hr0 Hr1.
+Arguments eD_add {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} M N.
+Arguments eD_mul {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} M N.
 
 (** ** Headline example — [ex_random_constant]
 
@@ -813,6 +1079,12 @@ Section RandomConstant.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 Variable (mu : fmeas R (ar_carrier Ar R_obj)).
 Hypothesis Hmu : (cone_norm mu <= 1)%R.
@@ -838,15 +1110,17 @@ Definition ex_random_constant :
     [EM_term → Tobj (!̃(U tR ⊸ U tR))]. *)
 Definition ex_random_constant_denot :
     coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD (tfun tR' tR'))) :=
-  @eD R Ar R_obj R_carrier_eq nil (tprob (tfun tR' tR')) ex_random_constant.
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil (tprob (tfun tR' tR')) ex_random_constant.
 
 (** The structural reduction: [eD_ret] is the identity, [eD_bind] is
     [kbind_ext]; combining them, the denotation reads as
     [kbind_ext (eD ex_rc_lam) (eD (e_sample mu Hmu))]. *)
 Lemma ex_random_constant_denot_E :
   ex_random_constant_denot =
-  kbind_ext (@eD R Ar R_obj R_carrier_eq _ _ ex_rc_lam)
-            (sample_kleisli (ctxD nil) mu Hmu).
+  kbind_ext
+    (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _ ex_rc_lam)
+    (sample_kleisli (ctxD nil) mu Hmu).
 Proof.
 rewrite /ex_random_constant_denot /ex_random_constant.
 rewrite eD_bind eD_ret eD_sample.
@@ -858,5 +1132,100 @@ End RandomConstant.
 Arguments ex_rc_body {R Ar R_obj}.
 Arguments ex_rc_lam {R Ar R_obj}.
 Arguments ex_random_constant {R Ar R_obj} mu Hmu.
-Arguments ex_random_constant_denot {R Ar R_obj R_carrier_eq} mu Hmu.
-Arguments ex_random_constant_denot_E {R Ar R_obj R_carrier_eq} mu Hmu.
+Arguments ex_random_constant_denot
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
+Arguments ex_random_constant_denot_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
+
+(** ** Headline example — [ex_random_linear]
+
+    The QBS-style "random linear function" example: draw two random
+    coefficients [m, b ~ mu] and return the random function [λx. m·x + b]
+    of type [tprob (tfun tR tR)].  This exercises both [e_add]/[e_mul]
+    and shows that the [eD] semantics produces a Kleisli arrow whose
+    structural form reads as
+    [[
+       kbind_ext m_kont (sample_kleisli mu)
+    ]]
+    where [m_kont] is the extended-context continuation, itself a nested
+    [kbind_ext] in the inner [b] draw.  There is NO closed-form
+    posterior — the headline is just the term, its type, the [Inductive]
+    coverage of [e_add]/[e_mul], and the structural reduction. *)
+
+Section RandomLinear.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The lambda body in context [tR :: tR :: tR :: nil]:
+    - [hv_zero] = [x] (lambda parameter, most-recently bound, head);
+    - [hv_succ hv_zero] = [b] (the inner [e_bind]);
+    - [hv_succ (hv_succ hv_zero)] = [m] (the outer [e_bind]).
+    Term: [m * x + b]. *)
+Definition ex_rl_body :
+    @expr R Ar R_obj (tR' :: tR' :: tR' :: nil) tR' :=
+  e_add (e_mul (e_var (hv_succ (hv_succ hv_zero))) (e_var hv_zero))
+        (e_var (hv_succ hv_zero)).
+
+(** The lambda closure: in context [tR :: tR :: nil], returns the
+    function [λx. m*x + b]. *)
+Definition ex_rl_lam :
+    @expr R Ar R_obj (tR' :: tR' :: nil) (tfun tR' tR') :=
+  e_lam ex_rl_body.
+
+(** The PPL term:
+    [do m <- sample mu; do b <- sample mu; return (λx. m*x + b)]. *)
+Definition ex_random_linear :
+    @expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+  e_bind (e_sample mu Hmu)
+    (e_bind (e_sample mu Hmu)
+       (e_ret ex_rl_lam)).
+
+(** Its denotation — a Kleisli arrow [⟦[]⟧ ⇝ ⟦tfun tR tR⟧]. *)
+Definition ex_random_linear_denot :
+    coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD (tfun tR' tR'))) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil (tprob (tfun tR' tR')) ex_random_linear.
+
+(** Structural reduction — exposes the nested-[kbind_ext] form.
+
+    [ex_random_linear_denot
+       = kbind_ext (kbind_ext (eD ex_rl_lam) (sample_kleisli mu))
+                   (sample_kleisli mu)].
+    The outer [kbind_ext] is the [m]-draw; its continuation is the
+    [b]-draw's [kbind_ext] continued by [eD ex_rl_lam], the lambda
+    closure denotation. *)
+Lemma ex_random_linear_denot_E :
+  ex_random_linear_denot =
+  kbind_ext
+    (kbind_ext
+       (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _
+            ex_rl_lam)
+       (sample_kleisli (ctxD (tR' :: nil)) mu Hmu))
+    (sample_kleisli (ctxD nil) mu Hmu).
+Proof.
+rewrite /ex_random_linear_denot /ex_random_linear.
+rewrite eD_bind eD_bind eD_ret !eD_sample.
+by [].
+Qed.
+
+End RandomLinear.
+
+Arguments ex_rl_body {R Ar R_obj}.
+Arguments ex_rl_lam {R Ar R_obj}.
+Arguments ex_random_linear {R Ar R_obj} mu Hmu.
+Arguments ex_random_linear_denot
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
+Arguments ex_random_linear_denot_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
