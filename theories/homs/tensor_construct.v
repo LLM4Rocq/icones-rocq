@@ -687,7 +687,7 @@ Arguments tensor_curry_natural_D {R Ar B C D D'}.
     Write [1 = cone_one_car Ar].  Form the coseparator power of [D],
     [q D := 1^{ICones(D,1)}], with its canonical mono
     [GammaD : D ↪ q D] ([GammaD d . n = n d], a mono since [1]
-    cogenerates — Phase A.3 [icones_coseparator_inj]).  Reindex the
+    cogenerates — [icones_coseparator_inj]).  Reindex the
     power [p = 1^J] of [B ⊗ C] to [q D] along
     [θ : ICones(D,1) → J, n ↦ (C ⊸ n) ∘ g], giving [P : p → q D] with
     [P x . n = x . (θ n)].  The square

@@ -896,13 +896,13 @@ Arguments lfun_path_swap {R Ar X B C D} f.
 Arguments lfun_path_swapE {R Ar X B C D} f y r x.
 
 
-(** ** Prereq for P3/P5 — the unit iso [1 ⊸ C ≅ C] ([linhom_one_iso])
+(** ** The unit iso [1 ⊸ C ≅ C] ([linhom_one_iso])
 
     Paper §5.5 (Eq 5.3 ingredient): the canonical iso of integrable
     cones [1 ⊸ C ≅ C], with forward "evaluate at the unit [1 ∈ R≥0]"
     and inverse the "linear point" [c ↦ (s ↦ (c1_val s) ·: c)].  Both
-    directions are genuine [icones_hom]s.  Needed for P3 (the
-    [1 ↔ 1⊸1] bridge in [path_tens_to_one]) and later for the unitors
+    directions are genuine [icones_hom]s.  Used below for the
+    [1 ↔ 1⊸1] bridge in [path_tens_to_one] and for the unitors
     [λ]/[ρ]. *)
 
 (** *** The "linear point" inner map [lin_pt c : 1 ⊸ C]
@@ -2169,20 +2169,21 @@ Arguments path_tens_to_one {R Ar B C X} η ηbound ηpt.
 
 (** ** [path_tens_to_X] — Paper [lemma:path-tens-to-one] at GENERAL codomain
 
-    The P4 generalisation of [path_tens_to_one] from the scalar codomain
+    The generalisation of [path_tens_to_one] from the scalar codomain
     [1] to an arbitrary integrable cone [D].  A function
     [η : X → (B⊗C)⊸D] that is BOUNDED and measurable ON PURE TENSORS
     (against every [D]-test) is a genuine measurable path of [(B⊗C)⊸D].
 
-    The construction is the P3 one VERBATIM with [D] in place of the inner
-    scalar [1]: [lin_pt (C:=D)] / [lo_lift (C:=D)] (already general-[C]);
-    the inner codomain becomes [Path(X, 1⊸D)]; [lfun_path_swap] runs with
-    [C':=1], [D':=D]; [lin_pt_unit] recovers values.  The ONLY change is in
-    the three test-driven fields ([pt_inner_path], the [eta]-slot
-    path/integral preservation), where the singleton [1]-test [id_test]
-    (value [c1_val]) is replaced by a GENERAL [D]-test [mD] (value
-    [test_fun mD s ·]); the pure-tensor hypothesis [ηpt] is correspondingly
-    stated against an arbitrary [D]-test. *)
+    The construction is the scalar-codomain one VERBATIM with [D] in place
+    of the inner scalar [1]: [lin_pt (C:=D)] / [lo_lift (C:=D)] (already
+    general-[C]); the inner codomain becomes [Path(X, 1⊸D)];
+    [lfun_path_swap] runs with [C':=1], [D':=D]; [lin_pt_unit] recovers
+    values.  The ONLY change is in the three test-driven fields
+    ([pt_inner_path], the [eta]-slot path/integral preservation), where
+    the singleton [1]-test [id_test] (value [c1_val]) is replaced by a
+    GENERAL [D]-test [mD] (value [test_fun mD s ·]); the pure-tensor
+    hypothesis [ηpt] is correspondingly stated against an arbitrary
+    [D]-test. *)
 
 Section PathTensToX.
 Variables (R : realType) (Ar : MeasSubcat R).

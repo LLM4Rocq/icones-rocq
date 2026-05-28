@@ -1143,7 +1143,7 @@ End RoundTripIK.
 
 Arguments I_K_int_to_linhom_E {R Ar X B} f.
 
-(** ** Sanity checks — paper Thm 6.1 wave 2 deliverables *)
+(** ** Sanity checks — paper Thm 6.1 deliverables *)
 
 Section BilinSanityCheck.
 Variables (R : realType) (Ar : MeasSubcat R).
