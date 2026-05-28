@@ -101,9 +101,9 @@ $\mathtt{tensor\_curry}$ of the body with $\mathrm{der}$ inserted, then
 $\Psi$ (the adjunction transpose) to land in $\mathrm{EM}(\mathord{!})$;
 application is a CBPV-style \emph{computation} $T B$ via
 $\Phi^{-1}$. This is \texttt{theories/homs/ppl.v}, also axiom-free
-(\autoref{sec:cbv-ppl}). The QBS showcase
-\rocq{Icones.homs.ppl.ex_random_constant} --- a distribution over a
-function space, \texttt{P}$(\mathbb{R}\to\mathbb{R})$ --- interprets
+(\autoref{sec:cbv-ppl}). The QBS-paper showcase
+\texttt{ex\_random\_constant} --- a distribution over a
+function space, $\mathtt{P}(\mathbb{R}\to\mathbb{R})$ --- interprets
 soundly in the LNL setting.
 
 \paragraph{The one honest remainder.}
@@ -646,14 +646,13 @@ the Girard decomposition rather than a value-CCC. All of this lives in
 \texttt{theories/homs/ppl.v} and is axiom-free.
 
 \paragraph{The calculus.}
-The syntax is the previous one extended with arrows. Types are
-\rocq{Icones.homs.ppl.ty'} ($\mathtt{tunit'}$, $\mathtt{tbase'}\,X$,
-$\mathtt{tprod'}$, and $\mathtt{tfun}\,A\,B$), values
-\rocq{Icones.homs.ppl.vl'} are the previous ones plus
-$\mathtt{v\_lam}$, and computations \rocq{Icones.homs.ppl.cp'} are
-the previous ones plus a Moggi / CBPV-style \emph{value-to-computation}
-application $\mathtt{c\_app}\,V\,W : T\,B$ (the result lives in
-$T\,B$, not $B$).
+The syntax is the previous one extended with arrows. Types
+\texttt{ty}$'$ are $\mathtt{tunit'}$, $\mathtt{tbase'}\,X$,
+$\mathtt{tprod'}$, and $\mathtt{tfun}\,A\,B$. Values
+\texttt{vl}$'$ are the previous ones plus $\mathtt{v\_lam}$, and
+computations \texttt{cp}$'$ are the previous ones plus a Moggi /
+CBPV-style \emph{value-to-computation} application
+$\mathtt{c\_app}\,V\,W : T\,B$ (the result lives in $T\,B$, not $B$).
 
 \paragraph{The interpretation.}
 Function types denote a \emph{cofree coalgebra of a linear hom}:
@@ -670,15 +669,15 @@ $\mathtt{tfun}$-cofree coalgebra; $\mathtt{c\_app}$ denotes the
 Kleisli-style $\Phi^{-1}$ on the linear evaluation map.
 
 \paragraph{Soundness.}
-The LNL $\beta$-rule
-\rocq{Icones.homs.ppl.adj_phi_cpD'_app_lam} records
-$\sem{\mathtt{c\_app}\,(\mathtt{v\_lam}\,V)\,W}$ at the underlying
-$\ICones$-level. Companion lemmas
-\rocq{Icones.homs.ppl.vlD'_lamE}\,/\,
-\rocq{Icones.homs.ppl.adj_phi_lam_coalg} and
-\rocq{Icones.homs.ppl.cpD'_appE}\,/\,
-\rocq{Icones.homs.ppl.adj_phi_app_kleisli} factor the value side
-through $\Phi$\,/\,$\Psi$.
+The LNL $\beta$-rule \texttt{adj\_phi\_cpD}$'$\texttt{\_app\_lam}
+records $\sem{\mathtt{c\_app}\,(\mathtt{v\_lam}\,V)\,W}$ at the
+underlying $\ICones$-level. Companion lemmas
+\texttt{vlD}$'$\texttt{\_lamE} / \texttt{adj\_phi\_lam\_coalg} and
+\texttt{cpD}$'$\texttt{\_appE} / \texttt{adj\_phi\_app\_kleisli}
+factor the value side through $\Phi$ / $\Psi$. The PPL-monad
+identity $\sem{\mathtt{c\_sample}\,V} = \sem{\mathtt{c\_ret}\,V}$ on
+base types (\texttt{cpD}$'$\texttt{\_sample\_ret}) survives the
+extension to higher order.
 
 \paragraph{The QBS showcase.}
 The QBS paper's flagship higher-order example
@@ -690,14 +689,33 @@ The QBS paper's flagship higher-order example
   \;\;:\;\;
   \mathtt{P}\,(X \to X),
 \]
-a distribution over a function space
-(\rocq{Icones.homs.ppl.ex_random_constant}), is interpreted axiom-free
-in the LNL setting --- its denotation
-\rocq{Icones.homs.ppl.ex_random_constant_denot} reduces to the
-constant-lambda value
-(\rocq{Icones.homs.ppl.ex_random_constant_denot_E}). Classical
-measure-theoretic semantics famously cannot accommodate such an object;
-the LNL bypass on top of the integrable-cones model can.
+a distribution over a function space, is interpreted axiom-free in the
+LNL setting --- its denotation reduces to the constant-lambda value.
+Classical measure-theoretic semantics famously cannot accommodate such
+an object; the LNL bypass on top of the integrable-cones model can.
+
+\begin{lemma}[Higher-order PPL showcase, axiom-free]%
+\label{lem:ppl-random-constant}
+\rocq{Icones.homs.ppl.ex_random_constant_denot_E}\rocqok
+\rocq{Icones.homs.ppl.ex_random_constant_value_E}\rocqok
+\uses{thm:cbv-model}
+The denotation of $\mathtt{ex\_random\_constant}$ rewrites to the
+denotation of the constant-lambda value
+$\mathtt{return}\,(\mathtt{v\_lam}\,(\mathtt{v\_fst}\,(\mathtt{v\_var})))$,
+via the PPL-monad identities
+$\mathtt{c\_sample} = \mathtt{c\_ret}$ on base types and the
+$\mathtt{let}$-of-$\mathtt{return}$ left-unit law.
+\end{lemma}
+
+\begin{proof}
+The companion facts \texttt{adj\_phi\_lam\_coalg} and
+\texttt{adj\_phi\_app\_kleisli} factor lambda and application through
+the adjunction transpose $\Phi$; the on-base-type identity
+$\mathtt{c\_sample} = \mathtt{c\_ret}$ is a direct consequence of the
+$\widetilde{!}\circ U$-induced monad's left unit, since the base
+coalgebra is the cofree $\widetilde{!}(\FMeas\,X)$ and $\mathtt{sample}$
+is interpreted as $\eta = \mathrm{adj\_unit}$ there.
+\end{proof}
 
 \paragraph{What is not yet covered.}
 \emph{Value-level} application $v_{\mathrm{app}}$ (returning $B$, not
@@ -730,7 +748,7 @@ the first-order CBV calculus and its sound interpretation
 (\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}); and a
 higher-order companion via the LNL / CBPV bypass, including the QBS
 flagship showcase $\mathtt{ex\_random\_constant}$
-(\autoref{sec:cbv-ppl}, \rocq{Icones.homs.ppl.ex_random_constant_denot_E}).
+(\autoref{sec:cbv-ppl}, \autoref{lem:ppl-random-constant}).
 
 \paragraph{Open --- the one honest remainder.}
 A genuine value-CCC on $\mathrm{EM}(\mathord{!})$ is \emph{not yet
