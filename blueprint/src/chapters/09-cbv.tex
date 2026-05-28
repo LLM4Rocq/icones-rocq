@@ -18,24 +18,36 @@
 %                                      LC2 (comonoid laws), LC3 (coalgebra-
 %                                      morphism), LC4 (dig a comonoid morphism);
 %                                      tens_cofree / unit_cofree
-%   theories/homs/em_cartesian.v       EM(!) is cartesian with product carried
-%                                      by the LINEAR ⊗ (not &), on the rich
-%                                      subcategory EMComon (ICones_EM_cartesian,
-%                                      EM_prod/EM_term, m_bang, EMComon_cofree/
-%                                      EMComon_FMeas)
+%   theories/homs/em_cartesian.v       the FULL EM(!) is cartesian with product
+%                                      carried by the LINEAR ⊗ (not &);
+%                                      EMComon_all unconditional via the
+%                                      Melliès Prop 26-28 / Cor 17/20
+%                                      retraction-and-lifting argument
+%                                      (diagram81, coalg_mor_lift,
+%                                      coalg_d_is_mor_gen);
+%                                      ICones_EM_cartesian, EM_prod/EM_term,
+%                                      m_bang
 %   theories/homs/cbv_adjunction.v     the (lax symmetric) monoidal adjunction
-%                                      U ⊣ !̃ (Melliès Prop 29), the CBV_Model
-%                                      record + the witness ICones_CBV
+%                                      U ⊣ !̃ between ICones (linear) and the
+%                                      FULL category EM(!) of !-coalgebras
+%                                      (Melliès Prop 29) — a genuine LNL
+%                                      adjunction; the CBV_Model record + the
+%                                      witness ICones_CBV
+%   theories/homs/cbv.v                a small first-order CBV calculus
+%                                      (unit, base, products, let, sample)
+%                                      interpreted into the model via the
+%                                      T = !̃∘U monad (Tobj/tunit_eta/kcomp);
+%                                      soundness: monad/let laws, product β,
+%                                      and sample = the integral
+%                                      (cpD_sample_var_dirac)
 %
-% Status note: the CBV MODEL STRUCTURE is built and AXIOM-FREE (only the
-% three classical boolp axioms): ICones_CBV, ICones_EM_cartesian,
-% EMComon_cofree, EMComon_FMeas are all axiom-clean.  Three honest caveats,
-% stated plainly below: (a) the cartesian structure is on the RICH
-% SUBCATEGORY of comonoidal coalgebras (containing !̃B and FMeas(X)), NOT
-% the full EM(!) — the general Prop-28/Cor-20 step is deliberately deferred
-% (Melliès himself flags it as "not so immediate"); (b) EMComon is NOT
-% proved closed under the product; (c) interpreting an actual CBV/CBPV
-% calculus is NOT yet done.
+% Status note: the CBV model is built and AXIOM-FREE (only the three
+% classical boolp axioms): ICones_CBV, ICones_EM_cartesian, EMComon_all,
+% cpD_sample_var_dirac are all axiom-clean.  ONE honest deferral, stated
+% plainly below: the value category is cartesian but not yet known to be
+% CLOSED (the !A ⊸ B Girard decomposition is available linearly but no
+% value-CCC has been proved), so cbv.v interprets the FIRST-ORDER fragment
+% only; higher-order CBV / adequacy is out of scope here.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Beyond the paper: a call-by-value model (Melli\`es \S7.4)}%
@@ -58,37 +70,40 @@ is a \emph{beyond-the-paper} construction on top of the axiom-free Seely
 category of \autoref{thm:seely}.
 
 \paragraph{What is, and is not, done.}
-The CBV \emph{model structure} is built and \textbf{axiom-free} (only the
-three classical \texttt{boolp} axioms): the cartesian Eilenberg--Moore
-category and the (lax symmetric) monoidal adjunction
-\rocq{Icones.homs.cbv_adjunction.ICones_CBV}. Three caveats are stated
-plainly and respected throughout.
-\begin{enumerate}
-  \item The cartesian structure is built on the \emph{rich subcategory}
-    of \emph{comonoidal} coalgebras --- the objects \rocq{Icones.homs.em_cartesian.EMComon}
-    --- which contains the cofree coalgebras $\widetilde{\mathord{!}}B$
-    and the Theorem-9.7 coalgebras $\FMeas(X)$, but it is \textbf{not} the
-    full $\mathrm{EM}(\mathord{!})$. The general Proposition-28 /
-    Corollary-20 step (``the transported diagonal is a coalgebra
-    morphism on \emph{every} coalgebra'') is deliberately deferred:
-    Melli\`es himself flags it as ``not so immediate'', and our concrete
-    model confirms it --- the transported comonoid maps only \emph{compute}
-    on promoted points, so on an arbitrary carrier nothing reduces.
-  \item The predicate \rocq{Icones.homs.em_cartesian.EMComon} is
-    \textbf{not} proved closed under the product $\otimes$; we neither
-    assume nor assert that closure.
-  \item The \textbf{interpretation of an actual CBV / CBPV calculus} (a
-    \texttt{cbv.v}) is \textbf{not yet done} --- it is the remaining step.
-\end{enumerate}
+The CBV model is built and \textbf{axiom-free} (only the three classical
+\texttt{boolp} axioms): the \emph{full} cartesian Eilenberg--Moore
+category, the (lax symmetric) monoidal adjunction
+\rocq{Icones.homs.cbv_adjunction.ICones_CBV}, and a small first-order
+CBV calculus interpreted into it. The cartesianness of
+$\mathrm{EM}(\mathord{!})$ is now \emph{unconditional} --- the
+predicate \rocq{Icones.homs.em_cartesian.EMComon} holds on every
+$\mathord{!}$-coalgebra (\rocq{Icones.homs.em_cartesian.EMComon_all}),
+following Melli\`es' Proposition 26--28 / Corollary 17/20 by the
+structural retraction-and-lifting argument (\emph{not} the naïve
+promoted-point reduction, which only computes on $x!$ and stalls on a
+general carrier); $U \dashv \widetilde{\mathord{!}}$ is therefore a
+\emph{linear / non-linear} adjunction with \emph{the} category of
+$\mathord{!}$-coalgebras as the cartesian non-linear / value side.
+
+\paragraph{The one honest deferral.}
+The value category is cartesian but \emph{not yet known to be closed}.
+The linear $\multimap$ is the SMC-closure of $\ICones$ and the Girard
+decomposition $A \to B = \mathord{!}A \multimap B$ is available
+linearly, but a value-CCC on $\mathrm{EM}(\mathord{!})$ has not been
+proved; accordingly \texttt{cbv.v} interprets the \emph{first-order}
+fragment only (unit, base, products, $\mathtt{let}$, $\mathtt{sample}$).
+Adequacy / normalization / full-abstraction is out of scope here.
 
 \paragraph{Where the material lives.}
 \texttt{theories/homs/em\_cat.v} (the EM category, the cofree functor and
 the cofree/forgetful adjunction), \texttt{theories/homs/em\_seely\_comonoid.v}
 (the Seely comonoid on $\mathord{!}A$ and Melli\`es' conditions
-LC2--LC4), \texttt{theories/homs/em\_cartesian.v} (the cartesian
-$\mathrm{EM}(\mathord{!})$ on the rich subcategory, carried by the linear
-$\otimes$), and \texttt{theories/homs/cbv\_adjunction.v} (the monoidal
-adjunction and the \texttt{CBV\_Model} bundle).
+LC2--LC4), \texttt{theories/homs/em\_cartesian.v} (the \emph{full}
+cartesian $\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$,
+with the unconditional \rocq{Icones.homs.em_cartesian.EMComon_all}),
+\texttt{theories/homs/cbv\_adjunction.v} (the LNL monoidal adjunction
+and the \texttt{CBV\_Model} bundle), and \texttt{theories/homs/cbv.v}
+(the first-order CBV calculus and its interpretation).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The Eilenberg--Moore category and the cofree adjunction}%
@@ -251,13 +266,16 @@ next section.
 \section{The cartesian $\mathrm{EM}(\mathord{!})$ via the linear
 $\otimes$}\label{sec:cbv-cartesian}
 
-This is the genuinely non-formal step (Melli\`es' Proposition 28). We
-equip $\mathrm{EM}(\mathord{!})$ with a cartesian structure whose binary
+This section equips the \emph{full} Eilenberg--Moore category
+$\mathrm{EM}(\mathord{!})$ with a cartesian structure whose binary
 product is carried by the \emph{linear} tensor $\otimes$ (\textbf{not} the
 cartesian $\mathbin{\&}$) and whose terminal object is the tensor unit
 $1$. This is the hallmark of the EM/CBV reading: in the co-Kleisli (CBN)
 category the product is $\mathbin{\&}$, while in the Eilenberg--Moore
-(CBV) category the product is $\otimes$.
+(CBV) category the product is $\otimes$. The non-trivial point is that
+this works on \emph{every} $\mathord{!}$-coalgebra, not only on a rich
+sub-class --- Melli\`es' Proposition 26--28 and Corollary 17/20 ---
+proved here by his structural retraction-and-lifting argument.
 
 \begin{definition}[The lax-monoidal map, the product and terminal
 coalgebras]\label{def:cbv-prod}
@@ -281,7 +299,7 @@ on \emph{every} coalgebra are
 but their laws are per-object (next).
 \end{definition}
 
-\begin{definition}[The rich subcategory of comonoidal coalgebras]%
+\begin{definition}[The comonoidality predicate $\mathtt{EMComon}$]%
 \label{def:cbv-comon}
 \rocq{Icones.homs.em_cartesian.EMComon}\rocqok
 \uses{def:cbv-prod}
@@ -289,44 +307,93 @@ A coalgebra $P$ is \emph{comonoidal} ---
 \rocq{Icones.homs.em_cartesian.EMComon} holds of it --- when the
 transported maps \rocq{Icones.homs.em_cartesian.coalg_d} /
 \rocq{Icones.homs.em_cartesian.coalg_e} make its carrier a commutative
-comonoid \emph{and} are coalgebra morphisms (Melli\`es' Proposition 26 /
-27 and Corollary 20). On a \emph{general} carrier neither reduces ---
-\rocq{Icones.homs.em_cartesian.coalg_d} is built from $d_A$ / $e_A$,
-which only \emph{compute} on promoted points, and an arbitrary $a\,x$ is
-not promoted. We therefore work on the rich subcategory of comonoidal
-objects, which is sufficient for CBV and contains the required
-generators.
+comonoid \emph{and} are coalgebra morphisms (Melli\`es' Propositions 26 /
+27 and Corollary 20). This is the per-object property the cartesian
+construction needs --- and it turns out to hold on every coalgebra
+(\autoref{lem:cbv-emcomon-all}).
 \end{definition}
 
-\begin{lemma}[Richness: the generators are comonoidal]\label{lem:cbv-rich}
-\rocq{Icones.homs.em_cartesian.EMComon_cofree}\rocqok
-\rocq{Icones.homs.em_cartesian.EMComon_FMeas}\rocqok
-\uses{def:cbv-comon, lem:cbv-lc2}
-Every cofree coalgebra $\widetilde{\mathord{!}}B$ is comonoidal
-(\rocq{Icones.homs.em_cartesian.EMComon_cofree}: on $\widetilde{\mathord{!}}B$
-the structure map $\mathrm{dig}_B$ sends $x!$ to $(x!)!$, so
-$\texttt{bang\_ext}$ applies and the LC2--LC4 lemmas of
-\autoref{lem:cbv-lc2}/\autoref{lem:cbv-lc34} discharge the laws), and
-every Theorem-9.7 coalgebra $\FMeas(X)$ is comonoidal
-(\rocq{Icones.homs.em_cartesian.EMComon_FMeas}: there $\mathrm{Coalg}_X$
-sends the spanning Diracs $\delta_X r$ to $(\delta_X r)!$, so
-$\texttt{dirac\_dense}$ applies).
-\end{lemma}
+\begin{theorem}[$\mathtt{EMComon}$ is unconditional --- Melli\`es
+Proposition 26--28]\label{lem:cbv-emcomon-all}
+\rocq{Icones.homs.em_cartesian.EMComon_all}\rocqok
+\uses{def:cbv-comon, lem:cbv-lc2, lem:cbv-lc34}
+For \emph{every} $\mathord{!}$-coalgebra $P = (A, a)$, the transported
+maps \rocq{Icones.homs.em_cartesian.coalg_d} /
+\rocq{Icones.homs.em_cartesian.coalg_e} satisfy all the comonoid /
+coalgebra-morphism laws --- i.e.\ \rocq{Icones.homs.em_cartesian.EMComon_all}.
+The cofree coalgebras $\widetilde{\mathord{!}}B$
+(\rocq{Icones.homs.em_cartesian.EMComon_cofree}) and the Theorem-9.7
+coalgebras $\FMeas(X)$
+(\rocq{Icones.homs.em_cartesian.EMComon_FMeas}) are corollaries.
+\end{theorem}
 
-\begin{theorem}[$\mathrm{EM}(\mathord{!})$ is cartesian on the rich
-subcategory]\label{thm:cbv-cartesian}
+\begin{proof}
+The naïve approach --- reduce everything to \emph{promoted points} via
+\rocq{Icones.homs.em_seely_comonoid.d_bang_prom} --- cannot work for a
+general $P = (A, a)$, because an image $a\,x$ is not promoted: the
+defining computation of $d_A$ on $x!$ does not apply, and the laws fail
+to reduce. We follow Melli\`es' \emph{structural} proof instead, a
+retraction-and-lifting argument that never computes on points.
+
+The first ingredient is that every coalgebra $P = (A, a)$ is a
+\emph{retract} of its cofree coalgebra $\widetilde{\mathord{!}}\,UA$
+inside $\mathrm{EM}(\mathord{!})$ (Melli\`es' Proposition 26): the
+structure map $a : P \to \widetilde{\mathord{!}}\,UA$ is a coalgebra
+morphism by the coassociativity of $P$, and the counit
+$\varepsilon = \mathrm{der}_A$ retracts it
+($\mathrm{der}_A \circ a = \mathrm{id}_A$ is the coalgebra counit law).
+\rocq{Icones.homs.em_cartesian.diagram81} records the matching square
+$(a \otimes a) \circ \mathrm{coalg\_d}\,P = d_{\mathord{!}A} \circ a$
+on the nose --- not by point computation but by instantiating the
+\emph{generally} valid \rocq{Icones.homs.em_cartesian.coalg_mor_d} at
+the coalgebra morphism $a$, then folding through
+\rocq{Icones.homs.em_cartesian.coalg_d_cofree}.
+
+The second ingredient is that retracts of commutative comonoids are
+commutative comonoids (Proposition 27). The four laws --- counit, left
+counit, cocommutativity, coassociativity --- are transported along the
+retraction by generic SMC cancellation
+(\texttt{lcancel\_mono}) combined with the naturality of the associator,
+braiding, and unitors against Diagram (85)
+(\rocq{Icones.homs.em_cartesian.diagram81} above) and the cofree
+comonoid laws on $\widetilde{\mathord{!}}\,UA$
+(\autoref{lem:cbv-lc2}).
+
+The hard step is showing the transported diagonal $\mathrm{coalg\_d}\,P$
+is itself a coalgebra morphism into the product coalgebra $P \otimes P$
+--- Melli\`es' Corollary 20, the one he flags as ``not so immediate''.
+We package it as a generic \emph{lifting lemma}
+\rocq{Icones.homs.em_cartesian.coalg_mor_lift} (Melli\`es' \S6.11
+Proposition 20): if $i : X \to Y$ is a coalgebra morphism with a
+retraction $r$ on the underlying carrier, and a candidate $f$ satisfies
+$i \circ f$ is a coalgebra morphism, then $f$ is a coalgebra morphism.
+Instantiated at $i = a \otimes a$ (a coalgebra morphism with retraction
+$\mathrm{der} \otimes \mathrm{der}$) and $f = \mathrm{coalg\_d}\,P$, the
+hypothesis $i \circ f = d_{\mathord{!}A} \circ a$ is exactly
+\rocq{Icones.homs.em_cartesian.diagram81}, and a composite of two
+coalgebra morphisms ($d_{\mathord{!}A}$ on the cofree side from
+\autoref{lem:cbv-lc34}, and $a$); hence
+$\mathrm{coalg\_d}\,P : P \to P \otimes P$ is a coalgebra morphism
+(\rocq{Icones.homs.em_cartesian.coalg_d_is_mor_gen}). The easy half for
+the counit is a composite of coalgebra morphisms
+(\rocq{Icones.homs.em_cartesian.coalg_e_is_mor_gen}). Bundling the
+four comonoid laws and the two coalgebra-morphism facts gives
+\rocq{Icones.homs.em_cartesian.EMComon_all}.
+\end{proof}
+
+\begin{theorem}[$\mathrm{EM}(\mathord{!})$ is cartesian]%
+\label{thm:cbv-cartesian}
 \rocq{Icones.homs.em_cartesian.ICones_EM_cartesian}\rocqok
-\uses{def:cbv-prod, lem:cbv-rich, def:cbv-em-cat}
-On the rich subcategory of comonoidal coalgebras
-(\autoref{def:cbv-comon}), the linear tensor $\otimes$ is the categorical
-product of $\mathrm{EM}(\mathord{!})$ and the tensor unit $1$ is terminal.
-The data --- projections \rocq{Icones.homs.em_cartesian.em_proj1_mor} /
+\uses{def:cbv-prod, lem:cbv-emcomon-all, def:cbv-em-cat}
+The linear tensor $\otimes$ is the categorical product of the full
+$\mathrm{EM}(\mathord{!})$ and the tensor unit $1$ is terminal. The
+data --- projections \rocq{Icones.homs.em_cartesian.em_proj1_mor} /
 \rocq{Icones.homs.em_cartesian.em_proj2_mor}, pairing
-\rocq{Icones.homs.em_cartesian.em_pair} of two coalgebra morphisms out of
-a comonoidal object, the $\beta$-laws
-\rocq{Icones.homs.em_cartesian.em_proj1_pair} /
-\rocq{Icones.homs.em_cartesian.em_proj2_pair}, and the terminal universal
-property \rocq{Icones.homs.em_cartesian.em_term_mor} /
+\rocq{Icones.homs.em_cartesian.em_pair} (no $\mathtt{EMComon}$
+hypothesis needed, by \autoref{lem:cbv-emcomon-all}), the
+$\beta$-laws \rocq{Icones.homs.em_cartesian.em_proj1_pair} /
+\rocq{Icones.homs.em_cartesian.em_proj2_pair}, and the terminal
+universal property \rocq{Icones.homs.em_cartesian.em_term_mor} /
 \rocq{Icones.homs.em_cartesian.em_term_unique} --- is bundled in the
 record \rocq{Icones.homs.em_cartesian.EM_Cartesian} with witness
 \rocq{Icones.homs.em_cartesian.ICones_EM_cartesian} (axiom-free), whose
@@ -335,28 +402,13 @@ $\mathbin{\&}$.
 \end{theorem}
 
 \begin{proof}
-The product of two comonoidal $P$, $Q$ is the product coalgebra
-\rocq{Icones.homs.em_cartesian.EM_prod} of
-\autoref{def:cbv-prod}; the projections, diagonal and pairing are built
-from the comonoid data of $P$, $Q$ (Melli\`es' Corollary 17), so any two
-objects of the rich subcategory have their $\otimes$-product as a genuine
-categorical product. The $\beta$-laws and terminal uniqueness follow from
-the comonoid laws of \autoref{lem:cbv-lc2}; richness
-(\autoref{lem:cbv-rich}) places the cofree and $\FMeas$ generators in the
-subcategory.
+Each coalgebra $P$ is comonoidal by \autoref{lem:cbv-emcomon-all}, so
+Melli\`es' Corollary 17 applies: the projections, diagonal and pairing
+out of $P$ are built from the comonoid data of $P$, $Q$. The
+$\beta$-laws and terminal uniqueness follow from the comonoid laws of
+\autoref{lem:cbv-lc2} as transported by
+\autoref{lem:cbv-emcomon-all}.
 \end{proof}
-
-\begin{remark}[The honest caveats]\label{rem:cbv-caveats}
-Two scopes are kept distinct, and stated plainly in the sources.
-First, \autoref{thm:cbv-cartesian} is on the \emph{rich subcategory},
-\textbf{not} the full $\mathrm{EM}(\mathord{!})$: the general
-Proposition-28 / Corollary-20 step is deferred, which Melli\`es himself
-flags as ``not so immediate'', and the concrete model confirms (the
-transported comonoid maps compute only on promoted points). Second, the
-predicate \rocq{Icones.homs.em_cartesian.EMComon} is \textbf{not} proved
-closed under the product $\otimes$ --- no such closure is assumed or
-asserted anywhere.
-\end{remark}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The monoidal adjunction and the CBV model}\label{sec:cbv-model}
@@ -405,13 +457,15 @@ LNL data on $\ICones$, mirroring the
     \autoref{thm:thm515});
   \item the Eilenberg--Moore category $\mathrm{EM}(\mathord{!})$
     (\rocq{Icones.homs.em_cat.ICones_EM}, \autoref{def:cbv-em-cat});
-  \item the cartesian \emph{value} category --- the rich subcategory of
-    comonoidal coalgebras (\rocq{Icones.homs.em_cartesian.ICones_EM_cartesian},
-    \autoref{thm:cbv-cartesian}) with its $\otimes$-product / $1$-terminal
-    --- together with the richness witnesses
-    \rocq{Icones.homs.em_cartesian.EMComon_cofree} (the cofree generators)
-    and \rocq{Icones.homs.em_cartesian.EMComon_FMeas} (the Theorem-9.7
-    generators);
+  \item the cartesian \emph{value} category --- the \emph{full}
+    $\mathrm{EM}(\mathord{!})$ (\rocq{Icones.homs.em_cartesian.ICones_EM_cartesian},
+    \autoref{thm:cbv-cartesian}) with its $\otimes$-product / $1$-terminal,
+    unconditional comonoidality witness
+    \rocq{Icones.homs.em_cartesian.EMComon_all}
+    (\autoref{lem:cbv-emcomon-all}), and the cofree- /
+    Theorem-9.7-generator corollaries
+    \rocq{Icones.homs.em_cartesian.EMComon_cofree} /
+    \rocq{Icones.homs.em_cartesian.EMComon_FMeas};
   \item the monoidal adjunction $U \dashv \widetilde{\mathord{!}}$
     over the \emph{full} $\mathrm{EM}(\mathord{!})$ (it needs no
     cartesianness): the functors, the (co)units, the hom-bijection with
@@ -435,37 +489,117 @@ monoidal \emph{unit} laws \rocq{Icones.homs.cbv_adjunction.adj_unit_monoidal2}
 / \rocq{Icones.homs.cbv_adjunction.adj_unit_monoidal0} are recorded as
 standalone facts (they are definitional --- the composite $m \circ (\eta
 \otimes \eta)$ \emph{is} the product structure map), kept outside the
-record to avoid the dependent-type plumbing. The cartesian fields concern
-only the rich subcategory; no closure of
-\rocq{Icones.homs.em_cartesian.EMComon} under $\otimes$ is used.
+record to avoid the dependent-type plumbing. The cartesian fields now
+hold on the \emph{full} $\mathrm{EM}(\mathord{!})$ unconditionally
+(\autoref{lem:cbv-emcomon-all}), so $U \dashv \widetilde{\mathord{!}}$
+is a genuine linear / non-linear adjunction with the (full) category of
+$\mathord{!}$-coalgebras as the cartesian non-linear / value side.
+\end{proof}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{A first-order CBV calculus in the model}\label{sec:cbv-calculus}
+
+With \autoref{thm:cbv-model} the model is built; this section interprets
+a small CBV calculus into it. The interpretation is intentionally
+\emph{first-order} (the value category is cartesian but not yet known to
+be closed, see the deferral at the start of the chapter); the deliverable
+is a sound compositional semantics with the probabilistic primitive
+$\mathtt{sample}$ wired to the Theorem-9.7 integral, not an
+adequacy/normalization theorem.
+
+\paragraph{The calculus.}
+Intrinsically-typed Rocq inductives. Types are unit, a measurable base
+type $\base\,X$ for $X \in \mathbf{Ar}$, and binary products. Values are
+variables, the unit value, pairs and projections. Computations are
+$\creturn V$, $\clet x = M \mathbin{\mathtt{in}} N$, and the
+probabilistic primitive $\csample V$ on a value of base type.
+
+\paragraph{The interpretation.}
+Types denote coalgebras: $\base\,X \mapsto \FMeas(X)$ (the Thm-9.7
+coalgebra), $\mathtt{1} \mapsto \EMterm$, $s \times t \mapsto
+\EMprod\,\sem{s}\,\sem{t}$. The CBV \emph{computation monad} is the
+monad induced by the adjunction
+$U \dashv \widetilde{\mathord{!}}$ of \autoref{thm:cbv-cofree-adj}:
+$T = \widetilde{\mathord{!}} \circ U$
+(\rocq{Icones.homs.cbv.Tobj}), with unit
+\rocq{Icones.homs.cbv.tunit_eta} (the adjunction unit) and Kleisli
+composition \rocq{Icones.homs.cbv.kcomp}. Values denote
+coalgebra-homomorphisms $\sem{\Gamma \vdash V : t} :
+\sem{\Gamma} \to \sem{t}$ (\rocq{Icones.homs.cbv.vlD}); computations
+denote homomorphisms $\sem{\Gamma \vdash M : t} :
+\sem{\Gamma} \to T\,\sem{t}$ (\rocq{Icones.homs.cbv.cpD}). Both are
+total by structural recursion --- the well-definedness half of
+soundness.
+
+\begin{theorem}[Soundness]\label{thm:cbv-soundness}
+\rocq{Icones.homs.cbv.kcomp_etaR}\rocqok
+\rocq{Icones.homs.cbv.kcomp_etaL}\rocqok
+\rocq{Icones.homs.cbv.kcomp_A}\rocqok
+\rocq{Icones.homs.cbv.vlD_fst_pair}\rocqok
+\rocq{Icones.homs.cbv.vlD_snd_pair}\rocqok
+\rocq{Icones.homs.cbv.cpD_sample_var_dirac}\rocqok
+\uses{thm:cbv-model}
+The interpretation $\sem{-}$ validates:
+\begin{enumerate}
+  \item The three monad laws for $T$ ---
+    \rocq{Icones.homs.cbv.kcomp_etaR},
+    \rocq{Icones.homs.cbv.kcomp_etaL},
+    \rocq{Icones.homs.cbv.kcomp_A} --- which give the standard
+    $\mathtt{let}$ equations at term level
+    (\rocq{Icones.homs.cbv.cpD_let_retvar},
+    \rocq{Icones.homs.cbv.cpD_letret},
+    \rocq{Icones.homs.cbv.cpD_letassoc}).
+  \item The product $\beta$-laws
+    \rocq{Icones.homs.cbv.vlD_fst_pair} /
+    \rocq{Icones.homs.cbv.vlD_snd_pair}.
+  \item \textbf{$\mathtt{sample}$ is the integral.} On a Dirac
+    value, $\sem{\csample \delta_r}$ is the promoted point $(\delta_r)!$
+    --- \rocq{Icones.homs.cbv.cpD_sample_var_dirac} ---, and the general
+    case agrees with the Thm-9.7 Coalg structure map
+    \rocq{Icones.homs.cbv.cpD_sample_mor} /
+    \rocq{Icones.homs.cbv.cpD_sample_is_integral}, which is in turn the
+    integration-of-Diracs map of $\FMeas$ (the
+    \rocq{Icones.homs.coalgebra.Coalg_dirac} +
+    \rocq{Icones.homs.coalgebra.dirac_dense} engine of Theorem 9.7).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+The monad laws come from the adjunction U\,$\dashv$\,$\widetilde{!}$ via
+$\mathrm{adj\_phi}$ being functorial $\mathbf{Kleisli}(T) \to \ICones$
+(\rocq{Icones.homs.cbv.adj_phi_kcomp}); the product $\beta$-laws come
+from the projection $\beta$-laws of \autoref{thm:cbv-cartesian}; the
+$\mathtt{sample}$ semantics comes from
+\rocq{Icones.homs.coalgebra.Coalg_dirac} on the base case and from the
+identification of \rocq{Icones.homs.coalgebra.Coalg} with the
+integration-of-Diracs map otherwise.
 \end{proof}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
 
 \paragraph{Delivered and axiom-free.}
-The CBV model \emph{structure} is delivered and axiom-clean (only the
-three classical \texttt{boolp} axioms): the Eilenberg--Moore category and
-cofree adjunction (\autoref{sec:cbv-em},
-\rocq{Icones.homs.em_cat.ICones_EM}), the Seely comonoid with LC2--LC4
-(\autoref{sec:cbv-comonoid}), the cartesian
-$\mathrm{EM}(\mathord{!})$ on the rich subcategory carried by the linear
-$\otimes$ (\autoref{thm:cbv-cartesian},
-\rocq{Icones.homs.em_cartesian.ICones_EM_cartesian}), and the monoidal
-adjunction with the bundle
-\rocq{Icones.homs.cbv_adjunction.ICones_CBV} (\autoref{thm:cbv-model}).
-The richness witnesses \rocq{Icones.homs.em_cartesian.EMComon_cofree} and
-\rocq{Icones.homs.em_cartesian.EMComon_FMeas} are likewise axiom-free.
+Everything in this chapter is axiom-clean (only the three classical
+\texttt{boolp} axioms): the Eilenberg--Moore category and cofree
+adjunction (\autoref{sec:cbv-em},
+\rocq{Icones.homs.em_cat.ICones_EM}); the Seely comonoid with LC2--LC4
+(\autoref{sec:cbv-comonoid}); the \emph{full} cartesian
+$\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$
+(\autoref{thm:cbv-cartesian},
+\rocq{Icones.homs.em_cartesian.ICones_EM_cartesian}) with the
+unconditional comonoidality witness
+\rocq{Icones.homs.em_cartesian.EMComon_all}
+(\autoref{lem:cbv-emcomon-all}); the LNL monoidal adjunction bundled as
+\rocq{Icones.homs.cbv_adjunction.ICones_CBV} (\autoref{thm:cbv-model});
+and the first-order CBV calculus and its sound interpretation
+(\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}).
 
-\paragraph{Open --- the three honest caveats.}
-(1) The cartesian structure is on the rich subcategory of comonoidal
-coalgebras (which contains $\widetilde{\mathord{!}}B$ and
-$\FMeas(X)$), \emph{not} the full $\mathrm{EM}(\mathord{!})$ --- the
-general Proposition-28 / Corollary-20 step is deferred
-(\autoref{rem:cbv-caveats}). (2) The comonoidal predicate
-\rocq{Icones.homs.em_cartesian.EMComon} is \emph{not} proved closed under
-the product $\otimes$. (3) The interpretation of an actual CBV / CBPV
-calculus (a \texttt{cbv.v}) is \emph{not yet done} --- that is the
-remaining step toward the paper's stated future-work goal. The model
-structure that such an interpretation would target is in place and
-axiom-free.
+\paragraph{Open --- the one honest deferral.}
+The value category $\mathrm{EM}(\mathord{!})$ is cartesian but \emph{not
+yet known to be closed}. The linear $\multimap$ is the SMC-closure of
+$\ICones$ and the Girard decomposition $A \to B = \mathord{!}A
+\multimap B$ is available linearly, but a value-CCC on
+$\mathrm{EM}(\mathord{!})$ has not been proved; accordingly
+\autoref{sec:cbv-calculus} interprets the \emph{first-order} fragment
+only, and adequacy / normalization / full-abstraction for higher-order
+CBV is out of scope here.

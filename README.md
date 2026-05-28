@@ -98,7 +98,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~54k lines across 55 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~55k lines across 56 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -123,9 +123,9 @@ explain how this model can be used for interpreting call-by-value or even call-b
 §7.4** (the EM route gives CBV; the co-Kleisli route gives CBN, which is the cartesian closed
 `SCones` above). It is *beyond* the paper — not a paper-§ result.
 
-The CBV **model structure** is built and **axiom-free** (the four files below depend only on
-the same three classical `boolp` axioms as everything else — verified by `Print Assumptions`
-on `ICones_CBV`, `ICones_EM_cartesian`, `EMComon_cofree`, `EMComon_FMeas`):
+The CBV model is built and **axiom-free** (the five files below depend only on the same three
+classical `boolp` axioms as everything else — verified by `Print Assumptions` on `ICones_CBV`,
+`ICones_EM_cartesian`, `EMComon_all`, and `cpD_sample_var_dirac`):
 
 - **`theories/homs/em_cat.v`** — the **Eilenberg–Moore category** of the `!` comonad
   (`ICones_EM`), the cofree functor `!̃ = bang_cofree` with `!̃B = (!B, dig B)`, the forgetful
@@ -136,24 +136,35 @@ on `ICones_CBV`, `ICones_EM_cartesian`, `EMComon_cofree`, `EMComon_FMeas`):
   on `!A`, transported from the cartesian `(&, ⊤)` through the Seely isos `Seely2`/`Seely0`,
   with the comonoid laws and the coalgebra / comonoid-morphism conditions (Melliès's LC2–LC4),
   plus the symmetric-monoidal `tens_cofree`/`unit_cofree`.
-- **`theories/homs/em_cartesian.v`** — **`EM(!)` is cartesian, with the product carried by the
-  linear `⊗`** (not `&`) and the terminal object the tensor unit `1`: the headline
-  `ICones_EM_cartesian` (`EM_prod`, `EM_term`, projections, pairing, β-laws), the lax-monoidal
-  comparison `m_bang`, and the richness witnesses `EMComon_cofree` (the cofree `!̃B`) and
-  `EMComon_FMeas` (the Theorem-9.7 `FMeas(X)` coalgebras).
-- **`theories/homs/cbv_adjunction.v`** — the **(lax symmetric) monoidal adjunction `U ⊣ !̃`**
-  (Melliès Prop. 29), bundled as the record **`CBV_Model`** with the witness **`ICones_CBV`**.
+- **`theories/homs/em_cartesian.v`** — **the full `EM(!)` is cartesian**, with the product
+  carried by the linear `⊗` (not `&`) and the terminal object the tensor unit `1`: the
+  headline `ICones_EM_cartesian` (`EM_prod`, `EM_term`, projections, pairing, β-laws), the
+  lax-monoidal comparison `m_bang`, and — crucially — the **unconditional** comonoidality
+  `EMComon_all : forall P, EMComon P`. This is Melliès Prop 26–28 / Cor 17/20, proved by the
+  **structural retraction-and-lifting argument** (`diagram81` = Prop 26 retraction,
+  `coalg_mor_lift` = Cor 20 lifting, `coalg_d_is_mor_gen` the transported diagonal as a
+  coalgebra morphism) — **not** by reducing to promoted points (which would only compute on
+  `x!`; for a general coalgebra `(A,a)` the image `a x` is not promoted, which is exactly
+  why the naïve approach stalls and the retraction route is needed).
+- **`theories/homs/cbv_adjunction.v`** — the **(lax symmetric) monoidal adjunction `U ⊣ !̃`
+  between `ICones` and the (full) category `EM(!)` of `!`-coalgebras** (Melliès Prop. 29),
+  bundled as the record **`CBV_Model`** with the witness **`ICones_CBV`**. With `EMComon_all`
+  in hand, this is a genuine **linear/non-linear adjunction** (Benton-style) with the *full*
+  `!`-coalgebra category as the cartesian non-linear / value side.
+- **`theories/homs/cbv.v`** — a small **first-order CBV calculus** (unit, base, products,
+  `let`-sequencing, `sample`) interpreted into the model. The monad of the adjunction
+  `T = !̃∘U` (`Tobj`, `tunit_eta`, `kcomp`); a structural interpretation of well-typed terms
+  (`vlD`/`cpD`); and the soundness core — the monad/`let` laws
+  (`kcomp_etaR`/`kcomp_etaL`/`kcomp_A`), the product β-laws (`vlD_fst_pair`/`vlD_snd_pair`),
+  and **`sample` = the integral** (`cpD_sample_var_dirac`: `⟦sample⟧(δ_r) = (δ_r)!`, via
+  the FMeas coalgebra `Coalg_dirac` + `dirac_dense`).
 
-**Three honest caveats**, stated plainly in the sources and the blueprint:
-
-1. The cartesian structure is proved on the **rich subcategory** of comonoidal coalgebras
-   (`EMComon` — which contains `!̃B` and `FMeas(X)`), **not the full `EM(!)`**. The general
-   Proposition-28 / Corollary-20 step is deliberately deferred — Melliès himself flags it as
-   *"not so immediate"*, and the concrete model confirms it (the transported comonoid maps only
-   *compute* on promoted points).
-2. `EMComon` is **not** proved closed under the product `⊗`.
-3. The **interpretation of an actual CBV / CBPV calculus** (a `cbv.v`) is **not yet done** —
-   that is the remaining step toward the paper's stated future-work goal.
+**One honest deferral.** The value category is cartesian but **not yet known to be closed**
+(the `!A ⊸ B` Girard decomposition is available linearly, but a value-CCC has not been
+proved), so `cbv.v` interprets the **first-order** fragment only; higher-order CBV (and any
+adequacy / normalization / full-abstraction result) is out of scope here. Everything else
+is on the table: the LNL adjunction is with the *full* `!`-coalgebra category, and the
+interpretation soundness is proved.
 
 ## Status
 
@@ -181,8 +192,9 @@ theories/
 │              the call-by-value model (beyond the paper, Melliès §7.4):  (CBV)
 │                em_cat.v            EM(!) + the cofree adjunction U ⊣ !̃
 │                em_seely_comonoid.v the Seely comonoid d/e on !A (LC2–4)
-│                em_cartesian.v      EM(!) cartesian via ⊗ (rich subcat.)
-│                cbv_adjunction.v    the monoidal adjunction, ICones_CBV
+│                em_cartesian.v      full EM(!) cartesian via ⊗ (Cor 20)
+│                cbv_adjunction.v    the LNL monoidal adjunction, ICones_CBV
+│                cbv.v               a first-order CBV calculus interpreted
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
 └── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
 ```
