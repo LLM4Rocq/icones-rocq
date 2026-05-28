@@ -67,8 +67,10 @@
     - [ppl_real], [ppl_prod], [ppl_unit] map to our [tbase'] / [tprod']
       / [tunit'] (as in [cbv.v]);
     - [ppl_fun] adds the higher-order arrow [tfun A B] = [!A ⊸ B] at
-      the value type level — but we provide only the INTRODUCTION rule
-      [v_lam], NOT the elimination [v_app]; see "Honest scope" below.
+      the value type level; lambda abstraction [v_lam] (value) and
+      application [c_app] (COMPUTATION, Moggi/CBPV style) — see
+      "Honest scope" below for why application is a computation, not a
+      value, in our presentation.
     - [ppl_bool] / [ppl_sum] are NOT supported (no boolean / coproduct
       objects in our setup); they are orthogonal to the higher-order
       content and not exercised by the example;
@@ -107,23 +109,35 @@
       compositional witness that the [v_lam] machinery is coherent
       with the existing computation laws.
 
-    We do NOT include [v_app] in the syntax.  Reason: applying a
-    function value gives an [icones_hom] [app_under := eval ∘ (φ ⊗ ψ)
-    ∘ d_G] in the underlying [ICones]; promoting this to a coalgebra
-    morphism in [EM(!)] would require proving that the SMCC evaluation
-    [eval : (!A ⊸ B) ⊗ !A → B] is itself a coalgebra morphism between
-    the appropriate EM-products and the target coalgebra structure on
-    [B], which is true (it is the counit of the *monoidal* cofree
-    adjunction, by Melliès §6.3 / Bénabou) but is *not* in our current
-    file inventory.  Stating it would not increase axiom load — there
-    are no project axioms in the staged tier — but it WOULD be a
-    significant proof obligation (a new file of monoidal-adjunction
-    coherence).  For the example we port, [v_app] is not needed: the
-    lambda is the OUTPUT of the program, not consumed by a subsequent
-    application.  We record the underlying [lam_under] combinator
-    (the SMCC-currying of the body) so that a future [v_app] addition
-    can reuse it.  See also [APP_NOTE] below for the precise statement
-    of the coalgebra-morphism obligation that would close the gap. *)
+    **Application is a computation, not a value.**  In a generic CBV
+    presentation, applying a function value [V W] to an argument value
+    [W] would give a value of type [B]; in our setup it gives a
+    COMPUTATION of type [T B] (a Kleisli arrow into [bang_cofree B]).
+    Reason: the underlying linear hom of application is
+    [app_under := eval ∘ (φ ⊗ ψ) ∘ d_G : G → B] in the underlying
+    [ICones]; promoting this to a coalgebra morphism in [EM(!)]
+    DIRECTLY (i.e. into [B] itself) would require proving that the
+    SMCC evaluation [eval : (!A ⊸ B) ⊗ !A → B] is itself a coalgebra
+    morphism between the appropriate EM-products and the target
+    coalgebra structure on [B], which is true (it is the counit of
+    the *monoidal* cofree adjunction, by Melliès §6.3 / Bénabou) but is
+    *not* in our current file inventory.
+
+    Routing through [Tobj B = bang_cofree (coalg_obj B)] dodges this
+    obligation: [adj_psi] of the cofree adjunction unconditionally
+    lifts any [icones_hom (coalg_obj G) X] to a coalgebra morphism
+    [G → bang_cofree X] ([adj_psi_is_mor] in [em_cat.v]).  This makes
+    application a computation; in our calculus we can sequence it via
+    [c_let'] just like [c_sample'].  The resulting calculus is
+    Moggi/CBPV-style: function values [V W : tfun A B → A → cp' G B]
+    is exactly the [F]-elimination of CBPV's value/computation split,
+    over the value space [EM(!)] and the computation monad [T].
+
+    The remaining feature we do NOT cover is the GENERIC
+    coalgebra-morphism property of [eval_smcc] itself; this would let
+    [c_app] be replaced by a value-level [v_app] producing a coalgebra
+    morphism into [B] directly.  We record this in [APP_NOTE] at the
+    end of the file. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -210,12 +224,22 @@ Inductive vl' (G : ty') : ty' -> Type :=
   | v_lam (A B : ty') :
       vl' (tprod' G A) B -> vl' G (tfun A B).
 
-(** Computations [cp' Γ τ] : same shape as [cbv.v]'s [cp]. *)
+(** Computations [cp' Γ τ] : extends [cbv.v]'s [cp] with [c_app], a
+    Moggi-style "application as a computation".  In a CBV/CBPV
+    discipline, applying a function VALUE to an argument VALUE is a
+    COMPUTATION (yielding [T B] not [B]) — see e.g. Levy's CBPV.  This
+    is what allows the higher-order ELIMINATION to be a coalgebra
+    morphism in our model: the result lives in [Tobj B = bang_cofree
+    (coalg_obj B)], and [adj_psi] makes the underlying linear map of
+    application ([app_under]) into a coalgebra morphism into this
+    cofree object — UNCONDITIONALLY (the proof is [adj_psi_is_mor] in
+    [em_cat.v]). *)
 Inductive cp' (G : ty') : ty' -> Type :=
   | c_ret' (t : ty') : vl' G t -> cp' G t
   | c_let' (H t : ty') : cp' G H -> cp' H t -> cp' G t
   | c_sample' (X : ar_obj Ar) :
-      vl' G (tbase' X) -> cp' G (tbase' X).
+      vl' G (tbase' X) -> cp' G (tbase' X)
+  | c_app (A B : ty') : vl' G (tfun A B) -> vl' G A -> cp' G B.
 
 End Syntax.
 
@@ -235,6 +259,7 @@ Arguments cp' {R Ar} G t.
 Arguments c_ret' {R Ar G t} V.
 Arguments c_let' {R Ar G H t} M N.
 Arguments c_sample' {R Ar G X} V.
+Arguments c_app {R Ar G A B} V W.
 
 (** ** Type interpretation [tyD']
 
@@ -296,10 +321,63 @@ Definition lam_coalg (G A B : Coalgebra Ar)
                                          (coalg_obj B))) :=
   adj_psi (lam_under VB).
 
+(** *** The SMCC evaluation map [eval_smcc B C : (B ⊸ C) ⊗ B → C]
+
+    A standard piece of SMCC kit, defined from [tensor_uncurry] applied
+    to the identity [id_{B ⊸ C} : (B ⊸ C) → (B ⊸ C)].  This is the
+    evaluation arrow of the closed structure on [ICones]; used by
+    [app_under] below to interpret application. *)
+Definition eval_smcc (B C : ICone.type Ar) :
+    icones_hom Ar (tensor Ar (linhom_car Ar B C) B) C :=
+  tensor_uncurry (icones_id Ar (linhom_car Ar B C)).
+
+(** *** Underlying linear hom of an application — Girard/LNL
+
+    Given the function and argument's coalg-hom interpretations
+    [VF] and [VA], produce an icones_hom [coalg_obj G → coalg_obj B]:
+    - pair the underlying [adj_phi VF : coalg_obj G → !A.obj ⊸ B.obj]
+      (= the counit of the cofree adjunction applied to [VF]) with the
+      promoted argument [bang_fmap (ch_mor VA) ∘ coalg_str G : coalg_obj G
+      → Bang Ar (coalg_obj A)] (= the underlying of
+      [adj_psi (ch_mor VA)]: the [!]-promotion of [VA] seen through the
+      coalgebra structure of Γ);
+    - precompose with the comonoid diagonal [coalg_d G]
+      (unconditional via [EMComon_all], Cor 20);
+    - postcompose with [eval_smcc].
+
+    This is the underlying linear hom of "application after the
+    diagonal".  At the VALUE-CATEGORY level it is then lifted to a
+    coalgebra morphism into [bang_cofree (coalg_obj B) = T B] via
+    [adj_psi] (unconditional, see [adj_psi_is_mor] in [em_cat.v]) —
+    making application a COMPUTATION (CBPV-style), not a value. *)
+Definition app_under (G A B : Coalgebra Ar)
+    (VF : coalg_hom G (bang_cofree (linhom_car Ar (Bang Ar (coalg_obj A))
+                                              (coalg_obj B))))
+    (VA : coalg_hom G A) :
+    icones_hom Ar (coalg_obj G) (coalg_obj B) :=
+  icones_comp (eval_smcc (Bang Ar (coalg_obj A)) (coalg_obj B))
+    (icones_comp
+       (tensor_mor (adj_phi VF)
+                   (icones_comp (bang_fmap (ch_mor VA)) (coalg_str G)))
+       (coalg_d G)).
+
+(** Bundled application as a coalgebra morphism into [T B = bang_cofree
+    (coalg_obj B)].  Application is a COMPUTATION (Moggi/CBPV-style):
+    its denotation lives in the Kleisli category of [T]. *)
+Definition app_kleisli (G A B : Coalgebra Ar)
+    (VF : coalg_hom G (bang_cofree (linhom_car Ar (Bang Ar (coalg_obj A))
+                                              (coalg_obj B))))
+    (VA : coalg_hom G A) :
+    coalg_hom G (bang_cofree (coalg_obj B)) :=
+  adj_psi (app_under VF VA).
+
 End Lam.
 
 Arguments lam_under {R Ar G A B} VB.
 Arguments lam_coalg {R Ar G A B} VB.
+Arguments eval_smcc {R Ar} B C.
+Arguments app_under {R Ar G A B} VF VA.
+Arguments app_kleisli {R Ar G A B} VF VA.
 
 (** ** Term interpretation [vlD'] / [cpD']
 
@@ -319,13 +397,21 @@ Fixpoint vlD' (G : ty' Ar) (t : ty' Ar) (V : vl' G t) {struct V} :
   | v_lam A B body => lam_coalg (vlD' body)
   end.
 
-(** Computation denotation [cpD'] — identical shape to [cbv.v]. *)
+(** Computation denotation [cpD'] — extends [cbv.v]'s with [c_app].
+
+    For [c_app Vf Va] we use [app_kleisli], which routes [app_under]
+    through [adj_psi] of the cofree adjunction to land in
+    [bang_cofree (coalg_obj B) = Tobj B].  This is unconditional: every
+    [icones_hom (coalg_obj G) (coalg_obj B)] becomes a coalgebra
+    morphism into [bang_cofree (coalg_obj B)] via [adj_psi]
+    ([adj_psi_is_mor] in [em_cat.v]). *)
 Fixpoint cpD' (G : ty' Ar) (t : ty' Ar) (M : cp' G t) {struct M} :
     coalg_hom (tyD' G) (Tobj (tyD' t)) :=
   match M in cp' _ t0 return coalg_hom (tyD' G) (Tobj (tyD' t0)) with
   | c_ret' t0 V => coalg_comp (tunit_eta (tyD' t0)) (vlD' V)
   | c_let' H t0 N1 N2 => kcomp (cpD' N2) (cpD' N1)
   | c_sample' X V => coalg_comp (tunit_eta (tyD' (tbase' X))) (vlD' V)
+  | c_app A B Vf Va => app_kleisli (vlD' Vf) (vlD' Va)
   end.
 
 End TermInterp.
@@ -376,6 +462,13 @@ Qed.
     a genuine feature of the cones model). *)
 Lemma cpD'_sample_ret (G : ty' Ar) (Y : ar_obj Ar) (V : vl' G (tbase' Y)) :
   cpD' (c_sample' V) = cpD' (c_ret' V).
+Proof. by []. Qed.
+
+(** [c_app] denotation reads as [app_kleisli] of the value
+    denotations — definitional. *)
+Lemma cpD'_appE (G : ty' Ar) (A B : ty' Ar)
+    (Vf : vl' G (tfun A B)) (Va : vl' G A) :
+  cpD' (c_app Vf Va) = app_kleisli (vlD' Vf) (vlD' Va).
 Proof. by []. Qed.
 
 (** ** The higher-order example — [random_constant]
@@ -444,6 +537,33 @@ Lemma ex_random_constant_value_E :
   lam_coalg (vlD' (v_fst' (v_var' (G := tprod' (tbase' X) (tbase' X))))).
 Proof. exact: vlD'_lamE. Qed.
 
+(** A second higher-order example, exercising APPLICATION
+    ([c_app]): apply the identity-lambda to its own argument.  This
+    is "lift the variable through a function value" — a degenerate
+    HO program that nonetheless exercises [v_lam], [c_app], and the
+    [lam_under]/[app_under] LNL plumbing.
+
+    [Γ = tbase' X ⊢
+      let f = ret (λx. x) in let _ = sample x in app f x : T X]
+
+    or just the bare application
+    [Γ = tbase' X ⊢ app (λx. x) x : cp' (tbase' X)]. *)
+Definition ex_app_id : cp' (tbase' X) (tbase' X) :=
+  c_app (v_lam (v_snd' (v_var' (G := tprod' (tbase' X) (tbase' X)))))
+        (v_var' (G := tbase' X)).
+
+Definition ex_app_id_denot :
+    coalg_hom (tyD' (tbase' X)) (Tobj (tyD' (tbase' X))) :=
+  cpD' ex_app_id.
+
+(** The denotation is definitionally an [app_kleisli] of the lambda's
+    interpretation and the variable's identity. *)
+Lemma ex_app_id_denot_E :
+  ex_app_id_denot =
+  app_kleisli (vlD' (v_lam (v_snd' (v_var' (G := tprod' (tbase' X) (tbase' X))))))
+              (vlD' (v_var' (G := tbase' X))).
+Proof. by []. Qed.
+
 (** The underlying [icones_hom] of the lambda VALUE — the linear map
     [!FMeas X ⊸ FMeas X] that is the LNL reading of the closure
     [λx. c].  We do not "unfold" past [lam_under]; the deep unfolding
@@ -468,9 +588,11 @@ Arguments ex_random_constant {R Ar} X.
 Arguments ex_random_constant_denot {R Ar} X.
 Arguments ex_random_constant_denot_E {R Ar} X.
 
-(** ** [APP_NOTE] — the exact coalgebra-morphism obligation for [v_app]
+(** ** [APP_NOTE] — promoting [c_app] (computation) to a value [v_app]
 
-    To close the gap and add [v_app], one would prove:
+    Our [c_app] makes application a COMPUTATION, landing in [Tobj B].
+    To replace it with a value-level [v_app] landing in [B] directly,
+    one would prove:
 
     Given [G A B : Coalgebra Ar] and [φ : icones_hom (coalg_obj G)
     (linhom_car Ar (Bang Ar (coalg_obj A)) (coalg_obj B))], [ψ :
@@ -487,4 +609,6 @@ Arguments ex_random_constant_denot_E {R Ar} X.
     The proof would be a moderate-sized diagram chase (analogous to
     [em_proj1_is_mor] in [cbv.v]); it is NOT in [cbv_adjunction.v] /
     [em_cartesian.v] today.  Recording this here as the precise
-    statement that would unlock the [v_app] elimination. *)
+    statement that would unlock the [v_app] elimination directly into
+    the value category.  For the example we port, this is not needed:
+    the lambda is the OUTPUT of the program, never consumed. *)
