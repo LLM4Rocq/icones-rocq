@@ -27,9 +27,9 @@
     - We keep [ar_obj] polymorphic (a [Type], no [eqType] / [choiceType]
       structure assumed). This matches the paper's "small full
       subcategory" framing — the index type is just a name set.
-      Downstream files (M2 wave 2's tests-family construction) can
-      always re-bundle a specific [ar_obj] with the structure they
-      need.
+      Downstream files (the tests-family construction in
+      [theories/mcones/mcone.v] and beyond) can always re-bundle a
+      specific [ar_obj] with the structure they need.
 
     - The non-emptiness assumption ([ar_point]) gives us a *canonical*
       inhabitant of every [ar_carrier X], not just an existence
