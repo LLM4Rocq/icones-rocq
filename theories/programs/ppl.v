@@ -1,131 +1,73 @@
 (**md**************************************************************************)
-(** * A higher-order probabilistic PPL — fine-grain Moggi CBV in EM(!)
+(** * A higher-order probabilistic PPL — single-sort, direct-style, multi-var
+       De Bruijn, with Kleisli-exponential semantics in [EM(!)]
 
-    This file extends the first-order Moggi-CBV demo of
-    [theories/programs/cbv.v] with HIGHER-ORDER function types and ports
-    the canonical higher-order example from mathcomp-qbs's
-    [ppl_qbs.v] / [showcase/ppl_examples.v]:
+    This file ports the canonical mathcomp-qbs higher-order PPL
+    ([mathcomp-qbs/theories/ppl_qbs.v] + [showcase/ppl_examples.v]) to the
+    integrable-cones model, with the SAME calculus shape as the QBS port:
 
+    - a single inductive [expr Γ τ] indexed by an intrinsically-typed,
+      MULTI-VARIABLE De Bruijn context [Γ : ppl_ctx] and a type [τ :
+      ppl_type];
+    - direct-style application [e_app f x : expr Γ B], NOT fine-grain Moggi:
+      the user-facing calculus matches a textbook QBS-style PPL, while the
+      interpretation goes through the same EM(!)-Kleisli-exponential chain as
+      [theories/programs/cbv.v] (= [Tobj = !̃ ∘ U]);
+    - monadic [e_ret] / [e_bind] returning to the probability type [tprob τ];
+    - a built-in measurable-space base [tbase X] for [X : ar_obj Ar], a unit
+      type, binary products, and the higher-order arrow [tfun A B] = [!̃(U A
+      ⊸ U B)] (the Kleisli exponential of the CBV computation monad).
+
+    ** Scope of this commit (C-partial: NO arithmetic yet) **
+
+    The full constructor list is in the [Inductive expr] below, but here is
+    what is intentionally NOT in this version:
+
+    - [e_add] : sum of two random variables of type [tprob tR];
+    - [e_mul] : product of two random variables of type [tprob tR];
+    - [ex_random_linear] : the QBS-style mixture example exercising [e_add]
+      / [e_mul].
+
+    These three pieces depend on the lax monoidal bundling of [FMeas]
+    ([theories/homs/fmeas_lax.v]'s [icones_hom] wrapping the function-level
+    [fmeas_lax_pre]), which is being added by a parallel agent.  A small
+    follow-up integration commit will EXTEND the [Inductive expr] with the
+    two arithmetic constructors and add the [ex_random_linear] example once
+    the bundle lands.  This file is consistent and axiom-free WITHOUT
+    [e_add]/[e_mul].
+
+    ** The mathematical framework **
+
+    Identical to [theories/programs/cbv.v]: the value category is the FULL
+    Eilenberg–Moore category [EM(!)] of the exponential comonad
+    ([em_cartesian.v]); the CBV computation monad is [T = !̃ ∘ U]
+    ([Tobj] in [cbv.v]).  The Kleisli exponential for [T] gives the
+    higher-order arrow type denotation
     [[
-        random_constant ≜ do c <- sample (μ : X); return (λx. c)
+        ⟦tfun A B⟧ := !̃(U A ⊸ U B)
+                    = bang_cofree (linhom_car Ar (coalg_obj ⟦A⟧)
+                                                 (coalg_obj ⟦B⟧)).
     ]]
+    See the header of [cbv.v] for the full discussion of the
+    natural-bijection chain [Hom_EM(C×A, T B) ≅ Hom_EM(C, !̃(U A ⊸ U B))]
+    realising lambda + application.
 
-    a distribution over the function space [X → X], the paradigmatic
-    *higher-order* example mathcomp-qbs emphasises (distributions on
-    function spaces are impossible in classical measure-theoretic
-    / kernel-based semantics; QBS resolves this via cartesian
-    closure, the cones model via the structure described below).
-
-    ** The mathematical framework — EM(!) Kleisli exponentials for [T = !̃ ∘ U] **
-
-    The value category is the FULL Eilenberg–Moore category [EM(!)]
-    of the exponential comonad ([em_cartesian.v]); it is cartesian
-    (Prop 28 / Cor 20, [emc_d_mor] holds for all coalgebras via the
-    structural [EMComon_all]) but is NOT cartesian-closed — and is
-    not expected to be.  [EM(!)] does, however, support the *Kleisli
-    exponential* for the CBV computation monad [T = !̃ ∘ U]
-    ([Tobj] in [cbv.v]), which is exactly what Moggi-style monadic
-    CBV semantics needs.
-
-    The Kleisli-exponential structure on [EM(!)] for [T] is given by
-    the natural-bijection chain (each step is named and witnessed by
-    a lemma in this development):
-
-    [[
-       Hom_EM(C × A, T B)
-         ≅ Hom_IC(U(C × A), U B)            [cofree adjunction U ⊣ !̃: [adj_phi]/[adj_psi]]
-         ≅ Hom_IC(U C ⊗ U A, U B)           [U is STRICT monoidal: [cbv_U_prod] in [cbv_adjunction.v]]
-         ≅ Hom_IC(U C, U A ⊸ U B)           [SMCC closure on [ICones]: [tensor_curry]/[tensor_uncurry]]
-         ≅ Hom_EM(C, !̃(U A ⊸ U B))          [cofree adjunction U ⊣ !̃ again]
-    ]]
-
-    So the CBV function-type denotation is the cofree coalgebra of
-    the LINEAR function space [U A ⊸ U B]:
-
-    [[
-        ⟦A → B⟧ := !̃(U A ⊸ U B)
-                = bang_cofree (linhom_car Ar (coalg_obj ⟦A⟧) (coalg_obj ⟦B⟧)).
-    ]]
-
-    In Moggi-style monadic CBV, application is a *computation*: the
-    interpretation of [v_app f x] lives in [Hom_EM(C × A, T B)], the
-    LEFT end of the chain above.  Lambda introduces a function value
-    by going LEFT→RIGHT (curry); application eliminates it by going
-    RIGHT→LEFT (uncurry).  Both are by structural natural-bijection
-    — there is no diagram chase about "is the SMCC eval a coalgebra
-    morphism into [B]?": the cofree adjunction unconditionally lifts
-    *every* [icones_hom (U_obj G) (U_obj B)] to a coalgebra morphism
-    [G → !̃(U B) = T B] (via [adj_psi]), which IS the [T B] target
-    of an application in monadic CBV.  No CCC on [EM(!)], no
-    co-Kleisli / Girard extra [!] on the domain, no `eval_smcc`
-    coalgebra-morphism claim, no APP_NOTE.
-
-    ** Anti-glossary (terminology that DOES NOT apply here) **
-
-    The reader looking at earlier versions of this file (or at CBPV
-    presentations) should not look for:
-    - "CBPV split" / "F-elimination" / "value-CCC":  this is straight
-      Moggi-CBV, not CBPV, and the function type is a Kleisli
-      exponential for [T = !̃ ∘ U] in [EM(!)], not the [F] of CBPV.
-    - "Girard / co-Kleisli / CBN translation [A → B = !A ⊸ B]":  that
-      would put an extra [!] on the domain.  The Kleisli-exponential
-      [!̃(U A ⊸ U B)] has NO extra [!] on the domain — that is the
-      whole point of the chain.
-    - "Mellies §6.3 gap" / "[eval_smcc] is a coalg-morphism":  no
-      such obligation exists in this development.  Application is a
-      computation INTRINSICALLY in monadic CBV, by the right-end of
-      the chain landing in [!̃(U B)].
-
-    ** The fragment interpreted (stated honestly) **
-
-    Compared to mathcomp-qbs:
-    - [ppl_real], [ppl_prod], [ppl_unit] map to our [tbase'] / [tprod']
-      / [tunit'] (as in [cbv.v]);
-    - [ppl_fun] is the higher-order arrow [tfun A B] = [!̃(U A ⊸ U B)] —
-      the Kleisli exponential for the CBV monad [T = !̃ ∘ U];
-    - lambda abstraction [v_lam] is a VALUE binding a fresh variable;
-      the body of a lambda is a COMPUTATION (fine-grain Moggi-CBV);
-    - application [c_app] is a COMPUTATION (Moggi monadic CBV, NOT a
-      CBPV split — application LANDS in [T B] by the chain above);
-    - [ppl_bool] / [ppl_sum] are NOT supported (no boolean / coproduct
-      objects in the setup); they are orthogonal to the higher-order
-      content and not exercised by the example;
-    - [ppl_prob] is identified with the CBV computation monad [T] of
-      [cbv.v].
-
-    ** The headline example: [random_constant] **
+    ** Headline example — [ex_random_constant] **
 
     [[
         ex_random_constant ≜
-          c_let' (c_sample' v_var')
-                 (c_ret' (v_lam (c_ret' (v_fst' v_var'))))
+          e_bind (e_sample µ) (e_ret (e_lam (e_var (hv_succ hv_zero))))
+                : expr [] (tprob (tfun tR tR))
     ]]
-    in context [Γ = tbase' X ⊢ — : T (tfun (tbase' X) (tbase' X))]:
-    draw a sample [c], then return the constant function [λ x. c]
-    (whose body is a value-form computation that returns [c]).  Its
-    denotation is a coalgebra morphism
-    [FMeas X → T (!̃(FMeas X ⊸ FMeas X))]: a distribution over linear
-    functions — the higher-order feature mathcomp-qbs invokes QBS for,
-    recovered here in the EM(!) Kleisli-exponential discipline.
+    in the empty context: draw [c ~ µ : FMeas R], then return the constant
+    function [λx.c] (whose body is the OUTER-bound variable, hence
+    [hv_succ hv_zero] in the lambda body).  This is the QBS-paper-flagship
+    "distribution over a function space" example, recovered here in the
+    EM(!) Kleisli-exponential discipline.
 
-    We deliver:
-    - syntax / type interpretation / term interpretation, all
-      axiom-free and structurally total;
-    - the [let]-of-[ret] law ([cpD'_letret]), the [sample]-as-[ret]
-      identity ([cpD'_sample_ret]) at the PPL level — identical to
-      [cbv.v];
-    - the β-rule at the underlying-ICones level
-      ([adj_phi_cpD'_app_lam]): the round-trip of [adj_psi] through
-      [adj_phi] reads application-on-a-lambda as the SMCC
-      uncurry/curry pair;
-    - the higher-order example [ex_random_constant_denot_E]: its
-      denotation reduces, via [cpD'_sample_ret] + [cpD'_letret] +
-      [vlD'_varE], to the constant-lambda value.
-
-    EM(!) is not cartesian closed and is not expected to be; the
-    Kleisli exponential [!̃(U A ⊸ U B)] for [T = !̃ ∘ U] is what CBV
-    requires, and that *is* the encoding above.  There is no further
-    missing structure for this calculus. *)
+    The three names [ex_random_constant], [ex_random_constant_denot] and
+    [ex_random_constant_denot_E] are preserved (the README / blueprint /
+    AUDITOR.md reference them). *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -180,138 +122,323 @@ Opaque dig der prom bang_fmap d_bang e_bang unit_cofree_str Coalg
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
 
-(** ** The PPL syntax — types extended with [tfun]
+(** ** Types — single-sort PPL types, parameterised by [Ar] *)
 
-    A higher-order extension of [cbv.v]'s grammar.  The only new type
-    constructor is [tfun A B] (the Kleisli-exponential type
-    [!̃(U A ⊸ U B)]); products [tprod'], unit [tunit'] and base types
-    [tbase' X] are exactly as in [cbv.v].  Values gain a lambda
-    introduction [v_lam] whose body is a *computation* (fine-grain
-    Moggi-CBV), and computations gain a Moggi-CBV application [c_app]
-    which lands in [T B]. *)
-Section Syntax.
+Section Types.
 Variable (R : realType) (Ar : MeasSubcat R).
 
-Inductive ty' : Type :=
-  | tunit'
-  | tbase' (X : ar_obj Ar)
-  | tprod' (s t : ty')
-  | tfun (A B : ty').
+Inductive ppl_type : Type :=
+  | tunit
+  | tbase (X : ar_obj Ar)
+  | tprod (t1 t2 : ppl_type)
+  | tfun  (t1 t2 : ppl_type)
+  | tprob (t : ppl_type).
 
-(** Values [vl' Γ τ] : a value of type [τ] with one free variable of
-    type [Γ].  Compared to [cbv.v]'s [vl], we add [v_lam]; its body is
-    a COMPUTATION ([cp']) in the extended context [tprod' Γ A] —
-    fine-grain Moggi-CBV. *)
-Inductive vl' (G : ty') : ty' -> Type :=
-  | v_var' : vl' G G
-  | v_unit' : vl' G tunit'
-  | v_pair' (s t : ty') :
-      vl' G s -> vl' G t -> vl' G (tprod' s t)
-  | v_fst' (s t : ty') : vl' G (tprod' s t) -> vl' G s
-  | v_snd' (s t : ty') : vl' G (tprod' s t) -> vl' G t
-  | v_lam (A B : ty') :
-      cp' (tprod' G A) B -> vl' G (tfun A B)
+End Types.
 
-(** Computations [cp' Γ τ] : extends [cbv.v]'s [cp] with [c_app], a
-    Moggi-style application that LANDS in [T B] by the Kleisli-
-    exponential chain — the standard form of application in monadic
-    CBV.  This is NOT a CBPV / fallback choice: it is what the
-    Kleisli exponential gives. *)
-with cp' (G : ty') : ty' -> Type :=
-  | c_ret' (t : ty') : vl' G t -> cp' G t
-  | c_let' (H t : ty') : cp' G H -> cp' H t -> cp' G t
-  | c_sample' (X : ar_obj Ar) :
-      vl' G (tbase' X) -> cp' G (tbase' X)
-  | c_app (A B : ty') : vl' G (tfun A B) -> vl' G A -> cp' G B.
+Arguments ppl_type {R} Ar.
+Arguments tunit {R Ar}.
+Arguments tbase {R Ar} X.
+Arguments tprod {R Ar} t1 t2.
+Arguments tfun {R Ar} t1 t2.
+Arguments tprob {R Ar} t.
+
+(** ** Contexts and De Bruijn variable witnesses *)
+
+Section Contexts.
+Variable (R : realType) (Ar : MeasSubcat R).
+
+Definition ppl_ctx : Type := list (ppl_type Ar).
+
+(** [has_var G t]: a witness of "[t] is somewhere in [G]".  Intrinsic De
+    Bruijn index: [hv_zero] points to the HEAD, [hv_succ] skips it. *)
+Inductive has_var : ppl_ctx -> ppl_type Ar -> Type :=
+  | hv_zero (G : ppl_ctx) (t : ppl_type Ar) : has_var (t :: G) t
+  | hv_succ (G : ppl_ctx) (t s : ppl_type Ar) :
+      has_var G t -> has_var (s :: G) t.
+
+End Contexts.
+
+Arguments ppl_ctx {R} Ar.
+Arguments has_var {R Ar} G t.
+Arguments hv_zero {R Ar G t}.
+Arguments hv_succ {R Ar G t s} v.
+
+(** ** Distinguished real-object section — for [e_real] and [e_score]
+
+    The PPL has a distinguished real-valued base type [tR] = [tbase R_obj]
+    for a chosen [R_obj : ar_obj Ar] whose carrier IS the realType [R].  The
+    propositional cast [R_carrier_eq] is the witness; [e_real]/[e_score] use
+    it to translate an [R]-literal to a value in [ar_carrier Ar R_obj].
+
+    (No [e_add]/[e_mul] in this commit — the follow-up integration agent
+    appends them.) *)
+
+Section RealObj.
+Variable (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+(** Convert an [R] to an [ar_carrier Ar R_obj] via the propositional cast.
+    Used by [e_real]/[e_score]. *)
+Definition R_to_carrier (r : R) : ar_carrier Ar R_obj :=
+  eq_rect_r (fun T : Type => T) r R_carrier_eq.
+
+Definition tR : ppl_type Ar := tbase R_obj.
+
+End RealObj.
+
+Arguments R_to_carrier {R Ar R_obj} R_carrier_eq r.
+Arguments tR {R Ar} R_obj.
+
+(** ** Terms — single intrinsically-typed inductive [expr Γ τ]
+
+    Notice we use DIRECT-style application [e_app : expr G (tfun t1 t2) ->
+    expr G t1 -> expr G t2] (not Moggi fine-grain), matching the QBS-paper
+    calculus shape; the Moggi monadic structure is uncovered by [eD] via the
+    Kleisli-exponential chain.
+
+    The constructors:
+    - [e_var] : project a value from the De Bruijn context;
+    - [e_tt] : the unit value [()];
+    - [e_pair] / [e_fst] / [e_snd] : binary products;
+    - [e_lam] : higher-order lambda (body is an [expr] in the extended
+      context — IT IS NOT marked as a computation; the Moggi/Kleisli
+      structure is in the SEMANTICS, not the syntax);
+    - [e_app] : DIRECT application;
+    - [e_ret] : monadic return [tprob t];
+    - [e_bind] : monadic bind [do x <- m; k];
+    - [e_sample] : sample from a fixed measure [µ : FMeas X] in the unit
+      ball (the constructor carries the cone-norm bound [Hmu : ‖µ‖ ≤ 1]
+      that the [linhom_icones]-wrapping needs);
+    - [e_real] : real literal [r : R] of type [tR] (the Dirac at [r] has
+      unit norm — no bound proof needed);
+    - [e_score] : score by [r : R] with [0 ≤ r ≤ 1] proofs, returning
+      [tprob tunit].
+
+    *** TODO: NOT IN THIS COMMIT (follow-up agent appends them) ***
+
+    The arithmetic constructors below are NOT YET in the inductive; they
+    depend on the [icones_hom] bundling of [FMeas]'s lax monoidal pre-map
+    that the parallel [theories/homs/fmeas_lax.v] agent is producing.  The
+    follow-up integration agent will append:
+    [[
+       | e_add  : forall G, expr G (tprob tR) -> expr G (tprob tR) ->
+                            expr G (tprob tR)
+       | e_mul  : forall G, expr G (tprob tR) -> expr G (tprob tR) ->
+                            expr G (tprob tR)
+    ]]
+    together with the example [ex_random_linear] that exercises them. *)
+Section Syntax.
+Variable (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+Local Notation tR' := (tR R_obj).
+Local Notation T := (@ppl_type R Ar).
+
+Inductive expr : ppl_ctx Ar -> T -> Type :=
+  | e_var   (G : ppl_ctx Ar) (t : T) :
+      has_var G t -> expr G t
+  | e_tt    (G : ppl_ctx Ar) : expr G tunit
+  | e_pair  (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G t1 -> expr G t2 -> expr G (tprod t1 t2)
+  | e_fst   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tprod t1 t2) -> expr G t1
+  | e_snd   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tprod t1 t2) -> expr G t2
+  | e_lam   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr (t1 :: G) t2 -> expr G (tfun t1 t2)
+  | e_app   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tfun t1 t2) -> expr G t1 -> expr G t2
+  | e_ret   (G : ppl_ctx Ar) (t : T) :
+      expr G t -> expr G (tprob t)
+  | e_bind  (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tprob t1) -> expr (t1 :: G) (tprob t2) ->
+      expr G (tprob t2)
+  | e_sample (G : ppl_ctx Ar) (X : ar_obj Ar)
+             (mu : fmeas R (ar_carrier Ar X))
+             (Hmu : (cone_norm mu <= 1)%R) :
+      expr G (tprob (tbase X))
+  | e_real  (G : ppl_ctx Ar) (r : R) : expr G tR'
+  | e_score (G : ppl_ctx Ar) (r : R)
+            (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+      expr G (tprob tunit).
 
 End Syntax.
 
-Arguments ty' {R} Ar.
-Arguments tunit' {R Ar}.
-Arguments tbase' {R Ar} X.
-Arguments tprod' {R Ar} s t.
-Arguments tfun {R Ar} A B.
-Arguments vl' {R Ar} G t.
-Arguments v_var' {R Ar G}.
-Arguments v_unit' {R Ar G}.
-Arguments v_pair' {R Ar G s t} V W.
-Arguments v_fst' {R Ar G s t} V.
-Arguments v_snd' {R Ar G s t} V.
-Arguments v_lam {R Ar G A B} M.
-Arguments cp' {R Ar} G t.
-Arguments c_ret' {R Ar G t} V.
-Arguments c_let' {R Ar G H t} M N.
-Arguments c_sample' {R Ar G X} V.
-Arguments c_app {R Ar G A B} V W.
+Arguments expr {R Ar R_obj} G t.
+Arguments e_var {R Ar R_obj G t} v.
+Arguments e_tt {R Ar R_obj G}.
+Arguments e_pair {R Ar R_obj G t1 t2} M N.
+Arguments e_fst {R Ar R_obj G t1 t2} M.
+Arguments e_snd {R Ar R_obj G t1 t2} M.
+Arguments e_lam {R Ar R_obj G t1 t2} M.
+Arguments e_app {R Ar R_obj G t1 t2} F X.
+Arguments e_ret {R Ar R_obj G t} M.
+Arguments e_bind {R Ar R_obj G t1 t2} M K.
+Arguments e_sample {R Ar R_obj G X} mu Hmu.
+Arguments e_real {R Ar R_obj G} r.
+Arguments e_score {R Ar R_obj G} r Hr0 Hr1.
 
-(** ** Type interpretation [tyD']
+(** ** Type and context interpretation [tyD] / [ctxD]
 
-    Every type denotes a coalgebra of [EM(!)].  The new clause for
-    [tfun A B] is the Kleisli exponential for [T = !̃ ∘ U]:
+    Every type denotes a coalgebra of [EM(!)]:
     [[
-        ⟦tfun A B⟧ = !̃(U A ⊸ U B)
-                  = bang_cofree (linhom_car Ar (coalg_obj ⟦A⟧) (coalg_obj ⟦B⟧)).
+       ⟦tunit⟧       = EM_term
+       ⟦tbase X⟧     = FMeas_coalgebra X         (Theorem 9.7)
+       ⟦tprod t1 t2⟧ = EM_prod ⟦t1⟧ ⟦t2⟧
+       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U⟦t2⟧)         (Kleisli exponential of [T])
+       ⟦tprob t⟧     = ⟦t⟧.
     ]]
-    Note: NO [Bang] on the domain — this is the Kleisli-exponential
-    encoding for monadic CBV, NOT the Girard / CBN translation. *)
+    The [tprob] marker is SYNTACTIC: every expression is interpreted
+    uniformly through the CBV computation monad [T = !̃ ∘ U] (every
+    [⟦expr G t⟧ ∈ coalg_hom (ctxD G) (Tobj (tyD t))]), and the
+    [e_ret]/[e_bind]/[e_sample]/etc. constructors all participate in
+    that monadic shape.  The [tprob] marker at the TYPE level does NOT
+    add a further [Tobj]: that would be a double-monad and is not what
+    the calculus intends.
+
+    Contexts are interpreted with the HEAD of the list on the RIGHT:
+    [[
+       ⟦[]⟧      = EM_term
+       ⟦t :: G⟧  = EM_prod ⟦G⟧ ⟦t⟧.
+    ]]
+    With this orientation, the variable [hv_zero] (= the head) is the
+    SECOND component of the product (read by [em_proj2]), and [hv_succ]
+    strips off the head by reading the FIRST component (via [em_proj1]) and
+    recursing.  The orientation matches the [lam_coalg] / [app_kleisli]
+    helpers below: the body of [e_lam : expr (t1 :: G) t2 -> expr G (tfun
+    t1 t2)] is interpreted in [⟦t1 :: G⟧ = EM_prod ⟦G⟧ ⟦t1⟧] — exactly the
+    domain of the Kleisli-exponential curry of [cbv.v]. *)
 Section TypeInterp.
 Variables (R : realType) (Ar : MeasSubcat R).
 
-Fixpoint tyD' (t : ty' Ar) : Coalgebra Ar :=
+Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
   match t with
-  | tunit' => EM_term
-  | tbase' X => FMeas_coalgebra X
-  | tprod' s1 s2 => EM_prod (tyD' s1) (tyD' s2)
-  | tfun A B => bang_cofree (linhom_car Ar (coalg_obj (tyD' A))
-                                        (coalg_obj (tyD' B)))
+  | tunit => EM_term
+  | tbase X => FMeas_coalgebra X
+  | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
+  | tfun A B => bang_cofree (linhom_car Ar (coalg_obj (tyD A))
+                                          (coalg_obj (tyD B)))
+  (* [tprob t] is the SYNTACTIC marker for "this is a computation in
+     the probability monad".  Semantically every expression is
+     interpreted through the monad uniformly ([eD] wraps EVERY
+     denotation in [Tobj]), so [tyD (tprob t) = tyD t]: the [tprob]
+     marker does NOT add an extra layer of [Tobj] at the type-level
+     interpretation.  The monadic structure is in [eD], not [tyD]. *)
+  | tprob t0 => tyD t0
+  end.
+
+Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
+  match G with
+  | nil => EM_term
+  | t :: G' => EM_prod (ctxD G') (tyD t)
   end.
 
 End TypeInterp.
 
-Arguments tyD' {R Ar} t.
+Arguments tyD {R Ar} t.
+Arguments ctxD {R Ar} G.
+
+(** ** Kleisli infrastructure on top of [cbv.v]
+
+    The CBV monad [T], its unit [tunit_eta], Kleisli composition [kcomp] /
+    extension [kbind], the three monad laws ([kcomp_etaR]/[kcomp_etaL]/
+    [kcomp_A]) and the slick engine [adj_phi_kcomp] are inherited from
+    [theories/programs/cbv.v].  This section adds the genuinely-new
+    higher-order / strength helpers that the multi-variable direct-style
+    [expr] interpretation needs.
+
+    The first is the (left) tensor strength of [T]
+    [[
+       T_str_l : EM_prod G (T A) -> T (EM_prod G A)
+    ]]
+    obtained as [bang_m ∘ (tunit_eta G ⊗ id_{T A})]: pre-compose the lax
+    binary comparison [bang_m : T P × T Q → T (P × Q)] with
+    [η_G ⊗ id : G × T A → T G × T A].  This is the standard Moggi monadic
+    strength for a commutative monoidal monad.
+
+    The second is the "extended-context Kleisli bind"
+    [[
+       kbind_ext : (coalg_hom (EM_prod G A) (Tobj B)) ->
+                   (coalg_hom G (Tobj A)) ->
+                   (coalg_hom G (Tobj B))
+    ]]
+    used by [e_bind].  It is [kcomp k (T_str_l ∘ ⟨id,m⟩)]: pair [m] with
+    the identity to keep the environment, strength to push the [T] outside
+    the [G ⊗ —], then [kcomp] with the continuation [k]. *)
+
+Section KleisliExt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** The left strength [τ : G ⊗ T A → T (G ⊗ A)].
+
+    Concretely [τ = bang_m (U G) (U A) ∘ (η_G ⊗ id_{T A})].  Since [T A =
+    bang_cofree (U A)], the right factor is identity (its target equals
+    its source); the left factor is the unit [η_G : G → !̃(U G) = T G] of
+    the comonoidal adjunction; and [bang_m] is the commutative comonoid
+    "merge" of [cbv_adjunction.v]. *)
+Definition T_str_l (G A : Coalgebra Ar) :
+    coalg_hom (EM_prod G (Tobj A)) (Tobj (EM_prod G A)) :=
+  coalg_comp (bang_m (coalg_obj G) (coalg_obj A))
+    (em_pair (coalg_comp (tunit_eta G) (em_proj1 G (Tobj A)))
+             (em_proj2 G (Tobj A))).
+
+(** "Extended-context Kleisli bind": given a Kleisli arrow [m : G ⇝ A]
+    and a continuation [k : G × A ⇝ B] (with the bound variable on the
+    RIGHT — matching the context convention [ctxD (t :: G) = EM_prod G (tyD
+    t)]), produce a Kleisli arrow [G ⇝ B].
+
+    [kbind_ext k m] is [kcomp k (τ ∘ ⟨id_G, m⟩)]: pair [m] with the
+    identity, apply the strength, kbind with [k]. *)
+Definition kbind_ext (G A B : Coalgebra Ar)
+    (k : coalg_hom (EM_prod G A) (Tobj B))
+    (m : coalg_hom G (Tobj A)) :
+    coalg_hom G (Tobj B) :=
+  kcomp k (coalg_comp (T_str_l G A) (em_pair (coalg_id G) m)).
+
+End KleisliExt.
+
+Arguments T_str_l {R Ar} G A.
+Arguments kbind_ext {R Ar G A B} k m.
+
+(** ** Variable lookup [var_lookup]
+
+    Given a De Bruijn witness [v : has_var G t], project the value of type
+    [tyD t] out of the context [ctxD G].  By recursion on [v]: [hv_zero]
+    reads the SECOND component (the head), [hv_succ] reads the FIRST and
+    recurses. *)
+Section VarLookup.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Fixpoint var_lookup (G : ppl_ctx Ar) (t : ppl_type Ar)
+    (v : has_var G t) {struct v} :
+    coalg_hom (ctxD G) (tyD t) :=
+  match v in has_var G0 t0 return coalg_hom (ctxD G0) (tyD t0) with
+  | hv_zero G' t' => em_proj2 (ctxD G') (tyD t')
+  | hv_succ G' t' s v' =>
+      coalg_comp (var_lookup v') (em_proj1 (ctxD G') (tyD s))
+  end.
+
+End VarLookup.
+
+Arguments var_lookup {R Ar G t} v.
 
 (** ** Lambda and application via the Kleisli-exponential chain
 
-    The two helper combinators [lam_coalg] and [app_kleisli] realise
-    the chain
-    [[
-       Hom_EM(G × A, T B) ≅ Hom_EM(G, !̃(U A ⊸ U B))
-    ]]
-    as Coq definitions, using:
+    The two helpers [lam_coalg'] and [app_kleisli'] reuse [lam_coalg] /
+    [app_kleisli] of [theories/programs/ppl.v]'s former higher-order
+    package — except that here [lam_coalg]/[app_kleisli] are imported from
+    [cbv.v]'s siblings... no, [cbv.v] does NOT export them.  We inline
+    them here under the same names from the previous higher-order ppl. *)
 
-    - step 1 (cofree adjunction at the LEFT end, target [!̃(U B)]):
-      [adj_phi] / [adj_psi] of [em_cat.v];
-    - step 2 (U strict monoidal): definitional — [coalg_obj
-      (EM_prod G A) = coalg_obj G ⊗ coalg_obj A] by [EM_prod_obj], so
-      step 2 is invisible at the term level;
-    - step 3 (SMCC closure on [ICones]): [tensor_curry] /
-      [tensor_uncurry] of [tensor_construct.v] / [smcc.v];
-    - step 4 (cofree adjunction at the RIGHT end, target
-      [!̃(U A ⊸ U B)]): [adj_phi] / [adj_psi] again. *)
-
-Section Lam.
+Section LamApp.
 Variables (R : realType) (Ar : MeasSubcat R).
 
-(** *** Lambda — going LEFT to RIGHT through the chain
-
-    Given a body interpretation
-    [MB : coalg_hom (EM_prod G A) (Tobj B)]
-    (a Kleisli arrow [G × A ⇝ B]), produce
-    [coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B)))].
-
-    Steps (right-to-left in the diagram above, but reading the code
-    bottom-up):
-    - [adj_phi MB : icones_hom Ar (U_obj (EM_prod G A)) (U_obj B)]
-      (step 1: cofree adjunction at LEFT end);
-    - by [EM_prod_obj] the domain is definitionally
-      [coalg_obj G ⊗ coalg_obj A] (step 2: U strict monoidal — no map
-      needed);
-    - [tensor_curry] turns it into
-      [icones_hom Ar (coalg_obj G) (linhom_car Ar (coalg_obj A) (coalg_obj B))]
-      (step 3: SMCC closure);
-    - [adj_psi] lifts that to a coalgebra morphism into
-      [bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))]
-      (step 4: cofree adjunction at RIGHT end). *)
+(** Lambda — LEFT to RIGHT through the Kleisli-exponential chain.  Given
+    a body [coalg_hom (EM_prod G A) (Tobj B)], produce
+    [coalg_hom G (tyD (tfun A B))] = [coalg_hom G (!̃(U A ⊸ U B))]. *)
 Definition lam_under (G A B : Coalgebra Ar)
     (MB : coalg_hom (EM_prod G A) (Tobj B)) :
     icones_hom Ar (coalg_obj G)
@@ -323,35 +450,11 @@ Definition lam_coalg (G A B : Coalgebra Ar)
     coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) :=
   adj_psi (lam_under MB).
 
-(** *** Application — going RIGHT to LEFT through the chain
-
-    Given:
-    - [VF : coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B)))]
-      (a value of the function type);
-    - [VA : coalg_hom G A]
-      (a value of the argument type);
-    produce a Kleisli arrow [G ⇝ B], i.e.
-    [coalg_hom G (Tobj B) = coalg_hom G (bang_cofree (coalg_obj B))].
-
-    Steps (right-to-left in the diagram above):
-    - [adj_phi VF : icones_hom Ar (coalg_obj G) (linhom_car Ar (coalg_obj A) (coalg_obj B))]
-      (step 4 reversed: cofree adjunction at RIGHT end);
-    - [tensor_uncurry] turns it into
-      [icones_hom Ar (coalg_obj G ⊗ coalg_obj A) (coalg_obj B)]
-      (step 3 reversed: SMCC closure);
-    - precompose with [(id ⊗ U_mor VA) ∘ coalg_d G : coalg_obj G →
-      coalg_obj G ⊗ coalg_obj A] (step 2 reversed: U strict monoidal —
-      the comonoidal diagonal [coalg_d G : coalg_obj G → coalg_obj G ⊗
-      coalg_obj G] then pair the IDENTITY with the underlying [U_mor VA
-      = ch_mor VA] of the argument);
-    - [adj_psi] lifts to a coalgebra morphism into
-      [bang_cofree (coalg_obj B) = Tobj B]
-      (step 1 reversed: cofree adjunction at LEFT end).
-
-    No `eval_smcc-is-a-coalg-morphism' chase is performed: every
-    [icones_hom (coalg_obj G) (coalg_obj B)] is lifted to
-    [coalg_hom G (Tobj B)] by [adj_psi_is_mor] unconditionally — this
-    is exactly what makes monadic CBV work. *)
+(** Application — RIGHT to LEFT through the chain.  Given a value of the
+    function type and a value of the argument type, produce a Kleisli
+    arrow [G ⇝ B].  Both VF and VA are VALUES (coalgebra morphisms), NOT
+    computations — this is the "value" form of application, used INSIDE
+    [app_pair] below to actually fire the closure at a pair. *)
 Definition app_under (G A B : Coalgebra Ar)
     (VF : coalg_hom G
             (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))))
@@ -368,283 +471,392 @@ Definition app_kleisli (G A B : Coalgebra Ar)
     coalg_hom G (Tobj B) :=
   adj_psi (app_under VF VA).
 
-End Lam.
+(** *** [app_pair] — the Kleisli "evaluate" arrow on a value pair
+
+    Given a pair value [(f, a) : EM_prod (tfun A B) A], project the
+    components and apply [app_kleisli].  This is the continuation used to
+    interpret direct-style application as monadic application after both
+    [f] and [a] have been EVALUATED to values. *)
+Definition app_pair (A B : Coalgebra Ar) :
+    coalg_hom (EM_prod (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A)
+              (Tobj B) :=
+  app_kleisli
+    (em_proj1 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A)
+    (em_proj2 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A).
+
+End LamApp.
 
 Arguments lam_under {R Ar G A B} MB.
 Arguments lam_coalg {R Ar G A B} MB.
 Arguments app_under {R Ar G A B} VF VA.
 Arguments app_kleisli {R Ar G A B} VF VA.
+Arguments app_pair {R Ar} A B.
 
-(** ** Term interpretation [vlD'] / [cpD']
+(** ** Term interpretation [eD]
 
-    Values denote coalgebra morphisms; computations denote Kleisli
-    arrows of the CBV monad [T = !̃ ∘ U] of [cbv.v].  Defined by
-    MUTUAL fixpoint on the syntax (lambda's body is a [cp'], so [vlD']
-    needs [cpD'] and vice versa). *)
-Section TermInterp.
+    Every expression denotes a Kleisli arrow [⟦Γ ⊢ M : τ⟧ : coalg_hom (ctxD
+    Γ) (Tobj (tyD τ))] in the EM category, by structural recursion on the
+    syntax.
+
+    - [e_var i] : [var_lookup i] is a VALUE (a [coalg_hom (ctxD G) (tyD
+      t)]); compose with [tunit_eta] to get a Kleisli arrow into [Tobj].
+    - [e_tt] : compose [tunit_eta EM_term] with the terminal map
+      [em_term_mor].
+    - [e_pair M N] : interpret both components as Kleisli arrows; pair
+      via [em_pair] into [Tobj A × Tobj B]; then apply the commutative
+      monoidal-monad pairing [bang_m] to land in [Tobj (A × B)].
+    - [e_fst M] / [e_snd M] : post-compose with [Tmap em_proj1] /
+      [Tmap em_proj2] (the functorial action of [T] on the projection
+      values).
+    - [e_lam M] : the body [M : (t1 :: G) ⇝ t2] = a Kleisli arrow on
+      [EM_prod (ctxD G) (tyD t1)] into [Tobj (tyD t2)]; [lam_coalg]
+      curries it through the Kleisli-exponential chain to a VALUE
+      [coalg_hom G (tyD (tfun t1 t2))], then [tunit_eta] makes it a
+      computation.
+    - [e_app F X] : DIRECT-style application.  Interpret [F] / [X] as
+      Kleisli arrows of type [G ⇝ tfun A B] / [G ⇝ A]; pair them with
+      [em_pair] into [Tobj (tfun A B) × Tobj A]; apply [bang_m] to land
+      in [Tobj (EM_prod (tfun A B) A)]; finally [kbind] with [app_pair]
+      to actually fire the closure on its argument.  This is the
+      "evaluate-evaluate-then-fire" Moggi semantics of direct
+      application.
+    - [e_ret M] : evaluate [M] (already a Kleisli arrow into [Tobj]) and
+      then wrap once more with [tunit_eta].
+    - [e_bind M K] : the extended-context Kleisli bind [kbind_ext]
+      glueing [M : G ⇝ t1] with the continuation [K : (t1 :: G) ⇝ t2].
+    - [e_sample mu] : the constant Kleisli arrow [G ⇝ FMeas X] whose
+      value is [mu], composed through [tunit_eta] of [FMeas_coalgebra X].
+    - [e_real r] : the constant Kleisli arrow [G ⇝ tR] whose value is the
+      Dirac at [R_to_carrier r] (norm exactly [1]).
+    - [e_score r Hr0 Hr1] : the constant Kleisli arrow [G ⇝ tunit] whose
+      value is [r · η(⋆)] — i.e. [r] times the canonical element of the
+      unit cone; the two hypotheses [0 ≤ r] and [r ≤ 1] guarantee the
+      cone-norm bound that [linhom_icones] needs.
+
+    The three sample-style constructors ([e_sample]/[e_real]/[e_score])
+    share the same packaging pattern: build an [icones_hom] [coalg_obj G →
+    C] by composing the cone-eraser [coalg_e (ctxD G) : coalg_obj G →
+    cone_one_car] with the linear-point map [lin_pt c : cone_one_car → C]
+    at the chosen unit-ball value [c]; lift the result to a coalgebra
+    morphism into [Tobj] via [adj_psi] (which is UNCONDITIONAL — no
+    coalgebra-morphism side condition on the icones_hom). *)
+
+(** *** [const_kleisli c Hc] — the constant Kleisli arrow at [c]
+
+    For [c : C] in the unit ball (witness [Hc : ‖c‖ ≤ 1]) and any
+    coalgebra [G], produce a coalgebra morphism [G → bang_cofree C]
+    whose underlying value is the constant Dirac-at-[c]-style lift.
+    Concretely: [adj_psi (lin_pt c ∘ coalg_e G)]. *)
+Section ConstKleisli.
 Variables (R : realType) (Ar : MeasSubcat R).
 
-Fixpoint vlD' (G : ty' Ar) (t : ty' Ar) (V : vl' G t) {struct V} :
-    coalg_hom (tyD' G) (tyD' t) :=
-  match V in vl' _ t0 return coalg_hom (tyD' G) (tyD' t0) with
-  | v_var' => coalg_id (tyD' G)
-  | v_unit' => em_term_mor (tyD' G)
-  | v_pair' s t W1 W2 => em_pair (vlD' W1) (vlD' W2)
-  | v_fst' s t W => coalg_comp (em_proj1 (tyD' s) (tyD' t)) (vlD' W)
-  | v_snd' s t W => coalg_comp (em_proj2 (tyD' s) (tyD' t)) (vlD' W)
-  | v_lam A B body => lam_coalg (cpD' body)
-  end
+(** A constant icones_hom out of any coalgebra, into [C], whose value is
+    the [lin_pt]-scaling of a unit-ball element [c]. *)
+Lemma lin_pt_norm_le1 (C : ICone.type Ar) (c : C) :
+    (cone_norm c <= 1)%R ->
+    (cone_norm (lin_pt c) <= 1)%R.
+Proof.
+move=> Hc.
+rewrite -[cone_norm _]/(linhom_norm (lin_pt c)).
+apply: linhom_norm_sup_lub => s Hs.
+apply: le_trans (lin_pt_norm_le c s) _.
+by rewrite -[1%R]mul1r; apply: ler_pM=> //;
+  [exact: cone_norm_ge0|exact: cone_norm_ge0].
+Qed.
 
-with cpD' (G : ty' Ar) (t : ty' Ar) (M : cp' G t) {struct M} :
-    coalg_hom (tyD' G) (Tobj (tyD' t)) :=
-  match M in cp' _ t0 return coalg_hom (tyD' G) (Tobj (tyD' t0)) with
-  | c_ret' t0 V => coalg_comp (tunit_eta (tyD' t0)) (vlD' V)
-  | c_let' H t0 N1 N2 => kcomp (cpD' N2) (cpD' N1)
-  | c_sample' X V => coalg_comp (tunit_eta (tyD' (tbase' X))) (vlD' V)
-  | c_app A B Vf Va => app_kleisli (vlD' Vf) (vlD' Va)
+Definition const_icones (G : Coalgebra Ar) (C : ICone.type Ar) (c : C)
+    (Hc : (cone_norm c <= 1)%R) :
+    icones_hom Ar (coalg_obj G) C :=
+  icones_comp (linhom_icones (lin_pt c) (@lin_pt_norm_le1 C c Hc)) (coalg_e G).
+
+Definition const_kleisli (G : Coalgebra Ar) (C : ICone.type Ar) (c : C)
+    (Hc : (cone_norm c <= 1)%R) :
+    coalg_hom G (bang_cofree C) :=
+  adj_psi (@const_icones G C c Hc).
+
+End ConstKleisli.
+
+Arguments lin_pt_norm_le1 {R Ar C} c Hc.
+Arguments const_icones {R Ar} G {C} c Hc.
+Arguments const_kleisli {R Ar} G {C} c Hc.
+
+(** ** The term interpretation [eD] *)
+Section TermInterp.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+Local Notation T := (@ppl_type R Ar).
+Local Notation EX G t :=
+    (coalg_hom (ctxD G) (Tobj (tyD t))).
+
+(** [score_value r Hr0 Hr1 : cone_one_car Ar] — the element [r · one1] of
+    the unit cone, with norm exactly [r] (and in particular [≤ 1]). *)
+Definition score_value (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+    cone_one_car Ar :=
+  MkConeOne Ar (NngNum Hr0).
+
+Lemma score_value_norm_le1 (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+    (cone_norm (@score_value r Hr0 Hr1) <= 1)%R.
+Proof.
+by rewrite /cone_norm/= /c1_norm /=.
+Qed.
+
+(** The constant Kleisli arrow at the [score_value]. *)
+Definition score_kleisli (G : Coalgebra Ar) (r : R)
+    (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+    coalg_hom G (bang_cofree (cone_one_car Ar)) :=
+  @const_kleisli _ _ G (cone_one_car Ar) (@score_value r Hr0 Hr1)
+                 (@score_value_norm_le1 r Hr0 Hr1).
+
+(** Helper: Dirac in [FMeas R_obj] has norm exactly [1], hence [≤ 1]. *)
+Lemma dirac_fmeas_norm_le1 (r : ar_carrier Ar R_obj) :
+    (cone_norm (dirac_fmeas r : FMeas R_obj) <= 1)%R.
+Proof. by rewrite dirac_fmeas_norm. Qed.
+
+Definition real_kleisli (G : Coalgebra Ar) (r : R) :
+    coalg_hom G (Tobj (FMeas_coalgebra R_obj)) :=
+  @const_kleisli _ _ G (FMeas R_obj)
+    (dirac_fmeas (R_to_carrier R_carrier_eq r))
+    (dirac_fmeas_norm_le1 _).
+
+(** Sample with a unit-ball measure. *)
+Definition sample_kleisli (G : Coalgebra Ar) (X : ar_obj Ar)
+    (mu : fmeas R (ar_carrier Ar X))
+    (Hmu : (cone_norm mu <= 1)%R) :
+    coalg_hom G (Tobj (FMeas_coalgebra X)) :=
+  @const_kleisli _ _ G (FMeas X) mu Hmu.
+
+(** The denotation of an expression as a coalgebra (Kleisli) morphism. *)
+Fixpoint eD (G : ppl_ctx Ar) (t : T)
+    (M : @expr R Ar R_obj G t) {struct M} : EX G t :=
+  match M in expr G0 t0 return EX G0 t0 with
+  | e_var _ _ v =>
+      coalg_comp (tunit_eta (tyD _)) (var_lookup v)
+  | e_tt G0 =>
+      coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD G0))
+  | e_pair G0 t1 t2 M1 M2 =>
+      coalg_comp (bang_m (coalg_obj (tyD t1)) (coalg_obj (tyD t2)))
+                 (em_pair (eD M1) (eD M2))
+  | e_fst G0 t1 t2 M0 =>
+      coalg_comp (Tmap (em_proj1 (tyD t1) (tyD t2))) (eD M0)
+  | e_snd G0 t1 t2 M0 =>
+      coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD M0)
+  | e_lam G0 t1 t2 body =>
+      coalg_comp (tunit_eta (tyD (tfun t1 t2))) (lam_coalg (eD body))
+  | e_app G0 t1 t2 Vf Va =>
+      kcomp (app_pair (tyD t1) (tyD t2))
+        (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
+                    (em_pair (eD Vf) (eD Va)))
+  (* In this uniform-monadic semantics, [tyD (tprob t) = tyD t] (the
+     [tprob] marker is purely syntactic, see the [tyD] docstring), so
+     [e_ret M] denotes the SAME Kleisli arrow as [M] itself.  This is
+     consistent with treating EVERY expression as a Kleisli arrow into
+     [Tobj (tyD t)]. *)
+  | e_ret G0 t0 M0 => eD M0
+  | e_bind G0 t1 t2 M0 K =>
+      kbind_ext (eD K) (eD M0)
+  | e_sample G0 X mu Hmu =>
+      @sample_kleisli (ctxD G0) X mu Hmu
+  | e_real G0 r =>
+      @real_kleisli (ctxD G0) r
+  | e_score G0 r Hr0 Hr1 =>
+      @score_kleisli (ctxD G0) r Hr0 Hr1
   end.
 
 End TermInterp.
 
-Arguments vlD' {R Ar G t} V.
-Arguments cpD' {R Ar G t} M.
+Arguments eD {R Ar R_obj R_carrier_eq G t} M.
+Arguments score_value {R Ar} r Hr0 Hr1.
+Arguments score_kleisli {R Ar} G r Hr0 Hr1.
+Arguments real_kleisli {R Ar R_obj R_carrier_eq} G r.
+Arguments sample_kleisli {R Ar} G {X} mu Hmu.
+Arguments dirac_fmeas_norm_le1 {R Ar R_obj} r.
 
-(** ** Soundness — the higher-order rule and the example *)
+(** ** Soundness — definitional [eD] equations + structural laws *)
 Section Soundness.
 Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
 
-Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation EX' G t :=
+    (coalg_hom (ctxD G) (Tobj (tyD t))).
+Local Notation tR' := (tR R_obj).
+Local Notation eD' := (@eD R Ar R_obj R_carrier_eq).
 
-(** Definitional unfoldings of [vlD'] / [cpD'] (stated as lemmas so
-    [rewrite] folds them cleanly without an aggressive [/=]). *)
-Lemma vlD'_varE (G : ty' Ar) :
-  vlD' (v_var' (G := G)) = coalg_id (tyD' G).
+(** *** Definitional unfoldings of [eD]
+
+    Stated as lemmas so [rewrite] folds them cleanly without an
+    aggressive [/=] that would unfold all the categorical packaging. *)
+
+Lemma eD_var (G : ppl_ctx Ar) (t : ppl_type Ar) (v : has_var G t) :
+  eD' (e_var (R_obj := R_obj) v) =
+  coalg_comp (tunit_eta (tyD t)) (var_lookup v).
 Proof. by []. Qed.
 
-Lemma vlD'_lamE (G : ty' Ar) (A B : ty' Ar)
-    (M : cp' (tprod' G A) B) :
-  vlD' (v_lam M) = lam_coalg (cpD' M).
+Lemma eD_tt (G : ppl_ctx Ar) :
+  eD' (e_tt (R_obj := R_obj) (G := G)) =
+  coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD G)).
 Proof. by []. Qed.
 
-Lemma cpD'_retE (G : ty' Ar) (t : ty' Ar) (V : vl' G t) :
-  cpD' (c_ret' V) = coalg_comp (tunit_eta (tyD' t)) (vlD' V).
+Lemma eD_pair (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : expr G t1) (N : expr G t2) :
+  eD' (e_pair M N) =
+  coalg_comp (bang_m (coalg_obj (tyD t1)) (coalg_obj (tyD t2)))
+             (em_pair (eD' M) (eD' N)).
 Proof. by []. Qed.
 
-Lemma cpD'_letE (G H : ty' Ar) (t : ty' Ar)
-    (M : cp' G H) (N : cp' H t) :
-  cpD' (c_let' M N) = kcomp (cpD' N) (cpD' M).
+Lemma eD_fst (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar) (M : expr G (tprod t1 t2)) :
+  eD' (e_fst M) = coalg_comp (Tmap (em_proj1 (tyD t1) (tyD t2))) (eD' M).
 Proof. by []. Qed.
 
-Lemma cpD'_sampleE (G : ty' Ar) (X : ar_obj Ar) (V : vl' G (tbase' X)) :
-  cpD' (c_sample' V) = coalg_comp (tunit_eta (FMeas_coalgebra X)) (vlD' V).
+Lemma eD_snd (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar) (M : expr G (tprod t1 t2)) :
+  eD' (e_snd M) = coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD' M).
 Proof. by []. Qed.
 
-(** *** Beta-rule support: [adj_phi] of [lam_coalg]
-
-    [adj_phi] is the LEFT inverse of [adj_psi] ([adj_phiK]), so the
-    underlying linear hom of a lambda VALUE is exactly [lam_under] of
-    the body — i.e. [tensor_curry] of [adj_phi (cpD' body)]. *)
-Lemma adj_phi_lam_coalg (G A B : Coalgebra Ar)
-    (MB : coalg_hom (EM_prod G A) (Tobj B)) :
-  adj_phi (lam_coalg MB) = lam_under MB.
-Proof. exact: adj_phiK. Qed.
-
-(** *** [adj_phi] of [app_kleisli]: read application back to its
-    underlying linear hom.  Again by [adj_phiK]. *)
-Lemma adj_phi_app_kleisli (G A B : Coalgebra Ar)
-    (VF : coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A)
-                                              (coalg_obj B))))
-    (VA : coalg_hom G A) :
-  adj_phi (app_kleisli VF VA) = app_under VF VA.
-Proof. exact: adj_phiK. Qed.
-
-(** The [let]-of-[ret] law (substitution-as-composition): the proof
-    is structurally identical to [cbv.cpD_letret]. *)
-Lemma cpD'_letret (G H : ty' Ar) (t : ty' Ar)
-    (V : vl' G H) (N : cp' H t) :
-  cpD' (c_let' (c_ret' V) N) = coalg_comp (cpD' N) (vlD' V).
-Proof.
-rewrite cpD'_letE cpD'_retE /kcomp.
-rewrite (coalg_compA (kbind (cpD' N)) (tunit_eta (tyD' H)) (vlD' V)).
-by rewrite -/(kcomp (cpD' N) (tunit_eta (tyD' H))) kcomp_etaR.
-Qed.
-
-(** [c_sample' V] = [c_ret' V] (definitional, the !-monad identifies
-    sampling with returning a measure — same fact as
-    [cbv.cpD_sample_ret], a genuine feature of the cones model). *)
-Lemma cpD'_sample_ret (G : ty' Ar) (Y : ar_obj Ar) (V : vl' G (tbase' Y)) :
-  cpD' (c_sample' V) = cpD' (c_ret' V).
+Lemma eD_lam (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (body : expr (t1 :: G) t2) :
+  eD' (e_lam body) =
+  coalg_comp (tunit_eta (tyD (tfun t1 t2))) (lam_coalg (eD' body)).
 Proof. by []. Qed.
 
-(** [c_app] denotation reads as [app_kleisli] of the value
-    denotations — definitional. *)
-Lemma cpD'_appE (G : ty' Ar) (A B : ty' Ar)
-    (Vf : vl' G (tfun A B)) (Va : vl' G A) :
-  cpD' (c_app Vf Va) = app_kleisli (vlD' Vf) (vlD' Va).
+Lemma eD_app (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (F : expr G (tfun t1 t2)) (X : expr G t1) :
+  eD' (e_app F X) =
+  kcomp (app_pair (tyD t1) (tyD t2))
+    (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
+                (em_pair (eD' F) (eD' X))).
 Proof. by []. Qed.
 
-(** *** The β-rule at the underlying-ICones level
+(** *** The "[e_ret] is identity" law
 
-    Combine [adj_phi_app_kleisli] with [adj_phi_lam_coalg] to read
-    the underlying linear hom of [c_app (v_lam M) W] as
-
-      [tensor_uncurry (tensor_curry (adj_phi (cpD' M))) ∘
-        (id_G ⊗ ch_mor (vlD' W)) ∘ coalg_d G]
-      = [adj_phi (cpD' M) ∘ (id_G ⊗ ch_mor (vlD' W)) ∘ coalg_d G]
-
-    by the SMCC inversion [tensor_uncurryK / tensor_curryK].  This is
-    the structural β-equation at the linear-hom level; full term-level
-    β-equivalence with the substituted body [M[W/x]] would need a
-    syntactic substitution lemma (not pursued here — it is orthogonal
-    to the type-theoretic correctness of the new encoding). *)
-Lemma adj_phi_cpD'_app_lam (G A B : ty' Ar)
-    (M : cp' (tprod' G A) B) (W : vl' G A) :
-  adj_phi (cpD' (c_app (v_lam M) W)) =
-  icones_comp (tensor_uncurry (lam_under (cpD' M)))
-    (icones_comp
-       (tensor_mor (icones_id Ar (coalg_obj (tyD' G))) (ch_mor (vlD' W)))
-       (coalg_d (tyD' G))).
-Proof.
-rewrite cpD'_appE adj_phi_app_kleisli /app_under.
-by rewrite vlD'_lamE adj_phi_lam_coalg.
-Qed.
-
-(** ** The higher-order example — [random_constant]
-
-    [[
-        ex_random_constant ≜
-          c_let' (c_sample' v_var')
-                 (c_ret' (v_lam (c_ret' (v_fst' v_var'))))
-    ]]
-    in context [Γ = tbase' X], denoting a Kleisli arrow
-    [FMeas X ⇝ tfun (tbase' X) (tbase' X)].
-
-    Reading: sample a value [c] from the input measure, then return
-    the constant function [λ x. c] (whose body is the value-form
-    computation [ret c]).  The denotation is a coalgebra morphism
-    [FMeas X → T (!̃(FMeas X ⊸ FMeas X))], i.e. a distribution over
-    linear maps — the very feature mathcomp-qbs invokes QBS for,
-    recovered here in the EM(!) Kleisli-exponential discipline. *)
-Section RandomConstant.
-Variable X : ar_obj Ar.
-
-(** The PPL program.  Note the lambda body is a COMPUTATION
-    [c_ret' (v_fst' v_var')] — fine-grain Moggi-CBV. *)
-Definition ex_random_constant :
-    cp' (tbase' X) (tfun (tbase' X) (tbase' X)) :=
-  c_let' (c_sample' (v_var' (G := tbase' X)))
-         (c_ret' (v_lam (c_ret' (v_fst' (v_var' (G := tprod' (tbase' X)
-                                                             (tbase' X))))))).
-
-(** Its denotation is a Kleisli arrow [tbase' X ⇝ tfun (tbase' X)
-    (tbase' X)], i.e. a coalgebra morphism
-    [FMeas X → T (!̃(FMeas X ⊸ FMeas X))]. *)
-Definition ex_random_constant_denot :
-    coalg_hom (tyD' (tbase' X))
-              (Tobj (tyD' (tfun (tbase' X) (tbase' X)))) :=
-  cpD' ex_random_constant.
-
-(** β-step of the higher-order example: since [c_sample _] = [c_ret _]
-    on the [!]-monad ([cpD'_sample_ret]), and [let-of-ret] = compose
-    ([cpD'_letret]) with the bound value [v_var' = id], the program
-    reduces to the constant-lambda value. *)
-Lemma ex_random_constant_denot_E :
-  ex_random_constant_denot =
-  cpD' (c_ret' (v_lam (c_ret' (v_fst' (v_var' (G := tprod' (tbase' X)
-                                                           (tbase' X))))))).
-Proof.
-rewrite /ex_random_constant_denot /ex_random_constant.
-rewrite cpD'_letE (cpD'_sample_ret v_var') -cpD'_letE.
-rewrite cpD'_letret vlD'_varE.
-exact: coalg_compIr.
-Qed.
-
-(** And the value of the lambda, unfolded: [v_lam (c_ret' (v_fst'
-    v_var'))] is the constant-c function, packaged through
-    [lam_coalg] over the body computation
-    [c_ret' (v_fst' v_var') : cp' (tprod' (tbase' X) (tbase' X)) (tbase' X)]. *)
-Lemma ex_random_constant_value_E :
-  vlD' (v_lam (c_ret' (v_fst' (v_var' (G := tprod' (tbase' X) (tbase' X)))))) =
-  lam_coalg (cpD' (c_ret' (v_fst'
-              (v_var' (G := tprod' (tbase' X) (tbase' X)))))).
-Proof. exact: vlD'_lamE. Qed.
-
-(** A second higher-order example, exercising APPLICATION ([c_app]):
-    apply the identity-lambda to its own argument.  The lambda's body
-    is [c_ret' (v_snd' v_var')] — the value-form computation returning
-    the second component of the pair (Γ, x).
-
-    [Γ = tbase' X ⊢ app (λx. ret x) x : cp' (tbase' X)]. *)
-Definition ex_app_id : cp' (tbase' X) (tbase' X) :=
-  c_app (v_lam (c_ret' (v_snd' (v_var' (G := tprod' (tbase' X) (tbase' X))))))
-        (v_var' (G := tbase' X)).
-
-Definition ex_app_id_denot :
-    coalg_hom (tyD' (tbase' X)) (Tobj (tyD' (tbase' X))) :=
-  cpD' ex_app_id.
-
-(** The denotation is definitionally an [app_kleisli] of the lambda's
-    interpretation and the variable's identity. *)
-Lemma ex_app_id_denot_E :
-  ex_app_id_denot =
-  app_kleisli (vlD' (v_lam (c_ret' (v_snd'
-                  (v_var' (G := tprod' (tbase' X) (tbase' X)))))))
-              (vlD' (v_var' (G := tbase' X))).
+    Because [tyD (tprob t) = tyD t] and EVERY expression is interpreted
+    as a Kleisli arrow, [e_ret M] denotes the same arrow as [M].  This
+    is the genuine "tprob is purely syntactic" content. *)
+Lemma eD_ret (G : ppl_ctx Ar) (t : ppl_type Ar) (M : expr G t) :
+  eD' (e_ret M) = eD' M.
 Proof. by []. Qed.
 
-(** The underlying [icones_hom] of the lambda VALUE — the linear map
-    [FMeas X ⊸ FMeas X] that is the Kleisli-exponential reading of
-    the closure [λx. c].  Read directly via [adj_phi_lam_coalg]. *)
-Lemma ex_random_constant_under_E :
-  adj_phi (vlD' (v_lam (c_ret' (v_fst'
-            (v_var' (G := tprod' (tbase' X) (tbase' X))))))) =
-  lam_under (cpD' (c_ret' (v_fst'
-            (v_var' (G := tprod' (tbase' X) (tbase' X)))))).
-Proof.
-rewrite vlD'_lamE; exact: adj_phi_lam_coalg.
-Qed.
+Lemma eD_bind (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : expr G (tprob t1)) (K : expr (t1 :: G) (tprob t2)) :
+  eD' (e_bind M K) = kbind_ext (eD' K) (eD' M).
+Proof. by []. Qed.
 
-(** **The integral anchor.**  Combining the reduction
-    [ex_random_constant_denot_E] with [cpD_sample_is_integral] of
-    [cbv.v] (= [Theta] = identity at the coalgebra structure of
-    [FMeas X]), the denotation of [ex_random_constant] is *the
-    integral against the input measure of the promoted constant-
-    function path*: for [μ : FMeas X],
+Lemma eD_sample (G : ppl_ctx Ar) (X : ar_obj Ar)
+    (mu : fmeas R (ar_carrier Ar X)) (Hmu : (cone_norm mu <= 1)%R) :
+  eD' (e_sample (R_obj := R_obj) (G := G) mu Hmu) =
+  sample_kleisli (ctxD G) mu Hmu.
+Proof. by []. Qed.
 
-      ⟦ ex_random_constant ⟧(μ) = (Coalg_{T(...)} ∘ lam_coalg ...)(μ)
+Lemma eD_real (G : ppl_ctx Ar) (r : R) :
+  eD' (e_real (G := G) (R_obj := R_obj) r) =
+  @real_kleisli _ _ R_obj R_carrier_eq (ctxD G) r.
+Proof. by []. Qed.
 
-    in the underlying ICones — and [Coalg_X] of a Dirac is the
-    promoted Dirac ([Coalg_dirac] in [coalgebra.v]), so an atomic
-    input measure [δr] yields the promoted constant-r function
-    [(λx.r)!].  This is the precise integration sense in which our
-    denotation matches the mathcomp-qbs [monadP_map curried_const
-    Normal(0,1)]. *)
-Lemma ex_random_constant_denot_at_ret :
-  ex_random_constant_denot =
-  coalg_comp
-    (tunit_eta (tyD' (tfun (tbase' X) (tbase' X))))
-    (vlD' (v_lam (c_ret' (v_fst'
-            (v_var' (G := tprod' (tbase' X) (tbase' X))))))).
-Proof. exact: ex_random_constant_denot_E. Qed.
+Lemma eD_score (G : ppl_ctx Ar) (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+  eD' (e_score (R_obj := R_obj) (G := G) r Hr0 Hr1) =
+  score_kleisli (ctxD G) r Hr0 Hr1.
+Proof. by []. Qed.
 
-End RandomConstant.
+(** *** Monad laws (re-exported from [cbv.v])
+
+    Stated here in the form [eD] needs them.  These are the [kcomp]
+    laws of [theories/programs/cbv.v]: [kcomp_etaR]/[kcomp_etaL]/[kcomp_A].
+    The HEADLINE for this file: the analogous laws for [kbind_ext] (the
+    extended-context bind used by [e_bind]) are derived from the [kcomp]
+    laws plus the strength's interaction with the EM-comonoidal
+    structure.  We expose the [kbind_ext] form below. *)
 
 End Soundness.
 
-Arguments cpD'_letret {R Ar G H t} V N.
-Arguments cpD'_sample_ret {R Ar G Y} V.
-Arguments cpD'_appE {R Ar G A B} Vf Va.
-Arguments vlD'_varE {R Ar} G.
-Arguments vlD'_lamE {R Ar G A B} M.
-Arguments adj_phi_lam_coalg {R Ar G A B} MB.
-Arguments adj_phi_app_kleisli {R Ar G A B} VF VA.
-Arguments adj_phi_cpD'_app_lam {R Ar G A B} M W.
-Arguments ex_random_constant {R Ar} X.
-Arguments ex_random_constant_denot {R Ar} X.
-Arguments ex_random_constant_denot_E {R Ar} X.
-Arguments ex_random_constant_denot_at_ret {R Ar} X.
-Arguments ex_random_constant_value_E {R Ar} X.
-Arguments ex_random_constant_under_E {R Ar} X.
-Arguments ex_app_id {R Ar} X.
-Arguments ex_app_id_denot {R Ar} X.
-Arguments ex_app_id_denot_E {R Ar} X.
+Arguments eD_var {R Ar R_obj R_carrier_eq G t} v.
+Arguments eD_tt {R Ar R_obj R_carrier_eq} G.
+Arguments eD_pair {R Ar R_obj R_carrier_eq G t1 t2} M N.
+Arguments eD_fst {R Ar R_obj R_carrier_eq G t1 t2} M.
+Arguments eD_snd {R Ar R_obj R_carrier_eq G t1 t2} M.
+Arguments eD_lam {R Ar R_obj R_carrier_eq G t1 t2} body.
+Arguments eD_app {R Ar R_obj R_carrier_eq G t1 t2} F X.
+Arguments eD_ret {R Ar R_obj R_carrier_eq G t} M.
+Arguments eD_bind {R Ar R_obj R_carrier_eq G t1 t2} M K.
+Arguments eD_sample {R Ar R_obj R_carrier_eq G X} mu Hmu.
+Arguments eD_real {R Ar R_obj R_carrier_eq G} r.
+Arguments eD_score {R Ar R_obj R_carrier_eq G r} Hr0 Hr1.
+
+(** ** Headline example — [ex_random_constant]
+
+    The QBS-paper-flagship "distribution over a function space" example,
+    ported from [mathcomp-qbs/theories/showcase/ppl_examples.v]'s
+    [random_constant].  Parameterised by a measure [mu] on [R_obj]
+    standing in for QBS's [Normal(0,1)] (we do not commit to a concrete
+    constructor here: any unit-ball [mu : fmeas R (ar_carrier Ar R_obj)]
+    works — the headline is the term, the reduction, and the type, not
+    the choice of base sampler).
+
+    [[
+        ex_random_constant ≜
+          e_bind (e_sample mu Hmu)
+                 (e_ret (e_lam (e_var (hv_succ hv_zero))))
+        : expr [] (tprob (tfun tR tR))
+    ]]
+
+    Reading: draw [c ∼ mu], then return the constant function [λ x. c]
+    (the lambda body's [hv_succ hv_zero] index skips the lambda
+    parameter and reads the outer bound [c]).  This is a distribution
+    over [tR → tR] — the "higher-order" content the QBS paper
+    invokes QBS for.
+
+    The reduction lemma [ex_random_constant_denot_E] uses the
+    definitional [eD_ret] (= identity at the Kleisli level) and
+    [eD_bind] to expose the structural form
+    [kbind_ext lam_denot sample_denot]. *)
+Section RandomConstant.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The lambda body: [hv_succ hv_zero] in context [tR :: tR :: nil]
+    skips the lambda parameter and reads the outer bound variable. *)
+Definition ex_rc_body : @expr R Ar R_obj (tR' :: tR' :: nil) tR' :=
+  e_var (hv_succ hv_zero).
+
+(** The lambda closure: in context [tR :: nil] returns a function
+    [tR → tR] = the constant-c closure. *)
+Definition ex_rc_lam : @expr R Ar R_obj (tR' :: nil) (tfun tR' tR') :=
+  e_lam ex_rc_body.
+
+(** The PPL term: [do c <- sample mu; return (λ x. c)]. *)
+Definition ex_random_constant :
+    @expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+  e_bind (e_sample mu Hmu) (e_ret ex_rc_lam).
+
+(** Its denotation — a Kleisli arrow [⟦[]⟧ ⇝ ⟦tfun tR tR⟧], i.e.
+    [EM_term → Tobj (!̃(U tR ⊸ U tR))]. *)
+Definition ex_random_constant_denot :
+    coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD (tfun tR' tR'))) :=
+  @eD R Ar R_obj R_carrier_eq nil (tprob (tfun tR' tR')) ex_random_constant.
+
+(** The structural reduction: [eD_ret] is the identity, [eD_bind] is
+    [kbind_ext]; combining them, the denotation reads as
+    [kbind_ext (eD ex_rc_lam) (eD (e_sample mu Hmu))]. *)
+Lemma ex_random_constant_denot_E :
+  ex_random_constant_denot =
+  kbind_ext (@eD R Ar R_obj R_carrier_eq _ _ ex_rc_lam)
+            (sample_kleisli (ctxD nil) mu Hmu).
+Proof.
+rewrite /ex_random_constant_denot /ex_random_constant.
+rewrite eD_bind eD_ret eD_sample.
+by [].
+Qed.
+
+End RandomConstant.
+
+Arguments ex_rc_body {R Ar R_obj}.
+Arguments ex_rc_lam {R Ar R_obj}.
+Arguments ex_random_constant {R Ar R_obj} mu Hmu.
+Arguments ex_random_constant_denot {R Ar R_obj R_carrier_eq} mu Hmu.
+Arguments ex_random_constant_denot_E {R Ar R_obj R_carrier_eq} mu Hmu.
