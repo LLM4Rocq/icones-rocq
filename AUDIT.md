@@ -172,10 +172,10 @@ does not depend on `R` and threads it only for uniformity. Harmless; noted for c
   the prebuilt `.vo`, not taken on trust. No `Axiom`/`Parameter`/`Admitted`/`admit.`/`give_up`
   exists in any of the 54 files (the only "Admitted"/"Axiom" hits are *prose in comments*
   asserting their absence). Notably, even `Prop_irrelevance` is avoided.
-- **Thm 6.5 (`Skern_to_ICones_fully_faithful`, `thm65.v:364`) is the real full+faithful.**
-  Faithful = injectivity of `Skern_to_ICones_mor` on hom-sets (`thm65.v:211`); full =
+- **Thm 6.5 (`Skern_to_ICones_fully_faithful`, `kernel_embedding.v:364`) is the real full+faithful.**
+  Faithful = injectivity of `Skern_to_ICones_mor` on hom-sets (`kernel_embedding.v:211`); full =
   surjectivity onto `icones_hom (FMeas X) (FMeas Y)` with an explicit inverse `icones_to_skern`
-  (`thm65.v:317-349`). Matches paper "Sklin is full and faithful" (content.tex:4619) exactly.
+  (`kernel_embedding.v:317-349`). Matches paper "Sklin is full and faithful" (content.tex:4619) exactly.
   Functoriality (`Skern_to_ICones_mor_id/_comp`) is also proved.
 - **Cone hierarchy is faithful to §2.** `isPrecone` (`precone.v:46`) = R≥0-semimodule +
   cancellation (Pcsimpl) + positivity (Pcpos); `isCone` (`cone.v:55`) adds the norm with
@@ -260,7 +260,7 @@ is axiom-free. The honest gaps are:
 
 | Headline | Paper statement | Coq statement | Faithful? | Discrepancy |
 |---|---|---|---|---|
-| `Skern_to_ICones_fully_faithful` (thm65.v:364) | Sklin: SKERN→ICONES is full and faithful (content.tex:4619) | injective on homs ∧ surjective onto `icones_hom(FMeas X, FMeas Y)` | **yes** | none |
+| `Skern_to_ICones_fully_faithful` (kernel_embedding.v:364) | Sklin: SKERN→ICONES is full and faithful (content.tex:4619) | injective on homs ∧ surjective onto `icones_hom(FMeas X, FMeas Y)` | **yes** | none |
 | `ICones_smcc` (smcc.v:371) | ICones is an SMCC (Thm 5.15, th:icones-smcc) | bifunctor+id law, 4 `icones_iso`, involution, triangle/pentagon/hexagon, closed | **yes (minor under-bundle)** | no `smcc_mor_comp`/iso-naturality fields (M4) |
 | `tensor_hom_iso` (tensor_iso.v:3317) | (B⊗C)⊸D ≅ B⊸(C⊸D) (Thm 5.12) | `icones_iso` via cancel, both laws proved | **yes** | stale "PARTIAL" header in a *different* file (M3) |
 | `SCones_ccc` (scones_ccc.v) | STAB is cartesian closed (Thm 7.32 region) | product+β, exponential+β/η record, all populated | **yes** | none; carrier 0-extension is faithful, not weakening |

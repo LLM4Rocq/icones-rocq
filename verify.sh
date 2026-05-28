@@ -39,7 +39,7 @@ echo "=== Print Assumptions (headline results) ==="
 # Feed the commands on stdin to the Rocq toplevel (there is no `-e`
 # batch flag). Modules are loaded via `Require Import` of the
 # already-compiled .vo, so this is fast.
-cmd='From Icones.kernels Require Import thm65.
+cmd='From Icones.kernels Require Import kernel_embedding.
 From Icones.homs Require Import smcc bang seely coalgebra.
 Print Assumptions Skern_to_ICones_fully_faithful.  (* Thm 6.5  — the anchor *)
 Print Assumptions ICones_smcc.                      (* Thm 5.15 — SMCC *)

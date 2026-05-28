@@ -4,7 +4,7 @@
 % Mirrors theories/kernels/:
 %   skern.v   the category Skern of substochastic kernels (mathcomp-
 %             analysis fker-based, with the norm-≤-1 constraint)
-%   thm65.v   paper Thm 6.5 — Skern → ICones is fully faithful
+%   kernel_embedding.v   paper Thm 6.5 — Skern → ICones is fully faithful
 %
 % Wave 2 is populated. The two MVP money-theorem statements
 % (Thm 6.1 round-trips and Thm 6.5 fully faithfulness) are tagged
@@ -340,14 +340,14 @@ to its associated integrable linear map $I^{\FMeas(Y)}_X(\kappa)$.
 
 \begin{definition}[$\mathsf{Klin}$ on objects]\label{def:Klin-obj}%
 \rocqok\mathcompok
-\rocq{Icones.kernels.thm65.Skern_to_ICones_obj}%
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_obj}%
 \uses{def:fmeas-carrier}
 $\mathsf{Klin}(X) := \FMeas(X) \in \ICones$.
 \end{definition}
 
 \begin{definition}[$\mathsf{Klin}$ on morphisms]\label{def:Klin-mor}%
 \rocqok\mathcompok
-\rocq{Icones.kernels.thm65.Skern_to_ICones_mor}%
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_mor}%
 \uses{def:int-to-linhom, def:skern-hom}
 For $\kappa \in \Skern(X, Y)$,
 $\mathsf{Klin}(\kappa) := I^{\FMeas(Y)}_X(\kappa) \in
@@ -366,9 +366,9 @@ to chain $\cnorm{\int \kappa\,d\mu}_\FMeas
 \le \cnorm{\kappa}_\Path \cdot \cnorm{\mu}_\FMeas
 \le 1 \cdot \cnorm{\mu}_\FMeas
 = \cnorm{\mu}_\FMeas$ (see
-\rocq{Icones.kernels.thm65.Skern_to_ICones_mor_norm_le1}).
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_mor_norm_le1}).
 The unfolding lemma
-\rocq{Icones.kernels.thm65.Skern_to_ICones_mor_E} confirms
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_mor_E} confirms
 $\mathsf{Klin}(\kappa)(\mu) = \int_X \kappa\,d\mu$.
 \end{definition}
 
@@ -377,9 +377,9 @@ $\mathsf{Klin}(\kappa)(\mu) = \int_X \kappa\,d\mu$.
 \uses{def:Klin-obj, def:Klin-mor, prop:skern-cat}
 $\mathsf{Klin}$ preserves identity and composition:
 \begin{itemize}
-  \item \rocq{Icones.kernels.thm65.Skern_to_ICones_mor_id}:
+  \item \rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_mor_id}:
     $\mathsf{Klin}(\delta_X) = \id_{\FMeas(X)}$ in $\ICones$;
-  \item \rocq{Icones.kernels.thm65.Skern_to_ICones_mor_comp}:
+  \item \rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_mor_comp}:
     $\mathsf{Klin}(\kappa_1 \mathbin{;} \kappa_2)
     = \mathsf{Klin}(\kappa_2) \circ \mathsf{Klin}(\kappa_1)$.
 \end{itemize}
@@ -398,7 +398,7 @@ applied to the measurable path $\kappa_1$
 
 \begin{theorem}[Paper Theorem~6.5, faithful direction]%
 \label{thm:thm65-faithful}\rocqok\mathcompok
-\rocq{Icones.kernels.thm65.Skern_to_ICones_faithful}%
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_faithful}%
 \uses{def:Klin-mor, thm:KI}
 For $X, Y \in \Ar$ and $\kappa_1, \kappa_2 \in \Skern(X, Y)$, if
 $\mathsf{Klin}(\kappa_1) = \mathsf{Klin}(\kappa_2)$ then $\kappa_1 = \kappa_2$.
@@ -430,7 +430,7 @@ follows by \rocq{Icones.kernels.skern.Skern_hom_eq}
 
 \begin{theorem}[Paper Theorem~6.5, full direction]%
 \label{thm:thm65-full}\rocqok\mathcompok
-\rocq{Icones.kernels.thm65.Skern_to_ICones_full}%
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_full}%
 \uses{def:Klin-mor, thm:IK, def:linhom-to-int}
 For every $f \in \ICones(\FMeas(X), \FMeas(Y))$, there exists
 $\kappa \in \Skern(X, Y)$ such that $\mathsf{Klin}(\kappa) = f$.
@@ -448,11 +448,11 @@ $\cnorm{\kappa}_\Path \le 1$ follows pointwise: for every $r \in X$,
 where the inequality is \rocq{Icones.cones.cone_cat.cones_hom_norm_le1}
 for $f$ (in its $\icones_{\mathrm{hom}}$ packaging) and the last
 equality is \rocq{Icones.homs.bilin.dirac_fmeas_norm} (see
-\rocq{Icones.kernels.thm65.icones_to_skern_norm_le1}). So $\kappa$
+\rocq{Icones.kernels.kernel_embedding.icones_to_skern_norm_le1}). So $\kappa$
 is a substochastic kernel.
 
 Now $f$ itself, viewed as a $\linhom$ via the helper
-\rocq{Icones.kernels.thm65.icones_to_linhom} (which repackages the
+\rocq{Icones.kernels.kernel_embedding.icones_to_linhom} (which repackages the
 $\icones_{\mathrm{hom}}$ fields with operator-norm constant
 $M := 1$), satisfies the round-trip $I \circ K = \id$
 (Theorem~\ref{thm:IK},
@@ -466,14 +466,14 @@ Extracting underlying functions on both sides
 (by $\icones_{\mathrm{hom}}$-extensionality
 \rocq{Icones.icones.icone_cat.icones_hom_eq}) gives
 $\mathsf{Klin}(\kappa) = f$ in $\ICones$, see
-\rocq{Icones.kernels.thm65.Skern_to_ICones_mor_to_skern}.
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_mor_to_skern}.
 \end{proof}
 
 \section{Theorem 6.5 --- the MVP headline}\label{sec:thm65}
 
 \begin{theorem}[Paper Theorem~6.5, MVP money theorem]%
 \label{thm:thm65}\rocqok\mathcompok
-\rocq{Icones.kernels.thm65.Skern_to_ICones_fully_faithful}%
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_fully_faithful}%
 \uses{thm:thm65-faithful, thm:thm65-full}
 For all $X, Y \in \Ar$, the assignment
 \[
@@ -538,7 +538,7 @@ beyond the MVP.
 
 \paragraph{Axiom budget.}
 The MVP money theorem,
-\rocq{Icones.kernels.thm65.Skern_to_ICones_fully_faithful}, is
+\rocq{Icones.kernels.kernel_embedding.Skern_to_ICones_fully_faithful}, is
 axiom-clean in the following sense: a \texttt{Print Assumptions}
 call on the theorem reports only the three classical axioms exported
 by \texttt{mathcomp.classical.boolp} and used pervasively by

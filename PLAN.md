@@ -298,7 +298,7 @@ Key design notes:
     └── kernels/
         ├── skern.v                        -- M5: substochastic kernel cone (Def 6.x)
         ├── skern_to_icone.v               -- M5: functor Skern → ICones
-        └── thm65.v                        -- M5: Skern → ICones is fully faithful
+        └── kernel_embedding.v                        -- M5: Skern → ICones is fully faithful
 ```
 
 Conventions:
@@ -521,7 +521,7 @@ Items the user (Guillaume Baudart, INRIA) should weigh in on **before M0 starts*
 | Def 5.2 `C ⊸ D` | §5.1, txt line 2041 | `theories/homs/linhom.v` |
 | Lemma 5.4 `C ⊸ D` integrable | §5.1, txt line 2160 | `theories/homs/linhom.v` |
 | Thm 6.1 `Path ≃ FMeas ⊸ B` | §6, txt line 2835 | `theories/homs/bilin.v` |
-| Thm 6.5 Skern ↪ ICones full+faithful | §6.1, txt line 3038 | `theories/kernels/thm65.v` |
+| Thm 6.5 Skern ↪ ICones full+faithful | §6.1, txt line 3038 | `theories/kernels/kernel_embedding.v` |
 
 (Indices for §7–§10 deferred to stretch-milestone plan documents.)
 
@@ -557,7 +557,7 @@ Items the user (Guillaume Baudart, INRIA) should weigh in on **before M0 starts*
 **Outcome: shipped.** Paper §2–§6 are formalized in Rocq 9.1.1 + mathcomp-analysis
 1.16 + HB 1.10. The headline **Theorem 6.5** — the substochastic-kernel category
 `Skern` embeds fully and faithfully into `ICones` — is proved as
-`Icones.kernels.thm65.Skern_to_ICones_fully_faithful`, **axiom-clean**: it depends
+`Icones.kernels.kernel_embedding.Skern_to_ICones_fully_faithful`, **axiom-clean**: it depends
 only on the three classical axioms inherited from `mathcomp-analysis`/`boolp`
 (`propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description`), with **zero project `Axiom`s and zero

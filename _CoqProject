@@ -40,7 +40,7 @@ theories/homs/bang_construct.v
 theories/homs/tensor_hom_iso.v
 theories/homs/tensor_iso.v
 theories/kernels/skern.v
-theories/kernels/thm65.v
+theories/kernels/kernel_embedding.v
 theories/stable/local_cone.v
 theories/stable/totmono.v
 theories/stable/stablehom.v
