@@ -38,7 +38,7 @@
     - We do *not* prove here that any cone admits integrals — that's
       the content of [isICone] (in [icone.v]) and the witness
       theorems for [FMeas(X)], [Path(X, B)] (paper Thms 4.5 / 4.12,
-      deferred to M3 wave 2/3).
+      proved in [theories/icones/examples_icone.v]).
 
     - We use mathcomp-analysis's generic Lebesgue integral
       [integral mu D f] (notation [\int[mu]_(r in D) f]); we feed it
@@ -189,12 +189,11 @@ End IsPathIntegrable.
 
 Arguments is_path_integrable {R Ar B X} β µ.
 
-(** ** Deferred witnesses — Paper Thms 4.5 / 4.12
+(** ** Downstream witnesses — Paper Thms 4.5 / 4.12
 
-    The two milestone results for M3 wave 2/3 are stated below as
-    [TODO] placeholders. They will be discharged in dedicated
-    files where the corresponding measurable cones are already in
-    scope:
+    The two integrability witnesses for the running examples live in
+    [theories/icones/examples_icone.v], where the corresponding
+    measurable cones are already in scope:
 
     - Thm 4.5: [FMeas(X)] is an integrable cone (paper §4, p. 1:24).
       Concretely, for [Y ∈ Ar], [κ ∈ Path(Y, FMeas(X))] and
@@ -206,43 +205,5 @@ Arguments is_path_integrable {R Ar B X} β µ.
       pointwise integral is the integral in the path cone.
 
     Stating these here would require importing [fmeas]'s and
-    [path]'s [MCone] instances at the point of use; we defer the
-    statements to the wave-2 file. *)
-
-(* TODO M3 wave 2: Theorem 4.5 — [FMeas(X)] is integrable.
-
-   Statement sketch (in the [FMeas] file):
-     forall (R : realType) (Ar : MeasSubcat R) (X : ar_obj Ar),
-       forall (Y : ar_obj Ar)
-              (κ : ar_carrier Ar Y -> fmeas R (ar_carrier Ar X))
-              (Hκ : is_measurable_path κ)
-              (ν : fmeas R (ar_carrier Ar Y)),
-         is_path_integrable κ ν.
-
-   Proof outline (paper p. 1:24): the candidate integral is the
-   kernel-integrated measure µ(U) := ∫ κ(s)(U) ν(ds); finite by
-   [µ(setT) ≤ ‖κ‖ ‖ν‖]; correctness against arity-0 tests is the
-   standard Fubini-Tonelli unfolding of the [FMeas] test family
-   (see [fmeas.v]'s [e_U] tests). *)
-
-(* TODO M3 wave 2: Theorem 4.12 — [Path(X, B)] is integrable when
-   [B] is.
-
-   Statement sketch (in the [Path] file or downstream):
-     forall (R : realType) (Ar : MeasSubcat R)
-            (B : MCone.type Ar) (X : ar_obj Ar),
-       (forall (Y : ar_obj Ar)
-               (β : ar_carrier Ar Y -> B)
-               (Hβ : is_measurable_path β)
-               (ν : fmeas R (ar_carrier Ar Y)),
-          is_path_integrable β ν) ->
-       forall (Y : ar_obj Ar)
-              (η : ar_carrier Ar Y ->
-                   path_car Ar X B)            (* or its MCone wrap *)
-              (Hη : is_measurable_path η)
-              (ν : fmeas R (ar_carrier Ar Y)),
-         is_path_integrable η ν.
-
-   Proof outline (paper §4.1): pointwise integration in [B]
-   produces the candidate path in [Path(X, B)]; (Mssep) on [B]
-   plus Fubini gives the test identity for the [Path] family. *)
+    [path]'s [MCone] instances; the statements live downstream
+    where those instances are in scope. *)

@@ -50,9 +50,8 @@
       integrals, then close by mathcomp-analysis's
       [fubini_tonelli1] / [fubini_tonelli2].
 
-    - Per the M2 wave 1 gotcha (see [project-icones-m2.md] #1), the
-      [isFinite] HB instance on [fmeas_mu µ] is declared *inside* a
-      section locally varying [µ]; this is intentional — downstream
+    - The [isFinite] HB instance on [fmeas_mu µ] is declared *inside*
+      a section locally varying [µ]; this is intentional — downstream
       uses only need the propositional [fin_num_fun] which we expose
       via [fmeas_setT_fin] / [fmeas_fin], not the structure.
 *)

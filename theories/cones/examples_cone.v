@@ -13,8 +13,7 @@
 
     The module names mirror the paper's symbols deliberately so that
     downstream code can [Import ConeBot.] / [Import ConeOne.] without
-    colliding with mathcomp's lattice notation for [top] / [bot]. See
-    PLAN.md §M1f for the naming rationale.
+    colliding with mathcomp's lattice notation for [top] / [bot].
 *)
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.

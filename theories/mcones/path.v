@@ -1069,10 +1069,13 @@ End PathFlatten.
     We state and prove a function-level analog: the bivariate sup
     equals the iterated sup, modulo classical sup-of-sup. The full
     norm equality on [path_car (ar_prod X Y) B] requires the carrier
-    cast and is left to a downstream tensor-product PR (M2 wave 3). *)
+    cast and is left to a downstream tensor-product PR. *)
 
-(** TODO (M2 wave 3, in tandem with tensor-product cones from
-    Paper §3.3): register [path_fl] as a [cones_hom] and prove the
-    iso property. The function-level content of Lemma 3.19 is
-    captured by [path_fl_fun] / [path_fl_inv_fun] / [path_fl_fun_inv]
-    above. *)
+(** Future packaging note (paper §3.3 tensor cones): registering
+    [path_fl] as a full [cones_hom] and proving the iso property as
+    a packaged morphism is a downstream wrapping. The function-level
+    content of Lemma 3.19 — the underlying bijection and pointwise
+    identities — is captured by [path_fl_fun] / [path_fl_inv_fun] /
+    [path_fl_fun_inv] above, which is what every downstream
+    consumer actually uses (cf. [theories/icones/fubini.v]'s direct
+    use of the bivariate form). *)

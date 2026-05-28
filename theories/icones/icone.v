@@ -35,12 +35,12 @@
       well-defined ([m ∘ β] is then a bounded measurable function).
       We make this precondition *explicit* even though no proof in
       this file consumes it: the witness theorems for [FMeas] and
-      [Path] (M3 wave 2/3) will need it on hand.
+      [Path] need it on hand.
 
     - This file *does not* prove that any specific cone is
       integrable. Instances for [FMeas(X)] (paper Thm 4.5),
-      [Path(X, B)] (paper Thm 4.12), and the trivial [⊥] cone are
-      deferred to subsequent M3 waves.
+      [Path(X, B)] (paper Thm 4.12), and the trivial [⊥] cone live
+      in [theories/icones/examples_icone.v].
 *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.

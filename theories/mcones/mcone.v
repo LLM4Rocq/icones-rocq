@@ -43,7 +43,7 @@
       reading is "[λ x. m r x] is a [Cones]-morphism to
       [ConeOne.T R]" but we keep the pointwise statements local for
       ergonomics. (Equivalence with [cones_hom C (ConeOne.T R)] is
-      a routine wrapping deferred to M2 wave 2.)
+      a routine wrapping not needed at this layer.)
 
     - The (Msnorm) axiom is stated in the simplified form
 
@@ -54,9 +54,11 @@
       [cnorm x ≤ m(x)/||m|| + ε] is recovered because every test
       satisfies [m r x ≤ cnorm x] (so [||m|| ≤ 1] as an operator-
       norm bound), and hence [m(x)/||m|| ≥ m(x)] when [m ≠ 0]. We
-      do not formalize the dual norm in this file; that's M2 wave 2
-      (the [FMeas] and [Path] cones come with explicit dual-norm
-      witnesses on a case-by-case basis).
+      do not formalize the dual norm in this file; the general dual-
+      norm characterisation (paper Prop 3.11) lives in
+      [theories/mcones/mcone_cat.v], and the [FMeas] / [Path] cones
+      come with explicit dual-norm witnesses on a case-by-case
+      basis.
 *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.

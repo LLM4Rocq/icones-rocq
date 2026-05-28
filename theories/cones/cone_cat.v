@@ -874,8 +874,9 @@ Arguments cones_tuple {R I P Q}.
     sup operators are well-typed, the value [f (sup u) (sup v)]
     coincides with the diagonal sup [sup_n f (u_n) (v_n)].
 
-    TODO (M1e-followup): the full unconditional version requires
-    consolidating the chain witnesses; deferred. *)
+    The full unconditional version requires consolidating the chain
+    witnesses; deferred. The pointwise form below is what downstream
+    files actually consume. *)
 
 Section Lemma219.
 Variable R : realType.
@@ -1473,7 +1474,7 @@ Definition transport_isPrecone : isPrecone R S :=
     [S] would require additional work to register and would interact
     with the rest of [Cones]. Paper Lemma 2.23 establishes
     *existence* of the cone structure; an HB-style instance is left
-    as a downstream packaging task (a typical M1f / M2 follow-up
-    will re-state this lemma in the per-target file). *)
+    as a downstream packaging task (the per-target file re-states
+    this lemma when it is needed concretely). *)
 
 End ConesTransport.
