@@ -49,3 +49,6 @@ blueprint/src/*.blg
 blueprint/src/print.pdf
 blueprint/src/main.pdf
 
+
+# Paper (not tracked — local-only artifact)
+paper/
