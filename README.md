@@ -158,25 +158,31 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
   (`kcomp_etaR`/`kcomp_etaL`/`kcomp_A`), the product β-laws (`vlD_fst_pair`/`vlD_snd_pair`),
   and **`sample` = the integral** (`cpD_sample_var_dirac`: `⟦sample⟧(δ_r) = (δ_r)!`, via
   the FMeas coalgebra `Coalg_dirac` + `dirac_dense`).
-- **`theories/homs/ppl.v`** — a **higher-order** CBV/CBPV calculus with function types,
-  ported from the [`mathcomp-qbs` ppl branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl).
-  Function types are interpreted by the **Girard / LNL decomposition** `A → B = !A ⊸ B`:
-  `⟦tfun A B⟧ = bang_cofree (!⟦A⟧ ⊸ ⟦B⟧)`. Lambda is `tensor_curry` composed with `adj_psi`
-  of the cofree adjunction; application is a *computation* (CBPV-style: `c_app : T B`, since
-  evaluation isn't yet known to be a coalgebra morphism, the open Melliès §6.3 obligation
-  documented in the file). Headline example reproduced from the QBS showcase:
+- **`theories/homs/ppl.v`** — a **higher-order**, fine-grain **Moggi-CBV** calculus with
+  function types, ported from the [`mathcomp-qbs` ppl branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl).
+  Function types are interpreted by the **EM(!) Kleisli exponential** for the CBV monad
+  `T = !̃ ∘ U`: `⟦tfun A B⟧ = bang_cofree (U⟦A⟧ ⊸ U⟦B⟧)` — that is, `!̃(U A ⊸ U B)`, the
+  representing object of `Hom_EM(− × A, T B)`. The natural-bijection chain
+  `Hom_EM(C × A, T B) ≅ Hom_IC(U(C×A), U B) ≅ Hom_IC(U C ⊗ U A, U B) ≅ Hom_IC(U C, U A ⊸ U B)
+  ≅ Hom_EM(C, !̃(U A ⊸ U B))` uses only the cofree adjunction `U ⊣ !̃`, the strict
+  monoidality of `U` (`U(C × A) = U C ⊗ U A` definitionally — `cbv_U_prod`), and the SMCC
+  closure of `ICones` — *not* cartesian closure of `EM(!)`, which doesn't exist (and isn't
+  needed). Lambda and application are the two directions of this chain: `λ` =
+  `adj_psi ∘ tensor_curry ∘ adj_phi`; `app` is the dual. Application is a *computation*
+  intrinsically — that's how Moggi-CBV's monadic semantics works, not a workaround for any
+  missing structure. Headline example reproduced from the QBS showcase:
   **`ex_random_constant`** — `do c ← sample Normal(0,1); return (λx. c) : P (R → R)`,
   a *distribution over a function space*. The QBS paper cites this exact program as
   impossible in classical measure semantics; here it is `ex_random_constant_denot_E`,
   axiom-free. Headline soundness: `cpD'_letret`, `cpD'_sample_ret`, `cpD'_appE`,
-  `adj_phi_cpD'_app_lam` (the LNL β-rule).
+  `adj_phi_cpD'_app_lam` (the β-rule via the Kleisli-exponential chain).
 
-**One honest deferral.** The value category is cartesian but **not yet known to be closed**.
-`cbv.v` therefore interprets the **first-order** fragment only. `ppl.v` interprets
-higher-order via the LNL `!A ⊸ B` decomposition with application as a *computation* — the
-CBPV/Moggi-style route used by the QBS showcase too. Closing the remaining gap (value-level
-application) would mean proving evaluation `(!A ⊸ B) ⊗ !A → B` is a coalgebra morphism
-(Melliès §6.3, the monoidal cofree adjunction's internal-hom counit). Adequacy /
+**One honest scope note.** The value category `EM(!)` is cartesian but **not** cartesian
+closed — and is not expected to be (this is a structural fact about EM categories of
+linear-exponential comonads, not a missing diagram chase). What `EM(!)` *does* have, and
+what Moggi-CBV actually needs, are the **Kleisli exponentials** for `T = !̃ ∘ U` described
+above. `cbv.v` interprets a first-order fragment (no function types — minimal Moggi-CBV
+demo); `ppl.v` interprets higher-order via the Kleisli exponentials. Adequacy /
 normalization / full-abstraction are out of scope here.
 
 ## Status
