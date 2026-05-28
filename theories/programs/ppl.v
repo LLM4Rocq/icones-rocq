@@ -320,3 +320,194 @@ End TypeInterp.
 
 Arguments tyD {R Ar} t.
 Arguments ctxD {R Ar} G.
+
+(** ** Kleisli infrastructure on top of [cbv.v]
+
+    The CBV monad [T], its unit [tunit_eta], Kleisli composition [kcomp] /
+    extension [kbind], the three monad laws ([kcomp_etaR]/[kcomp_etaL]/
+    [kcomp_A]) and the slick engine [adj_phi_kcomp] are inherited from
+    [theories/programs/cbv.v].  This section adds the genuinely-new
+    higher-order / strength helpers that the multi-variable direct-style
+    [expr] interpretation needs.
+
+    The first is the (left) tensor strength of [T]
+    [[
+       T_str_l : EM_prod G (T A) -> T (EM_prod G A)
+    ]]
+    obtained as [bang_m ∘ (tunit_eta G ⊗ id_{T A})]: pre-compose the lax
+    binary comparison [bang_m : T P × T Q → T (P × Q)] with
+    [η_G ⊗ id : G × T A → T G × T A].  This is the standard Moggi monadic
+    strength for a commutative monoidal monad.
+
+    The second is the "extended-context Kleisli bind"
+    [[
+       kbind_ext : (coalg_hom (EM_prod G A) (Tobj B)) ->
+                   (coalg_hom G (Tobj A)) ->
+                   (coalg_hom G (Tobj B))
+    ]]
+    used by [e_bind].  It is [kcomp k (T_str_l ∘ ⟨id,m⟩)]: pair [m] with
+    the identity to keep the environment, strength to push the [T] outside
+    the [G ⊗ —], then [kcomp] with the continuation [k]. *)
+
+Section KleisliExt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** The left strength [τ : G ⊗ T A → T (G ⊗ A)].
+
+    Concretely [τ = bang_m (U G) (U A) ∘ (η_G ⊗ id_{T A})].  Since [T A =
+    bang_cofree (U A)], the right factor is identity (its target equals
+    its source); the left factor is the unit [η_G : G → !̃(U G) = T G] of
+    the comonoidal adjunction; and [bang_m] is the commutative comonoid
+    "merge" of [cbv_adjunction.v]. *)
+Definition T_str_l (G A : Coalgebra Ar) :
+    coalg_hom (EM_prod G (Tobj A)) (Tobj (EM_prod G A)) :=
+  coalg_comp (bang_m (coalg_obj G) (coalg_obj A))
+    (em_pair (coalg_comp (tunit_eta G) (em_proj1 G (Tobj A)))
+             (em_proj2 G (Tobj A))).
+
+(** "Extended-context Kleisli bind": given a Kleisli arrow [m : G ⇝ A]
+    and a continuation [k : G × A ⇝ B] (with the bound variable on the
+    RIGHT — matching the context convention [ctxD (t :: G) = EM_prod G (tyD
+    t)]), produce a Kleisli arrow [G ⇝ B].
+
+    [kbind_ext k m] is [kcomp k (τ ∘ ⟨id_G, m⟩)]: pair [m] with the
+    identity, apply the strength, kbind with [k]. *)
+Definition kbind_ext (G A B : Coalgebra Ar)
+    (k : coalg_hom (EM_prod G A) (Tobj B))
+    (m : coalg_hom G (Tobj A)) :
+    coalg_hom G (Tobj B) :=
+  kcomp k (coalg_comp (T_str_l G A) (em_pair (coalg_id G) m)).
+
+End KleisliExt.
+
+Arguments T_str_l {R Ar} G A.
+Arguments kbind_ext {R Ar G A B} k m.
+
+(** ** Variable lookup [var_lookup]
+
+    Given a De Bruijn witness [v : has_var G t], project the value of type
+    [tyD t] out of the context [ctxD G].  By recursion on [v]: [hv_zero]
+    reads the SECOND component (the head), [hv_succ] reads the FIRST and
+    recurses. *)
+Section VarLookup.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Fixpoint var_lookup (G : ppl_ctx Ar) (t : ppl_type Ar)
+    (v : has_var G t) {struct v} :
+    coalg_hom (ctxD G) (tyD t) :=
+  match v in has_var G0 t0 return coalg_hom (ctxD G0) (tyD t0) with
+  | hv_zero G' t' => em_proj2 (ctxD G') (tyD t')
+  | hv_succ G' t' s v' =>
+      coalg_comp (var_lookup v') (em_proj1 (ctxD G') (tyD s))
+  end.
+
+End VarLookup.
+
+Arguments var_lookup {R Ar G t} v.
+
+(** ** Lambda and application via the Kleisli-exponential chain
+
+    The two helpers [lam_coalg'] and [app_kleisli'] reuse [lam_coalg] /
+    [app_kleisli] of [theories/programs/ppl.v]'s former higher-order
+    package — except that here [lam_coalg]/[app_kleisli] are imported from
+    [cbv.v]'s siblings... no, [cbv.v] does NOT export them.  We inline
+    them here under the same names from the previous higher-order ppl. *)
+
+Section LamApp.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** Lambda — LEFT to RIGHT through the Kleisli-exponential chain.  Given
+    a body [coalg_hom (EM_prod G A) (Tobj B)], produce
+    [coalg_hom G (tyD (tfun A B))] = [coalg_hom G (!̃(U A ⊸ U B))]. *)
+Definition lam_under (G A B : Coalgebra Ar)
+    (MB : coalg_hom (EM_prod G A) (Tobj B)) :
+    icones_hom Ar (coalg_obj G)
+      (linhom_car Ar (coalg_obj A) (coalg_obj B)) :=
+  tensor_curry (adj_phi MB).
+
+Definition lam_coalg (G A B : Coalgebra Ar)
+    (MB : coalg_hom (EM_prod G A) (Tobj B)) :
+    coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) :=
+  adj_psi (lam_under MB).
+
+(** Application — RIGHT to LEFT through the chain.  Given a value of the
+    function type and a value of the argument type, produce a Kleisli
+    arrow [G ⇝ B].  Both VF and VA are VALUES (coalgebra morphisms), NOT
+    computations — this is the "value" form of application, used INSIDE
+    [app_pair] below to actually fire the closure at a pair. *)
+Definition app_under (G A B : Coalgebra Ar)
+    (VF : coalg_hom G
+            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))))
+    (VA : coalg_hom G A) :
+    icones_hom Ar (coalg_obj G) (coalg_obj B) :=
+  icones_comp (tensor_uncurry (adj_phi VF))
+    (icones_comp (tensor_mor (icones_id Ar (coalg_obj G)) (ch_mor VA))
+                 (coalg_d G)).
+
+Definition app_kleisli (G A B : Coalgebra Ar)
+    (VF : coalg_hom G
+            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))))
+    (VA : coalg_hom G A) :
+    coalg_hom G (Tobj B) :=
+  adj_psi (app_under VF VA).
+
+(** *** [app_pair] — the Kleisli "evaluate" arrow on a value pair
+
+    Given a pair value [(f, a) : EM_prod (tfun A B) A], project the
+    components and apply [app_kleisli].  This is the continuation used to
+    interpret direct-style application as monadic application after both
+    [f] and [a] have been EVALUATED to values. *)
+Definition app_pair (A B : Coalgebra Ar) :
+    coalg_hom (EM_prod (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A)
+              (Tobj B) :=
+  app_kleisli
+    (em_proj1 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A)
+    (em_proj2 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A).
+
+End LamApp.
+
+Arguments lam_under {R Ar G A B} MB.
+Arguments lam_coalg {R Ar G A B} MB.
+Arguments app_under {R Ar G A B} VF VA.
+Arguments app_kleisli {R Ar G A B} VF VA.
+Arguments app_pair {R Ar} A B.
+
+(** ** Term interpretation [eD]
+
+    Every expression denotes a Kleisli arrow [⟦Γ ⊢ M : τ⟧ : coalg_hom (ctxD
+    Γ) (Tobj (tyD τ))] in the EM category, by structural recursion on the
+    syntax.
+
+    - [e_var i] : [var_lookup i] is a VALUE (a [coalg_hom (ctxD G) (tyD
+      t)]); compose with [tunit_eta] to get a Kleisli arrow into [Tobj].
+    - [e_tt] : compose [tunit_eta EM_term] with the terminal map
+      [em_term_mor].
+    - [e_pair M N] : interpret both components as Kleisli arrows; pair
+      via [em_pair] into [Tobj A × Tobj B]; then apply the commutative
+      monoidal-monad pairing [bang_m] to land in [Tobj (A × B)].
+    - [e_fst M] / [e_snd M] : post-compose with [Tmap em_proj1] /
+      [Tmap em_proj2] (the functorial action of [T] on the projection
+      values).
+    - [e_lam M] : the body [M : (t1 :: G) ⇝ t2] = a Kleisli arrow on
+      [EM_prod (ctxD G) (tyD t1)] into [Tobj (tyD t2)]; [lam_coalg]
+      curries it through the Kleisli-exponential chain to a VALUE
+      [coalg_hom G (tyD (tfun t1 t2))], then [tunit_eta] makes it a
+      computation.
+    - [e_app F X] : DIRECT-style application.  Interpret [F] / [X] as
+      Kleisli arrows of type [G ⇝ tfun A B] / [G ⇝ A]; pair them with
+      [em_pair] into [Tobj (tfun A B) × Tobj A]; apply [bang_m] to land
+      in [Tobj (EM_prod (tfun A B) A)]; finally [kbind] with [app_pair]
+      to actually fire the closure on its argument.  This is the
+      "evaluate-evaluate-then-fire" Moggi semantics of direct
+      application.
+    - [e_ret M] : evaluate [M] (already a Kleisli arrow into [Tobj]) and
+      then wrap once more with [tunit_eta].
+    - [e_bind M K] : the extended-context Kleisli bind [kbind_ext]
+      glueing [M : G ⇝ t1] with the continuation [K : (t1 :: G) ⇝ t2].
+    - [e_sample mu] : the constant Kleisli arrow [G ⇝ FMeas X] whose
+      value is [mu], composed through [tunit_eta] of [FMeas_coalgebra X].
+    - [e_real r] : the constant Kleisli arrow [G ⇝ tR] whose value is the
+      Dirac at [R_to_carrier r] (a coalgebra morphism via [Coalg_dirac]).
+    - [e_score r] : the constant Kleisli arrow [G ⇝ tunit] whose value
+      is [r · η(⋆)] — i.e. [r] times the monad unit at unit.  See note
+      below for the precise formulation. *)
