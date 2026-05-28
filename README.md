@@ -98,7 +98,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~55k lines across 56 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~55k lines across 57 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -158,13 +158,26 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
   (`kcomp_etaR`/`kcomp_etaL`/`kcomp_A`), the product β-laws (`vlD_fst_pair`/`vlD_snd_pair`),
   and **`sample` = the integral** (`cpD_sample_var_dirac`: `⟦sample⟧(δ_r) = (δ_r)!`, via
   the FMeas coalgebra `Coalg_dirac` + `dirac_dense`).
+- **`theories/homs/ppl.v`** — a **higher-order** CBV/CBPV calculus with function types,
+  ported from the [`mathcomp-qbs` ppl branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl).
+  Function types are interpreted by the **Girard / LNL decomposition** `A → B = !A ⊸ B`:
+  `⟦tfun A B⟧ = bang_cofree (!⟦A⟧ ⊸ ⟦B⟧)`. Lambda is `tensor_curry` composed with `adj_psi`
+  of the cofree adjunction; application is a *computation* (CBPV-style: `c_app : T B`, since
+  evaluation isn't yet known to be a coalgebra morphism, the open Melliès §6.3 obligation
+  documented in the file). Headline example reproduced from the QBS showcase:
+  **`ex_random_constant`** — `do c ← sample Normal(0,1); return (λx. c) : P (R → R)`,
+  a *distribution over a function space*. The QBS paper cites this exact program as
+  impossible in classical measure semantics; here it is `ex_random_constant_denot_E`,
+  axiom-free. Headline soundness: `cpD'_letret`, `cpD'_sample_ret`, `cpD'_appE`,
+  `adj_phi_cpD'_app_lam` (the LNL β-rule).
 
-**One honest deferral.** The value category is cartesian but **not yet known to be closed**
-(the `!A ⊸ B` Girard decomposition is available linearly, but a value-CCC has not been
-proved), so `cbv.v` interprets the **first-order** fragment only; higher-order CBV (and any
-adequacy / normalization / full-abstraction result) is out of scope here. Everything else
-is on the table: the LNL adjunction is with the *full* `!`-coalgebra category, and the
-interpretation soundness is proved.
+**One honest deferral.** The value category is cartesian but **not yet known to be closed**.
+`cbv.v` therefore interprets the **first-order** fragment only. `ppl.v` interprets
+higher-order via the LNL `!A ⊸ B` decomposition with application as a *computation* — the
+CBPV/Moggi-style route used by the QBS showcase too. Closing the remaining gap (value-level
+application) would mean proving evaluation `(!A ⊸ B) ⊗ !A → B` is a coalgebra morphism
+(Melliès §6.3, the monoidal cofree adjunction's internal-hom counit). Adequacy /
+normalization / full-abstraction are out of scope here.
 
 ## Status
 
@@ -195,6 +208,8 @@ theories/
 │                em_cartesian.v      full EM(!) cartesian via ⊗ (Cor 20)
 │                cbv_adjunction.v    the LNL monoidal adjunction, ICones_CBV
 │                cbv.v               a first-order CBV calculus interpreted
+│                ppl.v               a higher-order PPL (mathcomp-qbs port),
+│                                    distribution-over-function-space example
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
 └── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
 ```
