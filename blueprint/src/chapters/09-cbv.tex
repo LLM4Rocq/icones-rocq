@@ -33,7 +33,7 @@
 %                                      (Melliès Prop 29) — a genuine LNL
 %                                      adjunction; the CBV_Model record + the
 %                                      witness ICones_CBV
-%   theories/homs/cbv.v                a small first-order CBV calculus
+%   theories/programs/cbv.v                a small first-order CBV calculus
 %                                      (unit, base, products, let, sample)
 %                                      interpreted into the model via the
 %                                      T = !̃∘U monad (Tobj/tunit_eta/kcomp);
@@ -44,7 +44,7 @@
 % Status note: the CBV model is built and AXIOM-FREE (only the three
 % classical boolp axioms): ICones_CBV, ICones_EM_cartesian, EMComon_all,
 % cpD_sample_var_dirac are all axiom-clean.  Higher-order CBV is also
-% interpreted, in fine-grain Moggi-CBV style, by theories/homs/ppl.v:
+% interpreted, in fine-grain Moggi-CBV style, by theories/programs/ppl.v:
 % function types denote the EM(!) Kleisli exponential
 %   ⟦tfun A B⟧ = !̃(U A ⊸ U B)
 % — the representing object for Hom_EM(- × A, T B) with T = !̃ ∘ U.
@@ -123,7 +123,7 @@ $\ICones$; it does \emph{not} use any cartesian closure of
 $\mathrm{EM}(\mathord{!})$. The function-type interpretation that
 results is $\sem{\mathtt{tfun}\,A\,B} =
 \widetilde{\mathord{!}}\,(U A \multimap U B)$ (\autoref{sec:cbv-ppl}).
-This is \texttt{theories/homs/ppl.v}, fine-grain Moggi-CBV, axiom-free.
+This is \texttt{theories/programs/ppl.v}, fine-grain Moggi-CBV, axiom-free.
 The QBS-paper showcase \texttt{ex\_random\_constant} --- a distribution
 over a function space, $\mathtt{P}(\mathbb{R}\to\mathbb{R})$ ---
 interprets soundly via this Kleisli-exponential structure.
@@ -145,8 +145,8 @@ the cofree/forgetful adjunction), \texttt{theories/homs/em\_seely\_comonoid.v}
 LC2--LC4), \texttt{theories/homs/em\_cartesian.v} (the \emph{full}
 cartesian $\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$,
 with the unconditional \rocq{Icones.homs.em_cartesian.EMComon_all}),
-\texttt{theories/homs/cbv\_adjunction.v} (the LNL monoidal adjunction
-and the \texttt{CBV\_Model} bundle), and \texttt{theories/homs/cbv.v}
+\texttt{theories/homs/cbv_adjunction.v} (the LNL monoidal adjunction
+and the \texttt{CBV\_Model} bundle), and \texttt{theories/programs/cbv.v}
 (the first-order CBV calculus and its interpretation).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -564,43 +564,43 @@ coalgebra), $\mathtt{1} \mapsto \EMterm$, $s \times t \mapsto
 monad induced by the adjunction
 $U \dashv \widetilde{\mathord{!}}$ of \autoref{thm:cbv-cofree-adj}:
 $T = \widetilde{\mathord{!}} \circ U$
-(\rocq{Icones.homs.cbv.Tobj}), with unit
-\rocq{Icones.homs.cbv.tunit_eta} (the adjunction unit) and Kleisli
-composition \rocq{Icones.homs.cbv.kcomp}. Values denote
+(\rocq{Icones.programs.cbv.Tobj}), with unit
+\rocq{Icones.programs.cbv.tunit_eta} (the adjunction unit) and Kleisli
+composition \rocq{Icones.programs.cbv.kcomp}. Values denote
 coalgebra-homomorphisms $\sem{\Gamma \vdash V : t} :
-\sem{\Gamma} \to \sem{t}$ (\rocq{Icones.homs.cbv.vlD}); computations
+\sem{\Gamma} \to \sem{t}$ (\rocq{Icones.programs.cbv.vlD}); computations
 denote homomorphisms $\sem{\Gamma \vdash M : t} :
-\sem{\Gamma} \to T\,\sem{t}$ (\rocq{Icones.homs.cbv.cpD}). Both are
+\sem{\Gamma} \to T\,\sem{t}$ (\rocq{Icones.programs.cbv.cpD}). Both are
 total by structural recursion --- the well-definedness half of
 soundness.
 
 \begin{theorem}[Soundness]\label{thm:cbv-soundness}
-\rocq{Icones.homs.cbv.kcomp_etaR}\rocqok
-\rocq{Icones.homs.cbv.kcomp_etaL}\rocqok
-\rocq{Icones.homs.cbv.kcomp_A}\rocqok
-\rocq{Icones.homs.cbv.vlD_fst_pair}\rocqok
-\rocq{Icones.homs.cbv.vlD_snd_pair}\rocqok
-\rocq{Icones.homs.cbv.cpD_sample_var_dirac}\rocqok
+\rocq{Icones.programs.cbv.kcomp_etaR}\rocqok
+\rocq{Icones.programs.cbv.kcomp_etaL}\rocqok
+\rocq{Icones.programs.cbv.kcomp_A}\rocqok
+\rocq{Icones.programs.cbv.vlD_fst_pair}\rocqok
+\rocq{Icones.programs.cbv.vlD_snd_pair}\rocqok
+\rocq{Icones.programs.cbv.cpD_sample_var_dirac}\rocqok
 \uses{thm:cbv-model}
 The interpretation $\sem{-}$ validates:
 \begin{enumerate}
   \item The three monad laws for $T$ ---
-    \rocq{Icones.homs.cbv.kcomp_etaR},
-    \rocq{Icones.homs.cbv.kcomp_etaL},
-    \rocq{Icones.homs.cbv.kcomp_A} --- which give the standard
+    \rocq{Icones.programs.cbv.kcomp_etaR},
+    \rocq{Icones.programs.cbv.kcomp_etaL},
+    \rocq{Icones.programs.cbv.kcomp_A} --- which give the standard
     $\mathtt{let}$ equations at term level
-    (\rocq{Icones.homs.cbv.cpD_let_retvar},
-    \rocq{Icones.homs.cbv.cpD_letret},
-    \rocq{Icones.homs.cbv.cpD_letassoc}).
+    (\rocq{Icones.programs.cbv.cpD_let_retvar},
+    \rocq{Icones.programs.cbv.cpD_letret},
+    \rocq{Icones.programs.cbv.cpD_letassoc}).
   \item The product $\beta$-laws
-    \rocq{Icones.homs.cbv.vlD_fst_pair} /
-    \rocq{Icones.homs.cbv.vlD_snd_pair}.
+    \rocq{Icones.programs.cbv.vlD_fst_pair} /
+    \rocq{Icones.programs.cbv.vlD_snd_pair}.
   \item \textbf{$\mathtt{sample}$ is the integral.} On a Dirac
     value, $\sem{\csample \delta_r}$ is the promoted point $(\delta_r)!$
-    --- \rocq{Icones.homs.cbv.cpD_sample_var_dirac} ---, and the general
+    --- \rocq{Icones.programs.cbv.cpD_sample_var_dirac} ---, and the general
     case agrees with the Thm-9.7 Coalg structure map
-    \rocq{Icones.homs.cbv.cpD_sample_mor} /
-    \rocq{Icones.homs.cbv.cpD_sample_is_integral}, which is in turn the
+    \rocq{Icones.programs.cbv.cpD_sample_mor} /
+    \rocq{Icones.programs.cbv.cpD_sample_is_integral}, which is in turn the
     integration-of-Diracs map of $\FMeas$ (the
     \rocq{Icones.homs.coalgebra.Coalg_dirac} +
     \rocq{Icones.homs.coalgebra.dirac_dense} engine of Theorem 9.7).
@@ -610,7 +610,7 @@ The interpretation $\sem{-}$ validates:
 \begin{proof}
 The monad laws come from the adjunction U\,$\dashv$\,$\widetilde{!}$ via
 $\mathrm{adj\_phi}$ being functorial $\mathbf{Kleisli}(T) \to \ICones$
-(\rocq{Icones.homs.cbv.adj_phi_kcomp}); the product $\beta$-laws come
+(\rocq{Icones.programs.cbv.adj_phi_kcomp}); the product $\beta$-laws come
 from the projection $\beta$-laws of \autoref{thm:cbv-cartesian}; the
 $\mathtt{sample}$ semantics comes from
 \rocq{Icones.homs.coalgebra.Coalg_dirac} on the base case and from the
@@ -629,28 +629,28 @@ the unit value in one well-typed first-order term:
    (\base\,X) \times \mathtt{1}.
 \]
 In the calculus's intrinsic syntax this is
-\rocq{Icones.homs.cbv.ex_prog}, of type
+\rocq{Icones.programs.cbv.ex_prog}, of type
 $\mathtt{cp}\,(\base\,X)\,(\base\,X \times \mathtt{1})$, and its
 denotation
-\rocq{Icones.homs.cbv.ex_denot} : $\mathtt{coalg\_hom}\,\FMeas(X)\,
+\rocq{Icones.programs.cbv.ex_denot} : $\mathtt{coalg\_hom}\,\FMeas(X)\,
 (T\,(\EMprod\,\FMeas(X)\,\EMterm))$
-is total by construction (\rocq{Icones.homs.cbv.cpD}).
+is total by construction (\rocq{Icones.programs.cbv.cpD}).
 \begin{lemma}[Reduction of the worked example]%
 \label{lem:cbv-example}
-\rocq{Icones.homs.cbv.ex_denot_E}\rocqok
+\rocq{Icones.programs.cbv.ex_denot_E}\rocqok
 \uses{thm:cbv-soundness}
 On a measure type the $\mathord{!}$-induced monad identifies
-$\csample$ with $\creturn$ (\rocq{Icones.homs.cbv.cpD_sample_ret}), so
+$\csample$ with $\creturn$ (\rocq{Icones.programs.cbv.cpD_sample_ret}), so
 the left-unit law collapses the binder and
 $\sem{\mathtt{ex\_prog}}$ rewrites to the continuation pairing-with-unit,
 precomposed with the value $x$.
 \end{lemma}
 \begin{proof}
-\rocq{Icones.homs.cbv.cpD_sample_ret} rewrites
+\rocq{Icones.programs.cbv.cpD_sample_ret} rewrites
 $\csample\,V$ as $\creturn\,V$ on a value of base type; the
 $\mathtt{let}$/$\mathtt{return}$ left-unit law
-(\rocq{Icones.homs.cbv.cpD_letret}, from
-\rocq{Icones.homs.cbv.kcomp_etaL} of \autoref{thm:cbv-soundness})
+(\rocq{Icones.programs.cbv.cpD_letret}, from
+\rocq{Icones.programs.cbv.kcomp_etaL} of \autoref{thm:cbv-soundness})
 then collapses the binder.
 \end{proof}
 
@@ -659,7 +659,7 @@ then collapses the binder.
 \label{sec:cbv-ppl}
 
 \autoref{sec:cbv-calculus} stops at first order; the higher-order
-companion lives in \texttt{theories/homs/ppl.v} and ports the
+companion lives in \texttt{theories/programs/ppl.v} and ports the
 \texttt{ppl} branch of \texttt{LLM4Rocq/mathcomp-qbs} (the QBS-based
 PPL) to the cones model. It is fine-grain Moggi-CBV (one type sort,
 term-level value/computation distinction), interpreted into the
@@ -744,8 +744,8 @@ EM(!) Kleisli-exponential structure, does.
 
 \begin{lemma}[Higher-order PPL showcase, axiom-free]%
 \label{lem:ppl-random-constant}
-\rocq{Icones.homs.ppl.ex_random_constant_denot_E}\rocqok
-\rocq{Icones.homs.ppl.ex_random_constant_value_E}\rocqok
+\rocq{Icones.programs.ppl.ex_random_constant_denot_E}\rocqok
+\rocq{Icones.programs.ppl.ex_random_constant_value_E}\rocqok
 \uses{thm:cbv-model}
 The denotation of $\mathtt{ex\_random\_constant}$ rewrites to the
 denotation of the constant-lambda value

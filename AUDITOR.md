@@ -247,8 +247,8 @@ direction with two small calculi, both interpreted axiom-free.
 
 | What | Rocq |
 |---|---|
-| A small first-order fine-grain Moggi-CBV calculus (unit, base, products, `let`, `sample`), interpreted via the CBV monad `T = !̃ ∘ U`; soundness includes the monad/`let` laws, product β, and `sample` = the integral. | `cbv.v` — `theories/homs/cbv.v` |
-| A higher-order fine-grain Moggi-CBV calculus extending the above with function types `tfun A B`, interpreted via the **EM(!) Kleisli exponential** `!̃(U A ⊸ U B)` (no value-CCC is required and none exists). Headline example reproduced from the [`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl): `ex_random_constant` = `do c ← sample N(0,1); return (λx. c) : P(R → R)` — a distribution over a function space, an example the QBS paper explicitly cites as impossible in classical measure semantics. | `ppl.v` (`ty'`, `vl'`, `cp'`, `tyD'`, `vlD'`, `cpD'`, `ex_random_constant`, `ex_random_constant_denot_E`) — `theories/homs/ppl.v` |
+| A small first-order fine-grain Moggi-CBV calculus (unit, base, products, `let`, `sample`), interpreted via the CBV monad `T = !̃ ∘ U`; soundness includes the monad/`let` laws, product β, and `sample` = the integral. | `cbv.v` — `theories/programs/cbv.v` |
+| A higher-order fine-grain Moggi-CBV calculus extending the above with function types `tfun A B`, interpreted via the **EM(!) Kleisli exponential** `!̃(U A ⊸ U B)` (no value-CCC is required and none exists). Headline example reproduced from the [`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl): `ex_random_constant` = `do c ← sample N(0,1); return (λx. c) : P(R → R)` — a distribution over a function space, an example the QBS paper explicitly cites as impossible in classical measure semantics. | `ppl.v` (`ty'`, `vl'`, `cp'`, `tyD'`, `vlD'`, `cpD'`, `ex_random_constant`, `ex_random_constant_denot_E`) — `theories/programs/ppl.v` |
 
 The Kleisli-exponential structure arises from the natural-bijection chain
 
@@ -291,7 +291,7 @@ echo 'From Icones.homs Require Import seely. Print Assumptions Icones.homs.seely
   | rocq top -Q theories Icones
 
 # Or for the higher-order PPL example:
-echo 'From Icones.homs Require Import ppl. Print Assumptions Icones.homs.ppl.ex_random_constant_denot_E.' \
+echo 'From Icones.homs Require Import ppl. Print Assumptions Icones.programs.ppl.ex_random_constant_denot_E.' \
   | rocq top -Q theories Icones
 ```
 

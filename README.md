@@ -151,14 +151,14 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
   bundled as the record **`CBV_Model`** with the witness **`ICones_CBV`**. With `EMComon_all`
   in hand, this is a genuine **linear/non-linear adjunction** (Benton-style) with the *full*
   `!`-coalgebra category as the cartesian non-linear / value side.
-- **`theories/homs/cbv.v`** — a small **first-order CBV calculus** (unit, base, products,
+- **`theories/programs/cbv.v`** — a small **first-order CBV calculus** (unit, base, products,
   `let`-sequencing, `sample`) interpreted into the model. The monad of the adjunction
   `T = !̃∘U` (`Tobj`, `tunit_eta`, `kcomp`); a structural interpretation of well-typed terms
   (`vlD`/`cpD`); and the soundness core — the monad/`let` laws
   (`kcomp_etaR`/`kcomp_etaL`/`kcomp_A`), the product β-laws (`vlD_fst_pair`/`vlD_snd_pair`),
   and **`sample` = the integral** (`cpD_sample_var_dirac`: `⟦sample⟧(δ_r) = (δ_r)!`, via
   the FMeas coalgebra `Coalg_dirac` + `dirac_dense`).
-- **`theories/homs/ppl.v`** — a **higher-order**, fine-grain **Moggi-CBV** calculus with
+- **`theories/programs/ppl.v`** — a **higher-order**, fine-grain **Moggi-CBV** calculus with
   function types, ported from the [`mathcomp-qbs` ppl branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl).
   Function types are interpreted by the **EM(!) Kleisli exponential** for the CBV monad
   `T = !̃ ∘ U`: `⟦tfun A B⟧ = bang_cofree (U⟦A⟧ ⊸ U⟦B⟧)` — that is, `!̃(U A ⊸ U B)`, the
@@ -208,16 +208,22 @@ theories/
 │              well-poweredness + the representability machinery
 ├── homs/      internal hom ⊸, tensor ⊗ + SMCC, the ! comonad + E⊣Der,    (§5, §9)
 │              the Seely category, the FMeas !-coalgebra;
-│              the call-by-value model (beyond the paper, Melliès §7.4):  (CBV)
+│              the call-by-value model structure (beyond the paper,        (CBV)
+│              Melliès §7.4):
 │                em_cat.v            EM(!) + the cofree adjunction U ⊣ !̃
 │                em_seely_comonoid.v the Seely comonoid d/e on !A (LC2–4)
 │                em_cartesian.v      full EM(!) cartesian via ⊗ (Cor 20)
 │                cbv_adjunction.v    the LNL monoidal adjunction, ICones_CBV
-│                cbv.v               a first-order CBV calculus interpreted
-│                ppl.v               a higher-order PPL (mathcomp-qbs port),
-│                                    distribution-over-function-space example
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
-└── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
+├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
+└── programs/  small calculi INTERPRETED into the model (demonstrations,   (CBV)
+               not part of the model itself):
+                 cbv.v               a first-order Moggi-CBV calculus
+                                     (sample = the integral)
+                 ppl.v               a higher-order, fine-grain Moggi-CBV
+                                     calculus via EM(!) Kleisli exponentials
+                                     (mathcomp-qbs port, distribution-over-
+                                     function-space showcase)
 ```
 
 A LaTeX **blueprint** (Patrick Massot's `leanblueprint` style, adapted to Rocq) describes the

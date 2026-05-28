@@ -2,7 +2,7 @@
 (** * A higher-order probabilistic PPL — fine-grain Moggi CBV in EM(!)
 
     This file extends the first-order Moggi-CBV demo of
-    [theories/homs/cbv.v] with HIGHER-ORDER function types and ports
+    [theories/programs/cbv.v] with HIGHER-ORDER function types and ports
     the canonical higher-order example from mathcomp-qbs's
     [ppl_qbs.v] / [showcase/ppl_examples.v]:
 
@@ -164,7 +164,7 @@ Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.homs.cbv_adjunction.
-Require Import Icones.homs.cbv.
+Require Import Icones.programs.cbv.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
