@@ -248,7 +248,8 @@ direction with two small calculi, both interpreted axiom-free.
 | What | Rocq |
 |---|---|
 | A small first-order fine-grain Moggi-CBV calculus (unit, base, products, `let`, `sample`), interpreted via the CBV monad `T = !̃ ∘ U`; soundness includes the monad/`let` laws, product β, and `sample` = the integral. | `cbv.v` — `theories/programs/cbv.v` |
-| A higher-order fine-grain Moggi-CBV calculus extending the above with function types `tfun A B`, interpreted via the **EM(!) Kleisli exponential** `!̃(U A ⊸ U B)` (no value-CCC is required and none exists). Headline example reproduced from the [`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl): `ex_random_constant` = `do c ← sample N(0,1); return (λx. c) : P(R → R)` — a distribution over a function space, an example the QBS paper explicitly cites as impossible in classical measure semantics. | `ppl.v` (`ty'`, `vl'`, `cp'`, `tyD'`, `vlD'`, `cpD'`, `ex_random_constant`, `ex_random_constant_denot_E`) — `theories/programs/ppl.v` |
+| A higher-order, direct-style, multi-variable Moggi-CBV calculus faithfully porting the QBS PPL — single-sort `expr Γ t` with intrinsically-typed De Bruijn contexts, direct application `e_app : expr Γ (tfun A B) → expr Γ A → expr Γ B`, plus `e_real`/`e_score`/`e_add`/`e_mul`. Function types via the EM(!) Kleisli exponential `!̃(U A ⊸ U B)` (no value-CCC required). Two headline examples reproduced from the [`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl): `ex_random_constant` = `do c ← sample N(0,1); return (λx. c) : P(R → R)` (the QBS paper's flagship); and `ex_random_linear` = `do m, b ← N(0,1); return (λx. m·x + b)` (the killer demo — distribution over linear functions). Both interpreted axiom-free. The arithmetic primitives are interpreted via the FMeas lax-monoidal map (see next row); on Dirac inputs the lifts reduce to scalar arithmetic, and under the Moggi-Kleisli bind `bind(m, k) = ∫ k(a) dm(a)` they recover the QBS-style "distribution over deterministic linear functions" reading. | `ppl.v` (`expr`/`has_var`/`tyD`/`ctxD`/`eD`, `ex_random_constant`, `ex_random_constant_denot_E`, `ex_random_linear`, `ex_random_linear_denot_E`) — `theories/programs/ppl.v` |
+| The **FMeas lax symmetric monoidal map** — `(FMeas X) ⊗ (FMeas Y) → FMeas (X × Y)`, sending the pure tensor `µ ⊗ ν` to the product measure `µ × ν` — as a genuine `icones_hom`. Built via `tensor_uncurry` of the bilinear lift; its existence depends on the previously-deferred follow-up of `bilin.v` (path-preservation of `int_to_linhom` in the cone variable), now discharged as `int_to_linhom_pres_path_in_cone`. The Dirac identity `fmeas_lax_dirac : fmeas_lax(δ_x ⊗ δ_y) = δ_{(x,y)}` is what makes the PPL's `e_add` / `e_mul` Dirac arithmetic reductions match QBS. | `fmeas_lax`, `fmeas_lax_E`, `fmeas_lax_dirac`, `int_to_linhom_pres_path_in_cone` — `theories/homs/fmeas_lax.v`, `theories/homs/bilin.v` |
 
 The Kleisli-exponential structure arises from the natural-bijection chain
 
@@ -291,7 +292,7 @@ echo 'From Icones.homs Require Import seely. Print Assumptions Icones.homs.seely
   | rocq top -Q theories Icones
 
 # Or for the higher-order PPL example:
-echo 'From Icones.homs Require Import ppl. Print Assumptions Icones.programs.ppl.ex_random_constant_denot_E.' \
+echo 'From Icones.programs Require Import ppl. Print Assumptions Icones.programs.ppl.ex_random_linear_denot_E.' \
   | rocq top -Q theories Icones
 ```
 
@@ -316,7 +317,7 @@ A short tour for a paper reviewer who wants to verify the headline results:
 6. **Beyond §9** (`EMComon_all` and `ICones_CBV` in
    `theories/homs/em_cartesian.v` / `theories/homs/cbv_adjunction.v`) —
    Mellies' Cor 20 (full cartesianness of `EM(!)`) and the LNL adjunction.
-7. **The CBV / PPL examples** (`cbv.v` and `ppl.v` in `theories/homs/`) —
+7. **The CBV / PPL examples** (`cbv.v` and `ppl.v` in `theories/programs/`) —
    small calculi exercising the structure.
 
 For deeper inspection, the `blueprint/` directory contains a

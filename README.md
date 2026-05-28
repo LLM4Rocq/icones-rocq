@@ -98,7 +98,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~55k lines across 57 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~57k lines across 58 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -158,24 +158,35 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
   (`kcomp_etaR`/`kcomp_etaL`/`kcomp_A`), the product β-laws (`vlD_fst_pair`/`vlD_snd_pair`),
   and **`sample` = the integral** (`cpD_sample_var_dirac`: `⟦sample⟧(δ_r) = (δ_r)!`, via
   the FMeas coalgebra `Coalg_dirac` + `dirac_dense`).
-- **`theories/programs/ppl.v`** — a **higher-order**, fine-grain **Moggi-CBV** calculus with
-  function types, ported from the [`mathcomp-qbs` ppl branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl).
-  Function types are interpreted by the **EM(!) Kleisli exponential** for the CBV monad
-  `T = !̃ ∘ U`: `⟦tfun A B⟧ = bang_cofree (U⟦A⟧ ⊸ U⟦B⟧)` — that is, `!̃(U A ⊸ U B)`, the
-  representing object of `Hom_EM(− × A, T B)`. The natural-bijection chain
-  `Hom_EM(C × A, T B) ≅ Hom_IC(U(C×A), U B) ≅ Hom_IC(U C ⊗ U A, U B) ≅ Hom_IC(U C, U A ⊸ U B)
-  ≅ Hom_EM(C, !̃(U A ⊸ U B))` uses only the cofree adjunction `U ⊣ !̃`, the strict
-  monoidality of `U` (`U(C × A) = U C ⊗ U A` definitionally — `cbv_U_prod`), and the SMCC
-  closure of `ICones` — *not* cartesian closure of `EM(!)`, which doesn't exist (and isn't
-  needed). Lambda and application are the two directions of this chain: `λ` =
-  `adj_psi ∘ tensor_curry ∘ adj_phi`; `app` is the dual. Application is a *computation*
-  intrinsically — that's how Moggi-CBV's monadic semantics works, not a workaround for any
-  missing structure. Headline example reproduced from the QBS showcase:
-  **`ex_random_constant`** — `do c ← sample Normal(0,1); return (λx. c) : P (R → R)`,
-  a *distribution over a function space*. The QBS paper cites this exact program as
-  impossible in classical measure semantics; here it is `ex_random_constant_denot_E`,
-  axiom-free. Headline soundness: `cpD'_letret`, `cpD'_sample_ret`, `cpD'_appE`,
-  `adj_phi_cpD'_app_lam` (the β-rule via the Kleisli-exponential chain).
+- **`theories/programs/ppl.v`** — a **higher-order**, direct-style, **multi-variable** Moggi-CBV
+  calculus faithfully porting the [`mathcomp-qbs` ppl branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl).
+  Single-sort `expr Γ t` with intrinsically-typed De Bruijn contexts (`has_var Γ t`); direct
+  application `e_app : expr Γ (tfun A B) → expr Γ A → expr Γ B`; the QBS constructors
+  `e_var`/`e_pair`/`e_fst`/`e_snd`/`e_lam`/`e_app`/`e_ret`/`e_bind`/`e_sample`, plus `e_real`
+  (Dirac literal), `e_score` (rescaling), and **`e_add` / `e_mul`** (real arithmetic on
+  `tbase R` via the FMeas lax-monoidal map and the Dirac/integration view — see below). Every
+  term denotes a Kleisli arrow `coalg_hom (ctxD Γ) (T (tyD t))` with `T = !̃ ∘ U`; function
+  types use the **EM(!) Kleisli exponential** `⟦tfun A B⟧ = !̃(U A ⊸ U B)` (no value-CCC
+  required, and none exists). Two headline examples reproduced from the QBS showcase:
+  - **`ex_random_constant`** — `do c ← sample N(0,1); return (λx. c) : P (R → R)`. The QBS
+    paper cites this exact program as impossible in classical measure semantics; here
+    `ex_random_constant_denot_E` is axiom-free.
+  - **`ex_random_linear`** — `do m, b ← sample N(0,1); return (λx. m·x + b) : P (R → R)`,
+    the killer demo. `e_add` / `e_mul` are interpreted by composing `FMeas_fmap` of the
+    measurable arithmetic with the **FMeas lax-monoidal map** `fmeas_lax X Y : (FMeas X) ⊗
+    (FMeas Y) → FMeas (X × Y)` (`theories/homs/fmeas_lax.v`). On Dirac inputs the lift
+    reduces to scalar arithmetic (`add_lift_dirac`, `mul_lift_dirac`); under bind, the
+    standard Moggi-Kleisli `bind(m, k) = ∫ k(a) dm(a)` integrates pointwise, so the cones
+    interpretation recovers the QBS-style "distribution of `λx. m·x + b` for `m, b ~ N(0,1)`"
+    reading axiom-free. `ex_random_linear_denot_E` connects the denotation to the joint
+    pushforward.
+- **`theories/homs/fmeas_lax.v`** — the **FMeas lax symmetric monoidal map** as a genuine
+  `icones_hom`: `fmeas_lax X Y : FMeas X ⊗ FMeas Y → FMeas (X × Y)`, sending `µ ⊗ ν` to the
+  product measure `µ × ν`. Built via `tensor_uncurry` of the bilinear lift; the outer
+  linhom's path-preservation in the cone variable (the previously-deferred follow-up of
+  `bilin.v`) is now discharged as `int_to_linhom_pres_path_in_cone`. The Dirac identity
+  `fmeas_lax_dirac : fmeas_lax(δ_x ⊗ δ_y) = δ_{(x,y)}` is what makes the PPL's
+  `e_add`/`e_mul` reductions match QBS on point masses.
 
 **One honest scope note.** The value category `EM(!)` is cartesian but **not** cartesian
 closed — and is not expected to be (this is a structural fact about EM categories of
@@ -214,16 +225,18 @@ theories/
 │                em_seely_comonoid.v the Seely comonoid d/e on !A (LC2–4)
 │                em_cartesian.v      full EM(!) cartesian via ⊗ (Cor 20)
 │                cbv_adjunction.v    the LNL monoidal adjunction, ICones_CBV
+│                fmeas_lax.v         FMeas is lax symmetric monoidal
+│                                    (µ ⊗ ν ↦ µ × ν as an icones_hom)
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
 ├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
 └── programs/  small calculi INTERPRETED into the model (demonstrations,   (CBV)
                not part of the model itself):
                  cbv.v               a first-order Moggi-CBV calculus
                                      (sample = the integral)
-                 ppl.v               a higher-order, fine-grain Moggi-CBV
-                                     calculus via EM(!) Kleisli exponentials
-                                     (mathcomp-qbs port, distribution-over-
-                                     function-space showcase)
+                 ppl.v               a higher-order, direct-style multi-var
+                                     QBS-mirror PPL with sample + score +
+                                     real arithmetic; both random_constant
+                                     and random_linear interpreted axiom-free
 ```
 
 A LaTeX **blueprint** (Patrick Massot's `leanblueprint` style, adapted to Rocq) describes the
