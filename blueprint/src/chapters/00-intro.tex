@@ -75,12 +75,21 @@ cartesian with product the linear $\otimes$ (Melli\`es' Proposition
 argument), $U \dashv \widetilde{\mathord{!}}$ is a genuine LNL
 adjunction with \emph{the} category of $\mathord{!}$-coalgebras, a small
 first-order CBV calculus is interpreted soundly, and a higher-order
-companion using the EM(!) \emph{Kleisli exponentials}
-$\widetilde{\mathord{!}}(U A \multimap U B)$ for the CBV monad
-$T = \widetilde{\mathord{!}} \circ U$ interprets the QBS-style
-flagship example (a distribution over a function space, axiom-free).
-$\mathrm{EM}(\mathord{!})$ is not (and is not expected to be)
-cartesian closed; what Moggi-CBV actually needs are Kleisli
+\emph{direct-style multi-variable QBS-mirror PPL}
+(\texttt{theories/programs/ppl.v}) using the EM(!) \emph{Kleisli
+exponentials} $\widetilde{\mathord{!}}(U A \multimap U B)$ for the
+CBV monad $T = \widetilde{\mathord{!}} \circ U$ interprets the two
+QBS-style headline examples
+\texttt{ex\_random\_constant} (the flagship distribution over a
+function space) and \texttt{ex\_random\_linear} (the killer demo: a
+distribution over $\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$).
+The arithmetic primitives \texttt{e\_add} / \texttt{e\_mul} are
+interpreted via the FMeas lax symmetric monoidal map
+(\texttt{theories/homs/fmeas\_lax.v}, built on the discharged
+\texttt{int\_to\_linhom\_pres\_path\_in\_cone} follow-up to paper
+Theorem 6.1) and the Moggi-Kleisli Dirac/integration view of
+\texttt{bind}. $\mathrm{EM}(\mathord{!})$ is not (and is not expected
+to be) cartesian closed; what Moggi-CBV actually needs are Kleisli
 exponentials, and those it does have. What remains open is genuinely
 beyond \S9: paper
 \S8 (analytic functions, the category $\mathrm{ACONES}$), the \S9
