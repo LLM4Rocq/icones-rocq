@@ -202,11 +202,155 @@ formalisation packages `ARCAT` as a record so the entire §3+ tower is
 | Def 3.13 | An *mcones morphism* is a `Cones`-morphism preserving the test family. | `mcones_hom`, `mcones_comp`, `MCones` — `theories/mcones/mcone_cat.v` |
 | Prop 3.11 | Dual norm separation: `‖x‖ ≤ sup_{t∈Mtest} ⟨t,x⟩`, with the supremum attained as an adherent point. | `mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent` — `theories/mcones/mcone_cat.v` (`Section Proposition311`) |
 | Def 3.16 | The *measure cone* `FMeas(X)` of finite measures on `X ∈ ARCAT`, with test `t ↦ ∫ t dµ`. | `fmeas`, the `FMeas` HB instance — `theories/mcones/fmeas.v` |
-| Def 3.20 | A *path* is a measurable map `r ↦ η(r) : X → C` whose pointwise test pairings are measurable. | `path_car`, `path_int_exists` — `theories/mcones/path.v` |
+| Def 3.20 | A *path* is a measurable map `r ↦ η(r) : X → C` whose pointwise test pairings are measurable. | `path_car` — `theories/mcones/path.v`; `path_int_exists` lives in `theories/icones/examples_icone.v` (see § 4 below) |
 | Cat 3 | `MCones` is a category. | `MCones` (above) — `theories/mcones/mcone_cat.v` |
 
 The Rocq encoding faithfully treats `ARCAT` as a parameter (`MeasSubcat R`)
 just as the paper does (paper §3, around `content.tex:1029`).
+
+> **Path note.** The original table cited `path_int_exists` as living in
+> `theories/mcones/path.v`, but it is in fact stated as the
+> `isICone`-witness `path_int_exists` in `theories/icones/examples_icone.v`
+> (path is integrable iff its codomain is — paper Thm 4.12). Fixed in
+> this revision; the underlying path data type `path_car` does live in
+> `path.v`.
+
+### `ARCAT` (`MeasSubcat`)
+
+```coq
+(* theories/mcones/ar.v *)
+Record MeasSubcat (R : realType) : Type := MkMeasSubcat {
+  ar_obj     : Type;
+  ar_disp    : ar_obj -> measure_display;
+  ar_carrier : forall X : ar_obj, measurableType (ar_disp X);
+  (* Paper §3: all objects of [Ar] are non-empty. *)
+  ar_point   : forall X : ar_obj, ar_carrier X;
+  (* Paper §3: [Ar] contains the terminal object [0]. *)
+  ar_zero    : ar_obj;
+  ar_zero_singleton :
+    forall x y : ar_carrier ar_zero, x = y;
+  (* Paper §3: [Ar] is closed under cartesian products,
+     and the carrier of the product is *definitionally* the
+     [measurableType] product. *)
+  ar_prod         : ar_obj -> ar_obj -> ar_obj;
+  ar_prod_disp_eq : forall X Y, ar_disp (ar_prod X Y) =
+                    measure_prod_display (ar_disp X, ar_disp Y);
+  ar_prod_carrier_eq :
+    forall X Y, ar_carrier (ar_prod X Y) =
+                (ar_carrier X * ar_carrier Y)%type :> Type;
+  ar_prod_uncast_meas :
+    forall X Y, measurable_fun setT
+      (fun p : ar_carrier (ar_prod X Y) =>
+         eq_rect _ (fun T => T) p _ (ar_prod_carrier_eq X Y));
+  ar_prod_cast_meas :
+    forall X Y, measurable_fun setT
+      (fun p : (ar_carrier X * ar_carrier Y)%type =>
+         eq_rect_r (fun T => T) p (ar_prod_carrier_eq X Y));
+}.
+```
+
+### Def 3.5 (`isMCone` / `MCone`)
+
+```coq
+(* theories/mcones/mcone.v *)
+HB.mixin Record isMCone (R : realType) (Ar : MeasSubcat R) C of Cone R C := {
+  (** Paper Def 3.2: the family [M = (M_X)_{X ∈ Ar}]. *)
+  mcone_M : forall X : ar_obj Ar, set (test_of Ar X C);
+  (** (Mscomp): closure under reindexing by [ar_hom]. *)
+  mcone_M_comp :
+    forall (Y X : ar_obj Ar) (φ : ar_hom Ar Y X) (m : test_of Ar X C),
+      mcone_M X m -> mcone_M Y (test_reindex φ m);
+  (** (Mssep): tests at arity 0 separate points. *)
+  mcone_M_sep :
+    forall x1 x2 : C,
+      (forall m : test_of Ar (ar_zero Ar) C,
+        mcone_M (ar_zero Ar) m ->
+        test_fun m (ar_zero_pt Ar) x1 = test_fun m (ar_zero_pt Ar) x2) ->
+      x1 = x2;
+  (** (Msnorm) Remark 3.3 form: norm is ε-approximated by a test pairing. *)
+  mcone_M_norm :
+    forall (x : C) (eps : R),
+      x <> precone_zero -> 0 < eps ->
+      exists m : test_of Ar (ar_zero Ar) C,
+        mcone_M (ar_zero Ar) m /\
+        cone_norm x <= test_fun m (ar_zero_pt Ar) x + eps;
+}.
+
+HB.structure Definition MCone (R : realType) (Ar : MeasSubcat R) :=
+  { C of Cone R C & isMCone R Ar C }.
+```
+
+### Def 3.13 (`mcones_hom`, `mcones_comp`, `MCones`)
+
+```coq
+(* theories/mcones/mcone_cat.v — Section MConesHom,
+   Variables (R : realType) (Ar : MeasSubcat R), B C : MCone.type Ar *)
+Record mcones_hom : Type := MkMConesHom {
+  mcones_hom_cones :> cones_hom B C;
+  mcones_hom_pres_path :
+    forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> B),
+      is_measurable_path (Ar:=Ar) (C:=B) γ ->
+      is_measurable_path
+        (Ar:=Ar) (C:=C)
+        (fun r => cones_hom_fun mcones_hom_cones (γ r));
+}.
+
+Definition mcones_comp
+    (g : mcones_hom Ar B C) (f : mcones_hom Ar A B) : mcones_hom Ar A C :=
+  MkMConesHom
+    (cones_comp (mcones_hom_cones g) (mcones_hom_cones f))
+    (mcones_comp_pres_path g f).
+```
+
+### Prop 3.11 (`mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent`)
+
+```coq
+(* theories/mcones/mcone_cat.v — Section Proposition311,
+   Variables (R : realType) (Ar : MeasSubcat R) (B : MCone.type Ar) *)
+
+(** Paper Prop 3.11 (≤ direction): for non-zero [x] and ε > 0,
+    there is a pairing within ε of [‖x‖]. *)
+Lemma mcone_test_pairing_adherent (x : B) (eps : R) :
+  x <> precone_zero -> 0 < eps ->
+  exists2 y, mcone_test_pairing_set x y & cone_norm x <= y + eps.
+
+(** Paper Prop 3.11: any [M] upper-bounding the pairing set
+    dominates [‖x‖]. *)
+Lemma mcone_norm_le_pairing_ub (x : B) (M : R) :
+  x <> precone_zero ->
+  ubound (mcone_test_pairing_set x) M -> cone_norm x <= M.
+```
+
+### Def 3.16 (`fmeas`, `FMeas`)
+
+```coq
+(* theories/mcones/fmeas.v — Variables R X *)
+Record fmeas : Type := MkFmeas {
+  fmeas_mu        :> {measure set X -> \bar R};
+  fmeas_fin       : fmeas_finP fmeas_mu;
+  fmeas_canonical : fmeas_canon fmeas_mu;
+}.
+
+(** Paper §3.2.1: register the [isMCone] instance on [fmeas R X]. *)
+HB.instance Definition _ :=
+  @isMCone.Build R Ar (fmeas R X)
+    fmeas_mcone_M
+    fmeas_mcone_M_comp
+    fmeas_mcone_M_sep
+    fmeas_mcone_M_norm.
+```
+
+### Def 3.20 (`path_car`)
+
+```coq
+(* theories/mcones/path.v — Section PathCarrier,
+   Variables (R : realType) (Ar : MeasSubcat R) (X : ar_obj Ar)
+             (B : MCone.type Ar) *)
+Record path_car : Type := MkPath {
+  path_fun     :> ar_carrier Ar X -> B;
+  path_is_path : is_measurable_path (Ar:=Ar) (C:=B) (X:=X) path_fun;
+}.
+```
 
 ---
 
