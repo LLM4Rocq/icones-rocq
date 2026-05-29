@@ -328,23 +328,21 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr ((x, t1) :: G) t2 -> named_expr G (tfun t1 t2)
   | ne_app   (G : named_ctx Ar) (t1 t2 : T) :
       named_expr G (tfun t1 t2) -> named_expr G t1 -> named_expr G t2
-  | ne_ret   (G : named_ctx Ar) (t : T) :
-      named_expr G t -> named_expr G (tprob t)
-  | ne_bind  (G : named_ctx Ar) (x : string) (t1 t2 : T) :
-      named_expr G (tprob t1) ->
-      named_expr ((x, t1) :: G) (tprob t2) ->
-      named_expr G (tprob t2)
-  | ne_sample (G : named_ctx Ar) (X : ar_obj Ar)
-              (mu : fmeas R (ar_carrier Ar X))
+  | ne_let   (G : named_ctx Ar) (x : string) (t1 t2 : T) :
+      named_expr G t1 ->
+      named_expr ((x, t1) :: G) t2 ->
+      named_expr G t2
+  | ne_sample (G : named_ctx Ar)
+              (mu : fmeas R (ar_carrier Ar R_obj))
               (Hmu : (cone_norm mu <= 1)%R) :
-      named_expr G (tprob (tbase X))
+      named_expr G tR'
   | ne_real  (G : named_ctx Ar) (r : R) : named_expr G tR'
   | ne_score (G : named_ctx Ar)
              (f : R -> R)
              (Hf_meas : measurable_fun [set: R] f)
              (Hf_ge0 : forall r : R, (0 <= f r)%R)
              (Hf_le1 : forall r : R, (f r <= 1)%R)
-             (e : named_expr G tR') : named_expr G (tprob tunit)
+             (e : named_expr G tR') : named_expr G tunit
   | ne_add   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   | ne_mul   (G : named_ctx Ar) :
@@ -357,7 +355,7 @@ Arguments ne_var {R Ar R_obj G t} v.
 Arguments ne_tt {R Ar R_obj G}.
 Arguments ne_fst {R Ar R_obj G t1 t2} M.
 Arguments ne_snd {R Ar R_obj G t1 t2} M.
-Arguments ne_sample {R Ar R_obj G X} mu Hmu.
+Arguments ne_sample {R Ar R_obj G} mu Hmu.
 Arguments ne_real {R Ar R_obj G} r.
 (** Bidirectionality hints ([&]) on the binding-site / context-shared
     constructors: tell Coq's elaborator to resolve the outer index [G]
@@ -372,8 +370,7 @@ Arguments ne_fst {R Ar R_obj G t1 t2} & M.
 Arguments ne_snd {R Ar R_obj G t1 t2} & M.
 Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M.
 Arguments ne_app {R Ar R_obj G t1 t2} & F X.
-Arguments ne_ret {R Ar R_obj G t} & M.
-Arguments ne_bind {R Ar R_obj G} x & {t1 t2} M K.
+Arguments ne_let {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_add {R Ar R_obj G} & M N.
 Arguments ne_mul {R Ar R_obj G} & M N.
