@@ -485,6 +485,21 @@ Notation "'Score' ( r , Hr0 , Hr1 )" :=
   (ne_score r Hr0 Hr1)
   (in custom ppl_named at level 1, r constr, Hr0 constr, Hr1 constr).
 
+(** Term-level score primitive — [Score' { f , Hf_meas , Hf_ge0 , Hf_le1 } e]:
+    score by the measurable function [f : R -> R] applied to the value of
+    the named sub-expression [e : named_expr G tR'].  Surface notation
+    distinct from the scalar [Score (r, Hr0, Hr1)] by:
+      - the prime [Score'] keyword (avoids any parser clash);
+      - braces around the Coq-level measurability witnesses [{ f , Hm , Hg , Hl }];
+      - a SURFACE sub-expression [e] outside the braces, parsed in the
+        custom entry [ppl_named].
+    This matches the [e_score_tm] constructor of [ppl.v] one-for-one. *)
+Notation "'Score'' '{' f ',' Hf_meas ',' Hf_ge0 ',' Hf_le1 '}' e" :=
+  (ne_score_tm f Hf_meas Hf_ge0 Hf_le1 e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   f constr, Hf_meas constr, Hf_ge0 constr, Hf_le1 constr,
+   right associativity).
+
 (** Pair, projections. *)
 Notation "( e1 , e2 )" := (ne_pair e1 e2)
   (in custom ppl_named at level 0,
