@@ -1060,6 +1060,214 @@ Lemma Yfix_fix (f : BB) :
 | Thm 9.7 | For each `X ∈ ARCAT`, `FMeas(X)` is a `!`-coalgebra (with structure map `Coalg_X(µ) = ∫_r (δ_r)! dµ`); the assignment `X ↦ FMeas(X)` is a functor into `EM(!)`. | `Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap` — `theories/homs/coalgebra.v` |
 | Sect 9.2 | Fixpoint combinator `Y` on the cartesian closed `SCones`. | `Yfix`, `Yfix_fix` (the paper's CCC construction) — `theories/stable/fixpoint.v` |
 
+### Linear exponential `!` (`Bang`, `nl`, `lin`, `lin_beta`, `lin_unique`)
+
+```coq
+(* theories/homs/exp_adjunction.v — Section ExpInterface,
+   Variables (R : realType) (Ar : MeasSubcat R) *)
+
+(** [Bang B = E B = !B], the SAFT construction of [bang_construct.v]. *)
+Definition Bang (B : ICone.type Ar) : ICone.type Ar :=
+  Icones_bang_construct.Bang B.
+
+(** Paper §9: [\Unistab_B], the unit / universal nonlinear map. *)
+Definition nl (B : ICone.type Ar) : scones_hom B (Bang B) :=
+  Icones_bang_construct.nl B.
+
+(** Paper §9: [\Theta⁻¹ f], the unique linear factorisation of an
+    [f : scones_hom B C] through [nl B]. *)
+Definition lin (B C : ICone.type Ar) (f : scones_hom B C) :
+    icones_hom Ar (Bang B) C :=
+  Icones_bang_construct.lin f.
+
+(** β law: [ders (lin f) ∘ nl B = f] in [SCones]. *)
+Lemma lin_beta (B C : ICone.type Ar) (f : scones_hom B C) :
+  scones_comp (ders (lin f)) (nl B) = f.
+
+(** Uniqueness: any linear [h : !B → C] factoring [f] through the unit
+    equals [lin f]. *)
+Lemma lin_unique (B C : ICone.type Ar) (f : scones_hom B C)
+    (h : icones_hom Ar (Bang B) C) :
+  scones_comp (ders h) (nl B) = f -> h = lin f.
+```
+
+### Comonad (`der`, `dig`, `Comonad`, `Bang_comonad`)
+
+```coq
+(* theories/homs/bang.v *)
+
+(** Counit [der] / dereliction.  [der B = lin id]. *)
+Definition der (B : ICone.type Ar) : icones_hom Ar (Bang Ar B) B :=
+  lin (scones_id B).
+
+Lemma der_prom (B : ICone.type Ar) (x : B) :
+  cone_norm x <= 1 -> Lfun (der B) x! = x.
+Lemma der_nat (B C : ICone.type Ar) (f : icones_hom Ar B C) :
+  icones_comp f (der B) = icones_comp (der C) (bang_fmap f).
+
+(** Comultiplication [dig].  [dig B = lin (nl_{!B} ∘ nl_B)]. *)
+Definition dig (B : ICone.type Ar) :
+    icones_hom Ar (Bang Ar B) (Bang Ar (Bang Ar B)) :=
+  lin (scones_comp (nl (Bang Ar B)) (nl B)).
+
+Lemma dig_prom (B : ICone.type Ar) (x : B) :
+  cone_norm x <= 1 -> Lfun (dig B) x! = prom (prom x).
+Lemma dig_nat (B C : ICone.type Ar) (f : icones_hom Ar B C) :
+  icones_comp (bang_fmap (bang_fmap f)) (dig B) =
+  icones_comp (dig C) (bang_fmap f).
+
+(** Comonad record: object map, fmap, der, dig + functor / comonad laws. *)
+Record Comonad (R : realType) (Ar : MeasSubcat R) : Type :=
+  MkComonad {
+  cm_obj  : ICone.type Ar -> ICone.type Ar;
+  cm_fmap : forall B C, icones_hom Ar B C ->
+                       icones_hom Ar (cm_obj B) (cm_obj C);
+  cm_der  : forall B, icones_hom Ar (cm_obj B) B;
+  cm_dig  : forall B, icones_hom Ar (cm_obj B) (cm_obj (cm_obj B));
+  cm_fmap_id   : (* functor identity *) _;
+  cm_fmap_comp : (* functor composition *) _;
+  cm_counitL   : forall B,
+    icones_comp (cm_der (cm_obj B)) (cm_dig B) = icones_id Ar (cm_obj B);
+  cm_counitR   : forall B,
+    icones_comp (cm_fmap (cm_der B)) (cm_dig B) = icones_id Ar (cm_obj B);
+  cm_coassoc   : forall B,
+    icones_comp (cm_dig (cm_obj B)) (cm_dig B) =
+    icones_comp (cm_fmap (cm_dig B)) (cm_dig B);
+}.
+
+(** Paper §9: the canonical comonad on [ICones], axiom-free. *)
+Definition Bang_comonad (R : realType) (Ar : MeasSubcat R) : Comonad Ar :=
+  {| cm_obj := @Bang R Ar;
+     cm_fmap := @bang_fmap R Ar;
+     cm_der  := @der R Ar;
+     cm_dig  := @dig R Ar;
+     (* ... functor and comonad-law witnesses ... *) |}.
+```
+
+### Lem 9.4 (`stab_lin_swap`)
+
+```coq
+(* theories/stable/stab_lin_swap.v — Section variables B C D : ICone.type Ar *)
+
+(** Paper Lemma 9.4 — the [stab/lin] swap iso. *)
+Definition stab_lin_swap :
+    icones_iso Ar (stablehom B (linhom_car Ar C D))
+                  (linhom_car Ar C (stablehom B D)) :=
+  icones_iso_of_cancel sls_fwd sls_bwd sls_fwdK sls_bwdK.
+
+Lemma stab_lin_swap_fwdE (f : stablehom B (linhom_car Ar C D))
+                         (y : C) (x : B) :
+  sh_fun (linhom_fun (iso_fwd stab_lin_swap f) y) x =
+  linhom_fun (sh_fun f x) y.
+
+Lemma stab_lin_swap_bwdE (g : linhom_car Ar C (stablehom B D))
+                         (x : B) (y : C) :
+  linhom_fun (sh_fun (iso_bwd stab_lin_swap g) x) y =
+  sh_fun (linhom_fun g y) x.
+```
+
+### Thm 9.5 (`Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`, `SeelyCategory`, `ICones_Seely`)
+
+```coq
+(* theories/homs/seely.v *)
+
+(** Paper §9: the binary Seely iso [!B1 ⊗ !B2 ≅ !(B1 & B2)]. *)
+Definition Seely2 : icones_iso Ar (tensor Ar (Bang Ar B1) (Bang Ar B2))
+                                   (Bang Ar (sprod B1 B2)) :=
+  icones_isoP S2fwd S2bwd S2_fwdK S2_bwdK.
+
+Lemma Seely2E (x1 : B1) (x2 : B2) :
+  cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+  iso_fwd Seely2 (x1! ⊗p x2!) = (sprod_pair x1 x2)!.
+
+Lemma Seely2_natural (B1 B2 B1' B2' : ICone.type Ar)
+    (f1 : icones_hom Ar B1 B1') (f2 : icones_hom Ar B2 B2') :
+  icones_comp (bang_fmap (sprod_mor f1 f2)) (iso_fwd (Seely2 B1 B2)) =
+  icones_comp (iso_fwd (Seely2 B1' B2'))
+              (tensor_mor (bang_fmap f1) (bang_fmap f2)).
+
+(** The unit Seely iso [1 ≃ !⊤]. *)
+Definition Seely0 : icones_iso Ar (cone_one_car Ar) (Bang Ar (Stop Ar)) :=
+  co_yoneda_iso psi0 psiV0 psi0K psiV0K psi0_nat psiV0_nat.
+
+Lemma Seely0E (t : cone_one_car Ar) :
+  iso_fwd Seely0 t =
+  precone_scale (c1_val t) (prom (precone_zero : Stop Ar)).
+
+(** Paper Thm 9.5: the Seely-category bundle (record fields elided). *)
+Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
+  MkSeelyCategory {
+  sc_smcc       : ICones_SMCC Ar;
+  sc_comonad    : Comonad Ar;
+  sc_bangE      : cm_obj sc_comonad = @Bang R Ar;
+  sc_tensorE    : forall A B, smcc_tensor sc_smcc A B = tensor Ar A B;
+  sc_seely2     : forall B1 B2, icones_iso Ar _ (Bang Ar (sprod B1 B2));
+  sc_seely2E    : (* characterisation on promoted pure tensors *) _;
+  sc_seely2_nat : (* naturality of Seely2 *) _;
+  sc_seely0     : icones_iso Ar (cone_one_car Ar) (Bang Ar (Stop Ar));
+  sc_seely0E    : (* characterisation of Seely0 *) _;
+  sc_assoc sc_braid sc_lunit sc_runit : (* SMC functor coherence *) _;
+  sc_comult     : (* comultiplication coherence *) _;
+  sc_der_unit sc_der1 sc_der2 : (* counit compatibility *) _;
+}.
+
+(** Paper §9: the canonical Seely structure on [ICones], axiom-free. *)
+Definition ICones_Seely (R : realType) (Ar : MeasSubcat R) :
+    SeelyCategory Ar :=
+  {| sc_smcc       := ICones_smcc Ar;
+     sc_comonad    := Bang_comonad Ar;
+     sc_bangE      := erefl;
+     sc_tensorE    := fun _ _ => erefl;
+     sc_seely2     := @Seely2 R Ar;
+     sc_seely2E    := @Seely2E R Ar;
+     sc_seely2_nat := @Seely2_natural R Ar;
+     sc_seely0     := @Seely0 R Ar;
+     sc_seely0E    := @Seely0E R Ar;
+     (* ... structural-iso / coherence / counit witnesses ... *) |}.
+```
+
+### Thm 9.7 (`Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap`)
+
+```coq
+(* theories/homs/coalgebra.v *)
+
+(** A [!]-coalgebra. *)
+Record Coalgebra : Type := MkCoalgebra {
+  coalg_obj    : ICone.type Ar;
+  coalg_str    : icones_hom Ar coalg_obj (Bg coalg_obj);
+  coalg_counit :
+    icones_comp (der coalg_obj) coalg_str = icones_id Ar coalg_obj;
+  coalg_coassoc :
+    icones_comp (dig coalg_obj) coalg_str =
+    icones_comp (bang_fmap coalg_str) coalg_str;
+}.
+
+(** The structure map [Coalg_X(µ) = ∫_r (δ_r)! dµ] as an [icones_hom]. *)
+Definition Coalg (X : ar_obj Ar) :
+    icones_hom Ar (FMeas X) (Bang Ar (FMeas X)) :=
+  linhom_icones (int_to_linhom (bang_dirac_path X)) (Coalg_norm_le1 X).
+
+(** Computation law: [Coalg_X(δ_X r) = (δ_X r)!]. *)
+Lemma Coalg_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
+  Lfun (Coalg X) (dirac_fmeas r) = prom (dirac_fmeas r).
+
+(** Two [icones_hom] out of [FMeas X] agreeing on every Dirac are equal. *)
+Lemma dirac_dense (X : ar_obj Ar) (B : ICone.type Ar)
+    (f g : icones_hom Ar (FMeas X) B) :
+  (forall r, Lfun f (dirac_fmeas r) = Lfun g (dirac_fmeas r)) ->
+  f = g.
+
+(** The [!]-coalgebra carried by [FMeas X] — paper Theorem 9.7. *)
+Definition FMeas_coalgebra (X : ar_obj Ar) : Coalgebra Ar :=
+  MkCoalgebra (Coalg_counit X) (Coalg_coassoc X).
+
+(** The functorial action [FMeas(φ)] on [ar_hom] — the pushforward,
+    realised via Theorem 6.1. *)
+Definition FMeas_fmap (X Y : ar_obj Ar) (φ : ar_hom Ar X Y) :
+    icones_hom Ar (FMeas X) (FMeas Y) :=
+  linhom_icones (int_to_linhom (push_dirac_path φ)) (FMeas_fmap_norm_le1 φ).
+```
+
 ---
 
 ## Beyond the paper — notable mathematical content we had to add
