@@ -50,9 +50,14 @@ root of the repository), plus a beyond-the-paper call-by-value model
   \item \emph{beyond the paper} --- a \emph{call-by-value} model
     following Melli\`es~\cite{mellies-categorical-semantics} \S7.4 (the
     Eilenberg--Moore / coalgebra route), the paper's stated future work
-    (Chapter~\ref{ch:cbv}): the cartesian Eilenberg--Moore category of
-    $\mathord{!}$ carried by the linear $\otimes$ on the rich subcategory
-    of comonoidal coalgebras, and the monoidal adjunction to $\ICones$.
+    (Chapter~\ref{ch:cbv}): the \emph{full} cartesian
+    Eilenberg--Moore category of $\mathord{!}$ carried by the linear
+    $\otimes$ (Melli\`es' Cor 17/20, via the structural retraction-and-
+    lifting argument), the LNL monoidal adjunction
+    $U \dashv \widetilde{\mathord{!}}$ to $\ICones$, and a higher-order
+    QBS-mirror PPL (\texttt{theories/programs/ppl.v}) interpreting both
+    \texttt{ex\_random\_constant} and \texttt{ex\_random\_linear}
+    axiom-free.
 \end{itemize}
 The whole development is \textbf{fully axiom-free}: every result rests
 on \emph{zero} project axioms, using only the three classical-logic
