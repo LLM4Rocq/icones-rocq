@@ -198,6 +198,13 @@ Arguments tR {R Ar} R_obj.
       unit norm — no bound proof needed);
     - [e_score] : score by [r : R] with [0 ≤ r ≤ 1] proofs, returning
       [tprob tunit];
+    - [e_score_tm] : TERM-LEVEL score by [f r : R] where [r] is the
+      value of an [expr G tR]; the meta-parameter [f : R → R] is
+      measurable and pointwise in [[0,1]] (the bound is needed by
+      the cone-norm / unit-ball discipline of [linhom_icones]).  This
+      is the constructor that makes Bayesian-style observation
+      actually possible: the score factor can depend on a bound
+      variable through [e];
     - [e_add] : pointwise sum of two [tR]-valued computations
       (interpretation: lax-monoidal pairing of the two pushforwards
       followed by [FMeas]-functorial action of measurable [+]);
@@ -237,6 +244,12 @@ Inductive expr : ppl_ctx Ar -> T -> Type :=
   | e_score (G : ppl_ctx Ar) (r : R)
             (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
       expr G (tprob tunit)
+  | e_score_tm (G : ppl_ctx Ar)
+               (f : R -> R)
+               (Hf_meas : measurable_fun [set: R] f)
+               (Hf_ge0 : forall r : R, (0 <= f r)%R)
+               (Hf_le1 : forall r : R, (f r <= 1)%R)
+               (e : expr G tR') : expr G (tprob tunit)
   | e_add   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'
   | e_mul   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'.
 
@@ -255,6 +268,7 @@ Arguments e_bind {R Ar R_obj G t1 t2} M K.
 Arguments e_sample {R Ar R_obj G X} mu Hmu.
 Arguments e_real {R Ar R_obj G} r.
 Arguments e_score {R Ar R_obj G} r Hr0 Hr1.
+Arguments e_score_tm {R Ar R_obj G} f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments e_add {R Ar R_obj G} M N.
 Arguments e_mul {R Ar R_obj G} M N.
 
@@ -797,6 +811,148 @@ Arguments mul_lift {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments add_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
 Arguments mul_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
 
+(** ** Term-level score lift — [score_tm_lift]
+
+    For a measurable [f : R → R] with pointwise [0 ≤ f r ≤ 1], we build
+    an [icones_hom] from [FMeas R_obj] to the unit cone:
+    [[
+       score_tm_lift f Hf_meas Hf_ge0 Hf_le1 :
+         icones_hom Ar (FMeas R_obj) (cone_one_car Ar).
+    ]]
+    Construction.
+    1.  [score_tm_path_fun] : the path [r ↦ f(carrier_to_R r) · one1] in
+        the unit cone, packaged via [MkConeOne].  Measurability of the
+        path follows from measurability of [f ∘ carrier_to_R]
+        (Lemma [hot_pres_path] template — every test of [cone_one_car]
+        is [id_test], so the per-test measurability reduces to that of
+        the scalar function).
+    2.  Wrap as [path_car Ar R_obj (cone_one_car Ar)] ([MkPath]).
+    3.  Apply [int_to_linhom] (paper Thm 6.1) — for the codomain
+        [cone_one_car], the integral against [µ] is [∫ f(r) dµ(r) · one1].
+    4.  Norm-bound [≤ 1] of the [linhom_car] follows from
+        [int_to_linhom_norm_le] and the path-norm bound [≤ 1]
+        (pointwise bound [f r ≤ 1] uniformly).
+    5.  Promote to [icones_hom] via [linhom_icones].
+
+    The **load-bearing Dirac identity** for the reduction lemmas:
+    [[
+       Lfun (score_tm_lift f …) (dirac_fmeas (R_to_carrier r))
+         = MkConeOne (NngNum (Hf_ge0 r)).
+    ]]
+    On a Dirac at [R_to_carrier r], the score reduces to the SCALAR
+    [f r] times the unit-cone basis element — exactly the
+    [score_value]-style packaging the scalar [e_score] already uses. *)
+
+Section ScoreTmLift.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The path value at [r] : [MkConeOne (NngNum (Hf_ge0 (cR r)))]. *)
+Definition score_tm_path_fun (r : ar_carrier Ar R_obj) : cone_one_car Ar :=
+  MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
+
+Lemma score_tm_path_fun_norm (r : ar_carrier Ar R_obj) :
+  (cone_norm (score_tm_path_fun r) <= 1)%R.
+Proof.
+by rewrite /cone_norm/= /c1_norm/= /score_tm_path_fun/=; exact: Hf_le1.
+Qed.
+
+(** Composite [f ∘ cR] is measurable. *)
+Lemma f_cR_meas :
+  measurable_fun [set: ar_carrier Ar R_obj] (fun r => f (cR r)).
+Proof.
+apply: (measurableT_comp (f := f)).
+- exact: Hf_meas.
+- exact: R_carrier_meas.
+Qed.
+
+(** [score_tm_path_fun] is a measurable path. *)
+Lemma score_tm_path_is_path :
+  is_measurable_path (Ar := Ar) (C := cone_one_car Ar) (X := R_obj)
+    score_tm_path_fun.
+Proof.
+split.
+  exists 1 => r; exact: score_tm_path_fun_norm.
+move=> Y m mM.
+(* The only test of [cone_one_car] is [id_test]; on it, the per-test
+   map [(z,r) ↦ test_fun m z (score_tm_path_fun r)] reduces to
+   [(z,r) ↦ f(cR r)], which is measurable. *)
+have Em : m = ConeOneMConeAux.id_test (R := R) (Ar := Ar) Y := mM.
+rewrite Em /ConeOneMConeAux.id_test /=
+        /ConeOneMConeAux.id_test_fun /score_tm_path_fun /=.
+apply: (measurableT_comp (f := fun r => f (cR r))).
+- exact: f_cR_meas.
+- exact: measurable_snd.
+Qed.
+
+Definition score_tm_path : path_car Ar R_obj (cone_one_car Ar) :=
+  MkPath score_tm_path_is_path.
+
+(** Path-norm bound: the path values are all [≤ 1], so the sup is [≤ 1]. *)
+Lemma score_tm_path_norm_le1 : (path_norm score_tm_path <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [r ->] /=; exact: score_tm_path_fun_norm.
+Qed.
+
+(** Norm bound for [int_to_linhom score_tm_path]. *)
+Lemma score_tm_int_norm_le1 :
+  (cone_norm (int_to_linhom score_tm_path) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le score_tm_path) _.
+exact: score_tm_path_norm_le1.
+Qed.
+
+(** The lift as an [icones_hom]. *)
+Definition score_tm_lift :
+    icones_hom Ar (FMeas R_obj) (cone_one_car Ar) :=
+  linhom_icones (int_to_linhom score_tm_path) score_tm_int_norm_le1.
+
+(** **** Load-bearing Dirac identity.
+
+    On a Dirac at [R_to_carrier r] in [FMeas R_obj], the score
+    lift evaluates to [f r · one1] (packaged as a [cone_one_car]). *)
+Lemma score_tm_lift_dirac (r : R) :
+  Lfun score_tm_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
+  MkConeOne Ar (NngNum (Hf_ge0 r)).
+Proof.
+rewrite /score_tm_lift.
+rewrite (linhom_iconesE _ score_tm_int_norm_le1
+           (dirac_fmeas (R_to_carrier R_carrier_eq r))).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun score_tm_path
+                            (dirac_fmeas (R_to_carrier R_carrier_eq r))).
+rewrite (int_to_linhom_fun_dirac score_tm_path
+           (R_to_carrier R_carrier_eq r)).
+rewrite -[path_fun _ _]/(score_tm_path_fun (R_to_carrier R_carrier_eq r)).
+rewrite /score_tm_path_fun.
+apply: cone_one_eq; apply: val_inj => /=.
+by rewrite R_to_carrierK.
+Qed.
+
+End ScoreTmLift.
+
+Arguments score_tm_path_fun {R Ar R_obj} R_carrier_eq f Hf_ge0 r.
+Arguments score_tm_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                        Hf_meas Hf_ge0 Hf_le1.
+Arguments score_tm_lift {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                        Hf_meas Hf_ge0 Hf_le1.
+Arguments score_tm_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                              Hf_meas Hf_ge0 Hf_le1 r.
+
 (** ** The term interpretation [eD] *)
 Section TermInterp.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -885,6 +1041,12 @@ Fixpoint eD (G : ppl_ctx Ar) (t : T)
       @real_kleisli (ctxD G0) r
   | e_score G0 r Hr0 Hr1 =>
       @score_kleisli (ctxD G0) r Hr0 Hr1
+  | e_score_tm G0 f Hf_meas Hf_ge0 Hf_le1 e0 =>
+      coalg_comp
+        (bang_cofree_hom
+          (@score_tm_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                          f Hf_meas Hf_ge0 Hf_le1))
+        (eD e0)
   | e_add G0 M0 N0 =>
       coalg_comp
         (bang_cofree_hom
@@ -1002,6 +1164,20 @@ Lemma eD_score (G : ppl_ctx Ar) (r : R) (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
   score_kleisli (ctxD G) r Hr0 Hr1.
 Proof. by []. Qed.
 
+Lemma eD_score_tm (G : ppl_ctx Ar)
+    (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (e : expr G tR') :
+  eD' (e_score_tm (R_obj := R_obj) f Hf_meas Hf_ge0 Hf_le1 e) =
+  coalg_comp
+    (bang_cofree_hom
+      (@score_tm_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                      f Hf_meas Hf_ge0 Hf_le1))
+    (eD' e).
+Proof. by []. Qed.
+
 Lemma eD_add (G : ppl_ctx Ar) (M N : expr G tR') :
   eD' (e_add M N) =
   coalg_comp
@@ -1045,6 +1221,9 @@ Arguments eD_bind {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1
 Arguments eD_sample {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G X} mu Hmu.
 Arguments eD_real {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} r.
 Arguments eD_score {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G r} Hr0 Hr1.
+Arguments eD_score_tm
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G f}
+  Hf_meas Hf_ge0 Hf_le1 e.
 Arguments eD_add {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} M N.
 Arguments eD_mul {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} M N.
 
