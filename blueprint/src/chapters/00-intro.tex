@@ -55,13 +55,15 @@ root of the repository), plus a beyond-the-paper call-by-value model
     $\otimes$ (Melli\`es' Cor 17/20, via the structural retraction-and-
     lifting argument), the LNL monoidal adjunction
     $U \dashv \widetilde{\mathord{!}}$ to $\ICones$, a higher-order
-    QBS-mirror PPL (\texttt{theories/programs/ppl.v}) interpreting
+    \emph{named-variable} QBS-mirror PPL
+    (\texttt{theories/programs/ppl.v}, in the Saito--Affeldt APLAS
+    2023 surface style with canonical-structure-driven variable
+    lookup and a custom-entry surface notation) interpreting
     \texttt{ex\_random\_constant}, \texttt{ex\_random\_linear} and the
     Bayesian \texttt{ex\_bayes\_linear} (the unnormalised
-    prior/score/return posterior, exercising the term-level score
-    constructor \texttt{e\_score\_tm}) axiom-free, plus a
-    Saito--Affeldt-style named-variable surface companion
-    (\texttt{theories/programs/ppl\_named.v}).
+    prior/score/return posterior, the only example exercising the
+    term-level Bayesian-score constructor) axiom-free; the three
+    examples live in \texttt{theories/programs/examples.v}.
 \end{itemize}
 The whole development is \textbf{fully axiom-free}: every result rests
 on \emph{zero} project axioms, using only the three classical-logic
@@ -84,29 +86,33 @@ cartesian with product the linear $\otimes$ (Melli\`es' Proposition
 argument), $U \dashv \widetilde{\mathord{!}}$ is a genuine LNL
 adjunction with \emph{the} category of $\mathord{!}$-coalgebras, a small
 first-order CBV calculus is interpreted soundly, and a higher-order
-\emph{direct-style multi-variable QBS-mirror PPL}
+\emph{direct-style, multi-variable, named-variable QBS-mirror PPL}
 (\texttt{theories/programs/ppl.v}) using the EM(!) \emph{Kleisli
 exponentials} $\widetilde{\mathord{!}}(U A \multimap U B)$ for the
 CBV monad $T = \widetilde{\mathord{!}} \circ U$ interprets three
-QBS-style headline examples:
+QBS-style headline examples (collected in
+\texttt{theories/programs/examples.v}):
 \texttt{ex\_random\_constant} (the flagship distribution over a
 function space), \texttt{ex\_random\_linear} (the killer demo: a
 distribution over $\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$),
 and \texttt{ex\_bayes\_linear} (the textbook prior/score/return
-Bayesian shape, the first example exercising the term-level score
-\texttt{e\_score\_tm}; the \emph{unnormalised} posterior of total
-mass $\int f(m)\,\mathrm{d}\mu(m)$).
-A Saito--Affeldt-style named-variable surface companion
-(\texttt{theories/programs/ppl\_named.v}) delegates its semantics
-structurally to the same \texttt{eD}.
-The arithmetic primitives \texttt{e\_add} / \texttt{e\_mul} are
+Bayesian shape, the only example exercising the term-level
+Bayesian-score constructor; the \emph{unnormalised} posterior of
+total mass $\int f(m)\,\mathrm{d}\mu(m)$).
+The named surface is the \emph{only} syntax of
+\texttt{theories/programs/ppl.v}: variable lookup \texttt{\#~"x"}
+is canonical-structure-driven and a custom-entry notation supports
+\texttt{let "x" := M in N} / \texttt{\textbackslash "x" ::: A => M}
+/ \texttt{Sample} / \texttt{Score \{ f, \ldots\} e} / \texttt{Ret}
+/ arithmetic, in the Saito--Affeldt APLAS 2023 style.
+The arithmetic primitives \texttt{ne\_add} / \texttt{ne\_mul} are
 interpreted via the FMeas lax symmetric monoidal map
 (\texttt{theories/homs/fmeas\_lax.v}, built on the discharged
 \texttt{int\_to\_linhom\_pres\_path\_in\_cone} follow-up to paper
 Theorem 6.1) and the Moggi-Kleisli Dirac/integration view of
-\texttt{bind}; the term-level score \texttt{e\_score\_tm} reuses the
-same paper-\S6 follow-up to package its density as a path into the
-unit cone. $\mathrm{EM}(\mathord{!})$ is not (and is not expected
+\texttt{bind}; the term-level Bayesian-score constructor reuses
+the same paper-\S6 follow-up to package its density as a path into
+the unit cone. $\mathrm{EM}(\mathord{!})$ is not (and is not expected
 to be) cartesian closed; what Moggi-CBV actually needs are Kleisli
 exponentials, and those it does have. What remains open is genuinely
 beyond \S9: paper
