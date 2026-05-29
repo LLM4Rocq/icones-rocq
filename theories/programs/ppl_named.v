@@ -618,3 +618,69 @@ Arguments ex_named_random_constant {R Ar R_obj} mu Hmu.
 Arguments ex_named_random_linear {R Ar R_obj} mu Hmu.
 Arguments ex_named_random_constant_E {R Ar R_obj} mu Hmu.
 Arguments ex_named_random_linear_E {R Ar R_obj} mu Hmu.
+
+(** ** Named version of the Bayesian-observation example [ex_bayes_linear]
+
+    The De Bruijn original (in [ppl.v]) is:
+    [[
+       ex_bayes_linear  ≜
+         e_bind (e_sample mu Hmu)              (* prior:  m ~ mu *)
+           (e_bind (e_score_tm f … (e_var hv_zero))
+                                              (* score: f(m) *)
+              (e_ret (e_var (hv_succ hv_zero))))
+                                              (* return: m *)
+         : expr [] (tprob tR').
+    ]]
+
+    In the named surface syntax:
+    [[
+       [ let "m" := Sample (mu , Hmu) in
+         let "_" := Score' { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
+         Ret # "m" ]
+    ]]
+
+    Canonical-structure resolution for the variable occurrences:
+      - inside the body of the score [# "m"]: context is
+        [("m", tR') :: nil]; lookup yields [found_nv "m" tR' _]
+        (= De Bruijn [hv_zero]) — matches [e_var hv_zero] in
+        [ex_bl_score];
+      - inside the [Ret # "m"]: context is
+        [("_", tunit) :: ("m", tR') :: nil]; lookup yields
+        [recurse_nv "_" tunit _ (found_nv "m" tR' _)]
+        (= De Bruijn [hv_succ hv_zero]) — matches the
+        [e_var (hv_succ hv_zero)] in [ex_bl_cont].
+
+    Hence [nexp_to_dexp ex_named_bayes_linear = ex_bayes_linear …] by
+    pure conversion ([by []. Qed.]).  Since the translation is
+    structural, the axiom-clean reduction [ex_bayes_linear_denot_E]
+    in [ppl.v] carries over to the named version verbatim. *)
+
+Section NamedBayes.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+Definition ex_named_bayes_linear :
+    @named_expr R Ar R_obj nil (tprob tR') :=
+  [ let "m" := Sample (mu , Hmu) in
+    let "_" := Score' { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
+    Ret # "m" ].
+
+Lemma ex_named_bayes_linear_E :
+  nexp_to_dexp ex_named_bayes_linear =
+  ex_bayes_linear mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Proof. by []. Qed.
+
+End NamedBayes.
+
+Arguments ex_named_bayes_linear {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_named_bayes_linear_E {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
