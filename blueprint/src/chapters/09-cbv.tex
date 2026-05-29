@@ -148,20 +148,38 @@ $\ICones$; it does \emph{not} use any cartesian closure of
 $\mathrm{EM}(\mathord{!})$. The function-type interpretation that
 results is $\sem{\mathtt{tfun}\,A\,B} =
 \widetilde{\mathord{!}}\,(U A \multimap U B)$ (\autoref{sec:cbv-ppl}).
-This is \texttt{theories/programs/ppl.v}, fine-grain Moggi-CBV, axiom-free.
-The QBS-paper showcase \texttt{ex\_random\_constant} --- a distribution
-over a function space, $\mathtt{P}(\mathbb{R}\to\mathbb{R})$ ---
-interprets soundly via this Kleisli-exponential structure.
+This is \texttt{theories/programs/ppl.v}: a higher-order,
+\emph{direct-style} (no value/computation term split), \emph{single-sort},
+\emph{multi-variable} De Bruijn QBS-mirror calculus --- the modern PPL
+surface that \texttt{mathcomp-qbs/ppl} provides and that the
+Heunen--Kammar--Staton--Yang LICS 2017 line of work describes ---
+interpreted through the Kleisli-exponential chain above and fully
+axiom-free. The QBS-paper showcase \texttt{ex\_random\_constant}
+--- a distribution over a function space, $\mathtt{P}(\mathbb{R}\to\mathbb{R})$
+--- and the ``random linear'' killer demo \texttt{ex\_random\_linear} ---
+the distribution over $\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$ ---
+both interpret soundly via this Kleisli-exponential structure. The
+Dirac/integration view of the Moggi-Kleisli bind,
+\[
+  \mathtt{bind}(m,\,k)(\gamma)
+    \;\;=\;\;
+    \int k(\gamma,\,a)\;\mathrm{d}m(\gamma)(a),
+\]
+together with the FMeas lax monoidal map (\autoref{thm:cbv-fmeas-lax}),
+is what lets \texttt{e\_add} / \texttt{e\_mul} recover the QBS-style
+``distribution of $\lambda x.\,m\cdot x + b$'' reading on Dirac inputs.
 
 \paragraph{No further open milestones for higher-order CBV.}
-There is no ``value-level application'' that has been suppressed in
-favour of a Moggi-style computation: applying an effectful function to
-a value gives a computation \emph{by definition} of monadic CBV
-semantics. EM(!) being non-closed is structural and irrelevant.
-Adequacy, normalization, and full-abstraction are out of scope here,
-as are booleans / coproducts (no native sum type in the cones model)
-and the QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior
-showcase (orthogonal to the higher-order content shown here).
+In the direct-style QBS-mirror surface of \texttt{ppl.v} every term is
+interpreted as a Kleisli arrow through $T = \widetilde{\mathord{!}} \circ U$
+(the \texttt{tprob} type-level marker is purely syntactic; the monad
+lives entirely in the term interpretation \texttt{eD}), so applying a
+function value to an argument is monadic application by construction.
+EM(!) being non-closed is structural and irrelevant. Adequacy,
+normalization, and full-abstraction are out of scope here, as are
+booleans / coproducts (no native sum type in the cones model) and the
+QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior showcase (a
+different observable than the ``random function'' examples shown here).
 
 \paragraph{Where the material lives.}
 \texttt{theories/homs/em\_cat.v} (the EM category, the cofree functor and
@@ -170,9 +188,16 @@ the cofree/forgetful adjunction), \texttt{theories/homs/em\_seely\_comonoid.v}
 LC2--LC4), \texttt{theories/homs/em\_cartesian.v} (the \emph{full}
 cartesian $\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$,
 with the unconditional \rocq{Icones.homs.em_cartesian.EMComon_all}),
-\texttt{theories/homs/cbv_adjunction.v} (the LNL monoidal adjunction
-and the \texttt{CBV\_Model} bundle), and \texttt{theories/programs/cbv.v}
-(the first-order CBV calculus and its interpretation).
+\texttt{theories/homs/cbv\_adjunction.v} (the LNL monoidal adjunction
+and the \texttt{CBV\_Model} bundle), \texttt{theories/homs/fmeas\_lax.v}
+(the FMeas lax symmetric monoidal map at the
+\texttt{icones\_hom} level, built on the discharged
+\rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}),
+\texttt{theories/programs/cbv.v} (the first-order CBV calculus and its
+interpretation), and \texttt{theories/programs/ppl.v} (the higher-order
+direct-style multi-variable QBS-mirror calculus, with the
+\texttt{ex\_random\_constant} / \texttt{ex\_random\_linear} headline
+examples).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The Eilenberg--Moore category and the cofree adjunction}%
