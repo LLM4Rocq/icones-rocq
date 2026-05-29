@@ -1408,3 +1408,116 @@ Arguments ex_random_linear_denot
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
 Arguments ex_random_linear_denot_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
+
+(** ** Headline example — [ex_bayes_linear]
+
+    The textbook Bayesian-observation pattern: a sample from a unit-ball
+    prior [mu], scored by a measurable likelihood [f : R → R] that
+    pointwise lies in [[0,1]] (think [f = gaussian_lik y] for some fixed
+    observation [y : R], CLIPPED to the unit interval to fit the
+    integrable-cone discipline).  The PPL term is
+    [[
+       ex_bayes_linear ≜
+         e_bind (e_sample mu Hmu)             (* prior:    m ~ mu *)
+           (e_bind (e_score_tm f … (e_var hv_zero))
+                                              (* score by  f(m) *)
+              (e_ret (e_var (hv_succ hv_zero))))
+                                              (* return    m *)
+         : expr [] (tprob tR).
+    ]]
+
+    **Honest scope note.**  This is the UNNORMALISED posterior: the
+    denotation is a sub-probability measure whose total mass equals
+    [∫ f(m) dµ(m)].  We do NOT claim Bayes-optimality — we claim only
+    that the denotation reduces to the expected nested-[kbind_ext] form
+    glueing the prior sample, the score's [bang_cofree_hom score_tm_lift]
+    post-composition, and the [m]-projection return.  Normalisation
+    would require a [qbs_normalize]-style downstream pass we have not
+    introduced.
+
+    Reading: the prior is named [mu]; the score uses [f] supplied by
+    the caller (e.g. a clipped Gaussian likelihood of the observation
+    [y]); the lambda body returns the OUTER bound [m] (because after
+    the score's [e_bind] the de Bruijn head is the score's [tunit]
+    result, and [m] is one position back). *)
+
+Section BayesLinear.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The score sub-term [score_tm f (e_var hv_zero)] in context [tR :: nil]:
+    the [hv_zero] reads the (only) bound variable [m]. *)
+Definition ex_bl_score :
+    @expr R Ar R_obj (tR' :: nil) (tprob tunit) :=
+  e_score_tm f Hf_meas Hf_ge0 Hf_le1 (e_var hv_zero).
+
+(** The continuation under the prior bind, in context [tR :: nil]:
+    [do _ <- score f(m); return m]. *)
+Definition ex_bl_cont :
+    @expr R Ar R_obj (tR' :: nil) (tprob tR') :=
+  e_bind ex_bl_score (e_ret (e_var (hv_succ hv_zero))).
+
+(** The PPL term:
+    [do m <- sample mu; do _ <- score f(m); return m]. *)
+Definition ex_bayes_linear :
+    @expr R Ar R_obj nil (tprob tR') :=
+  e_bind (e_sample mu Hmu) ex_bl_cont.
+
+(** Its denotation — a Kleisli arrow [⟦[]⟧ ⇝ ⟦tR⟧]. *)
+Definition ex_bayes_linear_denot :
+    coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD tR')) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil (tprob tR') ex_bayes_linear.
+
+(** Structural reduction.
+
+    [ex_bayes_linear_denot
+       = kbind_ext (eD ex_bl_cont) (sample_kleisli mu Hmu)].
+
+    The outer-most layer is the prior bind, exposed by [eD_bind] and
+    [eD_sample].  The inner continuation [eD ex_bl_cont] is itself a
+    [kbind_ext] of the score-then-return shape, but the headline
+    asserts only the OUTER reduction (the inner one follows by
+    re-applying [eD_bind] / [eD_ret] / [eD_score_tm] — the
+    [score_tm_lift_dirac] identity is what would give a Dirac-input
+    point-reduction, but we do not commit to that here). *)
+Lemma ex_bayes_linear_denot_E :
+  ex_bayes_linear_denot =
+  kbind_ext
+    (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+         _ _ ex_bl_cont)
+    (sample_kleisli (ctxD nil) mu Hmu).
+Proof.
+rewrite /ex_bayes_linear_denot /ex_bayes_linear.
+rewrite eD_bind eD_sample.
+by [].
+Qed.
+
+End BayesLinear.
+
+Arguments ex_bl_score {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_bl_cont {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_bayes_linear {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_bayes_linear_denot
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}
+  mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_bayes_linear_denot_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}
+  mu Hmu f Hf_meas Hf_ge0 Hf_le1.
