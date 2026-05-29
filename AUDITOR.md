@@ -372,6 +372,198 @@ builds the full HB tower `Precone → Cone → MCone → ICone`.
 | Thm 4.18 | `ICones` is well-powered. | `icones_well_powered` (full proof, no stub) — `theories/icones/representable.v` |
 | Thm 4.19 | `ICones` is complete with `1` a coseparator; therefore every limit-preserving functor `ICones → C` has a left adjoint (by SAFT). | The completeness data (products, equalisers, the coseparator) is in `icone_cat.v`; the bespoke **SAFT engine** is `representable.v` (`wi_obj`, `wi_med`, `is_icones_left_adjoint`) — see *Beyond the paper* below |
 
+### Def 4.1 / 4.3 (`isICone`, `ICone`)
+
+```coq
+(* theories/icones/icone.v *)
+HB.mixin Record isICone (R : realType) (Ar : MeasSubcat R) B
+  of MCone R Ar B := {
+  (** Paper Def 4.3: every measurable path admits a Pettis integral
+      with respect to every finite measure. *)
+  icone_exists :
+    forall (X : ar_obj Ar)
+           (β : ar_carrier Ar X -> B),
+      is_measurable_path β ->
+      forall µ : fmeas R (ar_carrier Ar X),
+        is_path_integrable β µ;
+}.
+
+HB.structure Definition ICone (R : realType) (Ar : MeasSubcat R) :=
+  { B of isICone R Ar B & MCone R Ar B }.
+```
+
+### Def 4.2 (`icone_integral`, `icone_integral_eqP`)
+
+```coq
+(* theories/icones/icone.v — Section ICOneIntegral,
+   Variables R Ar B X β Hβ µ *)
+
+(** The value [I^B_X(β, µ)]. *)
+Definition icone_integral : B :=
+  path_integral (icone_exists X β Hβ µ).
+
+(** Specification: it satisfies [path_integral_eq]. *)
+Lemma icone_integralP : path_integral_eq β µ icone_integral.
+
+(** Uniqueness: any candidate satisfying the defining equation
+    equals [icone_integral]. *)
+Lemma icone_integral_eqP (x : B) :
+  path_integral_eq β µ x -> x = icone_integral.
+```
+
+### Lem 4.7 (`icone_integral_*` family + `bilin.v`)
+
+```coq
+(* theories/icones/icone_integral.v — Section variables R Ar B X β Hβ µ *)
+
+(** Lemma 4.7: additivity in [β]. *)
+Lemma icone_integral_addB
+  (β1 β2 : ar_carrier Ar X -> B)
+  (Hβ1 : is_measurable_path β1) (Hβ2 : is_measurable_path β2)
+  (Hβ12 : is_measurable_path (fun r => precone_add (β1 r) (β2 r))) :
+  icone_integral (fun r => precone_add (β1 r) (β2 r)) Hβ12 µ =
+  precone_add (icone_integral β1 Hβ1 µ) (icone_integral β2 Hβ2 µ).
+
+(** Lemma 4.7: scalar in [β]. *)
+Lemma icone_integral_scaleB
+  (r : {nonneg R}) (β : ar_carrier Ar X -> B)
+  (Hβ : is_measurable_path β)
+  (Hrβ : is_measurable_path (fun u => precone_scale r (β u))) :
+  icone_integral (fun u => precone_scale r (β u)) Hrβ µ =
+  precone_scale r (icone_integral β Hβ µ).
+
+(** Lemma 4.7: additivity in [µ]. *)
+Lemma icone_integral_addmu (µ1 µ2 : fmeas R (ar_carrier Ar X)) :
+  icone_integral β Hβ (fmeas_add µ1 µ2) =
+  precone_add (icone_integral β Hβ µ1) (icone_integral β Hβ µ2).
+
+(** Lemma 4.7: scalar in [µ]. *)
+Lemma icone_integral_scalemu
+  (r : {nonneg R}) (µ : fmeas R (ar_carrier Ar X)) :
+  icone_integral β Hβ (fmeas_scale r µ) =
+  precone_scale r (icone_integral β Hβ µ).
+
+(** Companions used as Lemma 4.7 instances downstream. *)
+Lemma icone_integral_test_pettis (Z : ar_obj Ar) (* ... *).
+Lemma icone_integral_chain_le : (* ... *).
+Lemma icone_integral_joint_measurable : (* ... *).
+```
+
+### Thm 4.12 (`path_int_exists`, `FMeas`/`⊥` `isICone` instances)
+
+```coq
+(* theories/icones/examples_icone.v *)
+
+(** Paper Thm 4.12 (full): unconditional path-integrability for
+    [path_car Ar X B], given the cast-measurability hypotheses. *)
+Lemma path_int_exists
+    (Y' : ar_obj Ar)
+    (η : ar_carrier Ar Y' -> P)
+    (Hη : is_measurable_path η)
+    (ν : fmeas R (ar_carrier Ar Y')) :
+  is_path_integrable η ν.
+
+(** Register the [isICone] instance on [path_car Ar X B]. *)
+HB.instance Definition _ : isICone R Ar P :=
+  isICone.Build R Ar P (@path_int_exists).
+
+(** Paper §4: the [isICone] instance on [cone_one_car Ar] (= the unit). *)
+HB.instance Definition _ :=
+  @isICone.Build R Ar (cone_one_car Ar) (* ... witness ... *).
+
+(** Paper Thm 4.5: the [isICone] instance on [fmeas R (ar_carrier Ar X)]. *)
+HB.instance Definition _ :=
+  @isICone.Build R Ar (fmeas R (ar_carrier Ar X)) (* ... witness ... *).
+```
+
+### Def 4.10 (`icones_hom`, `icones_comp`, `ICones`)
+
+```coq
+(* theories/icones/icone_cat.v — Section IConesHom,
+   Variables (R : realType) (Ar : MeasSubcat R), B C : ICone.type Ar *)
+
+Record icones_hom : Type := MkIConesHom {
+  icones_hom_mcones :> mcones_hom Ar B C;
+  icones_hom_pres_int :
+    forall (X : ar_obj Ar) (β : ar_carrier Ar X -> B)
+           (Hβ : is_measurable_path β)
+           (µ : fmeas R (ar_carrier Ar X)),
+      cones_hom_fun (mcones_hom_cones icones_hom_mcones)
+                    (icone_integral β Hβ µ) =
+      icone_integral
+        (fun r => cones_hom_fun (mcones_hom_cones icones_hom_mcones) (β r))
+        (mcones_hom_pres_path icones_hom_mcones X β Hβ) µ;
+}.
+
+(** Identity in [ICones]. *)
+Definition icones_id : icones_hom Ar B B :=
+  MkIConesHom (mcones_id Ar B) icones_id_pres_int.
+
+(** Composition in [ICones]. *)
+Definition icones_comp
+    (g : icones_hom Ar B C) (f : icones_hom Ar A B) : icones_hom Ar A C :=
+  MkIConesHom
+    (mcones_comp (icones_hom_mcones g) (icones_hom_mcones f))
+    (icones_comp_pres_int g f).
+```
+
+### Fubini (`fubini_iter_fun_X`)
+
+```coq
+(* theories/icones/fubini.v — Variables
+   R Ar B (X Y : ar_obj Ar)
+   (β : ar_carrier Ar X * ar_carrier Ar Y -> B)
+   (ν : fmeas R (ar_carrier Ar Y)) *)
+
+(** The pointwise [x ↦ ∫_y β(x,y) dν] function. *)
+Definition fubini_iter_fun_X (x : ar_carrier Ar X) : B :=
+  icone_integral (fun y => β (x, y)) (Hβ x) ν.
+
+Lemma fubini_iter_fun_X_norm_le (Mβ : R) :
+  (forall p, cone_norm (β p) <= Mβ) ->
+  forall x, cone_norm (fubini_iter_fun_X x) <= Mβ * fmeas_norm ν.
+
+Lemma fubini_iter_fun_X_is_path (Mβ : R)
+  (HMβ : forall p, cone_norm (β p) <= Mβ)
+  (Hjoint : (* joint test-measurability of β *)) :
+  is_measurable_path fubini_iter_fun_X.
+```
+
+### Thm 4.18 (`icones_well_powered`, `SubobjClassifier`, `icones_subobject_classP`)
+
+```coq
+(* theories/icones/representable.v — Section Classifier,
+   Variables (R : realType) (Ar : MeasSubcat R), B : ICone.type Ar *)
+
+(** The classifier type: a fixed small [Type], independent of the
+    subobject's domain. *)
+Record SubobjClassifier : Type := MkClassifier {
+  cls_S    : set B;
+  cls_add  : B -> B -> B;
+  cls_scl  : {nonneg R} -> B -> B;
+  cls_zer  : B;
+  cls_nrm  : B -> R;
+  cls_M    : forall X : ar_obj Ar,
+               set (ar_carrier Ar X -> B -> R);
+}.
+
+(** Injectivity up to iso: subobjects with equal classifier are iso over [B]. *)
+Lemma icones_subobject_classP (D1 D2 : icones_subobject B) :
+  icones_subobject_class D1 = icones_subobject_class D2 ->
+  subobject_equiv D1 D2.
+
+(** Paper Thm 4.18 — the well-poweredness statement, the property SAFT consumes. *)
+Theorem icones_well_powered :
+  exists cls : icones_subobject B -> SubobjClassifier B,
+    forall D1 D2 : icones_subobject B,
+      cls D1 = cls D2 -> subobject_equiv D1 D2.
+Proof. by exists icones_subobject_class; exact: icones_subobject_classP. Qed.
+```
+
+(The SAFT engine — `pb_med`, `wi_obj`, `wi_med`, `wi_factors_each`,
+`wi_incl_inj`, `is_icones_left_adjoint` — is collected under
+*Beyond the paper* below.)
+
 ---
 
 ## Paper § 5 — Internal hom, tensor, and SMCC
