@@ -537,18 +537,21 @@ Local Notation tR' := (tR R_obj).
        [ let "c" := Sample (mu, Hmu) in Ret (\"x" ::: tR => # "c") ]
     ]]
 
-    Desugaring (one [ne_bind], one [ne_ret], one [ne_lam], one [ne_var]):
+    Desugaring (one [ne_bind], one [ne_ret], one [ne_lam], one
+    [ne_var']):
 
     [[
        ne_bind "c" (ne_sample mu Hmu)
-         (ne_ret (ne_lam "x" (t1 := tR) (ne_var (nv_string_wit _ "c"))))
+         (ne_ret (ne_lam "x" (t1 := tR) (ne_var' "c" _)))
     ]]
-    The [nv_string_wit] picks up the [c]-slot of context
-    [("x", tR) :: ("c", tR) :: nil]: since [string_dec "c" "x"] is
-    [right _], the recursive branch fires and returns [nv_tail _ _ _ (nv_head "c" tR _)]
-    of type [named_var _ tR].  Translation through [nv_to_hv] yields
-    [hv_succ hv_zero] — exactly the De Bruijn index in
-    [ex_rc_body]. *)
+    The [_] feeding into [ne_var'] is filled by canonical-structure
+    search in the [find_nv "c" ?t] structure.  In the lambda body's
+    context [("x", tR) :: ("c", tR) :: nil] canonical search picks
+    [recurse_nv "x" tR _ (found_nv "c" tR nil)] (the head case
+    [recurse_nv] strips [("x", tR)] using [infer ("x" =? "c" = false)],
+    then [found_nv] matches [("c", tR)]).  Translation through
+    [nv_to_hv] yields [hv_succ hv_zero] — exactly the De Bruijn index
+    in [ex_rc_body]. *)
 Definition ex_named_random_constant :
     @named_expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
   [ let "c" := Sample (mu , Hmu) in Ret (\ "x" ::: tR' => # "c") ].
@@ -561,11 +564,13 @@ Definition ex_named_random_constant :
          Ret (\"x" ::: tR => # "m" * # "x" + # "b") ]
     ]]
     The lambda's bound context is [("x", tR) :: ("b", tR) :: ("m", tR) :: nil];
-    [#"m"] desugars to [nv_tail _ _ _ (nv_tail _ _ _ (nv_head _ _ _))]
-    (= De Bruijn [hv_succ (hv_succ hv_zero)]), [#"x"] to
-    [nv_head _ _ _] (= [hv_zero]), [#"b"] to
-    [nv_tail _ _ _ (nv_head _ _ _)] (= [hv_succ hv_zero]) — exactly the
-    indices in [ex_rl_body]. *)
+    canonical-structure resolution yields:
+      [#"m"] = [recurse_nv "x" tR _ (recurse_nv "b" tR _ (found_nv "m" tR _))]
+        (= De Bruijn [hv_succ (hv_succ hv_zero)]);
+      [#"x"] = [found_nv "x" tR _] (= [hv_zero]);
+      [#"b"] = [recurse_nv "x" tR _ (found_nv "b" tR _)]
+        (= [hv_succ hv_zero])
+    — exactly the indices in [ex_rl_body]. *)
 Definition ex_named_random_linear :
     @named_expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
   [ let "m" := Sample (mu , Hmu) in
