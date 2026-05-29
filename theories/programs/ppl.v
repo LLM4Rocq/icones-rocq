@@ -11,23 +11,26 @@
     the named-variable surface follows the Saito–Affeldt encoding
     (APLAS 2023 §5.1–§5.3, §6).
 
-    ** Surface calculus **
+    ** Surface calculus — direct-style CBV **
 
     - a single inductive [named_expr Γ τ] indexed by an
       intrinsically-typed, MULTI-VARIABLE named context [Γ :
       named_ctx Ar = seq (string * ppl_type Ar)] and a type [τ :
       ppl_type];
+    - DIRECT STYLE (Plotkin/Girard CBV): the source language never
+      mentions the probability monad.  Function types are [tfun A B]
+      (NOT [tprob (tfun ...)]); there is no [Ret], no [tprob], no
+      [bind].  The monadic structure is INTERNALISED in [tyD (tfun A B)
+      = !̃(U A ⊸ U(T B))] — the Kleisli exponential, with the [Tobj]
+      on the codomain making every function call effectful — and in
+      [eD], whose codomain is uniformly [Tobj (tyD τ)] for every
+      expression;
     - direct-style application [ne_app f x : named_expr Γ B], NOT
-      fine-grain Moggi: the user-facing calculus matches a textbook
-      PPL while the interpretation goes through the
-      EM(!)-Kleisli-exponential chain of [theories/programs/cbv.v]
-      (= [Tobj = !̃ ∘ U]);
-    - monadic [ne_ret] / [ne_bind] returning to the probability type
-      [tprob τ];
+      fine-grain Moggi: the user-facing calculus matches the
+      Plotkin/Girard textbook CBV calculus;
     - a built-in measurable-space base [tbase X] for [X : ar_obj Ar], a
       unit type, binary products, and the higher-order arrow
-      [tfun A B] = [!̃(U A ⊸ U B)] (the Kleisli exponential of the CBV
-      computation monad);
+      [tfun A B] = [!̃(U A ⊸ U(T B))] (the Kleisli exponential);
     - a [Custom Entry ppl_named] surface notation lets users write
       [\ "x" ::: tR => # "x"] etc. directly; the [# "x"] variable
       lookup is resolved by canonical-structure search ([find_nv]).
@@ -40,15 +43,16 @@
     - [ne_pair] / [ne_fst] / [ne_snd] — binary products;
     - [ne_lam x M] / [ne_app] — higher-order lambda (with string
       binder [x]) / direct application;
-    - [ne_ret] / [ne_bind x M K] — monadic return / sequencing (the
-      bind carries a string binder);
-    - [ne_sample mu Hmu] — sample from a unit-ball [mu : FMeas X];
+    - [ne_let x M K] — direct-style CBV sequencer [let x = M in K]
+      (carries a string binder);
+    - [ne_sample mu Hmu] — sample from a unit-ball
+      [mu : FMeas R_obj] (DIRECT STYLE: returns a [tR R_obj]
+      expression — the monad is hidden in [eD]);
     - [ne_real r] — real literal [r : R] of type [tR];
     - [ne_score f Hf_meas Hf_ge0 Hf_le1 e] — TERM-LEVEL score by
       [f(r)] where [r] is the value of a [named_expr Γ tR] (the
-      load-bearing constructor for genuine Bayesian inference: the
-      score factor can depend on a bound variable, with [f : R → R]
-      measurable and pointwise in [[0,1]]);
+      load-bearing constructor for genuine Bayesian inference; in
+      direct style it returns a [tunit] expression);
     - [ne_add] / [ne_mul] — pointwise [+]/[×] on two [tR]-valued
       computations.
 
@@ -58,19 +62,16 @@
        ⟦tunit⟧       = EM_term
        ⟦tbase X⟧     = FMeas_coalgebra X         (Theorem 9.7)
        ⟦tprod t1 t2⟧ = EM_prod ⟦t1⟧ ⟦t2⟧
-       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U⟦t2⟧)         (Kleisli exponential of [T])
-       ⟦tprob t⟧     = ⟦t⟧.
+       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U(T ⟦t2⟧))     (Kleisli exponential of [T])
     ]]
     Contexts are interpreted by [ctxD : seq (ppl_type Ar) -> Coalgebra Ar]
     on the De Bruijn skeleton [drop_names Γ : seq (ppl_type Ar)]
     obtained by forgetting the string identifiers; every expression
     denotes a Kleisli arrow [eD M : coalg_hom (ctxD (drop_names Γ))
-    (Tobj (tyD τ))].  The [tprob] marker at the TYPE level is purely
-    SYNTACTIC ([tyD (tprob t) = tyD t]) — the monadic structure is in
-    [eD], not [tyD], and the "is-this-a-computation" status of a
-    [tprob] term is uniformly carried by the outer [Tobj] wrap.  See
-    [cbv.v]'s header for the natural-bijection chain
-    [Hom_EM(C×A, T B) ≅ Hom_EM(C, !̃(U A ⊸ U B))]
+    (Tobj (tyD τ))].  The monad lives uniformly in [eD] and in the
+    [Tobj] on the codomain of [tyD (tfun A B)] — the source language
+    NEVER exposes it.  See [cbv.v]'s header for the natural-bijection
+    chain [Hom_EM(C×A, T B) ≅ Hom_EM(C, !̃(U A ⊸ U(T B)))]
     realising lambda + application.
 
     ** Infrastructure **
@@ -164,8 +165,7 @@ Inductive ppl_type : Type :=
   | tunit
   | tbase (X : ar_obj Ar)
   | tprod (t1 t2 : ppl_type)
-  | tfun  (t1 t2 : ppl_type)
-  | tprob (t : ppl_type).
+  | tfun  (t1 t2 : ppl_type).
 
 End Types.
 
@@ -174,7 +174,6 @@ Arguments tunit {R Ar}.
 Arguments tbase {R Ar} X.
 Arguments tprod {R Ar} t1 t2.
 Arguments tfun {R Ar} t1 t2.
-Arguments tprob {R Ar} t.
 
 (** ** Contexts — named-variable surface, with the type-only De Bruijn
        skeleton kept as a PRIVATE projection for the semantic plumbing.
@@ -289,12 +288,17 @@ Arguments tR {R Ar} R_obj.
       context — IT IS NOT marked as a computation; the Moggi/Kleisli
       structure is in the SEMANTICS, not the syntax);
     - [ne_app] : DIRECT application;
-    - [ne_ret] : monadic return [tprob t];
-    - [ne_bind] : monadic bind [do x <- m; k] — carries a [string] for
-      the bound name;
-    - [ne_sample] : sample from a fixed measure [µ : FMeas X] in the
-      unit ball (the constructor carries the cone-norm bound
-      [Hmu : ‖µ‖ ≤ 1] that the [linhom_icones]-wrapping needs);
+    - [ne_let] : direct-style CBV sequencer [let x = M in K] — carries
+      a [string] for the bound name (this is the Plotkin/Girard CBV
+      let; semantically its interpretation is the extended-context
+      Kleisli bind [kbind_ext], identical to the old monadic-style
+      [ne_bind] minus the type-level [tprob] markers that are now
+      gone);
+    - [ne_sample] : sample from a fixed measure
+      [µ : FMeas R_obj] in the unit ball (the constructor carries the
+      cone-norm bound [Hmu : ‖µ‖ ≤ 1] that the
+      [linhom_icones]-wrapping needs; DIRECT STYLE: returns a [tR]
+      expression);
     - [ne_real] : real literal [r : R] of type [tR] (the Dirac at [r]
       has unit norm — no bound proof needed);
     - [ne_score] : TERM-LEVEL score by [f r : R] where [r] is the
@@ -303,7 +307,7 @@ Arguments tR {R Ar} R_obj.
       the cone-norm / unit-ball discipline of [linhom_icones]).  This
       is the constructor that makes Bayesian-style observation
       actually possible: the score factor can depend on a bound
-      variable through [e];
+      variable through [e]; DIRECT STYLE: returns a [tunit] expression;
     - [ne_add] : pointwise sum of two [tR]-valued computations
       (interpretation: lax-monoidal pairing of the two pushforwards
       followed by [FMeas]-functorial action of measurable [+]);
@@ -330,23 +334,21 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr ((x, t1) :: G) t2 -> named_expr G (tfun t1 t2)
   | ne_app   (G : named_ctx Ar) (t1 t2 : T) :
       named_expr G (tfun t1 t2) -> named_expr G t1 -> named_expr G t2
-  | ne_ret   (G : named_ctx Ar) (t : T) :
-      named_expr G t -> named_expr G (tprob t)
-  | ne_bind  (G : named_ctx Ar) (x : string) (t1 t2 : T) :
-      named_expr G (tprob t1) ->
-      named_expr ((x, t1) :: G) (tprob t2) ->
-      named_expr G (tprob t2)
-  | ne_sample (G : named_ctx Ar) (X : ar_obj Ar)
-              (mu : fmeas R (ar_carrier Ar X))
+  | ne_let   (G : named_ctx Ar) (x : string) (t1 t2 : T) :
+      named_expr G t1 ->
+      named_expr ((x, t1) :: G) t2 ->
+      named_expr G t2
+  | ne_sample (G : named_ctx Ar)
+              (mu : fmeas R (ar_carrier Ar R_obj))
               (Hmu : (cone_norm mu <= 1)%R) :
-      named_expr G (tprob (tbase X))
+      named_expr G tR'
   | ne_real  (G : named_ctx Ar) (r : R) : named_expr G tR'
   | ne_score (G : named_ctx Ar)
              (f : R -> R)
              (Hf_meas : measurable_fun [set: R] f)
              (Hf_ge0 : forall r : R, (0 <= f r)%R)
              (Hf_le1 : forall r : R, (f r <= 1)%R)
-             (e : named_expr G tR') : named_expr G (tprob tunit)
+             (e : named_expr G tR') : named_expr G tunit
   | ne_add   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   | ne_mul   (G : named_ctx Ar) :
@@ -359,7 +361,7 @@ Arguments ne_var {R Ar R_obj G t} v.
 Arguments ne_tt {R Ar R_obj G}.
 Arguments ne_fst {R Ar R_obj G t1 t2} M.
 Arguments ne_snd {R Ar R_obj G t1 t2} M.
-Arguments ne_sample {R Ar R_obj G X} mu Hmu.
+Arguments ne_sample {R Ar R_obj G} mu Hmu.
 Arguments ne_real {R Ar R_obj G} r.
 (** Bidirectionality hints ([&]) on the binding-site / context-shared
     constructors: tell Coq's elaborator to resolve the outer index [G]
@@ -374,8 +376,7 @@ Arguments ne_fst {R Ar R_obj G t1 t2} & M.
 Arguments ne_snd {R Ar R_obj G t1 t2} & M.
 Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M.
 Arguments ne_app {R Ar R_obj G t1 t2} & F X.
-Arguments ne_ret {R Ar R_obj G t} & M.
-Arguments ne_bind {R Ar R_obj G} x & {t1 t2} M K.
+Arguments ne_let {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_add {R Ar R_obj G} & M N.
 Arguments ne_mul {R Ar R_obj G} & M N.
@@ -387,16 +388,13 @@ Arguments ne_mul {R Ar R_obj G} & M N.
        ⟦tunit⟧       = EM_term
        ⟦tbase X⟧     = FMeas_coalgebra X         (Theorem 9.7)
        ⟦tprod t1 t2⟧ = EM_prod ⟦t1⟧ ⟦t2⟧
-       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U⟦t2⟧)         (Kleisli exponential of [T])
-       ⟦tprob t⟧     = ⟦t⟧.
+       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U(T ⟦t2⟧))     (Kleisli exponential of [T])
     ]]
-    The [tprob] marker is SYNTACTIC: every expression is interpreted
-    uniformly through the CBV computation monad [T = !̃ ∘ U] (every
-    [⟦expr G t⟧ ∈ coalg_hom (ctxD G) (Tobj (tyD t))]), and the
-    [e_ret]/[e_bind]/[e_sample]/etc. constructors all participate in
-    that monadic shape.  The [tprob] marker at the TYPE level does NOT
-    add a further [Tobj]: that would be a double-monad and is not what
-    the calculus intends.
+    DIRECT STYLE: the source language has no [tprob] marker; every
+    expression's denotation is uniformly a Kleisli arrow [⟦expr G t⟧ ∈
+    coalg_hom (ctxD G) (Tobj (tyD t))], and the monadic structure
+    lives uniformly in [eD] and in the [Tobj] on the codomain of [tyD
+    (tfun A B)].
 
     Contexts are interpreted with the HEAD of the list on the RIGHT:
     [[
@@ -418,15 +416,14 @@ Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
   | tunit => EM_term
   | tbase X => FMeas_coalgebra X
   | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
+  (* Direct-style CBV: the function type is the Kleisli exponential
+     [!̃(U(⟦A⟧) ⊸ U(T ⟦B⟧))].  The [Tobj] on the codomain is what makes
+     EVERY function call effectful at the level of the semantic model;
+     the user-facing source language never mentions the monad ([tprob]
+     is gone), and the monadic structure is uniformly carried by [eD]
+     and by the [Tobj] in the linhom-codomain. *)
   | tfun A B => bang_cofree (linhom_car Ar (coalg_obj (tyD A))
-                                          (coalg_obj (tyD B)))
-  (* [tprob t] is the SYNTACTIC marker for "this is a computation in
-     the probability monad".  Semantically every expression is
-     interpreted through the monad uniformly ([eD] wraps EVERY
-     denotation in [Tobj]), so [tyD (tprob t) = tyD t]: the [tprob]
-     marker does NOT add an extra layer of [Tobj] at the type-level
-     interpretation.  The monadic structure is in [eD], not [tyD]. *)
-  | tprob t0 => tyD t0
+                                          (coalg_obj (Tobj (tyD B))))
   end.
 
 Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
@@ -535,53 +532,65 @@ Arguments var_lookup {R Ar G t} v.
 Section LamApp.
 Variables (R : realType) (Ar : MeasSubcat R).
 
-(** Lambda — LEFT to RIGHT through the Kleisli-exponential chain.  Given
-    a body [coalg_hom (EM_prod G A) (Tobj B)], produce
-    [coalg_hom G (tyD (tfun A B))] = [coalg_hom G (!̃(U A ⊸ U B))]. *)
+(** *** Lambda — LEFT to RIGHT through the Kleisli-exponential chain.
+
+    Direct-style: a lambda body is interpreted as a Kleisli arrow
+    [MB : coalg_hom (EM_prod G A) (Tobj B)].  The result is a VALUE in
+    [tyD (tfun A B) = bang_cofree (linhom A (U(T B)))] obtained by
+    [adj_psi ∘ tensor_curry ∘ ch_mor].  Note: with [U(Tobj B) =
+    coalg_obj (Tobj B) = Bang(U B)] (definitional), [ch_mor MB] is
+    already an [icones_hom (U(G) ⊗ U(A)) (U(Tobj B))], so we
+    [tensor_curry] then [adj_psi] to land in the [bang_cofree] envelope. *)
 Definition lam_under (G A B : Coalgebra Ar)
     (MB : coalg_hom (EM_prod G A) (Tobj B)) :
     icones_hom Ar (coalg_obj G)
-      (linhom_car Ar (coalg_obj A) (coalg_obj B)) :=
-  tensor_curry (adj_phi MB).
+      (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B))) :=
+  tensor_curry (ch_mor MB).
 
 Definition lam_coalg (G A B : Coalgebra Ar)
     (MB : coalg_hom (EM_prod G A) (Tobj B)) :
-    coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) :=
+    coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A)
+                                            (coalg_obj (Tobj B)))) :=
   adj_psi (lam_under MB).
 
-(** Application — RIGHT to LEFT through the chain.  Given a value of the
-    function type and a value of the argument type, produce a Kleisli
-    arrow [G ⇝ B].  Both VF and VA are VALUES (coalgebra morphisms), NOT
-    computations — this is the "value" form of application, used INSIDE
-    [app_pair] below to actually fire the closure at a pair. *)
+(** *** Application — RIGHT to LEFT through the chain.
+
+    Given a function value [VF : G → bang_cofree (linhom A (U(T B)))]
+    and an argument value [VA : G → A], fire the closure.  The
+    [tensor_uncurry (adj_phi VF)] reads as [icones_hom (U G ⊗ U A)
+    (U(T B))]; we then [adj_psi] to land in [coalg_hom G (T (T B))],
+    and finally [tmul] collapses the double-monad.  This is the
+    standard "compute closure then call" pattern; the [tmul] is the
+    monad-multiplication that makes the call effectful. *)
 Definition app_under (G A B : Coalgebra Ar)
     (VF : coalg_hom G
-            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))))
+            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))))
     (VA : coalg_hom G A) :
-    icones_hom Ar (coalg_obj G) (coalg_obj B) :=
+    icones_hom Ar (coalg_obj G) (coalg_obj (Tobj B)) :=
   icones_comp (tensor_uncurry (adj_phi VF))
     (icones_comp (tensor_mor (icones_id Ar (coalg_obj G)) (ch_mor VA))
                  (coalg_d G)).
 
 Definition app_kleisli (G A B : Coalgebra Ar)
     (VF : coalg_hom G
-            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))))
+            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))))
     (VA : coalg_hom G A) :
     coalg_hom G (Tobj B) :=
-  adj_psi (app_under VF VA).
+  coalg_comp (tmul B) (adj_psi (app_under VF VA)).
 
 (** *** [app_pair] — the Kleisli "evaluate" arrow on a value pair
 
     Given a pair value [(f, a) : EM_prod (tfun A B) A], project the
-    components and apply [app_kleisli].  This is the continuation used to
-    interpret direct-style application as monadic application after both
-    [f] and [a] have been EVALUATED to values. *)
+    components and apply [app_kleisli].  This is the continuation used
+    to interpret direct-style application as monadic application after
+    both [f] and [a] have been EVALUATED to values. *)
 Definition app_pair (A B : Coalgebra Ar) :
-    coalg_hom (EM_prod (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A)
+    coalg_hom (EM_prod (bang_cofree (linhom_car Ar (coalg_obj A)
+                                                  (coalg_obj (Tobj B)))) A)
               (Tobj B) :=
   app_kleisli
-    (em_proj1 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A)
-    (em_proj2 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj B))) A).
+    (em_proj1 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))) A)
+    (em_proj2 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))) A).
 
 End LamApp.
 
@@ -619,10 +628,10 @@ Arguments app_pair {R Ar} A B.
       to actually fire the closure on its argument.  This is the
       "evaluate-evaluate-then-fire" Moggi semantics of direct
       application.
-    - [e_ret M] : evaluate [M] (already a Kleisli arrow into [Tobj]) and
-      then wrap once more with [tunit_eta].
-    - [e_bind M K] : the extended-context Kleisli bind [kbind_ext]
+    - [e_let M K] : the extended-context Kleisli bind [kbind_ext]
       glueing [M : G ⇝ t1] with the continuation [K : (t1 :: G) ⇝ t2].
+      This is the direct-style CBV sequencer; semantically identical
+      to the old monadic-style [e_bind] minus the [tprob] markers.
     - [e_sample mu] : the constant Kleisli arrow [G ⇝ FMeas X] whose
       value is [mu], composed through [tunit_eta] of [FMeas_coalgebra X].
     - [e_real r] : the constant Kleisli arrow [G ⇝ tR] whose value is the
@@ -1118,16 +1127,13 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
       kcomp (app_pair (tyD t1) (tyD t2))
         (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
                     (em_pair (eD Vf) (eD Va)))
-  (* In this uniform-monadic semantics, [tyD (tprob t) = tyD t] (the
-     [tprob] marker is purely syntactic, see the [tyD] docstring), so
-     [ne_ret M] denotes the SAME Kleisli arrow as [M] itself.  This is
-     consistent with treating EVERY expression as a Kleisli arrow into
-     [Tobj (tyD t)]. *)
-  | ne_ret G0 t0 M0 => eD M0
-  | ne_bind G0 _ t1 t2 M0 K =>
+  (* Direct-style CBV [let]: same shape as the old [ne_bind], minus
+     the [tprob] marker on the types.  The cone-side definition
+     [kbind_ext] is unchanged. *)
+  | ne_let G0 _ t1 t2 M0 K =>
       kbind_ext (eD K) (eD M0)
-  | ne_sample G0 X mu Hmu =>
-      @sample_kleisli (ctxD (drop_names G0)) X mu Hmu
+  | ne_sample G0 mu Hmu =>
+      @sample_kleisli (ctxD (drop_names G0)) R_obj mu Hmu
   | ne_real G0 r =>
       @real_kleisli (ctxD (drop_names G0)) r
   | ne_score G0 f Hf_meas Hf_ge0 Hf_le1 e0 =>
@@ -1223,22 +1229,20 @@ Lemma eD_app (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
                 (em_pair (eD' F) (eD' X))).
 Proof. by []. Qed.
 
-(** *** The "[ne_ret] is identity" law
+(** *** Direct-style [let] reduction
 
-    Because [tyD (tprob t) = tyD t] and EVERY expression is interpreted
-    as a Kleisli arrow, [ne_ret M] denotes the same arrow as [M].  This
-    is the genuine "tprob is purely syntactic" content. *)
-Lemma eD_ret (G : named_ctx Ar) (t : ppl_type Ar) (M : named_expr G t) :
-  eD' (ne_ret M) = eD' M.
+    [ne_let] denotes the extended-context Kleisli bind [kbind_ext];
+    this is the same shape as the old [ne_bind] minus the [tprob] tag
+    on the types.  No analogue of [eD_ret] survives: in direct style,
+    every expression already denotes a Kleisli arrow and there is no
+    syntactic [return] constructor. *)
+Lemma eD_let (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
+    (M : named_expr G t1) (K : named_expr ((x, t1) :: G) t2) :
+  eD' (ne_let x M K) = kbind_ext (eD' K) (eD' M).
 Proof. by []. Qed.
 
-Lemma eD_bind (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
-    (M : named_expr G (tprob t1)) (K : named_expr ((x, t1) :: G) (tprob t2)) :
-  eD' (ne_bind x M K) = kbind_ext (eD' K) (eD' M).
-Proof. by []. Qed.
-
-Lemma eD_sample (G : named_ctx Ar) (X : ar_obj Ar)
-    (mu : fmeas R (ar_carrier Ar X)) (Hmu : (cone_norm mu <= 1)%R) :
+Lemma eD_sample (G : named_ctx Ar)
+    (mu : fmeas R (ar_carrier Ar R_obj)) (Hmu : (cone_norm mu <= 1)%R) :
   eD' (ne_sample (R_obj := R_obj) (G := G) mu Hmu) =
   sample_kleisli (ctxD (drop_names G)) mu Hmu.
 Proof. by []. Qed.
@@ -1300,9 +1304,8 @@ Arguments eD_fst {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 
 Arguments eD_snd {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M.
 Arguments eD_lam {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} x {t1 t2} body.
 Arguments eD_app {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} F X.
-Arguments eD_ret {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} M.
-Arguments eD_bind {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} x {t1 t2} M K.
-Arguments eD_sample {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G X} mu Hmu.
+Arguments eD_let {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} x {t1 t2} M K.
+Arguments eD_sample {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} mu Hmu.
 Arguments eD_real {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} r.
 Arguments eD_score
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G f}
@@ -1406,8 +1409,7 @@ Arguments ne_var' {R Ar R_obj} s {t} g.
 
       [...]                         enter the named-PPL grammar
       {...}                         escape back to Coq
-      Ret e                         ne_ret
-      let "x" := M in N             monadic let (= ne_bind)
+      let "x" := M in N             direct-style CBV let (= ne_let)
       Sample (mu , Hmu)             sample primitive
       Score { f, Hm, Hg, Hl } e     term-level score primitive
       \ "x" ::: A => M              lambda with named binder of type A
@@ -1417,10 +1419,11 @@ Arguments ne_var' {R Ar R_obj} s {t} g.
       e1 , e2 ; fst e ; snd e ; ()  pairs / projections / unit
       [|r|]                         real literal (= ne_real)
 
-    Note: pure [let] (non-monadic) is omitted on purpose — our PPL is
-    monadic by construction; the surface [let "x" := M in N] desugars
-    to [ne_bind] (which matches the QBS-paper convention since every
-    term is a Kleisli arrow).  For pure lambdas use [\"x" ::: A => M]. *)
+    Note: the PPL is DIRECT-STYLE CBV; the source language does not
+    expose the probability monad ([tprob] is gone, [Ret] is gone, [let
+    "x" := M in N] desugars to [ne_let], NOT [ne_bind]).  Every
+    [named_expr G t]'s denotation is still a Kleisli arrow [ctxD G
+    ⇝ tyD t]; the monadic structure is uniformly inside [eD]. *)
 
 Declare Custom Entry ppl_named.
 
@@ -1447,12 +1450,10 @@ Notation "# x" :=
 (** Real literal — write as [| r |] to keep the entry self-contained. *)
 Notation "[| r |]" := (ne_real r) (in custom ppl_named at level 1, r constr).
 
-(** Monadic return. *)
-Notation "'Ret' e" := (ne_ret e)
-  (in custom ppl_named at level 60, e custom ppl_named at level 60,
-   right associativity).
-
-(** Sample primitive — takes a [(mu, Hmu)] Coq pair. *)
+(** Sample primitive — takes a [(mu, Hmu)] Coq pair.  In the
+    direct-style refactor, [ne_sample] produces a pure [tR R_obj]
+    expression; the probability monad is unwrapped at the level of
+    [eD] only. *)
 Notation "'Sample' ( mu , Hmu )" :=
   (ne_sample mu Hmu)
   (in custom ppl_named at level 1, mu constr, Hmu constr).
@@ -1504,11 +1505,13 @@ Notation "'\' x ':::' A '=>' M" :=
    A constr at level 0,
    M custom ppl_named at level 60, right associativity).
 
-(** Monadic let-binding — [let "x" := M in N] : desugars to [ne_bind]
-    in the extended named context [(x, _) :: G].  The bound-type slot
-    is inferred from [M]'s type [tprob t1]. *)
+(** Direct-style CBV let-binding — [let "x" := M in N] : desugars to
+    [ne_let] in the extended named context [(x, _) :: G].  In the
+    refactored direct-style PPL, source types are pure; the monadic
+    sequencing is hidden inside [eD] (as [kbind_ext]).  The bound-type
+    slot is inferred from [M]'s type [t1]. *)
 Notation "'let' x ':=' M 'in' N" :=
-  (ne_bind x%string M N)
+  (ne_let x%string M N)
   (in custom ppl_named at level 80, x constr at level 0,
    M custom ppl_named at level 70,
    N custom ppl_named at level 80,
