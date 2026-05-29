@@ -163,11 +163,14 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
   Single-sort `expr Γ t` with intrinsically-typed De Bruijn contexts (`has_var Γ t`); direct
   application `e_app : expr Γ (tfun A B) → expr Γ A → expr Γ B`; the QBS constructors
   `e_var`/`e_pair`/`e_fst`/`e_snd`/`e_lam`/`e_app`/`e_ret`/`e_bind`/`e_sample`, plus `e_real`
-  (Dirac literal), `e_score` (rescaling), and **`e_add` / `e_mul`** (real arithmetic on
-  `tbase R` via the FMeas lax-monoidal map and the Dirac/integration view — see below). Every
-  term denotes a Kleisli arrow `coalg_hom (ctxD Γ) (T (tyD t))` with `T = !̃ ∘ U`; function
-  types use the **EM(!) Kleisli exponential** `⟦tfun A B⟧ = !̃(U A ⊸ U B)` (no value-CCC
-  required, and none exists). Two headline examples reproduced from the QBS showcase:
+  (Dirac literal), `e_score` (scalar rescaling), `e_score_tm` (**term-level** score by a
+  measurable `f : R → R` pointwise in `[0,1]` applied to the value of an `expr Γ tR` — the
+  load-bearing constructor for Bayesian inference, where the score factor depends on a
+  bound variable), and **`e_add` / `e_mul`** (real arithmetic on `tbase R` via the FMeas
+  lax-monoidal map and the Dirac/integration view — see below). Every term denotes a
+  Kleisli arrow `coalg_hom (ctxD Γ) (T (tyD t))` with `T = !̃ ∘ U`; function types use the
+  **EM(!) Kleisli exponential** `⟦tfun A B⟧ = !̃(U A ⊸ U B)` (no value-CCC required, and
+  none exists). Three headline examples:
   - **`ex_random_constant`** — `do c ← sample N(0,1); return (λx. c) : P (R → R)`. The QBS
     paper cites this exact program as impossible in classical measure semantics; here
     `ex_random_constant_denot_E` is axiom-free.
@@ -180,6 +183,37 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
     interpretation recovers the QBS-style "distribution of `λx. m·x + b` for `m, b ~ N(0,1)`"
     reading axiom-free. `ex_random_linear_denot_E` connects the denotation to the joint
     pushforward.
+  - **`ex_bayes_linear`** — `do m ← sample mu; do _ ← score_tm f m; return m : P R`, the
+    textbook prior/score/return Bayesian shape and the first example exercising
+    `e_score_tm`. The score factor `f : R → R` (think a clipped Gaussian likelihood
+    `gaussian_lik y` of a fixed observation `y`, restricted to `[0,1]`) is applied to the
+    bound variable `m`. The `e_score_tm` denotation packages `f` as a path into the unit
+    cone via the §6 follow-up `int_to_linhom_pres_path_in_cone`, with Dirac identity
+    `score_tm_lift_dirac` reducing `score_tm f` on `δ_r` to `f(r) · one1` (the same
+    `score_value` packaging the scalar `e_score` uses, but with `r` coming from a bound
+    variable rather than a syntactic literal). `ex_bayes_linear_denot_E` exposes the outer
+    `kbind_ext score_then_return_denot sample_denot` form, axiom-free. **Honest scope
+    note**: this is the **unnormalised** posterior — the denotation is a sub-probability
+    measure of total mass `∫ f(m) dµ(m)`; no `qbs_normalize`-style downstream pass is
+    introduced, and we make no Bayes-optimality claim.
+- **`theories/programs/ppl_named.v`** — a **Saito–Affeldt-style named-variable surface
+  syntax** for the De Bruijn PPL of `ppl.v` (APLAS 2023 §5.1–§5.3, §6). The named context
+  `named_ctx := seq (string * ppl_type Ar)` pairs each slot with a string identifier; a
+  structural translation `nexp_to_dexp : named_expr Γ t → expr (drop_names Γ) t` delegates
+  the semantics one-to-one to `eD` of `ppl.v` (`neD e := eD (nexp_to_dexp e)`), so nothing
+  is re-interpreted and the axiom-clean reductions
+  `ex_random_constant_denot_E` / `ex_random_linear_denot_E` carry over verbatim. Variable
+  lookup `#"x"` uses **canonical structures** (`find_nv` / `found_nv` / `recurse_nv` with
+  mathcomp-analysis' `infer` typeclass on `String.eqb`) so Coq's elaborator infers the
+  context slot, the type, and the `named_var` witness simultaneously; the
+  bidirectionality hints `&` on every binding / context-shared constructor are crucial
+  for the canonical-structure resolution to fire on the right metavariable. A custom
+  entry `ppl_named` provides the surface notation
+  `let "x" := M in N` / `\"x" ::: A => M` / `Sample (mu, Hmu)` / `Score (r, Hr0, Hr1)`
+  / `Ret e` / `# "x"` / `M @ N` / `M + N` / `M * N` / `(e1, e2)` / `fst e` / `snd e`
+  / `()` / `[|r|]` / `{x}`-escape; the existing flagship examples re-cast as
+  `ex_named_random_constant` and `ex_named_random_linear` discharge their equivalence to
+  the De Bruijn versions with `Proof. by [].`
 - **`theories/homs/fmeas_lax.v`** — the **FMeas lax symmetric monoidal map** as a genuine
   `icones_hom`: `fmeas_lax X Y : FMeas X ⊗ FMeas Y → FMeas (X × Y)`, sending `µ ⊗ ν` to the
   product measure `µ × ν`. Built via `tensor_uncurry` of the bilinear lift; the outer
@@ -235,8 +269,14 @@ theories/
                                      (sample = the integral)
                  ppl.v               a higher-order, direct-style multi-var
                                      QBS-mirror PPL with sample + score +
-                                     real arithmetic; both random_constant
-                                     and random_linear interpreted axiom-free
+                                     term-level score + real arithmetic;
+                                     random_constant, random_linear and
+                                     bayes_linear all interpreted axiom-free
+                 ppl_named.v         Saito-Affeldt-style named-variable
+                                     surface syntax for ppl.v: custom
+                                     entry + canonical-structures lookup,
+                                     semantics delegated structurally
+                                     (nexp_to_dexp) to eD of ppl.v
 ```
 
 A LaTeX **blueprint** (Patrick Massot's `leanblueprint` style, adapted to Rocq) describes the

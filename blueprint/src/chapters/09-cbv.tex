@@ -745,6 +745,12 @@ typed inductive \rocq{Icones.programs.ppl.expr} carries every term:
     \rocq{Icones.programs.ppl.e_real} (Dirac literal at $r : R$),
     \rocq{Icones.programs.ppl.e_score} (rescale by
     $r \in [0,1]$, of type $\mathtt{tprob}\,\mathtt{tunit}$),
+    \rocq{Icones.programs.ppl.e_score_tm} (term-level score by
+    $f(r)$, with $f : \mathbb{R} \to \mathbb{R}$ measurable and
+    pointwise in $[0,1]$, $r$ the value of an
+    \texttt{expr}~$\Gamma$~\texttt{tR} --- the load-bearing
+    constructor for genuine Bayesian inference, where the score factor
+    depends on a bound variable),
     \rocq{Icones.programs.ppl.e_add} and
     \rocq{Icones.programs.ppl.e_mul} (pointwise sum and product of
     two real-typed computations).
@@ -966,15 +972,180 @@ $\FMeas$-functorial action of the measurable arithmetic operation
 on a Dirac at $\mathtt{ar\_prod\_cast}(a, b)$.
 \end{proof}
 
+\paragraph{The term-level score lift and its Dirac identity.}
+The interpretation of \rocq{Icones.programs.ppl.e_score_tm} rests on
+a lift of the measurable density $f$ into the unit cone, packaged as
+an $\ICones$ morphism into the one-dimensional cone $\mathtt{cone\_one\_car}$.
+The construction \rocq{Icones.programs.ppl.score_tm_lift} reuses the
+paper \S6 follow-up
+\rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}
+(\autoref{thm:cbv-fmeas-lax}) to promote the path
+$r \mapsto f(r) \cdot \mathtt{one1}$ into a $\multimap$-style integral
+against $\FMeas(R_{\mathrm{obj}})$. The load-bearing Dirac identity
+$\mathtt{score\_tm\_lift\_dirac}$ reduces the lift on a Dirac at
+$\mathtt{R\_to\_carrier}\,r$ to the scalar
+$f(r) \cdot \mathtt{one1}$ --- i.e.\ the same
+$\mathtt{score\_value}$ packaging that the scalar
+\rocq{Icones.programs.ppl.e_score} already uses, but with $r$ now
+coming from a bound variable rather than from a syntactic literal.
+
+\begin{lemma}[The term-level score lift]\label{lem:ppl-score-tm-lift}
+\rocq{Icones.programs.ppl.score_tm_lift}\rocqok
+\rocq{Icones.programs.ppl.score_tm_lift_dirac}\rocqok
+\uses{thm:cbv-fmeas-lax}
+For every measurable $f : \mathbb{R} \to \mathbb{R}$ with $0 \le f(r) \le 1$
+for all $r$, there is an $\ICones$ morphism
+$\mathtt{score\_tm\_lift}\,f :
+   \FMeas(R_{\mathrm{obj}}) \;\to\; \mathtt{cone\_one\_car}$
+of operator norm at most one, satisfying the Dirac identity
+$\mathtt{Lfun}\,(\mathtt{score\_tm\_lift}\,f)\,
+   (\delta_{\mathtt{R\_to\_carrier}\,r})
+= \mathtt{MkConeOne}\,(\mathtt{NngNum}\,(Hf_{\ge 0}\,r))$,
+i.e.\ on a Dirac the lift returns $f(r) \cdot \mathtt{one1}$.
+\end{lemma}
+
+\begin{proof}
+The path $r \mapsto f(r) \cdot \mathtt{one1}$ is a measurable path
+into $\mathtt{cone\_one\_car}$ of norm at most one (pointwise $f(r) \le 1$),
+so by paper Theorem 6.1
+(\rocq{Icones.homs.bilin.int_to_linhom}) it lifts to an
+$\FMeas(R_{\mathrm{obj}}) \multimap \mathtt{cone\_one\_car}$ linhom
+$\mathtt{int\_to\_linhom}\,\mathtt{score\_tm\_path}$; the
+$\ICones$-morphism packaging
+\rocq{Icones.programs.ppl.linhom_icones} then yields
+$\mathtt{score\_tm\_lift}$. The Dirac identity follows by
+$\mathtt{int\_to\_linhom\_fun\_dirac}$: integration against a Dirac
+evaluates the path at the carrier point.
+\end{proof}
+
+\begin{lemma}[The Bayesian prior/score/return example]%
+\label{lem:ppl-bayes-linear}
+\rocq{Icones.programs.ppl.ex_bayes_linear}\rocqok
+\rocq{Icones.programs.ppl.ex_bayes_linear_denot_E}\rocqok
+\uses{thm:cbv-model, thm:cbv-fmeas-lax, lem:ppl-score-tm-lift}
+For $\mu : \FMeas(R_{\mathrm{obj}})$ a unit-ball prior and
+$f : \mathbb{R} \to \mathbb{R}$ a measurable likelihood with
+$0 \le f(r) \le 1$ for all $r$ (think a clipped Gaussian
+$\mathtt{gaussian\_lik}\,y$ of a fixed observation $y$, restricted
+to the unit interval to fit the integrable-cone discipline), the PPL
+term
+\[
+  \mathtt{ex\_bayes\_linear}
+  \;\;\equiv\;\;
+  \texttt{do } m \leftarrow \mathtt{sample}\,\mu;\;
+  \texttt{do } \_\leftarrow \mathtt{score\_tm}\,f\,m;\;
+  \mathtt{return}\,m
+  \;\;:\;\;
+  \mathtt{tprob}\,\mathtt{tR}
+\]
+exercises \rocq{Icones.programs.ppl.e_score_tm} on the bound variable
+$m$. Its denotation
+$\mathtt{ex\_bayes\_linear\_denot}$ reduces, by
+\rocq{Icones.programs.ppl.ex_bayes_linear_denot_E}, to the outer
+single-bind shape
+\[
+  \mathtt{kbind\_ext}\,
+    (\mathtt{eD}\,\mathtt{ex\_bl\_cont})\,
+    (\mathtt{sample\_kleisli}\,\mu),
+\]
+where $\mathtt{ex\_bl\_cont} =
+\texttt{do }\_\leftarrow \mathtt{score\_tm}\,f\,m;\;
+\mathtt{return}\,m$ is the score-then-return continuation in the
+context $\mathtt{tR} :: \mathtt{nil}$.
+\end{lemma}
+
+\begin{remark}[Honest scope note: unnormalised posterior]%
+\label{rem:ppl-bayes-unnormalised}
+\autoref{lem:ppl-bayes-linear} interprets the
+\emph{unnormalised} posterior: the denotation is a sub-probability
+measure whose total mass equals $\int f(m)\,\mathrm{d}\mu(m)$. We
+do not claim Bayes-optimality --- we claim only the structural
+reduction above, which exposes the prior bind, the score's
+post-composition with
+$\mathtt{bang\_cofree\_hom}\,\mathtt{score\_tm\_lift}$, and the
+$m$-projection return. Normalising the posterior would require a
+$\mathtt{qbs\_normalize}$-style downstream pass that we have not
+introduced; this is, by design, a different observable than the
+prior/score/return reduction recorded here.
+\end{remark}
+
+\begin{proof}
+The outer reduction is two definitional unfoldings:
+\rocq{Icones.programs.ppl.eD_bind} exposes $\mathtt{e\_bind}$ as a
+strength-equipped \rocq{Icones.programs.ppl.kbind_ext}, and
+\rocq{Icones.programs.ppl.eD_sample} unfolds the prior
+$\mathtt{e\_sample}$ to its constant-Kleisli arrow
+\rocq{Icones.programs.ppl.sample_kleisli}. The inner continuation
+$\mathtt{ex\_bl\_cont}$ is itself a $\mathtt{kbind\_ext}$ of the
+score-then-return shape, which follows by re-applying
+\rocq{Icones.programs.ppl.eD_bind} / \rocq{Icones.programs.ppl.eD_ret}
+/ \rocq{Icones.programs.ppl.eD_score_tm}; the
+\rocq{Icones.programs.ppl.score_tm_lift_dirac} identity
+(\autoref{lem:ppl-score-tm-lift}) would give a Dirac-input
+point-reduction, but the headline asserts only the outer reduction.
+\end{proof}
+
+\paragraph{Named-variable surface syntax.}
+The file \texttt{theories/programs/ppl_named.v} provides a
+\emph{named-variable} concrete syntax for the De Bruijn PPL of
+\texttt{ppl.v}, in the style of Saito and Affeldt's APLAS 2023
+encoding of a typed PPL in Coq (their \S5.1--\S5.3 and \S6, on
+canonical-structure-driven variable lookup, custom-entry surface
+notation, and bidirectionality hints
+$\&$).\footnote{Saito and Affeldt, \emph{Towards a practical embedding
+of a probabilistic programming language in Coq}, APLAS 2023.} A
+named context $\mathtt{named\_ctx} := \mathtt{seq}\,(\mathtt{string}
+\times \mathtt{ppl\_type}\,\mathbf{Ar})$ pairs each slot with a
+string identifier; a structural translation
+\rocq{Icones.programs.ppl_named.nexp_to_dexp} delegates the semantics
+one-to-one to \rocq{Icones.programs.ppl.eD} via
+\rocq{Icones.programs.ppl_named.neD}~$e := \mathtt{eD}\,
+(\mathtt{nexp\_to\_dexp}\,e)$, so nothing is re-interpreted at the
+named level. As a corollary, the axiom-clean reductions of
+\autoref{lem:ppl-random-constant} and \autoref{lem:ppl-random-linear}
+carry over verbatim to the named versions
+\rocq{Icones.programs.ppl_named.ex_named_random_constant} and
+\rocq{Icones.programs.ppl_named.ex_named_random_linear} via the
+equivalence lemmas
+\rocq{Icones.programs.ppl_named.ex_named_random_constant_E} /
+\rocq{Icones.programs.ppl_named.ex_named_random_linear_E}, both
+discharged by \texttt{Proof.~by~[].~Qed}. Variable lookup
+\texttt{\#~"x"} uses canonical structures
+(\rocq{Icones.programs.ppl_named.find_nv},
+\rocq{Icones.programs.ppl_named.found_nv},
+\rocq{Icones.programs.ppl_named.recurse_nv})
+with \mathcompA{}'s \texttt{infer} typeclass on
+\texttt{String.eqb}, so Coq's elaborator infers the context slot,
+type, and named-variable witness simultaneously; the
+bidirectionality hints $\&$ on every binding / context-shared
+constructor of
+\rocq{Icones.programs.ppl_named.named_expr} are crucial for the
+canonical-structure resolution to fire on the right metavariable
+(exactly Saito--Affeldt's \texttt{Arguments exp\_letin \{g\} \&
+\{t1 t2\}} pattern). The custom entry
+\texttt{ppl\_named} supports
+\texttt{let "x" := M in N} / \texttt{\textbackslash "x" ::: A => M}
+/ \texttt{Sample (mu, Hmu)} / \texttt{Score (r, Hr0, Hr1)}
+/ \texttt{Ret e} / \texttt{\# "x"} / \texttt{M @ N}
+/ \texttt{M + N} / \texttt{M * N} / \texttt{(e1, e2)}
+/ \texttt{fst e} / \texttt{snd e} / \texttt{()} / \texttt{[|r|]}
+/ \texttt{\{x\}}-escape; only the scalar \texttt{e\_score} is
+exposed at the surface (the term-level \texttt{e\_score\_tm} would
+require explicit Hypothesis-juggling at the notation level, so it
+is left to the De Bruijn syntax of \texttt{ppl.v}, where
+\autoref{lem:ppl-bayes-linear} already records the headline
+reduction).
+
 \paragraph{Genuine out-of-scope items.}
 Adequacy, normalization, and full-abstraction (traditional metatheory,
 requiring more than a denotational model). Booleans and coproducts
 (no native sum type in the cones model; orthogonal to the
-higher-order content shown here). The QBS-paper's
-\texttt{qbs\_normalize} / Bayesian-posterior showcase --- a different
-observable than the ``random function'' examples reproduced here,
-not interpreted by either of \autoref{lem:ppl-random-constant} or
-\autoref{lem:ppl-random-linear}.
+higher-order content shown here). Posterior \emph{normalisation} ---
+\autoref{lem:ppl-bayes-linear} interprets the unnormalised posterior
+of total mass $\int f(m)\,\mathrm{d}\mu(m)$
+(\autoref{rem:ppl-bayes-unnormalised}); the QBS-paper's
+\texttt{qbs\_normalize} divide-by-evidence pass is a downstream
+observable that we have not introduced.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
@@ -999,14 +1170,29 @@ the $\ICones$ level together with its Dirac identity
 \rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac} and the discharged
 paper-\S6 follow-up
 \rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}
-(\autoref{thm:cbv-fmeas-lax}); and the higher-order direct-style
-multi-variable QBS-mirror PPL, with the two headline reduction lemmas
+(\autoref{thm:cbv-fmeas-lax}); the higher-order direct-style
+multi-variable QBS-mirror PPL, with the three headline reduction lemmas
 \rocq{Icones.programs.ppl.ex_random_constant_denot_E} (the QBS
-flagship, \autoref{lem:ppl-random-constant}) and
+flagship, \autoref{lem:ppl-random-constant}),
 \rocq{Icones.programs.ppl.ex_random_linear_denot_E} (the
 random-linear killer demo, \autoref{lem:ppl-random-linear},
 exercising \texttt{e\_add} / \texttt{e\_mul} via the lax-monoidal
-map).
+map), and
+\rocq{Icones.programs.ppl.ex_bayes_linear_denot_E} (the
+prior/score/return Bayesian shape, \autoref{lem:ppl-bayes-linear},
+the first example exercising \texttt{e\_score\_tm} via the term-level
+score lift \rocq{Icones.programs.ppl.score_tm_lift} and its Dirac
+identity \rocq{Icones.programs.ppl.score_tm_lift_dirac},
+\autoref{lem:ppl-score-tm-lift}); and the Saito--Affeldt-style
+named-variable surface syntax of
+\texttt{theories/programs/ppl\_named.v}, delegating semantics
+structurally via \rocq{Icones.programs.ppl_named.nexp_to_dexp} and
+\rocq{Icones.programs.ppl_named.neD}, with the named flagship
+examples
+\rocq{Icones.programs.ppl_named.ex_named_random_constant} /
+\rocq{Icones.programs.ppl_named.ex_named_random_linear}
+discharging their equivalence to the De Bruijn versions by
+\texttt{Proof.~by~[]}.
 
 \paragraph{What is not interpreted, and why none of it is a deferred
 milestone.}

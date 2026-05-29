@@ -1574,8 +1574,9 @@ direction with two small calculi, both interpreted axiom-free.
 | What | Rocq |
 |---|---|
 | A small first-order fine-grain Moggi-CBV calculus (unit, base, products, `let`, `sample`), interpreted via the CBV monad `T = !̃ ∘ U`; soundness includes the monad/`let` laws, product β, and `sample` = the integral. | `cbv.v` — `theories/programs/cbv.v` |
-| A higher-order, direct-style, multi-variable Moggi-CBV calculus faithfully porting the QBS PPL — single-sort `expr Γ t` with intrinsically-typed De Bruijn contexts, direct application `e_app : expr Γ (tfun A B) → expr Γ A → expr Γ B`, plus `e_real`/`e_score`/`e_add`/`e_mul`. Function types via the EM(!) Kleisli exponential `!̃(U A ⊸ U B)` (no value-CCC required). Two headline examples reproduced from the [`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl): `ex_random_constant` = `do c ← sample N(0,1); return (λx. c) : P(R → R)` (the QBS paper's flagship); and `ex_random_linear` = `do m, b ← N(0,1); return (λx. m·x + b)` (the killer demo — distribution over linear functions). Both interpreted axiom-free. The arithmetic primitives are interpreted via the FMeas lax-monoidal map (see next row); on Dirac inputs the lifts reduce to scalar arithmetic, and under the Moggi-Kleisli bind `bind(m, k) = ∫ k(a) dm(a)` they recover the QBS-style "distribution over deterministic linear functions" reading. | `ppl.v` (`expr`/`has_var`/`tyD`/`ctxD`/`eD`, `ex_random_constant`, `ex_random_constant_denot_E`, `ex_random_linear`, `ex_random_linear_denot_E`) — `theories/programs/ppl.v` |
-| The **FMeas lax symmetric monoidal map** — `(FMeas X) ⊗ (FMeas Y) → FMeas (X × Y)`, sending the pure tensor `µ ⊗ ν` to the product measure `µ × ν` — as a genuine `icones_hom`. Built via `tensor_uncurry` of the bilinear lift; its existence depends on the previously-deferred follow-up of `bilin.v` (path-preservation of `int_to_linhom` in the cone variable), now discharged as `int_to_linhom_pres_path_in_cone`. The Dirac identity `fmeas_lax_dirac : fmeas_lax(δ_x ⊗ δ_y) = δ_{(x,y)}` is what makes the PPL's `e_add` / `e_mul` Dirac arithmetic reductions match QBS. | `fmeas_lax`, `fmeas_lax_E`, `fmeas_lax_dirac`, `int_to_linhom_pres_path_in_cone` — `theories/homs/fmeas_lax.v`, `theories/homs/bilin.v` |
+| A higher-order, direct-style, multi-variable Moggi-CBV calculus faithfully porting the QBS PPL — single-sort `expr Γ t` with intrinsically-typed De Bruijn contexts, direct application `e_app : expr Γ (tfun A B) → expr Γ A → expr Γ B`, plus `e_real`/`e_score` (scalar)/`e_score_tm` (**term-level** score by a measurable `f : R → R` pointwise in `[0,1]` applied to the value of an `expr Γ tR`, the load-bearing constructor for genuine Bayesian inference — the score factor can depend on a bound variable)/`e_add`/`e_mul`. Function types via the EM(!) Kleisli exponential `!̃(U A ⊸ U B)` (no value-CCC required). Three headline examples: `ex_random_constant` = `do c ← sample N(0,1); return (λx. c) : P(R → R)` (the QBS paper's flagship, reproduced from the [`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl)); `ex_random_linear` = `do m, b ← N(0,1); return (λx. m·x + b)` (the killer demo — distribution over linear functions); and `ex_bayes_linear` = `do m ← sample mu; do _ ← score_tm f m; return m : P R` (the textbook prior/score/return Bayesian shape — the first example exercising `e_score_tm`; the **unnormalised** posterior of total mass `∫ f(m) dµ(m)`, with `f : R → R` a clipped likelihood). All three interpreted axiom-free. The arithmetic primitives are interpreted via the FMeas lax-monoidal map (see next row); on Dirac inputs the lifts reduce to scalar arithmetic, and under the Moggi-Kleisli bind `bind(m, k) = ∫ k(a) dm(a)` they recover the QBS-style "distribution over deterministic linear functions" reading. The `e_score_tm` denotation packages `f` as a path into the unit cone via the §6 follow-up `int_to_linhom_pres_path_in_cone`, with Dirac identity `score_tm_lift_dirac` reducing `score_tm f` on `δ_r` to `f(r) · one1`. | `ppl.v` (`expr`/`has_var`/`tyD`/`ctxD`/`eD`, `ex_random_constant`, `ex_random_constant_denot_E`, `ex_random_linear`, `ex_random_linear_denot_E`, `e_score_tm`, `score_tm_lift_dirac`, `ex_bayes_linear`, `ex_bayes_linear_denot_E`) — `theories/programs/ppl.v` |
+| A **Saito–Affeldt-style named-variable surface syntax** for the De Bruijn PPL of `ppl.v` (APLAS 2023 §5.1–§5.3, §6). The named context `named_ctx := seq (string * ppl_type Ar)` pairs each slot with a string identifier; a structural translation `nexp_to_dexp : named_expr Γ t → expr (drop_names Γ) t` delegates the semantics one-to-one to `eD` of `ppl.v` (`neD e := eD (nexp_to_dexp e)`), so nothing is re-interpreted and the axiom-clean reductions `ex_random_constant_denot_E` / `ex_random_linear_denot_E` carry over verbatim. Variable lookup `#"x"` uses **canonical structures** (`find_nv` / `found_nv` / `recurse_nv` with mathcomp-analysis' `infer` typeclass on `String.eqb`) so Coq's elaborator infers the context slot, type, and `named_var` witness simultaneously; **bidirectionality hints `&`** on every binding / context-shared constructor are crucial for canonical-structure resolution to fire on the right metavariable (exactly the Saito–Affeldt `Arguments exp_letin {g} & {t1 t2}` pattern). A custom entry `ppl_named` provides the surface notation `let "x" := M in N` / `\"x" ::: A => M` / `Sample (mu, Hmu)` / `Score (r, Hr0, Hr1)` / `Ret e` / `# "x"` / `M @ N` / `M + N` / `M * N` / `(e1, e2)` / `fst e` / `snd e` / `()` / `[|r|]` / `{x}`-escape; the existing flagship examples re-cast as `ex_named_random_constant` and `ex_named_random_linear` discharge their equivalence to the De Bruijn versions with `Proof. by [].` | `ppl_named.v` (`named_ctx`/`drop_names`/`named_var`/`named_expr`/`nexp_to_dexp`/`neD`, `find_nv`/`found_nv`/`recurse_nv`/`ne_var'`, the custom entry `ppl_named`, `ex_named_random_constant`, `ex_named_random_constant_E`, `ex_named_random_linear`, `ex_named_random_linear_E`) — `theories/programs/ppl_named.v` |
+| The **FMeas lax symmetric monoidal map** — `(FMeas X) ⊗ (FMeas Y) → FMeas (X × Y)`, sending the pure tensor `µ ⊗ ν` to the product measure `µ × ν` — as a genuine `icones_hom`. Built via `tensor_uncurry` of the bilinear lift; its existence depends on the previously-deferred follow-up of `bilin.v` (path-preservation of `int_to_linhom` in the cone variable), now discharged as `int_to_linhom_pres_path_in_cone`. The Dirac identity `fmeas_lax_dirac : fmeas_lax(δ_x ⊗ δ_y) = δ_{(x,y)}` is what makes the PPL's `e_add` / `e_mul` Dirac arithmetic reductions match QBS. The same `int_to_linhom_pres_path_in_cone` is what `score_tm_lift` of `ppl.v` reuses to package the term-level score density as an `icones_hom (FMeas R_obj) (cone_one_car Ar)`. | `fmeas_lax`, `fmeas_lax_E`, `fmeas_lax_dirac`, `int_to_linhom_pres_path_in_cone` — `theories/homs/fmeas_lax.v`, `theories/homs/bilin.v` |
 
 #### Code: `theories/programs/cbv.v` — Moggi-CBV fine-grain calculus
 
@@ -1660,6 +1661,12 @@ Inductive expr : ppl_ctx Ar -> T -> Type :=
   | e_score (G : ppl_ctx Ar) (r : R)
             (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
       expr G (tprob tunit)
+  | e_score_tm (G : ppl_ctx Ar)
+               (f : R -> R)
+               (Hf_meas : measurable_fun [set: R] f)
+               (Hf_ge0 : forall r : R, (0 <= f r)%R)
+               (Hf_le1 : forall r : R, (f r <= 1)%R)
+               (e : expr G tR') : expr G (tprob tunit)
   | e_add   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'
   | e_mul   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'.
 
@@ -1707,6 +1714,22 @@ Lemma mul_lift_dirac (a b : R) :
              (dirac_fmeas (R_to_carrier R_carrier_eq b))) =
   dirac_fmeas (R_to_carrier R_carrier_eq (a * b)).
 
+(** The term-level score lift as an [icones_hom], packaging the
+    measurable density [f : R -> R] (pointwise in [0,1]) as a path
+    into the unit cone via the §6 follow-up
+    [int_to_linhom_pres_path_in_cone]. *)
+Definition score_tm_lift :
+    icones_hom Ar (FMeas R_obj) (cone_one_car Ar) :=
+  linhom_icones (int_to_linhom score_tm_path) score_tm_int_norm_le1.
+
+(** Load-bearing Dirac identity: on [δ_(R_to_carrier r)], the
+    [score_tm] lift evaluates to [f r · one1] (packaged as a
+    [cone_one_car]) — exactly the [score_value] the scalar
+    [e_score] uses, but with [r] coming from a bound variable. *)
+Lemma score_tm_lift_dirac (r : R) :
+  Lfun score_tm_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
+  MkConeOne Ar (NngNum (Hf_ge0 r)).
+
 (** The term interpretation [eD] — every expression is interpreted
     uniformly as a coalgebra Kleisli arrow [coalg_hom (ctxD G) (Tobj (tyD t))]. *)
 Fixpoint eD (G : ppl_ctx Ar) (t : T)
@@ -1729,6 +1752,12 @@ Fixpoint eD (G : ppl_ctx Ar) (t : T)
   | e_sample _ _ mu Hmu => @sample_kleisli _ _ mu Hmu
   | e_real _ r           => @real_kleisli _ r
   | e_score _ r Hr0 Hr1  => @score_kleisli _ r Hr0 Hr1
+  | e_score_tm _ f Hf_meas Hf_ge0 Hf_le1 e0 =>
+      (* score_tm f e: apply f to e's value, then score by f(r).
+         Post-composes the term's denotation with the lifted score
+         density [bang_cofree_hom score_tm_lift]. *)
+      coalg_comp (bang_cofree_hom (score_tm_lift Hf_meas Hf_ge0 Hf_le1))
+                 (eD e0)
   | e_add _ M0 N0 =>
       coalg_comp (bang_cofree_hom add_lift)
                  (coalg_comp (bang_m _ _) (em_pair (eD M0) (eD N0)))
@@ -1760,7 +1789,182 @@ Lemma ex_random_linear_denot_E :
     (kbind_ext (@eD _ _ _ _ _ _ _ _ ex_rl_lam)
                (sample_kleisli (ctxD (tR' :: nil)) mu Hmu))
     (sample_kleisli (ctxD nil) mu Hmu).
+
+(** Headline 3 — [ex_bayes_linear]: the textbook prior/score/return
+    Bayesian shape, the first example exercising [e_score_tm].
+    Honest scope note: this is the UNNORMALISED posterior — the
+    denotation is a sub-probability measure of total mass
+    [∫ f(m) dµ(m)].  We do NOT claim Bayes-optimality, only that the
+    denotation reduces to the expected nested-[kbind_ext] form. *)
+Definition ex_bl_score :
+    @expr R Ar R_obj (tR' :: nil) (tprob tunit) :=
+  e_score_tm f Hf_meas Hf_ge0 Hf_le1 (e_var hv_zero).
+
+Definition ex_bl_cont :
+    @expr R Ar R_obj (tR' :: nil) (tprob tR') :=
+  e_bind ex_bl_score (e_ret (e_var (hv_succ hv_zero))).
+
+Definition ex_bayes_linear :
+    @expr R Ar R_obj nil (tprob tR') :=
+  e_bind (e_sample mu Hmu) ex_bl_cont.
+
+Lemma ex_bayes_linear_denot_E :
+  ex_bayes_linear_denot =
+  kbind_ext
+    (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+         _ _ ex_bl_cont)
+    (sample_kleisli (ctxD nil) mu Hmu).
 ```
+
+#### Code: `theories/programs/ppl_named.v` — Saito–Affeldt named-variable surface syntax
+
+The file's header docstring captures the design:
+
+> **A NAMED-VARIABLE concrete syntax for the De Bruijn intrinsically-typed
+> PPL of `theories/programs/ppl.v`, in the style of Saito–Affeldt (APLAS
+> 2023 §5.1–§5.3, §6). The semantics is delegated one-to-one to `eD` of
+> `ppl.v` via a structural translation `nexp_to_dexp : named_expr Γ t →
+> expr (drop_names Γ) t`; nothing is re-interpreted. As a corollary, the
+> axiom-clean structural reductions `ex_random_constant_denot_E` /
+> `ex_random_linear_denot_E` carry over unchanged to the named versions.**
+
+```coq
+(* theories/programs/ppl_named.v *)
+
+(** Named contexts: each slot carries a string identifier. *)
+Definition named_ctx : Type := list (string * ppl_type Ar).
+
+Definition drop_names (G : named_ctx) : ppl_ctx Ar :=
+  map snd G.
+
+(** Named-variable witness: either head, or in the tail with a
+    string-disequality witness. *)
+Inductive named_var : named_ctx -> ppl_type Ar -> Type :=
+  | nv_head (x : string) (t : ppl_type Ar) (G : named_ctx) :
+      named_var ((x, t) :: G) t
+  | nv_tail (y : string) (s : ppl_type Ar) (G : named_ctx)
+            (t : ppl_type Ar) (v : named_var G t) :
+      named_var ((y, s) :: G) t.
+
+(** Total structural translation to De Bruijn syntax. *)
+Fixpoint nexp_to_dexp (G : named_ctx Ar) (t : ppl_type Ar)
+    (e : @named_expr R Ar R_obj G t) {struct e}
+  : @expr R Ar R_obj (drop_names G) t :=
+  match e with
+  | ne_var _ _ v => e_var (nv_to_hv v)
+  | ne_tt _ => e_tt
+  | ne_pair _ _ _ M N => e_pair (nexp_to_dexp M) (nexp_to_dexp N)
+  | ne_fst _ _ _ M => e_fst (nexp_to_dexp M)
+  | ne_snd _ _ _ M => e_snd (nexp_to_dexp M)
+  | ne_lam _ _ _ _ M => e_lam (nexp_to_dexp M)
+  | ne_app _ _ _ F X => e_app (nexp_to_dexp F) (nexp_to_dexp X)
+  | ne_ret _ _ M => e_ret (nexp_to_dexp M)
+  | ne_bind _ _ _ _ M K => e_bind (nexp_to_dexp M) (nexp_to_dexp K)
+  | ne_sample _ _ mu Hmu => e_sample mu Hmu
+  | ne_real _ r => e_real r
+  | ne_score _ r Hr0 Hr1 => e_score r Hr0 Hr1
+  | ne_add _ M N => e_add (nexp_to_dexp M) (nexp_to_dexp N)
+  | ne_mul _ M N => e_mul (nexp_to_dexp M) (nexp_to_dexp N)
+  end.
+
+(** Named semantics: delegate to [eD] through the translation. *)
+Definition neD (G : named_ctx Ar) (t : ppl_type Ar)
+    (e : @named_expr R Ar R_obj G t)
+  : coalg_hom (ctxD (drop_names G)) (Tobj (tyD t)) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      (drop_names G) t (nexp_to_dexp e).
+
+(** Variable-lookup encoding via CANONICAL STRUCTURES (Saito-Affeldt §5.2).
+    [tagged_nctx] wraps [named_ctx]; [find_nv s t] pairs a tagged
+    context with a [named_var]-witness; [found_nctx]/[recurse_nctx]
+    drive head-first / tail-recursive search; [found_nv] is the head
+    case and [recurse_nv] the tail case with an
+    [infer (String.eqb s y = false)] disequality witness. *)
+Definition ne_var' (R : realType) (Ar : MeasSubcat R) (R_obj : ar_obj Ar)
+    (s : string) (t : ppl_type Ar) (g : find_nv R Ar R_obj s t)
+  : named_expr (untag_nctx (fn_ctx g)) t :=
+  ne_var (fn_proof g).
+
+(** Surface notation — custom entry [ppl_named].  Brackets [...]
+    enter the grammar, curly braces {...} escape back to Coq. *)
+Notation "[ e ]" := e (e custom ppl_named at level 90).
+Notation "{ x }" := x (in custom ppl_named at level 0, x constr).
+Notation "( e )" := e
+  (in custom ppl_named at level 0, e custom ppl_named).
+Notation "()" := ne_tt (in custom ppl_named at level 0).
+Notation "# x" :=
+  (ne_var' x%string _)
+  (in custom ppl_named at level 1, x constr at level 0).
+Notation "[| r |]" := (ne_real r)
+  (in custom ppl_named at level 1, r constr).
+Notation "'Ret' e" := (ne_ret e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   right associativity).
+Notation "'Sample' ( mu , Hmu )" :=
+  (ne_sample mu Hmu)
+  (in custom ppl_named at level 1, mu constr, Hmu constr).
+Notation "'Score' ( r , Hr0 , Hr1 )" :=
+  (ne_score r Hr0 Hr1)
+  (in custom ppl_named at level 1,
+   r constr, Hr0 constr, Hr1 constr).
+Notation "( e1 , e2 )" := (ne_pair e1 e2)
+  (in custom ppl_named at level 0,
+   e1 custom ppl_named at level 60,
+   e2 custom ppl_named at level 60).
+Notation "'fst' e" := (ne_fst e)
+  (in custom ppl_named at level 10, e custom ppl_named at level 10).
+Notation "'snd' e" := (ne_snd e)
+  (in custom ppl_named at level 10, e custom ppl_named at level 10).
+Notation "M @ N" := (ne_app M N)
+  (in custom ppl_named at level 20, left associativity,
+   M custom ppl_named, N custom ppl_named).
+Notation "M + N" := (ne_add M N)
+  (in custom ppl_named at level 40, left associativity,
+   N custom ppl_named at level 39).
+Notation "M * N" := (ne_mul M N)
+  (in custom ppl_named at level 30, left associativity,
+   N custom ppl_named at level 29).
+Notation "'\' x ':::' A '=>' M" :=
+  (ne_lam x%string (t1 := A) M)
+  (in custom ppl_named at level 70, x constr at level 0,
+   A constr at level 0,
+   M custom ppl_named at level 60, right associativity).
+Notation "'let' x ':=' M 'in' N" :=
+  (ne_bind x%string M N)
+  (in custom ppl_named at level 80, x constr at level 0,
+   M custom ppl_named at level 70,
+   N custom ppl_named at level 80,
+   right associativity).
+
+(** The two flagship examples re-cast in the surface notation:
+    semantics IDENTICAL to [ex_random_constant] / [ex_random_linear]. *)
+Definition ex_named_random_constant :
+    @named_expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+  [ let "c" := Sample (mu , Hmu) in Ret (\ "x" ::: tR' => # "c") ].
+
+Definition ex_named_random_linear :
+    @named_expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+  [ let "m" := Sample (mu , Hmu) in
+    let "b" := Sample (mu , Hmu) in
+    Ret (\ "x" ::: tR' => # "m" * # "x" + # "b") ].
+
+Lemma ex_named_random_constant_E :
+  nexp_to_dexp ex_named_random_constant = ex_random_constant mu Hmu.
+Proof. by []. Qed.
+
+Lemma ex_named_random_linear_E :
+  nexp_to_dexp ex_named_random_linear = ex_random_linear mu Hmu.
+Proof. by []. Qed.
+```
+
+The translation is purely structural and the named examples are
+definitionally equal to the De Bruijn versions on concrete contexts
+(canonical-structure search resolves `#"c"` / `#"m"` / `#"x"` / `#"b"`
+to the right De Bruijn indices, then `Proof. by [].` closes the
+equivalence). The bidirectionality hints `&` on every binding /
+context-shared constructor of `named_expr` are crucial: without them,
+canonical-structure lookup at `#"x"` sites would fire with an open
+context metavariable and pick the wrong `find_nv` instance.
 
 #### Code: `theories/homs/fmeas_lax.v` + `theories/homs/bilin.v`
 
