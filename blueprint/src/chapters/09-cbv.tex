@@ -33,31 +33,56 @@
 %                                      (Melliès Prop 29) — a genuine LNL
 %                                      adjunction; the CBV_Model record + the
 %                                      witness ICones_CBV
-%   theories/programs/cbv.v                a small first-order CBV calculus
+%   theories/homs/fmeas_lax.v          the FMeas lax symmetric monoidal map
+%                                      fmeas_lax X Y : FMeas X ⊗ FMeas Y →
+%                                      FMeas (X × Y) bundled as an icones_hom
+%                                      via tensor_uncurry of the bilinear lift;
+%                                      Dirac identity fmeas_lax_dirac; uses
+%                                      bilin.v's int_to_linhom_pres_path_in_cone
+%                                      (the now-discharged path-preservation
+%                                      follow-up to paper Thm 6.1)
+%   theories/programs/cbv.v            a small first-order CBV calculus
 %                                      (unit, base, products, let, sample)
 %                                      interpreted into the model via the
 %                                      T = !̃∘U monad (Tobj/tunit_eta/kcomp);
 %                                      soundness: monad/let laws, product β,
 %                                      and sample = the integral
 %                                      (cpD_sample_var_dirac)
+%   theories/programs/ppl.v            a higher-order, DIRECT-STYLE, SINGLE-SORT
+%                                      MULTI-VARIABLE De Bruijn QBS-MIRROR PPL:
+%                                      one inductive [expr Γ τ] with all the
+%                                      QBS constructors e_var/e_pair/e_fst/
+%                                      e_snd/e_lam/e_app/e_ret/e_bind/e_sample
+%                                      plus e_real (Dirac literal), e_score,
+%                                      e_add, e_mul (real arithmetic on tbase R
+%                                      via the FMeas lax-monoidal map).  Types
+%                                      tunit/tbase X/tprod/tfun/tprob with
+%                                      tyD(tprob t) = tyD t (the tprob marker
+%                                      is purely syntactic; the monad lives
+%                                      entirely in eD).  Two headline examples:
+%                                      ex_random_constant (the QBS flagship
+%                                      distribution over a function space) and
+%                                      ex_random_linear (the killer demo:
+%                                      distribution over linear functions
+%                                      λx. m·x + b for m, b ~ µ).
 %
 % Status note: the CBV model is built and AXIOM-FREE (only the three
 % classical boolp axioms): ICones_CBV, ICones_EM_cartesian, EMComon_all,
-% cpD_sample_var_dirac are all axiom-clean.  Higher-order CBV is also
-% interpreted, in fine-grain Moggi-CBV style, by theories/programs/ppl.v:
-% function types denote the EM(!) Kleisli exponential
-%   ⟦tfun A B⟧ = !̃(U A ⊸ U B)
-% — the representing object for Hom_EM(- × A, T B) with T = !̃ ∘ U.
-% The four-step natural bijection (cofree U ⊣ !̃, U strict monoidal via
-% cbv_U_prod, SMCC closure of ICones, cofree U ⊣ !̃ again) yields lambda
-% and application directly; application is a computation INTRINSICALLY
-% in Moggi-CBV (that is what applying an effectful function is), NOT a
-% workaround for a missing structure.  ppl.v includes the QBS-style
-% showcase ex_random_constant — a distribution over a function space
-% P(R → R), interpreted axiom-free.  EM(!) is NOT cartesian closed and
-% is not expected to be (a structural fact); Kleisli exponentials are
-% what Moggi-CBV needs, and that is what ppl.v uses.  Adequacy /
-% normalization / full-abstraction are out of scope here.
+% cpD_sample_var_dirac, fmeas_lax_dirac, ex_random_constant_denot_E,
+% ex_random_linear_denot_E are all axiom-clean.  The higher-order PPL is
+% the multi-variable direct-style QBS-mirror surface (what mathcomp-qbs/ppl
+% has, and what Heunen-Kammar-Staton-Yang LICS 2017 describe) — NOT a
+% fine-grain Moggi value/computation split.  Function types denote the
+% EM(!) Kleisli exponential ⟦tfun A B⟧ = !̃(U A ⊸ U B), the representing
+% object for Hom_EM(- × A, T B) with T = !̃ ∘ U, via the four-step natural
+% bijection (cofree U ⊣ !̃, U strict monoidal via cbv_U_prod, SMCC closure
+% of ICones, cofree U ⊣ !̃ again).  The Dirac/integration view of the
+% Moggi-Kleisli bind, bind(m, k)(γ) = ∫ k(γ, a) dm(γ)(a), is what lets
+% e_add / e_mul recover the QBS-style "distribution of λx. m·x + b on
+% Dirac inputs" reading.  EM(!) is NOT cartesian closed and is not expected
+% to be (a structural fact); Kleisli exponentials are what Moggi-CBV needs,
+% and that is what ppl.v uses.  Adequacy / normalization / full-abstraction
+% are out of scope here, as are booleans / coproducts and qbs_normalize.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Beyond the paper: a call-by-value model (Melli\`es \S7.4)}%
