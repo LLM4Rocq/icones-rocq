@@ -778,7 +778,7 @@ $\sem{\Gamma \vdash M : t} : \mathtt{coalg\_hom}\,
 (\sem{\Gamma})\,(T\,\sem{t})$, by structural recursion. Contexts are
 interpreted by \rocq{Icones.programs.ppl.ctxD} right-to-left with the
 head on the right, so that the De Bruijn $\mathtt{hv\_zero}$ reads
-the second projection (\rocq{Icones.homs.em_cartesian.em_proj2}) and
+the second projection (\rocq{Icones.programs.cbv.em_proj2}) and
 $\mathtt{hv\_succ}$ recurses through $\mathtt{em\_proj1}$, via
 \rocq{Icones.programs.ppl.var_lookup}.
 
@@ -837,7 +837,7 @@ and so sends Dirac point masses to the Dirac at the paired point,
 $\mathtt{fmeas\_lax}\,(\delta_x \otimes \delta_y) = \delta_{(x,y)}$
 (\rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac}).
 Construction. $\mathtt{fmeas\_lax}$ is obtained by
-\rocq{Icones.homs.tensor.tensor_uncurry} of the outer-linhom
+\rocq{Icones.homs.tensor_construct.tensor_uncurry} of the outer-linhom
 $\FMeas(X) \multimap (\FMeas(Y) \multimap \FMeas(X \times Y))$
 built by paper Theorem 6.1
 (\rocq{Icones.homs.bilin.int_to_linhom}) twice: at the inner level
