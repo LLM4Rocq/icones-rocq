@@ -245,6 +245,12 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
   | ne_score (G : named_ctx Ar) (r : R)
              (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
       named_expr G (tprob tunit)
+  | ne_score_tm (G : named_ctx Ar)
+                (f : R -> R)
+                (Hf_meas : measurable_fun [set: R] f)
+                (Hf_ge0 : forall r : R, (0 <= f r)%R)
+                (Hf_le1 : forall r : R, (f r <= 1)%R)
+                (e : named_expr G tR') : named_expr G (tprob tunit)
   | ne_add   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   | ne_mul   (G : named_ctx Ar) :
@@ -275,6 +281,8 @@ Arguments ne_bind {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_sample {R Ar R_obj G X} mu Hmu.
 Arguments ne_real {R Ar R_obj G} r.
 Arguments ne_score {R Ar R_obj G} r Hr0 Hr1.
+Arguments ne_score_tm {R Ar R_obj G} f Hf_meas Hf_ge0 Hf_le1 e.
+Arguments ne_score_tm {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_add {R Ar R_obj G} & M N.
 Arguments ne_mul {R Ar R_obj G} & M N.
 
@@ -311,6 +319,8 @@ Fixpoint nexp_to_dexp (G : named_ctx Ar) (t : ppl_type Ar)
   | ne_sample _ _ mu Hmu => e_sample mu Hmu
   | ne_real _ r => e_real r
   | ne_score _ r Hr0 Hr1 => e_score r Hr0 Hr1
+  | ne_score_tm _ f Hm Hg Hl e0 =>
+      e_score_tm f Hm Hg Hl (nexp_to_dexp e0)
   | ne_add _ M N => e_add (nexp_to_dexp M) (nexp_to_dexp N)
   | ne_mul _ M N => e_mul (nexp_to_dexp M) (nexp_to_dexp N)
   end.
