@@ -1296,6 +1296,60 @@ intersection of the subobjects of a power of the coseparator `1` over which
 | Initiality engine (intersection embeds in each member; mono if members are) | `wi_factors_each`, `wi_incl_inj` — same file |
 | Export contract: hom-bijection a left-adjoint candidate must satisfy | `is_icones_left_adjoint` — same file |
 
+#### Code
+
+```coq
+(* theories/icones/representable.v *)
+
+(** Binary intersection of two subobjects (pullback) and its UMP. *)
+Definition pb_med : icones_hom Ar Z pb_obj :=
+  icones_eq_med pb_left pb_right pb_tuple pb_tuple_equ.
+
+Lemma pb_med_proj1 : icones_comp pb_proj1 pb_med = f.
+Lemma pb_med_proj2 : icones_comp pb_proj2 pb_med = g.
+
+Lemma pb_med_unique (k : icones_hom Ar Z pb_obj) :
+  icones_comp pb_proj1 k = f ->
+  icones_comp pb_proj2 k = g ->
+  k = pb_med.
+
+(** Wide intersection of a small family of subobjects: object, embedding,
+    projections, and the mediator + factor + uniqueness for any cone. *)
+Definition wi_obj  : ICone.type Ar := icones_eq wi_u wi_v.
+Definition wi_incl : icones_hom Ar wi_obj p :=
+  icones_comp (icones_comp (hh k0) (wi_pi k0)) (icones_eq_incl wi_u wi_v).
+Definition wi_proj (k : K) : icones_hom Ar wi_obj (Adom k) :=
+  icones_comp (wi_pi k) (icones_eq_incl wi_u wi_v).
+
+Definition wi_med : icones_hom Ar Z wi_obj :=
+  icones_eq_med wi_u wi_v wi_tuple wi_tuple_equ.
+
+Lemma wi_med_proj (k : K) : icones_comp (wi_proj k) wi_med = ff k.
+Lemma wi_med_unique (kk : icones_hom Ar Z wi_obj) :
+  (forall k, icones_comp (wi_proj k) kk = ff k) -> kk = wi_med.
+
+(** Initiality: the intersection factors each member, and the embedding
+    is a mono if the basepoint member and own projection are monos. *)
+Lemma wi_factors_each (k : K) :
+  icones_comp (hh k) (wi_proj Adom hh k0 k) = wi_incl Adom hh k0.
+Lemma wi_incl_inj :
+  is_icones_inj (hh k0) ->
+  is_icones_inj (wi_proj Adom hh k0 k0) ->
+  is_icones_inj (wi_incl Adom hh k0).
+
+(** The SAFT export contract — a left-adjoint candidate is a hom-bijection. *)
+Definition is_icones_left_adjoint
+    (Cobj : Type) (Homc : Cobj -> Cobj -> Type)
+    (Robj : ICone.type Ar -> Cobj)
+    (Fobj : Cobj -> ICone.type Ar)
+    (Phi : forall (c : Cobj) (x : ICone.type Ar),
+             icones_hom Ar (Fobj c) x -> Homc c (Robj x))
+    (Psi : forall (c : Cobj) (x : ICone.type Ar),
+             Homc c (Robj x) -> icones_hom Ar (Fobj c) x) : Prop :=
+  (forall c x (f : icones_hom Ar (Fobj c) x), Psi c x (Phi c x f) = f) /\
+  (forall c x (g : Homc c (Robj x)), Phi c x (Psi c x g) = g).
+```
+
 The tensor `⊗` and the exponential `!` are then **discharged** against this
 SAFT engine:
 
@@ -1305,6 +1359,42 @@ SAFT engine:
 | The Thm 5.12 measurability core (the analytic crux) | `tensor_hom_iso.v` + `tensor_iso.v` (the `path_tens_to_X` / `lfun_path_swap` / `swap_lin_lin_hom` chain) |
 | `E` is the SAFT left adjoint of `Der` (Thm 7.34 feeding the SAFT engine) | `der_continuous.v` (Thm 7.34) + `bang_construct.v` (Bang/nl/lin discharged) |
 | The Seely isos (Thm 9.5) are discharged via Lem 9.4 + tensor-hom-iso | `theories/stable/stab_lin_swap.v` + the construction in `seely.v` |
+
+#### Code: tensor and exponential as SAFT left adjoints
+
+```coq
+(* theories/homs/tensor_construct.v *)
+Module Icones_tensor_construct.
+(* ... family of factoring subobjects of the product p = (C ⊸ −),
+   indexed by the well-powered classifier ... *)
+
+(** The tensor object [B ⊗ C] as the wide intersection of the family. *)
+Definition tensor : ICone.type Ar := wi_obj fhh fk0.
+
+(** The intersection embedding [B ⊗ C ↪ p]. *)
+Definition tensor_incl : icones_hom Ar tensor p := wi_incl fAdom fhh fk0.
+
+(* ... + curry / uncurry / naturality, the SAFT discharge ... *)
+End Icones_tensor_construct.
+```
+
+```coq
+(* theories/homs/bang_construct.v *)
+Module Icones_bang_construct.
+
+(** The exponential object [Bang B = E B] as the wide intersection of
+    the family of factoring subobjects of [B ⊸ 1ᴬ]. *)
+Definition Bang : ICone.type Ar := wi_obj fhh fk0.
+Definition Bang_incl : icones_hom Ar Bang p := wi_incl fAdom fhh fk0.
+
+(** The universal nonlinear map [nl_B]. *)
+Definition nl : scones_hom B (Bang B) := (* ... *).
+
+(** The linear factoriser [lin f]. *)
+Definition lin : icones_hom Ar (Bang B) C := (* ... *).
+
+End Icones_bang_construct.
+```
 
 The strategy is the paper's (§4.3 explicitly invokes SAFT); the formalisation
 adds the *concrete* SAFT construction so the tree carries no `Parameter` /
@@ -1333,11 +1423,147 @@ The naïve approach — reducing to *promoted points* `x!` via `d_bang_prom`
 The structural retraction proof is what Mellies' §7.4 actually requires;
 it is mechanised here.
 
+#### Code
+
+```coq
+(* theories/homs/em_cartesian.v *)
+
+(** Eq (88) of Mellies: the retraction square for an arbitrary coalgebra. *)
+Lemma diagram81 (P : Coalgebra Ar) :
+  icones_comp (tensor_mor (coalg_str P) (coalg_str P)) (coalg_d P) =
+  icones_comp (d_bang (coalg_obj P)) (coalg_str P).
+
+(** Mellies §6.11 Prop 20 / Cor 20 — the (66)/(67) diagram chase that
+    Mellies flags as "not so immediate". *)
+Lemma coalg_mor_lift (X PA QB : Coalgebra Ar)
+    (i : icones_hom Ar (coalg_obj PA) (coalg_obj QB))
+    (r : icones_hom Ar (coalg_obj QB) (coalg_obj PA))
+    (f : icones_hom Ar (coalg_obj X) (coalg_obj PA)) :
+  is_coalg_mor PA QB i ->
+  icones_comp r i = icones_id Ar (coalg_obj PA) ->
+  is_coalg_mor X QB (icones_comp i f) ->
+  is_coalg_mor X PA f.
+
+(** Mellies Prop 27 (transported comonoid laws on a retract).  Section
+    variables fix the [(i, r, dB, eB)] retraction setup and an Eq-(85)
+    hypothesis. *)
+Lemma transp_counitL :
+  icones_comp (iso_fwd (tensor_lunit A))
+    (icones_comp (tensor_mor eA (icones_id Ar A)) dA) = icones_id Ar A.
+
+Lemma transp_counitR :
+  icones_comp (iso_fwd (tensor_runit A))
+    (icones_comp (tensor_mor (icones_id Ar A) eA) dA) = icones_id Ar A.
+
+Lemma transp_cocomm :
+  icones_comp (iso_fwd (tensor_braid A A)) dA = dA.
+
+Lemma transp_coassoc :
+  icones_comp (iso_fwd (tensor_assoc A A A))
+    (icones_comp (tensor_mor dA (icones_id Ar A)) dA) =
+  icones_comp (tensor_mor (icones_id Ar A) dA) dA.
+
+(** Mellies Prop 28 unconditionally on every coalgebra. *)
+Lemma EMComon_all (P : Coalgebra Ar) : EMComon P.
+
+(** Cor 17: the full EM(!) is cartesian, with product carried by ⊗. *)
+Record EM_Cartesian (R : realType) (Ar : MeasSubcat R) : Type :=
+  MkEMCartesian {
+  cart_prod : Coalgebra Ar -> Coalgebra Ar -> Coalgebra Ar;
+  cart_term : Coalgebra Ar;
+  cart_prod_obj : forall P Q,
+    coalg_obj (cart_prod P Q) = tensor Ar (coalg_obj P) (coalg_obj Q);
+  cart_proj1 : forall P Q,
+    icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj P);
+  cart_proj2 : forall P Q,
+    icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj Q);
+  cart_pair : forall (Z P Q : Coalgebra Ar),
+    coalg_hom Z P -> coalg_hom Z Q -> coalg_hom Z (cart_prod P Q);
+  cart_beta1 : (* β law on proj1 *) _;
+  cart_beta2 : (* β law on proj2 *) _;
+  cart_term_mor    : forall P, coalg_hom P cart_term;
+  cart_term_unique : (* terminal UP *) _;
+}.
+
+(** The canonical cartesian structure of EM(!), every field populated. *)
+Definition ICones_EM_cartesian (R : realType) (Ar : MeasSubcat R) :
+    EM_Cartesian Ar :=
+  {| cart_prod := @EM_prod R Ar;
+     cart_term := @EM_term R Ar;
+     cart_prod_obj := @EM_prod_obj R Ar;
+     cart_proj1 := @em_proj1_mor R Ar;
+     cart_proj2 := @em_proj2_mor R Ar;
+     cart_pair := fun Z P Q f g => @em_pair R Ar Z P Q f g;
+     (* ... β-laws and terminal UP witnesses ... *) |}.
+```
+
 ### Linear/non-linear monoidal adjunction `U ⊣ !̃` (Mellies §7.4 Prop 29)
 
 | Result | English statement | Rocq |
 |---|---|---|
 | LNL adjunction | The cofree-coalgebra adjunction `U ⊣ !̃ : ICones ⇄ EM(!)` is a lax symmetric monoidal adjunction (Lack's lifting). With Cor 20 in hand, this is a genuine *linear/non-linear* adjunction with the **full** category of `!`-coalgebras as the cartesian non-linear / value side. | `CBV_Model` record + `ICones_CBV` witness — `theories/homs/cbv_adjunction.v` |
+
+#### Code
+
+```coq
+(* theories/homs/cbv_adjunction.v *)
+
+(** The Melliès §7.4 Prop 29 monoidal adjunction U ⊣ !̃ bundled.
+    Fields cover: the (Thm 5.15) SMCC of ICones, the EM(!) category,
+    the (full) cartesian value category EM_Cartesian, the U / !̃
+    object and morphism actions, the unit / counit / Φ / Ψ / triangle
+    identities, the U strict-monoidal compatibility, and the !̃ lax
+    symmetric monoidal comparison + lax coherence + (co)unit
+    monoidality. *)
+Record CBV_Model (R : realType) (Ar : MeasSubcat R) : Type := MkCBVModel {
+  cbv_smcc : ICones_SMCC Ar;
+  cbv_em   : EM_Cat Ar;
+  cbv_cart : EM_Cartesian Ar;
+
+  cbv_U_obj    : Coalgebra Ar -> ICone.type Ar;
+  cbv_U_mor    : forall P Q, coalg_hom P Q ->
+                             icones_hom Ar (cbv_U_obj P) (cbv_U_obj Q);
+  cbv_bang_obj : ICone.type Ar -> Coalgebra Ar;
+  cbv_bang_mor : forall B C, icones_hom Ar B C ->
+                             coalg_hom (cbv_bang_obj B) (cbv_bang_obj C);
+  cbv_unit     : forall P, coalg_hom P (cbv_bang_obj (cbv_U_obj P));
+  cbv_counit   : forall B, icones_hom Ar (cbv_U_obj (cbv_bang_obj B)) B;
+  cbv_phi      : forall P B,
+    coalg_hom P (cbv_bang_obj B) -> icones_hom Ar (cbv_U_obj P) B;
+  cbv_psi      : forall P B,
+    icones_hom Ar (cbv_U_obj P) B -> coalg_hom P (cbv_bang_obj B);
+  cbv_phiK : (* Φ ∘ Ψ = id *) _;
+  cbv_psiK : (* Ψ ∘ Φ = id *) _;
+  cbv_triangleL : (* triangle on the unit *) _;
+  cbv_triangleR : (* triangle on the counit *) _;
+
+  (* U strict / strong monoidal *)
+  cbv_U_prod : forall P Q, cbv_U_obj (cart_prod cbv_cart P Q) =
+                            tensor Ar (cbv_U_obj P) (cbv_U_obj Q);
+  cbv_U_term : cbv_U_obj (cart_term cbv_cart) = cone_one_car Ar;
+
+  (* !̃ lax symmetric monoidal: m2 / m0 comparisons (as ICones maps and
+     as EM(!) morphisms), the lax coherence (assoc, braid), and the
+     counit-monoidality laws. *)
+  cbv_m2 : forall A B, icones_hom Ar _ (cbv_U_obj (cbv_bang_obj (tensor Ar A B)));
+  cbv_m0 : icones_hom Ar (cone_one_car Ar) (cbv_U_obj (cbv_bang_obj (cone_one_car Ar)));
+  cbv_bang_m  : forall A B,
+    coalg_hom (cart_prod cbv_cart (cbv_bang_obj A) (cbv_bang_obj B))
+              (cbv_bang_obj (tensor Ar A B));
+  cbv_bang_e0 : coalg_hom (cart_term cbv_cart) (cbv_bang_obj (cone_one_car Ar));
+  cbv_lax_assoc : _; cbv_lax_braid : _;
+  cbv_counit_monoidal2 : _; cbv_counit_monoidal0 : _;
+}.
+
+(** Paper-style headline: every field populated by a proved lemma. *)
+Definition ICones_CBV (R : realType) (Ar : MeasSubcat R) : CBV_Model Ar :=
+  {| cbv_smcc := ICones_smcc Ar;
+     cbv_em   := ICones_EM Ar;
+     cbv_cart := ICones_EM_cartesian Ar;
+     cbv_U_obj := @U_obj R Ar;
+     cbv_U_mor := @U_mor R Ar;
+     (* ... !̃ / unit / counit / triangle / lax-monoidal witnesses ... *) |}.
+```
 
 ### Call-by-value calculi (beyond the paper, future work)
 
@@ -1350,6 +1576,233 @@ direction with two small calculi, both interpreted axiom-free.
 | A small first-order fine-grain Moggi-CBV calculus (unit, base, products, `let`, `sample`), interpreted via the CBV monad `T = !̃ ∘ U`; soundness includes the monad/`let` laws, product β, and `sample` = the integral. | `cbv.v` — `theories/programs/cbv.v` |
 | A higher-order, direct-style, multi-variable Moggi-CBV calculus faithfully porting the QBS PPL — single-sort `expr Γ t` with intrinsically-typed De Bruijn contexts, direct application `e_app : expr Γ (tfun A B) → expr Γ A → expr Γ B`, plus `e_real`/`e_score`/`e_add`/`e_mul`. Function types via the EM(!) Kleisli exponential `!̃(U A ⊸ U B)` (no value-CCC required). Two headline examples reproduced from the [`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl): `ex_random_constant` = `do c ← sample N(0,1); return (λx. c) : P(R → R)` (the QBS paper's flagship); and `ex_random_linear` = `do m, b ← N(0,1); return (λx. m·x + b)` (the killer demo — distribution over linear functions). Both interpreted axiom-free. The arithmetic primitives are interpreted via the FMeas lax-monoidal map (see next row); on Dirac inputs the lifts reduce to scalar arithmetic, and under the Moggi-Kleisli bind `bind(m, k) = ∫ k(a) dm(a)` they recover the QBS-style "distribution over deterministic linear functions" reading. | `ppl.v` (`expr`/`has_var`/`tyD`/`ctxD`/`eD`, `ex_random_constant`, `ex_random_constant_denot_E`, `ex_random_linear`, `ex_random_linear_denot_E`) — `theories/programs/ppl.v` |
 | The **FMeas lax symmetric monoidal map** — `(FMeas X) ⊗ (FMeas Y) → FMeas (X × Y)`, sending the pure tensor `µ ⊗ ν` to the product measure `µ × ν` — as a genuine `icones_hom`. Built via `tensor_uncurry` of the bilinear lift; its existence depends on the previously-deferred follow-up of `bilin.v` (path-preservation of `int_to_linhom` in the cone variable), now discharged as `int_to_linhom_pres_path_in_cone`. The Dirac identity `fmeas_lax_dirac : fmeas_lax(δ_x ⊗ δ_y) = δ_{(x,y)}` is what makes the PPL's `e_add` / `e_mul` Dirac arithmetic reductions match QBS. | `fmeas_lax`, `fmeas_lax_E`, `fmeas_lax_dirac`, `int_to_linhom_pres_path_in_cone` — `theories/homs/fmeas_lax.v`, `theories/homs/bilin.v` |
+
+#### Code: `theories/programs/cbv.v` — Moggi-CBV fine-grain calculus
+
+```coq
+(* theories/programs/cbv.v — Section CBVMonad,
+   Variables (R : realType) (Ar : MeasSubcat R) *)
+
+(** [T P = !̃(U P)]. *)
+Definition Tobj (P : Coalgebra Ar) : Coalgebra Ar := bang_cofree (U_obj P).
+
+(** Kleisli extension and composition. *)
+Definition kbind (P Q : Coalgebra Ar) (f : coalg_hom P (Tobj Q)) :
+    coalg_hom (Tobj P) (Tobj Q) := coalg_comp (tmul Q) (Tmap f).
+
+Definition kcomp (P Q S : Coalgebra Ar)
+    (g : coalg_hom Q (Tobj S)) (f : coalg_hom P (Tobj Q)) :
+    coalg_hom P (Tobj S) := coalg_comp (kbind g) f.
+
+(** sample's denotation, on a Dirac, is the promoted Dirac. *)
+Lemma cpD_sample_var_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
+  Lfun (ch_mor (cpD (c_sample (G := tbase X) (X := X) v_var))) (dirac_fmeas r)
+    = prom (dirac_fmeas r).
+
+(** And, more sharply, [⟦sample⟧] integrates the promoted Dirac path
+    against the measure value. *)
+Lemma cpD_sample_is_integral (X : ar_obj Ar) :
+  ch_mor (tunit_eta (FMeas_coalgebra X)) = Coalg X.
+Proof. by []. Qed.
+```
+
+#### Code: `theories/programs/ppl.v` — the higher-order PPL
+
+The file's header docstring captures the design philosophy:
+
+> **Identical to `cbv.v`: the value category is the FULL Eilenberg–Moore
+> category `EM(!)` of the exponential comonad (`em_cartesian.v`); the
+> CBV computation monad is `T = !̃ ∘ U` (`Tobj` in `cbv.v`). The Kleisli
+> exponential for `T` gives the higher-order arrow type denotation
+> `⟦tfun A B⟧ := !̃(U A ⊸ U B) = bang_cofree (linhom_car Ar (coalg_obj
+> ⟦A⟧) (coalg_obj ⟦B⟧))`. See the header of `cbv.v` for the full
+> discussion of the natural-bijection chain `Hom_EM(C×A, T B) ≅
+> Hom_EM(C, !̃(U A ⊸ U B))` realising lambda + application.**
+
+```coq
+(* theories/programs/ppl.v *)
+
+(** Types. *)
+Inductive ppl_type : Type :=
+  | tunit
+  | tbase (X : ar_obj Ar)
+  | tprod (t1 t2 : ppl_type)
+  | tfun  (t1 t2 : ppl_type)
+  | tprob (t  : ppl_type).
+
+(** Intrinsically-typed De Bruijn contexts. *)
+Notation ppl_ctx Ar := (list (@ppl_type R Ar)).
+(* [has_var Γ t] is the standard inductive De Bruijn index. *)
+
+(** The single inductive of expressions, direct-style. *)
+Inductive expr : ppl_ctx Ar -> T -> Type :=
+  | e_var   (G : ppl_ctx Ar) (t : T) : has_var G t -> expr G t
+  | e_tt    (G : ppl_ctx Ar) : expr G tunit
+  | e_pair  (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G t1 -> expr G t2 -> expr G (tprod t1 t2)
+  | e_fst   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tprod t1 t2) -> expr G t1
+  | e_snd   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tprod t1 t2) -> expr G t2
+  | e_lam   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr (t1 :: G) t2 -> expr G (tfun t1 t2)
+  | e_app   (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tfun t1 t2) -> expr G t1 -> expr G t2
+  | e_ret   (G : ppl_ctx Ar) (t : T) : expr G t -> expr G (tprob t)
+  | e_bind  (G : ppl_ctx Ar) (t1 t2 : T) :
+      expr G (tprob t1) -> expr (t1 :: G) (tprob t2) ->
+      expr G (tprob t2)
+  | e_sample (G : ppl_ctx Ar) (X : ar_obj Ar)
+             (mu : fmeas R (ar_carrier Ar X))
+             (Hmu : (cone_norm mu <= 1)%R) :
+      expr G (tprob (tbase X))
+  | e_real  (G : ppl_ctx Ar) (r : R) : expr G tR'
+  | e_score (G : ppl_ctx Ar) (r : R)
+            (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
+      expr G (tprob tunit)
+  | e_add   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'
+  | e_mul   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'.
+
+(** Type / context interpretation. *)
+Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
+  match t with
+  | tunit       => EM_term
+  | tbase X     => FMeas_coalgebra X
+  | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
+  | tfun A B    => bang_cofree (linhom_car Ar (coalg_obj (tyD A))
+                                              (coalg_obj (tyD B)))
+  (* [tprob t] is the SYNTACTIC marker: tyD (tprob t) = tyD t,
+     monadic structure is in [eD]. *)
+  | tprob t0    => tyD t0
+  end.
+
+Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
+  match G with
+  | nil       => EM_term
+  | t :: G'   => EM_prod (ctxD G') (tyD t)
+  end.
+
+(** Arithmetic lifts via the FMeas lax-monoidal map. *)
+Definition add_lift :
+    icones_hom Ar
+      (tensor Ar (FMeas R_obj) (FMeas R_obj))
+      (FMeas R_obj) :=
+  icones_comp (FMeas_fmap add_meas) (fmeas_lax R_obj R_obj).
+
+Definition mul_lift :
+    icones_hom Ar
+      (tensor Ar (FMeas R_obj) (FMeas R_obj))
+      (FMeas R_obj) :=
+  icones_comp (FMeas_fmap mul_meas) (fmeas_lax R_obj R_obj).
+
+Lemma add_lift_dirac (a b : R) :
+  Lfun add_lift
+    (ptensor (dirac_fmeas (R_to_carrier R_carrier_eq a))
+             (dirac_fmeas (R_to_carrier R_carrier_eq b))) =
+  dirac_fmeas (R_to_carrier R_carrier_eq (a + b)).
+
+Lemma mul_lift_dirac (a b : R) :
+  Lfun mul_lift
+    (ptensor (dirac_fmeas (R_to_carrier R_carrier_eq a))
+             (dirac_fmeas (R_to_carrier R_carrier_eq b))) =
+  dirac_fmeas (R_to_carrier R_carrier_eq (a * b)).
+
+(** The term interpretation [eD] — every expression is interpreted
+    uniformly as a coalgebra Kleisli arrow [coalg_hom (ctxD G) (Tobj (tyD t))]. *)
+Fixpoint eD (G : ppl_ctx Ar) (t : T)
+    (M : @expr R Ar R_obj G t) {struct M}
+  : coalg_hom (ctxD G) (Tobj (tyD t)) :=
+  match M in expr G0 t0 return coalg_hom (ctxD G0) (Tobj (tyD t0)) with
+  | e_var _ _ v => coalg_comp (tunit_eta (tyD _)) (var_lookup v)
+  | e_tt G0     => coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD G0))
+  | e_pair _ _ _ M1 M2 =>
+      coalg_comp (bang_m _ _) (em_pair (eD M1) (eD M2))
+  | e_fst _ _ _ M0 => coalg_comp (Tmap (em_proj1 _ _)) (eD M0)
+  | e_snd _ _ _ M0 => coalg_comp (Tmap (em_proj2 _ _)) (eD M0)
+  | e_lam _ _ _ body =>
+      coalg_comp (tunit_eta (tyD (tfun _ _))) (lam_coalg (eD body))
+  | e_app _ _ _ Vf Va =>
+      kcomp (app_pair _ _)
+        (coalg_comp (bang_m _ _) (em_pair (eD Vf) (eD Va)))
+  | e_ret _ _ M0    => eD M0     (* tprob is syntactic *)
+  | e_bind _ _ _ M0 K => kbind_ext (eD K) (eD M0)
+  | e_sample _ _ mu Hmu => @sample_kleisli _ _ mu Hmu
+  | e_real _ r           => @real_kleisli _ r
+  | e_score _ r Hr0 Hr1  => @score_kleisli _ r Hr0 Hr1
+  | e_add _ M0 N0 =>
+      coalg_comp (bang_cofree_hom add_lift)
+                 (coalg_comp (bang_m _ _) (em_pair (eD M0) (eD N0)))
+  | e_mul _ M0 N0 =>
+      coalg_comp (bang_cofree_hom mul_lift)
+                 (coalg_comp (bang_m _ _) (em_pair (eD M0) (eD N0)))
+  end.
+
+(** Headline 1 — [ex_random_constant]: [do c ← sample mu; return (λx. c)]. *)
+Definition ex_random_constant :
+    @expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+  e_bind (e_sample mu Hmu) (e_ret ex_rc_lam).
+
+Lemma ex_random_constant_denot_E :
+  ex_random_constant_denot =
+  kbind_ext (@eD _ _ _ _ _ _ _ _ ex_rc_lam) (sample_kleisli (ctxD nil) mu Hmu).
+
+(** Headline 2 — [ex_random_linear]: [do m ← sample mu; do b ← sample mu;
+                                        return (λx. m·x + b)]. *)
+Definition ex_random_linear :
+    @expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+  e_bind (e_sample mu Hmu)
+    (e_bind (e_sample mu Hmu)
+       (e_ret ex_rl_lam)).
+
+Lemma ex_random_linear_denot_E :
+  ex_random_linear_denot =
+  kbind_ext
+    (kbind_ext (@eD _ _ _ _ _ _ _ _ ex_rl_lam)
+               (sample_kleisli (ctxD (tR' :: nil)) mu Hmu))
+    (sample_kleisli (ctxD nil) mu Hmu).
+```
+
+#### Code: `theories/homs/fmeas_lax.v` + `theories/homs/bilin.v`
+
+```coq
+(* theories/homs/fmeas_lax.v *)
+
+(** The FMeas lax symmetric monoidal comparison
+    (FMeas X) ⊗ (FMeas Y) → FMeas (X × Y),
+    built via [tensor_uncurry] of the bilinear outer lift. *)
+Definition fmeas_lax :
+    icones_hom Ar
+      (tensor Ar (fmeas R (ar_carrier Ar X))
+                 (fmeas R (ar_carrier Ar Y)))
+      (fmeas R (ar_carrier Ar (ar_prod Ar X Y))) :=
+  tensor_uncurry (fmeas_lax_outer_icones X Y).
+
+(** Pointwise value on a pure tensor: agrees with [fmeas_lax_pre]. *)
+Lemma fmeas_lax_E
+    (µ : fmeas R (ar_carrier Ar X))
+    (ν : fmeas R (ar_carrier Ar Y)) :
+  Lfun (fmeas_lax X Y) (ptensor µ ν) = fmeas_lax_pre µ ν.
+
+(** The load-bearing Dirac identity: makes [e_add]/[e_mul] reduce to
+    scalar arithmetic on Diracs. *)
+Lemma fmeas_lax_dirac (x : ar_carrier Ar X) (y : ar_carrier Ar Y) :
+  Lfun (fmeas_lax X Y)
+    (ptensor (dirac_fmeas x) (dirac_fmeas y)) =
+  dirac_fmeas (X := ar_prod Ar X Y) (ar_prod_cast (x, y)).
+```
+
+```coq
+(* theories/homs/bilin.v — the previously-deferred follow-up *)
+
+(** Path preservation of [int_to_linhom] in the *cone* variable
+    (a path of paths gives a path of integration maps). *)
+Lemma int_to_linhom_pres_path_in_cone
+    (Y : ar_obj Ar) (η : ar_carrier Ar Y -> path_car Ar X B) :
+  is_measurable_path η ->
+  is_measurable_path
+    (Ar:=Ar) (C:=linhom_car Ar (fmeas R (ar_carrier Ar X)) B)
+    (fun r => int_to_linhom (η r)).
+```
 
 The Kleisli-exponential structure arises from the natural-bijection chain
 
