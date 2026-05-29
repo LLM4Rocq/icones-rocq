@@ -841,6 +841,212 @@ any-radius output sup) because the strictly-linear `is_omega_continuous`
 scaling for non-linear maps** — a faithful reading of the paper's setting,
 not a weakening.
 
+### Def 7.5 (`is_totmono`, `Pneg`, `Ppos`, `\sumP`)
+
+```coq
+(* theories/stable/totmono.v *)
+
+(** [Pneg n] / [Ppos n] partition the subsets of {1,…,n} by parity. *)
+Definition Pneg (n : nat) : {set {set 'I_n}} :=
+  [set I in powerset [set: 'I_n] | odd (n - #|I|)].
+Definition Ppos (n : nat) : {set {set 'I_n}} :=
+  [set I in powerset [set: 'I_n] | ~~ odd (n - #|I|)].
+
+(* [\sumP_(i in A) F] is a precone-valued indexed sum, notation. *)
+
+(** Section variables: R : realType, P Q : coneType R. *)
+Definition tm_arg (n : nat) (x : P) (u : 'I_n -> P) (I : {set 'I_n}) : P :=
+  x + \big[precone_add/precone_zero]_(i in I) u i.
+
+(** Paper Def 7.5, Condition (7.1). *)
+Definition is_totmono (f : P -> Q) : Prop :=
+  forall (n : nat) (x : P) (u : 'I_n -> P),
+    cone_norm (x + \big[precone_add/precone_zero]_(i : 'I_n) u i) <= 1 ->
+    precone_le
+      (\big[precone_add/precone_zero]_(I in Pneg n) f (tm_arg x u I))
+      (\big[precone_add/precone_zero]_(I in Ppos n) f (tm_arg x u I)).
+```
+
+### Def 7.7 (`is_stable`)
+
+```coq
+(* theories/stable/totmono.v *)
+Definition is_stable (f : P -> Q) : Prop :=
+  [/\ is_totmono f,
+      exists M : R, forall x : P, cone_norm x <= 1 -> cone_norm (f x) <= M
+   &  is_scott_continuous_unit f].
+```
+
+### Def 7.10 (`is_meas_stable`)
+
+```coq
+(* theories/stable/totmono.v — Variables R Ar (C D : MCone.type Ar) *)
+Definition is_meas_stable (f : C -> D) : Prop :=
+  is_stable f /\
+  forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> C),
+    (forall r, cone_norm (γ r) <= 1) ->
+    is_measurable_path (Ar:=Ar) (C:=C) γ ->
+    is_measurable_path (Ar:=Ar) (C:=D) (fun r => f (γ r)).
+```
+
+### Lem 7.11 (`stable_zero`, `stable_add`, `stable_scale`)
+
+```coq
+(* theories/stable/totmono.v *)
+Lemma stable_zero : is_stable stm_zero.
+
+Lemma stable_add (f g : P -> Q) :
+  is_stable f -> is_stable g -> is_stable (stm_add f g).
+
+Lemma stable_scale (r : {nonneg R}) (f : P -> Q) :
+  is_stable f -> is_stable (stm_scale r f).
+```
+
+### Lem 7.12 (`sh_le_of_alt`)
+
+```coq
+(* theories/stable/stablehom.v *)
+(** Lemma 7.12 backward: the alternating-sum order implies the pointwise
+    stable (precone) order. *)
+Lemma sh_le_of_alt : precone_le f g.
+Proof. by exists sh_diff; rewrite -sh_add_diff. Qed.
+```
+
+### Thm 7.19 (`totmono_is_n_increasing`, `is_n_increasing_totmono`)
+
+```coq
+(* theories/stable/findiff.v *)
+
+(** Thm 7.19 forward: totally monotonic ⇒ n-increasing for all n. *)
+Lemma totmono_is_n_increasing (n : nat) (R : realType) (B C : coneType R)
+    (f : B -> C) : is_totmono f -> is_n_increasing n f.
+
+(** Thm 7.19 converse, on the closed unit ball.  Variables: R B C f. *)
+Lemma is_n_increasing_totmono :
+  (forall k, is_n_increasing k f) -> is_scott_continuous_unit f ->
+  is_totmono f.
+```
+
+### Lem 7.20–7.25 (finite-difference Δε / Δ / SD / SnB machinery)
+
+```coq
+(* theories/stable/findiff.v + theories/stable/compose.v *)
+
+(** [totmono_Delta]: the finite-difference [Δf(u⃗) := SDpos f − SDneg f]
+    on the unit ball, packaging Δε / Δ for ε ∈ {+, −}. *)
+Lemma totmono_Delta (n : nat) (u : 'I_n -> B)
+    (Hs : (* sum bound on u *)) :
+  (* totmono of f gives totmono of Δf(u⃗) on the residual ball *).
+
+(** [SnB]: the "[(x, u⃗) ∈ B_n]" predicate; Lemma 7.25 says
+    [(x,u⃗) ↦ Δf(u⃗)(x)] is increasing on it. *)
+Definition SnB_diff (g : SnB B n) : C := (* Δf(u⃗)(x) for g = (x, u⃗) *).
+Lemma SnB_increasing : is_increasing SnB_diff.
+```
+
+### Lem 7.27 (`ev_totmono`)
+
+```coq
+(* theories/stable/scones_ccc.v *)
+(** Lemma 7.27: evaluation is totally monotonic on the SCones product
+    [stablehom B C × B]. *)
+Lemma ev_totmono : is_totmono ev_fun.
+```
+
+### Thm 7.30 (`stable_comp`, `meas_stable_comp`)
+
+```coq
+(* theories/stable/compose.v *)
+Lemma stable_comp (f : B -> C) (g : C -> D)
+    (Hf : is_stable f) (Hg : is_stable g)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1) :
+  is_stable (fun x => g (f x)).
+
+Lemma meas_stable_comp (R : realType) (Ar : MeasSubcat R)
+    (B C D : MCone.type Ar) (f : B -> C) (g : C -> D)
+    (Hf : is_meas_stable f) (Hg : is_meas_stable g)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1) :
+  is_meas_stable (fun x => g (f x)).
+```
+
+### Thm 7.32 (`SCones_CCC`, `SCones_ccc`)
+
+```coq
+(* theories/stable/scones_ccc.v *)
+Record SCones_CCC (R : realType) (Ar : MeasSubcat R) : Type := {
+  (* binary product *)
+  ccc_prod : ICone.type Ar -> ICone.type Ar -> ICone.type Ar;
+  ccc_fst  : forall X Y, scones_hom (ccc_prod X Y) X;
+  ccc_snd  : forall X Y, scones_hom (ccc_prod X Y) Y;
+  ccc_pair : forall Q X Y,
+    scones_hom Q X -> scones_hom Q Y -> scones_hom Q (ccc_prod X Y);
+  ccc_pair_fst : (* β law on fst *) _;
+  ccc_pair_snd : (* β law on snd *) _;
+  (* exponential *)
+  ccc_exp   : ICone.type Ar -> ICone.type Ar -> ICone.type Ar;
+  ccc_ev    : forall B C, scones_hom (ccc_prod (ccc_exp B C) B) C;
+  ccc_curry : forall D B C,
+    scones_hom (ccc_prod D B) C -> scones_hom D (ccc_exp B C);
+  ccc_beta  : (* β law of the exponential *) _;
+  ccc_eta   : (* η law of the exponential *) _;
+}.
+
+(** Paper Theorem 7.32: [SCones] is cartesian closed. *)
+Definition SCones_ccc : SCones_CCC Ar :=
+  {| ccc_prod  := @sprod R Ar;
+     ccc_fst   := @sfst;
+     ccc_snd   := @ssnd;
+     ccc_pair  := @spair;
+     ccc_pair_fst := @spair_fst;
+     ccc_pair_snd := @spair_snd;
+     ccc_exp   := fun B C => (stablehom B C : ICone.type Ar);
+     ccc_ev    := @Ev R Ar;
+     ccc_curry := @curry R Ar;
+     ccc_beta  := @scones_beta;
+     ccc_eta   := @scones_eta |}.
+```
+
+### Thm 7.34 (`der_preserves_prod_proj`, `der_preserves_limits`)
+
+```coq
+(* theories/stable/der_continuous.v *)
+
+(** Paper Thm 7.34 (products): [Der] sends the [i]-th ICones projection
+    to the [i]-th SCones projection (definitional). *)
+Lemma der_preserves_prod_proj (i : I) :
+  ders (icones_proj i) = scones_proj D i.
+Proof. by []. Qed.
+
+(** Paper Thm 7.34 (equalisers): [Der] preserves equalisers; bundled. *)
+Record der_continuous : Prop := MkDerContinuous {
+  dc_eq_equ : (* equaliser identity *) _;
+  dc_eq_med : (* mediator with factor + uniqueness *) _;
+}.
+
+Theorem der_preserves_limits : der_continuous.
+```
+
+### §9.2 (`lfp_fixpoint`, `sfix_fixpoint`, `Yfix`, `Yfix_fix`)
+
+```coq
+(* theories/stable/fixpoint.v *)
+
+(** [lfp f = sup uₙ] for the Kleene chain [uₙ = fⁿ 0] is a fixpoint. *)
+Lemma lfp_fixpoint : f (lfp f f_incr f_ball) = lfp f f_incr f_ball.
+
+(** [sfix f := lfp (sc_fun f) ...] is a fixpoint of the stable f. *)
+Lemma sfix_fixpoint (f : scones_hom B B) : sc_fun f (sfix f) = sfix f.
+
+(** Paper §9.2: the least-fixpoint combinator [Y] as an SCones morphism. *)
+Definition Yfix : scones_hom BB B :=
+  MkSconesHom (sh_fun Yfix_elt) (sh_meas_stable Yfix_elt) Yfix_norm_le1
+    (sh_offball Yfix_elt).
+
+(** Paper §9.2: the fixpoint equation [Yfix f = f (Yfix f)] on the unit ball. *)
+Lemma Yfix_fix (f : BB) :
+  cone_norm f <= 1 -> sh_fun f (sc_fun Yfix f) = sc_fun Yfix f.
+```
+
 ---
 
 ## Paper § 9 — Linear exponential, Seely category, FMeas coalgebra
