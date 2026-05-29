@@ -59,6 +59,133 @@ Notable design choice: ω-continuity comes in two flavours — `is_omega_continu
 the *general* notion needed for non-linear stable maps in §7). Both are
 proved equivalent for linear maps.
 
+### Def 2.1 (`isPrecone` / `Precone`)
+
+```coq
+(* theories/cones/precone.v *)
+HB.mixin Record isPrecone (R : realType) (P : Type) := {
+  precone_zero  : P;
+  precone_add   : P -> P -> P;
+  precone_scale : {nonneg R} -> P -> P;
+  (* Algebraic axioms — Paper §2.1 (R≥0-semimodule structure) *)
+  precone_addA : associative precone_add;
+  precone_addC : commutative precone_add;
+  precone_add0 : left_id precone_zero precone_add;
+  precone_scale_DAr :
+    forall r x y, precone_scale r (precone_add x y) =
+                  precone_add (precone_scale r x) (precone_scale r y);
+  precone_scale_DAl :
+    forall (r s : {nonneg R}) x,
+      precone_scale (r%:num + s%:num)%:nng x =
+      precone_add (precone_scale r x) (precone_scale s x);
+  precone_scale_A :
+    forall (r s : {nonneg R}) x,
+      precone_scale (r%:num * s%:num)%:nng x =
+      precone_scale r (precone_scale s x);
+  precone_scale_1  : forall x, precone_scale 1%:nng x = x;
+  precone_scale_0r : forall r, precone_scale r precone_zero = precone_zero;
+  precone_scale_0l : forall x, precone_scale 0%:nng x = precone_zero;
+  (* (Cancel) — Paper §2.1 *)
+  precone_cancel :
+    forall x y z, precone_add x y = precone_add x z -> y = z;
+  (* (Pos) — Paper §2.1 *)
+  precone_pos :
+    forall x y, precone_add x y = precone_zero ->
+                x = precone_zero /\ y = precone_zero;
+}.
+
+#[short(type="preconeType")]
+HB.structure Definition Precone (R : realType) := { P of isPrecone R P }.
+```
+
+### Def 2.2 (`isCone` / `Cone`)
+
+```coq
+(* theories/cones/cone.v *)
+HB.mixin Record isCone (R : realType) P of Precone R P := {
+  cone_norm : P -> R;
+  (* (Normh) ‖λ·x‖ = λ·‖x‖ *)
+  cone_normh : forall (r : {nonneg R}) (x : P),
+    cone_norm (precone_scale r x) = r%:num * cone_norm x;
+  (* (Normz) ‖x‖ = 0 ⇒ x = 0 *)
+  cone_normz : forall x : P, cone_norm x = 0 -> x = precone_zero;
+  (* (Normt) sub-additivity *)
+  cone_normt : forall x y : P,
+    cone_norm (precone_add x y) <= cone_norm x + cone_norm y;
+  (* (Normp) order-monotonicity *)
+  cone_normp : forall x y : P,
+    precone_le x y -> cone_norm x <= cone_norm y;
+  (* (Normc) ω-completeness of the unit ball, packaged as an operator *)
+  cone_sup_ball :
+    forall u : nat -> P,
+      (forall n, precone_le (u n) (u n.+1)) ->
+      (forall n, cone_norm (u n) <= 1) ->
+      P;
+  cone_sup_ball_ub :
+    forall (u : nat -> P) (uch : _) (ub1 : _) n,
+      precone_le (u n) (cone_sup_ball u uch ub1);
+  cone_sup_ball_lub :
+    forall (u : nat -> P) (uch : _) (ub1 : _) y,
+      (forall n, precone_le (u n) y) ->
+      precone_le (cone_sup_ball u uch ub1) y;
+  cone_sup_ball_norm :
+    forall (u : nat -> P) (uch : _) (ub1 : _),
+      cone_norm (cone_sup_ball u uch ub1) <= 1;
+}.
+
+#[short(type="coneType")]
+HB.structure Definition Cone (R : realType) :=
+  { P of isCone R P & Precone R P }.
+```
+
+### Cat 2 (`cones_hom`, `cones_comp`, `Cones`)
+
+```coq
+(* theories/cones/cone_cat.v — Section ConesHom, Variables R Q P *)
+
+(** Paper Definition 2.17: a morphism in [Cones]. *)
+Record cones_hom (P Q : coneType R) : Type := ConesHom {
+  cones_hom_fun :> P -> Q;
+  cones_hom_linear : is_linear cones_hom_fun;
+  cones_hom_continuous : is_omega_continuous cones_hom_fun;
+  cones_hom_norm_le1 :
+    forall x : P, cone_norm (cones_hom_fun x) <= cone_norm x;
+}.
+
+(** Paper Definition 2.17: composition in [Cones]. *)
+Definition cones_comp (g : cones_hom Q S) (f : cones_hom P Q) :
+  cones_hom P S.
+Proof. (* refine (ConesHom (g \o f) ...) ; proof omitted *) Defined.
+```
+
+The category `Cones` is the locally-small category whose hom-type is
+`cones_hom` and whose composition is `cones_comp`; it is not packaged as a
+named record here (the project follows PLAN Strategy C: no abstract
+`Category` typeclass).
+
+### Lem 2.8 / 2.10 (`invf_omega_continuous`, `diff_omega_continuous`)
+
+```coq
+(* theories/cones/basic_lemmas.v *)
+(* Section variables: R : realType, P Q : coneType R,
+   f : P -> Q linear, ω-continuous, injective, surjective ;
+   invf : Q -> P the section provided by surjectivity. *)
+Lemma invf_omega_continuous : is_omega_continuous invf.
+
+(* Section variables: R : realType, P Q : coneType R. *)
+Lemma diff_omega_continuous
+  (f g gmf : P -> Q)
+  (Hf_incr   : is_increasing f)
+  (Hg_cont   : is_omega_continuous g)
+  (Hgmf_incr : is_increasing gmf)
+  (Hsplit    : forall x, g x = precone_add (f x) (gmf x))
+  (u : nat -> P) (uch : _) (ub1 : _)
+  (gmfuch : _) (gmfub1 : _) (guch : _) (gub1 : _)
+  (fxgmfuch : _) (fxgmfub1 : _) :
+  gmf (cone_sup_ball u uch ub1) =
+    cone_sup_ball (gmf \o u) gmfuch gmfub1.
+```
+
 ---
 
 ## Paper § 3 — Measurable cones (MCones)
