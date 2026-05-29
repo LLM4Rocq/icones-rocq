@@ -750,6 +750,72 @@ Definition ICones_smcc (R : realType) (Ar : MeasSubcat R) :
 load-bearing for the whole development's axiom budget. It depends only on the
 3 classical `boolp` axioms.
 
+### Cat 6 (`Skern_hom`, `Skern_id`, `Skern_comp`)
+
+```coq
+(* theories/kernels/skern.v — Section SkernHom, Variables R Ar *)
+
+(** Paper §6.1: [Skern(X, Y) = B_{Path(X, FMeas(Y))}], i.e.
+    measurable paths of unit-ball norm. *)
+Record Skern_hom (X Y : ar_obj Ar) : Type := MkSkernHom {
+  skern_path     : path_car Ar X (fmeas R (ar_carrier Ar Y));
+  skern_norm_le1 : path_norm skern_path <= 1;
+}.
+
+(** Identity in [Skern] is the Dirac path. *)
+Definition Skern_id : Skern_hom Ar X X :=
+  MkSkernHom (dirac_path Ar X) dirac_path_norm_le1.
+
+(** Kleisli composition: [(κ ∘ λ)(r) := int_to_linhom_fun κ (λ r)]. *)
+Definition Skern_comp_path (λ : Skern_hom Ar X Y) (κ : Skern_hom Ar Y Z) :
+    path_car Ar X (fmeas R (ar_carrier Ar Z)) :=
+  MkPath (int_to_linhom_fun_pres_path (skern_path κ)
+            (path_is_path (skern_path λ))).
+
+Definition Skern_comp (λ : Skern_hom Ar X Y) (κ : Skern_hom Ar Y Z) :
+    Skern_hom Ar X Z :=
+  MkSkernHom (Skern_comp_path λ κ) (Skern_comp_norm_le1 λ κ).
+```
+
+### Thm 6.1 (`int_to_linhom`, `int_to_linhom_iso`)
+
+```coq
+(* theories/homs/bilin.v *)
+
+(** The underlying function: [µ ↦ icone_integral β Hβ µ]. *)
+Definition int_to_linhom_fun :
+    fmeas R (ar_carrier Ar X) -> B :=
+  fun µ => icone_integral βf Hβ µ.
+
+(** Packaged as a [linhom_car]. *)
+Definition int_to_linhom :
+    linhom_car Ar (fmeas R (ar_carrier Ar X)) B :=
+  MkLinhom int_to_linhom_pre
+    (fun Y β' Hβ' µ' => int_to_linhom_fun_pres_int β Hβ' µ').
+
+(** Paper Thm 6.1: [Path(X, B) ≃ FMeas(X) ⊸ B] as an iso in [Cones]. *)
+Definition int_to_linhom_iso : cones_iso P L :=
+  MkConesIso int_to_linhom_cones linhom_to_int_cones
+    int_to_linhom_conesK int_to_linhom_conesK'.
+```
+
+### Thm 6.5 (`Skern_to_ICones_fully_faithful`)
+
+```coq
+(* theories/kernels/kernel_embedding.v *)
+
+(** Paper Theorem 6.5 — the regression anchor. *)
+Theorem Skern_to_ICones_fully_faithful (X Y : ar_obj Ar) :
+  (forall κ1 κ2 : Skern_hom Ar X Y,
+     Skern_to_ICones_mor κ1 = Skern_to_ICones_mor κ2 -> κ1 = κ2) /\
+  (forall f : icones_hom Ar (fmeas R (ar_carrier Ar X))
+                            (fmeas R (ar_carrier Ar Y)),
+     exists κ : Skern_hom Ar X Y, Skern_to_ICones_mor κ = f).
+Proof.
+by split; [exact: Skern_to_ICones_faithful | exact: Skern_to_ICones_full].
+Qed.
+```
+
 ---
 
 ## Paper § 7 — Stable functions and the cartesian-closed category SCones
