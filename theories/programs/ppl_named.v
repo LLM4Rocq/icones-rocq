@@ -245,6 +245,12 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
   | ne_score (G : named_ctx Ar) (r : R)
              (Hr0 : (0 <= r)%R) (Hr1 : (r <= 1)%R) :
       named_expr G (tprob tunit)
+  | ne_score_tm (G : named_ctx Ar)
+                (f : R -> R)
+                (Hf_meas : measurable_fun [set: R] f)
+                (Hf_ge0 : forall r : R, (0 <= f r)%R)
+                (Hf_le1 : forall r : R, (f r <= 1)%R)
+                (e : named_expr G tR') : named_expr G (tprob tunit)
   | ne_add   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   | ne_mul   (G : named_ctx Ar) :
@@ -275,6 +281,8 @@ Arguments ne_bind {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_sample {R Ar R_obj G X} mu Hmu.
 Arguments ne_real {R Ar R_obj G} r.
 Arguments ne_score {R Ar R_obj G} r Hr0 Hr1.
+Arguments ne_score_tm {R Ar R_obj G} f Hf_meas Hf_ge0 Hf_le1 e.
+Arguments ne_score_tm {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_add {R Ar R_obj G} & M N.
 Arguments ne_mul {R Ar R_obj G} & M N.
 
@@ -311,6 +319,8 @@ Fixpoint nexp_to_dexp (G : named_ctx Ar) (t : ppl_type Ar)
   | ne_sample _ _ mu Hmu => e_sample mu Hmu
   | ne_real _ r => e_real r
   | ne_score _ r Hr0 Hr1 => e_score r Hr0 Hr1
+  | ne_score_tm _ f Hm Hg Hl e0 =>
+      e_score_tm f Hm Hg Hl (nexp_to_dexp e0)
   | ne_add _ M N => e_add (nexp_to_dexp M) (nexp_to_dexp N)
   | ne_mul _ M N => e_mul (nexp_to_dexp M) (nexp_to_dexp N)
   end.
@@ -475,6 +485,21 @@ Notation "'Score' ( r , Hr0 , Hr1 )" :=
   (ne_score r Hr0 Hr1)
   (in custom ppl_named at level 1, r constr, Hr0 constr, Hr1 constr).
 
+(** Term-level score primitive — [Score' { f , Hf_meas , Hf_ge0 , Hf_le1 } e]:
+    score by the measurable function [f : R -> R] applied to the value of
+    the named sub-expression [e : named_expr G tR'].  Surface notation
+    distinct from the scalar [Score (r, Hr0, Hr1)] by:
+      - the prime [Score'] keyword (avoids any parser clash);
+      - braces around the Coq-level measurability witnesses [{ f , Hm , Hg , Hl }];
+      - a SURFACE sub-expression [e] outside the braces, parsed in the
+        custom entry [ppl_named].
+    This matches the [e_score_tm] constructor of [ppl.v] one-for-one. *)
+Notation "'Score'' '{' f ',' Hf_meas ',' Hf_ge0 ',' Hf_le1 '}' e" :=
+  (ne_score_tm f Hf_meas Hf_ge0 Hf_le1 e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   f constr, Hf_meas constr, Hf_ge0 constr, Hf_le1 constr,
+   right associativity).
+
 (** Pair, projections. *)
 Notation "( e1 , e2 )" := (ne_pair e1 e2)
   (in custom ppl_named at level 0,
@@ -593,3 +618,69 @@ Arguments ex_named_random_constant {R Ar R_obj} mu Hmu.
 Arguments ex_named_random_linear {R Ar R_obj} mu Hmu.
 Arguments ex_named_random_constant_E {R Ar R_obj} mu Hmu.
 Arguments ex_named_random_linear_E {R Ar R_obj} mu Hmu.
+
+(** ** Named version of the Bayesian-observation example [ex_bayes_linear]
+
+    The De Bruijn original (in [ppl.v]) is:
+    [[
+       ex_bayes_linear  ≜
+         e_bind (e_sample mu Hmu)              (* prior:  m ~ mu *)
+           (e_bind (e_score_tm f … (e_var hv_zero))
+                                              (* score: f(m) *)
+              (e_ret (e_var (hv_succ hv_zero))))
+                                              (* return: m *)
+         : expr [] (tprob tR').
+    ]]
+
+    In the named surface syntax:
+    [[
+       [ let "m" := Sample (mu , Hmu) in
+         let "_" := Score' { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
+         Ret # "m" ]
+    ]]
+
+    Canonical-structure resolution for the variable occurrences:
+      - inside the body of the score [# "m"]: context is
+        [("m", tR') :: nil]; lookup yields [found_nv "m" tR' _]
+        (= De Bruijn [hv_zero]) — matches [e_var hv_zero] in
+        [ex_bl_score];
+      - inside the [Ret # "m"]: context is
+        [("_", tunit) :: ("m", tR') :: nil]; lookup yields
+        [recurse_nv "_" tunit _ (found_nv "m" tR' _)]
+        (= De Bruijn [hv_succ hv_zero]) — matches the
+        [e_var (hv_succ hv_zero)] in [ex_bl_cont].
+
+    Hence [nexp_to_dexp ex_named_bayes_linear = ex_bayes_linear …] by
+    pure conversion ([by []. Qed.]).  Since the translation is
+    structural, the axiom-clean reduction [ex_bayes_linear_denot_E]
+    in [ppl.v] carries over to the named version verbatim. *)
+
+Section NamedBayes.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+Definition ex_named_bayes_linear :
+    @named_expr R Ar R_obj nil (tprob tR') :=
+  [ let "m" := Sample (mu , Hmu) in
+    let "_" := Score' { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
+    Ret # "m" ].
+
+Lemma ex_named_bayes_linear_E :
+  nexp_to_dexp ex_named_bayes_linear =
+  ex_bayes_linear mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Proof. by []. Qed.
+
+End NamedBayes.
+
+Arguments ex_named_bayes_linear {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_named_bayes_linear_E {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
