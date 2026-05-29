@@ -210,10 +210,13 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
   for the canonical-structure resolution to fire on the right metavariable. A custom
   entry `ppl_named` provides the surface notation
   `let "x" := M in N` / `\"x" ::: A => M` / `Sample (mu, Hmu)` / `Score (r, Hr0, Hr1)`
+  / `Score' { f, Hf_meas, Hf_ge0, Hf_le1 } e` (the term-level Bayesian-score surface
+  form built on `ne_score_tm`, the named counterpart of `e_score_tm`)
   / `Ret e` / `# "x"` / `M @ N` / `M + N` / `M * N` / `(e1, e2)` / `fst e` / `snd e`
-  / `()` / `[|r|]` / `{x}`-escape; the existing flagship examples re-cast as
-  `ex_named_random_constant` and `ex_named_random_linear` discharge their equivalence to
-  the De Bruijn versions with `Proof. by [].`
+  / `()` / `[|r|]` / `{x}`-escape; the three flagship examples re-cast as
+  `ex_named_random_constant`, `ex_named_random_linear`, and
+  `ex_named_bayes_linear` discharge their equivalence to the De Bruijn versions
+  with `Proof. by [].`
 - **`theories/homs/fmeas_lax.v`** — the **FMeas lax symmetric monoidal map** as a genuine
   `icones_hom`: `fmeas_lax X Y : FMeas X ⊗ FMeas Y → FMeas (X × Y)`, sending `µ ⊗ ν` to the
   product measure `µ × ν`. Built via `tensor_uncurry` of the bilinear lift; the outer

@@ -1126,15 +1126,26 @@ canonical-structure resolution to fire on the right metavariable
 \texttt{ppl\_named} supports
 \texttt{let "x" := M in N} / \texttt{\textbackslash "x" ::: A => M}
 / \texttt{Sample (mu, Hmu)} / \texttt{Score (r, Hr0, Hr1)}
+/ \texttt{Score' \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e} (the
+term-level Bayesian-score surface form built on
+\rocq{Icones.programs.ppl_named.ne_score_tm}, the named
+counterpart of \rocq{Icones.programs.ppl.e_score_tm})
 / \texttt{Ret e} / \texttt{\# "x"} / \texttt{M @ N}
 / \texttt{M + N} / \texttt{M * N} / \texttt{(e1, e2)}
 / \texttt{fst e} / \texttt{snd e} / \texttt{()} / \texttt{[|r|]}
-/ \texttt{\{x\}}-escape; only the scalar \texttt{e\_score} is
-exposed at the surface (the term-level \texttt{e\_score\_tm} would
-require explicit Hypothesis-juggling at the notation level, so it
-is left to the De Bruijn syntax of \texttt{ppl.v}, where
-\autoref{lem:ppl-bayes-linear} already records the headline
-reduction).
+/ \texttt{\{x\}}-escape. The three flagship examples re-cast in
+the surface notation as
+\rocq{Icones.programs.ppl_named.ex_named_random_constant},
+\rocq{Icones.programs.ppl_named.ex_named_random_linear}, and
+\rocq{Icones.programs.ppl_named.ex_named_bayes_linear} discharge
+their equivalence to the De Bruijn versions by
+\texttt{Proof.~by~[].~Qed} (the corresponding equivalence lemmas
+\rocq{Icones.programs.ppl_named.ex_named_random_constant_E} /
+\rocq{Icones.programs.ppl_named.ex_named_random_linear_E} /
+\rocq{Icones.programs.ppl_named.ex_named_bayes_linear_E}), so all
+three reduction lemmas \autoref{lem:ppl-random-constant} /
+\autoref{lem:ppl-random-linear} / \autoref{lem:ppl-bayes-linear}
+carry over to the named surface at no proof cost.
 
 \paragraph{Genuine out-of-scope items.}
 Adequacy, normalization, and full-abstraction (traditional metatheory,
@@ -1187,10 +1198,14 @@ identity \rocq{Icones.programs.ppl.score_tm_lift_dirac},
 named-variable surface syntax of
 \texttt{theories/programs/ppl\_named.v}, delegating semantics
 structurally via \rocq{Icones.programs.ppl_named.nexp_to_dexp} and
-\rocq{Icones.programs.ppl_named.neD}, with the named flagship
+\rocq{Icones.programs.ppl_named.neD}, with the three named flagship
 examples
 \rocq{Icones.programs.ppl_named.ex_named_random_constant} /
-\rocq{Icones.programs.ppl_named.ex_named_random_linear}
+\rocq{Icones.programs.ppl_named.ex_named_random_linear} /
+\rocq{Icones.programs.ppl_named.ex_named_bayes_linear}
+(the last exercising the term-level
+\rocq{Icones.programs.ppl_named.ne_score_tm} surface form,
+mirroring \rocq{Icones.programs.ppl.e_score_tm})
 discharging their equivalence to the De Bruijn versions by
 \texttt{Proof.~by~[]}.
 
