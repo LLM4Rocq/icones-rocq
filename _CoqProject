@@ -65,4 +65,4 @@ theories/homs/em_cartesian.v
 theories/homs/cbv_adjunction.v
 theories/programs/cbv.v
 theories/programs/ppl.v
-theories/programs/ppl_named.v
+theories/programs/examples.v
