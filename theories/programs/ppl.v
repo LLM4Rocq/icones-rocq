@@ -164,8 +164,7 @@ Inductive ppl_type : Type :=
   | tunit
   | tbase (X : ar_obj Ar)
   | tprod (t1 t2 : ppl_type)
-  | tfun  (t1 t2 : ppl_type)
-  | tprob (t : ppl_type).
+  | tfun  (t1 t2 : ppl_type).
 
 End Types.
 
@@ -174,7 +173,6 @@ Arguments tunit {R Ar}.
 Arguments tbase {R Ar} X.
 Arguments tprod {R Ar} t1 t2.
 Arguments tfun {R Ar} t1 t2.
-Arguments tprob {R Ar} t.
 
 (** ** Contexts — named-variable surface, with the type-only De Bruijn
        skeleton kept as a PRIVATE projection for the semantic plumbing.
@@ -418,15 +416,14 @@ Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
   | tunit => EM_term
   | tbase X => FMeas_coalgebra X
   | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
+  (* Direct-style CBV: the function type is the Kleisli exponential
+     [!̃(U(⟦A⟧) ⊸ U(T ⟦B⟧))].  The [Tobj] on the codomain is what makes
+     EVERY function call effectful at the level of the semantic model;
+     the user-facing source language never mentions the monad ([tprob]
+     is gone), and the monadic structure is uniformly carried by [eD]
+     and by the [Tobj] in the linhom-codomain. *)
   | tfun A B => bang_cofree (linhom_car Ar (coalg_obj (tyD A))
-                                          (coalg_obj (tyD B)))
-  (* [tprob t] is the SYNTACTIC marker for "this is a computation in
-     the probability monad".  Semantically every expression is
-     interpreted through the monad uniformly ([eD] wraps EVERY
-     denotation in [Tobj]), so [tyD (tprob t) = tyD t]: the [tprob]
-     marker does NOT add an extra layer of [Tobj] at the type-level
-     interpretation.  The monadic structure is in [eD], not [tyD]. *)
-  | tprob t0 => tyD t0
+                                          (coalg_obj (Tobj (tyD B))))
   end.
 
 Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
