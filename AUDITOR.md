@@ -579,6 +579,163 @@ Proof. by exists icones_subobject_class; exact: icones_subobject_classP. Qed.
 | Thm 5.15 | `(ICones, ⊗, 1)` is a symmetric monoidal closed category. | `ICones_SMCC`, `ICones_smcc` — `theories/homs/smcc.v` |
 | Rem 5.1 | The tensor object is given by SAFT, without an explicit carrier. | The paper's invocation of SAFT is *mechanised* concretely in `representable.v` + `tensor_construct.v` — see *Beyond the paper* below |
 
+### Def 5.1 / 5.7 (`linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun`)
+
+```coq
+(* theories/homs/linhom.v — Section LinhomCar,
+   Variables (R : realType) (Ar : MeasSubcat R), C D : ICone.type Ar *)
+
+(** Paper §5.1: the integrable-linear-map carrier — a [linhom_pre]
+    (linear, ω-continuous, norm-bounded, path-preserving) plus
+    integral-preservation. *)
+Record linhom_car : Type := MkLinhom {
+  linhom_pre_of :> linhom_pre Ar C D;
+  linhom_pres_int :
+    forall (X : ar_obj Ar) (β : ar_carrier Ar X -> C)
+           (Hβ : is_measurable_path β)
+           (µ : fmeas R (ar_carrier Ar X)),
+      linhom_pre_fun linhom_pre_of (icone_integral β Hβ µ) =
+      icone_integral
+        (fun r => linhom_pre_fun linhom_pre_of (β r))
+        (linhom_pre_pres_path linhom_pre_of X β Hβ) µ;
+}.
+
+(* postcomposition / precomposition / object map of ⊸ *)
+Definition linhom_postc : linhom_car Ar C D2 :=
+  MkLinhom postc_pre postc_pres_int.
+Definition linhom_prec : linhom_car Ar C2 D :=
+  MkLinhom prec_pre prec_pres_int.
+
+Definition linhom_map_fun
+    (C1 C2 D1 D2 : ICone.type Ar)
+    (h : icones_hom Ar C2 C1) (g : icones_hom Ar D1 D2)
+    (f : linhom_car Ar C1 D1) : linhom_car Ar C2 D2 :=
+  linhom_prec h (linhom_postc g f).
+```
+
+### Prop 5.8 (`linhom_map_icones`)
+
+```coq
+(* theories/homs/linhom_functor.v *)
+(** Paper Prop 5.8: the action of [⊸] on morphisms as an [icones_hom]. *)
+Definition linhom_map_icones : icones_hom Ar (linhom_car Ar C1 D1)
+                                            (linhom_car Ar C2 D2) :=
+  MkIConesHom linhom_map_mcones linhom_map_pres_int.
+```
+
+### Thm 5.9 (`limpl_preserves_prod`, `limpl_preserves_limits`)
+
+```coq
+(* theories/homs/limpl_continuous.v *)
+
+(** Paper Thm 5.9 (products): [⟨ C ⊸ π_i ⟩_i] is an iso, so [C ⊸ −]
+    preserves the product [&_i D_i]. *)
+Definition limpl_preserves_prod :
+  icones_iso Ar (linhom_car Ar C Dprod) Lprod :=
+  icones_iso_of_cancel limpl_prod_fwd limpl_prod_inv_icones
+    limpl_prod_invK limpl_prod_fwdK.
+
+Record limpl_continuous : Prop := MkLimplContinuous {
+  lc_prod :
+    forall (I : Type) (D : I -> ICone.type Ar),
+      { iso : icones_iso Ar (linhom_car Ar C (icones_prod D))
+                            (icones_prod (fun i => linhom_car Ar C (D i)))
+      | iso_fwd iso = limpl_prod_fwd C D };
+  lc_eq_equ : (* equalisers half *) _;
+  lc_eq_med : (* mediator with factor + uniqueness *) _;
+}.
+
+(** Paper Thm 5.9 (packaged): [C ⊸ −] preserves products and
+    equalisers, hence all limits. *)
+Theorem limpl_preserves_limits : limpl_continuous.
+```
+
+### Thm 5.12 (`tensor_hom_iso`)
+
+```coq
+(* theories/homs/tensor.v — Section Tensor *)
+Definition tensor_hom_Phi (B C D : ICone.type Ar) :
+    icones_iso Ar ((B ⊗ C) ⊸ D) (B ⊸ (C ⊸ D)) :=
+  tensor_hom_iso B C D.
+```
+
+### Thm 5.13 (`tensor_norm_le`, `tensor_normME`)
+
+```coq
+(* theories/homs/tensor.v *)
+
+(** Thm 5.13 (≤ direction). *)
+Lemma tensor_norm_le (B C : ICone.type Ar) (x : B) (y : C) :
+  cone_norm (x ⊗p y) <= cone_norm x * cone_norm y.
+
+(** Thm 5.13 (full equality). *)
+Lemma tensor_normME (B C : ICone.type Ar) (x : B) (y : C) :
+  cone_norm (x ⊗p y) = cone_norm x * cone_norm y.
+```
+
+### Prop 5.14 (`tensor_ext`, `tensor_ext3`, `tensor_ext4`)
+
+```coq
+(* theories/homs/tensor.v *)
+Lemma tensor_ext (B C D : ICone.type Ar)
+    (f g : icones_hom Ar (B ⊗ C) D) :
+  (forall (x : B) (y : C), f (x ⊗p y) = g (x ⊗p y)) -> f = g.
+
+Lemma tensor_ext3 (A B C D : ICone.type Ar)
+    (f g : icones_hom Ar ((A ⊗ B) ⊗ C) D) :
+  (forall (x : A) (y : B) (z : C),
+     f ((x ⊗p y) ⊗p z) = g ((x ⊗p y) ⊗p z)) -> f = g.
+
+(* theories/homs/smcc.v *)
+Lemma tensor_ext4 (A B C D E : ICone.type Ar)
+    (f g : icones_hom Ar (((A ⊗ B) ⊗ C) ⊗ D) E) :
+  (forall (w : A) (x : B) (y : C) (z : D),
+     f (((w ⊗p x) ⊗p y) ⊗p z) = g (((w ⊗p x) ⊗p y) ⊗p z)) -> f = g.
+```
+
+### Thm 5.15 (`ICones_SMCC`, `ICones_smcc`)
+
+```coq
+(* theories/homs/smcc.v *)
+Record ICones_SMCC (R : realType) (Ar : MeasSubcat R) : Type :=
+  MkIConesSMCC {
+  (* monoidal product and unit *)
+  smcc_tensor : ICone.type Ar -> ICone.type Ar -> ICone.type Ar;
+  smcc_unit   : ICone.type Ar;
+  smcc_mor    : forall B1 B2 C1 C2 : ICone.type Ar,
+    icones_hom Ar B1 B2 -> icones_hom Ar C1 C2 ->
+    icones_hom Ar (smcc_tensor B1 C1) (smcc_tensor B2 C2);
+  smcc_mor_id : (* functoriality on identities *) _;
+  (* structural isos *)
+  smcc_assoc  : forall A B C, icones_iso Ar _ _;
+  smcc_lunit  : forall A, icones_iso Ar (smcc_tensor smcc_unit A) A;
+  smcc_runit  : forall A, icones_iso Ar (smcc_tensor A smcc_unit) A;
+  smcc_braid  : forall A B, icones_iso Ar (smcc_tensor A B) (smcc_tensor B A);
+  (* symmetry, triangle, pentagon, hexagon coherences *)
+  smcc_braid_invol : _; smcc_triangle : _;
+  smcc_pentagon    : _; smcc_hexagon  : _;
+  (* internal hom and the Thm 5.12 closure iso *)
+  smcc_hom    : ICone.type Ar -> ICone.type Ar -> ICone.type Ar;
+  smcc_closed : forall B C D,
+    icones_iso Ar (smcc_hom (smcc_tensor B C) D)
+                  (smcc_hom B (smcc_hom C D));
+}.
+
+(** Paper Thm 5.15: the canonical SMCC structure on [ICones]. *)
+Definition ICones_smcc (R : realType) (Ar : MeasSubcat R) :
+    ICones_SMCC Ar :=
+  {| smcc_tensor := @tensor R Ar;
+     smcc_unit   := cone_one_car Ar;
+     smcc_mor    := @tensor_mor R Ar;
+     smcc_assoc  := @tensor_assoc R Ar;
+     smcc_lunit  := @tensor_lunit R Ar;
+     smcc_runit  := @tensor_runit R Ar;
+     smcc_braid  := @tensor_braid R Ar;
+     (* ... coherence witnesses ... *)
+     smcc_hom    := @linhom_car R Ar;
+     smcc_closed := @tensor_hom_iso R Ar |}.
+```
+
 ---
 
 ## Paper § 6 — Substochastic kernels and the embedding theorem
