@@ -1,46 +1,55 @@
 (**md**************************************************************************)
-(** * A higher-order probabilistic PPL — single-sort, direct-style, multi-var
-       De Bruijn, with Kleisli-exponential semantics in [EM(!)]
+(** * A higher-order probabilistic PPL — named-variable, direct-style,
+       single-sort, with Kleisli-exponential semantics in [EM(!)]
 
     A higher-order probabilistic programming calculus, intrinsically
     typed and interpreted in the integrable-cones model.  The calculus
     shape follows the canonical QBS paper PPL
     (Heunen–Kammar–Staton–Yang, "A Convenient Category for Higher-Order
     Probability Theory"); the denotational semantics is the
-    Eilenberg–Moore [EM(!)] / CBV chain of [theories/programs/cbv.v].
+    Eilenberg–Moore [EM(!)] / CBV chain of [theories/programs/cbv.v];
+    the named-variable surface follows the Saito–Affeldt encoding
+    (APLAS 2023 §5.1–§5.3, §6).
 
     ** Surface calculus **
 
-    - a single inductive [expr Γ τ] indexed by an intrinsically-typed,
-      MULTI-VARIABLE De Bruijn context [Γ : ppl_ctx] and a type [τ :
+    - a single inductive [named_expr Γ τ] indexed by an
+      intrinsically-typed, MULTI-VARIABLE named context [Γ :
+      named_ctx Ar = seq (string * ppl_type Ar)] and a type [τ :
       ppl_type];
-    - direct-style application [e_app f x : expr Γ B], NOT fine-grain
-      Moggi: the user-facing calculus matches a textbook PPL while the
-      interpretation goes through the EM(!)-Kleisli-exponential chain
-      of [theories/programs/cbv.v] (= [Tobj = !̃ ∘ U]);
-    - monadic [e_ret] / [e_bind] returning to the probability type
+    - direct-style application [ne_app f x : named_expr Γ B], NOT
+      fine-grain Moggi: the user-facing calculus matches a textbook
+      PPL while the interpretation goes through the
+      EM(!)-Kleisli-exponential chain of [theories/programs/cbv.v]
+      (= [Tobj = !̃ ∘ U]);
+    - monadic [ne_ret] / [ne_bind] returning to the probability type
       [tprob τ];
     - a built-in measurable-space base [tbase X] for [X : ar_obj Ar], a
       unit type, binary products, and the higher-order arrow
       [tfun A B] = [!̃(U A ⊸ U B)] (the Kleisli exponential of the CBV
-      computation monad).
+      computation monad);
+    - a [Custom Entry ppl_named] surface notation lets users write
+      [\ "x" ::: tR => # "x"] etc. directly; the [# "x"] variable
+      lookup is resolved by canonical-structure search ([find_nv]).
 
     ** Constructors **
 
-    The full inductive [expr Γ τ] carries:
-    - [e_var v] — De Bruijn projection from [Γ];
-    - [e_tt] — the unit value;
-    - [e_pair] / [e_fst] / [e_snd] — binary products;
-    - [e_lam] / [e_app] — higher-order lambda / direct application;
-    - [e_ret] / [e_bind] — monadic return / sequencing;
-    - [e_sample mu Hmu] — sample from a unit-ball [mu : FMeas X];
-    - [e_real r] — real literal [r : R] of type [tR];
-    - [e_score f Hf_meas Hf_ge0 Hf_le1 e] — TERM-LEVEL score by
-      [f(r)] where [r] is the value of an [expr Γ tR] (the load-bearing
-      constructor for genuine Bayesian inference: the score factor can
-      depend on a bound variable, with [f : R → R] measurable and
-      pointwise in [[0,1]]);
-    - [e_add] / [e_mul] — pointwise [+]/[×] on two [tR]-valued
+    The full inductive [named_expr Γ τ] carries:
+    - [ne_var v] — named projection from [Γ] (witness [named_var]);
+    - [ne_tt] — the unit value;
+    - [ne_pair] / [ne_fst] / [ne_snd] — binary products;
+    - [ne_lam x M] / [ne_app] — higher-order lambda (with string
+      binder [x]) / direct application;
+    - [ne_ret] / [ne_bind x M K] — monadic return / sequencing (the
+      bind carries a string binder);
+    - [ne_sample mu Hmu] — sample from a unit-ball [mu : FMeas X];
+    - [ne_real r] — real literal [r : R] of type [tR];
+    - [ne_score f Hf_meas Hf_ge0 Hf_le1 e] — TERM-LEVEL score by
+      [f(r)] where [r] is the value of a [named_expr Γ tR] (the
+      load-bearing constructor for genuine Bayesian inference: the
+      score factor can depend on a bound variable, with [f : R → R]
+      measurable and pointwise in [[0,1]]);
+    - [ne_add] / [ne_mul] — pointwise [+]/[×] on two [tR]-valued
       computations.
 
     ** Type and context interpretation **
@@ -52,8 +61,11 @@
        ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U⟦t2⟧)         (Kleisli exponential of [T])
        ⟦tprob t⟧     = ⟦t⟧.
     ]]
-    Every expression denotes a Kleisli arrow [eD M : coalg_hom (ctxD Γ)
-    (Tobj (tyD τ))]: the [tprob] marker at the TYPE level is purely
+    Contexts are interpreted by [ctxD : seq (ppl_type Ar) -> Coalgebra Ar]
+    on the De Bruijn skeleton [drop_names Γ : seq (ppl_type Ar)]
+    obtained by forgetting the string identifiers; every expression
+    denotes a Kleisli arrow [eD M : coalg_hom (ctxD (drop_names Γ))
+    (Tobj (tyD τ))].  The [tprob] marker at the TYPE level is purely
     SYNTACTIC ([tyD (tprob t) = tyD t]) — the monadic structure is in
     [eD], not [tyD], and the "is-this-a-computation" status of a
     [tprob] term is uniformly carried by the outer [Tobj] wrap.  See
@@ -78,55 +90,24 @@
     - [add_lift_dirac a b] / [mul_lift_dirac a b]: the arithmetic lift
       on point masses reduces to the arithmetic on the carriers;
     - [score_lift_dirac r]: the term-level score on a point mass
-      reduces to [f r · one1] packaged as a [cone_one_car] element,
-      with [r] coming from a bound variable rather than a syntactic
-      literal.
+      reduces to [f r · one1] packaged as a [cone_one_car] element.
 
-    ** Headline examples **
-
-    Three end-to-end examples are bundled in the file; each comes with a
-    [_denot] denotation and a [_denot_E] structural reduction lemma.
-
-    - [ex_random_constant mu Hmu] (the QBS-showcase' [random_constant]
-      shape): [do c <- sample mu; return (λx. c) : tprob (tfun tR tR)] —
-      a distribution over a function space; [ex_random_constant_denot_E]
-      exposes the outer [kbind_ext lam_denot sample_denot] form.
-    - [ex_random_linear mu Hmu]: [do m <- sample mu; do b <- sample mu;
-      return (λx. m * x + b) : tprob (tfun tR tR)] — exercises [e_add]
-      and [e_mul]; [ex_random_linear_denot_E] exposes the nested
-      [kbind_ext] shape.
-    - [ex_bayes_linear mu Hmu f Hf_…]: [do m <- sample mu; do _ <-
-      score f m; return m : tprob tR] — the textbook prior/score/
-      return shape, the first example exercising [e_score].  The
-      reduction [ex_bayes_linear_denot_E] exposes the outer
-      [kbind_ext score_then_return_denot sample_denot] form.  This is
-      the UNNORMALISED posterior (no [qbs_normalize]); we claim only
-      that the denotation matches the expected joint-pushforward-then-
-      density reduction.
-
-    The QBS paper supplies the shape of the calculus; the QBS showcase
-    (mathcomp-qbs's [ppl_examples.v]) supplies the shape of these
-    examples.  The denotation, the EM(!) Kleisli-exponential
-    discipline, the FMeas lax monoidal scaffolding, and the
-    [e_score] term-level score are integrable-cones contributions.
-
-    All public names — [expr] / [tyD] / [ctxD] / [eD], every
-    constructor name, [add_lift] / [mul_lift] /
-    [add_lift_dirac] / [mul_lift_dirac], [score_lift] /
-    [score_lift_dirac], and the three [ex_random_constant] /
-    [ex_random_linear] / [ex_bayes_linear] families — are stable;
-    downstream references in the README / blueprint / AUDITOR.md
-    remain accurate. *)
+    Three end-to-end examples in surface syntax — [ex_random_constant]
+    / [ex_random_linear] / [ex_bayes_linear] — live in
+    [theories/programs/examples.v] together with their structural
+    reduction lemmas. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
-From mathcomp.reals Require Import reals.
+From mathcomp.reals Require Import reals signed.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure dirac_measure.
+
+From Stdlib Require Import Strings.String.
 
 Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
@@ -195,7 +176,17 @@ Arguments tprod {R Ar} t1 t2.
 Arguments tfun {R Ar} t1 t2.
 Arguments tprob {R Ar} t.
 
-(** ** Contexts and De Bruijn variable witnesses *)
+(** ** Contexts — named-variable surface, with the type-only De Bruijn
+       skeleton kept as a PRIVATE projection for the semantic plumbing.
+
+    The user-facing context is [named_ctx Ar = seq (string * ppl_type Ar)]:
+    every binding slot carries a string identifier.  The PRIVATE projection
+    [drop_names : named_ctx Ar -> seq (ppl_type Ar)] forgets the names; it
+    is the carrier on which the categorical interpretation [ctxD] lives.
+
+    [has_var (drop_names G) t] is the intrinsic De Bruijn index used by
+    [var_lookup] / [eD]; it is built from a [named_var G t] witness via
+    [named_var_to_has_var]. *)
 
 Section Contexts.
 Variable (R : realType) (Ar : MeasSubcat R).
@@ -203,11 +194,42 @@ Variable (R : realType) (Ar : MeasSubcat R).
 Definition ppl_ctx : Type := list (ppl_type Ar).
 
 (** [has_var G t]: a witness of "[t] is somewhere in [G]".  Intrinsic De
-    Bruijn index: [hv_zero] points to the HEAD, [hv_succ] skips it. *)
+    Bruijn index: [hv_zero] points to the HEAD, [hv_succ] skips it.  Lives
+    over the De Bruijn skeleton [seq (ppl_type Ar)]; the user-facing form
+    is [named_var] below. *)
 Inductive has_var : ppl_ctx -> ppl_type Ar -> Type :=
   | hv_zero (G : ppl_ctx) (t : ppl_type Ar) : has_var (t :: G) t
   | hv_succ (G : ppl_ctx) (t s : ppl_type Ar) :
       has_var G t -> has_var (s :: G) t.
+
+(** Named contexts pair each binding slot with a string identifier. *)
+Definition named_ctx : Type := list (string * ppl_type Ar).
+
+Definition drop_names (G : named_ctx) : ppl_ctx :=
+  map snd G.
+
+(** [named_var G t]: a witness that some string identifier in [G] is
+    bound to type [t].  Two constructors:
+    - [nv_head x t G : named_var ((x, t) :: G) t] — the head case;
+    - [nv_tail y s G t v : named_var ((y, s) :: G) t] — strip the head
+      and recurse. *)
+Inductive named_var : named_ctx -> ppl_type Ar -> Type :=
+  | nv_head (x : string) (t : ppl_type Ar) (G : named_ctx) :
+      named_var ((x, t) :: G) t
+  | nv_tail (y : string) (s : ppl_type Ar) (G : named_ctx)
+            (t : ppl_type Ar) (v : named_var G t) :
+      named_var ((y, s) :: G) t.
+
+(** Project a [named_var] witness to its De Bruijn index in the
+    name-stripped context.  Structural recursion on [v]; this is the
+    one-line bridge from named to skeletal contexts. *)
+Fixpoint named_var_to_has_var (G : named_ctx) (t : ppl_type Ar)
+    (v : named_var G t) {struct v} : has_var (drop_names G) t :=
+  match v in named_var G0 t0 return has_var (drop_names G0) t0 with
+  | nv_head _ t' G' => @hv_zero (drop_names G') t'
+  | nv_tail _ sty G' t' v' =>
+      @hv_succ (drop_names G') t' sty (named_var_to_has_var v')
+  end.
 
 End Contexts.
 
@@ -215,6 +237,12 @@ Arguments ppl_ctx {R} Ar.
 Arguments has_var {R Ar} G t.
 Arguments hv_zero {R Ar G t}.
 Arguments hv_succ {R Ar G t s} v.
+Arguments named_ctx {R} Ar.
+Arguments drop_names {R Ar} G.
+Arguments named_var {R Ar} G t.
+Arguments nv_head {R Ar} x t G.
+Arguments nv_tail {R Ar} y s G {t} v.
+Arguments named_var_to_has_var {R Ar G t} v.
 
 (** ** Distinguished real-object section — for [e_real] and [e_score]
 
@@ -241,39 +269,45 @@ End RealObj.
 Arguments R_to_carrier {R Ar R_obj} R_carrier_eq r.
 Arguments tR {R Ar} R_obj.
 
-(** ** Terms — single intrinsically-typed inductive [expr Γ τ]
+(** ** Terms — single intrinsically-typed inductive [named_expr Γ τ]
 
-    Notice we use DIRECT-style application [e_app : expr G (tfun t1 t2) ->
-    expr G t1 -> expr G t2] (not Moggi fine-grain), matching the QBS-paper
-    calculus shape; the Moggi monadic structure is uncovered by [eD] via the
-    Kleisli-exponential chain.
+    The user-facing surface syntax is NAMED: contexts carry string
+    identifiers at every binding slot and variable lookup is by string.
+    Direct-style application [ne_app : named_expr G (tfun t1 t2) ->
+    named_expr G t1 -> named_expr G t2] (not Moggi fine-grain) matches
+    the QBS-paper calculus shape; the Moggi monadic structure is
+    uncovered by [eD] via the Kleisli-exponential chain.
 
     The constructors:
-    - [e_var] : project a value from the De Bruijn context;
-    - [e_tt] : the unit value [()];
-    - [e_pair] / [e_fst] / [e_snd] : binary products;
-    - [e_lam] : higher-order lambda (body is an [expr] in the extended
+    - [ne_var] : project a value from the named context (via a
+      [named_var] witness; the surface notation [#"x"] uses canonical
+      structures to BUILD this witness from a string);
+    - [ne_tt] : the unit value [()];
+    - [ne_pair] / [ne_fst] / [ne_snd] : binary products;
+    - [ne_lam] : higher-order lambda — carries a [string] for the
+      binder name (body is a [named_expr] in the extended named
       context — IT IS NOT marked as a computation; the Moggi/Kleisli
       structure is in the SEMANTICS, not the syntax);
-    - [e_app] : DIRECT application;
-    - [e_ret] : monadic return [tprob t];
-    - [e_bind] : monadic bind [do x <- m; k];
-    - [e_sample] : sample from a fixed measure [µ : FMeas X] in the unit
-      ball (the constructor carries the cone-norm bound [Hmu : ‖µ‖ ≤ 1]
-      that the [linhom_icones]-wrapping needs);
-    - [e_real] : real literal [r : R] of type [tR] (the Dirac at [r] has
-      unit norm — no bound proof needed);
-    - [e_score] : TERM-LEVEL score by [f r : R] where [r] is the
-      value of an [expr G tR]; the meta-parameter [f : R → R] is
+    - [ne_app] : DIRECT application;
+    - [ne_ret] : monadic return [tprob t];
+    - [ne_bind] : monadic bind [do x <- m; k] — carries a [string] for
+      the bound name;
+    - [ne_sample] : sample from a fixed measure [µ : FMeas X] in the
+      unit ball (the constructor carries the cone-norm bound
+      [Hmu : ‖µ‖ ≤ 1] that the [linhom_icones]-wrapping needs);
+    - [ne_real] : real literal [r : R] of type [tR] (the Dirac at [r]
+      has unit norm — no bound proof needed);
+    - [ne_score] : TERM-LEVEL score by [f r : R] where [r] is the
+      value of a [named_expr G tR]; the meta-parameter [f : R → R] is
       measurable and pointwise in [[0,1]] (the bound is needed by
       the cone-norm / unit-ball discipline of [linhom_icones]).  This
       is the constructor that makes Bayesian-style observation
       actually possible: the score factor can depend on a bound
       variable through [e];
-    - [e_add] : pointwise sum of two [tR]-valued computations
+    - [ne_add] : pointwise sum of two [tR]-valued computations
       (interpretation: lax-monoidal pairing of the two pushforwards
       followed by [FMeas]-functorial action of measurable [+]);
-    - [e_mul] : pointwise product, analogous to [e_add]. *)
+    - [ne_mul] : pointwise product, analogous to [ne_add]. *)
 Section Syntax.
 Variable (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
@@ -282,56 +316,69 @@ Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
 Local Notation tR' := (tR R_obj).
 Local Notation T := (@ppl_type R Ar).
 
-Inductive expr : ppl_ctx Ar -> T -> Type :=
-  | e_var   (G : ppl_ctx Ar) (t : T) :
-      has_var G t -> expr G t
-  | e_tt    (G : ppl_ctx Ar) : expr G tunit
-  | e_pair  (G : ppl_ctx Ar) (t1 t2 : T) :
-      expr G t1 -> expr G t2 -> expr G (tprod t1 t2)
-  | e_fst   (G : ppl_ctx Ar) (t1 t2 : T) :
-      expr G (tprod t1 t2) -> expr G t1
-  | e_snd   (G : ppl_ctx Ar) (t1 t2 : T) :
-      expr G (tprod t1 t2) -> expr G t2
-  | e_lam   (G : ppl_ctx Ar) (t1 t2 : T) :
-      expr (t1 :: G) t2 -> expr G (tfun t1 t2)
-  | e_app   (G : ppl_ctx Ar) (t1 t2 : T) :
-      expr G (tfun t1 t2) -> expr G t1 -> expr G t2
-  | e_ret   (G : ppl_ctx Ar) (t : T) :
-      expr G t -> expr G (tprob t)
-  | e_bind  (G : ppl_ctx Ar) (t1 t2 : T) :
-      expr G (tprob t1) -> expr (t1 :: G) (tprob t2) ->
-      expr G (tprob t2)
-  | e_sample (G : ppl_ctx Ar) (X : ar_obj Ar)
-             (mu : fmeas R (ar_carrier Ar X))
-             (Hmu : (cone_norm mu <= 1)%R) :
-      expr G (tprob (tbase X))
-  | e_real  (G : ppl_ctx Ar) (r : R) : expr G tR'
-  | e_score (G : ppl_ctx Ar)
-            (f : R -> R)
-            (Hf_meas : measurable_fun [set: R] f)
-            (Hf_ge0 : forall r : R, (0 <= f r)%R)
-            (Hf_le1 : forall r : R, (f r <= 1)%R)
-            (e : expr G tR') : expr G (tprob tunit)
-  | e_add   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'
-  | e_mul   (G : ppl_ctx Ar) : expr G tR' -> expr G tR' -> expr G tR'.
+Inductive named_expr : named_ctx Ar -> T -> Type :=
+  | ne_var   (G : named_ctx Ar) (t : T) :
+      named_var G t -> named_expr G t
+  | ne_tt    (G : named_ctx Ar) : named_expr G tunit
+  | ne_pair  (G : named_ctx Ar) (t1 t2 : T) :
+      named_expr G t1 -> named_expr G t2 -> named_expr G (tprod t1 t2)
+  | ne_fst   (G : named_ctx Ar) (t1 t2 : T) :
+      named_expr G (tprod t1 t2) -> named_expr G t1
+  | ne_snd   (G : named_ctx Ar) (t1 t2 : T) :
+      named_expr G (tprod t1 t2) -> named_expr G t2
+  | ne_lam   (G : named_ctx Ar) (x : string) (t1 t2 : T) :
+      named_expr ((x, t1) :: G) t2 -> named_expr G (tfun t1 t2)
+  | ne_app   (G : named_ctx Ar) (t1 t2 : T) :
+      named_expr G (tfun t1 t2) -> named_expr G t1 -> named_expr G t2
+  | ne_ret   (G : named_ctx Ar) (t : T) :
+      named_expr G t -> named_expr G (tprob t)
+  | ne_bind  (G : named_ctx Ar) (x : string) (t1 t2 : T) :
+      named_expr G (tprob t1) ->
+      named_expr ((x, t1) :: G) (tprob t2) ->
+      named_expr G (tprob t2)
+  | ne_sample (G : named_ctx Ar) (X : ar_obj Ar)
+              (mu : fmeas R (ar_carrier Ar X))
+              (Hmu : (cone_norm mu <= 1)%R) :
+      named_expr G (tprob (tbase X))
+  | ne_real  (G : named_ctx Ar) (r : R) : named_expr G tR'
+  | ne_score (G : named_ctx Ar)
+             (f : R -> R)
+             (Hf_meas : measurable_fun [set: R] f)
+             (Hf_ge0 : forall r : R, (0 <= f r)%R)
+             (Hf_le1 : forall r : R, (f r <= 1)%R)
+             (e : named_expr G tR') : named_expr G (tprob tunit)
+  | ne_add   (G : named_ctx Ar) :
+      named_expr G tR' -> named_expr G tR' -> named_expr G tR'
+  | ne_mul   (G : named_ctx Ar) :
+      named_expr G tR' -> named_expr G tR' -> named_expr G tR'.
 
 End Syntax.
 
-Arguments expr {R Ar R_obj} G t.
-Arguments e_var {R Ar R_obj G t} v.
-Arguments e_tt {R Ar R_obj G}.
-Arguments e_pair {R Ar R_obj G t1 t2} M N.
-Arguments e_fst {R Ar R_obj G t1 t2} M.
-Arguments e_snd {R Ar R_obj G t1 t2} M.
-Arguments e_lam {R Ar R_obj G t1 t2} M.
-Arguments e_app {R Ar R_obj G t1 t2} F X.
-Arguments e_ret {R Ar R_obj G t} M.
-Arguments e_bind {R Ar R_obj G t1 t2} M K.
-Arguments e_sample {R Ar R_obj G X} mu Hmu.
-Arguments e_real {R Ar R_obj G} r.
-Arguments e_score {R Ar R_obj G} f Hf_meas Hf_ge0 Hf_le1 e.
-Arguments e_add {R Ar R_obj G} M N.
-Arguments e_mul {R Ar R_obj G} M N.
+Arguments named_expr {R Ar R_obj} G t.
+Arguments ne_var {R Ar R_obj G t} v.
+Arguments ne_tt {R Ar R_obj G}.
+Arguments ne_fst {R Ar R_obj G t1 t2} M.
+Arguments ne_snd {R Ar R_obj G t1 t2} M.
+Arguments ne_sample {R Ar R_obj G X} mu Hmu.
+Arguments ne_real {R Ar R_obj G} r.
+(** Bidirectionality hints ([&]) on the binding-site / context-shared
+    constructors: tell Coq's elaborator to resolve the outer index [G]
+    (and the binder slot's type [t1] where applicable) FIRST, then
+    propagate into the sub-expressions.  Without these hints the
+    [find_nv] canonical-structure lookup at [#"x"] sites is fired with
+    an open context metavariable and picks the wrong instance — see
+    the [find_nv] docstring.  This is exactly the Saito–Affeldt
+    [Arguments exp_letin {g} & {t1 t2}] pattern (APLAS 2023 §5.1). *)
+Arguments ne_pair {R Ar R_obj G t1 t2} & M N.
+Arguments ne_fst {R Ar R_obj G t1 t2} & M.
+Arguments ne_snd {R Ar R_obj G t1 t2} & M.
+Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M.
+Arguments ne_app {R Ar R_obj G t1 t2} & F X.
+Arguments ne_ret {R Ar R_obj G t} & M.
+Arguments ne_bind {R Ar R_obj G} x & {t1 t2} M K.
+Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
+Arguments ne_add {R Ar R_obj G} & M N.
+Arguments ne_mul {R Ar R_obj G} & M N.
 
 (** ** Type and context interpretation [tyD] / [ctxD]
 
@@ -1026,7 +1073,7 @@ Hypothesis R_to_carrier_meas :
 
 Local Notation T := (@ppl_type R Ar).
 Local Notation EX G t :=
-    (coalg_hom (ctxD G) (Tobj (tyD t))).
+    (coalg_hom (ctxD (drop_names G)) (Tobj (tyD t))).
 
 (** Helper: Dirac in [FMeas R_obj] has norm exactly [1], hence [≤ 1]. *)
 Lemma dirac_fmeas_norm_le1 (r : ar_carrier Ar R_obj) :
@@ -1046,53 +1093,57 @@ Definition sample_kleisli (G : Coalgebra Ar) (X : ar_obj Ar)
     coalg_hom G (Tobj (FMeas_coalgebra X)) :=
   @const_kleisli _ _ G (FMeas X) mu Hmu.
 
-(** The denotation of an expression as a coalgebra (Kleisli) morphism. *)
-Fixpoint eD (G : ppl_ctx Ar) (t : T)
-    (M : @expr R Ar R_obj G t) {struct M} : EX G t :=
-  match M in expr G0 t0 return EX G0 t0 with
-  | e_var _ _ v =>
-      coalg_comp (tunit_eta (tyD _)) (var_lookup v)
-  | e_tt G0 =>
-      coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD G0))
-  | e_pair G0 t1 t2 M1 M2 =>
+(** The denotation of a named expression as a coalgebra (Kleisli)
+    morphism.  By structural recursion on [named_expr]; the [ne_var]
+    clause runs the named-to-skeletal projection
+    [named_var_to_has_var] and then [var_lookup]. *)
+Fixpoint eD (G : named_ctx Ar) (t : T)
+    (M : @named_expr R Ar R_obj G t) {struct M} : EX G t :=
+  match M in named_expr G0 t0 return EX G0 t0 with
+  | ne_var _ _ v =>
+      coalg_comp (tunit_eta (tyD _))
+                 (var_lookup (named_var_to_has_var v))
+  | ne_tt G0 =>
+      coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD (drop_names G0)))
+  | ne_pair G0 t1 t2 M1 M2 =>
       coalg_comp (bang_m (coalg_obj (tyD t1)) (coalg_obj (tyD t2)))
                  (em_pair (eD M1) (eD M2))
-  | e_fst G0 t1 t2 M0 =>
+  | ne_fst G0 t1 t2 M0 =>
       coalg_comp (Tmap (em_proj1 (tyD t1) (tyD t2))) (eD M0)
-  | e_snd G0 t1 t2 M0 =>
+  | ne_snd G0 t1 t2 M0 =>
       coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD M0)
-  | e_lam G0 t1 t2 body =>
+  | ne_lam G0 _ t1 t2 body =>
       coalg_comp (tunit_eta (tyD (tfun t1 t2))) (lam_coalg (eD body))
-  | e_app G0 t1 t2 Vf Va =>
+  | ne_app G0 t1 t2 Vf Va =>
       kcomp (app_pair (tyD t1) (tyD t2))
         (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
                     (em_pair (eD Vf) (eD Va)))
   (* In this uniform-monadic semantics, [tyD (tprob t) = tyD t] (the
      [tprob] marker is purely syntactic, see the [tyD] docstring), so
-     [e_ret M] denotes the SAME Kleisli arrow as [M] itself.  This is
+     [ne_ret M] denotes the SAME Kleisli arrow as [M] itself.  This is
      consistent with treating EVERY expression as a Kleisli arrow into
      [Tobj (tyD t)]. *)
-  | e_ret G0 t0 M0 => eD M0
-  | e_bind G0 t1 t2 M0 K =>
+  | ne_ret G0 t0 M0 => eD M0
+  | ne_bind G0 _ t1 t2 M0 K =>
       kbind_ext (eD K) (eD M0)
-  | e_sample G0 X mu Hmu =>
-      @sample_kleisli (ctxD G0) X mu Hmu
-  | e_real G0 r =>
-      @real_kleisli (ctxD G0) r
-  | e_score G0 f Hf_meas Hf_ge0 Hf_le1 e0 =>
+  | ne_sample G0 X mu Hmu =>
+      @sample_kleisli (ctxD (drop_names G0)) X mu Hmu
+  | ne_real G0 r =>
+      @real_kleisli (ctxD (drop_names G0)) r
+  | ne_score G0 f Hf_meas Hf_ge0 Hf_le1 e0 =>
       coalg_comp
         (bang_cofree_hom
           (@score_lift R Ar R_obj R_carrier_eq R_carrier_meas
                        f Hf_meas Hf_ge0 Hf_le1))
         (eD e0)
-  | e_add G0 M0 N0 =>
+  | ne_add G0 M0 N0 =>
       coalg_comp
         (bang_cofree_hom
           (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
         (coalg_comp
           (bang_m (FMeas R_obj) (FMeas R_obj))
           (em_pair (eD M0) (eD N0)))
-  | e_mul G0 M0 N0 =>
+  | ne_mul G0 M0 N0 =>
       coalg_comp
         (bang_cofree_hom
           (@mul_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
@@ -1121,7 +1172,7 @@ Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 Local Notation EX' G t :=
-    (coalg_hom (ctxD G) (Tobj (tyD t))).
+    (coalg_hom (ctxD (drop_names G)) (Tobj (tyD t))).
 Local Notation tR' := (tR R_obj).
 Local Notation eD' :=
   (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas).
@@ -1131,77 +1182,79 @@ Local Notation eD' :=
     Stated as lemmas so [rewrite] folds them cleanly without an
     aggressive [/=] that would unfold all the categorical packaging. *)
 
-Lemma eD_var (G : ppl_ctx Ar) (t : ppl_type Ar) (v : has_var G t) :
-  eD' (e_var (R_obj := R_obj) v) =
-  coalg_comp (tunit_eta (tyD t)) (var_lookup v).
+Lemma eD_var (G : named_ctx Ar) (t : ppl_type Ar) (v : named_var G t) :
+  eD' (ne_var (R_obj := R_obj) v) =
+  coalg_comp (tunit_eta (tyD t)) (var_lookup (named_var_to_has_var v)).
 Proof. by []. Qed.
 
-Lemma eD_tt (G : ppl_ctx Ar) :
-  eD' (e_tt (R_obj := R_obj) (G := G)) =
-  coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD G)).
+Lemma eD_tt (G : named_ctx Ar) :
+  eD' (ne_tt (R_obj := R_obj) (G := G)) =
+  coalg_comp (tunit_eta EM_term) (em_term_mor (ctxD (drop_names G))).
 Proof. by []. Qed.
 
-Lemma eD_pair (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
-    (M : expr G t1) (N : expr G t2) :
-  eD' (e_pair M N) =
+Lemma eD_pair (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : named_expr G t1) (N : named_expr G t2) :
+  eD' (ne_pair M N) =
   coalg_comp (bang_m (coalg_obj (tyD t1)) (coalg_obj (tyD t2)))
              (em_pair (eD' M) (eD' N)).
 Proof. by []. Qed.
 
-Lemma eD_fst (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar) (M : expr G (tprod t1 t2)) :
-  eD' (e_fst M) = coalg_comp (Tmap (em_proj1 (tyD t1) (tyD t2))) (eD' M).
+Lemma eD_fst (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : named_expr G (tprod t1 t2)) :
+  eD' (ne_fst M) = coalg_comp (Tmap (em_proj1 (tyD t1) (tyD t2))) (eD' M).
 Proof. by []. Qed.
 
-Lemma eD_snd (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar) (M : expr G (tprod t1 t2)) :
-  eD' (e_snd M) = coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD' M).
+Lemma eD_snd (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : named_expr G (tprod t1 t2)) :
+  eD' (ne_snd M) = coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD' M).
 Proof. by []. Qed.
 
-Lemma eD_lam (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
-    (body : expr (t1 :: G) t2) :
-  eD' (e_lam body) =
+Lemma eD_lam (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
+    (body : named_expr ((x, t1) :: G) t2) :
+  eD' (ne_lam x body) =
   coalg_comp (tunit_eta (tyD (tfun t1 t2))) (lam_coalg (eD' body)).
 Proof. by []. Qed.
 
-Lemma eD_app (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
-    (F : expr G (tfun t1 t2)) (X : expr G t1) :
-  eD' (e_app F X) =
+Lemma eD_app (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (F : named_expr G (tfun t1 t2)) (X : named_expr G t1) :
+  eD' (ne_app F X) =
   kcomp (app_pair (tyD t1) (tyD t2))
     (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
                 (em_pair (eD' F) (eD' X))).
 Proof. by []. Qed.
 
-(** *** The "[e_ret] is identity" law
+(** *** The "[ne_ret] is identity" law
 
     Because [tyD (tprob t) = tyD t] and EVERY expression is interpreted
-    as a Kleisli arrow, [e_ret M] denotes the same arrow as [M].  This
+    as a Kleisli arrow, [ne_ret M] denotes the same arrow as [M].  This
     is the genuine "tprob is purely syntactic" content. *)
-Lemma eD_ret (G : ppl_ctx Ar) (t : ppl_type Ar) (M : expr G t) :
-  eD' (e_ret M) = eD' M.
+Lemma eD_ret (G : named_ctx Ar) (t : ppl_type Ar) (M : named_expr G t) :
+  eD' (ne_ret M) = eD' M.
 Proof. by []. Qed.
 
-Lemma eD_bind (G : ppl_ctx Ar) (t1 t2 : ppl_type Ar)
-    (M : expr G (tprob t1)) (K : expr (t1 :: G) (tprob t2)) :
-  eD' (e_bind M K) = kbind_ext (eD' K) (eD' M).
+Lemma eD_bind (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
+    (M : named_expr G (tprob t1)) (K : named_expr ((x, t1) :: G) (tprob t2)) :
+  eD' (ne_bind x M K) = kbind_ext (eD' K) (eD' M).
 Proof. by []. Qed.
 
-Lemma eD_sample (G : ppl_ctx Ar) (X : ar_obj Ar)
+Lemma eD_sample (G : named_ctx Ar) (X : ar_obj Ar)
     (mu : fmeas R (ar_carrier Ar X)) (Hmu : (cone_norm mu <= 1)%R) :
-  eD' (e_sample (R_obj := R_obj) (G := G) mu Hmu) =
-  sample_kleisli (ctxD G) mu Hmu.
+  eD' (ne_sample (R_obj := R_obj) (G := G) mu Hmu) =
+  sample_kleisli (ctxD (drop_names G)) mu Hmu.
 Proof. by []. Qed.
 
-Lemma eD_real (G : ppl_ctx Ar) (r : R) :
-  eD' (e_real (G := G) (R_obj := R_obj) r) =
-  @real_kleisli _ _ R_obj R_carrier_eq (ctxD G) r.
+Lemma eD_real (G : named_ctx Ar) (r : R) :
+  eD' (ne_real (G := G) (R_obj := R_obj) r) =
+  @real_kleisli _ _ R_obj R_carrier_eq (ctxD (drop_names G)) r.
 Proof. by []. Qed.
 
-Lemma eD_score (G : ppl_ctx Ar)
+Lemma eD_score (G : named_ctx Ar)
     (f : R -> R)
     (Hf_meas : measurable_fun [set: R] f)
     (Hf_ge0 : forall r : R, (0 <= f r)%R)
     (Hf_le1 : forall r : R, (f r <= 1)%R)
-    (e : expr G tR') :
-  eD' (e_score (R_obj := R_obj) f Hf_meas Hf_ge0 Hf_le1 e) =
+    (e : named_expr G tR') :
+  eD' (ne_score (R_obj := R_obj) f Hf_meas Hf_ge0 Hf_le1 e) =
   coalg_comp
     (bang_cofree_hom
       (@score_lift R Ar R_obj R_carrier_eq R_carrier_meas
@@ -1209,8 +1262,8 @@ Lemma eD_score (G : ppl_ctx Ar)
     (eD' e).
 Proof. by []. Qed.
 
-Lemma eD_add (G : ppl_ctx Ar) (M N : expr G tR') :
-  eD' (e_add M N) =
+Lemma eD_add (G : named_ctx Ar) (M N : named_expr G tR') :
+  eD' (ne_add M N) =
   coalg_comp
     (bang_cofree_hom
       (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
@@ -1219,8 +1272,8 @@ Lemma eD_add (G : ppl_ctx Ar) (M N : expr G tR') :
        (em_pair (eD' M) (eD' N))).
 Proof. by []. Qed.
 
-Lemma eD_mul (G : ppl_ctx Ar) (M N : expr G tR') :
-  eD' (e_mul M N) =
+Lemma eD_mul (G : named_ctx Ar) (M N : named_expr G tR') :
+  eD' (ne_mul M N) =
   coalg_comp
     (bang_cofree_hom
       (@mul_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas))
@@ -1245,10 +1298,10 @@ Arguments eD_tt {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} G.
 Arguments eD_pair {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M N.
 Arguments eD_fst {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M.
 Arguments eD_snd {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M.
-Arguments eD_lam {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} body.
+Arguments eD_lam {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} x {t1 t2} body.
 Arguments eD_app {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} F X.
 Arguments eD_ret {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} M.
-Arguments eD_bind {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t1 t2} M K.
+Arguments eD_bind {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} x {t1 t2} M K.
 Arguments eD_sample {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G X} mu Hmu.
 Arguments eD_real {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} r.
 Arguments eD_score
@@ -1257,297 +1310,206 @@ Arguments eD_score
 Arguments eD_add {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} M N.
 Arguments eD_mul {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} M N.
 
-(** ** Headline example — [ex_random_constant]
+(** ** Variable lookup by string — Saito–Affeldt canonical structures
 
-    The QBS-paper-flagship "distribution over a function space" example,
-    ported from [mathcomp-qbs/theories/showcase/ppl_examples.v]'s
-    [random_constant].  Parameterised by a measure [mu] on [R_obj]
-    standing in for QBS's [Normal(0,1)] (we do not commit to a concrete
-    constructor here: any unit-ball [mu : fmeas R (ar_carrier Ar R_obj)]
-    works — the headline is the term, the reduction, and the type, not
-    the choice of base sampler).
+    The Saito–Affeldt encoding (APLAS 2023 §5.2) uses a tagged structure
+    [find_nv s t] whose canonical-structure search builds the context
+    along with type inference.  The user writes [#"x"] and Coq's
+    canonical-structure search finds the right named context AND the
+    right type AND the right [named_var] witness in one go.
 
-    [[
-        ex_random_constant ≜
-          e_bind (e_sample mu Hmu)
-                 (e_ret (e_lam (e_var (hv_succ hv_zero))))
-        : expr [] (tprob (tfun tR tR))
-    ]]
+    Concretely:
 
-    Reading: draw [c ∼ mu], then return the constant function [λ x. c]
-    (the lambda body's [hv_succ hv_zero] index skips the lambda
-    parameter and reads the outer bound [c]).  This is a distribution
-    over [tR → tR] — the "higher-order" content the QBS paper
-    invokes QBS for.
+    - [tagged_nctx] = a tagged [named_ctx] (so we can drive canonical
+      search through it);
+    - [find_nv s t] = a structure paired with a [tagged_nctx] and a
+      [named_var]-of-that-context-at-type-[t] witness;
+    - [found_tag] / [recurse_tag] : two tags for the head/tail cases
+      ([found_tag] is canonical, so canonical search tries the head
+      case first; otherwise Coq unfolds [found_tag] to reveal
+      [recurse_tag] and recurses on the tail).
 
-    The reduction lemma [ex_random_constant_denot_E] uses the
-    definitional [eD_ret] (= identity at the Kleisli level) and
-    [eD_bind] to expose the structural form
-    [kbind_ext lam_denot sample_denot]. *)
-Section RandomConstant.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+    To handle the "different-string-in-tail" case we rely on
+    [infer (String.eqb s y = false)] : the [infer] class of
+    [mathcomp.reals.signed] resolves to a [vm_compute]-reducible
+    truth-of-boolean witness for the *concrete* string disequalities
+    that occur in our examples — exactly the Saito–Affeldt usage of
+    [infer]. *)
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+(** Tagged named-context — the canonical-structure dispatcher.  Note:
+    we deliberately keep [tagged_nctx] / [find_nv] / the canonical
+    instances OUTSIDE any [Section] so that [Set Implicit Arguments]
+    binds [R, Ar] as STRICT IMPLICIT directly on the structure (rather
+    than as section-discharged parameters), matching the way
+    Saito–Affeldt's [find] structure is set up in their development.
+    [R] and [Ar] are then inferred from the surrounding context at
+    every canonical-structure use site. *)
+Structure tagged_nctx (R : realType) (Ar : MeasSubcat R) :=
+  Tag_nctx { untag_nctx : named_ctx Ar }.
 
-Local Notation tR' := (tR R_obj).
+Arguments Tag_nctx {R Ar} _.
 
-(** The lambda body: [hv_succ hv_zero] in context [tR :: tR :: nil]
-    skips the lambda parameter and reads the outer bound variable. *)
-Definition ex_rc_body : @expr R Ar R_obj (tR' :: tR' :: nil) tR' :=
-  e_var (hv_succ hv_zero).
+(** The [find_nv s t] structure: a tagged context together with a proof
+    that the string [s] is bound to type [t] in that context.  *)
+Structure find_nv (R : realType) (Ar : MeasSubcat R)
+    (s : string) (t : ppl_type Ar) : Type := Find_nv {
+  fn_ctx  : tagged_nctx Ar;
+  fn_proof : named_var (untag_nctx fn_ctx) t
+}.
 
-(** The lambda closure: in context [tR :: nil] returns a function
-    [tR → tR] = the constant-c closure. *)
-Definition ex_rc_lam : @expr R Ar R_obj (tR' :: nil) (tfun tR' tR') :=
-  e_lam ex_rc_body.
+Arguments Find_nv {R Ar} s t _ _.
 
-(** The PPL term: [do c <- sample mu; return (λ x. c)]. *)
-Definition ex_random_constant :
-    @expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
-  e_bind (e_sample mu Hmu) (e_ret ex_rc_lam).
+(** The two tags: [found_nctx] (canonical) and [recurse_nctx] (fallback).
+    Both unfold to [Tag_nctx], but [found_nctx] is the one Coq's
+    canonical-structure search tries FIRST.  Verbatim from
+    Saito–Affeldt §5.2 ([found_tag] / [recurse_tag]). *)
+Definition recurse_nctx (R : realType) (Ar : MeasSubcat R)
+    (G : named_ctx Ar) := Tag_nctx G.
+Canonical found_nctx (R : realType) (Ar : MeasSubcat R)
+    (G : named_ctx Ar) := recurse_nctx G.
 
-(** Its denotation — a Kleisli arrow [⟦[]⟧ ⇝ ⟦tfun tR tR⟧], i.e.
-    [EM_term → Tobj (!̃(U tR ⊸ U tR))]. *)
-Definition ex_random_constant_denot :
-    coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD (tfun tR' tR'))) :=
-  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
-      nil (tprob (tfun tR' tR')) ex_random_constant.
+(** Canonical instance 1 (head case): the sought string is the head of
+    the context. *)
+Canonical found_nv (R : realType) (Ar : MeasSubcat R)
+    (s : string) (t : ppl_type Ar) (G : named_ctx Ar) :
+    find_nv s t :=
+  @Find_nv R Ar s t (found_nctx ((s, t) :: G)) (nv_head s t G).
 
-(** The structural reduction: [eD_ret] is the identity, [eD_bind] is
-    [kbind_ext]; combining them, the denotation reads as
-    [kbind_ext (eD ex_rc_lam) (eD (e_sample mu Hmu))]. *)
-Lemma ex_random_constant_denot_E :
-  ex_random_constant_denot =
-  kbind_ext
-    (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _ ex_rc_lam)
-    (sample_kleisli (ctxD nil) mu Hmu).
-Proof.
-rewrite /ex_random_constant_denot /ex_random_constant.
-rewrite eD_bind eD_ret eD_sample.
-by [].
-Qed.
+(** Canonical instance 2 (tail case): the sought string is NOT the head
+    of the context.  Driven by [infer (String.eqb s y = false)]; the
+    boolean disequality witness is found by canonical search /
+    [vm_compute] in concrete cases. *)
+Canonical recurse_nv (R : realType) (Ar : MeasSubcat R)
+    (s : string) (t : ppl_type Ar) (y : string)
+    (sty : ppl_type Ar) (Hneq : infer (String.eqb s y = false))
+    (g : find_nv s t) : find_nv s t :=
+  @Find_nv R Ar s t
+    (recurse_nctx ((y, sty) :: untag_nctx (fn_ctx g)))
+    (nv_tail y sty (untag_nctx (fn_ctx g)) (fn_proof g)).
 
-End RandomConstant.
+(** [ne_var'] — the canonical-structure-driven version of [ne_var].  The
+    user writes [ne_var' "x" _] (or just [#"x"] via the notation) and
+    Coq fills in the context [G] AND the type [t] AND the
+    [named_var]-witness all by canonical-structure resolution. *)
+Definition ne_var' (R : realType) (Ar : MeasSubcat R) (R_obj : ar_obj Ar)
+    (s : string) (t : ppl_type Ar) (g : find_nv s t) :
+    @named_expr R Ar R_obj (untag_nctx (fn_ctx g)) t :=
+  ne_var (fn_proof g).
 
-Arguments ex_rc_body {R Ar R_obj}.
-Arguments ex_rc_lam {R Ar R_obj}.
-Arguments ex_random_constant {R Ar R_obj} mu Hmu.
-Arguments ex_random_constant_denot
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
-Arguments ex_random_constant_denot_E
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
+(** Force [s] to be EXPLICIT and [R, Ar, R_obj, t] implicit in
+    [ne_var'].  Crucial for the [# x] notation. *)
+Arguments ne_var' {R Ar R_obj} s {t} g.
 
-(** ** Headline example — [ex_random_linear]
+(** ** Surface notation — custom entry [ppl_named]
 
-    The QBS-style "random linear function" example: draw two random
-    coefficients [m, b ~ mu] and return the random function [λx. m·x + b]
-    of type [tprob (tfun tR tR)].  This exercises both [e_add]/[e_mul]
-    and shows that the [eD] semantics produces a Kleisli arrow whose
-    structural form reads as
-    [[
-       kbind_ext m_kont (sample_kleisli mu)
-    ]]
-    where [m_kont] is the extended-context continuation, itself a nested
-    [kbind_ext] in the inner [b] draw.  There is NO closed-form
-    posterior — the headline is just the term, its type, the [Inductive]
-    coverage of [e_add]/[e_mul], and the structural reduction. *)
+    Following Saito–Affeldt §5.3:
 
-Section RandomLinear.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+      [...]                         enter the named-PPL grammar
+      {...}                         escape back to Coq
+      Ret e                         ne_ret
+      let "x" := M in N             monadic let (= ne_bind)
+      Sample (mu , Hmu)             sample primitive
+      Score { f, Hm, Hg, Hl } e     term-level score primitive
+      \ "x" ::: A => M              lambda with named binder of type A
+      M @ N                         direct application
+      # "x"                         variable lookup by string
+      M + N , M * N                 ne_add / ne_mul on tR
+      e1 , e2 ; fst e ; snd e ; ()  pairs / projections / unit
+      [|r|]                         real literal (= ne_real)
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+    Note: pure [let] (non-monadic) is omitted on purpose — our PPL is
+    monadic by construction; the surface [let "x" := M in N] desugars
+    to [ne_bind] (which matches the QBS-paper convention since every
+    term is a Kleisli arrow).  For pure lambdas use [\"x" ::: A => M]. *)
 
-Local Notation tR' := (tR R_obj).
+Declare Custom Entry ppl_named.
 
-(** The lambda body in context [tR :: tR :: tR :: nil]:
-    - [hv_zero] = [x] (lambda parameter, most-recently bound, head);
-    - [hv_succ hv_zero] = [b] (the inner [e_bind]);
-    - [hv_succ (hv_succ hv_zero)] = [m] (the outer [e_bind]).
-    Term: [m * x + b]. *)
-Definition ex_rl_body :
-    @expr R Ar R_obj (tR' :: tR' :: tR' :: nil) tR' :=
-  e_add (e_mul (e_var (hv_succ (hv_succ hv_zero))) (e_var hv_zero))
-        (e_var (hv_succ hv_zero)).
+(** Brackets [...] enter the surface grammar.  Curly braces {...} drop
+    back into ambient Coq. *)
+Notation "[ e ]" := e (e custom ppl_named at level 90).
+Notation "{ x }" := x (in custom ppl_named at level 0, x constr).
 
-(** The lambda closure: in context [tR :: tR :: nil], returns the
-    function [λx. m*x + b]. *)
-Definition ex_rl_lam :
-    @expr R Ar R_obj (tR' :: tR' :: nil) (tfun tR' tR') :=
-  e_lam ex_rl_body.
+(** Parenthesisation inside the surface. *)
+Notation "( e )" := e (in custom ppl_named at level 0, e custom ppl_named).
 
-(** The PPL term:
-    [do m <- sample mu; do b <- sample mu; return (λx. m*x + b)]. *)
-Definition ex_random_linear :
-    @expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
-  e_bind (e_sample mu Hmu)
-    (e_bind (e_sample mu Hmu)
-       (e_ret ex_rl_lam)).
+(** Unit literal. *)
+Notation "()" := ne_tt (in custom ppl_named at level 0).
 
-(** Its denotation — a Kleisli arrow [⟦[]⟧ ⇝ ⟦tfun tR tR⟧]. *)
-Definition ex_random_linear_denot :
-    coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD (tfun tR' tR'))) :=
-  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
-      nil (tprob (tfun tR' tR')) ex_random_linear.
+(** Variable lookup [# "x"] : uses the canonical-structures [ne_var']
+    so Coq's canonical-structure search fills in the context AND the
+    type AND the [named_var] witness automatically.  In concrete
+    contexts the search reduces by [vm_compute] / canonical resolution
+    to the right [nv_head] / [nv_tail] cascade. *)
+Notation "# x" :=
+  (ne_var' x%string _)
+  (in custom ppl_named at level 1, x constr at level 0).
 
-(** Structural reduction — exposes the nested-[kbind_ext] form.
+(** Real literal — write as [| r |] to keep the entry self-contained. *)
+Notation "[| r |]" := (ne_real r) (in custom ppl_named at level 1, r constr).
 
-    [ex_random_linear_denot
-       = kbind_ext (kbind_ext (eD ex_rl_lam) (sample_kleisli mu))
-                   (sample_kleisli mu)].
-    The outer [kbind_ext] is the [m]-draw; its continuation is the
-    [b]-draw's [kbind_ext] continued by [eD ex_rl_lam], the lambda
-    closure denotation. *)
-Lemma ex_random_linear_denot_E :
-  ex_random_linear_denot =
-  kbind_ext
-    (kbind_ext
-       (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _
-            ex_rl_lam)
-       (sample_kleisli (ctxD (tR' :: nil)) mu Hmu))
-    (sample_kleisli (ctxD nil) mu Hmu).
-Proof.
-rewrite /ex_random_linear_denot /ex_random_linear.
-rewrite eD_bind eD_bind eD_ret !eD_sample.
-by [].
-Qed.
+(** Monadic return. *)
+Notation "'Ret' e" := (ne_ret e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   right associativity).
 
-End RandomLinear.
+(** Sample primitive — takes a [(mu, Hmu)] Coq pair. *)
+Notation "'Sample' ( mu , Hmu )" :=
+  (ne_sample mu Hmu)
+  (in custom ppl_named at level 1, mu constr, Hmu constr).
 
-Arguments ex_rl_body {R Ar R_obj}.
-Arguments ex_rl_lam {R Ar R_obj}.
-Arguments ex_random_linear {R Ar R_obj} mu Hmu.
-Arguments ex_random_linear_denot
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
-Arguments ex_random_linear_denot_E
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu.
+(** Term-level score primitive — [Score { f , Hf_meas , Hf_ge0 , Hf_le1 } e]:
+    score by the measurable function [f : R -> R] applied to the value of
+    the named sub-expression [e : named_expr G tR'].
+      - braces around the Coq-level measurability witnesses [{ f , Hm , Hg , Hl }];
+      - a SURFACE sub-expression [e] outside the braces, parsed in the
+        custom entry [ppl_named].
+    This matches the [ne_score] constructor one-for-one. *)
+Notation "'Score' '{' f ',' Hf_meas ',' Hf_ge0 ',' Hf_le1 '}' e" :=
+  (ne_score f Hf_meas Hf_ge0 Hf_le1 e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   f constr, Hf_meas constr, Hf_ge0 constr, Hf_le1 constr,
+   right associativity).
 
-(** ** Headline example — [ex_bayes_linear]
+(** Pair, projections. *)
+Notation "( e1 , e2 )" := (ne_pair e1 e2)
+  (in custom ppl_named at level 0,
+   e1 custom ppl_named at level 60,
+   e2 custom ppl_named at level 60).
+Notation "'fst' e" := (ne_fst e)
+  (in custom ppl_named at level 10, e custom ppl_named at level 10).
+Notation "'snd' e" := (ne_snd e)
+  (in custom ppl_named at level 10, e custom ppl_named at level 10).
 
-    The textbook Bayesian-observation pattern: a sample from a unit-ball
-    prior [mu], scored by a measurable likelihood [f : R → R] that
-    pointwise lies in [[0,1]] (think [f = gaussian_lik y] for some fixed
-    observation [y : R], CLIPPED to the unit interval to fit the
-    integrable-cone discipline).  The PPL term is
-    [[
-       ex_bayes_linear ≜
-         e_bind (e_sample mu Hmu)             (* prior:    m ~ mu *)
-           (e_bind (e_score f … (e_var hv_zero))
-                                              (* score by  f(m) *)
-              (e_ret (e_var (hv_succ hv_zero))))
-                                              (* return    m *)
-         : expr [] (tprob tR).
-    ]]
+(** Application — [M @ N] (left associative). *)
+Notation "M @ N" := (ne_app M N)
+  (in custom ppl_named at level 20, left associativity,
+   M custom ppl_named, N custom ppl_named).
 
-    **Honest scope note.**  This is the UNNORMALISED posterior: the
-    denotation is a sub-probability measure whose total mass equals
-    [∫ f(m) dµ(m)].  We do NOT claim Bayes-optimality — we claim only
-    that the denotation reduces to the expected nested-[kbind_ext] form
-    glueing the prior sample, the score's [bang_cofree_hom score_lift]
-    post-composition, and the [m]-projection return.  Normalisation
-    would require a [qbs_normalize]-style downstream pass we have not
-    introduced.
+(** Arithmetic. *)
+Notation "M + N" := (ne_add M N)
+  (in custom ppl_named at level 40, left associativity,
+   N custom ppl_named at level 39).
+Notation "M * N" := (ne_mul M N)
+  (in custom ppl_named at level 30, left associativity,
+   N custom ppl_named at level 29).
 
-    Reading: the prior is named [mu]; the score uses [f] supplied by
-    the caller (e.g. a clipped Gaussian likelihood of the observation
-    [y]); the lambda body returns the OUTER bound [m] (because after
-    the score's [e_bind] the de Bruijn head is the score's [tunit]
-    result, and [m] is one position back). *)
+(** Lambda — [\"x" ::: A => M] : explicit type annotation [A] on the
+    binder.  We carry the type explicitly because [ne_lam] needs to
+    extend the named context with a [(string, ppl_type)] pair.  We use
+    [::] (not [:>]) for the type ascription since [:>] is reserved at
+    constr level and would clash with the [x constr] parser. *)
+Notation "'\' x ':::' A '=>' M" :=
+  (ne_lam x%string (t1 := A) M)
+  (in custom ppl_named at level 70, x constr at level 0,
+   A constr at level 0,
+   M custom ppl_named at level 60, right associativity).
 
-Section BayesLinear.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
-
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
-
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
-
-Local Notation tR' := (tR R_obj).
-
-(** The score sub-term [score f (e_var hv_zero)] in context [tR :: nil]:
-    the [hv_zero] reads the (only) bound variable [m]. *)
-Definition ex_bl_score :
-    @expr R Ar R_obj (tR' :: nil) (tprob tunit) :=
-  e_score f Hf_meas Hf_ge0 Hf_le1 (e_var hv_zero).
-
-(** The continuation under the prior bind, in context [tR :: nil]:
-    [do _ <- score f(m); return m]. *)
-Definition ex_bl_cont :
-    @expr R Ar R_obj (tR' :: nil) (tprob tR') :=
-  e_bind ex_bl_score (e_ret (e_var (hv_succ hv_zero))).
-
-(** The PPL term:
-    [do m <- sample mu; do _ <- score f(m); return m]. *)
-Definition ex_bayes_linear :
-    @expr R Ar R_obj nil (tprob tR') :=
-  e_bind (e_sample mu Hmu) ex_bl_cont.
-
-(** Its denotation — a Kleisli arrow [⟦[]⟧ ⇝ ⟦tR⟧]. *)
-Definition ex_bayes_linear_denot :
-    coalg_hom (ctxD (Ar := Ar) nil) (Tobj (tyD tR')) :=
-  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
-      nil (tprob tR') ex_bayes_linear.
-
-(** Structural reduction.
-
-    [ex_bayes_linear_denot
-       = kbind_ext (eD ex_bl_cont) (sample_kleisli mu Hmu)].
-
-    The outer-most layer is the prior bind, exposed by [eD_bind] and
-    [eD_sample].  The inner continuation [eD ex_bl_cont] is itself a
-    [kbind_ext] of the score-then-return shape, but the headline
-    asserts only the OUTER reduction (the inner one follows by
-    re-applying [eD_bind] / [eD_ret] / [eD_score] — the
-    [score_lift_dirac] identity is what would give a Dirac-input
-    point-reduction, but we do not commit to that here). *)
-Lemma ex_bayes_linear_denot_E :
-  ex_bayes_linear_denot =
-  kbind_ext
-    (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
-         _ _ ex_bl_cont)
-    (sample_kleisli (ctxD nil) mu Hmu).
-Proof.
-rewrite /ex_bayes_linear_denot /ex_bayes_linear.
-rewrite eD_bind eD_sample.
-by [].
-Qed.
-
-End BayesLinear.
-
-Arguments ex_bl_score {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_bl_cont {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_bayes_linear {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_bayes_linear_denot
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}
-  mu Hmu f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_bayes_linear_denot_E
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}
-  mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+(** Monadic let-binding — [let "x" := M in N] : desugars to [ne_bind]
+    in the extended named context [(x, _) :: G].  The bound-type slot
+    is inferred from [M]'s type [tprob t1]. *)
+Notation "'let' x ':=' M 'in' N" :=
+  (ne_bind x%string M N)
+  (in custom ppl_named at level 80, x constr at level 0,
+   M custom ppl_named at level 70,
+   N custom ppl_named at level 80,
+   right associativity).
