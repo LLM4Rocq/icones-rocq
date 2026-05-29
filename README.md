@@ -158,48 +158,70 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
   (`kcomp_etaR`/`kcomp_etaL`/`kcomp_A`), the product β-laws (`vlD_fst_pair`/`vlD_snd_pair`),
   and **`sample` = the integral** (`cpD_sample_var_dirac`: `⟦sample⟧(δ_r) = (δ_r)!`, via
   the FMeas coalgebra `Coalg_dirac` + `dirac_dense`).
-- **`theories/programs/ppl.v`** — a **higher-order**, direct-style, **multi-variable**,
-  **named-variable** Moggi-CBV calculus, the cones-model port of the
+- **`theories/programs/ppl.v`** — a **higher-order**, **direct-style** (Plotkin/Girard CBV),
+  **multi-variable**, **named-variable** PPL, the cones-model port of the
   [`mathcomp-qbs` ppl branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl) in the
-  surface style of Saito–Affeldt's APLAS 2023 named-variable embedding. A single
-  intrinsically-typed inductive `named_expr Γ τ` indexed by a named context
-  `named_ctx Ar = seq (string * ppl_type Ar)` and a type `τ : ppl_type Ar`; the
-  constructors are `ne_var` / `ne_tt` / `ne_pair` / `ne_fst` / `ne_snd` / `ne_lam` (with a
-  string binder, body in the extended named context) / `ne_app` (direct application,
-  `ne_app : named_expr Γ (tfun A B) → named_expr Γ A → named_expr Γ B`) / `ne_ret` /
-  `ne_bind` (string binder) / `ne_sample` (sample from a unit-ball `µ : FMeas X`) /
-  `ne_real` (Dirac literal at `r : R`) / `ne_score` (**term-level** Bayesian score by a
-  measurable `f : R → R` pointwise in `[0,1]` applied to the value of a
-  `named_expr Γ tR` — the load-bearing constructor for genuine Bayesian inference, where
-  the score factor depends on a bound variable) / **`ne_add`** / **`ne_mul`** (pointwise
-  arithmetic on `tR`-valued computations, via the FMeas lax-monoidal map). Every term
-  denotes a Kleisli arrow `coalg_hom (ctxD (drop_names Γ)) (T (tyD τ))` with
+  surface style of Saito–Affeldt's APLAS 2023 named-variable embedding. The probability
+  monad is in the *interpretation* `eD`, **not in the source-language types**: a function
+  that samples has type `tfun tunit tR`, not `tfun tunit (tprob tR)`; there is no `tprob`
+  type marker, no syntactic `return`, no `bind`. This is the direct-style story that ICones
+  was designed for; the cones-side full EM(!) value category — cartesian under the linear
+  `⊗`, with the unconditional `EMComon_all` (Cor 20) — is what makes the source-language
+  function type `tfun A B` interpretable as a CBV function type (the Kleisli exponential
+  `!̃(U A ⊸ U(T B))`, with the `T` on the codomain encoding the fact that every function
+  call is potentially effectful). A single intrinsically-typed inductive `named_expr Γ τ`
+  indexed by a named context `named_ctx Ar = seq (string * ppl_type Ar)` and a type
+  `τ : ppl_type Ar`; the constructors split into three groups:
+  - **pure** — `ne_var` (named projection from `Γ`), `ne_tt` (unit), `ne_pair` / `ne_fst`
+    / `ne_snd` (binary products), `ne_lam` (lambda with a string binder, body in the
+    extended named context — *not* marked as a computation), `ne_app` (direct application
+    `ne_app : named_expr Γ (tfun A B) → named_expr Γ A → named_expr Γ B`),
+    `ne_real` (real literal at `r : R`, type `tR`), `ne_add` / `ne_mul` (pointwise
+    arithmetic on `tR`-valued computations via the FMeas lax-monoidal map);
+  - **sequencer** — `ne_let` (direct-style CBV `let x = M in K`, with a string binder;
+    semantically the extended-context Kleisli bind `kbind_ext`);
+  - **effects** — `ne_sample` (sample from a unit-ball `µ : FMeas R_obj`, returning a
+    *pure* `tR` expression — the monad is hidden in `eD`), `ne_score` (**term-level**
+    Bayesian score by a measurable `f : R → R` pointwise in `[0,1]` applied to the value
+    of a `named_expr Γ tR`, returning a *pure* `tunit` expression — the load-bearing
+    constructor for genuine Bayesian inference, where the score factor depends on a bound
+    variable).
+
+  Every term denotes a Kleisli arrow `coalg_hom (ctxD (drop_names Γ)) (Tobj (tyD τ))` with
   `T = !̃ ∘ U` directly by structural recursion on `named_expr` (no two-step encoding);
-  function types use the **EM(!) Kleisli exponential** `⟦tfun A B⟧ = !̃(U A ⊸ U B)` (no
-  value-CCC required, and none exists). Variable lookup `#"x"` uses **canonical
-  structures** (`tagged_nctx` / `find_nv` / `found_nctx` / `recurse_nctx` / `ne_var'`, with
+  pure constructors are made into Kleisli arrows by post-composition with `tunit_eta` (the
+  implicit-return that direct style needs). Function types use the **EM(!) Kleisli
+  exponential** `⟦tfun A B⟧ = !̃(U A ⊸ U(T B))` (with the `T` on the codomain — every
+  function is potentially effectful in CBV, and there is no pure-function-type alternative
+  in the surface language). Variable lookup `#"x"` uses **canonical structures**
+  (`tagged_nctx` / `find_nv` / `found_nctx` / `recurse_nctx` / `ne_var'`, with
   mathcomp-analysis' `infer` typeclass on `String.eqb`) so Coq's elaborator infers the
   context slot, the type, and the `named_var` witness simultaneously; the
   bidirectionality hints `&` on every binding / context-shared constructor are crucial
   for the canonical-structure resolution to fire on the right metavariable. A custom
   entry `ppl_named` provides the surface notation
-  `let "x" := M in N` / `\ "x" ::: A => M` / `Sample (mu, Hmu)` /
+  `let "x" := M in N` (desugars to `ne_let`) / `\ "x" ::: A => M` / `Sample (mu, Hmu)` /
   `Score { f, Hf_meas, Hf_ge0, Hf_le1 } e` (the term-level Bayesian-score surface form;
-  desugars to `ne_score`) / `Ret e` / `# "x"` / `M @ N` / `M + N` / `M * N` /
-  `(e1, e2)` / `fst e` / `snd e` / `()` / `[|r|]` / `{x}`-escape. Meta-lemmas
-  `add_lift_dirac` / `mul_lift_dirac` / `score_lift_dirac` (the term-level score's Dirac
-  identity, reducing `score_lift f` on `δ_r` to `f(r) · one1` via the §6 follow-up
-  `int_to_linhom_pres_path_in_cone`) / `kbind_ext` (the extended-context Kleisli bind
-  used by `ne_bind`) are the load-bearing equations for the example reductions.
+  desugars to `ne_score`) / `# "x"` / `M @ N` / `M + N` / `M * N` /
+  `(e1, e2)` / `fst e` / `snd e` / `()` / `[|r|]` / `{x}`-escape (note: no `Ret` —
+  direct style has no syntactic return). Meta-lemmas `add_lift_dirac` / `mul_lift_dirac`
+  / `score_lift_dirac` (the term-level score's Dirac identity, reducing `score_lift f`
+  on `δ_r` to `f(r) · one1` via the §6 follow-up `int_to_linhom_pres_path_in_cone`) /
+  `kbind_ext` (the extended-context Kleisli bind used by `ne_let`) are the load-bearing
+  equations for the example reductions.
 - **`theories/programs/examples.v`** — three end-to-end QBS-style examples written
   exclusively in the surface notation `[ … ]`, each paired with a structural reduction
-  lemma `_denot_E` exposing the outer `kbind_ext` shape of its denotation:
-  - **`ex_random_constant`** — `[ let "c" := Sample (mu, Hmu) in Ret (\ "x" ::: tR => # "c") ]`
-    : `tprob (tfun tR tR)`. The QBS-paper flagship "distribution over a function space".
-    `ex_random_constant_denot_E` exposes
+  lemma `_denot_E` exposing the outer `kbind_ext` shape of its denotation. The examples
+  show the direct-style framing concretely: a function that samples has source type
+  `tfun tR tR` (not `tprob (tfun tR tR)`), and a probabilistic real-valued program has
+  source type `tR` (not `tprob tR`):
+  - **`ex_random_constant`** — `[ let "c" := Sample (mu, Hmu) in \ "x" ::: tR => # "c" ]`
+    : `tfun tR tR`. The QBS-paper flagship "distribution over a function space" — and
+    notice the type really is `tfun tR tR`, with the probability monad living entirely
+    in the interpretation. `ex_random_constant_denot_E` exposes
     `kbind_ext lam_denot sample_denot`.
   - **`ex_random_linear`** — `[ let "m" := Sample (mu, Hmu) in let "b" := Sample (mu, Hmu) in
-    Ret (\ "x" ::: tR => # "m" * # "x" + # "b") ]` : `tprob (tfun tR tR)`. The killer demo:
+    \ "x" ::: tR => # "m" * # "x" + # "b" ]` : `tfun tR tR`. The killer demo:
     exercises `ne_add` and `ne_mul` interpreted via the **FMeas lax-monoidal map**
     `fmeas_lax X Y : (FMeas X) ⊗ (FMeas Y) → FMeas (X × Y)` (`theories/homs/fmeas_lax.v`).
     On Dirac inputs the lift reduces to scalar arithmetic (`add_lift_dirac`,
@@ -208,11 +230,11 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
     "distribution of `λx. m·x + b` for `m, b ~ µ`" reading axiom-free.
     `ex_random_linear_denot_E` connects the denotation to the nested-`kbind_ext` form.
   - **`ex_bayes_linear`** — `[ let "m" := Sample (mu, Hmu) in let "_" := Score { f, … } # "m"
-    in Ret # "m" ]` : `tprob tR`. The textbook prior/score/return Bayesian shape, the only
+    in # "m" ]` : `tR`. The textbook prior/score/observe shape, the only
     example exercising `ne_score`. The score factor `f : R → R` (think a clipped Gaussian
     likelihood of a fixed observation, restricted to `[0,1]`) is applied to the bound
     variable `m`. `ex_bayes_linear_denot_E` exposes the outer
-    `kbind_ext score_then_return_denot sample_denot` form, axiom-free. **Honest scope
+    `kbind_ext score_then_observe_denot sample_denot` form, axiom-free. **Honest scope
     note**: this is the **unnormalised** posterior — the denotation is a sub-probability
     measure of total mass `∫ f(m) dµ(m)`; no `qbs_normalize`-style downstream pass is
     introduced, and we make no Bayes-optimality claim.
@@ -227,10 +249,14 @@ classical `boolp` axioms as everything else — verified by `Print Assumptions` 
 **One honest scope note.** The value category `EM(!)` is cartesian but **not** cartesian
 closed — and is not expected to be (this is a structural fact about EM categories of
 linear-exponential comonads, not a missing diagram chase). What `EM(!)` *does* have, and
-what Moggi-CBV actually needs, are the **Kleisli exponentials** for `T = !̃ ∘ U` described
-above. `cbv.v` interprets a first-order fragment (no function types — minimal Moggi-CBV
-demo); `ppl.v` interprets higher-order via the Kleisli exponentials. Adequacy /
-normalization / full-abstraction are out of scope here.
+what direct-style CBV actually needs, are the **Kleisli exponentials** `!̃(U A ⊸ U(T B))`
+for `T = !̃ ∘ U`. These are exactly what makes the source-language type `tfun A B` a
+genuine CBV function type (with the `T` on the codomain capturing the fact that every
+function call is potentially effectful), without forcing a monadic detour at the level of
+source types — which is the move older LL/comonad models could not make. `cbv.v` interprets
+a first-order Moggi fragment (no function types — minimal demo); `ppl.v` interprets the
+higher-order direct-style PPL via these Kleisli exponentials. Adequacy / normalization /
+full-abstraction are out of scope here.
 
 ## Status
 

@@ -48,61 +48,77 @@
 %                                      soundness: monad/let laws, product β,
 %                                      and sample = the integral
 %                                      (cpD_sample_var_dirac)
-%   theories/programs/ppl.v            a higher-order, DIRECT-STYLE,
-%                                      SINGLE-SORT, MULTI-VARIABLE,
-%                                      NAMED-VARIABLE QBS-MIRROR PPL:
-%                                      one inductive [named_expr Γ τ]
-%                                      with all the QBS constructors
-%                                      ne_var/ne_pair/ne_fst/ne_snd/
-%                                      ne_lam/ne_app/ne_ret/ne_bind/
-%                                      ne_sample plus ne_real (Dirac
-%                                      literal), ne_score (TERM-LEVEL
-%                                      Bayesian score by a measurable
-%                                      f : R -> R pointwise in [0,1]),
-%                                      ne_add, ne_mul (real arithmetic
-%                                      on tbase R via the FMeas
-%                                      lax-monoidal map). Types
-%                                      tunit/tbase X/tprod/tfun/tprob
-%                                      with tyD(tprob t) = tyD t (the
-%                                      tprob marker is purely syntactic;
-%                                      the monad lives entirely in eD,
-%                                      which is defined DIRECTLY by
-%                                      structural recursion on named_expr).
-%                                      Variable lookup #"x" via canonical
-%                                      structures (find_nv/found_nv/
-%                                      recurse_nv/ne_var') in the
-%                                      Saito-Affeldt APLAS 2023 style;
-%                                      custom-entry ppl_named surface
-%                                      notation [ ... ].
-%   theories/programs/examples.v       three QBS-style examples in
-%                                      surface syntax: ex_random_constant
-%                                      (the QBS flagship distribution
-%                                      over a function space),
-%                                      ex_random_linear (the killer demo:
-%                                      distribution over linear functions
-%                                      λx. m·x + b for m, b ~ µ), and
-%                                      ex_bayes_linear (textbook prior/
-%                                      score/return Bayesian shape, the
-%                                      only example exercising ne_score;
-%                                      the unnormalised posterior of total
-%                                      mass ∫ f(m) dµ(m)).
+%   theories/programs/ppl.v            a higher-order, DIRECT-STYLE
+%                                      (Plotkin/Girard CBV), SINGLE-SORT,
+%                                      MULTI-VARIABLE, NAMED-VARIABLE
+%                                      QBS-MIRROR PPL: one inductive
+%                                      [named_expr Γ τ] whose constructors
+%                                      split as pure (ne_var/ne_tt/ne_pair/
+%                                      ne_fst/ne_snd/ne_lam/ne_app/ne_real/
+%                                      ne_add/ne_mul), a SEQUENCER (ne_let:
+%                                      direct-style CBV let x = M in K,
+%                                      semantically the extended-context
+%                                      Kleisli bind kbind_ext) and effects
+%                                      (ne_sample : tR returning a PURE tR,
+%                                      ne_score : tunit returning a PURE
+%                                      tunit; the monad is in the
+%                                      interpretation eD, NOT the source
+%                                      types). Types tunit/tbase X/tprod/
+%                                      tfun; there is NO tprob marker, NO
+%                                      Ret, NO ne_bind in the source.
+%                                      tyD (tfun A B) = !̃(U A ⊸ U(T B)) —
+%                                      the Kleisli exponential with Tobj
+%                                      on the codomain, encoding the fact
+%                                      that every function call is
+%                                      potentially effectful in CBV.
+%                                      eD is defined DIRECTLY by structural
+%                                      recursion on named_expr; pure
+%                                      constructors are lifted into Kleisli
+%                                      arrows by post-composition with
+%                                      tunit_eta (the implicit return that
+%                                      direct style needs). Variable lookup
+%                                      #"x" via canonical structures
+%                                      (find_nv/found_nv/recurse_nv/ne_var')
+%                                      in the Saito-Affeldt APLAS 2023
+%                                      style; custom-entry ppl_named
+%                                      surface notation [ ... ] (no Ret).
+%   theories/programs/examples.v       three QBS-style direct-style
+%                                      examples in surface syntax:
+%                                      ex_random_constant : tfun tR tR
+%                                      (the QBS flagship distribution over
+%                                      a function space — and notice the
+%                                      type really is tfun tR tR, not
+%                                      tprob (tfun tR tR)),
+%                                      ex_random_linear : tfun tR tR (the
+%                                      killer demo: distribution over
+%                                      linear functions λx. m·x + b for
+%                                      m, b ~ µ), and ex_bayes_linear : tR
+%                                      (textbook prior/score/observe shape,
+%                                      the only example exercising
+%                                      ne_score; the unnormalised posterior
+%                                      of total mass ∫ f(m) dµ(m)).
 %
 % Status note: the CBV model is built and AXIOM-FREE (only the three
 % classical boolp axioms): ICones_CBV, ICones_EM_cartesian, EMComon_all,
 % cpD_sample_var_dirac, fmeas_lax_dirac, ex_random_constant_denot_E,
 % ex_random_linear_denot_E, ex_bayes_linear_denot_E are all axiom-clean.
-% The higher-order PPL is the multi-variable, named-variable, direct-style
-% QBS-mirror surface (what mathcomp-qbs/ppl has, and what
-% Heunen-Kammar-Staton-Yang LICS 2017 describe) — NOT a fine-grain Moggi
-% value/computation split.  Function types denote the EM(!) Kleisli
-% exponential ⟦tfun A B⟧ = !̃(U A ⊸ U B), the representing object for
-% Hom_EM(- × A, T B) with T = !̃ ∘ U, via the four-step natural
-% bijection (cofree U ⊣ !̃, U strict monoidal via cbv_U_prod, SMCC closure
-% of ICones, cofree U ⊣ !̃ again).  The Dirac/integration view of the
-% Moggi-Kleisli bind, bind(m, k)(γ) = ∫ k(γ, a) dm(γ)(a), is what lets
-% ne_add / ne_mul recover the QBS-style "distribution of λx. m·x + b on
-% Dirac inputs" reading.  EM(!) is NOT cartesian closed and is not expected
-% to be (a structural fact); Kleisli exponentials are what Moggi-CBV needs,
+% The higher-order PPL is the multi-variable, named-variable, DIRECT-STYLE
+% (Plotkin/Girard CBV) QBS-mirror surface — NOT a fine-grain Moggi
+% value/computation split, and NOT a monadic-style surface with a tprob
+% type marker.  This is the direct-style CBV that integrable cones were
+% designed to enable: the value-CCC structure on EM(!) (via Cor 20) is
+% what makes λx. M a VALUE with body M having type B (not T B), and the
+% Kleisli exponential !̃(U A ⊸ U(T B)) is THE source-language function
+% type — the monad is moved out of the source TYPE and into the
+% interpretation eD.  Function types denote the EM(!) Kleisli exponential
+% ⟦tfun A B⟧ = !̃(U A ⊸ U(T B)), the representing object for
+% Hom_EM(- × A, T B) with T = !̃ ∘ U, via the four-step natural bijection
+% (cofree U ⊣ !̃, U strict monoidal via cbv_U_prod, SMCC closure of ICones,
+% cofree U ⊣ !̃ again).  The Dirac/integration view of the Moggi-Kleisli
+% bind, bind(m, k)(γ) = ∫ k(γ, a) dm(γ)(a), is what lets ne_add / ne_mul
+% recover the QBS-style "distribution of λx. m·x + b on Dirac inputs"
+% reading.  EM(!) is NOT cartesian closed and is not expected to be (a
+% structural fact); Kleisli exponentials are what direct-style CBV needs,
 % and that is what ppl.v uses.  Adequacy / normalization / full-abstraction
 % are out of scope here, as are booleans / coproducts and qbs_normalize.
 
@@ -142,24 +158,24 @@ general carrier); $U \dashv \widetilde{\mathord{!}}$ is therefore a
 \emph{linear / non-linear} adjunction with \emph{the} category of
 $\mathord{!}$-coalgebras as the cartesian non-linear / value side.
 
-\paragraph{Higher-order CBV via EM(!) Kleisli exponentials.}
+\paragraph{Higher-order direct-style CBV via EM(!) Kleisli exponentials.}
 The value category $\mathrm{EM}(\mathord{!})$ is cartesian but
 \emph{not} cartesian closed --- a structural fact about EM categories of
-linear-exponential comonads, not a missing diagram chase. What Moggi-CBV
-actually requires, however, are not full internal homs but
-\emph{Kleisli exponentials} for the CBV monad
+linear-exponential comonads, not a missing diagram chase. What
+\emph{direct-style} (Plotkin/Girard) CBV actually requires, however, are
+not full internal homs but \emph{Kleisli exponentials} for the CBV monad
 $T = \widetilde{\mathord{!}} \circ U$, and those
 $\mathrm{EM}(\mathord{!})$ does have. The natural-bijection chain
 %
 \begin{align*}
   \mathrm{Hom}_{EM}(C \times A,\, T B)
-  &\;\cong\;\mathrm{Hom}_{IC}(U(C \times A),\, U B)
+  &\;\cong\;\mathrm{Hom}_{IC}(U(C \times A),\, U(T B))
         & \text{cofree } U \dashv \widetilde{\mathord{!}}\\
-  &\;\cong\;\mathrm{Hom}_{IC}(U C \otimes U A,\, U B)
+  &\;\cong\;\mathrm{Hom}_{IC}(U C \otimes U A,\, U(T B))
         & U \text{ strict monoidal}\\
-  &\;\cong\;\mathrm{Hom}_{IC}(U C,\, U A \multimap U B)
+  &\;\cong\;\mathrm{Hom}_{IC}(U C,\, U A \multimap U(T B))
         & \text{SMCC closure of } \ICones\\
-  &\;\cong\;\mathrm{Hom}_{EM}(C,\, \widetilde{\mathord{!}}(U A \multimap U B))
+  &\;\cong\;\mathrm{Hom}_{EM}(C,\, \widetilde{\mathord{!}}(U A \multimap U(T B)))
         & \text{cofree } U \dashv \widetilde{\mathord{!}}
 \end{align*}
 %
@@ -169,17 +185,23 @@ uses only the cofree adjunction, the strict monoidality of $U$
 $\ICones$; it does \emph{not} use any cartesian closure of
 $\mathrm{EM}(\mathord{!})$. The function-type interpretation that
 results is $\sem{\mathtt{tfun}\,A\,B} =
-\widetilde{\mathord{!}}\,(U A \multimap U B)$ (\autoref{sec:cbv-ppl}).
+\widetilde{\mathord{!}}\,(U A \multimap U(T B))$ (\autoref{sec:cbv-ppl}) ---
+with the $T$ on the codomain encoding the fact that every function call
+is potentially effectful in CBV.
 This is \texttt{theories/programs/ppl.v}: a higher-order,
-\emph{direct-style} (no value/computation term split), \emph{single-sort},
+\emph{direct-style} (no value/computation term split, no \texttt{tprob}
+type marker, no syntactic \texttt{return}, no \texttt{bind}), \emph{single-sort},
 \emph{multi-variable}, \emph{named-variable} QBS-mirror calculus --- the
 modern PPL surface that \texttt{mathcomp-qbs/ppl} provides and that the
 Heunen--Kammar--Staton--Yang LICS 2017 line of work describes ---
 interpreted through the Kleisli-exponential chain above and fully
 axiom-free. The QBS-paper showcase \texttt{ex\_random\_constant}
---- a distribution over a function space, $\mathtt{P}(\mathbb{R}\to\mathbb{R})$
---- and the ``random linear'' killer demo \texttt{ex\_random\_linear} ---
-the distribution over $\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$ ---
+--- a distribution over a function space, with source type
+$\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$ (\emph{not}
+$\mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})$) --- and the
+``random linear'' killer demo \texttt{ex\_random\_linear} ---
+the distribution over $\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$,
+again with source type $\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$ ---
 both interpret soundly via this Kleisli-exponential structure (see
 \texttt{theories/programs/examples.v} for the surface-syntax definitions
 and reduction lemmas). The Dirac/integration view of the Moggi-Kleisli
@@ -196,14 +218,18 @@ is what lets \texttt{ne\_add} / \texttt{ne\_mul} recover the QBS-style
 \paragraph{No further open milestones for higher-order CBV.}
 In the direct-style QBS-mirror surface of \texttt{ppl.v} every term is
 interpreted as a Kleisli arrow through $T = \widetilde{\mathord{!}} \circ U$
-(the \texttt{tprob} type-level marker is purely syntactic; the monad
-lives entirely in the term interpretation \texttt{eD}), so applying a
-function value to an argument is monadic application by construction.
+--- there is \emph{no} \texttt{tprob} type-level marker in the source
+language; the monad lives entirely in the term interpretation
+\texttt{eD}, and pure constructors are made into Kleisli arrows by
+post-composition with the unit \texttt{tunit\_eta} (the implicit return
+that direct-style CBV needs). Applying a function value to an argument
+is monadic application by construction, with the $T$ on the codomain of
+$\sem{\mathtt{tfun}\,A\,B}$ ensuring every call returns a computation.
 EM(!) being non-closed is structural and irrelevant. Adequacy,
 normalization, and full-abstraction are out of scope here, as are
 booleans / coproducts (no native sum type in the cones model) and the
 QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior showcase (a
-different observable than the unnormalised prior/score/return shape
+different observable than the unnormalised prior/score/observe shape
 covered by \texttt{ex\_bayes\_linear}).
 
 \paragraph{Where the material lives.}
@@ -742,8 +768,12 @@ QBS-based PPL) to the cones model, in the surface style of
 Saito and Affeldt's APLAS 2023 named-variable
 embedding\footnote{Saito and Affeldt, \emph{Towards a practical embedding
 of a probabilistic programming language in Coq}, APLAS 2023.}.
-It is the modern PPL surface --- \emph{direct-style} (no
-value/computation term split), \emph{single sort} (one inductive
+It is the modern PPL surface --- \emph{direct-style} in the
+Plotkin/Girard sense (no value/computation term split, no
+$\mathtt{tprob}$ type marker, no syntactic $\mathtt{return}$, no
+$\mathtt{bind}$; the probability monad lives entirely in the
+interpretation $\mathtt{eD}$ and in the $T$ on the codomain of
+$\sem{\mathtt{tfun}\,A\,B}$), \emph{single sort} (one inductive
 $\texttt{named\_expr}$, one type indicator $\texttt{ty}$),
 \emph{multi-variable} and \emph{named} (intrinsically-typed contexts
 $\mathtt{named\_ctx} := \mathtt{seq}\,(\mathtt{string}
@@ -755,43 +785,53 @@ axiom-free.
 \paragraph{The calculus.}
 Types (\rocq{Icones.programs.ppl.ppl_type}) are
 $\mathtt{tunit}$, $\mathtt{tbase}\,X$ for $X \in \mathbf{Ar}$,
-$\mathtt{tprod}\,t_1\,t_2$, $\mathtt{tfun}\,A\,B$, and a probability
-marker $\mathtt{tprob}\,t$. A named-variable witness
+$\mathtt{tprod}\,t_1\,t_2$, and the function type
+$\mathtt{tfun}\,A\,B$ ---
+that's all: \emph{no} $\mathtt{tprob}$ type-level marker (the previous
+iteration of this calculus carried one as a purely syntactic tag; the
+direct-style refactor drops it, moving the monad entirely into the
+interpretation $\mathtt{eD}$ and the codomain of
+$\sem{\mathtt{tfun}\,A\,B}$). A named-variable witness
 \rocq{Icones.programs.ppl.named_var} indexes the variables of a
 context $\Gamma : \mathtt{named\_ctx}$ (a list of
 (string, type) pairs). A single intrinsically typed inductive
-\rocq{Icones.programs.ppl.named_expr} carries every term:
+\rocq{Icones.programs.ppl.named_expr} carries every term, with the
+constructors falling into three groups:
 \begin{itemize}
-  \item product-and-unit base: \rocq{Icones.programs.ppl.ne_var},
+  \item \emph{pure}: \rocq{Icones.programs.ppl.ne_var},
     \rocq{Icones.programs.ppl.ne_tt},
     \rocq{Icones.programs.ppl.ne_pair},
     \rocq{Icones.programs.ppl.ne_fst},
-    \rocq{Icones.programs.ppl.ne_snd};
-  \item higher order: \rocq{Icones.programs.ppl.ne_lam}
-    (lambda, with a string binder; body is just another
-    \texttt{named\_expr} in the extended named context --- not marked
-    as a computation) and the \emph{direct} application
-    \rocq{Icones.programs.ppl.ne_app};
-  \item monad: \rocq{Icones.programs.ppl.ne_ret},
-    \rocq{Icones.programs.ppl.ne_bind} (with a string binder),
-    \rocq{Icones.programs.ppl.ne_sample} (sample from a unit-ball
-    measure $\mu$ on a base type);
-  \item arithmetic on a distinguished real base type
-    $\mathtt{tR} = \mathtt{tbase}\,R_{\mathrm{obj}}$:
-    \rocq{Icones.programs.ppl.ne_real} (Dirac literal at $r : R$),
-    \rocq{Icones.programs.ppl.ne_score} (term-level score by
-    $f(r)$, with $f : \mathbb{R} \to \mathbb{R}$ measurable and
+    \rocq{Icones.programs.ppl.ne_snd},
+    \rocq{Icones.programs.ppl.ne_lam} (lambda, with a string binder;
+    body is just another \texttt{named\_expr} in the extended named
+    context --- \emph{not} marked as a computation), the \emph{direct}
+    application \rocq{Icones.programs.ppl.ne_app},
+    \rocq{Icones.programs.ppl.ne_real} (real literal at $r : R$, type
+    \texttt{tR}), \rocq{Icones.programs.ppl.ne_add} and
+    \rocq{Icones.programs.ppl.ne_mul} (pointwise sum and product on
+    \texttt{tR}-valued computations);
+  \item \emph{sequencer}: \rocq{Icones.programs.ppl.ne_let} (direct-style
+    CBV $\mathtt{let}\,x = M\,\mathtt{in}\,K$ with a string binder;
+    semantically the extended-context Kleisli bind
+    \rocq{Icones.programs.ppl.kbind_ext}). Note that
+    $\mathtt{ne\_let}$ is the direct-style CBV sequencer of Plotkin/Girard
+    --- it carries no $\mathtt{tprob}$ tag on either argument's type;
+  \item \emph{effects}: \rocq{Icones.programs.ppl.ne_sample} (sample from
+    a unit-ball measure $\mu : \FMeas(R_{\mathrm{obj}})$ --- DIRECT STYLE:
+    returns a PURE $\mathtt{tR}$ expression, the monad is hidden in
+    $\mathtt{eD}$), \rocq{Icones.programs.ppl.ne_score} (term-level score
+    by $f(r)$, with $f : \mathbb{R} \to \mathbb{R}$ measurable and
     pointwise in $[0,1]$, $r$ the value of a
-    \texttt{named\_expr}~$\Gamma$~\texttt{tR} --- the load-bearing
-    constructor for genuine Bayesian inference, where the score factor
-    depends on a bound variable),
-    \rocq{Icones.programs.ppl.ne_add} and
-    \rocq{Icones.programs.ppl.ne_mul} (pointwise sum and product of
-    two real-typed computations).
+    \texttt{named\_expr}~$\Gamma$~\texttt{tR} --- DIRECT STYLE: returns a
+    PURE $\mathtt{tunit}$ expression; the load-bearing constructor for
+    genuine Bayesian inference, where the score factor depends on a bound
+    variable).
 \end{itemize}
 There is no separate value/computation syntactic class, no \texttt{vl}
-/ \texttt{cp} split, no mutual induction. The monadic structure is in
-the \emph{semantics}, not the syntax.
+/ \texttt{cp} split, no mutual induction, and no $\mathtt{Ret}$ /
+$\mathtt{return}$ syntax. The monadic structure is in the
+\emph{interpretation}, not the source.
 
 \paragraph{The interpretation.}
 The type interpretation \rocq{Icones.programs.ppl.tyD} sends every
@@ -803,43 +843,86 @@ type to a coalgebra of $\mathrm{EM}(\mathord{!})$:
         \quad\text{(the Theorem-9.7 coalgebra)} \\
     \sem{\mathtt{tprod}\,t_1\,t_2}
                               & \EMprod\,\sem{t_1}\,\sem{t_2} \\
-    \sem{\mathtt{tfun}\,A\,B} & \widetilde{\mathord{!}}\,(U\sem{A} \multimap U\sem{B})
-        \quad\text{(the Kleisli exponential)} \\
-    \sem{\mathtt{tprob}\,t}   & \sem{t}.
+    \sem{\mathtt{tfun}\,A\,B} &
+        \widetilde{\mathord{!}}\,(U\sem{A} \multimap U(T\,\sem{B}))
+        \quad\text{(the Kleisli exponential).}
   \end{array}
 \]
-The convention $\sem{\mathtt{tprob}\,t} = \sem{t}$
-(\rocq{Icones.programs.ppl.tyD}) is deliberate: the
-$\mathtt{tprob}$ marker is \emph{purely syntactic}, signalling that
-the term should read ``as a computation''. The monad lives entirely
-in the term interpretation \rocq{Icones.programs.ppl.eD}: every
-well-typed expression denotes a Kleisli arrow
+The $T = \widetilde{\mathord{!}} \circ U$ on the codomain of
+$\sem{\mathtt{tfun}\,A\,B}$ is what makes the source-language function
+type a genuine CBV function type: every call is potentially effectful,
+and \emph{every} expression's denotation is uniformly a Kleisli arrow
+(\rocq{Icones.programs.ppl.eD}):
 $\sem{\Gamma \vdash M : t} : \mathtt{coalg\_hom}\,
 (\sem{\mathtt{drop\_names}\,\Gamma})\,(T\,\sem{t})$, by structural
-recursion \emph{directly} on $\mathtt{named\_expr}$. Contexts are
-interpreted by \rocq{Icones.programs.ppl.ctxD} right-to-left with the
-head on the right, on the name-stripped skeleton
+recursion \emph{directly} on $\mathtt{named\_expr}$. The pure
+constructors ($\mathtt{ne\_var}$, $\mathtt{ne\_tt}$, $\mathtt{ne\_lam}$,
+$\mathtt{ne\_real}$, the products) become Kleisli arrows by
+post-composition with $\mathtt{tunit\_eta}$ (the implicit return of
+direct-style CBV); the sequencer $\mathtt{ne\_let}$ becomes the
+extended-context Kleisli bind $\mathtt{kbind\_ext}$
+(\rocq{Icones.programs.ppl.eD_let}); the effects $\mathtt{ne\_sample}$
+and $\mathtt{ne\_score}$ become the constant and post-composition
+arrows of \autoref{lem:ppl-score-tm-lift}. The monad lives uniformly
+in $\mathtt{eD}$ and in the $T$ on the codomain of
+$\sem{\mathtt{tfun}\,A\,B}$ --- the source language never exposes it.
+Contexts are interpreted by \rocq{Icones.programs.ppl.ctxD}
+right-to-left with the head on the right, on the name-stripped skeleton
 \rocq{Icones.programs.ppl.drop_names}~$\Gamma$; the
 $\mathtt{named\_var}$ witness in $\mathtt{ne\_var}$ is projected to
 its De Bruijn index by
 \rocq{Icones.programs.ppl.named_var_to_has_var} and then dispatched
 to \rocq{Icones.programs.ppl.var_lookup}.
 
+\paragraph{Why direct-style CBV is possible at all.}
+In older linear-logic / comonad probabilistic models, the function type
+$A \to B$ had no non-linear \emph{value-level} interpretation: the
+linear function space $A \multimap B$ was the only available exponential,
+so call-by-value could only be modelled \emph{monadically} --- function
+types had to be Kleisli arrows $A \to T B$, with $\lambda$ and
+application mediating computations and the monad surfacing explicitly
+at the level of source types (as a $\mathtt{tprob}$ or $T$ marker).
+The cones-side EM(!) cartesian structure unlocked by Corollary 20
+(\rocq{Icones.homs.em_cartesian.EMComon_all}, \autoref{lem:cbv-emcomon-all})
+gives a value-CCC --- the \emph{full} cartesian Eilenberg--Moore
+category of $\mathord{!}$ (\autoref{thm:cbv-cartesian}) --- and in that
+value-CCC the Kleisli exponential
+$\widetilde{\mathord{!}}(U A \multimap U(T B))$ is genuinely a value
+type, so $\mathtt{tfun}\,A\,B$ interprets as a value type with
+$\lambda x.\,M$ a \emph{value} whose body $M$ has type $B$ \emph{at face
+value} (not $T B$). This is what direct-style CBV needs and what older
+models could not offer; the value-CCC structure discharged in Corollary
+20 is the load-bearing structural fact that makes
+\texttt{theories/programs/ppl.v}'s direct-style surface --- no
+$\mathtt{tprob}$ marker, no $\mathtt{Ret}$, no $\mathtt{ne\_bind}$ ---
+possible at all. Concretely, the source-language type
+$\mathtt{tfun}\,A\,B$ interprets as the Kleisli exponential
+$\widetilde{\mathord{!}}(U A \multimap U(T B))$ ---
+\emph{the} source-language function space --- with the $T$ on the
+codomain encoding the fact that every function call is potentially
+effectful in CBV. The monad is moved out of the \emph{source type} and
+into the \emph{interpretation} $\mathtt{eD}$. This is the framing the
+paper's outlook gestures at (``in future work we will explain how this
+model can be used for interpreting call-by-value\ldots''), and the
+direct-style framing the ICones-based PPL inherits.
+
 \paragraph{Lambda, application, monad.}
 The function-type interpretation
 $\sem{\mathtt{tfun}\,A\,B} = \widetilde{\mathord{!}}(U\sem{A}
-\multimap U\sem{B})$ is the representing object for
+\multimap U(T\,\sem{B}))$ is the representing object for
 $\mathrm{Hom}_{EM}(- \times A,\, T B)$, via the four-step natural
 bijection of \autoref{ch:cbv} (cofree adjunction, $U$ strict
 monoidal, SMCC closure of $\ICones$, cofree adjunction again);
-$\mathtt{e\_lam}$ is realised by the curry direction
+$\mathtt{ne\_lam}$ is realised by the curry direction
 \rocq{Icones.programs.ppl.lam_coalg} of that chain, and the direct
-$\mathtt{e\_app}$ by the uncurry-and-evaluate direction
+$\mathtt{ne\_app}$ by the uncurry-and-evaluate direction
 \rocq{Icones.programs.ppl.app_kleisli} packaged through
-\rocq{Icones.programs.ppl.app_pair}. The Moggi $\mathtt{bind}$ for
-direct-style composition uses the \emph{left tensor strength}
+\rocq{Icones.programs.ppl.app_pair}. The direct-style CBV sequencer
+$\mathtt{ne\_let}$ uses the \emph{left tensor strength}
 \rocq{Icones.programs.ppl.T_str_l} of $T$ to keep the environment, and
-is bundled as \rocq{Icones.programs.ppl.kbind_ext}. No appeal to a
+is bundled as \rocq{Icones.programs.ppl.kbind_ext}; this is the
+direct-style analogue of monadic $\mathtt{bind}$, used by the
+\rocq{Icones.programs.ppl.eD_let} reduction. No appeal to a
 non-existent cartesian closure of $\mathrm{EM}(\mathord{!})$ is made,
 and no ``$\mathrm{ev}$-is-a-coalgebra-morphism'' obligation arises.
 
@@ -932,31 +1015,35 @@ in the model.
 \rocq{Icones.programs.examples.ex_random_constant_denot_E}\rocqok
 \uses{thm:cbv-model, thm:cbv-fmeas-lax}
 For a chosen unit-ball measure $\mu : \FMeas(R_{\mathrm{obj}})$, the
-PPL term
+direct-style PPL term
 \[
   \mathtt{ex\_random\_constant}
   \;\;\equiv\;\;
-  \texttt{do } c \leftarrow \mathtt{sample}\,\mu \texttt{; }
-  \mathtt{return}\,(\lambda x.\,c)
+  \mathtt{let}\,c = \mathtt{sample}\,\mu\,\mathtt{in}\,
+  \lambda x.\,c
   \;\;:\;\;
-  \mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})
+  \mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}
 \]
 (a distribution over a function space, exactly the QBS-paper-flagship
 ``no $\sigma$-algebra on $\mathbb{R}\to\mathbb{R}$ makes evaluation and
-currying both measurable'' example) has a denotation
-$\mathtt{ex\_random\_constant\_denot}$ whose structural reduction
-\rocq{Icones.programs.examples.ex_random_constant_denot_E} reads as
+currying both measurable'' example --- and notice the type really is
+$\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$, \emph{not} the older
+$\mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})$: the
+probability monad lives in $\mathtt{eD}$, not the source type) has a
+denotation $\mathtt{ex\_random\_constant\_denot}$ whose structural
+reduction \rocq{Icones.programs.examples.ex_random_constant_denot_E}
+reads as
 $\mathtt{kbind\_ext}\,(\mathtt{eD}\,\mathtt{ex\_rc\_lam})\,
 (\mathtt{sample\_kleisli}\,\mu)$.
 \end{lemma}
 
 \begin{proof}
-The two definitional unfoldings \rocq{Icones.programs.ppl.eD_bind}
-(which exposes $\mathtt{ne\_bind}$ as the strength-equipped
-\rocq{Icones.programs.ppl.kbind_ext}) and
-\rocq{Icones.programs.ppl.eD_ret} (which is the identity at the
-Kleisli level, by $\sem{\mathtt{tprob}\,t} = \sem{t}$) compose to
-the stated structural form;
+Direct-style reduction: the definitional unfolding
+\rocq{Icones.programs.ppl.eD_let} exposes $\mathtt{ne\_let}$ as the
+strength-equipped \rocq{Icones.programs.ppl.kbind_ext} --- no
+$\mathtt{eD\_ret}$ step is needed in direct style (every expression
+already denotes a Kleisli arrow; pure constructors implicit-return via
+$\mathtt{tunit\_eta}$ post-composition).
 \rocq{Icones.programs.ppl.eD_sample} unfolds the $\mathtt{ne\_sample}$
 to its constant-Kleisli arrow
 \rocq{Icones.programs.ppl.sample_kleisli}.
@@ -967,18 +1054,20 @@ to its constant-Kleisli arrow
 \rocq{Icones.programs.examples.ex_random_linear}\rocqok
 \rocq{Icones.programs.examples.ex_random_linear_denot_E}\rocqok
 \uses{thm:cbv-model, thm:cbv-fmeas-lax}
-For $\mu : \FMeas(R_{\mathrm{obj}})$ as above, the PPL term
+For $\mu : \FMeas(R_{\mathrm{obj}})$ as above, the direct-style PPL term
 \[
   \mathtt{ex\_random\_linear}
   \;\;\equiv\;\;
-  \texttt{do } m \leftarrow \mathtt{sample}\,\mu;\;
-  \texttt{do } b \leftarrow \mathtt{sample}\,\mu;\;
-  \mathtt{return}\,(\lambda x.\,m\cdot x + b)
+  \mathtt{let}\,m = \mathtt{sample}\,\mu\,\mathtt{in}\;
+  \mathtt{let}\,b = \mathtt{sample}\,\mu\,\mathtt{in}\;
+  \lambda x.\,m\cdot x + b
   \;\;:\;\;
-  \mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})
+  \mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}
 \]
-exercises $\mathtt{ne\_add}$ and $\mathtt{ne\_mul}$ on the body of the
-lambda (\rocq{Icones.programs.examples.ex_rl_lam}). Its denotation
+(again with source type $\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$, not
+$\mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})$) exercises
+$\mathtt{ne\_add}$ and $\mathtt{ne\_mul}$ on the body of the lambda
+(\rocq{Icones.programs.examples.ex_rl_lam}). Its denotation
 $\mathtt{ex\_random\_linear\_denot}$ reduces, by
 \rocq{Icones.programs.examples.ex_random_linear_denot_E}, to the
 nested-$\mathtt{kbind\_ext}$ form
@@ -999,10 +1088,9 @@ masses.
 \end{lemma}
 
 \begin{proof}
-The structural reduction is the same definitional unfolding as for
-\autoref{lem:ppl-random-constant}: two passes of
-\rocq{Icones.programs.ppl.eD_bind}, one of
-\rocq{Icones.programs.ppl.eD_ret}, and the
+Direct-style reduction: two passes of
+\rocq{Icones.programs.ppl.eD_let} (no $\mathtt{eD\_ret}$ step --- there
+is no syntactic $\mathtt{return}$ in direct style) and the
 \rocq{Icones.programs.ppl.eD_sample} unfoldings. The Dirac
 reductions \rocq{Icones.programs.ppl.add_lift_dirac} /
 \rocq{Icones.programs.ppl.mul_lift_dirac} are immediate from
@@ -1056,7 +1144,7 @@ $\mathtt{int\_to\_linhom\_fun\_dirac}$: integration against a Dirac
 evaluates the path at the carrier point.
 \end{proof}
 
-\begin{lemma}[The Bayesian prior/score/return example]%
+\begin{lemma}[The Bayesian prior/score/observe example]%
 \label{lem:ppl-bayes-linear}
 \rocq{Icones.programs.examples.ex_bayes_linear}\rocqok
 \rocq{Icones.programs.examples.ex_bayes_linear_denot_E}\rocqok
@@ -1065,20 +1153,22 @@ For $\mu : \FMeas(R_{\mathrm{obj}})$ a unit-ball prior and
 $f : \mathbb{R} \to \mathbb{R}$ a measurable likelihood with
 $0 \le f(r) \le 1$ for all $r$ (think a clipped Gaussian
 $\mathtt{gaussian\_lik}\,y$ of a fixed observation $y$, restricted
-to the unit interval to fit the integrable-cone discipline), the PPL
-term
+to the unit interval to fit the integrable-cone discipline), the
+direct-style PPL term
 \[
   \mathtt{ex\_bayes\_linear}
   \;\;\equiv\;\;
-  \texttt{do } m \leftarrow \mathtt{sample}\,\mu;\;
-  \texttt{do } \_\leftarrow \mathtt{score}\,f\,m;\;
-  \mathtt{return}\,m
+  \mathtt{let}\,m = \mathtt{sample}\,\mu\,\mathtt{in}\;
+  \mathtt{let}\,\_= \mathtt{score}\,f\,m\,\mathtt{in}\;
+  m
   \;\;:\;\;
-  \mathtt{tprob}\,\mathtt{tR}
+  \mathtt{tR}
 \]
-exercises \rocq{Icones.programs.ppl.ne_score} on the bound variable
-$m$. Its denotation
-$\mathtt{ex\_bayes\_linear\_denot}$ reduces, by
+(note the source type $\mathtt{tR}$, not $\mathtt{tprob}\,\mathtt{tR}$:
+the program is a real-valued probabilistic computation, the monad is
+implicit) exercises \rocq{Icones.programs.ppl.ne_score} on the bound
+variable $m$. Its denotation $\mathtt{ex\_bayes\_linear\_denot}$
+reduces, by
 \rocq{Icones.programs.examples.ex_bayes_linear_denot_E}, to the outer
 single-bind shape
 \[
@@ -1087,9 +1177,9 @@ single-bind shape
     (\mathtt{sample\_kleisli}\,\mu),
 \]
 where $\mathtt{ex\_bl\_cont} =
-\texttt{do }\_\leftarrow \mathtt{score}\,f\,m;\;
-\mathtt{return}\,m$ is the score-then-return continuation in the
-context $(\texttt{"m"}, \mathtt{tR}) :: \mathtt{nil}$.
+\mathtt{let}\,\_= \mathtt{score}\,f\,m\,\mathtt{in}\,m$ is the
+score-then-observe continuation in the context
+$(\texttt{"m"}, \mathtt{tR}) :: \mathtt{nil}$.
 \end{lemma}
 
 \begin{remark}[Honest scope note: unnormalised posterior]%
@@ -1100,30 +1190,31 @@ measure whose total mass equals $\int f(m)\,\mathrm{d}\mu(m)$. We
 do not claim Bayes-optimality --- we claim only the structural
 reduction above, which exposes the prior bind, the score's
 post-composition with
-$\mathtt{bang\_cofree\_hom}\,\mathtt{score\_tm\_lift}$, and the
-$m$-projection return. Normalising the posterior would require a
+$\mathtt{bang\_cofree\_hom}\,\mathtt{score\_lift}$, and the
+$m$-projection observation. Normalising the posterior would require a
 $\mathtt{qbs\_normalize}$-style downstream pass that we have not
 introduced; this is, by design, a different observable than the
-prior/score/return reduction recorded here.
+prior/score/observe reduction recorded here.
 \end{remark}
 
 \begin{proof}
-The outer reduction is two definitional unfoldings:
-\rocq{Icones.programs.ppl.eD_bind} exposes $\mathtt{ne\_bind}$ as a
-strength-equipped \rocq{Icones.programs.ppl.kbind_ext}, and
+Direct-style reduction: two definitional unfoldings of
+\rocq{Icones.programs.ppl.eD_let} expose the prior $\mathtt{ne\_let}$
+as a strength-equipped \rocq{Icones.programs.ppl.kbind_ext}, and
 \rocq{Icones.programs.ppl.eD_sample} unfolds the prior
 $\mathtt{ne\_sample}$ to its constant-Kleisli arrow
-\rocq{Icones.programs.ppl.sample_kleisli}. The inner continuation
-$\mathtt{ex\_bl\_cont}$ is itself a $\mathtt{kbind\_ext}$ of the
-score-then-return shape, which follows by re-applying
-\rocq{Icones.programs.ppl.eD_bind} / \rocq{Icones.programs.ppl.eD_ret}
-/ \rocq{Icones.programs.ppl.eD_score}; the
+\rocq{Icones.programs.ppl.sample_kleisli} (no $\mathtt{eD\_ret}$ step:
+direct style has no syntactic $\mathtt{return}$). The inner
+continuation $\mathtt{ex\_bl\_cont}$ is itself a $\mathtt{kbind\_ext}$
+of the score-then-observe shape, which follows by re-applying
+\rocq{Icones.programs.ppl.eD_let} and
+\rocq{Icones.programs.ppl.eD_score}; the
 \rocq{Icones.programs.ppl.score_lift_dirac} identity
 (\autoref{lem:ppl-score-tm-lift}) would give a Dirac-input
 point-reduction, but the headline asserts only the outer reduction.
 \end{proof}
 
-\paragraph{Named-variable surface syntax.}
+\paragraph{Named-variable direct-style surface syntax.}
 The named surface is the \emph{only} syntax of
 \texttt{theories/programs/ppl.v}: there is no separate De Bruijn
 calculus and no intermediate translation. Variable lookup
@@ -1146,20 +1237,26 @@ canonical-structure resolution to fire on the right metavariable
 (exactly Saito--Affeldt's \texttt{Arguments exp\_letin \{g\} \&
 \{t1 t2\}} pattern). The custom entry
 \texttt{ppl\_named} supports
-\texttt{let "x" := M in N} / \texttt{\textbackslash "x" ::: A => M}
+\texttt{let "x" := M in N} (the direct-style CBV sequencer, desugaring
+to \rocq{Icones.programs.ppl.ne_let} --- NOT to a monadic
+$\mathtt{ne\_bind}$)
+/ \texttt{\textbackslash "x" ::: A => M}
 / \texttt{Sample (mu, Hmu)}
 / \texttt{Score \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e} (the
 term-level Bayesian-score surface form, the \emph{only} score form,
 desugaring to \rocq{Icones.programs.ppl.ne_score})
-/ \texttt{Ret e} / \texttt{\# "x"} / \texttt{M @ N}
+/ \texttt{\# "x"} / \texttt{M @ N}
 / \texttt{M + N} / \texttt{M * N} / \texttt{(e1, e2)}
 / \texttt{fst e} / \texttt{snd e} / \texttt{()} / \texttt{[|r|]}
-/ \texttt{\{x\}}-escape. The three flagship examples
+/ \texttt{\{x\}}-escape.
+There is \emph{no} \texttt{Ret} surface form --- direct-style CBV has
+no syntactic $\mathtt{return}$ at any layer of the source language.
+The three flagship examples
 \rocq{Icones.programs.examples.ex_random_constant},
 \rocq{Icones.programs.examples.ex_random_linear} and
 \rocq{Icones.programs.examples.ex_bayes_linear} (collected in
 \texttt{theories/programs/examples.v}) are written exclusively in
-this surface notation; their reduction lemmas
+this direct-style surface notation; their reduction lemmas
 \autoref{lem:ppl-random-constant} /
 \autoref{lem:ppl-random-linear} /
 \autoref{lem:ppl-bayes-linear} close by definitional unfolding of
@@ -1174,7 +1271,11 @@ higher-order content shown here). Posterior \emph{normalisation} ---
 of total mass $\int f(m)\,\mathrm{d}\mu(m)$
 (\autoref{rem:ppl-bayes-unnormalised}); the QBS-paper's
 \texttt{qbs\_normalize} divide-by-evidence pass is a downstream
-observable that we have not introduced.
+observable that we have not introduced. A two-language Moggi
+metalanguage with an explicit value/computation split (or any other
+explicitly monadic surface) is not in scope either --- the point of
+the direct-style refactor is to demonstrate that the cones model
+makes such a split unnecessary at the source level.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
@@ -1199,24 +1300,30 @@ the $\ICones$ level together with its Dirac identity
 \rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac} and the discharged
 paper-\S6 follow-up
 \rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}
-(\autoref{thm:cbv-fmeas-lax}); the higher-order direct-style
-multi-variable \emph{named-variable} QBS-mirror PPL of
-\texttt{theories/programs/ppl.v}, with canonical-structure-driven
-variable lookup (\rocq{Icones.programs.ppl.find_nv} and
-\texttt{ne\_var'}) and a custom-entry surface notation; the three
-headline reduction lemmas live in
-\texttt{theories/programs/examples.v} ---
+(\autoref{thm:cbv-fmeas-lax}); the higher-order \emph{direct-style}
+(Plotkin/Girard CBV) multi-variable \emph{named-variable} QBS-mirror
+PPL of \texttt{theories/programs/ppl.v}, with the direct-style
+sequencer \rocq{Icones.programs.ppl.ne_let} (semantically
+\rocq{Icones.programs.ppl.kbind_ext}; reduction lemma
+\rocq{Icones.programs.ppl.eD_let}), no $\mathtt{tprob}$ type marker,
+and no syntactic $\mathtt{Ret}$; canonical-structure-driven variable
+lookup (\rocq{Icones.programs.ppl.find_nv} and \texttt{ne\_var'}) and
+a custom-entry surface notation; the three headline reduction lemmas
+live in \texttt{theories/programs/examples.v} ---
 \rocq{Icones.programs.examples.ex_random_constant_denot_E} (the QBS
-flagship, \autoref{lem:ppl-random-constant}),
+flagship, source type $\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$,
+\autoref{lem:ppl-random-constant}),
 \rocq{Icones.programs.examples.ex_random_linear_denot_E} (the
-random-linear killer demo, \autoref{lem:ppl-random-linear},
-exercising \texttt{ne\_add} / \texttt{ne\_mul} via the lax-monoidal
-map), and
+random-linear killer demo, source type
+$\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$,
+\autoref{lem:ppl-random-linear}, exercising \texttt{ne\_add} /
+\texttt{ne\_mul} via the lax-monoidal map), and
 \rocq{Icones.programs.examples.ex_bayes_linear_denot_E} (the
-prior/score/return Bayesian shape, \autoref{lem:ppl-bayes-linear},
-the only example exercising \rocq{Icones.programs.ppl.ne_score} via
-the term-level score lift \rocq{Icones.programs.ppl.score_lift}
-and its Dirac identity \rocq{Icones.programs.ppl.score_lift_dirac},
+prior/score/observe Bayesian shape, source type $\mathtt{tR}$,
+\autoref{lem:ppl-bayes-linear}, the only example exercising
+\rocq{Icones.programs.ppl.ne_score} via the term-level score lift
+\rocq{Icones.programs.ppl.score_lift} and its Dirac identity
+\rocq{Icones.programs.ppl.score_lift_dirac},
 \autoref{lem:ppl-score-tm-lift}).
 
 \paragraph{What is not interpreted, and why none of it is a deferred
@@ -1225,9 +1332,12 @@ $\mathrm{EM}(\mathord{!})$ is \emph{not} cartesian closed and is not
 expected to be --- a structural fact about EM categories of
 linear-exponential comonads, not a missing diagram chase. The
 Kleisli-exponential structure used in \autoref{sec:cbv-ppl} is what
-Moggi-CBV actually needs, and that holds axiom-free. The genuinely
-out-of-scope items are: adequacy, normalization, and full-abstraction
-(traditional metatheory, requiring more than a denotational model);
-booleans and coproducts (no native sum type in the cones model);
-and the QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior
-showcase (a different observable than the one ported here).
+direct-style CBV actually needs, and that holds axiom-free. The
+genuinely out-of-scope items are: adequacy, normalization, and
+full-abstraction (traditional metatheory, requiring more than a
+denotational model); booleans and coproducts (no native sum type in
+the cones model); the QBS-paper's \texttt{qbs\_normalize} /
+Bayesian-posterior showcase (a different observable than the one
+ported here); and a Moggi metalanguage with an explicit
+value/computation split (orthogonal to the direct-style framing the
+cones model was designed to enable).

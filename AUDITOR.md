@@ -1574,8 +1574,8 @@ direction with two small calculi, both interpreted axiom-free.
 | What | Rocq |
 |---|---|
 | A small first-order fine-grain Moggi-CBV calculus (unit, base, products, `let`, `sample`), interpreted via the CBV monad `T = !̃ ∘ U`; soundness includes the monad/`let` laws, product β, and `sample` = the integral. | `cbv.v` — `theories/programs/cbv.v` |
-| A higher-order, direct-style, multi-variable, **named-variable** Moggi-CBV calculus — the cones-model port of the QBS PPL ([`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl)) in the surface style of Saito–Affeldt's APLAS 2023 named-variable embedding. A single intrinsically-typed inductive `named_expr Γ τ` indexed by a named context `named_ctx Ar = seq (string * ppl_type Ar)` and a type `τ : ppl_type Ar`; constructors `ne_var` / `ne_tt` / `ne_pair` / `ne_fst` / `ne_snd` / `ne_lam` (string binder, body in the extended named context) / `ne_app` (direct application, `ne_app : named_expr Γ (tfun A B) → named_expr Γ A → named_expr Γ B`) / `ne_ret` / `ne_bind` (string binder) / `ne_sample` (unit-ball measure on a base) / `ne_real` (Dirac literal at `r : R`) / `ne_score` (**term-level** Bayesian score by a measurable `f : R → R` pointwise in `[0,1]` applied to the value of a `named_expr Γ tR` — the load-bearing constructor for genuine Bayesian inference; the score factor depends on a bound variable) / `ne_add` / `ne_mul`. Function types via the EM(!) Kleisli exponential `!̃(U A ⊸ U B)` (no value-CCC required). The term denotation `eD : named_expr Γ τ → coalg_hom (ctxD (drop_names Γ)) (Tobj (tyD τ))` is defined **directly** by structural recursion on `named_expr` (no two-step encoding); variable lookup `#"x"` uses **canonical structures** (`tagged_nctx` / `find_nv` / `found_nctx` / `recurse_nctx` / `ne_var'`, with mathcomp-analysis' `infer` typeclass on `String.eqb`) so Coq's elaborator infers the context slot, type, and `named_var` witness simultaneously; **bidirectionality hints `&`** on every binding / context-shared constructor are crucial for canonical-structure resolution to fire on the right metavariable (exactly the Saito–Affeldt `Arguments exp_letin {g} & {t1 t2}` pattern). A custom entry `ppl_named` provides the surface notation `[ … ]` covering `let "x" := M in N` / `\ "x" ::: A => M` / `Sample (mu, Hmu)` / `Score { f, Hf_meas, Hf_ge0, Hf_le1 } e` (the ONLY score surface form, desugaring to `ne_score`) / `Ret e` / `# "x"` / `M @ N` / `M + N` / `M * N` / `(e1, e2)` / `fst e` / `snd e` / `()` / `[|r|]` / `{x}`-escape. The arithmetic primitives are interpreted via the FMeas lax-monoidal map (see next-but-one row); on Dirac inputs the lifts reduce to scalar arithmetic (`add_lift_dirac` / `mul_lift_dirac`), and the term-level score's Dirac identity `score_lift_dirac` reduces `score_lift f` on `δ_r` to `f(r) · one1` via the §6 follow-up `int_to_linhom_pres_path_in_cone`. The extended-context Kleisli bind `kbind_ext` is the load-bearing equation for the `ne_bind` denotation. | `ppl.v` (`ppl_type`/`named_ctx`/`drop_names`/`named_var`/`named_expr`/`tyD`/`ctxD`/`eD`, the constructors `ne_var`/`ne_tt`/`ne_pair`/`ne_fst`/`ne_snd`/`ne_lam`/`ne_app`/`ne_ret`/`ne_bind`/`ne_sample`/`ne_real`/`ne_score`/`ne_add`/`ne_mul`, the canonical structures `tagged_nctx`/`find_nv`/`found_nctx`/`recurse_nctx`/`found_nv`/`recurse_nv`/`ne_var'`, the meta-lemmas `add_lift_dirac`/`mul_lift_dirac`/`score_lift_dirac`/`kbind_ext`, the custom entry `ppl_named`) — `theories/programs/ppl.v` |
-| Three end-to-end QBS-style examples in the named surface notation, each paired with a structural reduction lemma exposing the outer `kbind_ext` shape of its denotation. `ex_random_constant` = `[ let "c" := Sample (mu, Hmu) in Ret (\ "x" ::: tR => # "c") ] : tprob (tfun tR tR)` (the QBS paper's flagship "distribution over a function space"); `ex_random_linear` = `[ let "m" := Sample (mu, Hmu) in let "b" := Sample (mu, Hmu) in Ret (\ "x" ::: tR => # "m" * # "x" + # "b") ] : tprob (tfun tR tR)` (the killer demo: exercises `ne_add` and `ne_mul` via the FMeas lax-monoidal map; on Dirac inputs the lifts reduce to scalar arithmetic, recovering the QBS-style "distribution over `λx. m·x + b` for `m, b ~ µ`" reading); and `ex_bayes_linear` = `[ let "m" := Sample (mu, Hmu) in let "_" := Score { f, … } # "m" in Ret # "m" ] : tprob tR` (the textbook prior/score/return Bayesian shape, the only example exercising `ne_score`; the **unnormalised** posterior of total mass `∫ f(m) dµ(m)`, with `f : R → R` a clipped likelihood — no `qbs_normalize` downstream pass). All three interpreted axiom-free; examples are written **exclusively** in the `[ … ]` surface notation. | `examples.v` (`ex_random_constant`/`ex_random_constant_denot_E`, `ex_random_linear`/`ex_random_linear_denot_E`, `ex_bayes_linear`/`ex_bayes_linear_denot_E`) — `theories/programs/examples.v` |
+| A higher-order, **direct-style** (Plotkin/Girard CBV), multi-variable, **named-variable** PPL — the cones-model port of the QBS PPL ([`mathcomp-qbs` `ppl` branch](https://github.com/LLM4Rocq/mathcomp-qbs/tree/ppl)) in the surface style of Saito–Affeldt's APLAS 2023 named-variable embedding. The probability monad lives in the *interpretation* `eD`, **not in the source-language types** — there is no `tprob` type marker, no syntactic `return`, no `bind`. A function that samples has source type `tfun tunit tR`, not `tfun tunit (tprob tR)`. A single intrinsically-typed inductive `named_expr Γ τ` indexed by a named context `named_ctx Ar = seq (string * ppl_type Ar)` and a type `τ : ppl_type Ar`; constructors split into three groups — **pure**: `ne_var` / `ne_tt` / `ne_pair` / `ne_fst` / `ne_snd` / `ne_lam` (string binder, body in the extended named context, NOT marked as a computation) / `ne_app` (direct application, `ne_app : named_expr Γ (tfun A B) → named_expr Γ A → named_expr Γ B`) / `ne_real` (real literal at `r : R`, type `tR`) / `ne_add` / `ne_mul`; **sequencer**: `ne_let` (direct-style CBV `let x = M in K` with a string binder; semantically the extended-context Kleisli bind `kbind_ext`); **effects**: `ne_sample : named_expr Γ tR` (sample from a unit-ball `µ : FMeas R_obj` — DIRECT STYLE: returns a pure `tR`, the monad is hidden in `eD`) / `ne_score f Hf_meas Hf_ge0 Hf_le1 e : named_expr Γ tunit` (**term-level** Bayesian score by a measurable `f : R → R` pointwise in `[0,1]` applied to the value of a `named_expr Γ tR` — DIRECT STYLE: returns a pure `tunit`; the load-bearing constructor for genuine Bayesian inference, the score factor depends on a bound variable). Function types via the EM(!) Kleisli exponential `tyD (tfun A B) = !̃(U A ⊸ U(T B))` — the `T` on the codomain encodes that every function call is potentially effectful, and this is the SOLE function space in the source language. The term denotation `eD : named_expr Γ τ → coalg_hom (ctxD (drop_names Γ)) (Tobj (tyD τ))` is defined **directly** by structural recursion on `named_expr` (no two-step encoding) with uniform `Tobj`-wrapped codomain; pure constructors are made into Kleisli arrows by post-composition with `tunit_eta` (the implicit-return that direct style needs — no syntactic `return` is exposed). Variable lookup `#"x"` uses **canonical structures** (`tagged_nctx` / `find_nv` / `found_nctx` / `recurse_nctx` / `ne_var'`, with mathcomp-analysis' `infer` typeclass on `String.eqb`) so Coq's elaborator infers the context slot, type, and `named_var` witness simultaneously; **bidirectionality hints `&`** on every binding / context-shared constructor are crucial for canonical-structure resolution to fire on the right metavariable (exactly the Saito–Affeldt `Arguments exp_letin {g} & {t1 t2}` pattern). A custom entry `ppl_named` provides the surface notation `[ … ]` covering `let "x" := M in N` (desugars to `ne_let`) / `\ "x" ::: A => M` / `Sample (mu, Hmu)` / `Score { f, Hf_meas, Hf_ge0, Hf_le1 } e` (the ONLY score surface form, desugaring to `ne_score`) / `# "x"` / `M @ N` / `M + N` / `M * N` / `(e1, e2)` / `fst e` / `snd e` / `()` / `[|r|]` / `{x}`-escape (no `Ret` — direct style has no syntactic return). The arithmetic primitives are interpreted via the FMeas lax-monoidal map (see next-but-one row); on Dirac inputs the lifts reduce to scalar arithmetic (`add_lift_dirac` / `mul_lift_dirac`), and the term-level score's Dirac identity `score_lift_dirac` reduces `score_lift f` on `δ_r` to `f(r) · one1` via the §6 follow-up `int_to_linhom_pres_path_in_cone`. The extended-context Kleisli bind `kbind_ext` is the load-bearing equation for the `ne_let` denotation. | `ppl.v` (`ppl_type`/`named_ctx`/`drop_names`/`named_var`/`named_expr`/`tyD`/`ctxD`/`eD`, the constructors `ne_var`/`ne_tt`/`ne_pair`/`ne_fst`/`ne_snd`/`ne_lam`/`ne_app`/`ne_let`/`ne_sample`/`ne_real`/`ne_score`/`ne_add`/`ne_mul`, the canonical structures `tagged_nctx`/`find_nv`/`found_nctx`/`recurse_nctx`/`found_nv`/`recurse_nv`/`ne_var'`, the meta-lemmas `add_lift_dirac`/`mul_lift_dirac`/`score_lift_dirac`/`kbind_ext`, the custom entry `ppl_named`) — `theories/programs/ppl.v` |
+| Three end-to-end QBS-style examples in the named direct-style surface notation, each paired with a structural reduction lemma exposing the outer `kbind_ext` shape of its denotation. The examples show the direct-style framing concretely — a function that samples has source type `tfun tR tR` (NOT `tprob (tfun tR tR)`), and a probabilistic real-valued program has source type `tR` (NOT `tprob tR`): `ex_random_constant` = `[ let "c" := Sample (mu, Hmu) in \ "x" ::: tR => # "c" ] : tfun tR tR` (the QBS paper's flagship "distribution over a function space" — and notice the type really is `tfun tR tR`, with the probability monad living entirely in the interpretation `eD`); `ex_random_linear` = `[ let "m" := Sample (mu, Hmu) in let "b" := Sample (mu, Hmu) in \ "x" ::: tR => # "m" * # "x" + # "b" ] : tfun tR tR` (the killer demo: exercises `ne_add` and `ne_mul` via the FMeas lax-monoidal map; on Dirac inputs the lifts reduce to scalar arithmetic, recovering the QBS-style "distribution over `λx. m·x + b` for `m, b ~ µ`" reading); and `ex_bayes_linear` = `[ let "m" := Sample (mu, Hmu) in let "_" := Score { f, … } # "m" in # "m" ] : tR` (the textbook prior/score/observe shape, the only example exercising `ne_score`; the **unnormalised** posterior of total mass `∫ f(m) dµ(m)`, with `f : R → R` a clipped likelihood — no `qbs_normalize` downstream pass). All three interpreted axiom-free; examples are written **exclusively** in the `[ … ]` direct-style surface notation. | `examples.v` (`ex_random_constant`/`ex_random_constant_denot_E`, `ex_random_linear`/`ex_random_linear_denot_E`, `ex_bayes_linear`/`ex_bayes_linear_denot_E`) — `theories/programs/examples.v` |
 | The **FMeas lax symmetric monoidal map** — `(FMeas X) ⊗ (FMeas Y) → FMeas (X × Y)`, sending the pure tensor `µ ⊗ ν` to the product measure `µ × ν` — as a genuine `icones_hom`. Built via `tensor_uncurry` of the bilinear lift; its existence depends on the previously-deferred follow-up of `bilin.v` (path-preservation of `int_to_linhom` in the cone variable), now discharged as `int_to_linhom_pres_path_in_cone`. The Dirac identity `fmeas_lax_dirac : fmeas_lax(δ_x ⊗ δ_y) = δ_{(x,y)}` is what makes the PPL's `ne_add` / `ne_mul` Dirac arithmetic reductions match QBS. The same `int_to_linhom_pres_path_in_cone` is what `score_lift` of `ppl.v` reuses to package the term-level score density as an `icones_hom (FMeas R_obj) (cone_one_car Ar)`. | `fmeas_lax`, `fmeas_lax_E`, `fmeas_lax_dirac`, `int_to_linhom_pres_path_in_cone` — `theories/homs/fmeas_lax.v`, `theories/homs/bilin.v` |
 
 #### Code: `theories/programs/cbv.v` — Moggi-CBV fine-grain calculus
@@ -1607,34 +1607,40 @@ Lemma cpD_sample_is_integral (X : ar_obj Ar) :
 Proof. by []. Qed.
 ```
 
-#### Code: `theories/programs/ppl.v` — the higher-order named-only PPL
+#### Code: `theories/programs/ppl.v` — the higher-order named direct-style PPL
 
 The file's header docstring captures the design philosophy:
 
 > **A single intrinsically-typed inductive `named_expr Γ τ` indexed by a
 > named context `named_ctx Ar = seq (string * ppl_type Ar)` and a type
-> `τ : ppl_type Ar`. Variable lookup `#"x"` resolves by canonical-structure
-> search (Saito–Affeldt APLAS 2023 §5.1–§5.3, §6). The denotation `eD` is
-> defined DIRECTLY by structural recursion on `named_expr`; the value
-> category is the FULL Eilenberg–Moore category `EM(!)` of the
-> exponential comonad (`em_cartesian.v`), the CBV computation monad is
-> `T = !̃ ∘ U` (`Tobj` in `cbv.v`), and the Kleisli exponential for `T`
-> gives the higher-order arrow type denotation
-> `⟦tfun A B⟧ := !̃(U A ⊸ U B) = bang_cofree (linhom_car Ar (coalg_obj
-> ⟦A⟧) (coalg_obj ⟦B⟧))`. See the header of `cbv.v` for the full
+> `τ : ppl_type Ar`. DIRECT-STYLE CBV (Plotkin/Girard): the source
+> language never mentions the probability monad. Function types are
+> `tfun A B` (NOT `tprob (tfun ...)`); there is no `Ret`, no `tprob`, no
+> `bind`. Variable lookup `#"x"` resolves by canonical-structure
+> search (Saito–Affeldt APLAS 2023 §5.1–§5.3, §6). The denotation `eD`
+> is defined DIRECTLY by structural recursion on `named_expr` with
+> uniform `Tobj`-wrapped codomain (pure constructors implicit-return
+> via `tunit_eta` post-composition); the value category is the FULL
+> Eilenberg–Moore category `EM(!)` of the exponential comonad
+> (`em_cartesian.v`), the CBV computation monad is `T = !̃ ∘ U`
+> (`Tobj` in `cbv.v`), and the Kleisli exponential for `T` gives the
+> higher-order arrow type denotation
+> `⟦tfun A B⟧ := !̃(U A ⊸ U(T B)) = bang_cofree (linhom_car Ar
+> (coalg_obj ⟦A⟧) (coalg_obj (Tobj ⟦B⟧)))` — with the `Tobj` on the
+> codomain encoding the fact that every function call is potentially
+> effectful in CBV. See the header of `cbv.v` for the full
 > discussion of the natural-bijection chain `Hom_EM(C×A, T B) ≅
-> Hom_EM(C, !̃(U A ⊸ U B))` realising lambda + application.**
+> Hom_EM(C, !̃(U A ⊸ U(T B)))` realising lambda + application.**
 
 ```coq
 (* theories/programs/ppl.v *)
 
-(** Types. *)
+(** Types — direct-style CBV: no [tprob] marker. *)
 Inductive ppl_type : Type :=
   | tunit
   | tbase (X : ar_obj Ar)
   | tprod (t1 t2 : ppl_type)
-  | tfun  (t1 t2 : ppl_type)
-  | tprob (t  : ppl_type).
+  | tfun  (t1 t2 : ppl_type).
 
 (** Named contexts: each binding slot carries a string identifier.
     The PRIVATE projection [drop_names] forgets the names; it is the
@@ -1654,7 +1660,11 @@ Inductive named_var : named_ctx -> ppl_type Ar -> Type :=
             (t : ppl_type Ar) (v : named_var G t) :
       named_var ((y, s) :: G) t.
 
-(** The single inductive of expressions, named and direct-style. *)
+(** The single inductive of expressions, named and direct-style.
+    DIRECT STYLE: no [ne_ret], no [ne_bind] (replaced by the
+    sequencer [ne_let]); the effectful constructors [ne_sample] and
+    [ne_score] return PURE types ([tR] and [tunit] respectively) — the
+    monad lives entirely in [eD], not in the source types. *)
 Inductive named_expr : named_ctx Ar -> T -> Type :=
   | ne_var   (G : named_ctx Ar) (t : T) :
       named_var G t -> named_expr G t
@@ -1669,39 +1679,35 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr ((x, t1) :: G) t2 -> named_expr G (tfun t1 t2)
   | ne_app   (G : named_ctx Ar) (t1 t2 : T) :
       named_expr G (tfun t1 t2) -> named_expr G t1 -> named_expr G t2
-  | ne_ret   (G : named_ctx Ar) (t : T) :
-      named_expr G t -> named_expr G (tprob t)
-  | ne_bind  (G : named_ctx Ar) (x : string) (t1 t2 : T) :
-      named_expr G (tprob t1) ->
-      named_expr ((x, t1) :: G) (tprob t2) ->
-      named_expr G (tprob t2)
-  | ne_sample (G : named_ctx Ar) (X : ar_obj Ar)
-              (mu : fmeas R (ar_carrier Ar X))
+  | ne_let   (G : named_ctx Ar) (x : string) (t1 t2 : T) :
+      named_expr G t1 ->
+      named_expr ((x, t1) :: G) t2 ->
+      named_expr G t2
+  | ne_sample (G : named_ctx Ar)
+              (mu : fmeas R (ar_carrier Ar R_obj))
               (Hmu : (cone_norm mu <= 1)%R) :
-      named_expr G (tprob (tbase X))
+      named_expr G tR'
   | ne_real  (G : named_ctx Ar) (r : R) : named_expr G tR'
   | ne_score (G : named_ctx Ar)
              (f : R -> R)
              (Hf_meas : measurable_fun [set: R] f)
              (Hf_ge0 : forall r : R, (0 <= f r)%R)
              (Hf_le1 : forall r : R, (f r <= 1)%R)
-             (e : named_expr G tR') : named_expr G (tprob tunit)
+             (e : named_expr G tR') : named_expr G tunit
   | ne_add   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   | ne_mul   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'.
 
-(** Type / context interpretation. *)
+(** Type / context interpretation.  Direct-style CBV: the function
+    type is the Kleisli exponential, with [Tobj] on the codomain. *)
 Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
   match t with
   | tunit       => EM_term
   | tbase X     => FMeas_coalgebra X
   | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
   | tfun A B    => bang_cofree (linhom_car Ar (coalg_obj (tyD A))
-                                              (coalg_obj (tyD B)))
-  (* [tprob t] is the SYNTACTIC marker: tyD (tprob t) = tyD t,
-     monadic structure is in [eD]. *)
-  | tprob t0    => tyD t0
+                                              (coalg_obj (Tobj (tyD B))))
   end.
 
 Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
@@ -1753,9 +1759,9 @@ Lemma score_lift_dirac (r : R) :
 (** The term interpretation [eD] — every expression is interpreted
     directly as a coalgebra Kleisli arrow
     [coalg_hom (ctxD (drop_names G)) (Tobj (tyD t))], by structural
-    recursion on [named_expr]; the [ne_var] clause runs the
-    named-to-skeletal projection [named_var_to_has_var] and then
-    [var_lookup]. *)
+    recursion on [named_expr]; pure constructors are wrapped through
+    [tunit_eta] (the implicit return); [ne_let] is direct-style CBV
+    sequencing via [kbind_ext]. *)
 Fixpoint eD (G : named_ctx Ar) (t : T)
     (M : @named_expr R Ar R_obj G t) {struct M}
   : coalg_hom (ctxD (drop_names G)) (Tobj (tyD t)) :=
@@ -1775,14 +1781,12 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
   | ne_app _ _ _ Vf Va =>
       kcomp (app_pair _ _)
         (coalg_comp (bang_m _ _) (em_pair (eD Vf) (eD Va)))
-  | ne_ret _ _ M0      => eD M0     (* tprob is syntactic *)
-  | ne_bind _ _ _ _ M0 K => kbind_ext (eD K) (eD M0)
-  | ne_sample _ _ mu Hmu => @sample_kleisli _ _ mu Hmu
-  | ne_real _ r          => @real_kleisli _ r
+  (* Direct-style CBV [let]: same shape as the old monadic [ne_bind],
+     minus the [tprob] markers on the types. *)
+  | ne_let _ _ _ _ M0 K => kbind_ext (eD K) (eD M0)
+  | ne_sample _ mu Hmu => @sample_kleisli _ _ mu Hmu
+  | ne_real _ r        => @real_kleisli _ r
   | ne_score _ f Hf_meas Hf_ge0 Hf_le1 e0 =>
-      (* score f e: apply f to e's value, then score by f(r).
-         Post-composes the term's denotation with the lifted score
-         density [bang_cofree_hom score_lift]. *)
       coalg_comp (bang_cofree_hom (score_lift Hf_meas Hf_ge0 Hf_le1))
                  (eD e0)
   | ne_add _ M0 N0 =>
@@ -1792,6 +1796,14 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
       coalg_comp (bang_cofree_hom mul_lift)
                  (coalg_comp (bang_m _ _) (em_pair (eD M0) (eD N0)))
   end.
+
+(** The direct-style [let] reduction lemma — no [eD_ret] exists: in
+    direct style every expression already denotes a Kleisli arrow,
+    and there is no syntactic [return] constructor. *)
+Lemma eD_let (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
+    (M : named_expr G t1) (K : named_expr ((x, t1) :: G) t2) :
+  eD (ne_let x M K) = kbind_ext (eD K) (eD M).
+Proof. by []. Qed.
 
 (** Variable-lookup encoding via CANONICAL STRUCTURES (Saito-Affeldt §5.2).
     [tagged_nctx] wraps [named_ctx]; [find_nv s t] pairs a tagged
@@ -1832,7 +1844,9 @@ Definition ne_var' (R : realType) (Ar : MeasSubcat R) (R_obj : ar_obj Ar)
   ne_var (fn_proof g).
 
 (** Surface notation — custom entry [ppl_named].  Brackets [...]
-    enter the grammar, curly braces {...} escape back to Coq. *)
+    enter the grammar, curly braces {...} escape back to Coq.
+    Direct style: no [Ret] notation; [let "x" := M in N] desugars
+    to [ne_let] (NOT [ne_bind]). *)
 Declare Custom Entry ppl_named.
 
 Notation "[ e ]" := e (e custom ppl_named at level 90).
@@ -1845,9 +1859,6 @@ Notation "# x" :=
   (in custom ppl_named at level 1, x constr at level 0).
 Notation "[| r |]" := (ne_real r)
   (in custom ppl_named at level 1, r constr).
-Notation "'Ret' e" := (ne_ret e)
-  (in custom ppl_named at level 60, e custom ppl_named at level 60,
-   right associativity).
 Notation "'Sample' ( mu , Hmu )" :=
   (ne_sample mu Hmu)
   (in custom ppl_named at level 1, mu constr, Hmu constr).
@@ -1879,8 +1890,9 @@ Notation "'\' x ':::' A '=>' M" :=
   (in custom ppl_named at level 70, x constr at level 0,
    A constr at level 0,
    M custom ppl_named at level 60, right associativity).
+(** Direct-style CBV let — desugars to [ne_let] (NOT [ne_bind]). *)
 Notation "'let' x ':=' M 'in' N" :=
-  (ne_bind x%string M N)
+  (ne_let x%string M N)
   (in custom ppl_named at level 80, x constr at level 0,
    M custom ppl_named at level 70,
    N custom ppl_named at level 80,
@@ -1892,14 +1904,18 @@ constructor of `named_expr` are crucial: without them,
 canonical-structure lookup at `#"x"` sites would fire with an open
 context metavariable and pick the wrong `find_nv` instance.
 
-#### Code: `theories/programs/examples.v` — three QBS-style headline examples
+#### Code: `theories/programs/examples.v` — three QBS-style direct-style examples
 
 The file's header docstring:
 
-> **Three end-to-end examples for the named-variable PPL of
-> `theories/programs/ppl.v`, each written in the `ppl_named` custom
+> **Three end-to-end examples for the DIRECT-STYLE named-variable PPL
+> of `theories/programs/ppl.v`, each written in the `ppl_named` custom
 > entry and paired with a `_denot_E` structural reduction lemma
-> exposing the outer `kbind_ext`-shape of its denotation.**
+> exposing the outer `kbind_ext`-shape of its denotation.  Direct
+> style: the source language exposes no probability-monad marker.  The
+> function type `tfun tR tR` (NOT `tprob (tfun tR tR)`) is itself the
+> Kleisli exponential at the semantic level; all effects are implicit,
+> and the `kbind_ext` structure surfaces only at the level of `eD`.**
 
 ```coq
 (* theories/programs/examples.v *)
@@ -1918,11 +1934,12 @@ Hypothesis R_to_carrier_meas :
 Variable (mu : fmeas R (ar_carrier Ar R_obj)).
 Hypothesis Hmu : (cone_norm mu <= 1)%R.
 
-(** Example 1 — [ex_random_constant] in surface syntax:
-    [do c <- sample mu; return (λ x. c)]. *)
+(** Example 1 — [ex_random_constant] in direct-style surface syntax:
+    [let "c" := sample mu in λ x. c].  Note the type [tfun tR tR],
+    not [tprob (tfun tR tR)]: the monad is in [eD], not the source. *)
 Definition ex_random_constant :
-    @named_expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
-  [ let "c" := Sample (mu , Hmu) in Ret (\ "x" ::: tR' => # "c") ].
+    @named_expr R Ar R_obj nil (tfun tR' tR') :=
+  [ let "c" := Sample (mu , Hmu) in \ "x" ::: tR' => # "c" ].
 
 Lemma ex_random_constant_denot_E :
   ex_random_constant_denot =
@@ -1933,13 +1950,14 @@ End RandomConstant.
 
 Section RandomLinear.
 (* same hypothesis block as RandomConstant *)
-(** Example 2 — [ex_random_linear]:
-    [do m <- sample mu; do b <- sample mu; return (λx. m * x + b)]. *)
+(** Example 2 — [ex_random_linear] in direct-style surface syntax:
+    [let "m" := sample mu in let "b" := sample mu in λx. m*x + b].
+    Type [tfun tR tR], not [tprob (tfun tR tR)]. *)
 Definition ex_random_linear :
-    @named_expr R Ar R_obj nil (tprob (tfun tR' tR')) :=
+    @named_expr R Ar R_obj nil (tfun tR' tR') :=
   [ let "m" := Sample (mu , Hmu) in
     let "b" := Sample (mu , Hmu) in
-    Ret (\ "x" ::: tR' => # "m" * # "x" + # "b") ].
+    \ "x" ::: tR' => # "m" * # "x" + # "b" ].
 
 Lemma ex_random_linear_denot_E :
   ex_random_linear_denot =
@@ -1960,13 +1978,15 @@ Hypothesis Hf_meas : measurable_fun [set: R] f.
 Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
 Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
-(** Example 3 — [ex_bayes_linear] in surface syntax:
-    [do m <- sample mu; do _ <- score { f, … } #"m"; return #"m"]. *)
+(** Example 3 — [ex_bayes_linear] in direct-style surface syntax:
+    [let "m" := sample mu in let "_" := score { f, … } #"m" in #"m"].
+    Type [tR], not [tprob tR]: the unnormalised posterior of the
+    prior/score/observe shape, all effects implicit. *)
 Definition ex_bayes_linear :
-    @named_expr R Ar R_obj nil (tprob tR') :=
+    @named_expr R Ar R_obj nil tR' :=
   [ let "m" := Sample (mu , Hmu) in
     let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
-    Ret # "m" ].
+    # "m" ].
 
 Lemma ex_bayes_linear_denot_E :
   ex_bayes_linear_denot =
@@ -1978,10 +1998,11 @@ End BayesLinear.
 ```
 
 The three reduction lemmas reduce by the definitional unfoldings
-`eD_bind` / `eD_ret` / `eD_sample` / `eD_score` of `ppl.v`; each proof
-closes with `by [].`. The examples are written **exclusively** in the
-`[ ... ]` surface notation — there is no underlying De Bruijn surface
-form to translate from.
+`eD_let` / `eD_sample` / `eD_score` of `ppl.v` (no `eD_ret` — there is
+no syntactic `return` in direct style); each proof closes with
+`by [].`. The examples are written **exclusively** in the `[ ... ]`
+direct-style surface notation — there is no underlying De Bruijn
+surface form to translate from, and no `Ret` marker at any layer.
 
 #### Code: `theories/homs/fmeas_lax.v` + `theories/homs/bilin.v`
 
