@@ -2,54 +2,123 @@
 (** * A higher-order probabilistic PPL — single-sort, direct-style, multi-var
        De Bruijn, with Kleisli-exponential semantics in [EM(!)]
 
-    This file ports the canonical mathcomp-qbs higher-order PPL
-    ([mathcomp-qbs/theories/ppl_qbs.v] + [showcase/ppl_examples.v]) to the
-    integrable-cones model, with the SAME calculus shape as the QBS port:
+    A higher-order probabilistic programming calculus, intrinsically
+    typed and interpreted in the integrable-cones model.  The calculus
+    shape follows the canonical QBS paper PPL
+    (Heunen–Kammar–Staton–Yang, "A Convenient Category for Higher-Order
+    Probability Theory"); the denotational semantics is the
+    Eilenberg–Moore [EM(!)] / CBV chain of [theories/programs/cbv.v].
+
+    ** Surface calculus **
 
     - a single inductive [expr Γ τ] indexed by an intrinsically-typed,
       MULTI-VARIABLE De Bruijn context [Γ : ppl_ctx] and a type [τ :
       ppl_type];
-    - direct-style application [e_app f x : expr Γ B], NOT fine-grain Moggi:
-      the user-facing calculus matches a textbook QBS-style PPL, while the
-      interpretation goes through the same EM(!)-Kleisli-exponential chain as
-      [theories/programs/cbv.v] (= [Tobj = !̃ ∘ U]);
-    - monadic [e_ret] / [e_bind] returning to the probability type [tprob τ];
-    - a built-in measurable-space base [tbase X] for [X : ar_obj Ar], a unit
-      type, binary products, and the higher-order arrow [tfun A B] = [!̃(U A
-      ⊸ U B)] (the Kleisli exponential of the CBV computation monad).
+    - direct-style application [e_app f x : expr Γ B], NOT fine-grain
+      Moggi: the user-facing calculus matches a textbook PPL while the
+      interpretation goes through the EM(!)-Kleisli-exponential chain
+      of [theories/programs/cbv.v] (= [Tobj = !̃ ∘ U]);
+    - monadic [e_ret] / [e_bind] returning to the probability type
+      [tprob τ];
+    - a built-in measurable-space base [tbase X] for [X : ar_obj Ar], a
+      unit type, binary products, and the higher-order arrow
+      [tfun A B] = [!̃(U A ⊸ U B)] (the Kleisli exponential of the CBV
+      computation monad).
 
-    ** The mathematical framework **
+    ** Constructors **
 
-    Identical to [theories/programs/cbv.v]: the value category is the FULL
-    Eilenberg–Moore category [EM(!)] of the exponential comonad
-    ([em_cartesian.v]); the CBV computation monad is [T = !̃ ∘ U]
-    ([Tobj] in [cbv.v]).  The Kleisli exponential for [T] gives the
-    higher-order arrow type denotation
+    The full inductive [expr Γ τ] carries:
+    - [e_var v] — De Bruijn projection from [Γ];
+    - [e_tt] — the unit value;
+    - [e_pair] / [e_fst] / [e_snd] — binary products;
+    - [e_lam] / [e_app] — higher-order lambda / direct application;
+    - [e_ret] / [e_bind] — monadic return / sequencing;
+    - [e_sample mu Hmu] — sample from a unit-ball [mu : FMeas X];
+    - [e_real r] — real literal [r : R] of type [tR];
+    - [e_score r Hr0 Hr1] — SCALAR score by [r ∈ [0,1]] (constant
+      rescaling, returns [tprob tunit]);
+    - [e_score_tm f Hf_meas Hf_ge0 Hf_le1 e] — TERM-LEVEL score by
+      [f(r)] where [r] is the value of an [expr Γ tR] (the load-bearing
+      constructor for genuine Bayesian inference: the score factor can
+      depend on a bound variable, with [f : R → R] measurable and
+      pointwise in [[0,1]]);
+    - [e_add] / [e_mul] — pointwise [+]/[×] on two [tR]-valued
+      computations.
+
+    ** Type and context interpretation **
+
     [[
-        ⟦tfun A B⟧ := !̃(U A ⊸ U B)
-                    = bang_cofree (linhom_car Ar (coalg_obj ⟦A⟧)
-                                                 (coalg_obj ⟦B⟧)).
+       ⟦tunit⟧       = EM_term
+       ⟦tbase X⟧     = FMeas_coalgebra X         (Theorem 9.7)
+       ⟦tprod t1 t2⟧ = EM_prod ⟦t1⟧ ⟦t2⟧
+       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U⟦t2⟧)         (Kleisli exponential of [T])
+       ⟦tprob t⟧     = ⟦t⟧.
     ]]
-    See the header of [cbv.v] for the full discussion of the
-    natural-bijection chain [Hom_EM(C×A, T B) ≅ Hom_EM(C, !̃(U A ⊸ U B))]
+    Every expression denotes a Kleisli arrow [eD M : coalg_hom (ctxD Γ)
+    (Tobj (tyD τ))]: the [tprob] marker at the TYPE level is purely
+    SYNTACTIC ([tyD (tprob t) = tyD t]) — the monadic structure is in
+    [eD], not [tyD], and the "is-this-a-computation" status of a
+    [tprob] term is uniformly carried by the outer [Tobj] wrap.  See
+    [cbv.v]'s header for the natural-bijection chain
+    [Hom_EM(C×A, T B) ≅ Hom_EM(C, !̃(U A ⊸ U B))]
     realising lambda + application.
 
-    ** Headline example — [ex_random_constant] **
+    ** Infrastructure **
 
-    [[
-        ex_random_constant ≜
-          e_bind (e_sample µ) (e_ret (e_lam (e_var (hv_succ hv_zero))))
-                : expr [] (tprob (tfun tR tR))
-    ]]
-    in the empty context: draw [c ~ µ : FMeas R], then return the constant
-    function [λx.c] (whose body is the OUTER-bound variable, hence
-    [hv_succ hv_zero] in the lambda body).  This is the QBS-paper-flagship
-    "distribution over a function space" example, recovered here in the
-    EM(!) Kleisli-exponential discipline.
+    The arithmetic and term-level-score constructors lean on the FMeas
+    lax monoidal map of paper §9 ([theories/homs/fmeas_lax.v]):
+    - [fmeas_lax X Y : FMeas X ⊗ FMeas Y ⊸ FMeas (X × Y)] is the Phase-A
+      "tensored pair to joint measure" map, with Dirac identity
+      [fmeas_lax_dirac : fmeas_lax (δ_a ⊗ δ_b) = δ_(a,b)] (used directly
+      by [add_lift_dirac] / [mul_lift_dirac]);
+    - the §6 follow-up [int_to_linhom_pres_path_in_cone] is what
+      unblocked promoting paths into [linhom_car]s axiom-free, and is
+      what [score_tm_lift] re-uses to package the term-level score
+      density as an [icones_hom (FMeas R_obj) (cone_one_car Ar)].
 
-    The three names [ex_random_constant], [ex_random_constant_denot] and
-    [ex_random_constant_denot_E] are preserved (the README / blueprint /
-    AUDITOR.md reference them). *)
+    The "Dirac/integration view" makes the reductions transparent:
+    - [add_lift_dirac a b] / [mul_lift_dirac a b]: the arithmetic lift
+      on point masses reduces to the arithmetic on the carriers;
+    - [score_tm_lift_dirac r]: the term-level score on a point mass
+      reduces to [f r · one1] — exactly the [score_value] packaging the
+      scalar [e_score] already uses, but with [r] coming from a bound
+      variable rather than a syntactic literal.
+
+    ** Headline examples **
+
+    Three end-to-end examples are bundled in the file; each comes with a
+    [_denot] denotation and a [_denot_E] structural reduction lemma.
+
+    - [ex_random_constant mu Hmu] (the QBS-showcase' [random_constant]
+      shape): [do c <- sample mu; return (λx. c) : tprob (tfun tR tR)] —
+      a distribution over a function space; [ex_random_constant_denot_E]
+      exposes the outer [kbind_ext lam_denot sample_denot] form.
+    - [ex_random_linear mu Hmu]: [do m <- sample mu; do b <- sample mu;
+      return (λx. m * x + b) : tprob (tfun tR tR)] — exercises [e_add]
+      and [e_mul]; [ex_random_linear_denot_E] exposes the nested
+      [kbind_ext] shape.
+    - [ex_bayes_linear mu Hmu f Hf_…]: [do m <- sample mu; do _ <-
+      score_tm f m; return m : tprob tR] — the textbook prior/score/
+      return shape, the first example exercising [e_score_tm].  The
+      reduction [ex_bayes_linear_denot_E] exposes the outer
+      [kbind_ext score_then_return_denot sample_denot] form.  This is
+      the UNNORMALISED posterior (no [qbs_normalize]); we claim only
+      that the denotation matches the expected joint-pushforward-then-
+      density reduction.
+
+    The QBS paper supplies the shape of the calculus; the QBS showcase
+    (mathcomp-qbs's [ppl_examples.v]) supplies the shape of these
+    examples.  The denotation, the EM(!) Kleisli-exponential
+    discipline, the FMeas lax monoidal scaffolding, and the
+    [e_score_tm] term-level score are integrable-cones contributions.
+
+    All public names — [expr] / [tyD] / [ctxD] / [eD], every
+    constructor name, [score_kleisli], [add_lift] / [mul_lift] /
+    [add_lift_dirac] / [mul_lift_dirac], [score_tm_lift] /
+    [score_tm_lift_dirac], and the three [ex_random_constant] /
+    [ex_random_linear] / [ex_bayes_linear] families — are stable;
+    downstream references in the README / blueprint / AUDITOR.md
+    remain accurate. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
