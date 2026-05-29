@@ -628,10 +628,10 @@ Arguments app_pair {R Ar} A B.
       to actually fire the closure on its argument.  This is the
       "evaluate-evaluate-then-fire" Moggi semantics of direct
       application.
-    - [e_ret M] : evaluate [M] (already a Kleisli arrow into [Tobj]) and
-      then wrap once more with [tunit_eta].
-    - [e_bind M K] : the extended-context Kleisli bind [kbind_ext]
+    - [e_let M K] : the extended-context Kleisli bind [kbind_ext]
       glueing [M : G ⇝ t1] with the continuation [K : (t1 :: G) ⇝ t2].
+      This is the direct-style CBV sequencer; semantically identical
+      to the old monadic-style [e_bind] minus the [tprob] markers.
     - [e_sample mu] : the constant Kleisli arrow [G ⇝ FMeas X] whose
       value is [mu], composed through [tunit_eta] of [FMeas_coalgebra X].
     - [e_real r] : the constant Kleisli arrow [G ⇝ tR] whose value is the
