@@ -818,6 +818,240 @@ Arguments dirac_lax_funE {R Ar X Y} x y U _.
 Arguments icone_integral_dirac_lax_E {R Ar X Y} x ν U _.
 Arguments fmeas_lax_pre_iterated {R Ar X Y} µ ν U _.
 
+(** ** Symmetric (Y-then-X) Fubini for [fmeas_lax_pre] — Lemma B
+
+    The Y-then-X dual of [fmeas_lax_pre_iterated], plus the headline
+    commutativity statement [fmeas_lax_pre_fubini] that the two
+    iteration orders agree.  These together express the *commutativity
+    of the FMeas-Kleisli monad on the tensor* (Fubini at the
+    Kleisli-monad level), the load-bearing identity that supports the
+    downstream PPL marginal lemma for [ex_random_linear].
+
+    Coverage.
+
+    - [dirac_lax_fun_swap_is_path] : for each fixed [y : Y], the map
+      [x ↦ δ_{ar_prod_cast(x, y)}] is itself a measurable path in
+      [FMeas (X × Y)].  The symmetric dual of [dirac_lax_is_path].
+
+    - [icone_integral_dirac_lax_swap_E] : the Pettis equation in the
+      [µ]-on-[X] direction.
+
+    - [fmeas_lax_pre_iterated_Y] : the load-bearing Y-then-X iteration
+      identity, [(µ ⊗p ν)(U) = ∫[ν]_y ∫[µ]_x δ_{(x,y)}(U)].  Proved by
+      chaining [fmeas_lax_pre_iterated] (X-then-Y) with mathcomp-analysis's
+      symmetric [fubini_tonelli] on the dirac integrand — the genuine
+      Fubini swap at the scalar level.
+
+    - [fmeas_lax_pre_fubini] : the two iteration orders agree.
+      Pure corollary of [fmeas_lax_pre_iterated] and
+      [fmeas_lax_pre_iterated_Y]. *)
+
+Section FmeasLaxIteratedSwap.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+(** For each fixed [y : Y], the map [x ↦ δ_{ar_prod_cast(x, y)}] is
+    a measurable path of [FMeas (X × Y)].  Symmetric to [dirac_lax_is_path]. *)
+Lemma dirac_lax_fun_swap_is_path (y : ar_carrier Ar Y) :
+  is_measurable_path
+    (Ar:=Ar) (C:=fmeas R (ar_carrier Ar (ar_prod Ar X Y)))
+    (X:=X) (fun x => dirac_lax_fun (Y:=Y) x y).
+Proof.
+split.
+  by exists 1%R => x; rewrite /dirac_lax_fun dirac_fmeas_norm.
+move=> Z m mM.
+case: mM => [U [mU ->]].
+apply: (eq_measurable_fun
+  (fun p : ar_carrier Ar Z * ar_carrier Ar X =>
+     fine (\d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (p.2, y)) U
+           : \bar R))).
+  by move=> p _; rewrite /= /eU_fun /= /dirac_lax_fun dirac_fmeas_E.
+pose g (x : ar_carrier Ar X) : \bar R :=
+  \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+have g_meas : measurable_fun setT g.
+  apply: (measurableT_comp (f := fun p => \d_p U)).
+  - exact: measurable_fun_dirac.
+  - apply: (measurableT_comp (f := ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y))).
+    + exact: (ar_prod_cast_meas Ar X Y).
+    + by apply: measurable_fun_pair;
+        [exact: @measurable_id|exact: measurable_cst].
+have finecomp : measurable_fun setT
+                  (fun x : ar_carrier Ar X => fine (g x)).
+  by apply: (measurableT_comp (f := fine)) => //; exact: fine_measurable.
+exact: (measurableT_comp finecomp measurable_snd).
+Qed.
+
+(** Per-test Pettis equation for [icone_integral _ _ µ] with the swapped
+    [dirac_lax].  On measurable [U], the integral measures the
+    [µ]-fraction of [x]-fibres at [ar_prod_cast(·, y)] hitting [U]. *)
+Lemma icone_integral_dirac_lax_swap_E (y : ar_carrier Ar Y)
+    (µ : fmeas R (ar_carrier Ar X))
+    (U : set (ar_carrier Ar (ar_prod Ar X Y))) :
+  measurable U ->
+  fmeas_mu (icone_integral (fun x => dirac_lax_fun x y)
+                           (dirac_lax_fun_swap_is_path y) µ) U =
+  \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+    \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+Proof.
+move=> mU.
+have mMU : mcone_M (Ar:=Ar) (ar_zero Ar)
+              (fmeas_eU (R:=R) (X:=ar_carrier Ar (ar_prod Ar X Y))
+                        (Ar:=Ar) (ar_zero Ar) mU).
+  by exists U, mU.
+have HP := icone_integralP (fun x => dirac_lax_fun x y)
+                           (dirac_lax_fun_swap_is_path y) µ _ mMU
+                           (ar_zero_pt Ar).
+have rwInteg : forall x : ar_carrier Ar X,
+    \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U =
+    fmeas_mu (dirac_lax_fun x y) U.
+  by move=> x; rewrite /dirac_lax_fun dirac_fmeas_E.
+under [in RHS]eq_integral => x _ do rewrite rwInteg.
+have Hfin :
+    fmeas_mu (icone_integral (fun x => dirac_lax_fun x y)
+                             (dirac_lax_fun_swap_is_path y) µ) U
+    \is a fin_num.
+  exact: fmeas_fin.
+have Hintfin :
+    \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+      fmeas_mu (dirac_lax_fun x y) U \is a fin_num.
+  have intle :
+    \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+       fmeas_mu (dirac_lax_fun x y) U <=
+    fmeas_mu µ [set: ar_carrier Ar X].
+    apply: (@le_trans _ _
+      (\int[fmeas_mu µ]_(x in [set: ar_carrier Ar X]) (1 : \bar R)));
+      last first.
+      by rewrite integral_cst// mul1e.
+    apply: ge0_le_integral.
+    - exact: measurableT.
+    - by move=> x _; exact: measure_ge0.
+    - apply: (eq_measurable_fun
+        (fun x => \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U)).
+        by move=> x _; rewrite rwInteg.
+      have meas_d : measurable_fun setT
+        (fun p : ar_carrier Ar (ar_prod Ar X Y) => \d_p U : \bar R).
+        exact: measurable_fun_dirac.
+      have measc : measurable_fun setT
+        (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y))
+        by exact: (ar_prod_cast_meas Ar X Y).
+      have meas_pair : measurable_fun setT
+        (fun x : ar_carrier Ar X =>
+           ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)).
+        apply: (measurableT_comp measc).
+        by apply: measurable_fun_pair;
+          [exact: @measurable_id|exact: measurable_cst].
+      exact: (measurableT_comp meas_d meas_pair).
+    - exact: measurable_cst.
+    - move=> x _.
+      rewrite -rwInteg.
+      apply: (@le_trans _ _
+        (\d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) setT)).
+      + by apply: le_measure => //; rewrite inE.
+      + by rewrite diracT.
+  rewrite ge0_fin_numE//; last
+    by apply: integral_ge0 => x _; exact: measure_ge0.
+  apply: le_lt_trans intle _.
+  have HfinT : fmeas_mu µ [set: ar_carrier Ar X] \is a fin_num
+    by exact: fmeas_setT_fin.
+  by rewrite ltey_eq HfinT.
+have HPE := HP.
+rewrite /fmeas_eU /eU_fun /= in HPE.
+rewrite -(fineK Hfin) -(fineK Hintfin); congr (_%:E).
+rewrite HPE.
+congr fine.
+apply: eq_integral => x _.
+have Hfinx : fmeas_mu (dirac_lax_fun x y) U \is a fin_num.
+  exact: fmeas_fin.
+by rewrite -[in RHS](fineK Hfinx).
+Qed.
+
+(** *** The Y-then-X iteration identity — the load-bearing Fubini step.
+
+    Proved by chaining [fmeas_lax_pre_iterated] (the X-then-Y direction)
+    with mathcomp-analysis's symmetric [fubini_tonelli] applied to the
+    measurable nonneg dirac integrand [\d_{ar_prod_cast (x, y)} U]. *)
+Lemma fmeas_lax_pre_iterated_Y
+    (µ : fmeas R (ar_carrier Ar X)) (ν : fmeas R (ar_carrier Ar Y))
+    (U : set (ar_carrier Ar (ar_prod Ar X Y))) :
+  measurable U ->
+  fmeas_mu (fmeas_lax_pre µ ν) U =
+  \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+    fmeas_mu (icone_integral (fun x => dirac_lax_fun x y)
+                             (dirac_lax_fun_swap_is_path y) µ) U.
+Proof.
+move=> mU.
+(* Step 1: Replace inner integrand on the RHS by its Pettis expansion. *)
+have rwInnerY : forall y : ar_carrier Ar Y,
+  fmeas_mu (icone_integral (fun x => dirac_lax_fun x y)
+                           (dirac_lax_fun_swap_is_path y) µ) U =
+  \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+    \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+  by move=> y; exact: icone_integral_dirac_lax_swap_E.
+under eq_integral => y _ do rewrite rwInnerY.
+(* Step 2: Rewrite LHS to the X-then-Y iterated form. *)
+rewrite (fmeas_lax_pre_iterated µ ν U mU).
+have rwInnerX : forall x : ar_carrier Ar X,
+  fmeas_mu (icone_integral (dirac_lax_fun x) (dirac_lax_is_path x) ν) U =
+  \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+    \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)) U.
+  by move=> x; exact: icone_integral_dirac_lax_E.
+under eq_integral => x _ do rewrite rwInnerX.
+(* Step 3: Both sides are scalar integrals; swap via fubini_tonelli on
+   the joint dirac F(x, y) = \d_{ar_prod_cast (x, y)} U. *)
+pose F (p : ar_carrier Ar X * ar_carrier Ar Y) : \bar R :=
+  \d_(ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) p) U.
+have F_meas : measurable_fun setT F.
+  apply: (measurableT_comp (f := fun p => \d_p U)).
+  - exact: measurable_fun_dirac.
+  - exact: (ar_prod_cast_meas Ar X Y).
+have F_ge0 p : 0 <= F p by rewrite /F; exact: measure_ge0.
+(* Bridge to fmeas_fin_view to use fubini_tonelli (which wants
+   sigma_finite measures). *)
+have outerEqµ (g : ar_carrier Ar X -> \bar R) :
+  \int[fmeas_fin_view µ]_(x in [set: ar_carrier Ar X]) g x =
+  \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X]) g x.
+  by apply: eq_measure_integral => V mV _; exact: fmeas_fin_viewE.
+have outerEqν (g : ar_carrier Ar Y -> \bar R) :
+  \int[fmeas_fin_view ν]_(y in [set: ar_carrier Ar Y]) g y =
+  \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y]) g y.
+  by apply: eq_measure_integral => V mV _; exact: fmeas_fin_viewE.
+rewrite -outerEqµ -outerEqν.
+under eq_integral => x _ do rewrite -outerEqν.
+under [in RHS]eq_integral => y _ do rewrite -outerEqµ.
+exact: (fubini_tonelli F F_meas F_ge0).
+Qed.
+
+(** *** The headline commutativity — Lemma B "FMeas-Kleisli Fubini".
+
+    The two iteration orders of the integration agree.  This is the
+    commutativity of the FMeas-tensor-Kleisli monad on the lax-monoidal
+    pushforward [fmeas_lax_pre µ ν].  Pure corollary of
+    [fmeas_lax_pre_iterated] (X-then-Y) and [fmeas_lax_pre_iterated_Y]
+    (Y-then-X). *)
+Lemma fmeas_lax_pre_fubini
+    (µ : fmeas R (ar_carrier Ar X)) (ν : fmeas R (ar_carrier Ar Y))
+    (U : set (ar_carrier Ar (ar_prod Ar X Y))) :
+  measurable U ->
+  \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+    fmeas_mu (icone_integral (dirac_lax_fun x)
+                             (dirac_lax_is_path x) ν) U =
+  \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+    fmeas_mu (icone_integral (fun x => dirac_lax_fun x y)
+                             (dirac_lax_fun_swap_is_path y) µ) U.
+Proof.
+move=> mU.
+rewrite -(fmeas_lax_pre_iterated µ ν U mU).
+exact: fmeas_lax_pre_iterated_Y.
+Qed.
+
+End FmeasLaxIteratedSwap.
+
+Arguments dirac_lax_fun_swap_is_path {R Ar X Y} y.
+Arguments icone_integral_dirac_lax_swap_E {R Ar X Y} y µ U _.
+Arguments fmeas_lax_pre_iterated_Y {R Ar X Y} µ ν U _.
+Arguments fmeas_lax_pre_fubini {R Ar X Y} µ ν U _.
+
 (** *** [fmeas_lax_E] — pointwise computation on the pure tensor
 
     [fmeas_lax X Y (µ ⊗p ν) = fmeas_lax_pre µ ν].
