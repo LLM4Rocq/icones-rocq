@@ -282,3 +282,51 @@ Arguments ex_bayes_linear_denot
 Arguments ex_bayes_linear_denot_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}
   mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+
+(** ** Lemma 1 — [ex_random_constant_marginal]
+
+    Evaluating the random constant function at any point recovers the
+    prior [µ]: [E[ (λx. c)(x) ] = E[c]] when [c ∼ µ].
+
+    The [apply_at x] helper is the named-syntax sugar for the
+    "given a computation of a function, apply it to the literal [x]"
+    Kleisli continuation, in the singleton context
+    [[("f", tfun tR tR)]].  It is the [eD] image of the surface term
+    [#"f" @ [|x|]].  The lemma's LHS
+    [kbind_ext (apply_at x) ex_random_constant_denot] is exactly
+    [eD] of [let "f" := ex_random_constant in #"f" @ [|x|]] (by
+    [eD_let]). *)
+Section LemmaOneMarginalConstant.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+Local Notation eD' :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas).
+
+(** [apply_at x]: the Kleisli continuation "given a function value
+    bound under the name [\"f\"], apply it to the literal [x]".
+    Defined via the named-syntax surface expression [#"f" @ [|x|]],
+    which by [eD_app] denotes the appropriate [kcomp ∘ app_pair ∘
+    bang_m ∘ em_pair] composite.  This helper may be DUPLICATED with
+    the Lemma 2 agent's local definition on a parallel branch;
+    deduplicate at merge. *)
+Local Definition apply_at (x : R) :
+    coalg_hom (ctxD (drop_names [:: ("f"%string, tfun tR' tR')]))
+              (Tobj (tyD tR')) :=
+  eD' [ # "f" @ [| x |] ].
+
+End LemmaOneMarginalConstant.
+
+Arguments apply_at
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
