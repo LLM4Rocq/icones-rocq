@@ -169,6 +169,49 @@ have := congr1 (fun h => linhom_fun h x) Heq.
 by rewrite !icones_to_linhomE.
 Qed.
 
+(** ** Dirac-to-integral lifting — Lemma C
+
+    Any [icones_hom] [h : FMeas X → B] is determined on every [µ] by
+    integration against the measurable path [r ↦ h(δ_r)].  Given a
+    measurable path [φ : X → B] that agrees pointwise with [h ∘ δ],
+    [h(µ) = ∫φ dµ] for every [µ].  This is a direct corollary of the
+    round-trip identity [I ∘ K = id] of paper Thm 6.1: viewing [h] as a
+    [linhom_car] via [icones_to_linhom], the equality
+    [int_to_linhom (linhom_to_int (icones_to_linhom h))
+       = icones_to_linhom h] (= [I_K_int_to_linhom_E]) applied to [µ]
+    rewrites [h(µ)] as [int_to_linhom_fun] of the Dirac-image path; the
+    Dirac-image path is then identified with [φ] via [path_eq] and the
+    pointwise hypothesis [Hφ].
+
+    The lemma is the "Diracs determine the integral" half of Thm 6.1
+    at the function level; combined with [dirac_dense] (the matching
+    "Diracs determine the map" extensionality), it provides the
+    Dirac-to-integral lift for any EM-Kleisli arrow
+    [K : FMeas_coalgebra X ⇝ B]: pass [ch_mor K] as the [icones_hom]
+    [h], and the conclusion reads [K(µ) = ∫φ dµ] for any [φ] matching
+    [K ∘ δ] on Diracs. *)
+Lemma icones_hom_dirac_to_integral
+    (X : ar_obj Ar) (B : ICone.type Ar)
+    (h : icones_hom Ar (FMeas X) B)
+    (phi : ar_carrier Ar X -> B)
+    (Hphi_path : is_measurable_path (Ar:=Ar) (C:=B) (X:=X) phi)
+    (Hphi : forall r, Lfun h (dirac_fmeas r) = phi r)
+    (mu : fmeas R (ar_carrier Ar X)) :
+  Lfun h mu = int_to_linhom_fun (MkPath Hphi_path) mu.
+Proof.
+have Hrt := I_K_int_to_linhom_E (icones_to_linhom h).
+have Heq :
+    linhom_fun (int_to_linhom (linhom_to_int (icones_to_linhom h))) mu
+    = linhom_fun (icones_to_linhom h) mu.
+  by rewrite Hrt.
+rewrite icones_to_linhomE in Heq.
+rewrite -Heq.
+rewrite -[linhom_fun (int_to_linhom _) _]/(int_to_linhom_fun _ _).
+congr (int_to_linhom_fun _ mu).
+apply: path_eq => r /=.
+by rewrite /linhom_to_int_fun icones_to_linhomE Hphi.
+Qed.
+
 (** ** The two coalgebra laws *)
 
 (** [‖δ_X r‖ ≤ 1] — used to reduce the comonad laws on promoted
@@ -210,6 +253,8 @@ Arguments bang_dirac_path {R Ar} X.
 Arguments Coalg {R Ar} X.
 Arguments Coalg_dirac {R Ar} X r.
 Arguments dirac_dense {R Ar X B} f g.
+Arguments icones_hom_dirac_to_integral
+  {R Ar X B} h phi Hphi_path Hphi mu.
 Arguments Coalg_counit {R Ar} X.
 Arguments Coalg_coassoc {R Ar} X.
 
