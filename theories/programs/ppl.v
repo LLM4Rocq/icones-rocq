@@ -1221,6 +1221,39 @@ Arguments real_kleisli {R Ar R_obj R_carrier_eq} G r.
 Arguments sample_kleisli {R Ar} G {X} mu Hmu.
 Arguments dirac_fmeas_norm_le1 {R Ar R_obj} r.
 
+(** ** Dirac-to-integral lifting — Lemma C (EM-Kleisli convenience)
+
+    A direct EM-Kleisli wrapping of [icones_hom_dirac_to_integral]
+    ([theories/homs/coalgebra.v]).  An EM-Kleisli arrow
+    [K : FMeas_coalgebra X ⇝ B] is determined on every [µ] by
+    integration against the measurable path of its values on Diracs:
+    given a measurable path [φ : X → coalg_obj B] that matches [K]
+    on every Dirac [δ_r], [Lfun (ch_mor K) µ = ∫φ dµ] for every µ.
+
+    This is purely a renaming of the icones_hom-level lemma applied
+    to the underlying [ch_mor K]; it exists so that EM-Kleisli proofs
+    don't have to unfold [ch_mor] manually. *)
+Section KleisliDiracToIntegral.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Lemma kleisli_dirac_to_integral
+    (X : ar_obj Ar) (B : Coalgebra Ar)
+    (K : coalg_hom (FMeas_coalgebra X) B)
+    (phi : ar_carrier Ar X -> coalg_obj B)
+    (Hphi_path : is_measurable_path (Ar:=Ar) (C:=coalg_obj B) (X:=X) phi)
+    (Hphi : forall r, Lfun (ch_mor K) (dirac_fmeas r) = phi r)
+    (mu : fmeas R (ar_carrier Ar X)) :
+  Lfun (ch_mor K) mu = int_to_linhom_fun (MkPath Hphi_path) mu.
+Proof. exact: icones_hom_dirac_to_integral Hphi_path Hphi mu. Qed.
+
+End KleisliDiracToIntegral.
+
+Arguments kleisli_dirac_to_integral
+  {R Ar X B} K phi Hphi_path Hphi mu.
+
 (** ** Soundness — definitional [eD] equations + structural laws *)
 Section Soundness.
 Variables (R : realType) (Ar : MeasSubcat R).
