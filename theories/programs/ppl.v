@@ -592,6 +592,61 @@ Definition app_pair (A B : Coalgebra Ar) :
     (em_proj1 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))) A)
     (em_proj2 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))) A).
 
+(** *** [app_kleisli_lam] — the higher-order CBV β-law at the cones level
+
+    The load-bearing meta-theorem for the PPL: applying the lambda value
+    [lam_coalg M] (= [adj_psi ∘ tensor_curry ∘ ch_mor M]) to an
+    argument value [V : coalg_hom G A], via the EM Kleisli-exponential
+    application [app_kleisli], yields back the open computation [M]
+    substituted by [V] — concretely [coalg_comp M (em_pair (coalg_id G) V)].
+
+    Proof outline.  Unfold [app_kleisli] and [app_under] at the [ch_mor]
+    level (via the faithful [U]) :
+    [[
+      ch_mor (app_kleisli (lam_coalg M) V)
+        = bang_fmap (der (U B)) ∘ bang_fmap (app_under (lam_coalg M) V) ∘ coalg_str G.
+    ]]
+    The inner [app_under (lam_coalg M) V] is:
+    [[
+      tensor_uncurry (adj_phi (lam_coalg M)) ∘ ((id ⊗ ch_mor V) ∘ coalg_d G).
+    ]]
+    By [adj_phiK] (φ∘ψ = id), [adj_phi (lam_coalg M) = lam_under M =
+    tensor_curry (ch_mor M)].  By [tensor_curryK] (uncurry∘curry = id),
+    [tensor_uncurry (tensor_curry (ch_mor M)) = ch_mor M].  Hence
+    [app_under (lam_coalg M) V = ch_mor M ∘ em_pair_mor id (ch_mor V)
+    = ch_mor (coalg_comp M (em_pair (coalg_id G) V))].
+
+    Let [H := coalg_comp M (em_pair (coalg_id G) V)].  Then
+    [ch_mor (app_kleisli ...) = !(der) ∘ !(ch_mor H) ∘ coalg_str G].
+    Use the coalgebra-morphism square of [H : G → Tobj B]
+    ([dig ∘ ch_mor H = !(ch_mor H) ∘ coalg_str G]) to rewrite the right
+    factor:
+    [!(der) ∘ !(ch_mor H) ∘ coalg_str G = !(der) ∘ dig ∘ ch_mor H
+    = id ∘ ch_mor H = ch_mor H]   (by [comonad_counitR]).
+    Apply [coalg_hom_eqP] to conclude.
+
+    Note on the statement.  The PPL's [eD_lam] clause produces
+    [coalg_comp (tunit_eta C) (lam_coalg M)] with codomain [Tobj C] (a
+    Kleisli-COMPUTATION of a lambda VALUE).  That outer [tunit_eta] is
+    consumed by the [bang_m / kcomp] machinery of [eD_app], NOT by
+    [app_kleisli].  The β-rule at the [app_kleisli] level — the
+    irreducible categorical heart of the substitution lemma — is the
+    one stated below, without the outer [tunit_eta]. *)
+Lemma app_kleisli_lam (G A B : Coalgebra Ar)
+    (M : coalg_hom (EM_prod G A) (Tobj B)) (V : coalg_hom G A) :
+  app_kleisli (lam_coalg M) V = coalg_comp M (em_pair (coalg_id G) V).
+Proof.
+apply: coalg_hom_eqP.
+rewrite /app_kleisli /lam_coalg /app_under /lam_under.
+rewrite !coalg_comp_mor /=.
+rewrite adj_phiK tensor_curryK.
+set H := icones_comp (ch_mor M) (em_pair_mor (icones_id Ar (coalg_obj G)) (ch_mor V)).
+have HH : is_coalg_mor G (Tobj B) H
+  by exact: (ch_is_mor (coalg_comp M (em_pair (coalg_id G) V))).
+rewrite /is_coalg_mor /= in HH.
+by rewrite -HH icones_compA (comonad_counitR (U_obj B)) icones_compIl.
+Qed.
+
 End LamApp.
 
 Arguments lam_under {R Ar G A B} MB.
@@ -599,6 +654,7 @@ Arguments lam_coalg {R Ar G A B} MB.
 Arguments app_under {R Ar G A B} VF VA.
 Arguments app_kleisli {R Ar G A B} VF VA.
 Arguments app_pair {R Ar} A B.
+Arguments app_kleisli_lam {R Ar G A B} M V.
 
 (** ** Term interpretation [eD]
 
