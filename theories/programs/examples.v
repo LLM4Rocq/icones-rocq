@@ -35,8 +35,9 @@
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
-From mathcomp.reals Require Import reals.
+From mathcomp.reals Require Import reals constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
+From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
@@ -50,9 +51,20 @@ Require Import Icones.cones.cone_cat.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
+Require Import Icones.mcones.path.
+Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
+Require Import Icones.icones.icone_integral.
+Require Import Icones.icones.icone_cat.
+Require Import Icones.homs.linhom.
+Require Import Icones.homs.bilin.
+Require Import Icones.homs.tensor_hom_iso.
+Require Import Icones.homs.exp_adjunction.
+Require Import Icones.homs.bang.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
+Require Import Icones.homs.em_seely_comonoid.
+Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.cbv.
 Require Import Icones.programs.ppl.
 
@@ -61,6 +73,7 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
+Import Icones_tensor_hom_iso.
 
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
@@ -295,7 +308,11 @@ Arguments ex_bayes_linear_denot_E
     [#"f" @ [|x|]].  The lemma's LHS
     [kbind_ext (apply_at x) ex_random_constant_denot] is exactly
     [eD] of [let "f" := ex_random_constant in #"f" @ [|x|]] (by
-    [eD_let]). *)
+    [eD_let]).
+
+    HEADLINE NOT YET CLOSED.  The marginal identity itself awaits
+    the [kbind_ext_etaR] / [kbind_ext_A] monad laws on [ppl.v]'s
+    [kbind_ext]; only the [apply_at] helper is landed. *)
 Section LemmaOneMarginalConstant.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
@@ -318,9 +335,7 @@ Local Notation eD' :=
     bound under the name [\"f\"], apply it to the literal [x]".
     Defined via the named-syntax surface expression [#"f" @ [|x|]],
     which by [eD_app] denotes the appropriate [kcomp ∘ app_pair ∘
-    bang_m ∘ em_pair] composite.  This helper may be DUPLICATED with
-    the Lemma 2 agent's local definition on a parallel branch;
-    deduplicate at merge. *)
+    bang_m ∘ em_pair] composite. *)
 Local Definition apply_at (x : R) :
     coalg_hom (ctxD (drop_names [:: ("f"%string, tfun tR' tR')]))
               (Tobj (tyD tR')) :=
@@ -330,3 +345,256 @@ End LemmaOneMarginalConstant.
 
 Arguments apply_at
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
+
+(** ** Lemma 3 — the Bayesian posterior denotes a weighted sub-probability
+
+    THE PARTIAL DELIVERABLE.  This section delivers the
+    integration-side machinery for the headline QBS identity:
+
+    - [weighted_dirac_path] : the measurable path [r ↦ f(cR r) · δ_r]
+      in [path_car Ar R_obj (FMeas R_obj)].
+
+    - [weighted_mu] : the weighted measure
+      [int_to_linhom_fun weighted_dirac_path µ] (the cones-side
+      [f · µ]), with norm bound [≤ 1] ([weighted_mu_norm_le1]).
+
+    - [K_score] : the EM-Kleisli arrow
+      [FMeas_coalgebra R_obj ⇝ Tobj (FMeas_coalgebra R_obj)] that on
+      a Dirac [δ_r] returns the promoted weighted Dirac
+      [prom (f(cR r) · δ_r)] ([K_score_dirac]).
+
+    - [ex_bayes_linear_is_weighted_kscore] : the integration
+      identity [Lfun (ch_mor K_score) µ
+      = int_to_linhom_fun (path: r ↦ prom(f(cR r) · δ_r)) µ],
+      proved by direct application of [kleisli_dirac_to_integral].
+
+    WHAT IS NOT DELIVERED.  The headline equation
+    [ex_bayes_linear_denot = sample_kleisli (ctxD nil) weighted_µ
+    weighted_mu_norm_le1] (or its [Lfun_..._one1] reflection) requires
+    a [kbind_ext]/[kcomp] reformulation lemma — specifically,
+    [kbind_ext k (sample_kleisli µ Hµ) = kcomp K (sample_kleisli µ
+    Hµ)] for the [K] obtained by precomposing [k] with the canonical
+    iso [FMeas_coalgebra R_obj ≅ EM_prod EM_term (FMeas_coalgebra
+    R_obj)] — which the codebase does not currently expose.  Adding
+    it would naturally belong to [ppl.v] or [em_cartesian.v]; the
+    cones-side and homs-side files would not need to be touched. *)
+
+Section LemmaThreeBayesWeighted.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** *** The weighted-Dirac path [r ↦ f(cR r) · δ_r] *)
+
+Local Definition weighted_dirac_fun (r : ar_carrier Ar R_obj) :
+    fmeas R (ar_carrier Ar R_obj) :=
+  fmeas_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r).
+
+(** Norm bound on each path value: [f(cR r) ≤ 1] gives [‖f(cR r) · δ_r‖ ≤ 1]. *)
+Local Lemma weighted_dirac_fun_norm_le1 (r : ar_carrier Ar R_obj) :
+  (cone_norm (weighted_dirac_fun r : FMeas R_obj) <= 1)%R.
+Proof.
+rewrite /weighted_dirac_fun.
+rewrite -[fmeas_scale _ _]/(precone_scale _ (dirac_fmeas r)) cone_normh.
+rewrite dirac_fmeas_norm mulr1 /=.
+exact: Hf_le1.
+Qed.
+
+(** Measurability of the path: per-test [e_U U] (the only kind of
+    test on [FMeas R_obj]), the joint map
+    [(s,r) ↦ test_fun (e_U U) s (f(cR r) · δ_r)] reduces to
+    [(s,r) ↦ f(cR r) · 1_U(r)], measurable since [f ∘ cR] and [1_U]
+    are measurable. *)
+Local Lemma weighted_dirac_is_path :
+  is_measurable_path (Ar:=Ar) (C:=FMeas R_obj) (X:=R_obj)
+    weighted_dirac_fun.
+Proof.
+split.
+  by exists 1%R => r; exact: weighted_dirac_fun_norm_le1.
+move=> Y m mM.
+case: mM => [U [mU ->]].
+(* Per-test reduction: [test_fun (e_U U) s (f(cR r) · δ_r)
+   = f(cR r) · fine(δ_r(U)) = f(cR r) · 1_U(r)]. *)
+apply: (eq_measurable_fun
+  (fun p : ar_carrier Ar Y * ar_carrier Ar R_obj =>
+     (f (cR p.2) * fine (\d_(p.2) U : \bar R))%R)).
+  move=> p _ /=.
+  rewrite /weighted_dirac_fun.
+  rewrite -[fmeas_scale _ _]
+    /(precone_scale (NngNum (Hf_ge0 (cR p.2))) (dirac_fmeas p.2)).
+  rewrite eU_linZ /= /eU_fun /=.
+  by rewrite dirac_fmeas_E.
+exact: mU.
+have meas_f_cR :
+    measurable_fun [set: ar_carrier Ar R_obj] (fun r => f (cR r)).
+  apply: (measurableT_comp (f := f)); first exact: Hf_meas.
+  exact: R_carrier_meas.
+have meas_fst_f_cR :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar R_obj)%type]
+      (fun p => f (cR p.2)).
+  exact: (measurableT_comp meas_f_cR measurable_snd).
+have meas_dirac_self :
+    measurable_fun [set: ar_carrier Ar R_obj]
+      (fun r => fine (\d_r U : \bar R)).
+  apply: (measurableT_comp (f := fine)); first exact: fine_measurable.
+  exact: measurable_fun_dirac.
+have meas_fst_dirac :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar R_obj)%type]
+      (fun p => fine (\d_(p.2) U : \bar R)).
+  exact: (measurableT_comp meas_dirac_self measurable_snd).
+exact: measurable_funM.
+Qed.
+
+Local Definition weighted_dirac_path :
+    path_car Ar R_obj (FMeas R_obj) :=
+  MkPath weighted_dirac_is_path.
+
+(** Path norm bound: [path_norm weighted_dirac_path ≤ 1]. *)
+Local Lemma weighted_dirac_path_norm_le1 :
+  (path_norm weighted_dirac_path <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [r ->] /=; exact: weighted_dirac_fun_norm_le1.
+Qed.
+
+(** The integral [∫_{r∼µ} f(r)·δ_r] is in the unit ball. *)
+Local Definition weighted_mu : fmeas R (ar_carrier Ar R_obj) :=
+  int_to_linhom_fun weighted_dirac_path mu.
+
+Local Lemma weighted_mu_norm_le1 : (cone_norm weighted_mu <= 1)%R.
+Proof.
+rewrite /weighted_mu.
+apply: (@le_trans _ _ (path_norm weighted_dirac_path * fmeas_norm mu)%R).
+  apply: (path_integral_norm_le (Mβ := path_norm weighted_dirac_path)).
+  - move=> r; exact: path_norm_ub.
+  - exact: path_is_path.
+  - have := @icone_integralP _ _ _ _
+              weighted_dirac_path (path_is_path weighted_dirac_path) mu.
+    exact.
+rewrite -[1%R]mul1r.
+apply: ler_pM.
+- exact: path_norm_ge0.
+- exact: fmeas_norm_ge0.
+- exact: weighted_dirac_path_norm_le1.
+- exact: Hmu.
+Qed.
+
+(** *** The headline statement — Lemma 3
+
+    The Bayesian posterior denotes the sample from the weighted
+    measure [f · µ].  Reading.  The [const_kleisli]-wrapped form
+    [sample_kleisli (ctxD nil) weighted_µ Hbnd] makes the QBS reading
+    explicit: "sample from [int_to_linhom_fun weighted_dirac_path µ]",
+    which is the weighted measure [f · µ] in cones-side notation. *)
+
+(** *** The score-and-return Kleisli arrow on [FMeas_coalgebra R_obj]
+
+    [K_score] is the FMeas-source Kleisli arrow such that on a Dirac
+    [δ_r] in [FMeas R_obj] it returns the promoted weighted Dirac
+    [prom (f(cR r) · δ_r)] in [Bang (FMeas R_obj) = coalg_obj (Tobj
+    (FMeas R_obj))].  It is the EM-side encoding of "given [m], score
+    by [f(m)] and return [m]".
+
+    Built as [adj_psi K_under] where [K_under] is the linhom
+    [int_to_linhom weighted_dirac_path] viewed as an [icones_hom]
+    [FMeas R_obj → FMeas R_obj]. *)
+
+Local Lemma K_under_norm_le1 :
+  (cone_norm (int_to_linhom weighted_dirac_path) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le weighted_dirac_path) _.
+rewrite -[cone_norm weighted_dirac_path]/(path_norm weighted_dirac_path).
+exact: weighted_dirac_path_norm_le1.
+Qed.
+
+Local Definition K_under :
+    icones_hom Ar (FMeas R_obj) (FMeas R_obj) :=
+  seely.linhom_icones (int_to_linhom weighted_dirac_path) K_under_norm_le1.
+
+Local Definition K_score :
+    coalg_hom (FMeas_coalgebra R_obj) (Tobj (FMeas_coalgebra R_obj)) :=
+  @adj_psi _ _ (FMeas_coalgebra R_obj) (FMeas R_obj) K_under.
+
+(** On a Dirac [δ_r], [K_under] returns the weighted Dirac
+    [f(cR r) · δ_r] (this is [int_to_linhom_fun_dirac] specialised
+    to our path). *)
+Local Lemma K_under_dirac (r : ar_carrier Ar R_obj) :
+  Lfun K_under (dirac_fmeas r) = weighted_dirac_fun r.
+Proof.
+rewrite /K_under.
+rewrite (seely.linhom_iconesE _ K_under_norm_le1 (dirac_fmeas r)).
+exact: (int_to_linhom_fun_dirac weighted_dirac_path r).
+Qed.
+
+(** On a Dirac [δ_r], the [K_score] Kleisli arrow returns
+    [prom (f(cR r) · δ_r)]: it scores the input and returns it. *)
+Local Lemma K_score_dirac (r : ar_carrier Ar R_obj) :
+  Lfun (ch_mor K_score) (dirac_fmeas r) =
+  prom (weighted_dirac_fun r : FMeas R_obj).
+Proof.
+rewrite /K_score /=.
+have Hball : cone_norm (dirac_fmeas r : FMeas R_obj) <= 1.
+  rewrite dirac_fmeas_norm; exact: lexx.
+have HC : Lfun (Coalg R_obj) (dirac_fmeas r) = prom (dirac_fmeas r : FMeas R_obj).
+  exact: (Coalg_dirac R_obj r).
+rewrite -[linhom_fun _ _]/(Lfun (Coalg R_obj) (dirac_fmeas r)) HC.
+by rewrite (bang_fmap_prom K_under (dirac_fmeas r : FMeas R_obj) Hball)
+           K_under_dirac.
+Qed.
+
+(** *** Headline — Lemma 3 (integration form, via Lemma C)
+
+    Apply [kleisli_dirac_to_integral] to [K_score]: a Kleisli arrow
+    that matches [r ↦ prom(weighted_dirac_fun r)] on every Dirac
+    integrates against any [µ] to the integral of this path.  For our
+    specific [µ] this is the headline identity in integration form:
+    the action of the score-return Kleisli arrow on [µ] equals the
+    integral [∫_{r ∼ µ} prom(f(cR r) · δ_r)]. *)
+
+(** The [prom]-weighted-Dirac path [r ↦ prom (f(cR r) · δ_r)] is a
+    measurable path: it is the composite of [weighted_dirac_fun]
+    (unit-ball measurable) with the icones-level [Coalg R_obj] (=
+    [prom] on the unit ball), packaged into a measurable path. *)
+Local Lemma prom_weighted_dirac_is_path :
+  is_measurable_path (Ar:=Ar) (C:=Bang Ar (FMeas R_obj)) (X:=R_obj)
+    (fun r => Lfun (ch_mor K_score) (dirac_fmeas r)).
+Proof.
+exact: (path_is_path
+          (linhom_to_int (icones_to_linhom (ch_mor K_score)))).
+Qed.
+
+Lemma ex_bayes_linear_is_weighted_kscore : forall mu',
+  Lfun (ch_mor K_score) mu'
+  = int_to_linhom_fun
+      (MkPath prom_weighted_dirac_is_path) mu'.
+Proof.
+move=> mu'.
+exact: (kleisli_dirac_to_integral K_score
+          (fun r => Lfun (ch_mor K_score) (dirac_fmeas r))
+          prom_weighted_dirac_is_path
+          (fun r => erefl)
+          mu').
+Qed.
+
+End LemmaThreeBayesWeighted.
