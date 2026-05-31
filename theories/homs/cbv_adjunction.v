@@ -544,6 +544,237 @@ Arguments em_proj2_is_mor {R Ar} P Q.
 Arguments em_proj1 {R Ar} P Q.
 Arguments em_proj2 {R Ar} P Q.
 
+(** ** The cartesian η-rule [⟨π₁,π₂⟩ = id]  (Fox 1976 / Melliès Prop 28)
+
+    The "pair-of-projections is the identity" identity of the cartesian
+    structure on [EM(!)] — the η-law of the cartesian product
+    [(EM_prod, π₁, π₂, ⟨·,·⟩)] in [EM(!)]; together with the β-laws
+    [em_proj1_pair]/[em_proj2_pair] it completes the universal property
+    of the binary product (Fox's theorem 1976 for the EM category of a
+    linear exponential comonad; the icones-level statement is folklore).
+
+    Proof strategy (retract-transport, the Melliès-Prop-27 pattern).
+    Both [em_pair_mor (π₁) (π₂)] and [id_{cP⊗cQ}] are morphisms in
+    [EM(!)] out of [EM_prod P Q].  Use the SPLIT MONO retraction
+      [(coalg_str P ⊗ coalg_str Q) : EM_prod P Q → EM_prod (!̃cP) (!̃cQ)]
+      [(der_cP ⊗ der_cQ) : EM_prod (!̃cP) (!̃cQ) → EM_prod P Q]
+    (which satisfies [r∘u = id] by [coalg_counit P/Q]) to reduce
+    icones-level equation on [P⊗Q] to one on [!cP⊗!cQ] (the cofree
+    case).  In the cofree case the equation reduces, via [tens_excl_charact],
+    to a check on the promoted pure tensor [x!⊗y!], where both sides
+    give [x!⊗y!] by [d_bang_prom]/[der_prom]/[m_bang_prom] computations. *)
+
+Section EmPairProjId.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "B '⊗' C" := (tensor Ar B C)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation Bg := (@Bang R Ar).
+
+(** *** Step 1 — the cofree case via promoted-point extensionality.
+
+    On the cofree pair [(!̃A, !̃B)] the [coalg_d] computes on [x!⊗y!]
+    via [d_bang_prom]/[m_bang_prom]/[der_prom] to [(x!⊗y!) ⊗ (x!⊗y!)],
+    and both [em_proj1_mor] and [em_proj2_mor] reduce on [x!⊗y!] to [x!]
+    / [y!] respectively (via the [(id⊗e_!B)] / [(e_!A⊗id)] tensor action
+    + [e_bang_prom] + the unitor on promoted points).  So
+    [em_pair_mor (π₁)(π₂)(x!⊗y!) = x!⊗y!] = the [icones_id] action.
+    Discharge by [tens_excl_charact]. *)
+Lemma em_pair_mor_proj_id_cofree (A B : ICone.type Ar) :
+  @em_pair_mor R Ar (EM_prod (bang_cofree A) (bang_cofree B))
+    (bang_cofree A) (bang_cofree B)
+    (em_proj1_mor (bang_cofree A) (bang_cofree B))
+    (em_proj2_mor (bang_cofree A) (bang_cofree B))
+  = icones_id Ar (coalg_obj (EM_prod (bang_cofree A) (bang_cofree B))).
+Proof.
+apply: tens_excl_charact => x y Hx Hy.
+rewrite /em_pair_mor.
+rewrite -[Lfun (icones_comp _ _) _]
+        /(Lfun (tensor_mor (em_proj1_mor (bang_cofree A) (bang_cofree B))
+                           (em_proj2_mor (bang_cofree A) (bang_cofree B)))
+          (Lfun (coalg_d (EM_prod (bang_cofree A) (bang_cofree B)))
+                (x! ⊗p y!))).
+rewrite /coalg_d.
+rewrite -[Lfun (icones_comp _ _) (x! ⊗p y!)]
+        /(Lfun (tensor_mor (der (Bg A ⊗ Bg B)) (der (Bg A ⊗ Bg B)))
+          (Lfun (icones_comp (d_bang (Bg A ⊗ Bg B))
+                  (coalg_str (EM_prod (bang_cofree A) (bang_cofree B))))
+                (x! ⊗p y!))).
+rewrite -[Lfun (icones_comp (d_bang _) _) _]
+        /(Lfun (d_bang (Bg A ⊗ Bg B))
+          (Lfun (coalg_str (EM_prod (bang_cofree A) (bang_cofree B)))
+                (x! ⊗p y!))).
+rewrite (EM_prod_str_E (bang_cofree A) (bang_cofree B)).
+rewrite /EM_prod_str.
+rewrite !bang_cofree_str.
+have Hxp : cone_norm (x! : Bg A) <= 1 by exact: prom_ball.
+have Hyp : cone_norm (y! : Bg B) <= 1 by exact: prom_ball.
+rewrite -[Lfun (icones_comp _ _) (x! ⊗p y!)]
+        /(Lfun (m_bang _ _) (Lfun (tensor_mor (dig A) (dig B)) (x! ⊗p y!))).
+rewrite tensor_morE (dig_prom x Hx) (dig_prom y Hy).
+rewrite (m_bang_prom Hxp Hyp).
+have Hxyp : cone_norm (x! ⊗p y!) <= 1 by exact: ptensor_prom_ball.
+rewrite (d_bang_prom (x! ⊗p y!) Hxyp).
+rewrite tensor_morE.
+rewrite (der_prom _ Hxyp).
+rewrite tensor_morE.
+rewrite /em_proj1_mor /em_proj2_mor.
+rewrite -[Lfun (icones_comp (iso_fwd (tensor_runit _)) _) _]
+        /(Lfun (iso_fwd (tensor_runit (Bg A)))
+          (Lfun (tensor_mor (icones_id Ar (Bg A))
+                            (coalg_e (bang_cofree B))) (x! ⊗p y!))).
+rewrite -[Lfun (icones_comp (iso_fwd (tensor_lunit _)) _) _]
+        /(Lfun (iso_fwd (tensor_lunit (Bg B)))
+          (Lfun (tensor_mor (coalg_e (bang_cofree A))
+                            (icones_id Ar (Bg B))) (x! ⊗p y!))).
+rewrite (tensor_morE (icones_id Ar (Bg A)) (coalg_e (bang_cofree B)) x! y!).
+have H2 : Lfun (tensor_mor (coalg_e (bang_cofree A)) (icones_id Ar (Bg B)))
+                (x! ⊗p y!)
+        = Lfun (coalg_e (bang_cofree A)) x! ⊗p Lfun (icones_id Ar (Bg B)) y!
+  by rewrite (tensor_morE (coalg_e (bang_cofree A)) (icones_id Ar (Bg B)) x! y!).
+rewrite H2.
+rewrite (coalg_e_cofree A) (coalg_e_cofree B).
+rewrite (e_bang_prom x Hx) (e_bang_prom y Hy).
+rewrite -[Lfun (icones_id Ar (Bg A)) x!]/x!.
+rewrite -[Lfun (icones_id Ar (Bg B)) y!]/y!.
+rewrite tensor_runitEp tensor_lunitEp.
+have e1 : c1_val (one1 : cone_one_car Ar) = 1%:nng by [].
+rewrite e1 precone_scale_1.
+by rewrite precone_scale_1.
+Qed.
+
+(** *** Step 2 — helper: naturality of [em_pair_mor] in its output factors
+    (right form, no side condition).  Same statement as [em_pair_mor_natR]
+    in [ppl.v]; inlined here because we need it BEFORE [ppl.v]. *)
+Lemma em_pair_mor_natR_cbv (Z P Q P' Q' : Coalgebra Ar)
+    (a : icones_hom Ar (coalg_obj Z) (coalg_obj P))
+    (b : icones_hom Ar (coalg_obj Z) (coalg_obj Q))
+    (f : icones_hom Ar (coalg_obj P) (coalg_obj P'))
+    (g : icones_hom Ar (coalg_obj Q) (coalg_obj Q')) :
+  icones_comp (tensor_mor f g) (em_pair_mor a b)
+  = em_pair_mor (icones_comp f a) (icones_comp g b).
+Proof.
+rewrite /em_pair_mor icones_compA.
+by rewrite (tensor_mor_comp f a g b).
+Qed.
+
+(** *** Step 2 — helper: left naturality of [em_pair_mor] (needs the input
+    morphism to be a coalgebra morphism).  Same as [em_pair_mor_natL] in
+    [ppl.v]; inlined here. *)
+Lemma em_pair_mor_natL_cbv (Z Y P Q : Coalgebra Ar)
+    (h : icones_hom Ar (coalg_obj Z) (coalg_obj Y))
+    (p : icones_hom Ar (coalg_obj Y) (coalg_obj P))
+    (q : icones_hom Ar (coalg_obj Y) (coalg_obj Q))
+    (Hh : is_coalg_mor Z Y h) :
+  icones_comp (em_pair_mor p q) h
+  = em_pair_mor (icones_comp p h) (icones_comp q h).
+Proof.
+rewrite /em_pair_mor -icones_compA (coalg_mor_d _ Hh).
+rewrite icones_compA (tensor_mor_comp p h q h).
+by rewrite icones_compA.
+Qed.
+
+(** *** Step 3 — the projection-naturality identities at the [coalg_str]
+    retract.  For [u := tensor_mor (coalg_str P) (coalg_str Q)] (the [EM(!)]
+    unit at [EM_prod P Q]), we have
+      [coalg_str P ∘ em_proj1_mor P Q  =  em_proj1_mor (!̃cP) (!̃cQ) ∘ u]
+      [coalg_str Q ∘ em_proj2_mor P Q  =  em_proj2_mor (!̃cP) (!̃cQ) ∘ u]
+    Both follow from [tensor_runit_nat]/[tensor_lunit_nat] (unitor
+    naturality) + [tensor_mor_comp] + [coalg_e_cofree] (which writes
+    [coalg_e (!̃cQ) = e_bang cQ], hence
+    [coalg_e (!̃cQ) ∘ coalg_str Q = e_bang cQ ∘ coalg_str Q = coalg_e Q]
+    by definition of [coalg_e]). *)
+Lemma coalg_str_em_proj1 (P Q : Coalgebra Ar) :
+  icones_comp (coalg_str P) (em_proj1_mor P Q) =
+  icones_comp (em_proj1_mor (bang_cofree (coalg_obj P)) (bang_cofree (coalg_obj Q)))
+              (tensor_mor (coalg_str P) (coalg_str Q)).
+Proof.
+rewrite /em_proj1_mor.
+rewrite icones_compA.
+rewrite -(tensor_runit_nat (coalg_str P)).
+rewrite -icones_compA.
+rewrite -(tensor_mor_comp (coalg_str P) (icones_id Ar (coalg_obj P))
+                          (icones_id Ar (cone_one_car Ar)) (coalg_e Q)).
+rewrite icones_compIr icones_compIl.
+rewrite -icones_compA.
+rewrite -(tensor_mor_comp (icones_id Ar (Bg (coalg_obj P))) (coalg_str P)
+                          (coalg_e (bang_cofree (coalg_obj Q))) (coalg_str Q)).
+rewrite icones_compIl.
+rewrite (coalg_e_cofree (coalg_obj Q)).
+rewrite -[icones_comp (e_bang (coalg_obj Q)) (coalg_str Q)]/(coalg_e Q).
+by [].
+Qed.
+
+Lemma coalg_str_em_proj2 (P Q : Coalgebra Ar) :
+  icones_comp (coalg_str Q) (em_proj2_mor P Q) =
+  icones_comp (em_proj2_mor (bang_cofree (coalg_obj P)) (bang_cofree (coalg_obj Q)))
+              (tensor_mor (coalg_str P) (coalg_str Q)).
+Proof.
+rewrite /em_proj2_mor.
+rewrite icones_compA.
+rewrite -(tensor_lunit_nat (coalg_str Q)).
+rewrite -icones_compA.
+rewrite -(tensor_mor_comp (icones_id Ar (cone_one_car Ar)) (coalg_e P)
+                          (coalg_str Q) (icones_id Ar (coalg_obj Q))).
+rewrite icones_compIr icones_compIl.
+rewrite -icones_compA.
+rewrite -(tensor_mor_comp (coalg_e (bang_cofree (coalg_obj P))) (coalg_str P)
+                          (icones_id Ar (Bg (coalg_obj Q))) (coalg_str Q)).
+rewrite icones_compIl.
+rewrite (coalg_e_cofree (coalg_obj P)).
+rewrite -[icones_comp (e_bang (coalg_obj P)) (coalg_str P)]/(coalg_e P).
+by [].
+Qed.
+
+(** *** Step 4 — the headline.  Lift the cofree case along the retract
+    [u = (coalg_str P ⊗ coalg_str Q)] (with retraction [(der_cP ⊗ der_cQ)],
+    [coalg_counit P/Q]) via [lcancel_mono]: it suffices to check
+    [u ∘ em_pair_mor (π₁)(π₂) = u].  Chain:
+      LHS = em_pair_mor (coalg_str P ∘ π₁) (coalg_str Q ∘ π₂)   [natR]
+          = em_pair_mor (π₁_cof ∘ u) (π₂_cof ∘ u)              [Step 3]
+          = em_pair_mor π₁_cof π₂_cof ∘ u                      [natL backward; u is coalg mor]
+          = id_{!cP⊗!cQ} ∘ u                                    [em_pair_mor_proj_id_cofree]
+          = u. *)
+Lemma em_pair_mor_proj_id (P Q : Coalgebra Ar) :
+  @em_pair_mor R Ar (EM_prod P Q) P Q (em_proj1_mor P Q) (em_proj2_mor P Q)
+  = icones_id Ar (coalg_obj (EM_prod P Q)).
+Proof.
+pose u := tensor_mor (coalg_str P) (coalg_str Q).
+have Hri : icones_comp (tensor_mor (der (coalg_obj P)) (der (coalg_obj Q))) u
+         = icones_id Ar (coalg_obj P ⊗ coalg_obj Q).
+  rewrite /u -(tensor_mor_comp (der (coalg_obj P)) (coalg_str P)
+                               (der (coalg_obj Q)) (coalg_str Q)).
+  by rewrite (coalg_counit P) (coalg_counit Q) tensor_mor_id.
+have Hu : is_coalg_mor (EM_prod P Q)
+            (EM_prod (bang_cofree (coalg_obj P)) (bang_cofree (coalg_obj Q))) u.
+  rewrite /u; apply: EM_prod_mor;
+    [exact: (adj_unit_is_mor P) | exact: (adj_unit_is_mor Q)].
+apply: (lcancel_mono u (tensor_mor (der (coalg_obj P)) (der (coalg_obj Q))) Hri).
+rewrite icones_compIr.
+rewrite -/u.
+rewrite (em_pair_mor_natR_cbv (Z := EM_prod P Q) (P := P) (Q := Q)
+                              (P' := bang_cofree (coalg_obj P))
+                              (Q' := bang_cofree (coalg_obj Q))
+           (em_proj1_mor P Q) (em_proj2_mor P Q) (coalg_str P) (coalg_str Q)).
+rewrite (coalg_str_em_proj1 P Q).
+rewrite (coalg_str_em_proj2 P Q).
+rewrite -(em_pair_mor_natL_cbv (Z := EM_prod P Q)
+            (Y := EM_prod (bang_cofree (coalg_obj P)) (bang_cofree (coalg_obj Q)))
+            (P := bang_cofree (coalg_obj P)) (Q := bang_cofree (coalg_obj Q))
+            (h := u)
+            (em_proj1_mor (bang_cofree (coalg_obj P)) (bang_cofree (coalg_obj Q)))
+            (em_proj2_mor (bang_cofree (coalg_obj P)) (bang_cofree (coalg_obj Q)))
+            Hu).
+rewrite (em_pair_mor_proj_id_cofree (coalg_obj P) (coalg_obj Q)).
+by rewrite icones_compIl.
+Qed.
+
+End EmPairProjId.
+
 (** ** [!̃] is LAX symmetric monoidal — the comparison coalgebra morphisms
 
     The cofree functor [!̃] carries a LAX symmetric monoidal structure
