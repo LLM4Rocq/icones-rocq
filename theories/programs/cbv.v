@@ -233,54 +233,13 @@ Arguments kcomp_A {R Ar P Q S T} h g f.
 
 (** ** The projections are coalgebra morphisms — UNCONDITIONAL
 
-    [em_cartesian.v] exposes the projections [em_proj1_mor]/[em_proj2_mor] as
-    plain [icones_hom] (the β-laws are stated at that level).  To use them in
-    the value category we package them as coalgebra morphisms.  Since
-    [EMComon] now holds for EVERY coalgebra ([EMComon_all], Cor 20), the
-    discarded-factor counit [coalg_e] is ALWAYS a coalgebra morphism
-    ([emc_e_mor (EMComon_all _)]), so the projection
-    [ρ ∘ (id ⊗ coalg_e)] is unconditionally a composite of coalgebra
-    morphisms — the unitor [m_runit_coalg_mor]/[m_lunit_coalg_mor] of
-    [cbv_adjunction.v] and the bifunctor action [EM_prod_mor] on [id] and
-    [coalg_e].  No [EMComon] witness threading is needed. *)
-Section Projections.
-Variables (R : realType) (Ar : MeasSubcat R).
-
-Lemma em_proj1_is_mor (P Q : Coalgebra Ar) :
-  is_coalg_mor (EM_prod P Q) P (em_proj1_mor P Q).
-Proof.
-rewrite /em_proj1_mor.
-apply: (coalg_mor_comp (P := EM_prod P Q) (Q := EM_prod P EM_term) (S := P)).
-- exact: (m_runit_coalg_mor P).
-- apply: (EM_prod_mor (P':=P) (Q':=EM_term) (icones_id Ar (coalg_obj P)) (coalg_e Q)).
-  + exact: (coalg_mor_id P).
-  + exact: (emc_e_mor (EMComon_all Q)).
-Qed.
-
-Lemma em_proj2_is_mor (P Q : Coalgebra Ar) :
-  is_coalg_mor (EM_prod P Q) Q (em_proj2_mor P Q).
-Proof.
-rewrite /em_proj2_mor.
-apply: (coalg_mor_comp (P := EM_prod P Q) (Q := EM_prod EM_term Q) (S := Q)).
-- exact: (m_lunit_coalg_mor Q).
-- apply: (EM_prod_mor (P':=EM_term) (Q':=Q) (coalg_e P) (icones_id Ar (coalg_obj Q))).
-  + exact: (emc_e_mor (EMComon_all P)).
-  + exact: (coalg_mor_id Q).
-Qed.
-
-(** The bundled projection coalgebra morphisms — unconditional. *)
-Definition em_proj1 (P Q : Coalgebra Ar) :
-    coalg_hom (EM_prod P Q) P := MkCoalgHom (em_proj1_is_mor P Q).
-
-Definition em_proj2 (P Q : Coalgebra Ar) :
-    coalg_hom (EM_prod P Q) Q := MkCoalgHom (em_proj2_is_mor P Q).
-
-End Projections.
-
-Arguments em_proj1_is_mor {R Ar} P Q.
-Arguments em_proj2_is_mor {R Ar} P Q.
-Arguments em_proj1 {R Ar} P Q.
-Arguments em_proj2 {R Ar} P Q.
+    Migrated to [cbv_adjunction.v] (see [em_proj1_is_mor]/[em_proj2_is_mor]
+    and [em_proj1]/[em_proj2] over there).  Kept here as a historical
+    cross-reference: the projections are unconditional composites of
+    [m_runit_coalg_mor]/[m_lunit_coalg_mor] (the unitors as coalgebra
+    morphisms) with the bifunctor action [EM_prod_mor] on [id] and
+    [coalg_e] (which is unconditionally a coalgebra morphism by
+    [emc_e_mor (EMComon_all _)]). *)
 
 (** ** The CBV calculus — syntax
 
