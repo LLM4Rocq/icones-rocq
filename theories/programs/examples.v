@@ -597,4 +597,38 @@ exact: (kleisli_dirac_to_integral K_score
           mu').
 Qed.
 
+(** *** Lemma 3 (headline structural reduction)
+
+    The Bayesian posterior denotation reduces to a Kleisli composition
+    [kcomp K' (sample_kleisli µ Hµ)], where [K'] is the score-then-return
+    continuation moved through the canonical iso
+    [EM_prod EM_term A ≅ A].  This is the [kcomp] form of the headline
+    QBS identity, obtained by Law 3 (terminal-source collapse of
+    [kbind_ext]) applied to the outer prior-bind exposed by
+    [ex_bayes_linear_denot_E].
+
+    To pass from this [kcomp] form to the "the denotation IS [f·µ]"
+    integration-side form would additionally require — Law 2
+    ([kbind_ext_A]) and the cartesian η rule
+    [em_pair_mor(em_proj1_mor, em_proj2_mor) = id] (see the gap
+    documented in [theories/programs/ppl.v] above
+    [Section KbindExtLaws]).  Neither is delivered axiom-free in the
+    current cones library: cartesian uniqueness in [EM(!)] is not
+    exposed at the [icones_hom] level by any record/lemma here, so
+    only the Law-3-reachable shape closes. *)
+Lemma ex_bayes_linear_is_weighted :
+  @ex_bayes_linear_denot R Ar R_obj R_carrier_eq R_carrier_meas
+    R_to_carrier_meas mu Hmu f Hf_meas Hf_ge0 Hf_le1
+  = kcomp (coalg_comp (@eD R Ar R_obj R_carrier_eq R_carrier_meas
+                            R_to_carrier_meas _ _
+                            (ex_bl_cont f Hf_meas Hf_ge0 Hf_le1))
+                      (em_pair (em_term_mor (tyD tR'))
+                               (coalg_id (tyD tR'))))
+          (sample_kleisli (ctxD (drop_names (R:=R) (Ar:=Ar) [::]))
+                          mu Hmu).
+Proof.
+by rewrite (ex_bayes_linear_denot_E mu Hmu f Hf_meas Hf_ge0 Hf_le1)
+           kbind_ext_terminal_source.
+Qed.
+
 End LemmaThreeBayesWeighted.
