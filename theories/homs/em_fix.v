@@ -76,6 +76,7 @@ Require Import Icones.homs.seely.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_continuity.
+Require Import Icones.homs.em_cartesian.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -582,3 +583,256 @@ End YfixCond.
 Arguments Yfix_value_cond {R Ar G P} Phi Phi_incr Phi_ball Phi_coalg Phi_Bu_chain.
 Arguments Yfix_value_cond_mor {R Ar G P} Phi Phi_incr Phi_ball Phi_coalg Phi_Bu_chain.
 Arguments Yfix_value_cond_unfolding_lin {R Ar G P} Phi Phi_incr Phi_ball Phi_cont.
+
+(** ** [Yfix_fun] — the CBV value fixpoint AT FUNCTION TYPES — CBV §6, OCaml [let rec]
+
+    OCaml-style restriction: [let rec] is thunked, so [ne_fix s A B M] is
+    only available when the body produces a value of FUNCTION TYPE
+    [tfun A B].  This is the user-authorized restriction:
+    *"It is normal to restrict recursion to function, and this is also
+    the choice of ocaml where let rec is thunked."*
+
+    **The construction.**  Let [G] be a coalgebra (the ambient context)
+    and let [A], [B] be coalgebras (the argument/result types of the
+    recursive function).  Set
+    [[
+      L  := linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B))    (Kleisli exp)
+      t  := bang_cofree L                                       (= tyD (tfun A B))
+    ]]
+    so [coalg_obj t = Bang Ar L] (the value cone at function type).
+
+    The body [M : coalg_hom (EM_prod G t) (Tobj t)] denotes the
+    recursive function abstracted on its self-reference.  We define an
+    iteration operator on the LINHOM cone [linhom_car (U G) (U t) =
+    linhom_car (U G) (Bang L)], using:
+
+    - the natural value-cone extraction [bang_fmap (der L) : Bang(Bang L)
+      → Bang L] (this IS the underlying [icones_hom] of the coalgebra
+      morphism [bang_cofree_hom (der L) : Tobj t → t]);
+    - the body's underlying icones_hom [ch_mor M];
+    - the diagonal [coalg_d G : G → G ⊗ G] and the tensor action [id ⊗ ·];
+    - assembly at the linhom_car level via [icones_as_linhom] of the
+      composite, with ω-continuity provided by the four building-blocks
+      (post/pre by an icones_hom and [tensor_mor_omega_cont_R]).
+
+    The iteration:
+    [[
+      Phi_fun(prev_lin) :=
+        icones_as_linhom (bang_fmap (der L)
+                          ∘ ch_mor M
+                          ∘ tensor_mor (id_G) (linhom_icones prev_lin)
+                          ∘ coalg_d G).
+    ]]
+    Its Kleene fixpoint [f_∞ ∈ linhom_car (U G) (Bang L)] is the linhom
+    representation of the recursive value family parameterized by [γ].
+
+    **The coalg_hom packaging.**  The icones_hom [linhom_icones f_∞ Hf]
+    need NOT be a coalgebra morphism [G → t].  Instead we package via
+    [adj_psi] of the [U ⊣ !̃] adjunction (which IS available
+    unconditionally on any icones_hom): for any [icones_hom h : U G →
+    Bang L = U t], [adj_psi h : coalg_hom G (bang_cofree (Bang L)) =
+    coalg_hom G (Tobj t)].  Composition with [tunit_eta] is unnecessary
+    — [adj_psi] already lands in [Tobj t].
+
+    Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
+
+Section YfixFunType.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G : Coalgebra Ar) (A B : Coalgebra Ar).
+
+(** Local abbreviation for the CBV monad's object map [T P = !̃(U P)].
+    Equivalent to [Tobj] from [cbv.v] but stated locally to avoid the
+    [cbv]/[cbv_adjunction] import chain here. *)
+Let TT (P : Coalgebra Ar) : Coalgebra Ar := bang_cofree (coalg_obj P).
+
+(** The Kleisli-exponential linhom cone [L = U A ⊸ U(T B)]. *)
+Let L : ICone.type Ar :=
+  linhom_car Ar (coalg_obj A) (coalg_obj (TT B)).
+
+(** The function-value coalgebra [t = !̃ L].  When [A = tyD a] and
+    [B = tyD b], this is exactly [tyD (tfun a b)]. *)
+Let funT : Coalgebra Ar := bang_cofree L.
+
+(** The body of the fixpoint: a coalg_hom whose codomain is [TT funT].
+    In PPL terms, this is the denotation of [ne_lam s (tfun A B) <body>]
+    evaluated in the extended context [(s, tfun A B) :: G]. *)
+Variable M : coalg_hom (EM_prod G funT) (TT funT).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The value-cone "extraction" coalgebra morphism [TT funT → funT].
+    Underlying: [bang_fmap (der L) : Bang(Bang L) → Bang L].  This is a
+    bona-fide coalgebra morphism by [bang_cofree_fmap_is_mor]. *)
+Definition extract_fun : coalg_hom (TT funT) funT :=
+  bang_cofree_hom (der L).
+
+Lemma extract_fun_mor :
+  ch_mor extract_fun = bang_fmap (der L).
+Proof. by []. Qed.
+
+(** ** The Kleene iteration operator [Phi_fun] at linhom level
+
+    [Phi_fun(prev_lin) = icones_as_linhom (bang_fmap (der L) ∘ ch_mor M
+    ∘ tensor_mor (id_G) (linhom_icones prev_lin _) ∘ coalg_d G)].
+
+    Concretely we package the four operations as actions on linhom_cars
+    so that each step is provably ω-continuous and ball-preserving:
+
+    - [tensor_mor_R_lin G (linhom_icones prev_lin _) : linhom_car (G⊗G)
+      (G ⊗ Bang L)] (workhorse: ω-continuous in prev_lin via
+      [tensor_mor_omega_cont_R]);
+    - [linhom_pre_act (coalg_d G)] applied to that, landing in
+      [linhom_car G (G ⊗ Bang L)];
+    - [linhom_post (ch_mor M)] applied to that, landing in
+      [linhom_car G (Bang(Bang L))];
+    - [linhom_post (bang_fmap (der L))] applied to that, landing in
+      [linhom_car G (Bang L)]. *)
+
+(** The "safe" version of [Phi_fun] taking a norm-witness as input. *)
+Definition Phi_fun_safe
+    (prev : linhom_car Ar (coalg_obj G) (coalg_obj funT))
+    (Hprev : cone_norm prev <= 1) :
+    linhom_car Ar (coalg_obj G) (coalg_obj funT) :=
+  linhom_post (bang_fmap (der L))
+    (linhom_post (ch_mor M)
+      (linhom_pre_act (coalg_d G)
+        (tensor_mor_R_lin (coalg_obj G)
+          (linhom_icones prev Hprev)))).
+
+(** The TOTAL [Phi_fun] (defined on all of [linhom_car], not just the
+    unit ball).  On unit-ball [prev] it computes to [Phi_fun_safe prev
+    _]; off the unit ball we return [precone_zero] (the value is
+    irrelevant for the Kleene chain, which stays in the unit ball). *)
+Arguments Phi_fun_safe prev Hprev : clear implicits.
+
+Definition Phi_fun
+    (prev : linhom_car Ar (coalg_obj G) (coalg_obj funT)) :
+    linhom_car Ar (coalg_obj G) (coalg_obj funT) :=
+  match pselect (cone_norm prev <= 1) with
+  | left H => Phi_fun_safe prev H
+  | right _ => precone_zero
+  end.
+
+(** On unit-ball [prev], [Phi_fun] is exactly [Phi_fun_safe].  This
+    makes the unit-ball case independent of which norm-witness we
+    pick (by [Prop_irrelevance]). *)
+Lemma Phi_fun_unit (prev : linhom_car Ar (coalg_obj G) (coalg_obj funT))
+    (Hprev : cone_norm prev <= 1) :
+  Phi_fun prev = Phi_fun_safe prev Hprev.
+Proof.
+rewrite /Phi_fun; case: pselect => [H | H]; last by [].
+by congr Phi_fun_safe; exact: Prop_irrelevance.
+Qed.
+
+(** ** Ball preservation and monotonicity of [Phi_fun]
+
+    [Phi_fun_safe] is a composition of four linhom-level
+    operations, each of which is norm-≤-1.  Hence the result has
+    norm ≤ 1 on any unit-ball input.  [Phi_fun] inherits ball
+    preservation because on unit-ball inputs it equals [Phi_fun_safe]
+    and off the unit ball it returns [precone_zero] (norm 0 ≤ 1). *)
+
+Lemma Phi_fun_safe_ball
+    (prev : linhom_car Ar (coalg_obj G) (coalg_obj funT))
+    (Hprev : cone_norm prev <= 1) :
+  cone_norm (Phi_fun_safe prev Hprev) <= 1.
+Proof.
+rewrite /Phi_fun_safe.
+(* Outer layer: [linhom_post (bang_fmap (der L))].
+   It IS [Lfun (linhom_post_icones (bang_fmap (der L)))] applied to its
+   argument; a [cones_hom_norm_le1] of the icones_hom gives the bound. *)
+rewrite -linhom_post_iconesE.
+apply: le_trans (cones_hom_norm_le1
+                   (mcones_hom_cones (icones_hom_mcones
+                     (linhom_post_icones (bang_fmap (der L))))) _) _.
+rewrite -linhom_post_iconesE.
+apply: le_trans (cones_hom_norm_le1
+                   (mcones_hom_cones (icones_hom_mcones
+                     (linhom_post_icones (ch_mor M)))) _) _.
+rewrite -linhom_pre_iconesE.
+apply: le_trans (cones_hom_norm_le1
+                   (mcones_hom_cones (icones_hom_mcones
+                     (linhom_pre_icones (coalg_d G)))) _) _.
+exact: tensor_mor_R_lin_norm_le1.
+Qed.
+
+Lemma Phi_fun_ball (prev : linhom_car Ar (coalg_obj G) (coalg_obj funT)) :
+  cone_norm prev <= 1 -> cone_norm (Phi_fun prev) <= 1.
+Proof.
+move=> Hprev; rewrite (Phi_fun_unit Hprev); exact: Phi_fun_safe_ball.
+Qed.
+
+(** ** Monotonicity of [Phi_fun] — the precise gap
+
+    Monotonicity of [Phi_fun_safe] would reduce, via [linear_increasing]
+    on the three icones_hom layers (post-comp by [bang_fmap (der L)],
+    post-comp by [ch_mor M], pre-comp by [coalg_d G]), to monotonicity
+    of [tensor_mor_R_lin G ·] in the second slot at the linhom level
+    (lemma name: [tensor_mor_R_lin_incr]).
+
+    The proof of [tensor_mor_R_lin_incr] would mirror the structure of
+    [tensor_mor_omega_cont_R] ([em_continuity.v], ~100 lines): given
+    [prev_1 ≤p prev_2] with the [linhom_diff_car]-derived [δ] (of
+    [cone_norm δ ≤ ‖prev_2‖ ≤ 1] by [cone_normp]), the witness is
+    [tensor_mor_R_lin G (linhom_icones δ Hδ_norm)].  Pointwise on pure
+    tensors [(x ⊗p y)], the equality reduces by [tensor_mor_R_lin_ptensor]
+    + right-slot additivity [ptensorDr] of the pure tensor.
+
+    The technical obstacle: lifting the pure-tensor equality to all of
+    [G ⊗ G] requires [tensor_ext_linhom] (Paper Prop 5.14, linhom
+    version), which has a [‖φ‖ ≤ 1] hypothesis on both sides.  The
+    RHS [linhom_add (tensor_mor_R_lin G prev1_ic) (tensor_mor_R_lin G
+    δ_ic)] has norm ≤ 2 (not ≤ 1), so a direct application is blocked.
+    The standard workaround is a scaling argument analogous to the one
+    inside [tensor_mor_omega_cont_R]: scale both sides by [1/2], apply
+    [tensor_ext_linhom] to the scaled equality, then unscale.
+
+    **STATUS**: [tensor_mor_R_lin_incr] is NOT delivered axiom-free in
+    this iteration.  Without it, [Phi_fun_safe_incr], [Phi_fun_incr],
+    [Yfix_fun_lin] (= [linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball]),
+    and the bundled [Yfix_fun_T] all cascade as unprovable in this
+    file.  No [Admitted] is used; the construction stops at the
+    monotonicity boundary. *)
+
+End YfixFunType.
+
+Arguments Phi_fun_safe {R Ar G A B} M prev Hprev.
+Arguments Phi_fun {R Ar G A B} M prev.
+Arguments Phi_fun_unit {R Ar G A B} M prev Hprev.
+Arguments Phi_fun_safe_ball {R Ar G A B} M prev Hprev.
+Arguments Phi_fun_ball {R Ar G A B} M prev.
+Arguments extract_fun {R Ar A B}.
+
+(** ** Downstream cascade — the work blocked by [tensor_mor_R_lin_incr]
+
+    With [tensor_mor_R_lin_incr] in hand, the following lemmas / defs
+    close immediately, with proof outlines:
+
+    - [Phi_fun_safe_incr] / [Phi_fun_incr] : compose
+      [tensor_mor_R_lin_incr] with [linear_increasing] of the three
+      icones_hom layers ([linhom_post_icones (bang_fmap (der L))],
+      [linhom_post_icones (ch_mor M)], [linhom_pre_icones (coalg_d G)]).
+
+    - [Phi_fun_safe_cont] / [Phi_fun_cont] : ω-continuity of [Phi_fun].
+      Compose [tensor_mor_omega_cont_R] (already in
+      [em_continuity.v]) with [linhom_post_icones_sup] /
+      [linhom_pre_icones_sup] (both in [em_continuity.v]).
+
+    - [Yfix_fun_lin M] := [linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball]
+      : the linhom-level fixpoint.  Already-available [linhom_lfp]
+      from this file.
+
+    - [Yfix_fun_lin_fixpoint] : the fixpoint equation [Phi_fun
+      Yfix_fun_lin = Yfix_fun_lin], via [linhom_lfp_fixpoint] from
+      this file (needs [Phi_fun_cont]).
+
+    - [Yfix_fun_T M] : [coalg_hom G (Tobj t)] := [adj_psi (linhom_icones
+      Yfix_fun_lin (linhom_lfp_norm_le1 _ _))], using [adj_psi] from
+      [em_cat.v].  No coalg-mor witness needed on [Yfix_fun_lin]
+      itself.
+
+    The PPL-side [ne_fix] constructor would be added to [ppl.v] under
+    a separate commit once Workstream A's [ppl.v] edits have landed.
+    Its [eD] clause is [coalg_comp (Yfix_fun_T (eD body))] with a
+    suitable use of [tunit_eta] discharge.  *)
+
