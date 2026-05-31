@@ -493,6 +493,57 @@ Arguments m_braid_coalg_mor {R Ar} P Q.
 Arguments m_lunit_coalg_mor {R Ar} P.
 Arguments m_runit_coalg_mor {R Ar} P.
 
+(** ** The cartesian projections are coalgebra morphisms — UNCONDITIONAL
+
+    [em_cartesian.v] exposes the projections [em_proj1_mor]/[em_proj2_mor]
+    as plain [icones_hom] (the β-laws are stated at that level).  Packaged
+    as coalgebra morphisms they are unconditional composites of
+    [m_runit_coalg_mor]/[m_lunit_coalg_mor] (above), the bifunctor action
+    [EM_prod_mor] on [id] and [coalg_e], using [EMComon_all] to extract
+    [emc_e_mor] of the discarded factor.
+
+    These lemmas live here (NOT in [cbv.v]) so that [em_pair_mor_proj_id]
+    below can be stated on coalgebra morphisms while still being part of
+    the cartesian-η machinery that the [cbv.v] / [ppl.v] downstream needs. *)
+Section EMProjections.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma em_proj1_is_mor (P Q : Coalgebra Ar) :
+  is_coalg_mor (EM_prod P Q) P (em_proj1_mor P Q).
+Proof.
+rewrite /em_proj1_mor.
+apply: (coalg_mor_comp (P := EM_prod P Q) (Q := EM_prod P EM_term) (S := P)).
+- exact: (m_runit_coalg_mor P).
+- apply: (EM_prod_mor (P':=P) (Q':=EM_term) (icones_id Ar (coalg_obj P)) (coalg_e Q)).
+  + exact: (coalg_mor_id P).
+  + exact: (emc_e_mor (EMComon_all Q)).
+Qed.
+
+Lemma em_proj2_is_mor (P Q : Coalgebra Ar) :
+  is_coalg_mor (EM_prod P Q) Q (em_proj2_mor P Q).
+Proof.
+rewrite /em_proj2_mor.
+apply: (coalg_mor_comp (P := EM_prod P Q) (Q := EM_prod EM_term Q) (S := Q)).
+- exact: (m_lunit_coalg_mor Q).
+- apply: (EM_prod_mor (P':=EM_term) (Q':=Q) (coalg_e P) (icones_id Ar (coalg_obj Q))).
+  + exact: (emc_e_mor (EMComon_all P)).
+  + exact: (coalg_mor_id Q).
+Qed.
+
+(** The bundled projection coalgebra morphisms — unconditional. *)
+Definition em_proj1 (P Q : Coalgebra Ar) :
+    coalg_hom (EM_prod P Q) P := MkCoalgHom (em_proj1_is_mor P Q).
+
+Definition em_proj2 (P Q : Coalgebra Ar) :
+    coalg_hom (EM_prod P Q) Q := MkCoalgHom (em_proj2_is_mor P Q).
+
+End EMProjections.
+
+Arguments em_proj1_is_mor {R Ar} P Q.
+Arguments em_proj2_is_mor {R Ar} P Q.
+Arguments em_proj1 {R Ar} P Q.
+Arguments em_proj2 {R Ar} P Q.
+
 (** ** [!̃] is LAX symmetric monoidal — the comparison coalgebra morphisms
 
     The cofree functor [!̃] carries a LAX symmetric monoidal structure
