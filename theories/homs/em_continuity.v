@@ -43,11 +43,14 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals.
+From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 
+Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.omega_general.
 Require Import Icones.cones.cone_cat.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
@@ -55,6 +58,7 @@ Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
+Require Import Icones.stable.totmono.
 Require Import Icones.stable.scones_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
@@ -201,3 +205,37 @@ End LinhomPostPreSup.
 
 Arguments linhom_post_icones_sup {R Ar C D1 D2}.
 Arguments linhom_pre_icones_sup {R Ar C1 C2 D}.
+
+(** ** ω-continuity of [prom] — Paper §9
+
+    The promotion [x ↦ x! = sc_fun (nl B) x] is ω-continuous on the unit
+    ball of [B] with image in the unit ball of [!B].  This is the
+    [is_scott_continuous_unit] field of [nl B]'s [sc_meas_stable], reduced
+    via [cone_sup_at_ball] (image radius = 1, since [‖x!‖ ≤ 1] for
+    [‖x‖ ≤ 1] by [prom_ball]). *)
+
+Section PromContinuous.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma prom_omega_cont (B : ICone.type Ar)
+    (y : nat -> B)
+    (ych : forall n, precone_le (y n) (y n.+1))
+    (yub1 : forall n, cone_norm (y n) <= 1)
+    (pch : forall n, precone_le (prom (y n)) (prom (y n.+1)))
+    (pub1 : forall n, cone_norm (prom (y n)) <= 1) :
+  prom (cone_sup_ball y ych yub1) =
+  cone_sup_ball (prom \o y) pch pub1.
+Proof.
+have [[_ _ Hsc] _] := sc_meas_stable (nl B).
+move: Hsc; rewrite /is_scott_continuous_unit => Hsc.
+have pubM : forall n, cone_norm ((prom \o y) n) <= (1%:nng : {nonneg R})%:num.
+  by move=> n /=; exact: pub1.
+have HE : prom (cone_sup_ball y ych yub1) =
+          cone_sup_at (u := prom \o y) pch pubM ltr01.
+  exact: (Hsc 1%:nng y ych yub1 pch pubM ltr01).
+by rewrite HE (cone_sup_at_ball pch pub1 pubM ltr01).
+Qed.
+
+End PromContinuous.
+
+Arguments prom_omega_cont {R Ar B} y.
