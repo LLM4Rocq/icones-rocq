@@ -64,6 +64,8 @@ Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.exp_adjunction.
 Require Import Icones.homs.bang.
+Require Import Icones.homs.seely_defs.
+Require Import Icones.homs.seely.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
 
@@ -239,3 +241,130 @@ Qed.
 End PromContinuous.
 
 Arguments prom_omega_cont {R Ar B} y.
+
+(** ** ω-continuity of [bang_fmap] — the workhorse for [coalg_hom_sup]
+
+    [bang_fmap] commutes with linhom-cone suprema, in the sense that
+
+      [bang_fmap (linhom_icones (sup u_n)) = linhom_icones (sup (bang_fmap u_n))].
+
+    The PROOF: both sides are norm-≤-1 linhom_car [!B → !C] elements;
+    by [bang_ext_linhom] it suffices to check agreement on every [x!]
+    ([‖x‖ ≤ 1]).
+
+    - LHS at [x!]: [bang_fmap_prom] gives [(linhom_fun (sup u_n) x)!];
+      by [linhom_sup_fun_unitE] this is [(sup_n (linhom_fun u_n x))!].
+    - RHS at [x!]: [linhom_sup_fun_unitE] gives [sup_n (bang_fmap u_n x!)];
+      [bang_fmap_prom] reduces each to [(linhom_fun u_n x)!]; the whole
+      sup is [sup_n ((linhom_fun u_n x)!)].
+
+    These are equal by [prom_omega_cont] applied to the unit-ball chain
+    [n ↦ linhom_fun u_n x : C]. *)
+
+Section BangFmapContinuous.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** "Lift" of an icones_hom along [bang_fmap], as a linhom_car of norm
+    ≤ 1.  This is the [linhom_car]-level shadow of [bang_fmap], used to
+    state ω-continuity. *)
+Definition bang_fmap_lin (B C : ICone.type Ar)
+    (f : icones_hom Ar B C) : linhom_car Ar (Bang Ar B) (Bang Ar C) :=
+  icones_as_linhom (bang_fmap f).
+
+Lemma bang_fmap_lin_norm_le1 (B C : ICone.type Ar) (f : icones_hom Ar B C) :
+  cone_norm (bang_fmap_lin f) <= 1.
+Proof. exact: icones_as_linhom_norm_le1. Qed.
+
+(** Pointwise reading on promoted points: [bang_fmap_lin f x! = (f x)!]. *)
+Lemma bang_fmap_lin_prom (B C : ICone.type Ar)
+    (f : icones_hom Ar B C) (x : B) :
+  cone_norm x <= 1 ->
+  linhom_fun (bang_fmap_lin f) (prom x) = prom (Lfun f x).
+Proof. by move=> Hx; rewrite /bang_fmap_lin icones_as_linhomE bang_fmap_prom. Qed.
+
+(** **The headline ω-continuity of [bang_fmap]** at the linhom level.
+
+    Given a unit-ball ω-chain [u_n] of [linhom_car B C], let
+    [Sicones := linhom_icones (norm-bound of [linhom_sup_ball ...]) :
+                  icones_hom B C] be the icones_hom packaging of the sup,
+    and let [B_n := bang_fmap_lin (linhom_icones (ub1 n))].  Then
+    [icones_as_linhom (bang_fmap Sicones)] equals the linhom-cone sup of
+    the [B_n] chain. *)
+
+Lemma bang_fmap_lin_omega_cont (B C : ICone.type Ar)
+    (u : nat -> linhom_car Ar B C)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (LHS_norm : cone_norm (linhom_sup_ball u uch ub1) <= 1)
+    (B_n := fun n => bang_fmap_lin (linhom_icones (u n) (ub1 n)))
+    (bch : forall n, precone_le (B_n n) (B_n n.+1))
+    (bub1 : forall n, cone_norm (B_n n) <= 1) :
+  bang_fmap_lin (linhom_icones _ LHS_norm) =
+  linhom_sup_ball B_n bch bub1.
+Proof.
+apply: (bang_ext_linhom _ _ (bang_fmap_lin_norm_le1 _)
+                            (linhom_sup_ball_norm B_n bch bub1)).
+move=> x Hx.
+(* LHS at [x!]: [bang_fmap_prom] reduces it to [(linhom_fun S x)!]. *)
+rewrite (bang_fmap_lin_prom (linhom_icones _ LHS_norm) Hx).
+(* Underlying value [linhom_fun S x = linhom_sup_fun uch ub1 x] (definitional);
+   then by [linhom_sup_fun_unitE] this is the pointwise [cone_sup_ball]. *)
+have LHS_eq : Lfun (linhom_icones _ LHS_norm) x =
+              linhom_sup_fun uch ub1 x.
+  by rewrite -[Lfun _ x]/(linhom_fun (linhom_sup_ball u uch ub1) x).
+rewrite LHS_eq (linhom_sup_fun_unitE uch ub1 Hx) linhom_sup_unitE.
+(* RHS at [x!]: [linhom_fun (linhom_sup_ball B_n ...) x! = linhom_sup_fun ... x!]
+   which, since [‖x!‖ ≤ 1], equals [cone_sup_ball (n => B_n n at x!)]. *)
+have prom_ub : cone_norm (prom x) <= 1 by exact: prom_ball.
+rewrite -[linhom_fun (linhom_sup_ball B_n bch bub1) (prom x)]
+        /(linhom_sup_fun bch bub1 (prom x)).
+rewrite (linhom_sup_fun_unitE bch bub1 prom_ub) linhom_sup_unitE.
+(* Both sides are now [cone_sup_ball] over [Bang Ar C].  Compute the RHS
+   chain: [linhom_fun (B_n n) x! = (linhom_fun (u n) x)!] by
+   [bang_fmap_lin_prom]. *)
+have RHSch_eq : forall n,
+    linhom_fun (B_n n) (prom x) = prom (linhom_fun (u n) x).
+  by move=> n; rewrite /B_n bang_fmap_lin_prom //; exact: icones_as_linhomE.
+(* The two [cone_sup_ball]s have definitionally-equal underlying chains:
+   LHS chain: [n ↦ prom (linhom_fun (u n) x)] (from [prom_omega_cont]).
+   RHS chain: [n ↦ linhom_fun (B_n n) (prom x)] = [n ↦ prom (linhom_fun (u n) x)]
+              (by [RHSch_eq]). *)
+pose w (n : nat) : C := linhom_fun (u n) x.
+have wch : forall n, precone_le (w n) (w n.+1).
+  by move=> n; rewrite /w; exact: linhom_sup_pw_chain uch x n.
+have wub1 : forall n, cone_norm (w n) <= 1.
+  move=> n; rewrite /w.
+  apply: (linhom_sup_pw_ub1 (u := u)) => //; exact: Hx.
+have pwch : forall n, precone_le (prom (w n)) (prom (w n.+1)).
+  by move=> n; rewrite /w; have := linhom_sup_pw_chain bch (prom x) n; rewrite !RHSch_eq.
+have pwub1 : forall n, cone_norm (prom (w n)) <= 1.
+  by move=> n; exact: prom_ball.
+(* The LHS, after pre-rewrites, is [prom (cone_sup_ball (n => linhom_fun (u n) x) ...)]
+   for the syntactically-fixed chain/bound witnesses from [linhom_sup_unitE].
+   The RHS is [cone_sup_ball (n => linhom_fun (B_n n) (prom x)) ...] with
+   the latter chain being [n => prom (linhom_fun (u n) x)] (by [RHSch_eq]).
+   Both [cone_sup_ball]s are determined by their underlying chain (up to
+   the witness, which is proof-irrelevant by [precone_le_anti]).
+
+   We close by [prom_omega_cont] (which pushes [prom] through the LHS
+   [cone_sup_ball]) and [precone_le_anti] over the [cone_sup_ball]s with
+   chains [n => prom (linhom_fun (u n) x)] vs.
+   [n => linhom_fun (B_n n) (prom x)] (which are pointwise-equal via
+   [RHSch_eq]). *)
+rewrite (prom_omega_cont (fun n => linhom_fun (u n) x) _ _ pwch pwub1).
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  rewrite -[((prom \o (fun n0 : nat => linhom_fun (u n0) x)) n)]
+          /(prom (linhom_fun (u n) x)).
+  rewrite -RHSch_eq.
+  exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n.
+  rewrite -[(fun n0 : nat => linhom_fun (B_n n0) (prom x)) n]
+          /(linhom_fun (B_n n) (prom x)).
+  rewrite RHSch_eq.
+  exact: (cone_sup_ball_ub _ pwch pwub1 n).
+Qed.
+
+End BangFmapContinuous.
