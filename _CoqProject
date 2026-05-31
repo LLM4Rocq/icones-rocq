@@ -60,8 +60,10 @@ theories/homs/seely_defs.v
 theories/homs/seely.v
 theories/homs/coalgebra.v
 theories/homs/em_cat.v
+theories/homs/em_continuity.v
 theories/homs/em_seely_comonoid.v
 theories/homs/em_cartesian.v
+theories/homs/em_fix.v
 theories/homs/cbv_adjunction.v
 theories/programs/cbv.v
 theories/programs/ppl.v
