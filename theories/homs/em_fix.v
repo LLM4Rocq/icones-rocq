@@ -444,3 +444,40 @@ End CoalgHomSupPack.
 Arguments bang_fmap_S_E {R Ar P Q} u uch ub1 _.
 Arguments coalg_mor_S_ball {R Ar P Q} u uch ub1 _ _.
 Arguments is_coalg_mor_S {R Ar P Q} u uch ub1 _ _.
+
+(** ** The bundled [coalg_hom_sup_pack] constructor
+
+    Package the linhom-sup of a unit-ball chain of [coalg_hom]s as a
+    [coalg_hom].  Inputs:
+    - the unit-ball linhom chain [u_n : linhom_car (coalg_obj P)
+      (coalg_obj Q)] with monotonicity [uch] and bound [ub1];
+    - the per-[n] coalg-mor witness [u_coalg];
+    - the BANG-fmap chain witnesses [Bu_chain] (the
+      [bang_fmap]-lifts are monotone — a hypothesis that's downstream
+      verifiable on concrete chains). *)
+Section CoalgHomSupBundled.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (P Q : Coalgebra Ar).
+
+Variable u : nat -> linhom_car Ar (coalg_obj P) (coalg_obj Q).
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, cone_norm (u n) <= 1.
+Hypothesis u_coalg :
+  forall n, is_coalg_mor P Q (linhom_icones (u n) (ub1 n)).
+Hypothesis Bu_chain :
+  forall n, precone_le (bang_fmap_lin (linhom_icones (u n) (ub1 n)))
+                       (bang_fmap_lin (linhom_icones (u n.+1) (ub1 n.+1))).
+
+Definition coalg_hom_sup_pack : coalg_hom P Q :=
+  MkCoalgHom (is_coalg_mor_S u uch ub1 u_coalg Bu_chain).
+
+Lemma coalg_hom_sup_pack_mor :
+  ch_mor coalg_hom_sup_pack =
+  linhom_icones (linhom_sup_ball u uch ub1)
+                (linhom_sup_ball_norm u uch ub1).
+Proof. by []. Qed.
+
+End CoalgHomSupBundled.
+
+Arguments coalg_hom_sup_pack {R Ar P Q} u uch ub1 u_coalg Bu_chain.
+Arguments coalg_hom_sup_pack_mor {R Ar P Q} u uch ub1 u_coalg Bu_chain.
