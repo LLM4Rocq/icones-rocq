@@ -63,6 +63,8 @@ Require Import Icones.stable.scones_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.exp_adjunction.
+Require Import Icones.homs.tensor.
+Require Import Icones.homs.smcc.
 Require Import Icones.homs.bang.
 Require Import Icones.homs.seely_defs.
 Require Import Icones.homs.seely.
@@ -368,3 +370,257 @@ apply: precone_le_anti.
 Qed.
 
 End BangFmapContinuous.
+
+(** ** Pure-tensor extensionality at the [linhom_car] level
+
+    Two norm-[≤1] linear maps [φ, ψ : B ⊗ C ⊸ D] agreeing on every pure
+    tensor [x ⊗p y] (no norm restriction on [x], [y]) are equal.
+    Package each as an [icones_hom] via [linhom_icones]; the [icones_hom]
+    level [tensor_ext] (Paper Prop 5.14) yields their equality; then
+    [linhom_eq] transports back. *)
+
+Section TensorExtLinhom.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Lemma tensor_ext_linhom (B C D : ICone.type Ar)
+    (phi psi : linhom_car Ar (tensor Ar B C) D)
+    (Hphi : cone_norm phi <= 1) (Hpsi : cone_norm psi <= 1) :
+  (forall (x : B) (y : C),
+     linhom_fun phi (ptensor x y) = linhom_fun psi (ptensor x y)) ->
+  phi = psi.
+Proof.
+move=> Hpp.
+have Heq : linhom_icones phi Hphi = linhom_icones psi Hpsi.
+  apply: tensor_ext => x y.
+  by rewrite !linhom_iconesE; exact: Hpp.
+apply: linhom_eq => z.
+by rewrite -(linhom_iconesE phi Hphi z) -(linhom_iconesE psi Hpsi z) Heq.
+Qed.
+
+End TensorExtLinhom.
+
+Arguments tensor_ext_linhom {R Ar B C D} phi psi Hphi Hpsi.
+
+(** ** ω-continuity of [tensor_mor (icones_id G) ·] — the workhorse for [Yfix_value]
+
+    Given a unit-ball ω-chain [u_n : linhom_car C1 C2], the icones_hom
+    [tensor_mor (icones_id G) (linhom_icones (sup u_n) LHS_norm)] equals
+    (at the [icones_as_linhom] level) the linhom-cone supremum of
+    [n ↦ icones_as_linhom (tensor_mor (icones_id G) (linhom_icones u_n (ub1 n)))].
+
+    The proof mirrors [bang_fmap_lin_omega_cont]: by [tensor_ext_linhom]
+    it suffices to check both sides at every pure tensor [x ⊗p y] (any
+    [x : G], [y : C1], in fact we use the unit-ball [‖y‖ ≤ 1] case after
+    a scaling argument).  At a pure tensor:
+    - LHS at [x ⊗p y] = [x ⊗p (Lfun (linhom_icones (sup u_n) _) y)]
+                      = [x ⊗p (linhom_fun (sup u_n) y)]
+                      = [x ⊗p (cone_sup_ball (n ↦ linhom_fun u_n y) ...)]
+      (by [tensor_morE] + [linhom_sup_fun_unitE] on unit-ball [y]).
+    - RHS at [x ⊗p y] = [linhom_sup_fun (T_n) (x ⊗p y)]
+                      = [cone_sup_ball (n ↦ linhom_fun (T_n n) (x ⊗p y))]
+                      = [cone_sup_ball (n ↦ x ⊗p (linhom_fun u_n y))]
+      (by [linhom_sup_fun_unitE] + [tensor_morE]).
+    Both are equal by ω-continuity of the linhom [tau G C2 x] on the
+    unit-ball chain [n ↦ linhom_fun u_n y]; [tau G C2 x] is a [linhom_car]
+    (hence has [linhom_pre_continuous]). *)
+
+Section TensorMorIdLinOmegaCont.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** "Linhom-shadow" of [tensor_mor (icones_id G) f] for [f : C1 → C2]:
+    the [icones_as_linhom] packaging of [tensor_mor (icones_id G) f] as a
+    [linhom_car (G ⊗ C1) (G ⊗ C2)]. *)
+Definition tensor_mor_R_lin (G C1 C2 : ICone.type Ar)
+    (f : icones_hom Ar C1 C2) :
+    linhom_car Ar (tensor Ar G C1) (tensor Ar G C2) :=
+  icones_as_linhom (tensor_mor (icones_id Ar G) f).
+
+Lemma tensor_mor_R_lin_norm_le1 (G C1 C2 : ICone.type Ar)
+    (f : icones_hom Ar C1 C2) :
+  cone_norm (tensor_mor_R_lin G f) <= 1.
+Proof. exact: icones_as_linhom_norm_le1. Qed.
+
+(** Pointwise reading on a pure tensor [x ⊗p y]:
+    [tensor_mor_R_lin G f (x ⊗p y) = x ⊗p (f y)]. *)
+Lemma tensor_mor_R_lin_ptensor (G C1 C2 : ICone.type Ar)
+    (f : icones_hom Ar C1 C2) (x : G) (y : C1) :
+  linhom_fun (tensor_mor_R_lin G f) (ptensor x y) = ptensor x (Lfun f y).
+Proof.
+rewrite /tensor_mor_R_lin icones_as_linhomE tensor_morE.
+by rewrite -[Lfun (icones_id Ar G) x]/x.
+Qed.
+
+(** **The headline ω-continuity of [tensor_mor (icones_id G) ·]** at the linhom level.
+
+    Given a unit-ball ω-chain [u_n] of [linhom_car C1 C2], let
+    [T_n := tensor_mor_R_lin G (linhom_icones (u n) (ub1 n)) :
+                                linhom_car (G ⊗ C1) (G ⊗ C2)].  Then
+    [tensor_mor_R_lin G (linhom_icones (sup u_n) LHS_norm)] equals the
+    linhom-cone sup of the [T_n] chain. *)
+Lemma tensor_mor_omega_cont_R (G C1 C2 : ICone.type Ar)
+    (u : nat -> linhom_car Ar C1 C2)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (LHS_norm : cone_norm (linhom_sup_ball u uch ub1) <= 1)
+    (T_n := fun n => tensor_mor_R_lin G (linhom_icones (u n) (ub1 n)))
+    (tch : forall n, precone_le (T_n n) (T_n n.+1))
+    (tub1 : forall n, cone_norm (T_n n) <= 1) :
+  tensor_mor_R_lin G (linhom_icones _ LHS_norm) =
+  linhom_sup_ball T_n tch tub1.
+Proof.
+apply: (tensor_ext_linhom _ _ (tensor_mor_R_lin_norm_le1 _ _)
+                              (linhom_sup_ball_norm T_n tch tub1)).
+move=> x y.
+(* LHS at [x ⊗p y]: [tensor_mor_R_lin G (linhom_icones (sup u_n)) (x ⊗p y) =
+   x ⊗p Lfun (linhom_icones (sup u_n) LHS_norm) y = x ⊗p (linhom_fun (sup u_n) y)]. *)
+rewrite tensor_mor_R_lin_ptensor.
+have LHS_eq : Lfun (linhom_icones _ LHS_norm) y =
+              linhom_fun (linhom_sup_ball u uch ub1) y by [].
+rewrite LHS_eq.
+(* RHS at [x ⊗p y]: unfold the linhom-sup. *)
+rewrite -[linhom_fun (linhom_sup_ball T_n tch tub1) _]
+        /(linhom_sup_fun tch tub1 (ptensor x y)).
+(* Cases on whether [y] is in the unit ball or not; the pure-tensor is
+   linear in [y], so we can reduce to the unit-ball case via the standard
+   scaling trick if needed.  Easier: split on [cnorm y]. *)
+have ptensor_xy_norm : cone_norm (ptensor x y) <= cone_norm x * cone_norm y
+  by exact: tensor_norm_le.
+(* The proof goes via two-sided [precone_le_anti] over [cone_sup_ball]s. *)
+(* Reduce [y] to unit-ball by scaling.  Let [r := cnorm y + 1] (always > 0),
+   [rinv := r^-1], [y' := rinv •: y].  Then [cnorm y' <= 1], and by
+   linearity in the right slot ([ptensorZr]), [x ⊗p y = r •: (x ⊗p y')]. *)
+set rinv := cnorm_succ_inv_nng y.
+set r := cnorm_succ_nng y.
+set y' := precone_scale rinv y.
+have y'_ub : cone_norm y' <= 1 by exact: cnorm_inv_unit.
+have y_eq : y = precone_scale r y' by rewrite /y' cnorm_succ_scaleK.
+(* Rewrite [x ⊗p y = r •: (x ⊗p y')] on both sides, then by linearity of
+   [linhom_fun] in the input (which is what [linhom_sup_fun] also respects)
+   both reduce to [r •: ...]; cancel [r] and work at unit-ball [y']. *)
+(* For the LHS, [x ⊗p (linhom_fun (sup u) y) = x ⊗p (linhom_fun (sup u) (r •: y'))
+   = x ⊗p (r •: linhom_fun (sup u) y')] (by linearity of the linhom in input)
+   [= r •: (x ⊗p linhom_fun (sup u) y')] (by [ptensorZr]). *)
+have LHS_lin : linhom_fun (linhom_sup_ball u uch ub1) y =
+               precone_scale r (linhom_fun (linhom_sup_ball u uch ub1) y').
+  rewrite y_eq /linhom_fun.
+  by have [_ _ HZ] :=
+    linhom_pre_linear (linhom_pre_of (linhom_sup_ball u uch ub1)); rewrite HZ.
+rewrite LHS_lin ptensorZr.
+(* For the RHS, [linhom_sup_fun tch tub1 (x ⊗p y) = linhom_sup_fun tch tub1 (r •: (x ⊗p y'))
+   = r •: linhom_sup_fun tch tub1 (x ⊗p y')] (by linearity of the sup-linhom). *)
+have RHS_lin : linhom_sup_fun tch tub1 (ptensor x y) =
+               precone_scale r (linhom_sup_fun tch tub1 (ptensor x y')).
+  rewrite {1}y_eq ptensorZr.
+  have [_ _ HZ] := linhom_pre_linear
+                     (linhom_pre_of (linhom_sup_ball T_n tch tub1)).
+  exact: HZ.
+rewrite RHS_lin.
+(* Cancel the [r] scaling on both sides. *)
+congr (precone_scale _ _).
+(* Now work at unit-ball [y']. *)
+(* LHS: [x ⊗p linhom_fun (sup u) y' = x ⊗p (cone_sup_ball (n ↦ linhom_fun u_n y') ...)]
+   (by [linhom_sup_fun_unitE]).  Then by ω-continuity of [tau G C2 x] as a linhom
+   (its underlying [linhom_pre_fun] is ω-continuous), push [x ⊗p] through the sup. *)
+have LHS_at_y' : linhom_fun (linhom_sup_ball u uch ub1) y' =
+                 linhom_sup_unit uch ub1 y'_ub
+  by exact: linhom_sup_fun_unitE.
+rewrite LHS_at_y' linhom_sup_unitE.
+(* RHS at unit-ball [x ⊗p y']: need [cone_norm (x ⊗p y') <= 1] to apply
+   [linhom_sup_fun_unitE].  This requires unit-ball [x]; we'll do another
+   scaling step on [x]. *)
+set xinv := cnorm_succ_inv_nng x.
+set xr := cnorm_succ_nng x.
+set x' := precone_scale xinv x.
+have x'_ub : cone_norm x' <= 1 by exact: cnorm_inv_unit.
+have x_eq : x = precone_scale xr x' by rewrite /x' cnorm_succ_scaleK.
+have xy'_norm : cone_norm (ptensor x' y') <= 1.
+  apply: (le_trans (tensor_norm_le _ _)).
+  apply: mulr_ile1 => //; exact: cone_norm_ge0.
+(* For the LHS we have [x ⊗p (cone_sup_ball ...)].  Rewrite [x = xr •: x'],
+   distribute by [ptensorZl], then push [xr •:] outside the [cone_sup_ball]
+   via [cone_sup_ball_scale]; remains to push [x' ⊗p ·] through the sup. *)
+rewrite x_eq ptensorZl.
+(* RHS at [(xr •: x') ⊗p y']: rewrite [(xr •: x') ⊗p y' = xr •: (x' ⊗p y')]
+   by [ptensorZl], then pull [xr •:] outside [linhom_sup_fun] by linearity. *)
+have RHS_xrEq : linhom_sup_fun tch tub1 (ptensor (precone_scale xr x') y') =
+                precone_scale xr (linhom_sup_fun tch tub1 (ptensor x' y')).
+  rewrite ptensorZl.
+  have [_ _ HZ] := linhom_pre_linear
+                     (linhom_pre_of (linhom_sup_ball T_n tch tub1)).
+  exact: HZ.
+rewrite RHS_xrEq.
+have RHS_at_xy' : linhom_sup_fun tch tub1 (ptensor x' y') =
+                  linhom_sup_unit tch tub1 xy'_norm
+  by exact: linhom_sup_fun_unitE.
+rewrite RHS_at_xy' linhom_sup_unitE.
+(* Cancel the [xr •:] on both sides. *)
+congr (precone_scale _ _).
+(* Both sides are [cone_sup_ball] over [tensor Ar G C2].  Their chains:
+   LHS chain = [n ↦ ptensor x' (linhom_fun (u n) y')] (after [ptensor_x'] push through)
+   RHS chain = [n ↦ linhom_fun (T_n n) (ptensor x' y')]
+             = [n ↦ ptensor x' (linhom_fun (u n) y')] by [tensor_mor_R_lin_ptensor].
+   To bridge, apply ω-continuity of [tau G C2 x'] (a linhom) on the
+   unit-ball chain [n ↦ linhom_fun (u n) y'] (which IS in the unit ball by
+   [linhom_sup_pw_ub1]). *)
+pose w (n : nat) : C2 := linhom_fun (u n) y'.
+have wch : forall n, precone_le (w n) (w n.+1)
+  by move=> n; rewrite /w; exact: linhom_sup_pw_chain uch y' n.
+have wub1 : forall n, cone_norm (w n) <= 1
+  by move=> n; rewrite /w; apply: linhom_sup_pw_ub1 => //.
+(* The linhom [tau G C2 x'] is ω-continuous; its underlying function applied to
+   a chain reduces sup at the chain.  [linhom_fun (tau G C2 x') = ptensor x']
+   by definition. *)
+have ptensor_x'_cont : is_omega_continuous (fun v : C2 => ptensor x' v).
+  by exact: (linhom_pre_continuous (linhom_pre_of (tau G C2 x'))).
+have pch : forall n, precone_le (ptensor x' (w n)) (ptensor x' (w n.+1)).
+  move=> n; rewrite /w.
+  apply: (linear_increasing (f := ptensor x'));
+    last by exact: wch.
+  exact: (linhom_pre_linear (linhom_pre_of (tau G C2 x'))).
+have pub1 : forall n, cone_norm (ptensor x' (w n)) <= 1.
+  move=> n; apply: (le_trans (tensor_norm_le _ _)).
+  apply: mulr_ile1; first exact: cone_norm_ge0.
+  - exact: cone_norm_ge0.
+  - exact: x'_ub.
+  - exact: wub1.
+(* Bridge the [cone_sup_ball] witnesses: the LHS sup is over the SAME
+   chain as [w], but with different proof witnesses (proof-irrelevant). *)
+have heq : cone_sup_ball (fun n => linhom_fun (u n) y')
+             [eta linhom_sup_pw_chain uch y'] (linhom_sup_pw_ub1 ub1 y'_ub) =
+           cone_sup_ball w wch wub1.
+  apply: precone_le_anti.
+    by apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+  by apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+rewrite heq.
+rewrite (ptensor_x'_cont w wch wub1 pch pub1).
+(* Now both sides are [cone_sup_ball] over [tensor G C2] with the SAME chain
+   (modulo [tensor_mor_R_lin_ptensor]); close by [precone_le_anti]. *)
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n /=.
+  (* LHS chain at n: [ptensor x' (linhom_fun (u n) y')] = [linhom_fun (T_n n) (ptensor x' y')]
+     by [tensor_mor_R_lin_ptensor]. *)
+  have HE : ptensor x' (linhom_fun (u n) y') =
+            linhom_fun (T_n n) (ptensor x' y').
+    rewrite /T_n /=.
+    by rewrite (tensor_mor_R_lin_ptensor (linhom_icones (u n) (ub1 n)) x' y').
+  rewrite HE.
+  exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n.
+  have HE : linhom_fun (T_n n) (ptensor x' y') =
+            ptensor x' (linhom_fun (u n) y').
+    rewrite /T_n.
+    by rewrite (tensor_mor_R_lin_ptensor (linhom_icones (u n) (ub1 n)) x' y').
+  rewrite HE.
+  exact: (cone_sup_ball_ub _ pch pub1 n).
+Qed.
+
+End TensorMorIdLinOmegaCont.
+
+Arguments tensor_mor_R_lin {R Ar} G {C1 C2} f.
+Arguments tensor_mor_R_lin_norm_le1 {R Ar} G {C1 C2} f.
+Arguments tensor_mor_R_lin_ptensor {R Ar} G {C1 C2} f x y.
+Arguments tensor_mor_omega_cont_R {R Ar} G {C1 C2} u uch ub1 LHS_norm.
