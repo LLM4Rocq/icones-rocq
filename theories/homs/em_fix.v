@@ -51,6 +51,8 @@ From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 
+(* Block aggressive unfolding of comonad / EM data — without this, [/=]
+   and [rewrite] traverse the SAFT [Bang] construction internals. *)
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
@@ -80,6 +82,9 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
+
+(* Block aggressive unfolding of comonad data. *)
+Opaque dig der prom bang_fmap.
 
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
@@ -228,3 +233,214 @@ End YfixValue.
 Arguments kleene_lin {R Ar G A} Phi n.
 Arguments linhom_lfp {R Ar G A} Phi Phi_incr Phi_ball.
 Arguments linhom_lfp_fixpoint {R Ar G A} Phi Phi_incr Phi_ball Phi_cont.
+
+(** ** Coalg-mor witness passes through the linhom-sup — the headline
+
+    Given a unit-ball ω-chain of [coalg_hom G P] (specified at the
+    linhom level), the [is_coalg_mor] equation passes through the
+    linhom-cone supremum.
+
+    Proof outline: [is_coalg_mor] says
+      [icones_comp (coalg_str P) f = icones_comp (bang_fmap f) (coalg_str G)].
+    As an equation of [linhom_car (coalg_obj G) (Bang Ar (coalg_obj P))]'s
+    underlying maps, for each [n] the equation holds for [f_n], so taking
+    suprema on both sides yields the same equation for the sup, IF the
+    sup commutes with each side.
+
+    LHS = [coalg_str P ∘ f] : commutation with linhom-sup by
+    [linhom_post_icones_sup] applied to [coalg_str P].
+    RHS = [bang_fmap f ∘ coalg_str G] : double commutation, first
+    pre-composition by [coalg_str G] ([linhom_pre_icones_sup]), then
+    [bang_fmap] of the sup equals sup of [bang_fmap]
+    ([bang_fmap_lin_omega_cont]). *)
+
+Section CoalgHomSupPack.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** A note about scope: [coalg_hom P Q] bundles an [icones_hom] plus the
+    [is_coalg_mor] witness.  To take linhom-sups we need the underlying
+    [linhom_car] chain.  We DEFINE the chain in [linhom_car] directly,
+    and require both:
+    - that the chain is monotone and bounded in [linhom_car];
+    - that for each [n], the [icones_hom]-packaging [linhom_icones (u n)
+      (ub1 n)] is a coalg_hom witness for [(P, Q)].  *)
+
+Variables (P Q : Coalgebra Ar).
+
+(** The unit-ball linhom-chain of [(coalg_obj P) → (coalg_obj Q)]. *)
+Variable u : nat -> linhom_car Ar (coalg_obj P) (coalg_obj Q).
+Hypothesis uch : forall n, precone_le (u n) (u n.+1).
+Hypothesis ub1 : forall n, cone_norm (u n) <= 1.
+
+(** The pointwise coalg-mor witness: each iterate is a coalg_hom. *)
+Hypothesis u_coalg :
+  forall n, is_coalg_mor P Q (linhom_icones _ (ub1 n)).
+
+(** The headline: the linhom-sup of [u] is a coalg-mor witness. *)
+
+(* The auxiliary bookkeeping witnesses for the [bang_fmap_lin] chain. *)
+
+(** Aux: monotonicity of the [bang_fmap]-image chain. *)
+Section BangChainAux.
+
+Let S : linhom_car Ar (coalg_obj P) (coalg_obj Q) := linhom_sup_ball u uch ub1.
+
+Let S_norm : cone_norm S <= 1 := linhom_sup_ball_norm u uch ub1.
+
+(** The [bang_fmap] of each [u_n], at the linhom level. *)
+Let Bu (n : nat) : linhom_car Ar (Bang Ar (coalg_obj P)) (Bang Ar (coalg_obj Q)) :=
+  bang_fmap_lin (linhom_icones (u n) (ub1 n)).
+
+(** Composition pre-condition: [bang_fmap f] is monotone in [f].
+
+    This is the analogue of [Phi_incr] for [bang_fmap] applied to a
+    norm-≤-1 chain of icones_homs; we need this *as a hypothesis* (the
+    naïve `bang_fmap_le` would itself be a substantial lemma, dual to
+    [bang_fmap_lin_omega_cont] but for monotonicity).  In practice it
+    follows from monotonicity of the functoriality of [!] on a unit-ball
+    chain, but stating it abstractly here is sufficient for downstream
+    instantiation. *)
+Hypothesis Bu_chain : forall n, precone_le (Bu n) (Bu n.+1).
+
+Lemma Bu_ub1 : forall n, cone_norm (Bu n) <= 1.
+Proof. by move=> n; rewrite /Bu; exact: bang_fmap_lin_norm_le1. Qed.
+
+(** [bang_fmap (linhom_icones S S_norm)] equals [linhom_sup_ball Bu ...].
+    This is exactly [bang_fmap_lin_omega_cont]. *)
+Lemma bang_fmap_S_E :
+  bang_fmap_lin (linhom_icones S S_norm) =
+  linhom_sup_ball Bu Bu_chain Bu_ub1.
+Proof.
+exact: (bang_fmap_lin_omega_cont S_norm Bu_chain Bu_ub1).
+Qed.
+
+(** **The unit-ball reading of the coalg-mor equation.
+
+    For every [x : coalg_obj P] in the unit ball, the [is_coalg_mor]
+    equation holds at [x] for the linhom-sup-packaged [icones_hom].
+
+    Combining this with the linearity of all components yields the full
+    [is_coalg_mor] equation [is_coalg_mor_S] below. *)
+Lemma coalg_mor_S_ball (x : coalg_obj P) :
+  cone_norm x <= 1 ->
+  Lfun (coalg_str Q) (Lfun (linhom_icones S S_norm) x) =
+  Lfun (bang_fmap (linhom_icones S S_norm)) (Lfun (coalg_str P) x).
+Proof.
+move=> Hx.
+(* LHS reduction: [Lfun (linhom_icones S S_norm) x = linhom_fun S x =
+   linhom_sup_fun uch ub1 x]. *)
+rewrite linhom_iconesE.
+have S_at_x : linhom_fun S x = linhom_sup_fun uch ub1 x by [].
+rewrite S_at_x (linhom_sup_fun_unitE uch ub1 Hx) linhom_sup_unitE.
+(* LHS is now [Lfun (coalg_str Q) (cone_sup_ball (n => linhom_fun (u n) x) ...)]. *)
+(* By ω-continuity of [coalg_str Q] (it's an icones_hom). *)
+have ContQ : is_omega_continuous (cones_hom_fun
+                  (mcones_hom_cones (icones_hom_mcones (coalg_str Q)))).
+  exact: cones_hom_continuous.
+have ychain : forall n, precone_le ((Lfun (coalg_str Q) \o
+                          (fun n0 => linhom_fun (u n0) x)) n)
+                        ((Lfun (coalg_str Q) \o
+                          (fun n0 => linhom_fun (u n0) x)) n.+1).
+  move=> n /=.
+  apply: (linear_increasing (f := Lfun (coalg_str Q)));
+    first exact: cones_hom_linear.
+  by have := linhom_sup_pw_chain uch x n.
+have yub1 : forall n, cone_norm ((Lfun (coalg_str Q) \o
+                          (fun n0 => linhom_fun (u n0) x)) n) <= 1.
+  move=> n /=.
+  apply: le_trans (cones_hom_norm_le1 _ _) _.
+  exact: (linhom_sup_pw_ub1 (u := u) ub1 Hx).
+rewrite (ContQ _ [eta linhom_sup_pw_chain uch x]
+                 (linhom_sup_pw_ub1 ub1 Hx) ychain yub1).
+(* RHS reduction: [Lfun (bang_fmap (linhom_icones S S_norm)) (Lfun (coalg_str P) x)
+   = linhom_fun (bang_fmap_lin (linhom_icones S S_norm)) z]
+   where [z = Lfun (coalg_str P) x] (in unit ball since [coalg_str P] is
+   norm-≤-1). *)
+set z := Lfun (coalg_str P) x.
+have z_ub : cone_norm z <= 1.
+  by apply: le_trans (cones_hom_norm_le1 _ _) Hx.
+have RHS_z : Lfun (bang_fmap (linhom_icones S S_norm)) z =
+             linhom_fun (bang_fmap_lin (linhom_icones S S_norm)) z.
+  by rewrite /bang_fmap_lin icones_as_linhomE.
+rewrite RHS_z bang_fmap_S_E.
+have S_at_z : linhom_fun (linhom_sup_ball Bu Bu_chain Bu_ub1) z =
+              linhom_sup_fun Bu_chain Bu_ub1 z by [].
+rewrite S_at_z (linhom_sup_fun_unitE Bu_chain Bu_ub1 z_ub) linhom_sup_unitE.
+(* Both sides are [cone_sup_ball] over [Bang Ar (coalg_obj Q)]; show the
+   underlying chains are pointwise equal using [u_coalg n] (per-n
+   coalg-mor witness). *)
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  have HE : Lfun (coalg_str Q) (linhom_fun (u n) x) =
+            linhom_fun (Bu n) z.
+    have UCx : Lfun (linhom_icones (u n) (ub1 n)) x = linhom_fun (u n) x.
+      by rewrite linhom_iconesE.
+    have Bun_z : linhom_fun (Bu n) z = Lfun (bang_fmap (linhom_icones (u n) (ub1 n))) z.
+      by rewrite /Bu /bang_fmap_lin icones_as_linhomE.
+    rewrite Bun_z.
+    have CoalgE := f_equal (fun h : icones_hom _ _ _ =>
+                              Lfun h x) (u_coalg n).
+    rewrite /is_coalg_mor in CoalgE.
+    by rewrite !Lfun_comp UCx in CoalgE.
+  rewrite -[(Lfun (coalg_str Q) \o (fun n0 => linhom_fun (u n0) x)) n]
+          /(Lfun (coalg_str Q) (linhom_fun (u n) x)).
+  rewrite HE.
+  exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n.
+  have HE : linhom_fun (Bu n) z = Lfun (coalg_str Q) (linhom_fun (u n) x).
+    have UCx : Lfun (linhom_icones (u n) (ub1 n)) x = linhom_fun (u n) x.
+      by rewrite linhom_iconesE.
+    have Bun_z : linhom_fun (Bu n) z = Lfun (bang_fmap (linhom_icones (u n) (ub1 n))) z.
+      by rewrite /Bu /bang_fmap_lin icones_as_linhomE.
+    rewrite Bun_z.
+    have CoalgE := f_equal (fun h : icones_hom _ _ _ =>
+                              Lfun h x) (u_coalg n).
+    rewrite /is_coalg_mor in CoalgE.
+    by rewrite !Lfun_comp UCx in CoalgE.
+  rewrite HE.
+  exact: (cone_sup_ball_ub _ ychain yub1 n).
+Qed.
+
+(** **The headline coalg-mor witness for the linhom-sup.
+
+    The unit-ball case is [coalg_mor_S_ball]; we extend to all [x] by
+    the standard scaling argument applied to the underlying linear maps. *)
+Lemma is_coalg_mor_S :
+  is_coalg_mor P Q (linhom_icones S S_norm).
+Proof.
+rewrite /is_coalg_mor.
+apply: icones_hom_eq => x.
+(* The whole composite (LHS and RHS) is the underlying function of an
+   icones_hom, hence is LINEAR.  Both linear maps agree on the unit
+   ball ([coalg_mor_S_ball]).  Linear maps agreeing on the unit ball
+   are equal everywhere — we scale [x] down via [(cnorm x + 1)^-1]. *)
+set rinv := cnorm_succ_inv_nng x.
+set r := cnorm_succ_nng x.
+set y := precone_scale rinv x.
+have y_ub : cone_norm y <= 1 by exact: cnorm_inv_unit.
+have x_eq : x = precone_scale r y by rewrite /y cnorm_succ_scaleK.
+rewrite [in X in Lfun _ X = _]x_eq [in X in _ = Lfun _ X]x_eq.
+(* Pack LHS and RHS as a SINGLE composite icones_hom each — then [linearZ]
+   factors the scalar [r] out cleanly. *)
+have lin_LHS : is_linear (Lfun (icones_comp (coalg_str Q)
+                                           (linhom_icones S S_norm))).
+  exact: cones_hom_linear.
+have lin_RHS : is_linear (Lfun (icones_comp (bang_fmap (linhom_icones S S_norm))
+                                           (coalg_str P))).
+  exact: cones_hom_linear.
+have [_ _ HLZ] := lin_LHS; have [_ _ HRZ] := lin_RHS.
+rewrite HLZ HRZ.
+congr (precone_scale _ _).
+rewrite !Lfun_comp.
+exact: (coalg_mor_S_ball y_ub).
+Qed.
+
+End BangChainAux.
+
+End CoalgHomSupPack.
+
+Arguments bang_fmap_S_E {R Ar P Q} u uch ub1 _.
+Arguments coalg_mor_S_ball {R Ar P Q} u uch ub1 _ _.
+Arguments is_coalg_mor_S {R Ar P Q} u uch ub1 _ _.
