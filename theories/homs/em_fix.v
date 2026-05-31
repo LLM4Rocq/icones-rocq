@@ -124,17 +124,18 @@ Local Notation Lhom G A :=
     [kbind_ext]-specific instance is delivered later. *)
 
 Section LinhomLFP.
-Variables (G A : Coalgebra Ar).
+Variables (C D : ICone.type Ar).
 
 (** The Kleene chain at the linhom level. *)
-Variable Phi : Lhom G A -> Lhom G A.
-Hypothesis Phi_incr : forall x y : Lhom G A,
+Variable Phi : linhom_car Ar C D -> linhom_car Ar C D.
+Hypothesis Phi_incr : forall x y : linhom_car Ar C D,
   precone_le x y -> cone_norm y <= 1 -> precone_le (Phi x) (Phi y).
-Hypothesis Phi_ball : forall x : Lhom G A,
+Hypothesis Phi_ball : forall x : linhom_car Ar C D,
   cone_norm x <= 1 -> cone_norm (Phi x) <= 1.
 
 (** The Kleene iterates [Phi^n(0)] (using the linhom cone-zero). *)
-Definition kleene_lin (n : nat) : Lhom G A := iter n Phi precone_zero.
+Definition kleene_lin (n : nat) : linhom_car Ar C D :=
+  iter n Phi precone_zero.
 
 Lemma kleene_lin_0 : kleene_lin 0 = precone_zero. Proof. by []. Qed.
 
@@ -155,11 +156,11 @@ rewrite -kleene_lin_S; exact: kleene_lin_ball.
 Qed.
 
 (** The linhom-level least fixpoint of [Phi]. *)
-Definition linhom_lfp : Lhom G A :=
+Definition linhom_lfp : linhom_car Ar C D :=
   linhom_sup_ball kleene_lin kleene_lin_chain kleene_lin_ball.
 
 Lemma linhom_lfp_norm_le1 : cone_norm linhom_lfp <= 1.
-Proof. exact: linhom_sup_ball_norm. Qed.
+Proof. exact: linhom_sup_ball_norm. Defined.
 
 (** Each iterate is below the sup. *)
 Lemma kleene_lin_le_lfp n : precone_le (kleene_lin n) linhom_lfp.
@@ -167,8 +168,8 @@ Proof. exact: cone_sup_ball_ub. Qed.
 
 End LinhomLFP.
 
-Arguments kleene_lin {G A} Phi n.
-Arguments linhom_lfp {G A} Phi Phi_incr Phi_ball.
+Arguments kleene_lin {C D} Phi n.
+Arguments linhom_lfp {C D} Phi Phi_incr Phi_ball.
 
 (** ** The fixpoint equation under linhom-ω-continuity
 
@@ -178,17 +179,17 @@ Arguments linhom_lfp {G A} Phi Phi_incr Phi_ball.
     to the linhom [coneType]. *)
 
 Section LinhomLFPFix.
-Variables (G A : Coalgebra Ar).
+Variables (C D : ICone.type Ar).
 
-Variable Phi : Lhom G A -> Lhom G A.
-Hypothesis Phi_incr : forall x y : Lhom G A,
+Variable Phi : linhom_car Ar C D -> linhom_car Ar C D.
+Hypothesis Phi_incr : forall x y : linhom_car Ar C D,
   precone_le x y -> cone_norm y <= 1 -> precone_le (Phi x) (Phi y).
-Hypothesis Phi_ball : forall x : Lhom G A,
+Hypothesis Phi_ball : forall x : linhom_car Ar C D,
   cone_norm x <= 1 -> cone_norm (Phi x) <= 1.
 
 (** ω-continuity of [Phi] on the unit ball: [Phi (sup u_n) = sup (Phi u_n)]. *)
 Hypothesis Phi_cont :
-  forall (u : nat -> Lhom G A)
+  forall (u : nat -> linhom_car Ar C D)
          (uch : forall n, precone_le (u n) (u n.+1))
          (ub1 : forall n, cone_norm (u n) <= 1)
          (Pch : forall n, precone_le (Phi (u n)) (Phi (u n.+1)))
@@ -230,9 +231,9 @@ End LinhomLFPFix.
 
 End YfixValue.
 
-Arguments kleene_lin {R Ar G A} Phi n.
-Arguments linhom_lfp {R Ar G A} Phi Phi_incr Phi_ball.
-Arguments linhom_lfp_fixpoint {R Ar G A} Phi Phi_incr Phi_ball Phi_cont.
+Arguments kleene_lin {R Ar C D} Phi n.
+Arguments linhom_lfp {R Ar C D} Phi Phi_incr Phi_ball.
+Arguments linhom_lfp_fixpoint {R Ar C D} Phi Phi_incr Phi_ball Phi_cont.
 
 (** ** Coalg-mor witness passes through the linhom-sup — the headline
 
@@ -481,3 +482,103 @@ End CoalgHomSupBundled.
 
 Arguments coalg_hom_sup_pack {R Ar P Q} u uch ub1 u_coalg Bu_chain.
 Arguments coalg_hom_sup_pack_mor {R Ar P Q} u uch ub1 u_coalg Bu_chain.
+
+(** ** The conditional CBV value fixpoint [Yfix_value_cond]
+
+    Given a linhom-level iteration operator [Phi : Lhom G A → Lhom G A]
+    satisfying the standard Kleene hypotheses (monotonicity,
+    ball-preservation, ω-continuity), AND a per-iterate coalg-mor
+    witness, we build a [coalg_hom G P] that is the fixpoint of [Phi]
+    at the underlying-linhom level.
+
+    The CBV-specific instance — [Phi := (fun prev =>
+    icones_as_linhom (ch_mor (kbind_ext M (MkCoalgHom witness))))] —
+    requires:
+    1. ω-continuity of [kbind_ext M] in the prev argument (at the
+       linhom level), which decomposes into ω-continuity of
+       [tensor_mor (icones_id G) ·] on linhom_cars (the only genuinely
+       non-immediate sub-fact);
+    2. closure of the iteration under [is_coalg_mor].
+
+    The current file does NOT provide that specialization
+    axiom-free: [tensor_mor (icones_id G) ·] is not, in the present
+    project, known to be ω-continuous on the linhom level as a function
+    of its second argument.  This is the precise gap noted in the
+    deliverable report.  However, the surrounding infrastructure ---
+    [coalg_hom_sup_pack], [linhom_lfp], [linhom_lfp_fixpoint] --- IS
+    delivered axiom-free, and the conditional value-fixpoint below is
+    the value of having that infrastructure. *)
+
+Section YfixCond.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G P : Coalgebra Ar).
+
+Variable Phi : linhom_car Ar (coalg_obj G) (coalg_obj P) ->
+               linhom_car Ar (coalg_obj G) (coalg_obj P).
+
+Hypothesis Phi_incr :
+  forall x y : linhom_car Ar (coalg_obj G) (coalg_obj P),
+    precone_le x y -> cone_norm y <= 1 -> precone_le (Phi x) (Phi y).
+
+Hypothesis Phi_ball :
+  forall x : linhom_car Ar (coalg_obj G) (coalg_obj P),
+    cone_norm x <= 1 -> cone_norm (Phi x) <= 1.
+
+Hypothesis Phi_cont :
+  forall (u : nat -> linhom_car Ar (coalg_obj G) (coalg_obj P))
+         (uch : forall n, precone_le (u n) (u n.+1))
+         (ub1 : forall n, cone_norm (u n) <= 1)
+         (Pch : forall n, precone_le (Phi (u n)) (Phi (u n.+1)))
+         (Pub1 : forall n, cone_norm (Phi (u n)) <= 1),
+    Phi (cone_sup_ball u uch ub1) = cone_sup_ball (Phi \o u) Pch Pub1.
+
+(** Per-iterate coalg-mor witness: each [Phi^n(0)] (packaged as an
+    icones_hom) is a coalg_hom. *)
+Hypothesis Phi_coalg :
+  forall n, is_coalg_mor G P
+              (linhom_icones (kleene_lin Phi n)
+                             (kleene_lin_ball Phi_ball n)).
+
+(** And the [bang_fmap]-chain witness for the iterates. *)
+Hypothesis Phi_Bu_chain :
+  forall n,
+    precone_le
+      (bang_fmap_lin (linhom_icones (kleene_lin Phi n)
+                                    (kleene_lin_ball Phi_ball n)))
+      (bang_fmap_lin (linhom_icones (kleene_lin Phi n.+1)
+                                    (kleene_lin_ball Phi_ball n.+1))).
+
+(** The CBV-style value fixpoint [Yfix_value_cond]: the bundled
+    [coalg_hom] obtained from the linhom-level [linhom_lfp Phi] +
+    [is_coalg_mor_S]. *)
+Definition Yfix_value_cond : coalg_hom G P :=
+  coalg_hom_sup_pack (kleene_lin Phi)
+    (kleene_lin_chain Phi_incr Phi_ball)
+    (kleene_lin_ball Phi_ball)
+    Phi_coalg Phi_Bu_chain.
+
+(** Its underlying [linhom_car] is exactly [linhom_lfp Phi] (with a
+    [Prop]-irrelevant norm-witness). *)
+Lemma Yfix_value_cond_mor :
+  ch_mor Yfix_value_cond =
+  linhom_icones (linhom_lfp Phi Phi_incr Phi_ball)
+                (linhom_lfp_norm_le1 Phi_incr Phi_ball).
+Proof.
+rewrite /Yfix_value_cond /coalg_hom_sup_pack /ch_mor.
+rewrite -[linhom_sup_ball _ _ _]/(linhom_lfp Phi Phi_incr Phi_ball).
+congr (linhom_icones _ _); exact: Prop_irrelevance.
+Qed.
+
+(** Linhom-level unfolding: [Phi (linhom_lfp Phi) = linhom_lfp Phi]. *)
+Lemma Yfix_value_cond_unfolding_lin :
+  Phi (linhom_lfp Phi Phi_incr Phi_ball) =
+  linhom_lfp Phi Phi_incr Phi_ball.
+Proof.
+exact: (linhom_lfp_fixpoint Phi Phi_incr Phi_ball Phi_cont).
+Qed.
+
+End YfixCond.
+
+Arguments Yfix_value_cond {R Ar G P} Phi Phi_incr Phi_ball Phi_coalg Phi_Bu_chain.
+Arguments Yfix_value_cond_mor {R Ar G P} Phi Phi_incr Phi_ball Phi_coalg Phi_Bu_chain.
+Arguments Yfix_value_cond_unfolding_lin {R Ar G P} Phi Phi_incr Phi_ball Phi_cont.
