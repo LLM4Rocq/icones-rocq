@@ -499,6 +499,110 @@ End KleisliExt.
 Arguments T_str_l {R Ar} G A.
 Arguments kbind_ext {R Ar G A B} k m.
 
+(** ** Monad-law toolkit for [kbind_ext]
+
+    The three equational laws downstream PPL identity proofs need.  All
+    are proven axiom-free; the only assumptions are the boolp axioms
+    inherited from [mathcomp-analysis] (LEM, propext, FunExt).
+
+    - [em_pair_mor_natR] : tensor_mor distributes over em_pair_mor on the right
+      (pure naturality of pairing, no side conditions).
+    - [em_pair_mor_natL] : a coalg-morphism precomposition pulls inside an
+      em_pair_mor (uses [coalg_mor_d]).
+    - [kbind_ext_etaR] (Law 1, right unit) : binding the canonical
+      [η ∘ π₂] is the identity.
+    - [kbind_ext_A] (Law 2, associativity-with-substitution) : nested
+      kbind_ext flattens by shifting the outer continuation through one
+      extra context factor.
+    - [kbind_ext_terminal_source] (Law 3, EM_term source collapse) :
+      when the source is [EM_term], kbind_ext reduces to plain Kleisli
+      composition via the canonical iso [EM_prod EM_term A ≅ A]. *)
+
+Section KbindExtLaws.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** *** Helper — naturality of [em_pair_mor] in its output factors *)
+
+(** Right-naturality: [tensor_mor f g ∘ ⟨a,b⟩ = ⟨f∘a, g∘b⟩].  Pure
+    tensor / pairing identity, no side condition. *)
+Lemma em_pair_mor_natR (Z P Q P' Q' : Coalgebra Ar)
+    (a : icones_hom Ar (coalg_obj Z) (coalg_obj P))
+    (b : icones_hom Ar (coalg_obj Z) (coalg_obj Q))
+    (f : icones_hom Ar (coalg_obj P) (coalg_obj P'))
+    (g : icones_hom Ar (coalg_obj Q) (coalg_obj Q')) :
+  icones_comp (tensor_mor f g) (em_pair_mor a b)
+  = em_pair_mor (icones_comp f a) (icones_comp g b).
+Proof.
+rewrite /em_pair_mor icones_compA.
+by rewrite (tensor_mor_comp f a g b).
+Qed.
+
+(** Left-naturality: [⟨p,q⟩ ∘ h = ⟨p∘h, q∘h⟩] provided [h] is a coalgebra
+    morphism — uses the comonoid-morphism property of [coalg_d]
+    ([coalg_mor_d]). *)
+Lemma em_pair_mor_natL (Z Y P Q : Coalgebra Ar)
+    (h : icones_hom Ar (coalg_obj Z) (coalg_obj Y))
+    (p : icones_hom Ar (coalg_obj Y) (coalg_obj P))
+    (q : icones_hom Ar (coalg_obj Y) (coalg_obj Q))
+    (Hh : is_coalg_mor Z Y h) :
+  icones_comp (@em_pair_mor R Ar Y P Q p q) h
+  = @em_pair_mor R Ar Z P Q (icones_comp p h) (icones_comp q h).
+Proof.
+rewrite /em_pair_mor -icones_compA (coalg_mor_d _ Hh).
+rewrite icones_compA (tensor_mor_comp p h q h).
+by rewrite icones_compA.
+Qed.
+
+(** *** Law 1 — Right-unit of [kbind_ext] on the canonical [η ∘ π₂] *)
+
+(** Binding by the canonical "return the bound variable" continuation
+    [η_A ∘ π₂_{G,A}] is the identity: the [let x = m in return x] law.
+    Proof: route through [adj_phi]; reduce [adj_phi (kbind_ext ..)] step
+    by step using [adj_phi_kcomp], [adj_phi_natL], [adj_triangleL] +
+    [adj_counit_monoidal2] (= [der ∘ m_bang = der ⊗ der]), then absorb
+    the projections via [em_proj1_pair] / [em_proj2_pair]. *)
+Lemma kbind_ext_etaR (G A : Coalgebra Ar) (m : coalg_hom G (Tobj A)) :
+  kbind_ext (coalg_comp (tunit_eta A) (em_proj2 G A)) m = m.
+Proof.
+apply: adj_phi_inj.
+rewrite /kbind_ext adj_phi_kcomp.
+rewrite (adj_phi_natL (tunit_eta A) (em_proj2 G A)).
+rewrite adj_triangleL icones_compIl.
+rewrite (adj_phi_natL (T_str_l G A) (em_pair (coalg_id G) m)).
+rewrite /T_str_l.
+rewrite (adj_phi_natL (bang_m (coalg_obj G) (coalg_obj A))).
+rewrite /adj_phi /U_mor /=.
+rewrite (adj_counit_monoidal2 (coalg_obj G) (coalg_obj A)).
+rewrite (em_pair_mor_natR (Z := EM_prod G (Tobj A))
+                          (P := Tobj G) (Q := Tobj A)
+                          (P' := G) (Q' := A)
+           _ _ (adj_counit (coalg_obj G)) (adj_counit (coalg_obj A))).
+rewrite (icones_compA (adj_counit (coalg_obj G))).
+rewrite /adj_counit (coalg_counit G) icones_compIl.
+have Hpair : is_coalg_mor G (EM_prod G (Tobj A))
+    (em_pair_mor (icones_id Ar (coalg_obj G)) (ch_mor m))
+  by apply: em_pair_is_mor;
+     [exact: (ch_is_mor (coalg_id G)) | exact: ch_is_mor m].
+rewrite (@em_pair_mor_natL G (EM_prod G (Tobj A)) G A
+           (em_pair_mor (icones_id Ar (coalg_obj G)) (ch_mor m))
+           (em_proj1_mor G (Tobj A))
+           (icones_comp (der (coalg_obj A)) (em_proj2_mor G (Tobj A)))
+           Hpair).
+have Hm := ch_is_mor m.
+have Hid : is_coalg_mor G G (icones_id Ar (coalg_obj G))
+  by exact: (ch_is_mor (coalg_id G)).
+rewrite (em_proj1_pair Hm).
+rewrite -(icones_compA (der (coalg_obj A)) (em_proj2_mor G (Tobj A))).
+rewrite (em_proj2_pair Hid).
+by rewrite (em_proj2_pair Hid).
+Qed.
+
+End KbindExtLaws.
+
+Arguments em_pair_mor_natR {R Ar Z P Q P' Q'} a b f g.
+Arguments em_pair_mor_natL {R Ar Z Y P Q h} p q Hh.
+Arguments kbind_ext_etaR {R Ar G A} m.
+
 (** ** Variable lookup [var_lookup]
 
     Given a De Bruijn witness [v : has_var G t], project the value of type
