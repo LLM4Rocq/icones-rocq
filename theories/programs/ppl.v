@@ -501,22 +501,40 @@ Arguments kbind_ext {R Ar G A B} k m.
 
 (** ** Monad-law toolkit for [kbind_ext]
 
-    The three equational laws downstream PPL identity proofs need.  All
-    are proven axiom-free; the only assumptions are the boolp axioms
+    The equational laws downstream PPL identity proofs need.  All are
+    proven axiom-free; the only assumptions are the boolp axioms
     inherited from [mathcomp-analysis] (LEM, propext, FunExt).
 
-    - [em_pair_mor_natR] : tensor_mor distributes over em_pair_mor on the right
-      (pure naturality of pairing, no side conditions).
-    - [em_pair_mor_natL] : a coalg-morphism precomposition pulls inside an
-      em_pair_mor (uses [coalg_mor_d]).
+    Helpers (pairing naturality):
+    - [em_pair_mor_natR] : [tensor_mor f g ∘ ⟨a, b⟩ = ⟨f∘a, g∘b⟩]
+      (pure naturality of pairing in the codomain factors, no side
+      condition).
+    - [em_pair_mor_natL] : [⟨p, q⟩ ∘ h = ⟨p∘h, q∘h⟩] provided [h] is a
+      coalgebra morphism (uses [coalg_mor_d]).
+
+    Laws:
     - [kbind_ext_etaR] (Law 1, right unit) : binding the canonical
-      [η ∘ π₂] is the identity.
-    - [kbind_ext_A] (Law 2, associativity-with-substitution) : nested
-      kbind_ext flattens by shifting the outer continuation through one
-      extra context factor.
+      [η ∘ π₂] is the identity (the [let x = m in return x] law).
     - [kbind_ext_terminal_source] (Law 3, EM_term source collapse) :
       when the source is [EM_term], kbind_ext reduces to plain Kleisli
-      composition via the canonical iso [EM_prod EM_term A ≅ A]. *)
+      composition via the canonical iso [EM_prod EM_term A ≅ A].
+    - [adj_phi_kbind_ext] : the slick "Kleisli-pairing" form
+      [adj_phi (kbind_ext k m) = adj_phi k ∘ ⟨id, adj_phi m⟩].
+
+    NOT INCLUDED — Law 2 (full associativity-with-substitution): in the
+    shape proposed by the prompt
+    [kbind_ext h (kbind_ext k m) = kbind_ext (kbind_ext shifted_h k) m]
+    the proof reduces (via [adj_phi_kbind_ext]) to an icones-level
+    identity that requires either the cartesian "pair-of-projections is
+    the identity" rule
+    [em_pair_mor(em_proj1_mor, em_proj2_mor) = id_{EM_prod P Q}] or a
+    "tensor_mor / coalg_d swap" identity that is NOT available
+    axiom-free in the current cones library (it requires uniqueness of
+    the cartesian product, which only holds via the [U] functor's
+    faithfulness and only for COALG morphisms — [adj_phi k]/[adj_phi m]
+    are NOT coalg morphisms in general).  Recording this as a precise
+    gap; downstream Lemma 2 callers can either supply a stronger
+    helper or work around. *)
 
 Section KbindExtLaws.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -602,6 +620,164 @@ End KbindExtLaws.
 Arguments em_pair_mor_natR {R Ar Z P Q P' Q'} a b f g.
 Arguments em_pair_mor_natL {R Ar Z Y P Q h} p q Hh.
 Arguments kbind_ext_etaR {R Ar G A} m.
+
+(** ** [adj_phi] of [kbind_ext] — the clean "Kleisli pairing"
+
+    The reduction [adj_phi (kbind_ext k m) = adj_phi k ∘ ⟨id, adj_phi m⟩]
+    is the standard "monad-on-EM(!)-as-Kleisli-pairing" identity.  It is
+    the slick engine for the rest of the monad-law toolkit: every
+    [kbind_ext] equation reduces, via [adj_phi_inj], to an [icones_hom]
+    equation involving the "id ⊗ —" pairing and the postcomposition by
+    [adj_phi k]/[adj_phi m]. *)
+Section AdjPhiKbindExt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** [adj_phi (T_str_l G A ∘ ⟨id_G, m⟩)] is the Kleisli pairing
+    [em_pair_mor (id_{U G}, adj_phi m)].  This is the central "strength
+    reduces to pairing under [adj_phi]" identity.  Proof: same chain as
+    in [kbind_ext_etaR] — [adj_phi_natL] / [adj_counit_monoidal2] /
+    [em_pair_mor_natR] / [coalg_counit] / [em_pair_mor_natL] /
+    [em_proj1_pair] / [em_proj2_pair]. *)
+Lemma adj_phi_T_str_l_em_pair (G A : Coalgebra Ar) (m : coalg_hom G (Tobj A)) :
+  adj_phi (coalg_comp (T_str_l G A) (em_pair (coalg_id G) m))
+  = em_pair_mor (icones_id Ar (coalg_obj G)) (adj_phi m).
+Proof.
+rewrite (adj_phi_natL (T_str_l G A) (em_pair (coalg_id G) m)) /T_str_l.
+rewrite (adj_phi_natL (bang_m (coalg_obj G) (coalg_obj A))).
+rewrite /adj_phi /U_mor /=.
+rewrite (adj_counit_monoidal2 (coalg_obj G) (coalg_obj A)).
+rewrite (em_pair_mor_natR (Z := EM_prod G (Tobj A))
+                          (P := Tobj G) (Q := Tobj A)
+                          (P' := G) (Q' := A)
+           _ _ (adj_counit (coalg_obj G)) (adj_counit (coalg_obj A))).
+rewrite (icones_compA (adj_counit (coalg_obj G))).
+rewrite /adj_counit (coalg_counit G) icones_compIl.
+have Hpair : is_coalg_mor G (EM_prod G (Tobj A))
+    (em_pair_mor (icones_id Ar (coalg_obj G)) (ch_mor m))
+  by apply: em_pair_is_mor;
+     [exact: (ch_is_mor (coalg_id G)) | exact: ch_is_mor m].
+rewrite (em_pair_mor_natL (Z := G) (Y := EM_prod G (Tobj A))
+                          (P := G) (Q := A)
+           (h := em_pair_mor (icones_id Ar (coalg_obj G)) (ch_mor m))
+           (em_proj1_mor G (Tobj A))
+           (icones_comp (der (coalg_obj A)) (em_proj2_mor G (Tobj A)))
+           Hpair).
+have Hm := ch_is_mor m.
+have Hid : is_coalg_mor G G (icones_id Ar (coalg_obj G))
+  by exact: (ch_is_mor (coalg_id G)).
+rewrite (em_proj1_pair Hm).
+rewrite -(icones_compA (der (coalg_obj A)) (em_proj2_mor G (Tobj A))).
+by rewrite (em_proj2_pair Hid).
+Qed.
+
+(** [adj_phi (kbind_ext k m) = adj_phi k ∘ ⟨id, adj_phi m⟩]. *)
+Lemma adj_phi_kbind_ext (G A B : Coalgebra Ar)
+    (k : coalg_hom (EM_prod G A) (Tobj B)) (m : coalg_hom G (Tobj A)) :
+  adj_phi (kbind_ext k m)
+  = icones_comp (adj_phi k)
+                (em_pair_mor (icones_id Ar (coalg_obj G)) (adj_phi m)).
+Proof.
+by rewrite /kbind_ext adj_phi_kcomp adj_phi_T_str_l_em_pair.
+Qed.
+
+End AdjPhiKbindExt.
+
+Arguments adj_phi_T_str_l_em_pair {R Ar G A} m.
+Arguments adj_phi_kbind_ext {R Ar G A B} k m.
+
+(** ** Law 3 — Terminal-source collapse of [kbind_ext]
+
+    When the source is the terminal coalgebra [EM_term], [kbind_ext]
+    reduces to plain Kleisli composition [kcomp] through the canonical
+    iso [EM_prod EM_term A ≅ A] (whose inverse is
+    [em_pair (em_term_mor A) (coalg_id A)] : A → EM_prod EM_term A]).
+
+    Proof chain (all via [adj_phi_inj]):
+    1. [adj_phi (LHS) = adj_phi k ∘ ⟨id_{cone_one}, adj_phi m⟩]    [adj_phi_kbind_ext]
+    2. [adj_phi (RHS) = adj_phi k ∘ ⟨e_A, id_{cA}⟩ ∘ adj_phi m]    [adj_phi_kcomp + adj_phi_natL]
+    3. Suffices: [⟨id_{cone_one}, adj_phi m⟩ = ⟨e_A, id_{cA}⟩ ∘ adj_phi m]
+    4. RHS: [⟨e_A, id⟩ = iso_bwd (tensor_lunit cA)]                 [emc_counitL]
+    5. LHS: [⟨id, X⟩ = tensor_mor(id, X) ∘ coalg_d EM_term]
+       [= tensor_mor(id, X) ∘ iso_bwd (tensor_lunit cone_one)]      [coalg_d_EM_term]
+       [= iso_bwd (tensor_lunit cA) ∘ X]                             [tensor_lunit_nat_bwd]
+    6. = RHS. *)
+Section Law3Helpers.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** [⟨e_P, id_{cP}⟩ = tensor_lunit^{-1}_{cP}].  Standard cartesian fact:
+    pair-of-(counit, identity) is the left-unitor inverse. *)
+Lemma em_pair_mor_coalg_e_lunit (P : Coalgebra Ar) :
+  @em_pair_mor R Ar P EM_term P (coalg_e P) (icones_id Ar (coalg_obj P))
+  = iso_bwd (tensor_lunit (coalg_obj P)).
+Proof.
+have HemL := @emc_counitL R Ar P (EMComon_all P).
+rewrite /em_pair_mor.
+have step :
+    icones_comp (iso_bwd (tensor_lunit (coalg_obj P)))
+      (icones_comp (iso_fwd (tensor_lunit (coalg_obj P)))
+         (icones_comp
+            (tensor_mor (coalg_e P) (icones_id Ar (coalg_obj P)))
+            (coalg_d P)))
+  = icones_comp (iso_bwd (tensor_lunit (coalg_obj P)))
+                (icones_id Ar (coalg_obj P))
+  by rewrite HemL.
+rewrite icones_compA (iso_fwdK (tensor_lunit (coalg_obj P))) in step.
+rewrite icones_compIl in step.
+by rewrite icones_compIr in step; rewrite step.
+Qed.
+
+(** [coalg_d EM_term = tensor_lunit^{-1}_{cone_one}]. *)
+Lemma coalg_d_EM_term :
+  coalg_d (EM_term : Coalgebra Ar)
+  = iso_bwd (tensor_lunit (cone_one_car Ar)).
+Proof.
+have H : @em_pair_mor R Ar EM_term EM_term EM_term
+            (coalg_e EM_term) (icones_id Ar (cone_one_car Ar))
+       = iso_bwd (tensor_lunit (cone_one_car Ar))
+  by apply: (em_pair_mor_coalg_e_lunit EM_term).
+rewrite -H.
+by rewrite /em_pair_mor coalg_e_term tensor_mor_id icones_compIl.
+Qed.
+
+(** Backward form of [tensor_lunit_nat]: [(id ⊗ f) ∘ tlu^{-1} = tlu^{-1} ∘ f]. *)
+Lemma tensor_lunit_nat_bwd (A A' : ICone.type Ar) (f : icones_hom Ar A A') :
+  icones_comp (tensor_mor (icones_id Ar (cone_one_car Ar)) f)
+              (iso_bwd (tensor_lunit A))
+  = icones_comp (iso_bwd (tensor_lunit A')) f.
+Proof.
+have Hnat := tensor_lunit_nat f.
+move/(congr1 (fun x => icones_comp (iso_bwd (tensor_lunit A')) x)) : Hnat.
+rewrite icones_compA (iso_fwdK (tensor_lunit A')) icones_compIl => Hnat'.
+move/(congr1 (fun x => icones_comp x (iso_bwd (tensor_lunit A)))) : Hnat'.
+move=> H; rewrite H.
+rewrite -2!icones_compA (iso_bwdK (tensor_lunit A)).
+by rewrite icones_compIr.
+Qed.
+
+(** *** Law 3 — terminal-source collapse *)
+Lemma kbind_ext_terminal_source (A B : Coalgebra Ar)
+    (k : coalg_hom (EM_prod EM_term A) (Tobj B))
+    (m : coalg_hom EM_term (Tobj A)) :
+  kbind_ext k m
+  = kcomp (coalg_comp k (em_pair (em_term_mor A) (coalg_id A))) m.
+Proof.
+apply: adj_phi_inj.
+rewrite adj_phi_kbind_ext adj_phi_kcomp.
+rewrite (adj_phi_natL k (em_pair (em_term_mor A) (coalg_id A))).
+rewrite /U_mor /=.
+rewrite -icones_compA.
+congr (icones_comp _ _).
+rewrite (em_pair_mor_coalg_e_lunit A).
+rewrite /em_pair_mor coalg_d_EM_term.
+by rewrite tensor_lunit_nat_bwd.
+Qed.
+
+End Law3Helpers.
+
+Arguments em_pair_mor_coalg_e_lunit {R Ar} P.
+Arguments coalg_d_EM_term {R Ar}.
+Arguments tensor_lunit_nat_bwd {R Ar} A A' f.
+Arguments kbind_ext_terminal_source {R Ar A B} k m.
 
 (** ** Variable lookup [var_lookup]
 
