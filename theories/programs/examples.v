@@ -632,3 +632,51 @@ by rewrite (ex_bayes_linear_denot_E mu Hmu f Hf_meas Hf_ge0 Hf_le1)
 Qed.
 
 End LemmaThreeBayesWeighted.
+
+(** ** Example 4 — [ex_loop] : divergence via the CBV value-fixpoint
+
+    The canonical divergence example: [(let rec l = λ_. l ()) ()].  In
+    surface PPL syntax, using the [ne_fix] constructor and the
+    [fix _ ::: tfun A B in _] notation introduced in [ppl.v]:
+    [[
+      ex_loop := [ (fix "l" ::: tfun tunit tunit in
+                     \ "_" ::: tunit => # "l" @ ()) @ () ]
+    ]]
+
+    The body is [λ _. l ()], i.e. invoke the recursive [l] on the unit
+    argument; the outer application then fires [l] once on [()].  At
+    the denotational level [eD ex_loop : coalg_hom EM_term (Tobj EM_term)]
+    converges to the Kleene fixpoint of [Φ_fun] on the unit-ball of
+    [linhom_car (coalg_obj EM_term) (coalg_obj (Tobj (tyD (tfun tunit tunit))))].
+    Crucially, no [Yfix_fun_T]-level computation is performed for the
+    typechecking goal of this demonstration; we only verify that the
+    syntax [ex_loop] type-checks and that its denotation [ex_loop_denot]
+    is well-typed. *)
+
+Section ExLoopDemo.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+(** The divergence example.  Source: [(let rec l = λ _. l ()) ()]. *)
+Definition ex_loop :
+    @named_expr R Ar R_obj nil tunit :=
+  [ (fix "l" ::: tfun tunit tunit in \ "_" ::: tunit => # "l" @ ()) @ () ].
+
+(** Its denotation, a Kleisli arrow [⟦[]⟧ ⇝ ⟦tunit⟧]. *)
+Definition ex_loop_denot :
+    coalg_hom (ctxD (drop_names nil)) (Tobj (tyD tunit)) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil tunit ex_loop.
+
+End ExLoopDemo.
+
+Arguments ex_loop {R Ar R_obj}.
+Arguments ex_loop_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas.
