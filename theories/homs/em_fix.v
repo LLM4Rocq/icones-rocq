@@ -762,37 +762,222 @@ Proof.
 move=> Hprev; rewrite (Phi_fun_unit Hprev); exact: Phi_fun_safe_ball.
 Qed.
 
-(** ** Monotonicity of [Phi_fun] — the precise gap
+(** ** Monotonicity of [Phi_fun]
 
-    Monotonicity of [Phi_fun_safe] would reduce, via [linear_increasing]
-    on the three icones_hom layers (post-comp by [bang_fmap (der L)],
-    post-comp by [ch_mor M], pre-comp by [coalg_d G]), to monotonicity
-    of [tensor_mor_R_lin G ·] in the second slot at the linhom level
-    (lemma name: [tensor_mor_R_lin_incr]).
+    [Phi_fun_safe] is the four-layer composite
+    [linhom_post (bang_fmap (der L)) ∘ linhom_post (ch_mor M) ∘
+     linhom_pre_act (coalg_d G) ∘ tensor_mor_R_lin G],
+    where each of the outer three layers is the underlying function of
+    a [linhom_post_icones]/[linhom_pre_icones], hence linear (and
+    therefore order-preserving by [linear_increasing]).  The innermost
+    layer is monotone by [tensor_mor_R_lin_incr] (in
+    [em_continuity.v]). *)
 
-    The proof of [tensor_mor_R_lin_incr] would mirror the structure of
-    [tensor_mor_omega_cont_R] ([em_continuity.v], ~100 lines): given
-    [prev_1 ≤p prev_2] with the [linhom_diff_car]-derived [δ] (of
-    [cone_norm δ ≤ ‖prev_2‖ ≤ 1] by [cone_normp]), the witness is
-    [tensor_mor_R_lin G (linhom_icones δ Hδ_norm)].  Pointwise on pure
-    tensors [(x ⊗p y)], the equality reduces by [tensor_mor_R_lin_ptensor]
-    + right-slot additivity [ptensorDr] of the pure tensor.
+Lemma Phi_fun_safe_incr
+    (prev1 prev2 : linhom_car Ar (coalg_obj G) (coalg_obj funT))
+    (Hprev1 : cone_norm prev1 <= 1) (Hprev2 : cone_norm prev2 <= 1) :
+  precone_le prev1 prev2 ->
+  precone_le (Phi_fun_safe prev1 Hprev1) (Phi_fun_safe prev2 Hprev2).
+Proof.
+move=> Hle.
+rewrite /Phi_fun_safe.
+(* Innermost: tensor_mor_R_lin_incr. *)
+have H0 : precone_le
+    (tensor_mor_R_lin (coalg_obj G) (linhom_icones prev1 Hprev1))
+    (tensor_mor_R_lin (coalg_obj G) (linhom_icones prev2 Hprev2))
+  by exact: tensor_mor_R_lin_incr.
+(* Pre-act by coalg_d G: monotonicity via linhom_pre_iconesE +
+   linear_increasing of linhom_pre_icones (coalg_d G). *)
+have H1 : precone_le
+    (linhom_pre_act (coalg_d G)
+      (tensor_mor_R_lin (coalg_obj G) (linhom_icones prev1 Hprev1)))
+    (linhom_pre_act (coalg_d G)
+      (tensor_mor_R_lin (coalg_obj G) (linhom_icones prev2 Hprev2))).
+  rewrite -!linhom_pre_iconesE.
+  apply: linear_increasing => //.
+  exact: cones_hom_linear (mcones_hom_cones
+            (icones_hom_mcones (linhom_pre_icones (coalg_d G)))).
+(* Post by ch_mor M: same pattern. *)
+have H2 : precone_le
+    (linhom_post (ch_mor M)
+      (linhom_pre_act (coalg_d G)
+        (tensor_mor_R_lin (coalg_obj G) (linhom_icones prev1 Hprev1))))
+    (linhom_post (ch_mor M)
+      (linhom_pre_act (coalg_d G)
+        (tensor_mor_R_lin (coalg_obj G) (linhom_icones prev2 Hprev2)))).
+  rewrite -!linhom_post_iconesE.
+  apply: linear_increasing => //.
+  exact: cones_hom_linear (mcones_hom_cones
+            (icones_hom_mcones (linhom_post_icones (ch_mor M)))).
+(* Post by bang_fmap (der L): same pattern. *)
+rewrite -!linhom_post_iconesE.
+apply: linear_increasing => //.
+exact: cones_hom_linear (mcones_hom_cones
+          (icones_hom_mcones (linhom_post_icones (bang_fmap (der L))))).
+Qed.
 
-    The technical obstacle: lifting the pure-tensor equality to all of
-    [G ⊗ G] requires [tensor_ext_linhom] (Paper Prop 5.14, linhom
-    version), which has a [‖φ‖ ≤ 1] hypothesis on both sides.  The
-    RHS [linhom_add (tensor_mor_R_lin G prev1_ic) (tensor_mor_R_lin G
-    δ_ic)] has norm ≤ 2 (not ≤ 1), so a direct application is blocked.
-    The standard workaround is a scaling argument analogous to the one
-    inside [tensor_mor_omega_cont_R]: scale both sides by [1/2], apply
-    [tensor_ext_linhom] to the scaled equality, then unscale.
+Lemma Phi_fun_incr (prev1 prev2 : linhom_car Ar (coalg_obj G) (coalg_obj funT)) :
+  precone_le prev1 prev2 -> cone_norm prev2 <= 1 ->
+  precone_le (Phi_fun prev1) (Phi_fun prev2).
+Proof.
+move=> Hle Hprev2.
+have Hprev1 : cone_norm prev1 <= 1.
+  by apply: le_trans Hprev2; exact: cone_normp.
+rewrite (Phi_fun_unit Hprev1) (Phi_fun_unit Hprev2).
+exact: Phi_fun_safe_incr.
+Qed.
 
-    **STATUS**: [tensor_mor_R_lin_incr] is NOT delivered axiom-free in
-    this iteration.  Without it, [Phi_fun_safe_incr], [Phi_fun_incr],
-    [Yfix_fun_lin] (= [linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball]),
-    and the bundled [Yfix_fun_T] all cascade as unprovable in this
-    file.  No [Admitted] is used; the construction stops at the
-    monotonicity boundary. *)
+(** ** ω-continuity of [Phi_fun]
+
+    Each layer is ω-continuous on unit-ball chains.  The innermost is
+    [tensor_mor_omega_cont_R] (in [em_continuity.v]); the outer three
+    are ω-continuity of the icones_hom layers, packaged as
+    [linhom_post_icones_sup] and [linhom_pre_icones_sup]
+    (in [em_continuity.v]). *)
+
+Lemma Phi_fun_cont
+    (u : nat -> linhom_car Ar (coalg_obj G) (coalg_obj funT))
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (Pch : forall n, precone_le (Phi_fun (u n)) (Phi_fun (u n.+1)))
+    (Pub1 : forall n, cone_norm (Phi_fun (u n)) <= 1) :
+  Phi_fun (cone_sup_ball u uch ub1) =
+  cone_sup_ball (Phi_fun \o u) Pch Pub1.
+Proof.
+have S_ub : cone_norm (cone_sup_ball u uch ub1) <= 1
+  by exact: cone_sup_ball_norm.
+rewrite (Phi_fun_unit S_ub).
+rewrite /Phi_fun_safe.
+(* Build the auxiliary chain at each layer.  Layer 0 is the input chain
+   [u n], layer 1 is [T_n := tensor_mor_R_lin G (linhom_icones (u n) (ub1 n))],
+   layer 2 [P_n := linhom_pre_act (coalg_d G) (T_n)], etc. *)
+(* Layer 1: tensor_mor_R_lin G. *)
+pose T_n (n : nat) := tensor_mor_R_lin (coalg_obj G)
+  (linhom_icones (u n) (ub1 n)).
+have Tch : forall n, precone_le (T_n n) (T_n n.+1).
+  by move=> n; rewrite /T_n; exact: tensor_mor_R_lin_incr.
+have Tub1 : forall n, cone_norm (T_n n) <= 1.
+  by move=> n; rewrite /T_n; exact: tensor_mor_R_lin_norm_le1.
+(* Push sup through tensor_mor_R_lin.  Note: cone_sup_ball on linhom_car
+   IS linhom_sup_ball definitionally, but the dependent norm-witness
+   requires care.  We use tensor_mor_omega_cont_R directly. *)
+have step1 : tensor_mor_R_lin (coalg_obj G)
+              (linhom_icones (cone_sup_ball u uch ub1) S_ub) =
+             cone_sup_ball T_n Tch Tub1.
+  exact: tensor_mor_omega_cont_R.
+rewrite step1.
+pose P_n (n : nat) := linhom_pre_act (coalg_d G) (T_n n).
+have Pch2 : forall n, precone_le (P_n n) (P_n n.+1).
+  move=> n; rewrite /P_n.
+  rewrite -!linhom_pre_iconesE.
+  apply: linear_increasing.
+    exact: cones_hom_linear (mcones_hom_cones
+             (icones_hom_mcones (linhom_pre_icones (coalg_d G)))).
+  exact: Tch.
+have Pub2 : forall n, cone_norm (P_n n) <= 1.
+  move=> n; rewrite /P_n.
+  rewrite -linhom_pre_iconesE.
+  apply: le_trans (cones_hom_norm_le1
+                     (mcones_hom_cones (icones_hom_mcones
+                       (linhom_pre_icones (coalg_d G)))) _) _.
+  exact: Tub1.
+rewrite (linhom_pre_icones_sup (coalg_d G) T_n Tch Tub1 Pch2 Pub2).
+(* Layer 3: linhom_post (ch_mor M). *)
+pose Q_n (n : nat) := linhom_post (ch_mor M) (P_n n).
+have Qch : forall n, precone_le (Q_n n) (Q_n n.+1).
+  move=> n; rewrite /Q_n /P_n.
+  rewrite -!linhom_post_iconesE.
+  apply: linear_increasing.
+    exact: cones_hom_linear (mcones_hom_cones
+             (icones_hom_mcones (linhom_post_icones (ch_mor M)))).
+  exact: Pch2.
+have Qub : forall n, cone_norm (Q_n n) <= 1.
+  move=> n; rewrite /Q_n.
+  rewrite -linhom_post_iconesE.
+  apply: le_trans (cones_hom_norm_le1
+                     (mcones_hom_cones (icones_hom_mcones
+                       (linhom_post_icones (ch_mor M)))) _) _.
+  exact: Pub2.
+have Pch2_to_Q : forall n,
+    precone_le (linhom_post (ch_mor M) ((linhom_pre_act (coalg_d G) \o T_n) n))
+               (linhom_post (ch_mor M) ((linhom_pre_act (coalg_d G) \o T_n) n.+1)).
+  by move=> n /=; rewrite -[linhom_pre_act (coalg_d G) (T_n n)]/(P_n n)
+                            -[linhom_pre_act (coalg_d G) (T_n n.+1)]/(P_n n.+1);
+     exact: Qch.
+have Qub_to_Q : forall n,
+    cone_norm (linhom_post (ch_mor M) ((linhom_pre_act (coalg_d G) \o T_n) n)) <= 1.
+  by move=> n /=; rewrite -[linhom_pre_act (coalg_d G) (T_n n)]/(P_n n);
+     exact: Qub.
+rewrite (linhom_post_icones_sup (ch_mor M) (linhom_pre_act (coalg_d G) \o T_n)
+           Pch2 Pub2 Pch2_to_Q Qub_to_Q).
+(* Layer 4: linhom_post (bang_fmap (der L)). *)
+have Q_eq : cone_sup_ball (linhom_post (ch_mor M) \o (linhom_pre_act (coalg_d G) \o T_n))
+                          Pch2_to_Q Qub_to_Q =
+            cone_sup_ball Q_n Qch Qub.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n.
+    have HE : (linhom_post (ch_mor M) \o (linhom_pre_act (coalg_d G) \o T_n)) n =
+              Q_n n by [].
+    rewrite HE; exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => n.
+    have HE : Q_n n =
+              (linhom_post (ch_mor M) \o (linhom_pre_act (coalg_d G) \o T_n)) n by [].
+    rewrite HE; exact: cone_sup_ball_ub.
+rewrite Q_eq.
+pose F_n (n : nat) := linhom_post (bang_fmap (der L)) (Q_n n).
+have Fch : forall n, precone_le (F_n n) (F_n n.+1).
+  move=> n; rewrite /F_n.
+  rewrite -!linhom_post_iconesE.
+  apply: linear_increasing.
+    exact: cones_hom_linear (mcones_hom_cones
+             (icones_hom_mcones (linhom_post_icones (bang_fmap (der L))))).
+  exact: Qch.
+have Fub : forall n, cone_norm (F_n n) <= 1.
+  move=> n; rewrite /F_n.
+  rewrite -linhom_post_iconesE.
+  apply: le_trans (cones_hom_norm_le1
+                     (mcones_hom_cones (icones_hom_mcones
+                       (linhom_post_icones (bang_fmap (der L))))) _) _.
+  exact: Qub.
+rewrite (linhom_post_icones_sup (bang_fmap (der L)) Q_n Qch Qub Fch Fub).
+(* RHS: the goal sup is over the chain [Phi_fun \o u], which on unit-ball
+   u_n equals [Phi_fun_safe (u n) (ub1 n)].  Reduce. *)
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  rewrite -[(_ \o _) n]/(linhom_post (bang_fmap (der L)) (Q_n n)).
+  have HE : linhom_post (bang_fmap (der L)) (Q_n n) =
+            Phi_fun (u n).
+    rewrite (Phi_fun_unit (ub1 n)).
+    rewrite /Phi_fun_safe /Q_n /P_n /T_n.
+    by [].
+  rewrite HE.
+  exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n.
+  have HE : (Phi_fun \o u) n =
+            linhom_post (bang_fmap (der L)) (Q_n n).
+    rewrite /=.
+    rewrite (Phi_fun_unit (ub1 n)).
+    rewrite /Phi_fun_safe /Q_n /P_n /T_n.
+    by [].
+  rewrite HE.
+  rewrite -[linhom_post _ (Q_n n)]
+          /((fun n0 => linhom_post (bang_fmap (der L)) (Q_n n0)) n).
+  exact: cone_sup_ball_ub.
+Qed.
+
+(** ** The linhom-level fixpoint [Yfix_fun_lin] *)
+
+Definition Yfix_fun_lin : linhom_car Ar (coalg_obj G) (coalg_obj funT) :=
+  linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball.
+
+Lemma Yfix_fun_lin_norm_le1 : cone_norm Yfix_fun_lin <= 1.
+Proof. exact: linhom_lfp_norm_le1. Qed.
+
+(** The fixpoint equation: [Phi_fun Yfix_fun_lin = Yfix_fun_lin]. *)
+Lemma Yfix_fun_lin_fixpoint : Phi_fun Yfix_fun_lin = Yfix_fun_lin.
+Proof.
+exact: (linhom_lfp_fixpoint Phi_fun Phi_fun_incr Phi_fun_ball Phi_fun_cont).
+Qed.
 
 End YfixFunType.
 
@@ -801,38 +986,61 @@ Arguments Phi_fun {R Ar G A B} M prev.
 Arguments Phi_fun_unit {R Ar G A B} M prev Hprev.
 Arguments Phi_fun_safe_ball {R Ar G A B} M prev Hprev.
 Arguments Phi_fun_ball {R Ar G A B} M prev.
+Arguments Phi_fun_safe_incr {R Ar G A B} M prev1 prev2 Hprev1 Hprev2.
+Arguments Phi_fun_incr {R Ar G A B} M prev1 prev2.
+Arguments Phi_fun_cont {R Ar G A B} M u uch ub1 Pch Pub1.
+Arguments Yfix_fun_lin {R Ar G A B} M.
+Arguments Yfix_fun_lin_norm_le1 {R Ar G A B} M.
+Arguments Yfix_fun_lin_fixpoint {R Ar G A B} M.
 Arguments extract_fun {R Ar A B}.
 
-(** ** Downstream cascade — the work blocked by [tensor_mor_R_lin_incr]
+(** ** Packaging the fixpoint as a coalg_hom — [Yfix_fun_T]
 
-    With [tensor_mor_R_lin_incr] in hand, the following lemmas / defs
-    close immediately, with proof outlines:
+    Using [adj_psi] of the [U ⊣ !̃] adjunction, the [icones_hom]
+    packaging of [Yfix_fun_lin] lifts to a [coalg_hom G (Tobj funT)]
+    without needing a per-iterate coalg-mor witness.  Recall
+    [Tobj funT = bang_cofree (coalg_obj funT)] and
+    [coalg_obj funT = Bang Ar L] (the value cone at function type). *)
 
-    - [Phi_fun_safe_incr] / [Phi_fun_incr] : compose
-      [tensor_mor_R_lin_incr] with [linear_increasing] of the three
-      icones_hom layers ([linhom_post_icones (bang_fmap (der L))],
-      [linhom_post_icones (ch_mor M)], [linhom_pre_icones (coalg_d G)]).
+Section YfixFunT.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G : Coalgebra Ar) (A B : Coalgebra Ar).
 
-    - [Phi_fun_safe_cont] / [Phi_fun_cont] : ω-continuity of [Phi_fun].
-      Compose [tensor_mor_omega_cont_R] (already in
-      [em_continuity.v]) with [linhom_post_icones_sup] /
-      [linhom_pre_icones_sup] (both in [em_continuity.v]).
+Let TT (P : Coalgebra Ar) : Coalgebra Ar := bang_cofree (coalg_obj P).
 
-    - [Yfix_fun_lin M] := [linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball]
-      : the linhom-level fixpoint.  Already-available [linhom_lfp]
-      from this file.
+Let L : ICone.type Ar :=
+  linhom_car Ar (coalg_obj A) (coalg_obj (TT B)).
 
-    - [Yfix_fun_lin_fixpoint] : the fixpoint equation [Phi_fun
-      Yfix_fun_lin = Yfix_fun_lin], via [linhom_lfp_fixpoint] from
-      this file (needs [Phi_fun_cont]).
+Let funT : Coalgebra Ar := bang_cofree L.
 
-    - [Yfix_fun_T M] : [coalg_hom G (Tobj t)] := [adj_psi (linhom_icones
-      Yfix_fun_lin (linhom_lfp_norm_le1 _ _))], using [adj_psi] from
-      [em_cat.v].  No coalg-mor witness needed on [Yfix_fun_lin]
-      itself.
+Variable M : coalg_hom (EM_prod G funT) (TT funT).
 
-    The PPL-side [ne_fix] constructor would be added to [ppl.v] under
-    a separate commit once Workstream A's [ppl.v] edits have landed.
-    Its [eD] clause is [coalg_comp (Yfix_fun_T (eD body))] with a
-    suitable use of [tunit_eta] discharge.  *)
+(** The bundled coalg_hom: the value fixpoint packaged via [adj_psi]
+    (the right-adjoint half of [U ⊣ !̃]).  *)
+Definition Yfix_fun_T : coalg_hom G (TT funT) :=
+  adj_psi (linhom_icones (Yfix_fun_lin M) (Yfix_fun_lin_norm_le1 M)).
+
+(** Underlying icones_hom of [Yfix_fun_T]: [adj_psi] takes an icones_hom
+    [g : U G → B] to [!g ∘ a : G → !B] (where [a = coalg_str G]).
+    Specializing to [g = linhom_icones Yfix_fun_lin _] (carrying
+    [U G → Bang Ar L = U funT]) yields the displayed composite. *)
+Lemma Yfix_fun_T_mor :
+  ch_mor Yfix_fun_T =
+  icones_comp
+    (bang_fmap (linhom_icones (Yfix_fun_lin M) (Yfix_fun_lin_norm_le1 M)))
+    (coalg_str G).
+Proof. by []. Qed.
+
+(** The unfolding equation at the underlying linhom level: the
+    [Phi_fun] iteration has reached its fixpoint, [Phi_fun Yfix_fun_lin
+    = Yfix_fun_lin].  This is the [Yfix_fun_lin]-level fixpoint
+    equation, lifted unchanged from [Yfix_fun_lin_fixpoint]. *)
+Lemma Yfix_fun_T_unfolding : Phi_fun M (Yfix_fun_lin M) = Yfix_fun_lin M.
+Proof. exact: Yfix_fun_lin_fixpoint. Qed.
+
+End YfixFunT.
+
+Arguments Yfix_fun_T {R Ar G A B} M.
+Arguments Yfix_fun_T_mor {R Ar G A B} M.
+Arguments Yfix_fun_T_unfolding {R Ar G A B} M.
 

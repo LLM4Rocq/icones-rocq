@@ -140,6 +140,8 @@ Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.homs.cbv_adjunction.
+Require Import Icones.homs.em_continuity.
+Require Import Icones.homs.em_fix.
 Require Import Icones.programs.cbv.
 
 Set Implicit Arguments.
@@ -332,6 +334,13 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G (tprod t1 t2) -> named_expr G t2
   | ne_lam   (G : named_ctx Ar) (x : string) (t1 t2 : T) :
       named_expr ((x, t1) :: G) t2 -> named_expr G (tfun t1 t2)
+  (* OCaml-style [let rec]: the body has access to the recursive
+     function via a fresh name [s : tfun t1 t2] in the context.  Only
+     function types are allowed (the user-authorised restriction:
+     "It is normal to restrict recursion to function, and this is also
+     the choice of ocaml where let rec is thunked.") *)
+  | ne_fix   (G : named_ctx Ar) (s : string) (t1 t2 : T) :
+      named_expr ((s, tfun t1 t2) :: G) (tfun t1 t2) -> named_expr G (tfun t1 t2)
   | ne_app   (G : named_ctx Ar) (t1 t2 : T) :
       named_expr G (tfun t1 t2) -> named_expr G t1 -> named_expr G t2
   | ne_let   (G : named_ctx Ar) (x : string) (t1 t2 : T) :
@@ -375,6 +384,7 @@ Arguments ne_pair {R Ar R_obj G t1 t2} & M N.
 Arguments ne_fst {R Ar R_obj G t1 t2} & M.
 Arguments ne_snd {R Ar R_obj G t1 t2} & M.
 Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M.
+Arguments ne_fix {R Ar R_obj G} s & {t1 t2} M.
 Arguments ne_app {R Ar R_obj G t1 t2} & F X.
 Arguments ne_let {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
@@ -1459,6 +1469,12 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
       coalg_comp (Tmap (em_proj2 (tyD t1) (tyD t2))) (eD M0)
   | ne_lam G0 _ t1 t2 body =>
       coalg_comp (tunit_eta (tyD (tfun t1 t2))) (lam_coalg (eD body))
+  (* [ne_fix s t1 t2 body]: package the body's denotation
+     [eD body : coalg_hom (EM_prod (ctxD G0) (tyD (tfun t1 t2))) (Tobj (tyD (tfun t1 t2)))]
+     into [Yfix_fun_T (eD body) : coalg_hom (ctxD G0) (Tobj (tyD (tfun t1 t2)))].
+     The fixpoint construction lives in [theories/homs/em_fix.v]. *)
+  | ne_fix G0 _ t1 t2 body =>
+      Yfix_fun_T (eD body)
   | ne_app G0 t1 t2 Vf Va =>
       kcomp (app_pair (tyD t1) (tyD t2))
         (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
@@ -1872,6 +1888,15 @@ Notation "'\' x ':::' A '=>' M" :=
   (ne_lam x%string (t1 := A) M)
   (in custom ppl_named at level 70, x constr at level 0,
    A constr at level 0,
+   M custom ppl_named at level 60, right associativity).
+
+(** OCaml-style [let rec]: [fix s ::: tfun A B in M] binds the
+    recursive function [s : tfun A B] in [M : tfun A B].  Only allowed
+    when the body has function type ([tfun]). *)
+Notation "'fix' s ':::' 'tfun' A B 'in' M" :=
+  (ne_fix s%string (t1 := A) (t2 := B) M)
+  (in custom ppl_named at level 80, s constr at level 0,
+   A constr at level 0, B constr at level 0,
    M custom ppl_named at level 60, right associativity).
 
 (** Direct-style CBV let-binding — [let "x" := M in N] : desugars to

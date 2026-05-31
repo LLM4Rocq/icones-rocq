@@ -624,3 +624,133 @@ Arguments tensor_mor_R_lin {R Ar} G {C1 C2} f.
 Arguments tensor_mor_R_lin_norm_le1 {R Ar} G {C1 C2} f.
 Arguments tensor_mor_R_lin_ptensor {R Ar} G {C1 C2} f x y.
 Arguments tensor_mor_omega_cont_R {R Ar} G {C1 C2} u uch ub1 LHS_norm.
+
+(** ** Monotonicity of [tensor_mor (icones_id G) ·] — the workhorse for Yfix_fun
+
+    Dual to [tensor_mor_omega_cont_R] (ω-continuity).  Given a
+    [precone_le prev1 prev2] of [linhom_car C1 C2] (with both norms
+    [≤ 1]), the [linhom_car]-shadow [tensor_mor_R_lin G ·] is monotone
+    in its argument.
+
+    **Proof outline.**  Unpack [precone_le prev1 prev2] to a witness
+    [δ : linhom_car C1 C2] with [prev2 = prev1 + δ].  [δ ≤p prev2]
+    (witness [prev1] via commutativity), hence [‖δ‖ ≤ ‖prev2‖ ≤ 1]
+    by [cone_normp].  The witness for the goal [precone_le] is
+    [tensor_mor_R_lin G (linhom_icones δ Hδ)].  The required equation
+    [tensor_mor_R_lin G prev2_ic = tensor_mor_R_lin G prev1_ic +
+    tensor_mor_R_lin G δ_ic] reduces — via the 1/2 scaling trick — to
+    a pure-tensor check covered by [tensor_ext_linhom].  After scaling
+    both sides by 1/2 (each summand of the RHS now has norm ≤ 1/2,
+    total ≤ 1; the LHS has norm ≤ 1/2), [tensor_ext_linhom] applies,
+    and the pure-tensor equation [x ⊗p (prev2 y) = (x ⊗p (prev1 y)) +
+    (x ⊗p (δ y))] holds by [tensor_mor_R_lin_ptensor] +
+    right-additivity of [x ⊗p ·] (linhom_pre_linear of [tau G C2 x]). *)
+
+Section TensorMorRLinIncr.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h := (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Lemma tensor_mor_R_lin_incr (G C1 C2 : ICone.type Ar)
+    (prev1 prev2 : linhom_car Ar C1 C2)
+    (H1 : cone_norm prev1 <= 1) (H2 : cone_norm prev2 <= 1) :
+  precone_le prev1 prev2 ->
+  precone_le (tensor_mor_R_lin G (linhom_icones prev1 H1))
+             (tensor_mor_R_lin G (linhom_icones prev2 H2)).
+Proof.
+move=> Hle.
+case: Hle => δ Hδ.
+have δ_le_prev2 : precone_le δ prev2.
+  by exists prev1; rewrite Hδ; symmetry; exact: precone_addC.
+have δ_norm : cone_norm δ <= 1.
+  by apply: le_trans H2; exact: cone_normp.
+exists (tensor_mor_R_lin G (linhom_icones δ δ_norm)).
+(* Replace [precone_add] on linhom_car by the concrete [linhom_add]. *)
+have <- : linhom_add (tensor_mor_R_lin G (linhom_icones prev1 H1))
+                     (tensor_mor_R_lin G (linhom_icones δ δ_norm)) =
+          precone_add (tensor_mor_R_lin G (linhom_icones prev1 H1))
+                      (tensor_mor_R_lin G (linhom_icones δ δ_norm))
+  by [].
+(* Half/two setup for the scaling trick. *)
+have half_ge0 : 0 <= ((2 : R)^-1) by rewrite invr_ge0 ler0n.
+pose half : {nonneg R} := NngNum half_ge0.
+have two_ge0 : 0 <= ((2 : R)) by rewrite ler0n.
+pose two : {nonneg R} := NngNum two_ge0.
+have half_le1 : half%:num <= 1.
+  by rewrite /= invf_le1// ?ler1n//; exact: ltr0Sn.
+have two_half_eq : (two%:num * half%:num)%:nng = 1%:nng :> {nonneg R}.
+  by apply: val_inj => /=; rewrite mulfV// gt_eqF// ltr0Sn.
+(* Scale both sides by [1 = two * half]. *)
+rewrite -[X in X = _]linhom_scale_1.
+rewrite -[X in _ = X]linhom_scale_1.
+rewrite -[in X in X = _]two_half_eq linhom_scale_A.
+rewrite -[in X in _ = X]two_half_eq linhom_scale_A.
+congr (linhom_scale two _).
+rewrite linhom_scale_DAr.
+(* Now both sides have norm ≤ 1 after [half] scaling.  Apply
+   [tensor_ext_linhom] to reduce to a pure-tensor check. *)
+have prev2_lin_norm : linhom_norm (tensor_mor_R_lin G (linhom_icones prev2 H2)) <= 1
+  by exact: tensor_mor_R_lin_norm_le1.
+have prev1_lin_norm : linhom_norm (tensor_mor_R_lin G (linhom_icones prev1 H1)) <= 1
+  by exact: tensor_mor_R_lin_norm_le1.
+have δ_lin_norm : linhom_norm (tensor_mor_R_lin G (linhom_icones δ δ_norm)) <= 1
+  by exact: tensor_mor_R_lin_norm_le1.
+have LHS_norm :
+  cone_norm (linhom_scale half (tensor_mor_R_lin G (linhom_icones prev2 H2))) <= 1.
+  rewrite -[cone_norm _]/(linhom_norm _) linhom_normh.
+  rewrite -[X in _ <= X]mulr1; apply: ler_pM => //.
+  exact: linhom_norm_ge0.
+have RHS_norm :
+  cone_norm (linhom_add
+    (linhom_scale half (tensor_mor_R_lin G (linhom_icones prev1 H1)))
+    (linhom_scale half (tensor_mor_R_lin G (linhom_icones δ δ_norm)))) <= 1.
+  rewrite -[cone_norm _]/(linhom_norm _).
+  apply: le_trans (linhom_normt _ _) _.
+  rewrite !linhom_normh.
+  have e2 : half%:num * 1 + half%:num * 1 = 1.
+    by rewrite mulr1 -mulr2n -mulr_natr /= mulVf// gt_eqF// ltr0Sn.
+  rewrite -e2; apply: lerD; apply: ler_pM => //; exact: linhom_norm_ge0.
+apply: (tensor_ext_linhom _ _ LHS_norm RHS_norm).
+move=> x y.
+(* Pointwise reading at [x ⊗p y].  LHS: [half •: (x ⊗p (prev2 y))]. *)
+have LHS_pt :
+  linhom_fun (linhom_scale half (tensor_mor_R_lin G (linhom_icones prev2 H2)))
+             (ptensor x y) =
+  precone_scale half (ptensor x (linhom_fun prev2 y)).
+  rewrite /linhom_fun /= /linhom_scale_fun.
+  congr (precone_scale half _).
+  by rewrite -[linhom_fun _ _]/(linhom_fun (tensor_mor_R_lin G (linhom_icones prev2 H2)) (ptensor x y)) tensor_mor_R_lin_ptensor linhom_iconesE.
+rewrite LHS_pt.
+(* RHS pointwise. *)
+have RHS_pt :
+  linhom_fun (linhom_add
+    (linhom_scale half (tensor_mor_R_lin G (linhom_icones prev1 H1)))
+    (linhom_scale half (tensor_mor_R_lin G (linhom_icones δ δ_norm))))
+    (ptensor x y) =
+  precone_add (precone_scale half (ptensor x (linhom_fun prev1 y)))
+              (precone_scale half (ptensor x (linhom_fun δ y))).
+  rewrite /linhom_fun /= /linhom_add_fun /linhom_scale_fun.
+  congr (precone_add _ _); congr (precone_scale half _).
+  - by rewrite -[linhom_fun _ _]/(linhom_fun (tensor_mor_R_lin G (linhom_icones prev1 H1)) (ptensor x y)) tensor_mor_R_lin_ptensor linhom_iconesE.
+  - by rewrite -[linhom_fun _ _]/(linhom_fun (tensor_mor_R_lin G (linhom_icones δ δ_norm)) (ptensor x y)) tensor_mor_R_lin_ptensor linhom_iconesE.
+rewrite RHS_pt.
+(* Now: half •: x ⊗p (prev2 y) = (half •: (x ⊗p prev1 y)) + (half •: (x ⊗p δ y)). *)
+(* Use Hδ: prev2 = prev1 + δ, hence prev2(y) = prev1(y) + δ(y). *)
+have prev2_y :
+  linhom_fun prev2 y = precone_add (linhom_fun prev1 y) (linhom_fun δ y).
+  by have /(congr1 (fun h => linhom_fun h y)) /= := Hδ.
+rewrite prev2_y.
+(* x ⊗p (a + b) = (x ⊗p a) + (x ⊗p b) by linearity of tau B C x. *)
+have tau_lin :
+  ptensor x (precone_add (linhom_fun prev1 y) (linhom_fun δ y)) =
+  precone_add (ptensor x (linhom_fun prev1 y)) (ptensor x (linhom_fun δ y)).
+  rewrite /ptensor /linhom_fun.
+  by have [_ HD _] := linhom_pre_linear (linhom_pre_of (tau G C2 x)); exact: HD.
+rewrite tau_lin.
+(* half •: (a + b) = (half •: a) + (half •: b). *)
+exact: precone_scale_DAr.
+Qed.
+
+End TensorMorRLinIncr.
+
+Arguments tensor_mor_R_lin_incr {R Ar} G {C1 C2} prev1 prev2 H1 H2.
