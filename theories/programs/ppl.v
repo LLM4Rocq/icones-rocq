@@ -1079,10 +1079,41 @@ rewrite (coalg_counit A).
 by rewrite icones_compIl.
 Qed.
 
+(** [adj_phi (em_proj1) ∘ em_pair_mor (ch_mor F) (ch_mor V) = adj_phi F]:
+    the projection-pair law transported through the [adj_phi] bijection.
+    Chases:
+
+    1. [em_pair_mor (ch_mor F) (ch_mor V) = U_mor (em_pair F V) =
+       ch_mor (em_pair F V)] (definitional: [ch_mor (em_pair F V)] is
+       defined to be [em_pair_mor (ch_mor F) (ch_mor V)]).
+    2. [adj_phi_natL] (reverse) gives:
+       [adj_phi (em_proj1) ∘ U_mor (em_pair F V) = adj_phi (coalg_comp em_proj1 (em_pair F V))].
+    3. [coalg_comp em_proj1 (em_pair F V) = F] by [em_proj1_pair (ch_is_mor V)]
+       lifted through [coalg_hom_eqP]. *)
+Lemma adj_phi_em_proj1_em_pair (G A : Coalgebra Ar) (X : ICone.type Ar)
+    (F : coalg_hom G (bang_cofree X))
+    (V : coalg_hom G A) :
+  icones_comp (adj_phi (em_proj1 (bang_cofree X) A))
+              (em_pair_mor (ch_mor F) (ch_mor V))
+  = adj_phi F.
+Proof.
+have HF : coalg_comp (em_proj1 (bang_cofree X) A) (em_pair F V) = F.
+  apply: coalg_hom_eqP.
+  rewrite coalg_comp_mor /=.
+  apply: (em_proj1_pair (Z := G) (P := bang_cofree X) (Q := A)
+                        (f := ch_mor F) (g := ch_mor V)).
+  exact: ch_is_mor.
+rewrite -[em_pair_mor (ch_mor F) (ch_mor V)]
+  /(U_mor (em_pair F V)).
+rewrite -(adj_phi_natL (em_proj1 (bang_cofree X) A) (em_pair F V)).
+by rewrite HF.
+Qed.
+
 End EDAppLamSubst.
 
 Arguments dig_ch_mor_F {R Ar G X} F.
 Arguments adj_phi_bang_m_em_pair_eta {R Ar G A X} F V.
+Arguments adj_phi_em_proj1_em_pair {R Ar G A X} F V.
 
 (** ** Term interpretation [eD]
 
