@@ -1407,6 +1407,153 @@ Arguments lin_pt_norm_le1 {R Ar C} c Hc.
 Arguments const_icones {R Ar} G {C} c Hc.
 Arguments const_kleisli {R Ar} G {C} c Hc.
 
+(** ** Bridge: [const_kleisli] factors as [η ∘ const_value]
+
+    The headline-form Lemmas 1/2 of [examples.v] apply a lambda
+    [λ_. — ] at a literal real [|x|] = [real_kleisli x] = [const_kleisli
+    G (dirac_fmeas x) Hd] : [coalg_hom G (Tobj (FMeas_coalgebra X))].
+    The surface β rule [eD_app_lam_subst] of [Section
+    EDAppLamSubstSurface] applies to a VALUE argument of the shape
+    [coalg_comp (tunit_eta A) V] for [V : coalg_hom G A].  The bridge
+    here closes the gap: it shows that under a "[prom]-fixedness"
+    hypothesis on the chosen constant [c : coalg_obj A] —
+    [coalg_str A ∘ lin_pt c = bang_fmap (lin_pt c) ∘ unit_cofree_str]
+    — the [const_icones G c Hc] icones_hom IS a coalg morphism
+    [G → A], and the [const_kleisli] factorisation
+    [const_kleisli G c Hc = coalg_comp (tunit_eta A) (const_value G)]
+    holds.
+
+    The [prom]-fixedness hypothesis is automatic for Diracs in
+    [FMeas_coalgebra X] (by [Coalg_dirac]); the [dirac_Hprom_str]
+    lemma packages this.  Downstream, [real_kleisli x] / Lemma-1/2
+    instantiate the bridge at [c = dirac_fmeas (R_to_carrier x)]. *)
+Section ConstKleisliBridge.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** *** [const_icones] is a coalgebra morphism under [Hprom_str].
+
+    Given [c : coalg_obj A] with [cone_norm c <= 1] and the [prom]-
+    fixedness condition [coalg_str A ∘ lin_pt c = bang_fmap (lin_pt c)
+    ∘ unit_cofree_str], the constant icones_hom [lin_pt c ∘ coalg_e G
+    : G → A] is a coalgebra morphism.
+
+    Proof.  Reduce [is_coalg_mor] (= [coalg_str A ∘ const = bang_fmap
+    const ∘ coalg_str G]), unfold [const = lin_pt c ∘ coalg_e G],
+    apply [Hprom_str] on the left, [bang_fmap_comp] + the coalg-mor
+    property of [coalg_e G] ([coalg_e_is_mor_gen]) on the right.  Both
+    sides reduce to [bang_fmap (lin_pt c) ∘ unit_cofree_str ∘ coalg_e G]. *)
+Lemma const_value_is_coalg_mor (A : Coalgebra Ar) (c : coalg_obj A)
+    (Hc : (cone_norm c <= 1)%R)
+    (Hprom_str :
+      icones_comp (coalg_str A) (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc))
+      = icones_comp (bang_fmap (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc)))
+                    unit_cofree_str)
+    (G : Coalgebra Ar) :
+  is_coalg_mor G A (const_icones G c Hc).
+Proof.
+rewrite /is_coalg_mor /const_icones.
+rewrite icones_compA Hprom_str.
+rewrite -icones_compA bang_fmap_comp.
+rewrite -icones_compA.
+have Hce := coalg_e_is_mor_gen G.
+rewrite /is_coalg_mor /= in Hce.
+rewrite -Hce.
+by rewrite icones_compA.
+Qed.
+
+(** [const_value G c Hc Hprom_str] — the [coalg_hom G A] value
+    whose underlying icones_hom is [const_icones G c Hc]. *)
+Definition const_value (A : Coalgebra Ar) (c : coalg_obj A)
+    (Hc : (cone_norm c <= 1)%R)
+    (Hprom_str :
+      icones_comp (coalg_str A) (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc))
+      = icones_comp (bang_fmap (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc)))
+                    unit_cofree_str)
+    (G : Coalgebra Ar) : coalg_hom G A :=
+  MkCoalgHom (const_value_is_coalg_mor Hprom_str G).
+
+(** *** The bridge identity: [const_kleisli = η ∘ const_value]
+
+    Under [Hprom_str], the [const_kleisli] arrow factors as
+    [coalg_comp (tunit_eta A) (const_value G c Hc Hprom_str)] —
+    exactly the value-form shape demanded by [eD_app_lam_subst].
+
+    Proof.  Reduce both sides via [coalg_hom_eqP] to icones_homs.
+    LHS = [adj_psi const_icones] = [bang_fmap const_icones ∘ coalg_str
+    G].  RHS underlying = [coalg_str A ∘ const_icones G c Hc].  Unfold
+    [const_icones]; apply [bang_fmap_comp] + the coalg-mor property of
+    [coalg_e G] on LHS; [Hprom_str] (reverse) on the rewritten LHS to
+    expose [coalg_str A ∘ lin_pt c ∘ coalg_e G] — same as RHS. *)
+Lemma const_kleisli_eq_tunit_eta_const (A : Coalgebra Ar) (c : coalg_obj A)
+    (Hc : (cone_norm c <= 1)%R)
+    (Hprom_str :
+      icones_comp (coalg_str A) (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc))
+      = icones_comp (bang_fmap (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc)))
+                    unit_cofree_str)
+    (G : Coalgebra Ar) :
+  const_kleisli G c Hc = coalg_comp (tunit_eta A) (const_value Hprom_str G).
+Proof.
+apply: coalg_hom_eqP.
+rewrite coalg_comp_mor /=.
+rewrite /tunit_eta /adj_unit /=.
+rewrite /const_kleisli /adj_psi /=.
+rewrite /const_icones.
+rewrite bang_fmap_comp -icones_compA.
+have Hce := coalg_e_is_mor_gen G.
+rewrite /is_coalg_mor /= in Hce.
+rewrite -Hce.
+rewrite (icones_compA (bang_fmap _) unit_cofree_str (coalg_e G)).
+rewrite -Hprom_str.
+by rewrite icones_compA.
+Qed.
+
+(** *** [dirac_Hprom_str] — [Hprom_str] is automatic for Diracs.
+
+    For [c = dirac_fmeas r : FMeas X] in [FMeas_coalgebra X], the
+    [prom]-fixedness equation holds because [Coalg X (δ_r) = prom δ_r]
+    ([Coalg_dirac]) and [unit_cofree_str one1 = prom one1] reduces the
+    RHS to [prom (lin_pt(δ_r) one1) = prom δ_r] via [bang_fmap_prom].
+    [one_ext] (a morphism out of the cone-unit is determined by its
+    value at [one1]) closes the equation of icones_homs. *)
+Lemma dirac_Hprom_str (X : ar_obj Ar) (r : ar_carrier Ar X)
+    (Hc : (cone_norm (dirac_fmeas r : FMeas X) <= 1)%R) :
+  icones_comp (coalg_str (FMeas_coalgebra X))
+              (linhom_icones (lin_pt (dirac_fmeas r)) (lin_pt_norm_le1 _ Hc))
+  = icones_comp (bang_fmap (linhom_icones (lin_pt (dirac_fmeas r))
+                                          (lin_pt_norm_le1 _ Hc)))
+                unit_cofree_str.
+Proof.
+apply: one_ext.
+rewrite -[Lfun (icones_comp (coalg_str _) _) one1]
+        /(Lfun (coalg_str (FMeas_coalgebra X))
+               (Lfun (linhom_icones (lin_pt (dirac_fmeas r)) _) one1)).
+rewrite (linhom_iconesE (lin_pt _) _ one1).
+rewrite lin_pt_unit.
+rewrite -[Lfun (coalg_str (FMeas_coalgebra X)) (dirac_fmeas r)]
+        /(Lfun (Coalg X) (dirac_fmeas r)).
+rewrite (Coalg_dirac X r).
+rewrite -[Lfun (icones_comp (bang_fmap _) _) one1]
+        /(Lfun (bang_fmap _) (Lfun unit_cofree_str one1)).
+rewrite unit_cofree_str_one1.
+have H1 : cone_norm (one1 : cone_one_car Ar) <= 1.
+  by rewrite (_ : cone_norm one1 = 1) // /cone_norm /= /c1_norm.
+rewrite (bang_fmap_prom _ one1 H1).
+rewrite -[(linhom_icones _ _) one1]
+        /(Lfun (linhom_icones (lin_pt (dirac_fmeas r)) _) one1).
+rewrite (linhom_iconesE (lin_pt _) _ one1).
+by rewrite lin_pt_unit.
+Qed.
+
+End ConstKleisliBridge.
+
+Arguments const_value_is_coalg_mor {R Ar A c Hc} Hprom_str G.
+Arguments const_value {R Ar A c Hc} Hprom_str G.
+Arguments const_kleisli_eq_tunit_eta_const {R Ar A c Hc} Hprom_str G.
+Arguments dirac_Hprom_str {R Ar X} r Hc.
+
 (** ** Arithmetic lifts on the cone level — [add_lift] / [mul_lift]
 
     For the distinguished real-valued base type [tR = tbase R_obj], we
