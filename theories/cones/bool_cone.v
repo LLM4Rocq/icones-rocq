@@ -1017,3 +1017,272 @@ exact: lerD.
 Qed.
 
 End BoolCaseCone.
+
+(** ** Scalar sup-distributivity — substep 2a of ω-continuity
+
+    A small real-analysis lemma needed to lift [bool_case]'s ω-continuity
+    through (Mssep).  For two non-negative chains [t, f : nat -> R] in
+    [[0,1]] with [t_n + f_n <= 1] and scalars [α, β >= 0]:
+    [[
+       (sup_n t_n) * α + (sup_n f_n) * β = sup_n (t_n * α + f_n * β).
+    ]]
+    We prove both inequalities by hand using [ge_sup]/[ub_le_sup]; the
+    "max-of-indices" trick from [bc_sup_ball_norm] reappears for the
+    [≤] direction. *)
+
+Section BoolCaseScalar.
+Variable R : realType.
+
+Lemma bool_case_sup_distrib
+    (tn fn : nat -> R) (alpha beta : R)
+    (Halpha : 0 <= alpha) (Hbeta : 0 <= beta)
+    (Htch : forall n, tn n <= tn n.+1)
+    (Hfch : forall n, fn n <= fn n.+1)
+    (Htge0 : forall n, 0 <= tn n) (Hfge0 : forall n, 0 <= fn n)
+    (Hsum : forall n, tn n + fn n <= 1) :
+  sup [set tn n | n in [set: nat]] * alpha
+  + sup [set fn n | n in [set: nat]] * beta
+  = sup [set tn n * alpha + fn n * beta | n in [set: nat]].
+Proof.
+set St : set R := [set tn n | n in [set: nat]].
+set Sf : set R := [set fn n | n in [set: nat]].
+set Sc : set R := [set tn n * alpha + fn n * beta | n in [set: nat]].
+have St_ne : St !=set0 by exists (tn 0%N); exists 0%N.
+have Sf_ne : Sf !=set0 by exists (fn 0%N); exists 0%N.
+have Sc_ne : Sc !=set0 by exists (tn 0%N * alpha + fn 0%N * beta); exists 0%N.
+(* Chains are uniformly bounded by 1. *)
+have Htub : forall n, tn n <= 1.
+  by move=> n; apply: le_trans (Hsum n); rewrite lerDl.
+have Hfub : forall n, fn n <= 1.
+  by move=> n; apply: le_trans (Hsum n); rewrite lerDr.
+have St_bd : has_ubound St by exists 1 => x [n _ <-]; exact: Htub.
+have Sf_bd : has_ubound Sf by exists 1 => x [n _ <-]; exact: Hfub.
+(* Sc is bounded by α + β. *)
+have Sc_bd : has_ubound Sc.
+  exists (alpha + beta) => x [n _ <-]; apply: lerD.
+  - by rewrite -[X in _ <= X]mul1r; apply: ler_pM; rewrite ?Htge0 ?Htub.
+  - by rewrite -[X in _ <= X]mul1r; apply: ler_pM; rewrite ?Hfge0 ?Hfub.
+(* Monotonicity of chains: t_n ≤ t_m and f_n ≤ f_m when n ≤ m. *)
+have chain_mono : forall n m, (n <= m)%N -> tn n <= tn m /\ fn n <= fn m.
+  move=> n m; elim: m => [|m IH]; first by rewrite leqn0=> /eqP ->.
+  rewrite leq_eqVlt => /orP[/eqP ->|]; first by [].
+  rewrite ltnS => /IH [Ht Hf]; split.
+  - exact: le_trans Ht (Htch m).
+  - exact: le_trans Hf (Hfch m).
+(* Sups are >= the chain values. *)
+have St_sup_ge : forall n, tn n <= sup St.
+  by move=> n; apply: ub_le_sup => //; exists n.
+have Sf_sup_ge : forall n, fn n <= sup Sf.
+  by move=> n; apply: ub_le_sup => //; exists n.
+have St_sup_ge0 : 0 <= sup St
+  by apply: le_trans (St_sup_ge 0%N); exact: Htge0.
+have Sf_sup_ge0 : 0 <= sup Sf
+  by apply: le_trans (Sf_sup_ge 0%N); exact: Hfge0.
+have has_sup_Sc : has_sup Sc by split.
+have has_sup_Sf : has_sup Sf by split.
+have has_sup_St : has_sup St by split.
+apply: le_anti; apply/andP; split.
+- (* sup t * α + sup f * β ≤ sup Sc.
+     Strategy: split on [alpha = 0]/[alpha > 0] and [beta = 0]/[beta > 0]
+     to apply [ge_sup] without the scalar multiplier obstructing the
+     [sup E <= _] shape. *)
+  have alpha_eq0_or_pos : alpha = 0 \/ 0 < alpha.
+    by have := Halpha; rewrite le_eqVlt => /orP[/eqP <-|->]; [left | right].
+  have beta_eq0_or_pos : beta = 0 \/ 0 < beta.
+    by have := Hbeta; rewrite le_eqVlt => /orP[/eqP <-|->]; [left | right].
+  case: alpha_eq0_or_pos => [Halpha0 | Halphap].
+    case: beta_eq0_or_pos => [Hbeta0 | Hbetap].
+      (* α = 0, β = 0: both sides 0. *)
+      have Sc0 : Sc (tn 0%N * alpha + fn 0%N * beta) by exists 0%N.
+      have := (ub_le_sup Sc_bd Sc0).
+      by rewrite Halpha0 Hbeta0 !mulr0 addr0.
+    (* α = 0, β > 0.  Each fn * beta is in Sc; sup Sf * beta ≤ sup Sc. *)
+    rewrite Halpha0 mulr0 add0r.
+    rewrite -[X in _ <= X](_ : sup Sc / beta * beta = sup Sc); last first.
+      by rewrite -mulrA mulVf ?gt_eqF// mulr1.
+    rewrite ler_pM2r//.
+    apply: ge_sup => //.
+    move=> x [n _ <-].
+    rewrite ler_pdivlMr//.
+    have Hin : Sc (tn n * alpha + fn n * beta) by exists n.
+    have := (ub_le_sup Sc_bd Hin).
+    by rewrite Halpha0 mulr0 add0r.
+  case: beta_eq0_or_pos => [Hbeta0 | Hbetap].
+    (* α > 0, β = 0. *)
+    rewrite Hbeta0 mulr0 addr0.
+    rewrite -[X in _ <= X](_ : sup Sc / alpha * alpha = sup Sc); last first.
+      by rewrite -mulrA mulVf ?gt_eqF// mulr1.
+    rewrite ler_pM2r//.
+    apply: ge_sup => //.
+    move=> x [n _ <-].
+    rewrite ler_pdivlMr//.
+    have Hin : Sc (tn n * alpha + fn n * beta) by exists n.
+    have := (ub_le_sup Sc_bd Hin).
+    by rewrite Hbeta0 mulr0 addr0.
+  (* α > 0 and β > 0: the generic case. *)
+  have key : forall n m,
+      tn n * alpha + fn m * beta <= sup Sc.
+    move=> n m.
+    pose k := maxn n m.
+    have nk : (n <= k)%N by exact: leq_maxl.
+    have mk : (m <= k)%N by exact: leq_maxr.
+    have [Ht _] := chain_mono _ _ nk.
+    have [_ Hf] := chain_mono _ _ mk.
+    apply: le_trans _ (_ : tn k * alpha + fn k * beta <= _).
+      by apply: lerD; apply: ler_wpM2r => //; apply: ltW.
+    have Hin : Sc (tn k * alpha + fn k * beta) by exists k.
+    exact: (ub_le_sup Sc_bd Hin).
+  (* For fixed n: tn n * α + sup f * β ≤ sup Sc.  Divide by β. *)
+  have step1 : forall n, tn n * alpha + sup Sf * beta <= sup Sc.
+    move=> n.
+    rewrite -lerBrDl.
+    rewrite -[X in _ <= X](_ : (sup Sc - tn n * alpha) / beta * beta =
+                                 sup Sc - tn n * alpha); last first.
+      by rewrite -mulrA mulVf ?gt_eqF// mulr1.
+    rewrite ler_pM2r//.
+    apply: ge_sup => //.
+    move=> y [m _ <-].
+    rewrite ler_pdivlMr// lerBrDl.
+    exact: key.
+  (* Take sup over n on LHS. Divide by α. *)
+  rewrite -lerBrDr.
+  rewrite -[X in _ <= X](_ : (sup Sc - sup Sf * beta) / alpha * alpha =
+                               sup Sc - sup Sf * beta); last first.
+    by rewrite -mulrA mulVf ?gt_eqF// mulr1.
+  rewrite ler_pM2r//.
+  apply: ge_sup => //.
+  move=> y [n _ <-].
+  rewrite ler_pdivlMr// lerBrDr.
+  exact: step1.
+- (* sup Sc ≤ sup t * α + sup f * β.  Each [t_n * α + f_n * β] ≤ the
+     RHS via [t_n ≤ sup t], [f_n ≤ sup f], [α, β ≥ 0]. *)
+  apply: ge_sup => //.
+  move=> x [n _ <-].
+  apply: lerD.
+  + by apply: ler_wpM2r => //; exact: St_sup_ge.
+  + by apply: ler_wpM2r => //; exact: Sf_sup_ge.
+Qed.
+
+End BoolCaseScalar.
+
+(** ** ω-continuity of [bool_case] — substep 2b
+
+    On an iconeType target [A : iconeType R Ar] with both branches
+    [a, b] in the unit ball, the map [x ↦ bool_case x a b] is
+    ω-continuous on the unit ball of [bool_cone_car Ar].  Proof: lift
+    via (Mssep) at arity 0, reducing both sides to a scalar equation
+    that is exactly [bool_case_sup_distrib]. *)
+
+Section BoolCaseOmegaCont.
+Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
+Local Notation T := (bool_cone_car Ar).
+
+(** Image-chain monotonicity: [bool_case u_n a b] is increasing in [n]. *)
+Lemma bool_case_chain (a b : A) (u : nat -> T)
+    (uch : forall n, precone_le (u n) (u n.+1)) (n : nat) :
+  precone_le (bool_case (u n) a b) (bool_case (u n.+1) a b).
+Proof.
+have /bc_leE [Ht Hf] := uch n.
+rewrite /bool_case.
+have Hta : precone_le (precone_scale (bc_t (u n)) a)
+                       (precone_scale (bc_t (u n.+1)) a).
+  have Hge0 : (0 <= (bc_t (u n.+1))%:num - (bc_t (u n))%:num)%R
+    by rewrite subr_ge0.
+  exists (precone_scale (NngNum Hge0) a).
+  rewrite -precone_scale_DAl.
+  congr (precone_scale _ a); apply: nngnum_inj; rewrite nng_addE/=.
+  by rewrite addrC subrK.
+have Hfb : precone_le (precone_scale (bc_f (u n)) b)
+                       (precone_scale (bc_f (u n.+1)) b).
+  have Hge0 : (0 <= (bc_f (u n.+1))%:num - (bc_f (u n))%:num)%R
+    by rewrite subr_ge0.
+  exists (precone_scale (NngNum Hge0) b).
+  rewrite -precone_scale_DAl.
+  congr (precone_scale _ b); apply: nngnum_inj; rewrite nng_addE/=.
+  by rewrite addrC subrK.
+case: Hta => [za Ea]; case: Hfb => [zb Eb].
+exists (precone_add za zb).
+by rewrite Ea Eb precone_addACA.
+Qed.
+
+(** Image-chain unit-ball bound. *)
+Lemma bool_case_chain_ub1 (a b : A)
+    (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1)
+    (u : nat -> T) (ub1 : forall n, cone_norm (u n) <= 1) (n : nat) :
+  cone_norm (bool_case (u n) a b) <= 1.
+Proof. exact: le_trans (bool_case_norm_le1 Ha Hb (u n)) (ub1 n). Qed.
+
+(** ω-continuity of [x ↦ bool_case x a b] on the unit ball. *)
+Lemma bool_case_omega_continuous
+    (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1) :
+  is_omega_continuous (fun x : T => bool_case x a b).
+Proof.
+move=> u uch ub1 fuch fub1.
+(* Apply (Mssep) on A. *)
+apply: mcone_M_sep => m mM.
+set lhs := bool_case _ a b.
+set rhs := cone_sup_ball _ fuch fub1.
+(* Abbreviations for the scalar values. *)
+set alpha := test_fun m (ar_zero_pt Ar) a.
+set beta  := test_fun m (ar_zero_pt Ar) b.
+(* Test of LHS: linear in bool_case, distributes over add/scale. *)
+have testLHS :
+    test_fun m (ar_zero_pt Ar) lhs =
+    (bc_t (cone_sup_ball u uch ub1))%:num * alpha
+    + (bc_f (cone_sup_ball u uch ub1))%:num * beta.
+  rewrite /lhs /bool_case test_linD !test_linZ.
+  by rewrite /alpha /beta.
+(* The chain values:
+     test_fun m s0 (bool_case (u n) a b)
+   = bc_t(u_n) * alpha + bc_f(u_n) * beta. *)
+have testNth : forall n,
+    test_fun m (ar_zero_pt Ar) (bool_case (u n) a b) =
+    (bc_t (u n))%:num * alpha + (bc_f (u n))%:num * beta.
+  by move=> n; rewrite /bool_case test_linD !test_linZ /alpha /beta.
+(* The sup-set of test values along the chain. *)
+set Sc := [set test_fun m (ar_zero_pt Ar) (bool_case (u n) a b) | n in [set: nat]].
+have Sc_ne : Sc !=set0
+  by exists (test_fun m (ar_zero_pt Ar) (bool_case (u 0%N) a b)); exists 0%N.
+have Sc_bd : has_ubound Sc.
+  exists 1 => x [n _ <-]; apply: test_le1.
+  exact: bool_case_chain_ub1.
+have has_sup_Sc : has_sup Sc by split.
+(* test_fun is monotone (linear), so test(u_n) ≤ test(sup u_n). *)
+have test_mono : forall x y : A, precone_le x y ->
+    test_fun m (ar_zero_pt Ar) x <= test_fun m (ar_zero_pt Ar) y.
+  move=> x y [z ->].
+  rewrite test_linD lerDl.
+  exact: test_ge0.
+(* test_cont gives upper bound: test(rhs) ≤ sup Sc. *)
+have test_cont_le :
+    test_fun m (ar_zero_pt Ar) rhs <= sup Sc.
+  apply: test_cont => n.
+  exact: (ub_le_sup Sc_bd (ex_intro2 _ _ n I (erefl _))).
+(* Combine: test(rhs) = sup Sc. *)
+have test_rhs_eq : test_fun m (ar_zero_pt Ar) rhs = sup Sc.
+  apply: le_anti; apply/andP; split=> //.
+  apply: ge_sup => //.
+  move=> x [n _ <-].
+  apply: test_mono.
+  exact: cone_sup_ball_ub.
+(* Now apply the scalar lemma: sup Sc = (sup bc_t) * α + (sup bc_f) * β. *)
+have ch_t : forall n, (bc_t (u n))%:num <= (bc_t (u n.+1))%:num.
+  by move=> n; have /bc_leE [Ht _] := uch n.
+have ch_f : forall n, (bc_f (u n))%:num <= (bc_f (u n.+1))%:num.
+  by move=> n; have /bc_leE [_ Hf] := uch n.
+have Hsum : forall n, (bc_t (u n))%:num + (bc_f (u n))%:num <= 1.
+  by move=> n; have := ub1 n; rewrite /cone_norm/= /bc_norm.
+have alpha_ge0 : 0 <= alpha by apply: test_ge0.
+have beta_ge0 : 0 <= beta by apply: test_ge0.
+(* Sc is the image of [bc_t u_n * alpha + bc_f u_n * beta] over n. *)
+have Sc_eq : Sc = [set (bc_t (u n))%:num * alpha
+                    + (bc_f (u n))%:num * beta | n in [set: nat]].
+  apply: funext => x.
+  apply: propext; split=> [[n _ <-]|[n _ <-]].
+  - by exists n => //; rewrite testNth.
+  - by exists n => //; rewrite testNth.
+rewrite testLHS test_rhs_eq Sc_eq.
+by apply: bool_case_sup_distrib => //; apply: nngnum_ge0.
+Qed.
+
+End BoolCaseOmegaCont.
