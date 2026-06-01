@@ -1,6 +1,22 @@
 (**md**************************************************************************)
 (** * The monoidal adjunction [U ⊣ !̃] and the CBV model — CBV §4
 
+    *** BEYOND THE PAPER — CBV LNL adjunction + extensions
+
+    This file provides:
+    - The LNL adjunction [U ⊣ !̃ : EM(!) ⇄ ICones] (Mellies §7.4 recipe,
+      beyond the paper proper).
+    - The cartesian-η identity [em_pair_mor_proj_id] (Fox 1976 /
+      Mellies Prop 28 at the icones level — a corollary of paper §9's
+      Cor 20 / [EMComon_all], exposed at the unbundled icones API).
+    - [em_proj1/2_is_mor] : projections are coalg morphisms (uses
+      [m_runit/lunit_coalg_mor]).
+
+    Used by [theories/programs/cbv.v] (Moggi-CBV) and
+    [theories/programs/ppl.v] (direct-style CBV PPL).
+
+    ---
+
     Step 4 of the call-by-value roadmap
     ([/home/rocq/prime_gap/icones-cbv-plan.md], Phase D1; Melliès §7.4
     Proposition 29, via Lack's lifting §6.10).  We package the
