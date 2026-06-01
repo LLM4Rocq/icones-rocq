@@ -55,6 +55,13 @@
       direct style it returns a [tunit] expression);
     - [ne_add] / [ne_mul] — pointwise [+]/[×] on two [tR]-valued
       computations.
+    - [ne_true] / [ne_false] — boolean constants of type [tbool],
+      interpreted as the constant Kleisli arrows at the bool-cone
+      Diracs [bool_dirac_true] / [bool_dirac_false] of
+      [theories/cones/bool_cone.v].
+    - [ne_bernoulli p Hp_ge0 Hp_le1] — sample from a Bernoulli
+      distribution: the 2-point sub-probability [(p, 1-p)] on
+      [bool_cone] (norm exactly [1]).
 
     ** Type and context interpretation **
 
@@ -114,6 +121,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
+Require Import Icones.cones.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -165,6 +173,7 @@ Variable (R : realType) (Ar : MeasSubcat R).
 
 Inductive ppl_type : Type :=
   | tunit
+  | tbool
   | tbase (X : ar_obj Ar)
   | tprod (t1 t2 : ppl_type)
   | tfun  (t1 t2 : ppl_type).
@@ -173,6 +182,7 @@ End Types.
 
 Arguments ppl_type {R} Ar.
 Arguments tunit {R Ar}.
+Arguments tbool {R Ar}.
 Arguments tbase {R Ar} X.
 Arguments tprod {R Ar} t1 t2.
 Arguments tfun {R Ar} t1 t2.
@@ -361,7 +371,17 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
   | ne_add   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   | ne_mul   (G : named_ctx Ar) :
-      named_expr G tR' -> named_expr G tR' -> named_expr G tR'.
+      named_expr G tR' -> named_expr G tR' -> named_expr G tR'
+  (* Boolean constants [True], [False] of type [tbool]. *)
+  | ne_true  (G : named_ctx Ar) : named_expr G tbool
+  | ne_false (G : named_ctx Ar) : named_expr G tbool
+  (* [Bernoulli p Hp_ge0 Hp_le1] : sample from the 2-point sub-probability
+     distribution [(p, 1-p)] on [bool_cone].  Both branches' weights are
+     witnessed non-negative by [Hp_ge0] and [Hp_le1], and the total mass
+     is exactly [1] (norm-1). *)
+  | ne_bernoulli (G : named_ctx Ar) (p : R)
+                 (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+      named_expr G tbool.
 
 End Syntax.
 
@@ -390,6 +410,9 @@ Arguments ne_let {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_add {R Ar R_obj G} & M N.
 Arguments ne_mul {R Ar R_obj G} & M N.
+Arguments ne_true {R Ar R_obj G}.
+Arguments ne_false {R Ar R_obj G}.
+Arguments ne_bernoulli {R Ar R_obj G} p Hp_ge0 Hp_le1.
 
 (** ** Type and context interpretation [tyD] / [ctxD]
 
@@ -424,6 +447,13 @@ Variables (R : realType) (Ar : MeasSubcat R).
 Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
   match t with
   | tunit => EM_term
+  (* [tbool] is interpreted as the cofree coalgebra over the 2-point
+     sub-probability cone [bool_cone_car Ar].  We use [bang_cofree]
+     (the canonical, uniformly available coalgebra structure on any
+     iconeType) rather than a custom structure map, mirroring [tfun]
+     and side-stepping the need to build a measure-space-style
+     coalgebra structure on the 2-point cone. *)
+  | tbool => bang_cofree (bool_cone_car Ar)
   | tbase X => FMeas_coalgebra X
   | tprod s1 s2 => EM_prod (tyD s1) (tyD s2)
   (* Direct-style CBV: the function type is the Kleisli exponential
@@ -1414,6 +1444,93 @@ Arguments score_lift {R Ar R_obj R_carrier_eq R_carrier_meas f}
 Arguments score_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas f}
                               Hf_meas Hf_ge0 Hf_le1 r.
 
+(** ** Boolean Kleisli helpers — constant arrows at [bool_dirac_true],
+    [bool_dirac_false], and at a Bernoulli element [(p, 1-p)] of the
+    bool cone.
+
+    All three constructors of [tbool] ([ne_true], [ne_false],
+    [ne_bernoulli]) are CONSTANT Kleisli arrows: their value does not
+    depend on the input environment.  We package each as the
+    composition of [tunit_eta (tyD tbool)] with a [const_kleisli]
+    delivering the appropriate [bool_cone_car] element.
+
+    The norm-1 facts ([bool_dirac_true_norm], [bool_dirac_false_norm],
+    [bernoulli_norm]) all rewrite to [1], so the [≤ 1] bound is
+    [lexx].  *)
+
+Section BoolKleisliHelpers.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** Norm bound for [bool_dirac_true]: norm exactly [1]. *)
+Lemma bool_dirac_true_norm_le1 :
+    (cone_norm (bool_dirac_true : bool_cone_car Ar) <= 1)%R.
+Proof. by rewrite bool_dirac_true_norm. Qed.
+
+(** Norm bound for [bool_dirac_false]: norm exactly [1]. *)
+Lemma bool_dirac_false_norm_le1 :
+    (cone_norm (bool_dirac_false : bool_cone_car Ar) <= 1)%R.
+Proof. by rewrite bool_dirac_false_norm. Qed.
+
+(** [1 - p ≥ 0] from [p ≤ 1] via [subr_ge0]. *)
+Lemma onem_ge0 (p : R) (Hp_le1 : (p <= 1)%R) : (0 <= 1 - p)%R.
+Proof. by rewrite subr_ge0. Qed.
+
+(** The Bernoulli element [(p, 1-p)] as a [bool_cone_car Ar],
+    parameterised by [Hp_ge0 : 0 ≤ p] and [Hp_le1 : p ≤ 1] (the latter
+    witnesses [0 ≤ 1-p] via [onem_ge0]). *)
+Definition bernoulli (p : R) (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R)
+    : bool_cone_car Ar :=
+  MkBoolCone Ar (NngNum Hp_ge0) (NngNum (onem_ge0 Hp_le1)).
+
+(** Norm-1 fact for [bernoulli]: total mass is [p + (1-p) = 1]. *)
+Lemma bernoulli_norm (p : R) (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+  cone_norm (bernoulli Hp_ge0 Hp_le1) = 1.
+Proof.
+rewrite /cone_norm/= /bc_norm /bernoulli/=.
+by rewrite addrCA subrr addr0.
+Qed.
+
+(** Norm bound for [bernoulli]: norm exactly [1]. *)
+Lemma bernoulli_norm_le1 (p : R) (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+  (cone_norm (bernoulli Hp_ge0 Hp_le1) <= 1)%R.
+Proof. by rewrite bernoulli_norm. Qed.
+
+(** Constant Kleisli arrow at [bool_dirac_true], lifted to [Tobj]. *)
+Definition true_kleisli (G : Coalgebra Ar) :
+    coalg_hom G (Tobj (bang_cofree (bool_cone_car Ar))) :=
+  coalg_comp (tunit_eta (bang_cofree (bool_cone_car Ar)))
+             (@const_kleisli _ _ G (bool_cone_car Ar)
+                bool_dirac_true bool_dirac_true_norm_le1).
+
+(** Constant Kleisli arrow at [bool_dirac_false], lifted to [Tobj]. *)
+Definition false_kleisli (G : Coalgebra Ar) :
+    coalg_hom G (Tobj (bang_cofree (bool_cone_car Ar))) :=
+  coalg_comp (tunit_eta (bang_cofree (bool_cone_car Ar)))
+             (@const_kleisli _ _ G (bool_cone_car Ar)
+                bool_dirac_false bool_dirac_false_norm_le1).
+
+(** Constant Kleisli arrow at the Bernoulli element [(p, 1-p)], lifted
+    to [Tobj]. *)
+Definition bernoulli_kleisli (G : Coalgebra Ar) (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+    coalg_hom G (Tobj (bang_cofree (bool_cone_car Ar))) :=
+  coalg_comp (tunit_eta (bang_cofree (bool_cone_car Ar)))
+             (@const_kleisli _ _ G (bool_cone_car Ar)
+                (bernoulli Hp_ge0 Hp_le1)
+                (bernoulli_norm_le1 Hp_ge0 Hp_le1)).
+
+End BoolKleisliHelpers.
+
+Arguments bool_dirac_true_norm_le1 {R Ar}.
+Arguments bool_dirac_false_norm_le1 {R Ar}.
+Arguments onem_ge0 {R} p Hp_le1.
+Arguments bernoulli {R Ar} p Hp_ge0 Hp_le1.
+Arguments bernoulli_norm {R Ar} p Hp_ge0 Hp_le1.
+Arguments bernoulli_norm_le1 {R Ar} p Hp_ge0 Hp_le1.
+Arguments true_kleisli {R Ar} G.
+Arguments false_kleisli {R Ar} G.
+Arguments bernoulli_kleisli {R Ar} G p Hp_ge0 Hp_le1.
+
 (** ** The term interpretation [eD] *)
 Section TermInterp.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -1508,6 +1625,18 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
         (coalg_comp
           (bang_m (FMeas R_obj) (FMeas R_obj))
           (em_pair (eD M0) (eD N0)))
+  (* Boolean constants: constant Kleisli arrows at [bool_dirac_true] /
+     [bool_dirac_false] : [bool_cone_car Ar].  Built via
+     [const_kleisli] then lifted to [Tobj] via [tunit_eta]. *)
+  | ne_true G0 =>
+      @true_kleisli R Ar (ctxD (drop_names G0))
+  | ne_false G0 =>
+      @false_kleisli R Ar (ctxD (drop_names G0))
+  (* Bernoulli sample: constant Kleisli arrow at [(p, 1-p)] :
+     [bool_cone_car Ar].  Total mass is exactly [1], so the unit-ball
+     side condition is direct. *)
+  | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
+      @bernoulli_kleisli R Ar (ctxD (drop_names G0)) p Hp_ge0 Hp_le1
   end.
 
 End TermInterp.
@@ -1910,3 +2039,24 @@ Notation "'let' x ':=' M 'in' N" :=
    M custom ppl_named at level 70,
    N custom ppl_named at level 80,
    right associativity).
+
+(** ** Boolean surface notations.
+
+    The boolean primitives ([True], [False], [Bernoulli p Hp_ge0
+    Hp_le1]) are constants of type [tbool].  [True] / [False] are
+    written as keywords; [Bernoulli] follows the [Score { ... }]
+    convention of putting the Coq-level non-negativity / unit-ball
+    witnesses in braces. *)
+
+(** Boolean true literal — [True] in surface syntax. *)
+Notation "'True'" := ne_true (in custom ppl_named at level 0).
+
+(** Boolean false literal — [False] in surface syntax. *)
+Notation "'False'" := ne_false (in custom ppl_named at level 0).
+
+(** Bernoulli sampling — [Bernoulli { p, Hp_ge0, Hp_le1 }] returns
+    a [tbool] expression. *)
+Notation "'Bernoulli' '{' p ',' Hp_ge0 ',' Hp_le1 '}'" :=
+  (ne_bernoulli p Hp_ge0 Hp_le1)
+  (in custom ppl_named at level 1,
+   p constr, Hp_ge0 constr, Hp_le1 constr).
