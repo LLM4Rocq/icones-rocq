@@ -1476,9 +1476,75 @@ split.
     * exact: (measurableT_comp HmB measurable_fst).
 Qed.
 
+(** Generalized measurable-path preservation: drop the unit-ball
+    assumption on the branches [a, b].  The boundedness uses
+    [bool_case_norm_le_max] with [M := Num.max (cone_norm a) (cone_norm b)];
+    the test-measurability uses [test_meas_gen] instead of [test_meas]
+    so that [λ s. test_fun m s a] (and similarly for [b]) is measurable
+    for ARBITRARY [a, b : A]. *)
+Lemma bool_case_pres_path_gen
+    (a b : A) (X : ar_obj Ar)
+    (γ : ar_carrier Ar X -> T)
+    (Hγ : is_measurable_path γ) :
+  is_measurable_path (fun r : ar_carrier Ar X => bool_case (γ r) a b).
+Proof.
+split.
+- (* Boundedness: ‖bool_case (γ r) a b‖ ≤ ‖γ r‖ · M with
+     [M := max (‖a‖, ‖b‖) ∨ 0]. *)
+  case: Hγ => [[N HN] _].
+  pose M : R := Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
+  have HM0 : 0 <= M by rewrite le_max lexx orbT.
+  have HMa : cone_norm a <= M.
+    by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
+       [rewrite le_max lexx|rewrite le_max lexx].
+  have HMb : cone_norm b <= M.
+    by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
+       [rewrite le_max lexx orbT|rewrite le_max lexx].
+  exists (N * M) => r.
+  have step1 : cone_norm (bool_case (γ r) a b) <= cone_norm (γ r) * M
+    by exact: (bool_case_norm_le_max HMa HMb HM0).
+  apply: le_trans step1 _.
+  by apply: ler_wpM2r => //; exact: HN.
+- (* Test measurability: same polynomial decomposition as the
+     unit-ball case, but use [test_meas_gen] to get measurability
+     of [λ s. test_fun m s a], [λ s. test_fun m s b] for arbitrary
+     [a, b]. *)
+  move=> Y m mM.
+  have HmA : measurable_fun setT (fun s => test_fun m s a)
+    by exact: test_meas_gen.
+  have HmB : measurable_fun setT (fun s => test_fun m s b)
+    by exact: test_meas_gen.
+  have meas_t : measurable_fun setT
+      (fun r : ar_carrier Ar X => (bc_t (γ r))%:num).
+    have meas_t_E := bool_coord_meas Hγ true.
+    by have /measurable_EFinP := meas_t_E.
+  have meas_f : measurable_fun setT
+      (fun r : ar_carrier Ar X => (bc_f (γ r))%:num).
+    have meas_f_E := bool_coord_meas Hγ false.
+    by have /measurable_EFinP := meas_f_E.
+  have heq : forall p : ar_carrier Ar Y * ar_carrier Ar X,
+      test_fun m p.1 (bool_case (γ p.2) a b)
+      = (bc_t (γ p.2))%:num * test_fun m p.1 a
+      + (bc_f (γ p.2))%:num * test_fun m p.1 b.
+    by move=> p; rewrite /bool_case test_linD !test_linZ.
+  have -> : (fun p : ar_carrier Ar Y * ar_carrier Ar X =>
+              test_fun m p.1 (bool_case (γ p.2) a b))
+          = (fun p => (bc_t (γ p.2))%:num * test_fun m p.1 a
+                    + (bc_f (γ p.2))%:num * test_fun m p.1 b).
+    by apply: funext.
+  apply: measurable_funD.
+  + apply: measurable_funM.
+    * apply: (measurableT_comp meas_t measurable_snd).
+    * exact: (measurableT_comp HmA measurable_fst).
+  + apply: measurable_funM.
+    * apply: (measurableT_comp meas_f measurable_snd).
+    * exact: (measurableT_comp HmB measurable_fst).
+Qed.
+
 End BoolCasePresPath.
 
 Arguments bool_case_pres_path {R Ar A} a b Ha Hb {X} γ Hγ.
+Arguments bool_case_pres_path_gen {R Ar A} a b {X} γ Hγ.
 
 (** ** Integral preservation for [bool_case . a b]
 
