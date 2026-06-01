@@ -1082,6 +1082,40 @@ Definition ex_almost_loop_denot (p : R)
   @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
       nil tunit (@ex_almost_loop p Hp_ge0 Hp_le1).
 
+(** Structural reduction — the [tunit]-typed analogue of
+    [ex_geom_denot_E].  Applies [eD_app] to the outer [ne_app] and
+    unfolds the [ne_fix] branch of [eD] to [Yfix_fun_T]:
+
+      [ex_almost_loop_denot p _ _ =
+         kcomp (app_pair _ _)
+               (coalg_comp (bang_m _ _)
+                           (em_pair
+                              (Yfix_fun_T (eD (ex_almost_loop_body p _ _)))
+                              (eD ne_tt)))].
+
+    STRUCTURAL rewrite only; no closed form for the [Yfix_fun_T]
+    iterate is claimed (and indeed the operational behaviour
+    depends on [p] in a non-trivial way: when [p = 0] the program
+    diverges almost surely; when [p > 0] it terminates almost
+    surely). *)
+Lemma ex_almost_loop_denot_E (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+  @ex_almost_loop_denot p Hp_ge0 Hp_le1 =
+  kcomp (app_pair (tyD tunit) (tyD tunit))
+    (coalg_comp
+       (bang_m (coalg_obj (tyD (tfun tunit tunit))) (coalg_obj (tyD tunit)))
+       (em_pair
+          (Yfix_fun_T
+             (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+                  _ _ (@ex_almost_loop_body p Hp_ge0 Hp_le1)))
+          (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+               _ _ (ne_tt (R_obj := R_obj) (G := nil))))).
+Proof.
+rewrite /ex_almost_loop_denot /ex_almost_loop.
+rewrite eD_app.
+by [].
+Qed.
+
 End Phase4Examples.
 
 Arguments ex_geom {R Ar R_obj}.
@@ -1093,4 +1127,6 @@ Arguments ex_geom_denot_E {R Ar R_obj}
 Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
 Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
 Arguments ex_almost_loop_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas p Hp_ge0 Hp_le1.
+Arguments ex_almost_loop_denot_E {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas p Hp_ge0 Hp_le1.
