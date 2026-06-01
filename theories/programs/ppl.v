@@ -1109,11 +1109,73 @@ rewrite -(adj_phi_natL (em_proj1 (bang_cofree X) A) (em_pair F V)).
 by rewrite HF.
 Qed.
 
+(** *** [app_under_proj_em_pair] — the icones-level β decomposition
+
+    The categorical heart of the surface β rule.  Given a value
+    [F : G → bang_cofree (linhom A (U(T B)))] (a function value at type
+    [tfun A B]) and a value [V : G → A], applying [app_under] to the
+    canonical [em_proj]s and precomposing by the [em_pair_mor (F, V)]
+    pairing recovers [app_under F V] — i.e., the substitution-by-pair
+    that [eD_app] performs reduces to direct value-application.
+
+    Proof (the gap-A chain).
+    1. [coalg_mor_d] pulls [coalg_d (EM_prod ...)] through [em_pair_mor (F, V)]:
+       [coalg_d ∘ em_pair_mor F V = tensor_mor (em_pair_mor F V) (em_pair_mor F V) ∘ coalg_d G].
+    2. [tensor_mor_comp] + [em_proj2_pair (ch_is_mor F)] absorb the
+       second component into [ch_mor V]:
+       [tensor_mor id (em_proj2_mor) ∘ tensor_mor (em_pair F V) (em_pair F V)
+        = tensor_mor (em_pair F V) (em_proj2_mor ∘ em_pair F V)
+        = tensor_mor (em_pair F V) (ch_mor V)].
+    3. Split [tensor_mor (em_pair F V) (ch_mor V) = tensor_mor (em_pair F V) id
+       ∘ tensor_mor id (ch_mor V)] (via [tensor_mor_comp]).
+    4. [tensor_uncurry_natL] (Step 2 of the gap):
+       [tensor_uncurry (adj_phi (em_proj1)) ∘ tensor_mor (em_pair F V) id
+        = tensor_uncurry (adj_phi (em_proj1) ∘ em_pair_mor F V)].
+    5. [adj_phi_em_proj1_em_pair] (Step 3 of the gap):
+       [adj_phi (em_proj1) ∘ em_pair_mor F V = adj_phi F]. *)
+Lemma app_under_proj_em_pair (G A B : Coalgebra Ar)
+    (F : coalg_hom G (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))))
+    (V : coalg_hom G A) :
+  icones_comp
+    (app_under (em_proj1 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))) A)
+               (em_proj2 (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))) A))
+    (em_pair_mor (ch_mor F) (ch_mor V))
+  = app_under F V.
+Proof.
+rewrite /app_under.
+Local Opaque tensor_uncurry adj_phi em_proj1 em_proj2 em_pair_mor.
+have HempMor := em_pair_is_mor (Z := G)
+                  (P := bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B))))
+                  (Q := A)
+                  (ch_is_mor F) (ch_is_mor V).
+rewrite -(icones_compA (tensor_uncurry _) _ (em_pair_mor _ _)).
+rewrite -(icones_compA (tensor_mor _ _) _ (em_pair_mor _ _)).
+rewrite (coalg_mor_d _ HempMor).
+rewrite (icones_compA (tensor_mor _ _) (tensor_mor _ _) (coalg_d G)).
+rewrite -(tensor_mor_comp (icones_id _ _) (em_pair_mor (ch_mor F) (ch_mor V))
+                          (ch_mor (em_proj2 _ A)) (em_pair_mor (ch_mor F) (ch_mor V))).
+rewrite icones_compIl.
+rewrite -[ch_mor (em_proj2 _ _)]/(em_proj2_mor _ _).
+rewrite (em_proj2_pair (P := bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B))))
+                       (Q := A) (Z := G) (f := ch_mor F) (g := ch_mor V) (ch_is_mor F)).
+rewrite (_ : tensor_mor (em_pair_mor (ch_mor F) (ch_mor V)) (ch_mor V)
+           = icones_comp
+               (tensor_mor (em_pair_mor (ch_mor F) (ch_mor V)) (icones_id Ar (coalg_obj A)))
+               (tensor_mor (icones_id Ar (coalg_obj G)) (ch_mor V))); last first.
+  by rewrite -tensor_mor_comp icones_compIr icones_compIl.
+rewrite -(icones_compA (tensor_mor (em_pair_mor _ _) _) (tensor_mor _ _) (coalg_d G)).
+rewrite (icones_compA (tensor_uncurry _) (tensor_mor (em_pair_mor _ _) _) (icones_comp _ _)).
+rewrite (tensor_uncurry_natL (em_pair_mor (ch_mor F) (ch_mor V)) _).
+by rewrite (adj_phi_em_proj1_em_pair F V).
+Local Transparent tensor_uncurry adj_phi em_proj1 em_proj2 em_pair_mor.
+Qed.
+
 End EDAppLamSubst.
 
 Arguments dig_ch_mor_F {R Ar G X} F.
 Arguments adj_phi_bang_m_em_pair_eta {R Ar G A X} F V.
 Arguments adj_phi_em_proj1_em_pair {R Ar G A X} F V.
+Arguments app_under_proj_em_pair {R Ar G A B} F V.
 
 (** ** Term interpretation [eD]
 
