@@ -173,6 +173,59 @@ Qed.
 
 End TestEq.
 
+(** ** Generalized measurability — drop the unit-ball restriction
+
+    The [test_meas] field of [test_of] only requires measurability of
+    [λ r. m r x] for unit-ball [x] (i.e. when [cnorm x ≤ 1]). For
+    downstream constructions (e.g. the env-dependent [bool_case]
+    cascade) we need measurability for *arbitrary* [x : C].
+
+    The standard scaling argument: if [s = cnorm x > 1], then
+    [x' = (1/s) ·: x] satisfies [cnorm x' = 1 ≤ 1] (by [cone_normh]),
+    so [test_meas] applies to [x']. By [test_linZ] (linearity of
+    [test_fun] in its second argument),
+    [test_fun m r x = s · test_fun m r x'], and multiplication by
+    the constant [s] preserves measurability. *)
+
+Section TestMeasGen.
+Variables (R : realType) (Ar : MeasSubcat R) (X : ar_obj Ar) (C : coneType R).
+
+(** Generalization of [test_meas]: measurability of [λ r. m r x] for
+    *every* [x : C], not just unit-ball [x]. *)
+Lemma test_meas_gen (m : test_of Ar X C) (x : C) :
+  measurable_fun setT (fun r => test_fun m r x).
+Proof.
+have [Hx1|Hx1] := leP (cone_norm x) 1.
+  exact: test_meas.
+(* Case [1 < cone_norm x]. Rescale by [1/(cone_norm x)] to land in
+   the unit ball, then lift back via [test_linZ]. *)
+have cx_pos : 0 < cone_norm x.
+  by apply: lt_trans Hx1; exact: ltr01.
+have cx_inv_ge0 : 0 <= (cone_norm x)^-1.
+  by rewrite invr_ge0 ltW.
+pose r : {nonneg R} := NngNum cx_inv_ge0.
+have r_num : r%:num = (cone_norm x)^-1 by [].
+pose x' : C := precone_scale r x.
+have cx' : cone_norm x' = 1.
+  by rewrite /x' cone_normh r_num mulVf // gt_eqF.
+have cx'_le1 : cone_norm x' <= 1 by rewrite cx'.
+have key : forall s, test_fun m s x = cone_norm x * test_fun m s x'.
+  move=> s.
+  have Hxx' : x = precone_scale (NngNum (ltW cx_pos)) x'.
+    rewrite /x' -[LHS]precone_scale_1 -precone_scale_A.
+    congr precone_scale.
+    by apply: nngnum_inj => /=; rewrite mulfV // gt_eqF.
+  by rewrite {1}Hxx' test_linZ.
+apply: (eq_measurable_fun (fun s => cone_norm x * test_fun m s x')).
+  by move=> s _; rewrite key.
+by apply: measurable_funM;
+  [exact: measurable_cst|exact: test_meas].
+Qed.
+
+End TestMeasGen.
+
+Arguments test_meas_gen {R Ar X C} m x.
+
 (** ** Reindexing a test along an [ar_hom] — Paper Def 3.2 (Mscomp)
 
     Given [m : test_of Ar X C] and [φ ∈ ar_hom Ar Y X], the
