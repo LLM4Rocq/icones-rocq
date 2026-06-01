@@ -95,7 +95,7 @@ Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
-Require Import Icones.homs.cbv_adjunction.
+Require Import Icones.programs.infra.cbv_adjunction.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

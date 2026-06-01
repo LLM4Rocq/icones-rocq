@@ -56,7 +56,7 @@ Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
-Require Import Icones.cones.bool_cone.
+Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.seely.

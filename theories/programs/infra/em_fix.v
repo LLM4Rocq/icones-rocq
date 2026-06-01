@@ -88,7 +88,7 @@ Require Import Icones.homs.seely_defs.
 Require Import Icones.homs.seely.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_continuity.
+Require Import Icones.programs.infra.em_continuity.
 Require Import Icones.homs.em_cartesian.
 
 Set Implicit Arguments.
