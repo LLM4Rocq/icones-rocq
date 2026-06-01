@@ -121,7 +121,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
-Require Import Icones.cones.bool_cone.
+Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -143,15 +143,15 @@ Require Import Icones.homs.bang.
 Require Import Icones.homs.seely_defs.
 Require Import Icones.homs.seely.
 Require Import Icones.homs.tensor_hom_iso.
-Require Import Icones.homs.bool_case_hom.
+Require Import Icones.programs.infra.bool_case_hom.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.fmeas_lax.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
-Require Import Icones.homs.cbv_adjunction.
-Require Import Icones.homs.em_continuity.
-Require Import Icones.homs.em_fix.
+Require Import Icones.programs.infra.cbv_adjunction.
+Require Import Icones.programs.infra.em_continuity.
+Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.cbv.
 
 Set Implicit Arguments.

@@ -150,7 +150,7 @@ partial-termination examples). Two pieces of this layer are, to our knowledge, t
   coalgebra morphism) — **not** by reducing to promoted points (which would only compute on
   `x!`; for a general coalgebra `(A,a)` the image `a x` is not promoted, which is exactly
   why the naïve approach stalls and the retraction route is needed).
-- **`theories/homs/cbv_adjunction.v`** — the **(lax symmetric) monoidal adjunction `U ⊣ !̃`
+- **`theories/programs/infra/cbv_adjunction.v`** *(beyond the paper, PPL infra)* — the **(lax symmetric) monoidal adjunction `U ⊣ !̃`
   between `ICones` and the (full) category `EM(!)` of `!`-coalgebras** (Melliès Prop. 29),
   bundled as the record **`CBV_Model`** with the witness **`ICones_CBV`**. With `EMComon_all`
   in hand, this is a genuine **linear/non-linear adjunction** (Benton-style) with the *full*
@@ -159,12 +159,12 @@ partial-termination examples). Two pieces of this layer are, to our knowledge, t
   Melliès Prop 28 at the icones level — to our knowledge, a **first Coq / Rocq
   formalization**), proved via Melliès's retract-and-lift technique, mirroring how Cor 20
   is discharged.
-- **`theories/homs/em_continuity.v`** *(beyond the paper, PPL infra)* — the ω-continuity
+- **`theories/programs/infra/em_continuity.v`** *(beyond the paper, PPL infra)* — the ω-continuity
   toolkit for the value-fixpoint: `prom_omega_cont`, `bang_fmap_lin_omega_cont`,
   `linhom_pre/post_icones_sup`, `tensor_mor_omega_cont_R`, `tensor_mor_R_lin_incr`. These
   are the workhorses that let the Kleene supremum pass through the `is_coalg_mor`
   equation.
-- **`theories/homs/em_fix.v`** *(beyond the paper, PPL infra)* — the **CBV value-fixpoint at
+- **`theories/programs/infra/em_fix.v`** *(beyond the paper, PPL infra)* — the **CBV value-fixpoint at
   function types** `Yfix_fun_T : coalg_hom G (Tobj (!̃(U A ⊸ U(T B))))`, the
   OCaml-style `let rec` (thunked) used by `ne_fix` in the PPL. The body `M` denotes the
   recursive function abstracted on its self-reference; `Phi_fun(prev) = bang_fmap (der L)
@@ -173,13 +173,13 @@ partial-termination examples). Two pieces of this layer are, to our knowledge, t
   of the cofree adjunction. To our knowledge, this is the **first Coq / Rocq
   formalization** of a CBV value-fixpoint at the icones level (P.-A. Melliès consultation
   2026-05-31: *"folklore, not in the literature"*).
-- **`theories/cones/bool_cone.v`** *(beyond the paper, PPL infra)* — the **2-point
+- **`theories/programs/infra/bool_cone.v`** *(beyond the paper, PPL infra)* — the **2-point
   sub-probability cone** `bool_cone_car Ar`, a thin record over `{nonneg R} × {nonneg R}`
   fully equipped through the HB tower (`isPrecone`/`isCone`/`isMCone`/`isICone`). The cone
   IS (paper §4.4 / Theorem 4.24) the categorical coproduct `cone_one ⊕ cone_one` in
   `ICones`, with injections `bool_dirac_true`/`bool_dirac_false` and universal co-pairing
   `bool_case`. This is the cones-side denotation of the PPL's source-language `tbool` type.
-- **`theories/homs/bool_case_hom.v`** *(beyond the paper, PPL infra)* — the `bool_case`
+- **`theories/programs/infra/bool_case_hom.v`** *(beyond the paper, PPL infra)* — the `bool_case`
   co-pairing packaged as a `linhom_car` (`bool_case_linhom`) and a full `icones_hom`
   (`bool_case_icones_hom`), with the **unit-ball-free** generalizations
   `bool_case_linhom_gen` and the `α(x,a) = bc_t(x)·a` / `β(x,b) = bc_f(x)·b`
@@ -211,7 +211,7 @@ partial-termination examples). Two pieces of this layer are, to our knowledge, t
     `ne_app : named_expr Γ (tfun A B) → named_expr Γ A → named_expr Γ B`),
     `ne_fix` (OCaml-style `let rec` recursion, **restricted to function types**
     `ne_fix : named_expr ((s, tfun A B) :: Γ) (tfun A B) → named_expr Γ (tfun A B)`,
-    semantically the CBV value-fixpoint `Yfix_fun_T` of `em_fix.v`),
+    semantically the CBV value-fixpoint `Yfix_fun_T` of `programs/infra/em_fix.v`),
     `ne_real` (real literal at `r : R`, type `tR`), `ne_add` / `ne_mul` (pointwise
     arithmetic on `tR`-valued computations via the FMeas lax-monoidal map),
     `ne_true` / `ne_false` (boolean constants of type `tbool`);
@@ -257,7 +257,7 @@ partial-termination examples). Two pieces of this layer are, to our knowledge, t
   surface notation `[ … ]`. The first three are QBS-style headline programs, each paired
   with a structural reduction lemma `_denot_E` exposing the outer `kbind_ext` shape of its
   denotation. The next three are **Phase 4 productive partial-termination** programs that
-  combine `ne_fix` (the CBV value-fixpoint of `em_fix.v`) with the `ne_if` / `ne_bernoulli`
+  combine `ne_fix` (the CBV value-fixpoint of `programs/infra/em_fix.v`) with the `ne_if` / `ne_bernoulli`
   boolean cascade to demonstrate divergence / sub-probability mass. The examples show the
   direct-style framing concretely: a function that samples has source type `tfun tR tR`
   (not `tprob (tfun tR tR)`), and a probabilistic real-valued program has source type
@@ -341,9 +341,6 @@ stated).
 theories/
 ├── prelude/   classical-logic, ereal/nonneg helpers, the ω-cpo
 ├── cones/     precones → cones, the category Cones                       (§2)
-│              + bool_cone.v        the 2-point ICone bool_cone_car,       (BEYOND PAPER)
-│                                    paper §4.4 / Thm 4.24 coproduct
-│                                    cone_one ⊕ cone_one; PPL infra
 ├── mcones/    measurable cones, the measure cone FMeas, Path, MCones     (§3)
 ├── icones/    Pettis integral, integrable cones, Fubini, completeness,   (§4)
 │              well-poweredness + the representability machinery
@@ -354,23 +351,11 @@ theories/
 │                em_cat.v            EM(!) + the cofree adjunction U ⊣ !̃
 │                em_seely_comonoid.v the Seely comonoid d/e on !A (LC2–4)
 │                em_cartesian.v      full EM(!) cartesian via ⊗ (Cor 20)
-│                cbv_adjunction.v    the LNL monoidal adjunction, ICones_CBV
-│                                    + cartesian-η em_pair_mor_proj_id     (BEYOND PAPER)
-│                                    (Fox 1976 / Melliès Prop 28, FIRST
-│                                    Coq / Rocq formalization)
 │                fmeas_lax.v         FMeas is lax symmetric monoidal
 │                                    (µ ⊗ ν ↦ µ × ν as an icones_hom)
-│                em_continuity.v     ω-continuity prerequisites for the    (BEYOND PAPER)
-│                                    value-fixpoint (bang_fmap_lin_omega_cont,
-│                                    prom_omega_cont, tensor_mor_omega_cont_R)
-│                em_fix.v            CBV value-fixpoint Yfix_fun_T at      (BEYOND PAPER)
-│                                    function types (OCaml-style let rec,
-│                                    FIRST Coq / Rocq formalization)
-│                bool_case_hom.v     bool_case as linhom / icones_hom +    (BEYOND PAPER)
-│                                    α/β decomposition; PPL infra
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
 ├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
-└── programs/  small calculi INTERPRETED into the model (demonstrations,   (CBV)
+└── programs/  small calculi INTERPRETED into the model (demonstrations,   (BEYOND PAPER)
                not part of the model itself):
                  cbv.v               a first-order Moggi-CBV calculus
                                      (sample = the integral)
@@ -390,6 +375,27 @@ theories/
                                      ex_geom, ex_almost_loop), each with
                                      its _denot_E reduction lemma where
                                      applicable, all interpreted axiom-free
+                 infra/              cones-side support for the PPL
+                                     (everything in here is BEYOND PAPER):
+                   bool_cone.v         the 2-point ICone bool_cone_car,
+                                       paper §4.4 / Thm 4.24 coproduct
+                                       cone_one ⊕ cone_one; tbool denot
+                   bool_case_hom.v     bool_case as linhom / icones_hom +
+                                       α/β decomposition; ne_if denot
+                   em_continuity.v     ω-continuity prerequisites for the
+                                       value-fixpoint
+                                       (bang_fmap_lin_omega_cont,
+                                       prom_omega_cont,
+                                       tensor_mor_omega_cont_R)
+                   em_fix.v            CBV value-fixpoint Yfix_fun_T at
+                                       function types (OCaml-style let rec,
+                                       FIRST Coq / Rocq formalization);
+                                       ne_fix denot
+                   cbv_adjunction.v    the LNL monoidal adjunction U ⊣ !̃,
+                                       ICones_CBV witness + cartesian-η
+                                       em_pair_mor_proj_id (Fox 1976 /
+                                       Melliès Prop 28, FIRST Coq / Rocq
+                                       formalization)
 ```
 
 A LaTeX **blueprint** (Patrick Massot's `leanblueprint` style, adapted to Rocq) describes the

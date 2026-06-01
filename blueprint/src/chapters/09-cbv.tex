@@ -27,7 +27,7 @@
 %                                      coalg_d_is_mor_gen);
 %                                      ICones_EM_cartesian, EM_prod/EM_term,
 %                                      m_bang
-%   theories/homs/cbv_adjunction.v     the (lax symmetric) monoidal adjunction
+%   theories/programs/infra/cbv_adjunction.v   the (lax symmetric) monoidal adjunction
 %                                      U ⊣ !̃ between ICones (linear) and the
 %                                      FULL category EM(!) of !-coalgebras
 %                                      (Melliès Prop 29) — a genuine LNL
@@ -146,7 +146,7 @@ category of \autoref{thm:seely}.
 The CBV model is built and \textbf{axiom-free} (only the three classical
 \texttt{boolp} axioms): the \emph{full} cartesian Eilenberg--Moore
 category, the (lax symmetric) monoidal adjunction
-\rocq{Icones.homs.cbv_adjunction.ICones_CBV}, and a small first-order
+\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV}, and a small first-order
 CBV calculus interpreted into it. The cartesianness of
 $\mathrm{EM}(\mathord{!})$ is now \emph{unconditional} --- the
 predicate \rocq{Icones.homs.em_cartesian.EMComon} holds on every
@@ -181,7 +181,7 @@ $\mathrm{EM}(\mathord{!})$ does have. The natural-bijection chain
 %
 uses only the cofree adjunction, the strict monoidality of $U$
 ($U(C \times A) = U C \otimes U A$ definitionally,
-\rocq{Icones.homs.cbv_adjunction.cbv_U_prod}), and the SMCC closure of
+\rocq{Icones.programs.infra.cbv_adjunction.cbv_U_prod}), and the SMCC closure of
 $\ICones$; it does \emph{not} use any cartesian closure of
 $\mathrm{EM}(\mathord{!})$. The function-type interpretation that
 results is $\sem{\mathtt{tfun}\,A\,B} =
@@ -239,7 +239,7 @@ the cofree/forgetful adjunction), \texttt{theories/homs/em\_seely\_comonoid.v}
 LC2--LC4), \texttt{theories/homs/em\_cartesian.v} (the \emph{full}
 cartesian $\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$,
 with the unconditional \rocq{Icones.homs.em_cartesian.EMComon_all}),
-\texttt{theories/homs/cbv\_adjunction.v} (the LNL monoidal adjunction
+\texttt{theories/programs/infra/cbv\_adjunction.v} (the LNL monoidal adjunction
 and the \texttt{CBV\_Model} bundle), \texttt{theories/homs/fmeas\_lax.v}
 (the FMeas lax symmetric monoidal map at the
 \texttt{icones\_hom} level, built on the discharged
@@ -578,7 +578,7 @@ The proof follows the same retract-and-lift recipe as
 along the retraction.
 
 \begin{lemma}[$\eta$-rule, cofree case]\label{lem:cbv-cart-eta-cofree}
-\rocq{Icones.homs.cbv_adjunction.em_pair_mor_proj_id_cofree}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.em_pair_mor_proj_id_cofree}\rocqok
 \uses{thm:cbv-cartesian, lem:tens-excl-charact}
 For every $A, B : \ICones$, the pair-of-projections on the cofree
 product equals the identity at the icones level:
@@ -606,7 +606,7 @@ to $x!$ / $y!$ respectively.
 
 \begin{theorem}[The cartesian $\eta$-rule
 $\langle \pi_1, \pi_2 \rangle = \mathrm{id}$]\label{thm:cbv-cart-eta}
-\rocq{Icones.homs.cbv_adjunction.em_pair_mor_proj_id}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.em_pair_mor_proj_id}\rocqok
 \uses{lem:cbv-cart-eta-cofree, lem:cbv-emcomon-all}
 For every pair $(P, Q)$ of $\mathord{!}$-coalgebras, the
 pair-of-projections of the binary product $P \otimes Q$ in
@@ -656,16 +656,16 @@ points by the same $\texttt{tens\_excl\_charact}$ engine as
 
 \begin{lemma}[Lax-monoidal coherence of the comparison
 $m$]\label{lem:cbv-lax}
-\rocq{Icones.homs.cbv_adjunction.m_bang_assoc}\rocqok
-\rocq{Icones.homs.cbv_adjunction.m_bang_lunit}\rocqok
-\rocq{Icones.homs.cbv_adjunction.m_bang_runit}\rocqok
-\rocq{Icones.homs.cbv_adjunction.m_bang_braid}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.m_bang_assoc}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.m_bang_lunit}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.m_bang_runit}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.m_bang_braid}\rocqok
 \uses{def:cbv-prod, lem:tens-excl-charact}
 The comparison map $m$ (\autoref{def:cbv-prod}) satisfies the
-associativity \rocq{Icones.homs.cbv_adjunction.m_bang_assoc}, the unitors
-\rocq{Icones.homs.cbv_adjunction.m_bang_lunit} /
-\rocq{Icones.homs.cbv_adjunction.m_bang_runit} and the symmetry
-\rocq{Icones.homs.cbv_adjunction.m_bang_braid}, against the
+associativity \rocq{Icones.programs.infra.cbv_adjunction.m_bang_assoc}, the unitors
+\rocq{Icones.programs.infra.cbv_adjunction.m_bang_lunit} /
+\rocq{Icones.programs.infra.cbv_adjunction.m_bang_runit} and the symmetry
+\rocq{Icones.programs.infra.cbv_adjunction.m_bang_braid}, against the
 $\alpha$ / $\lambda$ / $\rho$ / $\sigma$ of the tensor
 (\autoref{thm:thm515}). Each is reduced by
 \autoref{lem:tens-excl-charact} (and its ternary form) to agreement on
@@ -674,13 +674,13 @@ promoted pure tensors, then computed by
 \end{lemma}
 
 \begin{theorem}[The CBV model on $\ICones$]\label{thm:cbv-model}
-\rocq{Icones.homs.cbv_adjunction.CBV_Model}\rocqok
-\rocq{Icones.homs.cbv_adjunction.ICones_CBV}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.CBV_Model}\rocqok
+\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV}\rocqok
 \uses{thm:cbv-cofree-adj, thm:cbv-cartesian, lem:cbv-lax, thm:thm515}
-The record \rocq{Icones.homs.cbv_adjunction.CBV_Model} bundles the CBV /
+The record \rocq{Icones.programs.infra.cbv_adjunction.CBV_Model} bundles the CBV /
 LNL data on $\ICones$, mirroring the
 \rocq{Icones.homs.seely.SeelyCategory} convention; its canonical witness
-\rocq{Icones.homs.cbv_adjunction.ICones_CBV} is \textbf{axiom-free}
+\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV} is \textbf{axiom-free}
 (modulo the three classical \texttt{boolp} axioms, as for
 \rocq{Icones.homs.seely.ICones_Seely}). It packages:
 \begin{itemize}
@@ -706,19 +706,19 @@ LNL data on $\ICones$, mirroring the
     product / terminal carriers are the $\otimes$-tensor / $1$-unit, so the
     comparisons are identities --- and $\widetilde{\mathord{!}}$ is
     lax monoidal with comparison $m$
-    (\rocq{Icones.homs.cbv_adjunction.bang_m}) and unit
-    (\rocq{Icones.homs.cbv_adjunction.bang_e0}), its lax coherence
+    (\rocq{Icones.programs.infra.cbv_adjunction.bang_m}) and unit
+    (\rocq{Icones.programs.infra.cbv_adjunction.bang_e0}), its lax coherence
     (\autoref{lem:cbv-lax}) and the monoidal counit laws
-    \rocq{Icones.homs.cbv_adjunction.adj_counit_monoidal2} /
-    \rocq{Icones.homs.cbv_adjunction.adj_counit_monoidal0}.
+    \rocq{Icones.programs.infra.cbv_adjunction.adj_counit_monoidal2} /
+    \rocq{Icones.programs.infra.cbv_adjunction.adj_counit_monoidal0}.
 \end{itemize}
 \end{theorem}
 
 \begin{proof}
 Each field is one of the proved lemmas above; the witness
-\rocq{Icones.homs.cbv_adjunction.ICones_CBV} just assembles them. The
-monoidal \emph{unit} laws \rocq{Icones.homs.cbv_adjunction.adj_unit_monoidal2}
-/ \rocq{Icones.homs.cbv_adjunction.adj_unit_monoidal0} are recorded as
+\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV} just assembles them. The
+monoidal \emph{unit} laws \rocq{Icones.programs.infra.cbv_adjunction.adj_unit_monoidal2}
+/ \rocq{Icones.programs.infra.cbv_adjunction.adj_unit_monoidal0} are recorded as
 standalone facts (they are definitional --- the composite $m \circ (\eta
 \otimes \eta)$ \emph{is} the product structure map), kept outside the
 record to avoid the dependent-type plumbing. The cartesian fields now
@@ -860,9 +860,9 @@ tower and the unit-ball-free icones-hom packaging are new infrastructure
 in the spirit of the PPL.
 
 \begin{definition}[The 2-point sub-probability cone]\label{def:cbv-bool-cone}
-\rocq{Icones.cones.bool_cone.bool_cone_car}\rocqok
-\rocq{Icones.cones.bool_cone.bool_dirac_true}\rocqok
-\rocq{Icones.cones.bool_cone.bool_dirac_false}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_cone_car}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_dirac_true}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_dirac_false}\rocqok
 \uses{def:icone}
 The carrier $\mathtt{bool\_cone\_car}$ is a thin record
 $\{\mathtt{bc\_t} : \{\mathrm{nonneg}\,R\};\; \mathtt{bc\_f} :
@@ -876,8 +876,8 @@ $\mathtt{bool\_dirac\_false} = (0, 1)$.
 \end{definition}
 
 \begin{remark}[Recognition as paper \S4.4 / Thm 4.24 coproduct]
-\rocq{Icones.cones.bool_cone.bool_case_true}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_false}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_true}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_false}\rocqok
 The 2-point cone is the categorical coproduct
 $\mathtt{cone\_one\_car} \oplus \mathtt{cone\_one\_car}$ of paper
 \S4.4 / Theorem 4.24, with injections
@@ -888,7 +888,7 @@ co-pairing $\mathtt{bool\_case}$ playing the role of $[a, b]$.
 
 \begin{definition}[The universal co-pairing
 $\mathtt{bool\_case}$]\label{def:cbv-bool-case}
-\rocq{Icones.cones.bool_cone.bool_case}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case}\rocqok
 \uses{def:cbv-bool-cone}
 For any iCone $A$ and any $a, b \in A$, set
 $\mathtt{bool\_case}\;x\;a\;b\;=\;\mathtt{bc\_t}(x)\cdot a +
@@ -900,11 +900,11 @@ $\mathtt{bool\_case}\;\mathtt{bool\_dirac\_false}\;a\;b = b$.
 
 \begin{lemma}[Universal-property witnesses for
 $\mathtt{bool\_case}$]\label{lem:cbv-bool-case-witnesses}
-\rocq{Icones.cones.bool_cone.bool_case_linear}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_omega_continuous}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_norm_le1}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_pres_path}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_pres_int}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_linear}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_omega_continuous}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_norm_le1}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_pres_path}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_pres_int}\rocqok
 \uses{def:cbv-bool-case}
 For $a, b \in A$ in the unit ball ($\cnorm{a} \leq 1$, $\cnorm{b} \leq 1$),
 the map $x \mapsto \mathtt{bool\_case}\;x\;a\;b$ is linear, $\omega$-continuous,
@@ -916,10 +916,10 @@ $\ICones$ morphism (paper Def 4.10).
 
 \begin{lemma}[Unit-ball-free variants and the test-measurability
 generalisation]\label{lem:cbv-bool-case-gen}
-\rocq{Icones.cones.bool_cone.bool_case_omega_continuous_gen}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_norm_le_max}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_pres_path_gen}\rocqok
-\rocq{Icones.cones.bool_cone.bool_case_pres_int_gen}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_omega_continuous_gen}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_norm_le_max}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_pres_path_gen}\rocqok
+\rocq{Icones.programs.infra.bool_cone.bool_case_pres_int_gen}\rocqok
 \rocq{Icones.mcones.mcone.test_meas_gen}\rocqok
 \uses{lem:cbv-bool-case-witnesses}
 The unit-ball restriction on $a, b$ can be dropped: $\omega$-continuity
@@ -934,17 +934,17 @@ arbitrary cone elements.
 
 \begin{definition}[Icones-hom packaging of $\mathtt{bool\_case}$]%
 \label{def:cbv-bool-case-hom}
-\rocq{Icones.homs.bool_case_hom.bool_case_linhom}\rocqok
-\rocq{Icones.homs.bool_case_hom.bool_case_icones_hom}\rocqok
-\rocq{Icones.homs.bool_case_hom.bool_case_linhom_gen}\rocqok
-\rocq{Icones.homs.bool_case_hom.alpha_linhom}\rocqok
-\rocq{Icones.homs.bool_case_hom.beta_linhom}\rocqok
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom}\rocqok
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom}\rocqok
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}\rocqok
+\rocq{Icones.programs.infra.bool_case_hom.alpha_linhom}\rocqok
+\rocq{Icones.programs.infra.bool_case_hom.beta_linhom}\rocqok
 \uses{lem:cbv-bool-case-witnesses, lem:cbv-bool-case-gen}
 The co-pairing packages as a $\mathtt{linhom\_car}$
-(\rocq{Icones.homs.bool_case_hom.bool_case_linhom}) and, via
+(\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom}) and, via
 \rocq{Icones.homs.seely.linhom_icones}, as a full
 $\mathtt{icones\_hom}$
-(\rocq{Icones.homs.bool_case_hom.bool_case_icones_hom}), under the
+(\rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom}), under the
 unit-ball hypotheses on $a, b$. The unit-ball-free
 $\mathtt{bool\_case\_linhom\_gen}$ drops these hypotheses. Although
 $(a, b) \mapsto \mathtt{bool\_case}\;\cdot\;a\;b$ is not bilinear in
@@ -952,7 +952,7 @@ $(a, b)$, it decomposes as a sum
 $\alpha(x, a) = \mathtt{bc\_t}(x)\cdot a$ plus
 $\beta(x, b) = \mathtt{bc\_f}(x)\cdot b$ of two separately-bilinear
 pieces; the linhom-level decomposition lemma is
-\rocq{Icones.homs.bool_case_hom.bool_case_linhom_gen_alpha_beta}.
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen_alpha_beta}.
 \end{definition}
 
 \begin{definition}[$\mathtt{case\_em}$ --- the EM(!) Kleisli
@@ -974,7 +974,7 @@ back into the codomain. The branches' operator norms are bounded by
 1 by the hom-cone insight ($\mathtt{coalg\_hom}$s of unit-ball
 codomain are automatically norm-$\leq$-1 as icones-homs), so the
 unit-ball hypotheses on the branches in
-\rocq{Icones.homs.bool_case_hom.bool_case_linhom} fire on the nose.
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom} fire on the nose.
 \end{definition}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -999,12 +999,12 @@ our knowledge this is the first Coq / Rocq formalisation.
 \end{remark}
 
 \begin{lemma}[$\omega$-continuity prerequisites]\label{lem:cbv-yfix-cont}
-\rocq{Icones.homs.em_continuity.linhom_post_icones_sup}\rocqok
-\rocq{Icones.homs.em_continuity.linhom_pre_icones_sup}\rocqok
-\rocq{Icones.homs.em_continuity.bang_fmap_lin_omega_cont}\rocqok
-\rocq{Icones.homs.em_continuity.prom_omega_cont}\rocqok
-\rocq{Icones.homs.em_continuity.tensor_mor_omega_cont_R}\rocqok
-\rocq{Icones.homs.em_continuity.tensor_mor_R_lin_incr}\rocqok
+\rocq{Icones.programs.infra.em_continuity.linhom_post_icones_sup}\rocqok
+\rocq{Icones.programs.infra.em_continuity.linhom_pre_icones_sup}\rocqok
+\rocq{Icones.programs.infra.em_continuity.bang_fmap_lin_omega_cont}\rocqok
+\rocq{Icones.programs.infra.em_continuity.prom_omega_cont}\rocqok
+\rocq{Icones.programs.infra.em_continuity.tensor_mor_omega_cont_R}\rocqok
+\rocq{Icones.programs.infra.em_continuity.tensor_mor_R_lin_incr}\rocqok
 \uses{def:icone, thm:thm515}
 At the $\mathtt{linhom\_car}$ level, the supremum of an
 $\omega$-chain in the unit ball commutes with post-composition by an
@@ -1018,8 +1018,8 @@ pass through the $\mathtt{is\_coalg\_mor}$ equation.
 
 \begin{definition}[The Kleene iteration $\Phi_{\mathrm{fun}}$ at the
 linhom level]\label{def:cbv-phi-fun}
-\rocq{Icones.homs.em_fix.Phi_fun}\rocqok
-\rocq{Icones.homs.em_fix.extract_fun}\rocqok
+\rocq{Icones.programs.infra.em_fix.Phi_fun}\rocqok
+\rocq{Icones.programs.infra.em_fix.extract_fun}\rocqok
 \uses{def:cbv-cofree, lem:cbv-yfix-cont}
 Fix coalgebras $G, A, B$ (the ambient context, the argument type, the
 result type). Set $L = U A \multimap U(T B)$ for the CBV monad
@@ -1053,9 +1053,9 @@ monotone in $\mathit{prev}$, and $\omega$-continuous by
 
 \begin{lemma}[The Kleene fixpoint
 $\mathtt{Yfix\_fun\_lin}$]\label{lem:cbv-yfix-lin}
-\rocq{Icones.homs.em_fix.Yfix_fun_lin}\rocqok
-\rocq{Icones.homs.em_fix.Yfix_fun_lin_norm_le1}\rocqok
-\rocq{Icones.homs.em_fix.Yfix_fun_lin_fixpoint}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_norm_le1}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_fixpoint}\rocqok
 \uses{def:cbv-phi-fun}
 The Kleene supremum of the iterates of $\Phi_{\mathrm{fun}}$ from
 $\bot$ gives $\mathtt{Yfix\_fun\_lin} \in
@@ -1068,9 +1068,9 @@ $\Phi_{\mathrm{fun}}\,(\mathtt{Yfix\_fun\_lin}) =
 
 \begin{theorem}[$\mathtt{Yfix\_fun\_T}$ --- the CBV value-fixpoint
 at function types]\label{thm:cbv-yfix-fun}
-\rocq{Icones.homs.em_fix.Yfix_fun_T}\rocqok
-\rocq{Icones.homs.em_fix.Yfix_fun_T_mor}\rocqok
-\rocq{Icones.homs.em_fix.Yfix_fun_T_unfolding}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_T}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_T_mor}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_T_unfolding}\rocqok
 \uses{lem:cbv-yfix-lin, thm:cbv-cofree-adj}
 The linhom-level fixpoint $\mathtt{Yfix\_fun\_lin}$ packages, via
 $\mathtt{adj\_psi}$ of the cofree adjunction
@@ -1151,7 +1151,7 @@ constructors falling into three groups:
     application \rocq{Icones.programs.ppl.ne_app},
     \rocq{Icones.programs.ppl.ne_fix} (OCaml-style $\mathtt{let\,rec}$
     recursion, \emph{restricted to function types}; semantically the
-    CBV value-fixpoint \rocq{Icones.homs.em_fix.Yfix_fun_T} of
+    CBV value-fixpoint \rocq{Icones.programs.infra.em_fix.Yfix_fun_T} of
     \autoref{thm:cbv-yfix-fun}),
     \rocq{Icones.programs.ppl.ne_real} (real literal at $r : R$, type
     \texttt{tR}), \rocq{Icones.programs.ppl.ne_add} and
@@ -1709,7 +1709,7 @@ $\mathtt{ne\_bind}$)
 / \texttt{\textbackslash "x" ::: A => M}
 / \texttt{fix "f" ::: tfun A B in M} (OCaml-style $\mathtt{let\,rec}$,
 desugaring to \rocq{Icones.programs.ppl.ne_fix} and semantically
-\rocq{Icones.homs.em_fix.Yfix_fun_T} of \autoref{thm:cbv-yfix-fun})
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_T} of \autoref{thm:cbv-yfix-fun})
 / \texttt{Sample (mu, Hmu)}
 / \texttt{Score \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e} (the
 term-level Bayesian-score surface form, the \emph{only} score form,
@@ -1776,11 +1776,11 @@ $\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$
 unconditional comonoidality witness
 \rocq{Icones.homs.em_cartesian.EMComon_all}
 (\autoref{lem:cbv-emcomon-all}); the cartesian $\eta$-rule
-\rocq{Icones.homs.cbv_adjunction.em_pair_mor_proj_id}
+\rocq{Icones.programs.infra.cbv_adjunction.em_pair_mor_proj_id}
 (\autoref{thm:cbv-cart-eta}, Fox 1976 / Melli\`es Prop 28 at the
 icones level, first Coq / Rocq formalisation); the LNL monoidal
 adjunction bundled as
-\rocq{Icones.homs.cbv_adjunction.ICones_CBV} (\autoref{thm:cbv-model});
+\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV} (\autoref{thm:cbv-model});
 the first-order CBV calculus and its sound interpretation
 (\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}); the FMeas
 lax symmetric monoidal map \rocq{Icones.homs.fmeas_lax.fmeas_lax} at
@@ -1790,20 +1790,20 @@ paper-\S6 follow-up
 \rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}
 (\autoref{thm:cbv-fmeas-lax}); the boolean cascade
 (\autoref{sec:cbv-bool}) ---
-\rocq{Icones.cones.bool_cone.bool_cone_car} as the paper \S4.4 / Thm
+\rocq{Icones.programs.infra.bool_cone.bool_cone_car} as the paper \S4.4 / Thm
 4.24 coproduct $\mathtt{cone\_one}\oplus\mathtt{cone\_one}$, the
 icones-hom packaging
-\rocq{Icones.homs.bool_case_hom.bool_case_icones_hom} (with
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom} (with
 unit-ball-free variant
-\rocq{Icones.homs.bool_case_hom.bool_case_linhom_gen}), and the
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}), and the
 EM-Kleisli combinator \rocq{Icones.programs.ppl.case_em} used by
 $\mathtt{ne\_if}$; the CBV value-fixpoint at function types
-\rocq{Icones.homs.em_fix.Yfix_fun_T} (\autoref{thm:cbv-yfix-fun},
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_T} (\autoref{thm:cbv-yfix-fun},
 \emph{folklore} per P.-A.~Melli\`es 2026-05-31, first Coq / Rocq
 formalisation), with its $\omega$-continuity prerequisites
-\rocq{Icones.homs.em_continuity.bang_fmap_lin_omega_cont} /
-\rocq{Icones.homs.em_continuity.prom_omega_cont} /
-\rocq{Icones.homs.em_continuity.tensor_mor_omega_cont_R}; the
+\rocq{Icones.programs.infra.em_continuity.bang_fmap_lin_omega_cont} /
+\rocq{Icones.programs.infra.em_continuity.prom_omega_cont} /
+\rocq{Icones.programs.infra.em_continuity.tensor_mor_omega_cont_R}; the
 higher-order \emph{direct-style}
 (Plotkin/Girard CBV) multi-variable \emph{named-variable} QBS-mirror
 PPL of \texttt{theories/programs/ppl.v}, with the direct-style
