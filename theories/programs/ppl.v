@@ -383,7 +383,16 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
      is exactly [1] (norm-1). *)
   | ne_bernoulli (G : named_ctx Ar) (p : R)
                  (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
-      named_expr G tbool.
+      named_expr G tbool
+  (* [if e then M else N] — boolean elimination.  [e] is a [tbool]
+     expression (semantically a sub-probability distribution on [bool]),
+     and [M, N : t] are the two branches.  The denotation [eD] uses
+     [kbind_ext] with the [case_em] combinator. *)
+  | ne_if (G : named_ctx Ar) (t : T) :
+      named_expr G tbool ->
+      named_expr G t ->
+      named_expr G t ->
+      named_expr G t.
 
 End Syntax.
 
@@ -415,6 +424,10 @@ Arguments ne_mul {R Ar R_obj G} & M N.
 Arguments ne_true {R Ar R_obj G}.
 Arguments ne_false {R Ar R_obj G}.
 Arguments ne_bernoulli {R Ar R_obj G} p Hp_ge0 Hp_le1.
+(** Bidirectionality on [ne_if]: resolve [G] and [t] FIRST (from the
+    scrutinee and the branches' types), then propagate into the
+    sub-expressions.  Same pattern as [ne_let] / [ne_app]. *)
+Arguments ne_if {R Ar R_obj G} & t e M N.
 
 (** ** Type and context interpretation [tyD] / [ctxD]
 
@@ -1754,6 +1767,16 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
      side condition is direct. *)
   | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
       @bernoulli_kleisli R Ar (ctxD (drop_names G0)) p Hp_ge0 Hp_le1
+  (* [if e then M else N]: bind the scrutinee via [kbind_ext]; the
+     continuation, in context [G0 ⊗ tyD tbool], dispatches via the
+     EM-Kleisli [case_em] combinator on the two branch denotations
+     (precomposed with [em_proj1] to drop the bound bool from each
+     branch's local context). *)
+  | ne_if G0 t e M N =>
+      @kbind_ext R Ar (ctxD (drop_names G0)) (bang_cofree (bool_cone_car Ar))
+                 (tyD t)
+        (case_em (eD M) (eD N))
+        (eD e)
   end.
 
 End TermInterp.
@@ -2177,3 +2200,18 @@ Notation "'Bernoulli' '{' p ',' Hp_ge0 ',' Hp_le1 '}'" :=
   (ne_bernoulli p Hp_ge0 Hp_le1)
   (in custom ppl_named at level 1,
    p constr, Hp_ge0 constr, Hp_le1 constr).
+
+(** [if e then M else N] — boolean elimination in surface syntax.
+
+    The branches [M], [N] are at custom level 80 (so [let] / [\] /
+    nested [if] all parse cleanly inside them); the scrutinee [e] is at
+    the same level.  Right-associative so [if e1 then if e2 then ...]
+    parses as nested-then.  Implicit return type [t] is resolved by the
+    bidirectionality hint on [ne_if]. *)
+Notation "'if' e 'then' M 'else' N" :=
+  (ne_if _ e M N)
+  (in custom ppl_named at level 80,
+   e custom ppl_named at level 80,
+   M custom ppl_named at level 80,
+   N custom ppl_named at level 80,
+   right associativity).
