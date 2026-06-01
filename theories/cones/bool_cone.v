@@ -46,6 +46,7 @@ From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
+From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
@@ -657,3 +658,199 @@ HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
     (@BoolConeMConeAux.mcone_M_bool_comp R Ar)
     (@BoolConeMConeAux.mcone_M_bool_sep R Ar)
     (@BoolConeMConeAux.mcone_M_bool_norm R Ar).
+
+(** ** Stage 4 — the [isICone] instance
+
+    For [β : ar_carrier X → bool_cone_car Ar] (measurable path) and
+    [µ : fmeas R (ar_carrier X)], the integral is the
+    componentwise integral wrapped as a [bool_cone_car]:
+
+      [(fine ∫ (bc_t (β r))%:num µ(dr), fine ∫ (bc_f (β r))%:num µ(dr))]
+
+    The construction mirrors [cone_one_int] for the [⊥] cone: each
+    coordinate's integral is finite (the integrand is bounded by the
+    path's uniform [M] and the measure is finite), non-negative, and
+    satisfies the Pettis equation against each of the three tests in
+    [mcone_M_bool]. *)
+
+Section BoolConeICone.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation T := (bool_cone_car Ar).
+
+Local Open Scope ereal_scope.
+
+(** Helper: each coordinate of [β r] is measurable. The proof
+    pattern is identical to [cone_one_int_fin] but specialized to a
+    bool-tagged test. *)
+Lemma bool_coord_meas
+    (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> T)
+    (Hβ : is_measurable_path β)
+    (b : bool) :
+  measurable_fun setT
+    (fun r => ((if b then (bc_t (β r))%:num
+                     else (bc_f (β r))%:num))%:E).
+Proof.
+case: Hβ => [_ Hmeas].
+apply/measurable_EFinP.
+pose m := BoolConeMConeAux.bool_test (Ar:=Ar) (ar_zero Ar) (Some b).
+have mM : @mcone_M R Ar _ (ar_zero Ar) m by exists (Some b).
+pose F (p : ar_carrier Ar (ar_zero Ar) * ar_carrier Ar X) : R :=
+  test_fun m p.1 (β p.2).
+have HmeasF : measurable_fun
+    [set: (ar_carrier Ar (ar_zero Ar) * ar_carrier Ar X)%type] F.
+  exact: Hmeas.
+have HFeq : forall r,
+    (if b then (bc_t (β r))%:num else (bc_f (β r))%:num)
+    = F (ar_zero_pt Ar, r).
+  move=> r.
+  by rewrite /F /m /BoolConeMConeAux.bool_test/=
+             /BoolConeMConeAux.bool_test_fun
+             /BoolConeMConeAux.bc_test_val.
+have -> : (fun r => if b then (bc_t (β r))%:num
+                        else (bc_f (β r))%:num) =
+          (fun r => F (ar_zero_pt Ar, r)).
+  by apply: funext.
+apply: (measurableT_comp (f := F)) => //.
+Qed.
+
+(** Helper: the componentwise integral is finite. *)
+Lemma bool_int_fin
+    (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> T)
+    (Hβ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X))
+    (b : bool) :
+  \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+    ((if b then (bc_t (β r))%:num
+            else (bc_f (β r))%:num))%:E \is a fin_num.
+Proof.
+(** Strategy: show finiteness uniformly in [b]. We isolate the
+    coordinate-specific arguments inside a helper that branches on
+    [b] *first*, then exposes [bc_t]/[bc_f] without an [if]. *)
+suff aux : forall (γ : ar_carrier Ar X -> {nonneg R}),
+    (forall r, ((γ r)%:num <= cone_norm (β r))%R) ->
+    measurable_fun setT (fun r => ((γ r)%:num)%:E) ->
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) ((γ r)%:num)%:E
+       \is a fin_num.
+  have meas_b := bool_coord_meas Hβ b.
+  case: b meas_b => meas_b.
+  - apply: (aux (fun r => bc_t (β r))).
+    + by move=> r; rewrite /cone_norm/= /bc_norm lerDl nngnum_ge0.
+    + by [].
+  - apply: (aux (fun r => bc_f (β r))).
+    + by move=> r; rewrite /cone_norm/= /bc_norm lerDr nngnum_ge0.
+    + by [].
+move=> γ Hbd meas_γ.
+case: Hβ => [[M HM] _].
+have HM_b r : ((γ r)%:num)%:E <= M%:E.
+  by rewrite lee_fin; apply: le_trans (Hbd r) (HM r).
+apply: fin_real.
+apply/andP; split.
+  apply: (@lt_le_trans _ _ 0); first by rewrite ltNyr.
+  by apply: integral_ge0 => r _; rewrite lee_fin nngnum_ge0.
+pose Mp : R := Num.max M 0%R.
+have HMp : (0 <= Mp)%R by rewrite le_max lexx orbT.
+have HMb r : ((γ r)%:num)%:E <= Mp%:E.
+  rewrite lee_fin; apply: le_trans (Hbd r) _.
+  by apply: le_trans (HM r) _; rewrite le_max lexx.
+apply: (@le_lt_trans _ _ (Mp%:E * fmeas_mu µ [set: ar_carrier Ar X])).
+  have -> : Mp%:E * fmeas_mu µ [set: ar_carrier Ar X] =
+            \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) (cst Mp%:E) r.
+    by rewrite integral_cst.
+  apply: ge0_le_integral.
+  - exact: measurableT.
+  - by move=> r _; rewrite lee_fin nngnum_ge0.
+  - exact: meas_γ.
+  - exact: measurable_cst.
+  - by move=> r _; exact: HMb.
+have HfinT : fmeas_mu µ [set: ar_carrier Ar X] \is a fin_num
+  by exact: fmeas_setT_fin.
+apply: lte_mul_pinfty => //.
+by rewrite ltey_eq HfinT.
+Qed.
+
+(** Helper: the value of the integral is non-negative (so the
+    componentwise integral can be wrapped as a [{nonneg R}]). *)
+Lemma bool_int_ge0
+    (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> T)
+    (µ : fmeas R (ar_carrier Ar X))
+    (b : bool) :
+  (0 <= fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+                ((if b then (bc_t (β r))%:num
+                        else (bc_f (β r))%:num))%:E))%R.
+Proof.
+apply: fine_ge0.
+by apply: integral_ge0 => r _; rewrite lee_fin; case: b; exact: nngnum_ge0.
+Qed.
+
+(** The componentwise integral, wrapped as a [bool_cone_car]. *)
+Definition bool_int
+    (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> T)
+    (_ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X)) : T :=
+  MkBoolCone Ar
+    (NngNum (bool_int_ge0 β µ true))
+    (NngNum (bool_int_ge0 β µ false)).
+
+(** Pettis equation: for each test in the family, [test_fun m s
+    bool_int = fine ∫ test_fun m s (β r) dµ]. We do this for each
+    of the three tag-cases. *)
+Lemma bool_int_pettis
+    (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> T)
+    (Hβ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X)) :
+  path_integral_eq β µ (bool_int Hβ µ).
+Proof.
+move=> m mM s.
+case: mM => o _ <-.
+rewrite /BoolConeMConeAux.bool_test/= /BoolConeMConeAux.bool_test_fun
+        /BoolConeMConeAux.bc_test_val.
+case: o => [[]|]/=.
+- (* Some true: t-coordinate integral. *)
+  by rewrite /bool_int.
+- (* Some false: f-coordinate integral. *)
+  by rewrite /bool_int.
+- (* None: total mass = sum of the two integrals. *)
+  rewrite /bool_int/=.
+  have meas_t := bool_coord_meas Hβ true.
+  have meas_f := bool_coord_meas Hβ false.
+  have fin_t := bool_int_fin Hβ µ true.
+  have fin_f := bool_int_fin Hβ µ false.
+  have -> :
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+      ((bc_t (β r))%:num + (bc_f (β r))%:num)%:E =
+    \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+      (((bc_t (β r))%:num)%:E + ((bc_f (β r))%:num)%:E).
+    by apply: eq_integral => r _; rewrite EFinD.
+  rewrite ge0_integralD.
+  + by rewrite -fineD.
+  + exact: measurableT.
+  + by move=> r _; rewrite lee_fin nngnum_ge0.
+  + exact: meas_t.
+  + by move=> r _; rewrite lee_fin nngnum_ge0.
+  + exact: meas_f.
+Qed.
+
+(** Existence of the integral for every measurable path. *)
+Lemma bool_int_exists
+    (X : ar_obj Ar)
+    (β : ar_carrier Ar X -> T) :
+  is_measurable_path β ->
+  forall µ : fmeas R (ar_carrier Ar X),
+    is_path_integrable β µ.
+Proof.
+move=> Hβ µ.
+exists (bool_int Hβ µ); exact: bool_int_pettis.
+Qed.
+
+End BoolConeICone.
+
+(** Register the [isICone] instance on [bool_cone_car Ar]. *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
+  @isICone.Build R Ar (bool_cone_car Ar)
+    (@bool_int_exists R Ar).
