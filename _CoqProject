@@ -26,6 +26,7 @@ theories/icones/pettis.v
 theories/icones/icone.v
 theories/icones/icone_integral.v
 theories/icones/examples_icone.v
+theories/cones/bool_cone.v
 theories/icones/fubini.v
 theories/icones/icone_cat.v
 theories/mcones/test_pullback.v
