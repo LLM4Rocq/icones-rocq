@@ -33,6 +33,21 @@
                     (Mssep), (Msnorm) are all directly discharged.
     - [isICone]   — Pettis integral against any finite measure on
                     any [ar_obj] returns the componentwise integral.
+
+    *** Categorical content (paper §4.4 / Theorem 4.24)
+
+    [bool_cone_car Ar] is the categorical coproduct
+    [cone_one_car Ar ⊕ cone_one_car Ar] in ICones (paper p. 34).
+    [bool_dirac_true]/[bool_dirac_false] are the injections
+    [in_t(1)]/[in_f(1)]. [bool_case x a b = bc_t x · a + bc_f x · b]
+    is the universal co-pairing [a, b] of paper p. 34's universal-
+    property formula. The linearity-in-x ([bool_case_linear]) and
+    the norm bound ([bool_case_norm_le1]) are the universal-property
+    witnesses; ω-continuity ([bool_case_omega_continuous]),
+    measurable-path preservation ([bool_case_pres_path]) and
+    integral preservation ([bool_case_pres_int]) upgrade the
+    co-pairing to a full ICones morphism ([bool_case_icones_hom],
+    paper Def 4.10).
 *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
