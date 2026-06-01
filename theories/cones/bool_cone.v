@@ -41,6 +41,8 @@ From mathcomp.reals Require Import reals constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import measurable_realfun.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
@@ -435,3 +437,223 @@ HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
     (@bc_normh R Ar) (@bc_normz R Ar) (@bc_normt R Ar) (@bc_normp R Ar)
     (@bc_sup_ball R Ar)
     (@bc_sup_ball_ub R Ar) (@bc_sup_ball_lub R Ar) (@bc_sup_ball_norm R Ar).
+
+(** ** Stage 3 — the [isMCone] instance
+
+    Tests on [bool_cone_car] at arity [Y] are indexed by an [option
+    bool]:
+
+    - [Some true]  — the projection [π_t : (p, q) ↦ p].
+    - [Some false] — the projection [π_f : (p, q) ↦ q].
+    - [None]       — the *norm* test [‖(p, q)‖ = p + q].
+
+    (Mssep) holds because the two projections separate; (Msnorm) at
+    arity 0 holds for the norm test (with [eps] slack from the
+    eps>0 condition); reindexing is trivial since all three test
+    families are constant in the arity parameter. *)
+
+Module BoolConeMConeAux.
+Section BoolConeMConeAux.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation T := (bool_cone_car Ar).
+
+(** Test indexed by [option bool]:
+    - [Some b] gives the coordinate projection (true → bc_t, false → bc_f);
+    - [None] gives the norm [bc_t + bc_f]. *)
+Definition bc_test_val (o : option bool) (x : T) : R :=
+  match o with
+  | Some true  => (bc_t x)%:num
+  | Some false => (bc_f x)%:num
+  | None       => (bc_t x)%:num + (bc_f x)%:num
+  end.
+
+(** All eight test laws for [bc_test_val o] at any arity [Y]. We
+    parameterize the constructions by [(Y, o)] as explicit arguments
+    rather than section variables — this avoids opacity of section
+    variables that blocks [case: o] from substituting in hypotheses. *)
+
+Definition bool_test_fun (Y : ar_obj Ar) (o : option bool)
+    : ar_carrier Ar Y -> T -> R :=
+  fun _ x => bc_test_val o x.
+
+Lemma bool_test_meas (Y : ar_obj Ar) (o : option bool) (x : T) :
+  cone_norm x <= 1 ->
+  measurable_fun setT (fun r => @bool_test_fun Y o r x).
+Proof. by move=> _; exact: measurable_cst. Qed.
+
+Lemma bool_test_ge0 (Y : ar_obj Ar) (o : option bool)
+    (r : ar_carrier Ar Y) (x : T) :
+  0 <= @bool_test_fun Y o r x.
+Proof.
+rewrite /bool_test_fun /bc_test_val.
+by case: o => [[]|]; rewrite ?addr_ge0 ?nngnum_ge0.
+Qed.
+
+Lemma bool_test_le1 (Y : ar_obj Ar) (o : option bool)
+    (r : ar_carrier Ar Y) (x : T) :
+  cone_norm x <= 1 -> @bool_test_fun Y o r x <= 1.
+Proof.
+move=> Hnorm.
+have Hxy : (bc_t x)%:num + (bc_f x)%:num <= 1.
+  by have := Hnorm; rewrite /cone_norm/= /bc_norm.
+rewrite /bool_test_fun /bc_test_val.
+case: o => [[]|]//.
+- by rewrite (le_trans _ Hxy)// lerDl nngnum_ge0.
+- by rewrite (le_trans _ Hxy)// lerDr nngnum_ge0.
+Qed.
+
+Lemma bool_test_lin0 (Y : ar_obj Ar) (o : option bool)
+    (r : ar_carrier Ar Y) :
+  @bool_test_fun Y o r precone_zero = 0.
+Proof.
+rewrite /bool_test_fun /bc_test_val.
+by case: o => [[]|]//=; rewrite ?addr0.
+Qed.
+
+Lemma bool_test_linD (Y : ar_obj Ar) (o : option bool)
+    (r : ar_carrier Ar Y) (x y : T) :
+  @bool_test_fun Y o r (precone_add x y) =
+  @bool_test_fun Y o r x + @bool_test_fun Y o r y.
+Proof.
+rewrite /bool_test_fun /bc_test_val /precone_add/=.
+case: o => [[]|]//=; rewrite !nng_addE//.
+by rewrite addrACA.
+Qed.
+
+Lemma bool_test_linZ (Y : ar_obj Ar) (o : option bool)
+    (r : ar_carrier Ar Y) (s : {nonneg R}) (x : T) :
+  @bool_test_fun Y o r (precone_scale s x) =
+  s%:num * @bool_test_fun Y o r x.
+Proof.
+rewrite /bool_test_fun /bc_test_val /precone_scale/=.
+case: o => [[]|]//=; rewrite ?nng_mulE//.
+by rewrite mulrDr.
+Qed.
+
+(** ω-continuity: each test value at the sup-ball equals the sup of
+    the test values along the chain. *)
+Lemma bool_test_cont (Y : ar_obj Ar) (o : option bool)
+    (r : ar_carrier Ar Y) (u : nat -> T)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (N : R) :
+  (forall n, @bool_test_fun Y o r (u n) <= N) ->
+  @bool_test_fun Y o r (cone_sup_ball u uch ub1) <= N.
+Proof.
+rewrite /bool_test_fun /bc_test_val /cone_sup_ball/=.
+case: o => [[]|] HN.
+- (* Some true: sup of bc_t. *)
+  apply: ge_sup.
+  + by exists (bc_t (u 0%N))%:num; exists 0%N.
+  + by move=> y [n _ <-]; exact: HN.
+- (* Some false: sup of bc_f. *)
+  apply: ge_sup.
+  + by exists (bc_f (u 0%N))%:num; exists 0%N.
+  + by move=> y [n _ <-]; exact: HN.
+- (* None: sup of t + f. Reuse the maxn argument from bc_sup_ball_norm. *)
+  set St : set R := [set (bc_t (u n))%:num | n in [set: nat]].
+  set Sf : set R := [set (bc_f (u n))%:num | n in [set: nat]].
+  have ch_t : forall n, (bc_t (u n))%:num <= (bc_t (u n.+1))%:num
+    by move=> n; have /bc_leE [-> _] := uch n.
+  have ch_f : forall n, (bc_f (u n))%:num <= (bc_f (u n.+1))%:num
+    by move=> n; have /bc_leE [_ ->] := uch n.
+  have chain_mono : forall n m, (n <= m)%N ->
+      (bc_t (u n))%:num <= (bc_t (u m))%:num /\
+      (bc_f (u n))%:num <= (bc_f (u m))%:num.
+    move=> n m; elim: m => [|m IH]; first by rewrite leqn0=> /eqP ->.
+    rewrite leq_eqVlt => /orP[/eqP ->|]; first by [].
+    rewrite ltnS => /IH [Ht Hf]; split.
+    - exact: le_trans Ht (ch_t m).
+    - exact: le_trans Hf (ch_f m).
+  have St_ne : St !=set0 by exists (bc_t (u 0%N))%:num; exists 0%N.
+  have Sf_ne : Sf !=set0 by exists (bc_f (u 0%N))%:num; exists 0%N.
+  have step1 : forall n, (bc_t (u n))%:num + sup Sf <= N.
+    move=> n.
+    rewrite -lerBrDl.
+    apply: ge_sup; first exact: Sf_ne.
+    move=> x [m _ <-].
+    rewrite lerBrDl.
+    pose k := maxn n m.
+    have nk : (n <= k)%N by exact: leq_maxl.
+    have mk : (m <= k)%N by exact: leq_maxr.
+    have [Ht _] := chain_mono _ _ nk.
+    have [_ Hf] := chain_mono _ _ mk.
+    by apply: le_trans _ (HN k); apply: lerD.
+  rewrite -lerBrDr.
+  apply: ge_sup; first exact: St_ne.
+  move=> x [n _ <-].
+  by rewrite lerBrDr; exact: step1.
+Qed.
+
+(** Each test is bounded by the norm. *)
+Lemma bool_test_norm_le (Y : ar_obj Ar) (o : option bool)
+    (r : ar_carrier Ar Y) (x : T) :
+  @bool_test_fun Y o r x <= cone_norm x.
+Proof.
+rewrite /bool_test_fun /bc_test_val /cone_norm/= /bc_norm.
+by case: o => [[]|]//; rewrite ?lerDl ?lerDr nngnum_ge0.
+Qed.
+
+Definition bool_test (Y : ar_obj Ar) (o : option bool) : test_of Ar Y T :=
+  MkTestOf (@bool_test_meas Y o) (@bool_test_ge0 Y o) (@bool_test_le1 Y o)
+           (@bool_test_lin0 Y o) (@bool_test_linD Y o) (@bool_test_linZ Y o)
+           (@bool_test_cont Y o) (@bool_test_norm_le Y o).
+
+(** The family at arity [Y] is the image of the three tags
+    [{bool_test None, bool_test (Some true), bool_test (Some false)}]. *)
+Definition mcone_M_bool (Y : ar_obj Ar) : set (test_of Ar Y T) :=
+  [set bool_test Y o | o in [set: option bool]].
+
+(** (Mscomp): reindexing of any tagged test is the same tagged test
+    at the new arity (test function is constant in the arity). *)
+Lemma mcone_M_bool_comp (Y X : ar_obj Ar) (φ : ar_hom Ar Y X)
+    (m : test_of Ar X T) :
+  mcone_M_bool m -> mcone_M_bool (test_reindex φ m).
+Proof.
+move=> [o _ <-].
+exists o => //.
+apply: test_eq => s x.
+by rewrite /test_reindex/= /test_reindex_fun /bool_test/= /bool_test_fun.
+Qed.
+
+(** (Mssep): two cone elements agreeing on both projections (the
+    [Some true] and [Some false] tags) at arity 0 are equal. *)
+Lemma mcone_M_bool_sep (x1 x2 : T) :
+  (forall m : test_of Ar (ar_zero Ar) T,
+    mcone_M_bool m ->
+    test_fun m (ar_zero_pt Ar) x1 = test_fun m (ar_zero_pt Ar) x2) ->
+  x1 = x2.
+Proof.
+move=> Hsep.
+have Ht : (bc_t x1)%:num = (bc_t x2)%:num.
+  by apply: (Hsep (bool_test (ar_zero Ar) (Some true))); exists (Some true).
+have Hf : (bc_f x1)%:num = (bc_f x2)%:num.
+  by apply: (Hsep (bool_test (ar_zero Ar) (Some false))); exists (Some false).
+by apply: bool_cone_eq; apply: nngnum_inj.
+Qed.
+
+(** (Msnorm) at arity 0. The [None]-tagged test *is* the norm, so
+    [‖x‖ = test_fun m … x ≤ test_fun m … x + eps] (with [eps > 0]). *)
+Lemma mcone_M_bool_norm (x : T) (eps : R) :
+  x <> precone_zero -> 0 < eps ->
+  exists m : test_of Ar (ar_zero Ar) T,
+    mcone_M_bool m /\
+    cone_norm x <= test_fun m (ar_zero_pt Ar) x + eps.
+Proof.
+move=> _ eps_pos.
+exists (bool_test (ar_zero Ar) None); split; first by exists None.
+rewrite /bool_test/= /bool_test_fun /bc_test_val /cone_norm/= /bc_norm.
+by rewrite ltW// ltrDl.
+Qed.
+
+End BoolConeMConeAux.
+End BoolConeMConeAux.
+
+(** Register the [isMCone] instance on [bool_cone_car Ar]. *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
+  @isMCone.Build R Ar (bool_cone_car Ar)
+    (@BoolConeMConeAux.mcone_M_bool R Ar)
+    (@BoolConeMConeAux.mcone_M_bool_comp R Ar)
+    (@BoolConeMConeAux.mcone_M_bool_sep R Ar)
+    (@BoolConeMConeAux.mcone_M_bool_norm R Ar).
