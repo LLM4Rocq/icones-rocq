@@ -65,6 +65,8 @@ Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
+Require Import Icones.homs.cbv_adjunction.
+Require Import Icones.homs.em_fix.
 Require Import Icones.programs.cbv.
 Require Import Icones.programs.ppl.
 
@@ -928,3 +930,203 @@ Definition ex_if_demo :
 End ExIfDemo.
 
 Arguments ex_if_demo {R Ar R_obj}.
+
+(** ** Phase 4 — productive partial-termination examples
+
+    End-to-end probabilistic recursive programs in the named PPL
+    surface syntax, combining [ne_fix] (the CBV value-fixpoint of
+    [theories/homs/em_fix.v]) with the [ne_if] / [ne_bernoulli]
+    boolean cascade (steps 1–4 of the §9 work) to exhibit
+    productive partial termination.
+
+    - [ex_geom] : the geometric distribution
+      [(let rec g = λ_. if Bernoulli(½) then 0 else 1 + g ()) ()] of
+      type [tR'].  Each recursive call halts with probability ½ and
+      contributes one unit to the returned real; total mass is 1, so
+      this is almost-surely terminating.
+
+    - [ex_almost_loop p _ _] : a parameterised partial-termination
+      example [(let rec l = λ_. if Bernoulli(p) then () else l ()) ()]
+      of type [tunit].  With continuation probability [1 - p], the
+      recursive call diverges; total mass is [p · Σ (1-p)^k = 1] when
+      [p > 0]. *)
+
+Section Phase4Examples.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+(** Witnesses [0 ≤ 1/2 ≤ 1] for the geometric example's fair-coin
+    Bernoulli scrutinee.  Re-derived locally so [Phase4Examples] is
+    self-contained. *)
+Lemma phase4_half_ge0 : (0 <= 1 / 2 :> R)%R.
+Proof. by rewrite divr_ge0// ler01. Qed.
+
+Lemma phase4_half_le1 : (1 / 2 <= 1 :> R)%R.
+Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
+
+Local Notation tR' := (tR R_obj).
+
+(** *** [ex_geom] — geometric distribution via [ne_fix] + [ne_if]
+
+    Source: [(let rec g = λ_. if Bernoulli(½) then 0
+                                            else 1 + g ()) ()].
+
+    A fair-coin geometric counter: each recursive call halts with
+    probability ½ and adds 1 to the running total; the outer
+    application fires the closure on [()].  The denotation lives in
+    [coalg_hom EM_term (Tobj (tyD tR'))]. *)
+
+Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
+  [ (fix "g" ::: tfun tunit tR' in
+       \ "_" ::: tunit =>
+         (if Bernoulli { (1 / 2 : R), phase4_half_ge0, phase4_half_le1 }
+          then [| 0%R |]
+          else [| 1%R |] + # "g" @ ())) @ () ].
+
+(** The body of the fixed-point lambda — used as the [body] argument to
+    [Yfix_fun_T] when stating the structural reduction lemma. *)
+Definition ex_geom_body :
+    @named_expr R Ar R_obj
+      (("g"%string, tfun tunit tR') :: nil)
+      (tfun tunit tR') :=
+  [ \ "_" ::: tunit =>
+      (if Bernoulli { (1 / 2 : R), phase4_half_ge0, phase4_half_le1 }
+       then [| 0%R |]
+       else [| 1%R |] + # "g" @ ()) ].
+
+(** Its denotation, a Kleisli arrow [⟦[]⟧ ⇝ ⟦tR'⟧]. *)
+Definition ex_geom_denot :
+    coalg_hom (ctxD (drop_names nil)) (Tobj (tyD tR')) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil tR' ex_geom.
+
+(** Structural reduction — exposes the outer [ne_app] of the
+    [ne_fix]/[ne_tt] pair.  Applying [eD_app] to the surface form
+    [(ne_fix _ body) @ ()] and unfolding the [ne_fix] branch of [eD]
+    to [Yfix_fun_T] (no separate [eD_fix] lemma is published) gives
+
+      [ex_geom_denot = kcomp (app_pair _ _)
+                             (coalg_comp (bang_m _ _)
+                                         (em_pair (Yfix_fun_T (eD ex_geom_body))
+                                                  (eD ne_tt)))].
+
+    The trailing [eD ne_tt] is the singleton-from-terminal Kleisli
+    return.  This is a STRUCTURAL rewrite, NOT a semantic-content
+    lemma: no closed form for the [Yfix_fun_T] iterate is claimed. *)
+Lemma ex_geom_denot_E :
+  ex_geom_denot =
+  kcomp (app_pair (tyD tunit) (tyD tR'))
+    (coalg_comp
+       (bang_m (coalg_obj (tyD (tfun tunit tR'))) (coalg_obj (tyD tunit)))
+       (em_pair
+          (Yfix_fun_T
+             (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+                  _ _ ex_geom_body))
+          (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+               _ _ (ne_tt (R_obj := R_obj) (G := nil))))).
+Proof.
+rewrite /ex_geom_denot /ex_geom.
+rewrite eD_app.
+by [].
+Qed.
+
+(** *** [ex_almost_loop p Hp_ge0 Hp_le1] — partial-termination with
+       continuation probability [1 - p]
+
+    Source: [(let rec l = λ_. if Bernoulli(p) then ()
+                                              else l ()) ()].
+
+    On each call the recursion halts with probability [p] (returning
+    [()]) and recurses with probability [1 - p].  When [p > 0] the
+    function terminates almost surely.
+
+    Note on the [@ex_almost_loop] call in [ex_almost_loop_denot]: the
+    section setting [Set Implicit Arguments] makes [p] auto-implicit
+    (because [Hp_ge0] / [Hp_le1] reference it in their types), so the
+    re-binding needs an explicit [@] here.  The final [Arguments]
+    directive below restores [p] to explicit at the file's top
+    level. *)
+
+Definition ex_almost_loop (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+    @named_expr R Ar R_obj nil tunit :=
+  [ (fix "l" ::: tfun tunit tunit in
+       \ "_" ::: tunit =>
+         (if Bernoulli { p, Hp_ge0, Hp_le1 }
+          then ()
+          else # "l" @ ())) @ () ].
+
+(** Its lambda body, in the extended context
+    [("l", tfun tunit tunit) :: nil]. *)
+Definition ex_almost_loop_body (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+    @named_expr R Ar R_obj
+      (("l"%string, tfun tunit tunit) :: nil)
+      (tfun tunit tunit) :=
+  [ \ "_" ::: tunit =>
+      (if Bernoulli { p, Hp_ge0, Hp_le1 }
+       then ()
+       else # "l" @ ()) ].
+
+(** Its denotation, a Kleisli arrow [⟦[]⟧ ⇝ ⟦tunit⟧]. *)
+Definition ex_almost_loop_denot (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+    coalg_hom (ctxD (drop_names nil)) (Tobj (tyD tunit)) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil tunit (@ex_almost_loop p Hp_ge0 Hp_le1).
+
+(** Structural reduction — the [tunit]-typed analogue of
+    [ex_geom_denot_E].  Applies [eD_app] to the outer [ne_app] and
+    unfolds the [ne_fix] branch of [eD] to [Yfix_fun_T]:
+
+      [ex_almost_loop_denot p _ _ =
+         kcomp (app_pair _ _)
+               (coalg_comp (bang_m _ _)
+                           (em_pair
+                              (Yfix_fun_T (eD (ex_almost_loop_body p _ _)))
+                              (eD ne_tt)))].
+
+    STRUCTURAL rewrite only; no closed form for the [Yfix_fun_T]
+    iterate is claimed (and indeed the operational behaviour
+    depends on [p] in a non-trivial way: when [p = 0] the program
+    diverges almost surely; when [p > 0] it terminates almost
+    surely). *)
+Lemma ex_almost_loop_denot_E (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+  @ex_almost_loop_denot p Hp_ge0 Hp_le1 =
+  kcomp (app_pair (tyD tunit) (tyD tunit))
+    (coalg_comp
+       (bang_m (coalg_obj (tyD (tfun tunit tunit))) (coalg_obj (tyD tunit)))
+       (em_pair
+          (Yfix_fun_T
+             (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+                  _ _ (@ex_almost_loop_body p Hp_ge0 Hp_le1)))
+          (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+               _ _ (ne_tt (R_obj := R_obj) (G := nil))))).
+Proof.
+rewrite /ex_almost_loop_denot /ex_almost_loop.
+rewrite eD_app.
+by [].
+Qed.
+
+End Phase4Examples.
+
+Arguments ex_geom {R Ar R_obj}.
+Arguments ex_geom_body {R Ar R_obj}.
+Arguments ex_geom_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas.
+Arguments ex_geom_denot_E {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas.
+Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
+Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
+Arguments ex_almost_loop_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas p Hp_ge0 Hp_le1.
+Arguments ex_almost_loop_denot_E {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas p Hp_ge0 Hp_le1.
