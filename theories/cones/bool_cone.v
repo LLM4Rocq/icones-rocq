@@ -1286,3 +1286,217 @@ by apply: bool_case_sup_distrib => //; apply: nngnum_ge0.
 Qed.
 
 End BoolCaseOmegaCont.
+
+(** ** Path- and integral-preservation — Step 3
+
+    With ω-continuity in hand we can now upgrade [bool_case . a b] to
+    a [linhom_car].  Two extra facts are needed:
+
+    - [linhom_pre_pres_path]: [r ↦ bool_case (γ r) a b] is a measurable
+      path in [A] whenever [γ] is a measurable path in [bool_cone_car].
+    - [linhom_pres_int]: the integral commutes —
+      [bool_case (∫ β dµ) a b = ∫ (bool_case (β r) a b) dµ].
+
+    Both follow from the test-level [test_linD]/[test_linZ]
+    decomposition plus standard measurability and integral linearity. *)
+
+Section BoolCasePresPath.
+Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
+Local Notation T := (bool_cone_car Ar).
+
+(** [bool_case . a b] preserves measurable paths. *)
+Lemma bool_case_pres_path
+    (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1)
+    (X : ar_obj Ar) (γ : ar_carrier Ar X -> T)
+    (Hγ : is_measurable_path γ) :
+  is_measurable_path (fun r : ar_carrier Ar X => bool_case (γ r) a b).
+Proof.
+split.
+- (* Boundedness: ‖bool_case (γ r) a b‖ ≤ ‖γ r‖ ≤ M. *)
+  case: Hγ => [[M HM] _].
+  exists M => r.
+  apply: le_trans (HM r).
+  exact: bool_case_norm_le1.
+- (* Test measurability: (s, r) ↦ test m s (bool_case (γ r) a b) is
+     measurable. *)
+  move=> Y m mM.
+  have HmA : measurable_fun setT (fun s => test_fun m s a).
+    exact: test_meas.
+  have HmB : measurable_fun setT (fun s => test_fun m s b).
+    exact: test_meas.
+  (* α(s) := test m s a, β(s) := test m s b.  Both are measurable in s. *)
+  have meas_t : measurable_fun setT
+      (fun r : ar_carrier Ar X => (bc_t (γ r))%:num).
+    have meas_t_E := bool_coord_meas Hγ true.
+    by have /measurable_EFinP := meas_t_E.
+  have meas_f : measurable_fun setT
+      (fun r : ar_carrier Ar X => (bc_f (γ r))%:num).
+    have meas_f_E := bool_coord_meas Hγ false.
+    by have /measurable_EFinP := meas_f_E.
+  (* Now express [test m s (bool_case (γ r) a b)] as a polynomial. *)
+  have heq : forall p : ar_carrier Ar Y * ar_carrier Ar X,
+      test_fun m p.1 (bool_case (γ p.2) a b)
+      = (bc_t (γ p.2))%:num * test_fun m p.1 a
+      + (bc_f (γ p.2))%:num * test_fun m p.1 b.
+    move=> p; rewrite /bool_case test_linD !test_linZ.
+    by [].
+  have -> : (fun p : ar_carrier Ar Y * ar_carrier Ar X =>
+              test_fun m p.1 (bool_case (γ p.2) a b))
+          = (fun p => (bc_t (γ p.2))%:num * test_fun m p.1 a
+                    + (bc_f (γ p.2))%:num * test_fun m p.1 b).
+    by apply: funext.
+  apply: measurable_funD.
+  + (* (bc_t (γ p.2)) * test m p.1 a *)
+    apply: measurable_funM.
+    * apply: (measurableT_comp meas_t measurable_snd).
+    * exact: (measurableT_comp HmA measurable_fst).
+  + (* (bc_f (γ p.2)) * test m p.1 b *)
+    apply: measurable_funM.
+    * apply: (measurableT_comp meas_f measurable_snd).
+    * exact: (measurableT_comp HmB measurable_fst).
+Qed.
+
+End BoolCasePresPath.
+
+Arguments bool_case_pres_path {R Ar A} a b Ha Hb {X} γ Hγ.
+
+(** ** Integral preservation for [bool_case . a b]
+
+    Substep 3b: the Pettis integral commutes with [bool_case]:
+    [bool_case (∫ β dµ) a b = ∫ (bool_case (β r) a b) dµ].
+    By [icone_integral_eqP], it suffices to show the LHS satisfies
+    [path_integral_eq] for the image path [r ↦ bool_case (β r) a b].
+    That reduces, on each test [m] at arity 0, to the scalar
+    identity
+       [bc_t(I) * α + bc_f(I) * β = ∫ (bc_t(β r) * α + bc_f(β r) * β) dµ]
+    where [I = icone_integral β Hβ µ] and [α, β] are the test values
+    at [a, b].  Using [test_linD]/[test_linZ] on the LHS, the
+    coordinate-Pettis identities of [bool_int_pettis] (applied to the
+    [Some true]/[Some false] tag tests) close out. *)
+
+Section BoolCasePresInt.
+Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
+Local Notation T := (bool_cone_car Ar).
+
+Lemma bool_case_pres_int
+    (a b : A) (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R)
+    (X : ar_obj Ar) (β : ar_carrier Ar X -> T)
+    (Hβ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X)) :
+  bool_case (icone_integral β Hβ µ) a b =
+  icone_integral (fun r => bool_case (β r) a b)
+                 (bool_case_pres_path a b Ha Hb β Hβ) µ.
+Proof.
+(* Apply uniqueness of integral on the image path. *)
+apply: icone_integral_eqP.
+move=> m mM s.
+(* Decompose test on LHS via linearity. *)
+set I := icone_integral β Hβ µ.
+rewrite /bool_case test_linD !test_linZ.
+(* Right-hand integrand: test(bool_case (β r) a b) = bc_t(β r)*α + bc_f(β r)*β. *)
+have integrand_eq :
+    forall r, (test_fun m s (bool_case (β r) a b))%:E =
+              ((bc_t (β r))%:num * test_fun m s a)%:E
+              + ((bc_f (β r))%:num * test_fun m s b)%:E.
+  by move=> r; rewrite /bool_case test_linD !test_linZ EFinD.
+have meas_t_E := bool_coord_meas Hβ true.
+have meas_f_E := bool_coord_meas Hβ false.
+have meas_t : measurable_fun setT
+    (fun r : ar_carrier Ar X => (bc_t (β r))%:num)
+  by have /measurable_EFinP := meas_t_E.
+have meas_f : measurable_fun setT
+    (fun r : ar_carrier Ar X => (bc_f (β r))%:num)
+  by have /measurable_EFinP := meas_f_E.
+(* Both sides are finite: cone_norm bounded implies test bounded. *)
+have HmA : measurable_fun setT (fun s' => test_fun m s' a)
+  by exact: test_meas.
+have HmB : measurable_fun setT (fun s' => test_fun m s' b)
+  by exact: test_meas.
+(* The fine of the sum-integral = sum of the fines. *)
+have ge0_t : forall r, (0 <= ((bc_t (β r))%:num)%:E)%E
+  by move=> r; rewrite lee_fin nngnum_ge0.
+have ge0_f : forall r, (0 <= ((bc_f (β r))%:num)%:E)%E
+  by move=> r; rewrite lee_fin nngnum_ge0.
+have alpha_ge0 : 0 <= test_fun m s a by exact: test_ge0.
+have beta_ge0 : 0 <= test_fun m s b by exact: test_ge0.
+(* Step 1: relate icone_integral β to bool_int (both satisfy path_integral_eq). *)
+have I_eq : I = bool_int Hβ µ.
+  rewrite /I.
+  apply/esym/icone_integral_eqP.
+  exact: bool_int_pettis.
+rewrite I_eq /bool_int /=.
+(* Step 2: the two halves of the integral computation. *)
+(* By definition of bool_int, bc_t I = fine ∫ bc_t(β r). *)
+have eq_t : (NngNum (bool_int_ge0 β µ true))%:num =
+            fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+                    ((bc_t (β r))%:num)%:E).
+  rewrite /=.
+  apply: congr1.
+  by apply: eq_integral.
+have eq_f : (NngNum (bool_int_ge0 β µ false))%:num =
+            fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+                    ((bc_f (β r))%:num)%:E).
+  rewrite /=.
+  apply: congr1.
+  by apply: eq_integral.
+rewrite eq_t eq_f.
+(* Step 3: the RHS integral = sum of the two fine integrals * α, β. *)
+have RHS_eq :
+    (\int[fmeas_mu µ]_r ((test_fun m s (bool_case (β r) a b))%:E)
+    = (test_fun m s a)%:E
+      * (\int[fmeas_mu µ]_r ((bc_t (β r))%:num)%:E)
+    + (test_fun m s b)%:E
+      * (\int[fmeas_mu µ]_r ((bc_f (β r))%:num)%:E))%E.
+  rewrite (eq_integral
+      (fun r => (((bc_t (β r))%:num * test_fun m s a)%:E
+             + ((bc_f (β r))%:num * test_fun m s b)%:E)%E));
+    last by move=> r _; rewrite /=; exact: integrand_eq.
+  have ge0_t_a : forall r : ar_carrier Ar X, True ->
+      (0%R <= ((bc_t (β r))%:num * test_fun m s a)%:E)%E.
+    by move=> r _; rewrite lee_fin mulr_ge0 ?nngnum_ge0.
+  have ge0_f_b : forall r : ar_carrier Ar X, True ->
+      (0%R <= ((bc_f (β r))%:num * test_fun m s b)%:E)%E.
+    by move=> r _; rewrite lee_fin mulr_ge0 ?nngnum_ge0.
+  have meas_t_a : measurable_fun [set: ar_carrier Ar X]
+      (fun r : ar_carrier Ar X => ((bc_t (β r))%:num * test_fun m s a)%:E).
+    apply/measurable_EFinP.
+    by apply: measurable_funM => //; exact: measurable_cst.
+  have meas_f_b : measurable_fun [set: ar_carrier Ar X]
+      (fun r : ar_carrier Ar X => ((bc_f (β r))%:num * test_fun m s b)%:E).
+    apply/measurable_EFinP.
+    by apply: measurable_funM => //; exact: measurable_cst.
+  rewrite (ge0_integralD _ measurableT ge0_t_a meas_t_a ge0_f_b meas_f_b).
+  congr (_ + _)%E.
+  - rewrite (eq_integral
+        (fun r => ((test_fun m s a)%:E * ((bc_t (β r))%:num)%:E)%E));
+      last by move=> r _; rewrite /= -EFinM mulrC.
+    by rewrite ge0_integralZl//; apply/measurable_EFinP.
+  - rewrite (eq_integral
+        (fun r => ((test_fun m s b)%:E * ((bc_f (β r))%:num)%:E)%E));
+      last by move=> r _; rewrite /= -EFinM mulrC.
+    by rewrite ge0_integralZl//; apply/measurable_EFinP.
+rewrite RHS_eq.
+(* Step 4: pull fine through addition + multiplication. *)
+have fin_t : (\int[fmeas_mu µ]_r ((bc_t (β r))%:num)%:E)%E \is a fin_num.
+  have := bool_int_fin Hβ µ true.
+  by rewrite (eq_integral (fun r => ((bc_t (β r))%:num)%:E))//;
+    move=> r _; rewrite /=.
+have fin_f : (\int[fmeas_mu µ]_r ((bc_f (β r))%:num)%:E)%E \is a fin_num.
+  have := bool_int_fin Hβ µ false.
+  by rewrite (eq_integral (fun r => ((bc_f (β r))%:num)%:E))//;
+    move=> r _; rewrite /=.
+have fin_mult_t : ((test_fun m s a)%:E
+    * \int[fmeas_mu µ]_r ((bc_t (β r))%:num)%:E)%E \is a fin_num.
+  by apply: fin_numM.
+have fin_mult_f : ((test_fun m s b)%:E
+    * \int[fmeas_mu µ]_r ((bc_f (β r))%:num)%:E)%E \is a fin_num.
+  by apply: fin_numM.
+have alpha_fin : (test_fun m s a)%:E \is a fin_num by [].
+have beta_fin : (test_fun m s b)%:E \is a fin_num by [].
+rewrite (fineD fin_mult_t fin_mult_f).
+rewrite (fineM alpha_fin fin_t).
+rewrite (fineM beta_fin fin_f).
+by rewrite [(test_fun _ _ a * _)%R]mulrC [(test_fun _ _ b * _)%R]mulrC.
+Qed.
+
+End BoolCasePresInt.
