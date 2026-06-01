@@ -268,3 +268,80 @@ Arguments tensor_hom_bwd {R Ar} B C D.
 Arguments tensor_curry_inj {R Ar B C D}.
 Arguments tensor_ext {R Ar B C D}.
 Arguments tensor_ext3 {R Ar A B C D}.
+
+(** ** Bridge: [tensor_mor u id_C = tensor_mor_l u]
+
+    The [tensor_construct.v] file defines [tensor_mor_l u :=
+    tensor_uncurry (tau' B C ∘ u) : B' ⊗ C → B ⊗ C], used to express
+    the naturality of [tensor_curry] in [B] ([tensor_curry_natural_B_post]).
+    The [tensor.v] file defines [tensor_mor u id_C] via the bifunctor
+    [tensor_mor f g := tensor_uncurry ((C₂ ⊸ g) ∘ τ ∘ f)] with [g := id_C].
+    Both produce the same icones_hom; the equality is the one-step
+    [linhom_pre_icones (icones_id _) = id] reduction plus the observation
+    that [tau B C = tau' B C] (since [tau B C = tensor_curry (icones_id _)
+    = (linhom_post_icones id) ∘ tau' B C = tau' B C]).
+
+    This bridge is what lets the surface β-rule on [eD] route through the
+    tensor-uncurry naturality of [tensor_construct.v]. *)
+Section TensorMorIdEqMorL.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** Concrete bridge: [tau = tau'] (the [tensor.v] universal map equals
+    the [tensor_construct.v] SAFT-equaliser universal element). *)
+Lemma tau_eq_tau' (B C : ICone.type Ar) :
+  tau B C = tau' B C.
+Proof.
+rewrite /tau /tensor_curry linhom_post_id icones_compIl.
+by [].
+Qed.
+
+(** [tensor_mor u id_C = tensor_mor_l u] for any [u : B' → B] and [C].
+    Proof: both sides are uncurries; their curries coincide. *)
+Lemma tensor_mor_id_eq_tensor_mor_l
+    (B B' C : ICone.type Ar) (u : icones_hom Ar B' B) :
+  tensor_mor u (icones_id Ar C) = tensor_mor_l u.
+Proof.
+apply: tensor_curry_inj.
+rewrite tensor_mor_lK.
+rewrite /tensor_mor.
+rewrite (_ : linhom_pre_icones (icones_id Ar C) =
+             icones_id Ar (linhom_car Ar C (tensor Ar B C))); last first.
+  by rewrite /linhom_pre_icones linhom_map_icones_id.
+rewrite icones_compIl.
+rewrite tensor_uncurryK.
+by rewrite tau_eq_tau'.
+Qed.
+
+End TensorMorIdEqMorL.
+
+Arguments tau_eq_tau' {R Ar} B C.
+Arguments tensor_mor_id_eq_tensor_mor_l {R Ar B B' C} u.
+
+(** ** [tensor_uncurry] naturality in the LEFT (uncurried-domain) factor
+
+    Companion to [tensor_curry_natural_B_post] (the curry side).  For
+    [g : B → C ⊸ D] and [u : B' → B], pre-composing the uncurried map
+    by [tensor_mor u id_C] is the same as uncurrying [g ∘ u]:
+    [[
+        tensor_uncurry g ∘ (u ⊗ id_C) = tensor_uncurry (g ∘ u).
+    ]]
+    Proof: by [tensor_curry_inj].  The curry of the LHS is
+    [tensor_curry (tensor_uncurry g ∘ tensor_mor_l u)]
+      [= tensor_curry (tensor_uncurry g) ∘ u]   ([tensor_curry_natural_B_post])
+      [= g ∘ u]                                  ([tensor_uncurryK]);
+    the curry of the RHS is [tensor_uncurryK].  Use
+    [tensor_mor_id_eq_tensor_mor_l] to bridge [u ⊗ id_C] and [tensor_mor_l u]. *)
+Lemma tensor_uncurry_natL (R : realType) (Ar : MeasSubcat R)
+    (B B' C D : ICone.type Ar)
+    (u : icones_hom Ar B' B) (g : icones_hom Ar B (linhom_car Ar C D)) :
+  icones_comp (tensor_uncurry g)
+              (tensor_mor u (icones_id Ar C)) =
+  tensor_uncurry (icones_comp g u).
+Proof.
+apply: tensor_curry_inj.
+rewrite tensor_mor_id_eq_tensor_mor_l.
+rewrite (tensor_curry_natural_B_post u (tensor_uncurry g)).
+by rewrite !tensor_uncurryK.
+Qed.
+
+Arguments tensor_uncurry_natL {R Ar B B' C D} u g.
