@@ -142,6 +142,8 @@ Require Import Icones.homs.exp_adjunction.
 Require Import Icones.homs.bang.
 Require Import Icones.homs.seely_defs.
 Require Import Icones.homs.seely.
+Require Import Icones.homs.tensor_hom_iso.
+Require Import Icones.homs.bool_case_hom.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.fmeas_lax.
 Require Import Icones.homs.em_cat.
@@ -1530,6 +1532,121 @@ Arguments bernoulli_norm_le1 {R Ar} p Hp_ge0 Hp_le1.
 Arguments true_kleisli {R Ar} G.
 Arguments false_kleisli {R Ar} G.
 Arguments bernoulli_kleisli {R Ar} G p Hp_ge0 Hp_le1.
+
+(** ** [case_em] — the EM(!) [if-then-else] combinator
+
+    Given two Kleisli arrows [a, b : G ⇝ Tobj A] (the two branches) and an
+    implicit Kleisli bool source [Tobj tbool = bang_cofree (bool_cone_car)],
+    we want an EM-Kleisli arrow
+    [[
+       case_em a b : EM_prod G (bang_cofree (bool_cone_car Ar)) ⇝ Tobj A
+    ]]
+    that semantically computes [bool_case (der x) (a g) (b g)] for
+    [(g, x) ∈ G × bang_cofree bool_cone].
+
+    Structural finding (carried over from the [case_em] plan).  The map
+    [(a, b) ↦ bool_case · a · b] is NOT bilinear in [(a, b)]: at the
+    icones level [bool_case x (a₁+a₂) b ≠ bool_case x a₁ b + bool_case x
+    a₂ b] (a [bc_f·b] discrepancy).  We therefore cannot uncurry the
+    bundled branches through a single tensor; instead, we exploit the
+    fact that for an [icones_hom h : (coalg_obj G) → !(coalg_obj A)] the
+    operator norm is automatically [≤ 1] ([icones_to_linhom_norm_le1]),
+    so each [ch_mor a], [ch_mor b] lifts to a NORM-[≤1] point in the
+    hom-cone [linhom_car (coalg_obj G) (!(coalg_obj A))].  The
+    unit-ball version [bool_case_linhom] of [bool_case_hom.v] then
+    delivers a norm-[≤1] [linhom_car (bool_cone_car Ar)
+    (linhom_car (coalg_obj G) (!(coalg_obj A)))], which we bridge to an
+    [icones_hom] ([linhom_icones]) and SAFT-uncurry ([tensor_uncurry])
+    into [tensor (bool_cone_car) (coalg_obj G) → !(coalg_obj A)].  Braid
+    and pre-compose with [(id_G ⊗ der_{bool_cone})] to reach the right
+    source [(coalg_obj G) ⊗ !(bool_cone_car) → !(coalg_obj A)].
+    Finally [adj_psi] wraps this underlying icones_hom as a coalgebra
+    morphism into [bang_cofree (coalg_obj A) = Tobj A].
+
+    The [bool_case]/[α + β] decomposition of [bool_case_hom.v] is what
+    makes the linhom_car packaging at Step (b) work axiom-free: the two
+    branches enter SEPARATELY (each as a unit-ball point in the hom-cone),
+    so the bilinearity-in-[(a, b)] obstruction never surfaces. *)
+Section CaseEM.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G A : Coalgebra Ar).
+Variables (a b : coalg_hom G (Tobj A)).
+
+(** Branches as norm-[≤1] points in the hom-cone
+    [linhom_car (coalg_obj G) (!(coalg_obj A))]. *)
+Let a_lh : linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A)) :=
+  icones_to_linhom (ch_mor a).
+Let b_lh : linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A)) :=
+  icones_to_linhom (ch_mor b).
+
+Lemma case_em_a_lh_norm : (cone_norm a_lh <= 1)%R.
+Proof. exact: icones_to_linhom_norm_le1 (ch_mor a). Qed.
+
+Lemma case_em_b_lh_norm : (cone_norm b_lh <= 1)%R.
+Proof. exact: icones_to_linhom_norm_le1 (ch_mor b). Qed.
+
+(** Step (b): [bool_case_linhom] at the linhom-cone level. *)
+Let case_em_lh : linhom_car Ar (bool_cone_car Ar)
+    (linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A))) :=
+  bool_case_linhom a_lh b_lh case_em_a_lh_norm case_em_b_lh_norm.
+
+Lemma case_em_lh_norm : (cone_norm case_em_lh <= 1)%R.
+Proof. exact: bool_case_linhom_norm_le1 a_lh b_lh _ _. Qed.
+
+(** Step (c): bridge to an [icones_hom]. *)
+Let case_em_hom : icones_hom Ar (bool_cone_car Ar)
+    (linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A))) :=
+  linhom_icones case_em_lh case_em_lh_norm.
+
+(** Step (d): SAFT uncurry to [bool_cone ⊗ G → !A]. *)
+Let case_em_uncurried : icones_hom Ar
+    (tensor Ar (bool_cone_car Ar) (coalg_obj G)) (Bang Ar (coalg_obj A)) :=
+  tensor_uncurry case_em_hom.
+
+(** Step (e): the full underlying icones_hom [G ⊗ !bool → !A].
+
+    Pre-compose with [id_G ⊗ der_{bool}] (replace [Bg bool] by [bool]),
+    then braid [G ⊗ bool → bool ⊗ G] to feed [case_em_uncurried]. *)
+Definition case_em_under :
+    icones_hom Ar
+      (tensor Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)))
+      (Bang Ar (coalg_obj A)) :=
+  icones_comp case_em_uncurried
+    (icones_comp (iso_fwd (tensor_braid (coalg_obj G) (bool_cone_car Ar)))
+                 (tensor_mor (icones_id Ar (coalg_obj G))
+                             (der (bool_cone_car Ar)))).
+
+(** The EM-Kleisli combinator: [adj_psi] wraps the underlying icones_hom
+    as a coalg morphism, satisfying the [is_coalg_mor] square
+    automatically ([adj_psi_is_mor]).
+
+    [U_obj (EM_prod G (bang_cofree (bool_cone_car Ar))) =
+     coalg_obj (EM_prod G (bang_cofree (bool_cone_car Ar))) =
+     tensor (coalg_obj G) (Bang Ar (bool_cone_car Ar))]; this is the
+    underlying icone of [case_em_under], so [adj_psi case_em_under] has
+    the right type. *)
+(** Bridge to [adj_psi]: [adj_psi] expects an icones_hom into [coalg_obj A]
+    (without the outer [!]), so we post-compose [case_em_under] with the
+    counit [der (coalg_obj A) : !(coalg_obj A) → coalg_obj A], landing in
+    [coalg_obj A] as required.  Note: the [!]-image of this composite is
+    what [adj_psi] then takes as the underlying icones_hom of the result
+    (via [bang_fmap]), recovering an arrow into [Bang Ar (coalg_obj A) =
+    coalg_obj (Tobj A)]. *)
+Definition case_em_under_der :
+    icones_hom Ar
+      (tensor Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)))
+      (coalg_obj A) :=
+  icones_comp (der (coalg_obj A)) case_em_under.
+
+Definition case_em :
+    coalg_hom (EM_prod G (bang_cofree (bool_cone_car Ar))) (Tobj A) :=
+  adj_psi (P := EM_prod G (bang_cofree (bool_cone_car Ar)))
+          (B := coalg_obj A) case_em_under_der.
+
+End CaseEM.
+
+Arguments case_em_under {R Ar G A} a b.
+Arguments case_em {R Ar G A} a b.
 
 (** ** The term interpretation [eD] *)
 Section TermInterp.
