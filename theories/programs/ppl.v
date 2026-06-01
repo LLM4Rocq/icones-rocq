@@ -1554,6 +1554,51 @@ Arguments const_value {R Ar A c Hc} Hprom_str G.
 Arguments const_kleisli_eq_tunit_eta_const {R Ar A c Hc} Hprom_str G.
 Arguments dirac_Hprom_str {R Ar X} r Hc.
 
+(** ** Specialised β rule for [const_kleisli] arguments
+
+    The headline-form β rule for the surface PPL: when the
+    application's argument is a [const_kleisli] (e.g. a literal real
+    [|x|] = [real_kleisli x] or a [sample_kleisli µ]) and the
+    [prom]-fixedness condition [Hprom_str] holds, the [eD]-image of
+    the application reduces by the value-form β rule of [Section
+    EDAppLamSubstSurface] composed with the [const_kleisli/η-const]
+    bridge of [Section ConstKleisliBridge].
+
+    Reads (with [eD_app] / [eD_lam] / [eD_real] unfolded):
+    [[
+      kcomp (app_pair A B)
+            (bang_m ∘ em_pair (η ∘ lam M) (const_kleisli G c Hc))
+      = coalg_comp M (em_pair coalg_id (const_value Hprom_str G)).
+    ]]
+    Proof: [const_kleisli_eq_tunit_eta_const] rewrites the
+    [const_kleisli] argument to [η ∘ const_value], then
+    [eD_app_lam_subst] (the VALUE-form β rule) closes. *)
+Section EDAppLamSubstConst.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma eD_app_lam_subst_const (G A B : Coalgebra Ar)
+    (M : coalg_hom (EM_prod G A) (Tobj B))
+    (c : coalg_obj A) (Hc : (cone_norm c <= 1)%R)
+    (Hprom_str :
+      icones_comp (coalg_str A) (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc))
+      = icones_comp (bang_fmap (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc)))
+                    unit_cofree_str) :
+  kcomp (app_pair A B)
+        (coalg_comp (bang_m (Bang Ar (linhom_car Ar (coalg_obj A)
+                                                    (coalg_obj (Tobj B))))
+                            (coalg_obj A))
+                    (em_pair (coalg_comp (tunit_eta _) (lam_coalg M))
+                             (const_kleisli G c Hc)))
+  = coalg_comp M (em_pair (coalg_id G) (const_value Hprom_str G)).
+Proof.
+rewrite (const_kleisli_eq_tunit_eta_const Hprom_str G).
+exact: (eD_app_lam_subst M (const_value Hprom_str G)).
+Qed.
+
+End EDAppLamSubstConst.
+
+Arguments eD_app_lam_subst_const {R Ar G A B} M {c Hc} Hprom_str.
+
 (** ** Arithmetic lifts on the cone level — [add_lift] / [mul_lift]
 
     For the distinguished real-valued base type [tR = tbase R_obj], we
