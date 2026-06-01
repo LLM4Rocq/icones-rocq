@@ -409,6 +409,89 @@ Arguments apply_at
 Arguments ex_random_constant_marginal
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu x.
 
+(** ** Lemma 2 — marginal-at-[x] of [ex_random_linear] (Shape C / partial)
+
+    The denotation of
+    [let m := sample µ in let b := sample µ in λ_. m·_+b],
+    APPLIED at [x] via [apply_at x] (so the whole closed program is
+    [let f := (let m := sample µ in let b := sample µ in λ_. m·_+b)
+              in f(x)]), reduces — via Law 3 ([kbind_ext_terminal_source])
+    on the OUTERMOST [kbind_ext] (the [f]-bind, source [EM_term =
+    ctxD nil]) — to a [kcomp]-form.
+
+    This is Shape C of the prompt's three options.  The inner
+    nested-double-bind [kbind_ext (kbind_ext (eD ex_rl_lam)
+    sample_m_at_ctxD_m) sample_nil] is left INTACT (the [b]-bind's
+    source is [ctxD ((m,tR)::nil) = EM_prod EM_term (tyD tR)], which
+    is NOT [EM_term], so Law 3 does NOT apply to it).
+
+    What is NOT delivered.
+    - Shape A — pushforward via [fmeas_lax_pre_fubini] of [µ⊗µ] —
+      requires the arithmetic-Dirac lifts ([add_lift_dirac],
+      [mul_lift_dirac]) chained with [fmeas_lax]/[fubini] to expose
+      the joint-pushforward form [(m,b) ↦ µ⊗µ-pushforward of
+      m·x+b]; this needs additional infrastructure on the integration
+      side (a [kbind_ext]/[fmeas_lax] interaction lemma) that the
+      cones library does not currently expose at the [kbind_ext]
+      level.
+    - Shape B — double-bind chain
+      [kbind_ext arith_kleisli (fmeas_lax_pre mu mu)] — same blocker:
+      the [kbind_ext]/[fmeas_lax] commutativity is missing.
+
+    Why the inner cannot be further reduced.
+    Both inner [kbind_ext]s have non-terminal sources: the
+    [b]-bind's source is [EM_prod EM_term (tyD tR)]; the [m]-bind's
+    source is [EM_term] but its continuation [eD ex_rl_lam ∘ ...]
+    needs a "named-syntax β" identity to collapse the [\ "x"] lambda
+    against the literal [|x|] (same blocker as for Lemma 1's full
+    form). *)
+Section LemmaTwoMarginalLinear.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+Local Notation eD' :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas).
+
+(** *** Lemma 2 (Law-3-outer-unwrap form / Shape C) *)
+Lemma ex_random_linear_marginal (x : R) :
+  kbind_ext (@apply_at R Ar R_obj R_carrier_eq R_carrier_meas
+                       R_to_carrier_meas x)
+    (@ex_random_linear_denot R Ar R_obj R_carrier_eq R_carrier_meas
+       R_to_carrier_meas mu Hmu)
+  = kcomp
+      (coalg_comp (@apply_at R Ar R_obj R_carrier_eq R_carrier_meas
+                             R_to_carrier_meas x)
+                  (em_pair (em_term_mor (tyD (tfun tR' tR')))
+                           (coalg_id (tyD (tfun tR' tR')))))
+      (kbind_ext
+        (kbind_ext
+           (eD' ex_rl_lam)
+           (sample_kleisli
+              (ctxD (drop_names (("m"%string, tR') :: nil))) mu Hmu))
+        (sample_kleisli (ctxD (drop_names (R:=R) (Ar:=Ar) [::]))
+                        mu Hmu)).
+Proof.
+rewrite (@ex_random_linear_denot_E R Ar R_obj
+           R_carrier_eq R_carrier_meas R_to_carrier_meas mu Hmu).
+by rewrite kbind_ext_terminal_source.
+Qed.
+
+End LemmaTwoMarginalLinear.
+
+Arguments ex_random_linear_marginal
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu x.
+
 (** ** Lemma 3 — the Bayesian posterior denotes a weighted sub-probability
 
     THE PARTIAL DELIVERABLE.  This section delivers the
