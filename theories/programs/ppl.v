@@ -1599,6 +1599,84 @@ End EDAppLamSubstConst.
 
 Arguments eD_app_lam_subst_const {R Ar G A B} M {c Hc} Hprom_str.
 
+(** ** Kleisli helpers for the headline-form examples.
+
+    Three small auxiliaries used to discharge the headline-form
+    Lemmas 1/2 of [theories/programs/examples.v]:
+
+    - [em_pair_coalg_comp] : [⟨f,g⟩ ∘ h = ⟨f∘h, g∘h⟩] for [h : Z ⇝ Y]
+      a coalg morphism — pair-naturality at the [coalg_hom] level.
+      (The [em_pair_mor_natL] of [Section KbindExtLaws] is the
+      icones-level version; this lemma lifts it.)
+
+    - [kcomp_eta_natR] : [kcomp g (η ∘ v) = g ∘ v].  When the input
+      Kleisli arrow [η ∘ v] is the [η]-lift of a value [v], the
+      kbind collapses to direct composition.  This is the key
+      collapsing step for the headline-form proofs: it lets us
+      reduce [kcomp K_outer ((η ∘ lam_coalg M) ∘ ...)] to
+      [K_outer ∘ (lam_coalg M ∘ ...)], removing the [kbind] wrapper
+      over the literal lambda value.
+
+    - [const_kleisli_natL] : [const_kleisli G c Hc ∘ h = const_kleisli
+      G' c Hc] for [h : G' ⇝ G] a coalg morphism — the source-coalgebra
+      naturality of [const_kleisli]; constant arrows are invariant
+      under precomposition by any coalg-mor. *)
+Section KleisliHelpers.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Lemma em_pair_coalg_comp (Z Y P Q : Coalgebra Ar)
+    (h : coalg_hom Z Y) (f : coalg_hom Y P) (g : coalg_hom Y Q) :
+  coalg_comp (em_pair f g) h = em_pair (coalg_comp f h) (coalg_comp g h).
+Proof.
+apply: coalg_hom_eqP.
+rewrite !coalg_comp_mor /=.
+apply: em_pair_mor_natL.
+exact: ch_is_mor h.
+Qed.
+
+Lemma kcomp_eta_natR (P Q S : Coalgebra Ar)
+    (g : coalg_hom Q (Tobj S)) (v : coalg_hom P Q) :
+  kcomp g (coalg_comp (tunit_eta Q) v) = coalg_comp g v.
+Proof.
+apply: adj_phi_inj.
+rewrite adj_phi_kcomp.
+rewrite (adj_phi_natL (tunit_eta Q) v).
+rewrite adj_triangleL icones_compIl.
+by rewrite -adj_phi_natL.
+Qed.
+
+(** [coalg_comp (kcomp g f) h = kcomp g (coalg_comp f h)] — [kcomp]'s
+    source-precomposition is just associativity of [coalg_comp]. *)
+Lemma kcomp_coalg_compR (P P' Q S : Coalgebra Ar)
+    (g : coalg_hom Q (Tobj S)) (f : coalg_hom P (Tobj Q)) (h : coalg_hom P' P) :
+  coalg_comp (kcomp g f) h = kcomp g (coalg_comp f h).
+Proof. by rewrite /kcomp coalg_compA. Qed.
+
+Lemma const_kleisli_natL (G G' : Coalgebra Ar) (C : ICone.type Ar)
+    (c : C) (Hc : (cone_norm c <= 1)%R) (h : coalg_hom G' G) :
+  coalg_comp (const_kleisli G c Hc) h = const_kleisli G' c Hc.
+Proof.
+apply: coalg_hom_eqP.
+rewrite coalg_comp_mor /=.
+rewrite /const_kleisli /adj_psi /=.
+rewrite /const_icones.
+have Hh := ch_is_mor h.
+rewrite /is_coalg_mor /= in Hh.
+rewrite -icones_compA Hh.
+rewrite icones_compA -bang_fmap_comp.
+have Hce : icones_comp (coalg_e G) (ch_mor h) = coalg_e G'.
+  exact: (@coalg_mor_e _ _ G' G (ch_mor h) Hh).
+rewrite -[icones_comp (icones_comp _ (coalg_e G)) (ch_mor h)]icones_compA.
+by rewrite Hce.
+Qed.
+
+End KleisliHelpers.
+
+Arguments em_pair_coalg_comp {R Ar Z Y P Q} h f g.
+Arguments kcomp_eta_natR {R Ar P Q S} g v.
+Arguments kcomp_coalg_compR {R Ar P P' Q S} g f h.
+Arguments const_kleisli_natL {R Ar G G' C} c Hc h.
+
 (** ** Arithmetic lifts on the cone level — [add_lift] / [mul_lift]
 
     For the distinguished real-valued base type [tR = tbase R_obj], we
