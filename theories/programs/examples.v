@@ -341,10 +341,73 @@ Local Definition apply_at (x : R) :
               (Tobj (tyD tR')) :=
   eD' [ # "f" @ [| x |] ].
 
+(** *** Lemma 1 (Law-3-reduced form) — the marginal-at-[x] denotation
+    as a [kcomp]-chain.
+
+    The denotation of [let f := (let c := sample µ in λ_. c) in f(x)],
+    obtained as [kbind_ext (apply_at x) ex_random_constant_denot],
+    reduces under Law 3 ([kbind_ext_terminal_source]) to a
+    [kcomp]-composition through the canonical iso [EM_prod EM_term A
+    ≅ A], applied to BOTH the outer [f]-bind and the inner [c]-bind
+    whose sources are [EM_term = ctxD nil].
+
+    What this lemma delivers (axiom-free, 3 boolp).
+    The shape directly mirrors the reduced form of Lemma 3
+    ([ex_bayes_linear_is_weighted]) on commit [6541828]: the two
+    nested [kbind_ext]s collapse, via Law 3 twice and one
+    re-association by [kcomp_A], into a single [kcomp ... sample].
+    The headline-target form [= sample_kleisli µ Hµ] additionally
+    requires the merged [kcomp K_outer K_inner] to reduce to
+    [tunit_eta (tyD tR')] (the β-rule for [#"f" @ [|x|]] specialised
+    to the constant-lambda value [λ_. c]).
+
+    What is NOT delivered.  The reduction of the merged
+    [kcomp K_outer K_inner] to [tunit_eta] would require, axiom-free,
+    a "named-syntax β" identity combining [eD_app] with the lambda
+    value of [eD_lam] — concretely:
+
+      [coalg_comp (eD [(\ "z" ::: A => M) @ V]) h
+       = coalg_comp (eD M) (em_pair (coalg_comp em_term_mor h) (eD V'))]
+
+    where [V'] is the [V]-expression in the post-substitution context
+    (the named-syntax β-rule).  The cones library exposes the
+    higher-order β at the [app_kleisli (lam_coalg M) V] level
+    ([app_kleisli_lam] of [theories/programs/ppl.v]), but does NOT
+    expose its [eD_app]-pre-composed surface form (the missing chain
+    is [eD_app + bang_m-strength + adj_phi-curry + app_kleisli_lam +
+    em_proj2_pair + em_term_mor uniqueness + const_kleisli naturality
+    over coalgebra morphisms]).  Adding this would naturally belong
+    to [theories/programs/ppl.v] above [Section LamApp].  Its absence
+    is what blocks the headline form. *)
+Lemma ex_random_constant_marginal (x : R) :
+  kbind_ext (apply_at x)
+    (@ex_random_constant_denot R Ar R_obj R_carrier_eq R_carrier_meas
+       R_to_carrier_meas mu Hmu)
+  = kcomp
+      (coalg_comp (apply_at x)
+                  (em_pair (em_term_mor (tyD (tfun tR' tR')))
+                           (coalg_id (tyD (tfun tR' tR')))))
+      (kcomp
+        (coalg_comp (eD' ex_rc_lam)
+                    (em_pair (em_term_mor (tyD tR'))
+                             (coalg_id (tyD tR'))))
+        (sample_kleisli (ctxD (drop_names (R:=R) (Ar:=Ar) [::]))
+                        mu Hmu)).
+Proof.
+rewrite (@ex_random_constant_denot_E R Ar R_obj
+           R_carrier_eq R_carrier_meas R_to_carrier_meas mu Hmu).
+rewrite (kbind_ext_terminal_source
+           (eD' ex_rc_lam)
+           (sample_kleisli (ctxD (drop_names [::])) mu Hmu)).
+by rewrite kbind_ext_terminal_source.
+Qed.
+
 End LemmaOneMarginalConstant.
 
 Arguments apply_at
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
+Arguments ex_random_constant_marginal
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu x.
 
 (** ** Lemma 3 — the Bayesian posterior denotes a weighted sub-probability
 
