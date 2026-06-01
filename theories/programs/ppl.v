@@ -142,6 +142,8 @@ Require Import Icones.homs.exp_adjunction.
 Require Import Icones.homs.bang.
 Require Import Icones.homs.seely_defs.
 Require Import Icones.homs.seely.
+Require Import Icones.homs.tensor_hom_iso.
+Require Import Icones.homs.bool_case_hom.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.fmeas_lax.
 Require Import Icones.homs.em_cat.
@@ -381,7 +383,16 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
      is exactly [1] (norm-1). *)
   | ne_bernoulli (G : named_ctx Ar) (p : R)
                  (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
-      named_expr G tbool.
+      named_expr G tbool
+  (* [if e then M else N] — boolean elimination.  [e] is a [tbool]
+     expression (semantically a sub-probability distribution on [bool]),
+     and [M, N : t] are the two branches.  The denotation [eD] uses
+     [kbind_ext] with the [case_em] combinator. *)
+  | ne_if (G : named_ctx Ar) (t : T) :
+      named_expr G tbool ->
+      named_expr G t ->
+      named_expr G t ->
+      named_expr G t.
 
 End Syntax.
 
@@ -413,6 +424,10 @@ Arguments ne_mul {R Ar R_obj G} & M N.
 Arguments ne_true {R Ar R_obj G}.
 Arguments ne_false {R Ar R_obj G}.
 Arguments ne_bernoulli {R Ar R_obj G} p Hp_ge0 Hp_le1.
+(** Bidirectionality on [ne_if]: resolve [G] and [t] FIRST (from the
+    scrutinee and the branches' types), then propagate into the
+    sub-expressions.  Same pattern as [ne_let] / [ne_app]. *)
+Arguments ne_if {R Ar R_obj G} & t e M N.
 
 (** ** Type and context interpretation [tyD] / [ctxD]
 
@@ -1531,6 +1546,121 @@ Arguments true_kleisli {R Ar} G.
 Arguments false_kleisli {R Ar} G.
 Arguments bernoulli_kleisli {R Ar} G p Hp_ge0 Hp_le1.
 
+(** ** [case_em] — the EM(!) [if-then-else] combinator
+
+    Given two Kleisli arrows [a, b : G ⇝ Tobj A] (the two branches) and an
+    implicit Kleisli bool source [Tobj tbool = bang_cofree (bool_cone_car)],
+    we want an EM-Kleisli arrow
+    [[
+       case_em a b : EM_prod G (bang_cofree (bool_cone_car Ar)) ⇝ Tobj A
+    ]]
+    that semantically computes [bool_case (der x) (a g) (b g)] for
+    [(g, x) ∈ G × bang_cofree bool_cone].
+
+    Structural finding (carried over from the [case_em] plan).  The map
+    [(a, b) ↦ bool_case · a · b] is NOT bilinear in [(a, b)]: at the
+    icones level [bool_case x (a₁+a₂) b ≠ bool_case x a₁ b + bool_case x
+    a₂ b] (a [bc_f·b] discrepancy).  We therefore cannot uncurry the
+    bundled branches through a single tensor; instead, we exploit the
+    fact that for an [icones_hom h : (coalg_obj G) → !(coalg_obj A)] the
+    operator norm is automatically [≤ 1] ([icones_to_linhom_norm_le1]),
+    so each [ch_mor a], [ch_mor b] lifts to a NORM-[≤1] point in the
+    hom-cone [linhom_car (coalg_obj G) (!(coalg_obj A))].  The
+    unit-ball version [bool_case_linhom] of [bool_case_hom.v] then
+    delivers a norm-[≤1] [linhom_car (bool_cone_car Ar)
+    (linhom_car (coalg_obj G) (!(coalg_obj A)))], which we bridge to an
+    [icones_hom] ([linhom_icones]) and SAFT-uncurry ([tensor_uncurry])
+    into [tensor (bool_cone_car) (coalg_obj G) → !(coalg_obj A)].  Braid
+    and pre-compose with [(id_G ⊗ der_{bool_cone})] to reach the right
+    source [(coalg_obj G) ⊗ !(bool_cone_car) → !(coalg_obj A)].
+    Finally [adj_psi] wraps this underlying icones_hom as a coalgebra
+    morphism into [bang_cofree (coalg_obj A) = Tobj A].
+
+    The [bool_case]/[α + β] decomposition of [bool_case_hom.v] is what
+    makes the linhom_car packaging at Step (b) work axiom-free: the two
+    branches enter SEPARATELY (each as a unit-ball point in the hom-cone),
+    so the bilinearity-in-[(a, b)] obstruction never surfaces. *)
+Section CaseEM.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G A : Coalgebra Ar).
+Variables (a b : coalg_hom G (Tobj A)).
+
+(** Branches as norm-[≤1] points in the hom-cone
+    [linhom_car (coalg_obj G) (!(coalg_obj A))]. *)
+Let a_lh : linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A)) :=
+  icones_to_linhom (ch_mor a).
+Let b_lh : linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A)) :=
+  icones_to_linhom (ch_mor b).
+
+Lemma case_em_a_lh_norm : (cone_norm a_lh <= 1)%R.
+Proof. exact: icones_to_linhom_norm_le1 (ch_mor a). Qed.
+
+Lemma case_em_b_lh_norm : (cone_norm b_lh <= 1)%R.
+Proof. exact: icones_to_linhom_norm_le1 (ch_mor b). Qed.
+
+(** Step (b): [bool_case_linhom] at the linhom-cone level. *)
+Let case_em_lh : linhom_car Ar (bool_cone_car Ar)
+    (linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A))) :=
+  bool_case_linhom a_lh b_lh case_em_a_lh_norm case_em_b_lh_norm.
+
+Lemma case_em_lh_norm : (cone_norm case_em_lh <= 1)%R.
+Proof. exact: bool_case_linhom_norm_le1 a_lh b_lh _ _. Qed.
+
+(** Step (c): bridge to an [icones_hom]. *)
+Let case_em_hom : icones_hom Ar (bool_cone_car Ar)
+    (linhom_car Ar (coalg_obj G) (Bang Ar (coalg_obj A))) :=
+  linhom_icones case_em_lh case_em_lh_norm.
+
+(** Step (d): SAFT uncurry to [bool_cone ⊗ G → !A]. *)
+Let case_em_uncurried : icones_hom Ar
+    (tensor Ar (bool_cone_car Ar) (coalg_obj G)) (Bang Ar (coalg_obj A)) :=
+  tensor_uncurry case_em_hom.
+
+(** Step (e): the full underlying icones_hom [G ⊗ !bool → !A].
+
+    Pre-compose with [id_G ⊗ der_{bool}] (replace [Bg bool] by [bool]),
+    then braid [G ⊗ bool → bool ⊗ G] to feed [case_em_uncurried]. *)
+Definition case_em_under :
+    icones_hom Ar
+      (tensor Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)))
+      (Bang Ar (coalg_obj A)) :=
+  icones_comp case_em_uncurried
+    (icones_comp (iso_fwd (tensor_braid (coalg_obj G) (bool_cone_car Ar)))
+                 (tensor_mor (icones_id Ar (coalg_obj G))
+                             (der (bool_cone_car Ar)))).
+
+(** The EM-Kleisli combinator: [adj_psi] wraps the underlying icones_hom
+    as a coalg morphism, satisfying the [is_coalg_mor] square
+    automatically ([adj_psi_is_mor]).
+
+    [U_obj (EM_prod G (bang_cofree (bool_cone_car Ar))) =
+     coalg_obj (EM_prod G (bang_cofree (bool_cone_car Ar))) =
+     tensor (coalg_obj G) (Bang Ar (bool_cone_car Ar))]; this is the
+    underlying icone of [case_em_under], so [adj_psi case_em_under] has
+    the right type. *)
+(** Bridge to [adj_psi]: [adj_psi] expects an icones_hom into [coalg_obj A]
+    (without the outer [!]), so we post-compose [case_em_under] with the
+    counit [der (coalg_obj A) : !(coalg_obj A) → coalg_obj A], landing in
+    [coalg_obj A] as required.  Note: the [!]-image of this composite is
+    what [adj_psi] then takes as the underlying icones_hom of the result
+    (via [bang_fmap]), recovering an arrow into [Bang Ar (coalg_obj A) =
+    coalg_obj (Tobj A)]. *)
+Definition case_em_under_der :
+    icones_hom Ar
+      (tensor Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)))
+      (coalg_obj A) :=
+  icones_comp (der (coalg_obj A)) case_em_under.
+
+Definition case_em :
+    coalg_hom (EM_prod G (bang_cofree (bool_cone_car Ar))) (Tobj A) :=
+  adj_psi (P := EM_prod G (bang_cofree (bool_cone_car Ar)))
+          (B := coalg_obj A) case_em_under_der.
+
+End CaseEM.
+
+Arguments case_em_under {R Ar G A} a b.
+Arguments case_em {R Ar G A} a b.
+
 (** ** The term interpretation [eD] *)
 Section TermInterp.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -1637,6 +1767,16 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
      side condition is direct. *)
   | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
       @bernoulli_kleisli R Ar (ctxD (drop_names G0)) p Hp_ge0 Hp_le1
+  (* [if e then M else N]: bind the scrutinee via [kbind_ext]; the
+     continuation, in context [G0 ⊗ tyD tbool], dispatches via the
+     EM-Kleisli [case_em] combinator on the two branch denotations
+     (precomposed with [em_proj1] to drop the bound bool from each
+     branch's local context). *)
+  | ne_if G0 t e M N =>
+      @kbind_ext R Ar (ctxD (drop_names G0)) (bang_cofree (bool_cone_car Ar))
+                 (tyD t)
+        (case_em (eD M) (eD N))
+        (eD e)
   end.
 
 End TermInterp.
@@ -2060,3 +2200,18 @@ Notation "'Bernoulli' '{' p ',' Hp_ge0 ',' Hp_le1 '}'" :=
   (ne_bernoulli p Hp_ge0 Hp_le1)
   (in custom ppl_named at level 1,
    p constr, Hp_ge0 constr, Hp_le1 constr).
+
+(** [if e then M else N] — boolean elimination in surface syntax.
+
+    The branches [M], [N] are at custom level 80 (so [let] / [\] /
+    nested [if] all parse cleanly inside them); the scrutinee [e] is at
+    the same level.  Right-associative so [if e1 then if e2 then ...]
+    parses as nested-then.  Implicit return type [t] is resolved by the
+    bidirectionality hint on [ne_if]. *)
+Notation "'if' e 'then' M 'else' N" :=
+  (ne_if _ e M N)
+  (in custom ppl_named at level 80,
+   e custom ppl_named at level 80,
+   M custom ppl_named at level 80,
+   N custom ppl_named at level 80,
+   right associativity).

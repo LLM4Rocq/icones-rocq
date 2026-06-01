@@ -264,3 +264,112 @@ End BoolCaseLinhomGen.
 
 Arguments bool_case_linhom_gen {R Ar A} a b.
 Arguments bool_case_linhom_gen_norm_le {R Ar A} a b.
+
+(** ** Step 1 — [alpha_linhom] / [beta_linhom] — the bilinear pieces
+
+    [bool_case x a b = bc_t(x)·a + bc_f(x)·b] does NOT make [bool_case]
+    bilinear in [(a, b)] (cf. the structural finding documented in the
+    [case_em] plan: adding in the second slot creates a [bc_f·b]
+    discrepancy).  The decomposition that DOES work is the sum of two
+    SEPARATELY bilinear pieces:
+    [[
+      bool_case x a b = α(x, a) + β(x, b)
+        where α(x, a) := bc_t(x) · a   [bilinear in (x, a)]
+              β(x, b) := bc_f(x) · b   [bilinear in (x, b)].
+    ]]
+
+    Each of [α], [β] is bilinear in its TWO variables, and each is the
+    specialisation of [bool_case_linhom_gen] with the OTHER branch set to
+    [precone_zero]:
+    [[
+      α(x, a) = bool_case x a 0   (the [b = 0] specialisation)
+      β(x, b) = bool_case x 0 b   (the [a = 0] specialisation).
+    ]]
+    The corresponding [linhom_car]s ([linhom_car (bool_cone_car Ar) A], for
+    fixed [a] / [b]) are immediate restrictions of [bool_case_linhom_gen].
+    Their pointwise images are
+    [[
+      α(x, a) = precone_scale (bc_t x) a,
+      β(x, b) = precone_scale (bc_f x) b.
+    ]]
+    The sum-decomposition lemma [bool_case_linhom_gen_alpha_beta] reads
+    off [bool_case_addD] / [bool_case_zero] at the [linhom_car] level. *)
+
+Section AlphaBetaLinhom.
+Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
+
+Local Notation T := (bool_cone_car Ar).
+
+(** [alpha_linhom a] — the [bc_t · a] half, as a [linhom_car T A]. *)
+Definition alpha_linhom (a : A) : linhom_car Ar T A :=
+  bool_case_linhom_gen a precone_zero.
+
+(** [beta_linhom b] — the [bc_f · b] half, as a [linhom_car T A]. *)
+Definition beta_linhom (b : A) : linhom_car Ar T A :=
+  bool_case_linhom_gen precone_zero b.
+
+(** Pointwise reading: [alpha_linhom a] is exactly [x ↦ bc_t(x) · a].
+
+    Indeed [bool_case x a 0 = bc_t(x)·a + bc_f(x)·0 = bc_t(x)·a + 0
+    = bc_t(x)·a] by [precone_scale_0r] and [precone_addC]/[precone_add0]. *)
+Lemma alpha_linhomE (a : A) (x : T) :
+  linhom_fun (alpha_linhom a) x = precone_scale (bc_t x) a.
+Proof.
+rewrite /alpha_linhom /=.
+rewrite -[linhom_fun _ _]/(bool_case x a precone_zero).
+rewrite /bool_case.
+by rewrite precone_scale_0r precone_addC precone_add0.
+Qed.
+
+(** Pointwise reading: [beta_linhom b] is exactly [x ↦ bc_f(x) · b]. *)
+Lemma beta_linhomE (b : A) (x : T) :
+  linhom_fun (beta_linhom b) x = precone_scale (bc_f x) b.
+Proof.
+rewrite /beta_linhom /=.
+rewrite -[linhom_fun _ _]/(bool_case x precone_zero b).
+rewrite /bool_case.
+by rewrite precone_scale_0r precone_add0.
+Qed.
+
+(** [bool_case x a b = α(x, a) + β(x, b)] — the sum-decomposition lemma,
+    read pointwise on [linhom_car].  This is the operative identity
+    behind Step 2: [bool_case_linhom_gen a b] factors as a SUM of two
+    BILINEAR pieces, even though [bool_case] itself is not bilinear in
+    [(a, b)]. *)
+Lemma bool_case_linhom_gen_alpha_beta (a b : A) (x : T) :
+  linhom_fun (bool_case_linhom_gen a b) x =
+  precone_add (linhom_fun (alpha_linhom a) x) (linhom_fun (beta_linhom b) x).
+Proof.
+by rewrite alpha_linhomE beta_linhomE.
+Qed.
+
+(** Operator-norm bounds:
+    - [‖α(·, a)‖ ≤ max(‖a‖, 0)] (the [b = 0] specialisation of
+      [bool_case_linhom_gen_norm_le], using [cone_norm0]),
+    - [‖β(·, b)‖ ≤ max(‖b‖, 0)] (symmetrically). *)
+Lemma alpha_linhom_norm_le (a : A) :
+  cone_norm (alpha_linhom a) <= Num.max (cone_norm a) 0%R.
+Proof.
+have H := bool_case_linhom_gen_norm_le a (precone_zero : A).
+rewrite cone_norm0 in H.
+by rewrite -maxA maxxx in H.
+Qed.
+
+Lemma beta_linhom_norm_le (b : A) :
+  cone_norm (beta_linhom b) <= Num.max (cone_norm b) 0%R.
+Proof.
+have H := bool_case_linhom_gen_norm_le (precone_zero : A) b.
+rewrite cone_norm0 in H.
+rewrite [Num.max 0%R _]maxC in H.
+by rewrite -maxA maxxx in H.
+Qed.
+
+End AlphaBetaLinhom.
+
+Arguments alpha_linhom {R Ar A} a.
+Arguments beta_linhom {R Ar A} b.
+Arguments alpha_linhomE {R Ar A} a x.
+Arguments beta_linhomE {R Ar A} b x.
+Arguments bool_case_linhom_gen_alpha_beta {R Ar A} a b x.
+Arguments alpha_linhom_norm_le {R Ar A} a.
+Arguments beta_linhom_norm_le {R Ar A} b.
