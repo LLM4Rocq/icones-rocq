@@ -8,7 +8,7 @@
     the categorical coproduct [cone_one ⊕ cone_one] in ICones; the
     co-pairing [bool_case] is the universal-property eliminator.
 
-    See also: [theories/homs/bool_case_hom.v] (icones_hom packaging),
+    See also: [theories/programs/infra/bool_case_hom.v] (icones_hom packaging),
     [theories/programs/ppl.v] (ne_true, ne_false, ne_if, ne_bernoulli). *)
 
 (** * The boolean cone — the 2-point sub-probability ICone

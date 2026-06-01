@@ -935,7 +935,7 @@ Arguments ex_if_demo {R Ar R_obj}.
 
     End-to-end probabilistic recursive programs in the named PPL
     surface syntax, combining [ne_fix] (the CBV value-fixpoint of
-    [theories/homs/em_fix.v]) with the [ne_if] / [ne_bernoulli]
+    [theories/programs/infra/em_fix.v]) with the [ne_if] / [ne_bernoulli]
     boolean cascade (steps 1–4 of the §9 work) to exhibit
     productive partial termination.
 

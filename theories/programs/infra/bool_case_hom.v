@@ -2,7 +2,7 @@
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
     (paper §2-§9). It packages the [bool_case] co-pairing of
-    [theories/cones/bool_cone.v] (paper §4.4 / Theorem 4.24 coproduct
+    [theories/programs/infra/bool_cone.v] (paper §4.4 / Theorem 4.24 coproduct
     [cone_one ⊕ cone_one]) as a [linhom_car] and a full [icones_hom],
     with the unit-ball-free generalisation [bool_case_linhom_gen] and
     the α/β decomposition into separately-bilinear pieces. Together
@@ -10,7 +10,7 @@
     what the [ne_if] (boolean elimination) clause of the CBV PPL
     consumes.
 
-    See also: [theories/cones/bool_cone.v] (the 2-point ICone and the
+    See also: [theories/programs/infra/bool_cone.v] (the 2-point ICone and the
     universal co-pairing), [theories/programs/ppl.v] (tbool, ne_true,
     ne_false, ne_bernoulli, ne_if, case_em). *)
 

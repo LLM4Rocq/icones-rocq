@@ -58,7 +58,7 @@
     - [ne_true] / [ne_false] — boolean constants of type [tbool],
       interpreted as the constant Kleisli arrows at the bool-cone
       Diracs [bool_dirac_true] / [bool_dirac_false] of
-      [theories/cones/bool_cone.v].
+      [theories/programs/infra/bool_cone.v].
     - [ne_bernoulli p Hp_ge0 Hp_le1] — sample from a Bernoulli
       distribution: the 2-point sub-probability [(p, 1-p)] on
       [bool_cone] (norm exactly [1]).
@@ -2318,7 +2318,7 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
   (* [ne_fix s t1 t2 body]: package the body's denotation
      [eD body : coalg_hom (EM_prod (ctxD G0) (tyD (tfun t1 t2))) (Tobj (tyD (tfun t1 t2)))]
      into [Yfix_fun_T (eD body) : coalg_hom (ctxD G0) (Tobj (tyD (tfun t1 t2)))].
-     The fixpoint construction lives in [theories/homs/em_fix.v]. *)
+     The fixpoint construction lives in [theories/programs/infra/em_fix.v]. *)
   | ne_fix G0 _ t1 t2 body =>
       Yfix_fun_T (eD body)
   | ne_app G0 t1 t2 Vf Va =>

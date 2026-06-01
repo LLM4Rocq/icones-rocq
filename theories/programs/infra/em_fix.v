@@ -40,7 +40,7 @@
     level, using:
     - the linhom-level [linhom_sup_ball] (Cone-completeness on the
       [linhom_car] coneType, [theories/homs/linhom.v]);
-    - the ω-continuity infrastructure of [theories/homs/em_continuity.v]:
+    - the ω-continuity infrastructure of [theories/programs/infra/em_continuity.v]:
       [prom_omega_cont] (ω-continuity of [prom]) and
       [bang_fmap_lin_omega_cont] (ω-continuity of [bang_fmap]) — the
       latter is THE workhorse for the [is_coalg_mor] equation passing

@@ -5,8 +5,8 @@
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization.
     It provides ω-continuity infrastructure for the CBV value-fixpoint
-    construction [Yfix_value_cond] in [theories/homs/em_fix.v], which
-    underlies the [ne_fix] constructor of the CBV PPL.
+    construction [Yfix_value_cond] in [theories/programs/infra/em_fix.v],
+    which underlies the [ne_fix] constructor of the CBV PPL.
 
     Key lemmas: [bang_fmap_lin_omega_cont], [prom_omega_cont],
     [linhom_pre/post_icones_sup], [tensor_mor_omega_cont_R],
@@ -15,7 +15,7 @@
     ---
 
     Prerequisites for the CBV value fixpoint construction
-    ([theories/homs/em_fix.v]).  We package the genuinely-new ω-continuity
+    ([theories/programs/infra/em_fix.v]).  We package the genuinely-new ω-continuity
     facts at the icones / EM(!) level that the fixpoint formula needs.
 
     The fundamental construction is:
