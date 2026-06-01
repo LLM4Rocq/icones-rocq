@@ -150,3 +150,117 @@ Definition bool_case_icones_hom :
 End BoolCaseIConesHom.
 
 Arguments bool_case_icones_hom {R Ar A} a b Ha Hb.
+
+(** ** [bool_case_linhom_gen] — UNIT-BALL-FREE packaging
+
+    Drop the [‖a‖ ≤ 1], [‖b‖ ≤ 1] hypotheses on the branches.
+    The branches [a, b : A] are arbitrary; only the chain inputs
+    need to live on the unit ball (this is automatic for the chain
+    field of [linhom_pre], so the unit-ball restriction on the
+    branches drops out).
+
+    Uses the generalized lemmas of [bool_cone.v]:
+    - [bool_case_linear] (already general; no unit-ball needed),
+    - [bool_case_omega_continuous_gen] (drops unit-ball on a, b),
+    - [bool_case_norm_le_max] for the operator bound (with
+      [M := max(‖a‖, ‖b‖) ∨ 0]),
+    - [bool_case_pres_path_gen],
+    - [bool_case_pres_int_gen]. *)
+
+Section BoolCaseLinhomGen.
+Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
+Variables (a b : A).
+
+Local Notation T := (bool_cone_car Ar).
+
+(** Linearity is unconditional (already in [bool_cone.v]). *)
+Definition bool_case_pre_linear_gen :
+    is_linear (fun x : T => bool_case x a b) :=
+  bool_case_linear Ar a b.
+
+(** ω-continuity without unit-ball restriction on [a, b]. *)
+Definition bool_case_pre_continuous_gen :
+    is_omega_continuous (fun x : T => bool_case x a b) :=
+  bool_case_omega_continuous_gen (a:=a) (b:=b).
+
+(** Operator-norm bound with the [‖a‖ + ‖b‖] threshold (using
+    [bool_case_norm_le_max] at [M := max(‖a‖, ‖b‖) ∨ 0]).  Note the
+    "≤ 1 → ≤ M" form of [linhom_pre_bounded] only needs a single
+    [M], so we pick [M := max(‖a‖, ‖b‖) ∨ 0]. *)
+Lemma bool_case_pre_bounded_gen :
+  exists M : R,
+    forall x : T, cone_norm x <= 1 -> cone_norm (bool_case x a b) <= M.
+Proof.
+pose M : R := Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
+exists M => x Hx.
+have HM0 : 0 <= M by rewrite le_max lexx orbT.
+have HMa : cone_norm a <= M
+  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
+     [rewrite le_max lexx|rewrite le_max lexx].
+have HMb : cone_norm b <= M
+  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
+     [rewrite le_max lexx orbT|rewrite le_max lexx].
+apply: le_trans (bool_case_norm_le_max HMa HMb HM0 x) _.
+by rewrite -[X in _ <= X]mul1r; apply: ler_wpM2r => //; rewrite mulrC.
+Qed.
+
+(** Path preservation, no unit-ball assumption. *)
+Definition bool_case_pre_pres_path_gen :
+    forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> T),
+      is_measurable_path γ ->
+      is_measurable_path (fun r => bool_case (γ r) a b) :=
+  fun X γ Hγ => bool_case_pres_path_gen a b γ Hγ.
+
+(** Package: the [linhom_pre] half. *)
+Definition bool_case_pre_gen : linhom_pre Ar T A :=
+  MkLinhomPre (fun x : T => bool_case x a b)
+              bool_case_pre_linear_gen
+              bool_case_pre_continuous_gen
+              bool_case_pre_bounded_gen
+              bool_case_pre_pres_path_gen.
+
+(** Integral preservation, no unit-ball assumption. *)
+Lemma bool_case_pres_int_packaged_gen
+    (X : ar_obj Ar) (β : ar_carrier Ar X -> T)
+    (Hβ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X)) :
+  linhom_pre_fun bool_case_pre_gen (icone_integral β Hβ µ) =
+  icone_integral
+    (fun r => linhom_pre_fun bool_case_pre_gen (β r))
+    (linhom_pre_pres_path bool_case_pre_gen X β Hβ) µ.
+Proof.
+rewrite /bool_case_pre_gen /=.
+have H := bool_case_pres_int_gen a b β Hβ µ.
+rewrite H.
+by congr icone_integral; exact: Prop_irrelevance.
+Qed.
+
+(** Target 1: unit-ball-free linhom_car packaging. *)
+Definition bool_case_linhom_gen : linhom_car Ar T A :=
+  MkLinhom bool_case_pre_gen bool_case_pres_int_packaged_gen.
+
+(** Operator-norm bound on [bool_case_linhom_gen]:
+    [‖bool_case_linhom_gen a b‖ ≤ max(‖a‖, ‖b‖) ∨ 0].  This follows
+    from [bool_case_norm_le_max] via [linhom_norm_sup_lub]. *)
+Lemma bool_case_linhom_gen_norm_le :
+  cone_norm bool_case_linhom_gen <= Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
+Proof.
+apply: (linhom_norm_sup_lub bool_case_linhom_gen _).
+move=> x Hx.
+rewrite /linhom_fun /= /bool_case_pre_gen /=.
+pose M : R := Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
+have HM0 : 0 <= M by rewrite le_max lexx orbT.
+have HMa : cone_norm a <= M
+  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
+     [rewrite le_max lexx|rewrite le_max lexx].
+have HMb : cone_norm b <= M
+  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
+     [rewrite le_max lexx orbT|rewrite le_max lexx].
+apply: le_trans (bool_case_norm_le_max HMa HMb HM0 x) _.
+by rewrite -[X in _ <= X]mul1r; apply: ler_wpM2r => //; rewrite mulrC.
+Qed.
+
+End BoolCaseLinhomGen.
+
+Arguments bool_case_linhom_gen {R Ar A} a b.
+Arguments bool_case_linhom_gen_norm_le {R Ar A} a b.
