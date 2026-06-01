@@ -1,3 +1,16 @@
+(**md *** BEYOND THE PAPER — PPL CBV chapter infrastructure
+
+    This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
+    (paper §2-§9). It provides the 2-point cone [bool_cone_car Ar],
+    interpreted as sub-probability measures on bool, as the cones-side
+    denotation of the source-language [tbool] type from the CBV PPL of
+    [theories/programs/ppl.v]. The cone IS (paper §4.4 / Theorem 4.24)
+    the categorical coproduct [cone_one ⊕ cone_one] in ICones; the
+    co-pairing [bool_case] is the universal-property eliminator.
+
+    See also: [theories/homs/bool_case_hom.v] (icones_hom packaging),
+    [theories/programs/ppl.v] (ne_true, ne_false, ne_if, ne_bernoulli). *)
+
 (** * The boolean cone — the 2-point sub-probability ICone
 
     This file constructs the **2-dimensional sub-probability cone**
