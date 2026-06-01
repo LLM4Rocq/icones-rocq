@@ -893,3 +893,38 @@ Arguments ex_false_denot {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas.
 Arguments ex_fair_coin_denot {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas.
+
+(** ** Example — [ex_if_demo] (Step 4)
+
+    Sanity check for the [if-then-else] PPL constructor (Step 3, [ne_if]):
+    typecheck a closed [tbool]-typed program
+    [[
+      if Bernoulli { 1/2, _, _ } then True else False
+    ]]
+    in the empty context.  No correctness lemma is claimed here; this is
+    purely an elaboration sanity check exercising the [ne_if]/[case_em]
+    eD clause and the [if e then M else N] surface notation. *)
+Section ExIfDemo.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+(** Witnesses [0 ≤ 1/2 ≤ 1] for the Bernoulli scrutinee — re-derived
+    locally so [ExIfDemo] is standalone (the section [ExBoolDemo] above
+    introduces them under hypotheses on [R_carrier_eq] etc., which this
+    section does not need). *)
+Lemma if_demo_half_ge0 : (0 <= 1 / 2 :> R)%R.
+Proof. by rewrite divr_ge0// ler01. Qed.
+
+Lemma if_demo_half_le1 : (1 / 2 <= 1 :> R)%R.
+Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
+
+(** The closed [tbool]-typed [if-then-else] term:
+    [if Bernoulli { 1/2 } then True else False]. *)
+Definition ex_if_demo :
+    @named_expr R Ar R_obj nil tbool :=
+  [ if Bernoulli { (1 / 2 : R), if_demo_half_ge0, if_demo_half_le1 }
+    then True else False ].
+
+End ExIfDemo.
+
+Arguments ex_if_demo {R Ar R_obj}.
