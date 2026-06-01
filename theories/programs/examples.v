@@ -826,3 +826,70 @@ End ExLoopDemo.
 Arguments ex_loop {R Ar R_obj}.
 Arguments ex_loop_denot {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas.
+
+(** ** Boolean primitives sanity check — [True], [False], [Bernoulli p]
+       as bool-typed expressions in the empty context
+
+    A minimal demonstration that the boolean primitives [True],
+    [False], and [Bernoulli p Hp_ge0 Hp_le1] parse correctly in the
+    [ppl_named] surface syntax and yield well-typed
+    [named_expr nil tbool] terms whose denotations are coalgebra
+    morphisms [⟦[]⟧ ⇝ ⟦tbool⟧].  No reduction lemma — we only check
+    that the syntax + the [eD] interpretation typecheck. *)
+
+Section ExBoolDemo.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+(** [True] : the boolean constant of type [tbool], in the empty context. *)
+Definition ex_true : @named_expr R Ar R_obj nil tbool := [ True ].
+
+(** [False] : the boolean constant of type [tbool], in the empty context. *)
+Definition ex_false : @named_expr R Ar R_obj nil tbool := [ False ].
+
+(** [Bernoulli { 1/2, Hge0, Hle1 }] : a fair-coin sample of type
+    [tbool].  The two side-conditions are passed in braces, matching
+    the [Score { ... }] convention. *)
+Lemma half_ge0 : (0 <= 1 / 2 :> R)%R.
+Proof. by rewrite divr_ge0// ler01. Qed.
+
+Lemma half_le1 : (1 / 2 <= 1 :> R)%R.
+Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
+
+Definition ex_fair_coin : @named_expr R Ar R_obj nil tbool :=
+  [ Bernoulli { (1 / 2 : R), half_ge0, half_le1 } ].
+
+(** Each example's denotation as a Kleisli arrow. *)
+Definition ex_true_denot :
+    coalg_hom (ctxD (drop_names nil)) (Tobj (tyD tbool)) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil tbool ex_true.
+
+Definition ex_false_denot :
+    coalg_hom (ctxD (drop_names nil)) (Tobj (tyD tbool)) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil tbool ex_false.
+
+Definition ex_fair_coin_denot :
+    coalg_hom (ctxD (drop_names nil)) (Tobj (tyD tbool)) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil tbool ex_fair_coin.
+
+End ExBoolDemo.
+
+Arguments ex_true {R Ar R_obj}.
+Arguments ex_false {R Ar R_obj}.
+Arguments ex_fair_coin {R Ar R_obj}.
+Arguments ex_true_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas.
+Arguments ex_false_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas.
+Arguments ex_fair_coin_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas.
