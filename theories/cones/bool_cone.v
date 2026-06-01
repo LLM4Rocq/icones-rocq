@@ -53,6 +53,7 @@ Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.basic_lemmas.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -958,6 +959,46 @@ congr (_ + _)%PC; congr (_ *: _)%PC; apply: nngnum_inj;
   by rewrite nng_mulE.
 Qed.
 
+(** Linearity of [bool_case x a b] in [x], packaged as a record. *)
+Lemma bool_case_linear (a b : A) : is_linear (fun x : T => bool_case x a b).
+Proof.
+split.
+- rewrite /bool_case /precone_zero/= /bc_zero/=.
+  by rewrite !precone_scale_0l precone_add0.
+- by move=> x y; exact: bool_case_addD.
+- by move=> r x; exact: bool_case_scaleZ.
+Qed.
+
 End BoolCase.
 
 End BoolConeConstants.
+
+Arguments bool_dirac_true {R Ar}.
+Arguments bool_dirac_false {R Ar}.
+Arguments bool_case {R Ar A}.
+
+(** ** Norm-boundedness and ω-continuity of [bool_case] on the unit ball *)
+
+Section BoolCaseCone.
+Variables (R : realType) (Ar : MeasSubcat R) (A : coneType R).
+Local Notation T := (bool_cone_car Ar).
+
+(** When the two "branches" [a, b : A] are in the unit ball,
+    [bool_case x a b] is norm-bounded by [‖x‖]. *)
+Lemma bool_case_norm_le1
+    (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1) (x : T) :
+  cone_norm (bool_case x a b) <= cone_norm x.
+Proof.
+rewrite /bool_case /cone_norm/= /bc_norm.
+apply: (le_trans (cone_normt _ _)).
+rewrite !cone_normh.
+have Hna : 0 <= cone_norm a by apply: cone_norm_ge0.
+have Hnb : 0 <= cone_norm b by apply: cone_norm_ge0.
+have Htax : (bc_t x)%:num * cone_norm a <= (bc_t x)%:num.
+  by rewrite -[X in _ <= X]mulr1; apply: ler_wpM2l; [exact: nngnum_ge0|].
+have Hfbx : (bc_f x)%:num * cone_norm b <= (bc_f x)%:num.
+  by rewrite -[X in _ <= X]mulr1; apply: ler_wpM2l; [exact: nngnum_ge0|].
+exact: lerD.
+Qed.
+
+End BoolCaseCone.
