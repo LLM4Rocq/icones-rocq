@@ -854,3 +854,110 @@ End BoolConeICone.
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
   @isICone.Build R Ar (bool_cone_car Ar)
     (@bool_int_exists R Ar).
+
+(** ** Constants and the case-analysis morphism *)
+
+Section BoolConeConstants.
+Variables (R : realType) (Ar : MeasSubcat R).
+Local Notation T := (bool_cone_car Ar).
+
+(** The Dirac at [true]: the sub-probability that puts all mass on the
+    [true] coordinate. *)
+Definition bool_dirac_true : T := MkBoolCone Ar 1%:nng 0%:nng.
+
+(** The Dirac at [false]: the sub-probability that puts all mass on
+    the [false] coordinate. *)
+Definition bool_dirac_false : T := MkBoolCone Ar 0%:nng 1%:nng.
+
+(** Both Diracs have norm 1 (= are total probability measures). *)
+Lemma bool_dirac_true_norm : cone_norm bool_dirac_true = 1.
+Proof. by rewrite /cone_norm/= /bc_norm/= addr0. Qed.
+
+Lemma bool_dirac_false_norm : cone_norm bool_dirac_false = 1.
+Proof. by rewrite /cone_norm/= /bc_norm/= add0r. Qed.
+
+(** *** The case morphism
+
+    [bool_case x a b := (bc_t x) *: a + (bc_f x) *: b] : the
+    "weighted decision" eliminator. For a sub-probability
+    [(p, q) : bool_cone], picking [a] with probability [p] and
+    [b] with probability [q] in any target cone [A].
+
+    Linearity in [x] is direct: scaling and addition on
+    [bool_cone] are componentwise, and the formula is bilinear in
+    [(bc_t x, bc_f x)]. *)
+
+Section BoolCase.
+Variable A : preconeType R.
+
+Definition bool_case (x : T) (a b : A) : A :=
+  precone_add
+    (precone_scale (bc_t x) a)
+    (precone_scale (bc_f x) b).
+
+(** [bool_case bool_dirac_true a b = a]: the Dirac at [true] picks
+    [a] with full weight. *)
+Lemma bool_case_true (a b : A) : bool_case bool_dirac_true a b = a.
+Proof.
+rewrite /bool_case /bool_dirac_true/=.
+rewrite precone_scale_1 precone_scale_0l.
+by rewrite precone_addC precone_add0.
+Qed.
+
+(** [bool_case bool_dirac_false a b = b]: the Dirac at [false] picks
+    [b] with full weight. *)
+Lemma bool_case_false (a b : A) : bool_case bool_dirac_false a b = b.
+Proof.
+rewrite /bool_case /bool_dirac_false/=.
+rewrite precone_scale_0l precone_scale_1.
+by rewrite precone_add0.
+Qed.
+
+(** [bool_case 0 a b = 0]: the zero sub-probability returns zero. *)
+Lemma bool_case_zero (a b : A) :
+  bool_case precone_zero a b = precone_zero.
+Proof.
+rewrite /bool_case /precone_zero/= /bc_zero/=.
+rewrite !precone_scale_0l.
+by rewrite precone_add0.
+Qed.
+
+(** [bool_case] is additive in [x]. *)
+(** Helper: a [precone_add]-ACA lemma, the "interchange" /
+    "Eckmann-Hilton" identity in commutative monoid notation. *)
+Lemma precone_addACA (p q r s : A) :
+  precone_add (precone_add p q) (precone_add r s) =
+  precone_add (precone_add p r) (precone_add q s).
+Proof.
+rewrite -precone_addA [precone_add q _]precone_addA.
+rewrite [precone_add q r]precone_addC.
+by rewrite -precone_addA precone_addA.
+Qed.
+
+Lemma bool_case_addD (x y : T) (a b : A) :
+  bool_case (precone_add x y) a b =
+  precone_add (bool_case x a b) (bool_case y a b).
+Proof.
+rewrite /bool_case /precone_add/= /bc_add/=.
+rewrite !precone_scale_DAl.
+(* (t_x + t_y) *: a + (f_x + f_y) *: b
+   = (t_x *: a + t_y *: a) + (f_x *: b + f_y *: b) *)
+(* Want: (t_x *: a + t_y *: a) + (f_x *: b + f_y *: b)
+       = (t_x *: a + f_x *: b) + (t_y *: a + f_y *: b)  [ACA] *)
+exact: precone_addACA.
+Qed.
+
+(** [bool_case] is homogeneous in [x] (linear under a scalar [r]). *)
+Lemma bool_case_scaleZ (r : {nonneg R}) (x : T) (a b : A) :
+  bool_case (precone_scale r x) a b =
+  precone_scale r (bool_case x a b).
+Proof.
+rewrite /bool_case /bc_scale/=.
+rewrite precone_scale_DAr -!precone_scale_A.
+congr (_ + _)%PC; congr (_ *: _)%PC; apply: nngnum_inj;
+  by rewrite nng_mulE.
+Qed.
+
+End BoolCase.
+
+End BoolConeConstants.
