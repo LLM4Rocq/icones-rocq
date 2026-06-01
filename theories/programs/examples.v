@@ -1005,9 +1005,58 @@ Definition ex_geom_denot :
   @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
       nil tR' ex_geom.
 
+(** *** [ex_almost_loop p Hp_ge0 Hp_le1] — partial-termination with
+       continuation probability [1 - p]
+
+    Source: [(let rec l = λ_. if Bernoulli(p) then ()
+                                              else l ()) ()].
+
+    On each call the recursion halts with probability [p] (returning
+    [()]) and recurses with probability [1 - p].  When [p > 0] the
+    function terminates almost surely.
+
+    Note on the [@ex_almost_loop] call in [ex_almost_loop_denot]: the
+    section setting [Set Implicit Arguments] makes [p] auto-implicit
+    (because [Hp_ge0] / [Hp_le1] reference it in their types), so the
+    re-binding needs an explicit [@] here.  The final [Arguments]
+    directive below restores [p] to explicit at the file's top
+    level. *)
+
+Definition ex_almost_loop (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+    @named_expr R Ar R_obj nil tunit :=
+  [ (fix "l" ::: tfun tunit tunit in
+       \ "_" ::: tunit =>
+         (if Bernoulli { p, Hp_ge0, Hp_le1 }
+          then ()
+          else # "l" @ ())) @ () ].
+
+(** Its lambda body, in the extended context
+    [("l", tfun tunit tunit) :: nil]. *)
+Definition ex_almost_loop_body (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+    @named_expr R Ar R_obj
+      (("l"%string, tfun tunit tunit) :: nil)
+      (tfun tunit tunit) :=
+  [ \ "_" ::: tunit =>
+      (if Bernoulli { p, Hp_ge0, Hp_le1 }
+       then ()
+       else # "l" @ ()) ].
+
+(** Its denotation, a Kleisli arrow [⟦[]⟧ ⇝ ⟦tunit⟧]. *)
+Definition ex_almost_loop_denot (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+    coalg_hom (ctxD (drop_names nil)) (Tobj (tyD tunit)) :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      nil tunit (@ex_almost_loop p Hp_ge0 Hp_le1).
+
 End Phase4Examples.
 
 Arguments ex_geom {R Ar R_obj}.
 Arguments ex_geom_body {R Ar R_obj}.
 Arguments ex_geom_denot {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas.
+Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
+Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
+Arguments ex_almost_loop_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas p Hp_ge0 Hp_le1.
