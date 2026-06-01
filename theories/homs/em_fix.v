@@ -1,6 +1,19 @@
 (**md**************************************************************************)
 (** * The CBV value-fixpoint [Yfix_value] — CBV §6
 
+    *** BEYOND THE PAPER — PPL CBV chapter infrastructure
+
+    This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
+    (paper §9.2 has Yfix at SCones level for CBN; CBV value-fixpoint
+    is paper-level folklore not in the literature, per P-A Mellies
+    consultation 2026-05-31).
+
+    Provides [Yfix_fun_T] : the CBV value-fixpoint operator at
+    function types via [adj_psi]-packaging of [linhom_lfp]. Used by
+    [theories/programs/ppl.v]'s [ne_fix] constructor.
+
+    ---
+
     Construction of the CBV value-level fixpoint operator on [coalg_hom]s.
 
     **The formula (Mellis' folklore).**  The CBV fixpoint formula is a
