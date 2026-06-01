@@ -53,21 +53,38 @@ root of the repository), plus a beyond-the-paper call-by-value model
     (Chapter~\ref{ch:cbv}): the \emph{full} cartesian
     Eilenberg--Moore category of $\mathord{!}$ carried by the linear
     $\otimes$ (Melli\`es' Cor 17/20, via the structural retraction-and-
-    lifting argument), the LNL monoidal adjunction
-    $U \dashv \widetilde{\mathord{!}}$ to $\ICones$, a higher-order
-    \emph{direct-style} (Plotkin/Girard CBV), \emph{multi-variable
-    named-variable} QBS-mirror PPL with \emph{implicit effects}
+    lifting argument), the cartesian $\eta$-rule
+    $\langle \pi_1, \pi_2 \rangle = \mathrm{id}$ on EM(!) (Fox 1976 /
+    Melli\`es Prop 28, to our knowledge a first Coq / Rocq
+    formalisation), the LNL monoidal adjunction
+    $U \dashv \widetilde{\mathord{!}}$ to $\ICones$, a CBV
+    value-fixpoint at function types (\texttt{Yfix\_fun\_T},
+    folklore per P.-A.~Melli\`es 2026-05-31, also a first Coq / Rocq
+    formalisation), and a higher-order \emph{direct-style}
+    (Plotkin/Girard CBV), \emph{multi-variable named-variable}
+    QBS-mirror PPL with \emph{implicit effects}
     (\texttt{theories/programs/ppl.v}, in the Saito--Affeldt APLAS
     2023 surface style with canonical-structure-driven variable
     lookup and a custom-entry surface notation; no $\mathtt{tprob}$
     type marker, no syntactic $\mathtt{return}$, no $\mathtt{bind}$ --
     the probability monad lives in the interpretation $\mathtt{eD}$,
-    not the source types) interpreting
-    \texttt{ex\_random\_constant}, \texttt{ex\_random\_linear} and the
-    Bayesian \texttt{ex\_bayes\_linear} (the unnormalised
+    not the source types) supporting OCaml-style $\mathtt{let\,rec}$
+    (\texttt{ne\_fix}) and the boolean cascade
+    (\texttt{tbool} / \texttt{ne\_true} / \texttt{ne\_false} /
+    \texttt{ne\_bernoulli} / \texttt{ne\_if}, the last dispatched via
+    the EM-Kleisli \texttt{case\_em} on the 2-point cone of paper \S4.4
+    / Theorem 4.24). Six end-to-end examples in
+    \texttt{theories/programs/examples.v}: the three QBS-style headlines
+    (\texttt{ex\_random\_constant}, \texttt{ex\_random\_linear},
+    \texttt{ex\_bayes\_linear} --- the unnormalised
     prior/score/observe posterior, the only example exercising the
-    term-level Bayesian-score constructor) axiom-free; the three
-    examples live in \texttt{theories/programs/examples.v}.
+    term-level Bayesian-score constructor) plus the three Phase 4
+    productive partial-termination examples
+    (\texttt{ex\_loop} = bare divergence,
+    \texttt{ex\_geom} = geometric counter,
+    \texttt{ex\_almost\_loop} = parameterised partial termination via
+    $\mathtt{ne\_fix} + \mathtt{ne\_if} + \mathtt{ne\_bernoulli}$),
+    all axiom-free.
 \end{itemize}
 The whole development is \textbf{fully axiom-free}: every result rests
 on \emph{zero} project axioms, using only the three classical-logic
@@ -87,30 +104,48 @@ structure} of Chapter~\ref{ch:cbv} is also built and axiom-free: the
 \emph{full} Eilenberg--Moore category $\mathrm{EM}(\mathord{!})$ is
 cartesian with product the linear $\otimes$ (Melli\`es' Proposition
 26--28 / Corollary 17/20 by the structural retraction-and-lifting
-argument), $U \dashv \widetilde{\mathord{!}}$ is a genuine LNL
+argument), the cartesian $\eta$-rule
+$\langle \pi_1, \pi_2 \rangle = \mathrm{id}$ holds on \emph{every}
+coalgebra pair (Fox 1976 / Melli\`es Prop 28 at the icones level, a
+first Coq / Rocq formalisation),
+$U \dashv \widetilde{\mathord{!}}$ is a genuine LNL
 adjunction with \emph{the} category of $\mathord{!}$-coalgebras, a small
-first-order CBV calculus is interpreted soundly, and a higher-order
+first-order CBV calculus is interpreted soundly, a CBV
+value-fixpoint at function types (\texttt{Yfix\_fun\_T}, folklore per
+P.-A.~Melli\`es 2026-05-31, also a first Coq / Rocq formalisation)
+supports OCaml-style $\mathtt{let\,rec}$, and a higher-order
 \emph{direct-style, multi-variable, named-variable QBS-mirror PPL with
 implicit effects} (\texttt{theories/programs/ppl.v}) using the EM(!)
 \emph{Kleisli exponentials}
 $\widetilde{\mathord{!}}(U A \multimap U(T\,B))$ for the
-CBV monad $T = \widetilde{\mathord{!}} \circ U$ interprets three
-QBS-style headline examples (collected in
-\texttt{theories/programs/examples.v}):
+CBV monad $T = \widetilde{\mathord{!}} \circ U$ interprets six
+end-to-end examples (collected in
+\texttt{theories/programs/examples.v}): the three QBS-style headlines
 \texttt{ex\_random\_constant} (the flagship distribution over a
 function space), \texttt{ex\_random\_linear} (the killer demo: a
 distribution over $\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$),
 and \texttt{ex\_bayes\_linear} (the textbook prior/score/observe
 Bayesian shape, the only example exercising the term-level
 Bayesian-score constructor; the \emph{unnormalised} posterior of
-total mass $\int f(m)\,\mathrm{d}\mu(m)$).
-The named surface is the \emph{only} syntax of
-\texttt{theories/programs/ppl.v}: variable lookup \texttt{\#~"x"}
-is canonical-structure-driven and a custom-entry notation supports
+total mass $\int f(m)\,\mathrm{d}\mu(m)$),
+plus the three Phase 4 productive partial-termination programs ---
+\texttt{ex\_loop} (bare divergence
+$\mathtt{(let\,rec\,l = \lambda\_.\,l\,())\,()}$),
+\texttt{ex\_geom} (a fair-coin geometric counter
+$\mathtt{(let\,rec\,g = \lambda\_.\,if\,Bernoulli(\tfrac12)\,then\,0\,
+else\,1 + g\,())\,()}$, total mass 1, almost-surely terminating), and
+\texttt{ex\_almost\_loop}\,$p$ (parameterised partial termination with
+continuation probability $1 - p$, total mass $p$). The named surface is
+the \emph{only} syntax of \texttt{theories/programs/ppl.v}: variable
+lookup \texttt{\#~"x"} is canonical-structure-driven and a custom-entry
+notation supports
 \texttt{let "x" := M in N} (the direct-style CBV sequencer, semantically
 $\mathtt{kbind\_ext}$)
 / \texttt{\textbackslash "x" ::: A => M}
+/ \texttt{fix "f" ::: tfun A B in M} (OCaml-style $\mathtt{let\,rec}$)
 / \texttt{Sample} / \texttt{Score \{ f, \ldots\} e}
+/ \texttt{True} / \texttt{False} / \texttt{Bernoulli \{ p, \ldots \}}
+/ \texttt{if e then M else N}
 / arithmetic, in the Saito--Affeldt APLAS 2023 style. There is
 \emph{no} \texttt{Ret} surface form --- the direct-style move is what
 the cones model makes possible: where older LL/comonad models forced a
