@@ -65,6 +65,8 @@ Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
+Require Import Icones.homs.cbv_adjunction.
+Require Import Icones.homs.em_fix.
 Require Import Icones.programs.cbv.
 Require Import Icones.programs.ppl.
 
@@ -1005,6 +1007,36 @@ Definition ex_geom_denot :
   @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
       nil tR' ex_geom.
 
+(** Structural reduction — exposes the outer [ne_app] of the
+    [ne_fix]/[ne_tt] pair.  Applying [eD_app] to the surface form
+    [(ne_fix _ body) @ ()] and unfolding the [ne_fix] branch of [eD]
+    to [Yfix_fun_T] (no separate [eD_fix] lemma is published) gives
+
+      [ex_geom_denot = kcomp (app_pair _ _)
+                             (coalg_comp (bang_m _ _)
+                                         (em_pair (Yfix_fun_T (eD ex_geom_body))
+                                                  (eD ne_tt)))].
+
+    The trailing [eD ne_tt] is the singleton-from-terminal Kleisli
+    return.  This is a STRUCTURAL rewrite, NOT a semantic-content
+    lemma: no closed form for the [Yfix_fun_T] iterate is claimed. *)
+Lemma ex_geom_denot_E :
+  ex_geom_denot =
+  kcomp (app_pair (tyD tunit) (tyD tR'))
+    (coalg_comp
+       (bang_m (coalg_obj (tyD (tfun tunit tR'))) (coalg_obj (tyD tunit)))
+       (em_pair
+          (Yfix_fun_T
+             (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+                  _ _ ex_geom_body))
+          (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+               _ _ (ne_tt (R_obj := R_obj) (G := nil))))).
+Proof.
+rewrite /ex_geom_denot /ex_geom.
+rewrite eD_app.
+by [].
+Qed.
+
 (** *** [ex_almost_loop p Hp_ge0 Hp_le1] — partial-termination with
        continuation probability [1 - p]
 
@@ -1055,6 +1087,8 @@ End Phase4Examples.
 Arguments ex_geom {R Ar R_obj}.
 Arguments ex_geom_body {R Ar R_obj}.
 Arguments ex_geom_denot {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas.
+Arguments ex_geom_denot_E {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas.
 Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
 Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
