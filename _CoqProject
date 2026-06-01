@@ -26,7 +26,6 @@ theories/icones/pettis.v
 theories/icones/icone.v
 theories/icones/icone_integral.v
 theories/icones/examples_icone.v
-theories/cones/bool_cone.v
 theories/icones/fubini.v
 theories/icones/icone_cat.v
 theories/mcones/test_pullback.v
@@ -59,14 +58,15 @@ theories/homs/exp_adjunction.v
 theories/homs/bang.v
 theories/homs/seely_defs.v
 theories/homs/seely.v
-theories/homs/bool_case_hom.v
 theories/homs/coalgebra.v
 theories/homs/em_cat.v
-theories/homs/em_continuity.v
 theories/homs/em_seely_comonoid.v
 theories/homs/em_cartesian.v
-theories/homs/em_fix.v
-theories/homs/cbv_adjunction.v
+theories/programs/infra/bool_cone.v
+theories/programs/infra/bool_case_hom.v
+theories/programs/infra/em_continuity.v
+theories/programs/infra/em_fix.v
+theories/programs/infra/cbv_adjunction.v
 theories/programs/cbv.v
 theories/programs/ppl.v
 theories/programs/examples.v
