@@ -1177,6 +1177,149 @@ Arguments adj_phi_bang_m_em_pair_eta {R Ar G A X} F V.
 Arguments adj_phi_em_proj1_em_pair {R Ar G A X} F V.
 Arguments app_under_proj_em_pair {R Ar G A B} F V.
 
+(** ** Surface beta-rule for the named-syntax PPL
+
+    The categorical β-rule corresponding to the named-syntax reduction
+    [ne_app (ne_lam x M) V' = M[V'/x]].  Two flavours, both at the cones
+    level:
+
+    - [adj_phi_bang_m_em_pair_eta_L] : the half-η variant of
+      [adj_phi_bang_m_em_pair_eta] — only the LEFT factor is η-wrapped,
+      the RIGHT factor is an arbitrary Kleisli arrow.  Reads:
+      [[
+        adj_phi (bang_m ∘ em_pair (η ∘ F) V')
+        = em_pair_mor (ch_mor F) (adj_phi V').
+      ]]
+
+    - [eD_app_lam_subst] : the headline β reduction.  Given a lambda
+      body [M : EM_prod G A ⇝ B] and a Kleisli arrow [V' : G ⇝ A], the
+      [eD]-image of [ne_app (ne_lam x M) V']-shape reduces to
+      [kbind_ext M V'] — the direct-style "sequence V', then run M
+      with the bound variable".  This is the equational law that lets
+      the marginal-at-[x] identities of [examples.v] discharge their
+      headline forms. *)
+Section EDAppLamSubstSurface.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Opaque der dig coalg_str bang_fmap coalg_d.
+
+(** [adj_phi (bang_m ∘ em_pair (η ∘ F) V') = em_pair_mor (ch_mor F) (adj_phi V')]:
+    half-η variant of [adj_phi_bang_m_em_pair_eta].  Chases:
+
+    1. [adj_phi_natL] reduces the outer [adj_phi] to
+       [adj_phi (bang_m) ∘ U_mor (em_pair (η ∘ F) V')].
+    2. [adj_counit_monoidal2] reduces [adj_phi (bang_m)] to
+       [tensor_mor (der X) (der (U A))].
+    3. [em_pair_mor_natR]-style absorption reduces the [tensor_mor ∘ em_pair_mor]
+       composite to [em_pair_mor (der X ∘ ch_mor (η∘F)) (der (U A) ∘ ch_mor V')].
+    4. [bang_cofree_str] + [comonad_counitL X] collapse the LEFT factor to
+       [ch_mor F]; the RIGHT factor is by definition [adj_phi V']. *)
+Lemma adj_phi_bang_m_em_pair_eta_L (G A : Coalgebra Ar) (X : ICone.type Ar)
+    (F : coalg_hom G (bang_cofree X))
+    (V' : coalg_hom G (Tobj A)) :
+  adj_phi (coalg_comp (bang_m (Bang Ar X) (coalg_obj A))
+                      (em_pair (coalg_comp (tunit_eta _) F) V'))
+  = em_pair_mor (ch_mor F) (adj_phi V').
+Proof.
+rewrite (adj_phi_natL (bang_m (Bang Ar X) (coalg_obj A))
+                      (em_pair (coalg_comp (tunit_eta _) F) V')).
+rewrite /adj_phi /U_mor /=.
+rewrite (adj_counit_monoidal2 (Bang Ar X) (coalg_obj A)).
+rewrite /em_pair /em_pair_mor /=.
+rewrite icones_compA.
+rewrite -tensor_mor_comp.
+rewrite bang_cofree_str.
+rewrite icones_compA.
+rewrite /adj_counit.
+rewrite (comonad_counitL X).
+by rewrite icones_compIl.
+Qed.
+
+(** *** [adj_phi_app_kleisli] — adj_phi computes app_kleisli as der ∘ app_under
+
+    For any value function [VF : G → bang_cofree (linhom A (U(T B)))] and
+    value argument [VA : G → A], [adj_phi (app_kleisli VF VA) =
+    der (U B) ∘ app_under VF VA].
+
+    Proof.  Unfold [app_kleisli VF VA = coalg_comp (tmul B) (adj_psi (app_under
+    VF VA))] and apply [adj_phi_natL].  The composite [adj_phi (tmul B) ∘
+    U_mor (adj_psi (app_under VF VA))] reduces, via [bang_fmap_comp] +
+    [der_nat] + [adj_triangleL P] ([der ∘ coalg_str P = id_{U P}], a
+    coalgebra-counit law transported through the [U]-side), to
+    [(der (U B) ∘ app_under VF VA)].  This is the standard "monad-mult
+    collapses to dereliction" reduction for [tmul / der]. *)
+Lemma adj_phi_app_kleisli (G A B : Coalgebra Ar)
+    (VF : coalg_hom G
+            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))))
+    (VA : coalg_hom G A) :
+  adj_phi (app_kleisli VF VA)
+  = icones_comp (der (coalg_obj B)) (app_under VF VA).
+Proof.
+rewrite /app_kleisli.
+rewrite adj_phi_natL.
+rewrite /adj_phi /tmul /U_mor /adj_counit /=.
+rewrite -[U_obj B]/(coalg_obj B).
+rewrite -(icones_compA (der (coalg_obj B)) (bang_fmap (der (coalg_obj B))) _).
+rewrite (icones_compA (bang_fmap (der (coalg_obj B))) (bang_fmap (app_under VF VA))
+                      (coalg_str G)).
+rewrite -bang_fmap_comp.
+rewrite (icones_compA (der _) (bang_fmap _) (coalg_str G)).
+rewrite -(der_nat (icones_comp (der (coalg_obj B)) (app_under VF VA))).
+rewrite -icones_compA.
+rewrite (coalg_counit G).
+by rewrite icones_compIr.
+Qed.
+
+(** *** [eD_app_lam_subst] — the categorical surface β rule (VALUE form)
+
+    Given a lambda body [M : EM_prod G A ⇝ B] and a VALUE argument
+    [V : G → A], the eD-image of the named-syntax reduction
+    [ne_app (ne_lam x M) (η ∘ V)] is [coalg_comp M (em_pair id V)] —
+    the body substituted by [V].  Reads (with the [eD_app] / [eD_lam]
+    unfoldings folded back in):
+    [[
+      kcomp (app_pair A B)
+            (coalg_comp (bang_m (Bang (linhom A (U(T B)))) (U A))
+                        (em_pair (coalg_comp (tunit_eta _) (lam_coalg M))
+                                 (coalg_comp (tunit_eta A) V)))
+      = coalg_comp M (em_pair (coalg_id G) V).
+    ]]
+    Proof (the gap chain): [adj_phi_inj] + [adj_phi_kcomp] +
+    [adj_phi_bang_m_em_pair_eta] reduce the LHS to
+    [adj_phi (app_pair) ∘ em_pair_mor (ch_mor (lam M)) (ch_mor V)];
+    [adj_phi_app_kleisli] turns this into
+    [der (U B) ∘ app_under (em_proj1) (em_proj2) ∘ em_pair_mor (...)];
+    [app_under_proj_em_pair] (the gap-A identity) collapses the icones-
+    level β to [der (U B) ∘ app_under (lam_coalg M) V]; reading backwards
+    through [adj_phi_app_kleisli] this is [adj_phi (app_kleisli (lam_coalg
+    M) V)]; and by [app_kleisli_lam] the [coalg_hom] this projects from
+    is [coalg_comp M (em_pair id V)] — the RHS. *)
+Lemma eD_app_lam_subst (G A B : Coalgebra Ar)
+    (M : coalg_hom (EM_prod G A) (Tobj B))
+    (V : coalg_hom G A) :
+  kcomp (app_pair A B)
+        (coalg_comp (bang_m (Bang Ar (linhom_car Ar (coalg_obj A)
+                                                    (coalg_obj (Tobj B))))
+                            (coalg_obj A))
+                    (em_pair (coalg_comp (tunit_eta _) (lam_coalg M))
+                             (coalg_comp (tunit_eta A) V)))
+  = coalg_comp M (em_pair (coalg_id G) V).
+Proof.
+rewrite -(app_kleisli_lam M V).
+apply: adj_phi_inj.
+rewrite adj_phi_kcomp.
+rewrite (adj_phi_bang_m_em_pair_eta (lam_coalg M) V).
+rewrite /app_pair adj_phi_app_kleisli adj_phi_app_kleisli.
+rewrite -icones_compA.
+by rewrite (app_under_proj_em_pair (lam_coalg M) V).
+Qed.
+
+End EDAppLamSubstSurface.
+
+Arguments adj_phi_bang_m_em_pair_eta_L {R Ar G A X} F V'.
+Arguments adj_phi_app_kleisli {R Ar G A B} VF VA.
+Arguments eD_app_lam_subst {R Ar G A B} M V.
+
 (** ** Term interpretation [eD]
 
     Every expression denotes a Kleisli arrow [⟦Γ ⊢ M : τ⟧ : coalg_hom (ctxD
