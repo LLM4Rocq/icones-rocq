@@ -976,6 +976,99 @@ Arguments app_kleisli {R Ar G A B} VF VA.
 Arguments app_pair {R Ar} A B.
 Arguments app_kleisli_lam {R Ar G A B} M V.
 
+(** ** Infrastructure for the surface β-rule on [eD]
+
+    Two pure categorical identities about [coalg_hom]s and [bang_m]
+    that arise when reducing the [eD]-image of [ne_app (ne_lam x M) V]
+    against [eD_app] / [eD_lam] clauses.
+
+    - [dig_ch_mor_F] : for a value [F : G → bang_cofree X],
+      [dig X ∘ ch_mor F = bang_fmap (ch_mor F) ∘ coalg_str G].
+      This is the coalgebra-morphism square at the [bang_cofree]
+      codomain, with [coalg_str (bang_cofree X) = dig X] folded.
+
+    - [adj_phi_bang_m_em_pair_eta] : for a value
+      [F : G → bang_cofree X] and any [V : G → A],
+      [adj_phi (bang_m ∘ em_pair (η ∘ F) (η ∘ V)) = em_pair_mor (ch_mor F) (ch_mor V)].
+      Pre-composes [bang_m] with an [η]-paired value pair and applies
+      [adj_phi]: the result is the underlying pairing
+      [em_pair_mor (ch_mor F) (ch_mor V)] without any [Bang] / [bang_m]
+      wrapping.  Uses [adj_counit_monoidal2] +
+      [comonad_counitL] + [coalg_counit].
+
+    These two lemmas are the unconditional half of the surface β
+    machinery; the missing piece — the full β rule connecting
+    [kcomp app_pair (bang_m ∘ em_pair (η ∘ lam_coalg M) V)] to
+    [kbind_ext M V] — would additionally require a naturality lemma
+    [app_under (em_proj1 _ _) (em_proj2 _ _) ∘ em_pair_mor F V = app_under F V],
+    which the SAFT tensor-uncurry layer does not currently expose as a
+    one-step rewrite (only [tensor_curry_natural_post] /
+    [tensor_curry_natural_B_post] are available, and they require
+    detouring through [tensor_mor_l]). *)
+
+Section EDAppLamSubst.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Opaque der dig coalg_str bang_fmap coalg_d.
+
+(** [dig X ∘ ch_mor F = bang_fmap (ch_mor F) ∘ coalg_str G] for a
+    value [F : G → bang_cofree X].  The coalg-morphism square
+    [coalg_str (bang_cofree X) ∘ ch_mor F = bang_fmap (ch_mor F) ∘
+    coalg_str G] with [coalg_str (bang_cofree X) = dig X]
+    ([bang_cofree_str]) folded. *)
+Lemma dig_ch_mor_F (G : Coalgebra Ar) (X : ICone.type Ar)
+    (F : coalg_hom G (bang_cofree X)) :
+  icones_comp (dig X) (ch_mor F)
+  = icones_comp (bang_fmap (ch_mor F)) (coalg_str G).
+Proof.
+have := ch_is_mor F.
+rewrite /is_coalg_mor /=.
+by rewrite bang_cofree_str.
+Qed.
+
+(** [adj_phi (bang_m ∘ em_pair (η ∘ F) (η ∘ V)) = em_pair_mor (ch_mor F) (ch_mor V)]
+    for a value [F : G → bang_cofree X] and [V : G → A].  Chases:
+
+    1. [adj_phi_natL] / [adj_counit_monoidal2]: [adj_phi (bang_m ∘ —)
+       = tensor_mor (adj_counit (Bang X)) (adj_counit A) ∘ U_mor (em_pair —)].
+    2. [coalg_comp_mor] + [bang_cofree_str]: [ch_mor (η ∘ F) = dig X ∘
+       ch_mor F]; similarly [ch_mor (η ∘ V) = coalg_str A ∘ ch_mor V].
+    3. Tensor-functoriality: combine the four icones_homs through the
+       tensor_mor.
+    4. [comonad_counitL] : [der (Bang X) ∘ dig X = id]; [coalg_counit] :
+       [der (coalg_obj A) ∘ coalg_str A = id].  Both [tensor_mor]
+       arguments collapse to [ch_mor F] / [ch_mor V] respectively. *)
+Lemma adj_phi_bang_m_em_pair_eta (G A : Coalgebra Ar) (X : ICone.type Ar)
+    (F : coalg_hom G (bang_cofree X))
+    (V : coalg_hom G A) :
+  adj_phi (coalg_comp (bang_m (Bang Ar X) (coalg_obj A))
+                      (em_pair (coalg_comp (tunit_eta _) F)
+                               (coalg_comp (tunit_eta A) V)))
+  = em_pair_mor (ch_mor F) (ch_mor V).
+Proof.
+rewrite (adj_phi_natL (bang_m (Bang Ar X) (coalg_obj A))
+                      (em_pair (coalg_comp (tunit_eta _) F)
+                               (coalg_comp (tunit_eta A) V))).
+rewrite /adj_phi /U_mor /=.
+rewrite (adj_counit_monoidal2 (Bang Ar X) (coalg_obj A)).
+rewrite /em_pair /em_pair_mor /=.
+rewrite icones_compA.
+rewrite -tensor_mor_comp.
+rewrite bang_cofree_str.
+rewrite icones_compA.
+rewrite /adj_counit.
+rewrite (comonad_counitL X).
+rewrite icones_compIl.
+rewrite (icones_compA (der (coalg_obj A))).
+rewrite (coalg_counit A).
+by rewrite icones_compIl.
+Qed.
+
+End EDAppLamSubst.
+
+Arguments dig_ch_mor_F {R Ar G X} F.
+Arguments adj_phi_bang_m_em_pair_eta {R Ar G A X} F V.
+
 (** ** Term interpretation [eD]
 
     Every expression denotes a Kleisli arrow [⟦Γ ⊢ M : τ⟧ : coalg_hom (ctxD
