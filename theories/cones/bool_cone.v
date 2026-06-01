@@ -1016,6 +1016,36 @@ have Hfbx : (bc_f x)%:num * cone_norm b <= (bc_f x)%:num.
 exact: lerD.
 Qed.
 
+(** Generalized norm bound: for ARBITRARY [a, b : A] (no unit-ball
+    assumption), [‖bool_case x a b‖ ≤ bc_t(x)·‖a‖ + bc_f(x)·‖b‖].  This
+    is the load-bearing bound for the env-dependent [case_em] of paper
+    §5 (Step 5b): with [a, b] arising as the codomain values of
+    coalg_homs that need not be norm-bounded by 1, we still get a
+    bilinearity-style decomposition of the norm. *)
+Lemma bool_case_norm (a b : A) (x : T) :
+  cone_norm (bool_case x a b)
+  <= (bc_t x)%:num * cone_norm a + (bc_f x)%:num * cone_norm b.
+Proof.
+rewrite /bool_case /cone_norm/= /bc_norm.
+apply: (le_trans (cone_normt _ _)).
+by rewrite !cone_normh.
+Qed.
+
+(** Looser global bound used by the ω-continuity argument: when both
+    branches are bounded by some common [M ≥ ‖a‖, ‖b‖], we get
+    [‖bool_case x a b‖ ≤ ‖x‖ · M].  Follows from [bool_case_norm]. *)
+Lemma bool_case_norm_le_max (a b : A) (M : R)
+    (HMa : cone_norm a <= M) (HMb : cone_norm b <= M) (HM0 : 0 <= M)
+    (x : T) :
+  cone_norm (bool_case x a b) <= cone_norm x * M.
+Proof.
+apply: le_trans (bool_case_norm a b x) _.
+rewrite /cone_norm/= /bc_norm mulrDl.
+apply: lerD.
+- by apply: ler_wpM2l => //; exact: nngnum_ge0.
+- by apply: ler_wpM2l => //; exact: nngnum_ge0.
+Qed.
+
 End BoolCaseCone.
 
 (** ** Scalar sup-distributivity — substep 2a of ω-continuity
@@ -1211,6 +1241,96 @@ Lemma bool_case_chain_ub1 (a b : A)
     (u : nat -> T) (ub1 : forall n, cone_norm (u n) <= 1) (n : nat) :
   cone_norm (bool_case (u n) a b) <= 1.
 Proof. exact: le_trans (bool_case_norm_le1 Ha Hb (u n)) (ub1 n). Qed.
+
+(** Generalized image-chain bound: when [u_n] is in the unit ball, the
+    test value [test_fun m s0 (bool_case u_n a b)] is bounded by
+    [α + β] where [α = test_fun m s0 a], [β = test_fun m s0 b]
+    (no unit-ball assumption on [a, b]). *)
+Lemma bool_case_test_chain_ub
+    (Ar' : MeasSubcat R) (B : ICone.type Ar') (a b : B)
+    (u : nat -> bool_cone_car Ar')
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (Y : ar_obj Ar') (m : test_of Ar' Y B)
+    (s0 : ar_carrier Ar' Y) (n : nat) :
+  test_fun m s0 (bool_case (u n) a b)
+  <= test_fun m s0 a + test_fun m s0 b.
+Proof.
+rewrite /bool_case test_linD !test_linZ.
+have Htn : (bc_t (u n))%:num <= 1.
+  apply: le_trans (ub1 n).
+  by rewrite /cone_norm/= /bc_norm lerDl; exact: nngnum_ge0.
+have Hfn : (bc_f (u n))%:num <= 1.
+  apply: le_trans (ub1 n).
+  by rewrite /cone_norm/= /bc_norm lerDr; exact: nngnum_ge0.
+apply: lerD.
+- rewrite -[X in _ <= X]mul1r.
+  apply: ler_wpM2r => //; exact: test_ge0.
+- rewrite -[X in _ <= X]mul1r.
+  apply: ler_wpM2r => //; exact: test_ge0.
+Qed.
+
+(** Generalized ω-continuity (no unit-ball assumption on [a, b]).
+    Only the chain [u : nat -> T] needs to live on the unit ball; the
+    branches [a, b : A] are arbitrary. *)
+Lemma bool_case_omega_continuous_gen (a b : A) :
+  is_omega_continuous (fun x : T => bool_case x a b).
+Proof.
+move=> u uch ub1 fuch fub1.
+apply: mcone_M_sep => m mM.
+set lhs := bool_case _ a b.
+set rhs := cone_sup_ball _ fuch fub1.
+set alpha := test_fun m (ar_zero_pt Ar) a.
+set beta  := test_fun m (ar_zero_pt Ar) b.
+have testLHS :
+    test_fun m (ar_zero_pt Ar) lhs =
+    (bc_t (cone_sup_ball u uch ub1))%:num * alpha
+    + (bc_f (cone_sup_ball u uch ub1))%:num * beta.
+  rewrite /lhs /bool_case test_linD !test_linZ.
+  by rewrite /alpha /beta.
+have testNth : forall n,
+    test_fun m (ar_zero_pt Ar) (bool_case (u n) a b) =
+    (bc_t (u n))%:num * alpha + (bc_f (u n))%:num * beta.
+  by move=> n; rewrite /bool_case test_linD !test_linZ /alpha /beta.
+set Sc := [set test_fun m (ar_zero_pt Ar) (bool_case (u n) a b) | n in [set: nat]].
+have Sc_ne : Sc !=set0
+  by exists (test_fun m (ar_zero_pt Ar) (bool_case (u 0%N) a b)); exists 0%N.
+(* Sc is bounded by [α + β] — no unit-ball assumption on a, b needed. *)
+have Sc_bd : has_ubound Sc.
+  exists (alpha + beta) => x [n _ <-].
+  exact: bool_case_test_chain_ub.
+have has_sup_Sc : has_sup Sc by split.
+have test_mono : forall x y : A, precone_le x y ->
+    test_fun m (ar_zero_pt Ar) x <= test_fun m (ar_zero_pt Ar) y.
+  move=> x y [z ->].
+  rewrite test_linD lerDl.
+  exact: test_ge0.
+have test_cont_le :
+    test_fun m (ar_zero_pt Ar) rhs <= sup Sc.
+  apply: test_cont => n.
+  exact: (ub_le_sup Sc_bd (ex_intro2 _ _ n I (erefl _))).
+have test_rhs_eq : test_fun m (ar_zero_pt Ar) rhs = sup Sc.
+  apply: le_anti; apply/andP; split=> //.
+  apply: ge_sup => //.
+  move=> x [n _ <-].
+  apply: test_mono.
+  exact: cone_sup_ball_ub.
+have ch_t : forall n, (bc_t (u n))%:num <= (bc_t (u n.+1))%:num.
+  by move=> n; have /bc_leE [Ht _] := uch n.
+have ch_f : forall n, (bc_f (u n))%:num <= (bc_f (u n.+1))%:num.
+  by move=> n; have /bc_leE [_ Hf] := uch n.
+have Hsum : forall n, (bc_t (u n))%:num + (bc_f (u n))%:num <= 1.
+  by move=> n; have := ub1 n; rewrite /cone_norm/= /bc_norm.
+have alpha_ge0 : 0 <= alpha by apply: test_ge0.
+have beta_ge0 : 0 <= beta by apply: test_ge0.
+have Sc_eq : Sc = [set (bc_t (u n))%:num * alpha
+                    + (bc_f (u n))%:num * beta | n in [set: nat]].
+  apply: funext => x.
+  apply: propext; split=> [[n _ <-]|[n _ <-]].
+  - by exists n => //; rewrite testNth.
+  - by exists n => //; rewrite testNth.
+rewrite testLHS test_rhs_eq Sc_eq.
+by apply: bool_case_sup_distrib => //; apply: nngnum_ge0.
+Qed.
 
 (** ω-continuity of [x ↦ bool_case x a b] on the unit ball. *)
 Lemma bool_case_omega_continuous
