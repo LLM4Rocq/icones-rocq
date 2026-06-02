@@ -1,11 +1,22 @@
 (**md**************************************************************************)
-(** * Headline PPL examples — three QBS-style probabilistic programs in
-       direct-style named surface syntax, with structural reduction lemmas
+(** * Headline PPL examples — six probabilistic programs in direct-style
+       named surface syntax, with structural reduction lemmas
 
-    Three end-to-end examples for the DIRECT-STYLE named-variable PPL
+    Six end-to-end examples for the DIRECT-STYLE named-variable PPL
     of [theories/programs/ppl.v], each written in the [ppl_named]
-    custom entry and paired with a [_denot_E] structural reduction
-    lemma exposing the outer [kbind_ext]-shape of its denotation.
+    custom entry [[ … ]] and paired with a [_denot_E] structural
+    reduction lemma exposing the outer [kbind_ext]-shape of its
+    denotation.  The file is split into two groups:
+
+    - **QBS headlines (1–3)** — total-mass programs.  Pure
+      sample-and-score, no recursion.  Each is paired with its
+      [_denot_E] reduction and, where landed, a Law-3-reduced
+      [_marginal] / [_is_weighted] form.  See "Headline status" below.
+    - **Phase 4 partial-termination examples (4–6)** — combine
+      [ne_fix] (the CBV value-fixpoint of
+      [theories/programs/infra/em_fix.v]) with [ne_if] / [ne_bernoulli]
+      to demonstrate divergence and sub-probability mass at the
+      denotational level.
 
     Direct style: the source language exposes no probability-monad
     marker.  The function type [tfun tR tR] (NOT [tprob (tfun tR tR)])
@@ -14,6 +25,7 @@
     monad in the codomain).  All effects are implicit; the [kbind_ext]
     structure surfaces only at the level of [eD].
 
+    ** QBS headlines **
     - [ex_random_constant mu Hmu]: [let "c" := sample mu in λx. c]
       of type [tfun tR tR] — the QBS-paper-flagship "distribution over
       a function space" example.  The reduction lemma
@@ -30,7 +42,39 @@
       the outer [kbind_ext score_then_return_denot sample_denot]
       form.  This is the UNNORMALISED posterior (no [qbs_normalize]);
       we claim only that the denotation matches the expected
-      joint-pushforward-then-density reduction. *)
+      joint-pushforward-then-density reduction.
+
+    ** Phase 4 partial-termination examples (beyond the paper) **
+    - [ex_loop]: [(let rec l = λ_. l ()) ()] : [tunit] — bare
+      divergence; total mass 0.  [ex_loop_denot] is the Kleene
+      supremum of [Phi_fun] (no closed form claimed).
+    - [ex_geom]: [(let rec g = λ_.
+      if Bernoulli(1/2) then 0 else 1 + g ()) ()] : [tR] — geometric
+      counter; total mass 1 (almost-surely terminating).
+      [ex_geom_denot_E] exposes the structural
+      [kcomp (app_pair _ _) (bang_m ∘ em_pair (Yfix_fun_T body) ne_tt)]
+      form.
+    - [ex_almost_loop p Hp_ge0 Hp_le1]:
+      [(let rec l = λ_. if Bernoulli(p) then () else l ()) ()] :
+      [tunit] — parameterised partial termination; total mass [p].
+      [ex_almost_loop_denot_E] is the analogous structural reduction.
+      At [p = 0] we recover [ex_loop]; at [p > 0] the program is
+      almost-surely terminating.
+
+    ** Headline status ** (closed-form identification of the
+    denotation with a "standard distribution")
+
+    | Example | Headline identity | What is landed here |
+    | --- | --- | --- |
+    | [ex_random_constant] | marginal at [x] = [µ] | Law-3 collapse + outer [kcomp] shape [ex_random_constant_marginal] |
+    | [ex_random_linear] | marginal at [x] = pushforward of [µ⊗µ] along [(m,b)↦m·x+b] | Outermost Law-3 collapse [ex_random_linear_marginal] |
+    | [ex_bayes_linear] | denotation = [f·µ] (unnormalised posterior) | Law-3 collapse + score-return identifies as [∫ prom(f(r)·δ_r) dµ] ([ex_bayes_linear_is_weighted_kscore] / [ex_bayes_linear_is_weighted]) |
+    | [ex_loop] / [ex_geom] / [ex_almost_loop] | (no closed form claimed) | typechecking + structural [_denot_E] for the latter two |
+
+    The remaining gaps to the closed-form identification of the QBS
+    headlines (named-syntax β / [kbind_ext]–[fmeas_lax] commutativity /
+    Law 2) are documented in detail above each [_marginal] /
+    [_is_weighted] lemma below. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
