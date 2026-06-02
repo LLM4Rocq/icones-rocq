@@ -579,17 +579,29 @@ Arguments kbind_ext {R Ar G A B} k m.
     NOT INCLUDED — Law 2 (full associativity-with-substitution): in the
     shape proposed by the prompt
     [kbind_ext h (kbind_ext k m) = kbind_ext (kbind_ext shifted_h k) m]
-    the proof reduces (via [adj_phi_kbind_ext]) to an icones-level
-    identity that requires either the cartesian "pair-of-projections is
-    the identity" rule
-    [em_pair_mor(em_proj1_mor, em_proj2_mor) = id_{EM_prod P Q}] or a
-    "tensor_mor / coalg_d swap" identity that is NOT available
-    axiom-free in the current cones library (it requires uniqueness of
-    the cartesian product, which only holds via the [U] functor's
-    faithfulness and only for COALG morphisms — [adj_phi k]/[adj_phi m]
-    are NOT coalg morphisms in general).  Recording this as a precise
-    gap; downstream Lemma 2 callers can either supply a stronger
-    helper or work around. *)
+    the proof reduces (via [adj_phi_kbind_ext_A] below — two
+    applications of [adj_phi_kbind_ext]) to an icones-level identity
+    on the doubly-paired right-hand side.
+
+    Precise blocker (as of Gap D, 2026-06).  The cartesian-η rule
+    [em_pair_mor (em_proj1_mor, em_proj2_mor) = id_{EM_prod P Q}] is
+    AVAILABLE axiom-free (see [em_cartesian.em_pair_mor_proj_id]).
+    The REMAINING blocker is the ASYMMETRIC case
+    [em_proj1_mor ∘ em_pair_mor (a, b) = a] where [a] is NOT a coalg
+    morphism: [em_proj1_pair] requires [a] to be a coalg morphism,
+    but [adj_phi k]/[adj_phi m] are NOT coalg morphisms in general.
+    The closure thus splits per-site: each downstream caller must
+    discharge it via locally-available coalg-mor witnesses.
+
+    The doubly-reduced structural shape exposed by [adj_phi] is
+    recorded as [adj_phi_kbind_ext_A] below for downstream use.
+
+    The only QBS-paper headline that genuinely needed Law 2 was the
+    Bayes-posterior identity ([ex_bayes_linear] in
+    [theories/programs/examples.v]).  Gap D (2026-06) closes it
+    axiom-free at the MEASURE level
+    ([weighted_mu_preimage] / [ex_bayes_linear_is_weighted_headline]),
+    sidestepping the cartesian-η asymmetric blocker entirely. *)
 
 Section KbindExtLaws.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -735,10 +747,34 @@ Proof.
 by rewrite /kbind_ext adj_phi_kcomp adj_phi_T_str_l_em_pair.
 Qed.
 
+(** [adj_phi] of a NESTED [kbind_ext] — the doubly-reduced structural
+    shape.
+
+    Two applications of [adj_phi_kbind_ext] expose the
+    [icones_hom]-level pairing structure of [kbind_ext h (kbind_ext k m)].
+    Downstream callers (per research finding #133) discharge the
+    Law-2 collapse via per-site cartesian-uniqueness with locally
+    available coalg-mor witnesses; this lemma records the structural
+    shape exposed by the [adj_phi] reduction. *)
+Lemma adj_phi_kbind_ext_A (G A B C : Coalgebra Ar)
+    (h : coalg_hom (EM_prod G B) (Tobj C))
+    (k : coalg_hom (EM_prod G A) (Tobj B))
+    (m : coalg_hom G (Tobj A)) :
+  adj_phi (kbind_ext h (kbind_ext k m))
+  = icones_comp (adj_phi h)
+      (em_pair_mor (icones_id Ar (coalg_obj G))
+        (icones_comp (adj_phi k)
+                     (em_pair_mor (icones_id Ar (coalg_obj G)) (adj_phi m)))).
+Proof.
+by rewrite (adj_phi_kbind_ext h (kbind_ext k m))
+              (adj_phi_kbind_ext k m).
+Qed.
+
 End AdjPhiKbindExt.
 
 Arguments adj_phi_T_str_l_em_pair {R Ar G A} m.
 Arguments adj_phi_kbind_ext {R Ar G A B} k m.
+Arguments adj_phi_kbind_ext_A {R Ar G A B C} h k m.
 
 (** ** Law 3 — Terminal-source collapse of [kbind_ext]
 
