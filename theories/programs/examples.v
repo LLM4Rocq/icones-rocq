@@ -66,7 +66,7 @@
 
     | Example | Headline identity | What is landed here |
     | --- | --- | --- |
-    | [ex_random_constant] | marginal at [x] = [µ] | Law-3 collapse + outer [kcomp] shape [ex_random_constant_marginal] |
+    | [ex_random_constant] | marginal at [x] = [µ] | **CLOSED-FORM** [ex_random_constant_marginal_headline] (kbind_ext (apply_at x) ex_random_constant_denot = sample_kleisli µ Hµ); intermediate Law-3 shape kept as [ex_random_constant_marginal] |
     | [ex_random_linear] | marginal at [x] = pushforward of [µ⊗µ] along [(m,b)↦m·x+b] | Outermost Law-3 collapse [ex_random_linear_marginal] |
     | [ex_bayes_linear] | denotation = [f·µ] (unnormalised posterior) | Law-3 collapse + score-return identifies as [∫ prom(f(r)·δ_r) dµ] ([ex_bayes_linear_is_weighted_kscore] / [ex_bayes_linear_is_weighted]) |
     | [ex_loop] / [ex_geom] / [ex_almost_loop] | (no closed form claimed) | typechecking + structural [_denot_E] for the latter two |
@@ -407,24 +407,11 @@ Local Definition apply_at (x : R) :
     [tunit_eta (tyD tR')] (the β-rule for [#"f" @ [|x|]] specialised
     to the constant-lambda value [λ_. c]).
 
-    What is NOT delivered.  The reduction of the merged
-    [kcomp K_outer K_inner] to [tunit_eta] would require, axiom-free,
-    a "named-syntax β" identity combining [eD_app] with the lambda
-    value of [eD_lam] — concretely:
-
-      [coalg_comp (eD [(\ "z" ::: A => M) @ V]) h
-       = coalg_comp (eD M) (em_pair (coalg_comp em_term_mor h) (eD V'))]
-
-    where [V'] is the [V]-expression in the post-substitution context
-    (the named-syntax β-rule).  The cones library exposes the
-    higher-order β at the [app_kleisli (lam_coalg M) V] level
-    ([app_kleisli_lam] of [theories/programs/ppl.v]), but does NOT
-    expose its [eD_app]-pre-composed surface form (the missing chain
-    is [eD_app + bang_m-strength + adj_phi-curry + app_kleisli_lam +
-    em_proj2_pair + em_term_mor uniqueness + const_kleisli naturality
-    over coalgebra morphisms]).  Adding this would naturally belong
-    to [theories/programs/ppl.v] above [Section LamApp].  Its absence
-    is what blocks the headline form. *)
+    Headline status.  The full headline-closed form
+    [= sample_kleisli µ Hµ] is delivered as
+    [ex_random_constant_marginal_headline] below.  This
+    intermediate Law-3-reduced shape is kept because it is a useful
+    stepping stone (the headline proof rewrites against it). *)
 Lemma ex_random_constant_marginal (x : R) :
   kbind_ext (apply_at x)
     (@ex_random_constant_denot R Ar R_obj R_carrier_eq R_carrier_meas
@@ -448,11 +435,195 @@ rewrite (kbind_ext_terminal_source
 by rewrite kbind_ext_terminal_source.
 Qed.
 
+(** *** Lemma 1 (headline-closed form) — marginal at [x] IS [sample µ]
+
+    The headline equation: evaluating the random-constant program at
+    any point [x : R] recovers the prior [µ].  This is the
+    QBS-paper-flagship identity for [ex_random_constant].
+
+    Proof strategy.  Start from [ex_random_constant_marginal] (Law-3-
+    reduced shape), then collapse the merged [kcomp K_outer K_inner]
+    to [tunit_eta (tyD tR') ∘ V] for some value [V : EM_term → tyD tR']
+    using:
+    - [kcomp_A] to re-associate;
+    - [kcomp_eta_natR] to absorb the [tunit_eta] coming out of
+      [eD ex_rc_lam = η ∘ lam_coalg (eD [#"c"])];
+    - the value-form β rule [eD_app_lam_subst] applied to the
+      lambda body [#"c"] and the [em_term_mor]-collapsed argument;
+    - [em_proj2_pair] to collapse the projection on the paired
+      argument (the body [#"c"] semantically projects onto the
+      second component);
+    - [kcomp_etaL] (= [kcomp η f = f]) to discharge the outer
+      [tunit_eta] composite and recover [sample_kleisli µ Hmu]. *)
+(** Helper — terminal uniqueness lifted to [coalg_hom]: any
+    [coalg_hom Q P] composed with [em_term_mor P] equals [em_term_mor Q].
+    Two-line proof via [coalg_hom_eqP] + [coalg_mor_e]. *)
+Local Lemma em_term_mor_natL_aux (Q P : Coalgebra Ar)
+    (h : coalg_hom Q P) :
+  coalg_comp (em_term_mor P) h = em_term_mor Q.
+Proof.
+apply: coalg_hom_eqP.
+rewrite coalg_comp_mor /=.
+apply: (coalg_mor_e (ch_mor h)).
+exact: ch_is_mor.
+Qed.
+
+(** Helpers — cartesian β at [coalg_hom] level (the [em_proj{1,2}_pair]
+    of [em_cartesian.v] are stated at the icones level, with explicit
+    [is_coalg_mor] side conditions).  At the [coalg_hom] level the side
+    conditions are automatic. *)
+Local Lemma em_proj1_pair_coalg (Z P Q : Coalgebra Ar)
+    (f : coalg_hom Z P) (g : coalg_hom Z Q) :
+  coalg_comp (em_proj1 P Q) (em_pair f g) = f.
+Proof.
+apply: coalg_hom_eqP.
+rewrite coalg_comp_mor /=.
+apply: em_proj1_pair.
+exact: ch_is_mor.
+Qed.
+
+Local Lemma em_proj2_pair_coalg (Z P Q : Coalgebra Ar)
+    (f : coalg_hom Z P) (g : coalg_hom Z Q) :
+  coalg_comp (em_proj2 P Q) (em_pair f g) = g.
+Proof.
+apply: coalg_hom_eqP.
+rewrite coalg_comp_mor /=.
+apply: em_proj2_pair.
+exact: ch_is_mor.
+Qed.
+
+Lemma ex_random_constant_marginal_headline (x : R) :
+  kbind_ext (apply_at x)
+    (@ex_random_constant_denot R Ar R_obj R_carrier_eq R_carrier_meas
+       R_to_carrier_meas mu Hmu)
+  = sample_kleisli (ctxD (drop_names (R:=R) (Ar:=Ar) [::])) mu Hmu.
+Proof.
+(* Start from the Law-3-reduced shape of [ex_random_constant_marginal]. *)
+rewrite (ex_random_constant_marginal x).
+rewrite -kcomp_A.
+(* Suffices: [kcomp K_outer K_inner = tunit_eta tR'].  Then by
+   [kcomp_etaL] the whole thing reduces to [sample_kleisli µ Hmu]. *)
+suff Hbeta :
+  kcomp
+    (coalg_comp (apply_at x)
+                (em_pair (em_term_mor (tyD (tfun tR' tR')))
+                         (coalg_id (tyD (tfun tR' tR')))))
+    (coalg_comp (eD' ex_rc_lam)
+                (em_pair (em_term_mor (tyD tR'))
+                         (coalg_id (tyD tR'))))
+  = tunit_eta (tyD tR').
+{ rewrite Hbeta. exact: kcomp_etaL. }
+(* Unfold [eD ex_rc_lam = η ∘ lam_coalg (eD body)] and identify the body. *)
+rewrite /ex_rc_lam eD_lam.
+set Mbody :=
+  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+      (("x"%string, tR') :: ("c"%string, tR') :: nil)%list tR'
+      [# "c"].
+(* Pull the [η] out of the K_inner composite. *)
+rewrite -(coalg_compA (tunit_eta (tyD (tfun tR' tR')))
+                      (lam_coalg Mbody)
+                      (em_pair (em_term_mor (tyD tR'))
+                               (coalg_id (tyD tR')))).
+rewrite kcomp_eta_natR.
+(* Goal: [coalg_comp K_outer V_value = η] where
+   [V_value = coalg_comp (lam_coalg Mbody) P1] and
+   [K_outer = coalg_comp (apply_at x) P2]. *)
+(* Re-associate to expose the inner [P2 ∘ lam_coalg ∘ P1]. *)
+rewrite -coalg_compA.
+rewrite (coalg_compA (em_pair (em_term_mor (tyD (tfun tR' tR')))
+                              (coalg_id (tyD (tfun tR' tR'))))
+                     (lam_coalg Mbody)
+                     (em_pair (em_term_mor (tyD tR'))
+                              (coalg_id (tyD tR')))).
+(* [P2 ∘ lam_coalg = em_pair (em_term_mor ∘ lam_coalg) (lam_coalg)]. *)
+rewrite (em_pair_coalg_comp (lam_coalg Mbody)
+          (em_term_mor (tyD (tfun tR' tR')))
+          (coalg_id (tyD (tfun tR' tR')))).
+rewrite coalg_compIl em_term_mor_natL_aux.
+(* Now: [apply_at x ∘ (em_pair em_term_mor (lam_coalg Mbody) ∘ P1) = η].
+   Re-associate so [apply_at x ∘ em_pair em_term_mor (lam_coalg Mbody)]
+   becomes the next focus. *)
+rewrite coalg_compA.
+(* Goal: [(apply_at x ∘ em_pair em_term_mor (lam_coalg Mbody)) ∘ P1 = η].
+   Inner: reduce [apply_at x ∘ em_pair em_term_mor (lam_coalg Mbody)]
+   to [η ∘ em_proj2 EM_term (tyD tR')] using [eD_app_lam_subst_const]. *)
+have Hinner :
+  coalg_comp (apply_at x)
+             (em_pair (em_term_mor (EM_prod EM_term (tyD tR')))
+                      (lam_coalg Mbody))
+  = coalg_comp (tunit_eta (tyD tR'))
+               (em_proj2 EM_term (tyD tR')).
+{ (* Unfold apply_at x. *)
+  rewrite /apply_at eD_app eD_var eD_real /=.
+  (* Now the inner is kcomp app_pair (bang_m ∘ em_pair F X) postcomposed
+     by em_pair em_term_mor (lam_coalg Mbody).  Push the postcomposition
+     through kcomp and bang_m. *)
+  rewrite kcomp_coalg_compR -coalg_compA.
+  (* Show that, in the named-PPL surface, eD' [#"f"] in ctx [("f", tfun)]
+     unfolds to η ∘ em_proj2 EM_term (tyD (tfun tR' tR')) — via the
+     canonical-structure-driven [ne_var'] resolution. *)
+  (* eD' [#"f"] = η ∘ em_proj2; eD' [|x|] = real_kleisli x at the
+     appropriate context (canonical-structure resolution gives these). *)
+  (* Apply em_pair_coalg_comp to push em_pair em_term_mor (lam_coalg Mbody)
+     into the em_pair (η ∘ em_proj2, real_kleisli x). *)
+  rewrite (em_pair_coalg_comp
+            (em_pair (em_term_mor (EM_prod EM_term (tyD tR')))
+                     (lam_coalg Mbody))
+            (coalg_comp (tunit_eta (tyD (tfun tR' tR')))
+                        (em_proj2 EM_term (tyD (tfun tR' tR'))))
+            (real_kleisli (EM_prod EM_term (tyD (tfun tR' tR'))) x)).
+  (* First arg: η ∘ em_proj2 ∘ em_pair em_term_mor lam_coalg = η ∘ lam_coalg.
+     Second arg: real_kleisli x ∘ em_pair = real_kleisli x (at new source). *)
+  rewrite -coalg_compA.
+  rewrite (em_proj2_pair_coalg
+            (em_term_mor (EM_prod EM_term (tyD tR')))
+            (lam_coalg Mbody)).
+  rewrite (_ : coalg_comp (real_kleisli (EM_prod EM_term (tyD (tfun tR' tR'))) x)
+                          (em_pair (em_term_mor (EM_prod EM_term (tyD tR')))
+                                   (lam_coalg Mbody))
+             = real_kleisli (EM_prod EM_term (tyD tR')) x); last first.
+  { rewrite /real_kleisli.
+    exact: const_kleisli_natL. }
+  (* The β rule fires. *)
+  rewrite (eD_app_lam_subst_const Mbody
+            (dirac_Hprom_str (R_to_carrier R_carrier_eq x)
+                             (dirac_fmeas_norm_le1 _))).
+  (* RHS of eD_app_lam_subst_const = Mbody ∘ em_pair coalg_id const_value.
+     Mbody = η ∘ (em_proj2 ∘ em_proj1) — the var_lookup of "c". *)
+  rewrite /Mbody.
+  have HMbody :
+    @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+        [:: ("x"%string, tR'); ("c"%string, tR')] tR' [# "c"]
+    = coalg_comp (tunit_eta (tyD tR'))
+                 (coalg_comp (em_proj2 EM_term (tyD tR'))
+                             (em_proj1 (EM_prod EM_term (tyD tR'))
+                                       (tyD tR'))) by [].
+  rewrite HMbody.
+  rewrite -!coalg_compA.
+  rewrite (em_proj1_pair_coalg (coalg_id (EM_prod EM_term (tyD tR')))
+                               (const_value
+                                  (dirac_Hprom_str
+                                     (R_to_carrier R_carrier_eq x)
+                                     (dirac_fmeas_norm_le1 _))
+                                  (EM_prod EM_term (tyD tR')))).
+  by rewrite coalg_compIr. }
+(* Now use [Hinner] to close. *)
+rewrite Hinner.
+(* Goal: [(η ∘ em_proj2) ∘ P1 = η]. *)
+rewrite -coalg_compA.
+rewrite (em_proj2_pair_coalg
+          (em_term_mor (tyD tR'))
+          (coalg_id (tyD tR'))).
+by rewrite coalg_compIr.
+Qed.
+
 End LemmaOneMarginalConstant.
 
 Arguments apply_at
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
 Arguments ex_random_constant_marginal
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu x.
+Arguments ex_random_constant_marginal_headline
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu x.
 
 (** ** Lemma 2 — marginal-at-[x] of [ex_random_linear] (Shape C / partial)
