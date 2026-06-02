@@ -1306,6 +1306,47 @@ rewrite (coalg_counit G).
 by rewrite icones_compIr.
 Qed.
 
+(** *** [app_kleisli_var] — the variable-headed β rule (value form)
+
+    The categorical surface β rule corresponding to applying a VALUE
+    function (not necessarily a lambda) to a VALUE argument: the
+    [eD]-image shape [kcomp app_pair (bang_m ∘ em_pair (η ∘ F) (η ∘ V))]
+    reduces to [app_kleisli F V] for any value [F : G → bang_cofree
+    (linhom A (U(T B)))] and any value [V : G → A] — without
+    requiring the lambda structure of [eD_app_lam_subst].
+
+    This is the EXACT first half of [eD_app_lam_subst]'s proof BEFORE
+    the final [app_kleisli_lam M V] rewrite — which is what specialises
+    that lemma to the lambda case.  Here we stop one step earlier and
+    produce the generic [app_kleisli F V].  Used for VARIABLE-headed
+    applications such as the recursive call [# "g" @ ()] inside
+    [ex_geom]'s body.
+
+    Proof chain (identical to [eD_app_lam_subst]):
+    [adj_phi_inj] + [adj_phi_kcomp] + [adj_phi_bang_m_em_pair_eta F V]
+    reduce the LHS to [adj_phi (app_pair) ∘ em_pair_mor (ch_mor F) (ch_mor V)];
+    [adj_phi_app_kleisli] (twice) and [app_under_proj_em_pair F V] collapse
+    to [der (U B) ∘ app_under F V = adj_phi (app_kleisli F V)]. *)
+Lemma app_kleisli_var (G A B : Coalgebra Ar)
+    (F : coalg_hom G
+            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))))
+    (V : coalg_hom G A) :
+  kcomp (app_pair A B)
+        (coalg_comp (bang_m (Bang Ar (linhom_car Ar (coalg_obj A)
+                                                    (coalg_obj (Tobj B))))
+                            (coalg_obj A))
+                    (em_pair (coalg_comp (tunit_eta _) F)
+                             (coalg_comp (tunit_eta A) V)))
+  = app_kleisli F V.
+Proof.
+apply: adj_phi_inj.
+rewrite adj_phi_kcomp.
+rewrite (adj_phi_bang_m_em_pair_eta F V).
+rewrite /app_pair adj_phi_app_kleisli adj_phi_app_kleisli.
+rewrite -icones_compA.
+by rewrite (app_under_proj_em_pair F V).
+Qed.
+
 (** *** [eD_app_lam_subst] — the categorical surface β rule (VALUE form)
 
     Given a lambda body [M : EM_prod G A ⇝ B] and a VALUE argument
@@ -1354,6 +1395,7 @@ End EDAppLamSubstSurface.
 
 Arguments adj_phi_bang_m_em_pair_eta_L {R Ar G A X} F V'.
 Arguments adj_phi_app_kleisli {R Ar G A B} VF VA.
+Arguments app_kleisli_var {R Ar G A B} F V.
 Arguments eD_app_lam_subst {R Ar G A B} M V.
 
 (** ** Term interpretation [eD]
