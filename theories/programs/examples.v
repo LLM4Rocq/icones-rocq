@@ -86,6 +86,7 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure dirac_measure.
+From mathcomp.analysis Require Import lebesgue_integral_definition.
 
 From Stdlib Require Import Strings.String.
 
@@ -105,6 +106,7 @@ Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor_hom_iso.
 Require Import Icones.homs.exp_adjunction.
 Require Import Icones.homs.bang.
+Require Import Icones.homs.fmeas_lax.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
@@ -537,6 +539,200 @@ End LemmaTwoMarginalLinear.
 
 Arguments ex_random_linear_marginal
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu x.
+
+(** ** Lemma 2 (headline pushforward form) — Gap C application
+
+    Building on [fmeas_lax_pre_preimage] ([theories/homs/fmeas_lax.v],
+    Gap C piece 1) and the arithmetic-Dirac lifts [add_lift_dirac] /
+    [mul_lift_dirac] ([theories/programs/ppl.v]), we deliver the
+    HEADLINE PUSHFORWARD form of the [ex_random_linear] marginal at
+    [x] as a measure-theoretic identity.
+
+    Mathematical content.  The headline target of the marginal of
+    [let m := sample µ in let b := sample µ in λx. m·x + b] at [x] is
+
+      [∀ measurable U ⊆ R_obj,
+       fmeas_mu (fmeas_lax_pre µ µ) (arith_at_x_fun x ⁻¹ U)
+       = ∫µ ∫µ \d_{m·x + b} U.]
+
+    The LHS is the pushforward of [µ ⊗ µ] (joint measure on
+    [ar_prod R_obj R_obj]) along the linear-in-[(m,b)] arithmetic
+    [(m, b) ↦ m·x + b] (encoded as [arith_at_x_fun x]).  Its
+    iterated form on the RHS exposes the natural shape downstream
+    consumers (QBS-style pushforward statements) expect.
+
+    On top of this measure identity, the arithmetic-Dirac collapse
+    [arith_at_x_dirac] computes the headline pointwise:
+
+      [arith_at_x_fun x (ar_prod_cast (R_to_carrier m, R_to_carrier b))
+       = R_to_carrier (m·x + b)]
+
+    which converts a Dirac product input [(δ_m, δ_b)] into a Dirac
+    output [δ_(m·x+b)], matching the Dirac evaluation laws
+    [add_lift_dirac] / [mul_lift_dirac].
+
+    Honesty caveats.
+    - This lemma does NOT collapse the [kbind_ext]/[kbind_ext] chain
+      in [ex_random_linear_marginal] above to the single
+      [sample (fmeas_lax µ µ)] form.  The full Kleisli-arrow upgrade
+      requires both (i) the named-syntax β rule (documented as
+      blocking the headline form of Lemma 1) and (ii) the cartesian-
+      η rule [em_pair_mor (em_proj1, em_proj2) = id] (documented in
+      [theories/programs/ppl.v] above [Section KbindExtLaws]), neither
+      of which is axiom-free in the current cones library.
+    - What IS delivered is the MEASURE-LEVEL headline identity that
+      the marginal SHOULD satisfy: the joint measure
+      [fmeas_lax_pre µ µ] pre-image-tested at the arithmetic
+      [(m, b) ↦ m·x + b] decomposes as the iterated integral of
+      Dirac-at-(m·x+b)-evaluations — exactly the shape that
+      [ex_random_linear]'s marginal at [x] is supposed to denote. *)
+Section LemmaTwoMarginalLinearHeadline.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+
+(** *** The arithmetic-at-[x] function [(m, b) ↦ m·x + b]
+
+    Packaged as a measurable function on the propositional product
+    carrier [ar_carrier (ar_prod R_obj R_obj)]. *)
+
+Section ArithAtX.
+Variable (x : R).
+
+Definition arith_at_x_fun
+    (p : ar_carrier Ar (ar_prod Ar R_obj R_obj)) :
+    ar_carrier Ar R_obj :=
+  R_to_carrier R_carrier_eq
+    ((cR (ar_prod_uncast p).1 * x + cR (ar_prod_uncast p).2)%R).
+
+Lemma arith_at_x_fun_meas :
+  measurable_fun
+    [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)] arith_at_x_fun.
+Proof.
+rewrite /arith_at_x_fun.
+apply: (measurableT_comp (f := R_to_carrier R_carrier_eq));
+  first exact: R_to_carrier_meas.
+have meas_unc : measurable_fun [set: _]
+    (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj))
+  by exact: (ar_prod_uncast_meas Ar R_obj R_obj).
+have meas_fst :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1)
+  by exact: (measurableT_comp measurable_fst meas_unc).
+have meas_snd :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2)
+  by exact: (measurableT_comp measurable_snd meas_unc).
+have meas_fst_R :
+  measurable_fun [set: _]
+    (fun p => cR (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1)
+  by exact: (measurableT_comp R_carrier_meas meas_fst).
+have meas_snd_R :
+  measurable_fun [set: _]
+    (fun p => cR (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2)
+  by exact: (measurableT_comp R_carrier_meas meas_snd).
+have meas_fst_R_mul_x :
+  measurable_fun [set: _]
+    (fun p => (cR (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1
+              * x)%R)
+  by exact: (measurable_funM meas_fst_R (measurable_cst x)).
+exact: measurable_funD.
+Qed.
+
+(** *** Dirac evaluation rule for [arith_at_x_fun]
+
+    On a cartesian-cast pair of [R]-to-carrier reals [(a, b)]:
+
+      [arith_at_x_fun x (ar_prod_cast (R_to_carrier a, R_to_carrier b))
+       = R_to_carrier (a·x + b).]
+
+    This is the headline DIRAC-INPUT EVALUATION RULE: matches the
+    surface program's [\ "x" :: tR => # "m" · # "x" + # "b"] under
+    [m := a, b := b]. *)
+Lemma arith_at_x_cast (a b : R) :
+  arith_at_x_fun
+    (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)
+       (R_to_carrier R_carrier_eq a, R_to_carrier R_carrier_eq b)) =
+  R_to_carrier R_carrier_eq (a * x + b)%R.
+Proof.
+by rewrite /arith_at_x_fun ar_prod_castK /= !R_to_carrierK.
+Qed.
+
+Section HeadlinePushforward.
+Local Open Scope ereal_scope.
+
+(** *** Headline pushforward identity — Gap C application
+
+    For every measurable [U ⊆ ar_carrier R_obj], the pre-image
+    measure of [fmeas_lax_pre µ µ] under [arith_at_x_fun x]
+    decomposes as the iterated integral
+
+      [∫µ ∫µ \d_(R_to_carrier (cR m · x + cR b)) U.]
+
+    This is the headline form of the marginal-at-[x] measure for
+    [ex_random_linear].  Proved by direct application of
+    [fmeas_lax_pre_preimage] (Gap C piece 1 in
+    [theories/homs/fmeas_lax.v]) with [φ := arith_at_x_fun x]. *)
+Lemma ex_random_linear_marginal_headline
+    (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (fmeas_lax_pre mu mu) (arith_at_x_fun @^-1` U) =
+    \int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
+      \int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+        \d_(arith_at_x_fun
+              (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)
+                            (m, b))) U.
+Proof.
+move=> mU.
+exact: (fmeas_lax_pre_preimage arith_at_x_fun arith_at_x_fun_meas
+          mu mu U mU).
+Qed.
+
+(** *** Dirac evaluation form of the headline
+
+    Specialised to [m = R_to_carrier a] and [b = R_to_carrier b']:
+    the integrand [\d_(arith_at_x_fun (ar_prod_cast (m, b))) U]
+    equals [\d_(R_to_carrier (a·x + b)) U], the "Dirac-output"
+    form that one expects from feeding Dirac inputs through the
+    arithmetic.  This is the bridge between the iterated form on
+    the RHS above and the [add_lift_dirac]/[mul_lift_dirac] Dirac
+    laws for [add_lift]/[mul_lift]. *)
+Lemma ex_random_linear_arith_dirac_E (a b : R)
+    (U : set (ar_carrier Ar R_obj)) :
+  \d_(arith_at_x_fun
+        (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)
+                      (R_to_carrier R_carrier_eq a,
+                       R_to_carrier R_carrier_eq b))) U =
+  (\d_(R_to_carrier R_carrier_eq (a * x + b)%R) U : \bar R).
+Proof. by rewrite arith_at_x_cast. Qed.
+
+End HeadlinePushforward.
+
+End ArithAtX.
+
+End LemmaTwoMarginalLinearHeadline.
+
+Arguments arith_at_x_fun
+  {R Ar R_obj} R_carrier_eq x p.
+Arguments arith_at_x_fun_meas
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
+Arguments arith_at_x_cast
+  {R Ar R_obj R_carrier_eq} x a b.
+Arguments ex_random_linear_marginal_headline
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu x U _.
+Arguments ex_random_linear_arith_dirac_E
+  {R Ar R_obj R_carrier_eq} x a b U.
 
 (** ** Lemma 3 — the Bayesian posterior denotes a weighted sub-probability
 

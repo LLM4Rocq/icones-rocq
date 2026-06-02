@@ -1052,6 +1052,93 @@ Arguments icone_integral_dirac_lax_swap_E {R Ar X Y} y µ U _.
 Arguments fmeas_lax_pre_iterated_Y {R Ar X Y} µ ν U _.
 Arguments fmeas_lax_pre_fubini {R Ar X Y} µ ν U _.
 
+(** ** Gap C — [kbind_ext] / [fmeas_lax] commutativity (pre-image form)
+
+    The headline "FMeas-Kleisli Fubini through a pushforward [φ]" identity.
+
+    For [µ : FMeas X], [ν : FMeas Y] and a measurable
+    [φ : ar_carrier (X × Y) -> ar_carrier Z], the value of
+    [fmeas_lax_pre µ ν] on the pre-image [φ ⁻¹ U] of a measurable [U]
+    is the iterated integral
+
+      [∫µ ∫ν δ_(φ (ar_prod_cast (x, y))) U.]
+
+    Mathematical content.  This is the COMMUTATIVITY of the
+    [FMeas]-Kleisli monad on the tensor: the doubled-bind composition
+
+      [let m := sample µ in let b := sample ν in η (φ (m, b))]
+
+    coincides with the single-bind against the joint measure
+    [fmeas_lax_pre µ ν] then [η ∘ φ].  Symbolically,
+
+      [bind (sample µ) (λ m. bind (sample ν) (λ b. return (φ (m, b))))
+       = bind (sample (fmeas_lax µ ν)) (λ p. return (φ p))].
+
+    Stated set-theoretically — without the categorical [kbind_ext]
+    packaging that would require traversing the [EM(!)]-coalgebra
+    cartesian-η machinery — this is the present lemma applied at
+    every measurable [U ⊆ Z].  The downstream [examples.v] caller
+    converts the set-level identity into the headline pushforward
+    form for [ex_random_linear] via [add_lift_dirac] /
+    [mul_lift_dirac] (the Dirac evaluation laws for [add_lift] /
+    [mul_lift]) applied to the iterated form.
+
+    Scope / honesty caveats.
+    - The two factors [µ] and [ν] are NOT assumed to be equal; the
+      lemma holds for arbitrary independent finite measures.
+    - [φ] is an arbitrary measurable function on the propositional
+      product carrier [ar_carrier (ar_prod X Y)], NOT an [ar_hom]
+      (which would add a structure-preserving wrapper but no extra
+      content). The cartesian-vs-propositional product cast is
+      mediated by [ar_prod_cast] inside the iterated integrand.
+    - The statement is at the [fmeas_mu] level rather than the
+      Kleisli-arrow level: it is the load-bearing computational
+      content used by [add_lift] / [mul_lift] downstream, but does
+      NOT require navigating the [EM(!)]-coalgebra cartesian-η gap
+      ([em_pair_mor (em_proj1, em_proj2) = id]) that blocks the
+      generic [kbind_ext] reformulation. *)
+
+Section FmeasLaxPreimage.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables X Y : ar_obj Ar.
+
+Lemma fmeas_lax_pre_preimage
+    (Z : ar_obj Ar)
+    (φ : ar_carrier Ar (ar_prod Ar X Y) -> ar_carrier Ar Z)
+    (Hφ_meas : measurable_fun
+       [set: ar_carrier Ar (ar_prod Ar X Y)] φ)
+    (µ : fmeas R (ar_carrier Ar X)) (ν : fmeas R (ar_carrier Ar Y))
+    (U : set (ar_carrier Ar Z)) :
+  measurable U ->
+  fmeas_mu (fmeas_lax_pre µ ν) (φ @^-1` U) =
+    \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
+      \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
+        \d_(φ (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y))) U.
+Proof.
+move=> mU.
+have mPreU : measurable (φ @^-1` U).
+  by rewrite -[X in measurable X]setTI; exact: Hφ_meas.
+(* Step 1: apply [fmeas_lax_pre_iterated] on the pre-image [φ ⁻¹ U]. *)
+rewrite (fmeas_lax_pre_iterated µ ν _ mPreU).
+(* Step 2: reduce each inner integrand via [icone_integral_dirac_lax_E],
+   then push the [ar_prod_cast]-then-[φ] composition through the
+   Dirac. *)
+apply: eq_integral => x _.
+rewrite (icone_integral_dirac_lax_E x ν _ mPreU).
+apply: eq_integral => y _.
+(* [\d_(ar_prod_cast (x, y)) (φ ⁻¹ U) = \d_(φ (ar_prod_cast (x, y))) U]:
+   both sides reduce by [diracE] to [(... ∈ U)%:R%:E] applied to the
+   same membership, since [a ∈ φ ⁻¹ U] iff [φ a ∈ U] by definition
+   of [@^-1`]. *)
+rewrite !diracE.
+by congr ((_)%:R)%:E; rewrite [LHS]propeqE; split=> /[!inE].
+Qed.
+
+End FmeasLaxPreimage.
+
+Arguments fmeas_lax_pre_preimage {R Ar X Y Z} φ Hφ_meas µ ν U _.
+
 (** *** [fmeas_lax_E] — pointwise computation on the pure tensor
 
     [fmeas_lax X Y (µ ⊗p ν) = fmeas_lax_pre µ ν].
