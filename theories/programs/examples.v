@@ -67,7 +67,7 @@
     | Example | Headline identity | What is landed here |
     | --- | --- | --- |
     | [ex_random_constant] | marginal at [x] = [µ] | **CLOSED-FORM** [ex_random_constant_marginal_headline] (kbind_ext (apply_at x) ex_random_constant_denot = sample_kleisli µ Hµ); intermediate Law-3 shape kept as [ex_random_constant_marginal] |
-    | [ex_random_linear] | marginal at [x] = pushforward of [µ⊗µ] along [(m,b)↦m·x+b] | Outermost Law-3 collapse [ex_random_linear_marginal] |
+    | [ex_random_linear] | marginal at [x] = pushforward of [µ⊗µ] along [(m,b)↦m·x+b] | **CLOSED-FORM (measure-level)** [ex_random_linear_marginal_headline] (the joint µ⊗µ pre-image at the arithmetic-decomposition reduces to the iterated integral of Dirac-at-(m·x+b) evaluations, via [fmeas_lax_pre_preimage] of [theories/homs/fmeas_lax.v]); intermediate Law-3 shape kept as [ex_random_linear_marginal]; Dirac-input evaluation rule [ex_random_linear_arith_dirac_E] |
     | [ex_bayes_linear] | denotation = [f·µ] (unnormalised posterior) | Law-3 collapse + score-return identifies as [∫ prom(f(r)·δ_r) dµ] ([ex_bayes_linear_is_weighted_kscore] / [ex_bayes_linear_is_weighted]) |
     | [ex_loop] / [ex_geom] / [ex_almost_loop] | (no closed form claimed) | typechecking + structural [_denot_E] for the latter two |
 
