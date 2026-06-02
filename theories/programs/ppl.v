@@ -1942,6 +1942,98 @@ rewrite (FMeas_fmap_dirac mul_meas
 by rewrite mul_meas_cast !R_to_carrierK.
 Qed.
 
+(** ** Bilinearity at zero for [add_lift] / [mul_lift]
+
+    Both [add_lift] and [mul_lift] factor as [icones_comp]s of two
+    [icones_hom]s, hence each is linear in its single packaged argument
+    [ptensor x y].  Combined with [ptensor_0r] / [ptensor_0l] (the
+    tensor smash-product vanishes on a zero coordinate, paper §5),
+    this gives bilinearity at zero:
+    [[
+       add_lift (x ⊗p 0) = 0  /  add_lift (0 ⊗p y) = 0
+       mul_lift (x ⊗p 0) = 0  /  mul_lift (0 ⊗p y) = 0
+    ]]
+    These identities are load-bearing for the Phase 4 mass-closure
+    theorems (notably [ex_geom] in [theories/programs/examples.v]):
+    the recursive tail [1 + g()] contributes zero mass when [g] is
+    bound to a diverging value [g() = 0], via bilinear [add_lift]. *)
+
+Lemma add_lift_zero_R (x : FMeas R_obj) :
+  Lfun add_lift
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero) =
+  precone_zero.
+Proof.
+rewrite /add_lift.
+rewrite -[LHS]/(Lfun (FMeas_fmap add_meas)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero))).
+have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero
+        = precone_zero by exact: ptensor_0r.
+have [Hfl0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
+rewrite Hfl0.
+have [Hfm0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap add_meas))).
+exact: Hfm0.
+Qed.
+
+Lemma add_lift_zero_L (y : FMeas R_obj) :
+  Lfun add_lift
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y) =
+  precone_zero.
+Proof.
+rewrite /add_lift.
+rewrite -[LHS]/(Lfun (FMeas_fmap add_meas)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y))).
+have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y
+        = precone_zero by exact: ptensor_0l.
+have [Hfl0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
+rewrite Hfl0.
+have [Hfm0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap add_meas))).
+exact: Hfm0.
+Qed.
+
+Lemma mul_lift_zero_R (x : FMeas R_obj) :
+  Lfun mul_lift
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero) =
+  precone_zero.
+Proof.
+rewrite /mul_lift.
+rewrite -[LHS]/(Lfun (FMeas_fmap mul_meas)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero))).
+have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero
+        = precone_zero by exact: ptensor_0r.
+have [Hfl0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
+rewrite Hfl0.
+have [Hfm0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap mul_meas))).
+exact: Hfm0.
+Qed.
+
+Lemma mul_lift_zero_L (y : FMeas R_obj) :
+  Lfun mul_lift
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y) =
+  precone_zero.
+Proof.
+rewrite /mul_lift.
+rewrite -[LHS]/(Lfun (FMeas_fmap mul_meas)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y))).
+have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y
+        = precone_zero by exact: ptensor_0l.
+have [Hfl0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
+rewrite Hfl0.
+have [Hfm0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap mul_meas))).
+exact: Hfm0.
+Qed.
+
 End Arith.
 
 Arguments add_fun {R Ar R_obj} R_carrier_eq p.
@@ -1952,6 +2044,10 @@ Arguments add_lift {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments mul_lift {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments add_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
 Arguments mul_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
+Arguments add_lift_zero_R {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
+Arguments add_lift_zero_L {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
+Arguments mul_lift_zero_R {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
+Arguments mul_lift_zero_L {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
 
 (** ** Term-level score lift — [score_lift]
 
