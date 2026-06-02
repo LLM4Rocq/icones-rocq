@@ -68,7 +68,7 @@
     | --- | --- | --- |
     | [ex_random_constant] | marginal at [x] = [µ] | Law-3 collapse + outer [kcomp] shape [ex_random_constant_marginal] |
     | [ex_random_linear] | marginal at [x] = pushforward of [µ⊗µ] along [(m,b)↦m·x+b] | Outermost Law-3 collapse [ex_random_linear_marginal] |
-    | [ex_bayes_linear] | denotation = [f·µ] (unnormalised posterior) | Law-3 collapse + score-return identifies as [∫ prom(f(r)·δ_r) dµ] ([ex_bayes_linear_is_weighted_kscore] / [ex_bayes_linear_is_weighted]) |
+    | [ex_bayes_linear] | denotation = [f·µ] (unnormalised posterior) | **CLOSED-FORM (measure-level)** [ex_bayes_linear_is_weighted_headline]: [fmeas_mu (Lfun (der ∘ K_score) µ) U = ∫µ f(cR m) · δ_m U] (Gap D, 2026-06); supporting [weighted_mu_preimage] + [der_K_score_mu_E] |
     | [ex_loop] / [ex_geom] / [ex_almost_loop] | (no closed form claimed) | typechecking + structural [_denot_E] for the latter two |
 
     The remaining gaps to the closed-form identification of the QBS
@@ -86,6 +86,7 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure dirac_measure.
+From mathcomp.analysis Require Import lebesgue_integral_definition numfun.
 
 From Stdlib Require Import Strings.String.
 
@@ -823,6 +824,140 @@ by rewrite (ex_bayes_linear_denot_E mu Hmu f Hf_meas Hf_ge0 Hf_le1)
            kbind_ext_terminal_source.
 Qed.
 
+
+(** *** Gap D — measure-level Bayes headline (pre-image identity)
+
+    Mirroring Gap C's [fmeas_lax_pre_preimage], we close the Bayes
+    headline at the MEASURE level — sidestepping both Law 2
+    ([kbind_ext_A]) and the cartesian-η ([em_pair_mor_proj_id]
+    asymmetric direction) blockers.
+
+    Mathematical content.  The weighted measure [f · µ] (encoded as
+    [weighted_mu := ∫µ f(cR m) · δ_m] = [int_to_linhom_fun
+    weighted_dirac_path µ]) has, on every measurable [U ⊆ R_obj]:
+
+      [fmeas_mu weighted_µ U
+       = ∫µ (f(cR m))%:E * δ_m(U).]
+
+    The RHS is the unnormalised posterior of [U] against the prior
+    [µ]: the integral of [f(cR m) · 1_U(m)] over [m ∼ µ].  This is
+    the exact shape downstream QBS-style identities expect.
+
+    Proof strategy (parallels Gap C).
+    1. Convert [fmeas_mu _ U] to [∫_(\1_U)%:E] via [integral_indic].
+    2. Apply [icone_integral_kernel_tonelli] on the unfolded
+       [weighted_mu = icone_integral weighted_dirac_path µ].
+    3. Inside the kernel-Tonelli integrand, reduce
+       [∫_{β_m} (\1_U)%:E = fmeas_mu (weighted_dirac_fun m) U]
+       to [(f (cR m))%:E * δ_m(U)] via [fmeas_scaleE] and
+       [dirac_fmeas_E]. *)
+
+Section MeasureLevelHeadline.
+Local Open Scope ereal_scope.
+
+Lemma weighted_mu_preimage (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu weighted_mu U =
+    \int[fmeas_mu mu]_(m in @setT (ar_carrier Ar R_obj))
+       ((f (cR m))%:E * \d_(m) U).
+Proof.
+move=> mU.
+(* Step 1.  Convert [fmeas_mu _ U] to [∫_ (\1_U)%:E]. *)
+have HU : U = U `&` setT by rewrite setIT.
+rewrite {1}HU -integral_indic//.
+(* Step 2.  Apply [icone_integral_kernel_tonelli] on [weighted_mu =
+   icone_integral weighted_dirac_path µ], with [g = (\1_U)%:E]. *)
+have meas_indic_U :
+    measurable_fun (@setT (ar_carrier Ar R_obj))
+       (fun r => ((indic U r : R))%:E).
+  apply/measurable_EFinP.
+  by apply: measurable_indic.
+have ge0_indic_U : forall r : ar_carrier Ar R_obj, (0 <= ((\1_(U) r : R))%:E)%E.
+  move=> r; rewrite lee_fin /indic.
+  by case: (r \in U); rewrite //= ler01.
+rewrite -[weighted_mu]/(icone_integral (B := FMeas R_obj) weighted_dirac_fun
+                          weighted_dirac_is_path mu).
+rewrite (icone_integral_kernel_tonelli (g := fun r => ((indic U r : R))%:E)
+           weighted_dirac_is_path mu meas_indic_U ge0_indic_U).
+(* Step 3.  Inside the [µ]-integral, evaluate the inner [β_m]-integral. *)
+apply: eq_integral => m _.
+rewrite integral_indic//= setIT.
+rewrite /mscale/=.
+by rewrite -[bilin.dirac_canon_fun _ _]/(fmeas_mu (dirac_fmeas _) _) dirac_fmeas_E.
+Qed.
+
+End MeasureLevelHeadline.
+
+(** *** Gap D headline — closed-form QBS identity for [ex_bayes_linear]
+
+    Combines [ex_bayes_linear_is_weighted_kscore] (the
+    [K_score]-integration identity) with [weighted_mu_preimage]
+    (Gap D's measure-level pre-image) and [icones_hom_pres_int]
+    applied to [der (FMeas R_obj)] (the EM-counit on [FMeas]) to
+    deliver the closed-form QBS headline at the measure level.
+
+    The natural "denotation-to-measure" extraction.  Given the
+    EM-Kleisli arrow [K : FMeas_coalgebra X ⇝ Tobj (FMeas_coalgebra X)]
+    that captures the score-then-return continuation, the
+    [adj_phi]-image [der ∘ ch_mor K : icones_hom (FMeas X) (FMeas X)]
+    EXTRACTS the underlying measure by composition with the EM-counit
+    [der].  Applied to [K_score] and the prior [µ]: the resulting
+    [FMeas] equals [weighted_µ], i.e. the post-score posterior.
+
+    The full identification of [Lfun ex_bayes_linear_denot one1] with
+    [prom weighted_µ] would identify the [K_outer] of
+    [ex_bayes_linear_is_weighted] with [K_score], which requires the
+    cartesian-η bridge (the asymmetric [em_proj1_pair]-with-non-
+    coalg-mor case noted in [theories/programs/ppl.v]'s
+    [Section KbindExtLaws] docstring), not delivered axiom-free in
+    the current cones library — and which Bayes, uniquely among QBS
+    examples, sidesteps via Gap D's measure-level closure.
+
+    Net effect.  The Bayes posterior's pre-image at [U] (via the
+    [der ∘ K_score]-applied form on [µ]) equals the integral of
+    [f(cR m) · 1_U(m)] against [µ]. *)
+
+Section HeadlineBayesGap.
+Local Open Scope ereal_scope.
+
+Lemma der_K_score_mu_E :
+  Lfun (icones_comp (der (FMeas R_obj)) (ch_mor K_score)) mu = weighted_mu.
+Proof.
+have HK := ex_bayes_linear_is_weighted_kscore mu.
+rewrite -[Lfun (icones_comp _ _) _]
+        /(Lfun (der (FMeas R_obj)) (Lfun (ch_mor K_score) mu)).
+rewrite HK.
+rewrite -[int_to_linhom_fun _ _]
+        /(icone_integral
+            (fun r : ar_carrier Ar R_obj =>
+               Lfun (ch_mor K_score) (dirac_fmeas r))
+            prom_weighted_dirac_is_path mu).
+rewrite (icones_hom_pres_int (der (FMeas R_obj)) R_obj _
+           prom_weighted_dirac_is_path mu).
+rewrite /weighted_mu /int_to_linhom_fun.
+apply: icone_integral_eqP => z m mM.
+rewrite (icone_integralP _ _ mu z m mM).
+congr (fine _).
+apply: eq_integral => r _.
+congr ((z mM _)%:E).
+rewrite K_score_dirac.
+rewrite -[path_fun _ _]/(weighted_dirac_fun r).
+apply: der_prom.
+exact: weighted_dirac_fun_norm_le1.
+Qed.
+
+Lemma ex_bayes_linear_is_weighted_headline
+    (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (Lfun (icones_comp (der (FMeas R_obj)) (ch_mor K_score)) mu) U
+  = \int[fmeas_mu mu]_(m in @setT (ar_carrier Ar R_obj))
+      ((f (cR m))%:E * \d_(m) U).
+Proof.
+move=> mU.
+by rewrite der_K_score_mu_E weighted_mu_preimage.
+Qed.
+
+End HeadlineBayesGap.
 End LemmaThreeBayesWeighted.
 
 (** ** Example 4 — [ex_loop] : divergence via the CBV value-fixpoint
@@ -1174,3 +1309,4 @@ Arguments ex_almost_loop_denot {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas p Hp_ge0 Hp_le1.
 Arguments ex_almost_loop_denot_E {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas p Hp_ge0 Hp_le1.
+
