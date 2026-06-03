@@ -69,5 +69,6 @@ theories/programs/infra/em_fix.v
 theories/programs/infra/cbv_adjunction.v
 theories/programs/cbv.v
 theories/programs/ppl.v
+theories/programs/infra/case_em_red.v
 theories/programs/infra/em_fix_arr.v
 theories/programs/examples.v
