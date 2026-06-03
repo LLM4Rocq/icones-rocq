@@ -145,7 +145,9 @@ Require Import Icones.icones.icone_cat.
 Require Import Icones.icones.examples_icone.
 Require Import Icones.stable.totmono.
 Require Import Icones.stable.scones_cat.
+Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.linhom.
+Require Import Icones.homs.bilin.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_iso.
@@ -760,6 +762,483 @@ rewrite Hcs.
 exact: (@e_bang_prom R Ar (coalg_obj G_geom) z Hz_le1).
 Qed.
 
+(** ** Reduction K — ELSE-branch evaluation cascade
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Evaluate the ELSE-branch [else_e := 1 + g()] at the outer point
+    [(one1 ⊗ prom 0_L_geom) ⊗ one1].  With [g] bound to the diverging
+    value [prom 0_L_geom], the variable-headed call [g()] reduces (via
+    [app_kleisli_var] + [der_prom] on [prom 0_L_geom]) to [0] in
+    [FMeas R_obj]; then bilinearity of [add_lift] at zero
+    ([add_lift_zero_R]) makes the whole sum [0].
+
+    Post-[der] form (in [FMeas R_obj]):
+    [[
+      Lfun (der (FMeas R_obj)) (Lfun (ch_mor (eD' else_e)) at_outer_pt)
+      = precone_zero.
+    ]]
+    Full form (in [Bang (FMeas R_obj)] = [coalg_obj (Tobj tR')]):
+    [[
+      Lfun (ch_mor (eD' else_e)) at_outer_pt = prom precone_zero.
+    ]]
+
+    Companion to the THEN-branch evaluation lemma (worked in parallel). *)
+
+(** Auxiliary: the zero element has cone-norm ≤ 1.  Used as a norm hypothesis
+    for [m_bang_prom] / [bang_fmap_prom] / [der_prom] on zero arguments. *)
+Lemma cone_norm0_le1 (P : ICone.type Ar) :
+  (cone_norm (precone_zero : P) <= 1)%R.
+Proof. by rewrite cone_norm0 ler01. Qed.
+
+(** Outer point — package the [(one1 ⊗ prom 0) ⊗ one1] used throughout. *)
+Let at_outer_pt :
+    coalg_obj (EM_prod (EM_prod (EM_term : Coalgebra Ar) funT_geom)
+                        (EM_term : Coalgebra Ar)) :=
+  ptensor (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+          (one1 : cone_one_car Ar).
+
+(** *** Var lookup of "g" at the outer pt evaluates to [prom 0_L_geom]. *)
+Lemma Lfun_var_lookup_g_at_outer_pt_E :
+  Lfun (ch_mor
+          (var_lookup
+             (named_var_to_has_var
+                (nv_tail "_"%string tunit _
+                  (nv_head "g"%string (tfun tunit tR') nil)))))
+       at_outer_pt
+  = prom (precone_zero : L_geom).
+Proof.
+(* var_lookup (nv_tail .. (nv_head ..)) =
+   coalg_comp (em_proj2 EM_term funT_geom)
+              (em_proj1 (EM_prod EM_term funT_geom) EM_term).  *)
+rewrite -[Lfun (ch_mor _) _]
+        /(Lfun (icones_comp (em_proj2_mor (EM_term : Coalgebra Ar) funT_geom)
+                            (em_proj1_mor (EM_prod (EM_term : Coalgebra Ar) funT_geom)
+                                          (EM_term : Coalgebra Ar)))
+               at_outer_pt).
+rewrite -[Lfun (icones_comp _ _) _]
+        /(Lfun (em_proj2_mor (EM_term : Coalgebra Ar) funT_geom)
+               (Lfun (em_proj1_mor (EM_prod (EM_term : Coalgebra Ar) funT_geom)
+                                   (EM_term : Coalgebra Ar))
+                     at_outer_pt)).
+(* Step 1: em_proj1 at outer_pt = ptensor one1 (prom 0).
+   em_proj1_mor P Q = iso_fwd (tensor_runit P) ∘ tensor_mor id (coalg_e Q).
+   coalg_e EM_term = id.  So em_proj1_mor P EM_term = iso_fwd (tensor_runit P). *)
+rewrite /em_proj1_mor coalg_e_term.
+rewrite -[tensor_mor _ _]/(tensor_mor (icones_id Ar _) (icones_id Ar _)).
+have tensor_mor_id_id :
+  forall (B C : ICone.type Ar),
+    tensor_mor (icones_id Ar B) (icones_id Ar C) = icones_id Ar (tensor Ar B C).
+  move=> B C; apply: tensor_ext => x y; by rewrite tensor_morE.
+rewrite tensor_mor_id_id icones_compIr.
+rewrite /at_outer_pt.
+rewrite tensor_runitEp.
+rewrite (_ : c1_val (one1 : cone_one_car Ar) = 1%:nng); last by [].
+rewrite precone_scale_1.
+(* Step 2: em_proj2 (ptensor one1 (prom 0)) = prom 0.
+   em_proj2_mor P Q = iso_fwd (tensor_lunit Q) ∘ tensor_mor (coalg_e P) id. *)
+rewrite /em_proj2_mor.
+rewrite -[Lfun (icones_comp _ _) _]
+        /(iso_fwd (tensor_lunit (coalg_obj funT_geom))
+            (Lfun (tensor_mor (coalg_e (EM_term : Coalgebra Ar))
+                              (icones_id Ar (coalg_obj funT_geom)))
+                  (ptensor (one1 : cone_one_car Ar)
+                           (prom (precone_zero : L_geom))))).
+rewrite coalg_e_term tensor_morE.
+rewrite -[Lfun (icones_id Ar _) _]/(prom (precone_zero : L_geom)).
+rewrite tensor_lunitEp.
+rewrite (_ : c1_val (one1 : cone_one_car Ar) = 1%:nng); last by [].
+by rewrite precone_scale_1.
+Qed.
+
+(** *** [eD' (#g)] evaluated at outer_pt = [prom (prom 0_L_geom)]. *)
+Lemma Lfun_ch_mor_ne_var_g_at_outer_pt_E :
+  Lfun (ch_mor (eD' (ne_var (nv_tail "_"%string tunit _
+                              (nv_head "g"%string (tfun tunit tR') nil)))))
+       at_outer_pt
+  = prom (prom (precone_zero : L_geom)).
+Proof.
+rewrite (eD_var (nv_tail "_"%string tunit _
+                  (nv_head "g"%string (tfun tunit tR') nil))).
+rewrite -[ch_mor (coalg_comp _ _)]
+        /(icones_comp
+            (ch_mor (tunit_eta (tyD (tfun tunit tR'))))
+            (ch_mor (var_lookup (named_var_to_has_var
+                                   (nv_tail "_"%string tunit _
+                                     (nv_head "g"%string (tfun tunit tR') nil)))))).
+rewrite -[Lfun (icones_comp _ _) _]
+        /(Lfun (ch_mor (tunit_eta (tyD (tfun tunit tR'))))
+               (Lfun (ch_mor (var_lookup (named_var_to_has_var
+                                            (nv_tail "_"%string tunit _
+                                              (nv_head "g"%string (tfun tunit tR') nil)))))
+                     at_outer_pt)).
+rewrite Lfun_var_lookup_g_at_outer_pt_E.
+(* Now ch_mor (tunit_eta funT_geom) = coalg_str funT_geom = dig L_geom
+   (by bang_cofree_str).  Apply dig_prom on prom 0_L_geom. *)
+rewrite -[ch_mor (tunit_eta _)]/(coalg_str funT_geom).
+rewrite (bang_cofree_str L_geom).
+exact: (dig_prom (B:=L_geom) (precone_zero : L_geom)
+                  cone_norm_zero_L_geom_le1).
+Qed.
+
+(** *** Crucial: the application [g()] at outer_pt evaluates to [prom 0].
+
+    By [app_kleisli_var], the [eD] image is [app_kleisli (var_lookup g)
+    (em_term_mor _)].  Then [Lfun_ch_mor_app_kleisli_at] +
+    [coalg_str_G_on_outer_pt_E] + the structural reductions of
+    [app_under] at the outer pt — using [der_prom] on the [prom 0_L_geom]
+    extracted from the variable — give [prom precone_zero]. *)
+Lemma Lfun_ch_mor_app_g_tt_at_outer_pt_E :
+  Lfun (ch_mor (eD' (ne_app
+                      (ne_var (nv_tail "_"%string tunit _
+                                (nv_head "g"%string (tfun tunit tR') nil)))
+                      ne_tt)))
+       at_outer_pt
+  = prom (precone_zero : FMeas R_obj).
+Proof.
+(* Step 1: eD' (ne_app (#g) ne_tt) = app_kleisli (var_lookup g)
+   (em_term_mor _), via app_kleisli_var. *)
+rewrite (eD_app
+           (ne_var (nv_tail "_"%string tunit _
+                     (nv_head "g"%string (tfun tunit tR') nil)))
+           (@ne_tt R Ar R_obj _)).
+rewrite (eD_var (nv_tail "_"%string tunit _
+                   (nv_head "g"%string (tfun tunit tR') nil))).
+rewrite (eD_tt (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil)).
+rewrite (app_kleisli_var
+           (var_lookup (named_var_to_has_var
+                          (nv_tail "_"%string tunit _
+                            (nv_head "g"%string (tfun tunit tR') nil))))
+           (em_term_mor G_geom)).
+(* Step 2: Reduce ch_mor (app_kleisli F V) at outer_pt via
+   Lfun_ch_mor_app_kleisli_at. *)
+rewrite (Lfun_ch_mor_app_kleisli_at
+           (var_lookup (named_var_to_has_var
+                          (nv_tail "_"%string tunit _
+                            (nv_head "g"%string (tfun tunit tR') nil))))
+           (em_term_mor G_geom)
+           at_outer_pt).
+(* Now goal: Lfun (bang_fmap (icones_comp (der (coalg_obj (tyD tR')))
+                                         (app_under F V)))
+                  (Lfun (coalg_str G_geom) at_outer_pt) = prom precone_zero.
+   Apply coalg_str_G_on_outer_pt_E + bang_fmap_prom. *)
+rewrite -[coalg_obj G_geom]/(coalg_obj G_geom).
+rewrite (coalg_str_G_on_outer_pt_E).
+rewrite (bang_fmap_prom _ at_outer_pt cone_norm_outer_pt_le1).
+congr (prom _).
+(* Goal: Lfun (icones_comp (der FMeas) (app_under F V)) at_outer_pt
+       = precone_zero.
+   Unfold the icones_comp: Lfun (der FMeas) (Lfun (app_under F V) at_outer_pt). *)
+rewrite -[Lfun (icones_comp _ _) _]
+        /(Lfun (der (coalg_obj (tyD tR')))
+               (Lfun (app_under (var_lookup (named_var_to_has_var
+                                  (nv_tail "_"%string tunit _
+                                    (nv_head "g"%string (tfun tunit tR') nil))))
+                                (em_term_mor _))
+                     at_outer_pt)).
+(* Now reduce app_under F V at the point.
+   app_under F V = tensor_uncurry (adj_phi F) ∘ tensor_mor id (ch_mor V)
+                                              ∘ coalg_d G_geom. *)
+rewrite /app_under.
+rewrite -[Lfun (icones_comp _ _) at_outer_pt]
+        /(Lfun (tensor_uncurry
+                 (adj_phi (var_lookup (named_var_to_has_var
+                            (nv_tail "_"%string tunit _
+                              (nv_head "g"%string (tfun tunit tR') nil))))))
+               (Lfun (icones_comp (tensor_mor (icones_id Ar _)
+                                              (ch_mor (em_term_mor _)))
+                                  (coalg_d G_geom))
+                     at_outer_pt)).
+rewrite -[Lfun (icones_comp (tensor_mor _ _) _) at_outer_pt]
+        /(Lfun (tensor_mor (icones_id Ar (coalg_obj G_geom))
+                           (ch_mor (em_term_mor G_geom)))
+               (Lfun (coalg_d G_geom) at_outer_pt)).
+(* coalg_d G_geom = tensor_mor (der G) (der G) ∘ d_bang ∘ coalg_str G.
+   Apply to at_outer_pt step by step. *)
+rewrite /coalg_d.
+rewrite -[Lfun (icones_comp (tensor_mor _ _) _) at_outer_pt]
+        /(Lfun (tensor_mor (der (coalg_obj G_geom)) (der (coalg_obj G_geom)))
+               (Lfun (icones_comp (d_bang (coalg_obj G_geom)) (coalg_str G_geom))
+                     at_outer_pt)).
+rewrite -[Lfun (icones_comp (d_bang _) _) at_outer_pt]
+        /(Lfun (d_bang (coalg_obj G_geom))
+               (Lfun (coalg_str G_geom) at_outer_pt)).
+rewrite coalg_str_G_on_outer_pt_E.
+rewrite (d_bang_prom (A := coalg_obj G_geom) at_outer_pt cone_norm_outer_pt_le1).
+rewrite tensor_morE.
+rewrite (der_prom (B := coalg_obj G_geom) at_outer_pt cone_norm_outer_pt_le1).
+(* Now: Lfun (tensor_mor id (ch_mor (em_term_mor _))) (ptensor at_outer_pt at_outer_pt) *)
+rewrite tensor_morE.
+rewrite -[icones_id Ar _ _]/at_outer_pt.
+rewrite -[ch_mor (em_term_mor _)]/(coalg_e G_geom).
+rewrite coalg_e_G_on_outer_pt_E.
+(* Now: Lfun (tensor_uncurry (adj_phi (var_lookup g)))
+              (ptensor at_outer_pt one1) *)
+(* By tensor_uncurry's behaviour: tensor_uncurry h (x ⊗ y) = (h x) y.
+   Specifically, by tensor_curry/uncurry adjunction and tensor_curryE:
+   tensor_uncurry (adj_phi F) (x ⊗ one1) = linhom_fun ((adj_phi F) x) one1
+   when we have (adj_phi F) x : linhom_car _.  But the structural shape
+   passes through tensor_curryK first.  Use tensor_curryE on
+   adj_phi F = tensor_curry (tensor_uncurry (adj_phi F)) via tensor_curryK. *)
+have Heq :
+  Lfun (tensor_uncurry
+          (adj_phi (var_lookup (named_var_to_has_var
+                     (nv_tail "_"%string tunit _
+                       (nv_head "g"%string (tfun tunit tR') nil))))))
+       (ptensor at_outer_pt (one1 : cone_one_car Ar))
+  = linhom_fun
+      (Lfun (adj_phi (var_lookup (named_var_to_has_var
+                        (nv_tail "_"%string tunit _
+                          (nv_head "g"%string (tfun tunit tR') nil)))))
+            at_outer_pt)
+      (one1 : cone_one_car Ar).
+  set F := adj_phi _.
+  have HK := @tensor_uncurryK R Ar (coalg_obj G_geom)
+                              (coalg_obj (tyD tunit))
+                              (coalg_obj (Tobj (tyD tR'))) F.
+  have := tensor_curryEp (tensor_uncurry F) at_outer_pt (one1 : cone_one_car Ar).
+  rewrite HK.
+  by move=> ->.
+rewrite Heq.
+(* Now: Lfun (adj_phi (var_lookup g)) at_outer_pt.
+   adj_phi h = der (codomain) ∘ ch_mor h.  Compute via the var_lookup
+   reduction. *)
+rewrite -[adj_phi _]/(icones_comp (adj_counit _)
+                                  (U_mor (var_lookup (named_var_to_has_var
+                                    (nv_tail "_"%string tunit _
+                                      (nv_head "g"%string (tfun tunit tR') nil)))))).
+rewrite -[Lfun (icones_comp (adj_counit _) _) _]
+        /(Lfun (adj_counit (linhom_car Ar (coalg_obj (tyD tunit))
+                                          (coalg_obj (Tobj (tyD tR')))))
+               (Lfun (U_mor (var_lookup (named_var_to_has_var
+                              (nv_tail "_"%string tunit _
+                                (nv_head "g"%string (tfun tunit tR') nil)))))
+                     at_outer_pt)).
+rewrite -[U_mor _]
+        /(ch_mor (var_lookup (named_var_to_has_var
+                    (nv_tail "_"%string tunit _
+                      (nv_head "g"%string (tfun tunit tR') nil))))).
+rewrite Lfun_var_lookup_g_at_outer_pt_E.
+rewrite -[adj_counit _]/(der (linhom_car Ar (coalg_obj (tyD tunit))
+                                            (coalg_obj (Tobj (tyD tR'))))).
+rewrite (der_prom (B := L_geom)
+                  (precone_zero : L_geom)
+                  cone_norm_zero_L_geom_le1).
+(* Goal: Lfun (der (FMeas R_obj)) (linhom_fun (precone_zero : L_geom) one1)
+       = precone_zero : FMeas R_obj.
+   Step 1: linhom_fun (precone_zero : L_geom) one1 = (precone_zero : Bang FMeas)
+           by definition of the zero linhom.
+   Step 2: Lfun (der ...) precone_zero = precone_zero by linearity of der. *)
+have Hz_eval :
+  linhom_fun (precone_zero : L_geom) (one1 : cone_one_car Ar)
+  = (precone_zero : Bang Ar (FMeas R_obj)).
+  by [].
+rewrite Hz_eval.
+have [Hder0 _ _] :=
+  cones_hom_linear
+    (mcones_hom_cones
+      (icones_hom_mcones (der (FMeas R_obj)))).
+exact: Hder0.
+Qed.
+
+(** *** ELSE-branch evaluation (full form) — the headline lemma.
+
+    [Lfun (ch_mor (eD' else_e)) at_outer_pt = prom precone_zero] in
+    [Bang (FMeas R_obj)].  By [eD_add], the [eD' else_e] image is
+    [add_lift ∘ bang_m ∘ em_pair (eD' (ne_real 1)) (eD' app_g_tt)];
+    we evaluate the [add_lift]-wrap at the [(?, prom precone_zero)]-shape
+    coming from the previous lemma, via bilinearity of [add_lift]. *)
+Theorem Lfun_ch_mor_else_e_at_outer_pt_E :
+  Lfun (ch_mor (eD' else_e)) at_outer_pt
+  = prom (precone_zero : FMeas R_obj).
+Proof.
+rewrite /else_e.
+rewrite (eD_add
+           (R_obj := R_obj)
+           (G := ("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil)
+           (ne_real (G := ("_"%string, tunit)
+                            :: ("g"%string, tfun tunit tR') :: nil) 1%R)
+           (ne_app (ne_var (nv_tail "_"%string tunit _
+                            (nv_head "g"%string (tfun tunit tR') nil)))
+                   ne_tt)).
+(* eD' else_e =
+   coalg_comp (bang_cofree_hom add_lift)
+              (coalg_comp (bang_m (FMeas R_obj) (FMeas R_obj))
+                          (em_pair (eD' (ne_real 1)) (eD' app_g_tt))). *)
+rewrite -[ch_mor (coalg_comp (bang_cofree_hom _) _)]
+        /(icones_comp (bang_fmap (@add_lift _ _ _ R_carrier_eq
+                                               R_carrier_meas R_to_carrier_meas))
+                      (ch_mor (coalg_comp
+                                 (bang_m (FMeas R_obj) (FMeas R_obj))
+                                 (em_pair _ _)))).
+rewrite -[Lfun (icones_comp _ _) _]
+        /(Lfun (bang_fmap (@add_lift _ _ _ R_carrier_eq
+                                        R_carrier_meas R_to_carrier_meas))
+               (Lfun (ch_mor (coalg_comp
+                                (bang_m (FMeas R_obj) (FMeas R_obj))
+                                (em_pair _ _)))
+                     at_outer_pt)).
+rewrite -[ch_mor (coalg_comp (bang_m _ _) _)]
+        /(icones_comp (m_bang (FMeas R_obj) (FMeas R_obj))
+                      (em_pair_mor (ch_mor (eD' (@ne_real R Ar R_obj
+                                                  (("_"%string, tunit)
+                                                    :: ("g"%string, tfun tunit tR') :: nil) 1%R)))
+                                   (ch_mor (eD'
+                                             (ne_app
+                                                (ne_var (nv_tail "_"%string tunit _
+                                                          (nv_head "g"%string (tfun tunit tR') nil)))
+                                                ne_tt))))).
+rewrite -[Lfun (icones_comp (m_bang _ _) _) _]
+        /(Lfun (m_bang (FMeas R_obj) (FMeas R_obj))
+               (Lfun (em_pair_mor (Z := G_geom)
+                                  (P := Tobj (tyD tR'))
+                                  (Q := Tobj (tyD tR'))
+                                  (ch_mor (eD' (@ne_real R Ar R_obj
+                                                  (("_"%string, tunit)
+                                                    :: ("g"%string, tfun tunit tR') :: nil) 1%R)))
+                                  (ch_mor (eD'
+                                            (ne_app
+                                               (ne_var (nv_tail "_"%string tunit _
+                                                         (nv_head "g"%string (tfun tunit tR') nil)))
+                                               ne_tt))))
+                     at_outer_pt)).
+(* Reduce Lfun (em_pair_mor f g) at_outer_pt to ptensor (Lfun f at_outer_pt)
+   (Lfun g at_outer_pt) via coalg_d on outer_pt = ptensor at_outer_pt at_outer_pt
+   (computed via coalg_str_G_on_outer_pt_E + d_bang_prom + tensor_morE + der_prom). *)
+rewrite /em_pair_mor.
+rewrite -[Lfun (icones_comp (tensor_mor _ _) _) _]
+        /(Lfun (tensor_mor
+                  (ch_mor (eD' (@ne_real R Ar R_obj
+                                  (("_"%string, tunit)
+                                    :: ("g"%string, tfun tunit tR') :: nil) 1%R)))
+                  (ch_mor (eD'
+                            (ne_app
+                               (ne_var (nv_tail "_"%string tunit _
+                                         (nv_head "g"%string (tfun tunit tR') nil)))
+                               ne_tt))))
+               (Lfun (coalg_d G_geom) at_outer_pt)).
+rewrite /coalg_d.
+rewrite -[Lfun (icones_comp (tensor_mor _ _) _) _]
+        /(Lfun (tensor_mor (der (coalg_obj G_geom)) (der (coalg_obj G_geom)))
+               (Lfun (icones_comp (d_bang (coalg_obj G_geom)) (coalg_str G_geom))
+                     at_outer_pt)).
+rewrite -[Lfun (icones_comp (d_bang _) _) _]
+        /(Lfun (d_bang (coalg_obj G_geom))
+               (Lfun (coalg_str G_geom) at_outer_pt)).
+rewrite coalg_str_G_on_outer_pt_E.
+rewrite (d_bang_prom (A := coalg_obj G_geom) at_outer_pt cone_norm_outer_pt_le1).
+rewrite tensor_morE.
+rewrite (der_prom (B := coalg_obj G_geom) at_outer_pt cone_norm_outer_pt_le1).
+rewrite tensor_morE.
+rewrite Lfun_ch_mor_app_g_tt_at_outer_pt_E.
+(* Goal: Lfun (bang_fmap add_lift) (Lfun (m_bang FMeas FMeas)
+            (ptensor (Lfun (ch_mor (eD' (ne_real 1))) at_outer_pt)
+                     (prom precone_zero)))
+       = prom precone_zero. *)
+(* Need: cone_norm (Lfun (ch_mor (eD' (ne_real 1))) at_outer_pt) ≤ 1
+   and cone_norm (prom precone_zero) ≤ 1.  Both elements are in
+   Bang (FMeas R_obj) — for the latter use prom_ball.  For the former,
+   it's the image of a coalg_hom on an outer_pt with norm ≤ 1, and
+   cones_hom_norm_le1 gives the bound. *)
+set u1 := Lfun (ch_mor (eD'
+                         (@ne_real R Ar R_obj
+                            (("_"%string, tunit)
+                              :: ("g"%string, tfun tunit tR') :: nil) 1%R)))
+              at_outer_pt.
+have Hu1 : cone_norm u1 <= 1.
+  rewrite /u1.
+  apply: le_trans (cones_hom_norm_le1 _ _) _.
+  exact: cone_norm_outer_pt_le1.
+have Hu2 : cone_norm (prom (precone_zero : FMeas R_obj)) <= 1.
+  apply: (prom_ball (x := precone_zero : FMeas R_obj)).
+  by rewrite cone_norm0.
+(* m_bang on a ptensor of two unit-ball points in Bang(FMeas):
+   we need (Lfun (ch_mor (eD' real_1)) at_outer_pt) and
+   (prom precone_zero) both to be in unit-ball OF Bang (FMeas), so
+   that we can apply m_bang's structural identity.  But m_bang doesn't
+   have a direct identity at arbitrary points — only at PROM points.
+   So we need to use a different approach: directly apply der_nat +
+   der_m_bang to peel things off, then add_lift_zero_R. *)
+(* Strategy: rewrite via:
+   bang_fmap add_lift = (linearity of !) but we don't have such an
+   identity at arbitrary ball points.  Use linearity of add_lift +
+   the fact that the SECOND argument (prom precone_zero) gets killed
+   by m_bang's interaction with the zero coordinate.
+
+   Cleaner approach: m_bang's underlying icones_hom maps to Bang (A⊗B);
+   on ptensor x y with y = prom 0, the chain m_bang ∘ (id ⊗ prom_0)
+   collapses through tensor's bilinearity at zero.  Actually, simplest:
+   m_bang is a linear (icones) morphism, so it commutes with precone_scale
+   and additivity.  In particular Lfun (m_bang) (ptensor x precone_zero)
+   = precone_zero via ptensor_0r + linearity of m_bang.
+
+   But (prom precone_zero) ≠ precone_zero in Bang (FMeas)!
+   prom precone_zero is the promotion of 0, NOT the zero of Bang. *)
+(* So we must reduce m_bang at (x, prom 0) differently.
+   But here we want the FINAL result, not m_bang's intermediate.
+   Use the alternative: bang_fmap add_lift at (m_bang (x, prom 0))
+   — via der_nat: cones_hom_funCompose to push der through bang_fmap. *)
+(* Actually the cleanest path: instead of using m_bang's identity,
+   use the FACT that we'll combine with bang_fmap add_lift and then
+   if the WHOLE thing is reduced to the right shape... *)
+(* Cleanest path: use eD' (ne_real 1) reduction first.  eD' (ne_real 1)
+   = real_kleisli 1 = const_kleisli _ (dirac_fmeas (R_to_carrier 1)) _
+   = adj_psi (const_icones _ (dirac_fmeas ...) _).  Then
+   ch_mor (adj_psi g) = bang_fmap g ∘ coalg_str.  So at at_outer_pt:
+   Lfun (ch_mor (eD' (ne_real 1))) at_outer_pt
+   = Lfun (bang_fmap (const_icones _ _ _)) (Lfun (coalg_str G_geom) at_outer_pt)
+   = Lfun (bang_fmap (const_icones _ _ _)) (prom at_outer_pt)
+   = prom (Lfun (const_icones _ _ _) at_outer_pt)            -- bang_fmap_prom
+   = prom (dirac_fmeas (R_to_carrier 1))                      -- const_icones at one1
+*)
+rewrite /u1.
+rewrite (eD_real
+           (G := ("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) 1%R).
+set ci := const_icones G_geom
+            (dirac_fmeas (R_to_carrier R_carrier_eq 1%R))
+            (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 1%R)).
+have Hreal_at :
+  Lfun (ch_mor (@real_kleisli R Ar R_obj R_carrier_eq G_geom 1%R))
+       at_outer_pt
+  = prom (Lfun ci at_outer_pt).
+  rewrite -[ch_mor (@real_kleisli _ _ _ _ _ _)]
+          /(icones_comp (bang_fmap ci) (coalg_str G_geom)).
+  rewrite -[Lfun (icones_comp _ _) at_outer_pt]
+          /(Lfun (bang_fmap ci) (Lfun (coalg_str G_geom) at_outer_pt)).
+  rewrite coalg_str_G_on_outer_pt_E.
+  exact: (bang_fmap_prom ci at_outer_pt cone_norm_outer_pt_le1).
+rewrite Hreal_at.
+(* Now u1 = prom (Lfun (const_icones ...) at_outer_pt).  Apply m_bang_prom. *)
+set d1 := Lfun (const_icones _ _ _) at_outer_pt.
+have Hd1 : cone_norm d1 <= 1.
+  rewrite /d1.
+  apply: le_trans (cones_hom_norm_le1 _ _) _.
+  exact: cone_norm_outer_pt_le1.
+rewrite (m_bang_prom (A := FMeas R_obj) (B := FMeas R_obj)
+                     (x := d1) (y := precone_zero : FMeas R_obj)
+                     Hd1 (cone_norm0_le1 _)).
+rewrite (bang_fmap_prom _ (ptensor d1 (precone_zero : FMeas R_obj))).
+(* Goal: prom (Lfun add_lift (ptensor d1 precone_zero)) = prom precone_zero. *)
+- by rewrite (add_lift_zero_R d1).
+- (* cone_norm bound on (ptensor d1 precone_zero) *)
+  apply: le_trans (tensor_norm_le _ _) _.
+  rewrite -[1]mulr1; apply: ler_pM.
+  + exact: cone_norm_ge0.
+  + exact: cone_norm_ge0.
+  + exact: Hd1.
+  + by rewrite cone_norm0.
+Qed.
+
+(** *** Post-[der] form of the ELSE-branch evaluation. *)
+Theorem der_Lfun_ch_mor_else_e_at_outer_pt_E :
+  Lfun (der (FMeas R_obj))
+       (Lfun (ch_mor (eD' else_e)) at_outer_pt)
+  = precone_zero.
+Proof.
+rewrite Lfun_ch_mor_else_e_at_outer_pt_E.
+exact: (der_prom (B := FMeas R_obj)
+                  (precone_zero : FMeas R_obj) (cone_norm0_le1 _)).
+Qed.
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -792,3 +1271,13 @@ Arguments cone_norm_der_Step_geom_via_prom_convex_icones_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments coalg_e_G_on_outer_pt_E
   {R Ar R_obj}.
+Arguments Lfun_var_lookup_g_at_outer_pt_E
+  {R Ar R_obj}.
+Arguments Lfun_ch_mor_ne_var_g_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments Lfun_ch_mor_app_g_tt_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments Lfun_ch_mor_else_e_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments der_Lfun_ch_mor_else_e_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
