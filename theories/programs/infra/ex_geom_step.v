@@ -1239,6 +1239,57 @@ exact: (der_prom (B := FMeas R_obj)
                   (precone_zero : FMeas R_obj) (cone_norm0_le1 _)).
 Qed.
 
+
+(** ** Reduction L — THEN-branch evaluation at the outer point
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Companion to ELSE.  Evaluates [then_e := ne_real 0%R] at
+    [at_outer_pt].  Result: [prom (dirac_fmeas 0)]. *)
+Theorem Lfun_ch_mor_then_e_at_outer_pt_E :
+  Lfun (ch_mor (eD' then_e))
+       (ptensor
+          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+          (one1 : cone_one_car Ar))
+  = prom (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj).
+Proof.
+rewrite /then_e (eD_real 0%R).
+rewrite /real_kleisli.
+set c := (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj).
+set Hc := dirac_fmeas_norm_le1 _.
+rewrite (Lfun_ch_mor_const_kleisli_at c Hc _).
+rewrite coalg_str_G_on_outer_pt_E.
+have Hbnd : (cone_norm
+              (ptensor
+                 (ptensor (one1 : cone_one_car Ar)
+                          (prom (precone_zero : L_geom)))
+                 (one1 : cone_one_car Ar)
+              : coalg_obj G_geom) <= 1)%R
+  by exact: cone_norm_outer_pt_le1.
+rewrite (bang_fmap_prom (const_icones _ c Hc) _ Hbnd).
+rewrite -[Lfun (const_icones _ _ _) _]
+        /(Lfun (linhom_icones (lin_pt c) (lin_pt_norm_le1 c Hc))
+               (Lfun (coalg_e G_geom) _)).
+rewrite coalg_e_G_on_outer_pt_E.
+rewrite linhom_iconesE.
+rewrite -[one1]/(MkConeOne Ar 1%:nng).
+by rewrite lin_pt_unit.
+Qed.
+
+(** ** Reduction L' — post-[der] THEN-branch evaluation *)
+Theorem der_Lfun_ch_mor_then_e_at_outer_pt_E :
+  Lfun (der (FMeas R_obj))
+       (Lfun (ch_mor (eD' then_e))
+             (ptensor
+                (ptensor (one1 : cone_one_car Ar)
+                         (prom (precone_zero : L_geom)))
+                (one1 : cone_one_car Ar)))
+  = (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj).
+Proof.
+rewrite Lfun_ch_mor_then_e_at_outer_pt_E.
+exact: (der_prom (B := FMeas R_obj) _
+          (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 0%R))).
+Qed.
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -1280,4 +1331,8 @@ Arguments Lfun_ch_mor_app_g_tt_at_outer_pt_E
 Arguments Lfun_ch_mor_else_e_at_outer_pt_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments der_Lfun_ch_mor_else_e_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments Lfun_ch_mor_then_e_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments der_Lfun_ch_mor_then_e_at_outer_pt_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
