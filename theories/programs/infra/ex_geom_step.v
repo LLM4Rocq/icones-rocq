@@ -48,11 +48,29 @@
 
     5. [Step_geom_one_prom_zero_via_convex_E] — chain of (3) + (4).
 
+    6. [cone_norm_K_le1] — operator-norm bound on the inner linhom
+       [K := Lfun (tensor_curry (ch_mor convex)) (one1 ⊗p prom 0)]:
+       [cone_norm K ≤ 1].  Via [cones_hom_norm_le1] on [tensor_curry
+       (ch_mor convex)] (an [icones_hom]) + [tensor_norm_le] +
+       [cone_norm_one1 = 1] + [prom_ball] on [precone_zero ≤ 1].
+
+    7. [der_Step_geom_one_prom_zero_E] — post-[der] structural
+       reduction:
+       [[
+         Lfun (der L_geom) (Step_geom one1 (prom 0_L_geom)) =
+         Lfun (tensor_curry (ch_mor convex)) (one1 ⊗p prom 0_L_geom).
+       ]]
+       Apply (5) + [der_prom] with the norm bound (6) on the inner
+       [K].  This extracts the inner linhom from the outer [prom] at
+       the [L_geom] level — closing the structural gap to the
+       [linhom] operator-norm reading required for the mass identity.
+
     *** Honest scope and limitations.
 
     The headline target
     [[
-      cone_norm (Step_geom one1 (prom (precone_zero : L_geom))) = 1/2
+      cone_norm (Lfun (der L_geom)
+                      (Step_geom one1 (prom (precone_zero : L_geom)))) = 1/2
     ]]
     is DEFERRED.  After [Step_geom_one_prom_zero_via_convex_E], we have
     [Step_geom one1 (prom 0) = prom (Lfun (tensor_curry (ch_mor convex))
@@ -78,6 +96,23 @@
     (a non-trivial result given [Bang B] is constructed via a wide
     intersection of [scones_hom B Cone1] family members) plus the
     [adj_psi]-layer transparent reduction.
+
+    *** Update — post-[der]-extraction (this commit).
+
+    The post-[der]-extracted form [der_Step_geom_one_prom_zero_E]
+    sidesteps the [Bang L_geom] wide-intersection norm by reading at
+    the [L_geom] (linhom) operator-norm level.  This is structural
+    progress: the headline mass identity now reduces to
+    [[
+      cone_norm
+        (Lfun (tensor_curry (ch_mor convex)) (one1 ⊗p prom 0_L_geom))
+      = 1/2
+    ]]
+    — an operator-norm reading of a single linhom in [L_geom = cone_one
+    ⊸ Bang FMeas].  Still open: the per-branch evaluation cascade
+    (then ↦ [prom (dirac_fmeas 0)], else ↦ [0] via [app_kleisli_var] +
+    [add_lift_zero_R]), combined via [cone_normh] + the convex
+    coefficients to give the [1/2] mass.
 
     Standalone experiment file, NOT in _CoqProject.
 
@@ -399,9 +434,52 @@ Qed.
     level, where [cone_normh] is directly available).
 
     This file delivers the AXIOM-FREE STRUCTURAL reductions ending
-    at [Step_geom_one_prom_zero_via_convex_E].  The mass identity
-    [cone_norm = 1/2] is honestly DEFERRED, pending the prom-norm
-    infrastructure work. *)
+    at [der_Step_geom_one_prom_zero_E] (post-[der] extraction).  The
+    mass identity [cone_norm = 1/2] is honestly DEFERRED, pending the
+    per-branch evaluation cascade. *)
+
+(** ** Reduction D — post-[der] extraction to the [L_geom] level
+
+    Apply [der_prom] to the outer [prom] of (5).  The inner linhom
+    [K := Lfun (tensor_curry (ch_mor convex)) (one1 ⊗p prom 0_L_geom)]
+    has norm [≤ 1] by [cones_hom_norm_le1] on [tensor_curry (ch_mor
+    convex)] (an [icones_hom]) applied to [one1 ⊗p prom 0] whose
+    [cone_norm] is bounded by [cone_norm one1 · cone_norm (prom 0) ≤
+    1 · 1 = 1]. *)
+
+(** Norm bound on the inner linhom [K]. *)
+Lemma cone_norm_K_le1 :
+  cone_norm
+    (Lfun (tensor_curry
+            (ch_mor (convex_combination (eD' then_e) (eD' else_e)
+                                        (phase4_half_ge0 R)
+                                        (phase4_half_le1 R))))
+          (ptensor one1 (prom (precone_zero : L_geom))))
+  <= 1.
+Proof.
+have Hone_prom : cone_norm (ptensor one1 (prom (precone_zero : L_geom))) <= 1.
+  apply: le_trans (tensor_norm_le _ _) _.
+  rewrite -[1]mulr1; apply: ler_pM.
+  - exact: cone_norm_ge0.
+  - exact: cone_norm_ge0.
+  - by rewrite cone_norm_one1.
+  - exact: (prom_ball cone_norm_zero_L_geom_le1).
+exact: le_trans (cones_hom_norm_le1 _ _) Hone_prom.
+Qed.
+
+(** Post-[der] structural reduction.  Combine (5) with [der_prom]
+    using the norm bound (6) on the inner linhom [K]. *)
+Theorem der_Step_geom_one_prom_zero_E :
+  Lfun (der L_geom) (Step_geom one1 (prom (precone_zero : L_geom)))
+  = Lfun (tensor_curry
+           (ch_mor (convex_combination (eD' then_e) (eD' else_e)
+                                       (phase4_half_ge0 R)
+                                       (phase4_half_le1 R))))
+        (ptensor one1 (prom (precone_zero : L_geom))).
+Proof.
+rewrite Step_geom_one_prom_zero_via_convex_E.
+exact: (der_prom (B := L_geom) _ cone_norm_K_le1).
+Qed.
 
 End ExGeomStep.
 
@@ -414,4 +492,8 @@ Arguments Step_geom_one_prom_zero_E
 Arguments ex_geom_body_inner_via_convex
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments Step_geom_one_prom_zero_via_convex_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments cone_norm_K_le1
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments der_Step_geom_one_prom_zero_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
