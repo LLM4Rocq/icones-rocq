@@ -108,12 +108,14 @@
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
-From mathcomp.reals Require Import reals signed.
+From mathcomp.reals Require Import reals signed constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure dirac_measure.
+From mathcomp.analysis Require Import lebesgue_integral_definition.
+From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 
 From Stdlib Require Import Strings.String.
 
@@ -2076,6 +2078,135 @@ have [Hfm0 _ _] := cones_hom_linear
 exact: Hfm0.
 Qed.
 
+Local Open Scope ereal_scope.
+
+(** ** Translation-mass invariance — [add_lift_mass]
+
+    The headline mass identity for the Phase 4 [ex_geom] mass-1 closure:
+    [[
+       mass(add_lift(δ_a ⊗ m)) = mass(m).
+    ]]
+    Adding a constant [a] to each sample does not change the total
+    mass. This is Fubini + pushforward-mass-preservation.
+
+    Proof outline (Route A — direct).
+    1. [add_lift = FMeas_fmap add_meas ∘ fmeas_lax R_obj R_obj] by
+       definition. By [fmeas_lax_E], on the pure tensor [δ_a ⊗ m] the
+       inner [fmeas_lax R_obj R_obj] reduces to [fmeas_lax_pre δ_a m].
+    2. [FMeas_fmap_setT_E]: for any measurable [φ], the pushforward
+       [FMeas_fmap φ] preserves total mass: [(FMeas_fmap φ)(ν) setT =
+       ν setT]. Proved via the Pettis equation against [fmeas_eU setT]:
+       [fmeas_mu (icone_integral (r ↦ δ_(φ r)) _ ν) setT
+        = ∫_ν δ_(φ r) setT = ∫_ν 1 = ν setT] by [dirac_fmeas_setT_E]
+       and [integral_cst].
+    3. [fmeas_lax_pre_setT]: [fmeas_lax_pre (δ_a, m) setT
+       = δ_a(setT) · m(setT) = 1 · m(setT) = m(setT)] by
+       [dirac_fmeas_setT_E].
+    Composing (1), (2), (3) gives the headline. *)
+
+(** Auxiliary: the pushforward [FMeas_fmap φ] preserves total mass.
+    For any measurable [φ : X → Y] and any [ν : FMeas X],
+    [(FMeas_fmap φ)(ν) setT = ν setT].
+
+    Proved by the Pettis equation against [fmeas_eU setT]: the
+    integrand [δ_(φ r) setT] is identically [1] (by [diracT] /
+    [dirac_fmeas_setT_E]), so its integral against [ν] is [ν setT]. *)
+Lemma FMeas_fmap_setT_E (X Y : ar_obj Ar) (φ : ar_hom Ar X Y)
+    (ν : fmeas R (ar_carrier Ar X)) :
+  fmeas_mu (Lfun (FMeas_fmap φ) ν) [set: ar_carrier Ar Y] =
+  fmeas_mu ν [set: ar_carrier Ar X].
+Proof.
+(* Step 1.  Unfold [FMeas_fmap] to [int_to_linhom (push_dirac_path φ)]. *)
+rewrite /FMeas_fmap (linhom_iconesE _ (FMeas_fmap_norm_le1 φ) ν).
+(* Step 2.  Read off the value via [icone_integralP] against
+   [fmeas_eU setT]. *)
+have mT : measurable [set: ar_carrier Ar Y]
+  := @measurableT _ (ar_carrier Ar Y).
+set II := linhom_fun (int_to_linhom (push_dirac_path φ)) ν.
+have HII_E : II =
+    icone_integral (path_fun (push_dirac_path φ))
+                   (path_is_path (push_dirac_path φ)) ν.
+  by [].
+have HP := icone_integralP (path_fun (push_dirac_path φ))
+                           (path_is_path (push_dirac_path φ)) ν
+             (fmeas_eU (ar_zero Ar) mT)
+             (ex_intro _ [set: ar_carrier Ar Y] (ex_intro _ mT erefl))
+             (ar_zero_pt Ar).
+rewrite /fmeas_eU /eU_fun /= in HP.
+rewrite HII_E.
+(* Step 3.  Finiteness on both sides. *)
+have HIIfin :
+    fmeas_mu (icone_integral (path_fun (push_dirac_path φ))
+              (path_is_path (push_dirac_path φ)) ν)
+              [set: ar_carrier Ar Y] \is a fin_num
+  by exact: fmeas_setT_fin.
+have HνTfin : fmeas_mu ν [set: ar_carrier Ar X] \is a fin_num
+  by exact: fmeas_setT_fin.
+(* Step 4.  Reduce the inner integrand via [dirac_fmeas_setT_E].
+   [path_fun (push_dirac_path φ) r] is definitionally
+   [dirac_fmeas (φ r) : FMeas Y]. *)
+have step :
+    \int[fmeas_mu ν]_(r in [set: ar_carrier Ar X])
+      (fine (fmeas_mu (path_fun (push_dirac_path φ) r)
+                      [set: ar_carrier Ar Y]))%:E
+    = fmeas_mu ν [set: ar_carrier Ar X].
+  under eq_integral => r _.
+    have -> : fmeas_mu (path_fun (push_dirac_path φ) r)
+                      [set: ar_carrier Ar Y]
+            = fmeas_mu (dirac_fmeas (φ r) : FMeas Y)
+                       [set: ar_carrier Ar Y]
+      by [].
+    rewrite dirac_fmeas_setT_E /=.
+    over.
+  by rewrite integral_cst//= mul1e.
+(* Step 5.  Convert the [fine]-form Pettis equation back to ereal. *)
+rewrite -(fineK HIIfin) -(fineK HνTfin); congr (_%:E).
+rewrite HP.
+have step_fin :
+    fine (\int[fmeas_mu ν]_(r in [set: ar_carrier Ar X])
+      (fine (fmeas_mu (path_fun (push_dirac_path φ) r)
+                      [set: ar_carrier Ar Y]))%:E)
+    = fine (fmeas_mu ν [set: ar_carrier Ar X])
+  by rewrite step.
+exact: step_fin.
+Qed.
+
+(** Main lemma: translation-mass invariance.
+
+    For any [a : R] and any [m : FMeas R_obj]:
+    [[
+       mass(add_lift (δ_(R_to_carrier a) ⊗ m)) = mass(m).
+    ]]
+    Composing [fmeas_lax_E] (the lax pure-tensor identity),
+    [FMeas_fmap_setT_E] (pushforward preserves setT), and
+    [fmeas_lax_pre_setT] (product-measure total mass) +
+    [dirac_fmeas_setT_E] ([δ_a] has unit total mass). *)
+Lemma add_lift_mass (a : R) (m : FMeas R_obj) :
+  fmeas_mu (Lfun add_lift
+             (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
+                (dirac_fmeas (R_to_carrier R_carrier_eq a)) m))
+           [set: ar_carrier Ar R_obj]
+  = fmeas_mu m [set: ar_carrier Ar R_obj].
+Proof.
+rewrite /add_lift.
+(* Step 1.  Decompose [add_lift = FMeas_fmap add_meas ∘ fmeas_lax]. *)
+rewrite -[LHS]/(fmeas_mu (Lfun (FMeas_fmap add_meas)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
+       (dirac_fmeas (R_to_carrier R_carrier_eq a)) m)))
+  [set: ar_carrier Ar R_obj]).
+(* Step 2.  [fmeas_lax_E]: pure-tensor identity. *)
+rewrite (fmeas_lax_E (dirac_fmeas (R_to_carrier R_carrier_eq a)) m).
+(* Step 3.  [FMeas_fmap_setT_E]: pushforward preserves setT. *)
+rewrite FMeas_fmap_setT_E.
+(* Step 4.  [fmeas_lax_pre_setT]: total mass of the product measure. *)
+rewrite fmeas_lax_pre_setT.
+(* Step 5.  [δ_a] has unit total mass. *)
+by rewrite dirac_fmeas_setT_E mul1e.
+Qed.
+
+Local Close Scope ereal_scope.
+
 End Arith.
 
 Arguments add_fun {R Ar R_obj} R_carrier_eq p.
@@ -2090,6 +2221,7 @@ Arguments add_lift_zero_R {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_m
 Arguments add_lift_zero_L {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
 Arguments mul_lift_zero_R {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
 Arguments mul_lift_zero_L {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
+Arguments add_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a m.
 
 (** ** Term-level score lift — [score_lift]
 
