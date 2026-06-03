@@ -563,6 +563,175 @@ rewrite -[cone_norm (Lfun (der L_geom) _)]/(linhom_norm _).
 exact: linhom_norm_one1_E.
 Qed.
 
+(** ** Reduction G — coalg_str on the (one1 ⊗ prom 0) ⊗ one1 pure tensor
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Compute [Lfun (coalg_str G) ((one1 ⊗ prom 0) ⊗ one1)] where [G =
+    EM_prod (EM_prod EM_term funT_geom) EM_term].  The cascade:
+
+    1. [coalg_str (EM_prod _ _) = m_bang ∘ (coalg_str ⊗ coalg_str)] —
+       both factors apply nicely:
+       - inner [coalg_str (EM_prod EM_term funT_geom)] on [one1 ⊗ prom 0]
+         again reduces (same pattern) to [prom (one1 ⊗ prom 0)];
+       - outer [coalg_str EM_term] on [one1] is [unit_cofree_str one1
+         = prom one1];
+       - outer [coalg_str funT_geom] on [prom 0] is [dig L_geom (prom 0)
+         = prom (prom 0)] (with [cone_norm 0 ≤ 1] discharged).
+       Then [m_bang] of two [prom]s is the [prom] of their tensor by
+       [m_bang_prom].
+
+    The result is [prom ((one1 ⊗ prom 0) ⊗ one1)] in [Bang(coalg_obj G)]. *)
+
+Local Notation G_geom :=
+  (EM_prod (EM_prod (EM_term : Coalgebra Ar) funT_geom)
+           (EM_term : Coalgebra Ar)).
+
+Lemma cone_norm_inner_pt_le1 :
+  (cone_norm
+    (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+    <= 1)%R.
+Proof.
+apply: le_trans (tensor_norm_le _ _) _.
+rewrite -[1]mulr1; apply: ler_pM.
+- exact: cone_norm_ge0.
+- exact: cone_norm_ge0.
+- by rewrite cone_norm_one1.
+- exact: (prom_ball cone_norm_zero_L_geom_le1).
+Qed.
+
+Lemma cone_norm_outer_pt_le1 :
+  (cone_norm
+    (ptensor
+       (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+       (one1 : cone_one_car Ar))
+    <= 1)%R.
+Proof.
+apply: le_trans (tensor_norm_le _ _) _.
+rewrite -[1]mulr1; apply: ler_pM.
+- exact: cone_norm_ge0.
+- exact: cone_norm_ge0.
+- exact: cone_norm_inner_pt_le1.
+- exact: cone_norm_one1_le1.
+Qed.
+
+Theorem coalg_str_G_on_outer_pt_E :
+  Lfun (coalg_str G_geom)
+       (ptensor
+          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+          (one1 : cone_one_car Ar))
+  = prom
+      (ptensor
+         (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+         (one1 : cone_one_car Ar)).
+Proof.
+rewrite (EM_prod_str_E (EM_prod (EM_term : Coalgebra Ar) funT_geom)
+                       (EM_term : Coalgebra Ar)) /EM_prod_str.
+rewrite -[Lfun (icones_comp _ _) _]
+        /(Lfun (m_bang (coalg_obj _) (coalg_obj _))
+               (Lfun (tensor_mor _ _) _)).
+rewrite tensor_morE.
+(* Reduce inner coalg_str EM_prod EM_term funT_geom on (one1 ⊗ prom 0). *)
+have Hinner : Lfun (coalg_str (EM_prod (EM_term : Coalgebra Ar) funT_geom))
+                   (ptensor (one1 : cone_one_car Ar)
+                            (prom (precone_zero : L_geom)))
+            = prom (ptensor (one1 : cone_one_car Ar)
+                            (prom (precone_zero : L_geom))).
+  rewrite (EM_prod_str_E (EM_term : Coalgebra Ar) funT_geom) /EM_prod_str.
+  rewrite -[Lfun (icones_comp _ _) _]
+          /(Lfun (m_bang (coalg_obj _) (coalg_obj _))
+                 (Lfun (tensor_mor _ _) _)).
+  rewrite tensor_morE.
+  rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
+  rewrite (bang_cofree_str L_geom)
+          (dig_prom (B:=L_geom) (precone_zero : L_geom)
+                    cone_norm_zero_L_geom_le1).
+  by rewrite (m_bang_prom (x:=one1) (y:=prom (precone_zero : L_geom))
+                          cone_norm_one1_le1
+                          (prom_ball cone_norm_zero_L_geom_le1)).
+rewrite Hinner.
+(* Reduce outer coalg_str EM_term on one1. *)
+rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
+(* Now apply m_bang_prom. *)
+by rewrite (m_bang_prom (x:=ptensor (one1 : cone_one_car Ar)
+                                    (prom (precone_zero : L_geom)))
+                        (y:=one1)
+                        cone_norm_inner_pt_le1 cone_norm_one1_le1).
+Qed.
+
+(** ** Reduction H — Lfun (ch_mor convex) at the outer pt
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Combines [Lfun_ch_mor_adj_psi_at] (Class 1), [coalg_str_G_on_outer_pt_E]
+    above, and [bang_fmap_prom] to read [Lfun (ch_mor convex)] at the outer
+    pure-tensor as a [prom] of [Lfun convex_icones] at the same point.
+
+    Reads:
+    [[
+      Lfun (ch_mor convex) ((one1 ⊗ prom 0_L_geom) ⊗ one1)
+      = prom (Lfun convex_icones ((one1 ⊗ prom 0_L_geom) ⊗ one1)).
+    ]]
+*)
+Theorem Lfun_ch_mor_convex_at_outer_pt_E :
+  Lfun (ch_mor (convex_combination (eD' then_e) (eD' else_e)
+                                   (phase4_half_ge0 R)
+                                   (phase4_half_le1 R)))
+       (ptensor
+          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+          (one1 : cone_one_car Ar))
+  = prom (Lfun (convex_icones (eD' then_e) (eD' else_e)
+                              (phase4_half_ge0 R) (phase4_half_le1 R))
+               (ptensor
+                  (ptensor (one1 : cone_one_car Ar)
+                           (prom (precone_zero : L_geom)))
+                  (one1 : cone_one_car Ar))).
+Proof.
+rewrite /convex_combination.
+rewrite (Lfun_ch_mor_adj_psi_at
+           (convex_icones (eD' then_e) (eD' else_e)
+                          (phase4_half_ge0 R) (phase4_half_le1 R))
+           (ptensor
+              (ptensor (one1 : cone_one_car Ar)
+                       (prom (precone_zero : L_geom)))
+              (one1 : cone_one_car Ar))).
+rewrite coalg_str_G_on_outer_pt_E.
+by rewrite (bang_fmap_prom
+              (convex_icones (eD' then_e) (eD' else_e)
+                             (phase4_half_ge0 R) (phase4_half_le1 R))
+              _ cone_norm_outer_pt_le1).
+Qed.
+
+(** ** Reduction I — full chain: cone_norm of post-[der] Step_geom = cone_norm of prom of convex_icones at outer pt
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Compose [cone_norm_der_Step_geom_E] with [Lfun_ch_mor_convex_at_outer_pt_E].
+
+    [[
+      cone_norm (Lfun (der L_geom) (Step_geom one1 (prom 0_L_geom)))
+      = cone_norm (prom (Lfun convex_icones ((one1 ⊗ prom 0) ⊗ one1))).
+    ]]
+
+    THIS IS THE STRUCTURAL ENDPOINT of the per-branch evaluation cascade.
+    The remaining gap to the headline mass identity [= 1/2] is the EXACT
+    [prom_norm] equation [cone_norm (prom x) = cone_norm x], which IS the
+    open identity flagged in [bang.v] lines 201-225.  Combined with the
+    convex-decomposition pointwise reading at [convex_icones], the
+    headline would close. *)
+Theorem cone_norm_der_Step_geom_via_prom_convex_icones_E :
+  cone_norm (Lfun (der L_geom)
+                  (Step_geom one1 (prom (precone_zero : L_geom))))
+  = cone_norm
+      (prom (Lfun (convex_icones (eD' then_e) (eD' else_e)
+                                 (phase4_half_ge0 R)
+                                 (phase4_half_le1 R))
+                  (ptensor
+                     (ptensor (one1 : cone_one_car Ar)
+                              (prom (precone_zero : L_geom)))
+                     (one1 : cone_one_car Ar)))).
+Proof.
+rewrite cone_norm_der_Step_geom_E.
+by rewrite Lfun_ch_mor_convex_at_outer_pt_E.
+Qed.
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -582,4 +751,14 @@ Arguments der_Step_geom_one_prom_zero_E
 Arguments linhom_fun_der_Step_geom_one1_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments cone_norm_der_Step_geom_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments cone_norm_inner_pt_le1
+  {R Ar R_obj}.
+Arguments cone_norm_outer_pt_le1
+  {R Ar R_obj}.
+Arguments coalg_str_G_on_outer_pt_E
+  {R Ar R_obj}.
+Arguments Lfun_ch_mor_convex_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments cone_norm_der_Step_geom_via_prom_convex_icones_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
