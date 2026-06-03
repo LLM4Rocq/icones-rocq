@@ -162,6 +162,7 @@ Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.programs.infra.bool_case_hom.
 Require Import Icones.programs.infra.case_em_red.
+Require Import Icones.programs.infra.curry_kbind.
 Require Import Icones.programs.cbv.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.examples.
@@ -481,6 +482,87 @@ rewrite Step_geom_one_prom_zero_via_convex_E.
 exact: (der_prom (B := L_geom) _ cone_norm_K_le1).
 Qed.
 
+(** ** Reduction E — eval1 form (post-der, post-eval-at-one1)
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Combine the post-[der] reduction [der_Step_geom_one_prom_zero_E]
+    with [tensor_curryE] (Class-3 pointwise) to obtain a flat
+    [Bang(FMeas)]-element form: the linhom-value at [one1] of the
+    [tensor_curry]-result equals the [ch_mor convex] evaluated at
+    [(one1 ⊗ prom 0) ⊗ one1].
+
+    This is the direct evaluation of the per-branch outputs of the
+    convex combination at the recursive-call argument, packaged as a
+    single [Bang FMeas]-element.
+
+    Reads:
+    [[
+      linhom_fun (Lfun (der L_geom) (Step_geom one1 (prom 0))) one1
+      = Lfun (ch_mor convex) ((one1 ⊗ prom 0) ⊗ one1).
+    ]]
+*)
+Theorem linhom_fun_der_Step_geom_one1_E :
+  linhom_fun
+    (Lfun (der L_geom)
+          (Step_geom one1 (prom (precone_zero : L_geom))))
+    one1
+  = Lfun (ch_mor (convex_combination (eD' then_e) (eD' else_e)
+                                     (phase4_half_ge0 R)
+                                     (phase4_half_le1 R)))
+        (ptensor (ptensor one1 (prom (precone_zero : L_geom))) one1).
+Proof.
+rewrite der_Step_geom_one_prom_zero_E.
+exact: (tensor_curryE
+          (B := coalg_obj (EM_prod (EM_term : Coalgebra Ar) funT_geom))
+          (C := coalg_obj (EM_term : Coalgebra Ar))
+          (D := coalg_obj (Tobj (tyD tR' : Coalgebra Ar)))
+          (ch_mor (convex_combination (eD' then_e) (eD' else_e)
+                                      (phase4_half_ge0 R)
+                                      (phase4_half_le1 R)))
+          (ptensor one1 (prom (precone_zero : L_geom))) one1).
+Qed.
+
+(** ** Reduction F — operator-norm reduction to the [Bang(FMeas)] level
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    The operator-norm of the inner linhom [Lfun (tensor_curry (ch_mor
+    convex)) (one1 ⊗ prom 0_L_geom)] (an element of [L_geom = cone_one
+    ⊸ Bang FMeas]) equals the cone-norm of its evaluation at [one1]
+    (by [linhom_norm_one1_E], the [linhom_norm = pointwise-at-one1]
+    identity for the unit-cone source) — which by reduction E equals
+    [cone_norm (Lfun (ch_mor convex) ((one1 ⊗ prom 0) ⊗ one1))].
+
+    THIS IS THE OPERATOR-NORM SIDE of the headline mass-1/2 identity.
+    Combined with the [cone_norm = linhom_norm] identity for L_geom
+    elements (definitional via the [linhom_car] HB instance — see
+    [cone_norm/linhom_norm] in [linhom.v]):
+    [[
+      cone_norm (Lfun (der L_geom) (Step_geom one1 (prom 0_L_geom)))
+      = cone_norm (Lfun (ch_mor convex) ((one1 ⊗ prom 0) ⊗ one1)).
+    ]]
+
+    What remains: per-branch evaluation of [Lfun (ch_mor convex) ((one1
+    ⊗ prom 0) ⊗ one1)] = convex-combination of [then_e]'s
+    [dirac_fmeas 0] (mass 1) and [else_e]'s recursive-call image (mass
+    0 at [g := prom 0_L_geom] since the dereliction destroys the
+    promotion).  Half · 1 + half · 0 = half. *)
+Theorem cone_norm_der_Step_geom_E :
+  cone_norm (Lfun (der L_geom)
+                  (Step_geom one1 (prom (precone_zero : L_geom))))
+  = cone_norm (Lfun (ch_mor (convex_combination (eD' then_e) (eD' else_e)
+                                                (phase4_half_ge0 R)
+                                                (phase4_half_le1 R)))
+                    (ptensor
+                       (ptensor one1 (prom (precone_zero : L_geom)))
+                       one1)).
+Proof.
+rewrite -linhom_fun_der_Step_geom_one1_E.
+(* Goal: cone_norm (Lfun (der L_geom) (Step_geom one1 (prom 0)))
+       = cone_norm (linhom_fun (Lfun (der L_geom) ...) one1) *)
+rewrite -[cone_norm (Lfun (der L_geom) _)]/(linhom_norm _).
+exact: linhom_norm_one1_E.
+Qed.
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -496,4 +578,8 @@ Arguments Step_geom_one_prom_zero_via_convex_E
 Arguments cone_norm_K_le1
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments der_Step_geom_one_prom_zero_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments linhom_fun_der_Step_geom_one1_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments cone_norm_der_Step_geom_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
