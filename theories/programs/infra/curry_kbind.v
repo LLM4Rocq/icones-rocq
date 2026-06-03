@@ -221,3 +221,165 @@ End PointwiseEval.
 
 Arguments tensor_curry_ch_mor_kbind_ext_at {R Ar G_in A1 A B} k m gamma.
 Arguments tensor_curry_ch_mor_kcomp_at {R Ar G_in A1 Q S} g f gamma.
+
+(** ** Class 1 — pointwise [adj_psi] evaluation
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Pointwise reading of [ch_mor (adj_psi g)]:
+    [Lfun (ch_mor (adj_psi g)) x = Lfun (bang_fmap g) (Lfun (coalg_str P) x)].
+    Definitional from [ch_mor_adj_psi]. *)
+
+Section AdjPsiAt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Pointwise [ch_mor (adj_psi g)]: [bang_fmap g] applied to [coalg_str]
+    of the point.  Direct consequence of [ch_mor_adj_psi]. *)
+Lemma Lfun_ch_mor_adj_psi_at (P : Coalgebra Ar) (B : ICone.type Ar)
+    (g : icones_hom Ar (coalg_obj P) B) (x : coalg_obj P) :
+  Lfun (ch_mor (adj_psi g)) x =
+  Lfun (bang_fmap g) (Lfun (coalg_str P) x).
+Proof. by rewrite (ch_mor_adj_psi g). Qed.
+
+(** Pointwise [ch_mor h] for [h : coalg_hom P (bang_cofree B)]: via [adj_psiK]. *)
+Lemma Lfun_ch_mor_via_adj_phi_at (P : Coalgebra Ar) (B : ICone.type Ar)
+    (h : coalg_hom P (bang_cofree B)) (x : coalg_obj P) :
+  Lfun (ch_mor h) x =
+  Lfun (bang_fmap (adj_phi h)) (Lfun (coalg_str P) x).
+Proof. by rewrite (ch_mor_via_adj_phi h). Qed.
+
+End AdjPsiAt.
+
+Arguments Lfun_ch_mor_adj_psi_at {R Ar P B} g x.
+Arguments Lfun_ch_mor_via_adj_phi_at {R Ar P B} h x.
+
+(** ** Class 4 — pointwise [const_kleisli] evaluation
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    For [c : C] with [‖c‖ ≤ 1] and [x : coalg_obj G],
+    [Lfun (ch_mor (const_kleisli G c Hc)) x =
+       Lfun (bang_fmap (const_icones G c Hc)) (Lfun (coalg_str G) x)].
+    Special case of [Lfun_ch_mor_adj_psi_at] at [g := const_icones G c Hc].
+
+    A more pointwise-friendly form expands [const_icones = lin_pt c ∘ coalg_e G]
+    and reduces to [prom (precone_scale (c1_val (coalg_e G ·)) c)] — landing in
+    [Bang C] via [bang_fmap_prom] applied to a [lin_pt]-image.  See
+    [const_kleisli_at_prom_coalg] below. *)
+
+Section ConstKleisliAt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Direct pointwise unfolding via [Lfun_ch_mor_adj_psi_at]. *)
+Lemma Lfun_ch_mor_const_kleisli_at (G : Coalgebra Ar) (C : ICone.type Ar)
+    (c : C) (Hc : (cone_norm c <= 1)%R) (x : coalg_obj G) :
+  Lfun (ch_mor (const_kleisli G c Hc)) x =
+  Lfun (bang_fmap (const_icones G c Hc)) (Lfun (coalg_str G) x).
+Proof. exact: (Lfun_ch_mor_adj_psi_at (const_icones G c Hc) x). Qed.
+
+End ConstKleisliAt.
+
+Arguments Lfun_ch_mor_const_kleisli_at {R Ar G C} c Hc x.
+
+(** ** Class 2 — pointwise [app_kleisli] structural reduction
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    [app_kleisli VF VA = coalg_comp (tmul B) (adj_psi (app_under VF VA))]
+    by definition.  Its [ch_mor] reads at a point as
+
+      [Lfun (ch_mor (app_kleisli VF VA)) x
+         = Lfun (bang_fmap (icones_comp (der (U B)) (app_under VF VA)))
+                (Lfun (coalg_str G) x)]
+
+    via [adj_phi_app_kleisli] + [ch_mor_via_adj_phi].  This is the
+    structural CBV β reduction at the point level: the result lives in
+    [Bang (U B) = coalg_obj (Tobj B)], obtained by [bang_fmap]-promoting
+    the icones-level application image of [(der ∘ app_under) ∘ coalg_str G]
+    at the point. *)
+
+Section AppKleisliAt.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Pointwise [ch_mor (app_kleisli VF VA)]:
+    [bang_fmap (der ∘ app_under VF VA)] applied to [coalg_str G ·]. *)
+Lemma Lfun_ch_mor_app_kleisli_at (G A B : Coalgebra Ar)
+    (VF : coalg_hom G
+            (bang_cofree (linhom_car Ar (coalg_obj A) (coalg_obj (Tobj B)))))
+    (VA : coalg_hom G A) (x : coalg_obj G) :
+  Lfun (ch_mor (app_kleisli VF VA)) x =
+  Lfun (bang_fmap (icones_comp (der (coalg_obj B)) (app_under VF VA)))
+       (Lfun (coalg_str G) x).
+Proof.
+rewrite (ch_mor_via_adj_phi (app_kleisli VF VA)).
+by rewrite (adj_phi_app_kleisli VF VA).
+Qed.
+
+End AppKleisliAt.
+
+Arguments Lfun_ch_mor_app_kleisli_at {R Ar G A B} VF VA x.
+
+(** ** [linhom_norm] of a [cone_one]-source linhom = pointwise value at [one1]
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    For a linhom [phi : cone_one ⊸ C], its operator norm is exactly the
+    cone-norm of its value at the unit point [one1].
+
+    Proof: the source [cone_one] is 1-dimensional, [s = (c1_val s) · one1]
+    via [cone_one_eq], so by linearity [linhom_fun phi s = (c1_val s) ·
+    linhom_fun phi one1].  Apply [cone_normh] and observe [c1_val s =
+    cone_norm s].  The sup is then attained at [s = one1]
+    (where [c1_val one1 = 1]).
+
+    This is the LINHOM-norm side of the [linhom_one_iso : 1 ⊸ C ≅ C] iso
+    of [tensor_iso.v]: the forward map [eval1] is an ISOMETRY. *)
+
+Section LinhomNormOne1.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable C : ICone.type Ar.
+
+Lemma cone_norm_one1_E :
+  (cone_norm (one1 : cone_one_car Ar) = 1)%R.
+Proof. by rewrite /cone_norm /= /c1_norm. Qed.
+
+(** The headline identity: [‖φ‖ = ‖φ(1)‖] for [φ : 1 ⊸ C]. *)
+Lemma linhom_norm_one1_E (phi : linhom_car Ar (cone_one_car Ar) C) :
+  linhom_norm phi = cone_norm (linhom_fun phi one1).
+Proof.
+apply: le_anti; apply/andP; split.
+- (* Upper bound: every [s] in the ball gives [cone_norm (φ s) ≤
+     cone_norm (φ one1)], since [s = (c1_val s) · one1] and
+     [c1_val s = cone_norm s ≤ 1]. *)
+  apply: linhom_norm_sup_lub => s Hs.
+  have Hs_eq : s = precone_scale (c1_val s) (one1 : cone_one_car Ar).
+    apply: cone_one_eq; apply: val_inj => /=.
+    by rewrite mulr1.
+  rewrite [in linhom_fun _ _]Hs_eq.
+  have [_ _ HZ] := linhom_pre_linear (linhom_pre_of phi).
+  rewrite -[linhom_fun phi (precone_scale _ _)]
+            /(linhom_pre_fun (linhom_pre_of phi)
+                              (precone_scale (c1_val s)
+                                              (one1 : cone_one_car Ar))).
+  rewrite HZ /=.
+  rewrite cone_normh.
+  rewrite -[X in _ <= X]mul1r.
+  apply: ler_wpM2r; first exact: cone_norm_ge0.
+  by rewrite -[_%:num]/(cone_norm s).
+- (* Lower bound: [s := one1] is in the ball and gives [cone_norm
+     (φ one1)] in the image set. *)
+  have H1 : (cone_norm (one1 : cone_one_car Ar) <= 1)%R
+    by rewrite cone_norm_one1_E.
+  exact: (linhom_norm_sup_ub phi one1 H1).
+Qed.
+
+End LinhomNormOne1.
+
+Arguments cone_norm_one1_E {R Ar}.
+Arguments linhom_norm_one1_E {R Ar C} phi.
+
