@@ -198,6 +198,58 @@ rewrite (Theta_prom (der B) Hx) /= (sc_clamp_ball Hx) => ->.
 by [].
 Qed.
 
+(** ** Norm of promotion — partial results
+
+    The exact identity [cone_norm (prom x) = cone_norm x] DOES NOT hold
+    in general: the wide-intersection [Bang B] norm is the sup over the
+    factoring family of the cone-norms of the witness maps' images, and
+    generic stable witnesses (totally monotone + measurable, but NOT
+    homogeneous) can grow the cone-norm of sub-unit-ball points (cf.
+    [c1_norm] readings of non-homogeneous stable maps [j : B → Cone1] —
+    these are admissible family members).
+
+    What IS provable, axiom-free:
+
+    1. [prom_norm_ge] : [‖x‖ ≤ 1 ⇒ ‖x‖ ≤ ‖x!‖].  Promotion never
+       shrinks the cone-norm on the unit ball.  From [der_prom] +
+       linearity of [der] ([cones_hom_norm_le1]): [‖x‖ = ‖der(x!)‖ ≤
+       ‖x!‖].
+
+    2. [prom_norm_one] : [‖x‖ = 1 ⇒ ‖x!‖ = 1].  Promotion preserves
+       unit mass.  Combine [prom_ball] (upper bound [≤ 1]) with
+       [prom_norm_ge] (lower bound [≥ ‖x‖ = 1]).
+
+    The full equality [‖x!‖ = ‖x‖] for [0 < ‖x‖ < 1] is OPEN and would
+    require either positive-homogeneity of [nl_B] (which fails: [nl_B]
+    is the universal NONLINEAR map) or an upper-bound mechanism beyond
+    [prom_ball].  *)
+
+(** [‖x‖ ≤ ‖x!‖] for [‖x‖ ≤ 1].
+
+    [der_B] is a linear (cones) morphism of operator norm [≤ 1]
+    ([cones_hom_norm_le1]).  [der_prom] gives [der_B(x!) = x], so
+    [‖x‖ = ‖der_B(x!)‖ ≤ ‖x!‖]. *)
+Lemma prom_norm_ge (B : ICone.type Ar) (x : B) :
+  cone_norm x <= 1 -> cone_norm x <= cone_norm (prom x).
+Proof.
+move=> Hx.
+have Hder := cones_hom_norm_le1
+               (mcones_hom_cones (icones_hom_mcones (der B))) (prom x).
+by rewrite (der_prom Hx) in Hder.
+Qed.
+
+(** [‖x‖ = 1 ⇒ ‖x!‖ = 1].  Promotion preserves unit mass.
+
+    Antisymmetry from [prom_ball] ([‖x!‖ ≤ 1]) and [prom_norm_ge]
+    ([1 = ‖x‖ ≤ ‖x!‖]). *)
+Lemma prom_norm_one (B : ICone.type Ar) (x : B) :
+  cone_norm x = 1 -> cone_norm (prom x) = 1.
+Proof.
+move=> Hx; apply: le_anti; apply/andP; split.
+  by apply: prom_ball; rewrite Hx.
+by rewrite -[X in X <= _]Hx; apply: prom_norm_ge; rewrite Hx.
+Qed.
+
 (** Naturality of the counit: [f ∘ der_B = der_C ∘ !f].  On [x!]: LHS
     is [f(der_B(x!)) = f x]; RHS is [der_C((!f)(x!)) = der_C((f x)!) =
     f x]. *)
@@ -294,6 +346,8 @@ Arguments bang_fmap_id {R Ar} B.
 Arguments bang_fmap_comp {R Ar B C D}.
 Arguments der {R Ar} B.
 Arguments der_prom {R Ar B} x.
+Arguments prom_norm_ge {R Ar B} x.
+Arguments prom_norm_one {R Ar B} x.
 Arguments der_nat {R Ar B C}.
 Arguments dig {R Ar} B.
 Arguments dig_prom {R Ar B} x.
