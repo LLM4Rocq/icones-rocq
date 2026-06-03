@@ -732,6 +732,34 @@ rewrite cone_norm_der_Step_geom_E.
 by rewrite Lfun_ch_mor_convex_at_outer_pt_E.
 Qed.
 
+(** ** Reduction J — coalg_e evaluation at the outer pt
+    BEYOND THE PAPER — Phase 4 evaluation tier.
+
+    Evaluate [Lfun (coalg_e G_geom) ((one1 ⊗ prom 0_L_geom) ⊗ one1)
+    = one1]: the unit-cone counit of the cartesian comonoid sends any
+    [coalg_str]-promoted element to [one1].
+
+    Useful for the [const_kleisli]-based [eD'] branches (reals,
+    samples), where the eventual reduction lands at [lin_pt c (one1) = c]
+    via [lin_pt_unit]. *)
+Theorem coalg_e_G_on_outer_pt_E :
+  Lfun (coalg_e G_geom)
+       (ptensor
+          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+          (one1 : cone_one_car Ar))
+  = one1.
+Proof.
+set z := ptensor
+          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+          (one1 : cone_one_car Ar).
+have Hz_le1 : cone_norm z <= 1 by exact: cone_norm_outer_pt_le1.
+have Hcs : Lfun (coalg_str G_geom) z = prom z by exact: coalg_str_G_on_outer_pt_E.
+transitivity (Lfun (e_bang (coalg_obj G_geom)) (Lfun (coalg_str G_geom) z));
+  first by [].
+rewrite Hcs.
+exact: (@e_bang_prom R Ar (coalg_obj G_geom) z Hz_le1).
+Qed.
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -762,3 +790,5 @@ Arguments Lfun_ch_mor_convex_at_outer_pt_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments cone_norm_der_Step_geom_via_prom_convex_icones_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments coalg_e_G_on_outer_pt_E
+  {R Ar R_obj}.
