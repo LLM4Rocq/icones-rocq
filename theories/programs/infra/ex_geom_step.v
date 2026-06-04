@@ -1649,6 +1649,207 @@ rewrite (Phi_fun_unit M_body (kleene_lin (Phi_fun M_body) n)
 exact: Phi_fun_safe_M_body_at_one1.
 Qed.
 
+(** ** §3 Kleene chain collapse and [F_n] mass-zero
+
+    BEYOND THE PAPER — Phase 4 honest-scope analysis.
+
+    *** Headline finding.
+
+    The [Phi_fun] / [Yfix_fun_lin] Kleene-fixpoint construction of
+    [theories/programs/infra/em_fix.v] starts at the LINHOM-LEVEL
+    cone-zero [precone_zero : linhom_car G (Bang L)] and iterates a
+    LINEAR map [Phi_fun].  Pointwise at [one1], the chain collapses:
+    [[
+      linhom_fun (kleene_lin (Phi_fun M_body) n) one1
+        = precone_zero : coalg_obj funT_geom (= Bang L_geom)
+    ]]
+    for ALL [n : nat].  Consequently the FMeas-extracted iterate has
+    mass [0] for every [n], and the LFP [Yfix_fun_lin M_body] is the
+    zero linhom at [one1].
+
+    *** Why this is consistent with §1.
+
+    §1's [first_iterate_FMeas_mass_half] derives mass [1/2] for
+    [[
+      Step_geom one1 (prom (precone_zero : L_geom))
+    ]]
+    — where the second argument is [prom (precone_zero : L_geom)],
+    the [nl_B]-PROMOTION of the [L_geom]-zero, NOT the cone-zero
+    [precone_zero : Bang L_geom].  These are different elements of
+    [Bang L_geom]: [nl_B] is the universal NONLINEAR map (paper §9,
+    [bang.v] lines 222-225), so [prom precone_zero ≠ precone_zero] in
+    general.  Concretely [der_prom] gives [der_B (prom 0_L_geom) =
+    0_L_geom], whereas [der_B (precone_zero : Bang L_geom) =
+    precone_zero] by [der_B]'s linearity — but the promoted-zero is a
+    distinct element witnessing this same dereliction.
+
+    On the other hand, the Kleene chain in [em_fix.v] iterates
+    [Phi_fun] starting from [precone_zero : linhom_car], so the
+    second argument supplied to [Step_geom] at every iterate is
+    [linhom_fun precone_zero one1 = precone_zero : Bang L_geom] — the
+    cone-zero, NOT a promoted-zero.  By linearity of [Step_geom] in
+    its second argument (composition of [ptensor _ ·], [Lfun (ch_mor
+    M_body)], [Lfun (bang_fmap (der L_geom))]), [Step_geom one1
+    precone_zero = precone_zero], hence the chain collapses.
+
+    *** Architectural implication.
+
+    The current [Phi_fun] / [Yfix_fun_lin] construction does NOT
+    capture the geometric distribution's non-trivial recursion at the
+    linhom level.  To recover non-trivial mass via Kleene iteration,
+    one would need EITHER:
+
+    (a) An alternative iteration operator starting from
+        [const_kleisli (prom precone_zero)]-shaped initial values
+        (as in [em_fix_arr.v]'s [coalg_zero_val] / [Yfix_arr]
+        prototype, which does carry [prom precone_zero]-valued
+        elements through the chain); OR
+    (b) A different decomposition of [eD ex_geom] that bypasses the
+        linhom-level fixpoint and assembles the geometric series via
+        [add_lift_mass] (§1's result) plus a separate ω-continuity
+        argument at the FMeas-mass level.
+
+    *** What this §3 delivers, AXIOM-FREE.
+
+    1. [Step_geom_at_zero_E] — [Step_geom γ precone_zero =
+       precone_zero] for any [γ].  By [ptensor_0r] + linearity of
+       [Lfun (ch_mor M_body)] + linearity of [Lfun (bang_fmap (der
+       L_geom))].
+
+    2. [kleene_lin_at_one1_zero] — by induction on [n], the Kleene
+       chain at [one1] is the cone-zero of [Bang L_geom] for every
+       iterate [n].
+
+    3. [F_n] — the FMeas-extracted [n]-th iterate of the kleene chain.
+
+    4. [F_n_zero_E] — [F_n n = precone_zero : FMeas R_obj] for every
+       [n] (composition of (2) with the [Lfun (der L_geom)] +
+       [linhom_fun _ one1] + [Lfun (der FMeas)] linear chain).
+
+    5. [F_n_mass_zero] — [fmeas_mu (F_n n) [setT] = 0] for every [n],
+       by [fmeas_zeroE].
+
+    The mass-1 headline [ex_geom_mass_one] is HONESTLY OUT OF REACH
+    via this Kleene chain — see "Architectural implication" above. *)
+
+(** *** Step 1 — [Step_geom γ precone_zero = precone_zero]
+
+    Composition of [ptensor_0r] (the tensor smash at zero) with the
+    linearity-at-zero of [Lfun (ch_mor M_body)] and [Lfun (bang_fmap
+    (der L_geom))] (both are [cones_hom]s, hence preserve zero by
+    [cones_hom_linear]). *)
+Lemma Step_geom_at_zero_E (γ : coalg_obj (EM_term : Coalgebra Ar)) :
+  Step_geom γ (precone_zero : coalg_obj funT_geom) = precone_zero.
+Proof.
+rewrite /Step_geom.
+have Hpt : ptensor γ (precone_zero : coalg_obj funT_geom)
+         = (precone_zero : tensor Ar (coalg_obj (EM_term : Coalgebra Ar))
+                                       (coalg_obj funT_geom)).
+  exact: ptensor_0r.
+rewrite Hpt.
+have [HM0 _ _] :=
+  cones_hom_linear (mcones_hom_cones (icones_hom_mcones (ch_mor M_body))).
+rewrite HM0.
+have [Hbang0 _ _] :=
+  cones_hom_linear
+    (mcones_hom_cones (icones_hom_mcones (bang_fmap (der L_geom)))).
+exact: Hbang0.
+Qed.
+
+(** *** Step 2 — Kleene iterates at [one1] are the cone-zero
+
+    Induction on [n].  Base case [n = 0]: [kleene_lin _ 0 =
+    precone_zero] (linhom), and [linhom_fun precone_zero one1 =
+    precone_zero] (cone-zero of [Bang L_geom]).
+
+    Step case: by [kleene_lin_at_one1_S],
+    [linhom_fun (kleene_lin Phi_fun n.+1) one1 = Step_geom one1
+    (linhom_fun (kleene_lin Phi_fun n) one1)].  By IH, the inner
+    [linhom_fun (kleene_lin _ n) one1 = precone_zero].  By
+    [Step_geom_at_zero_E], [Step_geom one1 precone_zero =
+    precone_zero]. *)
+Lemma kleene_lin_at_one1_zero (n : nat) :
+  linhom_fun (kleene_lin (Phi_fun M_body) n) (one1 : cone_one_car Ar)
+  = (precone_zero : coalg_obj funT_geom).
+Proof.
+induction n.
+- by [].
+- rewrite kleene_lin_at_one1_S IHn.
+  exact: Step_geom_at_zero_E.
+Qed.
+
+(** *** Step 3 — The FMeas-extracted [n]-th iterate
+
+    [F_n n] mirrors the headline form from §1 (where the second
+    [Step_geom] argument was [prom precone_zero]), but here we plug
+    the actual [n]-th Kleene-chain value at [one1] — which by Step 2
+    above is [precone_zero], NOT [prom precone_zero].  The
+    construction is thus structurally identical to §1's headline form
+    but instantiates the second [Step_geom] argument with the actual
+    Kleene chain. *)
+Definition F_n (n : nat) : FMeas R_obj :=
+  Lfun (der (FMeas R_obj))
+       (linhom_fun
+          (Lfun (der L_geom)
+                (linhom_fun (kleene_lin (Phi_fun M_body) n)
+                            (one1 : cone_one_car Ar)))
+          (one1 : cone_one_car Ar)).
+
+(** [F_n n = precone_zero] for every [n].  Composition of Step 2 with
+    the [Lfun (der L_geom)] + [linhom_fun _ one1] + [Lfun (der FMeas)]
+    linear chain (all three preserve the cone-zero). *)
+Theorem F_n_zero_E (n : nat) : F_n n = precone_zero.
+Proof.
+rewrite /F_n kleene_lin_at_one1_zero.
+have [Hder_L0 _ _] :=
+  cones_hom_linear (mcones_hom_cones (icones_hom_mcones (der L_geom))).
+rewrite Hder_L0.
+have Hlinhom0 :
+  linhom_fun (precone_zero : L_geom) (one1 : cone_one_car Ar)
+  = (precone_zero : Bang Ar (FMeas R_obj)).
+  by [].
+rewrite Hlinhom0.
+have [Hder_F0 _ _] :=
+  cones_hom_linear (mcones_hom_cones (icones_hom_mcones (der (FMeas R_obj)))).
+exact: Hder_F0.
+Qed.
+
+(** *** Step 4 — Mass-zero closure for every Kleene iterate *)
+Theorem F_n_mass_zero (n : nat) :
+  fmeas_mu (F_n n) [set: ar_carrier Ar R_obj] = 0%E.
+Proof.
+by rewrite F_n_zero_E fmeas_zeroE.
+Qed.
+
+(** *** Step 5 — Honest scope on the kleene-LFP
+
+    [Yfix_fun_lin M_body] is the [linhom_sup_ball] of the Kleene
+    chain.  By Step 2 the chain is constantly [precone_zero] at
+    [one1], so the at-[one1] reading of [Yfix_fun_lin M_body] is also
+    [precone_zero].  This is the STRUCTURAL endpoint that captures
+    the kleene-degeneracy phenomenon: a non-trivial geometric-mass
+    distribution cannot be recovered by this Kleene-chain
+    construction — see "Architectural implication" above.
+
+    The DIRECT pointwise sup → cone-zero argument would proceed via
+    [linhom_sup_fun_unitE] + [linhom_sup_unitE] of [linhom.v] +
+    [cone_sup_ball_lub] on the constantly-[precone_zero] sequence.
+    The section variables of [linhom_sup_fun_unitE] (the [u]/[uch]/[ub1]
+    fixed in the [LinhomSupPack] section) make the named-argument
+    threading delicate — we capture that mechanics here as a HONEST
+    CORROLARY: the [F_n_mass_zero] of Step 4 implies the at-[one1]
+    sup is mass-zero pointwise at [n], hence the LFP mass-zero
+    statement (Yfix-level) is BOUNDED by the pointwise sup, which is
+    itself bounded by every iterate (zero).
+
+    Status: the per-iterate [F_n_mass_zero] above is the headline
+    deliverable.  The [Yfix_fun_lin M_body = precone_zero] linhom
+    equality would close the LFP-level statement via [linhom_eq]
+    (pointwise on ALL of [coalg_obj EM_term], not just at [one1]) —
+    that goes beyond the eval-at-[one1] data delivered by
+    [kleene_lin_at_one1_zero] above and is left for a follow-up
+    iteration. *)
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -1708,4 +1909,14 @@ Arguments der_FMeas_linhom_der_Step_E_branches
 Arguments first_iterate_FMeas_mass_half
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments kleene_lin_at_one1_S
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
+Arguments Step_geom_at_zero_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} γ.
+Arguments kleene_lin_at_one1_zero
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
+Arguments F_n
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
+Arguments F_n_zero_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
+Arguments F_n_mass_zero
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
