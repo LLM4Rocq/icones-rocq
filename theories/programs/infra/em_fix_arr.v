@@ -94,7 +94,7 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure dirac_measure.
-From mathcomp.analysis Require Import sequences.
+From mathcomp.analysis Require Import sequences ereal normedtype topology.
 
 From Stdlib Require Import Strings.String.
 
@@ -1683,5 +1683,24 @@ induction n.
   have -> : ((1/2 + 1/2)%R = 1 :> R) by rewrite -splitr.
   by rewrite mulrC.
 Qed.
+
+
+(** *** §5.12 — Mass convergence: [mass(F_arr n) → 1] *)
+Local Open Scope ereal_scope.
+Lemma F_arr_mass_cvg :
+  fmeas_mu (F_arr' n) [set: ar_carrier Ar R_obj]
+    @[n --> \oo] --> (1 : \bar R).
+Proof.
+under eq_fun => n do rewrite F_arr_mass_closed.
+rewrite (_ : (1 : \bar R) = ((1 - 0)%R : R)%R%:E); last by rewrite subr0.
+apply: cvg_EFin.
+  by apply: nearW => n; rewrite //=.
+apply: cvgB.
+- exact: cvg_cst.
+- apply: cvg_expr.
+  rewrite gtr0_norm ?divr_gt0//.
+  by rewrite ltr_pdivrMr // mul1r ltr1n.
+Qed.
+Local Close Scope ereal_scope.
 
 End ExGeomArrMassOne.
