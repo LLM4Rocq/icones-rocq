@@ -523,8 +523,81 @@ apply: precone_le_anti.
   exact: cone_sup_ball_ub.
 Qed.
 
-(** ** Stage 4 — Headline: target identity (statement only, proof
-    deferred)
+(** ** Stage 4 — FMeas extraction + base cases (n = 0, n = 1)
+
+    We deliver Stage 4 PARTIALLY: the FMeas-mass extraction operator
+    [F_arr n] applied to the Kleene chain, plus the n = 0 mass-zero
+    base case and the explicit n = 1 mass-1/2 identity (the latter
+    inherited from §1's [first_iterate_FMeas_mass_half]).
+
+    The full geometric-series recurrence [mass(F_arr (n+1)) = 1/2 +
+    (1/2)·mass(F_arr n)] requires generalizing the per-branch
+    evaluation cascade from the SPECIFIC seed [prom (precone_zero :
+    L_geom)] to a general iterate [kleene_arr n].  This generalization
+    is non-trivial — in particular, the ELSE-branch [g := kleene_arr
+    n] no longer kills the recursive call via [der_prom], but instead
+    evaluates to the n-th iterate's mass.  Closing this requires
+    re-running the §1 evaluation cascade with a parametric [v : Bang
+    Ar L_geom] hypothesis; this is several hundred lines of fresh
+    infrastructure left for a follow-up. *)
+
+(** ** Stage 4a — The FMeas extraction at the n-th iterate
+
+    [F_arr n] is the FMeas-element extracted from [kleene_arr n] by
+    applying [der L_geom], evaluating at [one1], then [der (FMeas
+    R_obj)] — the same pattern as §1's
+    [first_iterate_FMeas_mass_half]. *)
+Definition F_arr (n : nat) : FMeas R_obj :=
+  Lfun (der (FMeas R_obj))
+       (linhom_fun
+          (Lfun (der L_geom) (kleene_arr n))
+          (one1 : cone_one_car Ar)).
+
+(** Base case [n = 0]: [kleene_arr 0 = prom 0_L_geom].  After [der
+    L_geom], we get [precone_zero : L_geom] (via [der_prom] + linearity).
+    After [linhom_fun _ one1], [precone_zero : Bang Ar (FMeas R_obj)].
+    After [der (FMeas R_obj)], [precone_zero : FMeas R_obj].  Hence
+    [F_arr 0 = precone_zero], whose mass is [0]. *)
+Lemma F_arr_0_E : F_arr 0 = precone_zero.
+Proof.
+rewrite /F_arr kleene_arr_0.
+(* Lfun (der L_geom) (prom 0_L_geom) = precone_zero : L_geom *)
+have H0_le1 : (cone_norm (precone_zero : L_geom) <= 1)%R
+  by rewrite cone_norm0 ler01.
+rewrite (@der_prom R Ar L_geom (precone_zero : L_geom) H0_le1).
+(* linhom_fun (precone_zero : L_geom) one1 = precone_zero : Bang FMeas *)
+have Hlinhom0 :
+  linhom_fun (precone_zero : L_geom) (one1 : cone_one_car Ar)
+  = (precone_zero : Bang Ar (FMeas R_obj)) by [].
+rewrite Hlinhom0.
+(* Lfun (der (FMeas R_obj)) precone_zero = precone_zero : FMeas R_obj *)
+have [Hder_F0 _ _] :=
+  cones_hom_linear (mcones_hom_cones (icones_hom_mcones (der (FMeas R_obj)))).
+exact: Hder_F0.
+Qed.
+
+Lemma F_arr_0_mass_zero :
+  fmeas_mu (F_arr 0) [set: ar_carrier Ar R_obj] = 0%E.
+Proof. by rewrite F_arr_0_E fmeas_zeroE. Qed.
+
+(** Stage 4b — [F_arr 1] mass = 1/2.
+
+    Compose [kleene_arr_S 0]: [kleene_arr 1 = Phi_arr (kleene_arr 0)
+    = Phi_arr (prom (precone_zero : L_geom)) = Step_geom one1 (prom
+    precone_zero)].  This is exactly the form §1 closed at
+    [first_iterate_FMeas_mass_half]. *)
+Lemma F_arr_1_mass_half :
+  fmeas_mu (F_arr 1) [set: ar_carrier Ar R_obj] = (1/2)%R%:E.
+Proof.
+rewrite /F_arr kleene_arr_S kleene_arr_0.
+rewrite -[Phi_arr _]/(Step_geom R_carrier_eq R_carrier_meas R_to_carrier_meas
+                                (one1 : cone_one_car Ar)
+                                (prom (precone_zero : L_geom))).
+exact: (@first_iterate_FMeas_mass_half
+          R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas).
+Qed.
+
+(** ** Stage 4c — Headline target (deferred)
 
     The full mass-1 closure for [ex_geom] via [Yfix_arr]:
     [[
@@ -537,19 +610,28 @@ Qed.
     ]]
 
     Proof strategy:
-    1. Per-iterate mass identity: [F_n n_arr := Lfun (der (FMeas
-       R_obj)) (linhom_fun (Lfun (der L_geom) (kleene_arr n))
-       one1)] has mass [1 - (1/2)^n] for every [n].  Base case [n=0]:
-       mass 0 (since [kleene_arr 0 = prom 0_L]).  Step: mass-recurrence
-       [mass(F_{n+1}) = 1/2 + (1/2)·mass(F_n)] via [add_lift_mass]
-       composed with §1's [first_iterate_FMeas_mass_half]-style
-       per-branch analysis at each iterate.
+    1. Per-iterate mass identity: [fmeas_mu (F_arr n) setT = 1 -
+       (1/2)^n].  Base case [n = 0]: mass 0 ([F_arr_0_mass_zero]).
+       Step case: mass-recurrence
+       [[
+         fmeas_mu (F_arr n.+1) setT = 1/2 + (1/2) * fmeas_mu (F_arr n) setT.
+       ]]
+       Requires re-running the §1 cascade with [g := kleene_arr n]
+       instead of [g := prom 0_L_geom].  The THEN branch is unchanged
+       (returns [δ_0] of mass 1).  The ELSE branch [g()] now evaluates
+       to [Lfun (der L_geom) (kleene_arr n)] applied at [one1], whose
+       [linhom_fun _ one1] reads as a [Bang Ar (FMeas R_obj)] element
+       (def. F_arr's intermediate), and [Lfun (der (FMeas R_obj))]
+       extracts a [FMeas R_obj].  The bilinear [add_lift] of [1] + this
+       contribution is, via [add_lift_mass], [mass(F_arr n) = 1 -
+       (1/2)^n], for a sum of [(1/2) + (1/2)·(1 - (1/2)^n) = 1 -
+       (1/2)^{n+1}].
     2. Sup of [1 - (1/2)^n] = 1 via [cvg_geometric] (in
        [mathcomp.analysis.sequences]).
     3. [fmeas_sup_cvg] (from [theories/mcones/fmeas.v]) to commute
        mass with sup.
 
-    Substantial infrastructure required at each step; left as
+    Substantial infrastructure required at each step; deferred to a
     follow-up. *)
 
 End EmFixArr.
@@ -585,4 +667,12 @@ Arguments Yfix_arr_norm_le1
 Arguments kleene_arr_le_Yfix
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
 Arguments Yfix_arr_fixpoint
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments F_arr
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
+Arguments F_arr_0_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments F_arr_0_mass_zero
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments F_arr_1_mass_half
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
