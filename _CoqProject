@@ -70,7 +70,7 @@ theories/programs/infra/cbv_adjunction.v
 theories/programs/cbv.v
 theories/programs/ppl.v
 theories/programs/infra/case_em_red.v
-theories/programs/infra/em_fix_arr.v
 theories/programs/examples.v
 theories/programs/infra/curry_kbind.v
 theories/programs/infra/ex_geom_step.v
+theories/programs/infra/em_fix_arr.v
