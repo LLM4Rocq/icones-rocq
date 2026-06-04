@@ -209,6 +209,8 @@ Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.programs.infra.bool_case_hom.
 Require Import Icones.programs.infra.case_em_red.
 Require Import Icones.programs.infra.curry_kbind.
+Require Import Icones.programs.infra.em_continuity.
+Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.cbv.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.examples.
@@ -1548,6 +1550,105 @@ rewrite mule1.
 by rewrite adde0.
 Qed.
 
+(** ** §2 Kleene chain bridge — recurrence at the linhom level
+
+    BEYOND THE PAPER — Phase 4 fixpoint tier.
+
+    The recurrence connecting consecutive Kleene iterates of [Phi_fun
+    M_body] (the linhom-level fixpoint operator for ex_geom's body) at
+    the pointwise reading [linhom_fun _ one1]:
+    [[
+      linhom_fun (kleene_lin (Phi_fun M_body) n.+1) one1
+      = Step_geom one1 (linhom_fun (kleene_lin (Phi_fun M_body) n) one1).
+    ]]
+
+    This is the BRIDGE between the abstract Kleene-iterate framework in
+    [em_fix.v] and the concrete [Step_geom]-based reductions developed
+    above for ex_geom.  Used by the §3 mass-recurrence and §4 convergence
+    lemmas.
+
+    Proof outline.  By [kleene_lin_S] and [Phi_fun_unit], reduce LHS to
+    [linhom_fun (Phi_fun_safe M_body (kleene_lin _ n) Hprev) one1].
+    Then unfold [Phi_fun_safe] as the four-layer composite
+    [linhom_post (bang_fmap (der L_geom)) ∘ linhom_post (ch_mor M_body)
+     ∘ linhom_pre_act (coalg_d EM_term) ∘ tensor_mor_R_lin _
+     (linhom_icones prev _)].  The pointwise reading at [one1]:
+    - [linhom_post g f] at [x]: [Lfun g (linhom_fun f x)] (definitional).
+    - [linhom_pre_act h f] at [x]: [linhom_fun f (Lfun h x)] (definitional).
+    - [coalg_d EM_term one1 = ptensor one1 one1] by [coalg_d_EM_term]
+      + [tensor_lunit] inversion.
+    - [tensor_mor_R_lin _ (linhom_icones prev _) (ptensor one1 one1) =
+       ptensor one1 (linhom_fun prev one1)] by [tensor_mor_R_lin_ptensor].
+    - Recognise the residual [Lfun (bang_fmap (der L_geom)) (Lfun
+      (ch_mor M_body) (ptensor one1 (linhom_fun prev one1)))] as
+      [Step_geom one1 (linhom_fun prev one1)] by definition. *)
+
+(** Helper — [coalg_d EM_term] applied at [one1] is [one1 ⊗p one1].
+
+    Combine [coalg_d_EM_term] (which gives [coalg_d EM_term = iso_bwd
+    (tensor_lunit (cone_one_car Ar))]) with the [iso_fwd_inj]-style
+    inversion: it suffices to show [iso_fwd (tensor_lunit ...) (one1 ⊗p
+    one1) = one1], which is [tensor_lunitEp] applied to [one1 ⊗p one1]
+    (giving [precone_scale (c1_val one1) one1 = precone_scale 1 one1 =
+    one1] by [precone_scale_1]). *)
+Local Lemma coalg_d_EM_term_at_one1 :
+  Lfun (coalg_d (EM_term : Coalgebra Ar)) (one1 : cone_one_car Ar)
+  = ptensor (one1 : cone_one_car Ar) (one1 : cone_one_car Ar).
+Proof.
+rewrite coalg_d_EM_term.
+apply: (iso_fwd_inj (tensor_lunit (cone_one_car Ar))).
+by rewrite iso_can'.
+Qed.
+
+(** ** The §2 headline — Kleene-iterate recurrence at [one1] *)
+
+(** Pointwise reading of [Phi_fun_safe M_body] at [one1] in terms of
+    [Step_geom one1] and the eval-at-[one1] of [prev]. *)
+Local Lemma Phi_fun_safe_M_body_at_one1
+    (prev : linhom_car Ar (coalg_obj (EM_term : Coalgebra Ar))
+                          (coalg_obj funT_geom))
+    (Hprev : cone_norm prev <= 1) :
+  linhom_fun (Phi_fun_safe M_body prev Hprev) (one1 : cone_one_car Ar)
+  = Step_geom one1 (linhom_fun prev (one1 : cone_one_car Ar)).
+Proof.
+rewrite /Phi_fun_safe /Step_geom.
+(* Unfold the linhom_post / linhom_pre_act composites at one1. *)
+rewrite -[linhom_fun (linhom_post (bang_fmap (der _)) _) _]
+        /(Lfun (bang_fmap (der L_geom))
+               (linhom_fun (linhom_post (ch_mor M_body)
+                              (linhom_pre_act (coalg_d _)
+                                 (tensor_mor_R_lin _
+                                    (linhom_icones prev Hprev))))
+                           (one1 : cone_one_car Ar))).
+rewrite -[linhom_fun (linhom_post (ch_mor M_body) _) _]
+        /(Lfun (ch_mor M_body)
+               (linhom_fun (linhom_pre_act (coalg_d _)
+                              (tensor_mor_R_lin _
+                                 (linhom_icones prev Hprev)))
+                           (one1 : cone_one_car Ar))).
+rewrite -[linhom_fun (linhom_pre_act (coalg_d _) _) _]
+        /(linhom_fun (tensor_mor_R_lin _ (linhom_icones prev Hprev))
+                     (Lfun (coalg_d (EM_term : Coalgebra Ar))
+                           (one1 : cone_one_car Ar))).
+rewrite coalg_d_EM_term_at_one1.
+rewrite (tensor_mor_R_lin_ptensor (coalg_obj (EM_term : Coalgebra Ar))
+            (linhom_icones prev Hprev) (one1 : cone_one_car Ar)
+            (one1 : cone_one_car Ar)).
+by rewrite -[Lfun (linhom_icones prev Hprev) _]/(linhom_fun prev _).
+Qed.
+
+(** The HEADLINE — Kleene recurrence at [one1] (total [Phi_fun]). *)
+Theorem kleene_lin_at_one1_S (n : nat) :
+  linhom_fun (kleene_lin (Phi_fun M_body) n.+1) (one1 : cone_one_car Ar)
+  = Step_geom one1 (linhom_fun (kleene_lin (Phi_fun M_body) n)
+                               (one1 : cone_one_car Ar)).
+Proof.
+rewrite kleene_lin_S.
+rewrite (Phi_fun_unit M_body (kleene_lin (Phi_fun M_body) n)
+            (kleene_lin_ball (Phi_fun_ball M_body) n)).
+exact: Phi_fun_safe_M_body_at_one1.
+Qed.
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -1606,3 +1707,5 @@ Arguments der_FMeas_linhom_der_Step_E_branches
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments first_iterate_FMeas_mass_half
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments kleene_lin_at_one1_S
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
