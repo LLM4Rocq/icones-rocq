@@ -114,14 +114,58 @@
     [add_lift_zero_R]), combined via [cone_normh] + the convex
     coefficients to give the [1/2] mass.
 
-    Standalone experiment file, NOT in _CoqProject.
+    *** Update — §1 FIRST-ITERATE FMEAS MASS = 1/2 (this commit).
+
+    THE FIRST FORMAL MASS IDENTITY for a non-trivial Phase 4 example
+    in Icones CBV-via-EM(!) framework — by-passing the
+    [cone_norm (prom x) = cone_norm x] open identity by reading at
+    the FMeas (post-[der]) level instead of the [Bang]-cone level.
+
+    Headline closure:
+    [[
+      first_iterate_FMeas_mass_half :
+        fmeas_mu (Lfun (der (FMeas R_obj))
+                       (linhom_fun
+                          (Lfun (der L_geom)
+                                (Step_geom one1 (prom precone_zero)))
+                          one1))
+                 [set: ar_carrier Ar R_obj]
+        = (1/2)%R%:E.
+    ]]
+
+    Composition of:
+    - [linhom_fun_der_Step_geom_one1_E] — eval-at-[one1] reading of
+      the post-[der] Step_geom.
+    - [Lfun_ch_mor_convex_at_outer_pt_E] — [prom]-extraction of the
+      [ch_mor convex] at the outer pt.
+    - [Lfun_convex_icones_at_outer_pt_E] (NEW) — the [convex_icones]
+      at the outer pt reads as [der ∘ (½·a + ½·b)].
+    - [Lfun_ch_mor_{then,else}_e_at_outer_pt_E] — per-branch
+      evaluations to [prom (dirac_fmeas 0)] / [prom precone_zero].
+    - [der_prom] — [prom] cancellation.
+    - [fmeas_addE] / [fmeas_scaleE] / [dirac_fmeas_setT_E] /
+      [fmeas_zeroE] — FMeas mass arithmetic.
+
+    Mass-1/2 = (½)·1 + (½)·0 reads off:
+    - With probability ½, the THEN-branch returns [δ_0] (mass 1).
+    - With probability ½, the ELSE-branch recurses (via [g := prom 0]
+      which kills the recursive call) and gets mass 0.
+
+    Honestly DEFERRED: §2 Kleene chain bridge (recurrence linking
+    [Phi_fun^{n+1}] to [Step_geom one1 (prom Phi_fun^n)]), §3
+    geometric recurrence [mass(F_{n+1}) = ½ + ½·mass(F_n)] via
+    [add_lift_mass], §4 convergence to mass 1 via [cvg_geometric].
+    These require ω-continuity at the value level plus FMeas mass
+    convergence — substantial fresh infrastructure not yet in place.
+
+    Now part of _CoqProject as of the §1 mass-1/2 closure commit.
 
     Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
-From mathcomp.reals Require Import reals signed.
+From mathcomp.reals Require Import reals signed constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
@@ -1290,6 +1334,220 @@ exact: (der_prom (B := FMeas R_obj) _
           (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 0%R))).
 Qed.
 
+(** ** §1 — First-iterate FMeas mass = 1/2
+    BEYOND THE PAPER — Phase 4 mass-1 closure.
+
+    THE HEADLINE FIRST-ITERATE MASS IDENTITY.
+
+    Combining the per-branch THEN/ELSE evaluations (which evaluate to
+    [dirac_fmeas 0] / [precone_zero] respectively after [der]),
+    [case_em_bernoulli] (B1, the convex-combination reduction), and the
+    structural reductions for [Step_geom] from §0, we read off the
+    FMeas mass of the first iterate of [ex_geom] (with the recursive
+    function [g] bound to the value [prom precone_zero]).
+
+    The mass is exactly [1/2]: with probability [1/2] the body returns
+    [δ_0] (mass 1), and with probability [1/2] it recurses and gets
+    mass [0] (since [g := prom 0] makes the recursive call return 0).
+
+    Form:
+    [[
+       fmeas_mu (Lfun (der (FMeas R_obj))
+                      (linhom_fun
+                         (Lfun (der L_geom)
+                               (Step_geom one1 (prom precone_zero)))
+                         one1))
+                setT = (1/2)%R%:E.
+    ]] *)
+
+(** *** Step 1 — Evaluate [ch_mor (convex_combination then_e else_e)]
+       at the outer pt as a sum (pointwise) of the two branches.
+
+    Combining [Lfun_ch_mor_convex_at_outer_pt_E] (which gives a
+    [prom (Lfun convex_icones at_outer_pt)] form) with the pointwise
+    decomposition of [convex_icones = der A ∘ convex_icones_bang] +
+    [convex_linhomE] (which equals [bool_case bernoulli then_lh else_lh]).
+    By [der_prom] applied to the outer [prom], extract the inner
+    [Lfun convex_icones at_outer_pt] as a [precone_add] of the scaled
+    branches. *)
+(** Auxiliary lemma: [linhom_fun] of [precone_add] decomposes pointwise. *)
+Lemma linhom_fun_precone_add_E (C D : ICone.type Ar)
+    (f g : linhom_car Ar C D) (x : C) :
+  linhom_fun (precone_add f g) x =
+  precone_add (linhom_fun f x) (linhom_fun g x).
+Proof. by []. Qed.
+
+(** Auxiliary lemma: [linhom_fun] of [precone_scale] decomposes pointwise. *)
+Lemma linhom_fun_precone_scale_E (C D : ICone.type Ar)
+    (r : {nonneg R}) (f : linhom_car Ar C D) (x : C) :
+  linhom_fun (precone_scale r f) x =
+  precone_scale r (linhom_fun f x).
+Proof. by []. Qed.
+
+Lemma Lfun_convex_icones_at_outer_pt_E :
+  Lfun (convex_icones (eD' then_e) (eD' else_e)
+                      (phase4_half_ge0 R) (phase4_half_le1 R))
+       (ptensor
+          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
+          (one1 : cone_one_car Ar))
+  = Lfun (der (FMeas R_obj))
+         (precone_add
+            (precone_scale (NngNum (phase4_half_ge0 R))
+              (Lfun (ch_mor (eD' then_e)) at_outer_pt))
+            (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+              (Lfun (ch_mor (eD' else_e)) at_outer_pt))).
+Proof.
+(* Compute the inner [Lfun convex_icones_bang at_outer_pt] in terms of
+   the per-branch linhoms.  Since
+     convex_icones_bang = linhom_icones (bool_case (bernoulli p) a_lh b_lh) _
+   we have
+     Lfun convex_icones_bang at_outer_pt
+   = linhom_fun (bool_case (bernoulli p) a_lh b_lh) at_outer_pt
+   = (linhom-linearity over precone_add + precone_scale)
+     precone_add (precone_scale p (Lfun (ch_mor then_e) at_outer_pt))
+                 (precone_scale (1-p) (Lfun (ch_mor else_e) at_outer_pt)).
+   Then [Lfun convex_icones = Lfun (der A) ∘ Lfun convex_icones_bang]
+   gives the goal. *)
+have Hinner :
+  Lfun (convex_icones_bang (eD' then_e) (eD' else_e)
+                           (phase4_half_ge0 R)
+                           (phase4_half_le1 R))
+       at_outer_pt
+  = precone_add
+      (precone_scale (NngNum (phase4_half_ge0 R))
+        (Lfun (ch_mor (eD' then_e)) at_outer_pt))
+      (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+        (Lfun (ch_mor (eD' else_e)) at_outer_pt)).
+  rewrite -[Lfun (convex_icones_bang _ _ _ _) _]
+          /(linhom_fun (convex_linhom (eD' then_e) (eD' else_e)
+                                      (phase4_half_ge0 R)
+                                      (phase4_half_le1 R))
+                       at_outer_pt).
+  rewrite convex_linhomE /bool_case.
+  (* Push linhom_fun through precone_add + precone_scale. *)
+  rewrite linhom_fun_precone_add_E.
+  rewrite !linhom_fun_precone_scale_E.
+  congr (precone_add (precone_scale _ _) (precone_scale _ _));
+    by apply: nngnum_inj.
+rewrite -[LHS]/(Lfun (der (FMeas R_obj))
+                     (Lfun (convex_icones_bang (eD' then_e) (eD' else_e)
+                                               (phase4_half_ge0 R)
+                                               (phase4_half_le1 R))
+                           at_outer_pt)).
+by rewrite Hinner.
+Qed.
+
+(** *** Step 2 — derive the post-[der] form of the FMeas value via
+       the convex evaluation. *)
+Lemma der_FMeas_linhom_der_Step_E :
+  Lfun (der (FMeas R_obj))
+       (linhom_fun
+          (Lfun (der L_geom)
+                (Step_geom one1 (prom (precone_zero : L_geom))))
+          (one1 : cone_one_car Ar))
+  = Lfun (der (FMeas R_obj))
+         (precone_add
+            (precone_scale (NngNum (phase4_half_ge0 R))
+              (Lfun (ch_mor (eD' then_e)) at_outer_pt))
+            (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+              (Lfun (ch_mor (eD' else_e)) at_outer_pt))).
+Proof.
+rewrite linhom_fun_der_Step_geom_one1_E.
+rewrite Lfun_ch_mor_convex_at_outer_pt_E.
+have Hnorm : cone_norm
+                (Lfun (convex_icones (eD' then_e) (eD' else_e)
+                                     (phase4_half_ge0 R)
+                                     (phase4_half_le1 R))
+                      (ptensor
+                         (ptensor (one1 : cone_one_car Ar)
+                                  (prom (precone_zero : L_geom)))
+                         (one1 : cone_one_car Ar))) <= 1.
+  apply: le_trans (cones_hom_norm_le1 _ _) _.
+  exact: cone_norm_outer_pt_le1.
+rewrite (der_prom (B := FMeas R_obj) _ Hnorm).
+exact: Lfun_convex_icones_at_outer_pt_E.
+Qed.
+
+(** *** Step 3 — Apply [der] linearity to push it inside the
+       [precone_add] + [precone_scale] structure, then substitute the
+       per-branch THEN ([prom (dirac_fmeas 0)]) / ELSE
+       ([prom precone_zero]) evaluations.
+
+    After the rewrites, we land at:
+    [[
+       (1/2) · dirac_fmeas (R_to_carrier 0) + (1/2) · precone_zero
+    ]]
+    in [FMeas R_obj]. *)
+Lemma der_FMeas_linhom_der_Step_E_branches :
+  Lfun (der (FMeas R_obj))
+       (linhom_fun
+          (Lfun (der L_geom)
+                (Step_geom one1 (prom (precone_zero : L_geom))))
+          (one1 : cone_one_car Ar))
+  = precone_add
+      (precone_scale (NngNum (phase4_half_ge0 R))
+        (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj))
+      (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+        (precone_zero : FMeas R_obj)).
+Proof.
+rewrite der_FMeas_linhom_der_Step_E.
+(* Apply linearity of der (FMeas R_obj) to push it inside add/scale. *)
+have [_ HderD HderZ] :=
+  cones_hom_linear
+    (mcones_hom_cones (icones_hom_mcones (der (FMeas R_obj)))).
+rewrite HderD !HderZ.
+(* Now both branches are [Lfun (der ∘ ch_mor) at_outer_pt = der (prom ...)] *)
+(* THEN-branch: rewrite via Lfun_ch_mor_then_e_at_outer_pt_E and der_prom *)
+rewrite Lfun_ch_mor_then_e_at_outer_pt_E.
+rewrite (der_prom (B := FMeas R_obj) _
+                  (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 0%R))).
+(* ELSE-branch: rewrite via Lfun_ch_mor_else_e_at_outer_pt_E and der_prom *)
+rewrite Lfun_ch_mor_else_e_at_outer_pt_E.
+rewrite (der_prom (B := FMeas R_obj) (precone_zero : FMeas R_obj)
+                  (cone_norm0_le1 _)).
+by [].
+Qed.
+
+(** *** Step 4 — Extract the mass [= 1/2] via [fmeas_addE] +
+       [fmeas_scaleE] + [dirac_fmeas_setT_E] + [fmeas_zeroE].
+
+    The two summands evaluate as:
+    - [(1/2) · δ_(R_to_carrier 0)] has mass [1/2]
+    - [(1/2) · 0] has mass [0]
+
+    Sum: [1/2]. *)
+Theorem first_iterate_FMeas_mass_half :
+  fmeas_mu (Lfun (der (FMeas R_obj))
+                 (linhom_fun
+                    (Lfun (der L_geom)
+                          (Step_geom one1 (prom (precone_zero : L_geom))))
+                    (one1 : cone_one_car Ar)))
+           [set: ar_carrier Ar R_obj]
+  = @EFin R (1 / 2)%R.
+Proof.
+rewrite der_FMeas_linhom_der_Step_E_branches.
+(* Goal: fmeas_mu (fmeas_add (fmeas_scale (1/2) δ_0) (fmeas_scale (1/2) 0)) setT
+       = (1/2)%R%:E *)
+rewrite -[precone_add _ _]/(fmeas_add
+   (precone_scale (NngNum (phase4_half_ge0 R))
+                  (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj))
+   (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+                  (precone_zero : FMeas R_obj))).
+rewrite fmeas_addE.
+rewrite -[precone_scale _ (dirac_fmeas _)]
+        /(fmeas_scale (NngNum (phase4_half_ge0 R))
+                      (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj)).
+rewrite -[precone_scale _ (precone_zero : FMeas R_obj)]
+        /(fmeas_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+                      (fmeas_zero : FMeas R_obj)).
+rewrite fmeas_scale_0r.
+rewrite fmeas_scaleE.
+rewrite dirac_fmeas_setT_E.
+rewrite fmeas_zeroE.
+rewrite mule1.
+by rewrite adde0.
+Qed.
+
 End ExGeomStep.
 
 Arguments Step_geom
@@ -1335,4 +1593,16 @@ Arguments der_Lfun_ch_mor_else_e_at_outer_pt_E
 Arguments Lfun_ch_mor_then_e_at_outer_pt_E
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments der_Lfun_ch_mor_then_e_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments linhom_fun_precone_add_E
+  {R Ar C D} f g x.
+Arguments linhom_fun_precone_scale_E
+  {R Ar C D} r f x.
+Arguments Lfun_convex_icones_at_outer_pt_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments der_FMeas_linhom_der_Step_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments der_FMeas_linhom_der_Step_E_branches
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments first_iterate_FMeas_mass_half
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
