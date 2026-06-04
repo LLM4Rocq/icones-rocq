@@ -1762,18 +1762,170 @@ Qed.
 Local Close Scope ereal_scope.
 
 
-(** *** §5.14 — Headline: [ex_geom_arr_mass_one] (DEFERRED)
+(** *** §5.14 — Headline: [ex_geom_arr_mass_one]
 
-    The Yfix-level mass equals 1.  Strategy would push the three
-    ω-continuous operators (Lfun(der L_geom), linhom_fun _ one1, Lfun(der FMeas))
-    through cone_sup_ball to obtain F_arr_sup; then F_arr_sup_mass closes.
+    The Yfix-level mass equals 1.  We push the three ω-continuous
+    operators (Lfun(der L_geom), linhom_fun _ one1, Lfun(der FMeas))
+    through [cone_sup_ball] to obtain [F_arr_sup]; then
+    [F_arr_sup_mass] closes.
 
     Steps A and C are routine via [cones_hom_continuous].  Step B
-    (pushing [linhom_fun _ one1] through [cone_sup_ball] at the
-    [L_geom] level) requires connecting the generic [cone_sup_ball]
-    at [linhom_car] with [linhom_sup_fun_unitE] from
-    [Section LinhomSupBall] of [linhom.v].  This is direct in principle
-    (both supremums of the same chain) but requires care over [cnorm]
-    vs [linhom_norm] coercions.  DEFERRED. *)
+    uses [linhom_sup_fun_unitE], which equates the pointwise
+    [linhom_sup_fun] at a unit-ball [x] with the [cone_sup_ball] of
+    the pointwise chain in the codomain.  The [cnorm]/[linhom_norm]
+    bridge is silent here because [cone_norm] on [linhom_car] is
+    definitionally [linhom_norm] via the HB [isCone] instance.
+*)
+
+(** Auxiliary chain in [L_geom] obtained by applying [der L_geom] to
+    each [kleene_arr n].  Increasing by linearity. *)
+Let derL_chain (n : nat) : L_geom :=
+  Lfun (der L_geom) (kleene_arr' n).
+
+Lemma derL_chain_chain n : precone_le (derL_chain n) (derL_chain n.+1).
+Proof.
+rewrite /derL_chain.
+have Hder_lin := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (der L_geom))).
+have Hchain_k := @kleene_arr_chain R Ar R_obj
+  R_carrier_eq R_carrier_meas R_to_carrier_meas n.
+exact: (linear_increasing Hder_lin Hchain_k).
+Qed.
+
+Lemma derL_chain_ball n : cone_norm (derL_chain n) <= 1.
+Proof.
+rewrite /derL_chain.
+apply: le_trans (cones_hom_norm_le1 _ _) _.
+exact: kleene_arr_ball.
+Qed.
+
+(** Step A — push [Lfun (der L_geom)] through [Yfix_arr]'s
+    [cone_sup_ball]. *)
+Lemma derL_Yfix_E :
+  Lfun (der L_geom) Yfix_arr' =
+  cone_sup_ball derL_chain derL_chain_chain derL_chain_ball.
+Proof.
+have Hkch : forall n, precone_le (kleene_arr' n) (kleene_arr' n.+1).
+  by move=> n; exact: (@kleene_arr_chain R Ar R_obj
+                         R_carrier_eq R_carrier_meas R_to_carrier_meas n).
+have Hkub : forall n, cone_norm (kleene_arr' n) <= 1.
+  by move=> n; exact: (@kleene_arr_ball R Ar R_obj
+                         R_carrier_eq R_carrier_meas R_to_carrier_meas n).
+have HsupE : Yfix_arr' = cone_sup_ball kleene_arr' Hkch Hkub.
+  rewrite /Yfix_arr'/Yfix_arr.
+  apply: precone_le_anti.
+  - apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+  - apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+rewrite HsupE.
+set fcone := mcones_hom_cones (icones_hom_mcones (der L_geom)).
+have Hk := @cones_hom_continuous R (Bang Ar L_geom) L_geom fcone
+             kleene_arr' Hkch Hkub derL_chain_chain derL_chain_ball.
+exact: Hk.
+Qed.
+
+(** Auxiliary chain in [Bang Ar (FMeas R_obj)] obtained by applying
+    [linhom_fun _ one1] to each [derL_chain n]. *)
+Let derL_one_chain (n : nat) :
+    coalg_obj (Tobj (tyD tR' : Coalgebra Ar)) :=
+  linhom_fun (derL_chain n) (one1 : cone_one_car Ar).
+
+Lemma derL_one_chain_chain n :
+  precone_le (derL_one_chain n) (derL_one_chain n.+1).
+Proof.
+rewrite /derL_one_chain.
+have Hch := derL_chain_chain n.
+case: Hch => w Hw_eq.
+exists (linhom_fun w (one1 : cone_one_car Ar)).
+rewrite Hw_eq.
+exact: linhom_fun_precone_add_E.
+Qed.
+
+Lemma derL_one_chain_ball n :
+  cone_norm (derL_one_chain n) <= 1.
+Proof.
+rewrite /derL_one_chain.
+apply: le_trans (linhom_norm_apply_le _ (one1 : cone_one_car Ar)) _.
+  exact: derL_chain_ball.
+by rewrite cone_norm_one1 mulr1.
+Qed.
+
+(** Step B — push [linhom_fun _ one1] through the
+    [L_geom = linhom_car] [cone_sup_ball].  Uses
+    [linhom_sup_fun_unitE] at the unit-ball point [one1]. *)
+Lemma linhom_at_one_sup_E :
+  linhom_fun
+    (cone_sup_ball derL_chain derL_chain_chain derL_chain_ball)
+    (one1 : cone_one_car Ar)
+  = cone_sup_ball derL_one_chain
+                  derL_one_chain_chain derL_one_chain_ball.
+Proof.
+have Hx : cnorm (one1 : cone_one_car Ar) <= 1 by exact: cone_norm_one1_le1.
+(* [cone_sup_ball] on the [linhom_car] coneType IS [linhom_sup_ball]
+   per the HB [isCone] instance.  Both have [linhom_sup_fun]
+   as their underlying function (defeq via [linhom_pre_of] +
+   [MkLinhom] + [MkLinhomPre]).  So:
+     linhom_fun (cone_sup_ball derL_chain ...) one1
+     = linhom_sup_fun one1
+     = linhom_sup_unit Hx (via [linhom_sup_fun_unitE])
+     = cone_sup_ball (fun n => linhom_fun (derL_chain n) one1) ... ... *)
+rewrite -[linhom_fun
+            (cone_sup_ball derL_chain derL_chain_chain derL_chain_ball)
+            (one1 : cone_one_car Ar)]
+        /(@linhom_sup_fun R Ar _ _
+            derL_chain derL_chain_chain derL_chain_ball
+            (one1 : cone_one_car Ar)).
+rewrite (@linhom_sup_fun_unitE R Ar _ _
+            derL_chain derL_chain_chain derL_chain_ball
+            (one1 : cone_one_car Ar) Hx).
+rewrite /linhom_sup_unit.
+(* Both sides are [cone_sup_ball] of the same chain (the pointwise
+   sup chain at [one1]); the chain proofs and norm proofs are
+   propositionally equal — use [precone_le_anti] +
+   [cone_sup_ball_lub] + [cone_sup_ball_ub]. *)
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+Qed.
+
+(** Step C — push [Lfun (der (FMeas R_obj))] through the
+    [Bang Ar (FMeas R_obj)] [cone_sup_ball]. *)
+Lemma derFMeas_one_sup_E :
+  Lfun (der (FMeas R_obj))
+       (cone_sup_ball derL_one_chain
+                      derL_one_chain_chain derL_one_chain_ball)
+  = cone_sup_ball (@F_arr R Ar R_obj
+                           R_carrier_eq R_carrier_meas R_to_carrier_meas)
+                  F_arr_chain F_arr_ball.
+Proof.
+have Hfuch : forall n, precone_le (F_arr' n) (F_arr' n.+1)
+  by exact: F_arr_chain.
+have Hfub1 : forall n, cone_norm (F_arr' n) <= 1
+  by exact: F_arr_ball.
+set fcone := mcones_hom_cones (icones_hom_mcones (der (FMeas R_obj))).
+have Hk := @cones_hom_continuous R (Bang Ar (FMeas R_obj)) (FMeas R_obj)
+             fcone derL_one_chain
+             derL_one_chain_chain derL_one_chain_ball
+             Hfuch Hfub1.
+rewrite Hk.
+(* Both sides are [cone_sup_ball] of the same chain (definitionally:
+   [F_arr' n = Lfun (der (FMeas R_obj)) (derL_one_chain n)]). *)
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+Qed.
+
+(** *** THE HEADLINE: [ex_geom]'s Yfix denotation has total mass 1. *)
+Local Open Scope ereal_scope.
+Theorem ex_geom_arr_mass_one :
+  fmeas_mu (Lfun (der (FMeas R_obj))
+                 (linhom_fun (Lfun (der L_geom) Yfix_arr')
+                             (one1 : cone_one_car Ar)))
+           [set: ar_carrier Ar R_obj]
+  = 1%:E.
+Proof.
+rewrite derL_Yfix_E linhom_at_one_sup_E derFMeas_one_sup_E.
+exact: F_arr_sup_mass.
+Qed.
+Local Close Scope ereal_scope.
 
 End ExGeomArrMassOne.
