@@ -580,6 +580,73 @@ Lemma F_arr_0_mass_zero :
   fmeas_mu (F_arr 0) [set: ar_carrier Ar R_obj] = 0%E.
 Proof. by rewrite F_arr_0_E fmeas_zeroE. Qed.
 
+(** ** Stage 4 structural — [Phi_arr] of a [prom] is a [prom]
+
+    A key structural fact bridging the [Bang Ar L_geom] chain to the
+    underlying [L_geom] linhom chain.
+
+    For [u : L_geom] with [cone_norm u ≤ 1], [Phi_arr (prom u)] is of
+    the form [prom v] for some [v : L_geom].  Combined with
+    [kleene_arr 0 = prom 0_L_geom], this proves by induction that
+    EVERY iterate [kleene_arr n] is a [prom] of some [L_geom] element.
+
+    Proof: by [Step_geom_E] + [lam_coalg_at_one_prom] (which gives the
+    inner [prom Y] form), and we just take [v := Y].
+
+    Note: the implicit body_inner inlined by [Step_geom_E] is the
+    body of [ex_geom_body], specifically [if Bernoulli(½) then [|0|]
+    else [|1|] + g()].  We do NOT name the witness explicitly — the
+    [eexists] tactic infers it from the post-rewrite goal. *)
+Lemma Phi_arr_of_prom (u : L_geom) (Hu : cone_norm u <= 1) :
+  exists v : L_geom, Phi_arr (prom u) = prom v.
+Proof.
+rewrite /Phi_arr.
+rewrite (@Step_geom_E R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+                       one1 (prom u)).
+rewrite (@lam_coalg_at_one_prom R Ar R_obj _ u Hu).
+by eexists.
+Qed.
+
+(** *** Consequence (deferred): every Kleene iterate is a [prom]
+
+    Status: [kleene_arr_is_prom_full] (the full induction with norm
+    bound on the underlying [L_geom] element) is NOT delivered here.
+
+    The natural induction:
+    [[
+      forall n, exists u : L_geom, kleene_arr n = prom u /\ cone_norm u <= 1.
+    ]]
+    hits a norm-extraction circularity at the step case: the IH gives
+    [kleene_arr n = prom u_n] but no direct extraction of [‖u_n‖ ≤ 1]
+    from [‖prom u_n‖ ≤ 1] ([prom_norm_ge] gives only the [≤] in the
+    WRONG direction; [der_prom]'s norm-extraction requires [‖u_n‖ ≤ 1]
+    as a hypothesis — circular).  The cleanest route is to make the
+    EXPLICIT [tensor_curry] witness explicit at every step (with its
+    norm bounded by [‖one1 ⊗p prom u_n‖ ≤ 1 · 1 = 1]).  This is
+    tractable but requires more work than the time budget here.
+
+    What IS delivered: [Phi_arr_of_prom] (the per-step structural fact)
+    + [kleene_arr_0_is_prom] (the [n = 0] sanity).  These give
+    [kleene_arr 1 = prom v_1] by direct application — and the [v_1]
+    witness is exactly the [first_iterate]'s inner linhom. *)
+
+(** Sanity: the [n = 0] case explicitly. *)
+Lemma kleene_arr_0_is_prom :
+  exists u : L_geom, kleene_arr 0 = prom u.
+Proof. by exists (precone_zero : L_geom); rewrite kleene_arr_0. Qed.
+
+(** Sanity: the [n = 1] case via [Phi_arr_of_prom] applied to the seed
+    [precone_zero : L_geom] (norm ≤ 1). *)
+Lemma kleene_arr_1_is_prom :
+  exists u : L_geom, kleene_arr 1 = prom u.
+Proof.
+have H0_le1 : (cone_norm (precone_zero : L_geom) <= 1)%R
+  by rewrite cone_norm0 ler01.
+destruct (Phi_arr_of_prom H0_le1) as [v Hv].
+exists v.
+by rewrite kleene_arr_S kleene_arr_0.
+Qed.
+
 (** Stage 4b — [F_arr 1] mass = 1/2.
 
     Compose [kleene_arr_S 0]: [kleene_arr 1 = Phi_arr (kleene_arr 0)
@@ -675,4 +742,10 @@ Arguments F_arr_0_E
 Arguments F_arr_0_mass_zero
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments F_arr_1_mass_half
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments Phi_arr_of_prom
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} u Hu.
+Arguments kleene_arr_0_is_prom
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
+Arguments kleene_arr_1_is_prom
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
