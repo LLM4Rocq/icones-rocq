@@ -607,28 +607,55 @@ rewrite (@lam_coalg_at_one_prom R Ar R_obj _ u Hu).
 by eexists.
 Qed.
 
-(** *** Consequence (deferred): every Kleene iterate is a [prom]
+(** *** Norm-tracking version of [Phi_arr_of_prom]
 
-    Status: [kleene_arr_is_prom_full] (the full induction with norm
-    bound on the underlying [L_geom] element) is NOT delivered here.
+    Same as [Phi_arr_of_prom] but additionally returns the norm bound
+    [‖v‖ ≤ 1] on the witness.  The bound comes from the explicit
+    [tensor_curry] form: [v] is the linhom-value at the unit-ball pure
+    tensor [one1 ⊗p prom u], hence its [cone_norm] is bounded by
+    [‖tensor_curry _‖ · ‖one1‖ · ‖prom u‖ ≤ 1 · 1 · 1 = 1] via
+    [cones_hom_norm_le1] + [tensor_norm_le] + [cone_norm_one1] +
+    [prom_ball]. *)
+Lemma Phi_arr_of_prom_norm (u : L_geom) (Hu : cone_norm u <= 1) :
+  exists v : L_geom, Phi_arr (prom u) = prom v /\ cone_norm v <= 1.
+Proof.
+rewrite /Phi_arr.
+rewrite (@Step_geom_E R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas
+                       one1 (prom u)).
+rewrite (@lam_coalg_at_one_prom R Ar R_obj _ u Hu).
+set inner_witness := Lfun _ (ptensor _ _).
+have Hwitness_norm : cone_norm inner_witness <= 1.
+  rewrite /inner_witness.
+  apply: le_trans (cones_hom_norm_le1 _ _) _.
+  apply: le_trans (tensor_norm_le _ _) _.
+  rewrite -[1]mulr1; apply: ler_pM.
+  - exact: cone_norm_ge0.
+  - exact: cone_norm_ge0.
+  - by rewrite cone_norm_one1.
+  - exact: prom_ball Hu.
+by exists inner_witness.
+Qed.
 
-    The natural induction:
-    [[
-      forall n, exists u : L_geom, kleene_arr n = prom u /\ cone_norm u <= 1.
-    ]]
-    hits a norm-extraction circularity at the step case: the IH gives
-    [kleene_arr n = prom u_n] but no direct extraction of [‖u_n‖ ≤ 1]
-    from [‖prom u_n‖ ≤ 1] ([prom_norm_ge] gives only the [≤] in the
-    WRONG direction; [der_prom]'s norm-extraction requires [‖u_n‖ ≤ 1]
-    as a hypothesis — circular).  The cleanest route is to make the
-    EXPLICIT [tensor_curry] witness explicit at every step (with its
-    norm bounded by [‖one1 ⊗p prom u_n‖ ≤ 1 · 1 = 1]).  This is
-    tractable but requires more work than the time budget here.
+(** *** Consequence: every Kleene iterate is a [prom] (with norm bound)
 
-    What IS delivered: [Phi_arr_of_prom] (the per-step structural fact)
-    + [kleene_arr_0_is_prom] (the [n = 0] sanity).  These give
-    [kleene_arr 1 = prom v_1] by direct application — and the [v_1]
-    witness is exactly the [first_iterate]'s inner linhom. *)
+    By induction on [n], using [Phi_arr_of_prom_norm] at each step.
+    Base case [n = 0]: [kleene_arr 0 = prom (precone_zero : L_geom)]
+    with [‖0‖ = 0 ≤ 1].  Step case: by IH, [kleene_arr n = prom u_n]
+    with [‖u_n‖ ≤ 1]; apply [Phi_arr_of_prom_norm] with [Hu_n] to get
+    [Phi_arr (prom u_n) = prom v_{n+1}] with [‖v_{n+1}‖ ≤ 1]. *)
+Lemma kleene_arr_is_prom (n : nat) :
+  exists u : L_geom, kleene_arr n = prom u /\ cone_norm u <= 1.
+Proof.
+induction n.
+- exists (precone_zero : L_geom); split.
+  + by rewrite kleene_arr_0.
+  + by rewrite cone_norm0 ler01.
+- destruct IHn as [u [Hu_eq Hu_norm]].
+  destruct (Phi_arr_of_prom_norm Hu_norm) as [v [Hv_eq Hv_norm]].
+  exists v; split.
+  + by rewrite kleene_arr_S Hu_eq.
+  + exact: Hv_norm.
+Qed.
 
 (** Sanity: the [n = 0] case explicitly. *)
 Lemma kleene_arr_0_is_prom :
@@ -745,6 +772,10 @@ Arguments F_arr_1_mass_half
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments Phi_arr_of_prom
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} u Hu.
+Arguments Phi_arr_of_prom_norm
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} u Hu.
+Arguments kleene_arr_is_prom
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} n.
 Arguments kleene_arr_0_is_prom
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments kleene_arr_1_is_prom
