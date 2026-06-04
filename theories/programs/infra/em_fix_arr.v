@@ -1761,4 +1761,19 @@ Qed.
 
 Local Close Scope ereal_scope.
 
+
+(** *** §5.14 — Headline: [ex_geom_arr_mass_one] (DEFERRED)
+
+    The Yfix-level mass equals 1.  Strategy would push the three
+    ω-continuous operators (Lfun(der L_geom), linhom_fun _ one1, Lfun(der FMeas))
+    through cone_sup_ball to obtain F_arr_sup; then F_arr_sup_mass closes.
+
+    Steps A and C are routine via [cones_hom_continuous].  Step B
+    (pushing [linhom_fun _ one1] through [cone_sup_ball] at the
+    [L_geom] level) requires connecting the generic [cone_sup_ball]
+    at [linhom_car] with [linhom_sup_fun_unitE] from
+    [Section LinhomSupBall] of [linhom.v].  This is direct in principle
+    (both supremums of the same chain) but requires care over [cnorm]
+    vs [linhom_norm] coercions.  DEFERRED. *)
+
 End ExGeomArrMassOne.
