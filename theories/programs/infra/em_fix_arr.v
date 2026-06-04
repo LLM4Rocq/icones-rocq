@@ -1703,4 +1703,62 @@ apply: cvgB.
 Qed.
 Local Close Scope ereal_scope.
 
+
+(** *** §5.13 — F_arr chain in FMeas: increasing + norm-bounded *)
+Lemma F_arr_chain (n : nat) : precone_le (F_arr' n) (F_arr' n.+1).
+Proof.
+have Hder_L_lin := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (der L_geom))).
+have Hder_F_lin := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (der (FMeas R_obj)))).
+have Hchain_k := @kleene_arr_chain R Ar R_obj
+  R_carrier_eq R_carrier_meas R_to_carrier_meas n.
+have Hchain_derL :
+  precone_le (Lfun (der L_geom) (kleene_arr' n))
+             (Lfun (der L_geom) (kleene_arr' n.+1)).
+  exact: (linear_increasing Hder_L_lin Hchain_k).
+have Hchain_linhom :
+  precone_le (linhom_fun (Lfun (der L_geom) (kleene_arr' n))
+                         (one1 : cone_one_car Ar))
+             (linhom_fun (Lfun (der L_geom) (kleene_arr' n.+1))
+                         (one1 : cone_one_car Ar)).
+  case: Hchain_derL => w Hw_eq.
+  exists (linhom_fun w (one1 : cone_one_car Ar)).
+  rewrite Hw_eq.
+  exact: linhom_fun_precone_add_E.
+exact: (linear_increasing Hder_F_lin Hchain_linhom).
+Qed.
+
+Lemma F_arr_ball (n : nat) : cone_norm (F_arr' n) <= 1.
+Proof.
+rewrite /F_arr.
+apply: le_trans (cones_hom_norm_le1 _ _) _.
+apply: le_trans (linhom_norm_apply_le _ (one1 : cone_one_car Ar)) _.
+  apply: le_trans (cones_hom_norm_le1 _ _) _.
+  exact: kleene_arr_ball.
+by rewrite cone_norm_one1 mulr1.
+Qed.
+
+(** F_arr supremum at the FMeas level. *)
+Definition F_arr_sup : FMeas R_obj :=
+  fmeas_sup_ball F_arr_chain F_arr_ball.
+
+(** Mass of the sup = 1 (via [fmeas_sup_cvg] + [cvg_unique] with
+    [F_arr_mass_cvg]). *)
+Local Open Scope ereal_scope.
+Lemma F_arr_sup_mass :
+  fmeas_mu F_arr_sup [set: ar_carrier Ar R_obj] = 1.
+Proof.
+rewrite /F_arr_sup.
+rewrite (fmeas_sup_ballE F_arr_chain F_arr_ball measurableT).
+have Hsupcvg : fmeas_mu (F_arr' n) [set: ar_carrier Ar R_obj]
+                 @[n --> \oo]
+                 --> fmeas_sup_meas_fun F_arr_chain [set: ar_carrier Ar R_obj].
+  by apply: (@fmeas_sup_cvg R _ _ F_arr' F_arr_chain); exact: measurableT.
+have := @cvg_unique _ (@ereal_hausdorff R) _ _ _ _ Hsupcvg F_arr_mass_cvg.
+move=> ->; reflexivity.
+Qed.
+
+Local Close Scope ereal_scope.
+
 End ExGeomArrMassOne.
