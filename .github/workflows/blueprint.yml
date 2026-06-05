@@ -72,6 +72,70 @@ jobs:
           path: html/
           if-no-files-found: ignore
 
+  build-auditor:
+    # Build the paper-to-Rocq auditor dashboard from AUDITOR.md.
+    # This job runs in parallel with build-blueprint; it fails loudly on
+    # its own errors but its artefact is best-effort consumed by
+    # combine-and-deploy (so a parser regression doesn't block the
+    # Pages deploy).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-auditor-${{ hashFiles('tools/auditor/requirements.txt') }}
+
+      - name: Install Python dependencies
+        run: pip install -r tools/auditor/requirements.txt
+
+      - name: Run parser tests
+        run: pytest tools/auditor/tests/ -v
+
+      - name: Cache pagefind binary
+        id: cache-pagefind
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/pagefind
+          key: pagefind-1.0.4-x86_64-unknown-linux-musl
+
+      - name: Install pagefind
+        if: steps.cache-pagefind.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.local/bin
+          curl -sSL https://github.com/CloudCannon/pagefind/releases/download/v1.0.4/pagefind-v1.0.4-x86_64-unknown-linux-musl.tar.gz \
+            | tar xz -C ~/.local/bin
+          chmod +x ~/.local/bin/pagefind
+
+      - name: Build auditor dashboard
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          python tools/build_auditor.py \
+            --input AUDITOR.md \
+            --out site/auditor/ \
+            --coqproject _CoqProject \
+            --github-repo "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" \
+            --strict
+
+      - name: Build Pagefind index
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          pagefind --site site/auditor
+
+      - name: Upload auditor artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditor-site
+          path: site/auditor/
+          if-no-files-found: error
+
   build-blueprint:
     runs-on: ubuntu-latest
     steps:
@@ -123,7 +187,7 @@ jobs:
 
   combine-and-deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build-docs, build-blueprint]
+    needs: [build-docs, build-blueprint, build-auditor]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -141,6 +205,13 @@ jobs:
         with:
           name: coqdoc-html
           path: site/docs/
+        continue-on-error: true
+
+      - name: Download auditor
+        uses: actions/download-artifact@v4
+        with:
+          name: auditor-site
+          path: site/auditor/
         continue-on-error: true
 
       - name: Upload Pages artifact

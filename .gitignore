@@ -52,3 +52,7 @@ blueprint/src/main.pdf
 
 # Paper (not tracked — local-only artifact)
 paper/
+
+# Auditor build
+tools/**/__pycache__/
+tools/**/*.pyc
