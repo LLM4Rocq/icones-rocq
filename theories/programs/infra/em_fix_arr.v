@@ -2176,3 +2176,91 @@ induction n.
 Qed.
 
 End YfixArrGenericStage2.
+
+Section YfixArrGenericStage3.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G A B : Coalgebra Ar).
+
+Let TT (P : Coalgebra Ar) : Coalgebra Ar := bang_cofree (coalg_obj P).
+Let L : ICone.type Ar :=
+  linhom_car Ar (coalg_obj A) (coalg_obj (TT B)).
+Let funT : Coalgebra Ar := bang_cofree L.
+
+Variable M : coalg_hom (EM_prod G funT) (TT funT).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** ** Stage 2a — Chain monotonicity, under a SEED-ORDER hypothesis
+
+    The chain [kleene_arr_g M γ] is increasing iff the BASE case
+    [prom 0_L ≤p Phi_arr_g M γ (prom 0_L)] holds.  For general M, this
+    is NOT automatic: it depends on the structure of M (specifically,
+    whether M maps the [prom 0_L]-seed to a [prom]-form value above
+    [prom 0_L] in the cone order).
+
+    For ex_geom (M := M_body, γ := one1), the seed-order is delivered
+    in §1 by [prom_step_geom_seed_order], using the M-specific
+    [Step_geom_one_prom_zero_via_convex_E] reduction and
+    [prom_le_unit_ball]'s totmono-prom lemma.
+
+    For arbitrary M, we PARAMETERIZE on the seed-order as a hypothesis. *)
+
+Section ChainUnderSeedOrder.
+Variable γ : coalg_obj G.
+Hypothesis Hγ : cone_norm γ <= 1.
+Hypothesis seed_order :
+  precone_le (prom (precone_zero : L)) (Phi_arr_g M γ (prom (precone_zero : L))).
+
+Lemma kleene_arr_g_chain (n : nat) :
+  precone_le (kleene_arr_g M γ n) (kleene_arr_g M γ n.+1).
+Proof.
+induction n.
+- rewrite kleene_arr_g_0 kleene_arr_g_S kleene_arr_g_0.
+  exact: seed_order.
+- rewrite ![kleene_arr_g _ _ _.+1]kleene_arr_g_S.
+  exact: (Phi_arr_g_incr_v M γ IHn).
+Qed.
+
+(** ** Stage 3 — [Yfix_arr_g γ Hγ seed_order]: the supremum of the chain. *)
+Definition Yfix_arr_g : coalg_obj funT :=
+  cone_sup_ball (kleene_arr_g M γ) kleene_arr_g_chain (kleene_arr_g_ball M Hγ).
+
+Lemma Yfix_arr_g_norm_le1 : cone_norm Yfix_arr_g <= 1.
+Proof. exact: cone_sup_ball_norm. Qed.
+
+Lemma kleene_arr_g_le_Yfix (n : nat) : precone_le (kleene_arr_g M γ n) Yfix_arr_g.
+Proof. exact: cone_sup_ball_ub. Qed.
+
+(** ** Stage 3a — Fixpoint identity [Phi_arr_g γ Yfix_arr_g = Yfix_arr_g] *)
+Lemma Yfix_arr_g_fixpoint :
+  Phi_arr_g M γ Yfix_arr_g = Yfix_arr_g.
+Proof.
+rewrite /Yfix_arr_g.
+have Pch : forall n, precone_le (Phi_arr_g M γ (kleene_arr_g M γ n))
+                                (Phi_arr_g M γ (kleene_arr_g M γ n.+1)).
+  by move=> n; apply: Phi_arr_g_incr_v; exact: kleene_arr_g_chain.
+have Pub1 : forall n, cone_norm (Phi_arr_g M γ (kleene_arr_g M γ n)) <= 1.
+  by move=> n; apply: Phi_arr_g_ball => //; exact: kleene_arr_g_ball.
+rewrite -> (@Phi_arr_g_cont_v R Ar G A B M γ
+              (kleene_arr_g M γ) kleene_arr_g_chain (kleene_arr_g_ball M Hγ)
+              Pch Pub1).
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  rewrite -[(Phi_arr_g M γ \o kleene_arr_g M γ) n]
+          /(Phi_arr_g M γ (kleene_arr_g M γ n)).
+  rewrite -kleene_arr_g_S.
+  exact: (cone_sup_ball_ub (kleene_arr_g M γ)
+            kleene_arr_g_chain (kleene_arr_g_ball M Hγ) n.+1).
+- apply: cone_sup_ball_lub => n.
+  apply: (precone_le_trans (y := (Phi_arr_g M γ \o kleene_arr_g M γ) n)).
+    rewrite -[(Phi_arr_g M γ \o kleene_arr_g M γ) n]
+            /(Phi_arr_g M γ (kleene_arr_g M γ n)).
+    rewrite -kleene_arr_g_S.
+    exact: kleene_arr_g_chain.
+  exact: cone_sup_ball_ub.
+Qed.
+
+End ChainUnderSeedOrder.
+
+End YfixArrGenericStage3.
