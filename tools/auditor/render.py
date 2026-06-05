@@ -2,25 +2,29 @@
 
 Layout (file URLs, matching the UI templates' ``xref_href`` convention):
 
-    out/index.html
-    out/sections/<id>.html
-    out/entries/<id>.html
-    out/beyond/<id>.html
-    out/gaps.html              (single page listing all gaps)
+    out/index.html                  root landing (dual-tab summary)
+    out/data.json                   combined Paper + PPL JSON export
     out/static/{style,print,pygments}.css, app.js
-    out/data.json              (canonical export)
+    out/paper/index.html            Paper-tab landing
+    out/paper/sections/<id>.html
+    out/paper/entries/<id>.html
+    out/paper/beyond/<id>.html
+    out/paper/gaps.html
+    out/paper/data.json             Paper-only JSON export
+    out/ppl/...                     mirror of the above for the PPL tab
 
 Per-template context contracts:
 
-``index.html``    : ``{document, sections, beyond, gaps, axiom_anchors, build_meta}``
-``section.html``  : ``{document, section, entries, build_meta}``
-``entry.html``    : ``{document, entry, section, contrib?, build_meta}``
-``beyond.html``   : ``{document, contrib, entries, build_meta}``
-``gap.html``      : ``{document, gaps, build_meta}``
+``root.html``     : ``{paper, ppl, build_meta, tab=None}``
+``index.html``    : ``{document, sections, beyond, gaps, axiom_anchors, build_meta, tab}``
+``section.html``  : ``{document, section, entries, build_meta, tab}``
+``entry.html``    : ``{document, entry, section, contrib?, build_meta, tab}``
+``beyond.html``   : ``{document, contrib, entries, build_meta, tab}``
+``gap.html``      : ``{document, gaps, build_meta, tab}``
 
 Each render registers Jinja globals ``root_prefix``, ``static_prefix``,
-``xref_href`` and an ``is contains`` test, so the UI templates' macros
-resolve correctly regardless of nesting depth.
+``tab_prefix``, ``xref_href`` and an ``is contains`` test, so the UI
+templates' macros resolve correctly regardless of nesting depth.
 """
 
 from __future__ import annotations
@@ -34,7 +38,7 @@ from typing import Any
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 from pygments.formatters import HtmlFormatter
 
-from .schema import Document
+from .schema import ALL_TABS, TAB_PAPER, TAB_PPL, Document, TwoTabDocument, two_tab_to_dict
 
 
 BUNDLED_TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -43,7 +47,12 @@ PLACEHOLDER_NAME = "__placeholder.html"
 
 
 def _xref_href(prefix: str):
-    """Build a `cross_refs` URL resolver bound to the given root prefix."""
+    """Build a `cross_refs` URL resolver bound to the given URL prefix.
+
+    The prefix already points at the current tab's root (e.g. ``"../"`` from
+    a Paper section page back to ``out/paper/``); the resolver appends the
+    sub-route. ``blueprint`` cross-refs go up one more level to ``out/``.
+    """
     def _h(xref: Any) -> str:
         # xref may be a dataclass or a dict; tolerate both.
         kind = getattr(xref, "kind", None) or xref.get("kind", "")
@@ -55,13 +64,23 @@ def _xref_href(prefix: str):
         if kind == "beyond":
             return f"{prefix}beyond/{tgt}.html"
         if kind == "blueprint":
-            return f"{prefix}../blueprint/{tgt}"
+            return f"{prefix}../../blueprint/{tgt}"
         return "#" + tgt
     return _h
 
 
 def _depth_prefix(rel_path: Path) -> str:
-    """Relative path back to ``out/`` from a file at ``rel_path``."""
+    """Relative path back to the page's containing tree-root from ``rel_path``.
+
+    Examples (rel_path / returned prefix):
+        Path("index.html")                          -> ""
+        Path("paper/index.html")                    -> ""        (depth 1 within paper/)
+        Path("paper/sections/foo.html")             -> "../"     (climb out of sections/)
+
+    The caller chooses the tree-root: the root landing uses the full path
+    depth, while per-tab pages compute their depth relative to the tab
+    subtree (so the tab landing's prefix is ``""``).
+    """
     depth = len(rel_path.parts) - 1
     return "../" * depth if depth else ""
 
@@ -97,40 +116,214 @@ def _render_template(env: Environment, name: str, ctx: dict[str, Any]) -> str:
     return tmpl.render(**ctx)
 
 
-def _emit(env: Environment, out: Path, rel: Path, template: str,
-          ctx: dict[str, Any]) -> None:
-    """Render `template` with depth-aware globals and write to ``out/rel``."""
-    prefix = _depth_prefix(rel)
-    env.globals["root_prefix"] = prefix
-    env.globals["static_prefix"] = prefix
-    env.globals["xref_href"] = _xref_href(prefix)
+def _emit(
+    env: Environment,
+    out: Path,
+    rel: Path,
+    template: str,
+    ctx: dict[str, Any],
+    *,
+    root_prefix: str,
+    static_prefix: str,
+    tab_prefix: str,
+) -> None:
+    """Render `template` with depth-aware globals and write to ``out/rel``.
+
+    - ``root_prefix`` resolves URLs *within the current tab* (or, for the
+      root landing, within the whole site).
+    - ``static_prefix`` resolves to ``out/static/`` from the page location.
+    - ``tab_prefix`` resolves to ``out/`` (i.e. the site root) — used by
+      the tab nav to link between Paper and PPL tabs.
+    """
+    env.globals["root_prefix"] = root_prefix
+    env.globals["static_prefix"] = static_prefix
+    env.globals["tab_prefix"] = tab_prefix
+    env.globals["xref_href"] = _xref_href(root_prefix)
     ctx = {
         **ctx,
-        "root_prefix": prefix,
-        "static_prefix": prefix,
-        "xref_href": _xref_href(prefix),
+        "root_prefix": root_prefix,
+        "static_prefix": static_prefix,
+        "tab_prefix": tab_prefix,
+        "xref_href": _xref_href(root_prefix),
     }
     dest = out / rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(_render_template(env, template, ctx), encoding="utf-8")
 
 
-def render(
+def _emit_tab(
+    env: Environment,
+    out: Path,
+    tab: str,
     doc: Document,
+    build_meta: Any,
+) -> dict[str, int]:
+    """Emit one tab's subtree under ``out/<tab>/``.
+
+    Returns the per-tab artefact counts. The build_meta passed in
+    overrides the doc's own metadata for footer rendering (the dashboard
+    publishes a single set of provenance values).
+    """
+    counts = {"index": 0, "sections": 0, "entries": 0, "beyond": 0, "gaps": 0, "json": 0}
+    tab_dir = Path(tab)
+
+    # Inject the shared build_meta so templates pick it up via doc.build_meta.
+    doc.build_meta = build_meta
+
+    # Per-tab data.json export.
+    (out / tab_dir / "data.json").parent.mkdir(parents=True, exist_ok=True)
+    (out / tab_dir / "data.json").write_text(
+        json.dumps(asdict(doc), indent=2), encoding="utf-8"
+    )
+    counts["json"] = 1
+
+    def _prefixes(rel_within_tab: Path) -> tuple[str, str, str]:
+        # Prefix back to the tab's root.
+        root_p = _depth_prefix(rel_within_tab)
+        # Static lives at out/static/ — two levels up from a depth-1 page.
+        # rel_within_tab depth = N, plus 1 for the tab dir itself.
+        depth_total = len(rel_within_tab.parts)
+        static_p = "../" * depth_total
+        # Tab prefix: back to out/.
+        tab_p = static_p
+        return root_p, static_p, tab_p
+
+    # -- per-tab index --------------------------------------------------
+    rel = tab_dir / "index.html"
+    root_p, static_p, tab_p = _prefixes(Path("index.html"))
+    _emit(
+        env, out, rel, "index.html",
+        {
+            "document": doc,
+            "sections": doc.sections,
+            "beyond": doc.beyond,
+            "gaps": doc.gaps,
+            "axiom_anchors": doc.axiom_anchors,
+            "build_meta": build_meta,
+            "tab": tab,
+            "title": f"Auditor — {tab.upper()}",
+            "body": _summary_html(doc),
+        },
+        root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+    )
+    counts["index"] = 1
+
+    # -- per-section + per-entry ---------------------------------------
+    for section in doc.sections:
+        rel_within = Path("sections") / f"{section.id}.html"
+        root_p, static_p, tab_p = _prefixes(rel_within)
+        _emit(
+            env, out, tab_dir / rel_within, "section.html",
+            {
+                "document": doc,
+                "section": section,
+                "entries": section.entries,
+                "build_meta": build_meta,
+                "tab": tab,
+                "title": section.title or section.id,
+                "body": _section_body_html(section),
+            },
+            root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+        )
+        counts["sections"] += 1
+
+        for entry in section.entries:
+            rel_e = Path("entries") / f"{entry.id}.html"
+            root_p, static_p, tab_p = _prefixes(rel_e)
+            _emit(
+                env, out, tab_dir / rel_e, "entry.html",
+                {
+                    "document": doc,
+                    "entry": entry,
+                    "section": section,
+                    "build_meta": build_meta,
+                    "tab": tab,
+                    "title": entry.paper_label,
+                    "body": _entry_body_html(entry),
+                },
+                root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+            )
+            counts["entries"] += 1
+
+    # -- beyond contribs + their entries -------------------------------
+    for contrib in doc.beyond:
+        rel_b = Path("beyond") / f"{contrib.id}.html"
+        root_p, static_p, tab_p = _prefixes(rel_b)
+        _emit(
+            env, out, tab_dir / rel_b, "beyond.html",
+            {
+                "document": doc,
+                "beyond": contrib,         # UI templates name it `beyond`
+                "contrib": contrib,        # legacy alias for the placeholder
+                "entries": contrib.entries,
+                "build_meta": build_meta,
+                "tab": tab,
+                "title": contrib.title,
+                "body": _beyond_body_html(contrib),
+            },
+            root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+        )
+        counts["beyond"] += 1
+        for entry in contrib.entries:
+            rel_e = Path("entries") / f"{entry.id}.html"
+            root_p, static_p, tab_p = _prefixes(rel_e)
+            _emit(
+                env, out, tab_dir / rel_e, "entry.html",
+                {
+                    "document": doc,
+                    "entry": entry,
+                    "section": None,
+                    "contrib": contrib,
+                    "build_meta": build_meta,
+                    "tab": tab,
+                    "title": entry.paper_label,
+                    "body": _entry_body_html(entry),
+                },
+                root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+            )
+            counts["entries"] += 1
+
+    # -- single gaps page ----------------------------------------------
+    rel_g = Path("gaps.html")
+    root_p, static_p, tab_p = _prefixes(rel_g)
+    _emit(
+        env, out, tab_dir / rel_g, "gap.html",
+        {
+            "document": doc,
+            "gaps": doc.gaps,
+            "build_meta": build_meta,
+            "tab": tab,
+            "title": "Not formalised",
+            "body": _gaps_body_html(doc.gaps),
+        },
+        root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+    )
+    counts["gaps"] = len(doc.gaps)
+
+    return counts
+
+
+def render(
+    two: TwoTabDocument,
     out_dir: str | Path,
     *,
     template_dir: str | Path | None = None,
 ) -> dict[str, int]:
-    """Emit the dashboard under ``out_dir``.
+    """Emit the dual-tab dashboard under ``out_dir``.
 
     Returns a counter of artefacts written (``index``, ``sections``,
-    ``entries``, ``beyond``, ``gaps``, ``static``, ``json``).
+    ``entries``, ``beyond``, ``gaps``, ``static``, ``json``, ``tabs``).
+    The counts aggregate both tabs; the root landing and combined
+    ``data.json`` are also included.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
     env = _make_env(Path(template_dir) if template_dir else None)
-    counts = {"index": 0, "sections": 0, "entries": 0, "beyond": 0, "gaps": 0, "json": 0}
+    totals = {
+        "index": 0, "sections": 0, "entries": 0, "beyond": 0,
+        "gaps": 0, "json": 0, "tabs": 0,
+    }
 
     # -- static assets (copied from bundled tree, plus generated pygments.css) -
     static_out = out / "static"
@@ -143,82 +336,36 @@ def render(
     css = HtmlFormatter(cssclass="highlight coq").get_style_defs(".highlight")
     (static_out / "pygments.css").write_text(css, encoding="utf-8")
 
-    # -- data.json (canonical export) ------------------------------------
-    payload = asdict(doc)
-    (out / "data.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    counts["json"] = 1
+    # -- combined data.json ---------------------------------------------
+    (out / "data.json").write_text(
+        json.dumps(two_tab_to_dict(two), indent=2), encoding="utf-8"
+    )
+    totals["json"] += 1
 
-    # -- index -----------------------------------------------------------
-    _emit(env, out, Path("index.html"), "index.html", {
-        "document": doc,
-        "sections": doc.sections,
-        "beyond": doc.beyond,
-        "gaps": doc.gaps,
-        "axiom_anchors": doc.axiom_anchors,
-        "build_meta": doc.build_meta,
-        "title": "Auditor",
-        "body": _summary_html(doc),
-    })
-    counts["index"] = 1
+    # -- root landing (no tab highlighted) ------------------------------
+    # The root landing lives at out/index.html: depth-0 from itself.
+    _emit(
+        env, out, Path("index.html"), "root.html",
+        {
+            "document": two.paper,   # footer macros reach into build_meta etc.
+            "paper": two.paper,
+            "ppl": two.ppl,
+            "build_meta": two.build_meta,
+            "tab": None,
+            "title": "ICones — Auditor",
+            "body": _root_summary_html(two),
+        },
+        root_prefix="", static_prefix="", tab_prefix="",
+    )
 
-    # -- per-section + per-entry ----------------------------------------
-    for section in doc.sections:
-        _emit(env, out, Path("sections") / f"{section.id}.html", "section.html", {
-            "document": doc,
-            "section": section,
-            "entries": section.entries,
-            "build_meta": doc.build_meta,
-            "title": section.title or section.id,
-            "body": _section_body_html(section),
-        })
-        counts["sections"] += 1
+    # -- both tabs ------------------------------------------------------
+    for tab_name, doc in ((TAB_PAPER, two.paper), (TAB_PPL, two.ppl)):
+        per = _emit_tab(env, out, tab_name, doc, two.build_meta)
+        totals["tabs"] += 1
+        for k in ("index", "sections", "entries", "beyond", "gaps", "json"):
+            totals[k] += per[k]
 
-        for entry in section.entries:
-            _emit(env, out, Path("entries") / f"{entry.id}.html", "entry.html", {
-                "document": doc,
-                "entry": entry,
-                "section": section,
-                "build_meta": doc.build_meta,
-                "title": entry.paper_label,
-                "body": _entry_body_html(entry),
-            })
-            counts["entries"] += 1
-
-    # -- beyond contribs + their entries --------------------------------
-    for contrib in doc.beyond:
-        _emit(env, out, Path("beyond") / f"{contrib.id}.html", "beyond.html", {
-            "document": doc,
-            "beyond": contrib,         # UI templates name it `beyond`
-            "contrib": contrib,        # legacy alias for the placeholder
-            "entries": contrib.entries,
-            "build_meta": doc.build_meta,
-            "title": contrib.title,
-            "body": _beyond_body_html(contrib),
-        })
-        counts["beyond"] += 1
-        for entry in contrib.entries:
-            _emit(env, out, Path("entries") / f"{entry.id}.html", "entry.html", {
-                "document": doc,
-                "entry": entry,
-                "section": None,
-                "contrib": contrib,
-                "build_meta": doc.build_meta,
-                "title": entry.paper_label,
-                "body": _entry_body_html(entry),
-            })
-            counts["entries"] += 1
-
-    # -- single gaps page ------------------------------------------------
-    _emit(env, out, Path("gaps.html"), "gap.html", {
-        "document": doc,
-        "gaps": doc.gaps,
-        "build_meta": doc.build_meta,
-        "title": "Not formalised",
-        "body": _gaps_body_html(doc.gaps),
-    })
-    counts["gaps"] = len(doc.gaps)
-
-    return counts
+    return totals
 
 
 # -- small helpers used by the placeholder template -------------------------
@@ -248,6 +395,25 @@ def _summary_html(doc: Document) -> str:
     if doc.gaps:
         rows.append(f'<p><a href="gaps.html">Gaps ({len(doc.gaps)})</a></p>')
     return "\n".join(rows)
+
+
+def _root_summary_html(two: TwoTabDocument) -> str:
+    def _tab_block(label: str, slug: str, doc: Document) -> str:
+        n_entries = sum(len(s.entries) for s in doc.sections) + sum(
+            len(b.entries) for b in doc.beyond
+        )
+        return (
+            f'<section class="tab-card"><h2>{label}</h2>'
+            f"<p>{len(doc.sections)} sections · {len(doc.beyond)} beyond · "
+            f"{len(doc.gaps)} gaps · {n_entries} entries.</p>"
+            f'<p><a class="cta" href="{slug}/index.html">Open {label} →</a></p>'
+            f"</section>"
+        )
+    parts = ['<div class="root-tabs">']
+    parts.append(_tab_block("Paper", "paper", two.paper))
+    parts.append(_tab_block("PPL", "ppl", two.ppl))
+    parts.append("</div>")
+    return "\n".join(parts)
 
 
 def _section_body_html(section: Any) -> str:

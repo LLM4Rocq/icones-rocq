@@ -32,6 +32,7 @@ from pygments.lexers import get_lexer_by_name as _get_lexer_by_name
 from .classifier import DEFAULT_REGRESSION_ANCHORS, classify
 from .coqdoc import CoqdocResolver
 from .schema import (
+    ALL_TABS,
     AxiomAnchors,
     BeyondContrib,
     BuildMeta,
@@ -44,6 +45,9 @@ from .schema import (
     NoteBlock,
     RocqFile,
     Section,
+    TAB_PAPER,
+    TAB_PPL,
+    TwoTabDocument,
 )
 
 
@@ -998,9 +1002,58 @@ def parse_file(
     return doc, warns
 
 
+def parse_two_tabs(
+    *,
+    paper_path: str | Path,
+    ppl_path: str | Path,
+    resolver: CoqdocResolver,
+    project_root: Path,
+    regression_anchors: frozenset[str] = DEFAULT_REGRESSION_ANCHORS,
+    strict: bool = False,
+) -> tuple[TwoTabDocument, list[str]]:
+    """Parse the Paper-tab and PPL-tab Markdown sources.
+
+    Returns a :class:`TwoTabDocument` plus a flat list of warnings.  Each
+    warning is prefixed with ``[paper]`` or ``[ppl]`` so the CLI's strict
+    mode can report which tab tripped the failure.  Strict mode still
+    aborts on the *first* failing tab — we parse PPL only after Paper
+    succeeds (or, in non-strict mode, always parse both).
+    """
+    all_warnings: list[str] = []
+    docs: dict[str, Document] = {}
+    for tab, path in ((TAB_PAPER, paper_path), (TAB_PPL, ppl_path)):
+        doc, warns = parse_file(
+            path,
+            resolver=resolver,
+            project_root=project_root,
+            regression_anchors=regression_anchors,
+            strict=strict,
+        )
+        for w in warns:
+            all_warnings.append(f"[{tab}] {w}")
+        docs[tab] = doc
+        if strict and warns:
+            # Surface the first-tab warnings to the caller; the CLI exits
+            # before bothering with the second tab.  We still record the
+            # current tab's parsed document in case the caller wants it.
+            return (
+                TwoTabDocument(
+                    paper=docs.get(TAB_PAPER, Document(preamble_html="")),
+                    ppl=docs.get(TAB_PPL, Document(preamble_html="")),
+                ),
+                all_warnings,
+            )
+    two = TwoTabDocument(paper=docs[TAB_PAPER], ppl=docs[TAB_PPL])
+    return two, all_warnings
+
+
 __all__ = [
+    "ALL_TABS",
+    "TAB_PAPER",
+    "TAB_PPL",
     "parse",
     "parse_file",
+    "parse_two_tabs",
     "slugify_label",
     "lex",
     "group",

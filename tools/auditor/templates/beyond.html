@@ -17,7 +17,8 @@
 {% block content %}
 <article class="beyond-page"
          data-pagefind-meta="title:{{ beyond.title }}, kind:beyond"
-         data-pagefind-filter="status:beyond-paper">
+         data-pagefind-filter="status:beyond-paper{% if tab %}, tab:{{ tab }}{% endif %}">
+  {% if tab %}<span hidden data-pagefind-filter="tab">{{ tab }}</span>{% endif %}
   <header class="entry-hero">
     <p class="eyebrow mono">Beyond the paper{% if beyond.paper_refs %} · {{ beyond.paper_refs|join(', ') }}{% endif %}</p>
     <h1>{{ beyond.title }}</h1>

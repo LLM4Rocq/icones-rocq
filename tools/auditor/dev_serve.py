@@ -7,6 +7,10 @@ Usage:
 When invoked without arguments, expects a data.json on stdin or at
 `tools/auditor/_dev_data.json`. The output directory defaults to
 `_site/auditor/`. The static/ tree is copied verbatim alongside templates.
+
+The script auto-detects whether the payload is the dual-tab shape
+(``{"paper": ..., "ppl": ...}``) or the legacy single-Document shape and
+emits accordingly.
 """
 
 from __future__ import annotations
@@ -38,69 +42,142 @@ def xref_href(prefix: str):
         if kind == "beyond":
             return f"{prefix}beyond/{tgt}.html"
         if kind == "blueprint":
-            return f"../blueprint/web/{tgt}"
+            return f"{prefix}../../blueprint/web/{tgt}"
         return "#" + tgt
     return _h
 
 
-def build(data: dict, out_dir: Path) -> None:
+def _is_two_tab(data: dict) -> bool:
+    return "paper" in data and "ppl" in data and "sections" not in data
+
+
+def _make_env() -> Environment:
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATES)),
         autoescape=select_autoescape(["html", "xml"]),
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    # selectattr(..., 'contains', 'x') — convenient for testing list membership.
     env.tests["contains"] = lambda seq, item: item in (seq or [])
+    return env
 
+
+def _set_prefixes(env: Environment, root_prefix: str, static_prefix: str,
+                  tab_prefix: str) -> dict:
+    env.globals["root_prefix"] = root_prefix
+    env.globals["static_prefix"] = static_prefix
+    env.globals["tab_prefix"] = tab_prefix
+    env.globals["xref_href"] = xref_href(root_prefix)
+    return {
+        "root_prefix": root_prefix,
+        "static_prefix": static_prefix,
+        "tab_prefix": tab_prefix,
+        "xref_href": xref_href(root_prefix),
+    }
+
+
+def _render_tab(env: Environment, out_dir: Path, tab: str, data: dict,
+                build_meta: dict) -> None:
+    """Render one tab subtree under ``out_dir/<tab>/``."""
+    tab_dir = out_dir / tab
+    # Inject shared build_meta onto the doc.
+    data = {**data, "build_meta": build_meta}
+
+    base_ctx = {"document": data, "tab": tab, "build_meta": build_meta}
+
+    def render(template_name: str, dest: Path, ctx: dict) -> None:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        rel_to_tab = dest.relative_to(tab_dir)
+        depth_in_tab = len(rel_to_tab.parts) - 1
+        depth_total = len(rel_to_tab.parts)
+        root_prefix = "../" * depth_in_tab if depth_in_tab else ""
+        static_prefix = "../" * depth_total
+        tab_prefix = static_prefix
+        prefixes = _set_prefixes(env, root_prefix, static_prefix, tab_prefix)
+        ctx = {**ctx, **prefixes}
+        html = env.get_template(template_name).render(**ctx)
+        dest.write_text(html, encoding="utf-8")
+
+    # Per-tab data.json export.
+    (tab_dir).mkdir(parents=True, exist_ok=True)
+    (tab_dir / "data.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    render("index.html", tab_dir / "index.html", base_ctx)
+    for section in data.get("sections", []):
+        render("section.html", tab_dir / "sections" / f"{section['id']}.html",
+               {**base_ctx, "section": section})
+        for entry in section["entries"]:
+            render("entry.html", tab_dir / "entries" / f"{entry['id']}.html",
+                   {**base_ctx, "section": section, "entry": entry})
+    for b in data.get("beyond", []):
+        render("beyond.html", tab_dir / "beyond" / f"{b['id']}.html",
+               {**base_ctx, "beyond": b})
+        for entry in b.get("entries", []):
+            # beyond.entries from dev_mock are summary dicts without an `id`;
+            # skip rendering individual entry pages for them.
+            if "id" not in entry:
+                continue
+            render("entry.html", tab_dir / "entries" / f"{entry['id']}.html",
+                   {**base_ctx, "section": None, "contrib": b, "entry": entry})
+    render("gap.html", tab_dir / "gaps.html",
+           {**base_ctx, "gaps": data.get("gaps", [])})
+
+
+def build(data: dict, out_dir: Path) -> None:
+    env = _make_env()
     out_dir.mkdir(parents=True, exist_ok=True)
-    # Copy static assets.
     static_out = out_dir / "static"
     if static_out.exists():
         shutil.rmtree(static_out)
     shutil.copytree(STATIC, static_out)
 
+    if _is_two_tab(data):
+        build_meta = data.get("build_meta", {})
+        # Combined data.json at the site root.
+        (out_dir / "data.json").write_text(
+            json.dumps(data, indent=2), encoding="utf-8"
+        )
+        # Root landing.
+        prefixes = _set_prefixes(env, "", "", "")
+        root_ctx = {
+            "document": data.get("paper", {}),
+            "paper": data["paper"],
+            "ppl": data["ppl"],
+            "build_meta": build_meta,
+            "tab": None,
+            **prefixes,
+        }
+        (out_dir / "index.html").write_text(
+            env.get_template("root.html").render(**root_ctx),
+            encoding="utf-8",
+        )
+        _render_tab(env, out_dir, "paper", data["paper"], build_meta)
+        _render_tab(env, out_dir, "ppl", data["ppl"], build_meta)
+        return
+
+    # Legacy single-tab payload: render at the root for back-compat.
+    build_meta = data.get("build_meta", {})
+    prefixes = _set_prefixes(env, "", "", "")
+    base_ctx = {"document": data, "tab": None, "build_meta": build_meta, **prefixes}
+
     def render(template_name: str, dest: Path, ctx: dict) -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        # `root_prefix` and `static_prefix` are relative paths back to the
-        # site root from `dest`, so the static layout works both when served
-        # from a subdirectory and when opened via file://.
         depth = len(dest.relative_to(out_dir).parts) - 1
         prefix = "../" * depth if depth else ""
-        # Patch the env globals so macros see the helpers without us having
-        # to thread them through every macro call. Render is single-threaded.
-        env.globals["root_prefix"] = prefix
-        env.globals["static_prefix"] = prefix
-        env.globals["xref_href"] = xref_href(prefix)
-        ctx = {
-            **ctx,
-            "root_prefix": prefix,
-            "static_prefix": prefix,
-            "xref_href": xref_href(prefix),
-        }
-        html = env.get_template(template_name).render(**ctx)
+        prefixes = _set_prefixes(env, prefix, prefix, prefix)
+        html = env.get_template(template_name).render(**{**ctx, **prefixes})
         dest.write_text(html, encoding="utf-8")
 
-    base_ctx = {"document": data}
-
-    # Index.
     render("index.html", out_dir / "index.html", base_ctx)
-
-    # Section pages.
     for section in data["sections"]:
         render("section.html", out_dir / "sections" / f"{section['id']}.html",
                {**base_ctx, "section": section})
-        # Per-entry pages.
         for entry in section["entries"]:
             render("entry.html", out_dir / "entries" / f"{entry['id']}.html",
                    {**base_ctx, "section": section, "entry": entry})
-
-    # Beyond pages.
     for b in data.get("beyond", []):
         render("beyond.html", out_dir / "beyond" / f"{b['id']}.html",
                {**base_ctx, "beyond": b})
-
-    # Single gap page.
     render("gap.html", out_dir / "gaps.html",
            {**base_ctx, "gaps": data.get("gaps", [])})
 

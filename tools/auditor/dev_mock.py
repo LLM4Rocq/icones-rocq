@@ -2,7 +2,8 @@
 """Emit a synthetic data.json matching the auditor schema.
 
 Used by dev_serve.py while the real parser/builder (sibling agent) is in
-flight. Three sections, five entries each, two beyond contribs, three gaps.
+flight. The default output is the dual-tab document (Paper + PPL); pass
+``--single`` for the legacy single-Document payload.
 """
 
 from __future__ import annotations
@@ -73,7 +74,7 @@ def _entry(eid, label, kind, num, sect, status, idents, files, statement,
     }
 
 
-def make_document() -> dict:
+def make_paper_document() -> dict:
     section_2 = {
         "id": "sec-2-cones",
         "paper_section": "Cones",
@@ -351,8 +352,136 @@ def make_document() -> dict:
     }
 
 
-def main() -> int:
-    json.dump(make_document(), sys.stdout, indent=2, ensure_ascii=False)
+def make_ppl_document() -> dict:
+    """Top-down PPL narrative: a few story sections + 'examples' beyond."""
+    sec_cbv = {
+        "id": "sec-cbv",
+        "paper_section": "CBV core",
+        "paper_section_number": "CBV",
+        "title": "Call-by-value core",
+        "intro_html": "<p>A Moggi-style call-by-value calculus on top of the "
+                      "Eilenberg-Moore category of the <code>!</code> comonad.</p>",
+        "entries": [
+            _entry(
+                "ppl-cbv-types", "CBV types", "Story", None, "sec-cbv",
+                ["axiom-free"],
+                ["cbv_type", "cbv_denot"],
+                [_file("theories/programs/cbv.v")],
+                "<p>Object types <code>tunit · tbase · tprod · tfun · tbool</code> "
+                "with a single <em>denotation</em> functor into ICones.</p>",
+            ),
+            _entry(
+                "ppl-cbv-fix", "Value fixpoint", "Story", None, "sec-cbv",
+                ["axiom-free"],
+                ["Yfix_fun_T", "linhom_lfp"],
+                [_file("theories/programs/infra/em_fix.v")],
+                "<p>The CBV value-fixpoint at function types — packaged via "
+                "<code>adj_psi</code> of the <code>linhom_lfp</code>.</p>",
+            ),
+        ],
+        "notes_html": "",
+    }
+    sec_recur = {
+        "id": "sec-rec",
+        "paper_section": "Recursion",
+        "paper_section_number": "Rec",
+        "title": "Productive partiality",
+        "intro_html": "<p>The Phase-4 examples: bare divergence, geometric mass 1, "
+                      "and the parameterised almost-loop.</p>",
+        "entries": [
+            _entry(
+                "ppl-loop", "ex_loop", "Example", None, "sec-rec",
+                ["axiom-free"],
+                ["ex_loop"],
+                [_file("theories/programs/examples/loop.v")],
+                "<p>Bare divergence — every iterate has mass 0.</p>",
+            ),
+            _entry(
+                "ppl-geom", "ex_geom", "Example", None, "sec-rec",
+                ["axiom-free", "regression-anchor"],
+                ["ex_geom", "ex_geom_arr_mass_one"],
+                [_file("theories/programs/examples/geom.v")],
+                "<p>Geometric — mass 1 in the limit.</p>",
+                snippets=[_snippet("theories/programs/examples/geom.v", None,
+                    "Lemma ex_geom_arr_mass_one : cone_mass ex_geom_arr = 1.\n"
+                    "Proof. by apply: geom_mass_lim. Qed.")],
+            ),
+        ],
+        "notes_html": "",
+    }
+    return {
+        "preamble_html":
+            "<p>Top-down narrative of the direct-style PPL.  Each section "
+            "covers a piece of the surface calculus and its ICones denotation.</p>",
+        "sections": [sec_cbv, sec_recur],
+        "beyond": [
+            {
+                "id": "ppl-examples",
+                "title": "Worked PPL programs",
+                "subtitle": "Programs and their denotational masses.",
+                "paper_refs": [],
+                "lemma_count": 11,
+                "html": "<p>Examples beyond the paper proper.</p>",
+                "entries": [
+                    {"label": "Random constant",
+                     "rocq_idents": ["ex_random_constant"],
+                     "rocq_files": [_file("theories/programs/ppl.v")]},
+                    {"label": "Bayesian linear",
+                     "rocq_idents": ["ex_bayes_linear"],
+                     "rocq_files": [_file("theories/programs/ppl.v")]},
+                ],
+                "snippets": [],
+                "references": [],
+            },
+        ],
+        "gaps": [],
+        "verify_instructions_html":
+            "<p>Reuse the paper-tab verify pipeline; the PPL examples "
+            "compile from the same <code>_CoqProject</code>.</p>",
+        "axiom_anchors": {
+            "regression": "Icones.programs.examples.geom.ex_geom_arr_mass_one",
+            "headlines": ["Icones.programs.ppl.ex_random_constant"],
+        },
+        "build_meta": {
+            "commit": "deadbeefcafe1234567890abcdef0000000000",
+            "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+            "auditor_lines": 1421,
+            "repo": GH,
+        },
+    }
+
+
+def make_two_tab_document() -> dict:
+    """Combined dual-tab dashboard payload (Paper + PPL)."""
+    paper = make_paper_document()
+    ppl = make_ppl_document()
+    return {
+        "paper": paper,
+        "ppl": ppl,
+        "build_meta": {
+            "commit": "deadbeefcafe1234567890abcdef0000000000",
+            "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+            "auditor_lines": paper["build_meta"]["auditor_lines"]
+                              + ppl["build_meta"]["auditor_lines"],
+            "repo": GH,
+        },
+    }
+
+
+# Back-compat alias for callers that still expect the old single-Document
+# entry point.
+make_document = make_paper_document
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--single", action="store_true",
+                    help="emit a single-tab Document (paper only) instead "
+                         "of the dual-tab payload.")
+    args = ap.parse_args(argv)
+    payload = make_paper_document() if args.single else make_two_tab_document()
+    json.dump(payload, sys.stdout, indent=2, ensure_ascii=False)
     sys.stdout.write("\n")
     return 0
 
