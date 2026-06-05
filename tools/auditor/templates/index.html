@@ -1,11 +1,19 @@
 {% extends "base.html" %}
 {% from "_macros.html" import status_badge %}
 
-{% block title %}Icones — Paper-to-Rocq correspondence{% endblock %}
-{% block body_class_extra %} page-index{% endblock %}
+{% block title %}Icones — {{ (tab or 'auditor')|capitalize }} tab{% endblock %}
+{% block body_class_extra %} page-index page-index-{{ tab or 'root' }}{% endblock %}
 
 {% block content %}
 <section class="hero">
+  {% if tab == 'ppl' %}
+  <h1>Probabilistic programming layer</h1>
+  <p class="lede">
+    Top-down narrative of the direct-style PPL: CBV/CBN core, value
+    fixpoint, boolean cascade, productive partial termination — all
+    axiom-free, all referencing back into the §§ formalisation.
+  </p>
+  {% else %}
   <h1>Paper-to-Rocq correspondence</h1>
   <p class="lede">
     Interactive index for the Rocq formalisation of Ehrhard &amp; Geoffroy,
@@ -14,6 +22,7 @@
     counterpart, with status badges, GitHub deep-links, and inline
     proof-script snippets.
   </p>
+  {% endif %}
   <div class="preamble">{{ document.preamble_html|safe }}</div>
 </section>
 

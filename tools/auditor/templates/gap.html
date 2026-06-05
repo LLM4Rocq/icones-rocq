@@ -28,7 +28,8 @@
   <article class="gap-entry"
            id="{{ g.id }}"
            data-pagefind-meta="title:{{ g.title }}, kind:gap"
-           data-pagefind-filter="status:gap">
+           data-pagefind-filter="status:gap{% if tab %}, tab:{{ tab }}{% endif %}">
+    {% if tab %}<span hidden data-pagefind-filter="tab">{{ tab }}</span>{% endif %}
     <header class="gap-head">
       <h2>
         <a class="anchor" href="#{{ g.id }}" aria-label="Permalink">¶</a>

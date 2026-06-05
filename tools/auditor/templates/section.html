@@ -52,7 +52,7 @@
 <div class="entries">
   {% if section.entries %}
   {% for entry in section.entries %}
-  {{ entry_card(entry, section) }}
+  {{ entry_card(entry, section, tab=tab) }}
   {% endfor %}
   {% else %}
   <p class="empty">No entries in this section yet.</p>

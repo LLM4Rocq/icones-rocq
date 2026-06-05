@@ -16,7 +16,7 @@
 
 <header class="site-header" role="banner">
   <div class="header-row">
-    <a class="brand" href="{{ root_prefix }}index.html">
+    <a class="brand" href="{{ tab_prefix }}index.html">
       <span class="brand-mark" aria-hidden="true">∫</span>
       <span class="brand-text">
         <strong>ICones</strong>
@@ -24,9 +24,19 @@
       </span>
     </a>
     <nav class="pill-nav" aria-label="External resources">
-      <a class="pill" href="../blueprint/web/index.html">Blueprint</a>
-      <a class="pill" href="../coqdoc/toc.html">Docs</a>
+      <a class="pill" href="{{ tab_prefix }}../blueprint/web/index.html">Blueprint</a>
+      <a class="pill" href="{{ tab_prefix }}../coqdoc/toc.html">Docs</a>
       <a class="pill" href="https://github.com/{{ document.build_meta.repo|default('icones/icones') }}">GitHub</a>
+    </nav>
+  </div>
+  <div class="header-row tab-row">
+    <nav class="tab-nav" aria-label="Dashboard tabs">
+      <a class="tab-chip tab-chip-paper{% if tab == 'paper' %} is-active{% endif %}"
+         href="{{ tab_prefix }}paper/index.html"
+         {% if tab == 'paper' %}aria-current="page"{% endif %}>Paper</a>
+      <a class="tab-chip tab-chip-ppl{% if tab == 'ppl' %} is-active{% endif %}"
+         href="{{ tab_prefix }}ppl/index.html"
+         {% if tab == 'ppl' %}aria-current="page"{% endif %}>PPL</a>
     </nav>
   </div>
   <div class="header-row search-row">
@@ -43,8 +53,8 @@
   <div class="footer-grid">
     <div>
       <strong>Icones</strong> — Paper-to-Rocq correspondence dashboard.
-      <br>Mirrors <code>AUDITOR.md</code>
-      ({{ document.build_meta.auditor_lines }} lines) built from commit
+      <br>Mirrors <code>docs/PAPER.md</code> + <code>docs/PPL.md</code>
+      ({{ document.build_meta.auditor_lines }} lines combined) built from commit
       <a class="mono" href="https://github.com/{{ document.build_meta.repo|default('icones/icones') }}/commit/{{ document.build_meta.commit }}">
         <code>{{ document.build_meta.commit[:12] }}</code></a>
       at <time datetime="{{ document.build_meta.built_at }}">{{ document.build_meta.built_at }}</time>.

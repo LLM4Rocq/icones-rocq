@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Icones — Auditor dashboard{% endblock %}
+{% block body_class_extra %} page-root{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Paper-to-Rocq correspondence</h1>
+  <p class="lede">
+    Interactive index for the Rocq formalisation of Ehrhard &amp; Geoffroy,
+    <em>Integration in Cones</em> (LMCS 21(1:1), 2025), and the
+    direct-style probabilistic programming layer built on top.
+    Pick a tab to start exploring.
+  </p>
+</section>
+
+<section class="section-block">
+  <div class="card-grid root-tab-grid">
+    {% set p_entries = paper.sections|sum(attribute='entries', start=[]) + paper.beyond|sum(attribute='entries', start=[]) %}
+    {% set l_entries = ppl.sections|sum(attribute='entries', start=[]) + ppl.beyond|sum(attribute='entries', start=[]) %}
+    <a class="card root-tab-card root-tab-paper" href="paper/index.html">
+      <div class="card-top">
+        <span class="card-eyebrow mono">Tab · paper</span>
+        <h2 class="card-title">Paper</h2>
+      </div>
+      <p class="lede">
+        Definition-by-definition map from the paper's §§ 2 – 9 into the
+        Rocq library. Status badges show the axiom budget per item.
+      </p>
+      <p class="card-stats">
+        <strong>{{ paper.sections|length }}</strong> sections ·
+        <strong>{{ paper.beyond|length }}</strong> beyond ·
+        <strong>{{ paper.gaps|length }}</strong> gaps ·
+        <strong>{{ p_entries|length }}</strong> entries.
+      </p>
+      <p class="card-cta">Open Paper tab →</p>
+    </a>
+    <a class="card root-tab-card root-tab-ppl" href="ppl/index.html">
+      <div class="card-top">
+        <span class="card-eyebrow mono">Tab · ppl</span>
+        <h2 class="card-title">PPL</h2>
+      </div>
+      <p class="lede">
+        Top-down narrative of the probabilistic programming layer:
+        Moggi-CBV, direct-style QBS-mirror, value fixpoint, boolean
+        cascade, productive partial termination.
+      </p>
+      <p class="card-stats">
+        <strong>{{ ppl.sections|length }}</strong> sections ·
+        <strong>{{ ppl.beyond|length }}</strong> beyond ·
+        <strong>{{ ppl.gaps|length }}</strong> gaps ·
+        <strong>{{ l_entries|length }}</strong> entries.
+      </p>
+      <p class="card-cta">Open PPL tab →</p>
+    </a>
+  </div>
+</section>
+
+<section class="section-block verify-block">
+  <header class="section-block-head">
+    <h2>Build provenance</h2>
+  </header>
+  <p>
+    Both tabs were built from commit
+    <a class="mono" href="https://github.com/{{ build_meta.repo|default('icones/icones') }}/commit/{{ build_meta.commit }}"><code>{{ build_meta.commit[:12] }}</code></a>
+    at <time datetime="{{ build_meta.built_at }}">{{ build_meta.built_at }}</time>.
+  </p>
+</section>
+{% endblock %}

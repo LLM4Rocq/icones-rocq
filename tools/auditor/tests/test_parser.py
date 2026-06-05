@@ -22,10 +22,12 @@ from tools.auditor.classifier import classify, DEFAULT_REGRESSION_ANCHORS
 from tools.auditor.coqdoc import CoqProjectBinding, CoqdocResolver, parse_coqproject
 from tools.auditor.parser import (
     parse,
+    parse_two_tabs,
     slugify_label,
     _classify_paper_label_kind,  # noqa: PLC2701 — tested intentionally
     _split_table_row,  # noqa: PLC2701
 )
+from tools.auditor.schema import TAB_PAPER, TAB_PPL, TwoTabDocument, two_tab_to_dict
 
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -234,12 +236,18 @@ def test_strict_warns_on_missing_file(parse_md):
 
 
 def test_full_document_smoke():
-    """Smoke test: parse the real AUDITOR.md and assert plausible counts."""
-    auditor_path = ROOT.parent / "AUDITOR.md"
-    if not auditor_path.is_file():
-        pytest.skip("AUDITOR.md not present in this checkout")
+    """Smoke test: parse the real docs/PAPER.md and assert plausible counts.
+
+    Falls back to the legacy ``AUDITOR.md`` while the two-MD split is in
+    flight (the orchestrator stream owns the actual content move).
+    """
+    paper_path = ROOT.parent / "docs" / "PAPER.md"
+    legacy_path = ROOT.parent / "AUDITOR.md"
+    src_path = paper_path if paper_path.is_file() else legacy_path
+    if not src_path.is_file():
+        pytest.skip("neither docs/PAPER.md nor AUDITOR.md present in this checkout")
     doc, _ = parse(
-        auditor_path.read_text(encoding="utf-8"),
+        src_path.read_text(encoding="utf-8"),
         resolver=_resolver(),
         project_root=ROOT.parent,
         strict=False,
@@ -256,3 +264,74 @@ def test_full_document_smoke():
     assert any(
         "regression-anchor" in e.status for s in doc.sections for e in s.entries
     )
+
+
+# -- two-tab orchestrator tests --------------------------------------------
+
+
+def test_parse_two_tabs_basic(tmp_path):
+    """Both tabs parsed independently; output is a TwoTabDocument."""
+    paper = GOLDEN / "01_simple_3col.md"
+    ppl = GOLDEN / "02_two_col_beyond.md"
+    two, warns = parse_two_tabs(
+        paper_path=paper,
+        ppl_path=ppl,
+        resolver=_resolver(),
+        project_root=tmp_path,
+        strict=False,
+    )
+    assert isinstance(two, TwoTabDocument)
+    # Paper tab carries a §2 section with two entries.
+    assert len(two.paper.sections) == 1
+    assert len(two.paper.sections[0].entries) == 2
+    # PPL tab carries no §-sections but at least one Beyond contrib.
+    assert two.ppl.sections == []
+    assert len(two.ppl.beyond) >= 1
+    # tab() helper round-trips.
+    assert two.tab(TAB_PAPER) is two.paper
+    assert two.tab(TAB_PPL) is two.ppl
+    # Combined data.json export carries both tabs.
+    payload = two_tab_to_dict(two)
+    assert set(payload) == {"paper", "ppl", "build_meta"}
+    assert payload["paper"]["sections"][0]["id"].startswith("sec-")
+
+
+def test_parse_two_tabs_strict_prefixes_warnings(tmp_path):
+    """Strict warnings are prefixed with the tab they came from."""
+    paper = GOLDEN / "01_simple_3col.md"
+    ppl = GOLDEN / "02_two_col_beyond.md"
+    two, warns = parse_two_tabs(
+        paper_path=paper,
+        ppl_path=ppl,
+        resolver=_resolver(),
+        project_root=tmp_path,  # off-disk → both tabs warn about missing files
+        strict=True,
+    )
+    # Strict mode bails on the first failing tab — Paper goes first.
+    assert any(w.startswith("[paper]") for w in warns)
+    # PPL parse is skipped after the first failure under strict mode,
+    # so the PPL document is the empty default.
+    assert two.ppl.sections == [] and two.ppl.beyond == []
+
+
+def test_parse_two_tabs_independent_status(tmp_path):
+    """Statuses on Paper entries are not contaminated by PPL parsing."""
+    paper = GOLDEN / "07_regression_anchor.md"  # contains Thm 6.5
+    ppl = GOLDEN / "02_two_col_beyond.md"        # all beyond-paper
+    two, _ = parse_two_tabs(
+        paper_path=paper,
+        ppl_path=ppl,
+        resolver=_resolver(),
+        project_root=tmp_path,
+        strict=False,
+    )
+    # Paper retains its regression anchor.
+    p_statuses = [
+        s for sec in two.paper.sections for e in sec.entries for s in e.status
+    ]
+    assert "regression-anchor" in p_statuses
+    # PPL contains only beyond-paper rows.
+    l_statuses = [
+        s for b in two.ppl.beyond for e in b.entries for s in e.status
+    ]
+    assert l_statuses and all(s == "beyond-paper" for s in l_statuses)

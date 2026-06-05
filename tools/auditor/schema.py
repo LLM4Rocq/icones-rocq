@@ -148,12 +148,58 @@ class Document:
     )
 
 
+# -- two-tab top level ------------------------------------------------------
+
+
+# String literals used as tab identifiers (URL slug + ctx field).
+TAB_PAPER = "paper"
+TAB_PPL = "ppl"
+ALL_TABS = (TAB_PAPER, TAB_PPL)
+
+
+@dataclass
+class TwoTabDocument:
+    """Top-level dashboard document: a Paper tab + a PPL tab.
+
+    Each tab is an independent :class:`Document`. ``build_meta`` is shared
+    (provenance is per build, not per tab) and supersedes any per-Document
+    ``build_meta`` for footer rendering / data export.
+    """
+
+    paper: Document
+    ppl: Document
+    build_meta: BuildMeta = field(
+        default_factory=lambda: BuildMeta(commit="", built_at="", auditor_lines=0)
+    )
+
+    def tab(self, name: str) -> Document:
+        """Return the Document for the requested tab string."""
+        if name == TAB_PAPER:
+            return self.paper
+        if name == TAB_PPL:
+            return self.ppl
+        raise KeyError(f"unknown tab {name!r} (expected one of {ALL_TABS})")
+
+
 # -- serialisation ----------------------------------------------------------
 
 
 def to_dict(doc: Document) -> dict[str, Any]:
     """Convert a Document to a plain JSON-serialisable dict."""
     return asdict(doc)
+
+
+def two_tab_to_dict(doc: TwoTabDocument) -> dict[str, Any]:
+    """Convert a TwoTabDocument to a plain JSON-serialisable dict.
+
+    The combined export carries one entry per tab plus the shared build
+    metadata at the top level.
+    """
+    return {
+        "paper": asdict(doc.paper),
+        "ppl": asdict(doc.ppl),
+        "build_meta": asdict(doc.build_meta),
+    }
 
 
 def from_dict(payload: dict[str, Any]) -> Document:

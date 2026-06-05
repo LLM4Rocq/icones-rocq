@@ -21,7 +21,7 @@
     <h1>{{ entry.paper_label }}</h1>
   </header>
 
-  {{ entry_card(entry, section, expanded=True) }}
+  {{ entry_card(entry, section, expanded=True, tab=tab) }}
 
   <nav class="prev-next" aria-label="Entry navigation within section">
     {% set idx = section.entries.index(entry) if entry in section.entries else -1 %}

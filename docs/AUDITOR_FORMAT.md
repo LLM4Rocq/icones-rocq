@@ -1,8 +1,46 @@
-# AUDITOR.md format — the parser's contract
+# Auditor MD format — the parser's contract
 
 This document describes the structural conventions that
-[`tools/build_auditor.py`](../tools/build_auditor.py) expects in
-`AUDITOR.md`, and the JSON schema it emits at `site/auditor/data.json`.
+[`tools/build_auditor.py`](../tools/build_auditor.py) expects in its
+**two** input files — `docs/PAPER.md` and `docs/PPL.md` — and the JSON
+schema it emits at `site/auditor/data.json`.
+
+## Two-tab model (since 2026-06)
+
+The dashboard renders two **tabs**:
+
+- **Paper** — sourced from `docs/PAPER.md`, definition-by-definition map
+  from the paper's §§ 2 – 9 into Rocq.
+- **PPL**   — sourced from `docs/PPL.md`, top-down narrative of the
+  direct-style PPL on top of the !-coalgebra structure.
+
+Each MD file uses the *same* per-document format described below (H2
+chapters, overview tables, H3 detail blocks, snippets, blockquotes).
+The two-tab orchestrator
+([`parse_two_tabs`](../tools/auditor/parser.py)) wraps the per-file
+parser; warnings are tagged with `[paper]` / `[ppl]` so the CLI's
+`--strict` mode can attribute failures.
+
+The output tree is split under two subdirectories with shared static
+assets:
+
+```
+site/auditor/index.html              dual-tab landing
+site/auditor/data.json               combined JSON ({paper, ppl, build_meta})
+site/auditor/static/                 shared CSS/JS/Pygments
+site/auditor/paper/index.html        Paper-tab landing
+site/auditor/paper/sections/<id>.html
+site/auditor/paper/entries/<id>.html
+site/auditor/paper/beyond/<id>.html
+site/auditor/paper/gaps.html
+site/auditor/paper/data.json         Paper-only export
+site/auditor/ppl/...                 mirror of the above for the PPL tab
+```
+
+Every per-tab page carries a tab-nav row in the header
+(`Paper`/`PPL` chips); the active tab gets `aria-current="page"`.
+The root landing renders both chips unhighlighted plus a dual-tab
+summary grid.
 
 ## Markdown structure
 
@@ -61,7 +99,10 @@ This document describes the structural conventions that
 ## JSON schema (the contract with the UI agent)
 
 See [`tools/auditor/schema.py`](../tools/auditor/schema.py) for the
-dataclasses.  Top-level:
+dataclasses.
+
+Per-tab `Document` shape (one of these per tab; written to
+`site/auditor/<tab>/data.json`):
 
 ```jsonc
 {
@@ -72,6 +113,16 @@ dataclasses.  Top-level:
   "verify_instructions_html": "<p>...</p>",
   "axiom_anchors":  {"regression": "Thm 6.5", "headlines": ["thm-6-5", ...]},
   "build_meta":     {"commit": "...", "built_at": "...", "auditor_lines": 2352}
+}
+```
+
+Combined `TwoTabDocument` shape (written to `site/auditor/data.json`):
+
+```jsonc
+{
+  "paper":      { ...Document... },
+  "ppl":        { ...Document... },
+  "build_meta": {"commit": "...", "built_at": "...", "auditor_lines": 3773}
 }
 ```
 
@@ -111,8 +162,9 @@ priority.
 
 ```
 python tools/build_auditor.py \\
-    --input AUDITOR.md \\
-    --out site/auditor/ \\
+    --paper docs/PAPER.md \\
+    --ppl   docs/PPL.md \\
+    --out   site/auditor/ \\
     --coqproject _CoqProject \\
     --github-repo $GITHUB_REPOSITORY \\
     --commit $GITHUB_SHA \\
@@ -132,21 +184,25 @@ if any of these conditions trigger:
 
 ```
 site/auditor/
-├── index.html
-├── data.json
-├── section/
-│   ├── sec-2/index.html
-│   ├── ...
-│   └── sec-9/index.html
-├── entry/
-│   ├── def-2-1/index.html
-│   └── ... (one per entry slug)
-├── beyond/
-│   ├── beyond-mechanisation-of-the-special-adjoint-functor-theorem/index.html
-│   └── ...
-├── gap/
-│   ├── gap-sec-8/index.html
-│   └── ...
-└── static/
-    └── pygments.css
+├── index.html                       dual-tab landing
+├── data.json                        combined {paper, ppl, build_meta}
+├── static/
+│   ├── style.css
+│   ├── print.css
+│   ├── app.js
+│   └── pygments.css
+├── paper/
+│   ├── index.html                   Paper-tab landing
+│   ├── data.json                    paper-only export
+│   ├── sections/sec-2.html
+│   ├── entries/def-2-1.html
+│   ├── beyond/<id>.html
+│   └── gaps.html
+└── ppl/
+    ├── index.html                   PPL-tab landing
+    ├── data.json                    ppl-only export
+    ├── sections/<id>.html
+    ├── entries/<id>.html
+    ├── beyond/<id>.html
+    └── gaps.html
 ```

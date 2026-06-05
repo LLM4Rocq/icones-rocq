@@ -33,14 +33,17 @@
 </span>
 {%- endmacro %}
 
-{% macro entry_card(entry, section, expanded=False) -%}
+{% macro entry_card(entry, section, expanded=False, tab=None) -%}
+{# `tab` is forwarded into the Pagefind filter set so users can scope a
+   search to a single tab. Defaults to None for back-compat. #}
 <article class="entry"
          id="{{ entry.id }}"
          data-status="{{ entry.status|join(' ') }}"
-         data-pagefind-meta="title:{{ entry.paper_label }}, section:{{ section.paper_section_number }}"
-         data-pagefind-filter="status:{{ entry.status|join(', status:') }}">
+         data-pagefind-meta="title:{{ entry.paper_label }}, section:{{ section.paper_section_number if section else '' }}"
+         data-pagefind-filter="status:{{ entry.status|join(', status:') }}{% if tab %}, tab:{{ tab }}{% endif %}">
   {# Per-status spans give Pagefind individual values to index for status. #}
   {% for s in entry.status %}<span hidden data-pagefind-filter="status">{{ s }}</span>{% endfor %}
+  {% if tab %}<span hidden data-pagefind-filter="tab">{{ tab }}</span>{% endif %}
   <header class="entry-head">
     <h3 class="entry-title">
       <a class="anchor" href="#{{ entry.id }}" aria-label="Permalink">¶</a>
