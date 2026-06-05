@@ -259,7 +259,8 @@ def test_full_document_smoke():
         len(b.entries) for b in doc.beyond
     )
     # Expected ballpark: ~80 entries.
-    assert 70 <= n_entries <= 120, f"got {n_entries}"
+    # Expected ~66 entries after AUDITOR.md → PAPER.md split (~80 legacy).
+    assert 60 <= n_entries <= 120, f"got {n_entries}"
     # Regression anchor is present.
     assert any(
         "regression-anchor" in e.status for s in doc.sections for e in s.entries

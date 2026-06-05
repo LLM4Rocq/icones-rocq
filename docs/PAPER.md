@@ -1275,7 +1275,7 @@ Definition FMeas_fmap (X Y : ar_obj Ar) (φ : ar_hom Ar X Y) :
 
 ---
 
-## Paper-cited meta-theorems — mechanised in full
+## Beyond the paper — paper-cited meta-theorems we mechanised in full
 
 The paper *cites* a number of categorical / linear-logic results as black
 boxes (SAFT, Lack's lifting, Mellies §7.4 Prop 28 / Cor 20 / Prop 29) which
