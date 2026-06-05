@@ -190,3 +190,29 @@ proofs, mirroring the Rocq sources. The development is
 three classical-logic axioms inherited from \texttt{mathcomp-analysis},
 with \emph{zero} project axioms; see each chapter's closing ``Status''
 section for the precise per-chapter axiom budget.
+
+\paragraph{Alternative entry point: the auditor dashboard.}
+A complementary, interactive way to browse the formalisation is the
+\textbf{auditor dashboard}, with two tabs:
+\begin{itemize}
+    \item the \textbf{Paper tab}
+    (\url{https://llm4rocq.github.io/icones-rocq/auditor/paper/}) gives
+    a paper-to-Rocq correspondence for \S\S2--9 plus the paper-cited
+    meta-theorems we had to mechanise (SAFT, Melli\`es \S7.4 Prop 28 /
+    Cor 20, the LNL adjunction);
+    \item the \textbf{PPL tab}
+    (\url{https://llm4rocq.github.io/icones-rocq/auditor/ppl/}) is a
+    top-down narrative of the probabilistic programming language
+    developed on top of the paper's model --- both the call-by-value
+    interpretation via $\mathrm{EM}(\mathord{!})$ (the principal
+    interpretation for non-recursive QBS-style examples) and the
+    call-by-name interpretation via $\mathrm{SCones}$ (which obtains
+    free recursion at every function type via the paper \S9.2 fixpoint
+    operator). Each entry on either tab links to the Rocq source on
+    GitHub and to the rendered coqdoc page, and exposes
+    \texttt{Print Assumptions} for spot-checking.
+\end{itemize}
+The blueprint and the dashboard are independent renderings of the
+formalisation: the blueprint is paper-shaped (paper sections, English
+proofs, dependency graph), the dashboard is reference-shaped
+(per-entry cards with status badges, searchable, deep-linkable).
