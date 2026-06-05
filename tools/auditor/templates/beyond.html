@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, rocq_file %}
+
+{% block title %}{{ beyond.title }} — Beyond the paper{% endblock %}
+{% block body_class_extra %} page-beyond{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="{{ root_prefix }}index.html">Auditor</a></li>
+    <li><a href="{{ root_prefix }}index.html#beyond">Beyond the paper</a></li>
+    <li aria-current="page">{{ beyond.title }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<article class="beyond-page"
+         data-pagefind-meta="title:{{ beyond.title }}, kind:beyond"
+         data-pagefind-filter="status:beyond-paper">
+  <header class="entry-hero">
+    <p class="eyebrow mono">Beyond the paper{% if beyond.paper_refs %} · {{ beyond.paper_refs|join(', ') }}{% endif %}</p>
+    <h1>{{ beyond.title }}</h1>
+    {% if beyond.subtitle %}<p class="lede">{{ beyond.subtitle }}</p>{% endif %}
+    {{ status_badge('beyond-paper') }}
+  </header>
+
+  <section class="prose">
+    {{ beyond.html|safe }}
+  </section>
+
+  {% if beyond.entries %}
+  <section class="prose">
+    <h2>Constructions</h2>
+    <table class="construction-table">
+      <thead>
+        <tr><th>Construction</th><th>Rocq</th></tr>
+      </thead>
+      <tbody>
+      {% for e in beyond.entries %}
+        <tr>
+          <td>{{ e.label }}</td>
+          <td>
+            {% for ident in e.rocq_idents %}<code class="mono">{{ ident }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+            {% if e.rocq_files %}<br>{% for f in e.rocq_files %}{{ rocq_file(f) }}{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if beyond.snippets %}
+  <section class="snippets">
+    <h2>Code</h2>
+    {% for snip in beyond.snippets %}
+    <figure class="snippet">
+      <figcaption><code class="mono">{{ snip.source_file }}</code>
+        {% if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
+      </figcaption>
+      <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
+    </figure>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if beyond.references %}
+  <section class="prose references">
+    <h2>External references</h2>
+    <ul>
+      {% for r in beyond.references %}
+      <li>{{ r.html|safe }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</article>
+{% endblock %}

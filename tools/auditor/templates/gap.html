@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+
+{% block title %}Not formalised — Icones auditor{% endblock %}
+{% block body_class_extra %} page-gaps{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="{{ root_prefix }}index.html">Auditor</a></li>
+    <li aria-current="page">Not formalised</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<header class="entry-hero">
+  <p class="eyebrow mono">Status</p>
+  <h1>What is not formalised</h1>
+  <p class="lede">
+    Deliberate scope cuts. Each row names a paper section, what it is, and
+    why it is currently out of scope.
+  </p>
+</header>
+
+<div class="gap-list">
+  {% for g in gaps %}
+  <article class="gap-entry"
+           id="{{ g.id }}"
+           data-pagefind-meta="title:{{ g.title }}, kind:gap"
+           data-pagefind-filter="status:gap">
+    <header class="gap-head">
+      <h2>
+        <a class="anchor" href="#{{ g.id }}" aria-label="Permalink">¶</a>
+        {{ g.title }}
+      </h2>
+      <span class="mono gap-ref">Paper {{ g.paper_ref }}</span>
+      {{ status_badge('gap') }}
+    </header>
+    <div class="prose">{{ g.html|safe }}</div>
+  </article>
+  {% else %}
+  <p class="empty">No declared gaps.</p>
+  {% endfor %}
+</div>
+{% endblock %}

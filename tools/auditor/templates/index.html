@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+
+{% block title %}Icones — Paper-to-Rocq correspondence{% endblock %}
+{% block body_class_extra %} page-index{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>Paper-to-Rocq correspondence</h1>
+  <p class="lede">
+    Interactive index for the Rocq formalisation of Ehrhard &amp; Geoffroy,
+    <em>Integration in Cones</em> (LMCS 21(1:1), 2025).
+    Each definition, lemma, and theorem of the paper is mapped to a Rocq
+    counterpart, with status badges, GitHub deep-links, and inline
+    proof-script snippets.
+  </p>
+  <div class="preamble">{{ document.preamble_html|safe }}</div>
+</section>
+
+<section class="section-block">
+  <header class="section-block-head">
+    <h2>Paper coverage</h2>
+    <p class="section-block-sub">One card per paper chapter.</p>
+  </header>
+  <div class="card-grid coverage-grid">
+    {% for section in document.sections %}
+    {% set total = section.entries|length %}
+    {% set af = section.entries|selectattr('status', 'contains', 'axiom-free')|list|length %}
+    {% set bp = section.entries|selectattr('status', 'contains', 'beyond-paper')|list|length %}
+    {% set gp = section.entries|selectattr('status', 'contains', 'gap')|list|length %}
+    {% set ra = section.entries|selectattr('status', 'contains', 'regression-anchor')|list|length %}
+    {% set pct = (af * 100 // total) if total > 0 else 0 %}
+    <a class="card section-card" href="{{ root_prefix }}sections/{{ section.id }}.html">
+      <div class="card-top">
+        <span class="card-eyebrow mono">§ {{ section.paper_section_number }}</span>
+        <h3 class="card-title">{{ section.title }}</h3>
+      </div>
+      <p class="card-stats">
+        <strong>{{ total }}</strong> entries
+        {% if ra %}· <strong>{{ ra }}</strong> anchor{{ 's' if ra != 1 else '' }}{% endif %}
+        {% if bp %}· <strong>{{ bp }}</strong> beyond{% endif %}
+        {% if gp %}· <strong>{{ gp }}</strong> gap{{ 's' if gp != 1 else '' }}{% endif %}
+      </p>
+      <div class="bar" aria-label="Axiom-free coverage: {{ pct }}%">
+        <span class="bar-fill bar-fill-axiom-free" style="width: {{ pct }}%"></span>
+      </div>
+      <p class="bar-caption"><strong>{{ pct }}%</strong> axiom-free</p>
+      <p class="card-cta">Open →</p>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section-block">
+  <header class="section-block-head">
+    <h2>Beyond the paper</h2>
+    <p class="section-block-sub">
+      Mathematical content we had to add: SAFT mechanisation, Cor-20 retraction,
+      LNL/Seely structure, CBV calculi, Phase-4 productive partiality.
+    </p>
+  </header>
+  {% if document.beyond %}
+  <div class="card-grid beyond-grid">
+    {% for b in document.beyond %}
+    <a class="card beyond-card" href="{{ root_prefix }}beyond/{{ b.id }}.html">
+      <h3 class="card-title">{{ b.title }}</h3>
+      {% if b.subtitle %}<p class="card-subtitle">{{ b.subtitle }}</p>{% endif %}
+      <p class="card-stats">
+        {% if b.lemma_count %}<strong>{{ b.lemma_count }}</strong> lemmas{% endif %}
+        {% if b.paper_refs %}· paper {{ b.paper_refs|join(', ') }}{% endif %}
+      </p>
+      {{ status_badge('beyond-paper') }}
+      <p class="card-cta">Open →</p>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">No Beyond contributions reported.</p>
+  {% endif %}
+</section>
+
+<section class="section-block">
+  <header class="section-block-head">
+    <h2>Not formalised</h2>
+    <p class="section-block-sub">
+      Deliberate scope cuts. Each gap names a paper section, what it is, and
+      why it is out of scope for this iteration.
+    </p>
+  </header>
+  {% if document.gaps %}
+  <div class="card-grid gap-grid">
+    {% for g in document.gaps %}
+    <article class="card gap-card">
+      <h3 class="card-title">{{ g.title }}</h3>
+      <p class="card-subtitle mono">Paper {{ g.paper_ref }}</p>
+      <div class="prose">{{ g.html|safe }}</div>
+      {{ status_badge('gap') }}
+    </article>
+    {% endfor %}
+  </div>
+  <p class="section-block-foot">
+    <a class="more" href="{{ root_prefix }}gaps.html">See all gaps on a single page →</a>
+  </p>
+  {% else %}
+  <p class="empty">No declared gaps.</p>
+  {% endif %}
+</section>
+
+<section class="section-block verify-block">
+  <header class="section-block-head">
+    <h2>Verify yourself</h2>
+    <p class="section-block-sub">
+      Reproduce the axiom-budget check in a few minutes on a stock OCaml/Rocq
+      install.
+    </p>
+  </header>
+  <div class="prose verify-prose">{{ document.verify_instructions_html|safe }}</div>
+</section>
+{% endblock %}
