@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }} — Icones auditor (placeholder)</title>
+<style>
+body { font: 14px/1.45 -apple-system, BlinkMacSystemFont, sans-serif;
+       max-width: 980px; margin: 2em auto; padding: 0 1em; color: #222; }
+h1, h2, h3 { font-weight: 600; }
+code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
+pre { background: #f5f5f5; padding: 0.6em; overflow-x: auto; }
+.note { border-left: 3px solid #ccc; padding-left: 0.6em; color: #555; }
+.status { display: inline-block; font-size: 11px; padding: 1px 6px;
+          border-radius: 8px; background: #eef; margin-right: 4px; }
+.status-axiom-free { background: #dfe; color: #062; }
+.status-regression-anchor { background: #fde; color: #602; }
+.status-beyond-paper { background: #def; color: #024; }
+.status-discharged-deferred { background: #ffe; color: #530; }
+.status-gap { background: #fee; color: #602; }
+</style>
+</head>
+<body>
+<header>
+<h1>Icones auditor — paper-to-Rocq dashboard</h1>
+<p><em>This is the placeholder template shipped with the parser.  The UI
+agent replaces it with a multi-page layout (index / section / entry /
+beyond / gap).  Use the JSON export at
+<a href="data.json"><code>data.json</code></a> for now.</em></p>
+</header>
+
+{% block content %}
+<h2>{{ title }}</h2>
+{{ body | safe }}
+{% endblock %}
+
+<footer>
+<hr>
+<p style="font-size:11px;color:#666">
+Built {{ build_meta.built_at }} from commit
+<code>{{ build_meta.commit }}</code>; {{ build_meta.auditor_lines }} source lines.
+</p>
+</footer>
+</body>
+</html>
