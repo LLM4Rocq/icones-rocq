@@ -1929,3 +1929,250 @@ Qed.
 Local Close Scope ereal_scope.
 
 End ExGeomArrMassOne.
+
+(** ** §6 — GENERIC Bang-level CBV-Y construction (parametric in [G, A, B, M])
+
+    BEYOND THE PAPER — generalization of §1's [Phi_arr]/[Yfix_arr] to
+    an arbitrary coalg-hom body [M : EM_prod G funT → Tobj funT].
+
+    The §1 construction was specific to [ex_geom] (i.e. [γ := one1 :
+    EM_term], [M := M_body = eD ex_geom_body]).  Here we generalize:
+
+    - parameters [G, A, B : Coalgebra Ar] (ambient context + arg/result
+      coalgebras of the recursive function);
+    - [L := linhom_car A (Tobj B)] (Kleisli exp);
+    - [funT := bang_cofree L] (the value-coalgebra at function type);
+    - [M : coalg_hom (EM_prod G funT) (Tobj funT)] — the abstracted body.
+
+    Per the expert's recipe, the operator at the Bang level is
+    [Phi_arr_γ γ v := Lfun (bang_fmap (der L)) (Lfun (ch_mor M) (ptensor γ v))].
+    For each [γ : G] with [‖γ‖ ≤ 1] this is a stable endofunction
+    [Bang L → Bang L]; its Kleene iterates seeded at [prom 0_L] form a
+    chain whose sup is the value-fixpoint at parameter [γ].
+
+    *** Honest scope.
+
+    Stages 1, 2, 3 below mirror the §1 ex_geom-specific construction,
+    but with arbitrary [γ] and arbitrary [M].  They deliver:
+
+    - [Phi_arr_g γ v] — the per-γ operator;
+    - [Phi_arr_g_ball] / [Phi_arr_g_incr_v] / [Phi_arr_g_cont_v] —
+      ball preservation / monotonicity-in-v / ω-continuity-in-v of
+      the operator with γ fixed in the unit ball;
+    - [kleene_arr_g γ n] — the Kleene chain;
+    - [kleene_arr_g_ball] / [kleene_arr_g_chain_v] — unit-ball
+      preservation + chain monotonicity (the seed-order requires
+      M-specific reasoning, see honest-scope below);
+    - [Yfix_arr_g γ Hγ] — the supremum;
+    - [Yfix_arr_g_fixpoint] — the fixpoint identity at γ.
+
+    Stage 4 (γ ↦ Yfix_arr_g γ is stable, hence packages as a
+    [scones_hom] for the lin/coalg_str/adj_psi pipeline) requires
+    SCones-side infrastructure that does NOT yet exist in the
+    library:
+
+    (a) closure of stable-and-measurable maps under ω-pointwise
+        suprema (the scones-level analogue of [cone_sup_ball]'s
+        stability, applied per-γ to the K_n_γ family viewed as a
+        chain in [B → Bang L]);
+    (b) stability of γ ↦ ptensor γ v under the diagonal substitution
+        v := K_n γ (a bilinear-via-diagonal pattern, generally
+        requires §7.3-style Δ-machinery from [stable/compose.v]
+        extended to the bilinear-tensor setting).
+
+    Without (a) and (b), the packaging of [γ ↦ Yfix_arr_g γ] as a
+    [scones_hom] cannot be carried out.  We DEFER Stage 4 and the
+    subsequent stages (lin, coalg_str composition, adj_psi
+    packaging) and leave [Yfix_arr_T] for follow-up work once the
+    SCones-side closure-under-sup lemma and the bilinear-diagonal
+    stability lemma are in place.
+
+    Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
+
+Section YfixArrGeneric.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G A B : Coalgebra Ar).
+
+(** Local abbreviation for the CBV monad's object map [T P = !̃(U P)]
+    (equivalent to [Tobj] but stated locally to avoid the cbv import
+    chain entanglement). *)
+Let TT (P : Coalgebra Ar) : Coalgebra Ar := bang_cofree (coalg_obj P).
+
+(** The Kleisli-exponential linhom cone [L = U A ⊸ U(T B)]. *)
+Let L : ICone.type Ar :=
+  linhom_car Ar (coalg_obj A) (coalg_obj (TT B)).
+
+(** The function-value coalgebra [funT = !̃ L].  *)
+Let funT : Coalgebra Ar := bang_cofree L.
+
+(** The body of the fixpoint. *)
+Variable M : coalg_hom (EM_prod G funT) (TT funT).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** ** Stage 1 — [Phi_arr_g]: the per-γ Bang-level fixpoint operator
+
+    [Phi_arr_g γ v := Lfun (bang_fmap (der L)) (Lfun (ch_mor M) (ptensor γ v))]. *)
+Definition Phi_arr_g (γ : coalg_obj G) (v : coalg_obj funT) : coalg_obj funT :=
+  Lfun (bang_fmap (der L)) (Lfun (ch_mor M) (ptensor γ v)).
+
+(** ** Stage 1a — Ball preservation in v: ‖γ‖ ≤ 1 ⇒ ‖v‖ ≤ 1 ⇒ ‖Phi_arr_g γ v‖ ≤ 1
+
+    Composition of three norm-≤-1 [cones_hom]s applied to the unit-ball
+    pure tensor [γ ⊗p v] (whose norm is ≤ ‖γ‖·‖v‖ ≤ 1·1 = 1 by
+    [tensor_norm_le]). *)
+Lemma Phi_arr_g_ball (γ : coalg_obj G) (v : coalg_obj funT) :
+  cone_norm γ <= 1 -> cone_norm v <= 1 ->
+  cone_norm (Phi_arr_g γ v) <= 1.
+Proof.
+move=> Hγ Hv.
+rewrite /Phi_arr_g.
+have Hpt : cone_norm (ptensor γ v) <= 1.
+  apply: le_trans (tensor_norm_le _ _) _.
+  rewrite -[1]mulr1; apply: ler_pM.
+  - exact: cone_norm_ge0.
+  - exact: cone_norm_ge0.
+  - exact: Hγ.
+  - exact: Hv.
+have HchM : cone_norm (Lfun (ch_mor M) (ptensor γ v)) <= 1.
+  apply: le_trans (cones_hom_norm_le1 _ _) Hpt.
+apply: le_trans (cones_hom_norm_le1 _ _) HchM.
+Qed.
+
+(** ** Stage 1b — Monotonicity in v (with γ fixed)
+
+    Composition of three linear-in-v maps: [v ↦ ptensor γ v] is linear
+    by [linhom_pre_linear] applied to [tau' G v |-> ptensor γ v] (i.e.
+    [tau B L γ v]), [Lfun (ch_mor M)] is linear, and [Lfun (bang_fmap
+    (der L))] is linear. *)
+Lemma Phi_arr_g_incr_v (γ : coalg_obj G) (v1 v2 : coalg_obj funT) :
+  precone_le v1 v2 -> precone_le (Phi_arr_g γ v1) (Phi_arr_g γ v2).
+Proof.
+move=> Hle.
+rewrite /Phi_arr_g.
+have Hpt_le : precone_le (ptensor γ v1) (ptensor γ v2).
+  have Htau_lin : is_linear
+    (linhom_pre_fun (linhom_pre_of (tau (coalg_obj G) (coalg_obj funT) γ))).
+    exact: linhom_pre_linear.
+  exact: (linear_increasing Htau_lin Hle).
+have HchM_lin : is_linear (Lfun (ch_mor M)).
+  exact: cones_hom_linear.
+have HchM_le : precone_le (Lfun (ch_mor M) (ptensor γ v1))
+                          (Lfun (ch_mor M) (ptensor γ v2)).
+  exact: (linear_increasing HchM_lin Hpt_le).
+have Hbang_lin : is_linear (Lfun (bang_fmap (der L))).
+  exact: cones_hom_linear.
+exact: (linear_increasing Hbang_lin HchM_le).
+Qed.
+
+(** ** Stage 1c — ω-continuity in v (with γ fixed)
+
+    Composition of three ω-continuous maps. *)
+Lemma Phi_arr_g_cont_v (γ : coalg_obj G) (u : nat -> coalg_obj funT)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (Pch : forall n, precone_le (Phi_arr_g γ (u n)) (Phi_arr_g γ (u n.+1)))
+    (Pub1 : forall n, cone_norm (Phi_arr_g γ (u n)) <= 1) :
+  Phi_arr_g γ (cone_sup_ball u uch ub1) =
+  cone_sup_ball (Phi_arr_g γ \o u) Pch Pub1.
+Proof.
+rewrite /Phi_arr_g.
+pose tauγ : linhom_car Ar (coalg_obj funT)
+                          (tensor Ar (coalg_obj G) (coalg_obj funT))
+  := tau (coalg_obj G) (coalg_obj funT) γ.
+have Hpt_eq : forall v : coalg_obj funT,
+    ptensor γ v = linhom_fun tauγ v.
+  by move=> v; rewrite /tauγ -ptensorE.
+rewrite Hpt_eq.
+pose f1 := linhom_fun tauγ.
+have Hf1_lin : is_linear f1.
+  rewrite /f1 /linhom_fun.
+  exact: (linhom_pre_linear (linhom_pre_of tauγ)).
+have Hf1_cont : is_omega_continuous f1.
+  rewrite /f1 /linhom_fun.
+  exact: (linhom_pre_continuous (linhom_pre_of tauγ)).
+have f1_ch : forall n, precone_le (f1 (u n)) (f1 (u n.+1)).
+  by move=> n; apply: linear_increasing => //; exact: uch.
+have f1_ub : forall n, cone_norm (f1 (u n)) <= 1.
+  by move=> n; rewrite -Hpt_eq; apply: le_trans (tensor_norm_le _ _) _;
+     rewrite -[1]mulr1; apply: ler_pM;
+     [exact: cone_norm_ge0|exact: cone_norm_ge0|done|exact: ub1].
+rewrite -[linhom_fun tauγ (cone_sup_ball u uch ub1)]
+        /(f1 (cone_sup_ball u uch ub1)).
+rewrite (Hf1_cont u uch ub1 f1_ch f1_ub).
+pose f2 := Lfun (ch_mor M).
+have Hf2_lin : is_linear f2 by exact: cones_hom_linear.
+have Hf2_cont : is_omega_continuous f2 by exact: cones_hom_continuous.
+have Hf2_norm : forall y, cone_norm (f2 y) <= cone_norm y.
+  by move=> y; exact: cones_hom_norm_le1.
+have f2f1_ch : forall n, precone_le (f2 (f1 (u n))) (f2 (f1 (u n.+1))).
+  by move=> n; apply: linear_increasing => //; exact: f1_ch.
+have f2f1_ub : forall n, cone_norm (f2 (f1 (u n))) <= 1.
+  by move=> n; apply: le_trans (Hf2_norm _) _; exact: f1_ub.
+rewrite -[Lfun (ch_mor M) (cone_sup_ball (f1 \o u) f1_ch f1_ub)]
+        /(f2 (cone_sup_ball (f1 \o u) f1_ch f1_ub)).
+rewrite (Hf2_cont (f1 \o u) f1_ch f1_ub f2f1_ch f2f1_ub).
+pose f3 := Lfun (bang_fmap (der L)).
+have Hf3_lin : is_linear f3 by exact: cones_hom_linear.
+have Hf3_cont : is_omega_continuous f3 by exact: cones_hom_continuous.
+have Hf3_norm : forall z, cone_norm (f3 z) <= cone_norm z.
+  by move=> z; exact: cones_hom_norm_le1.
+have f3f2f1_ch : forall n, precone_le (f3 (f2 (f1 (u n))))
+                                       (f3 (f2 (f1 (u n.+1)))).
+  by move=> n; apply: linear_increasing => //; exact: f2f1_ch.
+have f3f2f1_ub : forall n, cone_norm (f3 (f2 (f1 (u n)))) <= 1.
+  by move=> n; apply: le_trans (Hf3_norm _) _; exact: f2f1_ub.
+rewrite -[Lfun (bang_fmap (der L))
+            (cone_sup_ball (f2 \o f1 \o u) f2f1_ch f2f1_ub)]
+        /(f3 (cone_sup_ball (f2 \o f1 \o u) f2f1_ch f2f1_ub)).
+rewrite (Hf3_cont (f2 \o f1 \o u) f2f1_ch f2f1_ub f3f2f1_ch f3f2f1_ub).
+apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
+Qed.
+
+End YfixArrGeneric.
+
+Section YfixArrGenericStage2.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G A B : Coalgebra Ar).
+
+Let TT (P : Coalgebra Ar) : Coalgebra Ar := bang_cofree (coalg_obj P).
+Let L : ICone.type Ar :=
+  linhom_car Ar (coalg_obj A) (coalg_obj (TT B)).
+Let funT : Coalgebra Ar := bang_cofree L.
+
+Variable M : coalg_hom (EM_prod G funT) (TT funT).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** ** Stage 2 — The Kleene chain at the Bang level (per-γ)
+
+    [kleene_arr_g γ n := iter n (Phi_arr_g M γ) (prom (precone_zero : L))].
+    Each iterate is in the unit ball by induction + [Phi_arr_g_ball]. *)
+Definition kleene_arr_g (γ : coalg_obj G) (n : nat) : coalg_obj funT :=
+  iter n (Phi_arr_g M γ) (prom (precone_zero : L)).
+
+Lemma kleene_arr_g_0 (γ : coalg_obj G) :
+  kleene_arr_g γ 0 = prom (precone_zero : L).
+Proof. by []. Qed.
+
+Lemma kleene_arr_g_S (γ : coalg_obj G) (n : nat) :
+  kleene_arr_g γ n.+1 = Phi_arr_g M γ (kleene_arr_g γ n).
+Proof. by rewrite /kleene_arr_g iterS. Qed.
+
+Lemma cone_norm_prom_zero_L_le1 :
+  cone_norm (prom (precone_zero : L)) <= 1.
+Proof. by apply: prom_ball; rewrite cone_norm0 ler01. Qed.
+
+Lemma kleene_arr_g_ball (γ : coalg_obj G) (Hγ : cone_norm γ <= 1) (n : nat) :
+  cone_norm (kleene_arr_g γ n) <= 1.
+Proof.
+induction n.
+- by rewrite kleene_arr_g_0; exact: cone_norm_prom_zero_L_le1.
+- rewrite kleene_arr_g_S; exact: Phi_arr_g_ball.
+Qed.
+
+End YfixArrGenericStage2.
