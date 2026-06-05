@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import entry_card %}
+
+{% block title %}{{ entry.paper_label }} — § {{ section.paper_section_number }} {{ section.title }}{% endblock %}
+{% block body_class_extra %} page-entry{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="{{ root_prefix }}index.html">Auditor</a></li>
+    <li><a href="{{ root_prefix }}sections/{{ section.id }}.html">§ {{ section.paper_section_number }} {{ section.title }}</a></li>
+    <li aria-current="page">{{ entry.paper_label }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<article class="entry-page">
+  <header class="entry-hero">
+    <p class="eyebrow mono">§ {{ section.paper_section_number }} · {{ entry.paper_kind }}</p>
+    <h1>{{ entry.paper_label }}</h1>
+  </header>
+
+  {{ entry_card(entry, section, expanded=True) }}
+
+  <nav class="prev-next" aria-label="Entry navigation within section">
+    {% set idx = section.entries.index(entry) if entry in section.entries else -1 %}
+    {% if idx > 0 %}
+    {% set prev = section.entries[idx-1] %}
+    <a class="prev" href="{{ root_prefix }}entries/{{ prev.id }}.html">← {{ prev.paper_label }}</a>
+    {% else %}<span></span>{% endif %}
+    {% if idx >= 0 and idx + 1 < section.entries|length %}
+    {% set nxt = section.entries[idx+1] %}
+    <a class="next" href="{{ root_prefix }}entries/{{ nxt.id }}.html">{{ nxt.paper_label }} →</a>
+    {% else %}<span></span>{% endif %}
+  </nav>
+</article>
+{% endblock %}

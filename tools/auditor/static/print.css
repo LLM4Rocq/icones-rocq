@@ -1,0 +1,100 @@
+/* Print stylesheet for the Icones auditor dashboard.
+ * Goals: A4-friendly, force light palette, expand <details>, hide chrome. */
+
+@page { size: A4; margin: 18mm 16mm; }
+
+:root {
+  /* Force a light palette in print regardless of OS dark mode. */
+  --bg: #fff; --bg-elev: #fff; --bg-soft: #f7f5ef; --bg-code: #f7f5ef;
+  --fg: #111; --fg-mute: #444; --fg-faint: #666;
+  --border: #ccc; --border-soft: #ddd;
+  --accent: #1a3d70; --accent-soft: #eaf0f8; --link: #1a3d70;
+}
+
+* {
+  background: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+body { color: #111 !important; }
+
+.site-header,
+.tabs,
+.pill-nav,
+.pagefind-ui,
+.search-shell,
+.entry-actions,
+.prev-next,
+.skip-link,
+.site-footer .footer-axioms details summary {
+  display: none !important;
+}
+
+a {
+  color: #1a3d70 !important;
+  text-decoration: none !important;
+}
+/* Print URL after external links for offline traceability. */
+.entry a.filelink[href^="http"]::after,
+.rocq-file a[href^="http"]::after {
+  content: " (" attr(href) ")";
+  font-size: 0.82em;
+  color: #555;
+  word-break: break-all;
+}
+
+main { padding: 0 !important; max-width: 100% !important; }
+
+.breadcrumbs {
+  border: 0 !important;
+  padding: 0 0 0.5rem !important;
+  font-size: 0.85rem;
+}
+
+h1 { page-break-after: avoid; }
+h2, h3, .entry-title { page-break-after: avoid; }
+
+.card-grid {
+  display: block !important;
+}
+.card {
+  display: block !important;
+  border: 1px solid #ccc !important;
+  padding: 0.6rem 0.8rem !important;
+  margin-bottom: 0.5rem !important;
+  break-inside: avoid;
+}
+
+.entry {
+  border: 1px solid #bbb !important;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 0.7rem !important;
+}
+
+/* Expand all details in print. */
+details { break-inside: avoid; }
+details > summary { list-style: none; cursor: default; }
+details > summary::before { display: none !important; }
+details:not([open]) > *:not(summary) { display: revert; }
+.detail { border-top: 1px solid #ccc !important; padding-top: 0.4rem; }
+.detail > summary { color: #444 !important; font-weight: 600; }
+.detail-body { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.snippet {
+  border: 1px solid #bbb !important;
+}
+.codeblock {
+  font-size: 11px !important;
+  white-space: pre-wrap !important;
+  word-break: break-word;
+}
+
+.badge {
+  border: 1px solid #999 !important;
+  color: #111 !important;
+}
+.badge-icon { font-weight: 700; }
+
+.bar { border: 1px solid #999 !important; height: 0.4rem !important; }
+.bar-fill { background: #1a3d70 !important; }

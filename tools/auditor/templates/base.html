@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Icones — Auditor dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="{{ static_prefix }}static/style.css">
+  <link rel="stylesheet" media="print" href="{{ static_prefix }}static/print.css">
+  {# Pagefind UI is loaded lazily by app.js (it's an ESM that ships its own CSS too). #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="theme-auto{% block body_class_extra %}{% endblock %}">
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header" role="banner">
+  <div class="header-row">
+    <a class="brand" href="{{ root_prefix }}index.html">
+      <span class="brand-mark" aria-hidden="true">∫</span>
+      <span class="brand-text">
+        <strong>ICones</strong>
+        <span class="brand-sub">Auditor dashboard</span>
+      </span>
+    </a>
+    <nav class="pill-nav" aria-label="External resources">
+      <a class="pill" href="../blueprint/web/index.html">Blueprint</a>
+      <a class="pill" href="../coqdoc/toc.html">Docs</a>
+      <a class="pill" href="https://github.com/{{ document.build_meta.repo|default('icones/icones') }}">GitHub</a>
+    </nav>
+  </div>
+  <div class="header-row search-row">
+    <div id="search" class="search-shell" data-pagefind-ui></div>
+  </div>
+  {% block breadcrumbs %}{% endblock %}
+</header>
+
+<main id="main" data-pagefind-body>
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer" role="contentinfo">
+  <div class="footer-grid">
+    <div>
+      <strong>Icones</strong> — Paper-to-Rocq correspondence dashboard.
+      <br>Mirrors <code>AUDITOR.md</code>
+      ({{ document.build_meta.auditor_lines }} lines) built from commit
+      <a class="mono" href="https://github.com/{{ document.build_meta.repo|default('icones/icones') }}/commit/{{ document.build_meta.commit }}">
+        <code>{{ document.build_meta.commit[:12] }}</code></a>
+      at <time datetime="{{ document.build_meta.built_at }}">{{ document.build_meta.built_at }}</time>.
+    </div>
+    <div class="footer-axioms">
+      Regression anchor:
+      <code class="mono">{{ document.axiom_anchors.regression }}</code>.
+      {% if document.axiom_anchors.headlines %}
+      <details>
+        <summary>{{ document.axiom_anchors.headlines|length }} headline anchors</summary>
+        <ul class="mono">
+          {% for h in document.axiom_anchors.headlines %}<li>{{ h }}</li>{% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+</footer>
+
+<script src="{{ static_prefix }}static/app.js" defer></script>
+</body>
+</html>
