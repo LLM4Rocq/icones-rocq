@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge %}
+{% from "_macros.html" import status_badge with context %}
 
 {% block title %}Icones — {% if tab == 'paper' %}Paper{% elif tab == 'ppl' %}PPL{% else %}Auditor{% endif %} tab{% endblock %}
 {% block body_class_extra %} page-index page-index-{{ tab or 'root' }}{% endblock %}
@@ -23,13 +23,21 @@
     proof-script snippets.
   </p>
   {% endif %}
-  <div class="preamble">{{ document.preamble_html|safe }}</div>
 </section>
 
+{% if document.preamble_html %}
+<section class="section-block preamble-block">
+  {# Render the full PAPER.md / PPL.md preamble (narrative intro) as a
+     proper prose column, not a stuck-in-the-corner sidebar. #}
+  <div class="prose preamble preamble-prose">{{ document.preamble_html|safe }}</div>
+</section>
+{% endif %}
+
+{% if document.sections %}
 <section class="section-block">
   <header class="section-block-head">
-    <h2>Paper coverage</h2>
-    <p class="section-block-sub">One card per paper chapter.</p>
+    <h2>{% if tab == 'ppl' %}PPL chapters{% else %}Paper coverage{% endif %}</h2>
+    <p class="section-block-sub">One card per chapter.</p>
   </header>
   <div class="card-grid coverage-grid">
     {% for section in document.sections %}
@@ -59,6 +67,7 @@
     {% endfor %}
   </div>
 </section>
+{% endif %}
 
 <section class="section-block">
   <header class="section-block-head">
@@ -71,12 +80,18 @@
   {% if document.beyond %}
   <div class="card-grid beyond-grid">
     {% for b in document.beyond %}
+    {% set n_entries = b.entries|length %}
+    {% set n_snippets = b.snippets|length %}
     <a class="card beyond-card" href="{{ root_prefix }}beyond/{{ b.id }}.html">
       <h3 class="card-title">{{ b.title }}</h3>
-      {% if b.subtitle %}<p class="card-subtitle">{{ b.subtitle }}</p>{% endif %}
       <p class="card-stats">
-        {% if b.lemma_count %}<strong>{{ b.lemma_count }}</strong> lemmas{% endif %}
-        {% if b.paper_refs %}· paper {{ b.paper_refs|join(', ') }}{% endif %}
+        {% if n_entries %}
+        <strong>{{ n_entries }}</strong> {{ 'entry' if n_entries == 1 else 'entries' }}
+        {% endif %}
+        {% if n_snippets %}
+        {% if n_entries %} · {% endif %}<strong>{{ n_snippets }}</strong>
+        snippet{{ 's' if n_snippets != 1 else '' }}
+        {% endif %}
       </p>
       {{ status_badge('beyond-paper') }}
       <p class="card-cta">Open →</p>
@@ -88,6 +103,7 @@
   {% endif %}
 </section>
 
+{% if document.gaps %}
 <section class="section-block">
   <header class="section-block-head">
     <h2>Not formalised</h2>
@@ -96,13 +112,11 @@
       why it is out of scope for this iteration.
     </p>
   </header>
-  {% if document.gaps %}
   <div class="card-grid gap-grid">
     {% for g in document.gaps %}
     <article class="card gap-card">
-      <h3 class="card-title">{{ g.title }}</h3>
-      <p class="card-subtitle mono">Paper {{ g.paper_ref }}</p>
-      <div class="prose">{{ g.html|safe }}</div>
+      <h3 class="card-title">{{ g.paper_label }}</h3>
+      <div class="prose">{{ g.description_html|safe }}</div>
       {{ status_badge('gap') }}
     </article>
     {% endfor %}
@@ -110,11 +124,10 @@
   <p class="section-block-foot">
     <a class="more" href="{{ root_prefix }}gaps.html">See all gaps on a single page →</a>
   </p>
-  {% else %}
-  <p class="empty">No declared gaps.</p>
-  {% endif %}
 </section>
+{% endif %}
 
+{% if document.verify_instructions_html %}
 <section class="section-block verify-block">
   <header class="section-block-head">
     <h2>Verify yourself</h2>
@@ -125,4 +138,5 @@
   </header>
   <div class="prose verify-prose">{{ document.verify_instructions_html|safe }}</div>
 </section>
+{% endif %}
 {% endblock %}

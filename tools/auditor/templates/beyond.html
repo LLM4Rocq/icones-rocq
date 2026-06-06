@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge, rocq_file %}
+{% from "_macros.html" import status_badge, rocq_file with context %}
 
 {% block title %}{{ beyond.title }} — Beyond the paper{% endblock %}
 {% block body_class_extra %} page-beyond{% endblock %}
@@ -26,29 +26,41 @@
     {{ status_badge('beyond-paper') }}
   </header>
 
-  <section class="prose">
-    {{ beyond.html|safe }}
+  {% if beyond.intro_html %}
+  <section class="prose intro">
+    {{ beyond.intro_html|safe }}
   </section>
+  {% endif %}
 
   {% if beyond.entries %}
-  <section class="prose">
+  <section class="beyond-constructions">
     <h2>Constructions</h2>
-    <table class="construction-table">
-      <thead>
-        <tr><th>Construction</th><th>Rocq</th></tr>
-      </thead>
-      <tbody>
-      {% for e in beyond.entries %}
-        <tr>
-          <td>{{ e.label }}</td>
-          <td>
-            {% for ident in e.rocq_idents %}<code class="mono">{{ ident }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
-            {% if e.rocq_files %}<br>{% for f in e.rocq_files %}{{ rocq_file(f) }}{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+    <ul class="beyond-entry-list">
+    {% for e in beyond.entries %}
+      <li class="beyond-entry">
+        <div class="beyond-entry-head">
+          <h3 class="beyond-entry-label">{{ e.paper_label }}</h3>
+        </div>
+        {% if e.statement_html %}
+        <div class="statement prose">{{ e.statement_html|safe }}</div>
+        {% endif %}
+        {% if e.rocq_idents %}
+        <p class="beyond-idents">
+          <span class="label">Rocq:</span>
+          {% for ident in e.rocq_idents %}<code class="mono">{{ ident }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+        </p>
+        {% endif %}
+        {% if e.rocq_files %}
+        <ul class="files">
+          {% for f in e.rocq_files %}<li>{{ rocq_file(f) }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        {% if e.detail and e.detail.prose_html %}
+        <div class="prose beyond-detail">{{ e.detail.prose_html|safe }}</div>
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
   </section>
   {% endif %}
 
@@ -66,14 +78,9 @@
   </section>
   {% endif %}
 
-  {% if beyond.references %}
-  <section class="prose references">
-    <h2>External references</h2>
-    <ul>
-      {% for r in beyond.references %}
-      <li>{{ r.html|safe }}</li>
-      {% endfor %}
-    </ul>
+  {% if beyond.notes_html %}
+  <section class="prose notes">
+    {{ beyond.notes_html|safe }}
   </section>
   {% endif %}
 </article>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Icones — Auditor dashboard{% endblock %}</title>
   <link rel="stylesheet" href="{{ static_prefix }}static/style.css">
+  <link rel="stylesheet" href="{{ static_prefix }}static/pygments.css">
   <link rel="stylesheet" media="print" href="{{ static_prefix }}static/print.css">
   {# Pagefind UI is loaded lazily by app.js (it's an ESM that ships its own CSS too). #}
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,7 +27,25 @@
     <nav class="pill-nav" aria-label="External resources">
       <a class="pill" href="{{ tab_prefix }}../blueprint/web/index.html">Blueprint</a>
       <a class="pill" href="{{ tab_prefix }}../coqdoc/toc.html">Docs</a>
-      <a class="pill" href="https://github.com/{{ document.build_meta.repo|default('icones/icones') }}">GitHub</a>
+      {% set gh_repo = document.build_meta.repo|default('LLM4Rocq/icones-rocq') %}
+      <a class="gh-flag" href="https://github.com/{{ gh_repo }}"
+         rel="noopener" target="_blank"
+         title="View {{ gh_repo }} on GitHub" aria-label="Open the {{ gh_repo }} repository on GitHub">
+        <svg class="gh-flag-mark" aria-hidden="true" focusable="false" viewBox="0 0 16 16"
+             width="18" height="18" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+            -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+            .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82
+            .64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82
+            .44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65
+            3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38
+            A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        <span class="gh-flag-label">GitHub</span>
+        <span class="gh-flag-repo mono">{{ gh_repo }}</span>
+      </a>
     </nav>
   </div>
   <div class="header-row tab-row">
@@ -55,7 +74,9 @@
       <strong>Icones</strong> — Paper-to-Rocq correspondence dashboard.
       <br>Mirrors <code>docs/PAPER.md</code> + <code>docs/PPL.md</code>
       ({{ document.build_meta.auditor_lines }} lines combined) built from commit
-      <a class="mono" href="https://github.com/{{ document.build_meta.repo|default('icones/icones') }}/commit/{{ document.build_meta.commit }}">
+      {% set _repo = document.build_meta.repo|default('LLM4Rocq/icones-rocq') %}
+      <a class="mono"
+         href="https://github.com/{{ _repo }}/commit/{{ document.build_meta.commit }}">
         <code>{{ document.build_meta.commit[:12] }}</code></a>
       at <time datetime="{{ document.build_meta.built_at }}">{{ document.build_meta.built_at }}</time>.
     </div>

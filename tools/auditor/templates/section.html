@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import entry_card, status_badge %}
+{% from "_macros.html" import entry_card, status_badge with context %}
 
 {% block title %}§ {{ section.paper_section_number }} {{ section.title }} — Icones auditor{% endblock %}
 {% block body_class_extra %} page-section{% endblock %}
