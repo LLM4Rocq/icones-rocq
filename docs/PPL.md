@@ -1,487 +1,304 @@
-# PPL.md — A probabilistic programming language on top of Icones
+# PPL.md — A probabilistic programming language in `ICones`
 
-This document describes the **probabilistic programming language (PPL)**
-built on top of the Icones formalization. It is a development *beyond the
-paper* — the paper formalizes the categorical setting; this document
-describes the language we built inside it, what works today, what is
-missing, and why.
+A typed probabilistic functional language is interpreted inside the
+model of *Integration in Cones*. The categorical content of the
+language is, in the language of Ehrhard–Geoffroy, the following: each
+type denotes a `!`-coalgebra, each program a Kleisli morphism of the
+exponential comonad `!`, recursion is the least fixpoint operator of
+§9.2. The same surface syntax also admits a call-by-name reading
+through the cartesian closed category `SCones` of stable and
+measurable functions of §7.
 
-The paper-side correspondence (paper §§ 2–9 ↔ Rocq) is on the
-[Paper tab](../paper/) of this dashboard.
-
-The intended audience: a reader who knows what a probabilistic program is,
-knows roughly what Ehrhard–Geoffroy "Integration in Cones" is about, and
-wants a precise picture of the language we can currently denote.
-
----
-
-## 1. What we are trying to do
-
-The paper gives a categorical model of probabilistic computation
-(`ICones`) where every type is a cone with measurable structure, and
-every morphism is a linear, Scott-continuous, measurable map. The model
-is rich enough to interpret a **typed probabilistic functional language
-with effects** — sampling, scoring (soft constraint), conditioning, and
-**recursion**.
-
-The development in this dashboard does that interpretation. Concretely:
-
-- A surface syntax `named_expr` of programs in named-variable style,
-  modelled on the calculus of Saito–Affeldt (APLAS 2023), close to
-  what a user actually writes in a probabilistic-programming dialect
-  of OCaml or Haskell.
-- **Two parallel denotations** of the same surface syntax:
-  - **Call-by-value (CBV)** through the Eilenberg–Moore category
-    `EM(!)` of the linear-exponential comonad — Moggi-style with the
-    exponential `!` as the value modality. This is the canonical CBV
-    semantics in a linear-logic model.
-  - **Call-by-name (CBN)** directly inside the stable-functions category
-    `SCones` (the co-Kleisli of `!`), which is cartesian closed and has
-    a free fixed-point combinator. This is the "lazy QBS reading"
-    (Heunen–Kammar–Staton–Yang).
-- A growing library of **example programs** with closed-form proofs of
-  their denotations — Bernoulli, scoring, Bayesian conditioning,
-  geometric recursion — each axiom-free.
-
-### 1.1 Why two interpretations?
-
-Because they have **complementary strengths and weaknesses** in this
-model:
-
-| Property | CBV via `EM(!)` | CBN via `SCones` |
-|---|---|---|
-| Recursion at function type | Hard (needs Bang-level Kleene) | Free (`Yfix` in `stable/fixpoint.v`) |
-| `let`-binding | Kleisli bind via `kbind_ext` | Plain composition |
-| Substitution laws | Asymmetric η problem (Law 2 open) | No issue (substitution = composition) |
-| Score with a real-valued weight | Lifts cleanly through `coalg_hom` | Trivial — terminal codomain forces uniqueness |
-| Arithmetic (`add`, `mul`) on measures | Bilinear into the tensor `⊗`, with `add_lift` / `mul_lift` axiom-free | Needs a sprod→tensor bridge, not in the library |
-| Fits the paper's framing | Yes — `EM(!)` is the canonical CBV setting | Adjacent — uses §7 SCones directly |
-
-So:
-
-- **CBV** is the principal interpretation for non-recursive programs:
-  sampling, scoring, conditioning, marginals, all axiom-free, all
-  matched against the QBS-style references.
-- **CBN** is the principal interpretation for **recursive** programs:
-  the geometric distribution and similar examples that need a
-  fixed-point combinator. CBN reaches this via a single axiom-free
-  `Yfix`; CBV requires per-example Bang-level constructions.
-- The two interpretations are NOT (yet) connected by a soundness
-  theorem. They are best read as **two parallel views** of the same
-  surface syntax that play to different strengths.
-
-### 1.2 Why this is non-trivial
-
-A standard textbook would say "use the Eilenberg–Moore category and
-you're done". In this concrete model, three things make it real
-mathematical work:
-
-1. **The exponential `!` is built by SAFT** (the Special Adjoint
-   Functor Theorem) — a non-constructive existence proof of the right
-   adjoint of dereliction. There is no closed-form formula for `!X`
-   except via a universal property. This blocks several natural
-   computations (e.g. `cone_norm (prom x) = cone_norm x` is provably
-   **false** in the SAFT-built `Bang`).
-2. **CBV value-fixpoint at function type** is folklore but,
-   to our knowledge, not previously formalized in Rocq/Coq.
-   The expert recipe (variant of `f^n` with promotions, dereliction at
-   the right places, seed at `!0`) had to be built from scratch.
-   Validated structurally; gives the headline `ex_geom_arr_mass_one`
-   axiom-free.
-3. **Cartesian-η of `EM(!)`** (Melliès §7.4 Prop 28 / Cor 20) is a
-   meta-theorem the paper cites as a black box. To trust the
-   formalization we built it from first principles — the lemma
-   `em_pair_mor_proj_id` is, to our knowledge, the first machine
-   verification.
+The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
+[Paper tab](../paper/). This document covers what sits *above* the
+paper: the language itself, its two interpretations, and the
+correctness statements one can make about example programs.
 
 ---
 
-## 2. The surface language
+## Conventions
 
-Defined in `theories/programs/ppl.v` as the inductive `named_expr`.
+We follow the paper's notations. `ICones` is the category of integrable
+cones and integral-preserving linear maps; its monoidal closed
+structure is `(1, ⊗, ⊸)`. `SCones` is the cartesian closed category of
+stable and measurable functions on integrable cones. `!` is the
+exponential comonad of §9, with counit `der`, comultiplication `dig`
+and unit `nl_B : B → !B` of the linear-non-linear adjunction. We write
+`Tobj = !̃ ∘ U` for the CBV monad induced on the Eilenberg–Moore
+category `EM(!)`; `Tobj` is the *value-on-a-monad lift* of paper §9.
 
-| Constructor | Surface notation | Meaning |
-|---|---|---|
-| `ne_var x` | `# "x"` | named variable |
-| `ne_tt` | `()` | unit value |
-| `ne_pair M N` | `( M , N )` | pairing |
-| `ne_fst M` / `ne_snd M` | `fst M`, `snd M` | projections |
-| `ne_lam x M` | `\ "x" ::: τ => M` | lambda |
-| `ne_app F X` | `F @ X` | application |
-| `ne_let x M K` | `let "x" := M in K` | let-binding |
-| `ne_fix x M` | `fix "f" ::: τ in M` | recursive value (function-type body) |
-| `ne_real r` | `[ \| r \| ]` | constant real |
-| `ne_sample µ Hµ` | `sample µ` | sample from a normalised measure |
-| `ne_score f Hf Hge Hle e` | `score f e` | soft constraint (multiply weight by `f e`) |
-| `ne_add M N` / `ne_mul M N` | `M + N`, `M * N` | arithmetic on measures |
-| `ne_true` / `ne_false` | `true`, `false` | boolean literals |
-| `ne_bernoulli p H₀ H₁` | `Bernoulli { p, … }` | Bernoulli sample |
-| `ne_if e M N` | `if e then M else N` | boolean elimination |
-
-The syntax is **invariant under the choice of interpretation**: `eD`
-(CBV) and `eD_CBN` (CBN) consume the same `named_expr` and produce a
-denotation in their respective categories.
+For each measurable space `X ∈ Ar`, `FMeas(X)` is the integrable cone
+of finite measures on `X` and `δ_X : X → FMeas(X)` the Dirac path.
+Theorem 9.7 endows `FMeas(X)` with a canonical `!`-coalgebra structure
+`h_X : FMeas(X) → !FMeas(X)`, the categorical content of sampling
+from `X`.
 
 ---
 
-## 3. CBV — what works today
+## The surface language
 
-`eD : named_expr Γ τ → coalg_hom (ctxD Γ) (Tobj (tyD τ))` in
-`theories/programs/ppl.v`.
+The source language is a simply-typed lambda calculus with
+sampling, scoring, recursion at function type, and a two-point boolean
+type. Types and contexts are given by
 
-The codomain `Tobj (tyD τ)` is the `!`-coalgebra-monad lift:
-substochastic measures over the type. Composition is Kleisli bind. The
-unit is `eta_T` (Dirac).
+```
+τ ::= 1 | X̄ | τ × τ | τ → τ | bool
+Γ ::= · | Γ, x : τ
+```
 
-### 3.1 Non-recursive programs — axiom-free
+where `X̄` ranges over measurable spaces of the base category `Ar`
+(typically `X̄ = ρ` for the real line). We write `Γ ⊢ M : τ` for the
+typing judgement. The term constructors are summarised below.
 
-Every non-recursive constructor has a definitional reduction lemma
-(`eD_<ctor>_E`). All clauses are axiom-free.
-
-Examples in `theories/programs/examples.v` with closed-form proofs of
-their denotations:
-
-| Example | Statement | Status |
+| Form | Surface | Status |
 |---|---|---|
-| `ex_random_constant` | constant-output function ignores its sample input | ✅ axiom-free (Gap B headline) |
-| `ex_random_linear` | linear-output function maps measures point-wise | ✅ axiom-free |
-| `ex_bayes_linear` | Bayesian conditioning by a linear weight | ✅ axiom-free |
-| `ex_bayes_linear_is_weighted` | Bayes posterior equals a weighted prior — measure-level | ✅ axiom-free (Gap D headline) |
-| `ex_*_bernoulli_*` | Bernoulli conditional + `case_em_bernoulli` convex combination | ✅ axiom-free |
+| variable, unit, pairing, projections | `# "x"`, `()`, `(M, N)`, `fst M`, `snd M` | pure |
+| abstraction, application | `\ "x" ::: τ => M`, `M @ N` | pure |
+| let-binding | `let "x" := M in N` | sequencer |
+| recursion at function type | `fix "f" ::: τ → τ' in M` | value-fixpoint |
+| real literal, arithmetic on measures | `[\|r\|]`, `M + N`, `M * N` | pure |
+| sampling, scoring | `sample µ`, `Score { f, … } e` | effectful |
+| booleans, conditional | `true`, `false`, `Bernoulli{p,…}`, `if … then … else …` | effectful |
 
-The headlines are **measure-level identities**: they say that the
-denotation, viewed as an `FMeas` (substochastic measure), agrees with a
-hand-written reference measure. This is the strongest correctness
-statement we can make without an explicit semantic equivalence with QBS.
+The syntax is a single intrinsically typed inductive
+`named_expr Γ τ` in named-variable style, in the surface convention of
+Saito and Affeldt (APLAS 2023). It is **invariant under the choice of
+interpretation**: the CBV and CBN denotation functions consume the
+same `named_expr`.
 
-### 3.2 Recursive programs — the achievement
+There is no syntactic `return`, no `bind` and no probability-monad
+type marker `T τ` at the surface; the monad lives in the interpretation
+in the manner of *direct-style CBV* (Plotkin, Girard). A function which
+samples has source type `ρ → ρ`, not `ρ → T ρ`.
 
-`ex_geom : tunit → tR'` is the geometric distribution:
+---
+
+## Call-by-value interpretation
+
+**Definition (CBV interpretation).** *Each type `τ` denotes a
+`!`-coalgebra `⟦τ⟧ ∈ EM(!)`; each well-typed program `Γ ⊢ M : τ`
+denotes a Kleisli morphism `⟦M⟧ : ⟦Γ⟧ → T⟦τ⟧` for the CBV monad
+`T = !̃ ∘ U` of the LNL adjunction (Mellies, paper §9). Composition is
+Kleisli, the unit is the Dirac coalgebra map.*
+
+The type translation is the standard one for `EM(!)`: products are
+the cartesian product of `EM(!)`, base types `X̄` map to the coalgebra
+`(FMeas(X), h_X)` of Theorem 9.7, function types are the Kleisli
+exponential `⟦τ → τ'⟧ = !̃(U⟦τ⟧ ⊸ U(T⟦τ'⟧))` whose `T` on the
+codomain marks the latent effect of every call. The boolean type
+denotes the free coalgebra over the two-point cone of §4.4.
+
+In Rocq this is the function
 
 ```coq
-fix "g" ::: tfun tunit tR' in
-  \ "_" ::: tunit =>
-    if Bernoulli { 1/2 } then
-      [| 0 |]
-    else
-      [| 1 |] + # "g" @ ()
+eD : named_expr Γ τ → coalg_hom (ctxD Γ) (Tobj (tyD τ))
 ```
 
-The headline theorem:
+where `tyD τ` is `⟦τ⟧`, `ctxD Γ` is `⟦Γ⟧`, `Tobj` is `T = !̃ ∘ U`,
+and `coalg_hom` is the hom of `EM(!)`. It is defined in
+`theories/programs/ppl.v` by structural recursion on `named_expr`;
+pure constructors are wrapped through the unit `η_T` of the monad
+(post-composition with `tunit_eta`).
+
+The recursion combinator at function type — the CBV *value-fixpoint*
+on `!̃(U τ ⊸ U(T τ'))` — is folklore (P.-A. Melliès, personal
+communication, 2026-05-31). It is built here as the Kleene supremum
+on the linhom-cone unit ball; see the *CBV value-fixpoint* block
+below.
+
+### Sampling and the integral
+
+The semantics of `sample µ` follows the explanation of paper
+Remark 9.8: for `f ∈ ICones!(FMeas(X), B)` corresponding to a
+continuation `Γ, x:X̄ ⊢ K : τ`, the sampler returns
+
+`g(µ) = ∫_{r ∈ X} f(δ_X(r)) µ(dr) ∈ B`
+
+which is the linearisation of `f` along the Dirac path. The Rocq
+implementation is `sample_kleisli` in `theories/programs/ppl.v`,
+discharged structurally against the coalgebra map `h_X` and the
+integrability of `Tobj`-valued paths.
+
+---
+
+## Call-by-name interpretation
+
+**Definition (CBN interpretation).** *Each type `τ` denotes an
+integrable cone `⟦τ⟧_n` in `SCones`; each well-typed program
+`Γ ⊢ M : τ` denotes a stable and measurable function
+`⟦M⟧_n : ⟦Γ⟧_n → ⟦τ⟧_n`. Recursion at function type is the fixpoint
+operator `Y` of paper §9.2.*
+
+The base type `X̄` denotes the cone `FMeas(X)` itself (no `Bang` lift —
+the *pragmatic QBS reading*); products denote the SCones product
+`sprod`; function types denote the internal hom of stable and
+measurable functions `stablehom`; booleans denote the two-point cone
+of §4.4. In Rocq:
 
 ```coq
-Theorem ex_geom_arr_mass_one :
-  fmeas_mu
-    (Lfun (der (FMeas R_obj))
-       (linhom_fun (Lfun (der L_geom) Yfix_arr')
-                   (one1 : cone_one_car Ar)))
-    [set: ar_carrier Ar R_obj]
-  = 1%:E.
+eD_CBN : named_expr Γ τ → scones_hom (ctxD_CBN Γ) (tyD_CBN τ)
 ```
 
-This is the **first formal mass-1 identity for a non-trivial recursive
-PPL example in Icones**, axiom-free. It lives in
-`theories/programs/infra/em_fix_arr.v`.
+defined in `theories/programs/ppl_cbn.v`, with no `Tobj` lift on the
+codomain: effects live inside the type interpretation, in the manner
+of the lazy QBS reading of Heunen–Kammar–Staton–Yang.
 
-### 3.3 How the headline was built
-
-The CBV value-fixpoint recipe (expert-validated, folklore-not-in-the-literature):
-
-1. **`Yfix_arr`** — Bang-level Kleene iteration: `f^n ∘ prom 0`, with
-   promotion `prom = nl_B` at each step and seed at the promoted zero.
-2. **Per-iterate cascade** — `Step_geom` (in
-   `theories/programs/infra/ex_geom_step.v`) gives a structural
-   reduction of one Kleene step into a sum of two FMeas convolutions.
-3. **Kleene chain monotonicity** — `kleene_arr_chain` proves
-   `f^n ≤p f^(n+1)`.
-4. **Sup mass = 1** — `F_arr_sup_mass` adds up the mass of each iterate
-   via the geometric series `∑ (1/2)^n = 1` from mathcomp-analysis.
-5. **Headline** — `ex_geom_arr_mass_one` chains it all through
-   `derL_Yfix_E`, `linhom_at_one_sup_E`, `derFMeas_one_sup_E`.
-
-Each of these is short (1–10 lines once the right reduction lemma is
-applied), but identifying the right reduction lemma was real
-mathematical work.
-
-### 3.4 Generic recursion — partial
-
-`Yfix_arr_g` (in `em_fix_arr.v` after the `ex_geom` headline)
-generalizes the construction to an **arbitrary** coalgebra morphism
-`M : EM_prod G funT → Tobj funT`:
-
-- **Stages 1–3** (Phi, Kleene chain, Yfix existence + norm bound) —
-  ✅ axiom-free.
-- **Stage 3a** (fixpoint equation) — ✅ axiom-free **under a
-  `seed_order` hypothesis** that is automatically discharged for
-  `ex_geom` (by `Step_geom_one_prom_zero_via_convex_E`).
-- **Sanity check** `Phi_arr_eq_Phi_arr_g_one1` confirms the generic
-  structure faithfully generalizes the `ex_geom`-specific work
-  (by definitional reduction).
-
-This is enough to write down `Yfix_arr_g` for any concrete coalgebra
-morphism the user supplies; what is **not** enough is to wire it into
-`eD ne_fix` as the universal recursion combinator. That needs Stage 4.
+Recursion is interpreted as a single line:
+`eD_CBN (ne_fix _ M) = scones_comp Yfix (curry ⟦M⟧)`,
+where `Yfix : scones_hom (stablehom B B) B` is the §9.2 operator,
+itself a stable map.
 
 ---
 
-## 4. CBV — what is missing, and why
+## Correctness statements
 
-### 4.1 `eD ne_fix` is still wired to a broken operator
+For each example program we give a closed-form denotational identity
+of paper-strength: an equation in `ICones` between the denotation and
+a reference object built from the measure-theoretic data. They are the
+strongest correctness statements one can phrase without an explicit
+semantic equivalence to an external model (QBS, ProbProg).
 
-`eD_fix` in `theories/programs/ppl.v` calls `Yfix_fun_T` (defined in
-`theories/programs/infra/em_fix.v`), which is the **linhom-level Kleene
-iterate at the unit-ball CPO**.
+**Theorem (random constant).** *Let `µ` be a sub-probability on `R`.
+The program `let c := sample µ in λx. c` denotes, under CBV, the
+push-forward of `µ` through the constant-function coalgebra*. The Rocq
+statement is `ex_random_constant_denot_E` in
+`theories/programs/examples.v`.
 
-This is provably wrong for probabilistic semantics: for `ex_geom`,
-`Yfix_fun_T` collapses to mass 0 (see `F_n_mass_zero` in
-`em_fix_arr.v`). The structural reason: linhom-level iteration loses
-mass at each step because the linhom CPO sup is taken on the unit-ball
-truncation, which truncates contributions.
+**Theorem (random linear).** *The program `let m := sample µ in let b
+:= sample µ in λx. m·x + b` denotes the bilinear lift on FMeas of
+multiplication and addition*. The Rocq statement is
+`ex_random_linear_denot_E`. The non-trivial ingredient is the lax
+symmetric monoidal map `(FMeas X) ⊗ (FMeas Y) → FMeas(X × Y)` of
+§5; on Diracs it reduces to scalar arithmetic.
 
-**Why we did not rewire it.** Two reasons:
+**Theorem (unnormalised Bayesian posterior).** *For a measurable
+density `f : R → [0,1]`, the program*
+`let m := sample µ in let _ := score{f} #"m" in #"m"`
+*denotes the unnormalised posterior of total mass `∫ f(m) dµ(m)`*. The
+Rocq statement is `ex_bayes_linear_is_weighted` (Gap D); it lifts
+the `score` density to an `ICones`-hom into the unit cone via the
+§6 path-preservation lemma `int_to_linhom_pres_path_in_cone`.
 
-1. **`Yfix_arr_g` Stage 4 blocks.** To replace `Yfix_fun_T` with the
-   correct `Yfix_arr`-level construction *as a generic combinator* on
-   the surface language, we need `Yfix_arr_g γ` to be a `coalg_hom`,
-   which requires it to be a SCones-stable map of `γ`. The
-   stability proof relies on §7.3 finite-difference machinery
-   adapted to the **ICones tensor** target — that machinery exists in
-   the library only for the **SCones product** `sprod`. See
-   [§ 7 below](#7-the-blocker-the-scones↔icones-tensor-bridge) for
-   the precise gap.
-2. **The CBN track exists.** Once CBN's M6 ships (the CBN headline
-   `ex_geom_CBN_mass_one`, currently pending — see
-   [§ 6 below](#6-cbn-what-works-and-what-is-missing)), it provides
-   free recursion *as a generic combinator* via the axiom-free
-   `Yfix : scones_hom (stablehom B B) B` from `stable/fixpoint.v`.
-   At that point users who want free recursion can use the CBN
-   interpretation; CBV stays the principal interpretation for
-   non-recursive programs.
-
-So: closed-form recursive programs **can be denoted in CBV today** by
-manually using `Yfix_arr` + the per-example assembly pattern of
-`ex_geom_arr_mass_one`. Each such example is ~150–300 lines of careful
-chasing. There is no surface-language shortcut.
-
-### 4.2 Mutual recursion at free-coalgebra types
-
-`ne_fix x M` requires the fix-body's type to be a function type
-(`tfun τ₁ τ₂`). Heunen–Kammar–Staton–Yang's framing allows recursion
-at any *free coalgebra*, which would include `tprod (tfun …) (tfun …)`
-for mutually-recursive function pairs. Not in scope today; tracked as
-task #141.
-
-### 4.3 Law 2 (`kbind_ext_A`) — open but worked around
-
-The CBV Kleisli bind has an asymmetric η law that does not close
-cleanly via the standard chase. The Bayes-marginal headline
-`ex_bayes_linear_is_weighted` (Gap D #136) is proved at the
-measure level (via `weighted_mu_preimage`), which sidesteps Law 2
-entirely. No active blocker for current examples.
+**Theorem (mass of the geometric program).** *Let `g : 1 → ρ` denote
+the program*
+`(fix g ::: 1 → ρ in λ_. if Bernoulli{1/2} then 0 else 1 + g())()`*.
+Then `‖⟦g⟧_CBV‖ = 1`*. The Rocq statement is `ex_geom_arr_mass_one`
+in `theories/programs/infra/em_fix_arr.v`. The proof packages the
+Kleene chain `f^n ∘ prom(0)` at the `Bang`-level CPO, identifies the
+mass of the n-th iterate with the partial geometric sum `1 - (1/2)^n`,
+and passes to the limit using the monotone convergence theorem from
+mathcomp-analysis. This is, to our knowledge, the first mass identity
+for a recursive PPL example in the integrable-cones model.
 
 ---
 
-## 5. CBN — what works today
+## What is formalised in the CBV reading
 
-`eD_CBN : named_expr Γ τ → scones_hom (ctxD_CBN Γ) (tyD_CBN τ)` in
-`theories/programs/ppl_cbn.v` + `ppl_cbn_eff.v` + `ppl_cbn_bool.v`.
+| Item | Statement | Rocq |
+|---|---|---|
+| Pure / sampling / scoring / arithmetic | every non-recursive constructor has a definitional `eD_<ctor>_E` reduction lemma | `theories/programs/ppl.v` |
+| QBS-style headlines (constant, linear, Bayes) | denotation = reference measure | `examples.v` |
+| Geometric recursion | mass-one identity | `ex_geom_arr_mass_one` in `em_fix_arr.v` |
+| Value-fixpoint at function type | Kleene chain in the linhom unit ball, packaged as a `coalg_hom` via the cofree adjunction | `Yfix_fun_T` / `Yfix_arr` in `em_fix.v` / `em_fix_arr.v` |
+| Generic recursion combinator | `Yfix_arr_g γ`, stages 1–3a closed; stage 3b under a `seed_order` hypothesis automatically discharged for `ex_geom` | `Yfix_arr_g` in `em_fix_arr.v` |
 
-The codomain is a plain `scones_hom` — **no `Tobj` wrap**. Effects live
-in the type interpretation itself (the base type already carries the
-measure).
+The development is free of project-specific axioms; the only
+dependencies are the three classical-logic axioms inherited from
+`mathcomp-analysis`.
 
-### 5.1 Type interpretation (option B)
+## What is formalised in the CBN reading
 
-```
-tyD_CBN tunit       = Stop Ar             (* terminal of ICones *)
-tyD_CBN (tbase X)   = FMeas X
-tyD_CBN (tprod s t) = sprod ⟦s⟧ ⟦t⟧
-tyD_CBN (tfun A B)  = stablehom ⟦A⟧ ⟦B⟧
-tyD_CBN tbool       = bool_cone_car Ar
-tyD_CBN tR'         = FMeas R_obj
-```
-
-This is the **pragmatic QBS reading**: a probabilistic value IS a
-measure. The alternative ("faithful Melliès §7.4 reading", `tbase X =
-Bang(FMeas X)`) is recorded but not chosen.
-
-### 5.2 Trunk — axiom-free
-
-`theories/programs/ppl_cbn.v` (544 lines):
-
-- All structural clauses: var, tt, pair, fst, snd, lam (via `curry`),
-  app (via `Ev`), let (via `scones_comp`).
-- **Recursion**: `eD_CBN ne_fix := scones_comp Yfix (curry ⟦body⟧)`
-  — one line. The fixpoint equation
-  `sh_fun (sc_fun (curry ⟦body⟧) g) (sc_fun ⟦ne_fix⟧ g) = sc_fun ⟦ne_fix⟧ g`
-  is `eD_CBN_fix_E`, proved by `Yfix_fix` in four lines.
-
-The smoke test `ex_random_constant_CBN_denot_E` reduces the CBN
-denotation of `ex_random_constant` definitionally to a recognisable
-SCones composite.
-
-### 5.3 Boolean cascade — axiom-free, FULL
-
-`theories/programs/infra/bool_case_scones.v` + `ppl_cbn_bool.v`
-(658 lines total):
-
-- `scones_const c Hc` — standalone constant SCones-arrow at a unit-ball
-  point (totmono via `big_Pneg_le_Ppos`, boundedness, Scott continuity,
-  path preservation via `const_path_measurable`).
-- `bool_case_fixed_scones` — fixed-branch lift of `bool_case_icones_hom`
-  via `ders`, with true/false-Dirac reduction lemmas.
-- **The key insight** for variable-branch if-then-else: promote
-  branches `M, N : scones_hom G A` to **points of the internal hom**
-  `stablehom G A` via `sc_to_sh`. Then `bool_case_linhom` applies
-  verbatim — the bilinearity-in-`(a, b)` obstruction is sidestepped
-  without `Bang` and without SAFT.
-- Four clauses (true / false / bernoulli / if), five reduction lemmas,
-  all axiom-free.
+| Item | Statement | Rocq |
+|---|---|---|
+| Pure fragment | all structural clauses (var, tt, pair, fst, snd, lam, app, let) | `ppl_cbn.v` |
+| Recursion | `eD_CBN (ne_fix _ M) = scones_comp Yfix (curry ⟦M⟧)`; the fixpoint equation closes in four lines via `Yfix_fix` | `eD_CBN_fix_E` in `ppl_cbn.v` |
+| Booleans and `if` | full boolean cascade via the §4.4 two-point cone, lifted to SCones via `ders` | `bool_case_scones.v`, `ppl_cbn_bool.v` |
+| Smoke test | structural reduction of `ex_random_constant` to a SCones composite | `ex_random_constant_CBN_denot_E` |
 
 ---
 
-## 6. CBN — what is missing, and why
+## What is not formalised
 
-### 6.1 `score` at unit type is structurally trivial
+A handful of items are intentionally left open.
 
-`tyD_CBN tunit = Stop Ar` is the **terminal of ICones**. By terminal
-uniqueness, any morphism `_ → Stop Ar` equals `Stop_mor`. So
-`cbn_score_clause_def G f H_meas H_ge H_le e` is forced equal to
-`ders (Stop_mor _)`, **regardless of the weight function `f`**.
+**The headline mass identity for `ex_geom` in CBN.** The CBV-side
+identity `ex_geom_arr_mass_one` has a CBN counterpart of the same
+shape, going through `Yfix_fix` and the geometric series. It is task
+\#166, estimated at 200–400 lines.
 
-This is **intrinsic to the option-B type translation** — not a bug. A
-faithful score-in-CBN interpretation would need `tunit_CBN ≠ Stop`,
-for example `tunit_CBN = FMeas unit` (a one-point measure space).
+**A genuine score and arithmetic in CBN.** In the option-B type
+translation `⟦1⟧_n = ⊤ ∈ ICones`, the terminal. By terminal uniqueness
+every morphism to `⊤` is forced equal, so `score` and the arithmetic
+constructors `add`/`mul` collapse to constants. A faithful score in
+CBN requires a different translation of the unit type (e.g.
+`FMeas(*)`).
 
-### 6.2 `add` and `mul` are degenerate constants
+**The `SCones`↔`ICones`-tensor bridge.** The composition
+`x ↦ Φ(x, K(x))` of a SCones-stable `K` with a bilinear-into-tensor
+`Φ` is stable. This statement is true and has the same proof shape as
+the SCones-product version of `theories/stable/compose.v`; one
+substitutes `tensor` for `sprod` and re-runs the §7.3 finite-
+difference machinery. We have not built it because for each concrete
+recursive headline a manual `Yfix_arr` chase (as in
+`ex_geom_arr_mass_one`) is cheaper than the bridge, and CBN gives a
+generic fixpoint combinator for the non-arithmetic part. The bridge
+would simultaneously yield: a generic CBV recursion combinator at
+`ne_fix`, CBN-side `add` and `mul`, and any future bilinear-into-tensor
+stable combinator.
 
-`cbn_add_clause_def` and `cbn_mul_clause_def` are shipped as
-constants at `precone_zero : FMeas R_obj`. A faithful port of the CBV
-`add_lift` / `mul_lift` (linear morphism on the tensor) requires a
-bilinear stable map
-`scones_hom (sprod (FMeas) (FMeas)) → tensor (FMeas) (FMeas)` —
-the same SCones↔tensor bridge that blocks CBV Stage 4
-(see [§ 7](#7-the-blocker-the-scones↔icones-tensor-bridge)).
-
-### 6.3 No headline mass identity yet — pending
-
-The CBN counterpart of `ex_geom_arr_mass_one` is task #166. It would
-read approximately:
-
-```coq
-Theorem ex_geom_CBN_mass_one :
-  fmeas_mu (sc_fun ex_geom_CBN_denot precone_zero) [set: …] = 1%:E.
-```
-
-This goes through `Yfix_fix` + the standard geometric-series identity.
-The work involves writing the CBN-side derivation of one Kleene
-iteration and verifying the mass adds up. Estimated 200–400 lines based
-on the size of the CBV equivalent.
-
-### 6.4 No CBV/CBN soundness theorem
-
-No proof that `eD M ≅ eD_CBN M` in any sense. The two interpretations
-are best read as two parallel views. Building the connection would
-require commuting `Bang` with the effect-bearing types (i.e. `Bang
-(FMeas X) ≅ FMeas X` in a suitable sense), which is non-trivial in
+**A CBV/CBN soundness theorem.** No proof that `⟦M⟧_CBV` and `⟦M⟧_CBN`
+agree in any sense. The connection would require commuting `Bang` with
+the effect-bearing types, which has no closed-form realisation in the
 SAFT-built `Bang`.
 
----
+**Mutual recursion at free-coalgebra types** (Heunen–Kammar–Staton–
+Yang's `fix` at any free coalgebra `tprod (tfun…) (tfun…)`). Tracked
+as task \#141.
 
-## 7. The blocker: the SCones↔ICones-tensor bridge
-
-The most important open structural problem on the PPL side. It blocks
-three things simultaneously:
-
-- CBV `Yfix_arr_g` Stage 4 (`γ ↦ Yfix_arr_g γ` is meas-stable) —
-  blocks generic CBV recursion as a combinator.
-- CBV-style `add_lift` / `mul_lift` ported to CBN.
-- Any future bilinear-into-tensor stable combinator.
-
-**The gap.** `theories/stable/compose.v` proves
-"bilinear-into-`sprod` composed-with-stable-via-diagonal is stable" by
-the §7.3 finite-difference machinery. The analogous statement with
-`sprod` replaced by the ICones tensor `⊗` is true but not built.
-
-Concretely, what is needed is something like:
-
-```coq
-Lemma meas_stable_diag_bilinear_tensor
-    (G A B : ICone.type Ar)
-    (Kn : G -> Bang Ar A)
-    (Phi : (G * Bang Ar A) -> Bang Ar B) :
-  is_meas_stable Kn ->
-  (* Phi linear in each slot (i.e., a bilinear ICones map) *)
-  is_bilinear_icones_tensor Phi ->
-  is_meas_stable (fun γ => Phi (γ, Kn γ)).
-```
-
-The proof would mirror the SCones-product proof in `compose.v`,
-substituting `tensor` for `sprod` wherever the cone-sum machinery
-appears. Estimated 200–400 lines. The reason we have not built it yet
-is that the per-example workaround (manual `Yfix_arr` chase, as in
-`ex_geom_arr_mass_one`) is cheaper for each concrete headline, and
-CBN gives free recursion for the non-arithmetic part.
+**An external semantic equivalence** (QBS, ProbProg, Pyro, Stan). The
+correctness statements above are denotational identities against
+hand-written reference measures.
 
 ---
 
-## 8. Deliberate non-goals
-
-Things that are not formalised because they were never the target:
-
-- **Paper § 8 ACONES (analytic cones, multi-set semantics).**
-  Out of scope for this development. The Polish-space refinement of
-  paper § 9 (post-Theorem 9.7) is similarly deferred.
-- **Paper § 10 — PCS (probabilistic coherence spaces) embedding.**
-  Out of scope.
-- **Higher-order recursion at free-coalgebra types.**
-  Tracked as task #141 — not blocked, just not done.
-- **A direct connection between this PPL and an external one
-  (QBS, ProbProg, Pyro, Stan).** The marginals/headlines reference
-  hand-written measure-level statements (Saito–Affeldt-style), which
-  is the strongest correctness statement available without an explicit
-  semantic equivalence.
-
----
-
-## 9. How to verify the development for yourself
+## How to verify
 
 ```sh
-# Build everything.
 make -j
 
-# Check axiom dependencies on the regression anchor and the headlines.
-echo "Print Assumptions Skern_to_ICones_fully_faithful." | rocq top -Q theories Icones -l theories/kernels/kernel_embedding.v
-echo "Print Assumptions ex_geom_arr_mass_one."           | rocq top -Q theories Icones -l theories/programs/infra/em_fix_arr.v
-echo "Print Assumptions eD_CBN_fix_E."                   | rocq top -Q theories Icones -l theories/programs/ppl_cbn.v
-echo "Print Assumptions eD_CBN_bool_if_E."               | rocq top -Q theories Icones -l theories/programs/ppl_cbn_bool.v
+echo "Print Assumptions ex_geom_arr_mass_one."    | \
+  rocq top -Q theories Icones -l theories/programs/infra/em_fix_arr.v
+echo "Print Assumptions ex_bayes_linear_is_weighted." | \
+  rocq top -Q theories Icones -l theories/programs/examples.v
+echo "Print Assumptions eD_CBN_fix_E."            | \
+  rocq top -Q theories Icones -l theories/programs/ppl_cbn.v
+echo "Print Assumptions eD_CBN_bool_if_E."        | \
+  rocq top -Q theories Icones -l theories/programs/ppl_cbn_bool.v
 ```
 
-Each command should report only the three `boolp` axioms
-(`propositional_extensionality`, `functional_extensionality_dep`,
-`constructive_indefinite_description`) — these come from
-mathcomp-analysis and are not Icones project axioms.
-
-The dashboard's per-entry pages embed the exact identifier name, the
-file path, and a GitHub link to the Rocq source, so you can spot-check
-any individual headline without compiling the whole project.
+Each command reports only `propositional_extensionality`,
+`functional_extensionality_dep` and
+`constructive_indefinite_description` (the classical-logic axioms of
+`mathcomp-analysis`). Per-entry pages embed the precise identifier
+name, file, and a GitHub link to the Rocq source.
 
 ---
 
 ## Beyond the paper — Boolean cascade and CBV value-fixpoint
 
-The two PPL-specific paper-supporting constructions extracted from the
-original AUDITOR.md.
+The two PPL-specific constructions which extend paper §4.4 and §9.
 
 ### Boolean cascade: `tbool`, `bool_case`, and `case_em`
 
-To support `ne_if` in the PPL we add a 2-point ICone, its co-pairing as an
-icones-hom, and an EM(!) Kleisli-level case combinator. The 2-point cone
-itself is paper §4.4 / Theorem 4.24's coproduct `cone_one ⊕ cone_one` (an
-existing paper concept), but its concrete construction as
-`bool_cone_car Ar : {nonneg R} × {nonneg R}` and its full HB tower are added
-here, and the icones-hom packaging `bool_case_linhom` / `bool_case_icones_hom`
-+ the unit-ball-free generalisations are new infrastructure.
+The 2-point cone of paper §4.4 / Theorem 4.24 — the coproduct
+`1 ⊕ 1` — is built concretely as `bool_cone_car Ar : {nonneg R} ×
+{nonneg R}` with norm `‖(p,q)‖ = p + q`, with its full HB tower, its
+universal co-pairing as an `icones_hom`, and an EM(!) Kleisli-level
+case combinator `case_em` for the `if-then-else` of `named_expr`. The
+key insight which avoids a `Bang`-level bilinearity obstruction: a
+`coalg_hom` from `EM_prod G A` to `Tobj B` is automatically norm-≤ 1
+*as an arrow*, so the co-pairing `bool_case_linhom` accepts it
+verbatim.
 
 | Lemma | English statement | Rocq |
 |---|---|---|
@@ -592,12 +409,12 @@ Lemma bool_case_linhom_gen_alpha_beta (a b : A) (x : bool_cone_car Ar) :
 (* theories/programs/ppl.v *)
 
 (** [case_em] — the EM(!) value-level [if-then-else] combinator.
-    Branches [a, b : coalg_hom (EM_prod G A) (Tobj B)] are
+    Branches [a, b : coalg_hom (EM_prod G A) (Tobj A)] are
     auto-unit-ball as coalg_homs (hom-cone insight: the operator norm
     of a coalg_hom is bounded by 1 by construction).  Build via the
     [bool_case_linhom] of [a_lh = adj_phi a] / [b_lh = adj_phi b] on
     the Kleisli-bool source, then tensor-uncurry to consume the
-    [bool_cone_car] source, then [adj_psi] back into the [Tobj B]
+    [bool_cone_car] source, then [adj_psi] back into the [Tobj A]
     codomain (with a [der] step to peel one layer of [!̃]). *)
 Definition case_em (G : Coalgebra Ar) (A : ppl_type Ar)
     (a b : coalg_hom (EM_prod G (tyD A))
@@ -606,15 +423,16 @@ Definition case_em (G : Coalgebra Ar) (A : ppl_type Ar)
               (Tobj (tyD A)).
 ```
 
-### CBV value-fixpoint at function types: a first Coq/Rocq formalisation
+### CBV value-fixpoint at function types
 
-The fixpoint operators of paper §9.2 (`lfp`, `Yfix`) live on `SCones` (the
-CBN side) and operate on stable maps. The CBV value-fixpoint at function
-types is genuinely additional content: P.-A. Melliès in 2026-05-31
-consultation describes it as *"folklore, not in the literature"*, and to
-our knowledge this is the first Coq / Rocq formalisation. The construction
-follows OCaml's `let rec` convention — recursion is restricted to function
-types — which is the user-authorised restriction.
+The fixpoint operator of paper §9.2 (`Y` of Theorem 9.2.2) lives on
+`SCones` and operates on stable maps. The CBV value-fixpoint at
+function type — recursion as in OCaml's `let rec` — is its
+EM(!)-Kleisli counterpart; following P.-A. Mellies (2026-05-31), it
+is folklore but, to our knowledge, not previously formalised in
+Rocq/Coq. The construction is a Kleene iteration on the unit-ball CPO
+of the linhom-cone, packaged as a `coalg_hom` via the cofree
+adjunction `U ⊣ !̃` of the LNL structure.
 
 | Lemma | English statement | Rocq |
 |---|---|---|
@@ -674,11 +492,13 @@ Lemma Yfix_fun_T_unfolding : Phi_fun M (Yfix_fun_lin M) = Yfix_fun_lin M.
 
 ## Beyond the paper — CBV / CBN calculi and examples
 
-### Call-by-value calculi (beyond the paper, future work)
+The paper's conclusion lists *"future work: interpreting call-by-value
+or call-by-push-value … languages"*. The two calculi recorded here are
+small concrete instances. The first is a Moggi-style fine-grain CBV
+calculus, the second the direct-style named-variable PPL used in the
+examples above.
 
-The paper's conclusion lists *"future work: interpreting call-by-value or
-call-by-push-value … languages"*. The formalisation takes a step in that
-direction with two small calculi, both interpreted axiom-free.
+### Call-by-value calculi
 
 | What | Rocq |
 |---|---|
@@ -1166,4 +986,3 @@ missing diagram chase); Kleisli exponentials are what Moggi-CBV actually
 needs, and that holds here axiom-free.
 
 ---
-
