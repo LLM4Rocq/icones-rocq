@@ -104,6 +104,12 @@ def main(argv: list[str] | None = None) -> int:
     built_at = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
     two.build_meta.commit = args.commit
     two.build_meta.built_at = built_at
+    # `repo` is not a declared BuildMeta field (the dataclass lives in
+    # schema.py, which is owned by the parser stream); we stash it as a
+    # dynamic attribute so templates can read it as `build_meta.repo`.
+    setattr(two.build_meta, "repo", args.github_repo)
+    setattr(two.paper.build_meta, "repo", args.github_repo)
+    setattr(two.ppl.build_meta, "repo", args.github_repo)
     # Surface the combined source line count for the footer.
     two.build_meta.auditor_lines = (
         two.paper.build_meta.auditor_lines + two.ppl.build_meta.auditor_lines

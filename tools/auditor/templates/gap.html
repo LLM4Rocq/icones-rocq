@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge %}
+{% from "_macros.html" import status_badge with context %}
 
 {% block title %}Not formalised — Icones auditor{% endblock %}
 {% block body_class_extra %} page-gaps{% endblock %}
@@ -27,18 +27,23 @@
   {% for g in gaps %}
   <article class="gap-entry"
            id="{{ g.id }}"
-           data-pagefind-meta="title:{{ g.title }}, kind:gap"
+           data-pagefind-meta="title:{{ g.paper_label }}, kind:gap"
            data-pagefind-filter="status:gap{% if tab %}, tab:{{ tab }}{% endif %}">
     {% if tab %}<span hidden data-pagefind-filter="tab">{{ tab }}</span>{% endif %}
     <header class="gap-head">
       <h2>
         <a class="anchor" href="#{{ g.id }}" aria-label="Permalink">¶</a>
-        {{ g.title }}
+        <span class="gap-title-label">{{ g.paper_label }}</span>
       </h2>
-      <span class="mono gap-ref">Paper {{ g.paper_ref }}</span>
       {{ status_badge('gap') }}
     </header>
-    <div class="prose">{{ g.html|safe }}</div>
+    <div class="prose">{{ g.description_html|safe }}</div>
+    {% if g.reason_html %}
+    <aside class="note note-warning">
+      <strong class="note-title">Why this is out of scope</strong>
+      <div class="note-body">{{ g.reason_html|safe }}</div>
+    </aside>
+    {% endif %}
   </article>
   {% else %}
   <p class="empty">No declared gaps.</p>
