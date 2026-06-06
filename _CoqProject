@@ -74,6 +74,7 @@ theories/programs/examples.v
 theories/programs/infra/curry_kbind.v
 theories/programs/infra/ex_geom_step.v
 theories/programs/infra/em_fix_arr.v
+theories/programs/infra/ex_headlines.v
 theories/programs/infra/bool_case_scones.v
 theories/programs/ppl_cbn.v
 theories/programs/ppl_cbn_eff.v
