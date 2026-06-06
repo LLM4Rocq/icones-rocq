@@ -81,3 +81,4 @@ theories/programs/infra/bool_case_scones.v
 theories/programs/ppl_cbn.v
 theories/programs/ppl_cbn_eff.v
 theories/programs/ppl_cbn_bool.v
+theories/programs/ppl_cbn_headlines.v
