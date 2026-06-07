@@ -53,6 +53,7 @@ theories/stable/scones_ccc.v
 theories/stable/fixpoint.v
 theories/stable/stab_lin_swap.v
 theories/homs/tensor.v
+theories/stable/diag_bilinear_tensor.v
 theories/homs/smcc.v
 theories/homs/exp_adjunction.v
 theories/homs/bang.v
