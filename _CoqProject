@@ -80,6 +80,7 @@ theories/programs/infra/ex_loop_arr.v
 theories/programs/infra/ex_almost_loop_arr.v
 theories/programs/infra/bool_case_scones.v
 theories/programs/ppl_cbn.v
+theories/programs/ex_even_odd.v
 theories/programs/ppl_cbn_eff.v
 theories/programs/ppl_cbn_bool.v
 theories/programs/ppl_cbn_arith.v

@@ -290,6 +290,20 @@ Fixpoint eD_CBN (G : named_ctx Ar) (t : T)
      t2))].  See [eD_CBN_fix_E] for the soundness lemma. *)
   | ne_fix G0 _ t1 t2 body =>
       scones_comp (Yfix (tyD_CBN (tfun t1 t2))) (curry (eD_CBN body))
+  (* [ne_fix_mr s t Hfree body]: CBN recursion at any body type [t]
+     satisfying [is_free_coalg_type t].  [Yfix] of [stable/fixpoint.v]
+     works at ANY cone (its signature is
+     [Yfix B : scones_hom (stablehom B B) B] for any [B : ICone.type Ar])
+     so this clause is uniformly sound — no honest-scope limitation on
+     the CBN side.
+
+     IN PARTICULAR: at [t = tprod (tfun A1 B1) (tfun A2 B2)] this
+     constructor yields a FULLY SOUND mutual-recursion fixpoint at the
+     product-of-functions level, per the expert's recipe.  The CBV side
+     ([ppl.v]'s [Yfix_mr_pack]) has a documented honest-scope
+     limitation at the product case, but CBN does not. *)
+  | ne_fix_mr G0 _ t _ body =>
+      scones_comp (Yfix (tyD_CBN t)) (curry (eD_CBN body))
   | ne_app G0 t1 t2 Vf Va =>
       scones_comp (Ev (tyD_CBN t1) (tyD_CBN t2))
                   (spair (eD_CBN Vf) (eD_CBN Va))
@@ -428,6 +442,51 @@ have Hcurry_g : (cone_norm (sc_fun (curry (eD' body)) g) <= 1)%R.
 exact: Yfix_fix Hcurry_g.
 Qed.
 
+(** *** Mutual recursion — [ne_fix_mr] soundness reductions
+
+    The CBN side has NO honest-scope limitation for [ne_fix_mr] (the
+    expert's product-of-functions case): [Yfix] of [stable/fixpoint.v]
+    works at ANY cone, so the same reduction lemmas as [ne_fix] go
+    through unchanged for any body type [t] (in particular [t =
+    tprod (tfun A1 B1) (tfun A2 B2)], the mutual-recursion shape). *)
+
+(** Definitional unfolding of [eD_CBN] at [ne_fix_mr]: the denotation
+    is [scones_comp (Yfix (tyD_CBN t)) (curry (eD_CBN body))], for any
+    body type [t]. *)
+Lemma eD_CBN_fix_mr
+    (G : named_ctx Ar) (s : string) (t : ppl_type Ar)
+    (Hfree : is_free_coalg_type t)
+    (body : @named_expr R Ar R_obj ((s, t) :: G) t) :
+  eD' (ne_fix_mr s t Hfree body) =
+  scones_comp (Yfix (tyD_CBN t)) (curry (eD' body)).
+Proof. by []. Qed.
+
+(** The headline soundness reduction for [ne_fix_mr]: the denotation is
+    a fixed point of the body's curry, pointwise on the unit ball.
+    Identical statement to [eD_CBN_fix_E] modulo replacing [tfun t1 t2]
+    by an arbitrary [t]. *)
+Lemma eD_CBN_fix_mr_E
+    (G : named_ctx Ar) (s : string) (t : ppl_type Ar)
+    (Hfree : is_free_coalg_type t)
+    (body : @named_expr R Ar R_obj ((s, t) :: G) t)
+    (g : ctxD_CBN (drop_names G))
+    (Hg : (cone_norm g <= 1)%R) :
+  sh_fun (sc_fun (curry (eD' body)) g)
+         (sc_fun (eD' (ne_fix_mr s t Hfree body)) g) =
+  sc_fun (eD' (ne_fix_mr s t Hfree body)) g.
+Proof.
+rewrite eD_CBN_fix_mr.
+have HfeY : sc_fun (scones_comp (Yfix (tyD_CBN t))
+                                 (curry (eD' body))) g =
+            sc_fun (Yfix (tyD_CBN t))
+                   (sc_fun (curry (eD' body)) g).
+  by rewrite scomp_ball.
+rewrite HfeY.
+have Hcurry_g : (cone_norm (sc_fun (curry (eD' body)) g) <= 1)%R.
+  exact: (sc_image_ball (curry (eD' body)) Hg).
+exact: Yfix_fix Hcurry_g.
+Qed.
+
 End FixSoundness.
 
 Arguments eD_CBN_fix {R Ar R_obj
@@ -440,6 +499,16 @@ Arguments eD_CBN_fix_E {R Ar R_obj
   cbn_add_clause cbn_mul_clause
   cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause}
   G s t1 t2 body g Hg.
+Arguments eD_CBN_fix_mr {R Ar R_obj
+  cbn_sample_clause cbn_real_clause cbn_score_clause
+  cbn_add_clause cbn_mul_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause}
+  G s t Hfree body.
+Arguments eD_CBN_fix_mr_E {R Ar R_obj
+  cbn_sample_clause cbn_real_clause cbn_score_clause
+  cbn_add_clause cbn_mul_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause}
+  G s t Hfree body g Hg.
 
 (** ** Smoke test — [ex_random_constant] CBN denotation
 

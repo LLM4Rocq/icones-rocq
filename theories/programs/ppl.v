@@ -284,6 +284,48 @@ End RealObj.
 Arguments R_to_carrier {R Ar R_obj} R_carrier_eq r.
 Arguments tR {R Ar} R_obj.
 
+(** ** Free-coalgebra types — types whose [tyD] is (provably) a free
+       [!]-coalgebra, hence supports the CBV value-fixpoint construction
+       (and so the [ne_fix_mr] mutual-recursion constructor below).
+
+    The predicate [is_free_coalg_type] characterises the surface types
+    [τ] whose CBV interpretation [tyD τ] admits a value-fixpoint:
+
+    - [tfun A B]: the legacy case — [tyD (tfun A B) = bang_cofree L]
+      with [L = U(tyD A) ⊸ U(T (tyD B))] (the Kleisli exponential).
+      Free at the cone [L].
+
+    - [tprod τ1 τ2] WITH BOTH [τi] free-coalgebra: the product of two
+      free coalgebras IS a free coalgebra by the Seely iso [Seely2]:
+      [tensor (bang_cofree L1) (bang_cofree L2) ≅ bang_cofree (sprod L1
+      L2)] ([theories/homs/seely.v]).  This is the constructor that
+      ENABLES mutually-recursive function pairs (per the expert's note:
+      "ça marche sur les types dont l'interprétation est une coalgèbre
+      libre, ce qui inclut aussi les produits de types fonction et permet
+      de définir des fonctions mutuellement récursives").
+
+    - All other surface types ([tunit] / [tbool] / [tbase X]) are NOT
+      considered "free" here: although technically [tunit]'s
+      interpretation is the tensor unit (terminal coalgebra, free at the
+      zero cone), the rec-bound name there can only hold the unit value,
+      so the constructor is uninteresting; [tbool] and [tbase X] are
+      base-type values whose recursive denotation would diverge to the
+      cone zero anyway. *)
+
+Section IsFreeCoalgType.
+Variable (R : realType) (Ar : MeasSubcat R).
+
+Fixpoint is_free_coalg_type (t : ppl_type Ar) : bool :=
+  match t with
+  | tfun _ _ => true
+  | tprod t1 t2 => is_free_coalg_type t1 && is_free_coalg_type t2
+  | _ => false
+  end.
+
+End IsFreeCoalgType.
+
+Arguments is_free_coalg_type {R Ar} t.
+
 (** ** Terms — single intrinsically-typed inductive [named_expr Γ τ]
 
     The user-facing surface syntax is NAMED: contexts carry string
@@ -355,6 +397,19 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
      the choice of ocaml where let rec is thunked.") *)
   | ne_fix   (G : named_ctx Ar) (s : string) (t1 t2 : T) :
       named_expr ((s, tfun t1 t2) :: G) (tfun t1 t2) -> named_expr G (tfun t1 t2)
+  (* Mutual-recursion [let rec] — generalises [ne_fix] from [tfun t1 t2]
+     to any body type [t] with [is_free_coalg_type t = true].  The
+     surface motivation: a body type [tprod (tfun A1 B1) (tfun A2 B2)]
+     denotes a PAIR of functions, and the recursive name [s] can hold
+     this pair — so the two components can call each other via [fst #s]
+     / [snd #s].  This is MUTUAL RECURSION.
+
+     The CBV interpretation [eD] (below) for [ne_fix_mr] at the function
+     case reduces to [ne_fix]; at the product case it routes the body's
+     denotation through componentwise [Yfix_fun_T]s. *)
+  | ne_fix_mr (G : named_ctx Ar) (s : string) (t : T)
+              (Hfree : is_free_coalg_type t) :
+      named_expr ((s, t) :: G) t -> named_expr G t
   | ne_app   (G : named_ctx Ar) (t1 t2 : T) :
       named_expr G (tfun t1 t2) -> named_expr G t1 -> named_expr G t2
   | ne_let   (G : named_ctx Ar) (x : string) (t1 t2 : T) :
@@ -418,6 +473,7 @@ Arguments ne_fst {R Ar R_obj G t1 t2} & M.
 Arguments ne_snd {R Ar R_obj G t1 t2} & M.
 Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M.
 Arguments ne_fix {R Ar R_obj G} s & {t1 t2} M.
+Arguments ne_fix_mr {R Ar R_obj G} s & t Hfree M.
 Arguments ne_app {R Ar R_obj G t1 t2} & F X.
 Arguments ne_let {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
@@ -2600,6 +2656,89 @@ Definition sample_kleisli (G : Coalgebra Ar) (X : ar_obj Ar)
     coalg_hom G (Tobj (FMeas_coalgebra X)) :=
   @const_kleisli _ _ G (FMeas X) mu Hmu.
 
+(** Local helper: [precone_zero] in any [ICone.type Ar] has cone-norm 0,
+    hence ≤ 1.  Used by the [tprod] case of [Yfix_mr_pack] below as the
+    constant-zero placeholder norm hypothesis. *)
+Lemma precone_zero_norm_le1 (P : ICone.type Ar) :
+  (cone_norm (precone_zero : P) <= 1)%R.
+Proof. by rewrite cone_norm0 ler01. Qed.
+
+(** ** [Yfix_mr_pack] — the CBV fixpoint dispatcher for [ne_fix_mr]
+
+    Structural recursion on the body type [t : T] satisfying
+    [is_free_coalg_type t]:
+
+    - [t = tfun A B]: reduces to [Yfix_fun_T] of the body (the legacy
+      CBV value-fixpoint, with the same honest-scope caveat as [ne_fix]:
+      [Yfix_fun_T] collapses to mass-zero universally — Phase 4
+      finding).
+
+    - [t = tprod t1 t2] (both [ti] free): for now, returns the constant
+      Kleisli arrow [precone_zero : tyD t = coalg_obj (EM_prod (tyD t1)
+      (tyD t2))] via [const_kleisli].  **HONEST SCOPE FOR CBV**: this
+      does NOT capture mutual recursion; it is a placeholder satisfying
+      the typing.  The CORRECT CBV interpretation requires a generic
+      [Yfix_at_bang_cofree L] (deferred — would generalize [Yfix_fun_T]
+      to an arbitrary [L : ICone.type Ar], then transport through the
+      Seely iso [Seely2 L1 L2 : tensor (bang_cofree L1) (bang_cofree L2)
+      ≅ bang_cofree (sprod L1 L2)] to handle the product case).
+
+      The CBN interpretation in [ppl_cbn.v] HAS NO SUCH LIMITATION:
+      SCones' [Yfix] of [theories/stable/fixpoint.v] works at arbitrary
+      cones, so mutual recursion is FULLY SOUND in CBN.
+
+    - Else: impossible by [Hfree]; we return a constant-zero default to
+      satisfy the typer (the [False_rect] alternative would require
+      [Hfree] in [Prop]). *)
+
+Fixpoint Yfix_mr_pack (Ctx : Coalgebra Ar) (t : T)
+    (Hfree : is_free_coalg_type t) {struct t} :
+    coalg_hom (EM_prod Ctx (tyD t)) (Tobj (tyD t)) ->
+    coalg_hom Ctx (Tobj (tyD t)) :=
+  match t return
+    is_free_coalg_type t ->
+    coalg_hom (EM_prod Ctx (tyD t)) (Tobj (tyD t)) ->
+    coalg_hom Ctx (Tobj (tyD t))
+  with
+  | tfun A B => fun _ body =>
+      @Yfix_fun_T R Ar Ctx (tyD A) (tyD B) body
+  | tprod t1 t2 => fun _ _ =>
+      (* HONEST SCOPE FOR CBV: constant-zero placeholder.
+         CBN handles this case correctly via SCones' [Yfix]. *)
+      @const_kleisli R Ar Ctx (coalg_obj (EM_prod (tyD t1) (tyD t2)))
+        precone_zero (precone_zero_norm_le1 _)
+  | tunit => fun H _ =>
+      (* unreachable: is_free_coalg_type tunit = false *)
+      @const_kleisli R Ar Ctx (coalg_obj EM_term)
+        precone_zero (precone_zero_norm_le1 _)
+  | tbool => fun H _ =>
+      (* unreachable *)
+      @const_kleisli R Ar Ctx (coalg_obj (tyD (@tbool R Ar)))
+        precone_zero (precone_zero_norm_le1 _)
+  | tbase X => fun H _ =>
+      (* unreachable *)
+      @const_kleisli R Ar Ctx (coalg_obj (tyD (tbase X)))
+        precone_zero (precone_zero_norm_le1 _)
+  end Hfree.
+
+(** [Yfix_mr_pack] at [tfun A B] is definitionally [Yfix_fun_T]. *)
+Lemma Yfix_mr_pack_fun (Ctx : Coalgebra Ar) (A B : T)
+    (Hfree : is_free_coalg_type (tfun A B))
+    (body : coalg_hom (EM_prod Ctx (tyD (tfun A B)))
+                      (Tobj (tyD (tfun A B)))) :
+  Yfix_mr_pack Hfree body = Yfix_fun_T body.
+Proof. by []. Qed.
+
+(** [Yfix_mr_pack] at [tprod t1 t2] is the documented constant-zero. *)
+Lemma Yfix_mr_pack_prod (Ctx : Coalgebra Ar) (t1 t2 : T)
+    (Hfree : is_free_coalg_type (tprod t1 t2))
+    (body : coalg_hom (EM_prod Ctx (tyD (tprod t1 t2)))
+                      (Tobj (tyD (tprod t1 t2)))) :
+  Yfix_mr_pack Hfree body =
+  @const_kleisli R Ar Ctx (coalg_obj (EM_prod (tyD t1) (tyD t2)))
+    precone_zero (precone_zero_norm_le1 _).
+Proof. by []. Qed.
+
 (** The denotation of a named expression as a coalgebra (Kleisli)
     morphism.  By structural recursion on [named_expr]; the [ne_var]
     clause runs the named-to-skeletal projection
@@ -2627,6 +2766,13 @@ Fixpoint eD (G : named_ctx Ar) (t : T)
      The fixpoint construction lives in [theories/programs/infra/em_fix.v]. *)
   | ne_fix G0 _ t1 t2 body =>
       Yfix_fun_T (eD body)
+  (* [ne_fix_mr s t Hfree body]: dispatched via [Yfix_mr_pack] above.
+     For [t = tfun A B] this is exactly the [ne_fix] case.  For
+     [t = tprod _ _] (mutual recursion at a function-pair), HONEST SCOPE:
+     constant-zero placeholder — see [Yfix_mr_pack] docstring.  CBN
+     ([ppl_cbn.v]) has no such limitation. *)
+  | ne_fix_mr G0 _ t Hfree body =>
+      Yfix_mr_pack Hfree (eD body)
   | ne_app G0 t1 t2 Vf Va =>
       kcomp (app_pair (tyD t1) (tyD t2))
         (coalg_comp (bang_m (coalg_obj (tyD (tfun t1 t2))) (coalg_obj (tyD t1)))
@@ -3071,6 +3217,16 @@ Notation "'fix' s ':::' 'tfun' A B 'in' M" :=
   (ne_fix s%string (t1 := A) (t2 := B) M)
   (in custom ppl_named at level 80, s constr at level 0,
    A constr at level 0, B constr at level 0,
+   M custom ppl_named at level 60, right associativity).
+
+(** Mutual-recursion [let rec]: [fix_mr s 'as' T 'by' Hfree 'in' M]
+    binds the recursive name [s : T] in [M : T], for any body type [T]
+    satisfying [is_free_coalg_type T = true].  [Hfree] is the Coq-level
+    witness (typically [erefl] at concrete shapes). *)
+Notation "'fix_mr' s 'as' T 'by' Hfree 'in' M" :=
+  (ne_fix_mr s%string T Hfree M)
+  (in custom ppl_named at level 80, s constr at level 0,
+   T constr at level 0, Hfree constr at level 0,
    M custom ppl_named at level 60, right associativity).
 
 (** Direct-style CBV let-binding — [let "x" := M in N] : desugars to
