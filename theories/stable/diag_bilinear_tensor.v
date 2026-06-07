@@ -597,3 +597,282 @@ Qed.
 End IdSpairMeasStable.
 
 Arguments id_spair_meas_stable {R Ar G A}.
+
+(** ** General diagonal pairing — [g ↦ ⟨f g, K g⟩]
+
+    Generalization of [id_spair_meas_stable] to allow a non-identity
+    first factor [f : G → C].  Same proof structure, using [f]'s data
+    instead of identity's. *)
+Section SpairMeasStable.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G C A : ICone.type Ar).
+Local Open Scope precone_scope.
+
+Lemma spair_meas_stable (f : G -> C) (K : G -> A) :
+  is_meas_stable f -> is_meas_stable K ->
+  is_meas_stable (fun g : G => sprod_pair (f g) (K g) : sprod C A).
+Proof.
+move=> Hf HK.
+have [Hfs Hfp] := Hf.
+have [Hftm [Mf' HMf'] Hfsc] := Hfs.
+have [Hs Hp] := HK.
+have [Htm [Mk HMk] Hsc] := Hs.
+have Hk_ub g : cone_norm g <= 1 -> cone_norm (K g) <= Mk by exact: HMk.
+have Hf_ub g : cone_norm g <= 1 -> cone_norm (f g) <= Mf' by exact: HMf'.
+have Mk_ge0 : (0 <= Mk)%R.
+  have H0le1 : cone_norm (precone_zero : G) <= 1 by rewrite cone_norm0 ler01.
+  by apply: le_trans (cone_norm_ge0 (K precone_zero)) (HMk precone_zero H0le1).
+have Mf_ge0 : (0 <= Mf')%R.
+  have H0le1 : cone_norm (precone_zero : G) <= 1 by rewrite cone_norm0 ler01.
+  by apply: le_trans (cone_norm_ge0 (f precone_zero)) (HMf' precone_zero H0le1).
+split; first split.
+- (* Totally monotonic, componentwise. *)
+  move=> n x u Hz.
+  apply: cones_prod_le_compI => i.
+  rewrite !cones_prod_val_big.
+  case: i.
+    rewrite (eq_bigr (fun I => f (tm_arg x u I))) //.
+    rewrite [X in _ <=p X](eq_bigr (fun I => f (tm_arg x u I))) //.
+    exact: Hftm.
+  rewrite (eq_bigr (fun I => K (tm_arg x u I))) //.
+  rewrite [X in _ <=p X](eq_bigr (fun I => K (tm_arg x u I))) //.
+  exact: Htm.
+- (* Bounded on the unit ball. *)
+  exists (Mf' + Mk)%R => g Hg.
+  rewrite /cone_norm/=.
+  apply: ge_sup; first by exists (cone_norm (f g)), true.
+  move=> _ [b ->]; case: b => /=.
+  + apply: le_trans (Hf_ub g Hg) _.
+    by apply: ler_wpDr => //; exact: Mk_ge0.
+  + apply: le_trans (Hk_ub g Hg) _.
+    by apply: ler_wpDl => //; exact: Mf_ge0.
+- (* Scott on the unit ball: componentwise. *)
+  move=> Mfx u uch ub1 fuch fubMf Mfpos.
+  pose Pc : bool -> coneType R := sprod_fam C A.
+  pose pair_u : nat -> sprod C A := fun n => sprod_pair (f (u n)) (K (u n)).
+  have proj_sct (i : bool) := linear_scott_of_omega (cones_proj_fun (P:=Pc) i)
+    (cones_proj_linear Pc i) (cones_proj_continuous (P:=Pc) (i:=i)).
+  have HL i := proj_sct i Mfx Mfx pair_u fuch fubMf Mfpos.
+  apply: cones_prod_eq => i.
+  case: i.
+    (* true: f component. *)
+    have eT n : cones_proj_fun (P:=Pc) true (pair_u n) = f (u n) by [].
+    have eTch n : cones_proj_fun (P:=Pc) true (pair_u n) <=p
+                  cones_proj_fun (P:=Pc) true (pair_u n.+1).
+      rewrite !eT.
+      have := fuch n.
+      by move=> H; have := cones_prod_le_comp H true; rewrite /cones_prod_val/=.
+    have eTub n : cone_norm (cones_proj_fun (P:=Pc) true (pair_u n)) <=
+                  Mfx%:num.
+      rewrite eT.
+      apply: le_trans (fubMf n).
+      exact: (cones_prod_norm_ge_comp (pair_u n) true).
+    have f_fuch n : f (u n) <=p f (u n.+1) by rewrite -!eT; exact: eTch.
+    have f_fubMf n : cone_norm (f (u n)) <= Mfx%:num by rewrite -eT.
+    rewrite -[cones_prod_val (sprod_pair (f _) (K _)) true]
+      /(f (cone_sup_ball u uch ub1)).
+    rewrite (Hfsc Mfx u uch ub1 f_fuch f_fubMf Mfpos).
+    rewrite -[cones_prod_val (cone_sup_at fuch fubMf Mfpos) true]
+      /(cones_proj_fun (P:=Pc) true (cone_sup_at fuch fubMf Mfpos)).
+    have := HL true eTch eTub Mfpos.
+    move=> ->.
+    apply: precone_le_anti.
+    + apply: (cone_sup_at_lub f_fuch f_fubMf Mfpos) => n.
+      by have := cone_sup_at_ub eTch eTub Mfpos n; rewrite eT.
+    + apply: (cone_sup_at_lub eTch eTub Mfpos) => n.
+      by rewrite eT; have := cone_sup_at_ub f_fuch f_fubMf Mfpos n.
+  (* false: K component. *)
+  have eF n : cones_proj_fun (P:=Pc) false (pair_u n) = K (u n) by [].
+  have eFch n : cones_proj_fun (P:=Pc) false (pair_u n) <=p
+                cones_proj_fun (P:=Pc) false (pair_u n.+1).
+    rewrite !eF.
+    have := fuch n.
+    by move=> H; have := cones_prod_le_comp H false; rewrite /cones_prod_val/=.
+  have eFub n : cone_norm (cones_proj_fun (P:=Pc) false (pair_u n)) <=
+                Mfx%:num.
+    rewrite eF.
+    apply: le_trans (fubMf n).
+    exact: (cones_prod_norm_ge_comp (pair_u n) false).
+  have K_fuch n : K (u n) <=p K (u n.+1) by rewrite -!eF; exact: eFch.
+  have K_fubMf n : cone_norm (K (u n)) <= Mfx%:num by rewrite -eF.
+  rewrite -[cones_prod_val (sprod_pair (f _) (K _)) false]
+    /(K (cone_sup_ball u uch ub1)).
+  rewrite (Hsc Mfx u uch ub1 K_fuch K_fubMf Mfpos).
+  rewrite -[cones_prod_val (cone_sup_at fuch fubMf Mfpos) false]
+    /(cones_proj_fun (P:=Pc) false (cone_sup_at fuch fubMf Mfpos)).
+  have := HL false eFch eFub Mfpos.
+  move=> ->.
+  apply: precone_le_anti.
+  + apply: (cone_sup_at_lub K_fuch K_fubMf Mfpos) => n.
+    by have := cone_sup_at_ub eFch eFub Mfpos n; rewrite eF.
+  + apply: (cone_sup_at_lub eFch eFub Mfpos) => n.
+    by rewrite eF; have := cone_sup_at_ub K_fuch K_fubMf Mfpos n.
+(* Path-preservation. *)
+move=> X γ Hγb Hγ.
+split.
+  exists (Mf' + Mk)%R => r.
+  rewrite /cone_norm /= /cones_prod_norm.
+  apply: ge_sup.
+    by exists (cone_norm (cones_prod_val
+       (sprod_pair (f (γ r)) (K (γ r))) true)), true.
+  move=> _ [b ->]; case: b => /=.
+  + apply: le_trans (Hf_ub _ (Hγb r)) _.
+    by apply: ler_wpDr => //; exact: Mk_ge0.
+  + apply: le_trans (Hk_ub _ (Hγb r)) _.
+    by apply: ler_wpDl => //; exact: Mf_ge0.
+move=> Y m mM.
+have [j [n0 [n0M ->]]] := mM.
+have Kγ_path : is_measurable_path (fun r => K (γ r)).
+  exact: Hp X γ Hγb Hγ.
+have [_ Kγ_meas] := Kγ_path.
+have fγ_path : is_measurable_path (fun r => f (γ r)).
+  exact: Hfp X γ Hγb Hγ.
+have [_ fγ_meas] := fγ_path.
+destruct j.
+- have := fγ_meas Y n0 n0M.
+  apply: eq_measurable_fun => p _.
+  by rewrite /iniTest /= /iniTest_fun /= /cones_prod_val/=.
+- have := Kγ_meas Y n0 n0M.
+  apply: eq_measurable_fun => p _.
+  by rewrite /iniTest /= /iniTest_fun /= /cones_prod_val/=.
+Qed.
+
+End SpairMeasStable.
+
+Arguments spair_meas_stable {R Ar G C A}.
+
+(** ** M4 — the deliverable: the diagonal bilinear stability bridge
+
+    The headline of the file (task #171, recipe of research #181):
+    if [K : G → !A] is meas-stable and [Φ : G ⊗ !A → !B] is bilinear
+    into the [ICones] tensor (an [icones_hom]), then [g ↦ Φ(g ⊗p K g)]
+    is meas-stable.
+
+    Proof recipe (pure structural composition via the tensor↔hom
+    adjunction Thm 5.12):
+      g ↦ Φ(g ⊗p K g)
+        = linhom_fun ((tensor_curry Φ) g) (K g)         [tensor_curryE]
+        = (Ev_fun on stablehom) ⟨ψ' g, K g⟩
+      where ψ' g := linhom_to_stablehom ((tensor_curry Φ) g).
+    Then:
+      - ψ' meas-stable, by [meas_stable_comp_post] applied to
+        [tensor_curry Φ : icones_hom] (M2) and [linhom_to_stablehom]
+        meas-stable (M1).
+      - The diagonal pairing [g ↦ ⟨ψ' g, K g⟩] is meas-stable by
+        [spair_meas_stable] (M3 generalized).
+      - The evaluation [ev_fun : sprod (stablehom (Bang A) (Bang B))
+        (Bang A) → Bang B] is meas-stable ([ev_meas_stable], paper
+        Lemma 7.27).
+      - Composing with [meas_stable_comp] (with the image-ball
+        hypothesis for the diagonal pair) gives the result. *)
+Section MeasStableDiagBilinearTensor.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G EA EB : ICone.type Ar).
+Local Open Scope precone_scope.
+
+(** The deliverable, stated generically: [EA] and [EB] are arbitrary
+    integrable cones (in the intended application, [EA = Bang Ar A] and
+    [EB = Bang Ar B]; we keep them generic to avoid pulling
+    [exp_adjunction.v] into [stable/]). *)
+Lemma meas_stable_diag_bilinear_tensor
+    (K : G -> EA)
+    (Phi : icones_hom Ar (tensor Ar G EA) EB) :
+  is_meas_stable K ->
+  is_meas_stable (fun g : G => Phi (ptensor g (K g))).
+Proof.
+move=> HK.
+have [Hs Hp] := HK.
+have [_ [Mk HMk] _] := Hs.
+have Hk_ub g : cone_norm g <= 1 -> cone_norm (K g) <= Mk by exact: HMk.
+have Mk_ge0 : (0 <= Mk)%R.
+  have H0le1 : cone_norm (precone_zero : G) <= 1 by rewrite cone_norm0 ler01.
+  by apply: le_trans (cone_norm_ge0 (K precone_zero)) (HMk precone_zero H0le1).
+(* Rescaling [K] to have on-ball-norm ≤ 1. *)
+have Mk1_pos : (0 < Mk + 1)%R by apply: le_lt_trans Mk_ge0 _; rewrite ltrDl.
+have Mk1_inv_ge0 : (0 <= (Mk + 1)^-1)%R by rewrite invr_ge0 ltW.
+pose alpha : {nonneg R} := NngNum Mk1_inv_ge0.
+pose beta : {nonneg R} := NngNum (ltW Mk1_pos).
+have alpha_beta : (beta%:num * alpha%:num)%:nng = (1%:nng : {nonneg R}).
+  by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+pose K' := fun g : G => alpha *: K g.
+have HK'_ms : is_meas_stable K'.
+  rewrite /K' -[fun g : G => alpha *: K g]/(stm_scale alpha K).
+  split; first exact: (stable_scale alpha Hs).
+  exact: (meas_stable_scale alpha Hp).
+have HK'_ball g : cone_norm g <= 1 -> cone_norm (K' g) <= 1.
+  move=> Hg; rewrite /K' cone_normh /=.
+  rewrite mulrC ler_pdivrMr // mul1r.
+  apply: le_trans (HMk g Hg) _.
+  by rewrite lerDl ler01.
+set Phi_curry := tensor_curry Phi.
+(* Ψ' g := lift to stablehom. Meas-stable as composition of an icones_hom
+   and the M1 lift. *)
+have Hpsi : is_meas_stable
+  (fun g : G => linhom_to_stablehom (Phi_curry g) : stablehom _ _).
+  exact: (meas_stable_comp_post (Phi_curry : icones_hom Ar G _)
+    linhom_to_stablehom linhom_to_stablehom_meas_stable).
+(* Pair (Ψ', K'). Meas-stable by spair_meas_stable. *)
+have Hpair : is_meas_stable (fun g : G =>
+    sprod_pair (linhom_to_stablehom (Phi_curry g) : stablehom _ _) (K' g)
+    : sprod _ _).
+  exact: (spair_meas_stable _ _ Hpsi HK'_ms).
+(* Image-ball hypothesis for the pair: norm of the pair ≤ 1 on unit ball
+   of G. *)
+have Hpair_ball g : cone_norm g <= 1 ->
+  cone_norm (sprod_pair (linhom_to_stablehom (Phi_curry g) : stablehom _ _)
+                        (K' g) : sprod _ _) <= 1.
+  move=> Hg.
+  rewrite /cone_norm/=.
+  apply: ge_sup.
+    by exists (cone_norm (cones_prod_val (sprod_pair
+       (linhom_to_stablehom (Phi_curry g) : stablehom _ _) (K' g)) true));
+       exists true.
+  move=> _ [b ->]; case: b => /=.
+  + apply: (sh_norm_lub (linhom_to_stablehom (Phi_curry g)) 1).
+    move=> x Hx.
+    rewrite linhom_to_stablehom_E //.
+    apply:
+      (le_trans (linhom_norm_apply_le (lexx (linhom_norm (Phi_curry g))) x)).
+    rewrite -[linhom_norm (Phi_curry g)]/(cone_norm (Phi_curry g)).
+    apply: le_trans (_ : cone_norm (Phi_curry g) * 1 <= 1).
+      by apply: ler_wpM2l; [exact: cone_norm_ge0|exact: Hx].
+    rewrite mulr1.
+    exact: le_trans (cones_hom_norm_le1 Phi_curry g) Hg.
+  + exact: HK'_ball.
+pose aux := fun g : G =>
+  beta *: ev_fun (sprod_pair
+    (linhom_to_stablehom (Phi_curry g) : stablehom _ _) (K' g)).
+have aux_ms : is_meas_stable aux.
+  rewrite /aux.
+  pose comp_fun := fun g : G => ev_fun (sprod_pair
+    (linhom_to_stablehom (Phi_curry g) : stablehom _ _) (K' g)).
+  have Hcomp : is_meas_stable comp_fun.
+    apply: (meas_stable_comp
+      (fun g : G => sprod_pair (linhom_to_stablehom (Phi_curry g)) (K' g))
+      (@ev_fun _ Ar EA EB) Hpair (ev_meas_stable EA EB)).
+    exact: Hpair_ball.
+  have [Hcs Hcp] := Hcomp.
+  rewrite -[fun g : G => beta *: _]/(stm_scale beta comp_fun).
+  split; first exact: (stable_scale beta Hcs).
+  exact: (meas_stable_scale beta Hcp).
+(* The original function and [aux] agree on the unit ball of G. *)
+apply: (meas_stable_eq_on_ball
+  (fun g : G => Phi (ptensor g (K g))) aux aux_ms).
+move=> g Hg.
+rewrite /aux.
+(* Evaluate ev_fun on a sprod_pair. *)
+rewrite /ev_fun sprod_fstE sprod_sndE.
+rewrite (linhom_to_stablehom_E (Phi_curry g) (K' g) (HK'_ball g Hg)).
+(* Pull α out via linearity of [Phi_curry g]. *)
+have [_ _ HZ] := linhom_pre_linear (linhom_pre_of (Phi_curry g)).
+rewrite -[linhom_fun (Phi_curry g) (K' g)]/(Phi_curry g (K' g)).
+rewrite /K' (HZ alpha (K g)).
+(* β * α = 1. *)
+rewrite -precone_scale_A alpha_beta precone_scale_1.
+rewrite -[Phi_curry g (K g)]/(linhom_fun (Phi_curry g) (K g)).
+by rewrite /Phi_curry tensor_curryE.
+Qed.
+
+End MeasStableDiagBilinearTensor.
+
+Arguments meas_stable_diag_bilinear_tensor {R Ar G EA EB}.
