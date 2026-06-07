@@ -87,3 +87,4 @@ theories/programs/ppl_cbn_headlines.v
 theories/programs/ppl_cbn_geom.v
 theories/programs/ppl_cbn_almost_loop.v
 theories/programs/ppl_cbn_arith_scones.v
+theories/programs/ppl_cbn_arith_eff.v
