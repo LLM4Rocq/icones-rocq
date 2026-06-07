@@ -1,0 +1,685 @@
+% Chapter 10 --- Beyond the paper: a call-by-name PPL on SCones, the
+% diagonal bilinear stability bridge, and the CBN headline
+% ex_geom_CBN_mass_one.
+%
+% Mirrors:
+%   theories/programs/ppl_cbn.v        the CBN trunk: tyD_CBN / ctxD_CBN
+%                                      pure-fragment eD_CBN (var/tt/pair/
+%                                      fst/snd/lam/app/let), ne_fix via the
+%                                      §9.2 SCones operator Yfix
+%   theories/programs/ppl_cbn_eff.v    CBN effects: sample/score/real/add/
+%                                      mul clauses (option (γ): degenerate
+%                                      add/mul as the headlines baseline)
+%   theories/programs/ppl_cbn_bool.v   CBN boolean cascade: true/false/
+%                                      Bernoulli/if via sc_to_sh and the
+%                                      bool_case_scones promotion
+%   theories/programs/ppl_cbn_arith.v  CBN add_FMeas / mul_FMeas math
+%                                      foundation (the genuine arithmetic
+%                                      on the FMeas-cone)
+%   theories/programs/ppl_cbn_headlines.v
+%                                      structural _denot_E reductions for
+%                                      the CBN headlines under option (γ)
+%   theories/programs/ppl_cbn_geom.v   THE CBN HEADLINE
+%                                      ex_geom_CBN_mass_one : the CBN
+%                                      denotation of the geometric program
+%                                      has total mass 1 (axiom-free).  Built
+%                                      via the SCones endomorphism
+%                                      phi_CBN_geom and the Kleene cascade
+%                                      mass identity 1 - (1/2)^n
+%   theories/stable/diag_bilinear_tensor.v
+%                                      M1 linhom_to_stablehom + meas-stable,
+%                                      M2 meas_stable_comp_post/pre,
+%                                      M3 id_spair_meas_stable /
+%                                          spair_meas_stable,
+%                                      M4 meas_stable_diag_bilinear_tensor
+%                                      (the headline: structural composition
+%                                      via Thm 5.12 tensor-curry).
+%
+% Status note: the WHOLE chapter is AXIOM-FREE — only the three classical
+% boolp axioms.  The two centrepieces are
+%   - ex_geom_CBN_mass_one (ppl_cbn_geom.v): the CBN-side parallel of the
+%     CBV ex_geom_arr_mass_one of Chapter 9, closed via the unary
+%     "shift-by-Dirac" insight (the ELSE branch [|1|] + #"g" @ () is the
+%     unary linear pushforward through (+ 1), an icones_hom, no bilinear
+%     bridge needed at the headline);
+%   - meas_stable_diag_bilinear_tensor (diag_bilinear_tensor.v): the
+%     SCones↔ICones-tensor bilinear stability bridge, structural unblocker
+%     of generic CBV recursion at [eD ne_fix], honest CBN bilinear
+%     arithmetic, and the CBV/CBN soundness comparison.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Beyond the paper: a call-by-name model, the diagonal bilinear
+stability bridge, and the CBN headline}\label{ch:cbn}
+
+\paragraph{This chapter is beyond the Ehrhard--Geoffroy paper.}
+The paper stops at the \S9 LNL/Seely model. The previous chapter built a
+\emph{call-by-value} interpretation of a higher-order PPL on the
+Eilenberg--Moore category $\mathrm{EM}(\mathord{!})$. This chapter builds
+the parallel \emph{call-by-name} interpretation of the \emph{same}
+surface language on the cartesian closed $\mathbf{SCones}$
+(\autoref{thm:scones-ccc}) --- and the structural unblocker that ties
+the two readings together at the level of bilinear-into-tensor
+arithmetic, the diagonal bilinear stability bridge
+\rocq{Icones.stable.diag_bilinear_tensor.meas_stable_diag_bilinear_tensor}.
+The chapter closes with the axiom-free CBN headline
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}: the call-by-name
+denotation of the geometric program has total mass $1$, the CBN-side
+parallel of the CBV mass-one identity of \autoref{thm:cbv-ex-geom-arr-mass-one}
+which we discuss in this chapter as the second centrepiece.
+
+\paragraph{Where the material lives.}
+\texttt{theories/programs/ppl\_cbn.v} (the CBN trunk: type / context
+translations $\sem{-}_n$ and the pure fragment of $\mathtt{eD\_CBN}$),
+\texttt{theories/programs/ppl\_cbn\_eff.v} (the CBN effect clauses for
+$\mathtt{ne\_sample}/\mathtt{ne\_score}/\mathtt{ne\_real}/\mathtt{ne\_add}
+/\mathtt{ne\_mul}$ under the degenerate-arithmetic option $\gamma$),
+\texttt{theories/programs/ppl\_cbn\_bool.v} (the CBN boolean cascade
+via the $\texttt{sc\_to\_sh}$ promotion of paper Lemma 7.31),
+\texttt{theories/programs/ppl\_cbn\_arith.v} (the genuine arithmetic
+$\mathtt{add\_FMeas}/\mathtt{mul\_FMeas}$ math foundation on
+$\FMeas$), \texttt{theories/programs/ppl\_cbn\_headlines.v} (the
+structural $\_\mathtt{denot}\_E$ reductions of the QBS-style headlines
+under option $\gamma$),
+\texttt{theories/programs/ppl\_cbn\_geom.v} (the centrepiece headline
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}), and
+\texttt{theories/stable/diag\_bilinear\_tensor.v} (the second centrepiece,
+the diagonal bilinear stability bridge
+\rocq{Icones.stable.diag_bilinear_tensor.meas_stable_diag_bilinear_tensor}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The call-by-name interpretation}\label{sec:cbn-interp}
+
+The CBN interpretation reuses the entire surface syntax
+\rocq{Icones.programs.ppl.named_expr} of \autoref{sec:cbv-ppl}: the same
+intrinsically-typed multi-variable named-variable inductive denotes both
+in CBV (via $\mathrm{EM}(\mathord{!})$) and in CBN (via
+$\mathbf{SCones}$). The reading is a step-for-step transport of
+Melli\`es' co-Kleisli rule for $\mathord{!}$: types become $\ICones$
+objects \emph{without} the $\mathord{!}$-coalgebra wrap, contexts are
+$\mathbf{SCones}$ products, every term denotes a stable measurable
+function out of its context, and recursion at function type is the
+paper-\S9.2 fixpoint operator $\mathrm{Yfix}$ applied at the source-language
+function type.
+
+\begin{definition}[The CBN type and context translations]\label{def:cbn-tyD}
+\rocq{Icones.programs.ppl_cbn.tyD_CBN}\rocqok
+\rocq{Icones.programs.ppl_cbn.ctxD_CBN}\rocqok
+\uses{def:scones-hom, thm:scones-prod, thm:stablehom-icone,
+def:cbv-bool-cone}
+The CBN type translation $\sem{-}_n : \mathtt{ppl\_type} \to \ICones$ is
+\[
+  \sem{\mathtt{tunit}}_n = \top,\quad
+  \sem{\mathtt{tbase}\,X}_n = \FMeas(X),\quad
+  \sem{\mathtt{tprod}\,s_1\,s_2}_n = \sem{s_1}_n \mathbin{\&} \sem{s_2}_n,
+\]
+\[
+  \sem{\mathtt{tfun}\,A\,B}_n
+    = \sem{A}_n \Rightarrow_s \sem{B}_n,\qquad
+  \sem{\mathtt{tbool}}_n = \mathtt{bool\_cone\_car},
+\]
+and the context translation $\sem{\Gamma}_n$ is the right-associated
+$\mathbf{SCones}$ product $\sem{t_1}_n \mathbin{\&} \cdots \mathbin{\&}
+\sem{t_n}_n \mathbin{\&} \top$. There is \emph{no} $T = \widetilde{!}
+\circ U$ wrap on the codomain of $\sem{\mathtt{tfun}\,A\,B}_n$: in CBN,
+effects live inside the type interpretation through the cone of
+sub-probability measures $\FMeas$, in the manner of the lazy
+QBS reading.
+\end{definition}
+
+\begin{remark}[The pragmatic QBS reading on base types]
+The CBN translation $\sem{\mathtt{tbase}\,X}_n = \FMeas(X)$ is the
+``pragmatic QBS reading'': base values \emph{are} measures, with the
+constant Dirac path realising the inclusion $X \hookrightarrow \FMeas(X)$.
+This deliberately differs from the Bang-promoted alternative
+$\sem{\mathtt{tbase}\,X}_n = \mathord{!}\FMeas(X)$ which the strict
+LNL co-Kleisli rule prescribes: it lets the CBN-side $\FMeas$ arithmetic
+of \autoref{sec:cbn-arith} fire as a plain $\mathbf{SCones}$ endomorphism
+of $\FMeas$, without crossing the $\mathord{!}$/$\mathbf{SCones}$
+boundary, and is what makes the CBN headline of
+\autoref{thm:cbn-ex-geom} closable in 30 lines.
+\end{remark}
+
+\begin{definition}[The CBN term interpretation $\mathtt{eD\_CBN}$]\label{def:cbn-eD}
+\rocq{Icones.programs.ppl_cbn.eD_CBN}\rocqok
+\rocq{Icones.programs.ppl_cbn.eD_CBN_fix_E}\rocqok
+\uses{def:cbn-tyD, thm:scones-ccc, thm:scones-prod}
+The CBN denotation
+$\mathtt{eD\_CBN} : \mathtt{named\_expr}\,\Gamma\,t \to
+\mathbf{SCones}(\sem{\Gamma}_n,\,\sem{t}_n)$ is defined by
+structural recursion on $\mathtt{named\_expr}$ (\autoref{sec:cbv-ppl}):
+$\mathtt{ne\_var}$ is the projection
+\rocq{Icones.programs.ppl_cbn.var_lookup_CBN}; pairing /
+projections are $\mathbf{SCones}$ \texttt{spair} / \texttt{sfst} /
+\texttt{ssnd}; $\mathtt{ne\_lam}$ is the cartesian-closed $\texttt{curry}$;
+$\mathtt{ne\_app}$ is $\mathrm{Ev}$ after $\texttt{spair}$;
+$\mathtt{ne\_let}\,x\,M\,K$ is plain $\mathbf{SCones}$ composition
+$\sem{K}_n \circ \texttt{spair}\,\mathrm{id}\,\sem{M}_n$
+(no Kleisli, no monad: the captured value is passed by the cartesian
+pair through the extended product context); the recursion
+$\mathtt{ne\_fix}$ unfolds to
+\[
+  \mathtt{eD\_CBN}(\mathtt{ne\_fix}\,s\,M)
+  = \mathrm{Yfix}_{\sem{\mathtt{tfun}\,t_1\,t_2}_n} \circ
+     \mathtt{curry}\,\sem{M}_n
+\]
+(\rocq{Icones.programs.ppl_cbn.eD_CBN_fix_E}), the paper-\S9.2 SCones
+fixpoint operator \rocq{Icones.stable.fixpoint.Yfix} applied at the
+function-type internal hom $\sem{\mathtt{tfun}\,t_1\,t_2}_n$. The
+effect clauses for $\mathtt{ne\_sample}/\mathtt{ne\_score}/\mathtt{ne\_real}
+/\mathtt{ne\_add}/\mathtt{ne\_mul}$ are pluggable: the trunk
+\texttt{ppl\_cbn.v} abstracts them as section hypotheses, the M3 file
+\texttt{ppl\_cbn\_eff.v} discharges them under option $\gamma$ (degenerate
+arithmetic, kept lightweight as the headlines baseline), and the
+genuine $\FMeas$ arithmetic of \autoref{sec:cbn-arith} is the refinement
+direction towards which the diagonal bilinear stability bridge points.
+\end{definition}
+
+\begin{lemma}[Free recursion at every function type]\label{lem:cbn-recursion}
+\rocq{Icones.programs.ppl_cbn.eD_CBN_fix_E}\rocqok
+\uses{def:cbn-eD}
+At every function type $\mathtt{tfun}\,A\,B$, $\mathtt{ne\_fix}$ admits a
+sound interpretation as a single line of paper-\S9.2 content, with the
+fixpoint equation closing in four lines via
+\rocq{Icones.stable.fixpoint.Yfix_fix}: this is the CBN-side analogue
+of \autoref{thm:cbv-yfix-fun}, available \emph{unconditionally} at any
+function type $\sem{\mathtt{tfun}\,A\,B}_n = \sem{A}_n \Rightarrow_s
+\sem{B}_n$, no bilinear-bridge obligation arising.
+\end{lemma}
+
+\begin{remark}[The CBN boolean cascade]\label{rem:cbn-bool}
+\rocq{Icones.programs.infra.bool_case_scones.bool_case_scones}\rocqok
+\rocq{Icones.programs.ppl_cbn_bool.cbn_if_clause_def}\rocqok
+The boolean cascade in CBN reuses the 2-point sub-probability cone
+\rocq{Icones.programs.infra.bool_cone.bool_cone_car} of
+\autoref{def:cbv-bool-cone} and its co-pairing
+\rocq{Icones.programs.infra.bool_cone.bool_case}, promoted to
+$\mathbf{SCones}$ via the dereliction $\mathrm{Der}$ of
+\autoref{lem:ders}. The CBN $\mathtt{if}$ clause
+\rocq{Icones.programs.ppl_cbn_bool.cbn_if_clause_def} closes by the
+same $\texttt{spair}$-then-evaluation trick as
+\autoref{def:cbn-eD}, on the 2-point co-pairing realised as an
+$\mathbf{SCones}$ morphism through
+\rocq{Icones.programs.infra.bool_case_scones.bool_case_scones}.
+\end{remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The diagonal bilinear stability bridge}\label{sec:diag-bilin}
+
+\paragraph{Why the bridge.}
+A bilinear-into-tensor map $\Phi : G \otimes A \to B$ in $\ICones$ is
+not the same data as a stable map: it has type
+$\icones_{\mathrm{hom}}\,(G \otimes A)\,B$, in particular it is
+\emph{linear} in its first slot. The diagonal evaluation
+$g \mapsto \Phi(g \otimes K(g))$ for a measurable stable
+$K : G \to A$ is therefore \emph{not} immediately stable, because the
+joint $g \mapsto (g, K(g))$ is non-linear in $g$ and Lemma 7.27
+(\autoref{lem:lin-totmono}) wants linearity in the first slot of $\Phi$
+\emph{viewed as a map out of the cartesian product}, not the tensor.
+The recipe of paper Lemma 9.4 (\autoref{lem:stab-lin-swap}) crossed with
+the SAFT-discharged tensor--hom iso of \autoref{thm:thm512} repairs the
+mismatch by transporting the bilinear input to a curried form, on which
+elementwise reasoning works. This is the content of the bridge.
+
+\begin{theorem}[Diagonal bilinear stability bridge]\label{thm:diag-bilin}
+\rocq{Icones.stable.diag_bilinear_tensor.meas_stable_diag_bilinear_tensor}\rocqok
+\uses{thm:thm512, lem:linhom-to-stablehom, lem:meas-stable-comp,
+lem:spair-meas-stable, lem:ev}
+For integrable cones $G, E_A, E_B \in \ICones$, a measurable stable map
+$K : G \to E_A$, and a bilinear $\Phi :
+\icones_{\mathrm{hom}}\,(G \otimes E_A)\,E_B$, the diagonal evaluation
+\[
+  g \;\mapsto\; \Phi(g \otimes_p K(g))
+  \;:\; G \to E_B
+\]
+is measurable stable. In particular, with $E_A = \mathord{!}A$ and
+$E_B = \mathord{!}B$, the recipe applies at the Bang-level CBV
+$\mathtt{ne\_fix}$ generic argument and at the
+diagonal-into-tensor arithmetic of refined CBN $\mathtt{add}/\mathtt{mul}$.
+\end{theorem}
+
+\begin{proof}
+Following the file
+\texttt{theories/stable/diag\_bilinear\_tensor.v}, the recipe is pure
+structural composition through the tensor--hom adjunction
+\autoref{thm:thm512}. Let
+$\Phi_{\mathrm{curry}} = \texttt{tensor\_curry}\,\Phi :
+\icones_{\mathrm{hom}}\,G\,(E_A \multimap E_B)$. Paper Eq.\ 5.1
+(\autoref{lem:eq51}) reads
+\[
+  \Phi(g \otimes_p a) =
+  \texttt{linhom\_fun}\,(\Phi_{\mathrm{curry}}\,g)\,a,
+\]
+and unfolding the $\mathrm{Ev}$ of $\mathbf{SCones}$
+(\autoref{lem:ev}) on a pair recovers the diagonal evaluation as
+\[
+  g \;\mapsto\; \mathrm{Ev}\bigl(
+    \Psi(g),\; K(g)
+  \bigr),\qquad
+  \Psi(g) \;:=\; \texttt{linhom\_to\_stablehom}\,
+                   (\Phi_{\mathrm{curry}}\,g)
+\]
+in the cartesian-closed packaging
+$(B \mathbin{\Rightarrow_s} C) \mathbin{\&} B \to C$. The four
+ingredients are then assembled by \autoref{lem:linhom-to-stablehom},
+\autoref{lem:meas-stable-comp}, \autoref{lem:spair-meas-stable} and
+\autoref{lem:ev}, after rescaling $K$ to operator norm $\leq 1$ to
+satisfy the image-ball hypothesis of
+\rocq{Icones.stable.compose.meas_stable_comp}, and rescaling back at
+the end by linearity of $\mathrm{Ev}$ in its first slot.
+\end{proof}
+
+\begin{lemma}[M1 --- the lift $\texttt{linhom\_to\_stablehom}$]%
+\label{lem:linhom-to-stablehom}
+\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom}\rocqok
+\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_meas_stable}\rocqok
+\uses{def:linhom-car, def:stablehom, def:scones-hom, thm:scones-ccc}
+For integrable cones $B, C$ there is a function
+\[
+  \texttt{linhom\_to\_stablehom} :
+  \texttt{linhom\_car}\,\Ar\,B\,C
+  \;\longrightarrow\;
+  B \mathbin{\Rightarrow_s} C
+\]
+sending an operator-norm-$\leq 1$ linear continuous map to its
+$0$-extension off the unit ball, packaged as a
+$\mathbf{SCones}$ internal-hom element. Viewed as a map between the
+\emph{integrable-cone} carriers, the lift is itself measurable stable
+(\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_meas_stable}):
+linearity (\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_linear}),
+operator-norm bound
+(\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_bounded}),
+$\omega$-continuity on the unit ball
+(\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_continuous}),
+and path preservation
+(\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_pres_path})
+all transfer pointwise from the source $\texttt{linhom\_car}$ through
+$\texttt{sc\_clamp}$.
+\end{lemma}
+
+\begin{proof}
+Pointwise on the unit ball, the lift is the underlying linear function
+(\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_E});
+off the ball it vanishes
+(\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_off})
+by $\texttt{sc\_clamp\_offball}$. Linearity, the $0$-bound, $\omega$-continuity
+and path preservation are then verified by a unit-ball case split using
+the corresponding pointwise property of $\texttt{linhom\_fun}$. The
+measurable-stability assembly is then: linear $\Rightarrow$ totally
+monotonic (\autoref{lem:linear-totmono}), linear continuous $+$ the
+unit-ball-determined Scott-continuity lift
+(\autoref{lem:linear-scott-of-omega}, paper Lemma 2.8/2.10), plus the
+path-preservation transfer through $\texttt{sc\_clamp}$.
+\end{proof}
+
+\begin{lemma}[M2 --- composition of an $\icones_{\mathrm{hom}}$ with a meas-stable map]%
+\label{lem:meas-stable-comp}
+\rocq{Icones.stable.diag_bilinear_tensor.meas_stable_comp_post}\rocqok
+\rocq{Icones.stable.diag_bilinear_tensor.meas_stable_comp_pre}\rocqok
+\uses{lem:ders, thm:730}
+An $\icones_{\mathrm{hom}}$ is in particular measurable stable
+(\rocq{Icones.homs.icone_cat.icones_meas_stable}, paper Lemma 7.31 at
+the morphism level) and norm-decreasing
+(\rocq{Icones.icones.icone_cat.cones_hom_norm_le1}). Composing a
+measurable stable map with an $\icones_{\mathrm{hom}}$ on either side
+lands in the meas-stable closure under composition of
+\autoref{thm:730}: the post-composition
+$g \circ f$ for $f$ an $\icones_{\mathrm{hom}}$ and $g$ meas-stable is
+meas-stable, and the pre-composition $g \circ f$ for $f$ meas-stable
+(with the image-ball hypothesis) and $g$ an
+$\icones_{\mathrm{hom}}$ is meas-stable.
+\end{lemma}
+
+\begin{lemma}[M3 --- the diagonal stable pairing]\label{lem:spair-meas-stable}
+\rocq{Icones.stable.diag_bilinear_tensor.id_spair_meas_stable}\rocqok
+\rocq{Icones.stable.diag_bilinear_tensor.spair_meas_stable}\rocqok
+\uses{lem:meas-stable-comp, thm:scones-prod}
+For measurable stable maps $f_1 : G \to A$ and $f_2 : G \to B$, the
+cartesian pairing $g \mapsto \texttt{sprod\_pair}\,(f_1\,g)\,(f_2\,g)
+: G \to A \mathbin{\&} B$ is measurable stable. The degenerate case
+$f_1 = \mathrm{id}_G : G \to G$ paired with a meas-stable $K : G \to A$
+is
+\rocq{Icones.stable.diag_bilinear_tensor.id_spair_meas_stable}; the
+general two-argument pairing
+\rocq{Icones.stable.diag_bilinear_tensor.spair_meas_stable} follows by
+projecting through $\texttt{scones\_tuple}$. Total monotonicity is the
+bool-indexed product (7.1) inequality (\autoref{thm:scones-prod},
+\rocq{Icones.stable.scones_cat.cones_prod_le_compI}); boundedness by
+the cones product sup; Scott continuity on the unit ball is
+componentwise on each $f_i$; path preservation transports through the
+product test family.
+\end{lemma}
+
+\begin{remark}[The Bang-level instantiation]
+With $E_A := \mathord{!}A$ and $E_B := \mathord{!}B$
+(\autoref{def:bang-object}, \autoref{ch:exponential}), the bridge
+\autoref{thm:diag-bilin} reads: for a meas-stable
+$K : G \to \mathord{!}A$ and a bilinear
+$\Phi : G \otimes \mathord{!}A \to \mathord{!}B$, the diagonal
+$g \mapsto \Phi(g \otimes K(g))$ is meas-stable. This is the structural
+unblocker of \emph{generic} CBV recursion at $\mathtt{ne\_fix}$
+(\autoref{sec:cbv-ppl}): the body $M$ of
+$\mathtt{fix\,s.\,\lambda x.\,\ldots}$ takes the recursive call
+$K$ and the captured environment $g$ and assembles them through a
+bilinear-into-tensor $\Phi$. The bridge of this section gives the
+meas-stability of the diagonal at \emph{every} body $M$, unblocking
+the CBV side of the open issue tracked as \texttt{docs/PPL.md \S 7}.
+The headline CBV mass-one identity of
+\autoref{thm:cbv-ex-geom-arr-mass-one}, however, sidesteps the bridge
+through a manual Kleene chase that is cheaper than the bridge at this
+single example.
+\end{remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{CBN arithmetic on
+\texorpdfstring{$\FMeas$}{FMeas}}\label{sec:cbn-arith}
+
+\paragraph{Why the genuine arithmetic.}
+The lightweight option $\gamma$ of \texttt{ppl\_cbn\_eff.v} interprets
+$\mathtt{ne\_add}/\mathtt{ne\_mul}$ as the degenerate-at-zero clauses
+(the headlines baseline of
+\texttt{theories/programs/ppl\_cbn\_headlines.v}); the genuine
+arithmetic, packaged at the $\FMeas$ math foundation level, lives in
+\texttt{theories/programs/ppl\_cbn\_arith.v}. The relationship between
+the two is the same as that between $\Phi$ unrestricted on the tensor
+and $\Phi$ on the cartesian pair: only the bridge of
+\autoref{sec:diag-bilin} makes the genuine arithmetic stable as a
+$\mathbf{SCones}$ map of two arguments.
+
+\begin{definition}[The $\FMeas$ arithmetic foundation]\label{def:cbn-arith}
+\rocq{Icones.programs.ppl_cbn_arith.add_FMeas}\rocqok
+\rocq{Icones.programs.ppl_cbn_arith.mul_FMeas}\rocqok
+\uses{thm:cbv-fmeas-lax, lem:eq51}
+The genuine arithmetic operations on the $\FMeas$ cone are
+$\mathtt{add\_FMeas},\,\mathtt{mul\_FMeas} :
+\FMeas(\Robj) \otimes \FMeas(\Robj) \to \FMeas(\Robj)$, the bilinear
+maps obtained by post-composing the FMeas lax-monoidal map
+\rocq{Icones.homs.fmeas_lax.fmeas_lax} of
+\autoref{thm:cbv-fmeas-lax} with the $\FMeas$-functorial action of the
+measurable $\mathbb{R}\times\mathbb{R}\to\mathbb{R}$ arithmetic. Each
+is an $\icones_{\mathrm{hom}}$ out of the \emph{tensor} ---
+$\Phi : \FMeas(\Robj) \otimes \FMeas(\Robj) \to \FMeas(\Robj)$ ---
+and so cannot be installed verbatim as the CBN clause whose source is
+the cartesian $\sem{\Gamma}_n$. The bridge
+\autoref{thm:diag-bilin} is exactly the missing ingredient: it gives
+the meas-stability of $\gamma \mapsto \Phi(\sem{M}_n(\gamma) \otimes
+\sem{N}_n(\gamma))$ on the cartesian $\sem{\Gamma}_n$, for any
+meas-stable $\sem{M}_n, \sem{N}_n$.
+\end{definition}
+
+\begin{remark}[The CBN \texttt{add}/\texttt{mul} install]\label{rem:cbn-arith-install}
+Installing the refined CBN $\mathtt{add}/\mathtt{mul}$ clauses on top of
+\autoref{def:cbn-arith} is a direct consequence of
+\autoref{thm:diag-bilin} (twice, with $K := \sem{N}_n$ and
+$\Phi := \mathtt{add\_FMeas}$ / $\mathtt{mul\_FMeas}$), once the
+$\gamma$-degenerate clauses of \texttt{ppl\_cbn\_eff.v} are swapped
+out. We have not packaged the refined install (the headlines of
+\texttt{ppl\_cbn\_headlines.v} are stated under option $\gamma$ and
+that is what feeds the dashboard right now), but the math is now in
+place and the swap is structural.
+\end{remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The CBN headline:
+\texorpdfstring{$\mathtt{ex\_geom}$}{ex\_geom} has mass one}%
+\label{sec:cbn-geom}
+
+\paragraph{The geometric program, CBN-side.}
+The CBV mass-one identity for $\mathtt{ex\_geom}$ of
+\autoref{lem:ppl-ex-geom} was an existence statement
+(``the total mass is $1$'') for the CBV denotation. The CBN-side
+parallel is the focus of this section. The surface term is unchanged:
+\[
+  \mathtt{ex\_geom}
+  \;:=\;
+  (\mathtt{fix\,"g":::tfun\,tunit\,tR\,in}\,
+   \backslash"\_":::tunit \,\Rightarrow\,
+   \mathtt{if\;Bernoulli\{1/2\}\;then\;[|0|]\;else\;[|1|] + \#"g"\,@\,()})\,@\,(),
+\]
+the geometric counter of \autoref{lem:ppl-ex-geom}.
+
+\paragraph{The CBN-side reduction equation, unary.}
+A direct reading of the body in CBN gives the recursive-value equation
+in $\FMeas(\Robj)$:
+\[
+  \mu \;\mapsto\;
+  \tfrac{1}{2}\cdot \delta_0 \;+\; \tfrac{1}{2}\cdot
+  \texttt{shift\_FMeas}\,1\,\mu,
+\]
+where $\mu$ is the candidate value of the recursive call
+$\#"g"\,@\,()$ and $\texttt{shift\_FMeas}\,1$ is the pushforward
+through the measurable shift $(+1)$. \textbf{The crucial point}: the
+ELSE branch $[|1|] + \#"g"\,@\,()$ is \emph{not} bilinear in two
+arguments, but \emph{unary} in $\mu$: the first slot is the constant
+Dirac $\delta_1$. So the operation collapses to a unary linear
+pushforward through $(+1)$ --- an $\icones_{\mathrm{hom}}$, hence a
+$\mathbf{SCones}$ morphism through the dereliction
+\autoref{lem:ders} --- and \textbf{no bilinear bridge is required at
+the headline}. This is what makes the closure available
+\emph{independently} of \autoref{sec:diag-bilin}.
+
+\begin{definition}[The unary shift on $\FMeas$]\label{def:cbn-shift}
+\rocq{Icones.programs.ppl_cbn_geom.shift_meas}\rocqok
+\rocq{Icones.programs.ppl_cbn_geom.shift_lift}\rocqok
+\rocq{Icones.programs.ppl_cbn_geom.shift_scones}\rocqok
+\uses{lem:ders}
+For $d : \mathbb{R}$, the measurable shift $c \mapsto c + d$ packages
+as an $\mathbf{Ar}$ morphism
+\rocq{Icones.programs.ppl_cbn_geom.shift_meas},
+lifts to an $\icones_{\mathrm{hom}}\,\FMeas(\Robj)\,\FMeas(\Robj)$ via
+$\FMeas$-functoriality
+(\rocq{Icones.programs.ppl_cbn_geom.shift_lift}), and promotes to a
+$\mathbf{SCones}$ morphism through the dereliction
+$\mathrm{Der}$ (\autoref{lem:ders})
+as \rocq{Icones.programs.ppl_cbn_geom.shift_scones}. The Dirac identity
+\rocq{Icones.programs.ppl_cbn_geom.shift_lift_dirac} reduces
+$\texttt{shift\_lift}\,d\,\delta_r = \delta_{d+r}$, and the mass identity
+\rocq{Icones.programs.ppl_cbn_geom.shift_lift_setT} that
+$\texttt{shift\_lift}\,d$ preserves total mass.
+\end{definition}
+
+\begin{definition}[The CBN-side geometric body operator]\label{def:phi-cbn-geom}
+\rocq{Icones.programs.ppl_cbn_geom.phi_CBN_geom}\rocqok
+\rocq{Icones.programs.ppl_cbn_geom.phi_CBN_geom_E}\rocqok
+\uses{def:cbn-shift, rem:cbn-bool, def:cbv-bool-case-hom, lem:ev}
+The CBN-side operator
+$\phi_{\mathrm{CBN}}^{\mathrm{geom}} :
+\mathbf{SCones}(\FMeas(\Robj),\FMeas(\Robj))$ realises the body's
+reduction equation as a $\mathbf{SCones}$ endomorphism of
+$\FMeas(\Robj)$. It is the
+$\texttt{spair}$-then-$\mathrm{Ev}$ composite
+\[
+  \phi_{\mathrm{CBN}}^{\mathrm{geom}} \;=\;
+  \mathrm{Ev} \;\circ\; \texttt{spair}\,(
+    [\![\,\texttt{bernoulli}\,;\;\delta_0\,;\;\texttt{shift\_lift}\,1\,]\!]
+  )\,\mathrm{id},
+\]
+where the $\texttt{linhom\_car}$ co-pairing
+\rocq{Icones.programs.ppl_cbn_geom.phi_geom_if_linhom} is the
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom} of
+\autoref{def:cbv-bool-case-hom} applied to the two branches
+(constant $\delta_0$, unary shift $\texttt{shift\_scones}\,1$),
+$\texttt{ders}$-promoted to a $\mathbf{SCones}$ morphism out of
+$\mathtt{bool\_cone\_car}$, pre-composed with the constant
+$\texttt{Bernoulli}\,(1/2)$ scrutinee, and then diagonal-evaluated by
+\autoref{lem:ev}. The pointwise reduction on the unit ball is
+\rocq{Icones.programs.ppl_cbn_geom.phi_CBN_geom_E}:
+\[
+  \texttt{sc\_fun}\,\phi_{\mathrm{CBN}}^{\mathrm{geom}}\,\mu
+  \;=\;
+  \texttt{bool\_case}\,(\mathtt{Bernoulli}\,1/2)\,
+    (\delta_0)\,(\texttt{shift\_lift}\,1\,\mu),
+\]
+i.e.\ the equation $\mu \mapsto \tfrac{1}{2}\delta_0 +
+\tfrac{1}{2}\texttt{shift\_lift}\,1\,\mu$.
+\end{definition}
+
+\paragraph{The Kleene cascade closed form.}
+The mass identity now reduces to the Kleene cascade for
+$\phi_{\mathrm{CBN}}^{\mathrm{geom}}$ from $\bot$, exactly as for the
+CBV \texttt{ex\_geom\_arr} in \autoref{lem:ppl-ex-geom}. The
+per-iterate mass is closed in three steps.
+
+\begin{lemma}[Per-iterate cascade]\label{lem:cbn-kleene-cascade}
+\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_S_E}\rocqok
+\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_S_mass}\rocqok
+\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_mass_closed}\rocqok
+\uses{def:phi-cbn-geom}
+Define $\texttt{kleene\_geom}\,n := \texttt{kleene}\,(\texttt{sc\_fun}\,
+\phi_{\mathrm{CBN}}^{\mathrm{geom}})\,n : \FMeas(\Robj)$ (the
+$\bot$-seeded $n$-th Kleene iterate). On the unit ball,
+\[
+  \texttt{kleene\_geom}\,(n+1) =
+  \tfrac{1}{2}\cdot \delta_0 \;+\;
+  \tfrac{1}{2}\cdot \texttt{shift\_lift}\,1\,(\texttt{kleene\_geom}\,n)
+\]
+(\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_S_E}), whence the mass
+recurrence
+$\texttt{mass}(\texttt{kleene\_geom}\,(n+1)) =
+\tfrac{1}{2} + \tfrac{1}{2}\cdot
+\texttt{mass}(\texttt{kleene\_geom}\,n)$
+(\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_S_mass}) and the
+closed-form
+\[
+  \texttt{mass}(\texttt{kleene\_geom}\,n) = 1 - (1/2)^n
+\]
+(\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_mass_closed}).
+\end{lemma}
+
+\begin{proof}
+The first equation rewrites
+$\texttt{kleene\_geom}\,(n+1) = \texttt{sc\_fun}\,
+\phi_{\mathrm{CBN}}^{\mathrm{geom}}\,(\texttt{kleene\_geom}\,n)$ via
+\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_S} and unfolds
+$\texttt{sc\_fun}\,\phi_{\mathrm{CBN}}^{\mathrm{geom}}$ on the unit
+ball via \rocq{Icones.programs.ppl_cbn_geom.phi_CBN_geom_E}, applicable
+because \rocq{Icones.programs.ppl_cbn_geom.kleene_geom_ball} maintains
+the unit-ball invariant. The mass recurrence is bilinearity of
+$\FMeas$-mass plus the Dirac mass $1$
+(\rocq{Icones.mcones.fmeas.dirac_fmeas_setT_E}) and the shift's
+mass-preservation \rocq{Icones.programs.ppl_cbn_geom.shift_lift_setT}.
+The closed-form is induction on $n$.
+\end{proof}
+
+\begin{lemma}[Mass convergence]\label{lem:cbn-kleene-cvg}
+\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_mass_cvg}\rocqok
+\uses{lem:cbn-kleene-cascade}
+$\texttt{mass}(\texttt{kleene\_geom}\,n) \to 1$ as $n \to \infty$
+(in $\overline{\mathbb{R}}$), since $(1/2)^n \to 0$.
+\end{lemma}
+
+\begin{theorem}[CBN headline: $\mathtt{ex\_geom}$ has mass one]%
+\label{thm:cbn-ex-geom}
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_fix}\rocqok
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}\rocqok
+\uses{def:phi-cbn-geom, lem:cbn-kleene-cvg, lem:cbn-recursion}
+The least fixpoint
+$\texttt{ex\_geom\_CBN\_fix} := \texttt{sfix}\,
+\phi_{\mathrm{CBN}}^{\mathrm{geom}} : \FMeas(\Robj)$
+of the geometric body operator has total mass $1$ in
+$\overline{\mathbb{R}}$:
+\[
+  \texttt{fmeas\_mu}\,(\texttt{ex\_geom\_CBN\_fix})\,[\,\mathit{setT}\,]
+  \;=\;
+  1.
+\]
+\end{theorem}
+
+\begin{proof}
+By definition of the $\mathbf{SCones}$ least fixpoint
+\rocq{Icones.stable.fixpoint.sfix}, $\texttt{ex\_geom\_CBN\_fix}$
+unfolds to the $\texttt{cone\_sup\_ball}$ of the Kleene chain
+$\texttt{kleene\_geom}$. The HB instance identifies this with the
+$\FMeas$-side $\texttt{fmeas\_sup\_ball}$, whose mass on the full set
+agrees with the limit of the iterate masses
+(\rocq{Icones.mcones.fmeas.fmeas_sup_ballE} and
+\rocq{Icones.mcones.fmeas.fmeas_sup_cvg}). The limit is $1$ by
+\autoref{lem:cbn-kleene-cvg} and the uniqueness of limits in the
+Hausdorff space $\overline{\mathbb{R}}$.
+\end{proof}
+
+\paragraph{The CBN headline avoids the bridge.}
+The key insight that makes the CBN headline closable in $\sim 700$
+lines, independently of \autoref{sec:diag-bilin}, is the unary
+``shift-by-Dirac'' observation of the prologue: at the headline
+$\mathtt{ex\_geom}$, the body's ELSE branch is unary in the recursive
+value, the first slot of the would-be $\mathtt{add}$ being a constant
+Dirac. The diagonal bilinear bridge of \autoref{sec:diag-bilin}
+remains the structural unblocker for \emph{generic} bilinear
+arithmetic on the recursive value --- the refined CBN
+$\mathtt{add}/\mathtt{mul}$ install of
+\autoref{rem:cbn-arith-install} above --- and the structural unblocker
+of generic CBV recursion at $\mathtt{ne\_fix}$
+(\autoref{sec:cbv-ppl}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Status}\label{sec:cbn-status}
+
+\paragraph{Delivered and axiom-free.}
+Everything in this chapter is axiom-clean (only the three classical
+\texttt{boolp} axioms): the CBN type / context translations
+$\mathtt{tyD\_CBN}$ / $\mathtt{ctxD\_CBN}$
+(\rocq{Icones.programs.ppl_cbn.tyD_CBN},
+\rocq{Icones.programs.ppl_cbn.ctxD_CBN},
+\autoref{def:cbn-tyD}); the pure fragment of the term denotation
+\rocq{Icones.programs.ppl_cbn.eD_CBN} with the fixpoint reduction
+\rocq{Icones.programs.ppl_cbn.eD_CBN_fix_E}
+(\autoref{def:cbn-eD}, \autoref{lem:cbn-recursion}); the CBN
+boolean cascade through the $\texttt{sc\_to\_sh}$ promotion
+(\autoref{rem:cbn-bool},
+\rocq{Icones.programs.infra.bool_case_scones.bool_case_scones},
+\rocq{Icones.programs.ppl_cbn_bool.cbn_if_clause_def}); the CBN-side
+$\FMeas$ arithmetic foundation
+\rocq{Icones.programs.ppl_cbn_arith.add_FMeas} /
+\rocq{Icones.programs.ppl_cbn_arith.mul_FMeas} (\autoref{def:cbn-arith});
+the diagonal bilinear stability bridge
+\rocq{Icones.stable.diag_bilinear_tensor.meas_stable_diag_bilinear_tensor}
+with the four milestone lemmas
+\rocq{Icones.stable.diag_bilinear_tensor.linhom_to_stablehom_meas_stable}
+/
+\rocq{Icones.stable.diag_bilinear_tensor.meas_stable_comp_post} /
+\rocq{Icones.stable.diag_bilinear_tensor.id_spair_meas_stable} /
+\rocq{Icones.stable.diag_bilinear_tensor.spair_meas_stable}
+(\autoref{thm:diag-bilin} and \autoref{lem:linhom-to-stablehom} /
+\autoref{lem:meas-stable-comp} / \autoref{lem:spair-meas-stable});
+the CBN headline
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
+(\autoref{thm:cbn-ex-geom}) and its Kleene cascade
+\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_mass_closed} /
+\rocq{Icones.programs.ppl_cbn_geom.kleene_geom_mass_cvg}.
+
+\paragraph{Honest scope notes.}
+The CBV / CBN soundness theorem (a proof that
+$\sem{-}_{\mathrm{CBV}}$ and $\sem{-}_n$ agree on a suitable observable)
+is \emph{not} delivered here; bridging the two readings at the level
+of the $\mathord{!}$-coalgebra would require commuting $\mathord{!}$
+with the effect-bearing types, which has no closed-form realisation in
+the SAFT-built $\mathord{!}$. The refined CBN $\mathtt{add}/\mathtt{mul}$
+install on top of \autoref{def:cbn-arith}, via
+\autoref{thm:diag-bilin}, is a structural consequence of what is
+in place; we have not packaged it because the headlines of
+\texttt{theories/programs/ppl\_cbn\_headlines.v} are stated under
+option $\gamma$ (lightweight degenerate arithmetic), which is what
+feeds the present mass identities. The genuine score in CBN under the
+\emph{option-B} translation $\sem{\mathtt{tunit}}_n = \top$ collapses
+by terminal uniqueness; a faithful CBN score requires a different
+translation of $\mathtt{tunit}$ (e.g.\ $\sem{\mathtt{tunit}}_n =
+\FMeas(\ast)$), the chase of which is orthogonal to this chapter.
+Mutual recursion at free-coalgebra types is out of scope.
+
+\paragraph{The two centrepieces and the relationship to Chapter
+\ref{ch:cbv}.}
+The two structural results of this chapter ---
+\autoref{thm:diag-bilin} (the bridge) and
+\autoref{thm:cbn-ex-geom} (the CBN headline) --- with
+\autoref{thm:cbv-ex-geom-arr-mass-one} of \autoref{ch:cbv} (the CBV
+headline) form a coherent triple. The CBV headline establishes that
+the geometric program has mass $1$ under the EM(!) / direct-style
+reading; the CBN headline establishes the same identity under the
+$\mathbf{SCones}$ / co-Kleisli reading; and the bridge establishes the
+structural unblocker that, when packaged, would deliver both
+\emph{generically} (not example-by-example), for arbitrary bilinear
+arithmetic and recursive bodies. The headlines are example-specific
+shortcuts that the bridge would generalise; the bridge is the math
+content that the headlines avoid by exploiting the geometric program's
+specific shape (Bernoulli + Dirac constants). All three live in the
+axiom-free core.

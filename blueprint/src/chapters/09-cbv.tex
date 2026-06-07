@@ -1762,6 +1762,64 @@ the direct-style refactor is to demonstrate that the cones model
 makes such a split unnecessary at the source level.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The CBV mass-one headline:
+\texorpdfstring{$\mathtt{ex\_geom}$}{ex\_geom} via the Bang-level
+fixpoint}\label{sec:cbv-geom-mass}
+
+\paragraph{This section is beyond the paper.}
+The structural reduction \rocq{Icones.programs.examples.ex_geom_denot_E}
+of \autoref{lem:ppl-ex-geom} exposed the outer
+$\mathtt{kcomp}\,(\mathtt{app\_pair}\,\_\,\_)$ shape of the
+denotation of the geometric program, but \emph{did not} claim a closed
+form for the $\mathtt{Yfix\_fun\_T}$ iterate. The companion file
+\texttt{theories/programs/infra/em\_fix\_arr.v} lifts the CBV fixpoint
+through one further layer --- to the Bang-level
+$\mathtt{Yfix\_arr}$ --- on which a closed-form $\FMeas$-mass identity
+\emph{is} provable, by the same Kleene-cascade $1 - (1/2)^n$ argument
+which we replay on the CBN side in \autoref{sec:cbn-geom}. The result
+is the CBV-side mass-one identity \rocq{Icones.programs.infra.em_fix_arr.ex_geom_arr_mass_one},
+the first formal mass identity for a non-trivial recursive PPL example
+in the integrable-cones model.
+
+\begin{theorem}[CBV headline: $\mathtt{ex\_geom}$ has mass one]%
+\label{thm:cbv-ex-geom-arr-mass-one}
+\rocq{Icones.programs.infra.em_fix_arr.ex_geom_arr_mass_one}\rocqok
+\uses{thm:cbv-yfix-fun, def:cbv-case-em, thm:cbv-fmeas-lax}
+The Bang-level recipe operator $\mathtt{Yfix\_arr}$ applied to the
+geometric body of $\mathtt{ex\_geom}$ produces a fixpoint in
+$\FMeas(\Robj)$ whose total $\overline{\mathbb{R}}$-mass is $1$:
+\[
+  \texttt{fmeas\_mu}\,
+    (\texttt{Yfix\_arr}\,\texttt{ex\_geom\_body})\,
+    [\,\mathit{setT}\,]
+  \;=\; 1.
+\]
+This is the CBV-side counterpart of \autoref{thm:cbn-ex-geom} of
+\autoref{ch:cbn}.
+\end{theorem}
+
+\begin{proof}
+By a Kleene cascade on the unit-ball $\omega$-CPO at the
+$\mathtt{Bang}$ level, exactly mirroring
+\autoref{lem:cbn-kleene-cascade} on the $\mathbf{SCones}$ side. The
+per-iterate mass is $1 - (1/2)^n$ by induction on $n$ (Bernoulli at
+$1/2$ pulls $\delta_0$ with weight $1/2$ and recurses on the
+remaining $1/2$ through the unary linear pushforward of the ELSE
+branch); the limit is $1$ by monotone convergence in
+$\overline{\mathbb{R}}$.
+\end{proof}
+
+\paragraph{The structural relationship to the diagonal bilinear bridge.}
+The closure above does \emph{not} use the diagonal bilinear stability
+bridge of \autoref{thm:diag-bilin} (\autoref{ch:cbn}) --- it instead
+exploits the unary ``shift-by-Dirac'' shape of $\mathtt{ex\_geom}$'s
+ELSE branch (a constant Dirac plus the recursive value is a unary
+linear map of the recursive value). The bridge remains the structural
+unblocker for \emph{generic} CBV recursion at $\mathtt{ne\_fix}$,
+the refined CBN $\mathtt{add}/\mathtt{mul}$ install, and any future
+bilinear-into-tensor stable combinator.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
 
 \paragraph{Delivered and axiom-free.}
@@ -1841,6 +1899,12 @@ partial-termination examples
 (\autoref{lem:ppl-ex-geom}, geometric counter) and
 \rocq{Icones.programs.examples.ex_almost_loop_denot_E}
 (\autoref{lem:ppl-ex-almost-loop}, parameterised partial termination).
+Finally, the CBV-side mass-one headline
+\rocq{Icones.programs.infra.em_fix_arr.ex_geom_arr_mass_one}
+(\autoref{thm:cbv-ex-geom-arr-mass-one}), the first formal mass
+identity for a non-trivial recursive PPL example in the
+integrable-cones model, with the CBN-side parallel
+\autoref{thm:cbn-ex-geom} of \autoref{ch:cbn}.
 
 \paragraph{What is not interpreted, and why none of it is a deferred
 milestone.}
