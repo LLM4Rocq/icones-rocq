@@ -369,3 +369,184 @@ Arguments ex_rl_lam_arith_pointwise {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas
   cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
   env.
+
+(** ** §4 — [ex_random_linear_arith_marginal_at] — THE HONEST MARGINAL
+
+    The pointwise marginal of [ex_random_linear] under the arith
+    pipeline.  Replaces the (γ)-degenerate
+    [ex_random_linear_CBN_marginal_zero] of [ppl_cbn_headlines.v].
+
+    At a unit-ball argument [arg : FMeas R_obj] (typically a Dirac
+    at the call's value), the marginal of the lambda
+    [eD'CBNa' ex_random_linear @ precone_zero] is
+    [[
+       add_FMeas (mul_FMeas mu arg) mu
+       = pushforward of mu \otimes mu along (m, b) |-> m * arg + b.
+    ]] *)
+
+Section ExRandomLinearArithMarginal.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable cbn_true_clause :
+  forall (G : ppl_ctx Ar), scones_hom (ctxD_CBN G) (tyD_CBN tbool).
+Variable cbn_false_clause :
+  forall (G : ppl_ctx Ar), scones_hom (ctxD_CBN G) (tyD_CBN tbool).
+Variable cbn_bernoulli_clause :
+  forall (G : ppl_ctx Ar) (p : R)
+         (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
+    scones_hom (ctxD_CBN G) (tyD_CBN tbool).
+Variable cbn_if_clause :
+  forall (G : ppl_ctx Ar) (t : ppl_type Ar)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN tbool))
+         (M N : scones_hom (ctxD_CBN G) (tyD_CBN t)),
+    scones_hom (ctxD_CBN G) (tyD_CBN t).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+Local Notation eD'CBNa' :=
+  (@eD_CBN_full_arith R Ar R_obj R_carrier_eq R_carrier_meas
+     R_to_carrier_meas cbn_true_clause cbn_false_clause
+     cbn_bernoulli_clause cbn_if_clause).
+
+(** THE MARGINAL.  For any unit-ball argument [arg : FMeas R_obj]:
+    [[
+        sh_fun (sc_fun (eD'CBNa' ex_random_linear) precone_zero) arg
+          = add_FMeas (mul_FMeas mu arg) mu.
+    ]]
+    Equivalently, the pushforward of [mu ⊗ mu] along [(m, b) ↦ m*arg+b]
+    when [arg = dirac_x] is a Dirac. *)
+Theorem ex_random_linear_arith_marginal_at
+    (arg : FMeas R_obj) (Harg : (cone_norm arg <= 1)%R) :
+  sh_fun (sc_fun (eD'CBNa' (@ex_random_linear R Ar R_obj mu Hmu))
+                 precone_zero) arg =
+  add_FMeas R_carrier_eq R_carrier_meas R_to_carrier_meas
+    (mul_FMeas R_carrier_eq R_carrier_meas R_to_carrier_meas mu arg)
+    mu.
+Proof.
+have Hzero_ball : (cone_norm (precone_zero : Stop Ar) <= 1)%R
+  by rewrite cone_norm0 ler01.
+(* The outer denotation reduction.  ex_random_linear =
+   let "m" := sample mu in ex_rl_inner, which CBN-denotes to
+   scones_comp (eD ex_rl_inner) (spair (scones_id _) (sample _)).  By
+   the eD definition this is the same shape under eD_CBN_full_arith. *)
+have Hpair1_ball :
+  (cone_norm (sprod_pair (precone_zero : Stop Ar) (mu : FMeas R_obj))
+   <= 1)%R
+  by apply: sprod_pair_norm_le1.
+have Hpair2_ball :
+  (cone_norm (sprod_pair (sprod_pair (precone_zero : Stop Ar)
+                                      (mu : FMeas R_obj))
+                          (mu : FMeas R_obj))
+   <= 1)%R
+  by apply: sprod_pair_norm_le1.
+have Hpair3_ball :
+  (cone_norm (sprod_pair
+                (sprod_pair (sprod_pair (precone_zero : Stop Ar)
+                                         (mu : FMeas R_obj))
+                            (mu : FMeas R_obj))
+                arg)
+   <= 1)%R
+  by apply: sprod_pair_norm_le1.
+(* Unfold the outer ex_random_linear into its M3 structure. *)
+have HE :
+  eD'CBNa' (@ex_random_linear R Ar R_obj mu Hmu) =
+  scones_comp (eD'CBNa' (@ex_rl_inner R Ar R_obj mu Hmu))
+    (spair (scones_id (ctxD_CBN (drop_names (Ar:=Ar) nil)))
+           (cbn_sample_clause_def (R_obj:=R_obj) nil mu Hmu)) by [].
+rewrite HE.
+rewrite (scomp_ball _ _ Hzero_ball).
+have Hid0 : sc_fun (scones_id (ctxD_CBN (drop_names (Ar:=Ar) nil)))
+              precone_zero = precone_zero.
+  by rewrite /scones_id /= (sc_clamp_ball Hzero_ball).
+have Hsample0 :
+  sc_fun (cbn_sample_clause_def (R_obj:=R_obj) nil mu Hmu) precone_zero = mu.
+  by rewrite /cbn_sample_clause_def /cbn_const_clause scomp_ball.
+rewrite scpair_ball// Hid0 Hsample0.
+(* Inner reduction: ex_rl_inner = let "b" := sample in ex_rl_lam. *)
+have HE_inner :
+  eD'CBNa' (@ex_rl_inner R Ar R_obj mu Hmu) =
+  scones_comp (eD'CBNa' (@ex_rl_lam R Ar R_obj))
+    (spair (scones_id (ctxD_CBN [:: tR']))
+           (cbn_sample_clause_def (R_obj:=R_obj) [:: tR'] mu Hmu)) by [].
+rewrite HE_inner.
+rewrite (scomp_ball _ _ Hpair1_ball).
+have Hid1 : sc_fun (scones_id (ctxD_CBN [:: tR']))
+              (sprod_pair (precone_zero : Stop Ar) (mu : FMeas R_obj))
+            = sprod_pair (precone_zero : Stop Ar) (mu : FMeas R_obj).
+  by rewrite /scones_id /= (sc_clamp_ball Hpair1_ball).
+have Hsample1 :
+  sc_fun (cbn_sample_clause_def (R_obj:=R_obj) [:: tR'] mu Hmu)
+         (sprod_pair (precone_zero : Stop Ar) (mu : FMeas R_obj)) = mu.
+  by rewrite /cbn_sample_clause_def /cbn_const_clause scomp_ball.
+rewrite scpair_ball// Hid1 Hsample1.
+(* ex_rl_lam is a lambda.  Its denotation is the curry of the body's. *)
+have HE_lam :
+  eD'CBNa' (@ex_rl_lam R Ar R_obj) =
+  curry (@eD_CBN_full_arith R Ar R_obj R_carrier_eq R_carrier_meas
+           R_to_carrier_meas cbn_true_clause cbn_false_clause
+           cbn_bernoulli_clause cbn_if_clause
+           [:: ("x"%string, tR'); ("b"%string, tR'); ("m"%string, tR')]
+           tR' [# "m" * # "x" + # "b"]) by [].
+rewrite HE_lam.
+rewrite (curry_appE _ _ _ Hpair2_ball Harg).
+(* Apply the lambda body's pointwise computation. *)
+rewrite (@ex_rl_lam_arith_pointwise R Ar R_obj R_carrier_eq R_carrier_meas
+          R_to_carrier_meas cbn_true_clause cbn_false_clause
+          cbn_bernoulli_clause cbn_if_clause _ Hpair3_ball).
+(* Identify the variable lookups in env. *)
+(* env = (((0, µ), µ), arg).  # "m" looks up index 2 from the head;
+   # "b" index 1; # "x" index 0. *)
+have Hvarm :
+  sc_fun (eD'CBNa' (G := [:: ("x"%string, tR'); ("b"%string, tR');
+                            ("m"%string, tR')]) (t := tR') [# "m"])
+         (sprod_pair
+            (sprod_pair (sprod_pair (precone_zero : Stop Ar)
+                                     (mu : FMeas R_obj))
+                        (mu : FMeas R_obj))
+            arg)
+  = mu.
+  simpl.
+  by rewrite !(sc_clamp_ball Hpair3_ball)
+             !(sc_clamp_ball Hpair2_ball)
+             !(sc_clamp_ball Hpair1_ball).
+have Hvarb :
+  sc_fun (eD'CBNa' (G := [:: ("x"%string, tR'); ("b"%string, tR');
+                            ("m"%string, tR')]) (t := tR') [# "b"])
+         (sprod_pair
+            (sprod_pair (sprod_pair (precone_zero : Stop Ar)
+                                     (mu : FMeas R_obj))
+                        (mu : FMeas R_obj))
+            arg)
+  = mu.
+  simpl.
+  by rewrite !(sc_clamp_ball Hpair3_ball)
+             !(sc_clamp_ball Hpair2_ball).
+have Hvarx :
+  sc_fun (eD'CBNa' (G := [:: ("x"%string, tR'); ("b"%string, tR');
+                            ("m"%string, tR')]) (t := tR') [# "x"])
+         (sprod_pair
+            (sprod_pair (sprod_pair (precone_zero : Stop Ar)
+                                     (mu : FMeas R_obj))
+                        (mu : FMeas R_obj))
+            arg)
+  = arg.
+  by rewrite /= (sc_clamp_ball Hpair3_ball).
+by rewrite Hvarm Hvarb Hvarx.
+Qed.
+
+End ExRandomLinearArithMarginal.
+
+Arguments ex_random_linear_arith_marginal_at {R Ar R_obj}
+  R_carrier_eq R_carrier_meas R_to_carrier_meas
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  mu Hmu arg.
