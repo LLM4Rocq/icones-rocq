@@ -132,45 +132,48 @@ syntax (`named_expr`, modelled on Saito–Affeldt APLAS 2023), and gave it **two
 parallel interpretations** of the same source language —
 **call-by-value (CBV)** via the Eilenberg–Moore category of `!`
 (Melliès §7.4 EM route) and **call-by-name (CBN)** via the cartesian closed
-`SCones` (the co-Kleisli of `!`, with free recursion from `Yfix`). The CBV side
-delivers the **first formal mass-1 identity for a non-trivial recursive PPL
-example in Icones** (`ex_geom_arr_mass_one`, axiom-free), and is the principal
-interpretation for non-recursive QBS-style examples. The CBN side delivers
-**free recursion** axiom-free at every function type via `Yfix` from paper §9.2.
+`SCones` (the co-Kleisli of `!`, with free recursion from `Yfix`).
+**Both readings now carry an axiom-free mass-1 identity** for the geometric
+program: CBV-side `ex_geom_arr_mass_one`, CBN-side
+`ex_geom_CBN_mass_one`, each closed by the same Kleene-cascade `1 − (1/2)ⁿ`
+argument at its native level (Bang for CBV, SCones for CBN). The
+**SCones↔ICones-tensor diagonal bilinear stability bridge**
+`meas_stable_diag_bilinear_tensor` — the structural unblocker of generic
+CBV recursion at `eD ne_fix` and of honest CBN bilinear arithmetic —
+has also landed axiom-free.
 
-Two pieces of this layer are, to our knowledge, the **first Coq / Rocq
+Three pieces of this layer are, to our knowledge, the **first Coq / Rocq
 formalizations**: the cartesian-η identity `em_pair_mor_proj_id` (Fox 1976 /
-Melliès Prop 28 at the icones level) and the CBV value-fixpoint at function
-types `Yfix_arr` (P.-A. Melliès consultation 2026-05-31: *"folklore, not in
-the literature"*).
+Melliès Prop 28 at the icones level), the CBV value-fixpoint at function
+types `Yfix_arr` / `Yfix_fun_T` (P.-A. Melliès consultation 2026-05-31:
+*"folklore, not in the literature"*), and the diagonal bilinear stability
+bridge `meas_stable_diag_bilinear_tensor` at the SCones↔ICones-tensor
+junction.
 
 The PPL is built and **axiom-free** (the same three classical `boolp` axioms as
-the paper-side results). The structural blocker that prevents full generic CBV
-recursion (the SCones↔ICones-tensor bridge) is described in detail in
-`docs/PPL.md` § 7.
-
-The CBV model is built and **axiom-free** (the files below depend only on the same three
-classical `boolp` axioms as everything else — verified by `Print Assumptions` on `ICones_CBV`,
-`ICones_EM_cartesian`, `EMComon_all`, `cpD_sample_var_dirac`, and the Phase 4
-partial-termination examples). Two pieces of this layer are, to our knowledge, the
-**first Coq / Rocq formalizations**: the cartesian-η identity `em_pair_mor_proj_id` (Fox
-1976 / Melliès Prop 28 at the icones level), and the CBV value-fixpoint at function types
-`Yfix_fun_T` (P.-A. Melliès consultation 2026-05-31: *"folklore, not in the literature"*).
-
+the paper-side results).
 
 ## Status
 
 Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free. Beyond the paper,
-**two parallel interpretations** of the same surface PPL syntax are built:
+**two parallel interpretations** of the same surface PPL syntax are built — each with a
+mass-1 identity for the geometric program at its native level:
 
 - **Call-by-value via `EM(!)`** (`theories/programs/ppl.v` and infra under `programs/infra/`).
   Non-recursive programs are interpretable axiom-free, including the QBS-style headlines
-  (`ex_random_constant`, `ex_random_linear`, `ex_bayes_linear_is_weighted`). The first formal
-  **recursive PPL mass-1 identity** is `ex_geom_arr_mass_one` (geometric distribution,
-  axiom-free) in `theories/programs/infra/em_fix_arr.v`.
+  (`ex_random_constant`, `ex_random_linear`, `ex_bayes_linear_is_weighted`). The CBV
+  mass-1 identity `ex_geom_arr_mass_one` (geometric distribution, axiom-free) lives in
+  `theories/programs/infra/em_fix_arr.v`.
 - **Call-by-name via `SCones`** (`theories/programs/ppl_cbn.v` + `ppl_cbn_eff.v` +
-  `ppl_cbn_bool.v`). Trunk + effects + boolean cascade are all axiom-free. Free recursion at
-  every function type via the paper §9.2 `Yfix`.
+  `ppl_cbn_bool.v` + `ppl_cbn_arith.v` + `ppl_cbn_geom.v`). Trunk + effects + boolean cascade
+  + `FMeas` arithmetic foundation are all axiom-free. Free recursion at every function type
+  via the paper §9.2 `Yfix`. The **CBN mass-1 identity** `ex_geom_CBN_mass_one` lives in
+  `theories/programs/ppl_cbn_geom.v`.
+- **The SCones↔ICones-tensor diagonal bilinear stability bridge**
+  `meas_stable_diag_bilinear_tensor` (`theories/stable/diag_bilinear_tensor.v`,
+  axiom-free) — the structural unblocker of generic CBV recursion at `eD ne_fix`, of
+  honest CBN bilinear arithmetic via `add_FMeas`/`mul_FMeas`, and of the
+  CBV/CBN soundness comparison.
 
 The full top-down description — what each interpretation does, what works today, what is
 missing, and **why** — is in [`docs/PPL.md`](./docs/PPL.md) and on the
@@ -179,9 +182,12 @@ missing, and **why** — is in [`docs/PPL.md`](./docs/PPL.md) and on the
 **Open** (genuinely beyond §9): the **§8** analytic exponential and its category `ACONES`;
 the **§9** Eilenberg–Moore *full-subcategory* theorem (needs a Polish / standard-Borel
 layer not yet formalized); and the **§10** probabilistic-coherence-space embedding.
-**Open on the PPL side**: the SCones↔ICones-tensor bilinear-via-diagonal stability bridge
-(blocks generic CBV recursion as a combinator and refined CBN `add`/`mul`); see
-[`docs/PPL.md` § 7](./docs/PPL.md#7-the-blocker-the-scones↔icones-tensor-bridge).
+**Open on the PPL side**: the **CBV/CBN soundness theorem** (no proof that
+`⟦M⟧_CBV` and `⟦M⟧_CBN` agree, which would require commuting `!` with effect-bearing
+types); the **refined CBN `add`/`mul` install** on top of `add_FMeas`/`mul_FMeas` via
+the bridge above (structural; not yet packaged because the CBN headlines run under
+the lightweight option-γ baseline); the **generic CBV recursion combinator at
+`ne_fix`** above the bridge.
 
 [`PLAN.md`](./PLAN.md) has the full roadmap and design notes.
 
@@ -204,6 +210,9 @@ theories/
 │                fmeas_lax.v         FMeas is lax symmetric monoidal
 │                                    (µ ⊗ ν ↦ µ × ν as an icones_hom)
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
+│              diag_bilinear_tensor.v  the SCones↔ICones-tensor diagonal     (PPL)
+│                                      bilinear stability bridge
+│                                      meas_stable_diag_bilinear_tensor
 ├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
 └── programs/  the PPL — surface syntax and two parallel interpretations:
                  cbv.v               a first-order Moggi-CBV calculus
@@ -215,8 +224,13 @@ theories/
                                      (var/lam/app/let/pair/fst/snd),
                                      ne_fix via SCones Yfix (axiom-free)
                  ppl_cbn_eff.v       CBN effects: sample/score/add/mul/real
+                 ppl_cbn_arith.v     CBN add_FMeas/mul_FMeas math foundation
                  ppl_cbn_bool.v      CBN booleans: true/false/Bernoulli/if
                                      (via sc_to_sh promotion sidestep)
+                 ppl_cbn_headlines.v CBN structural _denot_E reductions
+                                     (γ-baseline of arithmetic)
+                 ppl_cbn_geom.v      CBN HEADLINE: ex_geom_CBN_mass_one
+                                     (axiom-free, Kleene cascade 1 − ½ⁿ)
                  examples.v          CBV surface-syntax examples — QBS
                                      headlines + Phase 4 partial-termination
                  infra/              CBV PPL support:
