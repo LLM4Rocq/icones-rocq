@@ -93,3 +93,4 @@ theories/programs/ppl_cbn_geom_dist.v
 theories/programs/ppl_cbn_almost_loop_dist.v
 theories/programs/ppl_cbn_arith_scones.v
 theories/programs/ppl_cbn_arith_eff.v
+theories/programs/ppl_cbv_geom_dist.v
