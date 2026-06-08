@@ -76,6 +76,7 @@ theories/programs/infra/curry_kbind.v
 theories/programs/infra/ex_geom_step.v
 theories/programs/infra/em_fix_arr.v
 theories/programs/infra/ex_headlines.v
+theories/programs/infra/ex_random_dist.v
 theories/programs/infra/ex_loop_arr.v
 theories/programs/infra/ex_almost_loop_arr.v
 theories/programs/infra/ex_almost_loop_step.v
