@@ -112,6 +112,7 @@ Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.programs.infra.cbv_adjunction.
+Require Import Icones.programs.infra.cbv_outer_pt.
 Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.programs.infra.bool_case_hom.
 Require Import Icones.programs.infra.case_em_red.
@@ -191,30 +192,20 @@ Local Notation else_e :=
     [ex_geom_step.v] but at the [cone_one_car] level (where the
     constant value is [one1], not [dirac_fmeas 0]). *)
 
-Lemma cone_norm_one1_step : (cone_norm (one1 : cone_one_car Ar) = 1)%R.
-Proof. by rewrite /cone_norm /= /c1_norm. Qed.
+(** [cone_norm_one1] (= 1) / [cone_norm_one1_le1] / [linhom_fun_precone_add_E]
+    / [linhom_fun_precone_scale_E] now come from [cbv_outer_pt.v]. *)
 
-(** Pointwise decomposition of [linhom_fun] over [precone_add]
-    and [precone_scale] (mirror of [ex_geom_step.v]'s helpers). *)
-Lemma linhom_fun_precone_add_E_alp (C D : ICone.type Ar)
-    (f g : linhom_car Ar C D) (x : C) :
-  linhom_fun (precone_add f g) x =
-  precone_add (linhom_fun f x) (linhom_fun g x).
-Proof. by []. Qed.
-
-Lemma linhom_fun_precone_scale_E_alp (C D : ICone.type Ar)
-    (r : {nonneg R}) (f : linhom_car Ar C D) (x : C) :
-  linhom_fun (precone_scale r f) x =
-  precone_scale r (linhom_fun f x).
-Proof. by []. Qed.
-
-Lemma cone_norm_one1_le1_step : (cone_norm (one1 : cone_one_car Ar) <= 1)%R.
-Proof. by rewrite cone_norm_one1_step. Qed.
+Local Notation cone_norm_one1_step := (cone_norm_one1 (R:=R) (Ar:=Ar)).
+Local Notation cone_norm_one1_le1_step := (cone_norm_one1_le1 (R:=R) (Ar:=Ar)).
+Local Notation linhom_fun_precone_add_E_alp :=
+  (@linhom_fun_precone_add_E R Ar).
+Local Notation linhom_fun_precone_scale_E_alp :=
+  (@linhom_fun_precone_scale_E R Ar).
 
 Lemma Lfun_ch_mor_then_e_at_outer_pt_u_E
     (u : L_loop) (Hu : cone_norm u <= 1) :
   Lfun (ch_mor (eD' then_e))
-       (@at_outer_pt_u R Ar u)
+       (@at_outer_pt_u R Ar L_loop u)
   = prom (one1 : cone_one_car Ar).
 Proof.
 rewrite (eD_tt (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)).
@@ -226,9 +217,9 @@ rewrite -[ch_mor (coalg_comp _ _)]
 rewrite -[Lfun (icones_comp _ _) _]
         /(Lfun (ch_mor (tunit_eta EM_term))
                (Lfun (ch_mor (em_term_mor _))
-                     (@at_outer_pt_u R Ar u))).
+                     (@at_outer_pt_u R Ar L_loop u))).
 rewrite -[ch_mor (em_term_mor _)]/(coalg_e G_loop).
-rewrite (@coalg_e_G_on_outer_pt_u_E R Ar u Hu).
+rewrite (@coalg_e_G_on_outer_pt_u_E R Ar L_loop u Hu).
 rewrite -[ch_mor (tunit_eta EM_term)]/(coalg_str (EM_term : Coalgebra Ar)).
 rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
 by [].
@@ -239,7 +230,7 @@ Lemma der_Lfun_ch_mor_then_e_at_outer_pt_u_E
     (u : L_loop) (Hu : cone_norm u <= 1) :
   Lfun (der (cone_one_car Ar))
        (Lfun (ch_mor (eD' then_e))
-             (@at_outer_pt_u R Ar u))
+             (@at_outer_pt_u R Ar L_loop u))
   = (one1 : cone_one_car Ar).
 Proof.
 rewrite (Lfun_ch_mor_then_e_at_outer_pt_u_E Hu).
@@ -270,7 +261,7 @@ Lemma der_Lfun_ch_mor_else_e_at_outer_pt_u_E
     (u : L_loop) (Hu : cone_norm u <= 1) :
   Lfun (der (cone_one_car Ar))
        (Lfun (ch_mor (eD' else_e))
-             (@at_outer_pt_u R Ar u))
+             (@at_outer_pt_u R Ar L_loop u))
   = @F_lift_loop R Ar u.
 Proof.
 rewrite (@Lfun_ch_mor_app_l_tt_at_outer_pt_u_E R Ar R_obj
@@ -285,28 +276,28 @@ Qed.
     [coalg_str_G_on_outer_pt_u_E] + [bang_fmap_prom] applied to the
     [convex_combination] (which is [adj_psi convex_icones]). *)
 
-Lemma cone_norm_at_outer_pt_u_step
-    (u : L_loop) (Hu : cone_norm u <= 1) :
-  cone_norm (@at_outer_pt_u R Ar u) <= 1.
-Proof.
-exact: cone_norm_at_outer_pt_u_le1.
-Qed.
+(** [cone_norm_at_outer_pt_u_step] retained as a thin alias of
+    [cbv_outer_pt.cone_norm_at_outer_pt_u_le1] for backward source
+    compatibility. *)
+Local Notation cone_norm_at_outer_pt_u_step :=
+  (@cone_norm_at_outer_pt_u_le1 R Ar L_loop _).
 
 Lemma Lfun_ch_mor_convex_at_outer_pt_u_E
     (u : L_loop) (Hu : cone_norm u <= 1) :
   Lfun (ch_mor (convex_combination (eD' then_e) (eD' else_e)
                                    Hp_ge0 Hp_le1))
-       (@at_outer_pt_u R Ar u)
+       (@at_outer_pt_u R Ar L_loop u)
   = prom (Lfun (convex_icones (eD' then_e) (eD' else_e)
                               Hp_ge0 Hp_le1)
-               (@at_outer_pt_u R Ar u)).
+               (@at_outer_pt_u R Ar L_loop u)).
 Proof.
 rewrite /convex_combination.
 rewrite (Lfun_ch_mor_adj_psi_at
            (convex_icones (eD' then_e) (eD' else_e) Hp_ge0 Hp_le1)
-           (@at_outer_pt_u R Ar u)).
-rewrite (@coalg_str_G_on_outer_pt_u_E R Ar u Hu).
-have Hbnd := cone_norm_at_outer_pt_u_step Hu.
+           (@at_outer_pt_u R Ar L_loop u)).
+rewrite (@coalg_str_G_on_outer_pt_u_E R Ar L_loop u Hu).
+have Hbnd : cone_norm (@at_outer_pt_u R Ar L_loop u) <= 1
+  by exact: (cone_norm_at_outer_pt_u_le1 (L:=L_loop) Hu).
 by rewrite (bang_fmap_prom
               (convex_icones (eD' then_e) (eD' else_e) Hp_ge0 Hp_le1)
               _ Hbnd).
@@ -323,30 +314,30 @@ Qed.
 Lemma Lfun_convex_icones_at_outer_pt_u_E
     (u : L_loop) (Hu : cone_norm u <= 1) :
   Lfun (convex_icones (eD' then_e) (eD' else_e) Hp_ge0 Hp_le1)
-       (@at_outer_pt_u R Ar u)
+       (@at_outer_pt_u R Ar L_loop u)
   = Lfun (der (cone_one_car Ar))
          (precone_add
             (precone_scale (NngNum Hp_ge0)
               (Lfun (ch_mor (eD' then_e))
-                    (@at_outer_pt_u R Ar u)))
+                    (@at_outer_pt_u R Ar L_loop u)))
             (precone_scale (NngNum (onem_ge0 p Hp_le1))
               (Lfun (ch_mor (eD' else_e))
-                    (@at_outer_pt_u R Ar u)))).
+                    (@at_outer_pt_u R Ar L_loop u)))).
 Proof.
 have Hinner :
   Lfun (convex_icones_bang (eD' then_e) (eD' else_e) Hp_ge0 Hp_le1)
-       (@at_outer_pt_u R Ar u)
+       (@at_outer_pt_u R Ar L_loop u)
   = precone_add
       (precone_scale (NngNum Hp_ge0)
         (Lfun (ch_mor (eD' then_e))
-              (@at_outer_pt_u R Ar u)))
+              (@at_outer_pt_u R Ar L_loop u)))
       (precone_scale (NngNum (onem_ge0 p Hp_le1))
         (Lfun (ch_mor (eD' else_e))
-              (@at_outer_pt_u R Ar u))).
+              (@at_outer_pt_u R Ar L_loop u))).
   rewrite -[Lfun (convex_icones_bang _ _ _ _) _]
           /(linhom_fun (convex_linhom (eD' then_e) (eD' else_e)
                                       Hp_ge0 Hp_le1)
-                       (@at_outer_pt_u R Ar u)).
+                       (@at_outer_pt_u R Ar L_loop u)).
   rewrite convex_linhomE /bool_case.
   rewrite linhom_fun_precone_add_E_alp.
   rewrite !linhom_fun_precone_scale_E_alp.
@@ -355,7 +346,7 @@ have Hinner :
 rewrite -[LHS]/(Lfun (der (cone_one_car Ar))
                      (Lfun (convex_icones_bang (eD' then_e) (eD' else_e)
                                                Hp_ge0 Hp_le1)
-                           (@at_outer_pt_u R Ar u))).
+                           (@at_outer_pt_u R Ar L_loop u))).
 by rewrite Hinner.
 Qed.
 
@@ -442,7 +433,7 @@ Lemma linhom_fun_der_Step_loop_p_one1_u_E
     (one1 : cone_one_car Ar)
   = Lfun (ch_mor (convex_combination (eD' then_e) (eD' else_e)
                                      Hp_ge0 Hp_le1))
-         (@at_outer_pt_u R Ar u).
+         (@at_outer_pt_u R Ar L_loop u).
 Proof.
 rewrite (der_Step_loop_p_one_prom_u_E Hu).
 rewrite /at_outer_pt_u.
@@ -470,17 +461,17 @@ Lemma der_cone_one_linhom_der_Step_E_u
          (precone_add
             (precone_scale (NngNum Hp_ge0)
               (Lfun (ch_mor (eD' then_e))
-                    (@at_outer_pt_u R Ar u)))
+                    (@at_outer_pt_u R Ar L_loop u)))
             (precone_scale (NngNum (onem_ge0 p Hp_le1))
               (Lfun (ch_mor (eD' else_e))
-                    (@at_outer_pt_u R Ar u)))).
+                    (@at_outer_pt_u R Ar L_loop u)))).
 Proof.
 rewrite (linhom_fun_der_Step_loop_p_one1_u_E Hu).
 rewrite (Lfun_ch_mor_convex_at_outer_pt_u_E Hu).
 have Hnorm : cone_norm
                 (Lfun (convex_icones (eD' then_e) (eD' else_e)
                                      Hp_ge0 Hp_le1)
-                      (@at_outer_pt_u R Ar u)) <= 1.
+                      (@at_outer_pt_u R Ar L_loop u)) <= 1.
   apply: le_trans (cones_hom_norm_le1 _ _) _.
   exact: cone_norm_at_outer_pt_u_step.
 rewrite (der_prom (B := cone_one_car Ar) _ Hnorm).

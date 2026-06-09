@@ -97,6 +97,7 @@ Require Import Icones.homs.em_cartesian.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.infra.curry_kbind.
+Require Import Icones.programs.infra.cbv_outer_pt.
 Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.cbv.
 Require Import Icones.programs.ppl.
@@ -129,15 +130,6 @@ Local Notation Lfun h :=
 
 Local Notation eD' :=
   (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas).
-
-(** Local lemmas: [cone_norm one1 = 1] and the [≤ 1] consequence. *)
-Lemma cone_norm_one1 :
-  (cone_norm (one1 : cone_one_car Ar) = 1)%R.
-Proof. by rewrite /cone_norm /= /c1_norm. Qed.
-
-Lemma cone_norm_one1_le1 :
-  (cone_norm (one1 : cone_one_car Ar) <= 1)%R.
-Proof. by rewrite cone_norm_one1. Qed.
 
 (** ** The linhom-carrier [L_loop] and function-coalgebra [funT_loop]
 
@@ -206,84 +198,12 @@ rewrite icones_compA (comonad_counitR L_loop) icones_compIl.
 by [].
 Qed.
 
-(** ** Outer-pt cascade — parameterised in [u : L_loop]
+(** ** Outer-pt cascade — re-exported from [cbv_outer_pt] at [L_loop]
 
-    Mirror of [em_fix_arr.v]'s [at_outer_pt_u] for [ex_geom]. *)
-
-Definition at_outer_pt_u (u : L_loop) : coalg_obj G_loop :=
-  ptensor (ptensor (one1 : cone_one_car Ar) (prom u))
-          (one1 : cone_one_car Ar).
-
-Lemma cone_norm_at_outer_pt_u_le1 (u : L_loop) (Hu : cone_norm u <= 1) :
-  cone_norm (at_outer_pt_u u) <= 1.
-Proof.
-rewrite /at_outer_pt_u.
-apply: le_trans (tensor_norm_le _ _) _.
-rewrite -[1]mulr1; apply: ler_pM.
-- exact: cone_norm_ge0.
-- exact: cone_norm_ge0.
-- apply: le_trans (tensor_norm_le _ _) _.
-  rewrite -[1]mulr1; apply: ler_pM.
-  + exact: cone_norm_ge0.
-  + exact: cone_norm_ge0.
-  + by rewrite cone_norm_one1.
-  + exact: prom_ball Hu.
-- by rewrite cone_norm_one1.
-Qed.
-
-Lemma cone_norm_inner_pt_u_le1 (u : L_loop) (Hu : cone_norm u <= 1) :
-  cone_norm (ptensor (one1 : cone_one_car Ar) (prom u)) <= 1.
-Proof.
-apply: le_trans (tensor_norm_le _ _) _.
-rewrite -[1]mulr1; apply: ler_pM.
-- exact: cone_norm_ge0.
-- exact: cone_norm_ge0.
-- by rewrite cone_norm_one1.
-- exact: prom_ball Hu.
-Qed.
-
-Lemma coalg_str_G_on_outer_pt_u_E (u : L_loop) (Hu : cone_norm u <= 1) :
-  Lfun (coalg_str G_loop) (at_outer_pt_u u) = prom (at_outer_pt_u u).
-Proof.
-rewrite (EM_prod_str_E (EM_prod (EM_term : Coalgebra Ar) funT_loop)
-                       (EM_term : Coalgebra Ar)) /EM_prod_str.
-rewrite -[Lfun (icones_comp _ _) _]
-        /(Lfun (m_bang (coalg_obj _) (coalg_obj _))
-               (Lfun (tensor_mor _ _) _)).
-rewrite tensor_morE.
-have Hinner :
-  Lfun (coalg_str (EM_prod (EM_term : Coalgebra Ar) funT_loop))
-       (ptensor (one1 : cone_one_car Ar) (prom u))
-  = prom (ptensor (one1 : cone_one_car Ar) (prom u)).
-  rewrite (EM_prod_str_E (EM_term : Coalgebra Ar) funT_loop) /EM_prod_str.
-  rewrite -[Lfun (icones_comp _ _) _]
-          /(Lfun (m_bang (coalg_obj _) (coalg_obj _))
-                 (Lfun (tensor_mor _ _) _)).
-  rewrite tensor_morE.
-  rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
-  rewrite (bang_cofree_str L_loop) (dig_prom (B:=L_loop) u Hu).
-  by rewrite (m_bang_prom (x:=one1) (y:=prom u)
-                          cone_norm_one1_le1 (prom_ball Hu)).
-rewrite Hinner.
-rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
-by rewrite (m_bang_prom (x:=ptensor (one1 : cone_one_car Ar) (prom u))
-                        (y:=one1)
-                        (cone_norm_inner_pt_u_le1 Hu) cone_norm_one1_le1).
-Qed.
-
-Lemma coalg_e_G_on_outer_pt_u_E (u : L_loop) (Hu : cone_norm u <= 1) :
-  Lfun (coalg_e G_loop) (at_outer_pt_u u) = one1.
-Proof.
-have Hz_le1 : cone_norm (at_outer_pt_u u) <= 1
-  by exact: cone_norm_at_outer_pt_u_le1.
-have Hcs : Lfun (coalg_str G_loop) (at_outer_pt_u u) = prom (at_outer_pt_u u)
-  by exact: coalg_str_G_on_outer_pt_u_E.
-transitivity (Lfun (e_bang (coalg_obj G_loop))
-                   (Lfun (coalg_str G_loop) (at_outer_pt_u u)));
-  first by [].
-rewrite Hcs.
-exact: (@e_bang_prom R Ar (coalg_obj G_loop) (at_outer_pt_u u) Hz_le1).
-Qed.
+    The [at_outer_pt_u] definition, the [cone_norm_*] bounds, the
+    [coalg_str_G_on_outer_pt_u_E] cascade, and the [coalg_e_G] cascade
+    are all parameterised over [L : ICone.type Ar] in [cbv_outer_pt.v].
+    We use them here instantiated at [L := L_loop]. *)
 
 (** [F_lift_loop u] is the [cone_one_car] value obtained by extracting
     a function-cone value at [one1] : the mass-equivalent of the n-th
@@ -469,7 +389,9 @@ Qed.
 
     Mirror of [em_fix_arr.v]'s [Step_geom_one_prom_u_E] for [ex_loop]:
     [Step_loop one1 (prom u) = prom (Lfun (tensor_curry (ch_mor (eD'
-    body_inner))) (ptensor one1 (prom u)))]. *)
+    body_inner))) (ptensor one1 (prom u)))].  Specialisation of
+    [cbv_outer_pt.lam_coalg_at_one_prom] at [L := L_loop],
+    [Y := EM_term]. *)
 Lemma lam_coalg_at_one_prom_loop
     (N : coalg_hom (EM_prod (EM_prod (EM_term : Coalgebra Ar) funT_loop)
                             (EM_term : Coalgebra Ar))
@@ -477,32 +399,7 @@ Lemma lam_coalg_at_one_prom_loop
     (u : L_loop) (Hu : cone_norm u <= 1) :
   Lfun (ch_mor (lam_coalg N)) (ptensor one1 (prom u)) =
   prom (Lfun (tensor_curry (ch_mor N)) (ptensor one1 (prom u))).
-Proof.
-rewrite /lam_coalg /lam_under.
-rewrite -[ch_mor (adj_psi _)]/(icones_comp (bang_fmap (tensor_curry (ch_mor N)))
-                                            (coalg_str (EM_prod (EM_term : Coalgebra Ar) funT_loop))).
-rewrite -[Lfun (icones_comp _ _) (ptensor _ _)]
-        /(Lfun (bang_fmap (tensor_curry (ch_mor N)))
-               (Lfun (coalg_str (EM_prod (EM_term : Coalgebra Ar) funT_loop))
-                     (ptensor one1 (prom u)))).
-rewrite (EM_prod_str_E (EM_term : Coalgebra Ar) funT_loop) /EM_prod_str.
-rewrite -[Lfun (icones_comp _ _) (ptensor _ _)]
-        /(Lfun (m_bang (coalg_obj EM_term) (coalg_obj funT_loop))
-               (Lfun (tensor_mor (coalg_str EM_term) (coalg_str funT_loop))
-                     (ptensor one1 (prom u)))).
-rewrite tensor_morE.
-rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
-rewrite (bang_cofree_str L_loop) (dig_prom (B:=L_loop) u Hu).
-rewrite (m_bang_prom (x:=one1) (y:=prom u) cone_norm_one1_le1 (prom_ball Hu)).
-have Hone_prom : cone_norm (ptensor one1 (prom u)) <= 1.
-  apply: le_trans (tensor_norm_le _ _) _.
-  rewrite -[1]mulr1; apply: ler_pM.
-  - exact: cone_norm_ge0.
-  - exact: cone_norm_ge0.
-  - by rewrite cone_norm_one1.
-  - exact: (prom_ball Hu).
-by rewrite (bang_fmap_prom (tensor_curry (ch_mor N)) (ptensor one1 (prom u)) Hone_prom).
-Qed.
+Proof. exact: (lam_coalg_at_one_prom (L:=L_loop) N Hu). Qed.
 
 (** *** [Step_loop one1 (prom u)] reduces to a [prom] of a linhom in [L_loop]. *)
 Lemma Step_loop_one_prom_u_E (u : L_loop) (Hu : cone_norm u <= 1) :

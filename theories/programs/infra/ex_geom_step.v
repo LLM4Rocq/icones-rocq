@@ -205,6 +205,7 @@ Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.programs.infra.cbv_adjunction.
+Require Import Icones.programs.infra.cbv_outer_pt.
 Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.programs.infra.bool_case_hom.
 Require Import Icones.programs.infra.case_em_red.
@@ -325,14 +326,18 @@ Qed.
     Mirrors [em_fix_arr_exp.v]'s [lam_coalg_at_one_prom] but for the
     [tR']-codomain. *)
 
+(** [cone_norm_one1] (= 1) / [cone_norm_one1_le1] are re-exported from
+    [cbv_outer_pt.v]; thin wrappers keep the unqualified names visible
+    to downstream files (e.g. [em_fix_arr.v]).  [lam_coalg_at_one_prom]
+    is the generic parameterised version (specialised here at
+    [L := L_geom], [Y := tyD tR']). *)
 Lemma cone_norm_one1 :
   (cone_norm (one1 : cone_one_car Ar) = 1)%R.
-Proof. by rewrite /cone_norm /= /c1_norm. Qed.
+Proof. exact: (@Icones.programs.infra.cbv_outer_pt.cone_norm_one1 R Ar). Qed.
 
 Lemma cone_norm_one1_le1 :
   (cone_norm (one1 : cone_one_car Ar) <= 1)%R.
-Proof. by rewrite cone_norm_one1. Qed.
-
+Proof. exact: (@Icones.programs.infra.cbv_outer_pt.cone_norm_one1_le1 R Ar). Qed.
 Lemma lam_coalg_at_one_prom
     (N : coalg_hom (EM_prod (EM_prod (EM_term : Coalgebra Ar) funT_geom)
                             (EM_term : Coalgebra Ar))
@@ -341,33 +346,7 @@ Lemma lam_coalg_at_one_prom
   Lfun (ch_mor (lam_coalg N)) (ptensor one1 (prom u)) =
   prom (Lfun (tensor_curry (ch_mor N)) (ptensor one1 (prom u))).
 Proof.
-rewrite /lam_coalg /lam_under.
-rewrite -[ch_mor (adj_psi _)]
-        /(icones_comp (bang_fmap (tensor_curry (ch_mor N)))
-                      (coalg_str (EM_prod (EM_term : Coalgebra Ar) funT_geom))).
-rewrite -[Lfun (icones_comp _ _) (ptensor _ _)]
-        /(Lfun (bang_fmap (tensor_curry (ch_mor N)))
-               (Lfun (coalg_str (EM_prod (EM_term : Coalgebra Ar) funT_geom))
-                     (ptensor one1 (prom u)))).
-rewrite (EM_prod_str_E (EM_term : Coalgebra Ar) funT_geom) /EM_prod_str.
-rewrite -[Lfun (icones_comp _ _) (ptensor _ _)]
-        /(Lfun (m_bang (coalg_obj EM_term) (coalg_obj funT_geom))
-               (Lfun (tensor_mor (coalg_str EM_term) (coalg_str funT_geom))
-                     (ptensor one1 (prom u)))).
-rewrite tensor_morE.
-rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
-rewrite (bang_cofree_str L_geom) (dig_prom (B:=L_geom) u Hu).
-rewrite (m_bang_prom (x:=one1) (y:=prom u)
-                     cone_norm_one1_le1 (prom_ball Hu)).
-have Hone_prom : cone_norm (ptensor one1 (prom u)) <= 1.
-  apply: le_trans (tensor_norm_le _ _) _.
-  rewrite -[1]mulr1; apply: ler_pM.
-  - exact: cone_norm_ge0.
-  - exact: cone_norm_ge0.
-  - by rewrite cone_norm_one1.
-  - exact: (prom_ball Hu).
-by rewrite (bang_fmap_prom (tensor_curry (ch_mor N))
-                           (ptensor one1 (prom u)) Hone_prom).
+exact: (Icones.programs.infra.cbv_outer_pt.lam_coalg_at_one_prom (L:=L_geom) N Hu).
 Qed.
 
 (** [precone_zero : L_geom] has cone norm 0. *)
@@ -634,17 +613,18 @@ Local Notation G_geom :=
   (EM_prod (EM_prod (EM_term : Coalgebra Ar) funT_geom)
            (EM_term : Coalgebra Ar)).
 
+(** [cone_norm_inner_pt_le1] / [cone_norm_outer_pt_le1] /
+    [coalg_str_G_on_outer_pt_E] / [coalg_e_G_on_outer_pt_E] are now
+    specialisations of the parameterised cascades in [cbv_outer_pt.v]
+    at [L := L_geom] and [u := precone_zero : L_geom]. *)
+
 Lemma cone_norm_inner_pt_le1 :
   (cone_norm
     (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
     <= 1)%R.
 Proof.
-apply: le_trans (tensor_norm_le _ _) _.
-rewrite -[1]mulr1; apply: ler_pM.
-- exact: cone_norm_ge0.
-- exact: cone_norm_ge0.
-- by rewrite cone_norm_one1.
-- exact: (prom_ball cone_norm_zero_L_geom_le1).
+exact: (cone_norm_inner_pt_u_le1 (L:=L_geom)
+          cone_norm_zero_L_geom_le1).
 Qed.
 
 Lemma cone_norm_outer_pt_le1 :
@@ -654,12 +634,8 @@ Lemma cone_norm_outer_pt_le1 :
        (one1 : cone_one_car Ar))
     <= 1)%R.
 Proof.
-apply: le_trans (tensor_norm_le _ _) _.
-rewrite -[1]mulr1; apply: ler_pM.
-- exact: cone_norm_ge0.
-- exact: cone_norm_ge0.
-- exact: cone_norm_inner_pt_le1.
-- exact: cone_norm_one1_le1.
+exact: (cone_norm_at_outer_pt_u_le1 (L:=L_geom)
+          cone_norm_zero_L_geom_le1).
 Qed.
 
 Theorem coalg_str_G_on_outer_pt_E :
@@ -672,39 +648,10 @@ Theorem coalg_str_G_on_outer_pt_E :
          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
          (one1 : cone_one_car Ar)).
 Proof.
-rewrite (EM_prod_str_E (EM_prod (EM_term : Coalgebra Ar) funT_geom)
-                       (EM_term : Coalgebra Ar)) /EM_prod_str.
-rewrite -[Lfun (icones_comp _ _) _]
-        /(Lfun (m_bang (coalg_obj _) (coalg_obj _))
-               (Lfun (tensor_mor _ _) _)).
-rewrite tensor_morE.
-(* Reduce inner coalg_str EM_prod EM_term funT_geom on (one1 ⊗ prom 0). *)
-have Hinner : Lfun (coalg_str (EM_prod (EM_term : Coalgebra Ar) funT_geom))
-                   (ptensor (one1 : cone_one_car Ar)
-                            (prom (precone_zero : L_geom)))
-            = prom (ptensor (one1 : cone_one_car Ar)
-                            (prom (precone_zero : L_geom))).
-  rewrite (EM_prod_str_E (EM_term : Coalgebra Ar) funT_geom) /EM_prod_str.
-  rewrite -[Lfun (icones_comp _ _) _]
-          /(Lfun (m_bang (coalg_obj _) (coalg_obj _))
-                 (Lfun (tensor_mor _ _) _)).
-  rewrite tensor_morE.
-  rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
-  rewrite (bang_cofree_str L_geom)
-          (dig_prom (B:=L_geom) (precone_zero : L_geom)
-                    cone_norm_zero_L_geom_le1).
-  by rewrite (m_bang_prom (x:=one1) (y:=prom (precone_zero : L_geom))
-                          cone_norm_one1_le1
-                          (prom_ball cone_norm_zero_L_geom_le1)).
-rewrite Hinner.
-(* Reduce outer coalg_str EM_term on one1. *)
-rewrite -[coalg_str EM_term]/(unit_cofree_str (Ar:=Ar)) unit_cofree_str_one1.
-(* Now apply m_bang_prom. *)
-by rewrite (m_bang_prom (x:=ptensor (one1 : cone_one_car Ar)
-                                    (prom (precone_zero : L_geom)))
-                        (y:=one1)
-                        cone_norm_inner_pt_le1 cone_norm_one1_le1).
+exact: (coalg_str_G_on_outer_pt_u_E (L:=L_geom)
+          cone_norm_zero_L_geom_le1).
 Qed.
+
 
 (** ** Reduction H — Lfun (ch_mor convex) at the outer pt
     BEYOND THE PAPER — Phase 4 evaluation tier.
@@ -797,15 +744,8 @@ Theorem coalg_e_G_on_outer_pt_E :
           (one1 : cone_one_car Ar))
   = one1.
 Proof.
-set z := ptensor
-          (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
-          (one1 : cone_one_car Ar).
-have Hz_le1 : cone_norm z <= 1 by exact: cone_norm_outer_pt_le1.
-have Hcs : Lfun (coalg_str G_geom) z = prom z by exact: coalg_str_G_on_outer_pt_E.
-transitivity (Lfun (e_bang (coalg_obj G_geom)) (Lfun (coalg_str G_geom) z));
-  first by [].
-rewrite Hcs.
-exact: (@e_bang_prom R Ar (coalg_obj G_geom) z Hz_le1).
+exact: (coalg_e_G_on_outer_pt_u_E (L:=L_geom)
+          cone_norm_zero_L_geom_le1).
 Qed.
 
 (** ** Reduction K — ELSE-branch evaluation cascade
@@ -836,12 +776,13 @@ Lemma cone_norm0_le1 (P : ICone.type Ar) :
   (cone_norm (precone_zero : P) <= 1)%R.
 Proof. by rewrite cone_norm0 ler01. Qed.
 
-(** Outer point — package the [(one1 ⊗ prom 0) ⊗ one1] used throughout. *)
+(** Outer point — package the [(one1 ⊗ prom 0) ⊗ one1] used throughout.
+    Alias for [at_outer_pt_u (precone_zero : L_geom)] from
+    [cbv_outer_pt.v]. *)
 Let at_outer_pt :
     coalg_obj (EM_prod (EM_prod (EM_term : Coalgebra Ar) funT_geom)
                         (EM_term : Coalgebra Ar)) :=
-  ptensor (ptensor (one1 : cone_one_car Ar) (prom (precone_zero : L_geom)))
-          (one1 : cone_one_car Ar).
+  at_outer_pt_u (precone_zero : L_geom).
 
 (** *** Var lookup of "g" at the outer pt evaluates to [prom 0_L_geom]. *)
 Lemma Lfun_var_lookup_g_at_outer_pt_E :
@@ -1372,14 +1313,14 @@ Qed.
     By [der_prom] applied to the outer [prom], extract the inner
     [Lfun convex_icones at_outer_pt] as a [precone_add] of the scaled
     branches. *)
-(** Auxiliary lemma: [linhom_fun] of [precone_add] decomposes pointwise. *)
+(** [linhom_fun_precone_add_E] / [linhom_fun_precone_scale_E] re-exported
+    from [cbv_outer_pt.v] as thin wrappers. *)
 Lemma linhom_fun_precone_add_E (C D : ICone.type Ar)
     (f g : linhom_car Ar C D) (x : C) :
   linhom_fun (precone_add f g) x =
   precone_add (linhom_fun f x) (linhom_fun g x).
 Proof. by []. Qed.
 
-(** Auxiliary lemma: [linhom_fun] of [precone_scale] decomposes pointwise. *)
 Lemma linhom_fun_precone_scale_E (C D : ICone.type Ar)
     (r : {nonneg R}) (f : linhom_car Ar C D) (x : C) :
   linhom_fun (precone_scale r f) x =

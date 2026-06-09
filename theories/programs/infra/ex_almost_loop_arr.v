@@ -97,6 +97,7 @@ Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.programs.infra.cbv_adjunction.
+Require Import Icones.programs.infra.cbv_outer_pt.
 Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.programs.infra.bool_case_hom.
 Require Import Icones.programs.infra.case_em_red.
@@ -139,14 +140,12 @@ Local Notation Lfun h :=
 Local Notation eD' :=
   (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas).
 
-(** Local lemmas: [cone_norm one1 = 1] and the [≤ 1] consequence. *)
-Lemma cone_norm_one1_alm :
-  (cone_norm (one1 : cone_one_car Ar) = 1)%R.
-Proof. by rewrite /cone_norm /= /c1_norm. Qed.
-
-Lemma cone_norm_one1_le1_alm :
-  (cone_norm (one1 : cone_one_car Ar) <= 1)%R.
-Proof. by rewrite cone_norm_one1_alm. Qed.
+(** [cone_norm one1 = 1] and the [≤ 1] consequence — re-exported as
+    aliases of [cbv_outer_pt.cone_norm_one1] / [cone_norm_one1_le1]. *)
+Local Notation cone_norm_one1_alm :=
+  (@Icones.programs.infra.cbv_outer_pt.cone_norm_one1 R Ar).
+Local Notation cone_norm_one1_le1_alm :=
+  (@Icones.programs.infra.cbv_outer_pt.cone_norm_one1_le1 R Ar).
 
 (** ** The carriers *)
 
@@ -390,8 +389,6 @@ End ExAlmostLoopArr.
     lines of code analogous to [ex_geom_step.v] and the §5 part of
     [em_fix_arr.v]), deferred to a follow-up. *)
 
-Arguments cone_norm_one1_alm {R} Ar.
-Arguments cone_norm_one1_le1_alm {R} Ar.
 Arguments M_loop_p {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}
   p Hp_ge0 Hp_le1.
 Arguments Step_loop_p {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}
