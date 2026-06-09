@@ -2353,8 +2353,7 @@ have h_range_eq :
     rewrite -linZ_b'.
     by move/ubP/(_ (h' n)) : (sup_upper_bound hsup'); apply; exists n.
 rewrite h_range_eq.
-rewrite mulrA mulfV ?gt_eqF // mul1r.
-by [].
+by rewrite mulrA mulfV ?gt_eqF // mul1r.
 Qed.
 
 (** ** Integral-preservation of [linhom_sup_fun] — Paper §5.1.
@@ -3080,8 +3079,7 @@ exists (linhom_diff_car Hle Hv1).
 apply: linhom_eq => x /=.
 have := linhom_diff_E Hle x.
 rewrite /linhom_diff_car /linhom_diff_pre /linhom_diff_fun /=.
-move=> ->.
-by [].
+by move=> ->.
 Qed.
 
 (** Paper §5.1 (Normc) — the sup is least among all upper bounds. *)

@@ -124,8 +124,7 @@ pose pm : test_of Ar (ar_zero Ar) (path_car Ar X B) :=
 have pmM : mcone_M (ar_zero Ar) pm
   by exists (const_zs (ar_zero Ar) s), m, mM.
 have HP := icone_integralP η Hη ν pm pmM z.
-move: HP; rewrite /pm /path_test /= /path_test_fun /= => ->.
-by [].
+by move: HP; rewrite /pm /path_test /= /path_test_fun /= => ->.
 Qed.
 
 End PathIntEval.
@@ -855,9 +854,8 @@ rewrite (linhom_pres_int φ W δ Hδ µ).
 rewrite (icone_integralP _ (linhom_pre_pres_path φ W δ Hδ) µ mD mDM z).
 (* The integrands match pointwise. *)
 congr (fine _); apply: eq_integral => w _; congr (_%:E).
-rewrite /path_test /= /path_test_fun /=
-        /linhom_test /linhom_test_fun /= /lfps /= swap_innerE.
-by [].
+by rewrite /path_test /= /path_test_fun /=
+           /linhom_test /linhom_test_fun /= /lfps /= swap_innerE.
 Qed.
 
 (** [lfun_path_swap f : ICones(C, Path(X, B⊸D))], assembled from the five
@@ -3705,10 +3703,7 @@ Definition swap_lin_fun (b2 : B2) : linhom_car Ar B1 C :=
 
 Lemma swap_lin_funE (b2 : B2) (b1 : B1) :
   linhom_fun (swap_lin_fun b2) b1 = linhom_fun (f b1) b2.
-Proof.
-rewrite /swap_lin_fun !linhom_compE eval_atE icones_to_linhomE.
-by [].
-Qed.
+Proof. by rewrite /swap_lin_fun !linhom_compE eval_atE icones_to_linhomE. Qed.
 
 End SwapLinLin.
 

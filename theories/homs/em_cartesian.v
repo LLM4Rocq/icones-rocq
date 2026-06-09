@@ -775,8 +775,7 @@ apply: (lcancel_mono (i := tensor_mor i i) (r := tensor_mor r r) Hri2).
 rewrite (icones_compA (tensor_mor i i) (iso_fwd (tensor_braid A A))).
 rewrite -(tensor_braid_nat i i).
 rewrite -(icones_compA (iso_fwd (tensor_braid B B)) (tensor_mor i i) dA) H85.
-rewrite (icones_compA (iso_fwd (tensor_braid B B)) dB i) HBcocomm.
-by [].
+by rewrite (icones_compA (iso_fwd (tensor_braid B B)) dB i) HBcocomm.
 Qed.
 
 Lemma transp_coassoc :
@@ -857,8 +856,7 @@ Lemma coalg_mor_e (Z B : Coalgebra Ar)
   is_coalg_mor Z B g -> icones_comp (coalg_e B) g = coalg_e Z.
 Proof.
 rewrite /is_coalg_mor /coalg_e => Hg.
-rewrite -icones_compA Hg icones_compA (e_bang_nat g).
-by [].
+by rewrite -icones_compA Hg icones_compA (e_bang_nat g).
 Qed.
 
 (** Comonoid-morphism, comultiplication half:

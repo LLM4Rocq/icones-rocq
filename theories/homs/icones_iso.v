@@ -261,16 +261,12 @@ Hypothesis psiV_nat : forall (A A' : ICone.type Ar)
 Lemma yoneda_iso_fwdK :
   icones_comp (psiV (icones_id Ar Y)) (psi (icones_id Ar X)) =
   icones_id Ar X.
-Proof.
-by rewrite -psiV_nat icones_compIl psiK.
-Qed.
+Proof. by rewrite -psiV_nat icones_compIl psiK. Qed.
 
 Lemma yoneda_iso_bwdK :
   icones_comp (psi (icones_id Ar X)) (psiV (icones_id Ar Y)) =
   icones_id Ar Y.
-Proof.
-by rewrite -psi_nat icones_compIl psiVK.
-Qed.
+Proof. by rewrite -psi_nat icones_compIl psiVK. Qed.
 
 Definition yoneda_iso : icones_iso Ar X Y :=
   icones_isoP (psi (icones_id Ar X)) (psiV (icones_id Ar Y))
@@ -317,16 +313,12 @@ Hypothesis psiV_nat : forall (A A' : ICone.type Ar)
 Lemma co_yoneda_iso_fwdK :
   icones_comp (psi (icones_id Ar X)) (psiV (icones_id Ar Y)) =
   icones_id Ar X.
-Proof.
-by rewrite -psiV_nat icones_compIr psiK.
-Qed.
+Proof. by rewrite -psiV_nat icones_compIr psiK. Qed.
 
 Lemma co_yoneda_iso_bwdK :
   icones_comp (psiV (icones_id Ar Y)) (psi (icones_id Ar X)) =
   icones_id Ar Y.
-Proof.
-by rewrite -psi_nat icones_compIr psiVK.
-Qed.
+Proof. by rewrite -psi_nat icones_compIr psiVK. Qed.
 
 Definition co_yoneda_iso : icones_iso Ar X Y :=
   icones_isoP (psiV (icones_id Ar Y)) (psi (icones_id Ar X))

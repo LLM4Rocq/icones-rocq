@@ -382,8 +382,7 @@ have HgInt := icones_hom_pres_int g W
   (linhom_int_pt_meas HΦ (hf (path_fun γ2 s))) µ.
 rewrite /= in HgInt.
 rewrite HgInt.
-rewrite (icone_integralP _ _ µ m2 m2M s).
-by [].
+by rewrite (icone_integralP _ _ µ m2 m2M s).
 Qed.
 
 (** Paper Prop 5.8: the action of [⊸] on morphisms as an [icones_hom]. *)

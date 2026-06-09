@@ -978,15 +978,11 @@ Definition sprod_assoc_bwd (A B C : ICone.type Ar) :
 
 Lemma sprod_assoc_fwdK (A B C : ICone.type Ar) (p : sprod (sprod A B) C) :
   Lfun (sprod_assoc_bwd A B C) (Lfun (sprod_assoc_fwd A B C) p) = p.
-Proof.
-by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[].
-Qed.
+Proof. by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[]. Qed.
 
 Lemma sprod_assoc_bwdK (A B C : ICone.type Ar) (p : sprod A (sprod B C)) :
   Lfun (sprod_assoc_fwd A B C) (Lfun (sprod_assoc_bwd A B C) p) = p.
-Proof.
-by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[].
-Qed.
+Proof. by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[]. Qed.
 
 Definition sprod_assoc (A B C : ICone.type Ar) :
     icones_iso Ar (sprod (sprod A B) C) (sprod A (sprod B C)) :=
@@ -997,9 +993,7 @@ Definition sprod_assoc (A B C : ICone.type Ar) :
 Lemma sprod_assocE (A B C : ICone.type Ar) (a : A) (b : B) (c : C) :
   Lfun (iso_fwd (sprod_assoc A B C)) (sprod_pair (sprod_pair a b) c) =
   sprod_pair a (sprod_pair b c).
-Proof.
-by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[].
-Qed.
+Proof. by apply: cones_prod_eq => -[] //=; apply: cones_prod_eq => -[]. Qed.
 
 (** *** The cartesian symmetry [σ^& : A & B ≅ B & A]. *)
 Definition sprod_braid_fwd (A B : ICone.type Ar) :

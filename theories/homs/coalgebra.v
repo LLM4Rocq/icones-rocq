@@ -103,9 +103,7 @@ Proof. by []. Qed.
 (** [(δ_X r)!] is in the unit ball of [!FMeas(X)] since [‖δ_X r‖ = 1]. *)
 Lemma prom_dirac_ball (X : ar_obj Ar) (r : ar_carrier Ar X) :
   cone_norm (prom (dirac_fmeas r) : Bang Ar (FMeas X)) <= 1.
-Proof.
-apply: prom_ball; rewrite dirac_fmeas_norm; exact: lexx.
-Qed.
+Proof. by apply: prom_ball; rewrite dirac_fmeas_norm; exact: lexx. Qed.
 
 (** [r ↦ (δ_X r)!] is a measurable path of [!FMeas(X)].  It is the
     image of the (measurable, unit-ball) Dirac path [dirac_path X]
@@ -287,10 +285,7 @@ Definition is_coalg_mor (P Q : Coalgebra) (h : icones_hom Ar (coalg_obj P) (coal
 (** The identity is a coalgebra morphism. *)
 Lemma coalg_mor_id (P : Coalgebra) :
   is_coalg_mor (P := P) (Q := P) (icones_id Ar (coalg_obj P)).
-Proof.
-rewrite /is_coalg_mor icones_compIr bang_fmap_id icones_compIl.
-by [].
-Qed.
+Proof. by rewrite /is_coalg_mor icones_compIr bang_fmap_id icones_compIl. Qed.
 
 (** Coalgebra morphisms compose. *)
 Lemma coalg_mor_comp (P Q S : Coalgebra)

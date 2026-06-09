@@ -829,8 +829,7 @@ apply: funext => p /=.
 rewrite /linhom_test /linhom_test_fun /= /ψ /=.
 rewrite /mfst /test_reindex /test_reindex_fun /=.
 rewrite /ar_prod_fst /ar_prod_fst_fun ar_prod_castK /=.
-rewrite /γA /= /γsnd /= /ar_prod_snd /ar_prod_snd_fun ar_prod_castK /=.
-by [].
+by rewrite /γA /= /γsnd /= /ar_prod_snd /ar_prod_snd_fun ar_prod_castK /=.
 Qed.
 
 End SwapLinPath.

@@ -255,7 +255,8 @@ Proof. by apply/funext => i; rewrite /bumpJ finset.in_setT. Qed.
 Lemma bumpJ_le (n : nat) (u u' : 'I_n -> B) (J : {set 'I_n}) (i : 'I_n) :
   (forall j, u j <=p u' j) -> bumpJ u u' J i <=p u' i.
 Proof.
-move=> Hle; rewrite /bumpJ; case: ifP => _; [exact: precone_le_refl|exact: Hle].
+move=> Hle; rewrite /bumpJ.
+by case: ifP => _; [exact: precone_le_refl | exact: Hle].
 Qed.
 
 (** Sum monotonicity of a bumped family: [Σ (bumpJ J) ≤p Σ u']. *)
@@ -1335,10 +1336,10 @@ rewrite (step xb Hc).
 (* Reassemble: the new step's hybrid term joins the partial sum. *)
 rewrite -precone_addA; congr precone_add.
 rewrite [in RHS](bigD1 km)/=; last by rewrite ltnSn.
-rewrite [in RHS](eq_bigl (fun k : 'I_n => (k < m)%N)); last first.
-  by move=> k; rewrite ltnS andbC -val_eqE/= -ltn_neqAle.
-by [].
+rewrite [in RHS](eq_bigl (fun k : 'I_n => (k < m)%N)) //.
+by move=> k; rewrite ltnS andbC -val_eqE/= -ltn_neqAle.
 Qed.
+
 
 (** **Lemma 7.23, general arity ([B]-side diagonal split).** *)
 Lemma SD_diag (xb : B)
