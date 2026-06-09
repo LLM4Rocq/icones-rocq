@@ -43,6 +43,11 @@ class CoqSnippet:
     source_file: str
     source_section: str | None
     highlighted_html: str  # Pygments output, language=coq
+    # Newline-count of the raw source the snippet was extracted from.
+    # Populated by the parser at normalise time; fuels the per-chapter
+    # LoC counter on the new PPL/Examples chapter cards.  Defaults to
+    # 0 for legacy callers that don't set it.
+    line_count: int = 0
 
 
 @dataclass
@@ -81,7 +86,14 @@ class Entry:
 
 @dataclass
 class Section:
-    """A paper-§ H2 section (e.g. "§ 2 — Cones")."""
+    """A paper-§ H2 section (e.g. "§ 2 — Cones") or a PPL/Examples H3.
+
+    Paper-tab usage leaves ``chapter_id`` and ``snippets`` at their
+    defaults; PPL/Examples sections set ``chapter_id`` to the parent
+    :class:`Chapter`'s id and may attach section-level ``snippets``
+    (the ``coq`` blocks that belong to the whole H3, not to any single
+    headline-table row).
+    """
 
     id: str
     paper_section: str
@@ -90,6 +102,46 @@ class Section:
     intro_html: str
     entries: list[Entry] = field(default_factory=list)
     notes_html: str = ""
+    # PPL/Examples additive: parent Chapter id; "" on Paper sections.
+    chapter_id: str = ""
+    # PPL/Examples additive: H3-level code blocks shown above the
+    # per-entry detail.  Empty on Paper sections.
+    snippets: list[CoqSnippet] = field(default_factory=list)
+
+
+@dataclass
+class ChapterStats:
+    """Pre-computed counts shown on chapter cards and chapter pages.
+
+    Set once at parse-time by ``normalise`` so templates don't recompute
+    per-render.  Used by the new PPL/Examples chapter cards and the
+    stats line on the chapter landing page.
+    """
+
+    n_sections: int = 0
+    n_entries: int = 0
+    n_defs: int = 0          # entries with paper_kind == "Def"
+    n_thms: int = 0          # paper_kind in {Thm, Lem, Prop, Cor, Cat, Fubini}
+    n_snippets: int = 0      # total snippets across all sections + entries
+    loc: int = 0             # sum of snippet line counts
+
+
+@dataclass
+class Chapter:
+    """A 'Beyond the paper — <title>' H2 chapter, owning a set of Sections.
+
+    The chapter holds high-level intro prose at H2 level; the per-section
+    detail lives one level down in its :class:`Section` list (each H3
+    sub-heading of PPL.md / EXAMPLES.md).  Carries the same kind of
+    summary stats used by the new chapter-card progress bar.
+    """
+
+    id: str                                  # "ppl-ch-the-surface-language"
+    title: str                               # H2 minus "Beyond the paper — "
+    intro_html: str                          # H2-level prose
+    sections: list[Section] = field(default_factory=list)
+    notes_html: str = ""
+    stats: ChapterStats = field(default_factory=ChapterStats)
 
 
 @dataclass
@@ -142,6 +194,12 @@ class Document:
 
     preamble_html: str
     sections: list[Section] = field(default_factory=list)
+    # PPL/Examples additive: H2 "Beyond the paper — X" chapters with
+    # nested Sections (each H3) and per-entry detail.  Paper-tab parses
+    # leave this empty; the Paper tab still uses ``sections`` + ``beyond``.
+    # On PPL/Examples the parser also synthesises a flat ``beyond`` view
+    # of ``chapters[*].sections[*]`` (compat shim) so legacy tests pass.
+    chapters: list[Chapter] = field(default_factory=list)
     beyond: list[BeyondContrib] = field(default_factory=list)
     gaps: list[GapEntry] = field(default_factory=list)
     verify_instructions_html: str = ""
@@ -261,8 +319,8 @@ def from_dict(payload: dict[str, Any]) -> Document:
             cross_refs=[_xref(x) for x in e.get("cross_refs", [])],
         )
 
-    sections = [
-        Section(
+    def _section(s: dict[str, Any]) -> Section:
+        return Section(
             id=s["id"],
             paper_section=s["paper_section"],
             paper_section_number=s["paper_section_number"],
@@ -270,8 +328,21 @@ def from_dict(payload: dict[str, Any]) -> Document:
             intro_html=s["intro_html"],
             entries=[_entry(e) for e in s.get("entries", [])],
             notes_html=s.get("notes_html", ""),
+            chapter_id=s.get("chapter_id", ""),
+            snippets=[_snip(sn) for sn in s.get("snippets", [])],
         )
-        for s in payload.get("sections", [])
+
+    sections = [_section(s) for s in payload.get("sections", [])]
+    chapters = [
+        Chapter(
+            id=c["id"],
+            title=c["title"],
+            intro_html=c["intro_html"],
+            sections=[_section(s) for s in c.get("sections", [])],
+            notes_html=c.get("notes_html", ""),
+            stats=ChapterStats(**(c.get("stats") or {})),
+        )
+        for c in payload.get("chapters", [])
     ]
     beyond = [
         BeyondContrib(
@@ -281,6 +352,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
             entries=[_entry(e) for e in b.get("entries", [])],
             snippets=[_snip(s) for s in b.get("snippets", [])],
             notes_html=b.get("notes_html", ""),
+            chapter=b.get("chapter", ""),
         )
         for b in payload.get("beyond", [])
     ]
@@ -290,6 +362,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
     return Document(
         preamble_html=payload.get("preamble_html", ""),
         sections=sections,
+        chapters=chapters,
         beyond=beyond,
         gaps=gaps,
         verify_instructions_html=payload.get("verify_instructions_html", ""),
