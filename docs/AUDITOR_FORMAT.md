@@ -2,31 +2,34 @@
 
 This document describes the structural conventions that
 [`tools/build_auditor.py`](../tools/build_auditor.py) expects in its
-**two** input files — `docs/PAPER.md` and `docs/PPL.md` — and the JSON
-schema it emits at `site/auditor/data.json`.
+**three** input files — `docs/PAPER.md`, `docs/PPL.md`, and
+`docs/EXAMPLES.md` — and the JSON schema it emits at
+`site/auditor/data.json`.
 
-## Two-tab model (since 2026-06)
+## Three-tab model (since 2026-06)
 
-The dashboard renders two **tabs**:
+The dashboard renders three **tabs**:
 
-- **Paper** — sourced from `docs/PAPER.md`, definition-by-definition map
-  from the paper's §§ 2 – 9 into Rocq.
-- **PPL**   — sourced from `docs/PPL.md`, top-down narrative of the
+- **Paper**    — sourced from `docs/PAPER.md`, definition-by-definition
+  map from the paper's §§ 2 – 9 into Rocq.
+- **PPL**      — sourced from `docs/PPL.md`, top-down narrative of the
   direct-style PPL on top of the !-coalgebra structure.
+- **Examples** — sourced from `docs/EXAMPLES.md`, worked surface
+  programs and their CBV / CBN headline lemmas.
 
 Each MD file uses the *same* per-document format described below (H2
 chapters, overview tables, H3 detail blocks, snippets, blockquotes).
-The two-tab orchestrator
-([`parse_two_tabs`](../tools/auditor/parser.py)) wraps the per-file
-parser; warnings are tagged with `[paper]` / `[ppl]` so the CLI's
-`--strict` mode can attribute failures.
+The three-tab orchestrator
+([`parse_three_tabs`](../tools/auditor/parser.py)) wraps the per-file
+parser; warnings are tagged with `[paper]` / `[ppl]` / `[examples]` so
+the CLI's `--strict` mode can attribute failures.
 
-The output tree is split under two subdirectories with shared static
+The output tree is split under three subdirectories with shared static
 assets:
 
 ```
-site/auditor/index.html              dual-tab landing
-site/auditor/data.json               combined JSON ({paper, ppl, build_meta})
+site/auditor/index.html              triple-tab landing
+site/auditor/data.json               combined JSON ({paper, ppl, examples, build_meta})
 site/auditor/static/                 shared CSS/JS/Pygments
 site/auditor/paper/index.html        Paper-tab landing
 site/auditor/paper/sections/<id>.html
@@ -34,13 +37,14 @@ site/auditor/paper/entries/<id>.html
 site/auditor/paper/beyond/<id>.html
 site/auditor/paper/gaps.html
 site/auditor/paper/data.json         Paper-only export
-site/auditor/ppl/...                 mirror of the above for the PPL tab
+site/auditor/ppl/...                 mirror for the PPL tab
+site/auditor/examples/...            mirror for the Examples tab
 ```
 
 Every per-tab page carries a tab-nav row in the header
-(`Paper`/`PPL` chips); the active tab gets `aria-current="page"`.
-The root landing renders both chips unhighlighted plus a dual-tab
-summary grid.
+(`Paper` / `PPL` / `Examples` chips); the active tab gets
+`aria-current="page"`. The root landing renders all three chips
+unhighlighted plus a triple-tab summary grid.
 
 ## Markdown structure
 
@@ -116,15 +120,20 @@ Per-tab `Document` shape (one of these per tab; written to
 }
 ```
 
-Combined `TwoTabDocument` shape (written to `site/auditor/data.json`):
+Combined `ThreeTabDocument` shape (written to `site/auditor/data.json`):
 
 ```jsonc
 {
   "paper":      { ...Document... },
   "ppl":        { ...Document... },
-  "build_meta": {"commit": "...", "built_at": "...", "auditor_lines": 3773}
+  "examples":   { ...Document... },
+  "build_meta": {"commit": "...", "built_at": "...", "auditor_lines": 4385}
 }
 ```
+
+For backward compatibility the parser also exposes a transitional alias
+`TwoTabDocument = ThreeTabDocument` (with `two_tab_to_dict` aliased to
+`three_tab_to_dict`); new code should prefer the three-tab names.
 
 Per-entry status flags are computed by the classifier
 ([`tools/auditor/classifier.py`](../tools/auditor/classifier.py)):
@@ -162,15 +171,18 @@ priority.
 
 ```
 python tools/build_auditor.py \\
-    --paper docs/PAPER.md \\
-    --ppl   docs/PPL.md \\
-    --out   site/auditor/ \\
+    --paper    docs/PAPER.md \\
+    --ppl      docs/PPL.md \\
+    --examples docs/EXAMPLES.md \\
+    --out      site/auditor/ \\
     --coqproject _CoqProject \\
     --github-repo $GITHUB_REPOSITORY \\
     --commit $GITHUB_SHA \\
     [--strict] \\
     [--template-dir tools/auditor/templates]
 ```
+
+All three of `--paper`, `--ppl`, and `--examples` are required.
 
 `--strict` mode treats parser warnings as errors and exits with status 1
 if any of these conditions trigger:
@@ -184,8 +196,8 @@ if any of these conditions trigger:
 
 ```
 site/auditor/
-├── index.html                       dual-tab landing
-├── data.json                        combined {paper, ppl, build_meta}
+├── index.html                       triple-tab landing
+├── data.json                        combined {paper, ppl, examples, build_meta}
 ├── static/
 │   ├── style.css
 │   ├── print.css
@@ -198,11 +210,33 @@ site/auditor/
 │   ├── entries/def-2-1.html
 │   ├── beyond/<id>.html
 │   └── gaps.html
-└── ppl/
-    ├── index.html                   PPL-tab landing
-    ├── data.json                    ppl-only export
+├── ppl/
+│   ├── index.html                   PPL-tab landing
+│   ├── data.json                    ppl-only export
+│   ├── sections/<id>.html
+│   ├── entries/<id>.html
+│   ├── beyond/<id>.html
+│   └── gaps.html
+└── examples/
+    ├── index.html                   Examples-tab landing
+    ├── data.json                    examples-only export
     ├── sections/<id>.html
     ├── entries/<id>.html
     ├── beyond/<id>.html
     └── gaps.html
 ```
+
+### Examples MD contract
+
+The `docs/EXAMPLES.md` content agent should mirror the same H2 / table /
+H3 structure as `docs/PAPER.md`. Practical conventions for that file:
+
+- H2 `Paper § N — Title` is reused as the section heading even though
+  these are PPL programs (not paper §§); the slug is still `sec-<N>`.
+- Each entry's first column is a paper-style label (`Def 1.1`,
+  `Thm 2.2`, …) so the existing slug machinery applies.
+- Each Rocq cell references at least one `theories/programs/...` file.
+- The `Beyond the paper` chapter holds programs that are not in the
+  paper proper (e.g. boolean cascade gallery, infinite mixtures).
+- The `What is not formalised` chapter is allowed to be empty (no
+  declared gaps).
