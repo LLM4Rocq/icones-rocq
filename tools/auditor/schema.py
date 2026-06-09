@@ -148,18 +148,19 @@ class Document:
     )
 
 
-# -- two-tab top level ------------------------------------------------------
+# -- three-tab top level ----------------------------------------------------
 
 
 # String literals used as tab identifiers (URL slug + ctx field).
 TAB_PAPER = "paper"
 TAB_PPL = "ppl"
-ALL_TABS = (TAB_PAPER, TAB_PPL)
+TAB_EXAMPLES = "examples"
+ALL_TABS = (TAB_PAPER, TAB_PPL, TAB_EXAMPLES)
 
 
 @dataclass
-class TwoTabDocument:
-    """Top-level dashboard document: a Paper tab + a PPL tab.
+class ThreeTabDocument:
+    """Top-level dashboard document: Paper + PPL + Examples tabs.
 
     Each tab is an independent :class:`Document`. ``build_meta`` is shared
     (provenance is per build, not per tab) and supersedes any per-Document
@@ -168,6 +169,7 @@ class TwoTabDocument:
 
     paper: Document
     ppl: Document
+    examples: Document
     build_meta: BuildMeta = field(
         default_factory=lambda: BuildMeta(commit="", built_at="", auditor_lines=0)
     )
@@ -178,7 +180,15 @@ class TwoTabDocument:
             return self.paper
         if name == TAB_PPL:
             return self.ppl
+        if name == TAB_EXAMPLES:
+            return self.examples
         raise KeyError(f"unknown tab {name!r} (expected one of {ALL_TABS})")
+
+
+# Transitional alias — keep the old name resolvable for callers that
+# imported ``TwoTabDocument`` directly. New code should use
+# :class:`ThreeTabDocument`.
+TwoTabDocument = ThreeTabDocument
 
 
 # -- serialisation ----------------------------------------------------------
@@ -189,8 +199,8 @@ def to_dict(doc: Document) -> dict[str, Any]:
     return asdict(doc)
 
 
-def two_tab_to_dict(doc: TwoTabDocument) -> dict[str, Any]:
-    """Convert a TwoTabDocument to a plain JSON-serialisable dict.
+def three_tab_to_dict(doc: ThreeTabDocument) -> dict[str, Any]:
+    """Convert a ThreeTabDocument to a plain JSON-serialisable dict.
 
     The combined export carries one entry per tab plus the shared build
     metadata at the top level.
@@ -198,8 +208,13 @@ def two_tab_to_dict(doc: TwoTabDocument) -> dict[str, Any]:
     return {
         "paper": asdict(doc.paper),
         "ppl": asdict(doc.ppl),
+        "examples": asdict(doc.examples),
         "build_meta": asdict(doc.build_meta),
     }
+
+
+# Transitional alias — see ``TwoTabDocument`` above.
+two_tab_to_dict = three_tab_to_dict
 
 
 def from_dict(payload: dict[str, Any]) -> Document:
