@@ -1142,7 +1142,9 @@ Qed.
 
 (** Auxiliary lemma extracted from the proof body of
     [Lfun_ch_mor_else_e_at_outer_pt_u_E] to keep the main Qed cost
-    reasonable: [real_kleisli ... 1] applied at [at_outer_pt_u u]. *)
+    reasonable: [real_kleisli ... 1] applied at [at_outer_pt_u u].
+    Direct via [Lfun_ch_mor_const_kleisli_at] (no [change]-style
+    unfolds), then [bang_fmap_prom] on the unit-ball reduction. *)
 Local Lemma Lfun_real_kleisli_at_outer_pt_u_E
     (u : L_geom) (Hu : cone_norm u <= 1) :
   Lfun (ch_mor (@real_kleisli R Ar R_obj R_carrier_eq G_geom 1%R))
@@ -1153,15 +1155,9 @@ Local Lemma Lfun_real_kleisli_at_outer_pt_u_E
                (at_outer_pt_u u)).
 Proof.
 have Houter_le1 := cone_norm_at_outer_pt_u_le1 Hu.
-set ci := const_icones G_geom
-            (dirac_fmeas (R_to_carrier R_carrier_eq 1%R))
-            (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 1%R)).
-rewrite -[ch_mor (@real_kleisli _ _ _ _ _ _)]
-        /(icones_comp (bang_fmap ci) (coalg_str G_geom)).
-rewrite -[Lfun (icones_comp _ _) (at_outer_pt_u u)]
-        /(Lfun (bang_fmap ci) (Lfun (coalg_str G_geom) (at_outer_pt_u u))).
-rewrite (coalg_str_G_on_outer_pt_u_E Hu).
-exact: (bang_fmap_prom ci (at_outer_pt_u u) Houter_le1).
+rewrite -[@real_kleisli _ _ _ _ _ _]/(const_kleisli G_geom _ _).
+rewrite Lfun_ch_mor_const_kleisli_at (coalg_str_G_on_outer_pt_u_E Hu).
+exact: (bang_fmap_prom _ (at_outer_pt_u u) Houter_le1).
 Qed.
 
 Lemma Lfun_ch_mor_else_e_at_outer_pt_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
