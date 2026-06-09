@@ -932,12 +932,9 @@ Lemma coalg_e_G_on_outer_pt_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
 Proof.
 have Hz_le1 : cone_norm (at_outer_pt_u u) <= 1
   by exact: cone_norm_at_outer_pt_u_le1.
-have Hcs : Lfun (coalg_str G_geom) (at_outer_pt_u u) = prom (at_outer_pt_u u)
-  by exact: coalg_str_G_on_outer_pt_u_E.
-transitivity (Lfun (e_bang (coalg_obj G_geom))
-                   (Lfun (coalg_str G_geom) (at_outer_pt_u u)));
-  first by [].
-rewrite Hcs.
+rewrite -[coalg_e G_geom]/(icones_comp (e_bang (coalg_obj G_geom))
+                                       (coalg_str G_geom)) Lfun_comp.
+rewrite (coalg_str_G_on_outer_pt_u_E Hu).
 exact: (@e_bang_prom R Ar (coalg_obj G_geom) (at_outer_pt_u u) Hz_le1).
 Qed.
 
