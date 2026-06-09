@@ -853,6 +853,7 @@ def normalise(
             # Build one BeyondContrib PER H3 sub-heading in the Beyond
             # chapter; entries come from the per-H3 overview tables (if
             # any), and prose/snippets fill the contribution's body.
+            h3_contribs_before = len(beyond)
             for h3 in blk.h3_blocks:
                 contrib_id = claim_slug("beyond-" + slugify_label(h3.paper_label), h3.heading)
                 contrib_entries: list[Entry] = []
@@ -929,13 +930,15 @@ def normalise(
                         notes_html="\n".join(n.html for n in h3.notes),
                     )
                 )
-            # H2-level entries (rows belonging to no H3) and the chapter
-            # intro live in a synthetic chapter-overview contrib if any
-            # exist.  The title is the H2 heading minus the
-            # 'Beyond the paper — ' prefix, so the per-tab landing shows
-            # one distinct card per chapter (not 9 identical 'Overview'
-            # cards).
-            if entries:
+            # H2-level entries (rows belonging to no H3) live in a
+            # synthetic chapter-overview contrib — BUT only when the H2
+            # produced no H3-based contribs.  When H3 cards already
+            # cover the chapter (as on the Examples tab where every H3
+            # is one example), the H2-level summary table is just a
+            # recap of the H3s below; surfacing it as a separate card
+            # is duplicate noise.
+            h3_contribs_added = len(beyond) - h3_contribs_before
+            if entries and h3_contribs_added == 0:
                 chapter_title = blk.heading
                 for prefix in ("Beyond the paper — ", "Beyond the paper -- "):
                     if chapter_title.startswith(prefix):
