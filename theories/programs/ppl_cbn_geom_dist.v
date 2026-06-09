@@ -95,6 +95,7 @@ Require Import Icones.programs.ppl_cbn_bool.
 Require Import Icones.programs.ppl_cbn_arith.
 Require Import Icones.programs.ppl_cbn_headlines.
 Require Import Icones.programs.infra.cbn_bernoulli_cascade.
+Require Import Icones.programs.infra.geom_dist_infra.
 Require Import Icones.programs.ppl_cbn_geom.
 
 Set Implicit Arguments.
@@ -106,7 +107,14 @@ Import Order.TTheory GRing.Theory Num.Theory.
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
 
-(** ** §1 — Setup: explicit partial-sum measures *)
+(** ** §1 — Setup
+
+    The shared infrastructure ([partial_geom], [partial_geom_shifted],
+    [R_to_carrier_singleton_meas], [dirac_fmeas_singleton_eq],
+    [partial_geom_pmf], [half_shifted_eq], [geom_coef], [half_nng],
+    [half_geom_coef_eq]) lives in
+    [theories/programs/infra/geom_dist_infra.v] — shared with the CBV
+    parallel [theories/programs/ppl_cbv_geom_dist.v]. *)
 
 Section GeomDist.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -119,115 +127,20 @@ Hypothesis R_carrier_meas :
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
-(** [geom_coef k = (1/2)^{k+1}] as a nonneg scalar. *)
-Definition geom_coef (k : nat) : {nonneg R} :=
-  (((1 / 2)%R ^+ k.+1)%:nng).
-
-(** [partial_geom n] is the explicit finite-sum measure
-    [Σ_{j < n} (1/2)^{j+1} *: δ_{R_to_carrier j%:R}].
-    Built recursively so the head exposes the [n-1] term, matching
-    the structure of [kleene_bcascade] iterates. *)
-Fixpoint partial_geom (n : nat) : FMeas R_obj :=
-  match n with
-  | 0%N => precone_zero
-  | k.+1 => precone_add
-            (precone_scale (geom_coef k)
-                           (dirac_fmeas (R_to_carrier R_carrier_eq k%:R)
-                            : FMeas R_obj))
-            (partial_geom k)
-  end.
-
-Local Open Scope ereal_scope.
-
-(** ** §2 — Singleton measurability + Dirac PMF *)
-
-(** Measurability of [R_to_carrier r]-singletons.  We pull back
-    [{r}] (singleton in [R], measurable by [measurable_set1]) along
-    [carrier_to_R] (measurable by [carrier_to_R_meas]). *)
-Lemma R_to_carrier_singleton_meas (r : R) :
-  measurable [set R_to_carrier R_carrier_eq r].
-Proof.
-have rwset : [set R_to_carrier R_carrier_eq r] =
-             (carrier_to_R R_carrier_eq) @^-1` [set r].
-  apply: funext => x; rewrite propeqE; split.
-  - by move=> -> /=; rewrite R_to_carrierK.
-  - by move=> /= H; rewrite -[x](carrier_to_RK R_carrier_eq) H.
-rewrite rwset.
-have ctoR_meas :
-    measurable_fun [set: ar_carrier Ar R_obj] (carrier_to_R R_carrier_eq)
-  by exact: carrier_to_R_meas.
-have := ctoR_meas measurableT [set r] (measurable_set1 r).
-by rewrite setTI.
-Qed.
-
-(** Dirac at a real-cast point evaluated against a real-cast
-    singleton: equality iff the underlying reals match. *)
-Lemma dirac_fmeas_singleton_eq (a b : R) :
-  fmeas_mu (dirac_fmeas (R_to_carrier R_carrier_eq a) : FMeas R_obj)
-           [set R_to_carrier R_carrier_eq b]
-  = (if a == b then 1%R else 0%R)%R%:E.
-Proof.
-have mU : measurable [set R_to_carrier R_carrier_eq b]
-  by exact: R_to_carrier_singleton_meas.
-rewrite dirac_fmeas_E// diracE.
-have inH : (R_to_carrier R_carrier_eq a \in
-              [set R_to_carrier R_carrier_eq b])
-        = (a == b).
-  apply/idP/idP.
-  - rewrite inE => /= /(congr1 (carrier_to_R R_carrier_eq)).
-    by rewrite !R_to_carrierK => ->.
-  - by move=> /eqP -> ; rewrite inE /=.
-by rewrite inH; case: (a == b).
-Qed.
-
-(** ** §3 — PMF of [partial_geom] at integer-valued singletons. *)
-
-Lemma partial_geom_pmf (n k : nat) :
-  fmeas_mu (partial_geom n)
-           [set R_to_carrier R_carrier_eq k%:R]
-  = if (k < n)%N then ((1 / 2)%R ^+ k.+1)%R%:E else 0.
-Proof.
-elim: n => [/= |n IH].
-- by [].
-- rewrite [partial_geom _]/=.
-  rewrite -[precone_add _ _]/(fmeas_add
-     (precone_scale (geom_coef n)
-        (dirac_fmeas (R_to_carrier R_carrier_eq n%:R) : FMeas R_obj))
-     (partial_geom n)).
-  rewrite fmeas_addE.
-  rewrite -[precone_scale (geom_coef n) _]
-          /(fmeas_scale (geom_coef n)
-             (dirac_fmeas (R_to_carrier R_carrier_eq n%:R) : FMeas R_obj)).
-  rewrite fmeas_scaleE.
-  rewrite (dirac_fmeas_singleton_eq n%:R k%:R).
-  rewrite IH eqr_nat.
-  case: (ltngtP k n) => Hkn /=.
-  - rewrite mule0 add0e.
-    by rewrite ltnW.
-  - rewrite mule0 add0e.
-    have -> : (k < n.+1)%N = false by rewrite ltnNge (leq_trans _ Hkn).
-    by [].
-  - rewrite Hkn ltnSn.
-    by rewrite mule1 adde0 /geom_coef.
-Qed.
-
-(** ** §4 — Linearity of [Lfun (shift_lift 1)] *)
-
-(** A "shifted" partial-sum measure
-    [Σ_{j < n} (1/2)^{j+1} *: δ_{R_to_carrier (j+1)%:R}],
-    obtained by applying [shift_lift 1] to [partial_geom n]. *)
-Fixpoint partial_geom_shifted (n : nat) : FMeas R_obj :=
-  match n with
-  | 0%N => precone_zero
-  | k.+1 => precone_add
-            (precone_scale (geom_coef k)
-                           (dirac_fmeas (R_to_carrier R_carrier_eq k.+1%:R)
-                            : FMeas R_obj))
-            (partial_geom_shifted k)
-  end.
+Local Notation partial_geom' := (partial_geom R_carrier_eq).
+Local Notation partial_geom_shifted' := (partial_geom_shifted R_carrier_eq).
+Local Notation geom_coef' := (geom_coef (R := R)).
+Local Notation half_nng' := (half_nng (R := R)).
+Local Notation R_to_carrier_singleton_meas' :=
+  (R_to_carrier_singleton_meas R_carrier_eq R_carrier_meas).
+Local Notation partial_geom_pmf' :=
+  (partial_geom_pmf R_carrier_eq R_carrier_meas).
+Local Notation half_shifted_eq' := (half_shifted_eq R_carrier_eq).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Local Open Scope ereal_scope.
 
 (** Linearity of [Lfun (shift_lift 1)] : extracted from
     [linhom_pre_linear] via the [linhom_icones] equality
@@ -254,16 +167,16 @@ Qed.
     pure linearity + [shift_lift_dirac]. *)
 Lemma shift_partial_geom (n : nat) :
   Lfun (shift_lift R_carrier_eq R_carrier_meas R_to_carrier_meas 1)
-       (partial_geom n) = partial_geom_shifted n.
+       (partial_geom' n) = partial_geom_shifted' n.
 Proof.
 have [lin0 linD linZ] := shift_lift_lin.
 elim: n => [/= |n IH].
 - exact: lin0.
-- rewrite [partial_geom _]/=.
+- rewrite [partial_geom' _]/=.
   rewrite linD linZ.
   rewrite (shift_lift_dirac _ _ _ 1 n%:R).
   rewrite IH.
-  rewrite [partial_geom_shifted _.+1]/=.
+  rewrite [partial_geom_shifted' _.+1]/=.
   congr (precone_add _ _).
   congr (precone_scale _ _).
   congr (dirac_fmeas _).
@@ -271,48 +184,7 @@ elim: n => [/= |n IH].
   by rewrite addrC -natr1.
 Qed.
 
-(** ** §5 — Coefficient arithmetic on [(1/2)] *)
-
-Definition half_nng : {nonneg R} := geom_coef 0.
-
-Lemma half_nng_E : (half_nng%:num = 1 / 2)%R.
-Proof. by rewrite /half_nng /geom_coef /= expr1. Qed.
-
-Local Close Scope ereal_scope.
-
-Lemma half_geom_coef_eq (n : nat) :
-  (half_nng%:num * (geom_coef n)%:num)%:nng = geom_coef n.+1.
-Proof. by apply: val_inj => /=; rewrite -exprS. Qed.
-
-Local Open Scope ereal_scope.
-
-(** ** §6 — The shift-recovery lemma. *)
-
-(** [(1/2)*:δ_0 + (1/2)*:partial_geom_shifted n = partial_geom (n+1)].
-    This is the key arithmetic on the partial-sum structure,
-    proved by induction on [n] using precone-axiom rearrangements. *)
-Lemma half_shifted_eq (n : nat) :
-  precone_add
-    (precone_scale half_nng
-       (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj))
-    (precone_scale half_nng (partial_geom_shifted n))
-  = partial_geom n.+1.
-Proof.
-elim: n => [/= |n IH].
-- by rewrite precone_scale_0r.
-- rewrite [partial_geom_shifted _.+1]/=.
-  rewrite precone_scale_DAr.
-  rewrite precone_addA.
-  rewrite (precone_addC (half_nng *: dirac_fmeas _)%PC).
-  rewrite -precone_addA.
-  rewrite IH.
-  rewrite [partial_geom n.+2]/=.
-  congr (precone_add _ _).
-  rewrite -precone_scale_A.
-  by rewrite (half_geom_coef_eq n).
-Qed.
-
-(** ** §7 — The per-iterate measure equality. *)
+(** ** §5 — The per-iterate measure equality. *)
 
 (** Each Kleene iterate of the [ex_geom] cascade is the corresponding
     [partial_geom].  This is the workhorse — closed via three
@@ -328,27 +200,27 @@ Lemma kleene_geom_partial (Hh : (cone_norm
     (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj) Hh
     (shift_scones R_carrier_eq R_carrier_meas R_to_carrier_meas 1)
     n
-  = partial_geom n.
+  = partial_geom' n.
 Proof.
 elim: n => [/= |n IH].
 - by [].
 - rewrite kleene_bcascade_S_E.
   rewrite IH.
-  have Hkball : (cone_norm (partial_geom n) <= 1)%R.
+  have Hkball : (cone_norm (partial_geom' n) <= 1)%R.
     rewrite -IH; exact: kleene_bcascade_ball.
   rewrite shift_scones_E//.
   rewrite shift_partial_geom.
   set H' := NngNum (phase4_half_ge0 R).
   set H'' := NngNum (onem_ge0 (1 / 2)%R (phase4_half_le1 R)).
-  have eq_h_h : H' = half_nng by apply: val_inj => /=.
-  have eq_h''_h : H'' = half_nng.
+  have eq_h_h : H' = half_nng' by apply: val_inj => /=.
+  have eq_h''_h : H'' = half_nng'.
     apply: val_inj => /=.
     by rewrite expr1 [X in (X - _)%R]splitr addrK.
   rewrite eq_h_h eq_h''_h.
-  exact: half_shifted_eq.
+  exact: half_shifted_eq'.
 Qed.
 
-(** ** §8 — THE HEADLINE. *)
+(** ** §6 — THE HEADLINE. *)
 
 (** *** [ex_geom_CBN_fix] is the geometric distribution with parameter
        [1/2]: pointwise PMF [(1/2)^{k+1}] at [R_to_carrier k%:R]. *)
@@ -362,7 +234,7 @@ set phi_geom :=
   phi_bcascade (1 / 2)%R (phase4_half_ge0 R) (phase4_half_le1 R) _ Hh
     (shift_scones R_carrier_eq R_carrier_meas R_to_carrier_meas 1).
 have mU : measurable [set R_to_carrier R_carrier_eq k%:R]
-  by exact: R_to_carrier_singleton_meas.
+  by exact: R_to_carrier_singleton_meas'.
 have HE : fmeas_mu
    (ex_geom_CBN_fix R_carrier_eq R_carrier_meas R_to_carrier_meas)
    [set R_to_carrier R_carrier_eq k%:R] =
@@ -388,7 +260,7 @@ have rwlemma : forall m : nat,
                                 (shift_scones R_carrier_eq
                                   R_carrier_meas R_to_carrier_meas 1) m).
   rewrite (kleene_geom_partial Hh).
-  exact: partial_geom_pmf.
+  exact: partial_geom_pmf'.
 have Hcvg' :
   fmeas_mu (kleene phi_geom n) [set R_to_carrier R_carrier_eq k%:R]
     @[n --> \oo] --> ((1 / 2)%R ^+ k.+1)%R%:E.
