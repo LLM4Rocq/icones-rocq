@@ -45,8 +45,10 @@ from .schema import (
     NoteBlock,
     RocqFile,
     Section,
+    TAB_EXAMPLES,
     TAB_PAPER,
     TAB_PPL,
+    ThreeTabDocument,
     TwoTabDocument,
 )
 
@@ -1002,23 +1004,115 @@ def parse_file(
     return doc, warns
 
 
-def parse_two_tabs(
+def parse_tabs(
+    srcs: dict[str, str | Path],
     *,
-    paper_path: str | Path,
-    ppl_path: str | Path,
     resolver: CoqdocResolver,
     project_root: Path,
     regression_anchors: frozenset[str] = DEFAULT_REGRESSION_ANCHORS,
     strict: bool = False,
-) -> tuple[TwoTabDocument, list[str]]:
-    """Parse the Paper-tab and PPL-tab Markdown sources.
+) -> tuple[ThreeTabDocument, list[str]]:
+    """Parse the per-tab Markdown sources keyed by tab name.
 
-    Returns a :class:`TwoTabDocument` plus a flat list of warnings.  Each
-    warning is prefixed with ``[paper]`` or ``[ppl]`` so the CLI's strict
-    mode can report which tab tripped the failure.  Strict mode still
-    aborts on the *first* failing tab — we parse PPL only after Paper
-    succeeds (or, in non-strict mode, always parse both).
+    ``srcs`` MUST carry exactly the keys :data:`TAB_PAPER`, :data:`TAB_PPL`,
+    and :data:`TAB_EXAMPLES` (their values are paths to the corresponding
+    Markdown source).  Returns a :class:`ThreeTabDocument` plus a flat
+    list of warnings.  Each warning is prefixed with ``[paper]`` /
+    ``[ppl]`` / ``[examples]`` so the CLI's strict mode can report which
+    tab tripped the failure.  Strict mode aborts on the *first* failing
+    tab — subsequent tabs are not parsed.
     """
+    missing = set(ALL_TABS) - set(srcs)
+    if missing:
+        raise KeyError(f"parse_tabs: missing source(s) for tab(s) {sorted(missing)}")
+    all_warnings: list[str] = []
+    docs: dict[str, Document] = {}
+    for tab in ALL_TABS:
+        path = srcs[tab]
+        doc, warns = parse_file(
+            path,
+            resolver=resolver,
+            project_root=project_root,
+            regression_anchors=regression_anchors,
+            strict=strict,
+        )
+        for w in warns:
+            all_warnings.append(f"[{tab}] {w}")
+        docs[tab] = doc
+        if strict and warns:
+            # Surface the first-tab warnings to the caller; the CLI exits
+            # before bothering with the remaining tabs.  We still record
+            # the current tab's parsed document in case the caller wants
+            # it, and fill the missing tabs with empty defaults.
+            return (
+                ThreeTabDocument(
+                    paper=docs.get(TAB_PAPER, Document(preamble_html="")),
+                    ppl=docs.get(TAB_PPL, Document(preamble_html="")),
+                    examples=docs.get(TAB_EXAMPLES, Document(preamble_html="")),
+                ),
+                all_warnings,
+            )
+    three = ThreeTabDocument(
+        paper=docs[TAB_PAPER], ppl=docs[TAB_PPL], examples=docs[TAB_EXAMPLES]
+    )
+    return three, all_warnings
+
+
+def parse_three_tabs(
+    *,
+    paper_path: str | Path,
+    ppl_path: str | Path,
+    examples_path: str | Path,
+    resolver: CoqdocResolver,
+    project_root: Path,
+    regression_anchors: frozenset[str] = DEFAULT_REGRESSION_ANCHORS,
+    strict: bool = False,
+) -> tuple[ThreeTabDocument, list[str]]:
+    """Parse the Paper / PPL / Examples Markdown sources.
+
+    Convenience keyword wrapper around :func:`parse_tabs`.
+    """
+    return parse_tabs(
+        {
+            TAB_PAPER: paper_path,
+            TAB_PPL: ppl_path,
+            TAB_EXAMPLES: examples_path,
+        },
+        resolver=resolver,
+        project_root=project_root,
+        regression_anchors=regression_anchors,
+        strict=strict,
+    )
+
+
+def parse_two_tabs(
+    *,
+    paper_path: str | Path,
+    ppl_path: str | Path,
+    examples_path: str | Path | None = None,
+    resolver: CoqdocResolver,
+    project_root: Path,
+    regression_anchors: frozenset[str] = DEFAULT_REGRESSION_ANCHORS,
+    strict: bool = False,
+) -> tuple[ThreeTabDocument, list[str]]:
+    """Transitional shim — parse the dashboard sources.
+
+    The dashboard is now a three-tab document.  Callers that already
+    supply ``examples_path`` get the full three-tab parse; callers that
+    omit it get an Examples tab filled with an empty :class:`Document`
+    placeholder so the resulting object still satisfies the new schema.
+    Prefer :func:`parse_three_tabs` in new code.
+    """
+    if examples_path is not None:
+        return parse_three_tabs(
+            paper_path=paper_path,
+            ppl_path=ppl_path,
+            examples_path=examples_path,
+            resolver=resolver,
+            project_root=project_root,
+            regression_anchors=regression_anchors,
+            strict=strict,
+        )
     all_warnings: list[str] = []
     docs: dict[str, Document] = {}
     for tab, path in ((TAB_PAPER, paper_path), (TAB_PPL, ppl_path)):
@@ -1033,26 +1127,31 @@ def parse_two_tabs(
             all_warnings.append(f"[{tab}] {w}")
         docs[tab] = doc
         if strict and warns:
-            # Surface the first-tab warnings to the caller; the CLI exits
-            # before bothering with the second tab.  We still record the
-            # current tab's parsed document in case the caller wants it.
             return (
-                TwoTabDocument(
+                ThreeTabDocument(
                     paper=docs.get(TAB_PAPER, Document(preamble_html="")),
                     ppl=docs.get(TAB_PPL, Document(preamble_html="")),
+                    examples=Document(preamble_html=""),
                 ),
                 all_warnings,
             )
-    two = TwoTabDocument(paper=docs[TAB_PAPER], ppl=docs[TAB_PPL])
-    return two, all_warnings
+    three = ThreeTabDocument(
+        paper=docs[TAB_PAPER],
+        ppl=docs[TAB_PPL],
+        examples=Document(preamble_html=""),
+    )
+    return three, all_warnings
 
 
 __all__ = [
     "ALL_TABS",
+    "TAB_EXAMPLES",
     "TAB_PAPER",
     "TAB_PPL",
     "parse",
     "parse_file",
+    "parse_tabs",
+    "parse_three_tabs",
     "parse_two_tabs",
     "slugify_label",
     "lex",

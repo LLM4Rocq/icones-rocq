@@ -917,8 +917,8 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 
 /* ============================================================ Tab nav */
 
-/* The two-tab nav (Paper / PPL) lives in the site header below the
-   pill-nav. Each tab is a plain <a> link — no JS required. */
+/* The three-tab nav (Paper / PPL / Examples) lives in the site header
+   below the pill-nav. Each tab is a plain <a> link — no JS required. */
 .tab-row { padding-top: 0; padding-bottom: 0.4rem; }
 .tab-nav {
   display: flex;
@@ -1062,7 +1062,7 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
   .highlight .hll { background-color: #3a3a25; }
 }
 
-/* Root landing dual-tab grid. */
+/* Root landing triple-tab grid. */
 .root-tab-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));

@@ -56,6 +56,9 @@
       <a class="tab-chip tab-chip-ppl{% if tab == 'ppl' %} is-active{% endif %}"
          href="{{ tab_prefix }}ppl/index.html"
          {% if tab == 'ppl' %}aria-current="page"{% endif %}>PPL</a>
+      <a class="tab-chip tab-chip-examples{% if tab == 'examples' %} is-active{% endif %}"
+         href="{{ tab_prefix }}examples/index.html"
+         {% if tab == 'examples' %}aria-current="page"{% endif %}>Examples</a>
     </nav>
   </div>
   <div class="header-row search-row">
@@ -72,7 +75,7 @@
   <div class="footer-grid">
     <div>
       <strong>Icones</strong> — Paper-to-Rocq correspondence dashboard.
-      <br>Mirrors <code>docs/PAPER.md</code> + <code>docs/PPL.md</code>
+      <br>Mirrors <code>docs/PAPER.md</code> + <code>docs/PPL.md</code> + <code>docs/EXAMPLES.md</code>
       ({{ document.build_meta.auditor_lines }} lines combined) built from commit
       {% set _repo = document.build_meta.repo|default('LLM4Rocq/icones-rocq') %}
       <a class="mono"

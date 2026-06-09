@@ -2,8 +2,8 @@
 
 Layout (file URLs, matching the UI templates' ``xref_href`` convention):
 
-    out/index.html                  root landing (dual-tab summary)
-    out/data.json                   combined Paper + PPL JSON export
+    out/index.html                  root landing (triple-tab summary)
+    out/data.json                   combined Paper + PPL + Examples JSON export
     out/static/{style,print,pygments}.css, app.js
     out/paper/index.html            Paper-tab landing
     out/paper/sections/<id>.html
@@ -12,10 +12,11 @@ Layout (file URLs, matching the UI templates' ``xref_href`` convention):
     out/paper/gaps.html
     out/paper/data.json             Paper-only JSON export
     out/ppl/...                     mirror of the above for the PPL tab
+    out/examples/...                mirror of the above for the Examples tab
 
 Per-template context contracts:
 
-``root.html``     : ``{paper, ppl, build_meta, tab=None}``
+``root.html``     : ``{paper, ppl, examples, build_meta, tab=None}``
 ``index.html``    : ``{document, sections, beyond, gaps, axiom_anchors, build_meta, tab}``
 ``section.html``  : ``{document, section, entries, build_meta, tab}``
 ``entry.html``    : ``{document, entry, section, contrib?, build_meta, tab}``
@@ -38,7 +39,17 @@ from typing import Any
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 from pygments.formatters import HtmlFormatter
 
-from .schema import ALL_TABS, TAB_PAPER, TAB_PPL, Document, TwoTabDocument, two_tab_to_dict
+from .schema import (
+    ALL_TABS,
+    TAB_EXAMPLES,
+    TAB_PAPER,
+    TAB_PPL,
+    Document,
+    ThreeTabDocument,
+    TwoTabDocument,
+    three_tab_to_dict,
+    two_tab_to_dict,
+)
 
 
 BUNDLED_TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -304,16 +315,16 @@ def _emit_tab(
 
 
 def render(
-    two: TwoTabDocument,
+    doc: ThreeTabDocument,
     out_dir: str | Path,
     *,
     template_dir: str | Path | None = None,
 ) -> dict[str, int]:
-    """Emit the dual-tab dashboard under ``out_dir``.
+    """Emit the triple-tab dashboard under ``out_dir``.
 
     Returns a counter of artefacts written (``index``, ``sections``,
     ``entries``, ``beyond``, ``gaps``, ``static``, ``json``, ``tabs``).
-    The counts aggregate both tabs; the root landing and combined
+    The counts aggregate every tab; the root landing and combined
     ``data.json`` are also included.
     """
     out = Path(out_dir)
@@ -338,7 +349,7 @@ def render(
 
     # -- combined data.json ---------------------------------------------
     (out / "data.json").write_text(
-        json.dumps(two_tab_to_dict(two), indent=2), encoding="utf-8"
+        json.dumps(three_tab_to_dict(doc), indent=2), encoding="utf-8"
     )
     totals["json"] += 1
 
@@ -347,20 +358,26 @@ def render(
     _emit(
         env, out, Path("index.html"), "root.html",
         {
-            "document": two.paper,   # footer macros reach into build_meta etc.
-            "paper": two.paper,
-            "ppl": two.ppl,
-            "build_meta": two.build_meta,
+            "document": doc.paper,   # footer macros reach into build_meta etc.
+            "paper": doc.paper,
+            "ppl": doc.ppl,
+            "examples": doc.examples,
+            "build_meta": doc.build_meta,
             "tab": None,
             "title": "ICones — Auditor",
-            "body": _root_summary_html(two),
+            "body": _root_summary_html(doc),
         },
         root_prefix="", static_prefix="", tab_prefix="",
     )
 
-    # -- both tabs ------------------------------------------------------
-    for tab_name, doc in ((TAB_PAPER, two.paper), (TAB_PPL, two.ppl)):
-        per = _emit_tab(env, out, tab_name, doc, two.build_meta)
+    # -- every tab ------------------------------------------------------
+    tab_docs = (
+        (TAB_PAPER, doc.paper),
+        (TAB_PPL, doc.ppl),
+        (TAB_EXAMPLES, doc.examples),
+    )
+    for tab_name, tab_doc in tab_docs:
+        per = _emit_tab(env, out, tab_name, tab_doc, doc.build_meta)
         totals["tabs"] += 1
         for k in ("index", "sections", "entries", "beyond", "gaps", "json"):
             totals[k] += per[k]
@@ -397,21 +414,22 @@ def _summary_html(doc: Document) -> str:
     return "\n".join(rows)
 
 
-def _root_summary_html(two: TwoTabDocument) -> str:
-    def _tab_block(label: str, slug: str, doc: Document) -> str:
-        n_entries = sum(len(s.entries) for s in doc.sections) + sum(
-            len(b.entries) for b in doc.beyond
+def _root_summary_html(three: ThreeTabDocument) -> str:
+    def _tab_block(label: str, slug: str, tab_doc: Document) -> str:
+        n_entries = sum(len(s.entries) for s in tab_doc.sections) + sum(
+            len(b.entries) for b in tab_doc.beyond
         )
         return (
             f'<section class="tab-card"><h2>{label}</h2>'
-            f"<p>{len(doc.sections)} sections · {len(doc.beyond)} beyond · "
-            f"{len(doc.gaps)} gaps · {n_entries} entries.</p>"
+            f"<p>{len(tab_doc.sections)} sections · {len(tab_doc.beyond)} beyond · "
+            f"{len(tab_doc.gaps)} gaps · {n_entries} entries.</p>"
             f'<p><a class="cta" href="{slug}/index.html">Open {label} →</a></p>'
             f"</section>"
         )
     parts = ['<div class="root-tabs">']
-    parts.append(_tab_block("Paper", "paper", two.paper))
-    parts.append(_tab_block("PPL", "ppl", two.ppl))
+    parts.append(_tab_block("Paper", "paper", three.paper))
+    parts.append(_tab_block("PPL", "ppl", three.ppl))
+    parts.append(_tab_block("Examples", "examples", three.examples))
     parts.append("</div>")
     return "\n".join(parts)
 

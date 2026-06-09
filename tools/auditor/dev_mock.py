@@ -2,8 +2,8 @@
 """Emit a synthetic data.json matching the auditor schema.
 
 Used by dev_serve.py while the real parser/builder (sibling agent) is in
-flight. The default output is the dual-tab document (Paper + PPL); pass
-``--single`` for the legacy single-Document payload.
+flight. The default output is the triple-tab document (Paper + PPL +
+Examples); pass ``--single`` for the legacy single-Document payload.
 """
 
 from __future__ import annotations
@@ -451,25 +451,142 @@ def make_ppl_document() -> dict:
     }
 
 
-def make_two_tab_document() -> dict:
-    """Combined dual-tab dashboard payload (Paper + PPL)."""
-    paper = make_paper_document()
-    ppl = make_ppl_document()
+def make_examples_document() -> dict:
+    """Surface-program examples tab: PPL programs and headline lemmas."""
+    sec_random = {
+        "id": "sec-random",
+        "paper_section": "Randomness",
+        "paper_section_number": "Rand",
+        "title": "Random and Bayesian programs",
+        "intro_html": "<p>First-order surface examples that pull from "
+                      "<code>bernoulli</code> / <code>uniform</code> and combine "
+                      "the resulting random values through CBV terms.</p>",
+        "entries": [
+            _entry(
+                "ex-random-constant", "ex_random_constant", "Example", None,
+                "sec-random",
+                ["axiom-free"],
+                ["ex_random_constant"],
+                [_file("theories/programs/ppl.v")],
+                "<p>Sample a constant; the marginal is a Dirac.</p>",
+            ),
+            _entry(
+                "ex-bayes-linear", "ex_bayes_linear", "Example", None,
+                "sec-random",
+                ["axiom-free"],
+                ["ex_bayes_linear", "ex_bayes_linear_is_weighted"],
+                [_file("theories/programs/ppl.v")],
+                "<p>Bayesian linear regression; mass equals the weighted Lebesgue "
+                "integral of the prior.</p>",
+                snippets=[_snippet("theories/programs/ppl.v", None,
+                    "Lemma ex_bayes_linear_is_weighted :\n"
+                    "  ex_bayes_linear_denot = weighted_marginal.\n"
+                    "Proof. by apply: Law3_marginal. Qed.")],
+            ),
+        ],
+        "notes_html": "",
+    }
+    sec_partial = {
+        "id": "sec-partial",
+        "paper_section": "Partial",
+        "paper_section_number": "Part",
+        "title": "Productive partiality",
+        "intro_html": "<p>Phase-4 worked programs: bare divergence, geometric, "
+                      "and the parameterised almost-loop.</p>",
+        "entries": [
+            _entry(
+                "ex-loop", "ex_loop", "Example", None, "sec-partial",
+                ["axiom-free"],
+                ["ex_loop", "ex_loop_denot_E"],
+                [_file("theories/programs/examples/loop.v")],
+                "<p>Bare divergence — every iterate has mass 0.</p>",
+            ),
+            _entry(
+                "ex-geom", "ex_geom", "Example", None, "sec-partial",
+                ["axiom-free", "regression-anchor"],
+                ["ex_geom", "ex_geom_arr_mass_one"],
+                [_file("theories/programs/examples/geom.v")],
+                "<p>Geometric — mass 1 in the limit.</p>",
+                snippets=[_snippet("theories/programs/examples/geom.v", None,
+                    "Lemma ex_geom_arr_mass_one : cone_mass ex_geom_arr = 1.\n"
+                    "Proof. by apply: geom_mass_lim. Qed.")],
+            ),
+            _entry(
+                "ex-even-odd-pair", "ex_even_odd_pair", "Example", None,
+                "sec-partial",
+                ["axiom-free"],
+                ["ex_even_odd_pair"],
+                [_file("theories/programs/examples/pair.v")],
+                "<p>Two mutually recursive booleans, paired — the cascade test.</p>",
+            ),
+        ],
+        "notes_html": "",
+    }
     return {
-        "paper": paper,
-        "ppl": ppl,
+        "preamble_html":
+            "<p>Surface programs and their CBV / CBN headline lemmas. "
+            "Each section groups examples by what feature of the PPL they "
+            "exercise.</p>",
+        "sections": [sec_random, sec_partial],
+        "beyond": [
+            {
+                "id": "ex-beyond-cascade",
+                "title": "Boolean cascade gallery",
+                "subtitle": "ne_if / case_em walkthroughs.",
+                "paper_refs": [],
+                "lemma_count": 7,
+                "html": "<p>Programs that thread <code>ne_if</code> through a "
+                        "nested cascade and the EM-Kleisli <code>case_em</code>.</p>",
+                "entries": [
+                    {"label": "Bernoulli cascade",
+                     "rocq_idents": ["ex_bernoulli_cascade"],
+                     "rocq_files": [_file("theories/programs/ppl.v")]},
+                ],
+                "snippets": [],
+                "references": [],
+            },
+        ],
+        "gaps": [],
+        "verify_instructions_html":
+            "<p>Reuse the paper-tab verify pipeline; the examples compile "
+            "from the same <code>_CoqProject</code>.</p>",
+        "axiom_anchors": {
+            "regression": "Icones.programs.examples.geom.ex_geom_arr_mass_one",
+            "headlines": ["Icones.programs.ppl.ex_random_constant"],
+        },
         "build_meta": {
             "commit": "deadbeefcafe1234567890abcdef0000000000",
             "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-            "auditor_lines": paper["build_meta"]["auditor_lines"]
-                              + ppl["build_meta"]["auditor_lines"],
+            "auditor_lines": 612,
             "repo": GH,
         },
     }
 
 
-# Back-compat alias for callers that still expect the old single-Document
-# entry point.
+def make_three_tab_document() -> dict:
+    """Combined triple-tab dashboard payload (Paper + PPL + Examples)."""
+    paper = make_paper_document()
+    ppl = make_ppl_document()
+    examples = make_examples_document()
+    return {
+        "paper": paper,
+        "ppl": ppl,
+        "examples": examples,
+        "build_meta": {
+            "commit": "deadbeefcafe1234567890abcdef0000000000",
+            "built_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+            "auditor_lines": (
+                paper["build_meta"]["auditor_lines"]
+                + ppl["build_meta"]["auditor_lines"]
+                + examples["build_meta"]["auditor_lines"]
+            ),
+            "repo": GH,
+        },
+    }
+
+
+# Back-compat aliases.
+make_two_tab_document = make_three_tab_document
 make_document = make_paper_document
 
 
@@ -478,9 +595,9 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--single", action="store_true",
                     help="emit a single-tab Document (paper only) instead "
-                         "of the dual-tab payload.")
+                         "of the triple-tab payload.")
     args = ap.parse_args(argv)
-    payload = make_paper_document() if args.single else make_two_tab_document()
+    payload = make_paper_document() if args.single else make_three_tab_document()
     json.dump(payload, sys.stdout, indent=2, ensure_ascii=False)
     sys.stdout.write("\n")
     return 0

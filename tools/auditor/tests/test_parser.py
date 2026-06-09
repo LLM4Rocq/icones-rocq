@@ -22,12 +22,23 @@ from tools.auditor.classifier import classify, DEFAULT_REGRESSION_ANCHORS
 from tools.auditor.coqdoc import CoqProjectBinding, CoqdocResolver, parse_coqproject
 from tools.auditor.parser import (
     parse,
+    parse_tabs,
+    parse_three_tabs,
     parse_two_tabs,
     slugify_label,
     _classify_paper_label_kind,  # noqa: PLC2701 — tested intentionally
     _split_table_row,  # noqa: PLC2701
 )
-from tools.auditor.schema import TAB_PAPER, TAB_PPL, TwoTabDocument, two_tab_to_dict
+from tools.auditor.schema import (
+    ALL_TABS,
+    TAB_EXAMPLES,
+    TAB_PAPER,
+    TAB_PPL,
+    ThreeTabDocument,
+    TwoTabDocument,
+    three_tab_to_dict,
+    two_tab_to_dict,
+)
 
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -271,7 +282,7 @@ def test_full_document_smoke():
 
 
 def test_parse_two_tabs_basic(tmp_path):
-    """Both tabs parsed independently; output is a TwoTabDocument."""
+    """Both tabs parsed; output is a ThreeTabDocument (Examples is empty)."""
     paper = GOLDEN / "01_simple_3col.md"
     ppl = GOLDEN / "02_two_col_beyond.md"
     two, warns = parse_two_tabs(
@@ -281,6 +292,8 @@ def test_parse_two_tabs_basic(tmp_path):
         project_root=tmp_path,
         strict=False,
     )
+    # ``TwoTabDocument`` is a transitional alias for the new triple-tab shape.
+    assert isinstance(two, ThreeTabDocument)
     assert isinstance(two, TwoTabDocument)
     # Paper tab carries a §2 section with two entries.
     assert len(two.paper.sections) == 1
@@ -288,12 +301,16 @@ def test_parse_two_tabs_basic(tmp_path):
     # PPL tab carries no §-sections but at least one Beyond contrib.
     assert two.ppl.sections == []
     assert len(two.ppl.beyond) >= 1
+    # Examples tab is the empty default when the legacy 2-arg shim is used.
+    assert two.examples.sections == []
+    assert two.examples.beyond == []
     # tab() helper round-trips.
     assert two.tab(TAB_PAPER) is two.paper
     assert two.tab(TAB_PPL) is two.ppl
-    # Combined data.json export carries both tabs.
+    assert two.tab(TAB_EXAMPLES) is two.examples
+    # Combined data.json export carries all three tabs.
     payload = two_tab_to_dict(two)
-    assert set(payload) == {"paper", "ppl", "build_meta"}
+    assert set(payload) == {"paper", "ppl", "examples", "build_meta"}
     assert payload["paper"]["sections"][0]["id"].startswith("sec-")
 
 
@@ -336,3 +353,84 @@ def test_parse_two_tabs_independent_status(tmp_path):
         s for b in two.ppl.beyond for e in b.entries for s in e.status
     ]
     assert l_statuses and all(s == "beyond-paper" for s in l_statuses)
+
+
+# -- three-tab orchestrator tests ------------------------------------------
+
+
+def test_parse_three_tabs_basic(tmp_path):
+    """All three tabs parsed independently; output is a ThreeTabDocument."""
+    paper = GOLDEN / "01_simple_3col.md"
+    ppl = GOLDEN / "02_two_col_beyond.md"
+    examples = GOLDEN / "07_regression_anchor.md"
+    three, warns = parse_three_tabs(
+        paper_path=paper,
+        ppl_path=ppl,
+        examples_path=examples,
+        resolver=_resolver(),
+        project_root=tmp_path,
+        strict=False,
+    )
+    assert isinstance(three, ThreeTabDocument)
+    # Paper tab: §2 with two entries.
+    assert len(three.paper.sections) == 1
+    assert len(three.paper.sections[0].entries) == 2
+    # PPL tab: Beyond-only.
+    assert three.ppl.sections == []
+    assert len(three.ppl.beyond) >= 1
+    # Examples tab: regression-anchor fixture has a paper section.
+    assert len(three.examples.sections) == 1
+    # tab() round-trips for all three names.
+    assert three.tab(TAB_PAPER) is three.paper
+    assert three.tab(TAB_PPL) is three.ppl
+    assert three.tab(TAB_EXAMPLES) is three.examples
+    # Combined export carries all three tabs.
+    payload = three_tab_to_dict(three)
+    assert set(payload) == {"paper", "ppl", "examples", "build_meta"}
+
+
+def test_parse_three_tabs_prefixes_warnings(tmp_path):
+    """Strict warnings get prefixed with the tab they came from."""
+    paper = GOLDEN / "01_simple_3col.md"
+    ppl = GOLDEN / "02_two_col_beyond.md"
+    examples = GOLDEN / "07_regression_anchor.md"
+    _, warns = parse_three_tabs(
+        paper_path=paper,
+        ppl_path=ppl,
+        examples_path=examples,
+        resolver=_resolver(),
+        project_root=tmp_path,  # off-disk → missing-file warnings fire
+        strict=True,
+    )
+    # Strict mode aborts on the first failing tab → Paper is the first.
+    assert any(w.startswith("[paper]") for w in warns)
+    by_tab = {tab: sum(1 for w in warns if w.startswith(f"[{tab}]"))
+              for tab in ALL_TABS}
+    assert by_tab["paper"] > 0
+    # Ppl + examples may carry zero file refs in these fixtures, in which
+    # case their prefixes won't fire — that's fine: the test only checks
+    # the prefix machinery itself surfaces correctly for the Paper tab.
+
+
+def test_parse_tabs_generic_orchestrator(tmp_path):
+    """parse_tabs accepts a dict and rejects missing keys."""
+    srcs = {
+        TAB_PAPER: GOLDEN / "01_simple_3col.md",
+        TAB_PPL: GOLDEN / "02_two_col_beyond.md",
+        TAB_EXAMPLES: GOLDEN / "07_regression_anchor.md",
+    }
+    three, _ = parse_tabs(
+        srcs, resolver=_resolver(), project_root=tmp_path, strict=False
+    )
+    assert isinstance(three, ThreeTabDocument)
+    assert len(three.examples.sections) == 1
+    # Missing key raises.
+    incomplete = {TAB_PAPER: srcs[TAB_PAPER], TAB_PPL: srcs[TAB_PPL]}
+    import pytest as _pt
+    with _pt.raises(KeyError):
+        parse_tabs(
+            incomplete,
+            resolver=_resolver(),
+            project_root=tmp_path,
+            strict=False,
+        )
