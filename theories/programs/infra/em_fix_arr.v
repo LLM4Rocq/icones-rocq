@@ -954,16 +954,16 @@ Lemma Lfun_var_lookup_g_at_outer_pt_u_E (u : L_geom) :
        (at_outer_pt_u u)
   = prom u.
 Proof.
-rewrite -[Lfun (ch_mor _) _]
-        /(Lfun (icones_comp (em_proj2_mor (EM_term : Coalgebra Ar) funT_geom)
-                            (em_proj1_mor (EM_prod (EM_term : Coalgebra Ar) funT_geom)
-                                          (EM_term : Coalgebra Ar)))
-               (at_outer_pt_u u)).
-rewrite -[Lfun (icones_comp _ _) _]
-        /(Lfun (em_proj2_mor (EM_term : Coalgebra Ar) funT_geom)
-               (Lfun (em_proj1_mor (EM_prod (EM_term : Coalgebra Ar) funT_geom)
-                                   (EM_term : Coalgebra Ar))
-                     (at_outer_pt_u u))).
+change (ch_mor (var_lookup
+          (named_var_to_has_var (nv_tail "_"%string tunit _
+            (nv_head "g"%string (tfun tunit tR') nil)))))
+  with (icones_comp (em_proj2_mor (EM_term : Coalgebra Ar) funT_geom)
+                    (em_proj1_mor (EM_prod (EM_term : Coalgebra Ar) funT_geom)
+                                  (EM_term : Coalgebra Ar))).
+rewrite (Lfun_comp (em_proj2_mor (EM_term : Coalgebra Ar) funT_geom)
+                   (em_proj1_mor (EM_prod (EM_term : Coalgebra Ar) funT_geom)
+                                 (EM_term : Coalgebra Ar))
+                   (at_outer_pt_u u)).
 rewrite /em_proj1_mor coalg_e_term.
 rewrite -[tensor_mor _ _]/(tensor_mor (icones_id Ar _) (icones_id Ar _)).
 have tensor_mor_id_id :
