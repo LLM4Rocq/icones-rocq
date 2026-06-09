@@ -74,7 +74,7 @@ jobs:
 
   build-auditor:
     # Build the paper-to-Rocq auditor dashboard from docs/PAPER.md +
-    # docs/PPL.md (the dual-tab dashboard).
+    # docs/PPL.md + docs/EXAMPLES.md (the triple-tab dashboard).
     # This job runs in parallel with build-blueprint; it fails loudly on
     # its own errors but its artefact is best-effort consumed by
     # combine-and-deploy (so a parser regression doesn't block the
@@ -118,9 +118,10 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           python tools/build_auditor.py \
-            --paper docs/PAPER.md \
-            --ppl   docs/PPL.md \
-            --out   site/auditor/ \
+            --paper    docs/PAPER.md \
+            --ppl      docs/PPL.md \
+            --examples docs/EXAMPLES.md \
+            --out      site/auditor/ \
             --coqproject _CoqProject \
             --github-repo "$GITHUB_REPOSITORY" \
             --commit "$GITHUB_SHA" \
