@@ -212,54 +212,34 @@ Lemma cbn_if_clause_def_E (g : Gc) :
   bool_case (sc_fun e g) (sc_fun M g) (sc_fun N g).
 Proof.
 move=> Hg.
-rewrite /cbn_if_clause_def.
-(* Unfold the outermost composition. *)
-rewrite (scomp_ball _ _ Hg).
-(* Compute the [spair] under [Hg]. *)
-have Hpair : sc_fun (spair cbn_if_scones_Gc_Sh (scones_id Gc)) g
-           = sprod_pair (sc_fun cbn_if_scones_Gc_Sh g)
-                         (sc_fun (scones_id Gc) g).
-  exact: scpair_ball.
-rewrite Hpair.
-(* Compute the [scones_id]. *)
-have Hid : sc_fun (scones_id Gc) g = g.
-  by rewrite /scones_id /= (sc_clamp_ball Hg).
-rewrite Hid.
-(* Compute the inner [scones_comp] at [g] (norm of [g] ≤ 1). *)
-have Hinner :
-    sc_fun cbn_if_scones_Gc_Sh g =
-    sc_fun cbn_if_scones_B_Sh (sc_fun e g).
-  by rewrite /cbn_if_scones_Gc_Sh (scomp_ball _ _ Hg).
-rewrite Hinner.
-(* Both [sc_fun e g] and [g] lie on the unit ball: [sc_image_ball]. *)
 have Heg : (cone_norm (sc_fun e g) <= 1)%R by exact: sc_image_ball.
-(* Compute [cbn_if_scones_B_Sh] at [sc_fun e g]. *)
-have HB : sc_fun cbn_if_scones_B_Sh (sc_fun e g)
-        = linhom_fun cbn_if_linhom (sc_fun e g).
-  rewrite /cbn_if_scones_B_Sh /ders /= (sc_clamp_ball Heg).
-  by rewrite /linhom_icones /=.
-rewrite HB.
-(* The pair is on the unit ball; we apply [Ev_pair]. *)
 have HSh_ball : (cone_norm (linhom_fun cbn_if_linhom (sc_fun e g)) <= 1)%R.
   have step := linhom_norm_apply_le cbn_if_linhom_norm_le1 (sc_fun e g).
   rewrite mul1r in step.
   exact: (le_trans step Heg).
 have Hpair_ball : (cone_norm (sprod_pair
-    (linhom_fun cbn_if_linhom (sc_fun e g)) g) <= 1)%R.
-  exact: sprod_pair_norm_le1.
-rewrite (Ev_pair _ _ Hpair_ball).
-(* [linhom_fun cbn_if_linhom] computes to [bool_case] of the two
-   stablehom views. *)
-have Hlin :
-    linhom_fun cbn_if_linhom (sc_fun e g) =
-    bool_case (sc_fun e g) (sc_to_sh M) (sc_to_sh N).
-  by rewrite /cbn_if_linhom /=.
-rewrite Hlin.
-(* Pointwise [bool_case]-evaluation at the stablehom-cone level.
-   The [stm_add]/[stm_scale] of [stablehom] reduce to the pointwise
-   [precone_add]/[precone_scale] of [A]. *)
-rewrite /bool_case /=.
-by [].
+    (linhom_fun cbn_if_linhom (sc_fun e g)) g) <= 1)%R
+  by exact: sprod_pair_norm_le1.
+rewrite /cbn_if_clause_def (scomp_ball _ _ Hg).
+have Hpair : sc_fun (spair cbn_if_scones_Gc_Sh (scones_id Gc)) g
+           = sprod_pair (sc_fun cbn_if_scones_Gc_Sh g)
+                         (sc_fun (scones_id Gc) g)
+  by exact: scpair_ball.
+rewrite Hpair.
+have Hid : sc_fun (scones_id Gc) g = g
+  by rewrite /scones_id /= (sc_clamp_ball Hg).
+rewrite Hid.
+have Hinner :
+    sc_fun cbn_if_scones_Gc_Sh g =
+    sc_fun cbn_if_scones_B_Sh (sc_fun e g)
+  by rewrite /cbn_if_scones_Gc_Sh (scomp_ball _ _ Hg).
+rewrite Hinner.
+have HB : sc_fun cbn_if_scones_B_Sh (sc_fun e g)
+        = linhom_fun cbn_if_linhom (sc_fun e g).
+  rewrite /cbn_if_scones_B_Sh /ders /= (sc_clamp_ball Heg).
+  by rewrite /linhom_icones /=.
+rewrite HB (Ev_pair _ _ Hpair_ball).
+by rewrite /cbn_if_linhom /= /bool_case /=.
 Qed.
 
 End CbnIfClause.

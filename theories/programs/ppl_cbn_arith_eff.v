@@ -144,16 +144,12 @@ Lemma cbn_add_clause_arith_E
             (sc_fun M g) (sc_fun N g).
 Proof.
 move=> Hg.
-rewrite /cbn_add_clause_arith.
-rewrite (scomp_ball _ _ Hg).
-have Hpair : sc_fun (spair M N) g = sprod_pair (sc_fun M g) (sc_fun N g).
-  exact: scpair_ball.
-rewrite Hpair.
 have Hball_pair :
     (cone_norm (sprod_pair (sc_fun M g : FMeas R_obj)
                             (sc_fun N g : FMeas R_obj))
-     <= 1)%R.
-  apply: sprod_pair_norm_le1; exact: sc_image_ball.
+     <= 1)%R
+  by apply: sprod_pair_norm_le1; exact: sc_image_ball.
+rewrite /cbn_add_clause_arith scomp_ball// scpair_ball//.
 rewrite (add_FMeas_scones_E R_carrier_eq R_carrier_meas R_to_carrier_meas _
                             Hball_pair).
 by rewrite sprod_fstE sprod_sndE.
@@ -170,16 +166,12 @@ Lemma cbn_mul_clause_arith_E
             (sc_fun M g) (sc_fun N g).
 Proof.
 move=> Hg.
-rewrite /cbn_mul_clause_arith.
-rewrite (scomp_ball _ _ Hg).
-have Hpair : sc_fun (spair M N) g = sprod_pair (sc_fun M g) (sc_fun N g).
-  exact: scpair_ball.
-rewrite Hpair.
 have Hball_pair :
     (cone_norm (sprod_pair (sc_fun M g : FMeas R_obj)
                             (sc_fun N g : FMeas R_obj))
-     <= 1)%R.
-  apply: sprod_pair_norm_le1; exact: sc_image_ball.
+     <= 1)%R
+  by apply: sprod_pair_norm_le1; exact: sc_image_ball.
+rewrite /cbn_mul_clause_arith scomp_ball// scpair_ball//.
 rewrite (mul_FMeas_scones_E R_carrier_eq R_carrier_meas R_to_carrier_meas _
                             Hball_pair).
 by rewrite sprod_fstE sprod_sndE.
@@ -435,10 +427,6 @@ Theorem ex_random_linear_arith_marginal_at
 Proof.
 have Hzero_ball : (cone_norm (precone_zero : Stop Ar) <= 1)%R
   by rewrite cone_norm0 ler01.
-(* The outer denotation reduction.  ex_random_linear =
-   let "m" := sample mu in ex_rl_inner, which CBN-denotes to
-   scones_comp (eD ex_rl_inner) (spair (scones_id _) (sample _)).  By
-   the eD definition this is the same shape under eD_CBN_full_arith. *)
 have Hpair1_ball :
   (cone_norm (sprod_pair (precone_zero : Stop Ar) (mu : FMeas R_obj))
    <= 1)%R
@@ -503,9 +491,7 @@ rewrite (curry_appE _ _ _ Hpair2_ball Harg).
 rewrite (@ex_rl_lam_arith_pointwise R Ar R_obj R_carrier_eq R_carrier_meas
           R_to_carrier_meas cbn_true_clause cbn_false_clause
           cbn_bernoulli_clause cbn_if_clause _ Hpair3_ball).
-(* Identify the variable lookups in env. *)
-(* env = (((0, µ), µ), arg).  # "m" looks up index 2 from the head;
-   # "b" index 1; # "x" index 0. *)
+(* Identify the variable lookups in env = (((0, µ), µ), arg). *)
 have Hvarm :
   sc_fun (eD'CBNa' (G := [:: ("x"%string, tR'); ("b"%string, tR');
                             ("m"%string, tR')]) (t := tR') [# "m"])
@@ -513,10 +499,8 @@ have Hvarm :
             (sprod_pair (sprod_pair (precone_zero : Stop Ar)
                                      (mu : FMeas R_obj))
                         (mu : FMeas R_obj))
-            arg)
-  = mu.
-  simpl.
-  by rewrite !(sc_clamp_ball Hpair3_ball)
+            arg) = mu
+  by rewrite /= !(sc_clamp_ball Hpair3_ball)
              !(sc_clamp_ball Hpair2_ball)
              !(sc_clamp_ball Hpair1_ball).
 have Hvarb :
@@ -526,10 +510,8 @@ have Hvarb :
             (sprod_pair (sprod_pair (precone_zero : Stop Ar)
                                      (mu : FMeas R_obj))
                         (mu : FMeas R_obj))
-            arg)
-  = mu.
-  simpl.
-  by rewrite !(sc_clamp_ball Hpair3_ball)
+            arg) = mu
+  by rewrite /= !(sc_clamp_ball Hpair3_ball)
              !(sc_clamp_ball Hpair2_ball).
 have Hvarx :
   sc_fun (eD'CBNa' (G := [:: ("x"%string, tR'); ("b"%string, tR');
@@ -538,8 +520,7 @@ have Hvarx :
             (sprod_pair (sprod_pair (precone_zero : Stop Ar)
                                      (mu : FMeas R_obj))
                         (mu : FMeas R_obj))
-            arg)
-  = arg.
+            arg) = arg
   by rewrite /= (sc_clamp_ball Hpair3_ball).
 by rewrite Hvarm Hvarb Hvarx.
 Qed.

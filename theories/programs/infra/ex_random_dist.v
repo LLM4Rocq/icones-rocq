@@ -143,7 +143,6 @@ Hypothesis R_to_carrier_meas :
 Variable (mu : fmeas R (ar_carrier Ar R_obj)).
 Hypothesis Hmu : (cone_norm mu <= 1)%R.
 
-Local Notation tR' := (tR R_obj).
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
@@ -208,7 +207,6 @@ Hypothesis R_carrier_meas :
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
-Local Notation tR' := (tR R_obj).
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
@@ -274,7 +272,6 @@ Hypothesis R_to_carrier_meas :
 Variable (mu : fmeas R (ar_carrier Ar R_obj)).
 Hypothesis Hmu : (cone_norm mu <= 1)%R.
 
-Local Notation tR' := (tR R_obj).
 Local Open Scope ereal_scope.
 
 (** *** Pointwise pushforward identity *)

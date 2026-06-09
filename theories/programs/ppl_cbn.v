@@ -426,20 +426,8 @@ Lemma eD_CBN_fix_E
          (sc_fun (eD' (ne_fix s body)) g) =
   sc_fun (eD' (ne_fix s body)) g.
 Proof.
-rewrite eD_CBN_fix.
-(* unfold [scones_comp Yfix (curry (eD' body))] on the ball at [g] *)
-have HfeY : sc_fun (scones_comp (Yfix (tyD_CBN (tfun t1 t2)))
-                                 (curry (eD' body))) g =
-            sc_fun (Yfix (tyD_CBN (tfun t1 t2)))
-                   (sc_fun (curry (eD' body)) g).
-  by rewrite scomp_ball.
-rewrite HfeY.
-(* Yfix_fix takes a hypothesis [cone_norm f <= 1] where [f =
-   sc_fun (curry _) g]; that holds since [curry _] is a [scones_hom]
-   and [g] is in the ball. *)
-have Hcurry_g : (cone_norm (sc_fun (curry (eD' body)) g) <= 1)%R.
-  exact: (sc_image_ball (curry (eD' body)) Hg).
-exact: Yfix_fix Hcurry_g.
+rewrite eD_CBN_fix scomp_ball//.
+exact: Yfix_fix (sc_image_ball (curry (eD' body)) Hg).
 Qed.
 
 (** *** Mutual recursion — [ne_fix_mr] soundness reductions
@@ -475,16 +463,8 @@ Lemma eD_CBN_fix_mr_E
          (sc_fun (eD' (ne_fix_mr s t Hfree body)) g) =
   sc_fun (eD' (ne_fix_mr s t Hfree body)) g.
 Proof.
-rewrite eD_CBN_fix_mr.
-have HfeY : sc_fun (scones_comp (Yfix (tyD_CBN t))
-                                 (curry (eD' body))) g =
-            sc_fun (Yfix (tyD_CBN t))
-                   (sc_fun (curry (eD' body)) g).
-  by rewrite scomp_ball.
-rewrite HfeY.
-have Hcurry_g : (cone_norm (sc_fun (curry (eD' body)) g) <= 1)%R.
-  exact: (sc_image_ball (curry (eD' body)) Hg).
-exact: Yfix_fix Hcurry_g.
+rewrite eD_CBN_fix_mr scomp_ball//.
+exact: Yfix_fix (sc_image_ball (curry (eD' body)) Hg).
 Qed.
 
 End FixSoundness.

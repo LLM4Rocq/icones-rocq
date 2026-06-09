@@ -200,26 +200,23 @@ Qed.
 
     Via the norm identity: [‖add_FMeas mu 0‖ = ‖mu‖ · ‖0‖ = 0], and
     [fmeas_normz] forces [add_FMeas mu 0 = precone_zero]. *)
+Let fmeas_norm_zero :
+    fmeas_norm (precone_zero : fmeas R (ar_carrier Ar R_obj)) = 0%R.
+Proof.
+by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
+           /fmeas_norm fmeas_zeroE.
+Qed.
+
 Lemma add_FMeas_zero_l (nu : fmeas R (ar_carrier Ar R_obj)) :
   add_FMeas precone_zero nu = precone_zero.
 Proof.
-apply: fmeas_normz.
-rewrite add_FMeas_norm.
-have Hz : fmeas_norm (precone_zero : fmeas R (ar_carrier Ar R_obj)) = 0%R
-  by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
-             /fmeas_norm fmeas_zeroE.
-by rewrite Hz mul0r.
+by apply: fmeas_normz; rewrite add_FMeas_norm fmeas_norm_zero mul0r.
 Qed.
 
 Lemma add_FMeas_zero_r (mu : fmeas R (ar_carrier Ar R_obj)) :
   add_FMeas mu precone_zero = precone_zero.
 Proof.
-apply: fmeas_normz.
-rewrite add_FMeas_norm.
-have Hz : fmeas_norm (precone_zero : fmeas R (ar_carrier Ar R_obj)) = 0%R
-  by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
-             /fmeas_norm fmeas_zeroE.
-by rewrite Hz mulr0.
+by apply: fmeas_normz; rewrite add_FMeas_norm fmeas_norm_zero mulr0.
 Qed.
 
 (** ** [mul_FMeas] — the multiplicative companion
@@ -296,23 +293,13 @@ Qed.
 Lemma mul_FMeas_zero_l (nu : fmeas R (ar_carrier Ar R_obj)) :
   mul_FMeas precone_zero nu = precone_zero.
 Proof.
-apply: fmeas_normz.
-rewrite mul_FMeas_norm.
-have Hz : fmeas_norm (precone_zero : fmeas R (ar_carrier Ar R_obj)) = 0%R
-  by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
-             /fmeas_norm fmeas_zeroE.
-by rewrite Hz mul0r.
+by apply: fmeas_normz; rewrite mul_FMeas_norm fmeas_norm_zero mul0r.
 Qed.
 
 Lemma mul_FMeas_zero_r (mu : fmeas R (ar_carrier Ar R_obj)) :
   mul_FMeas mu precone_zero = precone_zero.
 Proof.
-apply: fmeas_normz.
-rewrite mul_FMeas_norm.
-have Hz : fmeas_norm (precone_zero : fmeas R (ar_carrier Ar R_obj)) = 0%R
-  by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
-             /fmeas_norm fmeas_zeroE.
-by rewrite Hz mulr0.
+by apply: fmeas_normz; rewrite mul_FMeas_norm fmeas_norm_zero mulr0.
 Qed.
 
 End AddFMeas.

@@ -207,6 +207,27 @@ Local Notation halt_alp_ :=
 
 Local Open Scope ereal_scope.
 
+(** Shared setup: identification of the [sfix] mass at [U] as the
+    sup-mass of the Kleene chain, plus the convergence of the iterates
+    to the sup at [U]. *)
+Let almost_loop_kleene_setup (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  let Hh := halt_alp_ball R_carrier_eq in
+  let phi_bc' :=
+    phi_bcascade p Hp_ge0 Hp_le1 _ Hh (scones_id (FMeas R_obj)) in
+  fmeas_mu (ex_almost_loop_p_CBN_fix R_carrier_eq p Hp_ge0 Hp_le1) U =
+  fmeas_sup_meas_fun
+    (kleene_chain (sc_incr phi_bc') (sc_ball_pres phi_bc')) U
+  /\
+  (fmeas_mu (kleene phi_bc' n) U @[n --> \oo] -->
+   fmeas_sup_meas_fun
+     (kleene_chain (sc_incr phi_bc') (sc_ball_pres phi_bc')) U).
+Proof.
+split.
+- rewrite /ex_almost_loop_p_CBN_fix /sfix_bcascade /sfix /lfp.
+  by rewrite (fmeas_sup_ballE _ _ mU).
+- exact: fmeas_sup_cvg.
+Qed.
+
 (** *** HEADLINE [p > 0]. *)
 Theorem ex_almost_loop_p_CBN_is_dirac_zero :
   (0 < p)%R ->
@@ -216,16 +237,8 @@ move=> Hp_pos.
 apply: fmeas_eq => U mU.
 set Hh := halt_alp_ball R_carrier_eq.
 set phi_bc' := phi_bcascade p Hp_ge0 Hp_le1 _ Hh (scones_id (FMeas R_obj)).
-have HE : fmeas_mu (ex_almost_loop_p_CBN_fix R_carrier_eq p Hp_ge0 Hp_le1) U =
-          fmeas_sup_meas_fun
-            (kleene_chain (sc_incr phi_bc') (sc_ball_pres phi_bc')) U.
-  rewrite /ex_almost_loop_p_CBN_fix /sfix_bcascade /sfix /lfp.
-  by rewrite (fmeas_sup_ballE _ _ mU).
+have [HE Hcvg] := almost_loop_kleene_setup mU.
 rewrite HE.
-have Hcvg :
-  fmeas_mu (kleene phi_bc' n) U @[n --> \oo] -->
-  fmeas_sup_meas_fun (kleene_chain (sc_incr phi_bc') (sc_ball_pres phi_bc')) U
-  by exact: fmeas_sup_cvg.
 have Hcvg' :
   fmeas_mu (kleene phi_bc' n) U @[n --> \oo] --> fmeas_mu halt_alp_ U.
   under eq_fun => n0 do
@@ -248,16 +261,8 @@ move=> Hp_zero.
 apply: fmeas_eq => U mU.
 set Hh := halt_alp_ball R_carrier_eq.
 set phi_bc' := phi_bcascade p Hp_ge0 Hp_le1 _ Hh (scones_id (FMeas R_obj)).
-have HE : fmeas_mu (ex_almost_loop_p_CBN_fix R_carrier_eq p Hp_ge0 Hp_le1) U =
-          fmeas_sup_meas_fun
-            (kleene_chain (sc_incr phi_bc') (sc_ball_pres phi_bc')) U.
-  rewrite /ex_almost_loop_p_CBN_fix /sfix_bcascade /sfix /lfp.
-  by rewrite (fmeas_sup_ballE _ _ mU).
+have [HE Hcvg] := almost_loop_kleene_setup mU.
 rewrite HE.
-have Hcvg :
-  fmeas_mu (kleene phi_bc' n) U @[n --> \oo] -->
-  fmeas_sup_meas_fun (kleene_chain (sc_incr phi_bc') (sc_ball_pres phi_bc')) U
-  by exact: fmeas_sup_cvg.
 have Hzero : forall n, fmeas_mu (kleene phi_bc' n) U = 0.
   move=> n.
   rewrite -[kleene phi_bc' n]/(kleene_bcascade p Hp_ge0 Hp_le1 halt_alp_ Hh
@@ -265,7 +270,7 @@ have Hzero : forall n, fmeas_mu (kleene phi_bc' n) U = 0.
   rewrite (kleene_alp_pointwise _ _ Hh n mU).
   by rewrite Hp_zero subr0 expr1n subrr mul0e.
 have Hcvg' :
-  fmeas_mu (kleene phi_bc' n) U @[n --> \oo] --> (0 : \bar R).
+  fmeas_mu (kleene phi_bc' n) U @[n --> \oo] --> (0 : \bar R)
   by apply: cvg_near_cst; apply: nearW => n; exact: Hzero.
 have := @cvg_unique _ (@ereal_hausdorff R) _ _ _ _ Hcvg Hcvg'.
 rewrite -[fmeas_mu precone_zero U]/(fmeas_mu fmeas_zero U) fmeas_zeroE.
