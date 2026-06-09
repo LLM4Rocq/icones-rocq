@@ -16,7 +16,7 @@ machinery) lives on the [PPL tab](../ppl/). This document covers the
 
 ---
 
-## QBS-style examples
+## Beyond the paper — QBS-style examples
 
 The QBS-paper flagship programs. Three end-to-end probabilistic
 programs that *do not* use recursion. Each one exercises a different
@@ -227,7 +227,7 @@ pending — see *What is not formalised* below).
 
 ---
 
-## Phase 4 — Recursive examples (productive partial termination)
+## Beyond the paper — Phase 4 recursive examples (productive partial termination)
 
 Recursive probabilistic programs combining `ne_fix` (the CBV
 value-fixpoint of `theories/programs/infra/em_fix.v`) with the
@@ -450,7 +450,7 @@ measurable set.
 
 ---
 
-## Mutual recursion — Beyond ne_fix at function types
+## Beyond the paper — Mutual recursion at free-coalgebra types
 
 The mutual-recursion shape `tprod (tfun A1 B1) (tfun A2 B2)` (paper
 *not covered*; introduced as `ne_fix_mr` in `ppl.v` together with
