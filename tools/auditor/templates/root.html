@@ -8,16 +8,20 @@
   <h1>Paper-to-Rocq correspondence</h1>
   <p class="lede">
     Interactive index for the Rocq formalisation of Ehrhard &amp; Geoffroy,
-    <em>Integration in Cones</em> (LMCS 21(1:1), 2025), and the
-    direct-style probabilistic programming layer built on top.
-    Pick a tab to start exploring.
+    <em>Integration in Cones</em> (LMCS 21(1:1), 2025), the direct-style
+    probabilistic programming layer on top, and the worked surface
+    programs that exercise it. Pick a tab to start exploring.
   </p>
 </section>
 
 <section class="section-block">
   <div class="card-grid root-tab-grid">
-    {% set p_entries = paper.sections|sum(attribute='entries', start=[]) + paper.beyond|sum(attribute='entries', start=[]) %}
-    {% set l_entries = ppl.sections|sum(attribute='entries', start=[]) + ppl.beyond|sum(attribute='entries', start=[]) %}
+    {% set p_entries = paper.sections|sum(attribute='entries', start=[])
+                       + paper.beyond|sum(attribute='entries', start=[]) %}
+    {% set l_entries = ppl.sections|sum(attribute='entries', start=[])
+                       + ppl.beyond|sum(attribute='entries', start=[]) %}
+    {% set x_entries = examples.sections|sum(attribute='entries', start=[])
+                       + examples.beyond|sum(attribute='entries', start=[]) %}
     <a class="card root-tab-card root-tab-paper" href="paper/index.html">
       <div class="card-top">
         <span class="card-eyebrow mono">Tab · paper</span>
@@ -53,6 +57,24 @@
       </p>
       <p class="card-cta">Open PPL tab →</p>
     </a>
+    <a class="card root-tab-card root-tab-examples" href="examples/index.html">
+      <div class="card-top">
+        <span class="card-eyebrow mono">Tab · examples</span>
+        <h2 class="card-title">Examples</h2>
+      </div>
+      <p class="lede">
+        Worked surface programs and their CBV / CBN headline lemmas:
+        random / Bayesian linear, geometric mass, bare divergence,
+        boolean cascades.
+      </p>
+      <p class="card-stats">
+        <strong>{{ examples.sections|length }}</strong> sections ·
+        <strong>{{ examples.beyond|length }}</strong> beyond ·
+        <strong>{{ examples.gaps|length }}</strong> gaps ·
+        <strong>{{ x_entries|length }}</strong> entries.
+      </p>
+      <p class="card-cta">Open Examples tab →</p>
+    </a>
   </div>
 </section>
 
@@ -61,7 +83,7 @@
     <h2>Build provenance</h2>
   </header>
   <p>
-    Both tabs were built from commit
+    All three tabs were built from commit
     <a class="mono" href="https://github.com/{{ build_meta.repo|default('LLM4Rocq/icones-rocq') }}/commit/{{ build_meta.commit }}"><code>{{ build_meta.commit[:12] }}</code></a>
     at <time datetime="{{ build_meta.built_at }}">{{ build_meta.built_at }}</time>.
   </p>

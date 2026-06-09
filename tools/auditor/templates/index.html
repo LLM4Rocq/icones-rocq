@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% from "_macros.html" import status_badge with context %}
 
-{% block title %}Icones — {% if tab == 'paper' %}Paper{% elif tab == 'ppl' %}PPL{% else %}Auditor{% endif %} tab{% endblock %}
+{% block title %}Icones —
+  {%- if tab == 'paper' %} Paper
+  {%- elif tab == 'ppl' %} PPL
+  {%- elif tab == 'examples' %} Examples
+  {%- else %} Auditor
+  {%- endif %} tab{% endblock %}
 {% block body_class_extra %} page-index page-index-{{ tab or 'root' }}{% endblock %}
 
 {% block content %}
@@ -12,6 +17,14 @@
     Top-down narrative of the direct-style PPL: CBV/CBN core, value
     fixpoint, boolean cascade, productive partial termination — all
     axiom-free, all referencing back into the §§ formalisation.
+  </p>
+  {% elif tab == 'examples' %}
+  <h1>Worked PPL programs</h1>
+  <p class="lede">
+    Surface programs written in the PPL and their CBV / CBN headline
+    lemmas: random / Bayesian linear, geometric mass, bare divergence,
+    boolean cascades. Each entry links back to its Rocq script and the
+    PPL chapter it exercises.
   </p>
   {% else %}
   <h1>Paper-to-Rocq correspondence</h1>
@@ -36,7 +49,11 @@
 {% if document.sections %}
 <section class="section-block">
   <header class="section-block-head">
-    <h2>{% if tab == 'ppl' %}PPL chapters{% else %}Paper coverage{% endif %}</h2>
+    <h2>
+      {% if tab == 'ppl' %}PPL chapters
+      {% elif tab == 'examples' %}Example programs
+      {% else %}Paper coverage{% endif %}
+    </h2>
     <p class="section-block-sub">One card per chapter.</p>
   </header>
   <div class="card-grid coverage-grid">
