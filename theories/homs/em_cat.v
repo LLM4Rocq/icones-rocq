@@ -333,8 +333,7 @@ apply: coalg_hom_eqP.
 rewrite /adj_psi /adj_phi /adj_counit /U_mor /=.
 rewrite (bang_fmap_comp (der B) (ch_mor h)) -icones_compA.
 have Hh := ch_is_mor h; rewrite /is_coalg_mor /= in Hh.
-rewrite -Hh icones_compA (comonad_counitR B) icones_compIl.
-by [].
+by rewrite -Hh icones_compA (comonad_counitR B) icones_compIl.
 Qed.
 
 (** *** Naturality of the bijection

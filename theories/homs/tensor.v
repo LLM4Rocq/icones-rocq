@@ -290,10 +290,7 @@ Variables (R : realType) (Ar : MeasSubcat R).
     the [tensor_construct.v] SAFT-equaliser universal element). *)
 Lemma tau_eq_tau' (B C : ICone.type Ar) :
   tau B C = tau' B C.
-Proof.
-rewrite /tau /tensor_curry linhom_post_id icones_compIl.
-by [].
-Qed.
+Proof. by rewrite /tau /tensor_curry linhom_post_id icones_compIl. Qed.
 
 (** [tensor_mor u id_C = tensor_mor_l u] for any [u : B' → B] and [C].
     Proof: both sides are uncurries; their curries coincide. *)

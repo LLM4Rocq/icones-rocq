@@ -287,10 +287,7 @@ Definition is_coalg_mor (P Q : Coalgebra) (h : icones_hom Ar (coalg_obj P) (coal
 (** The identity is a coalgebra morphism. *)
 Lemma coalg_mor_id (P : Coalgebra) :
   is_coalg_mor (P := P) (Q := P) (icones_id Ar (coalg_obj P)).
-Proof.
-rewrite /is_coalg_mor icones_compIr bang_fmap_id icones_compIl.
-by [].
-Qed.
+Proof. by rewrite /is_coalg_mor icones_compIr bang_fmap_id icones_compIl. Qed.
 
 (** Coalgebra morphisms compose. *)
 Lemma coalg_mor_comp (P Q S : Coalgebra)
