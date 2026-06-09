@@ -976,11 +976,10 @@ rewrite tensor_runitEp.
 rewrite (_ : c1_val (one1 : cone_one_car Ar) = 1%:nng); last by [].
 rewrite precone_scale_1.
 rewrite /em_proj2_mor.
-rewrite -[Lfun (icones_comp _ _) _]
-        /(iso_fwd (tensor_lunit (coalg_obj funT_geom))
-            (Lfun (tensor_mor (coalg_e (EM_term : Coalgebra Ar))
-                              (icones_id Ar (coalg_obj funT_geom)))
-                  (ptensor (one1 : cone_one_car Ar) (prom u)))).
+rewrite (Lfun_comp (iso_fwd (tensor_lunit (coalg_obj funT_geom)))
+                   (tensor_mor (coalg_e (EM_term : Coalgebra Ar))
+                               (icones_id Ar (coalg_obj funT_geom)))
+                   (ptensor (one1 : cone_one_car Ar) (prom u))).
 rewrite coalg_e_term tensor_morE.
 rewrite -[Lfun (icones_id Ar _) _]/(prom u).
 rewrite tensor_lunitEp.
@@ -1089,7 +1088,8 @@ rewrite (d_bang_prom (A := coalg_obj G_geom) (at_outer_pt_u u) Houter_le1).
 rewrite tensor_morE.
 rewrite (der_prom (B := coalg_obj G_geom) (at_outer_pt_u u) Houter_le1).
 rewrite tensor_morE.
-rewrite -[icones_id Ar _ _]/(at_outer_pt_u u).
+change (Lfun (icones_id Ar (coalg_obj G_geom)) (at_outer_pt_u u))
+  with (at_outer_pt_u u).
 rewrite -[ch_mor (em_term_mor _)]/(coalg_e G_geom).
 rewrite (coalg_e_G_on_outer_pt_u_E Hu).
 rewrite Lfun_tensor_uncurry_ptensor.
