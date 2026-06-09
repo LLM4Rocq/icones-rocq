@@ -255,7 +255,8 @@ Proof. by apply/funext => i; rewrite /bumpJ finset.in_setT. Qed.
 Lemma bumpJ_le (n : nat) (u u' : 'I_n -> B) (J : {set 'I_n}) (i : 'I_n) :
   (forall j, u j <=p u' j) -> bumpJ u u' J i <=p u' i.
 Proof.
-move=> Hle; rewrite /bumpJ; case: ifP => _; [exact: precone_le_refl|exact: Hle].
+move=> Hle; rewrite /bumpJ.
+by case: ifP => _; [exact: precone_le_refl | exact: Hle].
 Qed.
 
 (** Sum monotonicity of a bumped family: [Σ (bumpJ J) ≤p Σ u']. *)
