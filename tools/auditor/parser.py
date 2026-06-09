@@ -930,13 +930,22 @@ def normalise(
                     )
                 )
             # H2-level entries (rows belonging to no H3) and the chapter
-            # intro live in a synthetic "overview" contrib if any exist.
+            # intro live in a synthetic chapter-overview contrib if any
+            # exist.  The title is the H2 heading minus the
+            # 'Beyond the paper — ' prefix, so the per-tab landing shows
+            # one distinct card per chapter (not 9 identical 'Overview'
+            # cards).
             if entries:
+                chapter_title = blk.heading
+                for prefix in ("Beyond the paper — ", "Beyond the paper -- "):
+                    if chapter_title.startswith(prefix):
+                        chapter_title = chapter_title[len(prefix):]
+                        break
                 beyond.insert(
                     0,
                     BeyondContrib(
                         id=claim_slug("beyond-overview", blk.heading),
-                        title="Overview",
+                        title=chapter_title,
                         intro_html=blk.intro_html,
                         entries=entries,
                         snippets=[],
