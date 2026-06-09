@@ -209,18 +209,23 @@ Local Notation T := (bool_cone_car Ar).
 Definition bool_case_fixed_scones : scones_hom T A :=
   ders (bool_case_icones_hom a b Ha Hb).
 
+(** General-purpose computation on the unit ball: [bool_case_fixed_scones x =
+    bool_case x a b]. *)
+Lemma bool_case_fixed_scones_E (x : T) :
+  cone_norm x <= 1 -> sc_fun bool_case_fixed_scones x = bool_case x a b.
+Proof.
+move=> Hx; rewrite /bool_case_fixed_scones /ders /= (sc_clamp_ball Hx).
+by rewrite /bool_case_icones_hom /linhom_icones /=.
+Qed.
+
 (** Soundness on the true Dirac:
     [bool_case_fixed_scones bool_dirac_true = a]. *)
 Lemma bool_case_fixed_scones_true_E :
   sc_fun bool_case_fixed_scones bool_dirac_true = a.
 Proof.
-rewrite /bool_case_fixed_scones /ders /=.
 have Hbt : cone_norm (bool_dirac_true : T) <= 1
   by rewrite bool_dirac_true_norm.
-rewrite (sc_clamp_ball Hbt).
-(* [bool_case_icones_hom]'s underlying function is [bool_case . a b]. *)
-rewrite /bool_case_icones_hom /linhom_icones /=.
-by rewrite /linhom_fun /= /bool_case_pre /=; exact: bool_case_true.
+by rewrite (bool_case_fixed_scones_E Hbt); exact: bool_case_true.
 Qed.
 
 (** Soundness on the false Dirac:
@@ -228,23 +233,9 @@ Qed.
 Lemma bool_case_fixed_scones_false_E :
   sc_fun bool_case_fixed_scones bool_dirac_false = b.
 Proof.
-rewrite /bool_case_fixed_scones /ders /=.
 have Hbf : cone_norm (bool_dirac_false : T) <= 1
   by rewrite bool_dirac_false_norm.
-rewrite (sc_clamp_ball Hbf).
-rewrite /bool_case_icones_hom /linhom_icones /=.
-by rewrite /linhom_fun /= /bool_case_pre /=; exact: bool_case_false.
-Qed.
-
-(** General-purpose computation on the unit ball: [bool_case_fixed_scones x =
-    bool_case x a b]. *)
-Lemma bool_case_fixed_scones_E (x : T) :
-  cone_norm x <= 1 -> sc_fun bool_case_fixed_scones x = bool_case x a b.
-Proof.
-move=> Hx; rewrite /bool_case_fixed_scones /ders /=.
-rewrite (sc_clamp_ball Hx).
-rewrite /bool_case_icones_hom /linhom_icones /=.
-by rewrite /linhom_fun /= /bool_case_pre /=.
+by rewrite (bool_case_fixed_scones_E Hbf); exact: bool_case_false.
 Qed.
 
 End BoolCaseFixedScones.
