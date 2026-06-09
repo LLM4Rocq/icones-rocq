@@ -1077,35 +1077,13 @@ rewrite (coalg_str_G_on_outer_pt_u_E Hu).
 have Houter_le1 := cone_norm_at_outer_pt_u_le1 Hu.
 rewrite (bang_fmap_prom _ (at_outer_pt_u u) Houter_le1).
 congr (prom _).
-rewrite -[Lfun (icones_comp _ _) _]
-        /(Lfun (der (coalg_obj (tyD tR')))
-               (Lfun (app_under (var_lookup (named_var_to_has_var
-                                  (nv_tail "_"%string tunit _
-                                    (nv_head "g"%string (tfun tunit tR') nil))))
-                                (em_term_mor _))
-                     (at_outer_pt_u u))).
+rewrite [LHS](Lfun_comp).
 rewrite /app_under.
-rewrite -[Lfun (icones_comp _ _) (at_outer_pt_u u)]
-        /(Lfun (tensor_uncurry
-                 (adj_phi (var_lookup (named_var_to_has_var
-                            (nv_tail "_"%string tunit _
-                              (nv_head "g"%string (tfun tunit tR') nil))))))
-               (Lfun (icones_comp (tensor_mor (icones_id Ar _)
-                                              (ch_mor (em_term_mor _)))
-                                  (coalg_d G_geom))
-                     (at_outer_pt_u u))).
-rewrite -[Lfun (icones_comp (tensor_mor _ _) _) (at_outer_pt_u u)]
-        /(Lfun (tensor_mor (icones_id Ar (coalg_obj G_geom))
-                           (ch_mor (em_term_mor G_geom)))
-               (Lfun (coalg_d G_geom) (at_outer_pt_u u))).
+rewrite (Lfun_comp (tensor_uncurry _) (icones_comp _ _) (at_outer_pt_u u)).
+rewrite (Lfun_comp (tensor_mor _ _) (coalg_d _) (at_outer_pt_u u)).
 rewrite /coalg_d.
-rewrite -[Lfun (icones_comp (tensor_mor _ _) _) (at_outer_pt_u u)]
-        /(Lfun (tensor_mor (der (coalg_obj G_geom)) (der (coalg_obj G_geom)))
-               (Lfun (icones_comp (d_bang (coalg_obj G_geom)) (coalg_str G_geom))
-                     (at_outer_pt_u u))).
-rewrite -[Lfun (icones_comp (d_bang _) _) (at_outer_pt_u u)]
-        /(Lfun (d_bang (coalg_obj G_geom))
-               (Lfun (coalg_str G_geom) (at_outer_pt_u u))).
+rewrite (Lfun_comp (tensor_mor _ _) (icones_comp _ _) (at_outer_pt_u u)).
+rewrite (Lfun_comp (d_bang _) (coalg_str _) (at_outer_pt_u u)).
 rewrite (coalg_str_G_on_outer_pt_u_E Hu).
 rewrite (d_bang_prom (A := coalg_obj G_geom) (at_outer_pt_u u) Houter_le1).
 rewrite tensor_morE.
@@ -1119,13 +1097,7 @@ rewrite -[adj_phi _]/(icones_comp (adj_counit _)
                                   (U_mor (var_lookup (named_var_to_has_var
                                     (nv_tail "_"%string tunit _
                                       (nv_head "g"%string (tfun tunit tR') nil)))))).
-rewrite -[Lfun (icones_comp (adj_counit _) _) _]
-        /(Lfun (adj_counit (linhom_car Ar (coalg_obj (tyD tunit))
-                                          (coalg_obj (Tobj (tyD tR')))))
-               (Lfun (U_mor (var_lookup (named_var_to_has_var
-                              (nv_tail "_"%string tunit _
-                                (nv_head "g"%string (tfun tunit tR') nil)))))
-                     (at_outer_pt_u u))).
+rewrite (Lfun_comp (adj_counit _) (U_mor _) (at_outer_pt_u u)).
 rewrite -[U_mor _]
         /(ch_mor (var_lookup (named_var_to_has_var
                     (nv_tail "_"%string tunit _
@@ -1186,63 +1158,18 @@ rewrite (eD_add
            (ne_app (ne_var (nv_tail "_"%string tunit _
                             (nv_head "g"%string (tfun tunit tR') nil)))
                    ne_tt)).
-rewrite -[ch_mor (coalg_comp (bang_cofree_hom _) _)]
-        /(icones_comp (bang_fmap (@add_lift _ _ _ R_carrier_eq
-                                               R_carrier_meas R_to_carrier_meas))
-                      (ch_mor (coalg_comp
-                                 (bang_m (FMeas R_obj) (FMeas R_obj))
-                                 (em_pair _ _)))).
-rewrite -[Lfun (icones_comp _ _) _]
-        /(Lfun (bang_fmap (@add_lift _ _ _ R_carrier_eq
-                                        R_carrier_meas R_to_carrier_meas))
-               (Lfun (ch_mor (coalg_comp
-                                (bang_m (FMeas R_obj) (FMeas R_obj))
-                                (em_pair _ _)))
-                     (at_outer_pt_u u))).
-rewrite -[ch_mor (coalg_comp (bang_m _ _) _)]
-        /(icones_comp (m_bang (FMeas R_obj) (FMeas R_obj))
-                      (em_pair_mor (ch_mor (eD' (@ne_real R Ar R_obj
-                                                  (("_"%string, tunit)
-                                                    :: ("g"%string, tfun tunit tR') :: nil) 1%R)))
-                                   (ch_mor (eD'
-                                             (ne_app
-                                                (ne_var (nv_tail "_"%string tunit _
-                                                          (nv_head "g"%string (tfun tunit tR') nil)))
-                                                ne_tt))))).
-rewrite -[Lfun (icones_comp (m_bang _ _) _) _]
-        /(Lfun (m_bang (FMeas R_obj) (FMeas R_obj))
-               (Lfun (em_pair_mor (Z := G_geom)
-                                  (P := Tobj (tyD tR'))
-                                  (Q := Tobj (tyD tR'))
-                                  (ch_mor (eD' (@ne_real R Ar R_obj
-                                                  (("_"%string, tunit)
-                                                    :: ("g"%string, tfun tunit tR') :: nil) 1%R)))
-                                  (ch_mor (eD'
-                                            (ne_app
-                                               (ne_var (nv_tail "_"%string tunit _
-                                                         (nv_head "g"%string (tfun tunit tR') nil)))
-                                               ne_tt))))
-                     (at_outer_pt_u u))).
+rewrite !coalg_comp_mor.
+rewrite (Lfun_comp (ch_mor (bang_cofree_hom _))
+                   (icones_comp (ch_mor (bang_m _ _)) _)
+                   (at_outer_pt_u u)).
+rewrite (Lfun_comp (ch_mor (bang_m _ _)) (ch_mor (em_pair _ _))
+                   (at_outer_pt_u u)).
+rewrite -[ch_mor (em_pair _ _)]/(em_pair_mor _ _).
 rewrite /em_pair_mor.
-rewrite -[Lfun (icones_comp (tensor_mor _ _) _) _]
-        /(Lfun (tensor_mor
-                  (ch_mor (eD' (@ne_real R Ar R_obj
-                                  (("_"%string, tunit)
-                                    :: ("g"%string, tfun tunit tR') :: nil) 1%R)))
-                  (ch_mor (eD'
-                            (ne_app
-                               (ne_var (nv_tail "_"%string tunit _
-                                         (nv_head "g"%string (tfun tunit tR') nil)))
-                               ne_tt))))
-               (Lfun (coalg_d G_geom) (at_outer_pt_u u))).
+rewrite (Lfun_comp (tensor_mor _ _) (coalg_d _) (at_outer_pt_u u)).
 rewrite /coalg_d.
-rewrite -[Lfun (icones_comp (tensor_mor _ _) _) _]
-        /(Lfun (tensor_mor (der (coalg_obj G_geom)) (der (coalg_obj G_geom)))
-               (Lfun (icones_comp (d_bang (coalg_obj G_geom)) (coalg_str G_geom))
-                     (at_outer_pt_u u))).
-rewrite -[Lfun (icones_comp (d_bang _) _) _]
-        /(Lfun (d_bang (coalg_obj G_geom))
-               (Lfun (coalg_str G_geom) (at_outer_pt_u u))).
+rewrite (Lfun_comp (tensor_mor _ _) (icones_comp _ _) (at_outer_pt_u u)).
+rewrite (Lfun_comp (d_bang _) (coalg_str _) (at_outer_pt_u u)).
 rewrite (coalg_str_G_on_outer_pt_u_E Hu).
 have Houter_le1 := cone_norm_at_outer_pt_u_le1 Hu.
 rewrite (d_bang_prom (A := coalg_obj G_geom) (at_outer_pt_u u) Houter_le1).
