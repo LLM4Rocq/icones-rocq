@@ -248,7 +248,8 @@ Qed.
 Lemma sc_normset_has_sup (f : B -> C) :
   is_meas_stable f -> has_sup (sc_normset f).
 Proof.
-move=> Hf; split; [exact: sc_normset_nonempty | exact: sc_normset_has_ubound].
+by move=> Hf;
+   split; [exact: sc_normset_nonempty | exact: sc_normset_has_ubound].
 Qed.
 
 (** [‖f‖ = sup_{‖x‖ ≤ 1} ‖f x‖]. *)
@@ -537,9 +538,7 @@ Lemma scones_id_clamp_meas_stable : is_meas_stable (sc_clamp (fun x : B => x)).
 Proof. exact: sc_clamp_meas_stable scones_id_meas_stable. Qed.
 
 Lemma scones_id_norm_le1 : sc_norm (sc_clamp (fun x : B => x)) <= 1.
-Proof.
-apply: sc_norm_lub => x Hx; rewrite (sc_clamp_ball Hx); exact: Hx.
-Qed.
+Proof. by apply: sc_norm_lub => x Hx; rewrite (sc_clamp_ball Hx); exact: Hx. Qed.
 
 Definition scones_id : scones_hom B B :=
   MkSconesHom (sc_clamp (fun x => x)) scones_id_clamp_meas_stable
