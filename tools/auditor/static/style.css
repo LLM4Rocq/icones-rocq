@@ -684,6 +684,47 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
   overflow-wrap: anywhere;
 }
 .snippet-section { color: var(--fg-faint); }
+
+/* Foldable code snippets (used on Beyond chapter pages). Same look as
+   .snippet but the figcaption becomes a clickable <summary>. */
+.snippet-fold {
+  margin: 0 0 0.6rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-code);
+  max-width: 100%;
+  min-width: 0;
+}
+.snippet-fold > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.45rem 0.8rem;
+  background: var(--bg-soft);
+  border-bottom: 1px solid transparent;
+  font-size: 0.82rem;
+  color: var(--fg-mute);
+  overflow-wrap: anywhere;
+  user-select: none;
+}
+.snippet-fold > summary::-webkit-details-marker { display: none; }
+.snippet-fold > summary::before {
+  content: "▸ ";
+  color: var(--fg-faint);
+  font-size: 0.78rem;
+}
+.snippet-fold[open] > summary::before { content: "▾ "; }
+.snippet-fold[open] > summary {
+  border-bottom-color: var(--border-soft);
+}
+.snippet-fold > summary:hover { color: var(--fg); }
+.snippet-fold > .codeblock {
+  padding: 0.7rem 0.9rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-code);
+  line-height: 1.5;
+}
 .codeblock {
   padding: 0.7rem 0.9rem;
   overflow-x: auto;

@@ -32,9 +32,27 @@
   </section>
   {% endif %}
 
+  {# Code snippets, foldable per source file.  Rendered between the
+     prose intro and the headline entries: chapter reads as
+     prose → reference code (unfoldable) → headline table. #}
+  {% if beyond.snippets %}
+  <section class="snippets">
+    <h2>Code</h2>
+    {% for snip in beyond.snippets %}
+    <details class="snippet-fold" {% if loop.index <= 1 %}open{% endif %}>
+      <summary>
+        <code class="mono">{{ snip.source_file }}</code>{% if snip.source_section %}
+        <span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
+      </summary>
+      <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
+    </details>
+    {% endfor %}
+  </section>
+  {% endif %}
+
   {% if beyond.entries %}
   <section class="beyond-constructions">
-    <h2>Constructions</h2>
+    <h2>Headlines</h2>
     <ul class="beyond-entry-list">
     {% for e in beyond.entries %}
       <li class="beyond-entry">
@@ -61,20 +79,6 @@
       </li>
     {% endfor %}
     </ul>
-  </section>
-  {% endif %}
-
-  {% if beyond.snippets %}
-  <section class="snippets">
-    <h2>Code</h2>
-    {% for snip in beyond.snippets %}
-    <figure class="snippet">
-      <figcaption><code class="mono">{{ snip.source_file }}</code>
-        {% if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
-      </figcaption>
-      <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
-    </figure>
-    {% endfor %}
   </section>
   {% endif %}
 
