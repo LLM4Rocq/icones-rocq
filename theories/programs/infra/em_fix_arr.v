@@ -1030,6 +1030,21 @@ apply: le_trans (linhom_norm_apply_le Hu _) _.
 by rewrite cone_norm_one1 mulr1.
 Qed.
 
+(** Helper extracted from [Lfun_ch_mor_app_g_tt_at_outer_pt_u_E]:
+    [tensor_uncurry f (x ⊗p y) = linhom_fun (Lfun f x) y].  Generic
+    consequence of [tensor_curryEp] + [tensor_uncurryK]; stating it
+    explicitly here keeps the main app_g_tt Qed cheaper. *)
+Local Lemma Lfun_tensor_uncurry_ptensor
+    (X Y Z : ICone.type Ar) (f : icones_hom Ar X (linhom_car Ar Y Z))
+    (x : X) (y : Y) :
+  Lfun (tensor_uncurry f) (ptensor x y) = linhom_fun (Lfun f x) y.
+Proof.
+have HK := @tensor_uncurryK R Ar X Y Z f.
+have := tensor_curryEp (tensor_uncurry f) x y.
+rewrite HK.
+by move=> ->.
+Qed.
+
 (** *** Parametric app_g_tt: result is [prom (F_lift u)] (was [prom 0] for u=0). *)
 Lemma Lfun_ch_mor_app_g_tt_at_outer_pt_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
   Lfun (ch_mor (eD' (ne_app
@@ -1099,27 +1114,7 @@ rewrite tensor_morE.
 rewrite -[icones_id Ar _ _]/(at_outer_pt_u u).
 rewrite -[ch_mor (em_term_mor _)]/(coalg_e G_geom).
 rewrite (coalg_e_G_on_outer_pt_u_E Hu).
-have Heq :
-  Lfun (tensor_uncurry
-          (adj_phi (var_lookup (named_var_to_has_var
-                     (nv_tail "_"%string tunit _
-                       (nv_head "g"%string (tfun tunit tR') nil))))))
-       (ptensor (at_outer_pt_u u) (one1 : cone_one_car Ar))
-  = linhom_fun
-      (Lfun (adj_phi (var_lookup (named_var_to_has_var
-                        (nv_tail "_"%string tunit _
-                          (nv_head "g"%string (tfun tunit tR') nil)))))
-            (at_outer_pt_u u))
-      (one1 : cone_one_car Ar).
-  set F := adj_phi _.
-  have HK := @tensor_uncurryK R Ar (coalg_obj G_geom)
-                              (coalg_obj (tyD tunit))
-                              (coalg_obj (Tobj (tyD tR'))) F.
-  have := tensor_curryEp (tensor_uncurry F) (at_outer_pt_u u)
-                          (one1 : cone_one_car Ar).
-  rewrite HK.
-  by move=> ->.
-rewrite Heq.
+rewrite Lfun_tensor_uncurry_ptensor.
 rewrite -[adj_phi _]/(icones_comp (adj_counit _)
                                   (U_mor (var_lookup (named_var_to_has_var
                                     (nv_tail "_"%string tunit _
@@ -1144,6 +1139,31 @@ Qed.
 
 
 (** *** §5.5 — Parametric ELSE-branch *)
+
+(** Auxiliary lemma extracted from the proof body of
+    [Lfun_ch_mor_else_e_at_outer_pt_u_E] to keep the main Qed cost
+    reasonable: [real_kleisli ... 1] applied at [at_outer_pt_u u]. *)
+Local Lemma Lfun_real_kleisli_at_outer_pt_u_E
+    (u : L_geom) (Hu : cone_norm u <= 1) :
+  Lfun (ch_mor (@real_kleisli R Ar R_obj R_carrier_eq G_geom 1%R))
+       (at_outer_pt_u u)
+  = prom (Lfun (const_icones G_geom
+                  (dirac_fmeas (R_to_carrier R_carrier_eq 1%R))
+                  (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 1%R)))
+               (at_outer_pt_u u)).
+Proof.
+have Houter_le1 := cone_norm_at_outer_pt_u_le1 Hu.
+set ci := const_icones G_geom
+            (dirac_fmeas (R_to_carrier R_carrier_eq 1%R))
+            (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 1%R)).
+rewrite -[ch_mor (@real_kleisli _ _ _ _ _ _)]
+        /(icones_comp (bang_fmap ci) (coalg_str G_geom)).
+rewrite -[Lfun (icones_comp _ _) (at_outer_pt_u u)]
+        /(Lfun (bang_fmap ci) (Lfun (coalg_str G_geom) (at_outer_pt_u u))).
+rewrite (coalg_str_G_on_outer_pt_u_E Hu).
+exact: (bang_fmap_prom ci (at_outer_pt_u u) Houter_le1).
+Qed.
+
 Lemma Lfun_ch_mor_else_e_at_outer_pt_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
   Lfun (ch_mor (eD' else_e))
        (at_outer_pt_u u)
@@ -1255,17 +1275,7 @@ rewrite (eD_real
 set ci := const_icones G_geom
             (dirac_fmeas (R_to_carrier R_carrier_eq 1%R))
             (dirac_fmeas_norm_le1 (R_to_carrier R_carrier_eq 1%R)).
-have Hreal_at :
-  Lfun (ch_mor (@real_kleisli R Ar R_obj R_carrier_eq G_geom 1%R))
-       (at_outer_pt_u u)
-  = prom (Lfun ci (at_outer_pt_u u)).
-  rewrite -[ch_mor (@real_kleisli _ _ _ _ _ _)]
-          /(icones_comp (bang_fmap ci) (coalg_str G_geom)).
-  rewrite -[Lfun (icones_comp _ _) (at_outer_pt_u u)]
-          /(Lfun (bang_fmap ci) (Lfun (coalg_str G_geom) (at_outer_pt_u u))).
-  rewrite (coalg_str_G_on_outer_pt_u_E Hu).
-  exact: (bang_fmap_prom ci (at_outer_pt_u u) Houter_le1).
-rewrite Hreal_at.
+rewrite (Lfun_real_kleisli_at_outer_pt_u_E Hu).
 set d1 := Lfun ci (at_outer_pt_u u).
 have Hd1 : cone_norm d1 <= 1.
   rewrite /d1.
