@@ -265,15 +265,10 @@ Lemma cbn_var_c_pointwise_E
               [# "c"]) g = sprod_snd (sprod_fst g).
 Proof.
 move=> Hg.
-rewrite /eD_CBN_complete /eD_CBN_full /=.
-have HF := @sc_clamp_ball _ _ _ _ (fun x0 => sc_clamp (cones_proj_fun false) (sc_clamp (cones_proj_fun true) x0)) g Hg.
-rewrite HF.
-have Hfst : (cone_norm (cones_proj_fun true g) <= 1)%R.
-  apply: le_trans Hg. exact: cones_proj_norm_le1.
-have HG1 := @sc_clamp_ball _ _ _ _ (cones_proj_fun true) g Hg.
-rewrite HG1.
-have HG2 := @sc_clamp_ball _ _ _ _ (cones_proj_fun false) (cones_proj_fun true g) Hfst.
-by rewrite HG2.
+have Hfst : (cone_norm (cones_proj_fun true g) <= 1)%R
+  by apply: le_trans Hg; exact: cones_proj_norm_le1.
+rewrite /eD_CBN_complete /eD_CBN_full /= !(sc_clamp_ball Hg).
+by rewrite (sc_clamp_ball Hfst).
 Qed.
 
 (** **HEADLINE 1 (marginal identity) — for every input [x] in the unit
@@ -386,17 +381,6 @@ move=> Hg.
 by rewrite /cbn_add_clause_def /cbn_const_clause scomp_ball.
 Qed.
 
-(** Mul clause pointwise: constant at [precone_zero]. *)
-Lemma cbn_mul_pointwise_E (G : ppl_ctx Ar)
-    (M N : scones_hom (ctxD_CBN G) (tyD_CBN tR'))
-    (g : ctxD_CBN G) :
-  (cone_norm g <= 1)%R ->
-  sc_fun (cbn_mul_clause_def G M N) g = (precone_zero : FMeas R_obj).
-Proof.
-move=> Hg.
-by rewrite /cbn_mul_clause_def /cbn_const_clause scomp_ball.
-Qed.
-
 (** [ex_rl_lam] applied to anything yields [precone_zero] (the body uses
     [ne_add] / [ne_mul], both pragmatically degenerate to [precone_zero]).
     This is the marginal-of-the-lambda-body identity. *)
@@ -407,34 +391,12 @@ Lemma ex_rl_lam_pointwise_zero
   sh_fun (sc_fun (eD'CBN' (@ex_rl_lam R Ar R_obj)) env) x =
   (precone_zero : FMeas R_obj).
 Proof.
-(* ex_rl_lam = lambda. So its denotation is curry of the inner body. *)
-have Hl : eD'CBN' (@ex_rl_lam R Ar R_obj) =
-  curry (@eD_CBN_complete R Ar R_obj R_carrier_eq
-           [:: ("x"%string, tR'); ("b"%string, tR'); ("m"%string, tR')] tR'
-           [# "m" * # "x" + # "b"]).
-  by [].
-rewrite Hl.
-have Henv_x : (cone_norm (sprod_pair env x) <= 1)%R.
+have Henv_x : (cone_norm (sprod_pair env x) <= 1)%R
   by apply: sprod_pair_norm_le1.
+(* [ex_rl_lam] is a lambda; its denotation is the curry of the body.
+   The body uses [ne_add] / [ne_mul], both pragmatically degenerate to
+   [precone_zero], so the curry-application reduces by [cbn_add_pointwise_E]. *)
 rewrite (curry_appE _ _ _ Henv Hx).
-(* Body = add (mul (var m) (var x)) (var b) — using degenerate clauses. *)
-have HM : @eD_CBN_complete R Ar R_obj R_carrier_eq
-            [:: ("x"%string, tR'); ("b"%string, tR'); ("m"%string, tR')] tR'
-            [# "m" * # "x" + # "b"] =
-          cbn_add_clause_def
-            [:: tR'; tR'; tR']
-            (cbn_mul_clause_def [:: tR'; tR'; tR']
-              (@eD_CBN_complete R Ar R_obj R_carrier_eq
-                 [:: ("x"%string, tR'); ("b"%string, tR'); ("m"%string, tR')]
-                 tR' [# "m"])
-              (@eD_CBN_complete R Ar R_obj R_carrier_eq
-                 [:: ("x"%string, tR'); ("b"%string, tR'); ("m"%string, tR')]
-                 tR' [# "x"]))
-            (@eD_CBN_complete R Ar R_obj R_carrier_eq
-               [:: ("x"%string, tR'); ("b"%string, tR'); ("m"%string, tR')] tR'
-               [# "b"]).
-  by [].
-rewrite HM.
 by rewrite (cbn_add_pointwise_E (G := [:: tR'; tR'; tR']) _ _ Henv_x).
 Qed.
 
@@ -471,7 +433,8 @@ have HE_inner : eD'CBN' (@ex_rl_inner R Ar R_obj mu Hmu) =
                      (cbn_sample_clause_def (R_obj:=R_obj) [:: tR'] mu Hmu)).
   by [].
 rewrite HE_inner scomp_ball // scpair_ball //.
-have Hid2 : sc_fun (scones_id (ctxD_CBN [:: tR'])) (sprod_pair g (mu : FMeas R_obj))
+have Hid2 : sc_fun (scones_id (ctxD_CBN [:: tR']))
+              (sprod_pair g (mu : FMeas R_obj))
             = sprod_pair g (mu : FMeas R_obj).
   by rewrite /scones_id /= (sc_clamp_ball Hpair_ball).
 rewrite Hid2.
@@ -516,16 +479,6 @@ Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
 Local Notation tR' := (tR R_obj).
 Local Notation eD'CBN' := (@eD_CBN_complete R Ar R_obj R_carrier_eq).
 
-(** Sample-clause on-ball reduction (helper). *)
-Lemma cbn_sample_pointwise_E (G : ppl_ctx Ar) (mu0 : fmeas R (ar_carrier Ar R_obj))
-    (Hmu0 : (cone_norm mu0 <= 1)%R) (g : ctxD_CBN G) :
-  (cone_norm g <= 1)%R ->
-  sc_fun (cbn_sample_clause_def G mu0 Hmu0) g = mu0.
-Proof.
-move=> Hg.
-by rewrite /cbn_sample_clause_def /cbn_const_clause scomp_ball.
-Qed.
-
 (** Variable-lookup [#"m"] in context [("_":tunit) :: ("m":tR') :: nil]
     on the unit ball: projects via [sprod_fst] then [sprod_snd]. *)
 Lemma cbn_var_m_pointwise_E (g : sprod (sprod (Stop Ar) (FMeas R_obj)) (Stop Ar)) :
@@ -535,15 +488,10 @@ Lemma cbn_var_m_pointwise_E (g : sprod (sprod (Stop Ar) (FMeas R_obj)) (Stop Ar)
               [# "m"]) g = sprod_snd (sprod_fst g).
 Proof.
 move=> Hg.
-rewrite /eD_CBN_complete /eD_CBN_full /=.
-have HF := @sc_clamp_ball _ _ _ _ (fun x0 => sc_clamp (cones_proj_fun false) (sc_clamp (cones_proj_fun true) x0)) g Hg.
-rewrite HF.
-have Hfst : (cone_norm (cones_proj_fun true g) <= 1)%R.
-  apply: le_trans Hg. exact: cones_proj_norm_le1.
-have HG1 := @sc_clamp_ball _ _ _ _ (cones_proj_fun true) g Hg.
-rewrite HG1.
-have HG2 := @sc_clamp_ball _ _ _ _ (cones_proj_fun false) (cones_proj_fun true g) Hfst.
-by rewrite HG2.
+have Hfst : (cone_norm (cones_proj_fun true g) <= 1)%R
+  by apply: le_trans Hg; exact: cones_proj_norm_le1.
+rewrite /eD_CBN_complete /eD_CBN_full /= !(sc_clamp_ball Hg).
+by rewrite (sc_clamp_ball Hfst).
 Qed.
 
 Variable (f : R -> R).
@@ -612,7 +560,7 @@ rewrite HE scomp_ball // scpair_ball //.
 have Hid : sc_fun (scones_id (ctxD_CBN (drop_names (Ar:=Ar) nil))) g = g.
   by rewrite /scones_id /= (sc_clamp_ball Hg).
 rewrite Hid.
-rewrite (cbn_sample_pointwise_E _ Hg).
+rewrite (cbn_rc_sample_E _ Hg).
 have Hpair_ball : (cone_norm (sprod_pair g (mu : FMeas R_obj)) <= 1)%R.
   by apply: sprod_pair_norm_le1.
 rewrite (ex_bl_cont_pointwise_E Hpair_ball).
