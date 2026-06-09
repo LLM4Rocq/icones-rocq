@@ -299,22 +299,26 @@ Proof.
 exact: (meas_stable_bin_bilinear_tensor mul_FMeas_icones').
 Qed.
 
+(** Pair components on the unit ball are each in the unit ball. *)
+Let sprod_components_ball (p : sprod (FMeas R_obj) (FMeas R_obj)) :
+    (cone_norm p <= 1)%R ->
+    (cone_norm (sprod_fst p : FMeas R_obj) <= 1)%R
+    /\ (cone_norm (sprod_snd p : FMeas R_obj) <= 1)%R.
+Proof.
+move=> Hp; split; apply: le_trans Hp.
+- by have := cones_prod_norm_ge_comp p true.
+- by have := cones_prod_norm_ge_comp p false.
+Qed.
+
 (** Norm bounds on the unit ball: [|add_FMeas mu nu| ≤ |mu| · |nu| ≤
     1] when both are in the unit ball. *)
 Lemma add_FMeas_pair_fun_norm_le1
     (p : sprod (FMeas R_obj) (FMeas R_obj)) :
   (cone_norm p <= 1)%R -> (cone_norm (add_FMeas_pair_fun p) <= 1)%R.
 Proof.
-move=> Hp.
-have Hfst : (cone_norm (sprod_fst p : FMeas R_obj) <= 1)%R.
-  apply: le_trans Hp.
-  by have := cones_prod_norm_ge_comp p true.
-have Hsnd : (cone_norm (sprod_snd p : FMeas R_obj) <= 1)%R.
-  apply: le_trans Hp.
-  by have := cones_prod_norm_ge_comp p false.
-rewrite /add_FMeas_pair_fun.
-rewrite (add_FMeas_lax_icones_pt R_carrier_eq R_carrier_meas
-                                  R_to_carrier_meas).
+move=> /sprod_components_ball [Hfst Hsnd].
+rewrite /add_FMeas_pair_fun (add_FMeas_lax_icones_pt R_carrier_eq
+   R_carrier_meas R_to_carrier_meas).
 exact: add_FMeas_norm_le1.
 Qed.
 
@@ -322,16 +326,9 @@ Lemma mul_FMeas_pair_fun_norm_le1
     (p : sprod (FMeas R_obj) (FMeas R_obj)) :
   (cone_norm p <= 1)%R -> (cone_norm (mul_FMeas_pair_fun p) <= 1)%R.
 Proof.
-move=> Hp.
-have Hfst : (cone_norm (sprod_fst p : FMeas R_obj) <= 1)%R.
-  apply: le_trans Hp.
-  by have := cones_prod_norm_ge_comp p true.
-have Hsnd : (cone_norm (sprod_snd p : FMeas R_obj) <= 1)%R.
-  apply: le_trans Hp.
-  by have := cones_prod_norm_ge_comp p false.
-rewrite /mul_FMeas_pair_fun.
-rewrite (mul_FMeas_lax_icones_pt R_carrier_eq R_carrier_meas
-                                  R_to_carrier_meas).
+move=> /sprod_components_ball [Hfst Hsnd].
+rewrite /mul_FMeas_pair_fun (mul_FMeas_lax_icones_pt R_carrier_eq
+   R_carrier_meas R_to_carrier_meas).
 exact: mul_FMeas_norm_le1.
 Qed.
 
