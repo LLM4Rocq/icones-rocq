@@ -46,14 +46,10 @@
 </section>
 {% endif %}
 
-{% if document.sections %}
+{% if tab == 'paper' and document.sections %}
 <section class="section-block">
   <header class="section-block-head">
-    <h2>
-      {% if tab == 'ppl' %}PPL chapters
-      {% elif tab == 'examples' %}Example programs
-      {% else %}Paper coverage{% endif %}
-    </h2>
+    <h2>Paper coverage</h2>
     <p class="section-block-sub">One card per chapter.</p>
   </header>
   <div class="card-grid coverage-grid">
@@ -86,6 +82,38 @@
 </section>
 {% endif %}
 
+{% if tab in ('ppl', 'examples') and document.chapters %}
+<section class="section-block">
+  <header class="section-block-head">
+    <h2>{% if tab == 'ppl' %}PPL chapters{% else %}Example program chapters{% endif %}</h2>
+    <p class="section-block-sub">One card per chapter.</p>
+  </header>
+  <div class="card-grid coverage-grid">
+    {% for chapter in document.chapters %}
+    {% set s = chapter.stats %}
+    <a class="card section-card" href="{{ root_prefix }}chapters/{{ chapter.id }}.html">
+      <div class="card-top">
+        <span class="card-eyebrow mono">Chapter</span>
+        <h3 class="card-title">{{ chapter.title }}</h3>
+      </div>
+      <p class="card-stats">
+        <strong>{{ s.n_sections }}</strong> sections ·
+        <strong>{{ s.n_entries }}</strong> entries
+      </p>
+      <p class="card-meta">
+        {% if s.n_defs %}{{ s.n_defs }} def{{ 's' if s.n_defs != 1 else '' }} · {% endif %}
+        {% if s.n_thms %}{{ s.n_thms }} thm{{ 's' if s.n_thms != 1 else '' }} · {% endif %}
+        {{ s.n_snippets }} snippet{{ 's' if s.n_snippets != 1 else '' }} ·
+        {{ s.loc }} LoC
+      </p>
+      <p class="card-cta">Open →</p>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if tab == 'paper' %}
 <section class="section-block">
   <header class="section-block-head">
     <h2>Beyond the paper</h2>
@@ -143,6 +171,7 @@
   <p class="empty">No Beyond contributions reported.</p>
   {% endif %}
 </section>
+{% endif %}
 
 {% if document.gaps %}
 <section class="section-block">

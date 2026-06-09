@@ -1,5 +1,55 @@
 {# Reusable rendering bits for entries, status badges, file refs. #}
 
+{% macro section_snippets(snippets) -%}
+{% if snippets %}
+<section class="snippets section-snippets">
+  <h2>Code</h2>
+  {% for snip in snippets %}
+  <details class="snippet-fold" {% if loop.index <= 1 %}open{% endif %}>
+    <summary>
+      <code class="mono">{{ snip.source_file }}</code>
+      {% if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
+      {% if snip.line_count %}<span class="snippet-loc">· {{ snip.line_count }} LoC</span>{% endif %}
+    </summary>
+    <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
+  </details>
+  {% endfor %}
+</section>
+{% endif %}
+{%- endmacro %}
+
+{% macro stats_line(stats) -%}
+<dl class="stats-line">
+  <div><strong>{{ stats.n_sections }}</strong><span class="label">sections</span></div>
+  <div><strong>{{ stats.n_entries }}</strong><span class="label">entries</span></div>
+  {% if stats.n_defs %}<div><strong>{{ stats.n_defs }}</strong><span class="label">definitions</span></div>{% endif %}
+  {% if stats.n_thms %}<div><strong>{{ stats.n_thms }}</strong><span class="label">theorems</span></div>{% endif %}
+  <div><strong>{{ stats.n_snippets }}</strong><span class="label">snippets</span></div>
+  <div><strong>{{ stats.loc }}</strong><span class="label">LoC</span></div>
+</dl>
+{%- endmacro %}
+
+{% macro chapter_card(chapter, root_prefix) -%}
+{% set s = chapter.stats %}
+<a class="card section-card" href="{{ root_prefix }}chapters/{{ chapter.id }}.html">
+  <div class="card-top">
+    <span class="card-eyebrow mono">Chapter</span>
+    <h3 class="card-title">{{ chapter.title }}</h3>
+  </div>
+  <p class="card-stats">
+    <strong>{{ s.n_sections }}</strong> sections ·
+    <strong>{{ s.n_entries }}</strong> entries
+  </p>
+  <p class="card-meta">
+    {% if s.n_defs %}{{ s.n_defs }} def{{ 's' if s.n_defs != 1 else '' }} · {% endif %}
+    {% if s.n_thms %}{{ s.n_thms }} thm{{ 's' if s.n_thms != 1 else '' }} · {% endif %}
+    {{ s.n_snippets }} snippet{{ 's' if s.n_snippets != 1 else '' }} ·
+    {{ s.loc }} LoC
+  </p>
+  <p class="card-cta">Open →</p>
+</a>
+{%- endmacro %}
+
 {% macro status_badge(status) -%}
 {%- set labels = {
   'axiom-free':         ('Axiom-free',         '✓'),

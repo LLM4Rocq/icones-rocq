@@ -1,26 +1,36 @@
 {% extends "base.html" %}
-{% from "_macros.html" import entry_card, status_badge with context %}
+{% from "_macros.html" import entry_card, section_snippets, status_badge with context %}
 
-{% block title %}§ {{ section.paper_section_number }} {{ section.title }} — Icones auditor{% endblock %}
+{% block title %}{% if section.paper_section_number %}§ {{ section.paper_section_number }} {% endif %}{{ section.title }} — Icones auditor{% endblock %}
 {% block body_class_extra %} page-section{% endblock %}
 
 {% block breadcrumbs %}
 <nav class="breadcrumbs" aria-label="Breadcrumb">
   <ol>
     <li><a href="{{ root_prefix }}index.html">Auditor</a></li>
-    <li aria-current="page">§ {{ section.paper_section_number }} {{ section.title }}</li>
+    {% if chapter %}
+    <li><a href="{{ root_prefix }}chapters/{{ chapter.id }}.html">{{ chapter.title }}</a></li>
+    {% endif %}
+    <li aria-current="page">{% if section.paper_section_number %}§ {{ section.paper_section_number }} {% endif %}{{ section.title }}</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
 <header class="section-hero">
+  {% if section.paper_section_number %}
   <p class="eyebrow mono">Paper § {{ section.paper_section_number }}</p>
+  {% elif chapter %}
+  <p class="eyebrow mono">{{ tab|upper }} chapter · {{ chapter.title }}</p>
+  {% endif %}
   <h1>{{ section.title }}</h1>
   {% if section.intro_html %}
   <div class="prose intro">{{ section.intro_html|safe }}</div>
   {% endif %}
 </header>
+
+{# H3-level code blocks (only present on PPL/Examples sections). #}
+{{ section_snippets(section.snippets) }}
 
 {# Counts for tab chips, computed once. #}
 {% set total = section.entries|length %}
@@ -30,6 +40,10 @@
 {% set dd = section.entries|selectattr('status', 'contains', 'discharged-deferred')|list|length %}
 {% set gp = section.entries|selectattr('status', 'contains', 'gap')|list|length %}
 
+{# Single-entry shape (b): inline the entry, drop the duplicate card grid + status tabs. #}
+{% set single = (section.entries|length == 1) and (section.entries[0].id == section.id) %}
+
+{% if tab == 'paper' and not single %}
 <nav class="tabs" role="tablist" aria-label="Filter entries by status">
   <button class="tab tab-all is-active" role="tab" aria-selected="true"
           data-filter="">All <span class="count">{{ total }}</span></button>
@@ -48,12 +62,17 @@
   <button class="tab tab-gap" role="tab" data-filter="gap">
     Gaps <span class="count">{{ gp }}</span></button>
 </nav>
+{% endif %}
 
 <div class="entries">
   {% if section.entries %}
-  {% for entry in section.entries %}
-  {{ entry_card(entry, section, tab=tab) }}
-  {% endfor %}
+    {% if single %}
+      {{ entry_card(section.entries[0], section, expanded=True, tab=tab) }}
+    {% else %}
+      {% for entry in section.entries %}
+      {{ entry_card(entry, section, tab=tab) }}
+      {% endfor %}
+    {% endif %}
   {% else %}
   <p class="empty">No entries in this section yet.</p>
   {% endif %}
@@ -67,18 +86,18 @@
 {% endif %}
 
 <nav class="prev-next" aria-label="Section navigation">
-  {% set sections = document.sections %}
+  {% set sections = chapter.sections if chapter else document.sections %}
   {% set idx = sections.index(section) if section in sections else -1 %}
   {% if idx > 0 %}
   {% set prev = sections[idx-1] %}
   <a class="prev" href="{{ root_prefix }}sections/{{ prev.id }}.html">
-    ← <span class="mono">§ {{ prev.paper_section_number }}</span> {{ prev.title }}
+    ← {% if prev.paper_section_number %}<span class="mono">§ {{ prev.paper_section_number }}</span> {% endif %}{{ prev.title }}
   </a>
   {% else %}<span></span>{% endif %}
   {% if idx >= 0 and idx + 1 < sections|length %}
   {% set nxt = sections[idx+1] %}
   <a class="next" href="{{ root_prefix }}sections/{{ nxt.id }}.html">
-    <span class="mono">§ {{ nxt.paper_section_number }}</span> {{ nxt.title }} →
+    {% if nxt.paper_section_number %}<span class="mono">§ {{ nxt.paper_section_number }}</span> {% endif %}{{ nxt.title }} →
   </a>
   {% else %}<span></span>{% endif %}
 </nav>

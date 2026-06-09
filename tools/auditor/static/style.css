@@ -1153,3 +1153,58 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
   font-size: 0.85rem;
   color: var(--fg-mute);
 }
+
+/* ============================================================ Chapter landing
+ * Cousin of .section-hero — chapter pages use this hero block above the
+ * section card grid.  Stats line replaces the % axiom-free bar on
+ * PPL/Examples (kept on Paper). */
+.chapter-hero {
+  margin: 0 0 1.6rem 0;
+}
+.chapter-hero .eyebrow { color: var(--fg-mute); }
+
+.stats-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin: 0.6rem 0 1rem;
+  padding: 0;
+}
+.stats-line > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.stats-line strong {
+  font-size: 1.1rem;
+  color: var(--fg);
+  font-weight: 600;
+}
+.stats-line .label {
+  font-size: 0.75rem;
+  color: var(--fg-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card-meta {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 0.8rem;
+  color: var(--fg-mute);
+}
+.card-eyebrow {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-mute);
+}
+
+.section-snippets {
+  margin: 1.2rem 0 1.6rem;
+}
+
+.snippet-loc {
+  color: var(--fg-mute);
+  font-size: 0.78rem;
+  margin-left: 0.3rem;
+}
