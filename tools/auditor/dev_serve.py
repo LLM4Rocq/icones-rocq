@@ -8,9 +8,11 @@ When invoked without arguments, expects a data.json on stdin or at
 `tools/auditor/_dev_data.json`. The output directory defaults to
 `_site/auditor/`. The static/ tree is copied verbatim alongside templates.
 
-The script auto-detects whether the payload is the dual-tab shape
-(``{"paper": ..., "ppl": ...}``) or the legacy single-Document shape and
-emits accordingly.
+The script auto-detects whether the payload is the triple-tab shape
+(``{"paper": ..., "ppl": ..., "examples": ...}``), the legacy dual-tab
+shape (``{"paper": ..., "ppl": ...}``) — in which case an empty Examples
+tab is synthesised — or the legacy single-Document shape, and emits
+accordingly.
 """
 
 from __future__ import annotations
@@ -47,8 +49,26 @@ def xref_href(prefix: str):
     return _h
 
 
-def _is_two_tab(data: dict) -> bool:
+def _is_multi_tab(data: dict) -> bool:
+    """True for both legacy dual-tab and current triple-tab payloads."""
     return "paper" in data and "ppl" in data and "sections" not in data
+
+
+# Back-compat alias.
+_is_two_tab = _is_multi_tab
+
+
+def _empty_doc() -> dict:
+    """Stand-in for a missing tab (e.g. legacy dual-tab payload)."""
+    return {
+        "preamble_html": "",
+        "sections": [],
+        "beyond": [],
+        "gaps": [],
+        "verify_instructions_html": "",
+        "axiom_anchors": {"regression": "", "headlines": []},
+        "build_meta": {"commit": "", "built_at": "", "auditor_lines": 0},
+    }
 
 
 def _make_env() -> Environment:
@@ -131,11 +151,14 @@ def build(data: dict, out_dir: Path) -> None:
         shutil.rmtree(static_out)
     shutil.copytree(STATIC, static_out)
 
-    if _is_two_tab(data):
+    if _is_multi_tab(data):
         build_meta = data.get("build_meta", {})
+        # Legacy dual-tab payloads get an empty Examples tab.
+        examples_doc = data.get("examples") or _empty_doc()
+        full_payload = {**data, "examples": examples_doc}
         # Combined data.json at the site root.
         (out_dir / "data.json").write_text(
-            json.dumps(data, indent=2), encoding="utf-8"
+            json.dumps(full_payload, indent=2), encoding="utf-8"
         )
         # Root landing.
         prefixes = _set_prefixes(env, "", "", "")
@@ -143,6 +166,7 @@ def build(data: dict, out_dir: Path) -> None:
             "document": data.get("paper", {}),
             "paper": data["paper"],
             "ppl": data["ppl"],
+            "examples": examples_doc,
             "build_meta": build_meta,
             "tab": None,
             **prefixes,
@@ -153,6 +177,7 @@ def build(data: dict, out_dir: Path) -> None:
         )
         _render_tab(env, out_dir, "paper", data["paper"], build_meta)
         _render_tab(env, out_dir, "ppl", data["ppl"], build_meta)
+        _render_tab(env, out_dir, "examples", examples_doc, build_meta)
         return
 
     # Legacy single-tab payload: render at the root for back-compat.
