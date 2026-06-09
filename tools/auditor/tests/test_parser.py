@@ -298,9 +298,11 @@ def test_parse_two_tabs_basic(tmp_path):
     # Paper tab carries a §2 section with two entries.
     assert len(two.paper.sections) == 1
     assert len(two.paper.sections[0].entries) == 2
-    # PPL tab carries no §-sections but at least one Beyond contrib.
+    # PPL tab carries no §-sections; the new chapter-tree path materialises
+    # at least one Chapter on PPL/Examples, and the compat shim mirrors
+    # ``chapters[*].sections[*]`` into ``doc.beyond``.
     assert two.ppl.sections == []
-    assert len(two.ppl.beyond) >= 1
+    assert len(two.ppl.beyond) >= 1 and len(two.ppl.chapters) >= 1
     # Examples tab is the empty default when the legacy 2-arg shim is used.
     assert two.examples.sections == []
     assert two.examples.beyond == []
@@ -348,9 +350,15 @@ def test_parse_two_tabs_independent_status(tmp_path):
         s for sec in two.paper.sections for e in sec.entries for s in e.status
     ]
     assert "regression-anchor" in p_statuses
-    # PPL contains only beyond-paper rows.
+    # PPL contains only beyond-paper rows.  Iterate the chapter tree:
+    # the chapter-mode build is the authoritative source on PPL/Examples.
+    assert len(two.ppl.chapters) >= 1
     l_statuses = [
-        s for b in two.ppl.beyond for e in b.entries for s in e.status
+        s
+        for c in two.ppl.chapters
+        for sec in c.sections
+        for e in sec.entries
+        for s in e.status
     ]
     assert l_statuses and all(s == "beyond-paper" for s in l_statuses)
 
@@ -375,9 +383,11 @@ def test_parse_three_tabs_basic(tmp_path):
     # Paper tab: §2 with two entries.
     assert len(three.paper.sections) == 1
     assert len(three.paper.sections[0].entries) == 2
-    # PPL tab: Beyond-only.
+    # PPL tab: chapter-tree path active.  Compat shim mirrors the chapter
+    # tree onto ``doc.beyond`` so the legacy ``len(beyond) >= 1`` check
+    # still holds.
     assert three.ppl.sections == []
-    assert len(three.ppl.beyond) >= 1
+    assert len(three.ppl.beyond) >= 1 and len(three.ppl.chapters) >= 1
     # Examples tab: regression-anchor fixture has a paper section.
     assert len(three.examples.sections) == 1
     # tab() round-trips for all three names.
@@ -410,6 +420,78 @@ def test_parse_three_tabs_prefixes_warnings(tmp_path):
     # Ppl + examples may carry zero file refs in these fixtures, in which
     # case their prefixes won't fire — that's fine: the test only checks
     # the prefix machinery itself surfaces correctly for the Paper tab.
+
+
+# -- chapter-tree tests (PPL / Examples) -----------------------------------
+
+
+def test_ppl_chapter_section_shape_b(tmp_path):
+    """PPL-shape fixture: H3 with prose + snippets and no headline table."""
+    path = GOLDEN / "10_ppl_chapter_section.md"
+    doc, _ = parse(
+        path.read_text(encoding="utf-8"),
+        resolver=_resolver(),
+        project_root=tmp_path,
+        strict=False,
+        tab=TAB_PPL,
+    )
+    assert len(doc.chapters) == 1
+    ch = doc.chapters[0]
+    assert ch.id.startswith("ppl-ch-")
+    # Two H3s in the fixture → two sections.
+    assert len(ch.sections) == 2
+    # Shape (b): single-Entry section with id == section.id.
+    for sec in ch.sections:
+        assert len(sec.entries) == 1
+        assert sec.entries[0].id == sec.id
+        assert sec.entries[0].detail is not None
+        # Each H3 fixture carries one Coq snippet inlined into the entry detail.
+        assert len(sec.entries[0].detail.snippets) >= 1
+    # Chapter stats roll up sensibly.
+    assert ch.stats.n_sections == 2
+    assert ch.stats.n_entries == 2
+    assert ch.stats.loc > 0
+    # Compat shim populates ``doc.beyond``.
+    assert len(doc.beyond) >= 1
+
+
+def test_examples_headline_table_shape_a(tmp_path):
+    """EXAMPLES-shape fixture: H3 with a Side/Headline/Status table."""
+    path = GOLDEN / "11_examples_headline_table.md"
+    doc, _ = parse(
+        path.read_text(encoding="utf-8"),
+        resolver=_resolver(),
+        project_root=tmp_path,
+        strict=False,
+        tab=TAB_EXAMPLES,
+    )
+    assert len(doc.chapters) == 1
+    ch = doc.chapters[0]
+    assert ch.id.startswith("examples-ch-")
+    assert len(ch.sections) == 1
+    sec = ch.sections[0]
+    # The Side/Headline/Status table has 3 rows.
+    assert len(sec.entries) == 3
+    e0 = sec.entries[0]
+    # First row: `ex_geom_arr_mass_one` is the only backticked ident.
+    assert e0.rocq_idents == ["ex_geom_arr_mass_one"]
+    # CBV side prefix → paper_kind "CBV".
+    assert e0.paper_kind == "CBV"
+    assert e0.detail is not None
+    # The matching snippet should be the one whose source_file is
+    # em_fix_arr.v (it carries `Theorem ex_geom_arr_mass_one`).
+    assert e0.detail.snippets
+    assert (
+        e0.detail.snippets[0].source_file
+        == "theories/programs/infra/em_fix_arr.v"
+    )
+    # Stats.
+    assert ch.stats.n_entries == 3
+    assert ch.stats.loc > 0
+    # Status passes through verbatim.
+    assert e0.status == ["axiom-free"]
+    # CBN row classifies to CBN.
+    assert sec.entries[2].paper_kind == "CBN"
 
 
 def test_parse_tabs_generic_orchestrator(tmp_path):

@@ -74,6 +74,8 @@ def _xref_href(prefix: str):
             return f"{prefix}entries/{tgt}.html"
         if kind == "beyond":
             return f"{prefix}beyond/{tgt}.html"
+        if kind == "chapter":
+            return f"{prefix}chapters/{tgt}.html"
         if kind == "blueprint":
             return f"{prefix}../../blueprint/{tgt}"
         return "#" + tgt
@@ -175,7 +177,10 @@ def _emit_tab(
     overrides the doc's own metadata for footer rendering (the dashboard
     publishes a single set of provenance values).
     """
-    counts = {"index": 0, "sections": 0, "entries": 0, "beyond": 0, "gaps": 0, "json": 0}
+    counts = {
+        "index": 0, "sections": 0, "entries": 0, "beyond": 0,
+        "gaps": 0, "json": 0, "chapters": 0,
+    }
     tab_dir = Path(tab)
 
     # Inject the shared build_meta so templates pick it up via doc.build_meta.
@@ -219,80 +224,141 @@ def _emit_tab(
     )
     counts["index"] = 1
 
-    # -- per-section + per-entry ---------------------------------------
-    for section in doc.sections:
-        rel_within = Path("sections") / f"{section.id}.html"
-        root_p, static_p, tab_p = _prefixes(rel_within)
-        _emit(
-            env, out, tab_dir / rel_within, "section.html",
-            {
-                "document": doc,
-                "section": section,
-                "entries": section.entries,
-                "build_meta": build_meta,
-                "tab": tab,
-                "title": section.title or section.id,
-                "body": _section_body_html(section),
-            },
-            root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
-        )
-        counts["sections"] += 1
-
-        for entry in section.entries:
-            rel_e = Path("entries") / f"{entry.id}.html"
-            root_p, static_p, tab_p = _prefixes(rel_e)
+    if doc.chapters:
+        # Chapter-tree path (PPL / Examples).  Emit chapter / section /
+        # entry pages from ``doc.chapters``; skip the legacy ``beyond/``
+        # tree (the chapter tree replaces it).
+        for chapter in doc.chapters:
+            rel_c = Path("chapters") / f"{chapter.id}.html"
+            root_p, static_p, tab_p = _prefixes(rel_c)
             _emit(
-                env, out, tab_dir / rel_e, "entry.html",
+                env, out, tab_dir / rel_c, "chapter.html",
                 {
                     "document": doc,
-                    "entry": entry,
+                    "chapter": chapter,
+                    "build_meta": build_meta,
+                    "tab": tab,
+                    "title": chapter.title,
+                    "body": _chapter_body_html(chapter),
+                },
+                root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+            )
+            counts["chapters"] += 1
+
+            for section in chapter.sections:
+                rel_s = Path("sections") / f"{section.id}.html"
+                root_p, static_p, tab_p = _prefixes(rel_s)
+                _emit(
+                    env, out, tab_dir / rel_s, "section.html",
+                    {
+                        "document": doc,
+                        "section": section,
+                        "chapter": chapter,
+                        "entries": section.entries,
+                        "build_meta": build_meta,
+                        "tab": tab,
+                        "title": section.title or section.id,
+                        "body": _section_body_html(section),
+                    },
+                    root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+                )
+                counts["sections"] += 1
+
+                for entry in section.entries:
+                    rel_e = Path("entries") / f"{entry.id}.html"
+                    root_p, static_p, tab_p = _prefixes(rel_e)
+                    _emit(
+                        env, out, tab_dir / rel_e, "entry.html",
+                        {
+                            "document": doc,
+                            "entry": entry,
+                            "section": section,
+                            "chapter": chapter,
+                            "build_meta": build_meta,
+                            "tab": tab,
+                            "title": entry.paper_label,
+                            "body": _entry_body_html(entry),
+                        },
+                        root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+                    )
+                    counts["entries"] += 1
+    else:
+        # Legacy paper-style tree: H2 sections + Beyond contribs.
+
+        # -- per-section + per-entry -----------------------------------
+        for section in doc.sections:
+            rel_within = Path("sections") / f"{section.id}.html"
+            root_p, static_p, tab_p = _prefixes(rel_within)
+            _emit(
+                env, out, tab_dir / rel_within, "section.html",
+                {
+                    "document": doc,
                     "section": section,
+                    "entries": section.entries,
                     "build_meta": build_meta,
                     "tab": tab,
-                    "title": entry.paper_label,
-                    "body": _entry_body_html(entry),
+                    "title": section.title or section.id,
+                    "body": _section_body_html(section),
                 },
                 root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
             )
-            counts["entries"] += 1
+            counts["sections"] += 1
 
-    # -- beyond contribs + their entries -------------------------------
-    for contrib in doc.beyond:
-        rel_b = Path("beyond") / f"{contrib.id}.html"
-        root_p, static_p, tab_p = _prefixes(rel_b)
-        _emit(
-            env, out, tab_dir / rel_b, "beyond.html",
-            {
-                "document": doc,
-                "beyond": contrib,         # UI templates name it `beyond`
-                "contrib": contrib,        # legacy alias for the placeholder
-                "entries": contrib.entries,
-                "build_meta": build_meta,
-                "tab": tab,
-                "title": contrib.title,
-                "body": _beyond_body_html(contrib),
-            },
-            root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
-        )
-        counts["beyond"] += 1
-        for entry in contrib.entries:
-            rel_e = Path("entries") / f"{entry.id}.html"
-            root_p, static_p, tab_p = _prefixes(rel_e)
+            for entry in section.entries:
+                rel_e = Path("entries") / f"{entry.id}.html"
+                root_p, static_p, tab_p = _prefixes(rel_e)
+                _emit(
+                    env, out, tab_dir / rel_e, "entry.html",
+                    {
+                        "document": doc,
+                        "entry": entry,
+                        "section": section,
+                        "build_meta": build_meta,
+                        "tab": tab,
+                        "title": entry.paper_label,
+                        "body": _entry_body_html(entry),
+                    },
+                    root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+                )
+                counts["entries"] += 1
+
+        # -- beyond contribs + their entries ---------------------------
+        for contrib in doc.beyond:
+            rel_b = Path("beyond") / f"{contrib.id}.html"
+            root_p, static_p, tab_p = _prefixes(rel_b)
             _emit(
-                env, out, tab_dir / rel_e, "entry.html",
+                env, out, tab_dir / rel_b, "beyond.html",
                 {
                     "document": doc,
-                    "entry": entry,
-                    "section": None,
-                    "contrib": contrib,
+                    "beyond": contrib,         # UI templates name it `beyond`
+                    "contrib": contrib,        # legacy alias for the placeholder
+                    "entries": contrib.entries,
                     "build_meta": build_meta,
                     "tab": tab,
-                    "title": entry.paper_label,
-                    "body": _entry_body_html(entry),
+                    "title": contrib.title,
+                    "body": _beyond_body_html(contrib),
                 },
                 root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
             )
-            counts["entries"] += 1
+            counts["beyond"] += 1
+            for entry in contrib.entries:
+                rel_e = Path("entries") / f"{entry.id}.html"
+                root_p, static_p, tab_p = _prefixes(rel_e)
+                _emit(
+                    env, out, tab_dir / rel_e, "entry.html",
+                    {
+                        "document": doc,
+                        "entry": entry,
+                        "section": None,
+                        "contrib": contrib,
+                        "build_meta": build_meta,
+                        "tab": tab,
+                        "title": entry.paper_label,
+                        "body": _entry_body_html(entry),
+                    },
+                    root_prefix=root_p, static_prefix=static_p, tab_prefix=tab_p,
+                )
+                counts["entries"] += 1
 
     # -- single gaps page ----------------------------------------------
     rel_g = Path("gaps.html")
@@ -333,7 +399,7 @@ def render(
     env = _make_env(Path(template_dir) if template_dir else None)
     totals = {
         "index": 0, "sections": 0, "entries": 0, "beyond": 0,
-        "gaps": 0, "json": 0, "tabs": 0,
+        "gaps": 0, "json": 0, "tabs": 0, "chapters": 0,
     }
 
     # -- static assets (copied from bundled tree, plus generated pygments.css) -
@@ -379,7 +445,7 @@ def render(
     for tab_name, tab_doc in tab_docs:
         per = _emit_tab(env, out, tab_name, tab_doc, doc.build_meta)
         totals["tabs"] += 1
-        for k in ("index", "sections", "entries", "beyond", "gaps", "json"):
+        for k in ("index", "sections", "entries", "beyond", "gaps", "json", "chapters"):
             totals[k] += per[k]
 
     return totals
@@ -416,13 +482,27 @@ def _summary_html(doc: Document) -> str:
 
 def _root_summary_html(three: ThreeTabDocument) -> str:
     def _tab_block(label: str, slug: str, tab_doc: Document) -> str:
-        n_entries = sum(len(s.entries) for s in tab_doc.sections) + sum(
-            len(b.entries) for b in tab_doc.beyond
-        )
+        if tab_doc.chapters:
+            # PPL / Examples chapter tree.
+            n_sections = sum(len(c.sections) for c in tab_doc.chapters)
+            n_entries = sum(
+                len(s.entries) for c in tab_doc.chapters for s in c.sections
+            )
+            summary = (
+                f"{len(tab_doc.chapters)} chapters · {n_sections} sections · "
+                f"{n_entries} entries · {len(tab_doc.gaps)} gaps."
+            )
+        else:
+            n_entries = sum(len(s.entries) for s in tab_doc.sections) + sum(
+                len(b.entries) for b in tab_doc.beyond
+            )
+            summary = (
+                f"{len(tab_doc.sections)} sections · {len(tab_doc.beyond)} beyond · "
+                f"{len(tab_doc.gaps)} gaps · {n_entries} entries."
+            )
         return (
             f'<section class="tab-card"><h2>{label}</h2>'
-            f"<p>{len(tab_doc.sections)} sections · {len(tab_doc.beyond)} beyond · "
-            f"{len(tab_doc.gaps)} gaps · {n_entries} entries.</p>"
+            f"<p>{summary}</p>"
             f'<p><a class="cta" href="{slug}/index.html">Open {label} →</a></p>'
             f"</section>"
         )
@@ -485,6 +565,24 @@ def _entry_body_html(entry: Any) -> str:
             parts.append(f'<div class="note">{n.html}</div>')
         for s in entry.detail.snippets:
             parts.append(s.highlighted_html)
+    return "\n".join(parts)
+
+
+def _chapter_body_html(chapter: Any) -> str:
+    parts = [chapter.intro_html, "<ul>"]
+    for s in chapter.sections:
+        parts.append(
+            f'<li><a href="../sections/{s.id}.html"><strong>{s.title}</strong></a> — '
+            f"{len(s.entries)} entries</li>"
+        )
+    parts.append("</ul>")
+    stats = chapter.stats
+    parts.append(
+        f"<p class='stats-line'>{stats.n_defs} defs · {stats.n_thms} thms · "
+        f"{stats.n_snippets} snippets · {stats.loc} LoC</p>"
+    )
+    if chapter.notes_html:
+        parts.append('<div class="note">' + chapter.notes_html + "</div>")
     return "\n".join(parts)
 
 

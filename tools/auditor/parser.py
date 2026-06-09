@@ -36,6 +36,8 @@ from .schema import (
     AxiomAnchors,
     BeyondContrib,
     BuildMeta,
+    Chapter,
+    ChapterStats,
     CoqSnippet,
     CrossRef,
     Document,
@@ -496,6 +498,47 @@ def group(tokens: list[Token], source: str) -> list[_H2Block]:
 # -- stage 3: normalise + emit ----------------------------------------------
 
 
+def _classify_side_kind(side: str) -> str:
+    """Classify a Side-cell label as CBV / CBN / Other.
+
+    Used by the EXAMPLES.md ``| Side | Headline | Status |`` rows.
+    """
+    s = (side or "").strip().casefold()
+    if s.startswith("cbv"):
+        return "CBV"
+    if s.startswith("cbn"):
+        return "CBN"
+    return "Other"
+
+
+# Regex to extract Theorem/Lemma/Definition idents from a Rocq snippet
+# body — used by the shape-(a) snippet-to-entry matching heuristic.
+_COQ_TOPLEVEL_IDENT_RE = re.compile(
+    r"\b(?:Theorem|Lemma|Definition|Corollary|Fixpoint)\s+(\w+)"
+)
+
+
+def _snippet_idents(raw: str) -> set[str]:
+    """Extract the set of top-level Coq identifiers declared in ``raw``."""
+    return set(_COQ_TOPLEVEL_IDENT_RE.findall(raw))
+
+
+def _match_snippet(idents: list[str], snippets: list["_RawSnippet"]) -> list["_RawSnippet"]:
+    """Pick the first snippet whose declared idents intersect ``idents``.
+
+    Returns ``[]`` when no snippet matches; the caller can fall back to
+    showing all section snippets (which already live on the parent
+    Section).  Used by the EXAMPLES.md shape-(a) per-row Entries.
+    """
+    if not idents:
+        return []
+    target = set(idents)
+    for s in snippets:
+        if _snippet_idents(s.raw) & target:
+            return [s]
+    return []
+
+
 def _classify_paper_label_kind(label: str) -> tuple[str, str | None]:
     """Return (kind, number) for a paper label.
 
@@ -582,15 +625,26 @@ def normalise(
     regression_anchors: frozenset[str],
     strict: bool,
     warnings_out: list[str],
+    tab: str = "",
 ) -> Document:
-    """Build a Document from the grouped blocks."""
+    """Build a Document from the grouped blocks.
+
+    ``tab`` defaults to ``""`` (legacy single-tab behaviour, used by all
+    9 existing test goldens).  When ``tab`` is :data:`TAB_PPL` or
+    :data:`TAB_EXAMPLES`, every ``beyond`` H2 is materialised as a
+    :class:`Chapter` with nested :class:`Section`s — the chapter tree
+    feeds the new dashboard.  A compatibility shim re-projects the
+    chapter tree onto ``doc.beyond`` so legacy callers keep working.
+    """
     md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
+    chapter_mode = tab in {TAB_PPL, TAB_EXAMPLES}
 
     # -- preamble + section bodies ---------------------------------------
     preamble_html = ""
     verify_html = ""
     sections: list[Section] = []
     beyond: list[BeyondContrib] = []
+    chapters: list[Chapter] = []
     gaps: list[GapEntry] = []
     headlines_seen: list[str] = []
     seen_slugs: dict[str, str] = {}
@@ -849,6 +903,305 @@ def normalise(
                     notes_html=blk.notes_html,
                 )
             )
+        elif blk.kind == "beyond" and chapter_mode:
+            # Chapter-tree path (PPL / Examples).  Build a single Chapter
+            # per H2 with one Section per H3; entries come from per-H3
+            # tables (or a synthetic single Entry when there's just
+            # prose + snippets).  The legacy "beyond" branch below is
+            # bypassed for PPL/Examples — a compat shim re-projects the
+            # chapter tree onto ``doc.beyond`` after the loop.
+            chapter_title = blk.heading
+            for prefix in ("Beyond the paper — ", "Beyond the paper -- "):
+                if chapter_title.startswith(prefix):
+                    chapter_title = chapter_title[len(prefix):]
+                    break
+            chapter_id = claim_slug(
+                f"{tab}-ch-" + slugify_label(chapter_title), blk.heading
+            )
+            ch_sections: list[Section] = []
+            ch_snippets_total = 0
+            ch_snippets_loc = 0
+            ch_n_entries = 0
+            ch_n_defs = 0
+            ch_n_thms = 0
+            thm_kinds = {"Thm", "Lem", "Prop", "Cor", "Cat", "Fubini"}
+
+            for h3 in blk.h3_blocks:
+                sec_id = claim_slug(
+                    f"{tab}-sec-" + slugify_label(h3.paper_label), h3.heading
+                )
+                # Section-level file list: scrape the (* theories/foo.v *)
+                # comments out of each snippet.
+                section_files: list[str] = []
+                for s in h3.snippets:
+                    if s.source_file and s.source_file not in section_files:
+                        section_files.append(s.source_file)
+
+                def _to_rocq_files(paths: list[str], label: str) -> list[RocqFile]:
+                    rfs: list[RocqFile] = []
+                    for vfile in paths:
+                        if strict and not (project_root / vfile).is_file():
+                            warnings_out.append(
+                                f"file '{vfile}' referenced in '{label}' "
+                                f"but not on disk"
+                            )
+                        rfs.append(
+                            RocqFile(
+                                path=vfile,
+                                section=None,
+                                github_url=resolver.github_url(vfile),
+                                coqdoc_url=resolver.coqdoc_url(vfile),
+                                coqdoc_anchor=None,
+                            )
+                        )
+                    return rfs
+
+                # Materialise every H3 raw snippet to a CoqSnippet with
+                # line_count populated; this is what the section-level
+                # ``snippets`` list carries (and what Shape-(b) detail
+                # reuses verbatim).
+                def _h3_coq(raw_snippets: list[_RawSnippet]) -> list[CoqSnippet]:
+                    out: list[CoqSnippet] = []
+                    for s in raw_snippets:
+                        lc = s.raw.count("\n") + (
+                            0 if s.raw.endswith("\n") else 1
+                        )
+                        out.append(
+                            CoqSnippet(
+                                source_file=s.source_file or "",
+                                source_section=s.source_section,
+                                highlighted_html=_highlight_coq(s.raw),
+                                line_count=lc,
+                            )
+                        )
+                    return out
+
+                section_snippets = _h3_coq(h3.snippets)
+
+                # Detect headline-table shape (a).
+                headline_tbl: _RawTable | None = None
+                other_tables: list[_RawTable] = []
+                for t in h3.tables:
+                    if len(t.header) >= 3:
+                        first3 = [c.strip().casefold() for c in t.header[:3]]
+                        if first3 == ["side", "headline", "status"]:
+                            if headline_tbl is None:
+                                headline_tbl = t
+                                continue
+                    other_tables.append(t)
+
+                sec_entries: list[Entry] = []
+
+                if headline_tbl is not None:
+                    # Shape (a): one Entry per row of the headlines table.
+                    for row in headline_tbl.rows:
+                        if len(row.cells) < 3:
+                            continue
+                        side_md = row.cells[0]
+                        headline_md = row.cells[1]
+                        status_md = row.cells[2]
+                        # Idents in headline cell — first wins for the slug.
+                        h_idents = [
+                            ident
+                            for ident in _BACKTICK_RE.findall(headline_md)
+                            if not ident.endswith(".v")
+                            and not ident.startswith("theories/")
+                        ]
+                        if h_idents:
+                            entry_paper_label = h_idents[0]
+                            entry_base_slug = slugify_label(h_idents[0])
+                        else:
+                            entry_paper_label = side_md
+                            entry_base_slug = slugify_label(side_md or "row")
+                        entry_id = claim_slug(entry_base_slug, entry_paper_label)
+                        entry_kind = _classify_side_kind(side_md)
+                        statement_html = _inline_to_html(md, headline_md)
+                        status = [s.strip().casefold() for s in [status_md] if s.strip()]
+                        # Pair the row to a snippet defining one of its idents.
+                        matched_raw = _match_snippet(h_idents, h3.snippets)
+                        detail_snips: list[CoqSnippet]
+                        if matched_raw:
+                            detail_snips = _h3_coq(matched_raw)
+                        else:
+                            detail_snips = []
+                        # Per-row detail prose: short — render expects the
+                        # parent section.intro_html for the full narrative.
+                        side_html = _inline_to_html(md, side_md) or html_mod.escape(side_md)
+                        detail_prose = (
+                            f"<p><strong>{side_html}</strong></p>\n"
+                            f"<p>{statement_html}</p>"
+                        )
+                        sec_entries.append(
+                            Entry(
+                                id=entry_id,
+                                paper_label=entry_paper_label,
+                                paper_kind=entry_kind,
+                                paper_number=None,
+                                paper_section_id=sec_id,
+                                statement_html=statement_html,
+                                rocq_idents=h_idents,
+                                rocq_files=_to_rocq_files(
+                                    section_files, entry_paper_label
+                                ),
+                                status=status,
+                                detail=EntryDetail(
+                                    prose_html=detail_prose,
+                                    notes=[],
+                                    snippets=detail_snips,
+                                ),
+                                cross_refs=[],
+                            )
+                        )
+                elif other_tables:
+                    # Shape (c): non-headline 2-col-ish tables (e.g. PPL
+                    # "Construction | Rocq").  Fall back to the legacy
+                    # row-per-Entry handler.
+                    for tbl in other_tables:
+                        for row in tbl.rows:
+                            if not row.cells:
+                                continue
+                            if len(row.cells) == 3:
+                                paper_label = row.cells[0]
+                                statement_md = row.cells[1]
+                                rocq_md = row.cells[2]
+                            elif len(row.cells) == 2:
+                                paper_label = row.cells[0]
+                                statement_md = ""
+                                rocq_md = row.cells[1]
+                            else:
+                                continue
+                            statement_html = _inline_to_html(md, statement_md)
+                            idents, files, sec_qual = _extract_rocq_cell(md, rocq_md)
+                            slug = claim_slug(slugify_label(paper_label), paper_label)
+                            kind, number = _classify_paper_label_kind(paper_label)
+                            status = classify(
+                                paper_label=paper_label,
+                                section_kind="beyond",
+                                statement_html=statement_html,
+                                regression_anchors=regression_anchors,
+                            )
+                            rocq_files: list[RocqFile] = []
+                            for vfile in files:
+                                if strict and not (project_root / vfile).is_file():
+                                    warnings_out.append(
+                                        f"file '{vfile}' referenced in '{paper_label}' "
+                                        f"but not on disk"
+                                    )
+                                rocq_files.append(
+                                    RocqFile(
+                                        path=vfile,
+                                        section=sec_qual,
+                                        github_url=resolver.github_url(vfile),
+                                        coqdoc_url=resolver.coqdoc_url(vfile),
+                                        coqdoc_anchor=None,
+                                    )
+                                )
+                            sec_entries.append(
+                                Entry(
+                                    id=slug,
+                                    paper_label=paper_label,
+                                    paper_kind=kind,
+                                    paper_number=number,
+                                    paper_section_id=sec_id,
+                                    statement_html=statement_html,
+                                    rocq_idents=idents,
+                                    rocq_files=rocq_files,
+                                    status=status,
+                                    detail=None,
+                                    cross_refs=[],
+                                )
+                            )
+                else:
+                    # Shape (b): no table — prose + snippets only.
+                    # Build a SINGLE Entry whose id == section.id so the
+                    # template can render it inline without a duplicate
+                    # card grid.
+                    h_idents = [
+                        ident
+                        for ident in _BACKTICK_RE.findall(h3.heading)
+                        if not ident.endswith(".v")
+                        and not ident.startswith("theories/")
+                    ]
+                    first_para_html = (
+                        _inline_to_html(md, h3.paragraphs[0])
+                        if h3.paragraphs
+                        else ""
+                    )
+                    status = classify(
+                        paper_label=h3.paper_label,
+                        section_kind="beyond",
+                        statement_html=first_para_html,
+                        regression_anchors=regression_anchors,
+                    )
+                    sec_entries.append(
+                        Entry(
+                            id=sec_id,
+                            paper_label=h3.paper_label,
+                            paper_kind="Other",
+                            paper_number=None,
+                            paper_section_id=sec_id,
+                            statement_html=first_para_html,
+                            rocq_idents=h_idents,
+                            rocq_files=_to_rocq_files(
+                                section_files, h3.paper_label
+                            ),
+                            status=status,
+                            detail=EntryDetail(
+                                prose_html="\n".join(h3.paragraphs),
+                                notes=list(h3.notes),
+                                snippets=list(section_snippets),
+                            ),
+                            cross_refs=[],
+                        )
+                    )
+
+                sec = Section(
+                    id=sec_id,
+                    paper_section="",
+                    paper_section_number="",
+                    title=h3.paper_label,
+                    intro_html="\n".join(h3.paragraphs),
+                    entries=sec_entries,
+                    notes_html="\n".join(n.html for n in h3.notes),
+                    chapter_id=chapter_id,
+                    snippets=section_snippets,
+                )
+                ch_sections.append(sec)
+
+                # Roll up stats.
+                ch_snippets_total += len(section_snippets)
+                ch_snippets_loc += sum(s.line_count for s in section_snippets)
+                for e in sec_entries:
+                    ch_n_entries += 1
+                    if e.paper_kind == "Def":
+                        ch_n_defs += 1
+                    elif e.paper_kind in thm_kinds:
+                        ch_n_thms += 1
+                    if e.detail is not None:
+                        ch_snippets_total += len(e.detail.snippets)
+                        ch_snippets_loc += sum(
+                            s.line_count for s in e.detail.snippets
+                        )
+
+            stats = ChapterStats(
+                n_sections=len(ch_sections),
+                n_entries=ch_n_entries,
+                n_defs=ch_n_defs,
+                n_thms=ch_n_thms,
+                n_snippets=ch_snippets_total,
+                loc=ch_snippets_loc,
+            )
+            chapters.append(
+                Chapter(
+                    id=chapter_id,
+                    title=chapter_title,
+                    intro_html=blk.intro_html,
+                    sections=ch_sections,
+                    notes_html=blk.notes_html,
+                    stats=stats,
+                )
+            )
+
         elif blk.kind == "beyond":
             # Build one BeyondContrib PER H3 sub-heading in the Beyond
             # chapter; entries come from the per-H3 overview tables (if
@@ -966,9 +1319,28 @@ def normalise(
                     ),
                 )
 
+    # Compat shim: project the chapter tree onto ``doc.beyond`` so
+    # legacy callers (test_two_col_beyond, parse_two_tabs assertions,
+    # gh-blueprint export) keep their ``len(doc.beyond) >= 1`` check.
+    if chapter_mode and chapters:
+        for ch in chapters:
+            for sec in ch.sections:
+                beyond.append(
+                    BeyondContrib(
+                        id=sec.id,
+                        title=sec.title,
+                        intro_html=sec.intro_html,
+                        entries=sec.entries,
+                        snippets=sec.snippets,
+                        notes_html=sec.notes_html,
+                        chapter=ch.title,
+                    )
+                )
+
     return Document(
         preamble_html=preamble_html,
         sections=sections,
+        chapters=chapters,
         beyond=beyond,
         gaps=gaps,
         verify_instructions_html=verify_html,
@@ -989,8 +1361,14 @@ def parse(
     project_root: Path,
     regression_anchors: frozenset[str] = DEFAULT_REGRESSION_ANCHORS,
     strict: bool = False,
+    tab: str = "",
 ) -> tuple[Document, list[str]]:
-    """Parse the AUDITOR.md source.  Returns ``(document, warnings)``."""
+    """Parse the AUDITOR.md source.  Returns ``(document, warnings)``.
+
+    ``tab`` activates the chapter-tree branch for
+    :data:`TAB_PPL` / :data:`TAB_EXAMPLES`; default ``""`` preserves
+    legacy paper-style single-tab behaviour.
+    """
     warnings_out: list[str] = []
     tokens = lex(source)
     blocks = group(tokens, source)
@@ -1001,6 +1379,7 @@ def parse(
         regression_anchors=regression_anchors,
         strict=strict,
         warnings_out=warnings_out,
+        tab=tab,
     )
     return doc, warnings_out
 
@@ -1012,6 +1391,7 @@ def parse_file(
     project_root: Path,
     regression_anchors: frozenset[str] = DEFAULT_REGRESSION_ANCHORS,
     strict: bool = False,
+    tab: str = "",
 ) -> tuple[Document, list[str]]:
     """Parse a file on disk.  Convenience wrapper around :func:`parse`."""
     text = Path(path).read_text(encoding="utf-8")
@@ -1021,6 +1401,7 @@ def parse_file(
         project_root=project_root,
         regression_anchors=regression_anchors,
         strict=strict,
+        tab=tab,
     )
     doc.build_meta.auditor_lines = text.count("\n") + (0 if text.endswith("\n") else 1)
     return doc, warns
@@ -1057,6 +1438,7 @@ def parse_tabs(
             project_root=project_root,
             regression_anchors=regression_anchors,
             strict=strict,
+            tab=tab,
         )
         for w in warns:
             all_warnings.append(f"[{tab}] {w}")
@@ -1144,6 +1526,7 @@ def parse_two_tabs(
             project_root=project_root,
             regression_anchors=regression_anchors,
             strict=strict,
+            tab=tab,
         )
         for w in warns:
             all_warnings.append(f"[{tab}] {w}")
