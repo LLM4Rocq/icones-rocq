@@ -144,16 +144,12 @@ Lemma cbn_add_clause_arith_E
             (sc_fun M g) (sc_fun N g).
 Proof.
 move=> Hg.
-rewrite /cbn_add_clause_arith.
-rewrite (scomp_ball _ _ Hg).
-have Hpair : sc_fun (spair M N) g = sprod_pair (sc_fun M g) (sc_fun N g).
-  exact: scpair_ball.
-rewrite Hpair.
 have Hball_pair :
     (cone_norm (sprod_pair (sc_fun M g : FMeas R_obj)
                             (sc_fun N g : FMeas R_obj))
-     <= 1)%R.
-  apply: sprod_pair_norm_le1; exact: sc_image_ball.
+     <= 1)%R
+  by apply: sprod_pair_norm_le1; exact: sc_image_ball.
+rewrite /cbn_add_clause_arith scomp_ball// scpair_ball//.
 rewrite (add_FMeas_scones_E R_carrier_eq R_carrier_meas R_to_carrier_meas _
                             Hball_pair).
 by rewrite sprod_fstE sprod_sndE.
@@ -170,16 +166,12 @@ Lemma cbn_mul_clause_arith_E
             (sc_fun M g) (sc_fun N g).
 Proof.
 move=> Hg.
-rewrite /cbn_mul_clause_arith.
-rewrite (scomp_ball _ _ Hg).
-have Hpair : sc_fun (spair M N) g = sprod_pair (sc_fun M g) (sc_fun N g).
-  exact: scpair_ball.
-rewrite Hpair.
 have Hball_pair :
     (cone_norm (sprod_pair (sc_fun M g : FMeas R_obj)
                             (sc_fun N g : FMeas R_obj))
-     <= 1)%R.
-  apply: sprod_pair_norm_le1; exact: sc_image_ball.
+     <= 1)%R
+  by apply: sprod_pair_norm_le1; exact: sc_image_ball.
+rewrite /cbn_mul_clause_arith scomp_ball// scpair_ball//.
 rewrite (mul_FMeas_scones_E R_carrier_eq R_carrier_meas R_to_carrier_meas _
                             Hball_pair).
 by rewrite sprod_fstE sprod_sndE.
