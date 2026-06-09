@@ -854,6 +854,15 @@ def normalise(
             # chapter; entries come from the per-H3 overview tables (if
             # any), and prose/snippets fill the contribution's body.
             h3_contribs_before = len(beyond)
+            # Strip the standard prefix off the H2 heading so we can
+            # tag each H3 contrib with the parent chapter — used by the
+            # per-tab landing template to group H3 cards under their
+            # parent chapter, mirroring the Paper tab's §§ structure.
+            parent_chapter = blk.heading
+            for prefix in ("Beyond the paper — ", "Beyond the paper -- "):
+                if parent_chapter.startswith(prefix):
+                    parent_chapter = parent_chapter[len(prefix):]
+                    break
             for h3 in blk.h3_blocks:
                 contrib_id = claim_slug("beyond-" + slugify_label(h3.paper_label), h3.heading)
                 contrib_entries: list[Entry] = []
@@ -928,6 +937,7 @@ def normalise(
                         entries=contrib_entries,
                         snippets=contrib_snippets,
                         notes_html="\n".join(n.html for n in h3.notes),
+                        chapter=parent_chapter,
                     )
                 )
             # H2-level entries (rows belonging to no H3) live in a

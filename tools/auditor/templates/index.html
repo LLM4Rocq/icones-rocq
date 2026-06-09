@@ -95,26 +95,50 @@
     </p>
   </header>
   {% if document.beyond %}
-  <div class="card-grid beyond-grid">
-    {% for b in document.beyond %}
-    {% set n_entries = b.entries|length %}
-    {% set n_snippets = b.snippets|length %}
-    <a class="card beyond-card" href="{{ root_prefix }}beyond/{{ b.id }}.html">
-      <h3 class="card-title">{{ b.title }}</h3>
-      <p class="card-stats">
-        {% if n_entries %}
-        <strong>{{ n_entries }}</strong> {{ 'entry' if n_entries == 1 else 'entries' }}
-        {% endif %}
-        {% if n_snippets %}
-        {% if n_entries %} · {% endif %}<strong>{{ n_snippets }}</strong>
-        snippet{{ 's' if n_snippets != 1 else '' }}
-        {% endif %}
+  {# Group H3 contribs by their parent chapter (H2 of the source MD),
+     mirroring the Paper tab's §§ → entries hierarchy.  Items with an
+     empty `.chapter` fall under a synthetic 'Other' bucket. #}
+  {% set chapter_order = [] %}
+  {% set chapter_map = {} %}
+  {% for b in document.beyond %}
+    {% set key = b.chapter or '_other' %}
+    {% if key not in chapter_map %}
+      {% set _ = chapter_order.append(key) %}
+      {% set _ = chapter_map.update({key: []}) %}
+    {% endif %}
+    {% set _ = chapter_map[key].append(b) %}
+  {% endfor %}
+  {% for key in chapter_order %}
+  <article class="beyond-chapter">
+    <header class="beyond-chapter-head">
+      <h3 class="beyond-chapter-title">{{ key if key != '_other' else 'Other' }}</h3>
+      <p class="beyond-chapter-count">
+        {{ chapter_map[key]|length }}
+        {{ 'construction' if chapter_map[key]|length == 1 else 'constructions' }}
       </p>
-      {{ status_badge('beyond-paper') }}
-      <p class="card-cta">Open →</p>
-    </a>
-    {% endfor %}
-  </div>
+    </header>
+    <div class="card-grid beyond-grid">
+      {% for b in chapter_map[key] %}
+      {% set n_entries = b.entries|length %}
+      {% set n_snippets = b.snippets|length %}
+      <a class="card beyond-card" href="{{ root_prefix }}beyond/{{ b.id }}.html">
+        <h3 class="card-title">{{ b.title }}</h3>
+        <p class="card-stats">
+          {% if n_entries %}
+          <strong>{{ n_entries }}</strong> {{ 'entry' if n_entries == 1 else 'entries' }}
+          {% endif %}
+          {% if n_snippets %}
+          {% if n_entries %} · {% endif %}<strong>{{ n_snippets }}</strong>
+          snippet{{ 's' if n_snippets != 1 else '' }}
+          {% endif %}
+        </p>
+        {{ status_badge('beyond-paper') }}
+        <p class="card-cta">Open →</p>
+      </a>
+      {% endfor %}
+    </div>
+  </article>
+  {% endfor %}
   {% else %}
   <p class="empty">No Beyond contributions reported.</p>
   {% endif %}

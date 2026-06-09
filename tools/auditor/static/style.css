@@ -1126,3 +1126,30 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 .root-tab-card .card-eyebrow { color: var(--fg-mute); font-size: 0.78rem; }
 .root-tab-card .card-title  { margin: 0.2rem 0 0.6rem; }
 .root-tab-card .card-cta    { color: var(--link); font-weight: 600; }
+
+/* Per-tab landing — chapter grouping for Beyond cards.  Each H2 of the
+   source MD becomes a chapter; H3 contribs within it render as a card
+   grid below the chapter heading, mirroring the Paper tab's §§ pages. */
+.beyond-chapter {
+  margin: 0 0 1.6rem 0;
+}
+.beyond-chapter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.6rem 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+.beyond-chapter-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+.beyond-chapter-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--fg-mute);
+}

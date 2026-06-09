@@ -102,6 +102,11 @@ class BeyondContrib:
     entries: list[Entry] = field(default_factory=list)
     snippets: list[CoqSnippet] = field(default_factory=list)
     notes_html: str = ""
+    # Parent H2 chapter heading (with the "Beyond the paper — " prefix
+    # stripped).  Empty string for the synthetic chapter-overview contrib.
+    # Used by the per-tab landing template to group H3 cards under their
+    # parent chapter, mirroring the Paper tab's §§ → entries hierarchy.
+    chapter: str = ""
 
 
 @dataclass
