@@ -194,8 +194,7 @@ Lemma der_prom (B : ICone.type Ar) (x : B) :
 Proof.
 move=> Hx; have := ThetaK (B := B) (C := B) (scones_id B).
 rewrite -/(der B) => /(congr1 (fun h : scones_hom B B => sc_fun h x)).
-rewrite (Theta_prom (der B) Hx) /= (sc_clamp_ball Hx) => ->.
-by [].
+by rewrite (Theta_prom (der B) Hx) /= (sc_clamp_ball Hx) => ->.
 Qed.
 
 (** ** Norm of promotion — partial results

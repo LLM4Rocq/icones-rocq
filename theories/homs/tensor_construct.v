@@ -534,8 +534,7 @@ rewrite /=.
 apply: linhom_eq => c.
 rewrite linhom_map_funE /=.
 apply: cones_prod_eq => j.
-rewrite eBE (fpick_factE b c k0) eBE.
-by [].
+by rewrite eBE (fpick_factE b c k0) eBE.
 Qed.
 
 End Tau.

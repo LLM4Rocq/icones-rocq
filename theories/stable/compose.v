@@ -1335,10 +1335,10 @@ rewrite (step xb Hc).
 (* Reassemble: the new step's hybrid term joins the partial sum. *)
 rewrite -precone_addA; congr precone_add.
 rewrite [in RHS](bigD1 km)/=; last by rewrite ltnSn.
-rewrite [in RHS](eq_bigl (fun k : 'I_n => (k < m)%N)); last first.
-  by move=> k; rewrite ltnS andbC -val_eqE/= -ltn_neqAle.
-by [].
+rewrite [in RHS](eq_bigl (fun k : 'I_n => (k < m)%N)) //.
+by move=> k; rewrite ltnS andbC -val_eqE/= -ltn_neqAle.
 Qed.
+
 
 (** **Lemma 7.23, general arity ([B]-side diagonal split).** *)
 Lemma SD_diag (xb : B)

@@ -774,9 +774,8 @@ rewrite -[sh_fun (icone_integral _ (linhom_int_section_meas Hβ (γC s)) µ) (γ
       (icone_integral (fun r => linhom_fun (β r) (γC s))
          (linhom_int_section_meas Hβ (γC s)) µ)).
 rewrite (sh_eval_at_int_eval (γ s) (linhom_int_section_meas Hβ (γC s)) µ).
-rewrite (icone_integralP _
+by rewrite (icone_integralP _
   (sh_eval_at_pres_path (γ s) (linhom_int_section_meas Hβ (γC s))) µ mD mDM s).
-by [].
 Qed.
 
 (** The backward [icones_hom] [sls_bwd : (C ⊸ (B⇒ₛD)) → (B ⇒ₛ (C ⊸ D))]. *)
@@ -1094,8 +1093,7 @@ set φ := sh_fun f (γ s).
 rewrite -[linhom_fun φ (icone_integral β Hβ µ)]
   /(linhom_pre_fun (linhom_pre_of φ) (icone_integral β Hβ µ)).
 rewrite (linhom_pres_int φ Y β Hβ µ).
-rewrite (icone_integralP _ (linhom_pre_pres_path (linhom_pre_of φ) Y β Hβ) µ mD mDM s).
-by [].
+by rewrite (icone_integralP _ (linhom_pre_pres_path (linhom_pre_of φ) Y β Hβ) µ mD mDM s).
 Qed.
 
 (** The forward inner [C ⊸ (B⇒ₛD)] = [y ↦ (x ↦ f(x)(y))]. *)
@@ -1333,9 +1331,8 @@ rewrite -[sh_fun (icone_integral β Hβ µ) (γ s)]
   /(sh_eval_at_fun (γ s) (icone_integral β Hβ µ)).
 rewrite (sh_eval_at_int_eval (γ s) Hβ µ).
 rewrite (linhom_int_eval (sh_eval_at_pres_path (γ s) Hβ) µ (γC s)).
-rewrite (icone_integralP _
+by rewrite (icone_integralP _
   (linhom_int_section_meas (sh_eval_at_pres_path (γ s) Hβ) (γC s)) µ mD mDM s).
-by [].
 Qed.
 
 (** The forward [icones_hom] [sls_fwd : (B ⇒ₛ (C ⊸ D)) → (C ⊸ (B⇒ₛD))]. *)
