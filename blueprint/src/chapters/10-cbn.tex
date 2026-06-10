@@ -38,7 +38,8 @@
 % Status note: the WHOLE chapter is AXIOM-FREE — only the three classical
 % boolp axioms.  The two centrepieces are
 %   - ex_geom_CBN_mass_one (ppl_cbn_geom.v): the CBN-side parallel of the
-%     CBV ex_geom_arr_mass_one of Chapter 9, closed via the unary
+%     CBV ex_geom_cbv_mass_one of Chapter 9 (ex_reject_headline.v),
+%     closed via the unary
 %     "shift-by-Dirac" insight (the ELSE branch [|1|] + #"g" @ () is the
 %     unary linear pushforward through (+ 1), an icones_hom, no bilinear
 %     bridge needed at the headline);
@@ -64,9 +65,11 @@ arithmetic, the diagonal bilinear stability bridge
 The chapter closes with the axiom-free CBN headline
 \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}: the call-by-name
 denotation of the geometric program has total mass $1$, the
-centrepiece of this chapter. (The CBV-side mass-one identity is
-currently pending in \autoref{ch:cbv}: \texttt{ne\_fix} in
-\texttt{ppl\_cbv.v} is a \texttt{precone\_zero} placeholder.)
+centrepiece of this chapter. (The CBV-side twin now exists:
+\rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_mass_one} of
+\autoref{thm:cbv-ex-geom}, proved through the seeded value-fixpoint
+combinator of \autoref{sec:cbv-yfix-fun}, so both interpretations of
+the shared surface program prove mass one for the geometric counter.)
 
 \paragraph{Where the material lives.}
 \texttt{theories/programs/ppl\_cbn.v} (the CBN trunk: type / context
@@ -428,9 +431,11 @@ place and the swap is structural.
 
 \paragraph{The geometric program, CBN-side.}
 The CBN-side mass-one identity for $\mathtt{ex\_geom}$ is the focus
-of this section. (The CBV-side parallel, formerly stated through the
-\texttt{em\_fix\_arr.v} machinery, is currently pending the
-\texttt{ne\_fix} port in \texttt{ppl\_cbv.v}.) The surface term is
+of this section. (The CBV-side parallel is
+\rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_mass_one} of
+\autoref{thm:cbv-ex-geom}, proved through the seeded value-fixpoint
+combinator \rocq{Icones.programs.infra.em_fix_value.fix_comb} of
+\autoref{sec:cbv-yfix-fun}.) The surface term is
 unchanged:
 \[
   \mathtt{ex\_geom}
@@ -684,8 +689,13 @@ bilinear arithmetic and recursive bodies. The headline is an
 example-specific shortcut that the bridge would generalise; the
 bridge is the math content that the headline avoids by exploiting the
 geometric program's specific shape (Bernoulli + Dirac constants). The
-CBV-side mass-one identity is currently pending in \autoref{ch:cbv}
-(see the \texttt{precone\_zero} placeholder for \texttt{ne\_fix} in
-\texttt{ppl\_cbv.v}); once that lands, the two interpretations'
-identities will form a triple with the bridge. All formalisation
+CBV-side mass-one identity has landed:
+\rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_mass_one}
+(\autoref{thm:cbv-ex-geom}), proved on the seeded value-fixpoint
+combinator of \autoref{sec:cbv-yfix-fun}, so the two
+interpretations' identities now form a coherent triple with the
+bridge: the CBN headline (\autoref{thm:cbn-ex-geom}), the CBV twin
+(\autoref{thm:cbv-ex-geom}), and the structural bridge
+(\autoref{thm:diag-bilin}) that relates the bilinear arithmetic of
+the two readings. All formalisation
 content lives in the axiom-free core.
