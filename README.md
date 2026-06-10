@@ -100,7 +100,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~66k lines across 76 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~72k lines across 84 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -133,36 +133,51 @@ parallel interpretations** of the same source language —
 **call-by-value (CBV)** via the Eilenberg–Moore category of `!`
 (EM route) and **call-by-name (CBN)** via the cartesian closed `SCones`
 (the co-Kleisli of `!`, with free recursion from `Yfix`).
-On the CBN side, the geometric program carries an axiom-free mass-1
-identity `ex_geom_CBN_mass_one`, closed by a Kleene-cascade
-`1 − (1/2)ⁿ` argument inside `SCones`. The
-**SCones↔ICones-tensor diagonal bilinear stability bridge**
-`meas_stable_diag_bilinear_tensor` — the structural unblocker of honest
-CBN bilinear arithmetic and of CBV recursion — has also landed
-axiom-free.
+The headline result of the PPL layer is on the CBV side: the
+**rejection-sampling program denotes the normalised posterior** —
+`∫f dµ · ν(U) = ∫_U f dµ` unconditionally (`ex_reject_master`), hence
+`ν(U) = (∫_U f dµ)/(∫ f dµ)` when acceptance has positive mass
+(`ex_reject_is_normalised_posterior`), with almost-sure termination
+(`ex_reject_mass_one`) and honest divergence at `f ≡ 0`
+(`ex_reject_zero`) — all in `theories/programs/ex_reject_headline.v`,
+axiom-free. The same file proves the **CBV mass-1 identities** for the
+geometric and almost-loop programs (`ex_geom_cbv_mass_one`,
+`ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`). On the CBN
+side, the geometric program carries the mass-1 identity
+`ex_geom_CBN_mass_one` and the PMF identity `ex_geom_CBN_PMF`, closed
+by a Kleene-cascade `1 − (1/2)ⁿ` argument inside `SCones`.
 
-The CBV interpreter has recently been redesigned around a clean
-**linhom-valued, comonoid-primitive** presentation in
-`theories/programs/ppl_cbv.v`. Types are sent into `EM(!̃)` as
-coalgebras (`tyD`), and a term denotes a *linear* morphism
+The CBV interpreter is a clean **linhom-valued, comonoid-primitive**
+presentation in `theories/programs/ppl_cbv.v`. Types are sent into
+`EM(!̃)` as coalgebras (`tyD`), and a term denotes a *linear* morphism
 `U ctxD Γ ⊸ U tyD τ` of the underlying cone. Variable use is handled by
 the commutative comonoid `(δ, ε)` that every coalgebra carries
 (Cor 20): each branching node copies the context through `δ_Γ`, so
 multi-use of a variable is free. The exponential `!̃` appears only at
 function boundaries — `ne_lam` wraps a value via the strength `str_Γ`,
 `ne_app` extracts it via dereliction `der` — and everywhere else the
-interpretation is plain cartesian. The CBV value-fixpoint at function
-types, `Yfix_fun_lin`, lives in `theories/programs/infra/em_fix.v` —
-Kleene iteration on the unit-ball ω-CPO of `linhom_car A B`, parametric
-in any coalgebra `B`. It mirrors the SCones `Yfix` (for the CBN side)
-at the ICones level, and is what `ne_fix` / `ne_fix_mr` in `ppl_cbv.v`
-resolve to. The `tbool` clause now uses the §9.7-style coalgebra
+interpretation is plain cartesian. Recursion (`ne_fix`, and `ne_fix_mr`
+at function types) is the **seeded value-fixpoint combinator**
+`fix_comb : EM(!̃(!A⊸!A), !̃A)` of
+`theories/programs/infra/em_fix_value.v`: the supremum of the
+interleaved Kleene chain `x₀ = 0`, `x_{n+1} = der (F (x_n!))`, seeded
+at the genuine bottom of the value type (the diverging-function value
+`0!`, not the cone-zero of the wrapped hom) and packaged as a coalgebra
+morphism via `lin` + `adj_psi`. The previous zero-seeded operator
+`Yfix_fun_lin` of `theories/programs/infra/em_fix.v` is *provably the
+zero linhom* (`Yfix_fun_lin_eq0`) and is kept as the documented
+contrast (it is still the honest-scope placeholder for `ne_fix_mr` at
+product body types). The `tbool` clause uses the §9.7-style coalgebra
 structure on `bool_cone_car` (`bool_cone_coalg` in
-`theories/programs/infra/bool_cone_coalg.v`) rather than
-`bang_cofree`, giving the shared-sample diagonal-pushforward semantics
-for programs like `let x = Bernoulli(p) in (x, x)`. The recursion
-machinery is in place; specific CBV mass identities for the recursive
-examples (`ex_loop`, `ex_geom`, `ex_almost_loop`) are a follow-up.
+`theories/programs/infra/bool_cone_coalg.v`), giving the shared-sample
+diagonal-pushforward semantics for programs like
+`let x = Bernoulli(p) in (x, x)` — pinned by the regression anchors of
+`theories/programs/infra/cbv_anchors.v`
+(`let_bernoulli_pair_diag` vs the independent-product contrast
+`pair_bernoulli_indep`). The semantic engine behind the headline is the
+**let-at-sample Pettis integral law** `eD_let_sample_int`
+(`theories/programs/infra/let_sample_law.v`):
+`⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)` at arbitrary `γ`.
 
 Two pieces of this layer are formalizations we have not seen elsewhere
 in Coq / Rocq: the cartesian-η identity `em_pair_mor_proj_id` (Fox 1976
@@ -181,16 +196,25 @@ Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free. B
 - **Call-by-value via `EM(!)`** (`theories/programs/ppl_cbv.v` and infra under
   `programs/infra/`). The interpreter is linhom-valued and comonoid-primitive: types
   go to coalgebras via `tyD`, and a term denotes a linear morphism
-  `U ctxD Γ ⊸ U tyD τ`. Non-recursive programs are interpretable axiom-free,
-  including the QBS-style headlines (`ex_random_constant`, `ex_random_linear`,
-  `ex_bayes_linear_is_weighted`). Recursion is handled by `Yfix_fun_lin` (Kleene
-  iteration on the unit-ball ω-CPO of `linhom_car A B`, in
-  `theories/programs/infra/em_fix.v`), to which `ne_fix` / `ne_fix_mr` resolve;
-  the `tbool` clause uses the §9.7-style coalgebra `bool_cone_coalg` on
+  `U ctxD Γ ⊸ U tyD τ`. Recursion is the seeded value-fixpoint combinator
+  `fix_comb` of `theories/programs/infra/em_fix_value.v` (the interleaved
+  Kleene chain `x_{n+1} = der (F (x_n!))` seeded at the diverging value;
+  the old zero-seeded `Yfix_fun_lin` is provably the zero linhom,
+  `Yfix_fun_lin_eq0`), with the recursion-unfolding equations in
+  `theories/programs/infra/cbv_fix_unfold.v`. **The CBV headline**:
+  rejection sampling denotes the normalised posterior
+  `(∫_U f dµ)/(∫ f dµ)` (`ex_reject_master`,
+  `ex_reject_is_normalised_posterior` in
+  `theories/programs/ex_reject_headline.v`), via the let-at-sample Pettis
+  integral law `eD_let_sample_int` (`theories/programs/infra/let_sample_law.v`),
+  the affine-cascade closed form + sup-mass bridge
+  (`theories/programs/infra/affine_cascade.v`), and the setlike-point
+  regression anchors (`theories/programs/infra/cbv_anchors.v`). The same
+  file carries the CBV mass identities `ex_geom_cbv_mass_one` and
+  `ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`. The `tbool`
+  clause uses the §9.7-style coalgebra `bool_cone_coalg` on
   `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
-  shared-sample diagonal semantics. The recursion machinery is in place;
-  specific mass identities for the recursive examples (`ex_loop`, `ex_geom`,
-  `ex_almost_loop`) are a follow-up.
+  shared-sample diagonal semantics.
 - **Call-by-name via `SCones`** (`theories/programs/ppl_cbn.v` + `ppl_cbn_eff.v` +
   `ppl_cbn_bool.v` + `ppl_cbn_arith.v` + `ppl_cbn_geom.v`). Trunk + effects + boolean cascade
   + `FMeas` arithmetic foundation are all axiom-free. Free recursion at every function type
@@ -210,9 +234,11 @@ the **§9** Eilenberg–Moore *full-subcategory* theorem (needs a Polish / stand
 layer not yet formalized); and the **§10** probabilistic-coherence-space embedding.
 **Open on the PPL side**: the **CBV/CBN soundness theorem** (no proof that
 `⟦M⟧_CBV` and `⟦M⟧_CBN` agree, which would require commuting `!` with effect-bearing
-types); the **refined CBN `add`/`mul` install** on top of `add_FMeas`/`mul_FMeas` via
-the bridge above (structural; not yet packaged because the CBN headlines run under
-the lightweight option-γ baseline).
+types); **`ne_fix_mr` at product body types** (the mutual-recursion shape still
+routes through the provably-zero `Yfix_fun_lin`; the repair needs the Seely
+transport of `fix_comb` along `!A ⊗ !B ≅ !(A & B)`); the **CBV marginal headlines
+for the QBS trio** (`ex_random_constant` / `ex_random_linear` / `ex_bayes_linear`
+against `eD` — now unblocked by the let-at-sample law, a follow-up).
 
 [`PLAN.md`](./PLAN.md) has the full roadmap and design notes.
 
@@ -255,9 +281,19 @@ theories/
                                      proofs
                  examples.v          surface programs (ex_random_*,
                                      ex_bayes_linear, ex_loop, ex_geom,
-                                     ex_almost_loop, ex_geom_body) —
-                                     pure syntax, shared between CBV
-                                     and CBN
+                                     ex_almost_loop, ex_reject) —
+                                     pure syntax + the eD-applied CBV
+                                     denotations (ex_*_cbv), shared
+                                     between CBV and CBN
+                 ex_reject_headline.v
+                                     THE CBV headline: rejection
+                                     sampling denotes the normalised
+                                     posterior (ex_reject_master,
+                                     ex_reject_is_normalised_posterior,
+                                     ex_reject_mass_one, ex_reject_zero)
+                                     + the CBV mass riders
+                                     ex_geom_cbv_mass_one,
+                                     ex_almost_loop_cbv_mass_one/_zero
                  infra/              PPL support:
                    bool_cone.v         2-point ICone (paper §4.4
                                        coproduct cone_one ⊕ cone_one)
@@ -271,11 +307,31 @@ theories/
                                        bang-comonoid plumbing — no
                                        Moggi monad; consumed by CBV
                                        and CBN
-                   em_fix.v            Yfix_fun_lin — Kleene fixpoint on
-                                       the unit-ball ω-CPO of
-                                       linhom_car A B (CBV value-fixpoint
-                                       at function types); ne_fix
+                   em_fix.v            the legacy zero-seeded
+                                       Yfix_fun_lin — kept as the
+                                       documented contrast (provably
+                                       the zero linhom) and as the
+                                       ne_fix_mr product-case clause
+                   em_fix_value.v      fix_comb — the seeded CBV
+                                       value-fixpoint combinator
+                                       (interleaved Kleene chain,
+                                       fix_prom_E, fix_coalg_simpl,
+                                       Yfix_fun_lin_eq0); ne_fix
                                        resolves here
+                   cbv_fix_unfold.v    the recursion-unfolding
+                                       equations of the wired ne_fix
+                                       clause (eD_fix_at_setlike,
+                                       eD_fix_unfold)
+                   let_sample_law.v    the let-at-sample Pettis
+                                       integral law eD_let_sample_int
+                                       and its measure-on-U form
+                   affine_cascade.v    affine Kleene cascades: closed
+                                       form, limit, and the FMeas
+                                       sup-mass bridge
+                   cbv_anchors.v       semantic regression anchors —
+                                       setlike-point kit, shared-sample
+                                       diagonal vs independent-product
+                                       contrast, eD_beta, if-pins
                    cbn_bernoulli_cascade.v
                                        generic CBN Bernoulli cascade
                                        (sfix_bcascade) used by ex_geom

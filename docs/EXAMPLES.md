@@ -7,7 +7,9 @@ written exclusively in the direct-style `ppl_named` custom entry of
 braces `{ x }` escape back to plain Rocq). Every constructor of the
 language and every CBN-side clause is exercised somewhere below; the
 CBV interpretation of `theories/programs/ppl_cbv.v` accepts the same
-surface terms.
+surface terms, and the rejection-sampling program now carries the
+CBV headline of the development: its denotation is the normalised
+posterior (`ex_reject_is_normalised_posterior`).
 
 The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
 [Paper tab](../paper/); the categorical-level PPL infrastructure
@@ -27,9 +29,11 @@ its denotation to the corresponding distribution. The surface
 constructors and the named-variable machinery the programs are
 written in are documented in
 [the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html).
-The CBV-side marginal and mass identities for the same surface terms
-await the fixpoint-seeding refinement of the recursion
-infrastructure.
+On the CBV side the three surface terms compile through `eD`, and
+the let-at-sample integral law `eD_let_sample_int`
+(`theories/programs/infra/let_sample_law.v`) now provides the
+reduction engine for their marginals; restating the three CBN
+headlines against `eD` is a follow-up (see the gaps table below).
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
@@ -253,9 +257,13 @@ the surface recursion constructor is documented in
 [the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html)
 and the CBV-side interpretation of recursion in
 [the CBV value-fixpoint chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
-The CBV-side recursive mass identities await the fixpoint-seeding
-refinement of the recursion infrastructure (iteration seeded inside
-the cofree wrap).
+The CBV-side mass identities now exist for both probabilistic
+programs of this chapter: `ex_geom_cbv_mass_one` and
+`ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`, proven in
+`theories/programs/ex_reject_headline.v` against the seeded
+value-fixpoint interpreter (`fix_comb`) by the same
+reduction-chain-plus-affine-cascade recipe as the rejection-sampling
+headline of the next chapter.
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
@@ -299,7 +307,7 @@ exact: Stop_eq.
 Qed.
 ```
 
-### ex_geom (`ex_geom`, `ex_geom_CBN_mass_one`, `ex_geom_CBN_PMF`)
+### ex_geom (`ex_geom`, `ex_geom_CBN_mass_one`, `ex_geom_CBN_PMF`, `ex_geom_cbv_mass_one`)
 
 A geometric counter built via a fair-coin Bernoulli recursion: each
 call halts with probability `½` (returning `0`) and otherwise
@@ -317,19 +325,23 @@ Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
           else [| 1%R |] + # "g" @ ())) @ () ].
 ```
 
-The mass-one and PMF theorems instantiate
+The CBN mass-one and PMF theorems instantiate
 [the Bernoulli-cascade framework](../../ppl/chapters/ppl-ch-the-bernoulli-cascade-framework.html)
 at parameter `½`, halt value `δ₀` and continuation `shift_scones 1`
 (the FMeas pushforward along the measurable shift `(+1)`); the
-recursion operator itself is interpreted through the SCones `Yfix`,
-whose CBV counterpart is described in
-[the CBV value-fixpoint chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
+recursion operator is the SCones `Yfix`. On the CBV side the
+recursion is the seeded value-fixpoint combinator `fix_comb` of
+[the CBV value-fixpoint chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html),
+and the mass-one identity `ex_geom_cbv_mass_one` is proven directly
+against the CBV interpreter in
+`theories/programs/ex_reject_headline.v` (Section GeomRider).
 
 | Side | Headline | Status |
 |---|---|---|
 | CBN — the cascade fixpoint implementing the program's recursion has total mass one, so the geometric sampler halts almost surely. | `ex_geom_CBN_mass_one` — *the mass of ex_geom_CBN_fix on the whole carrier is 1* | axiom-free |
 | CBN — the cascade fixpoint assigns mass (1/2)^(k+1) to the singleton at every natural k: it is exactly the geometric distribution. | `ex_geom_CBN_PMF` — *the mass at the singleton k equals (1/2)^(k+1)* | axiom-free |
 | CBN — the full CBN denotation reduces definitionally to an evaluation of the Yfix fixpoint of the curried body paired with the terminal map. | `ex_geom_CBN_headline` — *⟦ex_geom⟧ = Ev ∘ spair (Yfix ∘ curry ⟦body⟧) (ders Stop_mor)* | axiom-free |
+| CBV — the denotation of the geometric counter under the CBV interpreter `eD` has total mass one on the whole carrier: the sampler halts almost surely on the call-by-value side too. | `ex_geom_cbv_mass_one` — *fmeas_mu ⟦ex_geom⟧(one1) setT = 1* | axiom-free |
 
 For the mass identity, `ex_geom_CBN_fix` is the SCones least fixpoint
 (`sfix_bcascade`) of the cascade operator `phi_CBN_geom`, the
@@ -389,7 +401,31 @@ Lemma ex_geom_CBN_headline :
 Proof. by []. Qed.
 ```
 
-### ex_almost_loop_p (`ex_almost_loop`, `ex_almost_loop_p_CBN_mass_one_if_pos`, `ex_almost_loop_p_CBN_is_dirac_zero`)
+The CBV identity follows the rejection-sampling reduction chain on
+the simpler program: the outer application collapses by `der ∘ prom`
+cancellation (`ex_geom_app_E`), the denotation is identified with
+the `cone_sup_ball` of the per-iterate measures
+`g_iter n := (fix_chain g_W0 n)(one1)` (`ex_geom_sup_E`), one Kleene
+step computes to the boolean dispatch
+`ν_{n+1} = ½·δ_0 + ½·(add_lift (δ_1 ⊗ ν_n))` (`g_step`), the
+translation-mass invariance `add_lift_mass` reduces the mass cascade
+to `x_{n+1} = ½ + ½·x_n` (`g_val_S`), and the affine cascade plus
+the sup-mass bridge of `theories/programs/infra/affine_cascade.v`
+close the limit at `1`.
+
+```coq
+(* theories/programs/ex_reject_headline.v (Section GeomRider) *)
+(** Almost-sure termination of the geometric counter: the CBV
+    denotation is a PROBABILITY distribution. *)
+Theorem ex_geom_cbv_mass_one :
+  fmeas_mu g_denot [set: ar_carrier Ar R_obj] = 1.
+```
+
+(`g_denot` abbreviates
+`linhom_fun (ex_geom_cbv R_carrier_meas R_to_carrier_meas) one1`,
+the CBV denotation of the closed program at the unit context point.)
+
+### ex_almost_loop_p (`ex_almost_loop`, `ex_almost_loop_p_CBN_mass_one_if_pos`, `ex_almost_loop_p_CBN_is_dirac_zero`, `ex_almost_loop_cbv_mass_one`)
 
 A parameterised Bernoulli cascade: with probability `p` the
 recursion halts (returning `()`) and with probability `1 − p` it
@@ -421,6 +457,8 @@ continuation `scones_id`.
 | CBN — for every strictly positive p, the fixpoint is the Dirac measure at zero itself, not merely a measure of the right mass. | `ex_almost_loop_p_CBN_is_dirac_zero` — *if p > 0 then the fixpoint equals δ₀ as a measure* | axiom-free |
 | CBN — when p is zero, the fixpoint is the zero measure itself, extensionally at every measurable set. | `ex_almost_loop_p_CBN_is_zero_if_zero` — *if p = 0 then the fixpoint equals precone_zero* | axiom-free |
 | CBN — the full CBN denotation collapses to the unique terminal map, uniformly in the parameter p, by terminality of Stop. | `ex_almost_loop_CBN_headline` — *⟦ex_almost_loop p⟧ = ders (Stop_mor _)* | axiom-free |
+| CBV — for every strictly positive p, the CBV denotation (a point of the unit cone, whose norm is the termination probability) has norm one. | `ex_almost_loop_cbv_mass_one` — *if 0 < p then cone_norm ⟦ex_almost_loop p⟧(one1) = 1* | axiom-free |
+| CBV — when p is zero, the CBV denotation is the zero point of the unit cone: the loop diverges with probability one on the call-by-value side too. | `ex_almost_loop_cbv_zero` — *if p = 0 then ⟦ex_almost_loop p⟧(one1) = precone_zero* | axiom-free |
 
 The two mass headlines are direct instances of the framework's
 `sfix_bcascade_mass_one_if_pos` / `sfix_bcascade_mass_zero_if_zero`:
@@ -498,13 +536,162 @@ exact: Stop_eq.
 Qed.
 ```
 
+On the CBV side the denotation at `tunit` is a *point of the unit
+cone* (the CBV `tunit` is the terminal coalgebra on `cone_one_car`,
+not the SCones singleton `Stop`), so the termination probability is
+visible as the point's norm and the dichotomy is an honest theorem
+pair rather than a terminality triviality. The proof mirrors the
+geometric rider: reduce to the `cone_sup_ball` of the iterate points
+`al_iter n` (`ex_almost_loop_sup_E`), compute one Kleene step to the
+scalar recurrence `al_val (n+1) = p + (1−p)·al_val n` (`al_step` /
+`al_val_S`), and close with `affine_iter_cvg_real` — the limit
+`p / (1 − (1−p)) = 1` for `p > 0`, and the constantly-zero chain at
+`p = 0`.
+
+```coq
+(* theories/programs/ex_reject_headline.v (Section AlmostLoopRider) *)
+(** Almost-sure termination at positive flip probability: the
+    denotation has full mass. *)
+Theorem ex_almost_loop_cbv_mass_one : (0 < p)%R ->
+  cone_norm al_denot = 1%R.
+
+(** Certain divergence at [p = 0]: the chain is constantly zero. *)
+Theorem ex_almost_loop_cbv_zero : p = 0%R -> al_denot = precone_zero.
+```
+
+(`al_denot` abbreviates
+`linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas Hp0 Hp1) one1`.)
+
+---
+
+## Beyond the paper — Rejection sampling denotes the normalised posterior
+
+The CBV headline. `ex_reject` is a higher-order (the recursive
+function abstracts over the acceptance continuation), probabilistic
+(continuous `sample` plus the value-dependent `Bernoulli_f`),
+non-terminating (rejection recurses, and may loop forever) program
+whose denotation under the CBV interpreter `eD` is identified in
+closed form: writing `ν := ⟦ex_reject⟧(one1)`, `If := ∫ f dµ` and
+`IUf U := ∫_U f dµ`, the master identity is `If · ν(U) = IUf U` —
+unconditionally — and for `0 < If` the denotation *is* the
+normalised posterior `ν(U) = (∫_U f dµ) / (∫ f dµ)` of the prior `µ`
+given the soft acceptance predicate `f`. Everything lives in
+`theories/programs/ex_reject_headline.v` (1661 lines, axiom-free),
+on top of the surface program of `theories/programs/examples.v`, the
+seeded value-fixpoint combinator, the let-at-sample integral law,
+the affine cascade, and the setlike-point kit.
+
+| Paper-style label | English statement | Rocq |
+|---|---|---|
+| Rejection sampling | `(let rec rs = λaccept. let x = sample µ in if Bernoulli_f{f} x then accept x else rs accept) (λy. y)` of type `tR` — sample from the prior, accept with probability `f x`, recurse on rejection. | `ex_reject`, `ex_reject_cbv` — `theories/programs/examples.v` |
+| The master identity | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v` |
+| The normalised posterior | If acceptance has positive mass, `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the program denotes the posterior of the prior `µ` given the soft predicate `f`. | `ex_reject_is_normalised_posterior` — same file |
+
+### ex_reject (`ex_reject`, `ex_reject_master`, `ex_reject_is_normalised_posterior`)
+
+Normalised-posterior rejection sampling: sample `x ~ µ`, accept with
+probability `f x` (the value-dependent Bernoulli `ne_bernoulli_f`),
+and on rejection *recurse*. The recursive function abstracts over
+the acceptance continuation `accept`, and the headline instantiates
+it at the identity `λy. y`, so the program returns the accepted
+sample itself.
+
+```coq
+(* theories/programs/examples.v *)
+Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
+  [ (fix "rs" ::: tfun (tfun tR' tR') tR' in
+       \ "accept" ::: (tfun tR' tR') =>
+         (let "x" := Sample (mu , Hmu) in
+          if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+          then # "accept" @ # "x"
+          else # "rs" @ # "accept"))
+    @ (\ "y" ::: tR' => # "y") ].
+```
+
+Under `‖µ‖ ≤ 1`, `µ(setT) = 1` and a measurable `f : R → [0,1]`,
+the five theorems (all in
+`theories/programs/ex_reject_headline.v`, Section RejectHeadline,
+with `reject_denot` the denotation at `one1`):
+
+| Side | Headline | Status |
+|---|---|---|
+| CBV — the division-free master identity: the acceptance mass times the denotation's mass at every measurable U equals the restricted acceptance integral, unconditionally. | `ex_reject_master` — *measurable U → If · fmeas_mu reject_denot U = IUf U* | axiom-free |
+| CBV — when acceptance has positive mass, the denotation is exactly the normalised posterior of the prior µ given the soft predicate f. | `ex_reject_is_normalised_posterior` — *0 < If → fmeas_mu reject_denot U = (fine (IUf U) / fine If)%:E* | axiom-free |
+| CBV — when the acceptance density already integrates to one, the denotation is the reweighted prior itself, with no normalisation needed. | `ex_reject_posterior_simple` — *If = 1 → fmeas_mu reject_denot U = IUf U* | axiom-free |
+| CBV — almost-sure termination: positive acceptance mass makes the sampler's output a probability distribution of total mass one. | `ex_reject_mass_one` — *0 < If → fmeas_mu reject_denot setT = 1* | axiom-free |
+| CBV — certain rejection diverges: an identically-zero acceptance density makes the denotation the zero measure. | `ex_reject_zero` — *(∀r, f r = 0) → reject_denot = precone_zero* | axiom-free |
+
+```coq
+(* theories/programs/ex_reject_headline.v (Section RejectHeadline) *)
+(** THE HEADLINE: when acceptance has positive mass, rejection
+    sampling denotes the NORMALISED POSTERIOR. *)
+Theorem ex_reject_is_normalised_posterior :
+  0 < If -> forall U, measurable U ->
+  fmeas_mu reject_denot U = ((fine (IUf U) / fine If)%R)%:E.
+
+(** The division-free master form — unconditional, graceful at
+    [∫ f dµ = 0]. *)
+Theorem ex_reject_master U : measurable U ->
+  If * fmeas_mu reject_denot U = IUf U.
+
+(** Almost-sure termination: positive acceptance mass gives a
+    PROBABILITY distribution. *)
+Theorem ex_reject_mass_one : 0 < If ->
+  fmeas_mu reject_denot [set: ar_carrier Ar R_obj] = 1.
+```
+
+The proof is a six-step reduction chain. (1) `ex_reject_app_E`: the
+outer application of the promoted fixpoint to the identity
+continuation collapses — `der ∘ prom` cancels *before* any
+continuity argument, leaving `fix_value` applied to the body's
+endo-function. (2) `ex_reject_sup_E`: the denotation is the
+`cone_sup_ball` of the per-iterate measures
+`ν_n := (fix_chain W₀ n)(a₀)` — evaluation at a point commutes with
+the Kleene supremum because linhom-cone sups are pointwise.
+(3) `ex_reject_iter_S`: the Kleene step is the inner let-if body at
+the extended setlike environment. (4) `ex_reject_inner_at_dirac`: at
+the environment `γ ⊗ δ_r` the branch dispatch computes — the
+scrutinee is `Bernoulli (f r)` (by `bern_lift_dirac`), the THEN
+branch returns the accepted sample `δ_r`, the ELSE branch is the
+recursive call at the same continuation, which is exactly the
+previous iterate `ν_n`. (5) `ex_reject_iter_mass`: the let-at-sample
+law `eD_let_sample_mu_E` turns the iterate into a Lebesgue integral
+over the prior, giving the affine mass recurrence
+
+```
+ν_{n+1}(U) = ∫_U f dµ + (1 − ∫ f dµ) · ν_n(U)
+```
+
+(the rejection weight `∫(1−f) dµ = 1 − ∫f dµ` uses `µ(setT) = 1`).
+(6) The affine-cascade closed form `affine_iter_cvg` computes the
+limit `IUf U / If` of the per-iterate masses, and the sup-mass
+bridge `fmeas_kleene_sup_U_E` identifies it with the mass of the
+supremum. The master form then multiplies through (graceful at
+`If = 0`, where monotonicity forces `IUf U = 0` too), and the
+mass-one / zero corollaries specialise `U := setT` and `f ≡ 0`.
+
+```coq
+(* theories/programs/ex_reject_headline.v *)
+Lemma ex_reject_iter_mass n U (mU : measurable U) :
+  fmeas_mu (reject_iter n.+1) U =
+  IUf U + ((1 - fine If)%R)%:E * fmeas_mu (reject_iter n) U.
+```
+
+The same file also carries the two riders re-proving the lost CBV
+mass identities against the clean interpreter:
+`ex_geom_cbv_mass_one` (Section GeomRider) and
+`ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`
+(Section AlmostLoopRider) — see the sections above.
+
 ---
 
 ## What is **not** formalised
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| CBV-side mass identities and distribution headlines for the example programs | The CBV analogues of the CBN headlines — `ex_geom_CBN_mass_one` / `ex_geom_CBN_PMF`, `ex_almost_loop_p_CBN_mass_one_if_pos` / `ex_almost_loop_p_CBN_mass_zero_if_zero`, `ex_random_constant_CBN_marginal_mass`, `ex_random_linear_arith_marginal_at`, `ex_bayes_linear_CBN_mass` — restated against the linhom-valued `eD` of `ppl_cbv.v`. | The CBV-side recursive mass identities await the fixpoint-seeding refinement of the recursion infrastructure (iteration seeded inside the cofree wrap); the non-recursive marginals are deferred to the same pass so the whole CBV column lands uniformly. |
+| CBV marginal headlines for the QBS trio | The CBV analogues of `ex_random_constant_CBN_marginal_mass`, `ex_random_linear_arith_marginal_at`, `ex_bayes_linear_CBN_mass` restated against the linhom-valued `eD` of `ppl_cbv.v`. (The *recursive* CBV mass identities are no longer a gap: `ex_geom_cbv_mass_one`, `ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero` and the rejection-sampling headline are proven in `theories/programs/ex_reject_headline.v`.) | The reduction engine now exists — the let-at-sample integral law `eD_let_sample_int` of `theories/programs/infra/let_sample_law.v` is exactly the lemma these marginals need — so this is a follow-up, not a blocker. |
+| CBV distribution refinements for the recursive programs | The CBV analogues of the per-measure CBN refinements `ex_geom_CBN_PMF` and `ex_almost_loop_p_CBN_is_dirac_zero` — pinning the CBV denotation as a *measure* (PMF / Dirac), not just its total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction (the analogue of `kleene_geom_partial`), which has not been replayed on the CBV side. |
+| Mutual recursion at product types (`ne_fix_mr` at `tprod`) | A surface example exercising `ne_fix_mr` at `tprod (tfun A1 B1) (tfun A2 B2)` with a genuine semantics. | The CBV clause at product body types still routes through the provably-zero `Yfix_fun_lin` (`eD_fix_mr_prod_E`, the honest scope record); the repair needs the Seely transport of `fix_comb` — see the PPL tab's gaps table. |
 | Option-α unit-type refinement | Replace `tyD_CBN tunit := Stop` by `Bang(FMeas *)` so `ne_score` does not collapse to a constant under CBN. | Needs a parallel `eD_CBN_full_alpha` interpretation and clauses; the option-β refinement of arithmetic (already shipped) is independent and orthogonal. |
 
 These choices are deliberate; each requires substantial
@@ -539,6 +726,16 @@ echo "Print Assumptions ex_almost_loop_p_CBN_mass_one_if_pos." | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbn_almost_loop.v
 echo "Print Assumptions ex_almost_loop_p_CBN_is_dirac_zero."   | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbn_almost_loop_dist.v
+
+# The rejection-sampling headline + the CBV mass riders
+echo "Print Assumptions ex_reject_master."              | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
+echo "Print Assumptions ex_reject_is_normalised_posterior." | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
+echo "Print Assumptions ex_geom_cbv_mass_one."          | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
+echo "Print Assumptions ex_almost_loop_cbv_mass_one."   | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
 ```
 
 Each command reports only `propositional_extensionality`,

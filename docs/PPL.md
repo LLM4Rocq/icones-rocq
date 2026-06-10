@@ -4,8 +4,10 @@ A typed probabilistic functional language sits on top of the paper's
 categorical model. Each type denotes a `!`-coalgebra, each program a
 *linear* morphism in `ICone` between the underlying carriers of the
 context and result coalgebras, and recursion at function type is
-realised as a Kleene fixpoint on the unit-ball cpo of the relevant
-internal hom. The same surface syntax also admits a call-by-name
+realised by a value-fixpoint *combinator* in the Eilenberg–Moore
+category of `!` — the supremum of an interleaved Kleene chain seeded
+at the diverging function value, computed pointwise through a
+`der`/`prom` sandwich. The same surface syntax also admits a call-by-name
 reading through the cartesian closed `SCones` of stable and
 measurable functions of paper §7. The language is direct-style
 (Plotkin / Girard), named-variable (Saito–Affeldt APLAS 2023), and
@@ -42,7 +44,7 @@ canonical-structure variable-lookup machinery behind `#"x"`; and the
 | Types `tunit`, `tbase X`, `tprod`, `tfun`, `tbool` | `ppl_type` — `theories/programs/ppl.v` |
 | Named contexts | `named_ctx`, `drop_names` — same file |
 | Named variables (witness) | `named_var`, `nv_head`, `nv_tail` — same file |
-| Term constructors | `named_expr` (the 17 constructors below) — same file |
+| Term constructors | `named_expr` (the 20 constructors below) — same file |
 | Free-coalgebra type predicate (gating `ne_fix_mr`) | `is_free_coalg_type` — same file |
 | Variable lookup via canonical structures | `tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'` — same file |
 | Surface notation `[ … ]` and the `ppl_named` custom entry | `ppl_named` (custom entry) — same file |
@@ -130,12 +132,12 @@ constructor (e.g. `Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M`) are
 crucial for canonical-structure resolution at `#"x"` sites — exactly
 the Saito–Affeldt APLAS 2023 §5.1 pattern.
 
-### Effectful term constructors (`ne_sample`, `ne_score`, `ne_bernoulli`, `ne_if`)
+### Effectful term constructors (`ne_sample`, `ne_score`, `ne_bernoulli`, `ne_bernoulli_f`, `ne_if`)
 
 The effectful constructors are direct-style: `ne_sample` returns a
-pure `tR'`, `ne_score` a pure `tunit`, `ne_bernoulli` a pure
-`tbool`; the probability monad is hidden in the interpretation `eD`,
-not in the source types.
+pure `tR'`, `ne_score` a pure `tunit`, `ne_bernoulli` and
+`ne_bernoulli_f` a pure `tbool`; the probability monad is hidden in
+the interpretation `eD`, not in the source types.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -154,6 +156,12 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
   | ne_bernoulli : forall G,
       forall p : R, (0 <= p)%R -> (p <= 1)%R ->
       named_expr G tbool
+  | ne_bernoulli_f : forall G,
+      forall f : R -> R,
+      measurable_fun [set: R] f ->
+      (forall r : R, 0 <= f r)%R ->
+      (forall r : R, f r <= 1)%R ->
+      named_expr G tR' -> named_expr G tbool
   | ne_if : forall G t,
       named_expr G tbool ->
       named_expr G t -> named_expr G t -> named_expr G t.
@@ -161,7 +169,17 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 
 `ne_score` carries a measurable density `f : R → R` clipped to
 `[0,1]` — the bound is needed by the unit-ball discipline of
-`linhom_icones`.
+`linhom_icones`. `ne_bernoulli_f` is the *value-dependent* Bernoulli
+(`Bernoulli_f { f, … } e` in the surface notation): sample from the
+2-point sub-probability `(f r, 1 − f r)` where `r` is the value of
+the `tR'`-valued sub-expression `e`. Its witness layout mirrors
+`ne_score` one-for-one, and so does its CBV interpretation: `eD e`
+post-composed with the path lift `bern_lift` (documented in
+[the value-dependent Bernoulli
+section](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html))
+exactly as `ne_score` post-composes with `score_lift`. This is the
+accept/reject primitive of the rejection-sampling headline
+`examples.v::ex_reject`.
 
 ### Recursion at function type (`ne_fix`)
 
@@ -180,11 +198,12 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 ```
 
 The CBN interpretation routes through paper §9.2's `Yfix`. The CBV
-interpretation in `theories/programs/ppl_cbv.v` resolves both
-`ne_fix` and `ne_fix_mr` to the Kleene iteration `Yfix_fun_lin` of
-`theories/programs/infra/em_fix.v` on the unit-ball CPO of the clean
-`linhom`-cone — see
-[The fixpoint](../../ppl/sections/ppl-sec-the-fixpoint.html).
+interpretation in `theories/programs/ppl_cbv.v` resolves `ne_fix`
+(and `ne_fix_mr` at function body types) to the composite
+`fix_comb ∘ ⟦λs.body⟧`, where `fix_comb` is the seeded value-fixpoint
+combinator of `theories/programs/infra/em_fix_value.v` — see
+[the CBV value-fixpoint
+chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 
 ### Mutual recursion at free-coalgebra types (`ne_fix_mr`)
 
@@ -203,10 +222,14 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 ```
 
 CBN dispatches via `Yfix` at the product cone. CBV in
-`theories/programs/ppl_cbv.v` routes `ne_fix_mr` through the same
-`Yfix_fun_lin` of `theories/programs/infra/em_fix.v` as `ne_fix` —
-the operator is parametric in the codomain cone, so the same recipe
-handles both function types and any free-coalgebra type.
+`theories/programs/ppl_cbv.v` dispatches `ne_fix_mr` on the body
+type (`fix_mr_clause`): at `tfun t1 t2` it is the *same* genuine
+seeded combinator `fix_comb` as `ne_fix`; at products of free types
+it still routes through the legacy zero-seeded `Yfix_fun_lin` of
+`theories/programs/infra/em_fix.v` — which is provably the zero
+linhom (`Yfix_fun_lin_eq0`), an honest scope limitation pending the
+Seely transport of `fix_comb` along
+`EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)`.
 
 ### Variable lookup by canonical structures (`tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'`)
 
@@ -335,8 +358,15 @@ and duplicability comes from the outer cofree `!̃` only.
 The sections of this chapter: the type and context translations; the
 EM cartesian primitives the interpreter is assembled from; the
 clause-by-clause interpreter `eD_cbv` / `eD`; the constant-effect
-helpers; the value-level `if_icones`; the definitional-unfolding
-regression pack; and the semantic recursion-unfolding equation.
+helpers; the value-dependent Bernoulli lift; the value-level
+`if_icones`; and the definitional-unfolding regression pack. The
+semantic laws *about* the interpreter — the recursion-unfolding
+equations, the let-at-sample integral law, and the sharing-semantics
+anchors — live in
+[the CBV value-fixpoint
+chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html)
+and
+[the CBV semantic-laws chapter](../../ppl/chapters/ppl-ch-cbv-semantic-laws-and-regression-anchors.html).
 
 | Construction | Rocq |
 |---|---|
@@ -344,12 +374,13 @@ regression pack; and the semantic recursion-unfolding equation.
 | Context translation | `ctxD_cbv` — same file |
 | Variable lookup (projection chain) | `var_lookup_cbv` — same file |
 | Constant `icones_hom` helpers (`sample`, `real`, `true`/`false`, `bernoulli`) | `sample_icones`, `real_icones`, `true_icones`, `false_icones`, `bernoulli_icones` — same file |
-| If-then-else combinator at the icones level | `if_icones`, `if_under` — same file |
-| Internal icones-valued term interpretation | `eD_cbv` — same file |
+| The value-dependent Bernoulli lift (semantics of `ne_bernoulli_f`) | `bern_lift`, `bern_lift_dirac`, `bern_lift_E`, `bern_lift_t_E`, `bern_lift_f_E`, `bern_lift_mass` — `theories/programs/ppl.v` (Section BernTmLift) |
+| If-then-else combinator at the icones level | `if_icones`, `if_under` — `theories/programs/ppl_cbv.v` |
+| Internal icones-valued term interpretation | `eD_cbv`, `fix_mr_clause` — same file |
 | Public linhom-valued term interpretation | `eD` — same file |
 | EM cartesian primitives (`δ`, `ε`, projections, pairing) | `coalg_d`, `coalg_e`, `em_proj1_mor`, `em_proj2_mor`, `em_pair_mor`, `em_term_mor` — `theories/homs/em_cartesian.v`; cartesian-η `em_pair_mor_proj_id` — `theories/programs/infra/cbv_adjunction.v` |
-| Definitional-unfolding pack (one lemma per clause) | `eD_var_E` … `eD_fix_mr_E` (19 lemmas) — `theories/programs/ppl_cbv.v` (Section EDUnfold) |
-| Recursion-unfolding equation | `eD_cbv_fix_unfold`, `eD_fix_unfold` — same file |
+| Definitional-unfolding pack (one lemma per clause) | `eD_var_E` … `eD_fix_mr_prod_E` (22 lemmas) — `theories/programs/ppl_cbv.v` (Section EDUnfold) |
+| Recursion-unfolding equations (semantic; setlike points) | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_unfold_closed` — `theories/programs/infra/cbv_fix_unfold.v` |
 
 ### Type translation (`tyD_cbv`)
 
@@ -513,17 +544,16 @@ Fixpoint eD_cbv (G : named_ctx Ar) (t : T)
   | ne_false G0           => false_icones (ctxD_cbv (drop_names G0))
   | ne_bernoulli G0 p H0 H1 =>
       bernoulli_icones (ctxD_cbv (drop_names G0)) p H0 H1
+  | ne_bernoulli_f G0 f Hfm Hg0 Hl1 e0 =>
+      icones_comp (bern_lift Hfm Hg0 Hl1) (eD_cbv e0)
   | ne_if _ _ e M0 N0     => if_icones (eD_cbv M0) (eD_cbv N0) (eD_cbv e)
   | ne_fix G0 _ t1 t2 body =>
-      linhom_icones
-        (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G0)))
-                      (eD_cbv body))
-        (Yfix_fun_lin_norm_le1 _ _)
+      icones_comp
+        (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                         (coalg_obj (tyD_cbv t2)))))
+        (ch_mor (adj_psi (tensor_curry (eD_cbv body))))
   | ne_fix_mr G0 _ ty _ body =>
-      linhom_icones
-        (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G0)))
-                      (eD_cbv body))
-        (Yfix_fun_lin_norm_le1 _ _)
+      fix_mr_clause (ctxD_cbv (drop_names G0)) ty (eD_cbv body)
   end.
 
 Definition eD M : linhom_car Ar (coalg_obj (ctxD_cbv (drop_names G)))
@@ -531,11 +561,18 @@ Definition eD M : linhom_car Ar (coalg_obj (ctxD_cbv (drop_names G)))
   icones_to_linhom (eD_cbv M).
 ```
 
-The `ne_fix` and `ne_fix_mr` clauses resolve to the Kleene fixpoint
-`Yfix_fun_lin` on the unit-ball CPO of the clean `linhom`-cone (see
-[The fixpoint](../../ppl/sections/ppl-sec-the-fixpoint.html)); the
-diagonal `coalg_d (ctxD_cbv (drop_names G0))` supplies the
-context-coalgebra comonoid `δ_Γ` used inside the Kleene step. Every
+The `ne_fix` clause is the composite `fix_comb ∘ ⟦λs.body⟧`: the
+self-abstraction is interpreted as an *ordinary* lambda (the
+`ne_lam` clause, inlined because `ne_lam s body` is not a subterm of
+`ne_fix s body`), then post-composed with the seeded value-fixpoint
+combinator `fix_comb : EM(!̃(!L ⊸ !L), !̃L)` of
+`theories/programs/infra/em_fix_value.v`, at `L := U⟦t1⟧ ⊸ U⟦t2⟧` —
+see
+[the CBV value-fixpoint
+chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
+The `ne_fix_mr` clause dispatches on the body type
+(`fix_mr_clause`): the same `fix_comb` composite at `tfun`, the
+legacy (provably-zero) `Yfix_fun_lin` at products of frees. Every
 other clause is built from the SMC primitives (`linhom_comp`,
 `tensor_mor`, `tensor_braid`, `tensor_curry` / `tensor_uncurry`) and
 the coalgebra-comonoid pair (`coalg_d`, `coalg_e`) only.
@@ -565,6 +602,64 @@ Definition true_icones (G : Coalgebra Ar) :
 With `tyD_cbv tbool = bool_cone_coalg`, the carrier of `⟦tbool⟧` is
 `bool_cone_car Ar` directly (not `Bang _`), so the value is the basis
 point `bool_dirac_true` itself — no `prom` wrap is needed.
+
+### The value-dependent Bernoulli lift (`bern_lift`, `bern_lift_dirac`, `bern_lift_mass`)
+
+The semantic engine of `ne_bernoulli_f`: an
+`icones_hom (FMeas R_obj) (bool_cone_car Ar)` sending a measure `µ`
+on the reals to the 2-point sub-probability
+`(∫ f dµ, ∫ (1 − f) dµ)` — sample `r ~ µ`, then flip a coin with
+success probability `f r`. It lives in `theories/programs/ppl.v`
+(Section BernTmLift), and the `ne_bernoulli_f` clause of `eD_cbv`
+post-composes it with the scrutinee's denotation, exactly as
+`ne_score` post-composes `score_lift`.
+
+The construction is the *path route*, a verbatim clone of the score
+lift: package `r ↦ bernoulli (f (cR r))` as a measurable path into
+`bool_cone_car Ar` (the three tests of the bool cone evaluate along
+the path to `f∘cR`, `1 − f∘cR` and the constant `1`), then promote
+with `int_to_linhom`. The integral semantics is then automatic by
+Pettis uniqueness against the componentwise integral `bool_int` of
+`theories/programs/infra/bool_cone.v`.
+
+```coq
+(* theories/programs/ppl.v (Section BernTmLift) *)
+(** The lift as an [icones_hom]. *)
+Definition bern_lift :
+    icones_hom Ar (FMeas R_obj) (bool_cone_car Ar) :=
+  linhom_icones (int_to_linhom bern_path) bern_int_norm_le1.
+
+(** On a Dirac at [R_to_carrier r], the lift evaluates to the
+    Bernoulli element [(f r, 1 - f r)]. *)
+Lemma bern_lift_dirac (r : R) :
+  Lfun bern_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
+  bernoulli (f r) (Hf_ge0 r) (Hf_le1 r).
+
+(** Coordinate readings: the [true]-coordinate is [∫ f dµ] … *)
+Lemma bern_lift_t_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  ((bc_t (Lfun bern_lift mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+          (f (cR r))%:E).
+
+(** … and the [false]-coordinate is [∫ (1 - f) dµ]. *)
+Lemma bern_lift_f_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  ((bc_f (Lfun bern_lift mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+          ((1 - f (cR r))%R)%:E).
+```
+
+The load-bearing law for the rejection-sampling headline is the
+total-mass identity: the coin is norm-1 *pointwise* (it always
+lands), so the lift preserves total mass — with `‖µ‖ = 1` the reject
+weight is exactly `1 − ∫ f dµ`, which is what makes the headline's
+per-iterate mass recurrence affine.
+
+```coq
+(* theories/programs/ppl.v (Section BernTmLift) *)
+Lemma bern_lift_mass (mu : fmeas R (ar_carrier Ar R_obj)) :
+  cone_norm (Lfun bern_lift mu) =
+  fine (fmeas_mu mu [set: ar_carrier Ar R_obj]).
+```
 
 ### If-then-else at the icones level (`if_icones`, `if_under`)
 
@@ -599,13 +694,14 @@ Ar`. The building blocks (`bool_case_linhom`, the 2-point cone, the
 §9.7 coalgebra) are documented in [the boolean-cascade
 chapter](../../ppl/chapters/ppl-ch-the-boolean-cascade.html).
 
-### The definitional-unfolding pack (`eD_var_E` … `eD_fix_mr_E`)
+### The definitional-unfolding pack (`eD_var_E` … `eD_fix_mr_prod_E`)
 
-One lemma per `eD_cbv` clause — 19 in total, one for each
-`named_expr` constructor — pins the exact clause body of the
-interpreter, so any refactor of `eD_cbv` (or of the combinators it
-is built from) breaks loudly in a named lemma instead of silently
-changing the semantics.
+One lemma per `eD_cbv` clause — 22 in total: one for each of the 20
+`named_expr` constructors, plus the two per-body-type refinements
+`eD_fix_mr_fun_E` / `eD_fix_mr_prod_E` of the dispatched `ne_fix_mr`
+clause — pins the exact clause body of the interpreter, so any
+refactor of `eD_cbv` (or of the combinators it is built from) breaks
+loudly in a named lemma instead of silently changing the semantics.
 
 Because `eD_cbv` is a structural `Fixpoint`, every clause reduces
 definitionally on its constructor and every proof is `by []`. The
@@ -629,56 +725,36 @@ Lemma eD_let_E (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
                  (eD_cbv' M)).
 Proof. by []. Qed.
 
-(** [ne_fix]: the Kleene value-fixpoint [Yfix_fun_lin]. *)
+(** [ne_fix]: the genuine value-fixpoint —
+    [⟦fix s.M⟧ = fix_comb ∘ ⟦λs.M⟧] ([fix_comb] of [em_fix_value.v]
+    post-composed with the inlined [ne_lam] packaging of the body). *)
 Lemma eD_fix_E (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
     (M : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
   eD_cbv' (ne_fix s M) =
-  linhom_icones
-    (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
-    (Yfix_fun_lin_norm_le1 _ _).
+  icones_comp
+    (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                     (coalg_obj (tyD_cbv t2)))))
+    (ch_mor (adj_psi (P := ctxD_cbv (drop_names G))
+                     (B := linhom_car Ar
+                             (coalg_obj (tyD_cbv (tfun t1 t2)))
+                             (coalg_obj (tyD_cbv (tfun t1 t2))))
+             (tensor_curry (eD_cbv' M)))).
 Proof. by []. Qed.
 
-(* … 16 more: eD_tt_E, eD_pair_E, eD_fst_E, eD_snd_E, eD_lam_E,
+(* … 19 more: eD_tt_E, eD_pair_E, eD_fst_E, eD_snd_E, eD_lam_E,
    eD_app_E, eD_sample_E, eD_real_E, eD_score_E, eD_add_E, eD_mul_E,
-   eD_true_E, eD_false_E, eD_bernoulli_E, eD_if_E, eD_fix_mr_E. *)
+   eD_true_E, eD_false_E, eD_bernoulli_E, eD_bernoulli_f_E, eD_if_E,
+   eD_fix_mr_E, eD_fix_mr_fun_E, eD_fix_mr_prod_E. *)
 ```
 
-### The recursion-unfolding equation (`eD_cbv_fix_unfold`, `eD_fix_unfold`)
-
-The denotation of `fix s. body` equals the denotation of the body
-run with the fixpoint itself bound to the recursive variable —
-`⟦fix s. body⟧ = ⟦body⟧ ∘ ⟨id_Γ, ⟦fix s. body⟧⟩` — first at the
-`icones_hom` level, then re-exported at the public linhom level.
-
-The proof is the semantic payoff of the Kleene construction: by
-`Yfix_fun_lin_fixpoint` the fixpoint is invariant under the Kleene
-step `Phi_fun diag M prev = M ∘ (id_Γ ⊗ prev) ∘ δ_Γ`, and that step
-is *exactly* the `em_pair_mor`-composite on the right-hand side
-(unfolded via `Phi_fun_unit` on the unit ball). One bookkeeping
-subtlety: `em_fix.v` and the `ne_fix` clause package the same
-unit-ball linhom through two *propositionally* equal `linhom_icones`
-records (their integral-preservation proofs are distinct opaque
-constants), bridged by `icones_hom_eq`.
-
-```coq
-(* theories/programs/ppl_cbv.v (Section EDUnfold) *)
-Lemma eD_cbv_fix_unfold (G : named_ctx Ar) (s : string)
-    (t1 t2 : ppl_type Ar)
-    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
-  eD_cbv' (ne_fix s body) =
-  icones_comp (eD_cbv' body)
-    (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
-                 (eD_cbv' (ne_fix s body))).
-
-(** The same equation at the public linhom level. *)
-Lemma eD_fix_unfold (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
-    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
-  eD' (ne_fix s body) =
-  icones_to_linhom
-    (icones_comp (eD_cbv' body)
-       (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
-                    (eD_cbv' (ne_fix s body)))).
-```
+The *semantic* recursion-unfolding equations — the prom-point
+computation law `eD_fix_at_setlike` and the honest recursion
+equation `eD_fix_unfold` — live in
+`theories/programs/infra/cbv_fix_unfold.v` (they need the
+setlike-point kit of `infra/cbv_anchors.v`, which imports this
+file); they are documented with the fixpoint combinator itself in
+[the CBV value-fixpoint
+chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 
 ---
 
@@ -1121,35 +1197,95 @@ Consumed by `add_FMeas_scones` / `mul_FMeas_scones` of
 
 ## Beyond the paper — The CBV value-fixpoint at function types
 
-The CBV-side `let rec` (the `ne_fix` and `ne_fix_mr` clauses of
-`ppl_cbv.v`) is the Kleene iteration on the unit-ball ω-CPO of the
-clean `linhom`-cone `linhom_car Ar Γ B` — no `Tobj` / `!̃U` wrap on
-the codomain `B`. Lives in `theories/programs/infra/em_fix.v`,
-parameterised by an arbitrary diagonal `diag : Γ → Γ ⊗ Γ` and the
-body's icones-hom `M : Γ ⊗ B → B`; specialised in `ppl_cbv.v` at
-`diag := coalg_d (ctxD_cbv (drop_names G))` (the context coalgebra's
-comonoid diagonal) and `M := eD_cbv body`.
+The CBV-side `let rec` is the value-fixpoint *combinator*
 
-The sections of this chapter: the Kleene step `Phi_fun`; the
-fixpoint `Yfix_fun_lin` with its proved properties (and their
-limits); and the cross-reference to the SCones-side `Yfix`.
+```
+fix_comb : EM( !̃(!A ⊸ !A), !̃A )
+```
+
+— a morphism of `!`-coalgebras between the cofree coalgebras,
+determined on promoted bodies `F! ` (for `F` in the unit ball of
+`!A ⊸ !A`) by `fix_comb (F!) = (sup_n x_n)!` where `x_0 = 0 : A` and
+`x_{n+1} = der (F (x_n !))` — the *interleaved* Kleene chain. It
+lives in `theories/programs/infra/em_fix_value.v` and is what the
+`ne_fix` clause (and `ne_fix_mr` at function body types) of
+`ppl_cbv.v` post-composes onto the body's lambda packaging:
+`⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧`.
+
+The chapter tells the story in order. First the *degeneracy
+theorem*: the previous operator `Yfix_fun_lin` of
+`theories/programs/infra/em_fix.v` — Kleene iteration of the linear
+step `prev ↦ M ∘ (id ⊗ prev) ∘ δ` from the linhom cone-zero — is
+*provably the zero linhom*, always (`Yfix_fun_lin_eq0`): a linear
+step preserves the zero seed, and the bottom of a CBV function-value
+type is not the cone-zero of `!L` but the promoted zero `(0)!`, the
+diverging-function value of `e_bang`-mass one. Then the repair: seed
+the iteration at the genuine bottom `0 : A` *under* the promotion,
+interleaving `der` and `prom` so that each iterate re-enters the
+body as a promoted value — the `prom ∘ der` sandwich is what makes
+the chain productive for *any* unit-ball body, linear or not (the
+step `x ↦ der (F (x!))` is monotone because `prom` is totally
+monotone and `F`, `der` are linear). Coalgebra-morphism-ness of the
+combinator comes for free: the value map `F ↦ sup_n x_n` is built
+from existing `SCones` morphisms, converted to a linear map
+`!(!A ⊸ !A) ⊸ A` by the SAFT hom-bijection `lin`, and packaged by
+`adj_psi` of the `U ⊣ !̃` adjunction.
 
 | Construction | Rocq |
 |---|---|
-| The Kleene step `M ∘ (id ⊗ prev) ∘ diag` (safe, on unit-ball `prev`) | `Phi_fun_safe` — `theories/programs/infra/em_fix.v` |
-| The total Kleene step (with `precone_zero` off the unit ball) | `Phi_fun` — same file |
-| Ball preservation / monotonicity / ω-continuity | `Phi_fun_ball`, `Phi_fun_incr`, `Phi_fun_cont` — same file |
-| The CBV value-fixpoint as `sup_n (Phi_fun)^n precone_zero` | `Yfix_fun_lin` — same file |
-| Fixpoint equation `Phi_fun (Yfix_fun_lin) = Yfix_fun_lin` | `Yfix_fun_lin_fixpoint` — same file |
-| Unit-ball preservation `cone_norm Yfix_fun_lin ≤ 1` | `Yfix_fun_lin_norm_le1` — same file |
-| Consumed by the CBV recursion clauses `ne_fix` / `ne_fix_mr` | the two `linhom_icones (Yfix_fun_lin _ _) (Yfix_fun_lin_norm_le1 _ _)` branches at the end of `eD_cbv` — `theories/programs/ppl_cbv.v` |
+| The degeneracy theorem: the zero-seeded operator is the zero linhom | `Yfix_fun_lin_eq0`, `Phi_fun_zero`, `kleene_lin_Phi_fun_eq0` — `theories/programs/infra/em_fix_value.v` |
+| The legacy zero-seeded operator (kept as the contrast; still the `ne_fix_mr` product clause) | `Phi_fun`, `Yfix_fun_lin`, `Yfix_fun_lin_fixpoint`, `Yfix_fun_lin_norm_le1` — `theories/programs/infra/em_fix.v` |
+| Seeded Kleene core on any cone (`b0 ≤ f b0` replaces the zero seed) | `kleene_from`, `lfp_from`, `lfp_from_fixpoint` — `theories/programs/infra/em_fix_value.v` |
+| The interleaved chain `x_{n+1} = der (F (x_n!))` | `fix_chain`, `fix_chain_S`, `fix_chain_ball`, `fix_chain_chain` — same file |
+| The stable value map `F ↦ sup_n x_n` in `SCones` | `fix_value`, `fix_value_E`, `fix_value_unfold` — same file |
+| The combinator as an EM morphism, and its computation law | `fix_comb`, `fix_comb_mor`, `fix_prom_E` — same file |
+| Obligation (b): coalgebraic bodies give the literal chain | `fix_setlike_prom`, `fix_coalg_simpl`, `fix_unfold_coalg` — same file |
+| Non-degeneracy witnesses | `fix_prom_neq0`, `fix_id_E`, `fix_id_nontrivial` — same file |
+| The interpreter wiring `⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧` | `eD_fix_E`, `eD_fix_mr_fun_E`, `eD_fix_mr_prod_E`, `fix_mr_clause` — `theories/programs/ppl_cbv.v` |
+| The recursion-unfolding equations at setlike points | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_at_one1`, `eD_fix_unfold_closed` — `theories/programs/infra/cbv_fix_unfold.v` |
 
-### The Kleene step (`Phi_fun`, `Phi_fun_safe`)
+### The degeneracy theorem (`Yfix_fun_lin_eq0`)
 
-The Kleene step sends a candidate denotation `prev : Γ ⊸ B` to
-`M ∘ (id_Γ ⊗ prev) ∘ diag` — "run the body with `prev` bound to the
-recursive variable" — packaged at the linhom level, and extended
-trivially off the unit ball so the operator is total.
+For *every* diagonal `diag` and every body `M`, the zero-seeded CBV
+value-fixpoint `Yfix_fun_lin diag M` of
+`theories/programs/infra/em_fix.v` equals the zero linhom. The
+structural reason: the Kleene step `Phi_fun` is *linear* in the
+previous iterate, so it maps the linhom cone-zero seed to the
+cone-zero (`Phi_fun_zero` — the `id_Γ ⊗ 0` tensor vanishes by
+bilinearity, then post-composition by the linear `M` preserves
+zero); by induction every Kleene iterate is zero
+(`kleene_lin_Phi_fun_eq0`), and so is the supremum.
+
+```coq
+(* theories/programs/infra/em_fix_value.v (Section CbvFixDegeneracy) *)
+(** STEP B: the Kleene step kills zero. *)
+Lemma Phi_fun_zero : Phi_fun diag M precone_zero = precone_zero.
+
+(** STEP C: every Kleene iterate is zero. *)
+Lemma kleene_lin_Phi_fun_eq0 n :
+  kleene_lin (Phi_fun diag M) n = precone_zero.
+
+(** STEP D: the previous CBV value-fixpoint is the zero linhom —
+    DEGENERACY. *)
+Lemma Yfix_fun_lin_eq0 : Yfix_fun_lin diag M = precone_zero.
+```
+
+The diagnosis behind the repair: the bottom of a CBV function
+*value* type is not the cone-zero of `!L` — it is the promoted zero
+`(0)!`, the diverging-function value, which has `e_bang`-mass one
+and is therefore not even close to `precone_zero` in the cone order.
+A least fixpoint computed from the wrong bottom is the wrong least
+fixpoint.
+
+### The legacy zero-seeded operator (`Phi_fun`, `Yfix_fun_lin`)
+
+The operator that the degeneracy theorem is about: `Phi_fun` sends a
+candidate denotation `prev : Γ ⊸ B` to `M ∘ (id_Γ ⊗ prev) ∘ diag` —
+"run the body with `prev` bound to the recursive variable" —
+extended trivially off the unit ball, and `Yfix_fun_lin` is the
+supremum of its Kleene chain from `precone_zero` on the unit-ball
+ω-CPO of `linhom_car Ar Γ B` (with `Yfix_fun_lin_norm_le1` and the
+fixpoint equation `Yfix_fun_lin_fixpoint`).
 
 ```coq
 (* theories/programs/infra/em_fix.v *)
@@ -1162,72 +1298,291 @@ Definition Phi_fun_safe
     (linhom_pre_act diag
       (tensor_mor_R_lin Gamma (linhom_icones prev Hprev))).
 
-Definition Phi_fun diag M (prev : linhom_car Ar Gamma B) :
-    linhom_car Ar Gamma B :=
-  match pselect (cone_norm prev <= 1) with
-  | left H  => Phi_fun_safe diag M prev H
-  | right _ => precone_zero
-  end.
-```
-
-The three layers are `tensor_mor_R_lin Γ` (the `id ⊗ prev` tensor),
-`linhom_pre_act diag` (pre-composition by the diagonal), and
-`linhom_post M` (post-composition by the body). The Kleene chain
-stays inside the unit ball, so the off-ball default `precone_zero`
-never matters for `Yfix_fun_lin`.
-
-### The fixpoint (`Yfix_fun_lin`, `Yfix_fun_lin_fixpoint`, `Yfix_fun_lin_norm_le1`)
-
-`Yfix_fun_lin` is the supremum of the Kleene chain `(Phi_fun)^n
-precone_zero` over the unit-ball ω-CPO of `linhom_car Ar Γ B`; it is
-proved to stay in the unit ball (`Yfix_fun_lin_norm_le1`) and to
-satisfy the fixpoint equation `Phi_fun (Yfix_fun_lin) =
-Yfix_fun_lin` (`Yfix_fun_lin_fixpoint`).
-
-```coq
-(* theories/programs/infra/em_fix.v (Section PhiFun) *)
 Definition Yfix_fun_lin : linhom_car Ar Gamma B :=
   linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball.
 
-Lemma Yfix_fun_lin_norm_le1 : cone_norm Yfix_fun_lin <= 1.
-
-(** The fixpoint equation: [Phi_fun (Yfix_fun_lin) = Yfix_fun_lin]. *)
 Lemma Yfix_fun_lin_fixpoint : Phi_fun Yfix_fun_lin = Yfix_fun_lin.
 ```
 
-The proof is organised as three obligations feeding the generic
-`linhom_lfp` engine (same file, Section LinhomLFP): `Phi_fun_ball`
-(the step preserves the unit ball — operator-norm bookkeeping
-through the three layers), `Phi_fun_incr` (monotonicity on the unit
-ball, by linearity of post-composition), and `Phi_fun_cont`
-(ω-continuity, proved layer by layer: `tensor_mor_omega_cont_R` for
-the tensor layer, then continuity of `linhom_pre_act` /
-`linhom_post`). `linhom_lfp` then forms the chain `kleene_lin n =
-iter n Phi_fun precone_zero` and takes `linhom_sup_ball`; the
-fixpoint equation follows from `Phi_fun_cont` by the standard
-exchange of `Phi_fun` with the supremum.
+The construction, the ball bound and the fixpoint equation are all
+true — and all satisfied by the zero linhom, which is exactly what
+`Yfix_fun_lin_eq0` shows it is. The operator is kept in `em_fix.v`
+as the documented contrast, and it is still the honest-scope
+placeholder for the `ne_fix_mr` *product* case (`fix_mr_clause` in
+`ppl_cbv.v`), whose repair needs the Seely transport of `fix_comb`
+along `EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)`.
 
-These three lemmas — construction, ball, fixpoint equation — are
-what is proven about the operator. They do not by themselves yield
-the mass identities of recursive example programs on the CBV side;
-see *What is not formalised* below.
+### The seeded Kleene core (`kleene_from`, `lfp_from`)
 
-`Yfix_fun_lin` is parametric in any `B : ICone.type Ar` — the
-construction does not depend on a `!`-coalgebra structure on `B`
-(the unit-ball ω-CPO of `linhom_car Ar Γ B` exists for every
-integrable cone `B`). `ppl_cbv.v` instantiates it at `B =
-bang_cofree (linhom …)` for `ne_fix` and at `B = coalg_obj (tyD_cbv
-t)` for any free-coalgebra `t` at `ne_fix_mr`; the same uniformity
-is what lets one operator serve both recursion constructors.
+The generic Kleene chain `n ↦ fⁿ(b0)` for an *arbitrary* seed `b0`
+with `b0 ≤ f b0` replacing the `precone_le0` base of the zero-seeded
+chains, stated on a bare `coneType` so that it covers both
+cone-point chains (the literal chain `Fⁿ(0!)` of obligation (b)
+below) and linhom-level chains. The fixpoint equation holds under
+ω-continuity of the step on the ball.
+
+```coq
+(* theories/programs/infra/em_fix_value.v (Section SeededKleene) *)
+(** The seeded Kleene chain [n ↦ fⁿ(b0)]. *)
+Definition kleene_from (n : nat) : B := iter n f b0.
+
+(** The seeded least-fixpoint candidate (sup of the seeded chain). *)
+Definition lfp_from : B :=
+  cone_sup_ball kleene_from kleene_from_chain kleene_from_ball.
+
+(** The fixpoint equation, under ω-continuity of [f] on the ball. *)
+Lemma lfp_from_fixpoint : f lfp_from = lfp_from.
+```
+
+### The interleaved chain and the value map (`fix_chain`, `fix_value`)
+
+Fix `A` and write `!A := Bang Ar A`, `LL := !A ⊸ !A`. The
+interleaved chain of a body `F : LL` is `x_0 = 0 : A`,
+`x_{n+1} = der (F (x_n !))`: each iterate is *re-promoted* before it
+re-enters the body and *dereferenced* after — so the body always
+sees a legitimate (promoted) function value, and the chain lives in
+`A` where the genuine bottom is `0`. Monotonicity needs no linearity
+of the assignment `F ↦ x_n`: `prom` is totally monotone (it is the
+underlying map of the stable `nl`), and `F` and `der` are linear
+(`fix_step_incr`).
+
+```coq
+(* theories/programs/infra/em_fix_value.v (Section FixCombinator) *)
+Definition fix_chain (F : LL) (n : nat) : A :=
+  iter n (fun x : A => Lfun (der A) (linhom_fun F (prom x)))
+         (precone_zero : A).
+
+(** Per-iterate access law. *)
+Lemma fix_chain_S (F : LL) (n : nat) :
+  fix_chain F n.+1 = Lfun (der A) (linhom_fun F (prom (fix_chain F n))).
+```
+
+The assignment `F ↦ sup_n x_n` is then packaged as a *stable* map —
+obligation (a) of the construction. It is the composite of existing
+`SCones` morphisms (so total monotonicity, ω-continuity and
+path-measurability come for free): the linear-to-stable lift
+`linhom_to_stablehom` of the post-action `F ↦ der ∘ F`, curried
+through the CCC of `stable/scones_ccc.v` against the `nl`-promotion
+of the argument, and closed by the §9.2 fixpoint combinator `Yfix`
+of `stable/fixpoint.v` — whose value at a unit-ball `f` is
+identified with the plain Kleene supremum `sup_n fⁿ(0)`
+(`Yfix_kleeneE`, same file).
+
+```coq
+(* theories/programs/infra/em_fix_value.v *)
+Definition fix_value : scones_hom LL A :=
+  scones_comp (Yfix A) fix_body.
+
+(** The defining computation: [fix_value F] is the sup of the
+    INTERLEAVED chain. *)
+Lemma fix_value_E (F : LL) (HF : cone_norm F <= 1) :
+  sc_fun fix_value F =
+  cone_sup_ball (fix_chain F) (fix_chain_chain HF) (fix_chain_ball HF).
+
+(** The fixpoint equation of the value map (from [Yfix_fix]). *)
+Lemma fix_value_unfold (F : LL) (HF : cone_norm F <= 1) :
+  Lfun (der A) (linhom_fun F (prom (sc_fun fix_value F))) =
+  sc_fun fix_value F.
+```
+
+### The combinator (`fix_comb`, `fix_prom_E`)
+
+A stable map `(!A ⊸ !A) → A` *is* a linear map `!(!A ⊸ !A) ⊸ A`
+via the SAFT hom-bijection `lin`/`Theta` of `theories/homs/bang.v`
+(`fix_lin := lin fix_value`, with the promoted-point computation
+`fix_lin_promE`); `adj_psi` of the `U ⊣ !̃` adjunction then packages
+the linear map as a morphism into the cofree coalgebra — so
+`fix_comb` is a coalgebra morphism *by construction*, with no fresh
+order analysis of the SAFT `Bang`.
+
+```coq
+(* theories/programs/infra/em_fix_value.v *)
+Definition fix_comb :
+    coalg_hom (bang_cofree (linhom_car Ar (Bang Ar A) (Bang Ar A)))
+              (bang_cofree A) :=
+  adj_psi (P := bang_cofree LL) fix_lin.
+
+(** The prom-point computation law — the defining formula. *)
+Lemma fix_prom_E (F : LL) (HF : cone_norm F <= 1) :
+  Lfun (ch_mor fix_comb) (prom F) = prom (sc_fun fix_value F).
+```
+
+`fix_prom_E` is the law every consumer starts from: on a promoted
+body the combinator returns the *promoted* interleaved-Kleene
+supremum. Its proof composes `dig_prom` (the cofree structure map
+promotes promoted points), `bang_fmap_prom` (the functorial action
+computes on promoted points) and `fix_lin_promE`.
+
+### Coalgebraic bodies: the literal chain (`fix_coalg_simpl`)
+
+Obligation (b): when the body `F` is itself a morphism of
+`!`-coalgebras `!A → !A`, the interleaved chain coincides with the
+*literal* Kleene chain `n ↦ Fⁿ(0!)` in `!A`, seeded at the diverging
+value `0!` — the naive iteration one would have written by hand. The
+bridge is `fix_setlike_prom`: a coalgebraic body sends promoted
+points to promoted points (`F(y!) = (der (F (y!)))!`, read off the
+coalgebra-morphism square at `y!` plus the right counit law), so
+promotion intertwines the two chains (`fix_iter_promE`).
+
+```coq
+(* theories/programs/infra/em_fix_value.v (Section FixCoalgebraic) *)
+(** A coalgebraic body maps promoted points to promoted points. *)
+Lemma fix_setlike_prom (y : A) (Hy : cone_norm y <= 1) :
+  linhom_fun F (prom y) =
+  prom (Lfun (der A) (linhom_fun F (prom y))).
+
+(** On a coalgebraic body, the combinator is the SUP OF THE LITERAL
+    CHAIN [n ↦ Fⁿ(0!)] (seeded Kleene in [!A]). *)
+Lemma fix_coalg_simpl :
+  Lfun (ch_mor (fix_comb A)) (prom F) =
+  lfp_from (f := linhom_fun F) (b0 := prom (precone_zero : A))
+    fix_lit_incr fix_lit_ball fix_seed_ball fix_seed_le.
+
+(** The !A-level unfolding for coalgebraic bodies. *)
+Lemma fix_unfold_coalg :
+  linhom_fun F (Lfun (ch_mor (fix_comb A)) (prom F)) =
+  Lfun (ch_mor (fix_comb A)) (prom F).
+```
+
+Note the seed-order obligation `0! ≤ F(0!)` (`fix_seed_le`) — the
+base case the zero-seeded `linhom_lfp` could never provide, and the
+reason the seeded Kleene core of this file exists.
+
+### Non-degeneracy (`fix_prom_neq0`, `fix_id_E`)
+
+On *every* promoted body the combinator returns a promoted point of
+`!A`, and a promoted point is never the cone-zero (its `e_bang`-mass
+is `one1`) — the direct contrast with `Yfix_fun_lin_eq0`. The
+simplest honest instance is the identity body: its interleaved chain
+is constantly `0` (since `der (0!) = 0`), so `fix_comb (id!) = 0!` —
+the *diverging value*, which is provably nonzero.
+
+```coq
+(* theories/programs/infra/em_fix_value.v *)
+Lemma fix_prom_neq0 (F : LL) (HF : cone_norm F <= 1) :
+  Lfun (ch_mor fix_comb) (prom F) <> precone_zero.
+
+(** [fix_comb (id!) = 0!] — the diverging value. *)
+Lemma fix_id_E :
+  Lfun (ch_mor (fix_comb A)) (prom fix_idF) = prom (precone_zero : A).
+
+(** The witness: the fix of the identity body is NOT zero. *)
+Lemma fix_id_nontrivial :
+  Lfun (ch_mor (fix_comb A)) (prom fix_idF) <> precone_zero.
+```
+
+### The interpreter wiring (`eD_fix_E`, `fix_mr_clause`)
+
+The `ne_fix` clause of `eD_cbv` is the composite
+`fix_comb ∘ ⟦λs.body⟧`: the self-abstraction is interpreted as an
+ordinary lambda (`adj_psi (tensor_curry ⟦body⟧)`, the `ne_lam`
+clause inlined), then post-composed with `fix_comb` at
+`L := U⟦t1⟧ ⊸ U⟦t2⟧`. The clause pins are definitional (`by []`).
+
+```coq
+(* theories/programs/ppl_cbv.v (Section EDUnfold) *)
+Lemma eD_fix_E (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
+  eD_cbv' (ne_fix s M) =
+  icones_comp
+    (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                     (coalg_obj (tyD_cbv t2)))))
+    (ch_mor (adj_psi (P := ctxD_cbv (drop_names G))
+                     (B := linhom_car Ar
+                             (coalg_obj (tyD_cbv (tfun t1 t2)))
+                             (coalg_obj (tyD_cbv (tfun t1 t2))))
+             (tensor_curry (eD_cbv' M)))).
+Proof. by []. Qed.
+```
+
+`ne_fix_mr` dispatches on the (free) body type through
+`fix_mr_clause`: at `tfun t1 t2` the same genuine composite
+(`eD_fix_mr_fun_E`); at `tprod`-of-frees still the degenerate
+`Yfix_fun_lin` (`eD_fix_mr_prod_E`) — the honest scope record, whose
+repair needs the Seely transport of `fix_comb` along
+`EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)`
+(`Seely2`).
+
+```coq
+(* theories/programs/ppl_cbv.v (Section EDUnfold) *)
+(** [ne_fix_mr] at a PRODUCT body type: still the degenerate
+    [Yfix_fun_lin] — the honest scope record. *)
+Lemma eD_fix_mr_prod_E (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar)
+    (Hfree : is_free_coalg_type (tprod t1 t2))
+    (M : @named_expr R Ar R_obj ((s, tprod t1 t2) :: G) (tprod t1 t2)) :
+  eD_cbv' (ne_fix_mr s (tprod t1 t2) Hfree M) =
+  linhom_icones
+    (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
+    (Yfix_fun_lin_norm_le1 _ _).
+Proof. by []. Qed.
+```
+
+### The recursion-unfolding equations (`eD_fix_at_setlike`, `eD_fix_unfold`)
+
+The semantic laws of the wired `ne_fix` clause, stated at *setlike*
+unit-ball context points (`coalg_str Γ γ = γ!` — the §9.7 "γ is a
+sub-Dirac" reading) in
+`theories/programs/infra/cbv_fix_unfold.v`. Writing
+`F_γ := curry ⟦body⟧ γ : !L ⊸ !L` for the body's endo-function at
+`γ`:
+
+- `eD_fix_at_setlike` — the prom-point *computation* law:
+  `⟦fix s.body⟧ γ = (fix_value F_γ)!`, i.e. the denotation is the
+  promoted supremum of the interleaved Kleene chain. In particular
+  it is never the cone-zero (`eD_fix_at_setlike_neq0`).
+- `eD_fix_unfold` — the honest *recursion equation*: one more body
+  unfolding at the fixpoint value, re-promoted, is the fixpoint
+  value.
+
+```coq
+(* theories/programs/infra/cbv_fix_unfold.v *)
+Lemma eD_fix_at_setlike (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar)
+    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2))
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = prom gam ->
+  Lfun (eD_cbv' (ne_fix s body)) gam =
+  prom (sc_fun (fix_value (Lty t1 t2))
+         (Lfun (tensor_curry (eD_cbv' body)) gam)).
+
+(** THE recursion equation:
+    [( der (F_γ (⟦fix s.body⟧ γ)) )! = ⟦fix s.body⟧ γ]. *)
+Lemma eD_fix_unfold (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar)
+    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2))
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = prom gam ->
+  prom (Lfun (der (Lty t1 t2))
+         (linhom_fun (Lfun (tensor_curry (eD_cbv' body)) gam)
+            (Lfun (eD_cbv' (ne_fix s body)) gam))) =
+  Lfun (eD_cbv' (ne_fix s body)) gam.
+```
+
+The closed-program corollaries `eD_fix_at_one1` /
+`eD_fix_unfold_closed` (same file) state both laws against the
+public linhom interpreter `eD` at the unit context point `one1`
+(which is setlike, `coalg_str_one1`). The same two laws also hold
+verbatim for `ne_fix_mr` at function body types
+(`eD_fix_mr_fun_at_setlike` / `eD_fix_mr_fun_unfold`). These
+equations live in their own file because the setlike-point kit they
+consume (`infra/cbv_anchors.v`) imports `ppl_cbv.v` — an import
+cycle would result if they sat next to the definitional clause pins.
 
 ### Cross-reference to the SCones side (`Yfix`)
 
 The CBN counterpart is `Yfix : scones_hom BB B` of
 `theories/stable/fixpoint.v` — [paper
-§9.2](../../paper/entries/sect-9-2.html), in the [§9 paper
-chapter](../../paper/sections/sec-9.html) orbit: the Kleene fixpoint
-at the `SCones` internal hom `stablehom B B → B`, again a unit-ball
-Kleene chain from `precone_zero` taken as a supremum.
+§9.2](../../paper/entries/sect-9-2.html): the Kleene fixpoint at the
+`SCones` internal hom, a unit-ball chain from `precone_zero` taken
+as a supremum. On the CBN side `Yfix` serves recursion *directly*
+(the zero seed is the right bottom there); on the CBV side it
+appears one level down, *inside* the construction of `fix_value`
+(`Yfix_kleeneE` identifies its value with the plain Kleene
+supremum), with the seeding repaired by the `der`/`prom`
+interleaving above.
 
 ```coq
 (* theories/stable/fixpoint.v *)
@@ -1238,8 +1593,271 @@ Definition Yfix : scones_hom BB B :=
     (sh_offball Yfix_elt).
 ```
 
-Same arithmetic at the stable-and-measurable categorical level; the
-CBV side runs the recipe at the `linhom` level instead.
+---
+
+## Beyond the paper — CBV semantic laws and regression anchors
+
+The equational layer between the interpreter and the example
+headlines: pointwise laws *about* `eD` that the rejection-sampling
+and mass-identity proofs consume, plus the regression anchors that
+pin the operational reading of the CBV interpreter — so that a
+refactor of the §7/§9 cartesian machinery that silently flipped the
+shared-sample semantics to an independent-product semantics would
+break in a named lemma instead of compiling quietly.
+
+The sections of this chapter: the let-at-sample Pettis integral law
+(the bridge from `let x = sample µ in K` to an integral over Diracs
+of the prior); the scalar affine-cascade closed form with the
+sup-mass bridge (the bridge from per-iterate mass recurrences to
+fixpoint masses); the setlike-point kit; the shared-sample diagonal
+anchors with their independence contrast; and the β-rule and
+if-orientation pins.
+
+| Construction | Rocq |
+|---|---|
+| The sample-let collapse `⟦let x = sample µ in K⟧(γ) = ⟦K⟧(γ ⊗ µ)` | `eD_let_sample_collapse`, `em_pair_mor_const_E` — `theories/programs/infra/let_sample_law.v` |
+| The let-at-sample Pettis integral law (arbitrary `γ`) | `eD_let_sample_int`, `ptensor_icone_integral`, `icone_integral_dirac_fmeas` — same file |
+| Per-`U` evaluation of an `FMeas`-valued Pettis integral | `icone_integral_fmeas_E` — same file |
+| The fused measure-on-`U` form at result type `tR` | `eD_let_sample_mu_E`, sanity `let_sample_var_E` — same file |
+| Affine Kleene cascade: closed form, geometric form, limit | `affine_iter_closed`, `affine_iter_geom`, `affine_iter_cvg`, `affine_iter_deg_eq0` — `theories/programs/infra/affine_cascade.v` |
+| The sup-mass bridge for unit-ball ω-chains in `FMeas` | `fmeas_kleene_sup_U_cvg`, `fmeas_kleene_sup_U_E` — same file |
+| The setlike-point kit (Eq-88 comonoid at sub-Dirac points) | `coalg_d_setlike`, `coalg_e_setlike`, `coalg_str_one1`, `coalg_str_tensor_setlike`, `em_pair_mor_constE` — `theories/programs/infra/cbv_anchors.v` |
+| The comonoid diagonals are DIAGONAL (boolean and `FMeas`) | `bool_coalg_d_E`, `coalg_d_FMeas_dirac` — same file |
+| The shared-sample witnesses | `let_bernoulli_pair_diag`, `let_sample_pair_diag` — same file |
+| The independence contrast | `pair_bernoulli_indep`, `pair_sample_indep` — same file |
+| The β-rule at the morphism level | `eD_beta` — same file |
+| The if-orientation pins | `eD_if_true`, `eD_if_false` — same file |
+
+### The let-at-sample integral law (`eD_let_sample_int`, `eD_let_sample_mu_E`)
+
+The law ties the CBV interpretation of `let x = sample µ in K` to
+the Pettis integral of `K`'s denotation over the Diracs of `µ`:
+
+```
+⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)
+```
+
+*pointwise at arbitrary `γ`* — no unit-ball and no setlike
+hypothesis anywhere, because every step is driven by a genuine
+`linhom_car` / `icones_hom` field, all of which hold on the whole
+cone. The proof is a four-step composition: (1) the sample-let
+*collapse* `⟦let x = sample µ in K⟧(γ) = ⟦K⟧(γ ⊗ µ)` — the inner
+`em_pair_mor id (const µ)` erases the context copy through the
+comonoid counit law `emc_counitR` (`em_pair_mor_const_E`, stated for
+an arbitrary constant); (2) the Dirac approximation `µ = ∫ δ_r µ(dr)`
+re-spelled with the bare `dirac_fmeas` integrand
+(`icone_integral_dirac_fmeas`, from `bilin.v`'s Thm 6.1 Dirac
+approximation); (3) tensoring with a fixed point preserves Pettis
+integrals, `γ ⊗ (∫ β dµ) = ∫ (γ ⊗ β r) µ(dr)` — the
+`linhom_pres_int` field of `τ(γ)` (`ptensor_icone_integral`); and
+(4) the `icones_hom_pres_int` field of `⟦K⟧` pushes the denotation
+under the integral.
+
+```coq
+(* theories/programs/infra/let_sample_law.v *)
+(** Step 1, the collapse — arbitrary [γ], no unit-ball hypothesis. *)
+Lemma eD_let_sample_collapse (γ : Gamo) :
+  Lfun (eD_cbv' (ne_let x (ne_sample mu Hmu) K)) γ =
+  Lfun (eD_cbv' K) (γ ⊗p mu).
+
+(** THE LAW — step 4. *)
+Lemma eD_let_sample_int (γ : Gamo) :
+  linhom_fun (eD' (ne_let x (ne_sample mu Hmu) K)) γ =
+  icone_integral (fun r => Lfun (eD_cbv' K) (γ ⊗p dirac_fmeas r))
+    (let_sample_path γ) mu.
+```
+
+For headline consumption the law is fused with the per-`U`
+evaluation of an `FMeas`-valued Pettis integral
+(`icone_integral_fmeas_E`, the generalisation of
+`FMeas_fmap_setT_E` from `setT` to an arbitrary measurable `U`, read
+off the Pettis equation against the test `fmeas_eU U`): when the let
+body has type `tR` the denotation is a measure, and its mass on `U`
+is an ordinary Lebesgue integral — the exact shape of the
+rejection-sampling mass recurrence.
+
+```coq
+(* theories/programs/infra/let_sample_law.v *)
+Lemma eD_let_sample_mu_E (γ : Gamo) (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu (linhom_fun (eD' (ne_let x (ne_sample mu Hmu) K)) γ) U =
+  \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+     (fine (fmeas_mu (Lfun (eD_cbv' K) (γ ⊗p dirac_fmeas r)) U))%:E.
+
+(** Sanity DoD — [⟦let x = sample µ in x⟧(1) = µ]. *)
+Lemma let_sample_var_E : linhom_fun (eD' ex_let_sample_var) one1 = mu.
+```
+
+### The affine cascade and the sup-mass bridge (`affine_iter_closed`, `fmeas_kleene_sup_U_E`)
+
+The scalar core of every CBV mass headline. Given reals
+`a, q ≥ 0` and a real sequence with `x 0 = 0` and
+`x (n+1) = a + q · x n` — the per-iterate mass of an affine Kleene
+chain — the closed form is the partial geometric series, with the
+geometric form away from `q = 1` and the limit `a / (1 − q)` when
+`q < 1`.
+
+```coq
+(* theories/programs/infra/affine_cascade.v *)
+(** Closed form: [x n = a * (1 + q + ... + q^(n-1))]. *)
+Lemma affine_iter_closed (n : nat) :
+  x n = (a * (\sum_(i < n) q ^+ i))%R.
+
+(** Geometric form away from [q = 1]. *)
+Lemma affine_iter_geom (n : nat) :
+  q != 1%R -> x n = (a * (1 - q ^+ n) / (1 - q))%R.
+
+(** Extended-real limit when [0 <= q < 1]. *)
+Lemma affine_iter_cvg :
+  (q < 1)%R ->
+  (x n)%:E @[n --> \oo] --> ((a / (1 - q))%R%:E : \bar R).
+```
+
+The sup-mass bridge then converts a *limit of per-iterate masses*
+into the *mass of the Kleene supremum*: for a unit-ball ω-chain
+`ν : nat → fmeas R X` and a measurable `U`, the masses
+`fmeas_mu (ν n) U` converge to the mass of `cone_sup_ball ν` at `U`
+(definitionally `fmeas_sup_ball`, the HB `isCone` instance of
+`fmeas.v`), so any limit *is* that mass by Hausdorff uniqueness.
+
+```coq
+(* theories/programs/infra/affine_cascade.v (Section FMeasKleeneSup) *)
+Lemma fmeas_kleene_sup_U_E (U : set X) (l : \bar R) :
+  measurable U ->
+  fmeas_mu (nu n) U @[n --> \oo] --> l ->
+  fmeas_mu (cone_sup_ball nu nuch nub1 : fmeas R X) U = l.
+```
+
+Together with the interleaved-chain laws of the fixpoint chapter,
+this is the complete recipe behind every CBV mass identity: reduce
+the denotation to a `cone_sup_ball` of per-iterate measures, derive
+the affine mass recurrence per iterate (via the let-at-sample law or
+the boolean dispatch), close the recurrence with
+`affine_iter_closed` / `affine_iter_cvg`, and land with
+`fmeas_kleene_sup_U_E`.
+
+### The setlike-point kit (`coalg_d_setlike`, `coalg_str_tensor_setlike`)
+
+A point `x` of a coalgebra `(P, str)` is *setlike* when
+`str x = x!` — the §9.7 reading "`x` is a (sub-)Dirac". On setlike
+unit-ball points the Eq-88 comonoid computes: the diagonal is the
+pure tensor square and the counit is the unit point. The setlike
+points are closed under the `EM_prod` tensor, and the unit point
+`one1`, every Dirac of `FMeas X`, and both boolean Diracs are
+setlike — which is what lets every program-level computation below
+proceed by evaluating morphism composites at concrete environment
+points.
+
+```coq
+(* theories/programs/infra/cbv_anchors.v (Section AnchorKit) *)
+(** [coalg_d P x = x ⊗ x] when [x] is setlike of norm [≤ 1]. *)
+Lemma coalg_d_setlike (P : Coalgebra Ar) (x : coalg_obj P) :
+  cone_norm x <= 1 -> Lfun (coalg_str P) x = x! ->
+  Lfun (coalg_d P) x = x ⊗p x.
+
+(** Setlike points are closed under the [EM_prod] tensor. *)
+Lemma coalg_str_tensor_setlike (P Q : Coalgebra Ar)
+    (x : coalg_obj P) (y : coalg_obj Q) :
+  cone_norm x <= 1 -> cone_norm y <= 1 ->
+  Lfun (coalg_str P) x = x! -> Lfun (coalg_str Q) y = y! ->
+  Lfun (coalg_str (EM_prod P Q)) (x ⊗p y) = (x ⊗p y)!.
+
+(** THE workhorse: pairing the identity with a CONSTANT computes at
+    EVERY point — no setlike hypothesis on [γ]. *)
+Lemma em_pair_mor_constE (Z Q : Coalgebra Ar) (c : coalg_obj Q)
+    (Hc : cone_norm c <= 1) (g : coalg_obj Z) :
+  Lfun (em_pair_mor (icones_id Ar (coalg_obj Z)) (const_icones Z c Hc)) g =
+  g ⊗p c.
+```
+
+The kit also pins the comonoid diagonals themselves: the §9.7
+boolean coalgebra's diagonal is the convex combination of the
+*diagonal* basis tensors (`bool_coalg_d_E` — the independent-product
+reading would produce cross terms instead), and the `FMeas` diagonal
+sends a Dirac to its diagonal tensor (`coalg_d_FMeas_dirac`): the
+§9.7 coalgebra duplicates a *sample*, not the measure.
+
+```coq
+(* theories/programs/infra/cbv_anchors.v *)
+(** The full boolean diagonal:
+    [d(x) = bc_t x · (δ_T ⊗ δ_T) + bc_f x · (δ_F ⊗ δ_F)]. *)
+Lemma bool_coalg_d_E (x : bool_cone_car Ar) :
+  Lfun (coalg_d (@bool_cone_coalg R Ar)) x =
+  bool_case x (bool_dirac_true ⊗p bool_dirac_true)
+              (bool_dirac_false ⊗p bool_dirac_false).
+
+Lemma coalg_d_FMeas_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
+  Lfun (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r) =
+  dirac_fmeas r ⊗p dirac_fmeas r.
+```
+
+### The sharing-semantics anchors (`let_bernoulli_pair_diag`, `pair_bernoulli_indep`)
+
+The load-bearing program-level pin: `let x = Bernoulli(p) in (x, x)`
+denotes the *diagonal* pushforward
+`p · (δ_T ⊗ δ_T) + (1−p) · (δ_F ⊗ δ_F)` — a shared sample, not the
+independent square. The contrast anchors pin the same semantics from
+the other side: two *separate* samples,
+`(Bernoulli(p), Bernoulli(p))` and `(sample µ, sample µ)`, denote
+the independent products `bern ⊗ bern` and `µ ⊗ µ`. Together the two
+pairs make the sharing semantics of the CBV `let` a regression
+property rather than a folklore expectation.
+
+```coq
+(* theories/programs/infra/cbv_anchors.v (Section ProgramAnchors) *)
+(** [let x := Bernoulli(p) in (x, x)] — the DIAGONAL pushforward. *)
+Lemma let_bernoulli_pair_diag (p : R) (Hp0 : 0 <= p) (Hp1 : p <= 1) :
+  linhom_fun (eD' (anchor_let_bern Hp0 Hp1)) one1 =
+  bool_case (bernoulli (Ar:=Ar) p Hp0 Hp1)
+    (bool_dirac_true ⊗p bool_dirac_true)
+    (bool_dirac_false ⊗p bool_dirac_false).
+
+(** [let x := sample δ_{r₀} in (x, x)] — the Dirac twin. *)
+Lemma let_sample_pair_diag (r0 : ar_carrier Ar R_obj) :
+  linhom_fun (eD' (anchor_let_sample_dirac r0)) one1 =
+  dirac_fmeas r0 ⊗p dirac_fmeas r0.
+
+(** The CONTRAST: two separate samples are independent. *)
+Lemma pair_sample_indep (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : cone_norm mu <= 1) :
+  linhom_fun
+    (eD' (ne_pair (ne_sample (G := nil) mu Hmu)
+                  (ne_sample (G := nil) mu Hmu))) one1 =
+  mu ⊗p mu.
+```
+
+(For a general prior `µ`, the shared-`let` pair is the Pettis
+integral `∫ (δ_r ⊗ δ_r) dµ(r)` by the let-at-sample law above; the
+Dirac special case is the anchor.) All anchors are stated against
+the public interpreter `eD` through the definitional clause pins of
+`ppl_cbv.v` — never re-derived.
+
+### The β-rule and the if-pins (`eD_beta`, `eD_if_true`, `eD_if_false`)
+
+Two more morphism-level anchors. The β-rule
+`(λx.M) V = let x := V in M` holds as an equality of `icones_hom`s:
+the `!̃` round trip `der ∘ !(curry M) ∘ str` collapses by `adj_phiK`
+(the adjunction triangle), and the curry/uncurry round trip by
+`tensor_uncurry_natL` + `tensor_curryK`. The if-pins orient the
+boolean dispatch — a braid slipped into `if_under` would flip the
+branches and break exactly here.
+
+```coq
+(* theories/programs/infra/cbv_anchors.v (Section ProgramAnchors) *)
+(** The β-rule at the [icones_hom] level. *)
+Lemma eD_beta (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj ((x, t1) :: G) t2)
+    (V : @named_expr R Ar R_obj G t1) :
+  eD_cbv' (ne_app (ne_lam x M) V) = eD_cbv' (ne_let x V M).
+
+Lemma eD_if_true (G : named_ctx Ar) (t : ppl_type Ar)
+    (M N : @named_expr R Ar R_obj G t) :
+  eD_cbv' (ne_if t ne_true M N) = eD_cbv' M.
+
+Lemma eD_if_false (G : named_ctx Ar) (t : ppl_type Ar)
+    (M N : @named_expr R Ar R_obj G t) :
+  eD_cbv' (ne_if t ne_false M N) = eD_cbv' N.
+```
 
 ---
 
@@ -1518,8 +2136,8 @@ A handful of PPL-side items are intentionally left open.
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| CBV-side mass identities for the recursive example programs | The CBV analogues of `ex_geom_CBN_mass_one`, `ex_loop_CBN_headline`, `ex_almost_loop_p_CBN_mass_one_if_pos` / `_mass_zero_if_zero` against the `Yfix_fun_lin`-resolved `eD` of `ppl_cbv.v`. | What is proven about `Yfix_fun_lin` is the Kleene construction, unit-ball preservation, and the fixpoint equation (plus the definitional/semantic unfolding lemmas of `ppl_cbv.v`). The recursive mass identities additionally need a refinement of the fixpoint seeding at function types — iterating *inside* the cofree wrap `!̃` rather than from the zero seed of the wrapped hom — which is not yet in place. |
-| CBV mass / marginal identities for the QBS examples | The CBV-side analogues of `ex_random_constant_CBN_headline`, `ex_random_linear_arith_marginal_at`, `ex_bayes_linear_CBN_headline` against the linhom-valued `eD` of `ppl_cbv.v`. | The surface terms compile through `eD`; the structural reduction lemmas and measure-level identities have not yet been re-derived in the comonoid-primitive setting. |
+| `ne_fix_mr` at product body types | The genuine seeded value-fixpoint for the mutual-recursion shape `tprod (tfun A1 B1) (tfun A2 B2)`; the clause currently keeps the provably-zero `Yfix_fun_lin` (`eD_fix_mr_prod_E`, the honest scope record). | Needs the Seely transport of `fix_comb` along `EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)` (`Seely2`) — a self-contained piece of plumbing not yet written. The function-type case is already genuine (`eD_fix_mr_fun_E`). |
+| CBV marginal identities for the QBS examples | The CBV-side analogues of `ex_random_constant_CBN_headline`, `ex_random_linear_arith_marginal_at`, `ex_bayes_linear_CBN_headline` against the linhom-valued `eD` of `ppl_cbv.v`. | The surface terms compile through `eD`, and the let-at-sample integral law `eD_let_sample_int` now provides the missing reduction engine (it is what drives the rejection-sampling headline); restating the three QBS marginals against `eD` is a follow-up, not a blocker. |
 | Option-α refinement | Replace `tyD_CBN tunit := Stop` (terminal) by `Bang(FMeas *)` so `score` and the arithmetic constructors do not collapse to constants. | Needs a parallel `eD_CBN_full_alpha` interpretation and the corresponding `cbn_*_clause_alpha`; not yet packaged. |
 | CBV / CBN soundness theorem | No proof that `⟦M⟧_CBV` and `⟦M⟧_CBN` agree in any sense. | The two interpretations target different categorical objects (CBV: linear morphisms between coalgebras; CBN: stable measurable functions between integrable cones); a soundness comparison is outside the current scope. |
 | External semantic equivalence | A QBS / ProbProg / Pyro / Stan correspondence. | The correctness statements in this development are denotational identities at the categorical level. |
@@ -1539,10 +2157,18 @@ echo "Print Assumptions eD_CBN_fix_mr_E."         | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbn.v
 echo "Print Assumptions eD."                      | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
-echo "Print Assumptions eD_fix_unfold."           | \
-  rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
 echo "Print Assumptions if_icones."               | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
+echo "Print Assumptions Yfix_fun_lin_eq0."        | \
+  rocq top -Q theories Icones -l theories/programs/infra/em_fix_value.v
+echo "Print Assumptions fix_prom_E."              | \
+  rocq top -Q theories Icones -l theories/programs/infra/em_fix_value.v
+echo "Print Assumptions eD_fix_unfold."           | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_fix_unfold.v
+echo "Print Assumptions eD_let_sample_int."       | \
+  rocq top -Q theories Icones -l theories/programs/infra/let_sample_law.v
+echo "Print Assumptions let_bernoulli_pair_diag." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_anchors.v
 echo "Print Assumptions meas_stable_diag_bilinear_tensor." | \
   rocq top -Q theories Icones -l theories/stable/diag_bilinear_tensor.v
 echo "Print Assumptions sfix_bcascade_mass_one_if_pos." | \
