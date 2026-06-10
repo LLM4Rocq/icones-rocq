@@ -100,7 +100,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~64k lines across 63 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~66k lines across 76 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -131,23 +131,36 @@ A one-paragraph summary: we built a multi-variable named-variable surface
 syntax (`named_expr`, modelled on Saito–Affeldt APLAS 2023), and gave it **two
 parallel interpretations** of the same source language —
 **call-by-value (CBV)** via the Eilenberg–Moore category of `!`
-(Melliès §7.4 EM route) and **call-by-name (CBN)** via the cartesian closed
-`SCones` (the co-Kleisli of `!`, with free recursion from `Yfix`).
-**Both readings now carry an axiom-free mass-1 identity** for the geometric
-program: CBV-side `ex_geom_arr_mass_one`, CBN-side
-`ex_geom_CBN_mass_one`, each closed by the same Kleene-cascade `1 − (1/2)ⁿ`
-argument at its native level (Bang for CBV, SCones for CBN). The
+(EM route) and **call-by-name (CBN)** via the cartesian closed `SCones`
+(the co-Kleisli of `!`, with free recursion from `Yfix`).
+On the CBN side, the geometric program carries an axiom-free mass-1
+identity `ex_geom_CBN_mass_one`, closed by a Kleene-cascade
+`1 − (1/2)ⁿ` argument inside `SCones`. The
 **SCones↔ICones-tensor diagonal bilinear stability bridge**
-`meas_stable_diag_bilinear_tensor` — the structural unblocker of generic
-CBV recursion at `eD ne_fix` and of honest CBN bilinear arithmetic —
-has also landed axiom-free.
+`meas_stable_diag_bilinear_tensor` — the structural unblocker of honest
+CBN bilinear arithmetic and of CBV recursion — has also landed
+axiom-free.
 
-Three pieces of this layer are, to our knowledge, the **first Coq / Rocq
-formalizations**: the cartesian-η identity `em_pair_mor_proj_id` (Fox 1976 /
-Melliès Prop 28 at the icones level), the CBV value-fixpoint at function
-types `Yfix_arr` / `Yfix_fun_T` (P.-A. Melliès consultation 2026-05-31:
-*"folklore, not in the literature"*), and the diagonal bilinear stability
-bridge `meas_stable_diag_bilinear_tensor` at the SCones↔ICones-tensor
+The CBV interpreter has recently been redesigned around a clean
+**linhom-valued, comonoid-primitive** presentation in
+`theories/programs/ppl_cbv.v`. Types are sent into `EM(!̃)` as
+coalgebras (`tyD`), and a term denotes a *linear* morphism
+`U ctxD Γ ⊸ U tyD τ` of the underlying cone. Variable use is handled by
+the commutative comonoid `(δ, ε)` that every coalgebra carries
+(Cor 20): each branching node copies the context through `δ_Γ`, so
+multi-use of a variable is free. The exponential `!̃` appears only at
+function boundaries — `ne_lam` wraps a value via the strength `str_Γ`,
+`ne_app` extracts it via dereliction `der` — and everywhere else the
+interpretation is plain cartesian. The CBV mass identities for the
+recursive examples (`ex_loop`, `ex_geom`, `ex_almost_loop`) are
+currently pending a Kleene-operator port to this new cone; the prior
+Bang-level fixpoint machinery was tied to a deprecated Moggi-monad
+presentation and has been removed.
+
+Two pieces of this layer are formalizations we have not seen elsewhere
+in Coq / Rocq: the cartesian-η identity `em_pair_mor_proj_id` (Fox 1976
+at the icones level), and the diagonal bilinear stability bridge
+`meas_stable_diag_bilinear_tensor` at the SCones↔ICones-tensor
 junction.
 
 The PPL is built and **axiom-free** (the same three classical `boolp` axioms as
@@ -156,14 +169,17 @@ the paper-side results).
 ## Status
 
 Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free. Beyond the paper,
-**two parallel interpretations** of the same surface PPL syntax are built — each with a
-mass-1 identity for the geometric program at its native level:
+**two parallel interpretations** of the same surface PPL syntax are built:
 
-- **Call-by-value via `EM(!)`** (`theories/programs/ppl.v` and infra under `programs/infra/`).
-  Non-recursive programs are interpretable axiom-free, including the QBS-style headlines
-  (`ex_random_constant`, `ex_random_linear`, `ex_bayes_linear_is_weighted`). The CBV
-  mass-1 identity `ex_geom_arr_mass_one` (geometric distribution, axiom-free) lives in
-  `theories/programs/infra/em_fix_arr.v`.
+- **Call-by-value via `EM(!)`** (`theories/programs/ppl_cbv.v` and infra under
+  `programs/infra/`). The interpreter is linhom-valued and comonoid-primitive: types
+  go to coalgebras via `tyD`, and a term denotes a linear morphism
+  `U ctxD Γ ⊸ U tyD τ`. Non-recursive programs are interpretable axiom-free,
+  including the QBS-style headlines (`ex_random_constant`, `ex_random_linear`,
+  `ex_bayes_linear_is_weighted`). CBV mass identities for the recursive examples
+  (`ex_loop`, `ex_geom`, `ex_almost_loop`) are pending a Kleene-operator port to
+  the clean cone; the prior fixpoint machinery was tied to a deprecated
+  Moggi-monad presentation and has been removed.
 - **Call-by-name via `SCones`** (`theories/programs/ppl_cbn.v` + `ppl_cbn_eff.v` +
   `ppl_cbn_bool.v` + `ppl_cbn_arith.v` + `ppl_cbn_geom.v`). Trunk + effects + boolean cascade
   + `FMeas` arithmetic foundation are all axiom-free. Free recursion at every function type
@@ -171,9 +187,8 @@ mass-1 identity for the geometric program at its native level:
   `theories/programs/ppl_cbn_geom.v`.
 - **The SCones↔ICones-tensor diagonal bilinear stability bridge**
   `meas_stable_diag_bilinear_tensor` (`theories/stable/diag_bilinear_tensor.v`,
-  axiom-free) — the structural unblocker of generic CBV recursion at `eD ne_fix`, of
-  honest CBN bilinear arithmetic via `add_FMeas`/`mul_FMeas`, and of the
-  CBV/CBN soundness comparison.
+  axiom-free) — the structural unblocker of CBV recursion and of honest CBN bilinear
+  arithmetic via `add_FMeas`/`mul_FMeas`, and of the CBV/CBN soundness comparison.
 
 The full top-down description — what each interpretation does, what works today, what is
 missing, and **why** — is in [`docs/PPL.md`](./docs/PPL.md) and on the
@@ -186,8 +201,8 @@ layer not yet formalized); and the **§10** probabilistic-coherence-space embedd
 `⟦M⟧_CBV` and `⟦M⟧_CBN` agree, which would require commuting `!` with effect-bearing
 types); the **refined CBN `add`/`mul` install** on top of `add_FMeas`/`mul_FMeas` via
 the bridge above (structural; not yet packaged because the CBN headlines run under
-the lightweight option-γ baseline); the **generic CBV recursion combinator at
-`ne_fix`** above the bridge.
+the lightweight option-γ baseline); the **CBV recursion combinator at `ne_fix`** —
+a Kleene operator on the clean linhom-valued cone.
 
 [`PLAN.md`](./PLAN.md) has the full roadmap and design notes.
 
@@ -202,8 +217,7 @@ theories/
 │              well-poweredness + the representability machinery
 ├── homs/      internal hom ⊸, tensor ⊗ + SMCC, the ! comonad + E⊣Der,    (§5, §9)
 │              the Seely category, the FMeas !-coalgebra;
-│              the call-by-value model structure (beyond the paper,        (CBV)
-│              Melliès §7.4):
+│              the call-by-value model structure (beyond the paper):       (CBV)
 │                em_cat.v            EM(!) + the cofree adjunction U ⊣ !̃
 │                em_seely_comonoid.v the Seely comonoid d/e on !A (LC2–4)
 │                em_cartesian.v      full EM(!) cartesian via ⊗ (Cor 20)
@@ -215,37 +229,42 @@ theories/
 │                                      meas_stable_diag_bilinear_tensor
 ├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
 └── programs/  the PPL — surface syntax and two parallel interpretations:
-                 cbv.v               a first-order Moggi-CBV calculus
-                                     (sample = the integral)
-                 ppl.v               the higher-order direct-style PPL
-                                     (named-variable QBS-mirror, surface
-                                     notation, EM(!) interpretation `eD`)
+                 ppl.v               shared surface syntax (types, terms,
+                                     surface notation) + measure / arith
+                                     / Bernoulli helpers shared between
+                                     CBV and CBN
+                 ppl_cbv.v           CBV interpreter — linhom-valued,
+                                     comonoid-primitive; tyD / ctxD / eD;
+                                     !̃ only at ne_lam / ne_app
                  ppl_cbn.v           CBN trunk: tyD_CBN, eD_CBN core
                                      (var/lam/app/let/pair/fst/snd),
                                      ne_fix via SCones Yfix (axiom-free)
-                 ppl_cbn_eff.v       CBN effects: sample/score/add/mul/real
-                 ppl_cbn_arith.v     CBN add_FMeas/mul_FMeas math foundation
-                 ppl_cbn_bool.v      CBN booleans: true/false/Bernoulli/if
-                                     (via sc_to_sh promotion sidestep)
-                 ppl_cbn_headlines.v CBN structural _denot_E reductions
-                                     (γ-baseline of arithmetic)
-                 ppl_cbn_geom.v      CBN HEADLINE: ex_geom_CBN_mass_one
-                                     (axiom-free, Kleene cascade 1 − ½ⁿ)
-                 examples.v          CBV surface-syntax examples — QBS
-                                     headlines + Phase 4 partial-termination
-                 infra/              CBV PPL support:
-                   bool_cone.v         2-point ICone (paper §4.4 coproduct)
+                 ppl_cbn_*.v         CBN headlines (geom, almost_loop) +
+                                     boolean and arithmetic extensions +
+                                     geometric / almost-loop distribution
+                                     proofs
+                 examples.v          surface programs (ex_random_*,
+                                     ex_bayes_linear, ex_loop, ex_geom,
+                                     ex_almost_loop, ex_geom_body) —
+                                     pure syntax, shared between CBV
+                                     and CBN
+                 infra/              PPL support:
+                   bool_cone.v         2-point ICone (paper §4.4
+                                       coproduct cone_one ⊕ cone_one)
                    bool_case_hom.v     bool_case as linhom + icones_hom
                    bool_case_scones.v  bool_case SCones-side (CBN bool)
-                   em_continuity.v     ω-continuity for value-fixpoint
-                   em_fix.v            Yfix_fun_T (linhom-level, deprecated)
-                   em_fix_arr.v        Yfix_arr (Bang-level CBV fixpoint),
-                                       ex_geom_arr_mass_one (the headline)
-                   ex_geom_step.v      per-iterate cascade for ex_geom
-                   cbv_adjunction.v    LNL adjunction U ⊣ !̃ + cartesian-η
-                                       em_pair_mor_proj_id (FIRST Coq/Rocq)
-                   case_em_red.v       case_em red. + Bernoulli convex combo
-                   curry_kbind.v       curry/kbind reductions
+                   cbv_adjunction.v    Linear-Logic / EM-cartesian /
+                                       bang-comonoid plumbing — no
+                                       Moggi monad; consumed by CBV
+                                       and CBN
+                   cbn_bernoulli_cascade.v
+                                       generic CBN Bernoulli cascade
+                                       (sfix_bcascade) used by ex_geom
+                                       and ex_almost_loop on the CBN
+                                       side
+                   geom_dist_infra.v   shared infrastructure for CBN
+                                       geometric / almost-loop
+                                       distribution proofs
 ```
 
 Two parallel entry points for reviewing the formalization without first opening the
