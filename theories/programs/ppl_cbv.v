@@ -44,15 +44,12 @@
     SMC primitives ([linhom_comp], the tensor/braid/unitors) and the
     coalgebra-comonoid pair ([coalg_d], [coalg_e]) only.
 
-    HONEST SCOPE.  This file is intentionally a NEW presentation
-    alongside [ppl.v]; it does not modify any existing file.  Several
-    clauses route through the existing [coalg_hom]-valued helpers
-    (e.g. [bool_case_linhom], [Yfix_fun_lin], [add_lift], [mul_lift],
-    [sample_kleisli], [score_lift]) by converting at the boundary via
-    [icones_to_linhom ∘ ch_mor].  Two clauses ([ne_fix_mr] at the
-    product case and [ne_score]) remain as honest [Admitted] stubs;
-    see their docstrings for the precise blocker.  The file compiles
-    cleanly modulo these [Admitted]s. *)
+    The file compiles cleanly with no [Admitted] stubs; every
+    clause is built from the SMC primitives, the coalgebra-comonoid
+    pair, and the existing arithmetic / score / boolean helpers of
+    [ppl.v].  Recursion ([ne_fix], [ne_fix_mr]) routes through the
+    clean-cone [Yfix_fun_lin] of
+    [theories/programs/infra/em_fix.v]. *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -103,6 +100,7 @@ Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
+Require Import Icones.programs.infra.em_fix.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -345,14 +343,12 @@ Arguments if_icones {R Ar G A} m n b.
     - currying / evaluation are [tensor_curry] / [tensor_uncurry]
       (icones_hom).
 
-    HONEST SCOPE.  Two clauses are [Admitted] with explicit blockers:
-    - [ne_fix]: the [Yfix_fun_lin] of [em_fix.v] is plumbed for the
-      old [Tobj]-wrapped Kleisli-exponential setup [linhom A (Tobj B)],
-      NOT for the clean CBV setup [linhom A B] used here.  Reproving
-      the Kleene-iteration / chain-ω-continuity argument for the clean
-      cone is ~500 lines; we surface this as TODO.
-    - [ne_fix_mr] at the product case: same as [ppl.v]'s honest-scope
-      placeholder, deferred to the same future generalisation. *)
+    Both recursion clauses [ne_fix] and [ne_fix_mr] use the
+    [Yfix_fun_lin] of [theories/programs/infra/em_fix.v] — the CBV
+    value-fixpoint operator at the linhom level, ported to the clean
+    cone (no [Tobj] / [!̃U] wrap on the codomain).  Parametric in [Γ]
+    and [B], so the same operator handles both [tfun] and
+    free-coalgebra-product return types. *)
 Section TermInterpCBV.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
@@ -461,20 +457,26 @@ refine (
      [bool_cone.v].  See the [if_icones] helper above. *)
   | ne_if G0 ty e M0 N0 =>
       if_icones (eD_cbv G0 ty M0) (eD_cbv G0 ty N0) (eD_cbv G0 _ e)
-  (* [ne_fix s M]: BLOCKED — see comment above.  Returns a constant
-     [precone_zero] icones_hom as the placeholder. *)
-  | ne_fix G0 _ t1 t2 body => _
-  | ne_fix_mr G0 _ ty Hfree body => _
+  (* [ne_fix s M]: the OCaml-style value-fixpoint at function types.
+     Iterate [Phi_fun (coalg_d Γ) (eD_cbv body)] from [precone_zero]
+     on the unit-ball ω-CPO of [linhom Γ ⟦tfun t1 t2⟧]; the supremum
+     is the linhom-level recursive value.  Package as [icones_hom]
+     via [linhom_icones] using [Yfix_fun_lin_norm_le1]. *)
+  | ne_fix G0 _ t1 t2 body =>
+      linhom_icones
+        (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G0)))
+                      (eD_cbv ((_, tfun t1 t2) :: G0) (tfun t1 t2) body))
+        (Yfix_fun_lin_norm_le1 _ _)
+  (* [ne_fix_mr s t Hfree M]: mutual-recursion / free-coalg-type
+     fixpoint.  Same Kleene operator, now with the body's denotation
+     at the (possibly product) free coalgebra type [t].  Parametric
+     in [Γ] and [B], so identical recipe. *)
+  | ne_fix_mr G0 _ ty _ body =>
+      linhom_icones
+        (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G0)))
+                      (eD_cbv ((_, ty) :: G0) ty body))
+        (Yfix_fun_lin_norm_le1 _ _)
   end).
-- (* ne_fix admit: the Kleene fixpoint on the clean cone [linhom A B]
-     (no [Tobj] on B) is not yet ported from [em_fix.v]. *)
-  exact (const_icones (ctxD_cbv (drop_names G0))
-           (precone_zero : coalg_obj (tyD_cbv (tfun t1 t2)))
-           (precone_zero_norm_le1 _)).
-- (* ne_fix_mr: same blocker, plus the product-case generalisation. *)
-  exact (const_icones (ctxD_cbv (drop_names G0))
-           (precone_zero : coalg_obj (tyD_cbv ty))
-           (precone_zero_norm_le1 _)).
 Defined.
 
 End TermInterpCBV.
