@@ -63,9 +63,10 @@ arithmetic, the diagonal bilinear stability bridge
 \rocq{Icones.stable.diag_bilinear_tensor.meas_stable_diag_bilinear_tensor}.
 The chapter closes with the axiom-free CBN headline
 \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}: the call-by-name
-denotation of the geometric program has total mass $1$, the CBN-side
-parallel of the CBV mass-one identity of \autoref{thm:cbv-ex-geom-arr-mass-one}
-which we discuss in this chapter as the second centrepiece.
+denotation of the geometric program has total mass $1$, the
+centrepiece of this chapter. (The CBV-side mass-one identity is
+currently pending in \autoref{ch:cbv}: \texttt{ne\_fix} in
+\texttt{ppl\_cbv.v} is a \texttt{precone\_zero} placeholder.)
 
 \paragraph{Where the material lives.}
 \texttt{theories/programs/ppl\_cbn.v} (the CBN trunk: type / context
@@ -180,10 +181,12 @@ direction towards which the diagonal bilinear stability bridge points.
 At every function type $\mathtt{tfun}\,A\,B$, $\mathtt{ne\_fix}$ admits a
 sound interpretation as a single line of paper-\S9.2 content, with the
 fixpoint equation closing in four lines via
-\rocq{Icones.stable.fixpoint.Yfix_fix}: this is the CBN-side analogue
-of \autoref{thm:cbv-yfix-fun}, available \emph{unconditionally} at any
-function type $\sem{\mathtt{tfun}\,A\,B}_n = \sem{A}_n \Rightarrow_s
-\sem{B}_n$, no bilinear-bridge obligation arising.
+\rocq{Icones.stable.fixpoint.Yfix_fix}: this is available
+\emph{unconditionally} at any function type $\sem{\mathtt{tfun}\,A\,B}_n =
+\sem{A}_n \Rightarrow_s \sem{B}_n$, no bilinear-bridge obligation
+arising. (The CBV-side value-fixpoint analogue is currently a
+\texttt{precone\_zero} placeholder in \texttt{ppl\_cbv.v} pending a
+Kleene port to the clean \texttt{linhom} cone.)
 \end{lemma}
 
 \begin{remark}[The CBN boolean cascade]\label{rem:cbn-bool}
@@ -363,10 +366,10 @@ $K$ and the captured environment $g$ and assembles them through a
 bilinear-into-tensor $\Phi$. The bridge of this section gives the
 meas-stability of the diagonal at \emph{every} body $M$, unblocking
 the CBV side of the open issue tracked as \texttt{docs/PPL.md \S 7}.
-The headline CBV mass-one identity of
-\autoref{thm:cbv-ex-geom-arr-mass-one}, however, sidesteps the bridge
-through a manual Kleene chase that is cheaper than the bridge at this
-single example.
+(The earlier CBV mass-one identity sidestepped the bridge through a
+manual Kleene chase at this single example; that proof has not yet
+been ported to the new linhom-valued \texttt{ppl\_cbv.v}
+interpretation.)
 \end{remark}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -424,10 +427,11 @@ place and the swap is structural.
 \label{sec:cbn-geom}
 
 \paragraph{The geometric program, CBN-side.}
-The CBV mass-one identity for $\mathtt{ex\_geom}$ of
-\autoref{lem:ppl-ex-geom} was an existence statement
-(``the total mass is $1$'') for the CBV denotation. The CBN-side
-parallel is the focus of this section. The surface term is unchanged:
+The CBN-side mass-one identity for $\mathtt{ex\_geom}$ is the focus
+of this section. (The CBV-side parallel, formerly stated through the
+\texttt{em\_fix\_arr.v} machinery, is currently pending the
+\texttt{ne\_fix} port in \texttt{ppl\_cbv.v}.) The surface term is
+unchanged:
 \[
   \mathtt{ex\_geom}
   \;:=\;
@@ -435,7 +439,7 @@ parallel is the focus of this section. The surface term is unchanged:
    \backslash"\_":::tunit \,\Rightarrow\,
    \mathtt{if\;Bernoulli\{1/2\}\;then\;[|0|]\;else\;[|1|] + \#"g"\,@\,()})\,@\,(),
 \]
-the geometric counter of \autoref{lem:ppl-ex-geom}.
+the geometric counter.
 
 \paragraph{The CBN-side reduction equation, unary.}
 A direct reading of the body in CBN gives the recursive-value equation
@@ -515,9 +519,10 @@ i.e.\ the equation $\mu \mapsto \tfrac{1}{2}\delta_0 +
 
 \paragraph{The Kleene cascade closed form.}
 The mass identity now reduces to the Kleene cascade for
-$\phi_{\mathrm{CBN}}^{\mathrm{geom}}$ from $\bot$, exactly as for the
-CBV \texttt{ex\_geom\_arr} in \autoref{lem:ppl-ex-geom}. The
-per-iterate mass is closed in three steps.
+$\phi_{\mathrm{CBN}}^{\mathrm{geom}}$ from $\bot$, using the same
+per-iterate cascade pattern that the (now-retired) CBV side used
+through \texttt{em\_fix\_arr.v}. The per-iterate mass is closed in
+three steps.
 
 \begin{lemma}[Per-iterate cascade]\label{lem:cbn-kleene-cascade}
 \rocq{Icones.programs.ppl_cbn_geom.kleene_geom_S_E}\rocqok
@@ -670,16 +675,17 @@ Mutual recursion at free-coalgebra types is out of scope.
 \ref{ch:cbv}.}
 The two structural results of this chapter ---
 \autoref{thm:diag-bilin} (the bridge) and
-\autoref{thm:cbn-ex-geom} (the CBN headline) --- with
-\autoref{thm:cbv-ex-geom-arr-mass-one} of \autoref{ch:cbv} (the CBV
-headline) form a coherent triple. The CBV headline establishes that
-the geometric program has mass $1$ under the EM(!) / direct-style
-reading; the CBN headline establishes the same identity under the
-$\mathbf{SCones}$ / co-Kleisli reading; and the bridge establishes the
-structural unblocker that, when packaged, would deliver both
-\emph{generically} (not example-by-example), for arbitrary bilinear
-arithmetic and recursive bodies. The headlines are example-specific
-shortcuts that the bridge would generalise; the bridge is the math
-content that the headlines avoid by exploiting the geometric program's
-specific shape (Bernoulli + Dirac constants). All three live in the
-axiom-free core.
+\autoref{thm:cbn-ex-geom} (the CBN headline) --- form a coherent pair.
+The CBN headline establishes that the geometric program has mass $1$
+under the $\mathbf{SCones}$ / co-Kleisli reading; the bridge establishes
+the structural unblocker that, when packaged, would deliver the
+identity \emph{generically} (not example-by-example), for arbitrary
+bilinear arithmetic and recursive bodies. The headline is an
+example-specific shortcut that the bridge would generalise; the
+bridge is the math content that the headline avoids by exploiting the
+geometric program's specific shape (Bernoulli + Dirac constants). The
+CBV-side mass-one identity is currently pending in \autoref{ch:cbv}
+(see the \texttt{precone\_zero} placeholder for \texttt{ne\_fix} in
+\texttt{ppl\_cbv.v}); once that lands, the two interpretations'
+identities will form a triple with the bridge. All formalisation
+content lives in the axiom-free core.
