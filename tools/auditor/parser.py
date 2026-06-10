@@ -517,10 +517,34 @@ _COQ_TOPLEVEL_IDENT_RE = re.compile(
     r"\b(?:Theorem|Lemma|Definition|Corollary|Fixpoint)\s+(\w+)"
 )
 
+# Regex to detect a top-level ``Definition <ident>`` declaration in a
+# raw Coq snippet — used to find the "program" snippet in EXAMPLES-shape
+# (a) sections (the syntactic surface-language ``Definition ex_<name>``).
+_COQ_DEFINITION_RE = re.compile(r"(?m)^\s*Definition\s+(\w+)")
+
 
 def _snippet_idents(raw: str) -> set[str]:
     """Extract the set of top-level Coq identifiers declared in ``raw``."""
     return set(_COQ_TOPLEVEL_IDENT_RE.findall(raw))
+
+
+def _find_program_snippet(
+    h3_idents: list[str], snippets: list["_RawSnippet"]
+) -> tuple[int, str] | None:
+    """Find the first snippet declaring a ``Definition <ident>`` whose
+    ``<ident>`` belongs to the H3 heading's paren-list.
+
+    Returns ``(index, ident)`` or ``None`` if no such snippet exists.
+    Used by the EXAMPLES.md shape-(a) program-entry synthesis path.
+    """
+    if not h3_idents:
+        return None
+    targets = set(h3_idents)
+    for i, snip in enumerate(snippets):
+        for ident in _COQ_DEFINITION_RE.findall(snip.raw):
+            if ident in targets:
+                return i, ident
+    return None
 
 
 def _match_snippet(idents: list[str], snippets: list["_RawSnippet"]) -> list["_RawSnippet"]:
@@ -1054,6 +1078,27 @@ def normalise(
 
                 if headline_tbl is not None:
                     # Shape (a): one Entry per row of the headlines table.
+                    # Idents listed in the H3 heading's paren-list — used
+                    # to spot the snippet defining the surface-language
+                    # program (e.g. ``Definition ex_random_constant``).
+                    h3_heading_idents = [
+                        ident
+                        for ident in _BACKTICK_RE.findall(h3.heading)
+                        if not ident.endswith(".v")
+                        and not ident.startswith("theories/")
+                    ]
+                    program_match = _find_program_snippet(
+                        h3_heading_idents, h3.snippets
+                    )
+                    # Track which raw snippets get hoisted into an entry
+                    # (program entry + per-row ``_match_snippet`` hits)
+                    # — those get dropped from the section-level
+                    # ``section.snippets`` list so the standalone
+                    # ``<section class="snippets">`` block above the
+                    # entries grid no longer renders duplicates.
+                    consumed_snippet_idxs: set[int] = set()
+                    if program_match is not None:
+                        consumed_snippet_idxs.add(program_match[0])
                     for row in headline_tbl.rows:
                         if len(row.cells) < 3:
                             continue
@@ -1090,6 +1135,11 @@ def normalise(
                         detail_snips: list[CoqSnippet]
                         if matched_raw:
                             detail_snips = _h3_coq(matched_raw)
+                            for m in matched_raw:
+                                for i, s in enumerate(h3.snippets):
+                                    if s is m:
+                                        consumed_snippet_idxs.add(i)
+                                        break
                         else:
                             detail_snips = []
                         # Per-row detail prose: surface the math identity
@@ -1119,6 +1169,68 @@ def normalise(
                                 cross_refs=[],
                             )
                         )
+                    # Synthesise a "program" entry at position 0 carrying
+                    # the surface-language ``Definition ex_<name>`` body.
+                    # Pre-edit, that snippet only lived in the standalone
+                    # ``<section class="snippets">`` block above the
+                    # entries grid; surfacing it as the first entry
+                    # mirrors the Paper-tab sec-6 shape (title + kind
+                    # tag + 1-line statement + idents + files + foldable
+                    # code) end-to-end and lets us drop the duplicated
+                    # top-of-page block entirely.
+                    if program_match is not None:
+                        prog_idx, prog_ident = program_match
+                        prog_raw = h3.snippets[prog_idx]
+                        prog_coq = section_snippets[prog_idx]
+                        # Pick the section's intro paragraph as a one-line
+                        # statement, falling back to a generic blurb.
+                        prog_statement = (
+                            _inline_to_html(md, h3.paragraphs[0])
+                            if h3.paragraphs
+                            else "The program definition."
+                        )
+                        prog_files = (
+                            [prog_raw.source_file]
+                            if prog_raw.source_file
+                            else []
+                        )
+                        prog_slug = claim_slug(
+                            slugify_label(prog_ident) + "-program",
+                            prog_ident,
+                        )
+                        sec_entries.insert(
+                            0,
+                            Entry(
+                                id=prog_slug,
+                                paper_label=prog_ident,
+                                paper_kind="Def",
+                                paper_number=None,
+                                paper_section_id=sec_id,
+                                statement_html=prog_statement,
+                                rocq_idents=[prog_ident],
+                                rocq_files=_to_rocq_files(
+                                    prog_files, prog_ident
+                                ),
+                                status=[],
+                                detail=EntryDetail(
+                                    prose_html="",
+                                    notes=[],
+                                    snippets=[prog_coq],
+                                ),
+                                cross_refs=[],
+                            ),
+                        )
+                    # Drop every snippet that got hoisted into a row's
+                    # detail (program entry + per-row matched snippets)
+                    # so the standalone ``<section class="snippets">``
+                    # block above the entries no longer renders any
+                    # duplicates.  Residual snippets that did not match
+                    # any entry stay in ``section.snippets`` (rare).
+                    section_snippets = [
+                        s
+                        for i, s in enumerate(section_snippets)
+                        if i not in consumed_snippet_idxs
+                    ]
                 elif other_tables:
                     # Shape (c): non-headline 2-col-ish tables (e.g. PPL
                     # "Construction | Rocq").  Fall back to the legacy
@@ -1228,6 +1340,12 @@ def normalise(
                             cross_refs=[],
                         )
                     )
+                    # The lone entry's foldable detail already carries
+                    # the section's snippets; clear the section-level
+                    # snippets list so the standalone
+                    # ``<section class="snippets">`` block above the
+                    # entry no longer duplicates the same code.
+                    section_snippets = []
 
                 sec = Section(
                     id=sec_id,
