@@ -286,8 +286,8 @@ elim: n => [/= |n IH].
     rewrite IH.
     exact: add_lift_partial_geom.
   rewrite Hels.
-  set H' := NngNum (phase4_half_ge0 R).
-  set H'' := NngNum (onem_ge0 (1 / 2)%R (phase4_half_le1 R)).
+  set H' := NngNum (bernoulli_half_ge0 R).
+  set H'' := NngNum (onem_ge0 (1 / 2)%R (bernoulli_half_le1 R)).
   have eq_h_h : H' = half_nng' by apply: val_inj => /=.
   have eq_h''_h : H'' = half_nng'.
     apply: val_inj => /=.

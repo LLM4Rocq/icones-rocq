@@ -196,7 +196,7 @@ Qed.
 Lemma kleene_geom_partial (Hh : (cone_norm
    (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj) <= 1)%R)
     (n : nat) :
-  kleene_bcascade (1 / 2)%R (phase4_half_ge0 R) (phase4_half_le1 R)
+  kleene_bcascade (1 / 2)%R (bernoulli_half_ge0 R) (bernoulli_half_le1 R)
     (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj) Hh
     (shift_scones R_carrier_eq R_carrier_meas R_to_carrier_meas 1)
     n
@@ -210,8 +210,8 @@ elim: n => [/= |n IH].
     rewrite -IH; exact: kleene_bcascade_ball.
   rewrite shift_scones_E//.
   rewrite shift_partial_geom.
-  set H' := NngNum (phase4_half_ge0 R).
-  set H'' := NngNum (onem_ge0 (1 / 2)%R (phase4_half_le1 R)).
+  set H' := NngNum (bernoulli_half_ge0 R).
+  set H'' := NngNum (onem_ge0 (1 / 2)%R (bernoulli_half_le1 R)).
   have eq_h_h : H' = half_nng' by apply: val_inj => /=.
   have eq_h''_h : H'' = half_nng'.
     apply: val_inj => /=.
@@ -231,7 +231,7 @@ Theorem ex_geom_CBN_PMF (k : nat) :
 Proof.
 set Hh := halt_geom_ball R_carrier_eq.
 set phi_geom :=
-  phi_bcascade (1 / 2)%R (phase4_half_ge0 R) (phase4_half_le1 R) _ Hh
+  phi_bcascade (1 / 2)%R (bernoulli_half_ge0 R) (bernoulli_half_le1 R) _ Hh
     (shift_scones R_carrier_eq R_carrier_meas R_to_carrier_meas 1).
 have mU : measurable [set R_to_carrier R_carrier_eq k%:R]
   by exact: R_to_carrier_singleton_meas'.
@@ -254,7 +254,7 @@ have rwlemma : forall m : nat,
   (if (k < m)%N then ((1 / 2)%R ^+ k.+1)%R%:E else 0).
   move=> m.
   rewrite -[kleene phi_geom m]/(kleene_bcascade (1 / 2)%R
-                                (phase4_half_ge0 R) (phase4_half_le1 R)
+                                (bernoulli_half_ge0 R) (bernoulli_half_le1 R)
                                 (dirac_fmeas (R_to_carrier R_carrier_eq 0)
                                  : FMeas R_obj) Hh
                                 (shift_scones R_carrier_eq

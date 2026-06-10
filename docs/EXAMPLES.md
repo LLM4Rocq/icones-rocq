@@ -297,7 +297,7 @@ a recursive PPL example formalised in the integrable-cones model.
 Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
   [ (fix "g" ::: tfun tunit tR' in
        \ "_" ::: tunit =>
-         (if Bernoulli { (1 / 2 : R), phase4_half_ge0, phase4_half_le1 }
+         (if Bernoulli { (1 / 2 : R), bernoulli_half_ge0, bernoulli_half_le1 }
           then [| 0%R |]
           else [| 1%R |] + # "g" @ ())) @ () ].
 ```

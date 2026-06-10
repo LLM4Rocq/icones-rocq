@@ -310,13 +310,13 @@ Local Close Scope ereal_scope.
 
 (** The framework operator instantiated for [ex_geom]. *)
 Definition phi_CBN_geom : scones_hom (FMeas R_obj) (FMeas R_obj) :=
-  phi_bcascade (1/2)%R (phase4_half_ge0 R) (phase4_half_le1 R)
+  phi_bcascade (1/2)%R (bernoulli_half_ge0 R) (bernoulli_half_le1 R)
                halt_geom halt_geom_ball
                (shift_scones R_carrier_eq R_carrier_meas R_to_carrier_meas 1).
 
 (** The [sfix]-level fixpoint of [phi_CBN_geom]. *)
 Definition ex_geom_CBN_fix : FMeas R_obj :=
-  sfix_bcascade (1/2)%R (phase4_half_ge0 R) (phase4_half_le1 R)
+  sfix_bcascade (1/2)%R (bernoulli_half_ge0 R) (bernoulli_half_le1 R)
                 halt_geom halt_geom_ball
                 (shift_scones R_carrier_eq R_carrier_meas R_to_carrier_meas 1).
 

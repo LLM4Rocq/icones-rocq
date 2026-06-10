@@ -1250,7 +1250,7 @@ Qed.
 (** Local body_inner expression. *)
 Local Notation body_inner_u :=
   (ne_if tR'
-    (ne_bernoulli (1/2 : R)%R (phase4_half_ge0 R) (phase4_half_le1 R))
+    (ne_bernoulli (1/2 : R)%R (bernoulli_half_ge0 R) (bernoulli_half_le1 R))
     (@ne_real R Ar R_obj
        (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) 0%R)
     (ne_add (@ne_real R Ar R_obj
@@ -1286,10 +1286,10 @@ Qed.
 Lemma body_inner_u_via_convex :
   eD' body_inner_u =
   convex_combination (eD' then_e) (eD' else_e)
-                     (phase4_half_ge0 R) (phase4_half_le1 R).
+                     (bernoulli_half_ge0 R) (bernoulli_half_le1 R).
 Proof.
 exact: (case_em_bernoulli (eD' then_e) (eD' else_e)
-                          (phase4_half_ge0 R) (phase4_half_le1 R)).
+                          (bernoulli_half_ge0 R) (bernoulli_half_le1 R)).
 Qed.
 
 (** Norm bound on the inner linhom for general u. *)
@@ -1297,8 +1297,8 @@ Lemma cone_norm_K_u_le1 (u : L_geom) (Hu : cone_norm u <= 1) :
   cone_norm
     (Lfun (tensor_curry
             (ch_mor (convex_combination (eD' then_e) (eD' else_e)
-                                        (phase4_half_ge0 R)
-                                        (phase4_half_le1 R))))
+                                        (bernoulli_half_ge0 R)
+                                        (bernoulli_half_le1 R))))
           (ptensor one1 (prom u)))
   <= 1.
 Proof.
@@ -1311,8 +1311,8 @@ Lemma der_Step_geom_one_prom_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
   Lfun (der L_geom) (Step_geom' one1 (prom u))
   = Lfun (tensor_curry
            (ch_mor (convex_combination (eD' then_e) (eD' else_e)
-                                       (phase4_half_ge0 R)
-                                       (phase4_half_le1 R))))
+                                       (bernoulli_half_ge0 R)
+                                       (bernoulli_half_le1 R))))
         (ptensor one1 (prom u)).
 Proof.
 rewrite (Step_geom_one_prom_u_E Hu).
@@ -1326,8 +1326,8 @@ Lemma linhom_fun_der_Step_geom_one1_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
     (Lfun (der L_geom) (Step_geom' one1 (prom u)))
     (one1 : cone_one_car Ar)
   = Lfun (ch_mor (convex_combination (eD' then_e) (eD' else_e)
-                                     (phase4_half_ge0 R)
-                                     (phase4_half_le1 R)))
+                                     (bernoulli_half_ge0 R)
+                                     (bernoulli_half_le1 R)))
         (at_outer_pt_u u).
 Proof.
 rewrite (der_Step_geom_one_prom_u_E Hu).
@@ -1337,60 +1337,60 @@ exact: (tensor_curryE
           (C := coalg_obj (EM_term : Coalgebra Ar))
           (D := coalg_obj (Tobj (tyD tR' : Coalgebra Ar)))
           (ch_mor (convex_combination (eD' then_e) (eD' else_e)
-                                      (phase4_half_ge0 R)
-                                      (phase4_half_le1 R)))
+                                      (bernoulli_half_ge0 R)
+                                      (bernoulli_half_le1 R)))
           (ptensor one1 (prom u)) one1).
 Qed.
 
 (** [Lfun (ch_mor convex_combination)] at outer pt as [prom (Lfun convex_icones _)]. *)
 Lemma Lfun_ch_mor_convex_at_outer_pt_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
   Lfun (ch_mor (convex_combination (eD' then_e) (eD' else_e)
-                                   (phase4_half_ge0 R)
-                                   (phase4_half_le1 R)))
+                                   (bernoulli_half_ge0 R)
+                                   (bernoulli_half_le1 R)))
        (at_outer_pt_u u)
   = prom (Lfun (convex_icones (eD' then_e) (eD' else_e)
-                              (phase4_half_ge0 R) (phase4_half_le1 R))
+                              (bernoulli_half_ge0 R) (bernoulli_half_le1 R))
                (at_outer_pt_u u)).
 Proof.
 rewrite /convex_combination.
 rewrite (Lfun_ch_mor_adj_psi_at
            (convex_icones (eD' then_e) (eD' else_e)
-                          (phase4_half_ge0 R) (phase4_half_le1 R))
+                          (bernoulli_half_ge0 R) (bernoulli_half_le1 R))
            (at_outer_pt_u u)).
 rewrite (coalg_str_G_on_outer_pt_u_E Hu).
 have Hbnd := cone_norm_at_outer_pt_u_le1 Hu.
 by rewrite (bang_fmap_prom
               (convex_icones (eD' then_e) (eD' else_e)
-                             (phase4_half_ge0 R) (phase4_half_le1 R))
+                             (bernoulli_half_ge0 R) (bernoulli_half_le1 R))
               _ Hbnd).
 Qed.
 
 (** Convex_icones at the outer point as pointwise sum decomposition. *)
 Lemma Lfun_convex_icones_at_outer_pt_u_E (u : L_geom) (Hu : cone_norm u <= 1) :
   Lfun (convex_icones (eD' then_e) (eD' else_e)
-                      (phase4_half_ge0 R) (phase4_half_le1 R))
+                      (bernoulli_half_ge0 R) (bernoulli_half_le1 R))
        (at_outer_pt_u u)
   = Lfun (der (FMeas R_obj))
          (precone_add
-            (precone_scale (NngNum (phase4_half_ge0 R))
+            (precone_scale (NngNum (bernoulli_half_ge0 R))
               (Lfun (ch_mor (eD' then_e)) (at_outer_pt_u u)))
-            (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+            (precone_scale (NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))
               (Lfun (ch_mor (eD' else_e)) (at_outer_pt_u u)))).
 Proof.
 have Hinner :
   Lfun (convex_icones_bang (eD' then_e) (eD' else_e)
-                           (phase4_half_ge0 R)
-                           (phase4_half_le1 R))
+                           (bernoulli_half_ge0 R)
+                           (bernoulli_half_le1 R))
        (at_outer_pt_u u)
   = precone_add
-      (precone_scale (NngNum (phase4_half_ge0 R))
+      (precone_scale (NngNum (bernoulli_half_ge0 R))
         (Lfun (ch_mor (eD' then_e)) (at_outer_pt_u u)))
-      (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+      (precone_scale (NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))
         (Lfun (ch_mor (eD' else_e)) (at_outer_pt_u u))).
   rewrite -[Lfun (convex_icones_bang _ _ _ _) _]
           /(linhom_fun (convex_linhom (eD' then_e) (eD' else_e)
-                                      (phase4_half_ge0 R)
-                                      (phase4_half_le1 R))
+                                      (bernoulli_half_ge0 R)
+                                      (bernoulli_half_le1 R))
                        (at_outer_pt_u u)).
   rewrite convex_linhomE /bool_case.
   rewrite linhom_fun_precone_add_E.
@@ -1399,8 +1399,8 @@ have Hinner :
     by apply: nngnum_inj.
 rewrite -[LHS]/(Lfun (der (FMeas R_obj))
                      (Lfun (convex_icones_bang (eD' then_e) (eD' else_e)
-                                               (phase4_half_ge0 R)
-                                               (phase4_half_le1 R))
+                                               (bernoulli_half_ge0 R)
+                                               (bernoulli_half_le1 R))
                            (at_outer_pt_u u))).
 by rewrite Hinner.
 Qed.
@@ -1414,17 +1414,17 @@ Lemma der_FMeas_linhom_der_Step_E_u (u : L_geom) (Hu : cone_norm u <= 1) :
           (one1 : cone_one_car Ar))
   = Lfun (der (FMeas R_obj))
          (precone_add
-            (precone_scale (NngNum (phase4_half_ge0 R))
+            (precone_scale (NngNum (bernoulli_half_ge0 R))
               (Lfun (ch_mor (eD' then_e)) (at_outer_pt_u u)))
-            (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+            (precone_scale (NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))
               (Lfun (ch_mor (eD' else_e)) (at_outer_pt_u u)))).
 Proof.
 rewrite (linhom_fun_der_Step_geom_one1_u_E Hu).
 rewrite (Lfun_ch_mor_convex_at_outer_pt_u_E Hu).
 have Hnorm : cone_norm
                 (Lfun (convex_icones (eD' then_e) (eD' else_e)
-                                     (phase4_half_ge0 R)
-                                     (phase4_half_le1 R))
+                                     (bernoulli_half_ge0 R)
+                                     (bernoulli_half_le1 R))
                       (at_outer_pt_u u)) <= 1.
   apply: le_trans (cones_hom_norm_le1 _ _) _.
   exact: cone_norm_at_outer_pt_u_le1.
@@ -1507,9 +1507,9 @@ Lemma F_arr_S_E_via_u (u : L_geom) (Hu : cone_norm u <= 1) :
           (Lfun (der L_geom) (Step_geom' one1 (prom u)))
           (one1 : cone_one_car Ar))
   = precone_add
-      (precone_scale (NngNum (phase4_half_ge0 R))
+      (precone_scale (NngNum (bernoulli_half_ge0 R))
         (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj))
-      (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+      (precone_scale (NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))
         (else_branch_fmeas u)).
 Proof.
 rewrite (der_FMeas_linhom_der_Step_E_u Hu).
@@ -1530,9 +1530,9 @@ Lemma F_arr_S_E_via_witness (n : nat) (u : L_geom)
     (Hu_eq : kleene_arr' n = prom u) (Hu_norm : cone_norm u <= 1) :
   F_arr' n.+1
   = precone_add
-      (precone_scale (NngNum (phase4_half_ge0 R))
+      (precone_scale (NngNum (bernoulli_half_ge0 R))
         (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj))
-      (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+      (precone_scale (NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))
         (else_branch_fmeas u)).
 Proof.
 rewrite -[F_arr' n.+1]/(Lfun (der (FMeas R_obj))
@@ -1567,16 +1567,16 @@ have [u [Hu_eq Hu_norm]] := @kleene_arr_is_prom R Ar R_obj
   R_carrier_eq R_carrier_meas R_to_carrier_meas n.
 rewrite (F_arr_S_E_via_witness Hu_eq Hu_norm).
 rewrite -[precone_add _ _]/(fmeas_add
-   (precone_scale (NngNum (phase4_half_ge0 R))
+   (precone_scale (NngNum (bernoulli_half_ge0 R))
                   (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj))
-   (precone_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+   (precone_scale (NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))
                   (else_branch_fmeas u))).
 rewrite fmeas_addE.
 rewrite -[precone_scale _ (dirac_fmeas _)]
-        /(fmeas_scale (NngNum (phase4_half_ge0 R))
+        /(fmeas_scale (NngNum (bernoulli_half_ge0 R))
                       (dirac_fmeas (R_to_carrier R_carrier_eq 0%R) : FMeas R_obj)).
 rewrite -[precone_scale _ (else_branch_fmeas _)]
-        /(fmeas_scale (NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))
+        /(fmeas_scale (NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))
                       (else_branch_fmeas u)).
 rewrite !fmeas_scaleE.
 rewrite dirac_fmeas_setT_E mule1.
@@ -1590,7 +1590,7 @@ rewrite (F_lift_eq_F_arr Hu_eq Hu_norm).
 have onem_half_E : ((1 - 1 / 2)%R = (1/2)%R :> R).
   have e : (1 : R) = 1/2 + 1/2 by rewrite -splitr.
   by rewrite {1}e addrK.
-have -> : ((NngNum (onem_ge0 (1/2)%R (phase4_half_le1 R)))%:num)%:E
+have -> : ((NngNum (onem_ge0 (1/2)%R (bernoulli_half_le1 R)))%:num)%:E
        = (1/2)%R%:E :> \bar R.
   by rewrite /=; congr (_%:E); exact: onem_half_E.
 by [].

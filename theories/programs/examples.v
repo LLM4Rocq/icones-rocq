@@ -12,7 +12,7 @@
       sample-and-score, no recursion.  Each is paired with its
       [_denot_E] reduction and, where landed, a Law-3-reduced
       [_marginal] / [_is_weighted] form.  See "Headline status" below.
-    - **Phase 4 partial-termination examples (4–6)** — combine
+    - **Recursive partial-termination examples (4–6)** — combine
       [ne_fix] (the CBV value-fixpoint of
       [theories/programs/infra/em_fix.v]) with [ne_if] / [ne_bernoulli]
       to demonstrate divergence and sub-probability mass at the
@@ -44,7 +44,7 @@
       we claim only that the denotation matches the expected
       joint-pushforward-then-density reduction.
 
-    ** Phase 4 partial-termination examples (beyond the paper) **
+    ** Recursive partial-termination examples (beyond the paper) **
     - [ex_loop]: [(let rec l = λ_. l ()) ()] : [tunit] — bare
       divergence; total mass 0.  [ex_loop_denot] is the Kleene
       supremum of [Phi_fun] (no closed form claimed).
@@ -1476,7 +1476,7 @@ End ExIfDemo.
 
 Arguments ex_if_demo {R Ar R_obj}.
 
-(** ** Phase 4 — productive partial-termination examples
+(** ** Recursive — productive partial-termination examples
 
     End-to-end probabilistic recursive programs in the named PPL
     surface syntax, combining [ne_fix] (the CBV value-fixpoint of
@@ -1496,7 +1496,7 @@ Arguments ex_if_demo {R Ar R_obj}.
       recursive call diverges; total mass is [p · Σ (1-p)^k = 1] when
       [p > 0]. *)
 
-Section Phase4Examples.
+Section RecExamples.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
@@ -1508,12 +1508,12 @@ Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 (** Witnesses [0 ≤ 1/2 ≤ 1] for the geometric example's fair-coin
-    Bernoulli scrutinee.  Re-derived locally so [Phase4Examples] is
+    Bernoulli scrutinee.  Re-derived locally so [RecExamples] is
     self-contained. *)
-Lemma phase4_half_ge0 : (0 <= 1 / 2 :> R)%R.
+Lemma bernoulli_half_ge0 : (0 <= 1 / 2 :> R)%R.
 Proof. by rewrite divr_ge0// ler01. Qed.
 
-Lemma phase4_half_le1 : (1 / 2 <= 1 :> R)%R.
+Lemma bernoulli_half_le1 : (1 / 2 <= 1 :> R)%R.
 Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
 
 Local Notation tR' := (tR R_obj).
@@ -1531,7 +1531,7 @@ Local Notation tR' := (tR R_obj).
 Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
   [ (fix "g" ::: tfun tunit tR' in
        \ "_" ::: tunit =>
-         (if Bernoulli { (1 / 2 : R), phase4_half_ge0, phase4_half_le1 }
+         (if Bernoulli { (1 / 2 : R), bernoulli_half_ge0, bernoulli_half_le1 }
           then [| 0%R |]
           else [| 1%R |] + # "g" @ ())) @ () ].
 
@@ -1542,7 +1542,7 @@ Definition ex_geom_body :
       (("g"%string, tfun tunit tR') :: nil)
       (tfun tunit tR') :=
   [ \ "_" ::: tunit =>
-      (if Bernoulli { (1 / 2 : R), phase4_half_ge0, phase4_half_le1 }
+      (if Bernoulli { (1 / 2 : R), bernoulli_half_ge0, bernoulli_half_le1 }
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ()) ].
 
@@ -1661,7 +1661,7 @@ rewrite eD_app.
 by [].
 Qed.
 
-End Phase4Examples.
+End RecExamples.
 
 Arguments ex_geom {R Ar R_obj}.
 Arguments ex_geom_body {R Ar R_obj}.
