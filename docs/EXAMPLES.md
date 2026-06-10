@@ -105,9 +105,9 @@ Lemma ex_random_constant_CBN_headline
 A random-coefficients linear regression: sample slope `m` and
 intercept `b` from `µ`, return the function `λx. m·x + b`. Exercises
 `ne_add` and `ne_mul` via the FMeas lax-monoidal map of paper §5; on
-Dirac inputs the lifts reduce to scalar arithmetic. The *killer
-demo* — the headline marginal identity ties the surface program to
-the joint pushforward of `µ ⊗ µ` along `(m, b) ↦ m·x + b`.
+Dirac inputs the lifts reduce to scalar arithmetic. The marginal
+identity ties the surface program to the joint pushforward of
+`µ ⊗ µ` along `(m, b) ↦ m·x + b`.
 
 ```coq
 (* theories/programs/examples.v *)
@@ -239,7 +239,7 @@ honest mass identity on both interpretations.
 | Paper-style label | English statement | Rocq |
 |---|---|---|
 | Bare divergence | `(let rec l = λ_. l ()) ()` of type `tunit`, total mass `0`. | `ex_loop`, `ex_loop_denot`, `ex_loop_arr_mass_zero`, `ex_loop_CBN_headline` — `theories/programs/examples.v` + `theories/programs/infra/ex_loop_arr.v` + `theories/programs/ppl_cbn_headlines.v` |
-| Geometric distribution (THE PRIZE) | `(let rec g = λ_. if Bernoulli(½) then 0 else 1 + g ()) ()` of type `tR'`, geometric distribution with parameter `½`. | `ex_geom`, `ex_geom_denot_E`, `ex_geom_arr_mass_one`, `ex_geom_arr_is_geometric_distribution`, `ex_geom_CBN_mass_one`, `ex_geom_CBN_PMF` — `examples.v` + `em_fix_arr.v` + `ppl_cbv_geom_dist.v` + `ppl_cbn_geom.v` + `ppl_cbn_geom_dist.v` |
+| Geometric distribution | `(let rec g = λ_. if Bernoulli(½) then 0 else 1 + g ()) ()` of type `tR'`, geometric distribution with parameter `½`. | `ex_geom`, `ex_geom_denot_E`, `ex_geom_arr_mass_one`, `ex_geom_arr_is_geometric_distribution`, `ex_geom_CBN_mass_one`, `ex_geom_CBN_PMF` — `examples.v` + `em_fix_arr.v` + `ppl_cbv_geom_dist.v` + `ppl_cbn_geom.v` + `ppl_cbn_geom_dist.v` |
 | Parameterised partial termination | `(let rec l = λ_. if Bernoulli(p) then () else l ()) ()` of type `tunit`. | `ex_almost_loop`, `ex_almost_loop_denot_E`, `ex_almost_loop_p_arr_mass_one_if_pos`, `ex_almost_loop_p_arr_mass_zero_if_zero`, `ex_almost_loop_p_CBN_mass_one_if_pos`, `ex_almost_loop_p_CBN_mass_zero_if_zero`, `ex_almost_loop_p_CBN_is_dirac_zero`, `ex_almost_loop_p_CBN_is_zero_if_zero` — `examples.v` + `ex_almost_loop_step.v` + `ppl_cbn_almost_loop.v` + `ppl_cbn_almost_loop_dist.v` |
 
 ### ex_loop (`ex_loop`, `ex_loop_denot`, `ex_loop_arr_mass_zero`, `ex_loop_CBN_headline`)
@@ -284,13 +284,11 @@ arrows into it are equal by terminality.
 
 ### ex_geom (`ex_geom`, `ex_geom_denot_E`, `ex_geom_arr_mass_one`, `ex_geom_arr_is_geometric_distribution`, `ex_geom_CBN_mass_one`, `ex_geom_CBN_PMF`)
 
-**The Prize.** A geometric counter built via a fair-coin Bernoulli
-recursion: each call halts with probability `½` (returning `0`) and
-otherwise recurses, adding `1` to the returned real. The program
-denotes the genuine geometric distribution with parameter `½` —
-total mass `1` and PMF `(1/2)^{k+1}` at every `k`. To our
-knowledge, the first mass identity *and* the first PMF identity for
-a recursive PPL example formalised in the integrable-cones model.
+A geometric counter built via a fair-coin Bernoulli recursion: each
+call halts with probability `½` (returning `0`) and otherwise
+recurses, adding `1` to the returned real. The program denotes the
+geometric distribution with parameter `½` — total mass `1` and PMF
+`(1/2)^{k+1}` at every `k`.
 
 ```coq
 (* theories/programs/examples.v *)
