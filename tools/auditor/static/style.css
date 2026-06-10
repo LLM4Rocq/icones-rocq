@@ -1208,3 +1208,18 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
   font-size: 0.78rem;
   margin-left: 0.3rem;
 }
+
+/* -- snippet identifier cross-references ---------------------------------
+ * Anchors injected by tools/auditor/xref.py around Pygments name tokens.
+ * Inherit the token colour so the code looks unchanged; reveal the link
+ * affordance only on hover (dotted underline + slight brightness). */
+.codeblock .code-xref {
+  color: inherit;
+  text-decoration: none;
+}
+.codeblock .code-xref:hover,
+.codeblock .code-xref:focus-visible {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  filter: brightness(1.2);
+}

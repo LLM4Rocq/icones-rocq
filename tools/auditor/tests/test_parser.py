@@ -278,6 +278,77 @@ def test_full_document_smoke():
     )
 
 
+# -- snippet identifier cross-reference tests --------------------------------
+
+
+def test_xref_ident_map(parse_md):
+    """Map collects long-enough idents; short ones are excluded."""
+    from tools.auditor.xref import MIN_IDENT_LEN, build_ident_map
+
+    doc, _ = parse_md("12_xref.md")
+    mapping = build_ident_map(doc)
+    assert mapping["alpha_thing"] == "def-2-1"
+    assert mapping["beta_gadget"] == "def-2-2"
+    # `mu` (2 chars < MIN_IDENT_LEN) never enters the map.
+    assert len("mu") < MIN_IDENT_LEN
+    assert "mu" not in mapping
+
+
+def test_xref_linkify(parse_md):
+    """Cross-entry idents get anchors; self / unknown / short ones don't."""
+    doc, _ = parse_md("12_xref.md")
+    sec = doc.sections[0]
+    a, b = sec.entries
+    assert (a.id, b.id) == ("def-2-1", "def-2-2")
+    a_html = a.detail.snippets[0].highlighted_html
+    b_html = b.detail.snippets[0].highlighted_html
+    # (a) an ident defined by entry A appearing in entry B's snippet gets
+    # an anchor to A (and vice versa); href is tab-relative from a
+    # depth-1 page.
+    assert (
+        '<a class="code-xref" href="../entries/def-2-1.html">alpha_thing</a>'
+        in b_html
+    )
+    assert (
+        '<a class="code-xref" href="../entries/def-2-2.html">beta_gadget</a>'
+        in a_html
+    )
+    # (b) the self-occurrence in each entry's own snippet is NOT linked.
+    assert '<span class="n">alpha_thing</span>' in a_html
+    assert "entries/def-2-1.html" not in a_html
+    assert '<span class="n">beta_gadget</span>' in b_html
+    assert "entries/def-2-2.html" not in b_html
+    # (c) an unknown ident gets no anchor.
+    assert '<span class="n">unknown_zzz</span>' in a_html
+    # (d) short idents (< MIN_IDENT_LEN) stay plain.
+    assert '<span class="n">mu</span>' in a_html
+    # (e) occurrences inside comment / string spans are never wrapped:
+    # b's snippet mentions alpha_thing in a comment AND a string, but only
+    # the name token carries an anchor.
+    assert a_html.count("code-xref") == 1
+    assert b_html.count("code-xref") == 1
+
+
+def test_xref_linkify_idempotent(parse_md):
+    """Running the linkify pass a second time changes nothing."""
+    from tools.auditor.xref import linkify_document
+
+    doc, _ = parse_md("12_xref.md")
+    sec = doc.sections[0]
+    before = [
+        s.highlighted_html
+        for e in sec.entries
+        for s in (e.detail.snippets if e.detail else [])
+    ]
+    linkify_document(doc)
+    after = [
+        s.highlighted_html
+        for e in sec.entries
+        for s in (e.detail.snippets if e.detail else [])
+    ]
+    assert before == after
+
+
 # -- two-tab orchestrator tests --------------------------------------------
 
 

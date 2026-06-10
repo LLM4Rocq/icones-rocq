@@ -31,6 +31,7 @@ from pygments.lexers import get_lexer_by_name as _get_lexer_by_name
 
 from .classifier import DEFAULT_REGRESSION_ANCHORS, classify
 from .coqdoc import CoqdocResolver
+from .xref import linkify_document
 from .schema import (
     ALL_TABS,
     AxiomAnchors,
@@ -1573,6 +1574,10 @@ def parse(
         warnings_out=warnings_out,
         tab=tab,
     )
+    # Post-parse linkify pass: the Document is fully assembled, so the
+    # per-tab ident → entry map is complete.  Wraps known identifiers in
+    # every snippet's highlighted HTML in `.code-xref` anchors.
+    linkify_document(doc)
     return doc, warnings_out
 
 
