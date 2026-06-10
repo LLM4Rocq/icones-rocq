@@ -192,33 +192,51 @@ jobs:
           if-no-files-found: ignore
 
   combine-and-deploy:
+    # Gated on `build-auditor` ONLY.  The (slow) `build-blueprint` and
+    # `build-docs` jobs are NOT in the needs-list, so the auditor
+    # deploys as soon as its own short job finishes (~5 min) instead
+    # of waiting on the LaTeX build + Rocq toolchain install (~15 min
+    # together).  Blueprint and coqdoc artefacts are fetched best-
+    # effort from this run if they happen to be ready in time, falling
+    # back to the most recent successful build on `main` (via
+    # `dawidd6/action-download-artifact`) so that `/blueprint/` and
+    # `/docs/` don't 404 between deploys.  If the slow builds finish
+    # AFTER this deploy, their fresh content lands on the next push
+    # that triggers the workflow.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build-docs, build-blueprint, build-auditor]
+    needs: [build-auditor]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download blueprint
-        uses: actions/download-artifact@v4
+      - name: Download blueprint (this run if ready, else last successful)
+        uses: dawidd6/action-download-artifact@v6
         with:
           name: blueprint-site
           path: site/
+          workflow: blueprint.yml
+          workflow_conclusion: success
+          if_no_artifact_found: warn
+          search_artifacts: true
         continue-on-error: true
 
-      - name: Download coqdoc
-        uses: actions/download-artifact@v4
+      - name: Download coqdoc (this run if ready, else last successful)
+        uses: dawidd6/action-download-artifact@v6
         with:
           name: coqdoc-html
           path: site/docs/
+          workflow: blueprint.yml
+          workflow_conclusion: success
+          if_no_artifact_found: warn
+          search_artifacts: true
         continue-on-error: true
 
-      - name: Download auditor
+      - name: Download auditor (fresh, from this run)
         uses: actions/download-artifact@v4
         with:
           name: auditor-site
           path: site/auditor/
-        continue-on-error: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
