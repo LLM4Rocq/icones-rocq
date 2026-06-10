@@ -96,6 +96,7 @@ Require Import Icones.homs.seely.
 Require Import Icones.homs.tensor_hom_iso.
 Require Import Icones.programs.infra.bool_case_hom.
 Require Import Icones.homs.coalgebra.
+Require Import Icones.programs.infra.bool_cone_coalg.
 Require Import Icones.homs.fmeas_lax.
 Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
@@ -133,13 +134,16 @@ Variables (R : realType) (Ar : MeasSubcat R).
 Fixpoint tyD_cbv (t : ppl_type Ar) : Coalgebra Ar :=
   match t with
   | tunit => EM_term
-  (* As in [ppl.v]: [tbool] uses the cofree coalgebra over the 2-point
-     sub-probability cone of [bool_cone.v].  The user's proposed
-     [FMeas_coalgebra bool_meas_space] route would require [bool] to be
-     an [ar_obj Ar], which is NOT a generic property of [MeasSubcat]
-     (the carriers of [Ar] are parameter-supplied).  We keep the cofree
-     route, identical to [ppl.v]. *)
-  | tbool => bang_cofree (bool_cone_car Ar)
+  (* [tbool] uses the §9.7-style coalgebra on the 2-point sub-
+     probability cone of [bool_cone.v], hand-rolled in
+     [bool_cone_coalg.v] (the [bool] type is not an [ar_obj Ar] in this
+     codebase, so [FMeas_coalgebra bool_meas_space] is unavailable; we
+     specialise the §9.7 integral [∫ prom(δ_x) dµ(x)] to the finite
+     sum [p · prom(δ_T) + q · prom(δ_F)] on the 2-point cone).  This
+     gives the SHARED-SAMPLE semantics for [let x = Bernoulli(p) in (x,x)]
+     (= [p · (T,T) + (1-p) · (F,F)], the diagonal pushforward) instead of
+     the independent-product semantics [bang_cofree] would give. *)
+  | tbool => bool_cone_coalg
   | tbase X => FMeas_coalgebra X
   | tprod s1 s2 => EM_prod (tyD_cbv s1) (tyD_cbv s2)
   (* Clean CBV function type — no [Tobj] on the codomain. *)
@@ -215,25 +219,27 @@ Definition real_icones (R_obj : ar_obj Ar)
   const_icones G (dirac_fmeas (R_to_carrier R_carrier_eq r))
                  (dirac_fmeas_norm_le1 _).
 
-(** Constant [icones_hom] at the [true]-Dirac of [bool_cone] (promoted
-    to [Bang], the carrier of [tyD_cbv tbool]). *)
+(** Constant [icones_hom] at the [true]-Dirac of [bool_cone].
+    With the §9.7-style [bool_cone_coalg], the carrier of [tyD_cbv tbool]
+    is [bool_cone_car Ar] directly (no [Bang] wrap), so the value is
+    the basis point [bool_dirac_true] itself. *)
 Definition true_icones (G : Coalgebra Ar) :
-    icones_hom Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)) :=
-  const_icones G (prom (bool_dirac_true : bool_cone_car Ar))
-                 (prom_ball bool_dirac_true_norm_le1).
+    icones_hom Ar (coalg_obj G) (bool_cone_car Ar) :=
+  const_icones G (bool_dirac_true : bool_cone_car Ar)
+                 bool_dirac_true_norm_le1.
 
 (** Constant [icones_hom] at the [false]-Dirac of [bool_cone]. *)
 Definition false_icones (G : Coalgebra Ar) :
-    icones_hom Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)) :=
-  const_icones G (prom (bool_dirac_false : bool_cone_car Ar))
-                 (prom_ball bool_dirac_false_norm_le1).
+    icones_hom Ar (coalg_obj G) (bool_cone_car Ar) :=
+  const_icones G (bool_dirac_false : bool_cone_car Ar)
+                 bool_dirac_false_norm_le1.
 
 (** Constant [icones_hom] at the Bernoulli sub-probability [(p, 1-p)]. *)
 Definition bernoulli_icones (G : Coalgebra Ar) (p : R)
     (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
-    icones_hom Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)) :=
-  const_icones G (prom (bernoulli p Hp_ge0 Hp_le1))
-                 (prom_ball (bernoulli_norm_le1 p Hp_ge0 Hp_le1)).
+    icones_hom Ar (coalg_obj G) (bool_cone_car Ar) :=
+  const_icones G (bernoulli p Hp_ge0 Hp_le1)
+                 (bernoulli_norm_le1 p Hp_ge0 Hp_le1).
 
 End ConstHelpersCBV.
 
@@ -250,15 +256,18 @@ Arguments bernoulli_icones {R Ar} G p Hp_ge0 Hp_le1.
     boolean scrutinee icones_hom from [G] into [Bang bool_cone], and
     produces the dispatch icones_hom [G → A].
 
-    Recipe (no [Tobj] wrap on the codomain):
+    Recipe (no [Tobj] wrap on the codomain; with the §9.7 coalgebra
+    on [bool_cone_car], the scrutinee lives in [bool_cone_car Ar]
+    directly, so no [der] dance is needed):
     1. Branches as norm-[≤1] linhoms [aM, bN : G ⊸ A].
     2. [bool_case_linhom aM bN : bool_cone ⊸ (G ⊸ A)] of the
        universal co-pairing of [bool_case_hom.v].
     3. [linhom_icones] back to [icones_hom bool_cone (G ⊸ A)].
     4. [tensor_uncurry] to [bool_cone ⊗ G → A].
-    5. Pre-compose with [id_G ⊗ der_bool ; braid : G ⊗ Bang bool →
-       bool_cone ⊗ G].
-    6. Pre-compose with [em_pair_mor id_G (eD b)] : [G → G ⊗ Bang bool]. *)
+    5. Pre-compose with [braid : G ⊗ bool_cone → bool_cone ⊗ G].
+    6. Pre-compose with [em_pair_mor id_G (eD b)] : [G → G ⊗ bool_cone]
+       (the pair is taken in [EM(!)] using [bool_cone_coalg] as the
+       second factor's coalgebra structure). *)
 
 Section IfICones.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -296,28 +305,26 @@ Let if_uncurried : icones_hom Ar
     (tensor Ar (bool_cone_car Ar) (coalg_obj G)) (coalg_obj A) :=
   tensor_uncurry if_hom.
 
-(** Step 5: pre-compose with [(id_G ⊗ der_bool); braid].  The braid
-    sends [G ⊗ bool_cone → bool_cone ⊗ G], matching [if_uncurried]'s
-    source. *)
+(** Step 5: pre-compose with the braid [G ⊗ bool_cone → bool_cone ⊗ G].
+    No [der] is needed: with the §9.7-style [bool_cone_coalg], the
+    scrutinee directly produces [bool_cone_car Ar] (not [Bang _]). *)
 Definition if_under :
     icones_hom Ar
-      (tensor Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)))
+      (tensor Ar (coalg_obj G) (bool_cone_car Ar))
       (coalg_obj A) :=
   icones_comp if_uncurried
-    (icones_comp (iso_fwd (tensor_braid (coalg_obj G) (bool_cone_car Ar)))
-                 (tensor_mor (icones_id Ar (coalg_obj G))
-                             (der (bool_cone_car Ar)))).
+    (iso_fwd (tensor_braid (coalg_obj G) (bool_cone_car Ar))).
 
 (** Step 6: pre-compose with the pairing of [id_G] and the scrutinee.
     Final icones_hom: [G → A].  The pair uses [em_pair_mor] which
     elaborates [Q] from the second argument's codomain; passing [b]
-    as an icones_hom into [Bang bool_cone = coalg_obj (bang_cofree
-    bool_cone)] makes [Q := bang_cofree (bool_cone_car Ar)]. *)
+    as an icones_hom into [bool_cone_car Ar = coalg_obj bool_cone_coalg]
+    makes [Q := bool_cone_coalg]. *)
 Definition if_icones (b : icones_hom Ar (coalg_obj G)
-                            (coalg_obj (bang_cofree (bool_cone_car Ar)))) :
+                            (coalg_obj (@bool_cone_coalg R Ar))) :
     icones_hom Ar (coalg_obj G) (coalg_obj A) :=
   icones_comp if_under
-    (@em_pair_mor R Ar G G (bang_cofree (bool_cone_car Ar))
+    (@em_pair_mor R Ar G G (@bool_cone_coalg R Ar)
        (icones_id Ar (coalg_obj G)) b).
 
 End IfICones.
