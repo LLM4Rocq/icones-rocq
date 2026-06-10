@@ -101,9 +101,6 @@ Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
-Require Import Icones.programs.infra.em_continuity.
-Require Import Icones.programs.infra.em_fix.
-Require Import Icones.programs.cbv.
 Require Import Icones.programs.ppl.
 
 Set Implicit Arguments.
