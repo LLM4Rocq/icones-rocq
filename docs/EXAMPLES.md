@@ -50,9 +50,10 @@ Definition ex_random_constant :
 The CBN denotation of mass and marginal lives in
 `theories/programs/ppl_cbn_headlines.v`. The CBV interpretation of
 the same surface term lives in `theories/programs/ppl_cbv.v` as
-`eD ex_random_constant`; the corresponding marginal identity can in
-principle be re-derived against the clean linhom-valued `eD` but has
-not yet been packaged.
+`eD ex_random_constant`; the program is non-recursive, so its CBV
+denotation lands cleanly through the linhom-valued `eD` (no
+recursion machinery needed) — the corresponding marginal identity is
+a follow-up that can now be written against the linhom-valued `eD`.
 
 | Side | Headline | Status |
 |---|---|---|
@@ -88,8 +89,11 @@ Definition ex_random_linear :
 
 The honest bilinear CBN marginal lives in
 `theories/programs/ppl_cbn_arith_eff.v`. The CBV interpretation of
-the same surface term lives in `theories/programs/ppl_cbv.v`; a
-linhom-level marginal identity is not yet packaged.
+the same surface term lives in `theories/programs/ppl_cbv.v`; the
+program is non-recursive, so its CBV denotation lands cleanly
+through the linhom-valued `eD`, and a linhom-level marginal
+identity can be re-derived against the new `eD` as a follow-up — not
+blocked by anything in the recursion infrastructure.
 
 | Side | Headline | Status |
 |---|---|---|
@@ -128,8 +132,11 @@ Definition ex_bayes_linear :
 The CBN headline of the marginal lives in
 `theories/programs/ppl_cbn_headlines.v`. The CBV interpretation of
 the same surface term lives in `theories/programs/ppl_cbv.v` as
-`eD ex_bayes_linear`; the measure-level posterior identity is not
-yet packaged against the clean linhom-valued `eD`.
+`eD ex_bayes_linear`; the program is non-recursive, so its CBV
+denotation lands cleanly through the linhom-valued `eD` — the
+measure-level posterior identity is a follow-up that can now be
+written against the new `eD`, not blocked by the recursion
+infrastructure.
 
 | Side | Headline | Status |
 |---|---|---|
@@ -158,9 +165,12 @@ pending — see *What is not formalised* below).
 Recursive probabilistic programs combining `ne_fix` with the
 `ne_if` / `ne_bernoulli` boolean cascade to exhibit *productive
 partial termination*. Each program ships with the honest mass
-identity on the CBN interpretation; CBV mass identities are pending
-the recursive-fixpoint port of `ne_fix` / `ne_fix_mr` (currently
-returning a `precone_zero` placeholder in `ppl_cbv.v`).
+identity on the CBN interpretation; the CBV interpretation of the
+same surface terms now lands through the `Yfix_fun_lin` Kleene
+fixpoint of `theories/programs/infra/em_fix.v` (the value-fixpoint
+infrastructure is in place). Specific CBV-side mass identities
+mirroring the CBN-side proofs have not yet been written — a
+follow-up, not blocked.
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
@@ -184,10 +194,10 @@ Definition ex_loop :
 ```
 
 The CBV interpretation of `ex_loop` in `theories/programs/ppl_cbv.v`
-currently routes through the `precone_zero` placeholder of `ne_fix`;
-the operational mass-zero identity is pending the Kleene-fixpoint
-port to the clean `linhom`-cone setup (see *The CBV value-fixpoint
-at function types* on the PPL tab).
+now lands through `Yfix_fun_lin` on the clean `linhom`-cone (see
+*The CBV value-fixpoint at function types* on the PPL tab); the
+operational mass-zero identity is a follow-up that can now be written
+against the new `eD`, not blocked.
 
 | Side | Headline | Status |
 |---|---|---|
@@ -222,10 +232,11 @@ Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
 ```
 
 The CBV interpretation of `ex_geom` in `theories/programs/ppl_cbv.v`
-routes through the `precone_zero` placeholder of `ne_fix`; the CBV
-geometric-distribution identity is pending the Kleene-fixpoint port
-to the clean `linhom`-cone setup. The CBN side ships the full
-identity.
+now lands through `Yfix_fun_lin` on the clean `linhom`-cone. The
+CBV-side mass-one identity (the analogue of `ex_geom_CBN_mass_one`)
+has not yet been written against the new `Yfix_fun_lin`; the
+value-fixpoint machinery is in place, so the proof is a follow-up
+rather than blocked. The CBN side ships the full identity.
 
 | Side | Headline | Status |
 |---|---|---|
@@ -287,10 +298,11 @@ Definition ex_almost_loop (p : R)
           else # "l" @ ())) @ () ].
 ```
 
-The CBV interpretation in `theories/programs/ppl_cbv.v` routes
-through the `precone_zero` placeholder of `ne_fix`; the operational
-mass dichotomy is pending the Kleene-fixpoint port to the clean
-`linhom`-cone setup.
+The CBV interpretation in `theories/programs/ppl_cbv.v` now lands
+through `Yfix_fun_lin` on the clean `linhom`-cone; the operational
+mass dichotomy on the CBV side has not yet been written against the
+new `Yfix_fun_lin`, but the value-fixpoint machinery is in place — a
+follow-up rather than a blocker.
 
 | Side | Headline | Status |
 |---|---|---|
@@ -340,8 +352,7 @@ measurable set.
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| CBV mass / marginal identities for the recursive examples | The operational mass identities (`mass = 1` for `ex_geom`, `mass = 1`/`mass = 0` dichotomy for `ex_almost_loop p`, `mass = 0` for `ex_loop`) on the CBV interpretation of `ppl_cbv.v`. | The `ne_fix` / `ne_fix_mr` clauses in `ppl_cbv.v` currently resolve to a `precone_zero` placeholder; the Kleene fixpoint on the clean `linhom`-cone (no `Tobj` on the codomain) is pending. |
-| CBV marginal / posterior identities for the QBS examples | The CBV-side analogues of `ex_random_constant_CBN_headline` / `ex_random_linear_arith_marginal_at` / `ex_bayes_linear_CBN_headline` against the linhom-valued `eD` of `ppl_cbv.v`. | The surface terms compile through `eD`, but the structural reduction lemmas and the measure-level identities have not yet been re-proven in the new comonoid-primitive setting. |
+| CBV-side mass identities and distribution headlines for the example programs | The CBV analogues of `ex_geom_arr_mass_one`, `ex_loop_CBN_headline`, `ex_almost_loop_p_CBN_mass_one_if_pos` / `_mass_zero_if_zero`, `ex_random_constant_*_marginal_*`, `ex_random_linear_*_marginal_*`, `ex_bayes_linear_*_headline` against the new linhom-valued `eD` of `ppl_cbv.v`. | The surface programs are defined and their interpretations land cleanly (recursive ones through `Yfix_fun_lin`, non-recursive ones directly through the linhom-valued `eD`), but the example-specific structural reduction lemmas and measure-level identities have not yet been written against the new `eD`. Not blocked — follow-up work. |
 | Option-α unit-type refinement | Replace `tyD_CBN tunit := Stop` by `Bang(FMeas *)` so `ne_score` does not collapse to a constant under CBN. | Needs a parallel `eD_CBN_full_alpha` interpretation and clauses; the option-β refinement of arithmetic (already shipped) is independent and orthogonal. |
 
 These choices are deliberate; each requires substantial
