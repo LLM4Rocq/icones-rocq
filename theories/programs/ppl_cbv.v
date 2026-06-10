@@ -4,22 +4,23 @@
     A presentation of the call-by-value denotational semantics for the
     higher-order probabilistic calculus of [ppl.v] in which every
     expression denotes a LINEAR morphism in [ICone]: an element of
-    [linhom_car Ar (coalg_obj (ctxD Γ)) (coalg_obj (tyD τ))].  Programs
-    are linear maps in [ICone], not [EM(!)]-coalgebra morphisms; the
+    [linhom_car Ar (coalg_obj (ctxD_cbv Γ)) (coalg_obj (tyD_cbv τ))].
+    Programs are linear maps in [ICone], not coalgebra morphisms; the
     coalgebra structure of the context is used ONLY through the
     transported commutative-comonoid pair [(δ, ε) = (coalg_d, coalg_e)]
     of every coalgebra (Melliès Prop 28 / Cor 20, [em_cartesian.v]).
 
     The type interpretation drops the Kleisli-exponential wrapping on
     the codomain of [tfun]: it is simply [!̃(U⟦A⟧ ⊸ U⟦B⟧)], reflecting
-    the linear-map view of programs.  The context interpretation is the
-    same tensor-of-coalgebras orientation as in [ppl.v].
+    the linear-map view of programs.  Contexts are interpreted by
+    [ctxD_cbv] as a tensor of coalgebras, head of the list on the
+    RIGHT.
 
     The clause-by-clause shape of [eD]:
     [[
       ⟦x⟧             = projection from the tensor (ε on every other
                         slot, id on the chosen one)
-      ⟦let x = e₁ in e₂⟧ = δ_Γ ; (e₁ ⊗ id_Γ) ; swap ; e₂
+      ⟦let x = e₁ in e₂⟧ = δ_Γ ; (id_Γ ⊗ e₁) ; e₂
       ⟦(e₁, e₂)⟧      = δ_Γ ; (e₁ ⊗ e₂)
       ⟦fst p⟧         = p ; (id ⊗ ε)
       ⟦snd p⟧         = p ; (ε ⊗ id)
@@ -33,7 +34,8 @@
       ⟦e₁ × e₂⟧       = δ_Γ ; (e₁ ⊗ e₂) ; mul_lift
       ⟦true⟧/⟦false⟧  = ε_Γ ; const δ_T/δ_F
       ⟦Bernoulli p⟧   = ε_Γ ; const Bern(p)
-      ⟦if b then M else N⟧ = δ_Γ ; (b ⊗ δ_Γ ; (M ⊗ N)) ; bool_case
+      ⟦if b then M else N⟧ = δ_Γ ; (id_Γ ⊗ b) ; braid
+                             ; uncurry (bool_case M N)
       ⟦fix s.M⟧       = Yfix_fun_lin (Kleene on the unit-ball CPO)
     ]]
 
@@ -121,14 +123,12 @@ Local Open Scope ring_scope.
 Section TypeInterpCBV.
 Variables (R : realType) (Ar : MeasSubcat R).
 
-(** [tyD t] — every type denotes a coalgebra of [EM(!)].
+(** [tyD_cbv t] — every type denotes a coalgebra of [EM(!)].
 
-    The only departure from [ppl.v]:
+    The load-bearing clause:
     - [tfun A B] is interpreted as [!̃(U⟦A⟧ ⊸ U⟦B⟧)], WITHOUT the [Tobj]
       wrap on the codomain.  Function VALUES are linear maps
-      [U⟦A⟧ ⊸ U⟦B⟧]; duplicability comes from the OUTER [!̃] only.
-
-    Other clauses match [ppl.v] (see [ppl.v::tyD] / [Section TypeInterp]). *)
+      [U⟦A⟧ ⊸ U⟦B⟧]; duplicability comes from the OUTER [!̃] only. *)
 Fixpoint tyD_cbv (t : ppl_type Ar) : Coalgebra Ar :=
   match t with
   | tunit => EM_term
@@ -150,8 +150,8 @@ Fixpoint tyD_cbv (t : ppl_type Ar) : Coalgebra Ar :=
   end.
 
 (** Contexts: head of the list on the RIGHT, so [hv_zero] = second
-    component and [hv_succ] strips the head.  This mirrors [ppl.v]'s
-    [ctxD] orientation exactly. *)
+    component and [hv_succ] strips the head — the orientation
+    [var_lookup_cbv] (below) projects against. *)
 Fixpoint ctxD_cbv (G : ppl_ctx Ar) : Coalgebra Ar :=
   match G with
   | nil => EM_term
@@ -170,7 +170,8 @@ Arguments ctxD_cbv {R Ar} G.
     (tyD_cbv t)].  Structure: [hv_zero] reads the second component of
     the head tensor; [hv_succ] reads the first and recurses.
 
-    Mirrors [ppl.v::var_lookup] but uses [tyD_cbv] / [ctxD_cbv]. *)
+    Pure projection: [em_proj2] / [em_proj1] chains, no [δ], no [str]
+    (contract C4: [ne_var] uses only the comonoid counit/projections). *)
 Section VarLookupCBV.
 Variables (R : realType) (Ar : MeasSubcat R).
 
@@ -187,16 +188,15 @@ End VarLookupCBV.
 
 Arguments var_lookup_cbv {R Ar G t} v.
 
-(** ** Real / sample / boolean / Bernoulli kleisli helpers — CBV-clean
+(** ** Real / sample / boolean / Bernoulli constant helpers — CBV-clean
 
     Direct-style: a sample / real / boolean / Bernoulli constructor
     denotes a CONSTANT [icones_hom] out of the context into the value
-    coalgebra's carrier, with NO outer [Tobj] wrap.  Compare with
-    [ppl.v::real_kleisli] / [sample_kleisli] / [bernoulli_kleisli],
-    which are the [Tobj]-wrapped variants.  Here every constructor's
+    coalgebra's carrier, with NO outer [Tobj] wrap (the old
+    [Tobj]-wrapped Kleisli variants are deleted).  Every constructor's
     denotation lives in [coalg_obj (tyD_cbv t)] directly.
 
-    All four reuse [const_icones] of [ppl.v::Section ConstKleisli]:
+    All four reuse [const_icones] of [ppl.v::Section ConstIcones]:
     given a unit-ball value [c : C], [const_icones G c Hc] is the
     constant icones_hom out of [coalg_obj G] taking the value [c]. *)
 
@@ -452,9 +452,10 @@ refine (
   | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
       bernoulli_icones (ctxD_cbv (drop_names G0)) p Hp_ge0 Hp_le1
   (* [ne_if b M N]:
-       δ_Γ ; (id_Γ ⊗ eD b) ; (id_Γ ⊗ der) ; braid ; uncurry (bool_case eD M eD N)
+       δ_Γ ; (id_Γ ⊗ eD b) ; braid ; uncurry (bool_case eD M eD N)
      where [bool_case] is the universal co-pairing of [bool_cone] of
-     [bool_cone.v].  See the [if_icones] helper above. *)
+     [bool_cone.v].  No [der]: the §9.7 [bool_cone_coalg] scrutinee
+     lives in [bool_cone_car] directly.  See [if_icones] above. *)
   | ne_if G0 ty e M0 N0 =>
       if_icones (eD_cbv G0 ty M0) (eD_cbv G0 ty N0) (eD_cbv G0 _ e)
   (* [ne_fix s M]: the OCaml-style value-fixpoint at function types.
@@ -517,3 +518,243 @@ End PublicED.
 
 Arguments eD
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} M.
+
+(** ** Definitional-unfolding pack — one lemma per [eD_cbv] clause
+
+    Regression anchors for the interpreter: each [eD_<clause>_E] lemma
+    pins the EXACT clause body of [eD_cbv], so any refactor of the
+    interpreter (or of the combinators it is built from) breaks loudly
+    here instead of silently changing the semantics.  Because [eD_cbv]
+    is a structural [Fixpoint], every clause reduces definitionally on
+    its constructor and every proof is [by []].
+
+    The pack closes with the SEMANTIC recursion-unfolding equation
+    [eD_cbv_fix_unfold] / [eD_fix_unfold]: the denotation of
+    [ne_fix s body] equals the body run with the fixpoint itself bound
+    to the recursive variable — derived from [Yfix_fun_lin_fixpoint]
+    ([theories/programs/infra/em_fix.v]). *)
+
+Section EDUnfold.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Local Notation eD_cbv' :=
+  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation eD' :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+
+(** [ne_var]: pure projection from the context tensor. *)
+Lemma eD_var_E (G : named_ctx Ar) (t : ppl_type Ar) (v : named_var G t) :
+  eD_cbv' (ne_var v) = ch_mor (var_lookup_cbv (named_var_to_has_var v)).
+Proof. by []. Qed.
+
+(** [ne_tt]: the comonoid counit [ε_Γ]. *)
+Lemma eD_tt_E (G : named_ctx Ar) :
+  eD_cbv' (@ne_tt R Ar R_obj G) =
+  ch_mor (em_term_mor (ctxD_cbv (drop_names G))).
+Proof. by []. Qed.
+
+(** [ne_pair]: [δ_Γ ; (⟦M⟧ ⊗ ⟦N⟧)] via [em_pair_mor]. *)
+Lemma eD_pair_E (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj G t1) (N : @named_expr R Ar R_obj G t2) :
+  eD_cbv' (ne_pair M N) = em_pair_mor (eD_cbv' M) (eD_cbv' N).
+Proof. by []. Qed.
+
+(** [ne_fst]: [π₁ ∘ ⟦M⟧]. *)
+Lemma eD_fst_E (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj G (tprod t1 t2)) :
+  eD_cbv' (ne_fst M) =
+  icones_comp (em_proj1_mor (tyD_cbv t1) (tyD_cbv t2)) (eD_cbv' M).
+Proof. by []. Qed.
+
+(** [ne_snd]: [π₂ ∘ ⟦M⟧]. *)
+Lemma eD_snd_E (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj G (tprod t1 t2)) :
+  eD_cbv' (ne_snd M) =
+  icones_comp (em_proj2_mor (tyD_cbv t1) (tyD_cbv t2)) (eD_cbv' M).
+Proof. by []. Qed.
+
+(** [ne_lam]: curry the body, promote via [adj_psi]. *)
+Lemma eD_lam_E (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj ((x, t1) :: G) t2) :
+  eD_cbv' (ne_lam x M) =
+  ch_mor (adj_psi (P := ctxD_cbv (drop_names G))
+                  (B := linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                      (coalg_obj (tyD_cbv t2)))
+            (tensor_curry (eD_cbv' M))).
+Proof. by []. Qed.
+
+(** [ne_app]: [δ_Γ ; (⟦F⟧ ⊗ ⟦X⟧) ; (der ⊗ id) ; eval]. *)
+Lemma eD_app_E (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (F : @named_expr R Ar R_obj G (tfun t1 t2))
+    (X : @named_expr R Ar R_obj G t1) :
+  eD_cbv' (ne_app F X) =
+  icones_comp
+    (tensor_uncurry (icones_id Ar
+       (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2)))))
+    (icones_comp
+      (tensor_mor (der (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                      (coalg_obj (tyD_cbv t2))))
+                  (icones_id Ar (coalg_obj (tyD_cbv t1))))
+      (em_pair_mor (eD_cbv' F) (eD_cbv' X))).
+Proof. by []. Qed.
+
+(** [ne_let]: [δ_Γ ; (id_Γ ⊗ ⟦M⟧) ; ⟦K⟧]. *)
+Lemma eD_let_E (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj G t1)
+    (K : @named_expr R Ar R_obj ((x, t1) :: G) t2) :
+  eD_cbv' (ne_let x M K) =
+  icones_comp (eD_cbv' K)
+    (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
+                 (eD_cbv' M)).
+Proof. by []. Qed.
+
+(** [ne_sample]: constant [icones_hom] at the unit-ball measure. *)
+Lemma eD_sample_E (G : named_ctx Ar)
+    (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : (cone_norm mu <= 1)%R) :
+  eD_cbv' (@ne_sample R Ar R_obj G mu Hmu) =
+  sample_icones (ctxD_cbv (drop_names G)) mu Hmu.
+Proof. by []. Qed.
+
+(** [ne_real]: constant [icones_hom] at the Dirac [δ_r]. *)
+Lemma eD_real_E (G : named_ctx Ar) (r : R) :
+  eD_cbv' (@ne_real R Ar R_obj G r) =
+  real_icones R_obj R_carrier_eq (ctxD_cbv (drop_names G)) r.
+Proof. by []. Qed.
+
+(** [ne_score]: post-compose with the density lift [score_lift]. *)
+Lemma eD_score_E (G : named_ctx Ar) (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (e : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 e) =
+  icones_comp
+    (@score_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                 f Hf_meas Hf_ge0 Hf_le1)
+    (eD_cbv' e).
+Proof. by []. Qed.
+
+(** [ne_add]: [δ_Γ ; (⟦M⟧ ⊗ ⟦N⟧) ; add_lift]. *)
+Lemma eD_add_E (G : named_ctx Ar)
+    (M N : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_add M N) =
+  icones_comp
+    (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas)
+    (em_pair_mor (eD_cbv' M) (eD_cbv' N)).
+Proof. by []. Qed.
+
+(** [ne_mul]: [δ_Γ ; (⟦M⟧ ⊗ ⟦N⟧) ; mul_lift]. *)
+Lemma eD_mul_E (G : named_ctx Ar)
+    (M N : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_mul M N) =
+  icones_comp
+    (@mul_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas)
+    (em_pair_mor (eD_cbv' M) (eD_cbv' N)).
+Proof. by []. Qed.
+
+(** [ne_true]: constant at [bool_dirac_true]. *)
+Lemma eD_true_E (G : named_ctx Ar) :
+  eD_cbv' (@ne_true R Ar R_obj G) =
+  true_icones (ctxD_cbv (drop_names G)).
+Proof. by []. Qed.
+
+(** [ne_false]: constant at [bool_dirac_false]. *)
+Lemma eD_false_E (G : named_ctx Ar) :
+  eD_cbv' (@ne_false R Ar R_obj G) =
+  false_icones (ctxD_cbv (drop_names G)).
+Proof. by []. Qed.
+
+(** [ne_bernoulli]: constant at the sub-probability [(p, 1-p)]. *)
+Lemma eD_bernoulli_E (G : named_ctx Ar) (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+  eD_cbv' (@ne_bernoulli R Ar R_obj G p Hp_ge0 Hp_le1) =
+  bernoulli_icones (ctxD_cbv (drop_names G)) p Hp_ge0 Hp_le1.
+Proof. by []. Qed.
+
+(** [ne_if]: dispatch via [if_icones] (the [bool_case] co-pairing). *)
+Lemma eD_if_E (G : named_ctx Ar) (t : ppl_type Ar)
+    (e : @named_expr R Ar R_obj G tbool)
+    (M N : @named_expr R Ar R_obj G t) :
+  eD_cbv' (ne_if t e M N) =
+  if_icones (eD_cbv' M) (eD_cbv' N) (eD_cbv' e).
+Proof. by []. Qed.
+
+(** [ne_fix]: the Kleene value-fixpoint [Yfix_fun_lin], packaged as an
+    [icones_hom] via [linhom_icones]. *)
+Lemma eD_fix_E (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
+  eD_cbv' (ne_fix s M) =
+  linhom_icones
+    (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
+    (Yfix_fun_lin_norm_le1 _ _).
+Proof. by []. Qed.
+
+(** [ne_fix_mr]: the same operator at a free-coalgebra body type. *)
+Lemma eD_fix_mr_E (G : named_ctx Ar) (s : string) (t : ppl_type Ar)
+    (Hfree : is_free_coalg_type t)
+    (M : @named_expr R Ar R_obj ((s, t) :: G) t) :
+  eD_cbv' (ne_fix_mr s t Hfree M) =
+  linhom_icones
+    (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
+    (Yfix_fun_lin_norm_le1 _ _).
+Proof. by []. Qed.
+
+(** ** The recursion-unfolding equation
+
+    [⟦fix s. body⟧ = ⟦body⟧ ∘ ⟨id_Γ, ⟦fix s. body⟧⟩]: the fixpoint
+    denotation equals the body run with the fixpoint itself bound to
+    the recursive variable.  Strong (icones_hom-level) form first;
+    derived from [Yfix_fun_lin_fixpoint], whose Kleene step
+    [Phi_fun diag M prev = M ∘ (id_Γ ⊗ prev) ∘ δ_Γ] is exactly the
+    [em_pair_mor]-composite on the right-hand side. *)
+Lemma eD_cbv_fix_unfold (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar)
+    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
+  eD_cbv' (ne_fix s body) =
+  icones_comp (eD_cbv' body)
+    (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
+                 (eD_cbv' (ne_fix s body))).
+Proof.
+pose diag := coalg_d (ctxD_cbv (drop_names G)).
+pose M : icones_hom Ar
+    (tensor Ar (coalg_obj (ctxD_cbv (drop_names G)))
+               (coalg_obj (tyD_cbv (tfun t1 t2))))
+    (coalg_obj (tyD_cbv (tfun t1 t2))) := eD_cbv' body.
+(* Bridge the two (pointwise-identical) [linhom_icones] packagings:
+   [em_fix.v]'s [Phi_fun_safe] uses [tensor_hom_iso.v]'s, the [ne_fix]
+   clause uses [seely.v]'s; their integral-preservation proofs are
+   distinct [Qed] constants, so the records are only propositionally
+   equal — via [icones_hom_eq]. *)
+have liE (Hb : cone_norm (Yfix_fun_lin diag M) <= 1) :
+    Icones_tensor_hom_iso.linhom_icones (Yfix_fun_lin diag M) Hb =
+    linhom_icones (Yfix_fun_lin diag M) (Yfix_fun_lin_norm_le1 diag M).
+  by apply: icones_hom_eq.
+apply: icones_hom_eq => gam.
+rewrite -[X in X = _]/(linhom_fun (Yfix_fun_lin diag M) gam).
+rewrite -(Yfix_fun_lin_fixpoint diag M).
+rewrite (Phi_fun_unit diag M _ (Yfix_fun_lin_norm_le1 diag M)).
+by rewrite /Phi_fun_safe liE.
+Qed.
+
+(** The same equation at the public linhom level. *)
+Lemma eD_fix_unfold (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
+    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
+  eD' (ne_fix s body) =
+  icones_to_linhom
+    (icones_comp (eD_cbv' body)
+       (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
+                    (eD_cbv' (ne_fix s body)))).
+Proof.
+by rewrite /eD; congr icones_to_linhom; exact: eD_cbv_fix_unfold.
+Qed.
+
+End EDUnfold.

@@ -1,17 +1,26 @@
 (**md**************************************************************************)
 (** * A higher-order probabilistic PPL — named-variable, direct-style,
-       single-sort, with Kleisli-exponential semantics in [EM(!)]
+       shared surface syntax + shared CBN/CBV semantic helpers
 
     A higher-order probabilistic programming calculus, intrinsically
-    typed and interpreted in the integrable-cones model.  The calculus
-    shape follows the canonical QBS paper PPL
+    typed.  The calculus shape follows the canonical QBS paper PPL
     (Heunen–Kammar–Staton–Yang, "A Convenient Category for Higher-Order
-    Probability Theory"); the denotational semantics is the
-    Eilenberg–Moore [EM(!)] / CBV chain of [theories/programs/cbv.v];
-    the named-variable surface follows the Saito–Affeldt encoding
-    (APLAS 2023 §5.1–§5.3, §6).
+    Probability Theory"); the named-variable surface follows the
+    Saito–Affeldt encoding (APLAS 2023 §5.1–§5.3, §6).
 
-    ** Surface calculus — direct-style CBV **
+    THIS FILE CONTAINS NO INTERPRETER.  It provides the shared surface
+    syntax (types [ppl_type], named contexts, the intrinsically-typed
+    terms [named_expr Γ τ], the [Custom Entry ppl_named] notation) and
+    the measure/arithmetic helpers shared by the CBN and CBV stacks
+    ([add_lift] / [mul_lift] / [score_lift] / [const_icones] / the
+    boolean-primitive norm bounds).  The interpretations live in:
+    - [theories/programs/ppl_cbv.v] — the CBV interpreter: linhom-valued
+      [eD], comonoid-primitive; types denote [EM(!̃)]-coalgebras with a
+      SINGLE outer [!̃] on [tfun A B] = [!̃(U⟦A⟧ ⊸ U⟦B⟧)] (no [Tobj]
+      on the codomain — the old Kleisli-exponential design is gone);
+    - [theories/programs/ppl_cbn*.v] — the CBN stack.
+
+    ** Surface calculus — direct style **
 
     - a single inductive [named_expr Γ τ] indexed by an
       intrinsically-typed, MULTI-VARIABLE named context [Γ :
@@ -20,17 +29,13 @@
     - DIRECT STYLE (Plotkin/Girard CBV): the source language never
       mentions the probability monad.  Function types are [tfun A B]
       (NOT [tprob (tfun ...)]); there is no [Ret], no [tprob], no
-      [bind].  The monadic structure is INTERNALISED in [tyD (tfun A B)
-      = !̃(U A ⊸ U(T B))] — the Kleisli exponential, with the [Tobj]
-      on the codomain making every function call effectful — and in
-      [eD], whose codomain is uniformly [Tobj (tyD τ)] for every
-      expression;
+      [bind].  Effects live in the SEMANTICS only;
     - direct-style application [ne_app f x : named_expr Γ B], NOT
       fine-grain Moggi: the user-facing calculus matches the
       Plotkin/Girard textbook CBV calculus;
     - a built-in measurable-space base [tbase X] for [X : ar_obj Ar], a
       unit type, binary products, and the higher-order arrow
-      [tfun A B] = [!̃(U A ⊸ U(T B))] (the Kleisli exponential);
+      [tfun A B];
     - a [Custom Entry ppl_named] surface notation lets users write
       [\ "x" ::: tR => # "x"] etc. directly; the [# "x"] variable
       lookup is resolved by canonical-structure search ([find_nv]).
@@ -56,30 +61,20 @@
     - [ne_add] / [ne_mul] — pointwise [+]/[×] on two [tR]-valued
       computations.
     - [ne_true] / [ne_false] — boolean constants of type [tbool],
-      interpreted as the constant Kleisli arrows at the bool-cone
+      interpreted as the constant morphisms at the bool-cone
       Diracs [bool_dirac_true] / [bool_dirac_false] of
       [theories/programs/infra/bool_cone.v].
     - [ne_bernoulli p Hp_ge0 Hp_le1] — sample from a Bernoulli
       distribution: the 2-point sub-probability [(p, 1-p)] on
       [bool_cone] (norm exactly [1]).
 
-    ** Type and context interpretation **
+    ** Type, context and term interpretation **
 
-    [[
-       ⟦tunit⟧       = EM_term
-       ⟦tbase X⟧     = FMeas_coalgebra X         (Theorem 9.7)
-       ⟦tprod t1 t2⟧ = EM_prod ⟦t1⟧ ⟦t2⟧
-       ⟦tfun  t1 t2⟧ = !̃(U⟦t1⟧ ⊸ U(T ⟦t2⟧))     (Kleisli exponential of [T])
-    ]]
-    Contexts are interpreted by [ctxD : seq (ppl_type Ar) -> Coalgebra Ar]
-    on the De Bruijn skeleton [drop_names Γ : seq (ppl_type Ar)]
-    obtained by forgetting the string identifiers; every expression
-    denotes a Kleisli arrow [eD M : coalg_hom (ctxD (drop_names Γ))
-    (Tobj (tyD τ))].  The monad lives uniformly in [eD] and in the
-    [Tobj] on the codomain of [tyD (tfun A B)] — the source language
-    NEVER exposes it.  See [cbv.v]'s header for the natural-bijection
-    chain [Hom_EM(C×A, T B) ≅ Hom_EM(C, !̃(U A ⊸ U(T B)))]
-    realising lambda + application.
+    NOT in this file.  The CBV interpretation ([tyD_cbv] / [ctxD_cbv]
+    on the De Bruijn skeleton [drop_names Γ], and the linhom-valued
+    [eD]) is in [theories/programs/ppl_cbv.v]; see its header for the
+    clause-by-clause recipes.  The CBN interpretation is in
+    [theories/programs/ppl_cbn.v].
 
     ** Infrastructure **
 
@@ -286,8 +281,8 @@ Arguments tR {R Ar} R_obj.
     The predicate [is_free_coalg_type] characterises the surface types
     [τ] whose CBV interpretation [tyD τ] admits a value-fixpoint:
 
-    - [tfun A B]: the legacy case — [tyD (tfun A B) = bang_cofree L]
-      with [L = U(tyD A) ⊸ U(T (tyD B))] (the Kleisli exponential).
+    - [tfun A B]: the base case — [tyD_cbv (tfun A B) = bang_cofree L]
+      with [L = U⟦A⟧ ⊸ U⟦B⟧] (no [Tobj] on the codomain).
       Free at the cone [L].
 
     - [tprod τ1 τ2] WITH BOTH [τi] free-coalgebra: the product of two
@@ -327,8 +322,8 @@ Arguments is_free_coalg_type {R Ar} t.
     identifiers at every binding slot and variable lookup is by string.
     Direct-style application [ne_app : named_expr G (tfun t1 t2) ->
     named_expr G t1 -> named_expr G t2] (not Moggi fine-grain) matches
-    the QBS-paper calculus shape; the Moggi monadic structure is
-    uncovered by [eD] via the Kleisli-exponential chain.
+    the QBS-paper calculus shape; effects appear only in the
+    interpretations ([ppl_cbv.v] / [ppl_cbn.v]).
 
     The constructors:
     - [ne_var] : project a value from the named context (via a
@@ -338,15 +333,13 @@ Arguments is_free_coalg_type {R Ar} t.
     - [ne_pair] / [ne_fst] / [ne_snd] : binary products;
     - [ne_lam] : higher-order lambda — carries a [string] for the
       binder name (body is a [named_expr] in the extended named
-      context — IT IS NOT marked as a computation; the Moggi/Kleisli
+      context — IT IS NOT marked as a computation; the effect
       structure is in the SEMANTICS, not the syntax);
     - [ne_app] : DIRECT application;
     - [ne_let] : direct-style CBV sequencer [let x = M in K] — carries
       a [string] for the bound name (this is the Plotkin/Girard CBV
-      let; semantically its interpretation is the extended-context
-      Kleisli bind [kbind_ext], identical to the old monadic-style
-      [ne_bind] minus the type-level [tprob] markers that are now
-      gone);
+      let; the CBV interpretation is the comonoid-diagonal recipe
+      [δ_Γ ; (id_Γ ⊗ ⟦M⟧) ; ⟦K⟧] of [ppl_cbv.v]);
     - [ne_sample] : sample from a fixed measure
       [µ : FMeas R_obj] in the unit ball (the constructor carries the
       cone-norm bound [Hmu : ‖µ‖ ≤ 1] that the
@@ -399,9 +392,10 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
      this pair — so the two components can call each other via [fst #s]
      / [snd #s].  This is MUTUAL RECURSION.
 
-     The CBV interpretation [eD] (below) for [ne_fix_mr] at the function
-     case reduces to [ne_fix]; at the product case it routes the body's
-     denotation through componentwise [Yfix_fun_T]s. *)
+     The CBV interpretation [eD] ([ppl_cbv.v]) for [ne_fix_mr] uses the
+     SAME operator as [ne_fix] — the clean-cone [Yfix_fun_lin] of
+     [theories/programs/infra/em_fix.v] — instantiated at the
+     free-coalgebra body type [t]. *)
   | ne_fix_mr (G : named_ctx Ar) (s : string) (t : T)
               (Hfree : is_free_coalg_type t) :
       named_expr ((s, t) :: G) t -> named_expr G t
@@ -438,8 +432,9 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G tbool
   (* [if e then M else N] — boolean elimination.  [e] is a [tbool]
      expression (semantically a sub-probability distribution on [bool]),
-     and [M, N : t] are the two branches.  The denotation [eD] uses
-     [kbind_ext] with the [case_em] combinator. *)
+     and [M, N : t] are the two branches.  The CBV denotation [eD]
+     dispatches via the universal co-pairing [bool_case_linhom] — see
+     [ppl_cbv.v::if_icones]. *)
   | ne_if (G : named_ctx Ar) (t : T) :
       named_expr G tbool ->
       named_expr G t ->
@@ -1247,8 +1242,9 @@ Arguments ne_var' {R Ar R_obj} s {t} g.
     Note: the PPL is DIRECT-STYLE CBV; the source language does not
     expose the probability monad ([tprob] is gone, [Ret] is gone, [let
     "x" := M in N] desugars to [ne_let], NOT [ne_bind]).  Every
-    [named_expr G t]'s denotation is still a Kleisli arrow [ctxD G
-    ⇝ tyD t]; the monadic structure is uniformly inside [eD]. *)
+    [named_expr G t]'s CBV denotation is a linear morphism
+    [U⟦Γ⟧ ⊸ U⟦t⟧] ([ppl_cbv.v::eD]); effects live in the semantics,
+    not the syntax. *)
 
 Declare Custom Entry ppl_named.
 
@@ -1351,9 +1347,10 @@ Notation "'fix_mr' s 'as' T 'by' Hfree 'in' M" :=
 
 (** Direct-style CBV let-binding — [let "x" := M in N] : desugars to
     [ne_let] in the extended named context [(x, _) :: G].  In the
-    refactored direct-style PPL, source types are pure; the monadic
-    sequencing is hidden inside [eD] (as [kbind_ext]).  The bound-type
-    slot is inferred from [M]'s type [t1]. *)
+    direct-style PPL, source types are pure; the CBV sequencing is the
+    comonoid-diagonal recipe [δ_Γ ; (id_Γ ⊗ ⟦M⟧) ; ⟦N⟧] inside [eD]
+    ([ppl_cbv.v]).  The bound-type slot is inferred from [M]'s type
+    [t1]. *)
 Notation "'let' x ':=' M 'in' N" :=
   (ne_let x%string M N)
   (in custom ppl_named at level 80, x constr at level 0,

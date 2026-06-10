@@ -113,8 +113,8 @@ Local Open Scope ring_scope.
     [R_to_carrier_singleton_meas], [dirac_fmeas_singleton_eq],
     [partial_geom_pmf], [half_shifted_eq], [geom_coef], [half_nng],
     [half_geom_coef_eq]) lives in
-    [theories/programs/infra/geom_dist_infra.v] — shared with the CBV
-    parallel [theories/programs/ppl_cbv_geom_dist.v]. *)
+    [theories/programs/infra/geom_dist_infra.v] (kept CBN/CBV-neutral;
+    the CBV parallel was retired with the old Kleisli CBV stack). *)
 
 Section GeomDist.
 Variables (R : realType) (Ar : MeasSubcat R).

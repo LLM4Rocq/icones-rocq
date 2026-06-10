@@ -1,14 +1,13 @@
 (**md*** Shared infrastructure for the geometric
     PMF headlines.
 
-    Both [theories/programs/ppl_cbn_geom_dist.v] (the CBN
-    [ex_geom_CBN_PMF] headline) and
-    [theories/programs/ppl_cbv_geom_dist.v] (the CBV
-    [ex_geom_arr_is_geometric_distribution] headline) characterise the
-    geometric distribution via the same explicit recursive partial-sum
-    measure [partial_geom n].  This file factors out the shared
-    measure-theoretic and arithmetic content so each dist file only
-    contains the CBN/CBV-specific bridge.
+    [theories/programs/ppl_cbn_geom_dist.v] (the CBN
+    [ex_geom_CBN_PMF] headline) characterises the geometric
+    distribution via the explicit recursive partial-sum measure
+    [partial_geom n].  This file factors out the measure-theoretic and
+    arithmetic content from the CBN-specific bridge; the CBV parallel
+    (retired with the old Kleisli CBV stack) will reuse it when the
+    CBV mass headlines are re-proved on the linhom-valued [eD].
 
     Contents:
 
