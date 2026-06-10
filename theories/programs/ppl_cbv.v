@@ -36,7 +36,7 @@
       ⟦Bernoulli p⟧   = ε_Γ ; const Bern(p)
       ⟦if b then M else N⟧ = δ_Γ ; (id_Γ ⊗ b) ; braid
                              ; uncurry (bool_case M N)
-      ⟦fix s.M⟧       = Yfix_fun_lin (Kleene on the unit-ball CPO)
+      ⟦fix s.M⟧       = fix_comb ∘ ⟦λs.M⟧  (the genuine value-fixpoint)
     ]]
 
     DESIGN INTENT.  No [Tobj] anywhere on the codomain of [tfun]; no
@@ -49,9 +49,15 @@
     The file compiles cleanly with no [Admitted] stubs; every
     clause is built from the SMC primitives, the coalgebra-comonoid
     pair, and the existing arithmetic / score / boolean helpers of
-    [ppl.v].  Recursion ([ne_fix], [ne_fix_mr]) routes through the
-    clean-cone [Yfix_fun_lin] of
-    [theories/programs/infra/em_fix.v]. *)
+    [ppl.v].  Recursion ([ne_fix], and [ne_fix_mr] at function types)
+    routes through the seeded value-fixpoint COMBINATOR [fix_comb] of
+    [theories/programs/infra/em_fix_value.v]:
+    [⟦fix s.M⟧ = fix_comb ∘ ⟦λs.M⟧] — interpret the self-abstraction as
+    an ordinary lambda, post-compose with the combinator.  (The
+    previous operator [Yfix_fun_lin] of [em_fix.v] is provably the ZERO
+    linhom — [em_fix_value.v::Yfix_fun_lin_eq0]; it remains there as
+    the documented contrast, and is still the honest-scope placeholder
+    for the [ne_fix_mr] PRODUCT case, see [fix_mr_clause] below.) *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -103,6 +109,7 @@ Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.infra.em_fix.
+Require Import Icones.programs.infra.em_fix_value.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -343,12 +350,15 @@ Arguments if_icones {R Ar G A} m n b.
     - currying / evaluation are [tensor_curry] / [tensor_uncurry]
       (icones_hom).
 
-    Both recursion clauses [ne_fix] and [ne_fix_mr] use the
-    [Yfix_fun_lin] of [theories/programs/infra/em_fix.v] — the CBV
-    value-fixpoint operator at the linhom level, ported to the clean
-    cone (no [Tobj] / [!̃U] wrap on the codomain).  Parametric in [Γ]
-    and [B], so the same operator handles both [tfun] and
-    free-coalgebra-product return types. *)
+    Recursion: [ne_fix] (and [ne_fix_mr] at [tfun] body types) is the
+    composite [fix_comb ∘ ⟦λs.body⟧] — the self-abstraction is
+    interpreted as an ORDINARY lambda (the [ne_lam] clause, inlined
+    because [ne_lam s body] is not a subterm of [ne_fix s body]), and
+    the seeded value-fixpoint combinator
+    [fix_comb : EM(!̃(!L ⊸ !L), !̃L)] of
+    [theories/programs/infra/em_fix_value.v] is post-composed.  The
+    [ne_fix_mr] PRODUCT case keeps the (degenerate) [Yfix_fun_lin]
+    path — see [fix_mr_clause]. *)
 Section TermInterpCBV.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
@@ -364,6 +374,49 @@ Local Notation T := (@ppl_type R Ar).
 Local Notation EXi G t :=
     (icones_hom Ar (coalg_obj (ctxD_cbv (drop_names G)))
                    (coalg_obj (tyD_cbv t))).
+
+(** Dispatcher for the [ne_fix_mr] clause, by case on the (free) body
+    type [ty].
+
+    - [tfun t1 t2] — the GENUINE seeded value-fixpoint: the composite
+      [fix_comb ∘ adj_psi (curry d)] where [d] is the body's denotation
+      over the extended context.  [tyD_cbv (tfun t1 t2) = bang_cofree L]
+      with [L := U⟦t1⟧ ⊸ U⟦t2⟧]; the lambda-packaging lands in
+      [Bang (!L ⊸ !L)] — exactly the domain of [fix_comb L].
+
+    - [tprod _ _] (of free types) — HONEST SCOPE LIMITATION: still the
+      degenerate [Yfix_fun_lin] (provably the zero linhom,
+      [em_fix_value.v::Yfix_fun_lin_eq0]).  Repairing the product case
+      needs the Seely transport of [fix_comb] along
+      [EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)]
+      ([Seely2]) — out of scope here; matches the historical
+      honest-scope status of [ne_fix_mr].
+
+    (The remaining constructors are unreachable: [is_free_coalg_type]
+    only holds at [tfun] and [tprod]-of-frees.) *)
+Definition fix_mr_clause (G0 : Coalgebra Ar) (ty : T)
+    (d : icones_hom Ar (tensor Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty)))
+                       (coalg_obj (tyD_cbv ty))) :
+    icones_hom Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty)) :=
+  (match ty as ty0 return
+      icones_hom Ar (tensor Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty0)))
+                    (coalg_obj (tyD_cbv ty0)) ->
+      icones_hom Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty0)) with
+  | tfun t1 t2 => fun d =>
+      icones_comp
+        (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                         (coalg_obj (tyD_cbv t2)))))
+        (ch_mor (adj_psi (P := G0)
+                         (B := linhom_car Ar
+                                 (coalg_obj (tyD_cbv (tfun t1 t2)))
+                                 (coalg_obj (tyD_cbv (tfun t1 t2))))
+                 (tensor_curry d)))
+  | ty0 => fun d0 =>
+      linhom_icones (Yfix_fun_lin (coalg_d G0) d0)
+                    (Yfix_fun_lin_norm_le1 _ _)
+  end) d.
+
+Arguments fix_mr_clause : clear implicits.
 
 (** The denotation of a named expression as a norm-[≤1] linear
     morphism in [ICones]: an [icones_hom] from the context's underlying
@@ -467,30 +520,36 @@ refine (
      lives in [bool_cone_car] directly.  See [if_icones] above. *)
   | ne_if G0 ty e M0 N0 =>
       if_icones (eD_cbv G0 ty M0) (eD_cbv G0 ty N0) (eD_cbv G0 _ e)
-  (* [ne_fix s M]: the OCaml-style value-fixpoint at function types.
-     Iterate [Phi_fun (coalg_d Γ) (eD_cbv body)] from [precone_zero]
-     on the unit-ball ω-CPO of [linhom Γ ⟦tfun t1 t2⟧]; the supremum
-     is the linhom-level recursive value.  Package as [icones_hom]
-     via [linhom_icones] using [Yfix_fun_lin_norm_le1]. *)
+  (* [ne_fix s M]: the OCaml-style value-fixpoint at function types —
+       ⟦fix s. body⟧ = fix_comb ∘ ⟦λ s. body⟧.
+     The self-abstraction is interpreted as an ORDINARY lambda (the
+     [ne_lam] clause, inlined: [ne_lam s body] is not a subterm), then
+     post-composed with the seeded value-fixpoint combinator
+     [fix_comb : EM(!̃(!L ⊸ !L), !̃L)] of [em_fix_value.v], at
+     [L := U⟦t1⟧ ⊸ U⟦t2⟧]. *)
   | ne_fix G0 _ t1 t2 body =>
-      linhom_icones
-        (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G0)))
-                      (eD_cbv ((_, tfun t1 t2) :: G0) (tfun t1 t2) body))
-        (Yfix_fun_lin_norm_le1 _ _)
+      icones_comp
+        (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                         (coalg_obj (tyD_cbv t2)))))
+        (ch_mor (adj_psi (P := ctxD_cbv (drop_names G0))
+                         (B := linhom_car Ar
+                                 (coalg_obj (tyD_cbv (tfun t1 t2)))
+                                 (coalg_obj (tyD_cbv (tfun t1 t2))))
+                 (tensor_curry
+                    (eD_cbv ((_, tfun t1 t2) :: G0) (tfun t1 t2) body))))
   (* [ne_fix_mr s t Hfree M]: mutual-recursion / free-coalg-type
-     fixpoint.  Same Kleene operator, now with the body's denotation
-     at the (possibly product) free coalgebra type [t].  Parametric
-     in [Γ] and [B], so identical recipe. *)
+     fixpoint, dispatched on the body type by [fix_mr_clause]:
+     the genuine [fix_comb] composite at [tfun], the (degenerate)
+     [Yfix_fun_lin] at products of frees — see [fix_mr_clause]. *)
   | ne_fix_mr G0 _ ty _ body =>
-      linhom_icones
-        (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G0)))
-                      (eD_cbv ((_, ty) :: G0) ty body))
-        (Yfix_fun_lin_norm_le1 _ _)
+      fix_mr_clause (ctxD_cbv (drop_names G0)) ty
+        (eD_cbv ((_, ty) :: G0) ty body)
   end).
 Defined.
 
 End TermInterpCBV.
 
+Arguments fix_mr_clause {R Ar} G0 ty d.
 Arguments eD_cbv
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} M.
 
@@ -537,11 +596,11 @@ Arguments eD
     is a structural [Fixpoint], every clause reduces definitionally on
     its constructor and every proof is [by []].
 
-    The pack closes with the SEMANTIC recursion-unfolding equation
-    [eD_cbv_fix_unfold] / [eD_fix_unfold]: the denotation of
-    [ne_fix s body] equals the body run with the fixpoint itself bound
-    to the recursive variable — derived from [Yfix_fun_lin_fixpoint]
-    ([theories/programs/infra/em_fix.v]). *)
+    The SEMANTIC recursion-unfolding equations ([eD_fix_at_setlike] /
+    [eD_fix_unfold]) live in
+    [theories/programs/infra/cbv_fix_unfold.v]: they need the
+    setlike-point kit of [infra/cbv_anchors.v], which imports this
+    file.  Here we keep only the DEFINITIONAL clause pins. *)
 
 Section EDUnfold.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -711,73 +770,58 @@ Lemma eD_if_E (G : named_ctx Ar) (t : ppl_type Ar)
   if_icones (eD_cbv' M) (eD_cbv' N) (eD_cbv' e).
 Proof. by []. Qed.
 
-(** [ne_fix]: the Kleene value-fixpoint [Yfix_fun_lin], packaged as an
-    [icones_hom] via [linhom_icones]. *)
+(** [ne_fix]: the genuine value-fixpoint —
+    [⟦fix s.M⟧ = fix_comb ∘ ⟦λs.M⟧] ([fix_comb] of [em_fix_value.v]
+    post-composed with the inlined [ne_lam] packaging of the body). *)
 Lemma eD_fix_E (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
     (M : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
   eD_cbv' (ne_fix s M) =
-  linhom_icones
-    (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
-    (Yfix_fun_lin_norm_le1 _ _).
+  icones_comp
+    (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                     (coalg_obj (tyD_cbv t2)))))
+    (ch_mor (adj_psi (P := ctxD_cbv (drop_names G))
+                     (B := linhom_car Ar
+                             (coalg_obj (tyD_cbv (tfun t1 t2)))
+                             (coalg_obj (tyD_cbv (tfun t1 t2))))
+             (tensor_curry (eD_cbv' M)))).
 Proof. by []. Qed.
 
-(** [ne_fix_mr]: the same operator at a free-coalgebra body type. *)
+(** [ne_fix_mr]: the type-dispatched [fix_mr_clause]. *)
 Lemma eD_fix_mr_E (G : named_ctx Ar) (s : string) (t : ppl_type Ar)
     (Hfree : is_free_coalg_type t)
     (M : @named_expr R Ar R_obj ((s, t) :: G) t) :
   eD_cbv' (ne_fix_mr s t Hfree M) =
+  fix_mr_clause (ctxD_cbv (drop_names G)) t (eD_cbv' M).
+Proof. by []. Qed.
+
+(** [ne_fix_mr] at a FUNCTION body type: the same genuine [fix_comb]
+    composite as [ne_fix]. *)
+Lemma eD_fix_mr_fun_E (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar)
+    (Hfree : is_free_coalg_type (tfun t1 t2))
+    (M : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
+  eD_cbv' (ne_fix_mr s (tfun t1 t2) Hfree M) =
+  icones_comp
+    (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                     (coalg_obj (tyD_cbv t2)))))
+    (ch_mor (adj_psi (P := ctxD_cbv (drop_names G))
+                     (B := linhom_car Ar
+                             (coalg_obj (tyD_cbv (tfun t1 t2)))
+                             (coalg_obj (tyD_cbv (tfun t1 t2))))
+             (tensor_curry (eD_cbv' M)))).
+Proof. by []. Qed.
+
+(** [ne_fix_mr] at a PRODUCT body type: still the degenerate
+    [Yfix_fun_lin] — the honest scope record (the repair needs the
+    Seely transport of [fix_comb], see [fix_mr_clause]). *)
+Lemma eD_fix_mr_prod_E (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar)
+    (Hfree : is_free_coalg_type (tprod t1 t2))
+    (M : @named_expr R Ar R_obj ((s, tprod t1 t2) :: G) (tprod t1 t2)) :
+  eD_cbv' (ne_fix_mr s (tprod t1 t2) Hfree M) =
   linhom_icones
     (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
     (Yfix_fun_lin_norm_le1 _ _).
 Proof. by []. Qed.
-
-(** ** The recursion-unfolding equation
-
-    [⟦fix s. body⟧ = ⟦body⟧ ∘ ⟨id_Γ, ⟦fix s. body⟧⟩]: the fixpoint
-    denotation equals the body run with the fixpoint itself bound to
-    the recursive variable.  Strong (icones_hom-level) form first;
-    derived from [Yfix_fun_lin_fixpoint], whose Kleene step
-    [Phi_fun diag M prev = M ∘ (id_Γ ⊗ prev) ∘ δ_Γ] is exactly the
-    [em_pair_mor]-composite on the right-hand side. *)
-Lemma eD_cbv_fix_unfold (G : named_ctx Ar) (s : string)
-    (t1 t2 : ppl_type Ar)
-    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
-  eD_cbv' (ne_fix s body) =
-  icones_comp (eD_cbv' body)
-    (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
-                 (eD_cbv' (ne_fix s body))).
-Proof.
-pose diag := coalg_d (ctxD_cbv (drop_names G)).
-pose M : icones_hom Ar
-    (tensor Ar (coalg_obj (ctxD_cbv (drop_names G)))
-               (coalg_obj (tyD_cbv (tfun t1 t2))))
-    (coalg_obj (tyD_cbv (tfun t1 t2))) := eD_cbv' body.
-(* Bridge the two (pointwise-identical) [linhom_icones] packagings:
-   [em_fix.v]'s [Phi_fun_safe] uses [tensor_hom_iso.v]'s, the [ne_fix]
-   clause uses [seely.v]'s; their integral-preservation proofs are
-   distinct [Qed] constants, so the records are only propositionally
-   equal — via [icones_hom_eq]. *)
-have liE (Hb : cone_norm (Yfix_fun_lin diag M) <= 1) :
-    Icones_tensor_hom_iso.linhom_icones (Yfix_fun_lin diag M) Hb =
-    linhom_icones (Yfix_fun_lin diag M) (Yfix_fun_lin_norm_le1 diag M).
-  by apply: icones_hom_eq.
-apply: icones_hom_eq => gam.
-rewrite -[X in X = _]/(linhom_fun (Yfix_fun_lin diag M) gam).
-rewrite -(Yfix_fun_lin_fixpoint diag M).
-rewrite (Phi_fun_unit diag M _ (Yfix_fun_lin_norm_le1 diag M)).
-by rewrite /Phi_fun_safe liE.
-Qed.
-
-(** The same equation at the public linhom level. *)
-Lemma eD_fix_unfold (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
-    (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2)) :
-  eD' (ne_fix s body) =
-  icones_to_linhom
-    (icones_comp (eD_cbv' body)
-       (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
-                    (eD_cbv' (ne_fix s body)))).
-Proof.
-by rewrite /eD; congr icones_to_linhom; exact: eD_cbv_fix_unfold.
-Qed.
 
 End EDUnfold.
