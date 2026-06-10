@@ -1506,16 +1506,15 @@ Definition ICones_EM_cartesian (R : realType) (Ar : MeasSubcat R) :
      (* ... β-laws and terminal UP witnesses ... *) |}.
 ```
 
-### Cartesian-η of EM(!): a first Coq/Rocq formalisation
+### Cartesian-η of EM(!)
 
 The β-laws `em_proj1_pair` / `em_proj2_pair` of the previous section establish
 the universal property of the EM(!) binary product *out of* a coalgebra `Z`;
 they do not by themselves say `⟨π₁, π₂⟩ = id`. The η-law is genuinely
 additional content — it is **Fox's 1976 theorem** specialised to EM(!) of a
-linear-exponential comonad (Melliès Proposition 28 at the icones level), and
-to our knowledge this is the first Coq / Rocq formalisation. It is proved
-here in the same style as Cor 20: by Melliès's retract-and-lift technique,
-*not* by promoted-point reduction.
+linear-exponential comonad (Melliès Proposition 28 at the icones level).
+It is proved here in the same style as Cor 20: by Melliès's
+retract-and-lift technique, *not* by promoted-point reduction.
 
 | Lemma | English statement | Rocq |
 |---|---|---|

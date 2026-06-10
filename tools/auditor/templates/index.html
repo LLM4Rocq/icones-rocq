@@ -55,11 +55,10 @@
   <div class="card-grid coverage-grid">
     {% for section in document.sections %}
     {% set total = section.entries|length %}
-    {% set af = section.entries|selectattr('status', 'contains', 'axiom-free')|list|length %}
-    {% set bp = section.entries|selectattr('status', 'contains', 'beyond-paper')|list|length %}
     {% set gp = section.entries|selectattr('status', 'contains', 'gap')|list|length %}
     {% set ra = section.entries|selectattr('status', 'contains', 'regression-anchor')|list|length %}
-    {% set pct = (af * 100 // total) if total > 0 else 0 %}
+    {% set n_def = section.entries|selectattr('paper_kind', 'equalto', 'Def')|list|length %}
+    {% set n_thm = total - n_def %}
     <a class="card section-card" href="{{ root_prefix }}sections/{{ section.id }}.html">
       <div class="card-top">
         <span class="card-eyebrow mono">§ {{ section.paper_section_number }}</span>
@@ -68,13 +67,13 @@
       <p class="card-stats">
         <strong>{{ total }}</strong> entries
         {% if ra %}· <strong>{{ ra }}</strong> anchor{{ 's' if ra != 1 else '' }}{% endif %}
-        {% if bp %}· <strong>{{ bp }}</strong> beyond{% endif %}
         {% if gp %}· <strong>{{ gp }}</strong> gap{{ 's' if gp != 1 else '' }}{% endif %}
       </p>
-      <div class="bar" aria-label="Axiom-free coverage: {{ pct }}%">
-        <span class="bar-fill bar-fill-axiom-free" style="width: {{ pct }}%"></span>
-      </div>
-      <p class="bar-caption"><strong>{{ pct }}%</strong> axiom-free</p>
+      <p class="card-meta">
+        {% if n_def %}{{ n_def }} def{{ 's' if n_def != 1 else '' }}{% endif %}
+        {% if n_def and n_thm %} · {% endif %}
+        {% if n_thm %}{{ n_thm }} thm{{ 's' if n_thm != 1 else '' }}{% endif %}
+      </p>
       <p class="card-cta">Open →</p>
     </a>
     {% endfor %}

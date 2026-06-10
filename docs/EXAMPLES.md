@@ -185,7 +185,7 @@ Definition ex_bayes_linear :
 |---|---|---|
 | CBV — structural reduction (outer `kbind_ext`) | `ex_bayes_linear_denot_E` | axiom-free |
 | CBV — Law-3 reduced shape | `ex_bayes_linear_is_weighted` (= `kcomp K (sample_kleisli µ Hµ)`) | axiom-free |
-| CBV — measure-level posterior (Gap D) | `ex_bayes_linear_is_weighted_headline`: `=  ∫_(m∼µ) f(cR m) · δ_m U` | axiom-free |
+| CBV — measure-level posterior | `ex_bayes_linear_is_weighted_headline`: `=  ∫_(m∼µ) f(cR m) · δ_m U` | axiom-free |
 | CBN — marginal identity | `ex_bayes_linear_CBN_headline`: `= µ` (under option-γ; score lands in terminal) | axiom-free |
 | CBN — mass corollary | `ex_bayes_linear_CBN_mass`: `= µ(U)` | axiom-free |
 
@@ -206,7 +206,7 @@ Lemma ex_bayes_linear_is_weighted_headline
       ((f (cR m))%:E * \d_(m) U).
 ```
 
-The CBV "Gap D" measure-level Bayes headline. The `der ∘ K_score`
+The CBV measure-level Bayes headline. The `der ∘ K_score`
 action on `µ` reads as the weighted Dirac integral
 `∫ f(cR m) · δ_m dµ(m)` — exactly the unnormalised posterior.
 
@@ -227,7 +227,7 @@ pending — see *What is not formalised* below).
 
 ---
 
-## Beyond the paper — Phase 4 recursive examples (productive partial termination)
+## Beyond the paper — Recursive probabilistic examples (productive partial termination)
 
 Recursive probabilistic programs combining `ne_fix` (the CBV
 value-fixpoint of `theories/programs/infra/em_fix.v`) with the
@@ -454,14 +454,10 @@ measurable set.
 
 The mutual-recursion shape `tprod (tfun A1 B1) (tfun A2 B2)` (paper
 *not covered*; introduced as `ne_fix_mr` in `ppl.v` together with
-`is_free_coalg_type`). The expert's note (per project memory)
-reads: *"ça marche sur les types dont l'interprétation est une
-coalgèbre libre, ce qui inclut aussi les produits de types fonction
-et permet de définir des fonctions mutuellement récursives."*
-Translation: CBV value-fixpoints at function types extend to body
-types whose interpretation is a *free* `!`-coalgebra; this class
-includes products of function types, which is exactly what enables
-mutual recursion.
+`is_free_coalg_type`). CBV value-fixpoints at function types extend
+to body types whose interpretation is a *free* `!`-coalgebra; this
+class includes products of function types, which is exactly what
+enables mutual recursion.
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
@@ -591,7 +587,7 @@ echo "Print Assumptions ex_bayes_linear_is_weighted_headline." | \
 echo "Print Assumptions ex_bayes_linear_CBN_headline." | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbn_headlines.v
 
-# Phase 4 recursive examples
+# Recursive probabilistic examples
 echo "Print Assumptions ex_loop_arr_mass_zero."         | \
   rocq top -Q theories Icones -l theories/programs/infra/ex_loop_arr.v
 echo "Print Assumptions ex_loop_CBN_headline."          | \

@@ -1,8 +1,8 @@
 # Goldens — Examples-shape chapter (Side/Headline/Status table)
 
-## Beyond the paper — Phase 4 recursive examples (test fixture)
+## Beyond the paper — recursive recursive examples (test fixture)
 
-A miniature stand-in for the EXAMPLES.md "Phase 4" chapter.
+A miniature stand-in for the EXAMPLES.md "recursive" chapter.
 
 ### ex_geom (`ex_geom`, `ex_geom_denot_E`, `ex_geom_arr_mass_one`)
 

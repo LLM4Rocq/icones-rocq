@@ -696,9 +696,9 @@ the honest CBN arithmetic install of `ppl_cbn_arith_scones.v`.
 The fixpoint operator of paper §9.2 (`Y`) lives on `SCones` and
 operates on stable maps. The CBV value-fixpoint at function type —
 recursion as in OCaml's `let rec` — is its EM(!)-Kleisli counterpart;
-following P.-A. Mellies (personal communication, 2026-05-31), it is
-folklore but, to our knowledge, not previously formalised in
-Coq / Rocq. The construction is a Kleene iteration on the unit-ball
+it generalises paper §9.2's `Yfix` from `SCones` (stable maps)
+to its EM(!)-Kleisli counterpart. The construction is a Kleene
+iteration on the unit-ball
 CPO of the `linhom` cone, packaged as a `coalg_hom` via the cofree
 adjunction `U ⊣ !̃` of the LNL structure.
 

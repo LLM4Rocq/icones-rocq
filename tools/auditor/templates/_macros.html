@@ -51,10 +51,14 @@
 {%- endmacro %}
 
 {% macro status_badge(status) -%}
+{# Drop the visual badge for the everyday `axiom-free` and `beyond-paper`
+   statuses — they dominate the visual field without conveying new
+   information.  Keep `regression-anchor` and `gap` as load-bearing
+   markers, and `discharged-deferred` as a transitional state. #}
+{%- if status in ('axiom-free', 'beyond-paper') -%}
+{%- else -%}
 {%- set labels = {
-  'axiom-free':         ('Axiom-free',         '✓'),
   'regression-anchor':  ('Regression anchor',  '⚓'),
-  'beyond-paper':       ('Beyond the paper',   '★'),
   'discharged-deferred':('Discharged (deferred)','→'),
   'gap':                ('Gap',                '⚠'),
 } -%}
@@ -63,6 +67,7 @@
   <span class="badge-icon" aria-hidden="true">{{ pair[1] }}</span>
   <span class="badge-label">{{ pair[0] }}</span>
 </span>
+{%- endif -%}
 {%- endmacro %}
 
 {% macro status_list(statuses) -%}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import entry_card, section_snippets, status_badge with context %}
+{% from "_macros.html" import entry_card, section_snippets with context %}
 
 {% block title %}{% if section.paper_section_number %}§ {{ section.paper_section_number }} {% endif %}{{ section.title }} — Icones auditor{% endblock %}
 {% block body_class_extra %} page-section{% endblock %}
@@ -32,37 +32,8 @@
 {# H3-level code blocks (only present on PPL/Examples sections). #}
 {{ section_snippets(section.snippets) }}
 
-{# Counts for tab chips, computed once. #}
-{% set total = section.entries|length %}
-{% set af = section.entries|selectattr('status', 'contains', 'axiom-free')|list|length %}
-{% set ra = section.entries|selectattr('status', 'contains', 'regression-anchor')|list|length %}
-{% set bp = section.entries|selectattr('status', 'contains', 'beyond-paper')|list|length %}
-{% set dd = section.entries|selectattr('status', 'contains', 'discharged-deferred')|list|length %}
-{% set gp = section.entries|selectattr('status', 'contains', 'gap')|list|length %}
-
-{# Single-entry shape (b): inline the entry, drop the duplicate card grid + status tabs. #}
+{# Single-entry shape (b): inline the entry, drop the duplicate card grid. #}
 {% set single = (section.entries|length == 1) and (section.entries[0].id == section.id) %}
-
-{% if tab == 'paper' and not single %}
-<nav class="tabs" role="tablist" aria-label="Filter entries by status">
-  <button class="tab tab-all is-active" role="tab" aria-selected="true"
-          data-filter="">All <span class="count">{{ total }}</span></button>
-  <button class="tab tab-axiom-free" role="tab" data-filter="axiom-free">
-    Axiom-free <span class="count">{{ af }}</span></button>
-  {% if ra %}
-  <button class="tab tab-regression-anchor" role="tab" data-filter="regression-anchor">
-    Regression <span class="count">{{ ra }}</span></button>
-  {% endif %}
-  <button class="tab tab-beyond-paper" role="tab" data-filter="beyond-paper">
-    Beyond <span class="count">{{ bp }}</span></button>
-  {% if dd %}
-  <button class="tab tab-discharged-deferred" role="tab" data-filter="discharged-deferred">
-    Discharged <span class="count">{{ dd }}</span></button>
-  {% endif %}
-  <button class="tab tab-gap" role="tab" data-filter="gap">
-    Gaps <span class="count">{{ gp }}</span></button>
-</nav>
-{% endif %}
 
 <div class="entries">
   {% if section.entries %}

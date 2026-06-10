@@ -539,6 +539,66 @@ def _match_snippet(idents: list[str], snippets: list["_RawSnippet"]) -> list["_R
     return []
 
 
+# Strip block comments `(* ... *)` greedily.
+_COQ_BLOCK_COMMENT_RE = re.compile(r"\(\*.*?\*\)", re.DOTALL)
+
+
+def _derive_kind_from_snippets(snippets: list["_RawSnippet"]) -> tuple[str, str | None]:
+    """Derive a (Cat/Thm/Def/...) kind tag from a list of raw Coq snippets.
+
+    Strip block comments, then inspect the first non-blank line of each
+    snippet against a precedence-ordered keyword table.  Returns
+    ``("Other", None)`` if no snippet declares a recognised top-level
+    form.
+    """
+    # Precedence-ordered (kind, keyword) table — first match wins.
+    table: list[tuple[str, str]] = [
+        ("Thm", "Theorem"),
+        ("Lem", "Lemma"),
+        ("Cor", "Corollary"),
+        ("Prop", "Proposition"),
+        ("Def", "Fixpoint"),
+        ("Def", "CoFixpoint"),
+        ("Def", "Inductive"),
+        ("Def", "CoInductive"),
+        ("Def", "Record"),
+        ("Def", "Structure"),
+        ("Def", "Class"),
+        ("Def", "Variant"),
+        ("Def", "Definition"),
+        ("Def", "Notation"),
+        ("Def", "Instance"),
+        ("Def", "HB.instance"),
+        ("Def", "HB.factory"),
+        ("Def", "HB.builders"),
+        ("Def", "HB.structure"),
+        ("Def", "Variable"),
+        ("Def", "Parameter"),
+        ("Def", "Axiom"),
+        ("Other", "Section"),
+        ("Other", "Module"),
+    ]
+    best_priority: int | None = None
+    best_kind: str = "Other"
+    for s in snippets:
+        text = _COQ_BLOCK_COMMENT_RE.sub("", s.raw)
+        first_line = ""
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped:
+                first_line = stripped
+                break
+        if not first_line:
+            continue
+        for prio, (kind, kw) in enumerate(table):
+            if first_line.startswith(kw):
+                if best_priority is None or prio < best_priority:
+                    best_priority = prio
+                    best_kind = kind
+                break
+    return best_kind, None
+
+
 def _classify_paper_label_kind(label: str) -> tuple[str, str | None]:
     """Return (kind, number) for a paper label.
 
@@ -1015,7 +1075,15 @@ def normalise(
                             entry_base_slug = slugify_label(side_md or "row")
                         entry_id = claim_slug(entry_base_slug, entry_paper_label)
                         entry_kind = _classify_side_kind(side_md)
-                        statement_html = _inline_to_html(md, headline_md)
+                        headline_html = _inline_to_html(md, headline_md)
+                        side_html = _inline_to_html(md, side_md) or html_mod.escape(side_md)
+                        # Side cell drives the entry's natural-English
+                        # one-line statement; the math identity in the
+                        # Headline cell lives in the foldable detail.
+                        if side_md.strip():
+                            statement_html = side_html
+                        else:
+                            statement_html = headline_html
                         status = [s.strip().casefold() for s in [status_md] if s.strip()]
                         # Pair the row to a snippet defining one of its idents.
                         matched_raw = _match_snippet(h_idents, h3.snippets)
@@ -1024,12 +1092,11 @@ def normalise(
                             detail_snips = _h3_coq(matched_raw)
                         else:
                             detail_snips = []
-                        # Per-row detail prose: short — render expects the
-                        # parent section.intro_html for the full narrative.
-                        side_html = _inline_to_html(md, side_md) or html_mod.escape(side_md)
+                        # Per-row detail prose: surface the math identity
+                        # extracted from the Headline cell.
                         detail_prose = (
-                            f"<p><strong>{side_html}</strong></p>\n"
-                            f"<p>{statement_html}</p>"
+                            f"<p><strong>Identity:</strong></p>\n"
+                            f"<p>{headline_html}</p>"
                         )
                         sec_entries.append(
                             Entry(
@@ -1127,17 +1194,24 @@ def normalise(
                         if h3.paragraphs
                         else ""
                     )
+                    # Statement = first paragraph; prose in detail =
+                    # SECOND paragraph onward to avoid duplication with
+                    # the entry's statement line.
+                    rest_paragraphs = h3.paragraphs[1:] if len(h3.paragraphs) > 1 else []
+                    detail_prose_html = "\n".join(rest_paragraphs) if rest_paragraphs else ""
                     status = classify(
                         paper_label=h3.paper_label,
                         section_kind="beyond",
                         statement_html=first_para_html,
                         regression_anchors=regression_anchors,
                     )
+                    # Derive kind from the snippet content (Thm/Lem/Def/...).
+                    derived_kind, _ = _derive_kind_from_snippets(h3.snippets)
                     sec_entries.append(
                         Entry(
                             id=sec_id,
                             paper_label=h3.paper_label,
-                            paper_kind="Other",
+                            paper_kind=derived_kind,
                             paper_number=None,
                             paper_section_id=sec_id,
                             statement_html=first_para_html,
@@ -1147,7 +1221,7 @@ def normalise(
                             ),
                             status=status,
                             detail=EntryDetail(
-                                prose_html="\n".join(h3.paragraphs),
+                                prose_html=detail_prose_html,
                                 notes=list(h3.notes),
                                 snippets=list(section_snippets),
                             ),
