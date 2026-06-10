@@ -151,11 +151,18 @@ the commutative comonoid `(δ, ε)` that every coalgebra carries
 multi-use of a variable is free. The exponential `!̃` appears only at
 function boundaries — `ne_lam` wraps a value via the strength `str_Γ`,
 `ne_app` extracts it via dereliction `der` — and everywhere else the
-interpretation is plain cartesian. The CBV mass identities for the
-recursive examples (`ex_loop`, `ex_geom`, `ex_almost_loop`) are
-currently pending a Kleene-operator port to this new cone; the prior
-Bang-level fixpoint machinery was tied to a deprecated Moggi-monad
-presentation and has been removed.
+interpretation is plain cartesian. The CBV value-fixpoint at function
+types, `Yfix_fun_lin`, lives in `theories/programs/infra/em_fix.v` —
+Kleene iteration on the unit-ball ω-CPO of `linhom_car A B`, parametric
+in any coalgebra `B`. It mirrors the SCones `Yfix` (for the CBN side)
+at the ICones level, and is what `ne_fix` / `ne_fix_mr` in `ppl_cbv.v`
+resolve to. The `tbool` clause now uses the §9.7-style coalgebra
+structure on `bool_cone_car` (`bool_cone_coalg` in
+`theories/programs/infra/bool_cone_coalg.v`) rather than
+`bang_cofree`, giving the shared-sample diagonal-pushforward semantics
+for programs like `let x = Bernoulli(p) in (x, x)`. The recursion
+machinery is in place; specific CBV mass identities for the recursive
+examples (`ex_loop`, `ex_geom`, `ex_almost_loop`) are a follow-up.
 
 Two pieces of this layer are formalizations we have not seen elsewhere
 in Coq / Rocq: the cartesian-η identity `em_pair_mor_proj_id` (Fox 1976
@@ -176,10 +183,14 @@ Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free. B
   go to coalgebras via `tyD`, and a term denotes a linear morphism
   `U ctxD Γ ⊸ U tyD τ`. Non-recursive programs are interpretable axiom-free,
   including the QBS-style headlines (`ex_random_constant`, `ex_random_linear`,
-  `ex_bayes_linear_is_weighted`). CBV mass identities for the recursive examples
-  (`ex_loop`, `ex_geom`, `ex_almost_loop`) are pending a Kleene-operator port to
-  the clean cone; the prior fixpoint machinery was tied to a deprecated
-  Moggi-monad presentation and has been removed.
+  `ex_bayes_linear_is_weighted`). Recursion is handled by `Yfix_fun_lin` (Kleene
+  iteration on the unit-ball ω-CPO of `linhom_car A B`, in
+  `theories/programs/infra/em_fix.v`), to which `ne_fix` / `ne_fix_mr` resolve;
+  the `tbool` clause uses the §9.7-style coalgebra `bool_cone_coalg` on
+  `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
+  shared-sample diagonal semantics. The recursion machinery is in place;
+  specific mass identities for the recursive examples (`ex_loop`, `ex_geom`,
+  `ex_almost_loop`) are a follow-up.
 - **Call-by-name via `SCones`** (`theories/programs/ppl_cbn.v` + `ppl_cbn_eff.v` +
   `ppl_cbn_bool.v` + `ppl_cbn_arith.v` + `ppl_cbn_geom.v`). Trunk + effects + boolean cascade
   + `FMeas` arithmetic foundation are all axiom-free. Free recursion at every function type
@@ -201,8 +212,7 @@ layer not yet formalized); and the **§10** probabilistic-coherence-space embedd
 `⟦M⟧_CBV` and `⟦M⟧_CBN` agree, which would require commuting `!` with effect-bearing
 types); the **refined CBN `add`/`mul` install** on top of `add_FMeas`/`mul_FMeas` via
 the bridge above (structural; not yet packaged because the CBN headlines run under
-the lightweight option-γ baseline); the **CBV recursion combinator at `ne_fix`** —
-a Kleene operator on the clean linhom-valued cone.
+the lightweight option-γ baseline).
 
 [`PLAN.md`](./PLAN.md) has the full roadmap and design notes.
 
@@ -251,12 +261,21 @@ theories/
                  infra/              PPL support:
                    bool_cone.v         2-point ICone (paper §4.4
                                        coproduct cone_one ⊕ cone_one)
+                   bool_cone_coalg.v   §9.7-style !-coalgebra structure
+                                       on bool_cone_car — diagonal
+                                       pushforward, used for the
+                                       CBV tbool shared-sample semantics
                    bool_case_hom.v     bool_case as linhom + icones_hom
                    bool_case_scones.v  bool_case SCones-side (CBN bool)
                    cbv_adjunction.v    Linear-Logic / EM-cartesian /
                                        bang-comonoid plumbing — no
                                        Moggi monad; consumed by CBV
                                        and CBN
+                   em_fix.v            Yfix_fun_lin — Kleene fixpoint on
+                                       the unit-ball ω-CPO of
+                                       linhom_car A B (CBV value-fixpoint
+                                       at function types); ne_fix
+                                       resolves here
                    cbn_bernoulli_cascade.v
                                        generic CBN Bernoulli cascade
                                        (sfix_bcascade) used by ex_geom
