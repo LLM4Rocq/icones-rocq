@@ -299,8 +299,8 @@ Arguments tR {R Ar} R_obj.
       free coalgebras IS a free coalgebra by the Seely iso [Seely2]:
       [tensor (bang_cofree L1) (bang_cofree L2) ≅ bang_cofree (sprod L1
       L2)] ([theories/homs/seely.v]).  This is the constructor that
-      ENABLES mutually-recursive function pairs (per the expert's note:
-      "ça marche sur les types dont l'interprétation est une coalgèbre
+      ENABLES mutually-recursive function pairs (the construction
+      "marche sur les types dont l'interprétation est une coalgèbre
       libre, ce qui inclut aussi les produits de types fonction et permet
       de définir des fonctions mutuellement récursives").
 
@@ -641,7 +641,7 @@ Arguments kbind_ext {R Ar G A B} k m.
     applications of [adj_phi_kbind_ext]) to an icones-level identity
     on the doubly-paired right-hand side.
 
-    Precise blocker (as of Gap D, 2026-06).  The cartesian-η rule
+    Precise blocker.  The cartesian-η rule
     [em_pair_mor (em_proj1_mor, em_proj2_mor) = id_{EM_prod P Q}] is
     AVAILABLE axiom-free (see [em_cartesian.em_pair_mor_proj_id]).
     The REMAINING blocker is the ASYMMETRIC case
@@ -656,7 +656,7 @@ Arguments kbind_ext {R Ar G A B} k m.
 
     The only QBS-paper headline that genuinely needed Law 2 was the
     Bayes-posterior identity ([ex_bayes_linear] in
-    [theories/programs/examples.v]).  Gap D (2026-06) closes it
+    [theories/programs/examples.v]).  It is closed
     axiom-free at the MEASURE level
     ([weighted_mu_preimage] / [ex_bayes_linear_is_weighted_headline]),
     sidestepping the cartesian-η asymmetric blocker entirely. *)
@@ -2053,7 +2053,7 @@ Qed.
        add_lift (x ⊗p 0) = 0  /  add_lift (0 ⊗p y) = 0
        mul_lift (x ⊗p 0) = 0  /  mul_lift (0 ⊗p y) = 0
     ]]
-    These identities are load-bearing for the Phase 4 mass-closure
+    These identities are load-bearing for the recursive mass-closure
     theorems (notably [ex_geom] in [theories/programs/examples.v]):
     the recursive tail [1 + g()] contributes zero mass when [g] is
     bound to a diverging value [g() = 0], via bilinear [add_lift]. *)
@@ -2138,7 +2138,7 @@ Local Open Scope ereal_scope.
 
 (** ** Translation-mass invariance — [add_lift_mass]
 
-    The headline mass identity for the Phase 4 [ex_geom] mass-1 closure:
+    The headline mass identity for the [ex_geom] mass-1 closure:
     [[
        mass(add_lift(δ_a ⊗ m)) = mass(m).
     ]]
@@ -2670,8 +2670,7 @@ Proof. by rewrite cone_norm0 ler01. Qed.
 
     - [t = tfun A B]: reduces to [Yfix_fun_T] of the body (the legacy
       CBV value-fixpoint, with the same honest-scope caveat as [ne_fix]:
-      [Yfix_fun_T] collapses to mass-zero universally — Phase 4
-      finding).
+      [Yfix_fun_T] collapses to mass-zero universally).
 
     - [t = tprod t1 t2] (both [ti] free): for now, returns the constant
       Kleisli arrow [precone_zero : tyD t = coalg_obj (EM_prod (tyD t1)

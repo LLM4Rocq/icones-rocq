@@ -1,7 +1,7 @@
-(**md*** BEYOND THE PAPER — CBN PPL [ex_geom] is the GEOMETRIC
+(**md*** CBN PPL [ex_geom] is the GEOMETRIC
     DISTRIBUTION (pointwise PMF identity).
 
-    THE HEADLINE.  [ex_geom_CBN_PMF] : for every natural number [k],
+    [ex_geom_CBN_PMF] : for every natural number [k],
     the CBN fixpoint of the surface program [ex_geom] of
     [theories/programs/examples.v] assigns mass exactly
     [((1/2)^(k+1))] to the singleton [{R_to_carrier k%:R}].  This is
@@ -220,7 +220,7 @@ elim: n => [/= |n IH].
   exact: half_shifted_eq'.
 Qed.
 
-(** ** §6 — THE HEADLINE. *)
+(** ** §6. *)
 
 (** *** [ex_geom_CBN_fix] is the geometric distribution with parameter
        [1/2]: pointwise PMF [(1/2)^{k+1}] at [R_to_carrier k%:R]. *)

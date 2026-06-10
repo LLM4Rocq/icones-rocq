@@ -1,6 +1,6 @@
-(**md*** BEYOND THE PAPER — CBN PPL [ex_geom] mass-one closure
+(**md*** CBN PPL [ex_geom] mass-one closure
 
-    THE HEADLINE.  [ex_geom_CBN_mass_one] : the CBN denotation of the
+    [ex_geom_CBN_mass_one] : the CBN denotation of the
     surface geometric-distribution program [ex_geom] of
     [theories/programs/examples.v] has total mass [1].
 
@@ -320,7 +320,7 @@ Definition ex_geom_CBN_fix : FMeas R_obj :=
                 halt_geom halt_geom_ball
                 (shift_scones R_carrier_eq R_carrier_meas R_to_carrier_meas 1).
 
-(** *** THE HEADLINE. [fmeas_mu ex_geom_CBN_fix setT = 1]. *)
+(** *** [fmeas_mu ex_geom_CBN_fix setT = 1]. *)
 Local Open Scope ereal_scope.
 Theorem ex_geom_CBN_mass_one :
   fmeas_mu ex_geom_CBN_fix [set: ar_carrier Ar R_obj] = 1%:E.

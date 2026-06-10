@@ -1,21 +1,13 @@
 (**md**************************************************************************)
 (** * [ex_even_odd] — mutual recursion at a product-of-functions type
 
-    *** BEYOND THE PAPER — Task #141 deliverable.
+    The construction relies on the fact that the CBV value-fixpoint at
+    function types extends to body types whose interpretation is a free
+    [!]-coalgebra; this class includes products of function types, which
+    is exactly what enables MUTUAL RECURSION.
 
-    The expert's note (per project memory) reads:
-
-      *"ça marche sur les types dont l'interprétation est une coalgèbre
-        libre, ce qui inclut aussi les produits de types fonction et permet
-        de définir des fonctions mutuellement récursives."*
-
-    Translation: the CBV value-fixpoint at function types extends to body
-    types whose interpretation is a free [!]-coalgebra; this class
-    includes products of function types, which is exactly what enables
-    MUTUAL RECURSION.
-
-    The [ne_fix_mr] constructor of [theories/programs/ppl.v] (added in
-    Task #141) lets one bind a recursive name [s] of any
+    The [ne_fix_mr] constructor of [theories/programs/ppl.v]
+    lets one bind a recursive name [s] of any
     [is_free_coalg_type]-true type [t], notably
     [t = tprod (tfun A1 B1) (tfun A2 B2)] — a PAIR of functions.  Each
     component can then refer to the other via [fst #"s"] / [snd #"s"],

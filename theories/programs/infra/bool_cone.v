@@ -1,4 +1,4 @@
-(**md *** BEYOND THE PAPER — PPL CBV chapter infrastructure
+(**md *** PPL CBV chapter infrastructure
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
     (paper §2-§9). It provides the 2-point cone [bool_cone_car Ar],

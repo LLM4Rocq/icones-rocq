@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — CBV per-iterate outer-point scaffolding
+(**md*** CBV per-iterate outer-point scaffolding
 
     Shared structural infrastructure for the Bang-level CBV-Y cascade
     examples [ex_loop_arr], [ex_geom_step], and [ex_almost_loop_step].

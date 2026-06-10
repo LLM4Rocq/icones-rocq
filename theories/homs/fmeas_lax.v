@@ -265,7 +265,7 @@ Arguments fmeas_lax_preE {R Ar X Y} µ ν.
 Arguments fmeas_lax_pre_setT {R Ar X Y} µ ν.
 Arguments fmeas_lax_pre_normE {R Ar X Y} µ ν.
 
-(** ** Dirac identity — load-bearing for Phase 2
+(** ** Dirac identity
 
     [fmeas_lax_pre (δ_x) (δ_y) = δ_(ar_prod_cast (x, y))].
 
@@ -1052,7 +1052,7 @@ Arguments icone_integral_dirac_lax_swap_E {R Ar X Y} y µ U _.
 Arguments fmeas_lax_pre_iterated_Y {R Ar X Y} µ ν U _.
 Arguments fmeas_lax_pre_fubini {R Ar X Y} µ ν U _.
 
-(** ** Gap C — [kbind_ext] / [fmeas_lax] commutativity (pre-image form)
+(** ** [kbind_ext] / [fmeas_lax] commutativity (pre-image form)
 
     The headline "FMeas-Kleisli Fubini through a pushforward [φ]" identity.
 

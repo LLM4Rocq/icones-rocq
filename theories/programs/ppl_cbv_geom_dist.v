@@ -1,7 +1,7 @@
-(**md*** BEYOND THE PAPER — CBV PPL [ex_geom] is the GEOMETRIC
+(**md*** CBV PPL [ex_geom] is the GEOMETRIC
     DISTRIBUTION (pointwise PMF identity at the Bang level).
 
-    THE HEADLINE.  [ex_geom_arr_is_geometric_distribution] : for
+    [ex_geom_arr_is_geometric_distribution] : for
     every natural number [k], the CBV/Bang fixpoint extraction
     [Lfun (der FMeas) (linhom_fun (Lfun (der L_geom) Yfix_arr) one1)]
     of the surface program [ex_geom] of
@@ -296,7 +296,7 @@ elim: n => [/= |n IH].
   exact: half_shifted_eq'.
 Qed.
 
-(** ** §4 — THE HEADLINE. *)
+(** ** §4. *)
 
 Local Open Scope ereal_scope.
 

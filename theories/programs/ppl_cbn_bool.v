@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — CBN PPL chapter M4 (boolean cascade)
+(**md*** CBN PPL chapter M4 (boolean cascade)
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
     (paper §2-§9). It is the M4 wave of the call-by-name PPL trunk

@@ -1,8 +1,7 @@
 (**md**************************************************************************)
 (** * Focused experiment — outer/inner reductions for [ex_geom]'s [Step]
 
-    BEYOND THE PAPER — partial validation of the expert's CBV-Y recipe
-    on the geometric example.
+    Partial validation of the CBV-Y recipe on the geometric example.
 
     With [M := eD ex_geom_body] and [L_geom := linhom_car cone_one_car
     (Bang Ar (FMeas R_obj))] (the linhom carrier of [funT_geom = tyD
@@ -116,7 +115,7 @@
 
     *** Update — §1 FIRST-ITERATE FMEAS MASS = 1/2 (this commit).
 
-    THE FIRST FORMAL MASS IDENTITY for a non-trivial Phase 4 example
+    The first formal mass identity for a non-trivial recursive example
     in Icones CBV-via-EM(!) framework — by-passing the
     [cone_norm (prom x) = cone_norm x] open identity by reading at
     the FMeas (post-[der]) level instead of the [Bang]-cone level.
@@ -510,7 +509,6 @@ exact: (der_prom (B := L_geom) _ cone_norm_K_le1).
 Qed.
 
 (** ** Reduction E — eval1 form (post-der, post-eval-at-one1)
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Combine the post-[der] reduction [der_Step_geom_one_prom_zero_E]
     with [tensor_curryE] (Class-3 pointwise) to obtain a flat
@@ -550,7 +548,6 @@ exact: (tensor_curryE
 Qed.
 
 (** ** Reduction F — operator-norm reduction to the [Bang(FMeas)] level
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     The operator-norm of the inner linhom [Lfun (tensor_curry (ch_mor
     convex)) (one1 ⊗ prom 0_L_geom)] (an element of [L_geom = cone_one
@@ -591,7 +588,6 @@ exact: linhom_norm_one1_E.
 Qed.
 
 (** ** Reduction G — coalg_str on the (one1 ⊗ prom 0) ⊗ one1 pure tensor
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Compute [Lfun (coalg_str G) ((one1 ⊗ prom 0) ⊗ one1)] where [G =
     EM_prod (EM_prod EM_term funT_geom) EM_term].  The cascade:
@@ -654,7 +650,6 @@ Qed.
 
 
 (** ** Reduction H — Lfun (ch_mor convex) at the outer pt
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Combines [Lfun_ch_mor_adj_psi_at] (Class 1), [coalg_str_G_on_outer_pt_E]
     above, and [bang_fmap_prom] to read [Lfun (ch_mor convex)] at the outer
@@ -696,7 +691,6 @@ by rewrite (bang_fmap_prom
 Qed.
 
 (** ** Reduction I — full chain: cone_norm of post-[der] Step_geom = cone_norm of prom of convex_icones at outer pt
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Compose [cone_norm_der_Step_geom_E] with [Lfun_ch_mor_convex_at_outer_pt_E].
 
@@ -728,7 +722,6 @@ by rewrite Lfun_ch_mor_convex_at_outer_pt_E.
 Qed.
 
 (** ** Reduction J — coalg_e evaluation at the outer pt
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Evaluate [Lfun (coalg_e G_geom) ((one1 ⊗ prom 0_L_geom) ⊗ one1)
     = one1]: the unit-cone counit of the cartesian comonoid sends any
@@ -749,7 +742,6 @@ exact: (coalg_e_G_on_outer_pt_u_E (L:=L_geom)
 Qed.
 
 (** ** Reduction K — ELSE-branch evaluation cascade
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Evaluate the ELSE-branch [else_e := 1 + g()] at the outer point
     [(one1 ⊗ prom 0_L_geom) ⊗ one1].  With [g] bound to the diverging
@@ -1228,7 +1220,6 @@ Qed.
 
 
 (** ** Reduction L — THEN-branch evaluation at the outer point
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Companion to ELSE.  Evaluates [then_e := ne_real 0%R] at
     [at_outer_pt].  Result: [prom (dirac_fmeas 0)]. *)
@@ -1278,9 +1269,8 @@ exact: (der_prom (B := FMeas R_obj) _
 Qed.
 
 (** ** §1 — First-iterate FMeas mass = 1/2
-    BEYOND THE PAPER — Phase 4 mass-1 closure.
 
-    THE HEADLINE FIRST-ITERATE MASS IDENTITY.
+    The first-iterate mass identity.
 
     Combining the per-branch THEN/ELSE evaluations (which evaluate to
     [dirac_fmeas 0] / [precone_zero] respectively after [der]),
@@ -1493,8 +1483,6 @@ Qed.
 
 (** ** §2 Kleene chain bridge — recurrence at the linhom level
 
-    BEYOND THE PAPER — Phase 4 fixpoint tier.
-
     The recurrence connecting consecutive Kleene iterates of [Phi_fun
     M_body] (the linhom-level fixpoint operator for ex_geom's body) at
     the pointwise reading [linhom_fun _ one1]:
@@ -1591,8 +1579,6 @@ exact: Phi_fun_safe_M_body_at_one1.
 Qed.
 
 (** ** §3 Kleene chain collapse and [F_n] mass-zero
-
-    BEYOND THE PAPER — Phase 4 honest-scope analysis.
 
     *** Headline finding.
 

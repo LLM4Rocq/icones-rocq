@@ -1,9 +1,9 @@
 (**md**************************************************************************)
 (** * [em_fix_arr] — Bang-level CBV-Y for [ex_geom] (the recipe operator)
 
-    *** BEYOND THE PAPER — Bang-level Kleene iteration seeded at [prom 0]
+    *** Bang-level Kleene iteration seeded at [prom 0]
 
-    This file implements THE expert's CBV-Y recipe for [ex_geom]:
+    This file implements the CBV-Y recipe for [ex_geom]:
 
       for [F : EM(!A, !A)] a coalg morphism, [fix(nl(F))] is
       [sup_n F^n(nl(0))] in [Bang Ar L_geom],
@@ -780,14 +780,12 @@ Arguments kleene_arr_0_is_prom
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments kleene_arr_1_is_prom
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
-(** ** §5 — MASS RECURRENCE FOR ex_geom (EXPERT'S PROM-PEELING)
-
-    BEYOND THE PAPER — Phase 4 mass-1 closure.
+(** ** §5 — MASS RECURRENCE FOR ex_geom (PROM-PEELING)
 
     The headline theorem [ex_geom_arr_mass_one]: the FMeas mass of the
     Yfix-extracted geometric distribution is exactly 1.
 
-    *** Expert's recipe.
+    *** Recipe.
 
     P-A Melliès (consult. 2026-06-04): "All [!XYZ] values manipulated
     ARE promotions (i.e., of the form [nl(...)]) and formulas simplify
@@ -1844,7 +1842,7 @@ apply: precone_le_anti.
 - apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
 Qed.
 
-(** *** THE HEADLINE: [ex_geom]'s Yfix denotation has total mass 1. *)
+(** *** [ex_geom]'s Yfix denotation has total mass 1. *)
 Local Open Scope ereal_scope.
 Theorem ex_geom_arr_mass_one :
   fmeas_mu (Lfun (der (FMeas R_obj))
@@ -1862,7 +1860,7 @@ End ExGeomArrMassOne.
 
 (** ** §6 — GENERIC Bang-level CBV-Y construction (parametric in [G, A, B, M])
 
-    BEYOND THE PAPER — generalization of §1's [Phi_arr]/[Yfix_arr] to
+    Generalization of §1's [Phi_arr]/[Yfix_arr] to
     an arbitrary coalg-hom body [M : EM_prod G funT → Tobj funT].
 
     The §1 construction was specific to [ex_geom] (i.e. [γ := one1 :
@@ -1874,7 +1872,7 @@ End ExGeomArrMassOne.
     - [funT := bang_cofree L] (the value-coalgebra at function type);
     - [M : coalg_hom (EM_prod G funT) (Tobj funT)] — the abstracted body.
 
-    Per the expert's recipe, the operator at the Bang level is
+    Per the recipe, the operator at the Bang level is
     [Phi_arr_γ γ v := Lfun (bang_fmap (der L)) (Lfun (ch_mor M) (ptensor γ v))].
     For each [γ : G] with [‖γ‖ ≤ 1] this is a stable endofunction
     [Bang L → Bang L]; its Kleene iterates seeded at [prom 0_L] form a

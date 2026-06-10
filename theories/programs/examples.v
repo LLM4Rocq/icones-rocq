@@ -68,7 +68,7 @@
     | --- | --- | --- |
     | [ex_random_constant] | marginal at [x] = [µ] | **CLOSED-FORM** [ex_random_constant_marginal_headline] (kbind_ext (apply_at x) ex_random_constant_denot = sample_kleisli µ Hµ); intermediate Law-3 shape kept as [ex_random_constant_marginal] |
     | [ex_random_linear] | marginal at [x] = pushforward of [µ⊗µ] along [(m,b)↦m·x+b] | **CLOSED-FORM (measure-level)** [ex_random_linear_marginal_headline] (the joint µ⊗µ pre-image at the arithmetic-decomposition reduces to the iterated integral of Dirac-at-(m·x+b) evaluations, via [fmeas_lax_pre_preimage] of [theories/homs/fmeas_lax.v]); intermediate Law-3 shape kept as [ex_random_linear_marginal]; Dirac-input evaluation rule [ex_random_linear_arith_dirac_E] |
-    | [ex_bayes_linear] | denotation = [f·µ] (unnormalised posterior) | **CLOSED-FORM (measure-level)** [ex_bayes_linear_is_weighted_headline]: [fmeas_mu (Lfun (der ∘ K_score) µ) U = ∫µ f(cR m) · δ_m U] (Gap D, 2026-06); supporting [weighted_mu_preimage] + [der_K_score_mu_E]; intermediate Law-3 shape kept as [ex_bayes_linear_is_weighted] |
+    | [ex_bayes_linear] | denotation = [f·µ] (unnormalised posterior) | **CLOSED-FORM (measure-level)** [ex_bayes_linear_is_weighted_headline]: [fmeas_mu (Lfun (der ∘ K_score) µ) U = ∫µ f(cR m) · δ_m U]; supporting [weighted_mu_preimage] + [der_K_score_mu_E]; intermediate Law-3 shape kept as [ex_bayes_linear_is_weighted] |
     | [ex_loop] / [ex_geom] / [ex_almost_loop] | (no closed form claimed) | typechecking + structural [_denot_E] for the latter two |
 
     The remaining gaps to the closed-form identification of the QBS
@@ -711,10 +711,10 @@ End LemmaTwoMarginalLinear.
 Arguments ex_random_linear_marginal
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} mu Hmu x.
 
-(** ** Lemma 2 (headline pushforward form) — Gap C application
+(** ** Lemma 2 (headline pushforward form)
 
-    Building on [fmeas_lax_pre_preimage] ([theories/homs/fmeas_lax.v],
-    Gap C piece 1) and the arithmetic-Dirac lifts [add_lift_dirac] /
+    Building on [fmeas_lax_pre_preimage] ([theories/homs/fmeas_lax.v])
+    and the arithmetic-Dirac lifts [add_lift_dirac] /
     [mul_lift_dirac] ([theories/programs/ppl.v]), we deliver the
     HEADLINE PUSHFORWARD form of the [ex_random_linear] marginal at
     [x] as a measure-theoretic identity.
@@ -843,7 +843,7 @@ Qed.
 Section HeadlinePushforward.
 Local Open Scope ereal_scope.
 
-(** *** Headline pushforward identity — Gap C application
+(** *** Headline pushforward identity
 
     For every measurable [U ⊆ ar_carrier R_obj], the pre-image
     measure of [fmeas_lax_pre µ µ] under [arith_at_x_fun x]
@@ -853,8 +853,8 @@ Local Open Scope ereal_scope.
 
     This is the headline form of the marginal-at-[x] measure for
     [ex_random_linear].  Proved by direct application of
-    [fmeas_lax_pre_preimage] (Gap C piece 1 in
-    [theories/homs/fmeas_lax.v]) with [φ := arith_at_x_fun x]. *)
+    [fmeas_lax_pre_preimage]
+    ([theories/homs/fmeas_lax.v]) with [φ := arith_at_x_fun x]. *)
 Lemma ex_random_linear_marginal_headline
     (U : set (ar_carrier Ar R_obj)) :
   measurable U ->
@@ -1191,9 +1191,9 @@ by rewrite (ex_bayes_linear_denot_E mu Hmu f Hf_meas Hf_ge0 Hf_le1)
 Qed.
 
 
-(** *** Gap D — measure-level Bayes headline (pre-image identity)
+(** *** Measure-level Bayes headline (pre-image identity)
 
-    Mirroring Gap C's [fmeas_lax_pre_preimage], we close the Bayes
+    Mirroring [fmeas_lax_pre_preimage], we close the Bayes
     headline at the MEASURE level — sidestepping both Law 2
     ([kbind_ext_A]) and the cartesian-η ([em_pair_mor_proj_id]
     asymmetric direction) blockers.
@@ -1209,7 +1209,7 @@ Qed.
     [µ]: the integral of [f(cR m) · 1_U(m)] over [m ∼ µ].  This is
     the exact shape downstream QBS-style identities expect.
 
-    Proof strategy (parallels Gap C).
+    Proof strategy.
     1. Convert [fmeas_mu _ U] to [∫_(\1_U)%:E] via [integral_indic].
     2. Apply [icone_integral_kernel_tonelli] on the unfolded
        [weighted_mu = icone_integral weighted_dirac_path µ].
@@ -1254,11 +1254,11 @@ Qed.
 
 End MeasureLevelHeadline.
 
-(** *** Gap D headline — closed-form QBS identity for [ex_bayes_linear]
+(** *** Headline — closed-form QBS identity for [ex_bayes_linear]
 
     Combines [ex_bayes_linear_is_weighted_kscore] (the
     [K_score]-integration identity) with [weighted_mu_preimage]
-    (Gap D's measure-level pre-image) and [icones_hom_pres_int]
+    (the measure-level pre-image) and [icones_hom_pres_int]
     applied to [der (FMeas R_obj)] (the EM-counit on [FMeas]) to
     deliver the closed-form QBS headline at the measure level.
 
@@ -1277,7 +1277,7 @@ End MeasureLevelHeadline.
     coalg-mor case noted in [theories/programs/ppl.v]'s
     [Section KbindExtLaws] docstring), not delivered axiom-free in
     the current cones library — and which Bayes, uniquely among QBS
-    examples, sidesteps via Gap D's measure-level closure.
+    examples, sidesteps via the measure-level closure.
 
     Net effect.  The Bayes posterior's pre-image at [U] (via the
     [der ∘ K_score]-applied form on [µ]) equals the integral of

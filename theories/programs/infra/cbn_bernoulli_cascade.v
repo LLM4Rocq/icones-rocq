@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — CBN PPL Bernoulli-cascade framework
+(**md*** CBN PPL Bernoulli-cascade framework
 
     Shared mathematical core of [ppl_cbn_geom.v] and
     [ppl_cbn_almost_loop.v].

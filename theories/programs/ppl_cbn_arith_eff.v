@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — CBN arithmetic effect-clauses [via the bridge]
+(**md*** CBN arithmetic effect-clauses [via the bridge]
 
     The companion to [ppl_cbn_arith_scones.v]: the honest CBN
     arithmetic clauses (the "(beta)" refinement of the (γ)-degenerate

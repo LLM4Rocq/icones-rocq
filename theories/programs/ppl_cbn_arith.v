@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — CBN PPL arithmetic foundation: [add_FMeas]
+(**md*** CBN PPL arithmetic foundation: [add_FMeas]
 
     This file delivers the AXIOM-FREE mathematical foundation for
     refining the (γ)-degenerate CBN [cbn_add_clause_def] of
@@ -418,7 +418,7 @@ Arguments mul_FMeas_zero_r {R Ar R_obj} R_carrier_eq R_carrier_meas R_to_carrier
     Total: ~1000-1800L, multi-day.
 
     ** Recommendation
-    Treat Gap 1 as an INDEPENDENT M5 / Phase-5 wave for the CBN trunk:
+    Treat Gap 1 as an INDEPENDENT M5 wave for the CBN trunk:
     the bilinear-on-sprod [scones_hom] builder is broadly useful (it
     would also unblock [ex_random_linear_CBN_marginal] = pushforward of
     [µ ⊗ µ] along [(m, b) ↦ m·x + b], i.e. the OPTION-(β) refinement of

@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — [add_FMeas] / [mul_FMeas] as [scones_hom]s
+(**md*** [add_FMeas] / [mul_FMeas] as [scones_hom]s
 
     The M5 consumer of the diagonal bilinear stability bridge
     [meas_stable_diag_bilinear_tensor] of

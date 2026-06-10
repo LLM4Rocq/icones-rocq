@@ -1,7 +1,7 @@
 (**md**************************************************************************)
 (** * The monoidal adjunction [U ⊣ !̃] and the CBV model — CBV §4
 
-    *** BEYOND THE PAPER — CBV LNL adjunction + extensions
+    *** CBV LNL adjunction + extensions
 
     This file provides:
     - The LNL adjunction [U ⊣ !̃ : EM(!) ⇄ ICones] (Mellies §7.4 recipe,

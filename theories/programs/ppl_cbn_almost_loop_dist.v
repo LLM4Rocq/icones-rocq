@@ -1,7 +1,6 @@
-(**md*** BEYOND THE PAPER — CBN PPL [ex_almost_loop p] DISTRIBUTION
+(**md*** CBN PPL [ex_almost_loop p] DISTRIBUTION
     headlines (not just mass).
 
-    THE HEADLINES.
     - [ex_almost_loop_p_CBN_is_dirac_zero] (when [p > 0]): the CBN
       fixpoint of [ex_almost_loop p] IS the Dirac measure at
       [R_to_carrier 0] (as an [FMeas R_obj] equality, not just a

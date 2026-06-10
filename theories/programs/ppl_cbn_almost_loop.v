@@ -1,6 +1,6 @@
-(**md*** BEYOND THE PAPER — CBN PPL [ex_almost_loop p] mass closure
+(**md*** CBN PPL [ex_almost_loop p] mass closure
 
-    THE HEADLINES.  [ex_almost_loop_p_CBN_mass_one_if_pos] (when
+    [ex_almost_loop_p_CBN_mass_one_if_pos] (when
     [p > 0]) and [ex_almost_loop_p_CBN_mass_zero_if_zero] (when
     [p = 0]): the CBN-side fixpoint of the parameterised partial-
     termination operator [phi_almost_loop_p] has the expected mass.

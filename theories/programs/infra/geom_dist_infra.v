@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — shared infrastructure for the geometric
+(**md*** Shared infrastructure for the geometric
     PMF headlines.
 
     Both [theories/programs/ppl_cbn_geom_dist.v] (the CBN

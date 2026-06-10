@@ -1,7 +1,7 @@
 (**md**************************************************************************)
 (** * [tensor_curry] past [kbind_ext] — categorical reduction, axiom-free
 
-    BEYOND THE PAPER — operational tool for Phase 4 ([ex_loop] / [ex_geom]
+    Operational tool for ([ex_loop] / [ex_geom]
     / [ex_almost_loop p]) mass-closure.
 
     Given a [kbind_ext k m] (resp. [kcomp g f]) whose source coalgebra
@@ -223,7 +223,6 @@ Arguments tensor_curry_ch_mor_kbind_ext_at {R Ar G_in A1 A B} k m gamma.
 Arguments tensor_curry_ch_mor_kcomp_at {R Ar G_in A1 Q S} g f gamma.
 
 (** ** Class 1 — pointwise [adj_psi] evaluation
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     Pointwise reading of [ch_mor (adj_psi g)]:
     [Lfun (ch_mor (adj_psi g)) x = Lfun (bang_fmap g) (Lfun (coalg_str P) x)].
@@ -256,7 +255,6 @@ Arguments Lfun_ch_mor_adj_psi_at {R Ar P B} g x.
 Arguments Lfun_ch_mor_via_adj_phi_at {R Ar P B} h x.
 
 (** ** Class 4 — pointwise [const_kleisli] evaluation
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     For [c : C] with [‖c‖ ≤ 1] and [x : coalg_obj G],
     [Lfun (ch_mor (const_kleisli G c Hc)) x =
@@ -286,7 +284,6 @@ End ConstKleisliAt.
 Arguments Lfun_ch_mor_const_kleisli_at {R Ar G C} c Hc x.
 
 (** ** Class 2 — pointwise [app_kleisli] structural reduction
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     [app_kleisli VF VA = coalg_comp (tmul B) (adj_psi (app_under VF VA))]
     by definition.  Its [ch_mor] reads at a point as
@@ -326,7 +323,6 @@ End AppKleisliAt.
 Arguments Lfun_ch_mor_app_kleisli_at {R Ar G A B} VF VA x.
 
 (** ** [linhom_norm] of a [cone_one]-source linhom = pointwise value at [one1]
-    BEYOND THE PAPER — Phase 4 evaluation tier.
 
     For a linhom [phi : cone_one ⊸ C], its operator norm is exactly the
     cone-norm of its value at the unit point [one1].

@@ -1,8 +1,8 @@
-(**md *** BEYOND THE PAPER — PPL CBV chapter infrastructure
+(**md *** PPL CBV chapter infrastructure
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
     (paper §2-§9). It provides the convex-combination reduction of
-    [case_em] against a Bernoulli scrutinee, used to close Phase 4's
+    [case_em] against a Bernoulli scrutinee, used to close the
     [ex_geom] mass-1 theorem (reducing the [if Bern(½) then 0 else 1+g()]
     pattern to [½·(then 0) + ½·(else 1+g())] at the cone level).
 

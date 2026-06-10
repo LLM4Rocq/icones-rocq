@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — CBN PPL chapter infrastructure
+(**md*** CBN PPL chapter infrastructure
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
     (paper §2-§9). It packages the constant SCones-arrow at an arbitrary

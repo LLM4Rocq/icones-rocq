@@ -1,7 +1,7 @@
 (**md**************************************************************************)
 (** * ω-continuity prerequisites for the CBV value fixpoint — CBV §6 (prep)
 
-    *** BEYOND THE PAPER — PPL CBV chapter infrastructure
+    *** PPL CBV chapter infrastructure
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization.
     It provides ω-continuity infrastructure for the CBV value-fixpoint

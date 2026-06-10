@@ -299,7 +299,7 @@ Fixpoint eD_CBN (G : named_ctx Ar) (t : T)
 
      IN PARTICULAR: at [t = tprod (tfun A1 B1) (tfun A2 B2)] this
      constructor yields a FULLY SOUND mutual-recursion fixpoint at the
-     product-of-functions level, per the expert's recipe.  The CBV side
+     product-of-functions level, per the recipe.  The CBV side
      ([ppl.v]'s [Yfix_mr_pack]) has a documented honest-scope
      limitation at the product case, but CBN does not. *)
   | ne_fix_mr G0 _ t _ body =>
@@ -433,7 +433,7 @@ Qed.
 (** *** Mutual recursion — [ne_fix_mr] soundness reductions
 
     The CBN side has NO honest-scope limitation for [ne_fix_mr] (the
-    expert's product-of-functions case): [Yfix] of [stable/fixpoint.v]
+    product-of-functions case): [Yfix] of [stable/fixpoint.v]
     works at ANY cone, so the same reduction lemmas as [ne_fix] go
     through unchanged for any body type [t] (in particular [t =
     tprod (tfun A1 B1) (tfun A2 B2)], the mutual-recursion shape). *)

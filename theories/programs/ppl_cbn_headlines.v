@@ -1,4 +1,4 @@
-(**md*** BEYOND THE PAPER — CBN PPL headline mass-and-marginal identities
+(**md*** CBN PPL headline mass-and-marginal identities
 
     This file ships the six CBN headline mass-or-marginal identities for
     [theories/programs/examples.v]'s six surface examples, evaluated under
@@ -209,7 +209,7 @@ Arguments ex_almost_loop_CBN_headline {R Ar R_obj} R_carrier_eq.
 
 (** ** Headline 1' (random_constant) — marginal at every [x] equals µ
 
-    THE PRIZE for Example 1.  The CBN denotation of [ex_random_constant]
+    Example 1.  The CBN denotation of [ex_random_constant]
     lives in [scones_hom (Stop Ar) (stablehom (FMeas R_obj) (FMeas R_obj))]
     — a measure-over-a-function-space.  The flagship Mellies §7.4 / QBS
     headline: the marginal at every [x : FMeas R_obj] in the unit ball is
@@ -457,7 +457,7 @@ Arguments ex_random_linear_CBN_marginal_zero
 
 (** ** Headline 3 — [ex_bayes_linear] : pointwise mass identity = µ
 
-    THE PRIZE for Example 3.  The CBN denotation of [ex_bayes_linear mu f]
+    Example 3.  The CBN denotation of [ex_bayes_linear mu f]
     pointwise on the unit ball EQUALS [mu] (the prior).  Crucially, the
     score factor [f] is IRRELEVANT: in this CBN reading the score
     [ne_score] is at type [tunit] = [Stop Ar], which is the terminal
@@ -544,7 +544,7 @@ Lemma ex_bayes_linear_CBN_headline_struct :
                      (cbn_sample_clause_def (R_obj:=R_obj) nil mu Hmu)).
 Proof. by []. Qed.
 
-(** **HEADLINE 3 (mass identity, the prize) — pointwise on the empty-context
+(** **HEADLINE 3 (mass identity) — pointwise on the empty-context
     unit ball, [ex_bayes_linear]'s CBN denotation EQUALS the prior [µ].
     Hence its total mass at any measurable set [U] is [µ U]. *)
 Lemma ex_bayes_linear_CBN_headline (g : ctxD_CBN (drop_names (Ar:=Ar) nil))

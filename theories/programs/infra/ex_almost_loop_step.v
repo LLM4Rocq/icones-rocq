@@ -2,7 +2,7 @@
 (** * [ex_almost_loop_step] — cone_one_car-level cascade for
         [ex_almost_loop p].  CBV-side mass headlines.
 
-    BEYOND THE PAPER.  This file ships the CBV-side analogue of
+    This file ships the CBV-side analogue of
     [ppl_cbn_almost_loop.v]'s headline closure for the parameterised
     partial-termination example [ex_almost_loop p].  We deliver
     AXIOM-FREE (modulo the three boolp axioms):
@@ -684,7 +684,7 @@ have := @F_arr_loop_p_ball n.
 by rewrite /cone_norm /= /c1_norm.
 Qed.
 
-(** ** §14 — THE HEADLINES *)
+(** ** §14 *)
 
 (** Headline 1 — when [p > 0], the [c1_val] of the chain sup is 1.
 
