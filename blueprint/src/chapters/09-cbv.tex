@@ -26,13 +26,20 @@
 %                                      (diagram81, coalg_mor_lift,
 %                                      coalg_d_is_mor_gen);
 %                                      ICones_EM_cartesian, EM_prod/EM_term,
-%                                      m_bang
-%   theories/programs/infra/cbv_adjunction.v   the (lax symmetric) monoidal adjunction
-%                                      U ⊣ !̃ between ICones (linear) and the
-%                                      FULL category EM(!) of !-coalgebras
-%                                      (Melliès Prop 29) — a genuine LNL
-%                                      adjunction; the CBV_Model record + the
-%                                      witness ICones_CBV
+%                                      m_bang; em_pair_mor / em_proj1_mor /
+%                                      em_proj2_mor / em_term_mor; the
+%                                      transported commutative-comonoid pair
+%                                      (coalg_d, coalg_e) carried by every
+%                                      !-coalgebra (Melliès Prop 28 / Cor 20).
+%   theories/programs/infra/cbv_adjunction.v   the (lax symmetric) monoidal
+%                                      adjunction U ⊣ !̃ between ICones (linear)
+%                                      and the FULL category EM(!) of
+%                                      !-coalgebras (Melliès Prop 29);
+%                                      em_pair_mor_proj_id (cartesian η at
+%                                      the icones level, Fox 1976 / Prop 28);
+%                                      bang_m / bang_e0 / lax coherence /
+%                                      monoidal counit laws; the CBV_Model
+%                                      record + the witness ICones_CBV.
 %   theories/homs/fmeas_lax.v          the FMeas lax symmetric monoidal map
 %                                      fmeas_lax X Y : FMeas X ⊗ FMeas Y →
 %                                      FMeas (X × Y) bundled as an icones_hom
@@ -41,86 +48,92 @@
 %                                      bilin.v's int_to_linhom_pres_path_in_cone
 %                                      (the now-discharged path-preservation
 %                                      follow-up to paper Thm 6.1)
-%   theories/programs/cbv.v            a small first-order CBV calculus
-%                                      (unit, base, products, let, sample)
-%                                      interpreted into the model via the
-%                                      T = !̃∘U monad (Tobj/tunit_eta/kcomp);
-%                                      soundness: monad/let laws, product β,
-%                                      and sample = the integral
-%                                      (cpD_sample_var_dirac)
+%   theories/programs/infra/bool_cone.v   the 2-point sub-probability cone
+%                                      (paper §4.4 / Thm 4.24 coproduct
+%                                      cone_one ⊕ cone_one), bool_case
+%                                      universal co-pairing; the boolean
+%                                      cascade infrastructure used by ne_if.
+%   theories/programs/infra/bool_case_hom.v   bool_case at the linhom level
+%                                      (bool_case_linhom), unit-ball-free
+%                                      variant, alpha/beta decomposition.
 %   theories/programs/ppl.v            a higher-order, DIRECT-STYLE
 %                                      (Plotkin/Girard CBV), SINGLE-SORT,
 %                                      MULTI-VARIABLE, NAMED-VARIABLE
 %                                      QBS-MIRROR PPL: one inductive
-%                                      [named_expr Γ τ] whose constructors
-%                                      split as pure (ne_var/ne_tt/ne_pair/
-%                                      ne_fst/ne_snd/ne_lam/ne_app/ne_real/
-%                                      ne_add/ne_mul), a SEQUENCER (ne_let:
-%                                      direct-style CBV let x = M in K,
-%                                      semantically the extended-context
-%                                      Kleisli bind kbind_ext) and effects
-%                                      (ne_sample : tR returning a PURE tR,
-%                                      ne_score : tunit returning a PURE
-%                                      tunit; the monad is in the
-%                                      interpretation eD, NOT the source
-%                                      types). Types tunit/tbase X/tprod/
-%                                      tfun; there is NO tprob marker, NO
-%                                      Ret, NO ne_bind in the source.
-%                                      tyD (tfun A B) = !̃(U A ⊸ U(T B)) —
-%                                      the Kleisli exponential with Tobj
-%                                      on the codomain, encoding the fact
-%                                      that every function call is
-%                                      potentially effectful in CBV.
-%                                      eD is defined DIRECTLY by structural
-%                                      recursion on named_expr; pure
-%                                      constructors are lifted into Kleisli
-%                                      arrows by post-composition with
-%                                      tunit_eta (the implicit return that
-%                                      direct style needs). Variable lookup
-%                                      #"x" via canonical structures
-%                                      (find_nv/found_nv/recurse_nv/ne_var')
-%                                      in the Saito-Affeldt APLAS 2023
-%                                      style; custom-entry ppl_named
-%                                      surface notation [ ... ] (no Ret).
-%   theories/programs/examples.v       three QBS-style direct-style
-%                                      examples in surface syntax:
-%                                      ex_random_constant : tfun tR tR
-%                                      (the QBS flagship distribution over
-%                                      a function space — and notice the
-%                                      type really is tfun tR tR, not
-%                                      tprob (tfun tR tR)),
-%                                      ex_random_linear : tfun tR tR (the
-%                                      killer demo: distribution over
-%                                      linear functions λx. m·x + b for
-%                                      m, b ~ µ), and ex_bayes_linear : tR
-%                                      (textbook prior/score/observe shape,
-%                                      the only example exercising
-%                                      ne_score; the unnormalised posterior
-%                                      of total mass ∫ f(m) dµ(m)).
+%                                      [named_expr Γ τ] with constructors
+%                                      ne_var / ne_tt / ne_pair / ne_fst /
+%                                      ne_snd / ne_lam / ne_app / ne_let /
+%                                      ne_real / ne_add / ne_mul /
+%                                      ne_sample / ne_score / ne_true /
+%                                      ne_false / ne_bernoulli / ne_if /
+%                                      ne_fix / ne_fix_mr.  Types
+%                                      tunit / tbase X / tprod / tfun /
+%                                      tbool; no tprob marker, no Ret, no
+%                                      ne_bind in the source.  This file
+%                                      now hosts ONLY the shared surface
+%                                      syntax + cross-cutting helpers
+%                                      (add_meas, mul_meas, add_lift,
+%                                      mul_lift, score_lift, const_icones,
+%                                      bernoulli, etc.) used by BOTH the
+%                                      CBV interpreter of ppl_cbv.v and
+%                                      the CBN interpreter of ppl_cbn*.v.
+%   theories/programs/ppl_cbv.v        the CLEAN CBV interpreter — the
+%                                      linhom-valued, comonoid-primitive
+%                                      interpretation of named_expr.  Every
+%                                      expression denotes a linear morphism
+%                                      [eD M : linhom_car Γ̂ τ̂] in ICones,
+%                                      NOT a coalgebra morphism.  The
+%                                      coalgebra structure of the context
+%                                      is used only through the transported
+%                                      commutative-comonoid pair
+%                                      (coalg_d, coalg_e) carried by every
+%                                      !-coalgebra (Melliès Prop 28 /
+%                                      Cor 20).  No Moggi monad in the
+%                                      interpretation: no Tobj, no
+%                                      tunit_eta, no kbind / kcomp.
+%                                      tyD (tfun A B) = !̃(U⟦A⟧ ⊸ U⟦B⟧),
+%                                      a SINGLE !̃ on the function type
+%                                      (NO Tobj wrap on the codomain).
+%                                      The two boundaries with !̃ are ne_lam
+%                                      (adj_psi of tensor_curry, i.e. the
+%                                      coalg_str of the context's coalgebra)
+%                                      and ne_app (der to extract the
+%                                      function value out of its !̃-wrap).
+%                                      ne_fix / ne_fix_mr are placeholders
+%                                      (precone_zero) pending a clean port
+%                                      of the Kleene iteration to linhom A B.
+%   theories/programs/examples.v       eleven surface PPL programs (no
+%                                      denotation reduction lemmas; this
+%                                      file is now the shared surface
+%                                      program pool consumed by both the
+%                                      CBV and the CBN interpreters):
+%                                      QBS headlines ex_random_constant,
+%                                      ex_random_linear, ex_bayes_linear;
+%                                      recursive examples ex_loop, ex_geom,
+%                                      ex_almost_loop; boolean sanity
+%                                      checks ex_true, ex_false,
+%                                      ex_fair_coin, ex_if_demo.
 %
-% Status note: the CBV model is built and AXIOM-FREE (only the three
-% classical boolp axioms): ICones_CBV, ICones_EM_cartesian, EMComon_all,
-% cpD_sample_var_dirac, fmeas_lax_dirac, ex_random_constant_denot_E,
-% ex_random_linear_denot_E, ex_bayes_linear_denot_E are all axiom-clean.
-% The higher-order PPL is the multi-variable, named-variable, DIRECT-STYLE
-% (Plotkin/Girard CBV) QBS-mirror surface — NOT a fine-grain Moggi
-% value/computation split, and NOT a monadic-style surface with a tprob
-% type marker.  This is the direct-style CBV that integrable cones were
-% designed to enable: the value-CCC structure on EM(!) (via Cor 20) is
-% what makes λx. M a VALUE with body M having type B (not T B), and the
-% Kleisli exponential !̃(U A ⊸ U(T B)) is THE source-language function
-% type — the monad is moved out of the source TYPE and into the
-% interpretation eD.  Function types denote the EM(!) Kleisli exponential
-% ⟦tfun A B⟧ = !̃(U A ⊸ U(T B)), the representing object for
-% Hom_EM(- × A, T B) with T = !̃ ∘ U, via the four-step natural bijection
-% (cofree U ⊣ !̃, U strict monoidal via cbv_U_prod, SMCC closure of ICones,
-% cofree U ⊣ !̃ again).  The Dirac/integration view of the Moggi-Kleisli
-% bind, bind(m, k)(γ) = ∫ k(γ, a) dm(γ)(a), is what lets ne_add / ne_mul
-% recover the QBS-style "distribution of λx. m·x + b on Dirac inputs"
-% reading.  EM(!) is NOT cartesian closed and is not expected to be (a
-% structural fact); Kleisli exponentials are what direct-style CBV needs,
-% and that is what ppl.v uses.  Adequacy / normalization / full-abstraction
-% are out of scope here, as are booleans / coproducts and qbs_normalize.
+% Status note (post-cleanup): every section of this chapter is AXIOM-FREE
+% (only the three classical boolp axioms): the Eilenberg–Moore category
+% and cofree adjunction; the Seely comonoid LC2–LC4; the FULL cartesian
+% EM(!) carried by the linear ⊗ (EMComon_all unconditional, Cor 20); the
+% cartesian η-rule em_pair_mor_proj_id (Fox 1976 / Prop 28 at the icones
+% level); the (lax symmetric) monoidal adjunction ICones_CBV; the FMeas
+% lax monoidal map and its Dirac identity; the boolean cascade
+% (bool_cone_car / bool_case / bool_case_linhom).  The interpreter
+% itself, ppl_cbv.v, defines eD as a LINHOM-VALUED, comonoid-primitive
+% recursion on named_expr; it is axiom-free EXCEPT for two structural
+% placeholders (ne_fix and ne_fix_mr return precone_zero, pending the
+% port of the Kleene iteration to the clean linhom-cone).  The previous
+% Moggi-monad presentation in the now-deleted cbv.v / em_fix.v /
+% em_fix_arr.v / case_em_red.v / curry_kbind.v / cbv_outer_pt.v /
+% em_continuity.v / ex_geom_step.v / ex_loop_arr.v / ex_almost_loop_arr.v /
+% ex_almost_loop_step.v / ex_headlines.v / ex_random_dist.v /
+% ppl_cbv_geom_dist.v / ex_even_odd.v has been retired; the linhom-valued
+% reading on the comonoid-primitive recursion is lighter to formalise and
+% equivalent at the level of denotation (the cofree !̃ only surfaces at
+% function arrows, exactly per the linear-map view of programs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Beyond the paper: a call-by-value model (Melli\`es \S7.4)}%
@@ -143,94 +156,101 @@ is a \emph{beyond-the-paper} construction on top of the axiom-free Seely
 category of \autoref{thm:seely}.
 
 \paragraph{What is, and is not, done.}
-The CBV model is built and \textbf{axiom-free} (only the three classical
-\texttt{boolp} axioms): the \emph{full} cartesian Eilenberg--Moore
-category, the (lax symmetric) monoidal adjunction
-\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV}, and a small first-order
-CBV calculus interpreted into it. The cartesianness of
-$\mathrm{EM}(\mathord{!})$ is now \emph{unconditional} --- the
-predicate \rocq{Icones.homs.em_cartesian.EMComon} holds on every
+The CBV \emph{model} is built and \textbf{axiom-free} (only the three
+classical \texttt{boolp} axioms): the \emph{full} cartesian
+Eilenberg--Moore category, the cartesian $\eta$-rule at the icones level
+(Fox 1976 / Melli\`es Proposition 28), and the (lax symmetric) monoidal
+adjunction \rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV}. The
+cartesianness of $\mathrm{EM}(\mathord{!})$ is \emph{unconditional} ---
+the predicate \rocq{Icones.homs.em_cartesian.EMComon} holds on every
 $\mathord{!}$-coalgebra (\rocq{Icones.homs.em_cartesian.EMComon_all}),
 following Melli\`es' Proposition 26--28 / Corollary 17/20 by the
 structural retraction-and-lifting argument (\emph{not} the naïve
 promoted-point reduction, which only computes on $x!$ and stalls on a
 general carrier); $U \dashv \widetilde{\mathord{!}}$ is therefore a
 \emph{linear / non-linear} adjunction with \emph{the} category of
-$\mathord{!}$-coalgebras as the cartesian non-linear / value side.
+$\mathord{!}$-coalgebras as the cartesian non-linear / value side. The
+\emph{interpreter} of the higher-order PPL is
+\texttt{theories/programs/ppl\_cbv.v}, a linhom-valued, comonoid-primitive
+denotation on the shared surface inductive \texttt{named\_expr} of
+\texttt{theories/programs/ppl.v}.
 
-\paragraph{Higher-order direct-style CBV via EM(!) Kleisli exponentials.}
-The value category $\mathrm{EM}(\mathord{!})$ is cartesian but
-\emph{not} cartesian closed --- a structural fact about EM categories of
-linear-exponential comonads, not a missing diagram chase. What
-\emph{direct-style} (Plotkin/Girard) CBV actually requires, however, are
-not full internal homs but \emph{Kleisli exponentials} for the CBV monad
-$T = \widetilde{\mathord{!}} \circ U$, and those
-$\mathrm{EM}(\mathord{!})$ does have. The natural-bijection chain
-%
-\begin{align*}
-  \mathrm{Hom}_{EM}(C \times A,\, T B)
-  &\;\cong\;\mathrm{Hom}_{IC}(U(C \times A),\, U(T B))
-        & \text{cofree } U \dashv \widetilde{\mathord{!}}\\
-  &\;\cong\;\mathrm{Hom}_{IC}(U C \otimes U A,\, U(T B))
-        & U \text{ strict monoidal}\\
-  &\;\cong\;\mathrm{Hom}_{IC}(U C,\, U A \multimap U(T B))
-        & \text{SMCC closure of } \ICones\\
-  &\;\cong\;\mathrm{Hom}_{EM}(C,\, \widetilde{\mathord{!}}(U A \multimap U(T B)))
-        & \text{cofree } U \dashv \widetilde{\mathord{!}}
-\end{align*}
-%
-uses only the cofree adjunction, the strict monoidality of $U$
-($U(C \times A) = U C \otimes U A$ definitionally,
-\rocq{Icones.programs.infra.cbv_adjunction.cbv_U_prod}), and the SMCC closure of
-$\ICones$; it does \emph{not} use any cartesian closure of
-$\mathrm{EM}(\mathord{!})$. The function-type interpretation that
-results is $\sem{\mathtt{tfun}\,A\,B} =
-\widetilde{\mathord{!}}\,(U A \multimap U(T B))$ (\autoref{sec:cbv-ppl}) ---
-with the $T$ on the codomain encoding the fact that every function call
-is potentially effectful in CBV.
-This is \texttt{theories/programs/ppl.v}: a higher-order,
-\emph{direct-style} (no value/computation term split, no \texttt{tprob}
-type marker, no syntactic \texttt{return}, no \texttt{bind}), \emph{single-sort},
-\emph{multi-variable}, \emph{named-variable} QBS-mirror calculus --- the
-modern PPL surface that \texttt{mathcomp-qbs/ppl} provides and that the
-Heunen--Kammar--Staton--Yang LICS 2017 line of work describes ---
-interpreted through the Kleisli-exponential chain above and fully
-axiom-free. The QBS-paper showcase \texttt{ex\_random\_constant}
---- a distribution over a function space, with source type
-$\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$ (\emph{not}
-$\mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})$) --- and the
-``random linear'' killer demo \texttt{ex\_random\_linear} ---
-the distribution over $\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$,
-again with source type $\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$ ---
-both interpret soundly via this Kleisli-exponential structure (see
-\texttt{theories/programs/examples.v} for the surface-syntax definitions
-and reduction lemmas). The Dirac/integration view of the Moggi-Kleisli
-bind,
+\paragraph{Linhom-valued, comonoid-primitive interpretation.}
+The interpreter assigns to a term
+$\Gamma \vdash M : \tau$ a \emph{linear} morphism in $\ICones$,
 \[
-  \mathtt{bind}(m,\,k)(\gamma)
-    \;\;=\;\;
-    \int k(\gamma,\,a)\;\mathrm{d}m(\gamma)(a),
+  \sem{M}\;\;\in\;\;
+  \mathrm{linhom}\bigl(U\sem{\Gamma},\,U\sem{\tau}\bigr),
 \]
-together with the FMeas lax monoidal map (\autoref{thm:cbv-fmeas-lax}),
-is what lets \texttt{ne\_add} / \texttt{ne\_mul} recover the QBS-style
-``distribution of $\lambda x.\,m\cdot x + b$'' reading on Dirac inputs.
+where $\sem{\Gamma}$ and $\sem{\tau}$ are $\mathord{!}$-coalgebras. The
+denotation is \emph{not} a coalgebra morphism: a probabilistic program
+need not commute with the comonoid duplicability structure carried by
+its source coalgebra. The canonical witness is the let-then-pair
+fragment $\,\mathtt{let}\,x \,{=}\, \mathtt{sample}\,\mu\,\mathtt{in}\,(x, x)\,$: the
+share-then-measure denotation is a pushforward along the diagonal,
+whereas the measure-then-pair denotation is the cartesian product
+measure; the two distributions agree iff $\mu$ is a Dirac. Programs are
+therefore modelled as linear maps and never asked to be coalgebra
+morphisms; what every context coalgebra \emph{does} supply uniformly,
+through Melli\`es' Proposition 28 / Corollary 20
+(\rocq{Icones.homs.em_cartesian.EMComon_all}), is a commutative-comonoid
+pair $(\delta_\Gamma, \varepsilon_\Gamma) =
+(\mathtt{coalg\_d}, \mathtt{coalg\_e})$ on the underlying iCone, and
+that pair is the only structural ingredient the interpreter ever uses on
+the context side.
 
-\paragraph{No further open milestones for higher-order CBV.}
-In the direct-style QBS-mirror surface of \texttt{ppl.v} every term is
-interpreted as a Kleisli arrow through $T = \widetilde{\mathord{!}} \circ U$
---- there is \emph{no} \texttt{tprob} type-level marker in the source
-language; the monad lives entirely in the term interpretation
-\texttt{eD}, and pure constructors are made into Kleisli arrows by
-post-composition with the unit \texttt{tunit\_eta} (the implicit return
-that direct-style CBV needs). Applying a function value to an argument
-is monadic application by construction, with the $T$ on the codomain of
-$\sem{\mathtt{tfun}\,A\,B}$ ensuring every call returns a computation.
-EM(!) being non-closed is structural and irrelevant. Adequacy,
-normalization, and full-abstraction are out of scope here, as are
-booleans / coproducts (no native sum type in the cones model) and the
-QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior showcase (a
-different observable than the unnormalised prior/score/observe shape
-covered by \texttt{ex\_bayes\_linear}).
+The cofree exponential $\widetilde{\mathord{!}}$ now surfaces at
+\emph{exactly two} places, both at the function-type interpretation:
+\begin{itemize}
+  \item \rocq{Icones.programs.ppl.ne_lam} wraps a curried body
+    $\mathrm{linhom}(U\sem{\Gamma} \otimes U\sem{A}, U\sem{B})$ ---
+    obtained by SMCC currying --- into the cofree $\widetilde{\mathord{!}}$
+    using the cofree adjunction's $\mathtt{adj\_psi}$ applied at the
+    coalgebra structure of $\sem{\Gamma}$ (caller-side duplicability of
+    function values);
+  \item \rocq{Icones.programs.ppl.ne_app} extracts a function value from
+    its $\widetilde{\mathord{!}}$-wrap via the counit
+    $\mathrm{der} : \widetilde{\mathord{!}}L \to L$ on the function-cone
+    $L = U\sem{A} \multimap U\sem{B}$ before tensor-uncurrying into
+    evaluation.
+\end{itemize}
+Every other compositional clause uses only the SMC primitives (tensor,
+braid, unitors, identity, composition) and the comonoid pair
+$(\delta_\Gamma, \varepsilon_\Gamma)$. No Moggi monad
+$T = \widetilde{\mathord{!}} \circ U$ ever appears in the codomain of a
+type or in the interpretation: there is no $\mathtt{Tobj}$, no
+$\mathtt{tunit\_eta}$, no Kleisli composition. The function type
+\[
+  \sem{\mathtt{tfun}\,A\,B}
+    \;=\;
+    \widetilde{\mathord{!}}\bigl(U\sem{A} \multimap U\sem{B}\bigr)
+\]
+carries a \emph{single} cofree $\widetilde{\mathord{!}}$ on the outside;
+the codomain is bare.
+
+\paragraph{The shared surface syntax.}
+The surface inductive \rocq{Icones.programs.ppl.named_expr} is a
+\emph{direct-style} (no value/computation term split, no \texttt{tprob}
+type marker, no syntactic \texttt{return}, no syntactic \texttt{bind}),
+\emph{single-sort}, \emph{multi-variable}, \emph{named-variable}
+QBS-mirror calculus --- the modern PPL surface in the style of
+Saito and Affeldt's APLAS 2023 named-variable
+embedding\footnote{Saito and Affeldt, \emph{Towards a practical embedding
+of a probabilistic programming language in Coq}, APLAS 2023.}. It is
+defined once in \texttt{theories/programs/ppl.v} and consumed by
+\emph{two} interpreters: the linhom-valued CBV interpreter of
+\texttt{theories/programs/ppl\_cbv.v} described in this chapter, and
+the SCones-valued CBN interpreter of \texttt{theories/programs/ppl\_cbn*.v}
+of \autoref{ch:cbn}. The shared surface programs
+(\texttt{theories/programs/examples.v}) include
+\rocq{Icones.programs.examples.ex_random_constant} (the QBS
+distribution-over-a-function-space example),
+\rocq{Icones.programs.examples.ex_random_linear} (a distribution over
+$\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$), the
+prior/score/observe Bayesian example
+\rocq{Icones.programs.examples.ex_bayes_linear}, and the recursive
+\rocq{Icones.programs.examples.ex_loop} / \texttt{ex\_geom} /
+\texttt{ex\_almost\_loop}.
 
 \paragraph{Where the material lives.}
 \texttt{theories/homs/em\_cat.v} (the EM category, the cofree functor and
@@ -238,19 +258,25 @@ the cofree/forgetful adjunction), \texttt{theories/homs/em\_seely\_comonoid.v}
 (the Seely comonoid on $\mathord{!}A$ and Melli\`es' conditions
 LC2--LC4), \texttt{theories/homs/em\_cartesian.v} (the \emph{full}
 cartesian $\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$,
-with the unconditional \rocq{Icones.homs.em_cartesian.EMComon_all}),
-\texttt{theories/programs/infra/cbv\_adjunction.v} (the LNL monoidal adjunction
-and the \texttt{CBV\_Model} bundle), \texttt{theories/homs/fmeas\_lax.v}
-(the FMeas lax symmetric monoidal map at the
-\texttt{icones\_hom} level, built on the discharged
+with the unconditional \rocq{Icones.homs.em_cartesian.EMComon_all} and the
+transported comonoid pair \rocq{Icones.homs.em_cartesian.coalg_d} /
+\rocq{Icones.homs.em_cartesian.coalg_e}),
+\texttt{theories/programs/infra/cbv\_adjunction.v} (the LNL monoidal
+adjunction, the cartesian $\eta$-rule
+\rocq{Icones.programs.infra.cbv_adjunction.em_pair_mor_proj_id}, and the
+\texttt{CBV\_Model} bundle), \texttt{theories/homs/fmeas\_lax.v} (the
+FMeas lax symmetric monoidal map at the \texttt{icones\_hom} level,
+built on the discharged
 \rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}),
-\texttt{theories/programs/cbv.v} (the first-order CBV calculus and its
-interpretation), \texttt{theories/programs/ppl.v} (the higher-order
-direct-style multi-variable named-variable QBS-mirror calculus), and
-\texttt{theories/programs/examples.v} (the three QBS-style examples
-\texttt{ex\_random\_constant} / \texttt{ex\_random\_linear} /
-\texttt{ex\_bayes\_linear} in surface syntax, with their denotation
-reduction lemmas).
+\texttt{theories/programs/infra/bool\_cone.v} and
+\texttt{theories/programs/infra/bool\_case\_hom.v} (the 2-point boolean
+cone and its universal co-pairing, used by the $\mathtt{ne\_if}$ clause),
+\texttt{theories/programs/ppl.v} (the shared higher-order direct-style
+multi-variable named-variable surface syntax),
+\texttt{theories/programs/ppl\_cbv.v} (the linhom-valued
+comonoid-primitive CBV interpreter), and
+\texttt{theories/programs/examples.v} (the eleven shared surface PPL
+programs consumed by both interpreters).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The Eilenberg--Moore category and the cofree adjunction}%
@@ -567,13 +593,10 @@ The $\beta$-laws \rocq{Icones.homs.em_cartesian.em_proj1_pair} /
 binary product \emph{out of} an arbitrary coalgebra $Z$. To complete the
 cartesian structure we also need the $\eta$-rule
 $\langle \pi_1, \pi_2 \rangle = \mathrm{id}$ at the linear level
-$\ICones$. This is genuinely additional content --- it is
-\textbf{Fox's 1976 theorem} that the EM category of a linear-exponential
-comonad is cartesian under the linear tensor (Melli\`es Proposition 28,
-icones level\footnote{The icones-level statement of the cartesian
-$\eta$-rule has, to our knowledge, no published machine-checked
-formalisation; this is the first Coq / Rocq proof we are aware of.}).
-The proof follows the same retract-and-lift recipe as
+$\ICones$. This is genuinely additional content --- Fox's 1976 theorem
+that the EM category of a linear-exponential comonad is cartesian
+under the linear tensor (Melli\`es Proposition 28 at the icones
+level). The proof follows the same retract-and-lift recipe as
 \autoref{lem:cbv-emcomon-all}: reduce to the cofree case, then transport
 along the retraction.
 
@@ -729,119 +752,42 @@ $\mathord{!}$-coalgebras as the cartesian non-linear / value side.
 \end{proof}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{A first-order CBV calculus in the model}\label{sec:cbv-calculus}
+\section{From the Moggi-CBV monad to the linhom-valued reading}%
+\label{sec:cbv-calculus}
 
-With \autoref{thm:cbv-model} the model is built; this section interprets
-a small first-order CBV calculus into it, as the minimal Moggi-CBV
-demonstration. The higher-order companion using the EM(!)
-Kleisli exponentials follows in \autoref{sec:cbv-ppl}. The deliverable here is a sound
-compositional semantics with the probabilistic primitive
-$\mathtt{sample}$ wired to the Theorem-9.7 integral, not an
-adequacy/normalization theorem.
+An earlier iteration of the formalisation accompanied
+\autoref{thm:cbv-model} with a small first-order Moggi-CBV calculus
+(intrinsically-typed Rocq inductives for unit, a measurable base
+$\base\,X$, and binary products; values, computations
+$\creturn V$ / $\clet x = M \mathbin{\mathtt{in}} N$ / $\csample V$),
+interpreted into the CBV monad $T = \widetilde{\mathord{!}} \circ U$
+of \autoref{thm:cbv-cofree-adj} with its Kleisli composition and
+its $\mathtt{tunit\_eta}$ unit. That presentation has been retired:
+the file \texttt{theories/programs/cbv.v} (which carried
+$\mathtt{Tobj}$, $\mathtt{tunit\_eta}$, $\mathtt{kcomp}$, $\mathtt{kbind\_ext}$
+and the three monad laws) is no longer part of the codebase, subsumed
+by the linhom-valued, comonoid-primitive reading of
+\autoref{sec:cbv-ppl}.
 
-\paragraph{The calculus.}
-Intrinsically-typed Rocq inductives. Types are unit, a measurable base
-type $\base\,X$ for $X \in \mathbf{Ar}$, and binary products. Values are
-variables, the unit value, pairs and projections. Computations are
-$\creturn V$, $\clet x = M \mathbin{\mathtt{in}} N$, and the
-probabilistic primitive $\csample V$ on a value of base type.
-
-\paragraph{The interpretation.}
-Types denote coalgebras: $\base\,X \mapsto \FMeas(X)$ (the Thm-9.7
-coalgebra), $\mathtt{1} \mapsto \EMterm$, $s \times t \mapsto
-\EMprod\,\sem{s}\,\sem{t}$. The CBV \emph{computation monad} is the
-monad induced by the adjunction
-$U \dashv \widetilde{\mathord{!}}$ of \autoref{thm:cbv-cofree-adj}:
-$T = \widetilde{\mathord{!}} \circ U$
-(\rocq{Icones.programs.cbv.Tobj}), with unit
-\rocq{Icones.programs.cbv.tunit_eta} (the adjunction unit) and Kleisli
-composition \rocq{Icones.programs.cbv.kcomp}. Values denote
-coalgebra-homomorphisms $\sem{\Gamma \vdash V : t} :
-\sem{\Gamma} \to \sem{t}$ (\rocq{Icones.programs.cbv.vlD}); computations
-denote homomorphisms $\sem{\Gamma \vdash M : t} :
-\sem{\Gamma} \to T\,\sem{t}$ (\rocq{Icones.programs.cbv.cpD}). Both are
-total by structural recursion --- the well-definedness half of
-soundness.
-
-\begin{theorem}[Soundness]\label{thm:cbv-soundness}
-\rocq{Icones.programs.cbv.kcomp_etaR}\rocqok
-\rocq{Icones.programs.cbv.kcomp_etaL}\rocqok
-\rocq{Icones.programs.cbv.kcomp_A}\rocqok
-\rocq{Icones.programs.cbv.vlD_fst_pair}\rocqok
-\rocq{Icones.programs.cbv.vlD_snd_pair}\rocqok
-\rocq{Icones.programs.cbv.cpD_sample_var_dirac}\rocqok
-\uses{thm:cbv-model}
-The interpretation $\sem{-}$ validates:
-\begin{enumerate}
-  \item The three monad laws for $T$ ---
-    \rocq{Icones.programs.cbv.kcomp_etaR},
-    \rocq{Icones.programs.cbv.kcomp_etaL},
-    \rocq{Icones.programs.cbv.kcomp_A} --- which give the standard
-    $\mathtt{let}$ equations at term level
-    (\rocq{Icones.programs.cbv.cpD_let_retvar},
-    \rocq{Icones.programs.cbv.cpD_letret},
-    \rocq{Icones.programs.cbv.cpD_letassoc}).
-  \item The product $\beta$-laws
-    \rocq{Icones.programs.cbv.vlD_fst_pair} /
-    \rocq{Icones.programs.cbv.vlD_snd_pair}.
-  \item \textbf{$\mathtt{sample}$ is the integral.} On a Dirac
-    value, $\sem{\csample \delta_r}$ is the promoted point $(\delta_r)!$
-    --- \rocq{Icones.programs.cbv.cpD_sample_var_dirac} ---, and the general
-    case agrees with the Thm-9.7 Coalg structure map
-    \rocq{Icones.programs.cbv.cpD_sample_mor} /
-    \rocq{Icones.programs.cbv.cpD_sample_is_integral}, which is in turn the
-    integration-of-Diracs map of $\FMeas$ (the
-    \rocq{Icones.homs.coalgebra.Coalg_dirac} +
-    \rocq{Icones.homs.coalgebra.dirac_dense} engine of Theorem 9.7).
-\end{enumerate}
-\end{theorem}
-
-\begin{proof}
-The monad laws come from the adjunction U\,$\dashv$\,$\widetilde{!}$ via
-$\mathrm{adj\_phi}$ being functorial $\mathbf{Kleisli}(T) \to \ICones$
-(\rocq{Icones.programs.cbv.adj_phi_kcomp}); the product $\beta$-laws come
-from the projection $\beta$-laws of \autoref{thm:cbv-cartesian}; the
-$\mathtt{sample}$ semantics comes from
-\rocq{Icones.homs.coalgebra.Coalg_dirac} on the base case and from the
-identification of \rocq{Icones.homs.coalgebra.Coalg} with the
-integration-of-Diracs map otherwise.
-\end{proof}
-
-\paragraph{A worked example.}
-The program below exercises $\csample$, $\clet$-sequencing, pairing, and
-the unit value in one well-typed first-order term:
-\[
-   \Gamma \;=\; x : \base\,X
-   \;\;\vdash\;\;
-   \clet\,y = \csample\,x\,\mathtt{in}\,\creturn(y, ())
-   \;\;:\;\;
-   (\base\,X) \times \mathtt{1}.
-\]
-In the calculus's intrinsic syntax this is
-\rocq{Icones.programs.cbv.ex_prog}, of type
-$\mathtt{cp}\,(\base\,X)\,(\base\,X \times \mathtt{1})$, and its
-denotation
-\rocq{Icones.programs.cbv.ex_denot} : $\mathtt{coalg\_hom}\,\FMeas(X)\,
-(T\,(\EMprod\,\FMeas(X)\,\EMterm))$
-is total by construction (\rocq{Icones.programs.cbv.cpD}).
-\begin{lemma}[Reduction of the worked example]%
-\label{lem:cbv-example}
-\rocq{Icones.programs.cbv.ex_denot_E}\rocqok
-\uses{thm:cbv-soundness}
-On a measure type the $\mathord{!}$-induced monad identifies
-$\csample$ with $\creturn$ (\rocq{Icones.programs.cbv.cpD_sample_ret}), so
-the left-unit law collapses the binder and
-$\sem{\mathtt{ex\_prog}}$ rewrites to the continuation pairing-with-unit,
-precomposed with the value $x$.
-\end{lemma}
-\begin{proof}
-\rocq{Icones.programs.cbv.cpD_sample_ret} rewrites
-$\csample\,V$ as $\creturn\,V$ on a value of base type; the
-$\mathtt{let}$/$\mathtt{return}$ left-unit law
-(\rocq{Icones.programs.cbv.cpD_letret}, from
-\rocq{Icones.programs.cbv.kcomp_etaL} of \autoref{thm:cbv-soundness})
-then collapses the binder.
-\end{proof}
+The two presentations agree on the underlying \emph{denotation} of
+every closed term of the first-order calculus, but differ on the
+\emph{shape} of the recursion. The Kleisli-monad reading interprets
+every term as a coalgebra morphism into $T\,\sem{\tau}$ and recovers
+identification rules ($\mathtt{let}$/$\mathtt{return}$, sample = the
+integral) as monad-equational consequences. The linhom-valued reading
+interprets every term as a \emph{linear} morphism
+$U\sem{\Gamma} \to U\sem{\tau}$ (with no $T$ on the codomain) and
+realises the sequencer $\mathtt{ne\_let}$, the pairing $\mathtt{ne\_pair}$
+and the application $\mathtt{ne\_app}$ from the comonoid pair
+$(\delta_\Gamma, \varepsilon_\Gamma)$ of every context coalgebra. The
+$\mathord{!}$-induced monad on a measure type collapses the
+$\csample V$ vs $\creturn V$ identification automatically: at
+$\base\,X \mapsto \FMeas(X)$ the underlying iCone already carries
+the Dirac inclusion, so a probabilistic sample from a Dirac and the
+implicit return of its scalar value share the same linear morphism into
+$\FMeas(X)$. The first-order calculus is therefore subsumed by the
+higher-order linhom-valued interpreter of \autoref{sec:cbv-ppl}, and
+no separate Moggi-CBV soundness theorem is recorded.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The boolean cone and the if-then-else combinator}%
@@ -955,245 +901,170 @@ pieces; the linhom-level decomposition lemma is
 \rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen_alpha_beta}.
 \end{definition}
 
-\begin{definition}[$\mathtt{case\_em}$ --- the EM(!) Kleisli
+\begin{definition}[$\mathtt{if\_icones}$ --- the linhom-level
 if-then-else combinator]\label{def:cbv-case-em}
-\rocq{Icones.programs.ppl.case_em}\rocqok
+\rocq{Icones.programs.ppl_cbv.if_icones}\rocqok
 \uses{def:cbv-bool-case-hom, thm:cbv-cofree-adj, thm:cbv-cartesian}
-Given a coalgebra context $G$, an EM(!) type $A$, and two branches
-$a, b : \mathtt{coalg\_hom}\,(\mathtt{EM\_prod}\,G\,(\mathtt{tyD}\,A))\,
-(\mathtt{Tobj}\,(\mathtt{tyD}\,A))$, the combinator
-$\mathtt{case\_em}\,a\,b : \mathtt{coalg\_hom}\,(\mathtt{EM\_prod}\,G\,
-(\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}))\,
-(\mathtt{Tobj}\,(\mathtt{tyD}\,A))$ is built by
-$\mathtt{adj\_phi}$-ing the branches to icones-homs out of
-$U\,\mathtt{EM\_prod}\,G\,(\mathtt{tyD}\,A)$, packaging them
-through $\mathtt{bool\_case\_linhom}$ on the
-$\mathtt{bool\_cone\_car}$ source, tensor-uncurrying and braiding to
-consume the boolean scrutinee, and finally $\mathtt{adj\_psi}$-ing
-back into the codomain. The branches' operator norms are bounded by
-1 by the hom-cone insight ($\mathtt{coalg\_hom}$s of unit-ball
-codomain are automatically norm-$\leq$-1 as icones-homs), so the
-unit-ball hypotheses on the branches in
-\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom} fire on the nose.
+The CBV interpreter of \autoref{sec:cbv-ppl} dispatches
+$\mathtt{ne\_if}$ via the combinator
+\rocq{Icones.programs.ppl_cbv.if_icones}. Given two branches as
+$\mathtt{icones\_hom}$s $m, n : G \to A$ out of a common (carrier of a)
+coalgebra context $G$ and into a common (carrier of a) target
+coalgebra $A$, and a scrutinee
+$b : G \to \widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$, the
+combinator builds the dispatch $\mathtt{if\_icones}\,m\,n\,b : G \to A$
+by the recipe
+\begin{enumerate}
+  \item view the branches as norm-$\leq$-1 linhoms
+    $G \multimap A$ via \rocq{Icones.homs.seely.icones_to_linhom};
+  \item co-pair through
+    \rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom} into a
+    norm-$\leq$-1 linhom
+    $\mathtt{bool\_cone\_car} \multimap (G \multimap A)$;
+  \item bridge back to an $\mathtt{icones\_hom}$ via
+    \rocq{Icones.homs.seely.linhom_icones};
+  \item SAFT-uncurry into $\mathtt{bool\_cone\_car} \otimes G \to A$;
+  \item pre-compose with $(\mathrm{id}_G \otimes \mathrm{der})$ then a
+    braid, taking $G \otimes \widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$
+    to $\mathtt{bool\_cone\_car} \otimes G$;
+  \item pair $\mathrm{id}_G$ with the scrutinee through
+    $\mathtt{em\_pair\_mor}$
+    (\rocq{Icones.homs.em_cartesian.em_pair_mor}) to land at the
+    target $G \to A$.
+\end{enumerate}
+The branches' norm-$\leq$-1 status comes for free from the
+$\mathtt{icones\_hom}$ packaging (every icones-hom has operator norm
+at most one), so the unit-ball hypotheses on
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom} fire on the
+nose. The earlier coalg-valued $\mathtt{case\_em}$ combinator of the
+deleted \texttt{case\_em\_red.v} (Kleisli-reduction) is no longer
+needed: in the linhom-valued reading the branches are bare linear
+morphisms into the target's underlying iCone, and the dispatch closes
+without a Kleisli round-trip.
 \end{definition}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{The CBV value-fixpoint at function types}\label{sec:cbv-yfix-fun}
+\section{The CBV value-fixpoint at function types: placeholder}%
+\label{sec:cbv-yfix-fun}
 
-\paragraph{This section is beyond the paper.}
+\paragraph{Current status: placeholder.}
 The fixpoint operators of paper \S9.2
 (\rocq{Icones.stable.fixpoint.lfp}, \rocq{Icones.stable.fixpoint.Yfix})
 live on $\mathbf{SCones}$ (the cartesian-closed / CBN side) and operate
-on stable maps. To support the OCaml-style $\mathtt{let\,rec}$ of the
-direct-style PPL (\autoref{sec:cbv-ppl}), we add a \emph{CBV
-value-fixpoint at function types} on $\ICones$: a fixpoint of an
-endo-operator on the \emph{function-value} cone, packaged as a
-$\mathtt{coalg\_hom}$ via the cofree adjunction.
+on stable maps. A CBV value-fixpoint at function types --- a Kleene
+fixpoint of an endo-operator on the function-value linhom-cone
+$U\sem{A} \multimap U\sem{B}$, packaged into the
+$\widetilde{\mathord{!}}$-wrap that is $\sem{\mathtt{tfun}\,A\,B}$ ---
+is the natural cones-side analogue, but has \emph{not} been ported to
+the clean linhom-valued reading of \autoref{sec:cbv-ppl}. The PPL
+constructors \rocq{Icones.programs.ppl.ne_fix} and
+\rocq{Icones.programs.ppl.ne_fix_mr} are interpreted in the current
+\rocq{Icones.programs.ppl_cbv.eD} by the constant zero
+$\mathtt{precone\_zero}$ icones-hom out of the context, packaged via
+\rocq{Icones.programs.ppl.const_icones} into the function-value
+coalgebra. This is honest scope, surfaced as an inline placeholder in
+\rocq{Icones.programs.ppl_cbv.eD_cbv}, and the rest of the interpreter
+type-checks around it.
 
-\begin{remark}[Folklore, but new in machine-checked form]
-The CBV value-fixpoint at function types is, to our knowledge, not
-established in the literature as a formal theorem at the icones / EM(!)
-level. Per consultation with P.-A. Melli\`es (2026-05-31), it is
-\emph{folklore} --- well-understood as a recipe but not published. To
-our knowledge this is the first Coq / Rocq formalisation.
-\end{remark}
-
-\begin{lemma}[$\omega$-continuity prerequisites]\label{lem:cbv-yfix-cont}
-\rocq{Icones.programs.infra.em_continuity.linhom_post_icones_sup}\rocqok
-\rocq{Icones.programs.infra.em_continuity.linhom_pre_icones_sup}\rocqok
-\rocq{Icones.programs.infra.em_continuity.bang_fmap_lin_omega_cont}\rocqok
-\rocq{Icones.programs.infra.em_continuity.prom_omega_cont}\rocqok
-\rocq{Icones.programs.infra.em_continuity.tensor_mor_omega_cont_R}\rocqok
-\rocq{Icones.programs.infra.em_continuity.tensor_mor_R_lin_incr}\rocqok
-\uses{def:icone, thm:thm515}
-At the $\mathtt{linhom\_car}$ level, the supremum of an
-$\omega$-chain in the unit ball commutes with post-composition by an
-$\ICones$ morphism, with pre-composition by an $\ICones$ morphism, with
-$\mathtt{bang\_fmap}$ of a linear map, and with the $\mathtt{prom}$-style
-action; the right-tensor action $\mathtt{tensor\_mor}\,(\mathrm{id},\,\cdot)$
-is $\omega$-continuous and monotone in its right argument. These are
-the workhorses that let the Kleene supremum of the fixpoint iteration
-pass through the $\mathtt{is\_coalg\_mor}$ equation.
-\end{lemma}
-
-\begin{definition}[The Kleene iteration $\Phi_{\mathrm{fun}}$ at the
-linhom level]\label{def:cbv-phi-fun}
-\rocq{Icones.programs.infra.em_fix.Phi_fun}\rocqok
-\rocq{Icones.programs.infra.em_fix.extract_fun}\rocqok
-\uses{def:cbv-cofree, lem:cbv-yfix-cont}
-Fix coalgebras $G, A, B$ (the ambient context, the argument type, the
-result type). Set $L = U A \multimap U(T B)$ for the CBV monad
-$T = \widetilde{\mathord{!}} \circ U$ (the Kleisli exponential) and
-$\mathtt{funT} = \widetilde{\mathord{!}}\,L$ (the function-value coalgebra
-$\sem{\mathtt{tfun}\,A\,B}$). For a body
-$M : \mathtt{coalg\_hom}\,(\mathtt{EM\_prod}\,G\,\mathtt{funT})\,
-(\mathtt{Tobj}\,\mathtt{funT})$ (the body of the
-$\mathtt{fix\,s.\,\lambda x.\, \ldots}$, evaluated in the extended
-context that binds the self-reference $s$), define the Kleene
-iteration $\Phi_{\mathrm{fun}}$ on
-$\mathtt{linhom\_car}\,(\mathtt{coalg\_obj}\,G)\,(\mathtt{coalg\_obj}\,
-\mathtt{funT})$ by
+\paragraph{Planned recipe.}
+The intended construction is a Kleene iteration on the unit-ball
+$\omega$-CPO of \rocq{Icones.homs.linhom.linhom_car}, mirroring the
+SCones-side \rocq{Icones.stable.fixpoint.Yfix} of
+\autoref{ch:stable}. For coalgebras $G$ (the ambient context),
+$A$ and $B$ (the argument and result types), set
+$L = U\sem{A} \multimap U\sem{B}$ (the function-value cone of the
+linhom-valued reading, with no $\widetilde{\mathord{!}} \circ U$ wrap
+on $B$) and $\mathtt{funT} = \widetilde{\mathord{!}}\,L$
+(the function-value coalgebra $\sem{\mathtt{tfun}\,A\,B}$). For a body
+$M : \mathrm{linhom}\bigl(U\sem{G} \otimes U\,\mathtt{funT},\,L\bigr)$
+(the body of the $\mathtt{fix\,s.\,\lambda x.\, \ldots}$, evaluated in
+the extended context that binds the self-reference $s$), the iteration
 \[
-  \Phi_{\mathrm{fun}}(\mathit{prev})
+  \Phi(\mathit{prev})
   \;=\;
-  \mathtt{bang\_fmap}\,(\mathrm{der}_L)
+  M
     \;\circ\;
-    \mathtt{ch\_mor}\,M
+    \mathtt{tensor\_mor}\,(\mathrm{id}_G,\,\mathrm{prom}\,\mathit{prev})
     \;\circ\;
-    \mathtt{tensor\_mor}\,(\mathrm{id}_G,\,\mathit{prev})
-    \;\circ\;
-    \mathtt{coalg\_d}\,G,
+    \delta_G
 \]
-where $\mathtt{extract\_fun} = \mathtt{bang\_cofree\_hom}\,(\mathrm{der}_L)$
-is the value-cone extraction (the coalgebra-morphism unfolding of the
-recursive reference). $\Phi_{\mathrm{fun}}$ is unit-ball preserving,
-monotone in $\mathit{prev}$, and $\omega$-continuous by
-\autoref{lem:cbv-yfix-cont}.
-\end{definition}
+takes a previous approximant in
+$\mathrm{linhom}(U\sem{G},\,L)$, duplicates the context through
+$\delta_G = \mathtt{coalg\_d}\,G$, promotes the approximant into
+$\mathtt{funT}$ on the second copy, and runs $M$. The Kleene fixpoint
+is the unit-ball supremum of the iterates from
+$\bot = \mathtt{precone\_zero}$; cofree $\mathtt{adj\_psi}$ then wraps
+the result into the coalgebra carrier $\mathtt{funT}$.
 
-\begin{lemma}[The Kleene fixpoint
-$\mathtt{Yfix\_fun\_lin}$]\label{lem:cbv-yfix-lin}
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin}\rocqok
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_norm_le1}\rocqok
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_fixpoint}\rocqok
-\uses{def:cbv-phi-fun}
-The Kleene supremum of the iterates of $\Phi_{\mathrm{fun}}$ from
-$\bot$ gives $\mathtt{Yfix\_fun\_lin} \in
-\mathtt{linhom\_car}\,(\mathtt{coalg\_obj}\,G)\,
-(\mathtt{coalg\_obj}\,\mathtt{funT})$ with
-$\cnorm{\mathtt{Yfix\_fun\_lin}} \leq 1$ and
-$\Phi_{\mathrm{fun}}\,(\mathtt{Yfix\_fun\_lin}) =
-\mathtt{Yfix\_fun\_lin}$.
-\end{lemma}
+The previous formalisation packaged this construction through the
+Moggi monad $T = \widetilde{\mathord{!}} \circ U$ on the codomain --- a
+linhom-level $\mathtt{Yfix\_fun\_lin}$ followed by an
+$\mathtt{adj\_psi}$ wrap as $\mathtt{Yfix\_fun\_T}$ in the now-deleted
+\texttt{theories/programs/infra/em\_fix.v}, and a Bang-level variant
+$\mathtt{Yfix\_arr}$ in the now-deleted
+\texttt{theories/programs/infra/em\_fix\_arr.v}, both relying on the
+$\omega$-continuity scaffolding of the now-deleted
+\texttt{theories/programs/infra/em\_continuity.v}. All three were
+tied to the deprecated Kleisli-exponential codomain
+$U(T\,B)$ and have been removed.
 
-\begin{theorem}[$\mathtt{Yfix\_fun\_T}$ --- the CBV value-fixpoint
-at function types]\label{thm:cbv-yfix-fun}
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_T}\rocqok
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_T_mor}\rocqok
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_T_unfolding}\rocqok
-\uses{lem:cbv-yfix-lin, thm:cbv-cofree-adj}
-The linhom-level fixpoint $\mathtt{Yfix\_fun\_lin}$ packages, via
-$\mathtt{adj\_psi}$ of the cofree adjunction
-(\autoref{thm:cbv-cofree-adj}) applied to the
-$\mathtt{linhom\_icones}$-bridged norm-$\leq$-1 icones-hom, into a
-\emph{coalgebra} morphism
-\[
-  \mathtt{Yfix\_fun\_T}\,M
-  \;:\;
-  \mathtt{coalg\_hom}\,G\,(\mathtt{Tobj}\,\mathtt{funT}).
-\]
-$\mathtt{adj\_psi}$ is unconditionally available on any norm-$\leq$-1
-icones-hom, so no separate $\mathtt{is\_coalg\_mor}$ obligation arises.
-This is the cones-side semantic primitive used by the PPL constructor
-$\mathtt{ne\_fix}$ (\autoref{sec:cbv-ppl}).
-\end{theorem}
-
-\begin{proof}
-The fixpoint $\mathtt{Yfix\_fun\_lin}\,M$ is constructed by
-\autoref{lem:cbv-yfix-lin}; the norm bound gives a
-$\mathtt{linhom\_icones}$-packaged icones-hom of norm $\leq 1$, on
-which $\mathtt{adj\_psi}$ produces the coalg-hom
-$\mathtt{Yfix\_fun\_T}\,M$ in $\mathtt{coalg\_hom}\,G\,
-(\widetilde{\mathord{!}}\,L) = \mathtt{coalg\_hom}\,G\,
-(\mathtt{Tobj}\,\mathtt{funT})$.
-\end{proof}
+\paragraph{What this implies for the recursive programs.}
+The recursive examples \rocq{Icones.programs.examples.ex_loop},
+\rocq{Icones.programs.examples.ex_geom} and
+\rocq{Icones.programs.examples.ex_almost_loop} still type-check as
+surface programs; their CBV denotations through
+\rocq{Icones.programs.ppl_cbv.eD} are not the operational limits one
+would expect, since $\mathtt{ne\_fix}$ resolves to
+$\mathtt{precone\_zero}$ at the fixpoint slot. The corresponding
+CBN-side denotations close fully and the CBN mass-one identity
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
+(\autoref{thm:cbn-ex-geom}) is the axiom-free record for the
+geometric program in the cones model; a parallel CBV identity is
+pending the Kleene port above.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{A higher-order direct-style QBS-mirror PPL via EM(!) Kleisli exponentials}%
+\section{The higher-order direct-style PPL: linhom-valued interpretation}%
 \label{sec:cbv-ppl}
 
-\autoref{sec:cbv-calculus} stops at first order; the higher-order
-companion lives in \texttt{theories/programs/ppl.v} and faithfully
-ports the \texttt{ppl} branch of \texttt{LLM4Rocq/mathcomp-qbs} (the
-QBS-based PPL) to the cones model, in the surface style of
-Saito and Affeldt's APLAS 2023 named-variable
-embedding\footnote{Saito and Affeldt, \emph{Towards a practical embedding
-of a probabilistic programming language in Coq}, APLAS 2023.}.
-It is the modern PPL surface --- \emph{direct-style} in the
-Plotkin/Girard sense (no value/computation term split, no
-$\mathtt{tprob}$ type marker, no syntactic $\mathtt{return}$, no
-$\mathtt{bind}$; the probability monad lives entirely in the
-interpretation $\mathtt{eD}$ and in the $T$ on the codomain of
-$\sem{\mathtt{tfun}\,A\,B}$), \emph{single sort} (one inductive
-$\texttt{named\_expr}$, one type indicator $\texttt{ty}$),
-\emph{multi-variable} and \emph{named} (intrinsically-typed contexts
-$\mathtt{named\_ctx} := \mathtt{seq}\,(\mathtt{string}
-\times \mathtt{ppl\_type}\,\mathbf{Ar})$ with a string identifier at
-every binding slot) --- interpreted into the EM(!) Kleisli-exponential
-structure for the CBV monad $T = \widetilde{\mathord{!}} \circ U$. All
-axiom-free.
+The clean CBV interpreter \texttt{theories/programs/ppl\_cbv.v}
+interprets the shared surface inductive
+\rocq{Icones.programs.ppl.named_expr} as a \emph{linear} morphism in
+$\ICones$, not as a coalgebra morphism. The shape of every clause is
+fixed by the SMC primitives (tensor, braid, unitors, identity,
+composition) and by the commutative-comonoid pair
+$(\delta_\Gamma, \varepsilon_\Gamma) =
+(\mathtt{coalg\_d}, \mathtt{coalg\_e})$ carried by every
+$\mathord{!}$-coalgebra (Melli\`es Prop 28 / Cor 20,
+\rocq{Icones.homs.em_cartesian.EMComon_all}). The cofree
+$\widetilde{\mathord{!}}$ surfaces at exactly two clauses, both on the
+function type: $\mathtt{ne\_lam}$ wraps via $\mathtt{adj\_psi}$, and
+$\mathtt{ne\_app}$ unwraps via $\mathrm{der}$.
 
-\paragraph{The calculus.}
-Types (\rocq{Icones.programs.ppl.ppl_type}) are
-$\mathtt{tunit}$, $\mathtt{tbase}\,X$ for $X \in \mathbf{Ar}$,
-$\mathtt{tprod}\,t_1\,t_2$, the function type
-$\mathtt{tfun}\,A\,B$, and the boolean type $\mathtt{tbool}$ (the cofree
-coalgebra over the 2-point sub-probability cone of
-\autoref{def:cbv-bool-cone}) --- that's all: \emph{no} $\mathtt{tprob}$
-type-level marker (the previous iteration of this calculus carried one
-as a purely syntactic tag; the direct-style refactor drops it, moving
-the monad entirely into the interpretation $\mathtt{eD}$ and the
-codomain of $\sem{\mathtt{tfun}\,A\,B}$). A named-variable witness
-\rocq{Icones.programs.ppl.named_var} indexes the variables of a
-context $\Gamma : \mathtt{named\_ctx}$ (a list of
-(string, type) pairs). A single intrinsically typed inductive
-\rocq{Icones.programs.ppl.named_expr} carries every term, with the
-constructors falling into three groups:
-\begin{itemize}
-  \item \emph{pure}: \rocq{Icones.programs.ppl.ne_var},
-    \rocq{Icones.programs.ppl.ne_tt},
-    \rocq{Icones.programs.ppl.ne_pair},
-    \rocq{Icones.programs.ppl.ne_fst},
-    \rocq{Icones.programs.ppl.ne_snd},
-    \rocq{Icones.programs.ppl.ne_lam} (lambda, with a string binder;
-    body is just another \texttt{named\_expr} in the extended named
-    context --- \emph{not} marked as a computation), the \emph{direct}
-    application \rocq{Icones.programs.ppl.ne_app},
-    \rocq{Icones.programs.ppl.ne_fix} (OCaml-style $\mathtt{let\,rec}$
-    recursion, \emph{restricted to function types}; semantically the
-    CBV value-fixpoint \rocq{Icones.programs.infra.em_fix.Yfix_fun_T} of
-    \autoref{thm:cbv-yfix-fun}),
-    \rocq{Icones.programs.ppl.ne_real} (real literal at $r : R$, type
-    \texttt{tR}), \rocq{Icones.programs.ppl.ne_add} and
-    \rocq{Icones.programs.ppl.ne_mul} (pointwise sum and product on
-    \texttt{tR}-valued computations),
-    \rocq{Icones.programs.ppl.ne_true} and
-    \rocq{Icones.programs.ppl.ne_false} (boolean constants of type
-    $\mathtt{tbool}$);
-  \item \emph{sequencer}: \rocq{Icones.programs.ppl.ne_let} (direct-style
-    CBV $\mathtt{let}\,x = M\,\mathtt{in}\,K$ with a string binder;
-    semantically the extended-context Kleisli bind
-    \rocq{Icones.programs.ppl.kbind_ext}). Note that
-    $\mathtt{ne\_let}$ is the direct-style CBV sequencer of Plotkin/Girard
-    --- it carries no $\mathtt{tprob}$ tag on either argument's type;
-  \item \emph{effects}: \rocq{Icones.programs.ppl.ne_sample} (sample from
-    a unit-ball measure $\mu : \FMeas(R_{\mathrm{obj}})$ --- DIRECT STYLE:
-    returns a PURE $\mathtt{tR}$ expression, the monad is hidden in
-    $\mathtt{eD}$), \rocq{Icones.programs.ppl.ne_bernoulli} (sample from
-    the 2-point sub-probability distribution $(p, 1-p)$ on
-    $\mathtt{bool\_cone\_car}$ of \autoref{def:cbv-bool-cone}, returning
-    a PURE $\mathtt{tbool}$ expression),
-    \rocq{Icones.programs.ppl.ne_if} (boolean elimination
-    $\mathtt{if}\,e\,\mathtt{then}\,M\,\mathtt{else}\,N$ with
-    $e : \mathtt{tbool}$, semantically dispatched via the
-    \rocq{Icones.programs.ppl.case_em} combinator of
-    \autoref{def:cbv-case-em}),
-    \rocq{Icones.programs.ppl.ne_score} (term-level score
-    by $f(r)$, with $f : \mathbb{R} \to \mathbb{R}$ measurable and
-    pointwise in $[0,1]$, $r$ the value of a
-    \texttt{named\_expr}~$\Gamma$~\texttt{tR} --- DIRECT STYLE: returns a
-    PURE $\mathtt{tunit}$ expression; the load-bearing constructor for
-    genuine Bayesian inference, where the score factor depends on a bound
-    variable).
-\end{itemize}
-There is no separate value/computation syntactic class, no \texttt{vl}
-/ \texttt{cp} split, no mutual induction, and no $\mathtt{Ret}$ /
-$\mathtt{return}$ syntax. The monadic structure is in the
-\emph{interpretation}, not the source.
+\paragraph{Why linhom-valued and not coalgebra-morphism-valued.}
+Probabilistic programs do not in general commute with the
+$\widetilde{\mathord{!}}$-coalgebra duplicability structure carried by
+their source contexts; a probabilistic sample-then-pair has a different
+denotation than a pair-then-sample. The minimal witness is the
+let-then-pair fragment
+\[
+  \mathtt{let}\,x = \mathtt{sample}\,\mu\,\mathtt{in}\,(x, x)
+  \;:\;
+  \mathtt{tprod}\,\mathtt{tR}\,\mathtt{tR},
+\]
+whose share-then-measure denotation pushes $\mu$ along the diagonal
+$r \mapsto (r, r)$ and whose measure-then-pair denotation is the
+cartesian product measure $\mu \times \mu$; the two coincide iff $\mu$
+is a Dirac. The Theorem-9.7 coalgebra structure on $\FMeas$ encodes
+exactly the duplicability of shared samples, so a denotation that
+\emph{is} a coalgebra morphism would force the share-then-measure
+behaviour. The linhom-valued reading leaves the choice open: the
+interpreter places no duplicability requirement on the denotation, and
+the share-then-measure rule is the one a CBV-style let in fact gives.
 
-\paragraph{The interpretation.}
-The type interpretation \rocq{Icones.programs.ppl.tyD} sends every
-type to a coalgebra of $\mathrm{EM}(\mathord{!})$:
+\paragraph{Types and contexts.}
+The type interpretation
+\rocq{Icones.programs.ppl_cbv.tyD_cbv} sends every type to a coalgebra
+of $\mathrm{EM}(\mathord{!})$:
 \[
   \begin{array}{r@{\;\;=\;\;}l}
     \sem{\mathtt{tunit}}      & \EMterm \\
@@ -1202,110 +1073,187 @@ type to a coalgebra of $\mathrm{EM}(\mathord{!})$:
     \sem{\mathtt{tprod}\,t_1\,t_2}
                               & \EMprod\,\sem{t_1}\,\sem{t_2} \\
     \sem{\mathtt{tfun}\,A\,B} &
-        \widetilde{\mathord{!}}\,(U\sem{A} \multimap U(T\,\sem{B}))
-        \quad\text{(the Kleisli exponential)} \\
-    \sem{\mathtt{tbool}}      & \widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}
-        \quad\text{(the cofree coalgebra over \autoref{def:cbv-bool-cone}).}
+        \widetilde{\mathord{!}}\bigl(U\sem{A} \multimap U\sem{B}\bigr)
+        \quad\text{(single $\widetilde{\mathord{!}}$, no $T$ on $B$)} \\
+    \sem{\mathtt{tbool}}      &
+        \widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}
+        \quad\text{(placeholder, see remark below).}
   \end{array}
 \]
-The $T = \widetilde{\mathord{!}} \circ U$ on the codomain of
-$\sem{\mathtt{tfun}\,A\,B}$ is what makes the source-language function
-type a genuine CBV function type: every call is potentially effectful,
-and \emph{every} expression's denotation is uniformly a Kleisli arrow
-(\rocq{Icones.programs.ppl.eD}):
-$\sem{\Gamma \vdash M : t} : \mathtt{coalg\_hom}\,
-(\sem{\mathtt{drop\_names}\,\Gamma})\,(T\,\sem{t})$, by structural
-recursion \emph{directly} on $\mathtt{named\_expr}$. The pure
-constructors ($\mathtt{ne\_var}$, $\mathtt{ne\_tt}$, $\mathtt{ne\_lam}$,
-$\mathtt{ne\_real}$, the products) become Kleisli arrows by
-post-composition with $\mathtt{tunit\_eta}$ (the implicit return of
-direct-style CBV); the sequencer $\mathtt{ne\_let}$ becomes the
-extended-context Kleisli bind $\mathtt{kbind\_ext}$
-(\rocq{Icones.programs.ppl.eD_let}); the effects $\mathtt{ne\_sample}$
-and $\mathtt{ne\_score}$ become the constant and post-composition
-arrows of \autoref{lem:ppl-score-tm-lift}. The monad lives uniformly
-in $\mathtt{eD}$ and in the $T$ on the codomain of
-$\sem{\mathtt{tfun}\,A\,B}$ --- the source language never exposes it.
-Contexts are interpreted by \rocq{Icones.programs.ppl.ctxD}
-right-to-left with the head on the right, on the name-stripped skeleton
-\rocq{Icones.programs.ppl.drop_names}~$\Gamma$; the
-$\mathtt{named\_var}$ witness in $\mathtt{ne\_var}$ is projected to
-its De Bruijn index by
-\rocq{Icones.programs.ppl.named_var_to_has_var} and then dispatched
-to \rocq{Icones.programs.ppl.var_lookup}.
+Contexts are interpreted by
+\rocq{Icones.programs.ppl_cbv.ctxD_cbv} right-to-left with the head on
+the right, on the name-stripped skeleton
+\rocq{Icones.programs.ppl.drop_names}~$\Gamma$; the variable witness
+in $\mathtt{ne\_var}$ is projected to its De Bruijn index by
+\rocq{Icones.programs.ppl.named_var_to_has_var} and then dispatched to
+\rocq{Icones.programs.ppl_cbv.var_lookup_cbv}, a chain of
+$\pi_1 / \pi_2$ projections over the tensor product context coalgebra.
 
-\paragraph{Why direct-style CBV is possible at all.}
-In older linear-logic / comonad probabilistic models, the function type
-$A \to B$ had no non-linear \emph{value-level} interpretation: the
-linear function space $A \multimap B$ was the only available exponential,
-so call-by-value could only be modelled \emph{monadically} --- function
-types had to be Kleisli arrows $A \to T B$, with $\lambda$ and
-application mediating computations and the monad surfacing explicitly
-at the level of source types (as a $\mathtt{tprob}$ or $T$ marker).
-The cones-side EM(!) cartesian structure unlocked by Corollary 20
-(\rocq{Icones.homs.em_cartesian.EMComon_all}, \autoref{lem:cbv-emcomon-all})
-gives a value-CCC --- the \emph{full} cartesian Eilenberg--Moore
-category of $\mathord{!}$ (\autoref{thm:cbv-cartesian}) --- and in that
-value-CCC the Kleisli exponential
-$\widetilde{\mathord{!}}(U A \multimap U(T B))$ is genuinely a value
-type, so $\mathtt{tfun}\,A\,B$ interprets as a value type with
-$\lambda x.\,M$ a \emph{value} whose body $M$ has type $B$ \emph{at face
-value} (not $T B$). This is what direct-style CBV needs and what older
-models could not offer; the value-CCC structure discharged in Corollary
-20 is the load-bearing structural fact that makes
-\texttt{theories/programs/ppl.v}'s direct-style surface --- no
-$\mathtt{tprob}$ marker, no $\mathtt{Ret}$, no $\mathtt{ne\_bind}$ ---
-possible at all. Concretely, the source-language type
-$\mathtt{tfun}\,A\,B$ interprets as the Kleisli exponential
-$\widetilde{\mathord{!}}(U A \multimap U(T B))$ ---
-\emph{the} source-language function space --- with the $T$ on the
-codomain encoding the fact that every function call is potentially
-effectful in CBV. The monad is moved out of the \emph{source type} and
-into the \emph{interpretation} $\mathtt{eD}$. This is the framing the
-paper's outlook gestures at (``in future work we will explain how this
-model can be used for interpreting call-by-value\ldots''), and the
-direct-style framing the ICones-based PPL inherits.
+The function-type clause is the only place where the source language
+carries a single $\widetilde{\mathord{!}}$. There is no
+$\widetilde{\mathord{!}} \circ U$ Moggi wrap on the codomain $B$: a
+function value is a linear morphism
+$U\sem{A} \multimap U\sem{B}$, and what is duplicable is the
+\emph{value}, not the result of its application. This is the cleanest
+reading the SMCC + EM(!) data of \autoref{thm:cbv-model} support.
 
-\paragraph{Lambda, application, monad.}
-The function-type interpretation
-$\sem{\mathtt{tfun}\,A\,B} = \widetilde{\mathord{!}}(U\sem{A}
-\multimap U(T\,\sem{B}))$ is the representing object for
-$\mathrm{Hom}_{EM}(- \times A,\, T B)$, via the four-step natural
-bijection of \autoref{ch:cbv} (cofree adjunction, $U$ strict
-monoidal, SMCC closure of $\ICones$, cofree adjunction again);
-$\mathtt{ne\_lam}$ is realised by the curry direction
-\rocq{Icones.programs.ppl.lam_coalg} of that chain, and the direct
-$\mathtt{ne\_app}$ by the uncurry-and-evaluate direction
-\rocq{Icones.programs.ppl.app_kleisli} packaged through
-\rocq{Icones.programs.ppl.app_pair}. The direct-style CBV sequencer
-$\mathtt{ne\_let}$ uses the \emph{left tensor strength}
-\rocq{Icones.programs.ppl.T_str_l} of $T$ to keep the environment, and
-is bundled as \rocq{Icones.programs.ppl.kbind_ext}; this is the
-direct-style analogue of monadic $\mathtt{bind}$, used by the
-\rocq{Icones.programs.ppl.eD_let} reduction. No appeal to a
-non-existent cartesian closure of $\mathrm{EM}(\mathord{!})$ is made,
-and no ``$\mathrm{ev}$-is-a-coalgebra-morphism'' obligation arises.
+\begin{remark}[$\mathtt{tbool}$ as a placeholder]\label{rem:cbv-tbool}
+The clause $\sem{\mathtt{tbool}} =
+\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$ uses the cofree
+coalgebra over the 2-point sub-probability cone
+(\autoref{def:cbv-bool-cone}). The intended clause is
+$\FMeas(\mathtt{bool\_meas\_space})$ along the lines of the
+$\mathtt{tbase}$ clause --- this would route $\mathtt{ne\_bernoulli}$
+through the Theorem-9.7 coalgebra on $\FMeas$ and recover shared-sample
+semantics on boolean draws. Realising it requires
+$\mathtt{bool\_meas\_space} : \mathtt{measurableType}\,R$ to be
+exposed as an \rocq{Icones.mcones.ar.ar_obj} of $\mathbf{Ar}$, which is
+a parameter-supplied datum on $\mathbf{Ar}$ rather than a generic
+property; the small stub is not yet in place. The current cofree route
+is structurally adequate (the boolean cascade closes via
+\autoref{def:cbv-case-em}) and matches the placeholder rationale of
+\rocq{Icones.programs.ppl_cbv.tyD_cbv}.
+\end{remark}
 
-\paragraph{The FMeas lax-monoidal map and the arithmetic lifts.}
-The interpretation of $\mathtt{ne\_add}$ / $\mathtt{ne\_mul}$ rests on
-a genuine lax symmetric-monoidal structure for $\FMeas$ at the
-$\ICones$ level (paper \S9), \emph{not} merely a function-level
-pushforward: see \autoref{thm:cbv-fmeas-lax}. With its Dirac identity
-$\mathtt{fmeas\_lax\_dirac}$ in hand, the arithmetic lifts
-\rocq{Icones.programs.ppl.add_lift} and
-\rocq{Icones.programs.ppl.mul_lift} are obtained by post-composing
-$\mathtt{fmeas\_lax}$ with the $\FMeas$-functorial action of the
-measurable $\mathbb{R}\times\mathbb{R}\to\mathbb{R}$ operation
-transported across the carrier cast $R_{\mathrm{obj}} \cong \mathbb{R}$;
-their Dirac reductions $\mathtt{add\_lift\_dirac}$ and
-$\mathtt{mul\_lift\_dirac}$ are immediate corollaries of
-$\mathtt{fmeas\_lax\_dirac}$. The Moggi-Kleisli bind
-$\mathtt{bind}(m, k)(\gamma) = \int k(\gamma, a)\,\mathrm{d}m(\gamma)(a)$
-then makes the QBS-style ``distribution of $\lambda x.\,m\cdot x + b$
-on Dirac inputs'' reading recoverable: the joint pushforward of two
-samples followed by the measurable arithmetic is exactly what
-$\mathtt{fmeas\_lax} \circ (\mathtt{eD}\,M \otimes \mathtt{eD}\,N)$
-implements.
+\paragraph{Term interpretation.}
+The interpretation \rocq{Icones.programs.ppl_cbv.eD} assigns to every
+$\Gamma \vdash M : \tau$ a linhom
+\[
+  \sem{M}
+  \;:\;
+  \mathrm{linhom}\bigl(U\sem{\mathtt{drop\_names}\,\Gamma},\,U\sem{\tau}\bigr),
+\]
+defined by structural recursion through the icones-hom-valued internal
+helper \rocq{Icones.programs.ppl_cbv.eD_cbv}. Composing with
+\rocq{Icones.homs.seely.icones_to_linhom} yields the public linhom; the
+icones-hom variant lets every clause compose cleanly with
+$\mathtt{tensor\_mor}$, $\mathtt{coalg\_d}$, $\mathtt{coalg\_e}$,
+$\mathtt{tensor\_curry}$, $\mathtt{tensor\_uncurry}$. The
+clause-by-clause shape is summarised below; in every line $\sem{M}$ is
+an $\mathtt{icones\_hom}$ from $\sem{\Gamma}$'s carrier to
+$\sem{\tau}$'s carrier.
+
+\begin{itemize}
+  \item $\mathtt{ne\_var}\,v$:
+    \rocq{Icones.programs.ppl_cbv.var_lookup_cbv} of the variable
+    witness $v$ --- a projection chain over the tensor product context.
+  \item $\mathtt{ne\_tt}$: the comonoid counit
+    $\varepsilon_\Gamma = \mathtt{em\_term\_mor}\,\sem{\Gamma}$
+    (\rocq{Icones.homs.em_cartesian.em_term_mor}).
+  \item $\mathtt{ne\_pair}\,M\,N$:
+    $\mathtt{em\_pair\_mor}\,\sem{M}\,\sem{N}$
+    (\rocq{Icones.homs.em_cartesian.em_pair_mor}); the diagonal
+    $\delta_\Gamma = \mathtt{coalg\_d}$ is fired inside
+    $\mathtt{em\_pair\_mor}$ to give each of the two sub-terms its own
+    copy of the context.
+  \item $\mathtt{ne\_fst}\,p$ / $\mathtt{ne\_snd}\,p$: pre-composition
+    with \rocq{Icones.homs.em_cartesian.em_proj1_mor} /
+    \rocq{Icones.homs.em_cartesian.em_proj2_mor}.
+  \item $\mathtt{ne\_lam}\,x\,M$:
+    $\mathtt{adj\_psi}\,(\mathtt{tensor\_curry}\,\sem{M})$. The body
+    $\sem{M}$ is curried by the SMCC closure of $\ICones$
+    (\autoref{thm:thm515}) into
+    $\mathrm{linhom}(U\sem{\Gamma}, U\sem{A} \multimap U\sem{B})$, and
+    $\mathtt{adj\_psi}$ of the cofree adjunction
+    (\autoref{thm:cbv-cofree-adj}) at $\sem{\Gamma}$'s structure map
+    promotes the result into
+    $\widetilde{\mathord{!}}(U\sem{A} \multimap U\sem{B}) =
+    \sem{\mathtt{tfun}\,A\,B}$. This is the first of the two
+    $\widetilde{\mathord{!}}$ boundaries.
+  \item $\mathtt{ne\_app}\,f\,e$:
+    \[
+      \sem{f \, e}
+      \;=\;
+      \mathtt{tensor\_uncurry}\,\mathrm{id}
+        \;\circ\;
+        (\mathrm{der}_{U\sem{A} \multimap U\sem{B}} \otimes \mathrm{id})
+        \;\circ\;
+        \mathtt{em\_pair\_mor}\,\sem{f}\,\sem{e}.
+    \]
+    The pair $\mathtt{em\_pair\_mor}\,\sem{f}\,\sem{e}$ supplies a copy
+    of $\Gamma$ to each of $f$ and $e$ via $\delta_\Gamma$; the
+    dereliction $\mathrm{der}$ unwraps the function value from its
+    cofree $\widetilde{\mathord{!}}$ (the second $\widetilde{\mathord{!}}$
+    boundary); $\mathtt{tensor\_uncurry}\,\mathrm{id}$ is the SMCC
+    evaluation $(U\sem{A} \multimap U\sem{B}) \otimes U\sem{A} \to
+    U\sem{B}$.
+  \item $\mathtt{ne\_let}\,x\,M\,K$:
+    $\sem{K} \circ \mathtt{em\_pair\_mor}\,\mathrm{id}_\Gamma\,\sem{M}$.
+    The diagonal $\delta_\Gamma$ inside $\mathtt{em\_pair\_mor}$ pairs
+    the context with the value of $M$, and the continuation $K$ is
+    interpreted in the extended context. There is no Moggi-bind
+    intermediate.
+  \item $\mathtt{ne\_sample}\,\mu$, $\mathtt{ne\_real}\,r$,
+    $\mathtt{ne\_true}$, $\mathtt{ne\_false}$,
+    $\mathtt{ne\_bernoulli}\,p$: the constant $\mathtt{icones\_hom}$
+    \rocq{Icones.programs.ppl.const_icones} out of $\sem{\Gamma}$ into,
+    respectively, $\mu \in \FMeas(R_\mathrm{obj})$,
+    $\delta_r \in \FMeas(R_\mathrm{obj})$, the promoted
+    $\mathrm{prom}(\delta_T)$ / $\mathrm{prom}(\delta_F)$ in
+    $\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$, and
+    $\mathrm{prom}(\mathtt{bernoulli}\,p)$ at the Bernoulli
+    sub-probability. No coalgebra-morphism obligation arises: the
+    constant linear morphism into a unit-ball element is automatically
+    an icones-hom by \rocq{Icones.programs.ppl.const_icones}.
+  \item $\mathtt{ne\_add}\,M\,N$ / $\mathtt{ne\_mul}\,M\,N$:
+    \rocq{Icones.programs.ppl.add_lift} (resp.\
+    \rocq{Icones.programs.ppl.mul_lift}) composed with
+    $\mathtt{em\_pair\_mor}\,\sem{M}\,\sem{N}$. The arithmetic lifts
+    are obtained from the FMeas lax-monoidal map
+    (\autoref{thm:cbv-fmeas-lax}) post-composed with the
+    $\FMeas$-functorial action of the measurable
+    $\mathbb{R}\times\mathbb{R}\to\mathbb{R}$ operation.
+  \item $\mathtt{ne\_score}\,f\,e$:
+    $\mathtt{score\_lift}\,f \circ \sem{e}$, with
+    \rocq{Icones.programs.ppl.score_lift} the density lift of
+    \autoref{lem:ppl-score-tm-lift}.
+  \item $\mathtt{ne\_if}\,b\,M\,N$:
+    $\mathtt{if\_icones}\,\sem{M}\,\sem{N}\,\sem{b}$ of
+    \autoref{def:cbv-case-em} --- six steps using
+    \rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom},
+    \rocq{Icones.homs.seely.linhom_icones},
+    $\mathtt{tensor\_uncurry}$, a braid, $(\mathrm{id} \otimes \mathrm{der})$,
+    and a final $\mathtt{em\_pair\_mor}$ with the scrutinee.
+  \item $\mathtt{ne\_fix}$ / $\mathtt{ne\_fix\_mr}$:
+    $\mathtt{const\_icones}\,\sem{\Gamma}\,\mathtt{precone\_zero}$ ---
+    the placeholder of \autoref{sec:cbv-yfix-fun}, pending the port of
+    the Kleene iteration to the linhom-cone $U\sem{A} \multimap
+    U\sem{B}$.
+\end{itemize}
+
+\paragraph{The two $\widetilde{\mathord{!}}$ boundaries.}
+The CBV interpreter never mentions
+$\widetilde{\mathord{!}} \circ U$ in the codomain of any type, nor any
+$\mathtt{Tobj}$ / $\mathtt{tunit\_eta}$ / Kleisli bind. The cofree
+$\widetilde{\mathord{!}}$ appears in $\sem{\mathtt{tfun}\,A\,B}$ on the
+outside, and the interpreter touches it exactly twice: $\mathtt{adj\_psi}$
+at $\mathtt{ne\_lam}$ and $\mathrm{der}$ at $\mathtt{ne\_app}$. All
+other compositional clauses ($\mathtt{ne\_let}$, $\mathtt{ne\_pair}$,
+$\mathtt{ne\_fst}$ / $\mathtt{ne\_snd}$, $\mathtt{ne\_if}$,
+$\mathtt{ne\_add}$ / $\mathtt{ne\_mul}$, $\mathtt{ne\_score}$) use only
+the SMC primitives and the comonoid pair
+$(\delta_\Gamma, \varepsilon_\Gamma)$. The diagonal $\delta_\Gamma$ is
+what supplies each sub-expression of a compositional node with its own
+copy of the context, so multi-use of a bound variable is free: it is a
+passenger of the shared context, dispatched by the projection chain of
+$\mathtt{var\_lookup\_cbv}$.
+
+\paragraph{Arithmetic, score, and the FMeas lax-monoidal map.}
+The interpretation of $\mathtt{ne\_add}$, $\mathtt{ne\_mul}$ and
+$\mathtt{ne\_score}$ reuses the cross-cutting helpers
+\rocq{Icones.programs.ppl.add_lift},
+\rocq{Icones.programs.ppl.mul_lift} and
+\rocq{Icones.programs.ppl.score_lift} of the surface module
+\texttt{ppl.v}. These are $\ICones$-morphisms built from the FMeas lax
+symmetric monoidal map of \autoref{thm:cbv-fmeas-lax} and the paper
+\S6 follow-up
+\rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}. Each binary
+arithmetic clause composes the pair
+$\mathtt{em\_pair\_mor}\,\sem{M}\,\sem{N}$ (whose diagonal is
+$\delta_\Gamma$) with the lax-monoidal arithmetic lift; the score
+clause $\mathtt{ne\_score}\,f\,e$ post-composes the density lift
+$\mathtt{score\_lift}\,f$ with $\sem{e}$, producing the unit-cone
+factor that scores the surrounding computation.
 
 \begin{theorem}[The FMeas lax symmetric monoidal map at \texorpdfstring{$\ICones$}{ICones}]%
 \label{thm:cbv-fmeas-lax}
@@ -1356,476 +1304,142 @@ joint state $\mathbf{Ar}(Z) \times \mathbf{Ar}(Y)$ of
 and specialising via the diagonal $(z, r) \mapsto (z, (z, r))$.
 \end{proof}
 
-\begin{remark}[Three example lemmas: random constant, random linear, Bayesian]
-The PPL ships three headline examples in the surface notation,
-collected in \texttt{theories/programs/examples.v}
-(\rocq{Icones.programs.examples.ex_random_constant},
-\rocq{Icones.programs.examples.ex_random_linear} and
-\rocq{Icones.programs.examples.ex_bayes_linear}), each with its
-denotation reduction lemma below
-(\autoref{lem:ppl-random-constant},
-\autoref{lem:ppl-random-linear} and
-\autoref{lem:ppl-bayes-linear}). All three are interpreted axiom-free
-in the model.
-\end{remark}
-
-\begin{lemma}[The QBS flagship: distribution over a function space]%
-\label{lem:ppl-random-constant}
-\rocq{Icones.programs.examples.ex_random_constant}\rocqok
-\rocq{Icones.programs.examples.ex_random_constant_denot_E}\rocqok
-\uses{thm:cbv-model, thm:cbv-fmeas-lax}
-For a chosen unit-ball measure $\mu : \FMeas(R_{\mathrm{obj}})$, the
-direct-style PPL term
-\[
-  \mathtt{ex\_random\_constant}
-  \;\;\equiv\;\;
-  \mathtt{let}\,c = \mathtt{sample}\,\mu\,\mathtt{in}\,
-  \lambda x.\,c
-  \;\;:\;\;
-  \mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}
-\]
-(a distribution over a function space, exactly the QBS-paper-flagship
-``no $\sigma$-algebra on $\mathbb{R}\to\mathbb{R}$ makes evaluation and
-currying both measurable'' example --- and notice the type really is
-$\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$, \emph{not} the older
-$\mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})$: the
-probability monad lives in $\mathtt{eD}$, not the source type) has a
-denotation $\mathtt{ex\_random\_constant\_denot}$ whose structural
-reduction \rocq{Icones.programs.examples.ex_random_constant_denot_E}
-reads as
-$\mathtt{kbind\_ext}\,(\mathtt{eD}\,\mathtt{ex\_rc\_lam})\,
-(\mathtt{sample\_kleisli}\,\mu)$.
-\end{lemma}
-
-\begin{proof}
-Direct-style reduction: the definitional unfolding
-\rocq{Icones.programs.ppl.eD_let} exposes $\mathtt{ne\_let}$ as the
-strength-equipped \rocq{Icones.programs.ppl.kbind_ext} --- no
-$\mathtt{eD\_ret}$ step is needed in direct style (every expression
-already denotes a Kleisli arrow; pure constructors implicit-return via
-$\mathtt{tunit\_eta}$ post-composition).
-\rocq{Icones.programs.ppl.eD_sample} unfolds the $\mathtt{ne\_sample}$
-to its constant-Kleisli arrow
-\rocq{Icones.programs.ppl.sample_kleisli}.
-\end{proof}
-
-\begin{lemma}[The killer demo: distribution over linear functions]%
-\label{lem:ppl-random-linear}
-\rocq{Icones.programs.examples.ex_random_linear}\rocqok
-\rocq{Icones.programs.examples.ex_random_linear_denot_E}\rocqok
-\uses{thm:cbv-model, thm:cbv-fmeas-lax}
-For $\mu : \FMeas(R_{\mathrm{obj}})$ as above, the direct-style PPL term
-\[
-  \mathtt{ex\_random\_linear}
-  \;\;\equiv\;\;
-  \mathtt{let}\,m = \mathtt{sample}\,\mu\,\mathtt{in}\;
-  \mathtt{let}\,b = \mathtt{sample}\,\mu\,\mathtt{in}\;
-  \lambda x.\,m\cdot x + b
-  \;\;:\;\;
-  \mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}
-\]
-(again with source type $\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$, not
-$\mathtt{tprob}\,(\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR})$) exercises
-$\mathtt{ne\_add}$ and $\mathtt{ne\_mul}$ on the body of the lambda
-(\rocq{Icones.programs.examples.ex_rl_lam}). Its denotation
-$\mathtt{ex\_random\_linear\_denot}$ reduces, by
-\rocq{Icones.programs.examples.ex_random_linear_denot_E}, to the
-nested-$\mathtt{kbind\_ext}$ form
-\[
-  \mathtt{kbind\_ext}\,
-    \bigl(\mathtt{kbind\_ext}\,(\mathtt{eD}\,\mathtt{ex\_rl\_lam})\,
-        (\mathtt{sample\_kleisli}\,\mu)\bigr)\,
-    (\mathtt{sample\_kleisli}\,\mu).
-\]
-On Dirac inputs (specialising $\mu$ to a Dirac), the
-Moggi-Kleisli bind $\mathtt{bind}(m, k)(\gamma) =
-\int k(\gamma, a)\,\mathrm{d}m(\gamma)(a)$ together with the
-arithmetic-lift Dirac identities
-\rocq{Icones.programs.ppl.add_lift_dirac} /
-\rocq{Icones.programs.ppl.mul_lift_dirac} recover the QBS-style
-``distribution of $\lambda x.\,m\cdot x + b$'' reading on point
-masses.
-\end{lemma}
-
-\begin{proof}
-Direct-style reduction: two passes of
-\rocq{Icones.programs.ppl.eD_let} (no $\mathtt{eD\_ret}$ step --- there
-is no syntactic $\mathtt{return}$ in direct style) and the
-\rocq{Icones.programs.ppl.eD_sample} unfoldings. The Dirac
-reductions \rocq{Icones.programs.ppl.add_lift_dirac} /
-\rocq{Icones.programs.ppl.mul_lift_dirac} are immediate from
-\rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac}
-(\autoref{thm:cbv-fmeas-lax}) followed by the
-$\FMeas$-functorial action of the measurable arithmetic operation
-on a Dirac at $\mathtt{ar\_prod\_cast}(a, b)$.
-\end{proof}
-
-\paragraph{The term-level score lift and its Dirac identity.}
-The interpretation of \rocq{Icones.programs.ppl.ne_score} rests on
-a lift of the measurable density $f$ into the unit cone, packaged as
-an $\ICones$ morphism into the one-dimensional cone $\mathtt{cone\_one\_car}$.
-The construction \rocq{Icones.programs.ppl.score_lift} reuses the
-paper \S6 follow-up
-\rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}
-(\autoref{thm:cbv-fmeas-lax}) to promote the path
-$r \mapsto f(r) \cdot \mathtt{one1}$ into a $\multimap$-style integral
-against $\FMeas(R_{\mathrm{obj}})$. The load-bearing Dirac identity
-$\mathtt{score\_lift\_dirac}$ reduces the lift on a Dirac at
-$\mathtt{R\_to\_carrier}\,r$ to the scalar
-$f(r) \cdot \mathtt{one1}$ --- exactly the packaging that the inner
-$\mathtt{ne\_score}$ denotation needs when $r$ comes from a bound
-variable through $e$.
-
 \begin{lemma}[The term-level score lift]\label{lem:ppl-score-tm-lift}
 \rocq{Icones.programs.ppl.score_lift}\rocqok
 \rocq{Icones.programs.ppl.score_lift_dirac}\rocqok
 \uses{thm:cbv-fmeas-lax}
-For every measurable $f : \mathbb{R} \to \mathbb{R}$ with $0 \le f(r) \le 1$
-for all $r$, there is an $\ICones$ morphism
+For every measurable $f : \mathbb{R} \to \mathbb{R}$ with
+$0 \le f(r) \le 1$ for all $r$, there is an $\ICones$ morphism
 $\mathtt{score\_lift}\,f :
    \FMeas(R_{\mathrm{obj}}) \;\to\; \mathtt{cone\_one\_car}$
 of operator norm at most one, satisfying the Dirac identity
-$\mathtt{Lfun}\,(\mathtt{score\_lift}\,f)\,
-   (\delta_{\mathtt{R\_to\_carrier}\,r})
-= \mathtt{MkConeOne}\,(\mathtt{NngNum}\,(Hf_{\ge 0}\,r))$,
-i.e.\ on a Dirac the lift returns $f(r) \cdot \mathtt{one1}$.
+$\mathtt{score\_lift}\,f\,(\delta_{\mathtt{R\_to\_carrier}\,r})
+= f(r) \cdot \mathtt{one1}$
+(\rocq{Icones.programs.ppl.score_lift_dirac}).
 \end{lemma}
 
 \begin{proof}
 The path $r \mapsto f(r) \cdot \mathtt{one1}$ is a measurable path
-into $\mathtt{cone\_one\_car}$ of norm at most one (pointwise $f(r) \le 1$),
-so by paper Theorem 6.1
+into $\mathtt{cone\_one\_car}$ of norm at most one (pointwise
+$f(r) \le 1$), so by paper Theorem 6.1
 (\rocq{Icones.homs.bilin.int_to_linhom}) it lifts to an
 $\FMeas(R_{\mathrm{obj}}) \multimap \mathtt{cone\_one\_car}$ linhom
 $\mathtt{int\_to\_linhom}\,\mathtt{score\_path}$; the
 $\ICones$-morphism packaging $\mathtt{linhom\_icones}$ then yields
-$\mathtt{score\_lift}$. The Dirac identity follows by
-$\mathtt{int\_to\_linhom\_fun\_dirac}$: integration against a Dirac
-evaluates the path at the carrier point.
+$\mathtt{score\_lift}$. The Dirac identity follows by integration
+against a Dirac evaluating the path at the carrier point.
 \end{proof}
 
-\begin{lemma}[The Bayesian prior/score/observe example]%
-\label{lem:ppl-bayes-linear}
-\rocq{Icones.programs.examples.ex_bayes_linear}\rocqok
-\rocq{Icones.programs.examples.ex_bayes_linear_denot_E}\rocqok
-\uses{thm:cbv-model, thm:cbv-fmeas-lax, lem:ppl-score-tm-lift}
-For $\mu : \FMeas(R_{\mathrm{obj}})$ a unit-ball prior and
-$f : \mathbb{R} \to \mathbb{R}$ a measurable likelihood with
-$0 \le f(r) \le 1$ for all $r$ (think a clipped Gaussian
-$\mathtt{gaussian\_lik}\,y$ of a fixed observation $y$, restricted
-to the unit interval to fit the integrable-cone discipline), the
-direct-style PPL term
-\[
-  \mathtt{ex\_bayes\_linear}
-  \;\;\equiv\;\;
-  \mathtt{let}\,m = \mathtt{sample}\,\mu\,\mathtt{in}\;
-  \mathtt{let}\,\_= \mathtt{score}\,f\,m\,\mathtt{in}\;
-  m
-  \;\;:\;\;
-  \mathtt{tR}
-\]
-(note the source type $\mathtt{tR}$, not $\mathtt{tprob}\,\mathtt{tR}$:
-the program is a real-valued probabilistic computation, the monad is
-implicit) exercises \rocq{Icones.programs.ppl.ne_score} on the bound
-variable $m$. Its denotation $\mathtt{ex\_bayes\_linear\_denot}$
-reduces, by
-\rocq{Icones.programs.examples.ex_bayes_linear_denot_E}, to the outer
-single-bind shape
-\[
-  \mathtt{kbind\_ext}\,
-    (\mathtt{eD}\,\mathtt{ex\_bl\_cont})\,
-    (\mathtt{sample\_kleisli}\,\mu),
-\]
-where $\mathtt{ex\_bl\_cont} =
-\mathtt{let}\,\_= \mathtt{score}\,f\,m\,\mathtt{in}\,m$ is the
-score-then-observe continuation in the context
-$(\texttt{"m"}, \mathtt{tR}) :: \mathtt{nil}$.
-\end{lemma}
-
-\begin{remark}[Honest scope note: unnormalised posterior]%
-\label{rem:ppl-bayes-unnormalised}
-\autoref{lem:ppl-bayes-linear} interprets the
-\emph{unnormalised} posterior: the denotation is a sub-probability
-measure whose total mass equals $\int f(m)\,\mathrm{d}\mu(m)$. We
-do not claim Bayes-optimality --- we claim only the structural
-reduction above, which exposes the prior bind, the score's
-post-composition with
-$\mathtt{bang\_cofree\_hom}\,\mathtt{score\_lift}$, and the
-$m$-projection observation. Normalising the posterior would require a
-$\mathtt{qbs\_normalize}$-style downstream pass that we have not
-introduced; this is, by design, a different observable than the
-prior/score/observe reduction recorded here.
-\end{remark}
-
-\begin{proof}
-Direct-style reduction: two definitional unfoldings of
-\rocq{Icones.programs.ppl.eD_let} expose the prior $\mathtt{ne\_let}$
-as a strength-equipped \rocq{Icones.programs.ppl.kbind_ext}, and
-\rocq{Icones.programs.ppl.eD_sample} unfolds the prior
-$\mathtt{ne\_sample}$ to its constant-Kleisli arrow
-\rocq{Icones.programs.ppl.sample_kleisli} (no $\mathtt{eD\_ret}$ step:
-direct style has no syntactic $\mathtt{return}$). The inner
-continuation $\mathtt{ex\_bl\_cont}$ is itself a $\mathtt{kbind\_ext}$
-of the score-then-observe shape, which follows by re-applying
-\rocq{Icones.programs.ppl.eD_let} and
-\rocq{Icones.programs.ppl.eD_score}; the
-\rocq{Icones.programs.ppl.score_lift_dirac} identity
-(\autoref{lem:ppl-score-tm-lift}) would give a Dirac-input
-point-reduction, but the headline asserts only the outer reduction.
-\end{proof}
-
-\paragraph{Phase 4 examples: productive partial termination.}
-The PPL also ships three end-to-end programs exercising the OCaml-style
-$\mathtt{ne\_fix}$ together with the boolean cascade
-$\mathtt{ne\_if} / \mathtt{ne\_bernoulli}$, demonstrating bare
-divergence, geometric (almost-surely terminating) recursion, and
-parameterised partial termination. None of these examples carries a
-closed-form claim for the $\mathtt{Yfix\_fun\_T}$ iterate; each
-$\mathtt{\_denot\_E}$ lemma is purely structural, exposing the outer
-$\mathtt{kcomp}\,(\mathtt{app\_pair}\,\_\,\_)$ of the fixpoint application.
-
-\begin{lemma}[$\mathtt{ex\_loop}$ --- bare divergence]%
-\label{lem:ppl-ex-loop}
-\rocq{Icones.programs.examples.ex_loop}\rocqok
-\rocq{Icones.programs.examples.ex_loop_denot}\rocqok
-\uses{thm:cbv-yfix-fun, thm:cbv-model}
-The canonical CBV-divergence example,
-$\mathtt{ex\_loop} =
-\mathtt{(fix\,"l"\,:::\,tfun\,tunit\,tunit\,in\,
-\backslash\,"\_"\,:::\,tunit\,=>\,\#\,"l"\,@\,())\,@\,()}
-: \mathtt{tunit}$, typechecks and yields a well-typed denotation
-$\mathtt{ex\_loop\_denot} :
-\mathtt{coalg\_hom}\,\EMterm\,(T\,\EMterm)$; the Kleene supremum of
-the $\Phi_{\mathrm{fun}}$ iterates is the zero arrow (total mass 0,
-bare divergence). No reduction lemma is claimed for this example ---
-only the syntactic typecheck and the denotation packaging.
-\end{lemma}
-
-\begin{lemma}[$\mathtt{ex\_geom}$ --- the geometric distribution
-via $\mathtt{ne\_fix}$ + $\mathtt{ne\_if}$]\label{lem:ppl-ex-geom}
-\rocq{Icones.programs.examples.ex_geom}\rocqok
-\rocq{Icones.programs.examples.ex_geom_denot_E}\rocqok
-\uses{thm:cbv-yfix-fun, def:cbv-case-em, thm:cbv-model}
-The source-language term
-$\mathtt{ex\_geom} =
-\mathtt{(fix\,"g"\,:::\,tfun\,tunit\,tR\,in\,
-\backslash\,"\_"\,:::\,tunit\,=>\,
-if\,Bernoulli\,\{\,1/2,\,\ldots\,\}\,then\,[|0|]\,else\,[|1|]\,+\,\#\,"g"\,@\,())\,@\,()}
-: \mathtt{tR}$ is a geometric counter: each fair-coin recursive call
-halts with probability $1/2$ and contributes $1$ to the returned real.
-Its denotation
-$\mathtt{ex\_geom\_denot}$ reduces, by
-\rocq{Icones.programs.examples.ex_geom_denot_E}, to the structural
-form
-\[
-  \mathtt{kcomp}\,(\mathtt{app\_pair}\,\_\,\_)\,
-    \bigl(
-      \mathtt{coalg\_comp}\,(\mathtt{bang\_m}\,\_\,\_)\,
-        (\mathtt{em\_pair}\,
-          (\mathtt{Yfix\_fun\_T}\,(\mathtt{eD}\,\mathtt{ex\_geom\_body}))\,
-          (\mathtt{eD}\,\mathtt{ne\_tt})
-        )
-    \bigr).
-\]
-This is a purely structural rewrite, \emph{not} a semantic-content
-claim: no closed form for the $\mathtt{Yfix\_fun\_T}$ iterate is
-asserted. Operationally the total mass is $1$ (almost-sure
-termination).
-\end{lemma}
-
-\begin{proof}
-The definitional unfolding $\mathtt{eD\_app}$ exposes the outer
-application of the surface
-$(\mathtt{ne\_fix}\,\ldots)\,@\,()$. The $\mathtt{ne\_fix}$ branch of
-$\mathtt{eD}$ unfolds to $\mathtt{Yfix\_fun\_T}$
-(\autoref{thm:cbv-yfix-fun}), and $\mathtt{ne\_tt}$ unfolds via
-$\mathtt{tunit\_eta}$ on the terminal coalgebra; the rest is the
-$\mathtt{em\_pair}$ + $\mathtt{bang\_m}$ packaging of $\mathtt{ne\_app}$.
-\end{proof}
-
-\begin{lemma}[$\mathtt{ex\_almost\_loop}$ --- parameterised partial
-termination]\label{lem:ppl-ex-almost-loop}
-\rocq{Icones.programs.examples.ex_almost_loop}\rocqok
-\rocq{Icones.programs.examples.ex_almost_loop_denot_E}\rocqok
-\uses{thm:cbv-yfix-fun, def:cbv-case-em, thm:cbv-model}
-For $p : \mathbb{R}$ with $0 \le p \le 1$, the source-language term
-$\mathtt{ex\_almost\_loop}\,p\,\mathtt{Hp\_ge0}\,\mathtt{Hp\_le1} =
-\mathtt{(fix\,"l"\,:::\,tfun\,tunit\,tunit\,in\,
-\backslash\,"\_"\,:::\,tunit\,=>\,
-if\,Bernoulli\,\{\,p,\,\ldots\,\}\,then\,()\,else\,\#\,"l"\,@\,())\,@\,()}
-: \mathtt{tunit}$ halts on each call with probability $p$ and recurses
-with probability $1 - p$, so the total mass equals
-$p \cdot \sum_{k \ge 0} (1-p)^k = 1$ for $p > 0$ (almost-sure
-termination at $p > 0$), and $0$ at $p = 0$ (recovering
-$\mathtt{ex\_loop}$ of \autoref{lem:ppl-ex-loop}). Its denotation
-reduces, by \rocq{Icones.programs.examples.ex_almost_loop_denot_E}, to
-the analogous structural form
-\[
-  \mathtt{kcomp}\,(\mathtt{app\_pair}\,\_\,\_)\,
-    \bigl(
-      \mathtt{coalg\_comp}\,(\mathtt{bang\_m}\,\_\,\_)\,
-        (\mathtt{em\_pair}\,
-          (\mathtt{Yfix\_fun\_T}\,(\mathtt{eD}\,
-            \mathtt{ex\_almost\_loop\_body}))\,
-          (\mathtt{eD}\,\mathtt{ne\_tt})
-        )
-    \bigr).
-\]
-\end{lemma}
-
-\begin{proof}
-Same definitional unfolding as $\mathtt{ex\_geom}$: $\mathtt{eD\_app}$
-on the outer $(\mathtt{ne\_fix}\,\ldots)\,@\,()$, the $\mathtt{ne\_fix}$
-branch of $\mathtt{eD}$ to $\mathtt{Yfix\_fun\_T}$, $\mathtt{ne\_tt}$
-to its $\mathtt{tunit\_eta}$ on the terminal coalgebra.
-\end{proof}
-
-\paragraph{Named-variable direct-style surface syntax.}
-The named surface is the \emph{only} syntax of
-\texttt{theories/programs/ppl.v}: there is no separate De Bruijn
-calculus and no intermediate translation. Variable lookup
-\texttt{\#~"x"} uses canonical structures
-(\rocq{Icones.programs.ppl.find_nv},
-\rocq{Icones.programs.ppl.found_nv},
-\rocq{Icones.programs.ppl.recurse_nv}, with
-\rocq{Icones.programs.ppl.tagged_nctx},
-\rocq{Icones.programs.ppl.found_nctx},
-\rocq{Icones.programs.ppl.recurse_nctx} carrying the search state
-and \texttt{ne\_var'} delivering the resolved
-$\mathtt{ne\_var}$ at a $\mathtt{find\_nv}$ witness)
-with \mathcompA{}'s \texttt{infer} typeclass on
-\texttt{String.eqb}, so Coq's elaborator infers the context slot,
-type, and named-variable witness simultaneously; the
-bidirectionality hints $\&$ on every binding / context-shared
-constructor of
-\rocq{Icones.programs.ppl.named_expr} are crucial for the
-canonical-structure resolution to fire on the right metavariable
-(exactly Saito--Affeldt's \texttt{Arguments exp\_letin \{g\} \&
-\{t1 t2\}} pattern). The custom entry
-\texttt{ppl\_named} supports
-\texttt{let "x" := M in N} (the direct-style CBV sequencer, desugaring
-to \rocq{Icones.programs.ppl.ne_let} --- NOT to a monadic
-$\mathtt{ne\_bind}$)
-/ \texttt{\textbackslash "x" ::: A => M}
-/ \texttt{fix "f" ::: tfun A B in M} (OCaml-style $\mathtt{let\,rec}$,
-desugaring to \rocq{Icones.programs.ppl.ne_fix} and semantically
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_T} of \autoref{thm:cbv-yfix-fun})
-/ \texttt{Sample (mu, Hmu)}
-/ \texttt{Score \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e} (the
-term-level Bayesian-score surface form, the \emph{only} score form,
-desugaring to \rocq{Icones.programs.ppl.ne_score})
-/ \texttt{True} (desugaring to \rocq{Icones.programs.ppl.ne_true})
-/ \texttt{False} (desugaring to \rocq{Icones.programs.ppl.ne_false})
-/ \texttt{Bernoulli \{ p, Hp\_ge0, Hp\_le1 \}} (the 2-point
-sub-probability sample, desugaring to
-\rocq{Icones.programs.ppl.ne_bernoulli})
-/ \texttt{if e then M else N} (boolean elimination, desugaring to
-\rocq{Icones.programs.ppl.ne_if} and semantically dispatched via the
-\rocq{Icones.programs.ppl.case_em} combinator of
-\autoref{def:cbv-case-em})
-/ \texttt{\# "x"} / \texttt{M @ N}
-/ \texttt{M + N} / \texttt{M * N} / \texttt{(e1, e2)}
-/ \texttt{fst e} / \texttt{snd e} / \texttt{()} / \texttt{[|r|]}
-/ \texttt{\{x\}}-escape.
-There is \emph{no} \texttt{Ret} surface form --- direct-style CBV has
-no syntactic $\mathtt{return}$ at any layer of the source language.
-The six examples shipped in \texttt{theories/programs/examples.v} are
-all written exclusively in this direct-style surface notation. Three
-are QBS-style headlines ---
-\rocq{Icones.programs.examples.ex_random_constant},
-\rocq{Icones.programs.examples.ex_random_linear} and
-\rocq{Icones.programs.examples.ex_bayes_linear} --- with the
-reduction lemmas \autoref{lem:ppl-random-constant} /
-\autoref{lem:ppl-random-linear} /
-\autoref{lem:ppl-bayes-linear}. The other three are the Phase 4
-productive partial-termination programs ---
+\paragraph{The shared surface programs.}
+The eleven surface PPL programs in
+\texttt{theories/programs/examples.v} type-check under
+\rocq{Icones.programs.ppl_cbv.eD}, with the following caveat: the
+recursive examples
 \rocq{Icones.programs.examples.ex_loop},
 \rocq{Icones.programs.examples.ex_geom} and
-\rocq{Icones.programs.examples.ex_almost_loop} --- with the structural
-reduction lemmas \autoref{lem:ppl-ex-loop} /
-\autoref{lem:ppl-ex-geom} / \autoref{lem:ppl-ex-almost-loop}. Each
-closes by definitional unfolding of $\mathtt{eD}$ on the surface terms.
+\rocq{Icones.programs.examples.ex_almost_loop} reduce, at the
+$\mathtt{ne\_fix}$ slot, to the $\mathtt{precone\_zero}$ placeholder
+of \autoref{sec:cbv-yfix-fun}. The QBS-style examples ---
+\rocq{Icones.programs.examples.ex_random_constant} (a distribution
+over a function space, with source type
+$\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$),
+\rocq{Icones.programs.examples.ex_random_linear} (a distribution over
+$\lambda x.\,m\cdot x + b$ for $m, b \sim \mu$, exercising
+$\mathtt{ne\_add}$ and $\mathtt{ne\_mul}$), and
+\rocq{Icones.programs.examples.ex_bayes_linear} (a prior/score/observe
+shape exercising $\mathtt{ne\_score}$) --- close fully on
+$\mathtt{ne\_let}$, $\mathtt{ne\_sample}$, $\mathtt{ne\_lam}$,
+$\mathtt{ne\_app}$, $\mathtt{ne\_add}$, $\mathtt{ne\_mul}$ and
+$\mathtt{ne\_score}$. The boolean sanity examples
+\rocq{Icones.programs.examples.ex_true},
+\rocq{Icones.programs.examples.ex_false},
+\rocq{Icones.programs.examples.ex_fair_coin}, and
+\rocq{Icones.programs.examples.ex_if_demo} exercise the
+$\mathtt{if\_icones}$ dispatch of \autoref{def:cbv-case-em}. Structural
+$\mathtt{\_denot\_E}$ reduction lemmas of the kind previously hosted
+in \texttt{examples.v} against the Moggi-monad interpretation have
+been retired; the analogous reductions in the linhom-valued reading
+unfold to the clause specifications above without any monad-equational
+manipulation, and are recovered by definitional unfolding of
+\rocq{Icones.programs.ppl_cbv.eD_cbv}.
 
-\paragraph{Genuine out-of-scope items.}
+\paragraph{Named-variable surface syntax.}
+The named surface is the only syntax of
+\texttt{theories/programs/ppl.v}: no separate De Bruijn calculus, no
+intermediate translation. Variable lookup $\#\,\texttt{"x"}$ uses
+canonical structures
+(\rocq{Icones.programs.ppl.find_nv}, with
+\rocq{Icones.programs.ppl.found_nctx} /
+\rocq{Icones.programs.ppl.recurse_nctx} carrying the search state and
+\texttt{ne\_var'} delivering the resolved
+$\mathtt{ne\_var}$ at a $\mathtt{find\_nv}$ witness) with
+\mathcompA{}'s \texttt{infer} typeclass on \texttt{String.eqb}, so
+Coq's elaborator infers the context slot, type, and named-variable
+witness simultaneously. The custom entry \texttt{ppl\_named} supports
+\texttt{let "x" := M in N},
+\texttt{\textbackslash "x" ::: A => M},
+\texttt{fix "f" ::: tfun A B in M} (desugaring to
+\rocq{Icones.programs.ppl.ne_fix}, currently a placeholder denotation
+per \autoref{sec:cbv-yfix-fun}),
+\texttt{Sample (mu, Hmu)},
+\texttt{Score \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e},
+\texttt{True} / \texttt{False},
+\texttt{Bernoulli \{ p, Hp\_ge0, Hp\_le1 \}},
+\texttt{if e then M else N} (dispatched via
+\autoref{def:cbv-case-em}),
+\texttt{\# "x"}, \texttt{M @ N}, \texttt{M + N}, \texttt{M * N},
+\texttt{(e1, e2)}, \texttt{fst e}, \texttt{snd e}, \texttt{()},
+\texttt{[|r|]}, and \texttt{\{x\}}-escape. There is no
+\texttt{Ret} surface form. All eleven programs in
+\texttt{theories/programs/examples.v} are written exclusively in this
+direct-style surface notation.
+
+\paragraph{Out-of-scope items.}
 Adequacy, normalization, and full-abstraction (traditional metatheory,
 requiring more than a denotational model). Coproducts beyond the
 2-point case of \autoref{sec:cbv-bool} (no general sum type in the
-cones model). Posterior \emph{normalisation} ---
-\autoref{lem:ppl-bayes-linear} interprets the unnormalised posterior
-of total mass $\int f(m)\,\mathrm{d}\mu(m)$
-(\autoref{rem:ppl-bayes-unnormalised}); the QBS-paper's
-\texttt{qbs\_normalize} divide-by-evidence pass is a downstream
-observable that we have not introduced. A two-language Moggi
-metalanguage with an explicit value/computation split (or any other
-explicitly monadic surface) is not in scope either --- the point of
-the direct-style refactor is to demonstrate that the cones model
-makes such a split unnecessary at the source level.
+cones model). The fixpoint denotations
+(\autoref{sec:cbv-yfix-fun}) and any closed-form mass identity for
+recursive surface programs on the CBV side; the parallel CBN identity
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
+(\autoref{thm:cbn-ex-geom}) closes axiom-free. The
+$\mathtt{bool\_meas\_space}$-based $\mathtt{tbool}$ clause
+(\autoref{rem:cbv-tbool}). A Moggi metalanguage with an explicit
+value/computation split (orthogonal to the linhom-valued framing
+adopted here).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{The CBV mass-one headline:
-\texorpdfstring{$\mathtt{ex\_geom}$}{ex\_geom} via the Bang-level
-fixpoint}\label{sec:cbv-geom-mass}
+\section{Mass identity for \texorpdfstring{$\mathtt{ex\_geom}$}{ex\_geom}: pending the CBV fixpoint}%
+\label{sec:cbv-geom-mass}
 
-\paragraph{This section is beyond the paper.}
-The structural reduction \rocq{Icones.programs.examples.ex_geom_denot_E}
-of \autoref{lem:ppl-ex-geom} exposed the outer
-$\mathtt{kcomp}\,(\mathtt{app\_pair}\,\_\,\_)$ shape of the
-denotation of the geometric program, but \emph{did not} claim a closed
-form for the $\mathtt{Yfix\_fun\_T}$ iterate. The companion file
-\texttt{theories/programs/infra/em\_fix\_arr.v} lifts the CBV fixpoint
-through one further layer --- to the Bang-level
-$\mathtt{Yfix\_arr}$ --- on which a closed-form $\FMeas$-mass identity
-\emph{is} provable, by the same Kleene-cascade $1 - (1/2)^n$ argument
-which we replay on the CBN side in \autoref{sec:cbn-geom}. The result
-is the CBV-side mass-one identity \rocq{Icones.programs.infra.em_fix_arr.ex_geom_arr_mass_one},
-the first formal mass identity for a non-trivial recursive PPL example
-in the integrable-cones model.
-
-\begin{theorem}[CBV headline: $\mathtt{ex\_geom}$ has mass one]%
-\label{thm:cbv-ex-geom-arr-mass-one}
-\rocq{Icones.programs.infra.em_fix_arr.ex_geom_arr_mass_one}\rocqok
-\uses{thm:cbv-yfix-fun, def:cbv-case-em, thm:cbv-fmeas-lax}
-The Bang-level recipe operator $\mathtt{Yfix\_arr}$ applied to the
-geometric body of $\mathtt{ex\_geom}$ produces a fixpoint in
-$\FMeas(\Robj)$ whose total $\overline{\mathbb{R}}$-mass is $1$:
-\[
-  \texttt{fmeas\_mu}\,
-    (\texttt{Yfix\_arr}\,\texttt{ex\_geom\_body})\,
-    [\,\mathit{setT}\,]
-  \;=\; 1.
-\]
-This is the CBV-side counterpart of \autoref{thm:cbn-ex-geom} of
-\autoref{ch:cbn}.
-\end{theorem}
-
-\begin{proof}
-By a Kleene cascade on the unit-ball $\omega$-CPO at the
-$\mathtt{Bang}$ level, exactly mirroring
-\autoref{lem:cbn-kleene-cascade} on the $\mathbf{SCones}$ side. The
-per-iterate mass is $1 - (1/2)^n$ by induction on $n$ (Bernoulli at
-$1/2$ pulls $\delta_0$ with weight $1/2$ and recurses on the
-remaining $1/2$ through the unary linear pushforward of the ELSE
-branch); the limit is $1$ by monotone convergence in
-$\overline{\mathbb{R}}$.
-\end{proof}
-
-\paragraph{The structural relationship to the diagonal bilinear bridge.}
-The closure above does \emph{not} use the diagonal bilinear stability
-bridge of \autoref{thm:diag-bilin} (\autoref{ch:cbn}) --- it instead
-exploits the unary ``shift-by-Dirac'' shape of $\mathtt{ex\_geom}$'s
-ELSE branch (a constant Dirac plus the recursive value is a unary
-linear map of the recursive value). The bridge remains the structural
-unblocker for \emph{generic} CBV recursion at $\mathtt{ne\_fix}$,
-the refined CBN $\mathtt{add}/\mathtt{mul}$ install, and any future
-bilinear-into-tensor stable combinator.
+A CBV-side closed-form mass identity for the geometric program
+\rocq{Icones.programs.examples.ex_geom} would parallel the
+CBN-side $\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}$
+of \autoref{thm:cbn-ex-geom}: the Kleene cascade on the unit-ball
+$\omega$-CPO yields per-iterate mass $1 - (1/2)^n$ (Bernoulli at $1/2$
+pulls $\delta_0$ with weight $1/2$ and recurses on the remaining
+$1/2$ through the unary linear pushforward of the ELSE branch), with
+limit $1$ by monotone convergence in $\overline{\mathbb{R}}$. Realising
+this identity in the current codebase requires the CBV value-fixpoint
+of \autoref{sec:cbv-yfix-fun} to be in place; the previous formalisation
+recorded such an identity at the Bang-level
+$\mathtt{Yfix\_arr}$ (now deleted, see
+\autoref{sec:cbv-yfix-fun}), the now-retired
+\texttt{theories/programs/infra/em\_fix\_arr.v}. With $\mathtt{ne\_fix}$
+currently a $\mathtt{precone\_zero}$ placeholder in
+\rocq{Icones.programs.ppl_cbv.eD_cbv}, the CBV-side identity is not
+provable in the codebase. The axiom-free CBN-side identity
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one} of
+\autoref{ch:cbn} is the available record for the geometric program in
+the cones model.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
 
 \paragraph{Delivered and axiom-free.}
-Everything in this chapter is axiom-clean (only the three classical
-\texttt{boolp} axioms): the Eilenberg--Moore category and cofree
-adjunction (\autoref{sec:cbv-em},
+The CBV \emph{model} and its supporting infrastructure are axiom-clean
+(only the three classical \texttt{boolp} axioms): the Eilenberg--Moore
+category and cofree adjunction (\autoref{sec:cbv-em},
 \rocq{Icones.homs.em_cat.ICones_EM}); the Seely comonoid with LC2--LC4
 (\autoref{sec:cbv-comonoid}); the \emph{full} cartesian
 $\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$
@@ -1836,88 +1450,79 @@ unconditional comonoidality witness
 (\autoref{lem:cbv-emcomon-all}); the cartesian $\eta$-rule
 \rocq{Icones.programs.infra.cbv_adjunction.em_pair_mor_proj_id}
 (\autoref{thm:cbv-cart-eta}, Fox 1976 / Melli\`es Prop 28 at the
-icones level, first Coq / Rocq formalisation); the LNL monoidal
-adjunction bundled as
-\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV} (\autoref{thm:cbv-model});
-the first-order CBV calculus and its sound interpretation
-(\autoref{sec:cbv-calculus}, \autoref{thm:cbv-soundness}); the FMeas
-lax symmetric monoidal map \rocq{Icones.homs.fmeas_lax.fmeas_lax} at
-the $\ICones$ level together with its Dirac identity
-\rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac} and the discharged
-paper-\S6 follow-up
+icones level); the LNL monoidal adjunction bundled as
+\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV}
+(\autoref{thm:cbv-model}); the FMeas lax symmetric monoidal map
+\rocq{Icones.homs.fmeas_lax.fmeas_lax} at the $\ICones$ level together
+with its Dirac identity \rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac}
+and the discharged paper-\S6 follow-up
 \rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}
-(\autoref{thm:cbv-fmeas-lax}); the boolean cascade
+(\autoref{thm:cbv-fmeas-lax}); the term-level score lift
+\rocq{Icones.programs.ppl.score_lift} and its Dirac identity
+\rocq{Icones.programs.ppl.score_lift_dirac}
+(\autoref{lem:ppl-score-tm-lift}); the boolean cascade
 (\autoref{sec:cbv-bool}) ---
-\rocq{Icones.programs.infra.bool_cone.bool_cone_car} as the paper \S4.4 / Thm
-4.24 coproduct $\mathtt{cone\_one}\oplus\mathtt{cone\_one}$, the
-icones-hom packaging
+\rocq{Icones.programs.infra.bool_cone.bool_cone_car} as the paper
+\S4.4 / Thm 4.24 coproduct
+$\mathtt{cone\_one}\oplus\mathtt{cone\_one}$, the icones-hom packaging
 \rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom} (with
 unit-ball-free variant
-\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}), and the
-EM-Kleisli combinator \rocq{Icones.programs.ppl.case_em} used by
-$\mathtt{ne\_if}$; the CBV value-fixpoint at function types
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_T} (\autoref{thm:cbv-yfix-fun},
-\emph{folklore} per P.-A.~Melli\`es 2026-05-31, first Coq / Rocq
-formalisation), with its $\omega$-continuity prerequisites
-\rocq{Icones.programs.infra.em_continuity.bang_fmap_lin_omega_cont} /
-\rocq{Icones.programs.infra.em_continuity.prom_omega_cont} /
-\rocq{Icones.programs.infra.em_continuity.tensor_mor_omega_cont_R}; the
-higher-order \emph{direct-style}
-(Plotkin/Girard CBV) multi-variable \emph{named-variable} QBS-mirror
-PPL of \texttt{theories/programs/ppl.v}, with the direct-style
-sequencer \rocq{Icones.programs.ppl.ne_let} (semantically
-\rocq{Icones.programs.ppl.kbind_ext}; reduction lemma
-\rocq{Icones.programs.ppl.eD_let}), the OCaml-style fixpoint
-\rocq{Icones.programs.ppl.ne_fix}, the boolean primitives
-\rocq{Icones.programs.ppl.ne_true} /
-\rocq{Icones.programs.ppl.ne_false} /
-\rocq{Icones.programs.ppl.ne_bernoulli} /
-\rocq{Icones.programs.ppl.ne_if}, no $\mathtt{tprob}$ type marker,
-and no syntactic $\mathtt{Ret}$; canonical-structure-driven variable
-lookup (\rocq{Icones.programs.ppl.find_nv} and \texttt{ne\_var'}) and
-a custom-entry surface notation; the six reduction lemmas
-live in \texttt{theories/programs/examples.v} ---
-\rocq{Icones.programs.examples.ex_random_constant_denot_E} (the QBS
-flagship, source type $\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$,
-\autoref{lem:ppl-random-constant}),
-\rocq{Icones.programs.examples.ex_random_linear_denot_E} (the
-random-linear killer demo, source type
-$\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$,
-\autoref{lem:ppl-random-linear}, exercising \texttt{ne\_add} /
-\texttt{ne\_mul} via the lax-monoidal map),
-\rocq{Icones.programs.examples.ex_bayes_linear_denot_E} (the
-prior/score/observe Bayesian shape, source type $\mathtt{tR}$,
-\autoref{lem:ppl-bayes-linear}, the only example exercising
-\rocq{Icones.programs.ppl.ne_score} via the term-level score lift
-\rocq{Icones.programs.ppl.score_lift} and its Dirac identity
-\rocq{Icones.programs.ppl.score_lift_dirac},
-\autoref{lem:ppl-score-tm-lift}), and the three Phase 4 productive
-partial-termination examples
-\rocq{Icones.programs.examples.ex_loop}
-(\autoref{lem:ppl-ex-loop}, bare divergence),
-\rocq{Icones.programs.examples.ex_geom_denot_E}
-(\autoref{lem:ppl-ex-geom}, geometric counter) and
-\rocq{Icones.programs.examples.ex_almost_loop_denot_E}
-(\autoref{lem:ppl-ex-almost-loop}, parameterised partial termination).
-Finally, the CBV-side mass-one headline
-\rocq{Icones.programs.infra.em_fix_arr.ex_geom_arr_mass_one}
-(\autoref{thm:cbv-ex-geom-arr-mass-one}), the first formal mass
-identity for a non-trivial recursive PPL example in the
-integrable-cones model, with the CBN-side parallel
-\autoref{thm:cbn-ex-geom} of \autoref{ch:cbn}.
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}), and
+the linhom-level if-then-else combinator
+\rocq{Icones.programs.ppl_cbv.if_icones} used by $\mathtt{ne\_if}$
+(\autoref{def:cbv-case-em}); the linhom-valued, comonoid-primitive
+CBV interpreter \rocq{Icones.programs.ppl_cbv.eD} of
+\autoref{sec:cbv-ppl}, with its type interpretation
+\rocq{Icones.programs.ppl_cbv.tyD_cbv}, context interpretation
+\rocq{Icones.programs.ppl_cbv.ctxD_cbv}, and variable lookup
+\rocq{Icones.programs.ppl_cbv.var_lookup_cbv}; and the shared surface
+syntax of \texttt{theories/programs/ppl.v} consumed by both this CBV
+interpreter and the CBN interpreter of \autoref{ch:cbn}, with the
+eleven surface programs of \texttt{theories/programs/examples.v}
+(\rocq{Icones.programs.examples.ex_random_constant},
+\rocq{Icones.programs.examples.ex_random_linear},
+\rocq{Icones.programs.examples.ex_bayes_linear},
+\rocq{Icones.programs.examples.ex_loop},
+\rocq{Icones.programs.examples.ex_geom},
+\rocq{Icones.programs.examples.ex_almost_loop}, plus the four boolean
+sanity checks).
 
-\paragraph{What is not interpreted, and why none of it is a deferred
-milestone.}
-$\mathrm{EM}(\mathord{!})$ is \emph{not} cartesian closed and is not
-expected to be --- a structural fact about EM categories of
-linear-exponential comonads, not a missing diagram chase. The
-Kleisli-exponential structure used in \autoref{sec:cbv-ppl} is what
-direct-style CBV actually needs, and that holds axiom-free. The
-genuinely out-of-scope items are: adequacy, normalization, and
+\paragraph{Placeholders.}
+Two clauses of the CBV interpreter resolve to the constant-zero
+placeholder $\mathtt{precone\_zero}$ in
+\rocq{Icones.programs.ppl_cbv.eD_cbv} (\autoref{sec:cbv-yfix-fun}):
+\rocq{Icones.programs.ppl.ne_fix} (OCaml-style recursion at function
+types) and \rocq{Icones.programs.ppl.ne_fix_mr} (the product-case
+generalisation). The intended construction is a Kleene iteration on
+the unit-ball $\omega$-CPO of
+\rocq{Icones.homs.linhom.linhom_car}, mirroring the SCones-side
+\rocq{Icones.stable.fixpoint.Yfix} but on the clean linhom-cone
+$U\sem{A} \multimap U\sem{B}$ (no $\widetilde{\mathord{!}} \circ U$
+wrap on $B$); the deleted \texttt{em\_fix.v} / \texttt{em\_fix\_arr.v}
+provided this construction in the now-retired Kleisli-exponential
+codomain. The CBV mass identity for the geometric program
+(\autoref{sec:cbv-geom-mass}) is unrecoverable until the Kleene port
+lands; the axiom-free CBN identity
+\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
+(\autoref{thm:cbn-ex-geom}) is the present record. The
+$\mathtt{tbool}$ clause uses the cofree
+$\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$ instead of the
+intended $\FMeas(\mathtt{bool\_meas\_space})$
+(\autoref{rem:cbv-tbool}); a small
+$\mathtt{measurableType}\,R$ stub on $\mathbf{Ar}$ would suffice.
+
+\paragraph{What is not interpreted.}
+$\mathrm{EM}(\mathord{!})$ is not cartesian closed and is not expected
+to be --- a structural fact about EM categories of linear-exponential
+comonads, not a missing diagram chase. The linhom-valued reading of
+\autoref{sec:cbv-ppl} is what the SMCC + EM(!) data of
+\autoref{thm:cbv-model} naturally supports, and that holds axiom-free.
+The genuinely out-of-scope items are: adequacy, normalization, and
 full-abstraction (traditional metatheory, requiring more than a
 denotational model); coproducts beyond the 2-point boolean case of
-\autoref{sec:cbv-bool} (no general sum type in the cones model); the
-QBS-paper's \texttt{qbs\_normalize} / Bayesian-posterior showcase
-(a different observable than the one ported here); and a Moggi
+\autoref{sec:cbv-bool} (no general sum type in the cones model); a
+$\mathtt{qbs\_normalize}$ / Bayesian-posterior pass (a different
+observable than the unnormalised prior/score/observe shape of
+\rocq{Icones.programs.examples.ex_bayes_linear}); and a Moggi
 metalanguage with an explicit value/computation split (orthogonal to
-the direct-style framing the cones model was designed to enable).
+the linhom-valued framing adopted here).
