@@ -99,9 +99,28 @@
 %                                      coalg_str of the context's coalgebra)
 %                                      and ne_app (der to extract the
 %                                      function value out of its !̃-wrap).
-%                                      ne_fix / ne_fix_mr are placeholders
-%                                      (precone_zero) pending a clean port
-%                                      of the Kleene iteration to linhom A B.
+%                                      ne_fix / ne_fix_mr now route through
+%                                      Yfix_fun_lin of em_fix.v — the CBV
+%                                      Kleene value-fixpoint on the clean
+%                                      linhom cone (no Tobj / !̃U wrap on B).
+%   theories/programs/infra/em_fix.v   the CBV Kleene value-fixpoint on
+%                                      the clean linhom cone: Phi_fun /
+%                                      Yfix_fun_lin and their ball / monot.
+%                                      / ω-continuity laws; parametric in
+%                                      any iCone codomain B and any
+%                                      diagonal δ on the context iCone,
+%                                      so applies to bang_cofree / FMeas_
+%                                      coalgebra / bool_cone_coalg / EM_prod
+%                                      uniformly.
+%   theories/programs/infra/bool_cone_coalg.v   the §9.7-style 2-point
+%                                      !-coalgebra on bool_cone_car (a hand
+%                                      built specialisation of FMeas_
+%                                      coalgebra to the boolean carrier,
+%                                      without exposing a measurableType R
+%                                      on Ar): bool_coalg_str, the two
+%                                      coalgebra laws (counit / coassoc),
+%                                      and the universal-property dispatch
+%                                      lemma bool_cone_dispatch.
 %   theories/programs/examples.v       eleven surface PPL programs (no
 %                                      denotation reduction lemmas; this
 %                                      file is now the shared surface
@@ -123,10 +142,11 @@
 % lax monoidal map and its Dirac identity; the boolean cascade
 % (bool_cone_car / bool_case / bool_case_linhom).  The interpreter
 % itself, ppl_cbv.v, defines eD as a LINHOM-VALUED, comonoid-primitive
-% recursion on named_expr; it is axiom-free EXCEPT for two structural
-% placeholders (ne_fix and ne_fix_mr return precone_zero, pending the
-% port of the Kleene iteration to the clean linhom-cone).  The previous
-% Moggi-monad presentation in the now-deleted cbv.v / em_fix.v /
+% recursion on named_expr; it is axiom-free, with ne_fix / ne_fix_mr
+% routed through Yfix_fun_lin of em_fix.v (the Kleene value-fixpoint on
+% the clean linhom cone) and tbool routed through bool_cone_coalg of
+% bool_cone_coalg.v (the §9.7-style 2-point !-coalgebra).  The previous
+% Moggi-monad presentation in the now-deleted cbv.v / earlier em_fix.v /
 % em_fix_arr.v / case_em_red.v / curry_kbind.v / cbv_outer_pt.v /
 % em_continuity.v / ex_geom_step.v / ex_loop_arr.v / ex_almost_loop_arr.v /
 % ex_almost_loop_step.v / ex_headlines.v / ex_random_dist.v /
@@ -943,84 +963,314 @@ morphisms into the target's underlying iCone, and the dispatch closes
 without a Kleisli round-trip.
 \end{definition}
 
+\paragraph{The \S9.7-style coalgebra structure on
+$\mathtt{bool\_cone\_car}$.}
+The interpretation $\sem{\mathtt{tbool}}$ of the PPL CBV interpreter
+(\autoref{sec:cbv-ppl}) is \emph{not} the cofree fallback
+$\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$: it is a non-cofree
+$\mathord{!}$-coalgebra on $\mathtt{bool\_cone\_car}$ itself,
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}, mirroring the
+\S9.7-style \rocq{Icones.homs.coalgebra.FMeas_coalgebra} for the 2-point
+case. This is the structural fix that gives the CBV
+$\mathtt{ne\_bernoulli}$ / $\mathtt{ne\_if}$ pair its shared-sample
+semantics.
+
+\begin{definition}[The \S9.7-style coalgebra on
+$\mathtt{bool\_cone\_car}$]\label{def:cbv-bool-cone-coalg}
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_coalg_str}\rocqok
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}\rocqok
+\uses{def:cbv-bool-cone, def:cbv-bool-case-hom}
+The structure map
+$\mathtt{bool\_coalg\_str} : \mathtt{bool\_cone\_car}\,Ar
+\lin \mathord{!}\,\mathtt{bool\_cone\_car}\,Ar$
+is the linhom-level universal co-pairing
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom}
+applied to the two promoted Dirac branches
+$\mathrm{prom}(\delta_T)$ and $\mathrm{prom}(\delta_F)$, both unit-ball
+by $\mathtt{prom\_ball}$ (\rocq{Icones.homs.bang.prom_ball}). On a
+generic point $(p, q) \in \mathtt{bool\_cone\_car}$ it computes to
+\[
+  \mathtt{bool\_coalg\_str}\,(p, q)
+  \;=\;
+  p \cdot \mathrm{prom}(\delta_T)
+  \;+\;
+  q \cdot \mathrm{prom}(\delta_F)
+  \quad\in\;
+  \mathord{!}\,\mathtt{bool\_cone\_car}\,Ar,
+\]
+which is the finite-sum specialisation of the \S9.7 integral
+$\mathtt{Coalg}_X(\mu) = \int \mathrm{prom}(\delta_x)\,d\mu(x)$
+(\rocq{Icones.homs.coalgebra.FMeas_coalgebra}) when the underlying
+measure space is the 2-point set $\{T, F\}$. The pair
+$(\mathtt{bool\_cone\_car}\,Ar,\,\mathtt{bool\_coalg\_str})$ packages
+as a \rocq{Icones.homs.coalgebra.Coalgebra} via
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}, with sanity
+witnesses
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg_obj} (the
+carrier is $\mathtt{bool\_cone\_car}\,Ar$) and
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg_str_E} (the
+structure map is $\mathtt{bool\_coalg\_str}$).
+\end{definition}
+
+\begin{lemma}[The two coalgebra laws]\label{lem:cbv-bool-coalg-laws}
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_coalg_counit}\rocqok
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_coalg_coassoc}\rocqok
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_dispatch}\rocqok
+\uses{def:cbv-bool-cone-coalg, def:cbv-cofree, thm:comonad}
+The counit law
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_coalg_counit}
+($\mathrm{der} \circ \mathtt{bool\_coalg\_str} = \mathrm{id}$) and the
+coassociativity law
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_coalg_coassoc}
+($\mathrm{dig} \circ \mathtt{bool\_coalg\_str} =
+\mathord{!}(\mathtt{bool\_coalg\_str}) \circ \mathtt{bool\_coalg\_str}$)
+are discharged via the universal-property \emph{dispatch} lemma
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_dispatch}: by
+linearity, two icones-homs $f, g : \mathtt{bool\_cone\_car} \to B$ are
+equal iff they agree on the two basis points
+$\delta_T$ and $\delta_F$, since
+$x = \mathtt{bool\_case}\,x\,\delta_T\,\delta_F$ for every $x$
+(\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_basis_expand}).
+On the basis points, each side computes by the comonad identities
+$\mathrm{der} \circ \mathrm{prom} = \mathrm{id}$
+(\rocq{Icones.homs.bang.der_prom}) and
+$\mathrm{dig} \circ \mathrm{prom} = \mathrm{prom} \circ \mathrm{prom}$
+(\rocq{Icones.homs.bang.dig_prom}), combined with the basis identities
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_coalg_str_true} and
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_coalg_str_false}.
+\end{lemma}
+
+\paragraph{Shared-sample semantics for boolean draws.}
+The transported commutative comonoid
+$(\delta_{\mathtt{tbool}}, \varepsilon_{\mathtt{tbool}})$ that
+\autoref{lem:cbv-emcomon-all} carries on the
+$\mathord{!}$-coalgebra
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg} is the
+\emph{diagonal pushforward}: under the CBV reading of
+\autoref{sec:cbv-ppl}, the share-then-measure denotation of
+\[
+  \mathtt{let}\,x = \mathtt{Bernoulli}(p)\,\mathtt{in}\,(x, x)
+\]
+is $p \cdot (T, T) + (1 - p) \cdot (F, F)$, whereas the
+independent-product denotation that the cofree fallback
+$\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$ would induce is the
+product measure
+$p^2 \cdot (T, T) + p(1 - p) \cdot (T, F) +
+(1 - p)p \cdot (F, T) + (1 - p)^2 \cdot (F, F)$. The diagonal-pushforward
+rule is the one a CBV-style let on a freshly sampled boolean variable
+should give, and is the boolean counterpart of the
+$\mathtt{tbase}\,X$ shared-sample story carried by the
+\rocq{Icones.homs.coalgebra.FMeas_coalgebra} of paper Theorem~9.7.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{The CBV value-fixpoint at function types: placeholder}%
+\section{The CBV value-fixpoint at function types: $\mathtt{Yfix\_fun\_lin}$}%
 \label{sec:cbv-yfix-fun}
 
-\paragraph{Current status: placeholder.}
-The fixpoint operators of paper \S9.2
-(\rocq{Icones.stable.fixpoint.lfp}, \rocq{Icones.stable.fixpoint.Yfix})
-live on $\mathbf{SCones}$ (the cartesian-closed / CBN side) and operate
-on stable maps. A CBV value-fixpoint at function types --- a Kleene
-fixpoint of an endo-operator on the function-value linhom-cone
-$U\sem{A} \multimap U\sem{B}$, packaged into the
-$\widetilde{\mathord{!}}$-wrap that is $\sem{\mathtt{tfun}\,A\,B}$ ---
-is the natural cones-side analogue, but has \emph{not} been ported to
-the clean linhom-valued reading of \autoref{sec:cbv-ppl}. The PPL
-constructors \rocq{Icones.programs.ppl.ne_fix} and
-\rocq{Icones.programs.ppl.ne_fix_mr} are interpreted in the current
-\rocq{Icones.programs.ppl_cbv.eD} by the constant zero
-$\mathtt{precone\_zero}$ icones-hom out of the context, packaged via
-\rocq{Icones.programs.ppl.const_icones} into the function-value
-coalgebra. This is honest scope, surfaced as an inline placeholder in
-\rocq{Icones.programs.ppl_cbv.eD_cbv}, and the rest of the interpreter
-type-checks around it.
+The CBV interpreter resolves $\mathtt{ne\_fix}$ /
+$\mathtt{ne\_fix\_mr}$ to a genuine Kleene value-fixpoint on the clean
+linhom-cone $\mathrm{linhom}_\Ar(\Gamma,\,L)$ ($L$ the function-value
+linhom-cone of the CBV reading, no $\widetilde{\mathord{!}} \circ U$
+wrap on the codomain), built in
+\texttt{theories/programs/infra/em\_fix.v}. The construction is
+\emph{parametric} in the ambient coalgebra structure on $\Gamma$ --- it
+only uses a diagonal $\delta : \Gamma \to \Gamma \otimes \Gamma$ on the
+underlying icone --- so it applies uniformly to the cofree
+$\widetilde{\mathord{!}}$-coalgebras at $\mathtt{tfun}$, the
+\S9.7-shaped \rocq{Icones.homs.coalgebra.FMeas_coalgebra} at
+$\mathtt{tbase}\,X$, the \rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}
+at $\mathtt{tbool}$, and the \rocq{Icones.homs.em_cartesian.EM_prod} at
+$\mathtt{tprod}$. The arithmetic mirrors the SCones-side
+\rocq{Icones.stable.fixpoint.Yfix} of \autoref{lem:cbn-recursion}: both
+are a Kleene iteration on a unit-ball $\omega$-CPO, at the appropriate
+category.
 
-\paragraph{Planned recipe.}
-The intended construction is a Kleene iteration on the unit-ball
-$\omega$-CPO of \rocq{Icones.homs.linhom.linhom_car}, mirroring the
-SCones-side \rocq{Icones.stable.fixpoint.Yfix} of
-\autoref{ch:stable}. For coalgebras $G$ (the ambient context),
-$A$ and $B$ (the argument and result types), set
-$L = U\sem{A} \multimap U\sem{B}$ (the function-value cone of the
-linhom-valued reading, with no $\widetilde{\mathord{!}} \circ U$ wrap
-on $B$) and $\mathtt{funT} = \widetilde{\mathord{!}}\,L$
-(the function-value coalgebra $\sem{\mathtt{tfun}\,A\,B}$). For a body
-$M : \mathrm{linhom}\bigl(U\sem{G} \otimes U\,\mathtt{funT},\,L\bigr)$
-(the body of the $\mathtt{fix\,s.\,\lambda x.\, \ldots}$, evaluated in
-the extended context that binds the self-reference $s$), the iteration
+\subsection{The Kleene step $\mathtt{Phi\_fun}$}%
+\label{ssec:cbv-phifun}
+
+The step operator works at the linhom cone
+$\mathrm{linhom}_\Ar(\Gamma,\,B)$, parametric in any icone-level
+diagonal $\delta$ on $\Gamma$. There is no coalgebra structure required
+on $B$: the codomain enters only through the body morphism
+$M : \Gamma \otimes B \to B$.
+
+\begin{definition}[$\mathtt{Phi\_fun}$ --- the CBV Kleene step]%
+\label{def:cbv-phi-fun}
+\rocq{Icones.programs.infra.em_fix.Phi_fun}\rocqok
+\rocq{Icones.programs.infra.em_fix.Phi_fun_safe}\rocqok
+\uses{thm:cbv-cartesian, def:cbv-prod}
+For cones $\Gamma, B : \ICones$, a diagonal
+$\delta : \Gamma \to \Gamma \otimes \Gamma$ and a body
+$M : \Gamma \otimes B \to B$ (both packaged as $\ICones$ morphisms), the
+step operator
 \[
-  \Phi(\mathit{prev})
+  \mathtt{Phi\_fun}\,M\,\mathit{prev}
   \;=\;
   M
     \;\circ\;
-    \mathtt{tensor\_mor}\,(\mathrm{id}_G,\,\mathrm{prom}\,\mathit{prev})
+    \mathtt{tensor\_mor}\,(\mathrm{id}_\Gamma,\,\mathit{prev})
     \;\circ\;
-    \delta_G
+    \delta
+  \;\;:\;\;
+  \Gamma \to B
 \]
-takes a previous approximant in
-$\mathrm{linhom}(U\sem{G},\,L)$, duplicates the context through
-$\delta_G = \mathtt{coalg\_d}\,G$, promotes the approximant into
-$\mathtt{funT}$ on the second copy, and runs $M$. The Kleene fixpoint
-is the unit-ball supremum of the iterates from
-$\bot = \mathtt{precone\_zero}$; cofree $\mathtt{adj\_psi}$ then wraps
-the result into the coalgebra carrier $\mathtt{funT}$.
+takes a previous approximant $\mathit{prev} : \Gamma \to B$ in the unit
+ball of $\mathrm{linhom}_\Ar(\Gamma, B)$, duplicates the context through
+$\delta$, runs the approximant on the second copy of $\Gamma$, and
+applies the body. The total
+\rocq{Icones.programs.infra.em_fix.Phi_fun} is defined on all of
+$\mathrm{linhom}_\Ar(\Gamma, B)$ via $\mathtt{pselect}$: it agrees with the
+safe variant
+\rocq{Icones.programs.infra.em_fix.Phi_fun_safe} on the unit ball, and
+returns $\mathtt{precone\_zero}$ off it (irrelevant for the Kleene
+chain, which lives in the unit ball;
+\rocq{Icones.programs.infra.em_fix.Phi_fun_unit}).
+\end{definition}
 
-The previous formalisation packaged this construction through the
-Moggi monad $T = \widetilde{\mathord{!}} \circ U$ on the codomain --- a
-linhom-level $\mathtt{Yfix\_fun\_lin}$ followed by an
-$\mathtt{adj\_psi}$ wrap as $\mathtt{Yfix\_fun\_T}$ in the now-deleted
-\texttt{theories/programs/infra/em\_fix.v}, and a Bang-level variant
-$\mathtt{Yfix\_arr}$ in the now-deleted
-\texttt{theories/programs/infra/em\_fix\_arr.v}, both relying on the
-$\omega$-continuity scaffolding of the now-deleted
-\texttt{theories/programs/infra/em\_continuity.v}. All three were
-tied to the deprecated Kleisli-exponential codomain
-$U(T\,B)$ and have been removed.
+\begin{lemma}[Ball preservation, monotonicity, and $\omega$-continuity
+of $\mathtt{Phi\_fun}$]\label{lem:cbv-phi-fun-laws}
+\rocq{Icones.programs.infra.em_fix.Phi_fun_ball}\rocqok
+\rocq{Icones.programs.infra.em_fix.Phi_fun_incr}\rocqok
+\rocq{Icones.programs.infra.em_fix.Phi_fun_cont}\rocqok
+\uses{def:cbv-phi-fun}
+On the unit ball,
+$\mathtt{Phi\_fun}$ preserves the ball
+(\rocq{Icones.programs.infra.em_fix.Phi_fun_ball}: if
+$\cnorm{\mathit{prev}} \leq 1$ then
+$\cnorm{\mathtt{Phi\_fun}\,M\,\mathit{prev}} \leq 1$, by composing the
+three layer-norm bounds), is monotone
+(\rocq{Icones.programs.infra.em_fix.Phi_fun_incr}: a precone-order
+inequality $\mathit{prev}_1 \leq \mathit{prev}_2$ in the unit ball
+transports through the three linear layers via
+\rocq{Icones.cones.basic_lemmas.linear_increasing} and the layer-level
+monotonicity witnesses, in particular
+\rocq{Icones.programs.infra.em_fix.tensor_mor_R_lin_incr}), and is
+$\omega$-continuous on the unit ball
+(\rocq{Icones.programs.infra.em_fix.Phi_fun_cont}: it commutes with the
+unit-ball supremum
+\rocq{Icones.cones.cone.cone_sup_ball} of a unit-ball
+chain of approximants, through the three layer-level continuity
+witnesses
+\rocq{Icones.programs.infra.em_fix.tensor_mor_omega_cont_R} on the
+tensor layer,
+\rocq{Icones.programs.infra.em_fix.linhom_pre_icones_sup} on the
+$\delta$ pre-composition, and
+\rocq{Icones.programs.infra.em_fix.linhom_post_icones_sup} on the $M$
+post-composition).
+\end{lemma}
 
-\paragraph{What this implies for the recursive programs.}
+\subsection{The Kleene supremum $\mathtt{Yfix\_fun\_lin}$}%
+\label{ssec:cbv-yfix-sup}
+
+The three laws of \autoref{lem:cbv-phi-fun-laws} make the unit-ball
+$\omega$-CPO of $\mathrm{linhom}_\Ar(\Gamma, B)$ exactly the data the
+generic linhom-level Kleene engine
+\rocq{Icones.programs.infra.em_fix.linhom_lfp} needs.
+
+\begin{definition}[The linhom-level Kleene chain
+$\mathtt{kleene\_lin}$ and its supremum
+$\mathtt{linhom\_lfp}$]\label{def:cbv-kleene-lin}
+\rocq{Icones.programs.infra.em_fix.kleene_lin}\rocqok
+\rocq{Icones.programs.infra.em_fix.linhom_lfp}\rocqok
+\rocq{Icones.programs.infra.em_fix.linhom_lfp_norm_le1}\rocqok
+\rocq{Icones.programs.infra.em_fix.linhom_lfp_fixpoint}\rocqok
+\uses{lem:cbv-phi-fun-laws}
+For any endo-operator $\Phi$ on $\mathrm{linhom}_\Ar(C, D)$ satisfying
+the three laws of \autoref{lem:cbv-phi-fun-laws} (ball preservation,
+monotonicity, $\omega$-continuity), the Kleene iterates
+$\mathtt{kleene\_lin}\,\Phi\,n = \Phi^n(\mathtt{precone\_zero})$
+form a chain in the unit ball
+(\rocq{Icones.programs.infra.em_fix.kleene_lin_chain},
+\rocq{Icones.programs.infra.em_fix.kleene_lin_ball}); their
+unit-ball supremum is the least fixpoint
+\rocq{Icones.programs.infra.em_fix.linhom_lfp}, with norm at most one
+(\rocq{Icones.programs.infra.em_fix.linhom_lfp_norm_le1}) and the
+fixpoint equation
+$\Phi\,(\mathtt{linhom\_lfp}\,\Phi) = \mathtt{linhom\_lfp}\,\Phi$
+(\rocq{Icones.programs.infra.em_fix.linhom_lfp_fixpoint}). This mirrors,
+at the linhom cone, the SCones-side \rocq{Icones.stable.fixpoint.lfp} /
+\rocq{Icones.stable.fixpoint.Yfix_fix} of the CBN chapter
+(\autoref{lem:cbn-recursion}).
+\end{definition}
+
+\begin{definition}[The CBV value-fixpoint $\mathtt{Yfix\_fun\_lin}$]%
+\label{def:cbv-yfix-fun-lin}
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_norm_le1}\rocqok
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_fixpoint}\rocqok
+\uses{def:cbv-phi-fun, def:cbv-kleene-lin}
+For $\Gamma, B : \ICones$, a diagonal
+$\delta : \Gamma \to \Gamma \otimes \Gamma$ and a body
+$M : \Gamma \otimes B \to B$, the CBV value-fixpoint is
+\[
+  \mathtt{Yfix\_fun\_lin}\,\delta\,M
+  \;=\;
+  \sup_n (\mathtt{Phi\_fun}\,M)^n\,\mathtt{precone\_zero}
+  \;\;:\;\;
+  \Gamma \to B,
+\]
+the \rocq{Icones.programs.infra.em_fix.linhom_lfp} of
+\rocq{Icones.programs.infra.em_fix.Phi_fun} at this $(\delta, M)$. Its
+norm is at most one
+(\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_norm_le1}) and it
+satisfies the Kleene fixpoint equation
+$\mathtt{Phi\_fun}\,M\,(\mathtt{Yfix\_fun\_lin}\,\delta\,M) =
+\mathtt{Yfix\_fun\_lin}\,\delta\,M$
+(\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_fixpoint}), proved by
+specialising
+\rocq{Icones.programs.infra.em_fix.linhom_lfp_fixpoint} to the three
+laws of \autoref{lem:cbv-phi-fun-laws}.
+\end{definition}
+
+\subsection{Parametric in the coalgebra $B$}%
+\label{ssec:cbv-yfix-parametric}
+
+The Kleene engine of \autoref{def:cbv-yfix-fun-lin} works uniformly for
+any iCone $B$ (and any diagonal $\delta$ on $\Gamma$). At the PPL CBV
+interpreter level the diagonal is
+$\delta = \mathtt{coalg\_d}\,(\mathtt{ctxD\_cbv}\,\Gamma)$ --- the
+commutative-comonoid diagonal of \autoref{lem:cbv-emcomon-all} on the
+underlying iCone of the context coalgebra --- and the codomain $B$ is
+the underlying iCone of $\sem{\mathtt{tfun}\,A\,B}$. The same operator
+applies regardless of \emph{which} of the four coalgebra shapes carries
+$B$: the cofree $\widetilde{\mathord{!}}$-coalgebras
+(\rocq{Icones.homs.em_cat.bang_cofree}) at $\mathtt{tfun}$, the
+non-cofree \S9.7-shaped
+\rocq{Icones.homs.coalgebra.FMeas_coalgebra} at $\mathtt{tbase}\,X$,
+the non-cofree
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg} at
+$\mathtt{tbool}$, and the \rocq{Icones.homs.em_cartesian.EM_prod}
+product coalgebra at $\mathtt{tprod}$. This parametricity is what makes
+the design symmetric across CBV types: the value-fixpoint never sees
+the coalgebra structure on $B$, only its underlying iCone and the
+ambient diagonal on $\Gamma$.
+
+\subsection{Cross-reference to the CBN side}%
+\label{ssec:cbv-yfix-cbn}
+
+The arithmetic of $\mathtt{Yfix\_fun\_lin}$ mirrors the SCones-side
+$\mathrm{Yfix}$ of \autoref{lem:cbn-recursion}: both build a Kleene
+iteration on a unit-ball $\omega$-CPO from a body operator. The two
+fixpoint operators land in different categories ($\ICones$-morphisms on
+the linhom cone for CBV; $\mathbf{SCones}$-morphisms on the stable cone
+for CBN) and feed into different surface clauses
+(\rocq{Icones.programs.ppl_cbv.eD_cbv}'s $\mathtt{ne\_fix}$ for CBV;
+\rocq{Icones.programs.ppl_cbn.eD_CBN_fix_E} for CBN), but share the
+\emph{shape} of the recursion: take the supremum of
+$\Phi^n(\mathtt{precone\_zero})$ on the unit ball.
+
+\paragraph{Consequence for the recursive surface programs.}
 The recursive examples \rocq{Icones.programs.examples.ex_loop},
 \rocq{Icones.programs.examples.ex_geom} and
-\rocq{Icones.programs.examples.ex_almost_loop} still type-check as
-surface programs; their CBV denotations through
-\rocq{Icones.programs.ppl_cbv.eD} are not the operational limits one
-would expect, since $\mathtt{ne\_fix}$ resolves to
-$\mathtt{precone\_zero}$ at the fixpoint slot. The corresponding
-CBN-side denotations close fully and the CBN mass-one identity
+\rocq{Icones.programs.examples.ex_almost_loop} now have honest CBV
+denotations through \rocq{Icones.programs.ppl_cbv.eD}: the
+$\mathtt{ne\_fix}$ slot is the Kleene supremum of the body's iterates,
+not the constant zero. Writing the closed-form mass identity for the
+geometric program on the CBV side --- mirroring the axiom-free CBN
+identity
 \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
-(\autoref{thm:cbn-ex-geom}) is the axiom-free record for the
-geometric program in the cones model; a parallel CBV identity is
-pending the Kleene port above.
+(\autoref{thm:cbn-ex-geom}) --- is a follow-up
+(\autoref{sec:cbv-geom-mass}); the recursion infrastructure itself is
+in place.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The higher-order direct-style PPL: linhom-valued interpretation}%
@@ -1076,8 +1326,9 @@ of $\mathrm{EM}(\mathord{!})$:
         \widetilde{\mathord{!}}\bigl(U\sem{A} \multimap U\sem{B}\bigr)
         \quad\text{(single $\widetilde{\mathord{!}}$, no $T$ on $B$)} \\
     \sem{\mathtt{tbool}}      &
-        \widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}
-        \quad\text{(placeholder, see remark below).}
+        \mathtt{bool\_cone\_coalg}
+        \quad\text{(the \S9.7-style 2-point coalgebra,
+        \autoref{def:cbv-bool-cone-coalg}).}
   \end{array}
 \]
 Contexts are interpreted by
@@ -1097,22 +1348,27 @@ $U\sem{A} \multimap U\sem{B}$, and what is duplicable is the
 \emph{value}, not the result of its application. This is the cleanest
 reading the SMCC + EM(!) data of \autoref{thm:cbv-model} support.
 
-\begin{remark}[$\mathtt{tbool}$ as a placeholder]\label{rem:cbv-tbool}
-The clause $\sem{\mathtt{tbool}} =
-\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$ uses the cofree
-coalgebra over the 2-point sub-probability cone
-(\autoref{def:cbv-bool-cone}). The intended clause is
-$\FMeas(\mathtt{bool\_meas\_space})$ along the lines of the
-$\mathtt{tbase}$ clause --- this would route $\mathtt{ne\_bernoulli}$
-through the Theorem-9.7 coalgebra on $\FMeas$ and recover shared-sample
-semantics on boolean draws. Realising it requires
-$\mathtt{bool\_meas\_space} : \mathtt{measurableType}\,R$ to be
-exposed as an \rocq{Icones.mcones.ar.ar_obj} of $\mathbf{Ar}$, which is
-a parameter-supplied datum on $\mathbf{Ar}$ rather than a generic
-property; the small stub is not yet in place. The current cofree route
-is structurally adequate (the boolean cascade closes via
-\autoref{def:cbv-case-em}) and matches the placeholder rationale of
-\rocq{Icones.programs.ppl_cbv.tyD_cbv}.
+\begin{remark}[$\mathtt{tbool}$ uses the \S9.7-style 2-point
+coalgebra]\label{rem:cbv-tbool}
+The clause $\sem{\mathtt{tbool}} = \mathtt{bool\_cone\_coalg}$ is
+\emph{not} the cofree fallback
+$\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$. It is the
+non-cofree \S9.7-shaped $\mathord{!}$-coalgebra
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg} on the
+carrier $\mathtt{bool\_cone\_car}\,Ar$ itself
+(\autoref{def:cbv-bool-cone-coalg}), with structure map
+$\mathtt{bool\_coalg\_str}\,(p, q) =
+p \cdot \mathrm{prom}(\delta_T) + q \cdot \mathrm{prom}(\delta_F)$.
+This is the boolean specialisation of paper Theorem~9.7's
+$\mathtt{Coalg}_X(\mu) = \int \mathrm{prom}(\delta_x)\,d\mu(x)$ to the
+2-point case --- which morally is
+$\FMeas(\mathtt{bool\_meas\_space})$, hand-built here without
+exposing $\mathtt{bool\_meas\_space} : \mathtt{measurableType}\,R$ as an
+\rocq{Icones.mcones.ar.ar_obj} of $\mathbf{Ar}$ (a parameter-supplied
+datum on $\mathbf{Ar}$). The transported commutative comonoid pair
+$(\delta_{\mathtt{tbool}}, \varepsilon_{\mathtt{tbool}})$ on
+$\mathtt{bool\_cone\_coalg}$ then recovers shared-sample semantics for
+boolean draws (\autoref{def:cbv-bool-cone-coalg}).
 \end{remark}
 
 \paragraph{Term interpretation.}
@@ -1188,13 +1444,17 @@ $\sem{\tau}$'s carrier.
     $\mathtt{ne\_bernoulli}\,p$: the constant $\mathtt{icones\_hom}$
     \rocq{Icones.programs.ppl.const_icones} out of $\sem{\Gamma}$ into,
     respectively, $\mu \in \FMeas(R_\mathrm{obj})$,
-    $\delta_r \in \FMeas(R_\mathrm{obj})$, the promoted
-    $\mathrm{prom}(\delta_T)$ / $\mathrm{prom}(\delta_F)$ in
-    $\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$, and
-    $\mathrm{prom}(\mathtt{bernoulli}\,p)$ at the Bernoulli
-    sub-probability. No coalgebra-morphism obligation arises: the
-    constant linear morphism into a unit-ball element is automatically
-    an icones-hom by \rocq{Icones.programs.ppl.const_icones}.
+    $\delta_r \in \FMeas(R_\mathrm{obj})$, the Dirac points
+    $\delta_T$ / $\delta_F$ in $\mathtt{bool\_cone\_car}$ (no
+    $\mathrm{prom}$: the structure map of the
+    \rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}
+    sends $\delta_T$ to $\mathrm{prom}(\delta_T)$ when the comonoid
+    diagonal fires, but the constant lands in the carrier), and
+    $\mathtt{bernoulli}\,p = p \cdot \delta_T + (1-p) \cdot \delta_F
+    \in \mathtt{bool\_cone\_car}$. No coalgebra-morphism obligation
+    arises: the constant linear morphism into a unit-ball element is
+    automatically an icones-hom by
+    \rocq{Icones.programs.ppl.const_icones}.
   \item $\mathtt{ne\_add}\,M\,N$ / $\mathtt{ne\_mul}\,M\,N$:
     \rocq{Icones.programs.ppl.add_lift} (resp.\
     \rocq{Icones.programs.ppl.mul_lift}) composed with
@@ -1209,16 +1469,48 @@ $\sem{\tau}$'s carrier.
     \autoref{lem:ppl-score-tm-lift}.
   \item $\mathtt{ne\_if}\,b\,M\,N$:
     $\mathtt{if\_icones}\,\sem{M}\,\sem{N}\,\sem{b}$ of
-    \autoref{def:cbv-case-em} --- six steps using
+    \autoref{def:cbv-case-em} --- the six steps use
     \rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom},
     \rocq{Icones.homs.seely.linhom_icones},
-    $\mathtt{tensor\_uncurry}$, a braid, $(\mathrm{id} \otimes \mathrm{der})$,
-    and a final $\mathtt{em\_pair\_mor}$ with the scrutinee.
-  \item $\mathtt{ne\_fix}$ / $\mathtt{ne\_fix\_mr}$:
-    $\mathtt{const\_icones}\,\sem{\Gamma}\,\mathtt{precone\_zero}$ ---
-    the placeholder of \autoref{sec:cbv-yfix-fun}, pending the port of
-    the Kleene iteration to the linhom-cone $U\sem{A} \multimap
-    U\sem{B}$.
+    $\mathtt{tensor\_uncurry}$, a braid, and a final
+    $\mathtt{em\_pair\_mor}$ with the scrutinee; with the §9.7-style
+    $\mathtt{bool\_cone\_coalg}$ on $\sem{\mathtt{tbool}}$, the
+    scrutinee lands directly in $\mathtt{bool\_cone\_car}$ (no
+    $\mathrm{der}$ step required).
+  \item $\mathtt{ne\_fix}\,s\,M$ (OCaml-style recursion at function
+    types):
+    \[
+      \sem{\mathtt{ne\_fix}\,s\,M}
+      \;=\;
+      \mathtt{linhom\_icones}\,\bigl(
+        \mathtt{Yfix\_fun\_lin}\;
+          (\mathtt{coalg\_d}\,(\mathtt{ctxD\_cbv}\,\Gamma))\;
+          (\sem{M})\bigr)\;
+        \mathtt{Yfix\_fun\_lin\_norm\_le1},
+    \]
+    the CBV value-fixpoint of \autoref{def:cbv-yfix-fun-lin}, with the
+    ambient context diagonal supplied by
+    $\mathtt{coalg\_d}\,(\mathtt{ctxD\_cbv}\,\Gamma)$. The body
+    $\sem{M}$ is interpreted in the context extended by the
+    self-reference $s : \mathtt{tfun}\,A\,B$. The Kleene supremum is
+    packaged back into an icones-hom via
+    \rocq{Icones.homs.seely.linhom_icones}, using the unit-ball witness
+    \rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_norm_le1}.
+  \item $\mathtt{ne\_fix\_mr}\,s\,t\,\_\,M$ (free-coalg-type
+    generalisation, for mutual recursion / product-shaped recursive
+    values): the same Kleene operator at the free-coalg-type case,
+    \[
+      \sem{\mathtt{ne\_fix\_mr}\,s\,t\,\_\,M}
+      \;=\;
+      \mathtt{linhom\_icones}\,\bigl(
+        \mathtt{Yfix\_fun\_lin}\;
+          (\mathtt{coalg\_d}\,(\mathtt{ctxD\_cbv}\,\Gamma))\;
+          (\sem{M})\bigr)\;
+        \mathtt{Yfix\_fun\_lin\_norm\_le1},
+    \]
+    parametric in $\Gamma$ and the coalgebra $t$, so the recipe is
+    identical to $\mathtt{ne\_fix}$ above (see
+    \autoref{ssec:cbv-yfix-parametric}).
 \end{itemize}
 
 \paragraph{The two $\widetilde{\mathord{!}}$ boundaries.}
@@ -1333,13 +1625,13 @@ against a Dirac evaluating the path at the carrier point.
 \paragraph{The shared surface programs.}
 The eleven surface PPL programs in
 \texttt{theories/programs/examples.v} type-check under
-\rocq{Icones.programs.ppl_cbv.eD}, with the following caveat: the
-recursive examples
+\rocq{Icones.programs.ppl_cbv.eD}: the recursive examples
 \rocq{Icones.programs.examples.ex_loop},
 \rocq{Icones.programs.examples.ex_geom} and
-\rocq{Icones.programs.examples.ex_almost_loop} reduce, at the
-$\mathtt{ne\_fix}$ slot, to the $\mathtt{precone\_zero}$ placeholder
-of \autoref{sec:cbv-yfix-fun}. The QBS-style examples ---
+\rocq{Icones.programs.examples.ex_almost_loop} now resolve, at the
+$\mathtt{ne\_fix}$ slot, to the genuine Kleene fixpoint
+$\mathtt{Yfix\_fun\_lin}$ of \autoref{def:cbv-yfix-fun-lin}, not to a
+$\mathtt{precone\_zero}$ placeholder. The QBS-style examples ---
 \rocq{Icones.programs.examples.ex_random_constant} (a distribution
 over a function space, with source type
 $\mathtt{tfun}\,\mathtt{tR}\,\mathtt{tR}$),
@@ -1379,8 +1671,8 @@ witness simultaneously. The custom entry \texttt{ppl\_named} supports
 \texttt{let "x" := M in N},
 \texttt{\textbackslash "x" ::: A => M},
 \texttt{fix "f" ::: tfun A B in M} (desugaring to
-\rocq{Icones.programs.ppl.ne_fix}, currently a placeholder denotation
-per \autoref{sec:cbv-yfix-fun}),
+\rocq{Icones.programs.ppl.ne_fix}, the genuine Kleene value-fixpoint
+of \autoref{def:cbv-yfix-fun-lin}),
 \texttt{Sample (mu, Hmu)},
 \texttt{Score \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e},
 \texttt{True} / \texttt{False},
@@ -1398,40 +1690,39 @@ direct-style surface notation.
 Adequacy, normalization, and full-abstraction (traditional metatheory,
 requiring more than a denotational model). Coproducts beyond the
 2-point case of \autoref{sec:cbv-bool} (no general sum type in the
-cones model). The fixpoint denotations
-(\autoref{sec:cbv-yfix-fun}) and any closed-form mass identity for
-recursive surface programs on the CBV side; the parallel CBN identity
+cones model). A closed-form CBV-side mass identity for the recursive
+surface programs (\autoref{sec:cbv-geom-mass}) --- the recursion
+infrastructure of \autoref{def:cbv-yfix-fun-lin} is now in place, but
+the specific mass identity mirroring the CBN-side
 \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
-(\autoref{thm:cbn-ex-geom}) closes axiom-free. The
-$\mathtt{bool\_meas\_space}$-based $\mathtt{tbool}$ clause
-(\autoref{rem:cbv-tbool}). A Moggi metalanguage with an explicit
-value/computation split (orthogonal to the linhom-valued framing
-adopted here).
+(\autoref{thm:cbn-ex-geom}) has not yet been written. A Moggi
+metalanguage with an explicit value/computation split (orthogonal to
+the linhom-valued framing adopted here).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Mass identity for \texorpdfstring{$\mathtt{ex\_geom}$}{ex\_geom}: pending the CBV fixpoint}%
+\section{Mass identity for \texorpdfstring{$\mathtt{ex\_geom}$}{ex\_geom} on the CBV side}%
 \label{sec:cbv-geom-mass}
 
 A CBV-side closed-form mass identity for the geometric program
 \rocq{Icones.programs.examples.ex_geom} would parallel the
 CBN-side $\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}$
 of \autoref{thm:cbn-ex-geom}: the Kleene cascade on the unit-ball
-$\omega$-CPO yields per-iterate mass $1 - (1/2)^n$ (Bernoulli at $1/2$
-pulls $\delta_0$ with weight $1/2$ and recurses on the remaining
-$1/2$ through the unary linear pushforward of the ELSE branch), with
-limit $1$ by monotone convergence in $\overline{\mathbb{R}}$. Realising
-this identity in the current codebase requires the CBV value-fixpoint
-of \autoref{sec:cbv-yfix-fun} to be in place; the previous formalisation
-recorded such an identity at the Bang-level
-$\mathtt{Yfix\_arr}$ (now deleted, see
-\autoref{sec:cbv-yfix-fun}), the now-retired
-\texttt{theories/programs/infra/em\_fix\_arr.v}. With $\mathtt{ne\_fix}$
-currently a $\mathtt{precone\_zero}$ placeholder in
-\rocq{Icones.programs.ppl_cbv.eD_cbv}, the CBV-side identity is not
-provable in the codebase. The axiom-free CBN-side identity
+$\omega$-CPO of \autoref{def:cbv-yfix-fun-lin} yields per-iterate mass
+$1 - (1/2)^n$ (Bernoulli at $1/2$ pulls $\delta_0$ with weight $1/2$
+and recurses on the remaining $1/2$ through the unary linear
+pushforward of the ELSE branch), with limit $1$ by monotone
+convergence in $\overline{\mathbb{R}}$. With $\mathtt{ne\_fix}$ now
+routed through $\mathtt{Yfix\_fun\_lin}$ in
+\rocq{Icones.programs.ppl_cbv.eD_cbv}, the CBV-side identity is
+provable in principle on the current infrastructure --- the recursion
+shape is in place and the per-iterate cascade and mass-convergence
+lemmas of \autoref{lem:cbn-kleene-cascade} /
+\autoref{lem:cbn-kleene-cvg} have direct CBV analogues at the linhom
+cone. The specific CBV proof has not yet been written and is a
+follow-up. The axiom-free CBN-side identity
 \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one} of
-\autoref{ch:cbn} is the available record for the geometric program in
-the cones model.
+\autoref{ch:cbn} remains the current closed record for the geometric
+program in the cones model.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Status}\label{sec:cbv-status}
@@ -1467,10 +1758,23 @@ and the discharged paper-\S6 follow-up
 $\mathtt{cone\_one}\oplus\mathtt{cone\_one}$, the icones-hom packaging
 \rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom} (with
 unit-ball-free variant
-\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}), and
-the linhom-level if-then-else combinator
+\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}), the
+linhom-level if-then-else combinator
 \rocq{Icones.programs.ppl_cbv.if_icones} used by $\mathtt{ne\_if}$
-(\autoref{def:cbv-case-em}); the linhom-valued, comonoid-primitive
+(\autoref{def:cbv-case-em}), and the \S9.7-style 2-point
+$\mathord{!}$-coalgebra
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}
+(\autoref{def:cbv-bool-cone-coalg}) used as the carrier of
+$\sem{\mathtt{tbool}}$; the CBV value-fixpoint
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin}
+(\autoref{def:cbv-yfix-fun-lin}) on the clean linhom-cone, built from
+the Kleene step
+\rocq{Icones.programs.infra.em_fix.Phi_fun} of
+\autoref{def:cbv-phi-fun} via the generic linhom-level engine
+\rocq{Icones.programs.infra.em_fix.linhom_lfp}
+(\autoref{def:cbv-kleene-lin}), parametric in the ambient context
+diagonal and in the codomain coalgebra shape
+(\autoref{ssec:cbv-yfix-parametric}); the linhom-valued, comonoid-primitive
 CBV interpreter \rocq{Icones.programs.ppl_cbv.eD} of
 \autoref{sec:cbv-ppl}, with its type interpretation
 \rocq{Icones.programs.ppl_cbv.tyD_cbv}, context interpretation
@@ -1487,29 +1791,25 @@ eleven surface programs of \texttt{theories/programs/examples.v}
 \rocq{Icones.programs.examples.ex_almost_loop}, plus the four boolean
 sanity checks).
 
-\paragraph{Placeholders.}
-Two clauses of the CBV interpreter resolve to the constant-zero
-placeholder $\mathtt{precone\_zero}$ in
-\rocq{Icones.programs.ppl_cbv.eD_cbv} (\autoref{sec:cbv-yfix-fun}):
-\rocq{Icones.programs.ppl.ne_fix} (OCaml-style recursion at function
-types) and \rocq{Icones.programs.ppl.ne_fix_mr} (the product-case
-generalisation). The intended construction is a Kleene iteration on
-the unit-ball $\omega$-CPO of
-\rocq{Icones.homs.linhom.linhom_car}, mirroring the SCones-side
-\rocq{Icones.stable.fixpoint.Yfix} but on the clean linhom-cone
-$U\sem{A} \multimap U\sem{B}$ (no $\widetilde{\mathord{!}} \circ U$
-wrap on $B$); the deleted \texttt{em\_fix.v} / \texttt{em\_fix\_arr.v}
-provided this construction in the now-retired Kleisli-exponential
-codomain. The CBV mass identity for the geometric program
-(\autoref{sec:cbv-geom-mass}) is unrecoverable until the Kleene port
-lands; the axiom-free CBN identity
+\paragraph{Follow-ups.}
+The recursion infrastructure of \autoref{sec:cbv-yfix-fun} is now in
+place, so the only CBV-side residue listed in earlier drafts of this
+status section --- the $\mathtt{ne\_fix}$ / $\mathtt{ne\_fix\_mr}$
+placeholders and the cofree-based $\mathtt{tbool}$ clause --- has
+landed (the former through
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin}, the latter through
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}). What
+remains as follow-up is a specific CBV-side mass identity for the
+recursive surface programs, mirroring the axiom-free CBN-side
 \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
-(\autoref{thm:cbn-ex-geom}) is the present record. The
-$\mathtt{tbool}$ clause uses the cofree
-$\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$ instead of the
-intended $\FMeas(\mathtt{bool\_meas\_space})$
-(\autoref{rem:cbv-tbool}); a small
-$\mathtt{measurableType}\,R$ stub on $\mathbf{Ar}$ would suffice.
+(\autoref{thm:cbn-ex-geom}); the per-iterate cascade and
+mass-convergence shape are already in place at the linhom cone via the
+ω-continuity witness
+\rocq{Icones.programs.infra.em_fix.Phi_fun_cont} and the unit-ball
+supremum \rocq{Icones.cones.cone.cone_sup_ball}, but writing the
+specific proof for \rocq{Icones.programs.examples.ex_geom} on the new
+\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin} has not yet been
+attempted (\autoref{sec:cbv-geom-mass}).
 
 \paragraph{What is not interpreted.}
 $\mathrm{EM}(\mathord{!})$ is not cartesian closed and is not expected
