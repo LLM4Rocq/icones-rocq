@@ -76,6 +76,7 @@ theories/programs/examples.v
 theories/programs/infra/cbv_anchors.v
 theories/programs/infra/cbv_fix_unfold.v
 theories/programs/infra/let_sample_law.v
+theories/programs/ex_reject_headline.v
 theories/programs/infra/bool_case_scones.v
 theories/programs/ppl_cbn.v
 theories/programs/ppl_cbn_eff.v
