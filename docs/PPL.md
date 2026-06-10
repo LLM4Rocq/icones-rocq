@@ -1,15 +1,17 @@
 # PPL.md — A direct-style PPL on top of the integrable-cones model
 
 A typed probabilistic functional language sits on top of the paper's
-categorical model: each type denotes a `!`-coalgebra, each program a
-Kleisli arrow of the linear-exponential comonad `!`, recursion the
-least fixpoint of paper §9.2. The same surface syntax also admits a
-call-by-name reading through the cartesian closed `SCones` of stable
-and measurable functions of paper §7. The language is direct-style
-(Plotkin / Girard), named-variable (Saito–Affeldt APLAS 2023), and the
-probability monad lives entirely in the interpretation — there is no
-`tprob` type marker, no syntactic `return`, no `bind`. Examples are
-listed in [EXAMPLES.md](../examples/).
+categorical model. Each type denotes a `!`-coalgebra, each program a
+*linear* morphism in `ICone` between the underlying carriers of the
+context and result coalgebras, and recursion at function type is
+realised as a Kleene fixpoint on the unit-ball cpo of the relevant
+internal hom. The same surface syntax also admits a call-by-name
+reading through the cartesian closed `SCones` of stable and
+measurable functions of paper §7. The language is direct-style
+(Plotkin / Girard), named-variable (Saito–Affeldt APLAS 2023), and
+probabilistic effects live entirely in the interpretation — there is
+no `tprob` type marker, no syntactic `return`, no `bind`. Examples
+are listed in [EXAMPLES.md](../examples/).
 
 The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
 [Paper tab](../paper/). This document covers what sits *above* the
@@ -152,8 +154,12 @@ unit-ball discipline of `linhom_icones`.
 
 OCaml-style `let rec`, restricted to function types. The body has
 access to the recursive function via a fresh name `s : tfun t1 t2` in
-the context. The CBV interpretation routes through `Yfix_fun_T` (see
-below); CBN through paper §9.2's `Yfix`.
+the context. The CBN interpretation routes through paper §9.2's
+`Yfix`. The CBV interpretation in `theories/programs/ppl_cbv.v`
+currently leaves both `ne_fix` and `ne_fix_mr` as `precone_zero`
+placeholders pending a Kleene-iteration on the unit-ball CPO of the
+clean `linhom`-cone — see *The CBV value-fixpoint at function
+types* below.
 
 ### Mutual recursion at free-coalgebra types (`ne_fix_mr`)
 
@@ -169,10 +175,9 @@ Generalises `ne_fix` to any body type `t` with
 `is_free_coalg_type t = true` — in particular `t = tprod (tfun A1 B1)
 (tfun A2 B2)`, the mutual-recursion shape. The two components can
 then call each other via `fst #"s"` / `snd #"s"`. CBN dispatches via
-`Yfix` at the product cone (fully sound); CBV dispatches via
-`Yfix_mr_pack` (sound at the `tfun` arm, honest-scope placeholder at
-the `tprod` arm — see *The CBV value-fixpoint at function types*
-below).
+`Yfix` at the product cone (fully sound). CBV in
+`theories/programs/ppl_cbv.v` currently routes `ne_fix_mr` through
+the same `precone_zero` placeholder as `ne_fix`.
 
 ### Surface notation (the `ppl_named` custom entry)
 
@@ -213,146 +218,176 @@ braces `{ x }` escape back to plain Rocq.
 
 ---
 
-## Beyond the paper — Call-by-value interpretation (EM(!) Kleisli)
+## Beyond the paper — Call-by-value interpretation (linhom + comonoid)
 
 **Definition (CBV interpretation).** *Each type `τ` denotes a
 `!`-coalgebra `⟦τ⟧ ∈ EM(!)`; each well-typed program `Γ ⊢ M : τ`
-denotes a Kleisli arrow `⟦M⟧ : ⟦Γ⟧ → T⟦τ⟧` for the CBV monad
-`T = !̃ ∘ U` of the linear / non-linear adjunction (Mellies §7.4 Prop
-29, paper §9). Composition is Kleisli, the unit is `tunit_eta`. The
-value category is the **full** Eilenberg–Moore category `EM(!)` of
-the linear-exponential comonad — Mellies Cor 20 + Fox 1976 give the
-cartesian η; see Paper-tab `EM(!) is fully cartesian`.*
+denotes a linear morphism `⟦M⟧ : U⟦Γ⟧ ⊸ U⟦τ⟧` in `ICone` — an
+element of `linhom_car Ar (coalg_obj ⟦Γ⟧) (coalg_obj ⟦τ⟧)`. Programs
+are not coalgebra morphisms (the sampling clause is not a coalgebra
+morphism: it doesn't commute with the §9.7 duplicability structure
+on `FMeas`); the coalgebra structure of the context is used only
+through the comonoid pair `(δ, ε) = (coalg_d, coalg_e)` that every
+EM(!) object carries by Mellies' Proposition 28 — see Paper-tab
+`EM(!) is fully cartesian`.*
 
 In Rocq this is the function
 
 ```
-eD : named_expr Γ τ → coalg_hom (ctxD (drop_names Γ)) (Tobj (tyD τ))
+eD : named_expr Γ τ →
+       linhom_car Ar (coalg_obj (ctxD_cbv (drop_names Γ)))
+                     (coalg_obj (tyD_cbv τ))
 ```
 
-defined by structural recursion on `named_expr`. Pure constructors
-are made into Kleisli arrows by post-composition with `tunit_eta` —
-the implicit return that direct style needs. The function-type
-denotation is the Kleisli exponential `!̃(U⟦t1⟧ ⊸ U(T ⟦t2⟧))`, with
-the `T` on the codomain encoding that every function call is
-potentially effectful.
+of `theories/programs/ppl_cbv.v`, defined by structural recursion on
+`named_expr`. Internally it is built from an `icones_hom`-valued
+helper `eD_cbv` (an inhabitant of the unit ball of the same
+`linhom`) and forwarded to a linhom by `icones_to_linhom`; the two
+views are interchangeable. There is no Kleisli wrapping on the
+codomain of `tfun`: function VALUES are linear maps `U⟦t1⟧ ⊸ U⟦t2⟧`,
+and duplicability comes from the outer cofree `!̃` only.
 
 | Construction | Rocq |
 |---|---|
-| Type translation | `tyD` — `theories/programs/ppl.v` |
-| Context translation | `ctxD` — same file |
-| Term interpretation | `eD` (uniform `Tobj`-wrapped codomain) — same file |
-| CBV monad `T = !̃ ∘ U` | `Tobj` — `theories/programs/cbv.v` |
-| Kleisli bind / extended bind | `kbind`, `kcomp`, `kbind_ext` — `cbv.v`, `ppl.v` |
-| Sampling on a Dirac | `sample_kleisli`, `cpD_sample_var_dirac`, `cpD_sample_is_integral` (= `Coalg`) | `cbv.v`, `ppl.v` |
+| Type translation (no `Tobj` on `tfun`) | `tyD_cbv` — `theories/programs/ppl_cbv.v` |
+| Context translation | `ctxD_cbv` — same file |
+| Variable lookup (projection chain) | `var_lookup_cbv` — same file |
+| Constant `icones_hom` helpers (`sample`, `real`, `true`/`false`, `bernoulli`) | `sample_icones`, `real_icones`, `true_icones`, `false_icones`, `bernoulli_icones` — same file |
+| If-then-else combinator at the icones level | `if_icones`, `if_under` — same file |
+| Internal icones-valued term interpretation | `eD_cbv` — same file |
+| Public linhom-valued term interpretation | `eD` — same file |
+| EM cartesian primitives (`δ`, `ε`, projections, pairing) | `coalg_d`, `coalg_e`, `em_proj1_mor`, `em_proj2_mor`, `em_pair_mor`, `em_term_mor` — `theories/programs/infra/cbv_adjunction.v` |
 
-### Type translation (`tyD`)
+### Type translation (`tyD_cbv`)
 
 ```coq
-(* theories/programs/ppl.v *)
-Fixpoint tyD (t : ppl_type Ar) : Coalgebra Ar :=
+(* theories/programs/ppl_cbv.v *)
+Fixpoint tyD_cbv (t : ppl_type Ar) : Coalgebra Ar :=
   match t with
   | tunit       => EM_term
-  | tbase X     => FMeas_coalgebra X
-  | tprod t1 t2 => EM_prod (tyD t1) (tyD t2)
-  | tfun  t1 t2 => bang_cofree
-                     (linhom_car Ar (coalg_obj (tyD t1))
-                                    (coalg_obj (Tobj (tyD t2))))
   | tbool       => bang_cofree (bool_cone_car Ar)
+  | tbase X     => FMeas_coalgebra X
+  | tprod t1 t2 => EM_prod (tyD_cbv t1) (tyD_cbv t2)
+  | tfun  t1 t2 => bang_cofree
+                     (linhom_car Ar (coalg_obj (tyD_cbv t1))
+                                    (coalg_obj (tyD_cbv t2)))
   end.
 ```
 
-`⟦tunit⟧ = EM_term` is the terminal coalgebra. `⟦tbase X⟧ = (FMeas
-X, h_X)` is the Theorem 9.7 coalgebra. `⟦tfun t1 t2⟧` is the Kleisli
-exponential of `T`; the `Tobj` on the codomain is what makes the
-language direct-style CBV.
+`⟦tunit⟧ = EM_term` is the terminal coalgebra; `⟦tbase X⟧ = (FMeas
+X, h_X)` is the Theorem 9.7 coalgebra; `⟦tprod t1 t2⟧` is the EM
+cartesian product. `⟦tfun t1 t2⟧` is the outer-cofree of the *clean*
+internal hom `U⟦t1⟧ ⊸ U⟦t2⟧` — no `Tobj` on the codomain. The
+`tbool` clause uses the cofree coalgebra over the 2-point
+sub-probability cone of `bool_cone.v` (a fallback; a direct
+`FMeas_coalgebra bool_meas_space` reading is left as a TODO in
+`ppl_cbv.v` pending a small `bool_meas_space : measurableType R`
+stub).
 
-### Context translation (`ctxD`)
+### Context translation (`ctxD_cbv`)
 
 ```coq
-(* theories/programs/ppl.v *)
-Fixpoint ctxD (G : ppl_ctx Ar) : Coalgebra Ar :=
+(* theories/programs/ppl_cbv.v *)
+Fixpoint ctxD_cbv (G : ppl_ctx Ar) : Coalgebra Ar :=
   match G with
   | nil     => EM_term
-  | t :: G' => EM_prod (ctxD G') (tyD t)
+  | t :: G' => EM_prod (ctxD_cbv G') (tyD_cbv t)
   end.
 ```
 
-### Term interpretation (`eD`)
+### Term interpretation (`eD_cbv`, `eD`)
+
+The clean CBV interpretation is uniformly comonoid-primitive: every
+branching node (let, pair, app, if, arithmetic, boolean) uses the
+`δ_Γ` diagonal of the context to give each sub-term its own copy of
+`Γ`; multi-use of a free variable is then free in the cone. The
+cofree exponential `!̃` appears only at two boundaries — `ne_lam`,
+where the body is curried and promoted via the strength `str_Γ` of
+the `U⊣!̃` adjunction, and `ne_app`, where the function value is
+dereferenced via `der` before evaluation.
 
 ```coq
-(* theories/programs/ppl.v *)
-Fixpoint eD (G : named_ctx Ar) (t : T)
-    (M : @named_expr R Ar R_obj G t) {struct M} : EX G t :=
+(* theories/programs/ppl_cbv.v *)
+Fixpoint eD_cbv (G : named_ctx Ar) (t : T)
+    (M : @named_expr R Ar R_obj G t) {struct M} : EXi G t :=
   match M with
-  | ne_var _ _ v =>
-      coalg_comp (tunit_eta (tyD _))
-                 (var_lookup (named_var_to_has_var v))
-  | ne_tt _ => coalg_comp (tunit_eta EM_term) (em_term_mor _)
-  | ne_pair _ _ _ M1 M2 =>
-      coalg_comp (bang_m _ _) (em_pair (eD M1) (eD M2))
-  | ne_fst _ _ _ M0 => coalg_comp (Tmap (em_proj1 _ _)) (eD M0)
-  | ne_snd _ _ _ M0 => coalg_comp (Tmap (em_proj2 _ _)) (eD M0)
-  | ne_lam _ _ _ _ body =>
-      coalg_comp (tunit_eta _) (lam_coalg (eD body))
-  | ne_fix _ _ _ _ body => Yfix_fun_T (eD body)
-  | ne_fix_mr _ _ _ Hfree body => Yfix_mr_pack Hfree (eD body)
-  | ne_app _ _ _ Vf Va =>
-      kcomp (app_pair _ _)
-        (coalg_comp (bang_m _ _) (em_pair (eD Vf) (eD Va)))
-  | ne_let _ _ _ _ M0 K => kbind_ext (eD K) (eD M0)
-  | ne_sample _ mu Hmu  => sample_kleisli _ mu Hmu
-  | ne_real _ r         => real_kleisli _ r
+  | ne_var _ _ v          => ch_mor (var_lookup_cbv (named_var_to_has_var v))
+  | ne_tt G0              => ch_mor (em_term_mor (ctxD_cbv (drop_names G0)))
+  | ne_pair _ _ _ M1 M2   => em_pair_mor (eD_cbv M1) (eD_cbv M2)
+  | ne_fst _ _ _ M0       => icones_comp (em_proj1_mor _ _) (eD_cbv M0)
+  | ne_snd _ _ _ M0       => icones_comp (em_proj2_mor _ _) (eD_cbv M0)
+  | ne_lam _ _ _ _ body   => ch_mor (adj_psi (tensor_curry (eD_cbv body)))
+  | ne_app _ _ _ Vf Va    =>
+      icones_comp
+        (tensor_uncurry (icones_id Ar _))
+        (icones_comp
+          (tensor_mor (der _) (icones_id Ar _))
+          (em_pair_mor (eD_cbv Vf) (eD_cbv Va)))
+  | ne_let _ _ _ _ M0 K   =>
+      icones_comp (eD_cbv K)
+        (em_pair_mor (icones_id Ar _) (eD_cbv M0))
+  | ne_sample G0 mu Hmu   => sample_icones (ctxD_cbv (drop_names G0)) mu Hmu
+  | ne_real G0 r          => real_icones R_obj R_carrier_eq _ r
   | ne_score _ f Hfm Hg0 Hl1 e0 =>
-      coalg_comp (bang_cofree_hom (score_lift Hfm Hg0 Hl1)) (eD e0)
-  | ne_add _ M0 N0 =>
-      coalg_comp (bang_cofree_hom add_lift)
-                 (coalg_comp (bang_m _ _) (em_pair (eD M0) (eD N0)))
-  | ne_mul _ M0 N0 =>
-      coalg_comp (bang_cofree_hom mul_lift)
-                 (coalg_comp (bang_m _ _) (em_pair (eD M0) (eD N0)))
-  | ne_true _  => coalg_comp (tunit_eta _) (bool_value bool_dirac_true)
-  | ne_false _ => coalg_comp (tunit_eta _) (bool_value bool_dirac_false)
-  | ne_bernoulli _ p Hp0 Hp1 =>
-      coalg_comp (tunit_eta _) (bernoulli_value p Hp0 Hp1)
-  | ne_if _ _ e M0 N0 => kbind_ext (case_em (eD M0) (eD N0)) (eD e)
+      icones_comp (score_lift Hfm Hg0 Hl1) (eD_cbv e0)
+  | ne_add _ M0 N0        => icones_comp add_lift
+                               (em_pair_mor (eD_cbv M0) (eD_cbv N0))
+  | ne_mul _ M0 N0        => icones_comp mul_lift
+                               (em_pair_mor (eD_cbv M0) (eD_cbv N0))
+  | ne_true G0            => true_icones (ctxD_cbv (drop_names G0))
+  | ne_false G0           => false_icones (ctxD_cbv (drop_names G0))
+  | ne_bernoulli G0 p H0 H1 =>
+      bernoulli_icones (ctxD_cbv (drop_names G0)) p H0 H1
+  | ne_if _ _ e M0 N0     => if_icones (eD_cbv M0) (eD_cbv N0) (eD_cbv e)
+  | ne_fix _ _ _ _ _      => (* precone_zero placeholder — see below *) _
+  | ne_fix_mr _ _ _ _ _   => (* precone_zero placeholder — see below *) _
   end.
+
+Definition eD M : linhom_car Ar (coalg_obj (ctxD_cbv (drop_names G)))
+                                (coalg_obj (tyD_cbv t)) :=
+  icones_to_linhom (eD_cbv M).
 ```
 
-### The `kbind_ext` direct-style sequencer
+The two `_` placeholders for `ne_fix` and `ne_fix_mr` resolve to a
+constant `precone_zero`; the Kleene-fixpoint on the unit-ball CPO of
+the clean `linhom`-cone is pending (see *The CBV value-fixpoint at
+function types* below). Every other clause is built from the SMC
+primitives (`linhom_comp`, `tensor_mor`, `tensor_braid`,
+`tensor_curry` / `tensor_uncurry`) and the coalgebra-comonoid pair
+(`coalg_d`, `coalg_e`) only.
+
+### Constant icones helpers (`sample_icones`, `real_icones`, `bernoulli_icones`)
+
+Each effect / value constructor (`ne_sample`, `ne_real`,
+`ne_bernoulli`, `ne_true`, `ne_false`) denotes a *constant*
+`icones_hom` out of the context: the context's `ε_Γ` discards the
+context, then the constant value (a unit-ball measure, Dirac, or
+two-point distribution) is injected through `const_icones` of
+`theories/programs/ppl.v`.
 
 ```coq
-(* theories/programs/ppl.v *)
-Definition kbind_ext (G A B : Coalgebra Ar)
-    (K : coalg_hom (EM_prod G A) (Tobj B))
-    (M : coalg_hom G (Tobj A)) :
-    coalg_hom G (Tobj B) :=
-  kcomp K (coalg_comp (T_str_l G A) (em_pair (coalg_id G) M)).
+(* theories/programs/ppl_cbv.v *)
+Definition sample_icones (G : Coalgebra Ar) (X : ar_obj Ar)
+    (mu : fmeas R (ar_carrier Ar X)) (Hmu : (cone_norm mu <= 1)%R) :
+    icones_hom Ar (coalg_obj G) (coalg_obj (FMeas_coalgebra X)) :=
+  const_icones G mu Hmu.
 
-Lemma eD_let (G : named_ctx Ar) (x : string) (t1 t2 : ppl_type Ar)
-    (M : named_expr G t1) (K : named_expr ((x, t1) :: G) t2) :
-  eD (ne_let x M K) = kbind_ext (eD K) (eD M).
-Proof. by []. Qed.
+Definition true_icones (G : Coalgebra Ar) :
+    icones_hom Ar (coalg_obj G) (Bang Ar (bool_cone_car Ar)) :=
+  const_icones G (prom (bool_dirac_true : bool_cone_car Ar))
+                 (prom_ball bool_dirac_true_norm_le1).
 ```
 
-The extended-context Kleisli bind is the load-bearing reduction
-lemma for `ne_let` and the inner clause of `ne_app`; in direct style
-there is no syntactic `return`, so every expression already denotes
-a Kleisli arrow.
+### If-then-else at the icones level (`if_icones`)
 
-### Sampling (`sample_kleisli`, `cpD_sample_is_integral`)
-
-```coq
-(* theories/programs/cbv.v *)
-Lemma cpD_sample_is_integral (X : ar_obj Ar) :
-  ch_mor (tunit_eta (FMeas_coalgebra X)) = Coalg X.
-Proof. by []. Qed.
-```
-
-Following paper Remark 9.8: for `f : FMeas X → B`, the sampler
-returns the linearisation of `f` along the Dirac path, which is
-exactly the §9.7 coalgebra map `Coalg X`. The Rocq translation is
-*definitional*.
+The Boolean cascade is rebuilt around the universal co-pairing
+`bool_case_linhom` of `bool_case_hom.v`: the two branches `M`, `N`
+are taken as `icones_hom G → A` and converted to linhoms `m_lh`,
+`n_lh`; `bool_case_linhom m_lh n_lh` gives a linhom `bool_cone ⊸ (G
+⊸ A)`; SMCC uncurry then yields `bool_cone ⊗ G → A`; the scrutinee
+is composed in via the braid and `der_bool`, then paired with `id_G`
+via `em_pair_mor`. The result is a clean `icones_hom G → A` — no
+Kleisli wrapping anywhere.
 
 ---
 
@@ -553,74 +588,17 @@ for `ex_geom`'s `mass = 1`. Instantiate at `p := p`, `halt := δ_0`,
 
 ---
 
-## Beyond the paper — The CBV outer-point cascade
-
-The CBV counterpart of the CBN Bernoulli-cascade. The CBV
-Kleene-style argument runs at the `Bang`-level: each iterate of the
-Kleene chain (a linear arrow `linhom_car G (!̃funT)`) is fed against
-a *promoted outer point* `prom u`, and the inner application
-reduction lemmas (the so-called *outer-point E lemmas*) cascade the
-Bang-level evaluation down to a `FMeas R_obj`-valued scalar. Shared
-between `ex_loop_arr.v`, `em_fix_arr.v`, `ex_almost_loop_step.v`.
-
-| Construction | Rocq |
-|---|---|
-| The outer-point coalgebra (`Ctx-side` arg = `one1`, `lin-side` arg = `prom u`) | `at_outer_pt_u` — `theories/programs/infra/cbv_outer_pt.v` |
-| `coalg_str` evaluates at the outer point | `coalg_str_G_on_outer_pt_u_E` — same file |
-| `coalg_e` evaluates at the outer point | `coalg_e_G_on_outer_pt_u_E` — same file |
-| `lam_coalg` evaluates at the outer point (the body's λ closure) | `lam_coalg_at_one_prom` — same file |
-| Promotion identity: `linhom_fun u (one1) = …` | `linhom_fun_precone_add_E`, `linhom_fun_precone_scale_E` — same file |
-
-### The outer-point pair (`at_outer_pt_u`)
-
-```coq
-(* theories/programs/infra/cbv_outer_pt.v *)
-Definition at_outer_pt_u (u : L) : coalg_obj G_L :=
-  ptensor one1 (prom u).
-
-Lemma cone_norm_at_outer_pt_u_le1 (u : L) (Hu : cone_norm u <= 1) :
-  cone_norm (at_outer_pt_u u) <= 1.
-```
-
-The `G_L = EM_term ⊗ !̃ L` carrier with `one1 : EM_term` in the
-context slot and `prom u : !̃ L` in the recursive-self slot.
-
-### Evaluation at the outer point (`coalg_str_G_on_outer_pt_u_E`, `lam_coalg_at_one_prom`)
-
-```coq
-(* theories/programs/infra/cbv_outer_pt.v *)
-Lemma coalg_str_G_on_outer_pt_u_E (u : L) (Hu : cone_norm u <= 1) :
-  Lfun (coalg_str G_L) (at_outer_pt_u u) =
-  prom (at_outer_pt_u u).
-
-Lemma lam_coalg_at_one_prom
-    (body_E : coalg_hom (EM_prod G EM_term) (Tobj funT))
-    (u : L) (Hu : cone_norm u <= 1) :
-  Lfun (ch_mor (lam_coalg body_E)) (at_outer_pt_u u) =
-  (* the body's denotation evaluated at (one1, prom u) *).
-```
-
-The lemmas package the per-iterate reduction of a Kleene chain at the
-`Bang` level. `ex_loop_arr_mass_zero` (via `Step_loop_E`) and
-`ex_geom_arr_mass_one` (via `Phi_arr` / `F_arr`) both consume this
-framework.
-
----
-
 ## Beyond the paper — The SCones↔ICones-tensor bilinear stability bridge
 
-The structural unblocker that ties the two interpretations together
-at the level of bilinear-into-tensor arithmetic. Given a
-measurable-stable `K : G → A` and a bilinear
+The structural unblocker behind the honest CBN bilinear arithmetic
+on `FMeas`. Given a measurable-stable `K : G → A` and a bilinear
 `Φ : G ⊗ A → B` in `ICones`, the diagonal evaluation
 `g ↦ Φ(g ⊗ K(g)) : G → B` is measurable-stable. Built by pure
 structural composition through paper Theorem 5.12's
 tensor↔internal-hom adjunction (`tensor_curryE`) — no §7.3
 finite-difference replay required. Lifted to the internal-hom level
-this is paper Lemma 7.31; instantiated at the `Bang` level
-(`A := !A`, `B := !B`) it unblocks generic CBV recursion at
-`ne_fix`, the honest CBN bilinear arithmetic on `FMeas`, and a CBV /
-CBN soundness comparison.
+this is paper Lemma 7.31; the SCones-product variant is consumed by
+the CBN `add_FMeas` / `mul_FMeas` lift of `ppl_cbn_arith_scones.v`.
 
 | Construction | Rocq |
 |---|---|
@@ -693,120 +671,27 @@ the honest CBN arithmetic install of `ppl_cbn_arith_scones.v`.
 
 ## Beyond the paper — The CBV value-fixpoint at function types
 
-The fixpoint operator of paper §9.2 (`Y`) lives on `SCones` and
-operates on stable maps. The CBV value-fixpoint at function type —
-recursion as in OCaml's `let rec` — is its EM(!)-Kleisli counterpart;
-it generalises paper §9.2's `Yfix` from `SCones` (stable maps)
-to its EM(!)-Kleisli counterpart. The construction is a Kleene
-iteration on the unit-ball
-CPO of the `linhom` cone, packaged as a `coalg_hom` via the cofree
-adjunction `U ⊣ !̃` of the LNL structure.
+Currently a placeholder. The clauses `ne_fix` and `ne_fix_mr` in
+`theories/programs/ppl_cbv.v` resolve to a constant `precone_zero`
+icones_hom, surfaced as honest `Admitted`-free stubs with explicit
+TODO docstrings. The intended construction is a Kleene iteration on
+the unit-ball CPO of `linhom_car Ar A B` (no `Tobj` on the codomain
+`B`) — the natural setting once the `tfun` codomain wrap has been
+removed. The earlier `em_fix.v` / `em_fix_arr.v` infrastructure was
+tied to the deprecated Moggi-monad presentation (`linhom A (Tobj B)`
+with a Kleisli-exponential codomain) and has been removed alongside
+the rest of the old CBV stack.
 
 | Construction | Rocq |
 |---|---|
-| ω-continuity infrastructure on `linhom` | `linhom_pre_icones_sup`, `linhom_post_icones_sup`, `bang_fmap_lin_omega_cont`, `prom_omega_cont`, `tensor_mor_omega_cont_R`, `tensor_mor_R_lin_incr` — `theories/programs/infra/em_continuity.v` |
-| The Kleene operator on the `linhom` cone | `Phi_fun`, `Phi_fun_ball`, `Phi_fun_incr`, `Phi_fun_cont` — `theories/programs/infra/em_fix.v` |
-| The Kleene supremum (linhom level) | `Yfix_fun_lin`, `Yfix_fun_lin_norm_le1`, `Yfix_fun_lin_fixpoint` — same file |
-| The `coalg_hom` packaging — the CBV value-fixpoint | `Yfix_fun_T`, `Yfix_fun_T_unfolding` — same file |
-| Dispatcher for `ne_fix_mr` (sound at `tfun`, honest-scope at `tprod`) | `Yfix_mr_pack`, `Yfix_mr_pack_fun`, `Yfix_mr_pack_prod` — `theories/programs/ppl.v` |
-| Bang-level Kleene-cascade headlines (`ex_geom`) | `Phi_arr`, `Yfix_arr`, `Yfix_arr_fixpoint`, `F_arr`, `kleene_arr_chain` — `theories/programs/infra/em_fix_arr.v` |
+| Placeholder for `ne_fix` and `ne_fix_mr` (constant `precone_zero`) | the two `Admitted`-free `_` branches at the end of `eD_cbv` — `theories/programs/ppl_cbv.v` |
+| Reference value used by both placeholders | `precone_zero`, `precone_zero_norm_le1` — `theories/cones/precone.v`, `theories/programs/ppl.v` |
+| Future work — Kleene iteration on the clean `linhom`-cone | not yet packaged |
 
-### The linhom-level Kleene operator (`Phi_fun`)
-
-```coq
-(* theories/programs/infra/em_fix.v *)
-Definition Phi_fun
-    (prev : linhom_car Ar (coalg_obj G) (coalg_obj funT)) :
-    linhom_car Ar (coalg_obj G) (coalg_obj funT) :=
-  (* bang_fmap (der L) ∘ ch_mor M ∘ tensor_mor (id_G, prev) ∘ coalg_d G *).
-```
-
-The body's natural reading: starting from the `coalg_d`
-comultiplication on the context, tensor in the previous recursive
-approximation `prev`, run the body `M` (as an `icones_hom`), then
-dereliction back. The composite is linear, norm-≤ 1 on the unit
-ball, monotone, and ω-continuous.
-
-### The Kleene supremum (`Yfix_fun_lin`, `Yfix_fun_lin_fixpoint`)
-
-```coq
-(* theories/programs/infra/em_fix.v *)
-Definition Yfix_fun_lin :
-    linhom_car Ar (coalg_obj G) (coalg_obj funT) :=
-  cone_sup_ball Phi_fun_iter Phi_fun_iter_chain Phi_fun_iter_ball.
-
-Lemma Yfix_fun_lin_norm_le1 :
-  cone_norm Yfix_fun_lin <= 1.
-
-Lemma Yfix_fun_lin_fixpoint :
-  Phi_fun Yfix_fun_lin = Yfix_fun_lin.
-```
-
-### The `coalg_hom` packaging (`Yfix_fun_T`)
-
-```coq
-(* theories/programs/infra/em_fix.v *)
-Definition Yfix_fun_T : coalg_hom G (Tobj funT) :=
-  adj_psi (linhom_icones Yfix_fun_lin Yfix_fun_lin_norm_le1).
-```
-
-`adj_psi` of the cofree adjunction `U ⊣ !̃` is unconditionally
-available on any norm-≤ 1 `icones_hom`, so no separate
-`is_coalg_mor` obligation arises. This is the CBV value-fixpoint
-consumed by the `ne_fix` clause of `eD`.
-
-### Dispatcher for `ne_fix_mr` (`Yfix_mr_pack`)
-
-```coq
-(* theories/programs/ppl.v *)
-Fixpoint Yfix_mr_pack (Ctx : Coalgebra Ar) (t : T)
-    (Hfree : is_free_coalg_type t) {struct t} :
-    coalg_hom (EM_prod Ctx (tyD t)) (Tobj (tyD t)) ->
-    coalg_hom Ctx (Tobj (tyD t)) := ...
-
-Lemma Yfix_mr_pack_fun (Ctx : Coalgebra Ar) (A B : T)
-    (Hfree : is_free_coalg_type (tfun A B))
-    (body : coalg_hom (EM_prod Ctx (tyD (tfun A B)))
-                      (Tobj (tyD (tfun A B)))) :
-  Yfix_mr_pack Hfree body = Yfix_fun_T body.
-Proof. by []. Qed.
-
-Lemma Yfix_mr_pack_prod (Ctx : Coalgebra Ar) (t1 t2 : T)
-    (Hfree : is_free_coalg_type (tprod t1 t2))
-    (body : coalg_hom (EM_prod Ctx (tyD (tprod t1 t2)))
-                      (Tobj (tyD (tprod t1 t2)))) :
-  Yfix_mr_pack Hfree body =
-  @const_kleisli R Ar Ctx _ precone_zero (precone_zero_norm_le1 _).
-Proof. by []. Qed.
-```
-
-At `tfun A B` this is definitionally `Yfix_fun_T`. At `tprod t1 t2`
-it is the honest-scope constant-zero placeholder (CBV mutual
-recursion at product types is documented-deferred, see *What is not
-formalised* below). The CBN side has no such limitation.
-
-### Bang-level Kleene cascade (`Phi_arr`, `Yfix_arr`, `F_arr`)
-
-```coq
-(* theories/programs/infra/em_fix_arr.v *)
-Definition Phi_arr (v : coalg_obj funT_geom) : coalg_obj funT_geom :=
-  (* … the Kleene operator at the Bang level for ex_geom *).
-
-Definition Yfix_arr : coalg_obj funT_geom :=
-  cone_sup_ball kleene_arr kleene_arr_chain kleene_arr_ball.
-
-Lemma Yfix_arr_fixpoint : Phi_arr Yfix_arr = Yfix_arr.
-
-Definition F_arr (n : nat) : FMeas R_obj :=
-  Lfun (der (FMeas R_obj))
-       (linhom_fun (Lfun (der L_geom) (kleene_arr n))
-                   (one1 : cone_one_car Ar)).
-```
-
-`F_arr n` is the FMeas-element extracted from `kleene_arr n` by
-applying `der L_geom`, evaluating at `one1`, then `der (FMeas R_obj)`
-— the recipe that powers `ex_geom_arr_mass_one` and
-`ex_geom_arr_is_geometric_distribution` (see EXAMPLES.md).
+The CBN side has no such limitation. Recursion under CBN goes
+through paper §9.2's `Yfix` at any integrable cone via `eD_CBN_fix_E`
+/ `eD_CBN_fix_mr_E` of `ppl_cbn.v`, fully sound at every function
+and product-of-function type.
 
 ---
 
@@ -815,12 +700,10 @@ applying `der L_geom`, evaluating at `one1`, then `der (FMeas R_obj)`
 The 2-point cone of paper §4.4 / Theorem 4.24 — the coproduct
 `1 ⊕ 1` — is built concretely as `bool_cone_car Ar : {nonneg R} ×
 {nonneg R}` with norm `‖(p, q)‖ = p + q`, with its full HB tower, its
-universal co-pairing as an `icones_hom`, an EM(!)-Kleisli case
-combinator for the `if-then-else` of `named_expr`, and a CBN-side
-`scones_hom` packaging via `ders`. The key insight that avoids a
-`Bang`-level bilinearity obstruction: a `coalg_hom` from
-`EM_prod G A` to `Tobj B` is automatically norm-≤ 1 *as an arrow*, so
-the co-pairing `bool_case_linhom` consumes it verbatim.
+universal co-pairing as a linhom and an icones_hom, and a CBN-side
+`scones_hom` packaging via `ders`. Consumed by the CBV `if_icones`
+combinator of `ppl_cbv.v` and by the CBN `cbn_if_clause` of
+`ppl_cbn.v`.
 
 | Construction | Rocq |
 |---|---|
@@ -831,8 +714,7 @@ the co-pairing `bool_case_linhom` consumes it verbatim.
 | Icones-hom packaging | `bool_case_linhom`, `bool_case_linhom_gen`, `bool_case_icones_hom` — `theories/programs/infra/bool_case_hom.v` |
 | α / β decomposition | `alpha_linhom`, `beta_linhom`, `bool_case_linhom_gen_alpha_beta` — same file |
 | SCones-side packaging (via paper Lem 7.31) | `bool_case_scones` — `theories/programs/infra/bool_case_scones.v` |
-| EM-Kleisli `case_em` combinator | `case_em` — `theories/programs/ppl.v` |
-| Bernoulli value (Kleisli return at `tbool`) | `bernoulli_value`, `case_em_bernoulli` — same file |
+| CBV `if_icones` consumer (from the new interpreter) | `if_icones`, `if_under` — `theories/programs/ppl_cbv.v` |
 
 ### The 2-point cone (`bool_cone_car`)
 
@@ -872,7 +754,7 @@ Paper §4.4 / Thm 4.24 universal-property formula
 the unit ball, norm ≤ 1 when `‖a‖, ‖b‖ ≤ 1`, and preserves
 measurable paths and integrals.
 
-### Icones-hom packaging (`bool_case_linhom`, `case_em`)
+### Icones-hom packaging (`bool_case_linhom`, `if_icones`)
 
 ```coq
 (* theories/programs/infra/bool_case_hom.v *)
@@ -890,20 +772,20 @@ Definition bool_case_linhom_gen (a b : A) :
 ```
 
 ```coq
-(* theories/programs/ppl.v *)
-Definition case_em (G : Coalgebra Ar) (A : ppl_type Ar)
-    (a b : coalg_hom (EM_prod G (tyD A)) (Tobj (tyD A))) :
-    coalg_hom (EM_prod G (bang_cofree (bool_cone_car Ar)))
-              (Tobj (tyD A)).
+(* theories/programs/ppl_cbv.v *)
+Definition if_icones
+    (G A : Coalgebra Ar)
+    (m n : icones_hom Ar (coalg_obj G) (coalg_obj A))
+    (b : icones_hom Ar (coalg_obj G)
+                     (coalg_obj (bang_cofree (bool_cone_car Ar)))) :
+    icones_hom Ar (coalg_obj G) (coalg_obj A).
 ```
 
-The EM(!) value-level `if-then-else` combinator. Branches `a`, `b`
-are auto-unit-ball *as coalg homs* — the hom-cone insight that lets
-`bool_case_linhom` consume them with no ad-hoc bound. Build via
-`bool_case_linhom` of `a_lh := adj_phi a` / `b_lh := adj_phi b` on
-the Kleisli-bool source, then tensor-uncurry to consume the
-`bool_cone_car` source, then `adj_psi` back into the `Tobj A`
-codomain.
+The CBV value-level `if-then-else` combinator. Both branches `m`,
+`n` are taken as `icones_hom G → A`, converted to linhoms, paired by
+`bool_case_linhom`, uncurried over `bool_cone ⊗ G`, then composed
+with the scrutinee via `em_pair_mor` and `der_bool`. Every step
+stays at the `icones_hom` level — no Kleisli wrapping.
 
 ---
 
@@ -916,8 +798,8 @@ baseline (`cbn_const_clause`) makes `cbn_add_clause_def` /
 given that under option-γ the unit type denotes the terminal cone
 `Stop`. The *option-β* refinement replaces those clauses with
 genuine bilinear arithmetic on `FMeas R_obj`, lifted from the FMeas
-lax-monoidal map of paper §5 via the diagonal bilinear stability
-bridge above.
+lax-monoidal map of paper §5 via the SCones-side bilinear bridge
+above.
 
 | Construction | Rocq |
 |---|---|
@@ -1007,10 +889,12 @@ A handful of PPL-side items are intentionally left open.
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| Law-2 (`kbind_ext_A`) | Bridge from the `kcomp`-of-`sample` shape to the `Lfun .. one1` integration-side shape for the Bayes posterior headline. | Requires cartesian uniqueness in `EM(!)` exposed at the `icones_hom` level; the current cones library packages the η-rule only at the coalg-hom level via `em_pair_mor_proj_id`. |
+| CBV value-fixpoint at function types | `ne_fix` / `ne_fix_mr` in `ppl_cbv.v` are constant-`precone_zero` placeholders. | The Kleene iteration on the unit-ball CPO of the clean `linhom`-cone (no `Tobj` on the codomain) has not yet been packaged; the earlier `em_fix.v` / `em_fix_arr.v` infrastructure was tied to the deprecated Moggi-monad presentation and has been removed alongside the rest of the old CBV stack. |
+| CBV mass identities for the recursive examples | `ex_loop` (mass 0), `ex_geom` (mass 1 + geometric PMF), `ex_almost_loop p` (mass 1 / mass 0 dichotomy) on the CBV side. | All depend on the CBV value-fixpoint above; the CBN-side analogues are fully formalised and unaffected. |
+| CBV mass / marginal identities for the QBS examples | The CBV-side analogues of `ex_random_constant_CBN_headline`, `ex_random_linear_arith_marginal_at`, `ex_bayes_linear_CBN_headline` against the linhom-valued `eD` of `ppl_cbv.v`. | The surface terms compile through `eD`; the structural reduction lemmas and measure-level identities have not yet been re-derived in the new comonoid-primitive setting. |
+| CBV `tbool` via `FMeas_coalgebra bool_meas_space` | A direct measurable-space reading of `tbool` (rather than the cofree `bang_cofree (bool_cone_car Ar)` fallback). | Requires a small `bool_meas_space : measurableType R` stub at the `MeasSubcat`-parameter level; left as TODO in `ppl_cbv.v::tyD_cbv` with a comment. |
 | Option-α refinement | Replace `tyD_CBN tunit := Stop` (terminal) by `Bang(FMeas *)` so `score` and the arithmetic constructors do not collapse to constants. | Needs a parallel `eD_CBN_full_alpha` interpretation and the corresponding `cbn_*_clause_alpha`; not yet packaged. |
-| CBV value-fixpoint at product types | `Yfix_mr_pack` at `tprod` is currently a constant-zero placeholder. | Requires a `Bang`-level Kleene cascade at `tprod` (the natural product of two `Yfix_fun_T`s plus a Seely-2-iso untangling); CBN side via `Yfix` at the product cone is unaffected and is fully sound. |
-| CBV / CBN soundness theorem | No proof that `⟦M⟧_CBV` and `⟦M⟧_CBN` agree in any sense. | Requires commuting `Bang` with the effect-bearing types, which has no closed-form realisation in the SAFT-built `Bang`. |
+| CBV / CBN soundness theorem | No proof that `⟦M⟧_CBV` and `⟦M⟧_CBN` agree in any sense. | The two interpretations target different categorical objects (CBV: linear morphisms between coalgebras; CBN: stable measurable functions between integrable cones); a soundness comparison is outside the current scope. |
 | External semantic equivalence | A QBS / ProbProg / Pyro / Stan correspondence. | The correctness statements in this development are denotational identities at the categorical level. |
 
 ---
@@ -1026,10 +910,10 @@ echo "Print Assumptions eD_CBN_fix_E."            | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbn.v
 echo "Print Assumptions eD_CBN_fix_mr_E."         | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbn.v
-echo "Print Assumptions Yfix_fun_T."              | \
-  rocq top -Q theories Icones -l theories/programs/infra/em_fix.v
-echo "Print Assumptions case_em."                 | \
-  rocq top -Q theories Icones -l theories/programs/ppl.v
+echo "Print Assumptions eD."                      | \
+  rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
+echo "Print Assumptions if_icones."               | \
+  rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
 echo "Print Assumptions meas_stable_diag_bilinear_tensor." | \
   rocq top -Q theories Icones -l theories/stable/diag_bilinear_tensor.v
 echo "Print Assumptions sfix_bcascade_mass_one_if_pos." | \
