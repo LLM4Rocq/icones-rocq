@@ -67,6 +67,13 @@
     - [ne_bernoulli p Hp_ge0 Hp_le1] — sample from a Bernoulli
       distribution: the 2-point sub-probability [(p, 1-p)] on
       [bool_cone] (norm exactly [1]).
+    - [ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e] — VALUE-DEPENDENT
+      Bernoulli: flip a coin with success probability [f r] where
+      [r] is the value of the [tR]-valued sub-expression [e]
+      (witness layout mirrors [ne_score]); semantically the
+      composite of [eD e] with the path lift [bern_lift]
+      ([µ ↦ (∫ f dµ, ∫ (1-f) dµ)]).  The accept/reject primitive
+      of [examples.v::ex_reject].
 
     ** Type, context and term interpretation **
 
@@ -430,6 +437,21 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
   | ne_bernoulli (G : named_ctx Ar) (p : R)
                  (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
       named_expr G tbool
+  (* [Bernoulli_f { f, Hm, Hg, Hl } e] : VALUE-DEPENDENT Bernoulli —
+     sample from the 2-point sub-probability [(f r, 1 - f r)] where
+     [r] is the value of the [tR']-valued sub-expression [e].  The
+     witness layout mirrors [ne_score] one-for-one ([f : R -> R]
+     measurable, valued in [[0, 1]]); the CBV denotation post-composes
+     [eD e] with the path lift [bern_lift] (Section [BernTmLift]
+     below), exactly as [ne_score] post-composes with [score_lift].
+     This is the accept/reject primitive of the rejection-sampling
+     headline example [examples.v::ex_reject]. *)
+  | ne_bernoulli_f (G : named_ctx Ar)
+                   (f : R -> R)
+                   (Hf_meas : measurable_fun [set: R] f)
+                   (Hf_ge0 : forall r : R, (0 <= f r)%R)
+                   (Hf_le1 : forall r : R, (f r <= 1)%R)
+                   (e : named_expr G tR') : named_expr G tbool
   (* [if e then M else N] — boolean elimination.  [e] is a [tbool]
      expression (semantically a sub-probability distribution on [bool]),
      and [M, N : t] are the two branches.  The CBV denotation [eD]
@@ -472,6 +494,7 @@ Arguments ne_mul {R Ar R_obj G} & M N.
 Arguments ne_true {R Ar R_obj G}.
 Arguments ne_false {R Ar R_obj G}.
 Arguments ne_bernoulli {R Ar R_obj G} p Hp_ge0 Hp_le1.
+Arguments ne_bernoulli_f {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 (** Bidirectionality on [ne_if]: resolve [G] and [t] FIRST (from the
     scrutinee and the branches' types), then propagate into the
     sub-expressions.  Same pattern as [ne_let] / [ne_app]. *)
@@ -1133,6 +1156,236 @@ Arguments bernoulli {R Ar} p Hp_ge0 Hp_le1.
 Arguments bernoulli_norm {R Ar} p Hp_ge0 Hp_le1.
 Arguments bernoulli_norm_le1 {R Ar} p Hp_ge0 Hp_le1.
 
+(** ** [bern_lift] — the value-dependent Bernoulli lift
+
+    The semantic engine of [ne_bernoulli_f]: an [icones_hom
+    (FMeas R_obj) (bool_cone_car Ar)] sending a measure [µ] on the
+    reals to the 2-point sub-probability
+    [[
+        (∫ f dµ, ∫ (1 - f) dµ)
+    ]]
+    — sample [r ~ µ], then flip a coin with success probability
+    [f r].  Construction is the PATH route, a verbatim clone of
+    [Section ScoreTmLift]: package [r ↦ bernoulli (f (cR r))] as a
+    measurable path into [bool_cone_car Ar] (the three tests of the
+    bool cone evaluate along the path to [f∘cR], [1 - f∘cR] and the
+    constant [1]), then promote with [int_to_linhom].  The integral
+    semantics is automatic by Pettis uniqueness against the
+    componentwise integral [bool_int] of
+    [theories/programs/infra/bool_cone.v] ([bern_lift_E]); the
+    Dirac identity ([bern_lift_dirac]) and total-mass identity
+    ([bern_lift_mass]: the lift preserves total mass — the coin is
+    NORM-1 pointwise) are the load-bearing laws for the
+    rejection-sampling headline. *)
+
+Section BernTmLift.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The path value at [r] : the Bernoulli element
+    [(f (cR r), 1 - f (cR r))]. *)
+Definition bern_path_fun (r : ar_carrier Ar R_obj) : bool_cone_car Ar :=
+  bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
+
+(** Pointwise the path is NORM-1 exactly (the coin always lands). *)
+Lemma bern_path_fun_norm (r : ar_carrier Ar R_obj) :
+  cone_norm (bern_path_fun r) = 1%R.
+Proof. exact: bernoulli_norm. Qed.
+
+(** Composite [f ∘ cR] is measurable (clone of [f_cR_meas]). *)
+Lemma bern_f_cR_meas :
+  measurable_fun [set: ar_carrier Ar R_obj] (fun r => f (cR r)).
+Proof.
+apply: (measurableT_comp (f := f)).
+- exact: Hf_meas.
+- exact: R_carrier_meas.
+Qed.
+
+(** [bern_path_fun] is a measurable path.  The tests of
+    [bool_cone_car] are the three tags [π_t] / [π_f] / norm
+    ([bool_cone.v::mcone_M_bool]); along the path they evaluate to
+    [(z,r) ↦ f (cR r)], [(z,r) ↦ 1 - f (cR r)] and
+    [(z,r) ↦ f (cR r) + (1 - f (cR r))], all measurable. *)
+Lemma bern_path_is_path :
+  is_measurable_path (Ar := Ar) (C := bool_cone_car Ar) (X := R_obj)
+    bern_path_fun.
+Proof.
+split.
+  by exists 1%R => r; rewrite bern_path_fun_norm.
+move=> Y m [o _ <-].
+have meas_snd :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar R_obj)%type]
+      (fun p : (ar_carrier Ar Y * ar_carrier Ar R_obj)%type =>
+         f (cR p.2)).
+  apply: (measurableT_comp (f := fun r => f (cR r))).
+  - exact: bern_f_cR_meas.
+  - exact: measurable_snd.
+have meas_onem :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar R_obj)%type]
+      (fun p : (ar_carrier Ar Y * ar_carrier Ar R_obj)%type =>
+         (1 - f (cR p.2))%R).
+  by apply: measurable_funB; [exact: measurable_cst | exact: meas_snd].
+rewrite /BoolConeMConeAux.bool_test/= /BoolConeMConeAux.bool_test_fun
+        /BoolConeMConeAux.bc_test_val /bern_path_fun /bernoulli/=.
+case: o => [[]|]/=.
+- exact: meas_snd.
+- exact: meas_onem.
+- exact: measurable_funD meas_snd meas_onem.
+Qed.
+
+Definition bern_path : path_car Ar R_obj (bool_cone_car Ar) :=
+  MkPath bern_path_is_path.
+
+(** Path-norm bound: the path values are all of norm [1], so the sup
+    is [≤ 1]. *)
+Lemma bern_path_norm_le1 : (path_norm bern_path <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [r ->] /=; rewrite bern_path_fun_norm.
+Qed.
+
+(** Norm bound for [int_to_linhom bern_path]. *)
+Lemma bern_int_norm_le1 :
+  (cone_norm (int_to_linhom bern_path) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le bern_path) _.
+exact: bern_path_norm_le1.
+Qed.
+
+(** The lift as an [icones_hom]. *)
+Definition bern_lift :
+    icones_hom Ar (FMeas R_obj) (bool_cone_car Ar) :=
+  linhom_icones (int_to_linhom bern_path) bern_int_norm_le1.
+
+(** **** Load-bearing Dirac identity.
+
+    On a Dirac at [R_to_carrier r] in [FMeas R_obj], the lift
+    evaluates to the Bernoulli element [(f r, 1 - f r)]. *)
+Lemma bern_lift_dirac (r : R) :
+  Lfun bern_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
+  bernoulli (f r) (Hf_ge0 r) (Hf_le1 r).
+Proof.
+rewrite /bern_lift.
+rewrite (linhom_iconesE _ bern_int_norm_le1
+           (dirac_fmeas (R_to_carrier R_carrier_eq r))).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun bern_path
+                            (dirac_fmeas (R_to_carrier R_carrier_eq r))).
+rewrite (int_to_linhom_fun_dirac bern_path
+           (R_to_carrier R_carrier_eq r)).
+rewrite -[path_fun _ _]/(bern_path_fun (R_to_carrier R_carrier_eq r)).
+rewrite /bern_path_fun /bernoulli.
+by apply: bool_cone_eq; apply: val_inj => /=; rewrite R_to_carrierK.
+Qed.
+
+Local Open Scope ereal_scope.
+
+(** **** The integral identity, via Pettis uniqueness.
+
+    [bern_lift µ] IS the componentwise integral [bool_int] of
+    [bool_cone.v]: both satisfy the Pettis equation
+    [path_integral_eq bern_path_fun µ], which has a unique
+    solution. *)
+Lemma bern_lift_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  Lfun bern_lift mu = bool_int bern_path_is_path mu.
+Proof.
+rewrite /bern_lift (linhom_iconesE _ bern_int_norm_le1 mu).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun bern_path mu).
+rewrite /int_to_linhom_fun.
+apply/esym/icone_integral_eqP.
+exact: bool_int_pettis.
+Qed.
+
+(** Coordinate readings: the [true]-coordinate is [∫ f dµ] … *)
+Lemma bern_lift_t_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  ((bc_t (Lfun bern_lift mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+          (f (cR r))%:E).
+Proof. by rewrite bern_lift_E. Qed.
+
+(** … and the [false]-coordinate is [∫ (1 - f) dµ]. *)
+Lemma bern_lift_f_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  ((bc_f (Lfun bern_lift mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+          ((1 - f (cR r))%R)%:E).
+Proof. by rewrite bern_lift_E. Qed.
+
+(** **** Total-mass identity.
+
+    The lift preserves total mass: the coin is norm-1 pointwise, so
+    [‖bern_lift µ‖ = ∫ (f + (1-f)) dµ = µ(setT)].  (For the
+    rejection-sampling headline: with [‖µ‖ = 1], the reject weight is
+    [1 - ∫ f dµ].) *)
+Lemma bern_lift_mass (mu : fmeas R (ar_carrier Ar R_obj)) :
+  cone_norm (Lfun bern_lift mu) =
+  fine (fmeas_mu mu [set: ar_carrier Ar R_obj]).
+Proof.
+rewrite bern_lift_E.
+have fin_t : \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+               (f (cR r))%:E \is a fin_num
+  by exact: (bool_int_fin bern_path_is_path mu true).
+have fin_f : \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+               ((1 - f (cR r))%R)%:E \is a fin_num
+  by exact: (bool_int_fin bern_path_is_path mu false).
+have meas_t : measurable_fun [set: ar_carrier Ar R_obj]
+                (fun r => (f (cR r))%:E)
+  by exact: (bool_coord_meas bern_path_is_path true).
+have meas_f : measurable_fun [set: ar_carrier Ar R_obj]
+                (fun r => ((1 - f (cR r))%R)%:E)
+  by exact: (bool_coord_meas bern_path_is_path false).
+rewrite -[cone_norm _]/(((bc_t (bool_int bern_path_is_path mu))%:num
+                       + (bc_f (bool_int bern_path_is_path mu))%:num)%R).
+rewrite -[((bc_t (bool_int bern_path_is_path mu))%:num)%R]/(fine
+  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E)).
+rewrite -[((bc_f (bool_int bern_path_is_path mu))%:num)%R]/(fine
+  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+      ((1 - f (cR r))%R)%:E)).
+rewrite -fineD//.
+rewrite -ge0_integralD//; first last.
+- by move=> r _; rewrite lee_fin subr_ge0.
+- by move=> r _; rewrite lee_fin.
+under eq_integral => r _.
+  rewrite -EFinD addrCA subrr addr0.
+  over.
+by rewrite integral_cst//= mul1e.
+Qed.
+
+End BernTmLift.
+
+Arguments bern_path_fun {R Ar R_obj} R_carrier_eq f Hf_ge0 Hf_le1 r.
+Arguments bern_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                       Hf_meas Hf_ge0 Hf_le1.
+Arguments bern_path_is_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                               Hf_meas Hf_ge0 Hf_le1.
+Arguments bern_lift {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                       Hf_meas Hf_ge0 Hf_le1.
+Arguments bern_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                             Hf_meas Hf_ge0 Hf_le1 r.
+Arguments bern_lift_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                         Hf_meas Hf_ge0 Hf_le1 mu.
+Arguments bern_lift_t_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                           Hf_meas Hf_ge0 Hf_le1 mu.
+Arguments bern_lift_f_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                           Hf_meas Hf_ge0 Hf_le1 mu.
+Arguments bern_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                            Hf_meas Hf_ge0 Hf_le1 mu.
+
+
 (** ** Variable lookup by string — Saito–Affeldt canonical structures
 
     The Saito–Affeldt encoding (APLAS 2023 §5.2) uses a tagged structure
@@ -1378,6 +1631,19 @@ Notation "'Bernoulli' '{' p ',' Hp_ge0 ',' Hp_le1 '}'" :=
   (ne_bernoulli p Hp_ge0 Hp_le1)
   (in custom ppl_named at level 1,
    p constr, Hp_ge0 constr, Hp_le1 constr).
+
+(** Value-dependent Bernoulli —
+    [Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } e]: flip a coin
+    whose success probability is [f] applied to the value of the
+    [tR]-typed surface sub-expression [e].  Same shape as the
+    [Score { … } e] notation (Coq-level witnesses in braces, surface
+    scrutinee outside); the leading keyword [Bernoulli_f] is distinct
+    from [Bernoulli], so the two grammars do not conflict. *)
+Notation "'Bernoulli_f' '{' f ',' Hf_meas ',' Hf_ge0 ',' Hf_le1 '}' e" :=
+  (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   f constr, Hf_meas constr, Hf_ge0 constr, Hf_le1 constr,
+   right associativity).
 
 (** [if e then M else N] — boolean elimination in surface syntax.
 

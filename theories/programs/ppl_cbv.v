@@ -451,6 +451,15 @@ refine (
   | ne_false G0 => false_icones (ctxD_cbv (drop_names G0))
   | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
       bernoulli_icones (ctxD_cbv (drop_names G0)) p Hp_ge0 Hp_le1
+  (* [ne_bernoulli_f f e]: post-compose [eD e] with [bern_lift f] (the
+     value-dependent Bernoulli lift of [ppl.v::Section BernTmLift]) —
+     the exact mirror of the [ne_score]/[score_lift] clause, landing
+     in [bool_cone_car] instead of [cone_one_car]. *)
+  | ne_bernoulli_f G0 f Hf_meas Hf_ge0 Hf_le1 e0 =>
+      icones_comp
+        (@bern_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                    f Hf_meas Hf_ge0 Hf_le1)
+        (eD_cbv G0 _ e0)
   (* [ne_if b M N]:
        δ_Γ ; (id_Γ ⊗ eD b) ; braid ; uncurry (bool_case eD M eD N)
      where [bool_case] is the universal co-pairing of [bool_cone] of
@@ -678,6 +687,20 @@ Lemma eD_bernoulli_E (G : named_ctx Ar) (p : R)
     (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
   eD_cbv' (@ne_bernoulli R Ar R_obj G p Hp_ge0 Hp_le1) =
   bernoulli_icones (ctxD_cbv (drop_names G)) p Hp_ge0 Hp_le1.
+Proof. by []. Qed.
+
+(** [ne_bernoulli_f]: post-compose with the value-dependent Bernoulli
+    lift [bern_lift] — the [tbool]-valued mirror of [eD_score_E]. *)
+Lemma eD_bernoulli_f_E (G : named_ctx Ar) (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (e : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e) =
+  icones_comp
+    (@bern_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                f Hf_meas Hf_ge0 Hf_le1)
+    (eD_cbv' e).
 Proof. by []. Qed.
 
 (** [ne_if]: dispatch via [if_icones] (the [bool_case] co-pairing). *)

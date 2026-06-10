@@ -42,7 +42,7 @@
     ** Stubs (M3 + M4) **
     The effectful / numeric / boolean constructors ([ne_sample],
     [ne_score], [ne_real], [ne_add], [ne_mul], [ne_true], [ne_false],
-    [ne_bernoulli], [ne_if]) are abstracted as
+    [ne_bernoulli], [ne_bernoulli_f], [ne_if]) are abstracted as
     [Hypothesis]-parametrised section variables [cbn_sample_clause],
     [cbn_score_clause], etc.  When [Section TermInterpCBN] closes,
     [eD_CBN] is parameterised by these hypotheses (no project axioms
@@ -234,6 +234,19 @@ Hypothesis cbn_bernoulli_clause :
          (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
     scones_hom (ctxD_CBN G) (tyD_CBN tbool).
 
+(** Value-dependent Bernoulli at [tbool] — CBN reading of
+    [ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e].  Same signature shape
+    as [cbn_score_clause] (the witnesses plus the denotation of the
+    [tR']-valued scrutinee), with codomain [tbool]. *)
+Hypothesis cbn_bernoulli_f_clause :
+  forall (G : ppl_ctx Ar)
+         (f : R -> R)
+         (Hf_meas : measurable_fun [set: R] f)
+         (Hf_ge0 : forall r : R, (0 <= f r)%R)
+         (Hf_le1 : forall r : R, (f r <= 1)%R)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN tR')),
+    scones_hom (ctxD_CBN G) (tyD_CBN tbool).
+
 (** [if e then M else N] — boolean elimination at any type [t].
     M4 will replace. *)
 Hypothesis cbn_if_clause :
@@ -325,6 +338,9 @@ Fixpoint eD_CBN (G : named_ctx Ar) (t : T)
   | ne_false G0 => @cbn_false_clause (drop_names G0)
   | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
       @cbn_bernoulli_clause (drop_names G0) p Hp_ge0 Hp_le1
+  | ne_bernoulli_f G0 f Hf_meas Hf_ge0 Hf_le1 e =>
+      @cbn_bernoulli_f_clause (drop_names G0) f Hf_meas Hf_ge0 Hf_le1
+        (eD_CBN e)
   | ne_if G0 t e M N =>
       @cbn_if_clause (drop_names G0) t (eD_CBN e) (eD_CBN M) (eD_CBN N)
   end.
@@ -334,7 +350,8 @@ End TermInterpCBN.
 Arguments eD_CBN {R Ar R_obj}
   cbn_sample_clause cbn_real_clause cbn_score_clause
   cbn_add_clause cbn_mul_clause
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   {G t} M.
 
 (** ** M5 — Soundness of [ne_fix]: the fixpoint equation
@@ -392,6 +409,14 @@ Variable cbn_bernoulli_clause :
   forall (G : ppl_ctx Ar) (p : R)
          (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
     scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)).
+Variable cbn_bernoulli_f_clause :
+  forall (G : ppl_ctx Ar)
+         (f : R -> R)
+         (Hf_meas : measurable_fun [set: R] f)
+         (Hf_ge0 : forall r : R, (0 <= f r)%R)
+         (Hf_le1 : forall r : R, (f r <= 1)%R)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN (tR R_obj))),
+    scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)).
 Variable cbn_if_clause :
   forall (G : ppl_ctx Ar) (t : ppl_type Ar)
          (e : scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)))
@@ -403,7 +428,7 @@ Local Notation eD' :=
      cbn_sample_clause cbn_real_clause cbn_score_clause
      cbn_add_clause cbn_mul_clause
      cbn_true_clause cbn_false_clause cbn_bernoulli_clause
-     cbn_if_clause).
+     cbn_bernoulli_f_clause cbn_if_clause).
 
 (** Definitional unfolding of [eD_CBN] at [ne_fix]: the denotation
     is [scones_comp Yfix (curry (eD_CBN body))]. *)
@@ -472,22 +497,26 @@ End FixSoundness.
 Arguments eD_CBN_fix {R Ar R_obj
   cbn_sample_clause cbn_real_clause cbn_score_clause
   cbn_add_clause cbn_mul_clause
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause}
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause}
   G s t1 t2 body.
 Arguments eD_CBN_fix_E {R Ar R_obj
   cbn_sample_clause cbn_real_clause cbn_score_clause
   cbn_add_clause cbn_mul_clause
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause}
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause}
   G s t1 t2 body g Hg.
 Arguments eD_CBN_fix_mr {R Ar R_obj
   cbn_sample_clause cbn_real_clause cbn_score_clause
   cbn_add_clause cbn_mul_clause
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause}
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause}
   G s t Hfree body.
 Arguments eD_CBN_fix_mr_E {R Ar R_obj
   cbn_sample_clause cbn_real_clause cbn_score_clause
   cbn_add_clause cbn_mul_clause
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause}
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause}
   G s t Hfree body g Hg.
 
 (** ** Smoke test — [ex_random_constant] CBN denotation
@@ -542,6 +571,14 @@ Variable cbn_bernoulli_clause :
   forall (G : ppl_ctx Ar) (p : R)
          (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
     scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)).
+Variable cbn_bernoulli_f_clause :
+  forall (G : ppl_ctx Ar)
+         (f : R -> R)
+         (Hf_meas : measurable_fun [set: R] f)
+         (Hf_ge0 : forall r : R, (0 <= f r)%R)
+         (Hf_le1 : forall r : R, (f r <= 1)%R)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN (tR R_obj))),
+    scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)).
 Variable cbn_if_clause :
   forall (G : ppl_ctx Ar) (t : ppl_type Ar)
          (e : scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)))
@@ -557,7 +594,7 @@ Local Notation eD' :=
      cbn_sample_clause cbn_real_clause cbn_score_clause
      cbn_add_clause cbn_mul_clause
      cbn_true_clause cbn_false_clause cbn_bernoulli_clause
-     cbn_if_clause).
+     cbn_bernoulli_f_clause cbn_if_clause).
 
 (** Structural reduction lemma — the CBN denotation of
     [ex_random_constant] unfolds to a [scones_comp] of the lambda

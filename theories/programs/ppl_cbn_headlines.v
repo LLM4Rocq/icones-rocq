@@ -138,6 +138,7 @@ Definition eD_CBN_complete (G : named_ctx Ar) (t : ppl_type Ar)
     (@cbn_true_clause_def R Ar)
     (@cbn_false_clause_def R Ar)
     (@cbn_bernoulli_clause_def R Ar)
+    (@cbn_bernoulli_f_clause_def R Ar R_obj)
     (@cbn_if_clause_def R Ar)
     G t M.
 

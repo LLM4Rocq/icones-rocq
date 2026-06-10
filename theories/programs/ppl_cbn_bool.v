@@ -122,6 +122,41 @@ Arguments cbn_true_clause_def {R Ar} G.
 Arguments cbn_false_clause_def {R Ar} G.
 Arguments cbn_bernoulli_clause_def {R Ar} G p Hp_ge0 Hp_le1.
 
+(** ** [cbn_bernoulli_f_clause_def] — degenerate zero clause
+
+    The CBN reading of the VALUE-DEPENDENT Bernoulli
+    [ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e]: the constant
+    SCones-arrow at [precone_zero : bool_cone_car Ar].
+
+    DEGENERATE BY DESIGN, consistent with the option-(γ) M3 choice for
+    [cbn_add_clause_def] / [cbn_mul_clause_def] ([ppl_cbn_eff.v]): an
+    honest CBN clause would need the scrutinee's value, i.e. the same
+    cartesian-to-SMC stable bridge that blocks the arithmetic clauses.
+    The arguments are accepted for type compatibility with the
+    [Hypothesis cbn_bernoulli_f_clause] signature of [ppl_cbn.v] but do
+    not influence the morphism.  The honest semantics lives on the CBV
+    side ([ppl_cbv.v]'s [bern_lift] composite). *)
+
+Section CbnBernoulliFClause.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Definition cbn_bernoulli_f_clause_def
+    (G : ppl_ctx Ar)
+    (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (e : scones_hom (ctxD_CBN G) (tyD_CBN (tR R_obj))) :
+    scones_hom (ctxD_CBN G) (bool_cone_car Ar) :=
+  scones_const (ctxD_CBN G) (precone_zero : bool_cone_car Ar)
+               (precone_zero_norm_le1 (bool_cone_car Ar)).
+
+End CbnBernoulliFClause.
+
+Arguments cbn_bernoulli_f_clause_def {R Ar R_obj} G f
+  Hf_meas Hf_ge0 Hf_le1 e.
+
 (** ** [cbn_if_clause_def] — the [if]-then-else combinator
 
     Given:
@@ -295,6 +330,7 @@ Definition eD_CBN_bool (G : named_ctx Ar) (t : ppl_type Ar)
     (@cbn_true_clause_def R Ar)
     (@cbn_false_clause_def R Ar)
     (@cbn_bernoulli_clause_def R Ar)
+    (@cbn_bernoulli_f_clause_def R Ar R_obj)
     (@cbn_if_clause_def R Ar) G t M.
 
 (** *** Soundness reductions
@@ -319,6 +355,18 @@ Lemma eD_CBN_bool_bernoulli_E (G : named_ctx Ar) (p : R)
     (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
   eD_CBN_bool (@ne_bernoulli R Ar R_obj G p Hp_ge0 Hp_le1) =
   cbn_bernoulli_clause_def (drop_names G) p Hp_ge0 Hp_le1.
+Proof. by []. Qed.
+
+(** [ne_bernoulli_f f e] denotes the (γ)-degenerate constant-zero
+    clause (see [cbn_bernoulli_f_clause_def]). *)
+Lemma eD_CBN_bool_bernoulli_f_E (G : named_ctx Ar) (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (e : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_CBN_bool (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e) =
+  cbn_bernoulli_f_clause_def (drop_names G) f Hf_meas Hf_ge0 Hf_le1
+    (eD_CBN_bool e).
 Proof. by []. Qed.
 
 (** [ne_if e M N] denotes the if-clause applied to the three subterm

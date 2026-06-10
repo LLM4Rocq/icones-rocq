@@ -3,7 +3,7 @@
       ne_score / ne_add / ne_mul)
 
     The CBN trunk [theories/programs/ppl_cbn.v] parameterises [eD_CBN] by
-    nine Hypothesis-abstracted clauses (5 numeric/effectful M3 + 4 boolean M4).
+    ten Hypothesis-abstracted clauses (5 numeric/effectful M3 + 5 boolean M4).
     This file delivers concrete definitions for the M3 cluster and packages
     [eD_CBN_full] = [eD_CBN] instantiated with them; the M4 cluster is left
     Hypothesis-abstracted for the M4 sibling agent.
@@ -43,8 +43,8 @@
     ** Scope
     Effects layer only.  Does NOT instantiate the M4 boolean stubs
     ([cbn_true_clause] / [cbn_false_clause] / [cbn_bernoulli_clause] /
-    [cbn_if_clause]).  The final M4 wave (parallel sibling) will replace
-    those.  [eD_CBN_full] is therefore still parameterised by the four M4
+    [cbn_bernoulli_f_clause] / [cbn_if_clause]).  The final M4 wave will replace
+    those.  [eD_CBN_full] is therefore still parameterised by the five M4
     Hypothesis-stubs (carried as section variables in [Section EDCBNFull]). *)
 
 From HB Require Import structures.
@@ -220,6 +220,14 @@ Variable cbn_bernoulli_clause :
   forall (G : ppl_ctx Ar) (p : R)
          (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
     scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)).
+Variable cbn_bernoulli_f_clause :
+  forall (G : ppl_ctx Ar)
+         (f : R -> R)
+         (Hf_meas : measurable_fun [set: R] f)
+         (Hf_ge0 : forall r : R, (0 <= f r)%R)
+         (Hf_le1 : forall r : R, (f r <= 1)%R)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN (tR R_obj))),
+    scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)).
 Variable cbn_if_clause :
   forall (G : ppl_ctx Ar) (t : ppl_type Ar)
          (e : scones_hom (ctxD_CBN G) (tyD_CBN (@tbool R Ar)))
@@ -236,7 +244,8 @@ Definition eD_CBN_full (G : named_ctx Ar) (t : ppl_type Ar)
     (@cbn_score_clause_def R Ar R_obj)
     (@cbn_add_clause_def R Ar R_obj)
     (@cbn_mul_clause_def R Ar R_obj)
-    cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+    cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+    cbn_bernoulli_f_clause cbn_if_clause
     G t M.
 
 (** *** Reduction lemmas — the 5 M3 cases unfold to the concrete clauses *)
@@ -284,23 +293,29 @@ Proof. by []. Qed.
 End EDCBNFull.
 
 Arguments eD_CBN_full {R Ar R_obj} R_carrier_eq
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   {G t} M.
 
 Arguments eD_CBN_full_sample_E {R Ar R_obj} R_carrier_eq
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   G mu Hmu.
 Arguments eD_CBN_full_real_E {R Ar R_obj} R_carrier_eq
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   G r.
 Arguments eD_CBN_full_score_E {R Ar R_obj} R_carrier_eq
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   G f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments eD_CBN_full_add_E {R Ar R_obj} R_carrier_eq
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   G M N.
 Arguments eD_CBN_full_mul_E {R Ar R_obj} R_carrier_eq
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   G M N.
 
 (** ** Notes for downstream waves
@@ -308,7 +323,7 @@ Arguments eD_CBN_full_mul_E {R Ar R_obj} R_carrier_eq
     - M4 (boolean) sibling will replace the four [Variable] stubs in
       [Section EDCBNFull] with concrete definitions; the orchestrator will
       then merge [ppl_cbn_eff.v] (M3) and the M4 file into a fully concrete
-      [eD_CBN_complete] = [eD_CBN] with all nine clauses instantiated.
+      [eD_CBN_complete] = [eD_CBN] with all ten clauses instantiated.
     - Future semantic-refinement waves can replace [cbn_add_clause_def] /
       [cbn_mul_clause_def] with actual cartesian-to-SMC stable bridges
       (e.g. a [scones_hom (sprod (FMeas) (FMeas)) (FMeas)] built from

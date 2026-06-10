@@ -1,7 +1,7 @@
 (**md**************************************************************************)
 (** * Headline PPL examples — surface programs in direct-style named syntax
 
-    Eleven surface programs for the named-variable PPL of
+    Twelve surface programs for the named-variable PPL of
     [theories/programs/ppl.v], each written in the [ppl_named] custom
     entry [[ … ]].  This file is now the SHARED SURFACE PROGRAM POOL
     for both CBN ([theories/programs/ppl_cbn*.v]) and CBV
@@ -25,7 +25,13 @@
     - [ex_almost_loop p]     : parameterised partial divergence (mass p)
 
     ** Boolean / if-then-else sanity checks
-    - [ex_true], [ex_false], [ex_fair_coin], [ex_if_demo] *)
+    - [ex_true], [ex_false], [ex_fair_coin], [ex_if_demo]
+
+    ** Rejection sampling (the killer example)
+    - [ex_reject]            : [(let rec rs = λaccept.
+                                   let x = sample µ in
+                                   if Bernoulli_f{f} x then accept x
+                                   else rs accept) (λy. y)] *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -305,6 +311,80 @@ Arguments ex_geom_body {R Ar R_obj}.
 Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
 Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
 
+(** ** Example — [ex_reject] — rejection sampling (THE killer example)
+
+    Normalised-posterior rejection sampling: sample [x ~ µ], accept
+    with probability [f x] (the value-dependent Bernoulli
+    [ne_bernoulli_f]), and on rejection RECURSE.  The recursive
+    function abstracts over the acceptance continuation [accept], and
+    the headline instantiates it at the identity [λy. y] (so the
+    program returns the accepted sample itself):
+    [[
+       (let rec rs = λ accept.
+           let x = sample µ in
+           if Bernoulli_f { f } x then accept x else rs accept)
+         (λ y. y)
+    ]]
+    Expected denotation (the M4 headline): the sub-probability
+    [ν] with [∫f dµ · ν(U) = ∫_U f dµ] — the normalised posterior,
+    graceful at [∫f dµ = 0]. *)
+
+Section RejectSampling.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The full surface program: the recursive sampler applied to the
+    identity acceptance continuation. *)
+Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
+  [ (fix "rs" ::: tfun (tfun tR' tR') tR' in
+       \ "accept" ::: (tfun tR' tR') =>
+         (let "x" := Sample (mu , Hmu) in
+          if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+          then # "accept" @ # "x"
+          else # "rs" @ # "accept"))
+    @ (\ "y" ::: tR' => # "y") ].
+
+(** The body of the fixed-point lambda, in the extended context
+    [("rs", (tR' -> tR') -> tR') :: nil] (the [ex_geom_body]
+    pattern). *)
+Definition ex_reject_body :
+    @named_expr R Ar R_obj
+      (("rs"%string, tfun (tfun tR' tR') tR') :: nil)
+      (tfun (tfun tR' tR') tR') :=
+  [ \ "accept" ::: (tfun tR' tR') =>
+      (let "x" := Sample (mu , Hmu) in
+       if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+       then # "accept" @ # "x"
+       else # "rs" @ # "accept") ].
+
+(** The sample-then-test inner expression under both binders, in
+    context [("accept", tR' -> tR') :: ("rs", …) :: nil]. *)
+Definition ex_reject_inner :
+    @named_expr R Ar R_obj
+      (("accept"%string, tfun tR' tR') ::
+       ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
+      tR' :=
+  [ let "x" := Sample (mu , Hmu) in
+    if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+    then # "accept" @ # "x"
+    else # "rs" @ # "accept" ].
+
+End RejectSampling.
+
+Arguments ex_reject {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_body {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_inner {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+
 (** ** CBV denotations — [ppl_cbv.v]'s [eD] applied to every closed example
 
     One definition per closed surface program above: these are the
@@ -314,7 +394,8 @@ Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
     ([ne_let]/[ne_sample]/[ne_lam]/[ne_var] in Examples 1–3, [ne_score]
     in Example 3, [ne_add]/[ne_mul] in Example 2,
     [ne_fix]/[ne_app]/[ne_tt] in the recursive examples,
-    [ne_true]/[ne_false]/[ne_bernoulli]/[ne_if] in the boolean checks;
+    [ne_true]/[ne_false]/[ne_bernoulli]/[ne_if] in the boolean checks,
+    [ne_bernoulli_f] in the rejection-sampling example;
     [ne_fix_mr] awaits a mutual-recursion surface example).
 
     Each denotation is a norm-[≤1] linear morphism
@@ -374,5 +455,18 @@ Definition ex_geom_cbv :=
 Definition ex_almost_loop_cbv (p : R)
     (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :=
   eDv (ex_almost_loop p Hp_ge0 Hp_le1).
+
+(** The rejection-sampling denotation — also the compile-time smoke
+    test for [ne_bernoulli_f]'s elaboration under three binders
+    (canonical-structure variable lookup for ["x"], ["accept"],
+    ["rs"]). *)
+Definition ex_reject_cbv
+    (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : (cone_norm mu <= 1)%R)
+    (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
+  eDv (ex_reject mu Hmu f Hf_meas Hf_ge0 Hf_le1).
 
 End CBVDenotations.

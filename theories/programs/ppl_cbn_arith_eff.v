@@ -212,6 +212,14 @@ Variable cbn_bernoulli_clause :
   forall (G : ppl_ctx Ar) (p : R)
          (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
     scones_hom (ctxD_CBN G) (tyD_CBN tbool).
+Variable cbn_bernoulli_f_clause :
+  forall (G : ppl_ctx Ar)
+         (f : R -> R)
+         (Hf_meas : measurable_fun [set: R] f)
+         (Hf_ge0 : forall r : R, (0 <= f r)%R)
+         (Hf_le1 : forall r : R, (f r <= 1)%R)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN (tR R_obj))),
+    scones_hom (ctxD_CBN G) (tyD_CBN tbool).
 Variable cbn_if_clause :
   forall (G : ppl_ctx Ar) (t : ppl_type Ar)
          (e : scones_hom (ctxD_CBN G) (tyD_CBN tbool))
@@ -230,7 +238,8 @@ Definition eD_CBN_full_arith (G : named_ctx Ar) (t : ppl_type Ar)
     (@cbn_score_clause_def R Ar R_obj)
     (cbn_add_clause_arith R_carrier_eq R_carrier_meas R_to_carrier_meas)
     (cbn_mul_clause_arith R_carrier_eq R_carrier_meas R_to_carrier_meas)
-    cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+    cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+    cbn_bernoulli_f_clause cbn_if_clause
     G t M.
 
 (** *** Reduction lemmas for the new arith case — mirror the (γ)
@@ -272,15 +281,18 @@ End EDCBNFullArith.
 
 Arguments eD_CBN_full_arith {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   {G t} M.
 Arguments eD_CBN_full_arith_add_E {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   G M N.
 Arguments eD_CBN_full_arith_mul_E {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   G M N.
 
 (** ** §3 — [ex_rl_lam_arith_pointwise] : the HONEST lambda body
@@ -313,6 +325,14 @@ Variable cbn_bernoulli_clause :
   forall (G : ppl_ctx Ar) (p : R)
          (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
     scones_hom (ctxD_CBN G) (tyD_CBN tbool).
+Variable cbn_bernoulli_f_clause :
+  forall (G : ppl_ctx Ar)
+         (f : R -> R)
+         (Hf_meas : measurable_fun [set: R] f)
+         (Hf_ge0 : forall r : R, (0 <= f r)%R)
+         (Hf_le1 : forall r : R, (f r <= 1)%R)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN (tR R_obj))),
+    scones_hom (ctxD_CBN G) (tyD_CBN tbool).
 Variable cbn_if_clause :
   forall (G : ppl_ctx Ar) (t : ppl_type Ar)
          (e : scones_hom (ctxD_CBN G) (tyD_CBN tbool))
@@ -323,7 +343,7 @@ Local Notation tR' := (tR R_obj).
 Local Notation eD'CBNa' :=
   (@eD_CBN_full_arith R Ar R_obj R_carrier_eq R_carrier_meas
      R_to_carrier_meas cbn_true_clause cbn_false_clause
-     cbn_bernoulli_clause cbn_if_clause).
+     cbn_bernoulli_clause cbn_bernoulli_f_clause cbn_if_clause).
 
 (** The CBN body of [ex_rl_lam]: [# "m" * # "x" + # "b"], in context
     [("x", tR') :: ("b", tR') :: ("m", tR') :: nil].
@@ -359,7 +379,8 @@ End ExRlLamArithPointwise.
 
 Arguments ex_rl_lam_arith_pointwise {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   env.
 
 (** ** §4 — [ex_random_linear_arith_marginal_at] — THE HONEST MARGINAL
@@ -395,6 +416,14 @@ Variable cbn_bernoulli_clause :
   forall (G : ppl_ctx Ar) (p : R)
          (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R),
     scones_hom (ctxD_CBN G) (tyD_CBN tbool).
+Variable cbn_bernoulli_f_clause :
+  forall (G : ppl_ctx Ar)
+         (f : R -> R)
+         (Hf_meas : measurable_fun [set: R] f)
+         (Hf_ge0 : forall r : R, (0 <= f r)%R)
+         (Hf_le1 : forall r : R, (f r <= 1)%R)
+         (e : scones_hom (ctxD_CBN G) (tyD_CBN (tR R_obj))),
+    scones_hom (ctxD_CBN G) (tyD_CBN tbool).
 Variable cbn_if_clause :
   forall (G : ppl_ctx Ar) (t : ppl_type Ar)
          (e : scones_hom (ctxD_CBN G) (tyD_CBN tbool))
@@ -408,7 +437,7 @@ Local Notation tR' := (tR R_obj).
 Local Notation eD'CBNa' :=
   (@eD_CBN_full_arith R Ar R_obj R_carrier_eq R_carrier_meas
      R_to_carrier_meas cbn_true_clause cbn_false_clause
-     cbn_bernoulli_clause cbn_if_clause).
+     cbn_bernoulli_clause cbn_bernoulli_f_clause cbn_if_clause).
 
 (** THE MARGINAL.  For any unit-ball argument [arg : FMeas R_obj]:
     [[
@@ -482,7 +511,7 @@ have HE_lam :
   eD'CBNa' (@ex_rl_lam R Ar R_obj) =
   curry (@eD_CBN_full_arith R Ar R_obj R_carrier_eq R_carrier_meas
            R_to_carrier_meas cbn_true_clause cbn_false_clause
-           cbn_bernoulli_clause cbn_if_clause
+           cbn_bernoulli_clause cbn_bernoulli_f_clause cbn_if_clause
            [:: ("x"%string, tR'); ("b"%string, tR'); ("m"%string, tR')]
            tR' [# "m" * # "x" + # "b"]) by [].
 rewrite HE_lam.
@@ -490,7 +519,8 @@ rewrite (curry_appE _ _ _ Hpair2_ball Harg).
 (* Apply the lambda body's pointwise computation. *)
 rewrite (@ex_rl_lam_arith_pointwise R Ar R_obj R_carrier_eq R_carrier_meas
           R_to_carrier_meas cbn_true_clause cbn_false_clause
-          cbn_bernoulli_clause cbn_if_clause _ Hpair3_ball).
+          cbn_bernoulli_clause
+          cbn_bernoulli_f_clause cbn_if_clause _ Hpair3_ball).
 (* Identify the variable lookups in env = (((0, µ), µ), arg). *)
 have Hvarm :
   sc_fun (eD'CBNa' (G := [:: ("x"%string, tR'); ("b"%string, tR');
@@ -529,5 +559,6 @@ End ExRandomLinearArithMarginal.
 
 Arguments ex_random_linear_arith_marginal_at {R Ar R_obj}
   R_carrier_eq R_carrier_meas R_to_carrier_meas
-  cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
+  cbn_true_clause cbn_false_clause cbn_bernoulli_clause
+  cbn_bernoulli_f_clause cbn_if_clause
   mu Hmu arg.
