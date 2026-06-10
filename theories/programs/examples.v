@@ -63,6 +63,7 @@ Require Import Icones.homs.em_cat.
 Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.ppl.
+Require Import Icones.programs.ppl_cbv.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -303,3 +304,75 @@ Arguments ex_geom {R Ar R_obj}.
 Arguments ex_geom_body {R Ar R_obj}.
 Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
 Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
+
+(** ** CBV denotations — [ppl_cbv.v]'s [eD] applied to every closed example
+
+    One definition per closed surface program above: these are the
+    CBV-side entry points for the headline lemmas to come, and they
+    double as a compile-time smoke test of the interpreter — together
+    they exercise every constructor of the language except [ne_fix_mr]
+    ([ne_let]/[ne_sample]/[ne_lam]/[ne_var] in Examples 1–3, [ne_score]
+    in Example 3, [ne_add]/[ne_mul] in Example 2,
+    [ne_fix]/[ne_app]/[ne_tt] in the recursive examples,
+    [ne_true]/[ne_false]/[ne_bernoulli]/[ne_if] in the boolean checks;
+    [ne_fix_mr] awaits a mutual-recursion surface example).
+
+    Each denotation is a norm-[≤1] linear morphism
+    [linhom_car Ar (coalg_obj (ctxD_cbv nil)) (coalg_obj (tyD_cbv t))]
+    — the context cone is [EM_term]'s carrier, so evaluating at [one1]
+    yields the program's denotation as a single element of [⟦t⟧]. *)
+
+Section CBVDenotations.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Local Notation eDv M :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _ M).
+
+Definition ex_random_constant_cbv
+    (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : (cone_norm mu <= 1)%R) :=
+  eDv (ex_random_constant mu Hmu).
+
+Definition ex_random_linear_cbv
+    (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : (cone_norm mu <= 1)%R) :=
+  eDv (ex_random_linear mu Hmu).
+
+Definition ex_bayes_linear_cbv
+    (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : (cone_norm mu <= 1)%R)
+    (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
+  eDv (ex_bayes_linear mu Hmu f Hf_meas Hf_ge0 Hf_le1).
+
+Definition ex_loop_cbv := eDv (ex_loop : @named_expr R Ar R_obj nil tunit).
+
+Definition ex_true_cbv := eDv (ex_true : @named_expr R Ar R_obj nil tbool).
+
+Definition ex_false_cbv :=
+  eDv (ex_false : @named_expr R Ar R_obj nil tbool).
+
+Definition ex_fair_coin_cbv :=
+  eDv (ex_fair_coin : @named_expr R Ar R_obj nil tbool).
+
+Definition ex_if_demo_cbv :=
+  eDv (ex_if_demo : @named_expr R Ar R_obj nil tbool).
+
+Definition ex_geom_cbv :=
+  eDv (ex_geom : @named_expr R Ar R_obj nil (tR R_obj)).
+
+Definition ex_almost_loop_cbv (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :=
+  eDv (ex_almost_loop p Hp_ge0 Hp_le1).
+
+End CBVDenotations.
