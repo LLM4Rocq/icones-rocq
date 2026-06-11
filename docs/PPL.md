@@ -225,11 +225,14 @@ The CBV interpretation in
 `theories/programs/ppl_cbv.v` dispatches `ne_fix_mr` on the body
 type (`fix_mr_clause`): at `tfun t1 t2` it is the *same* genuine
 seeded combinator `fix_comb` as `ne_fix`; at products of free types
-it still routes through the legacy zero-seeded `Yfix_fun_lin` of
-`theories/programs/infra/em_fix.v` — which is provably the zero
-linhom (`Yfix_fun_lin_eq0`), an honest scope limitation pending the
-Seely transport of `fix_comb` along
-`EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)`.
+it is the *same combinator transported along the Seely
+decomposition* — `fix_mr_comb`, i.e. `fix_comb (free_base t)`
+conjugated by the coalgebra iso `free_decomp : tyD_cbv t ≅
+!̃(free_base t)`, whose `tprod` step is the EM-level Seely-2 iso
+`EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)` of
+`theories/programs/infra/em_fix_mr.v`. The mutual-recursion fixpoint
+is genuine at *every* free body type; the surface witness is
+`ex_even_odd_pair` (see [EXAMPLES.md](../examples/)).
 
 ### Variable lookup by canonical structures (`tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'`)
 
@@ -857,9 +860,11 @@ determined on promoted bodies `F! ` (for `F` in the unit ball of
 `!A ⊸ !A`) by `fix_comb (F!) = (sup_n x_n)!` where `x_0 = 0 : A` and
 `x_{n+1} = der (F (x_n !))` — the *interleaved* Kleene chain. It
 lives in `theories/programs/infra/em_fix_value.v` and is what the
-`ne_fix` clause (and `ne_fix_mr` at function body types) of
+`ne_fix` clause (and `ne_fix_mr` at *every* free body type) of
 `ppl_cbv.v` post-composes onto the body's lambda packaging:
-`⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧`.
+`⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧` — directly at function body
+types, and through the Seely transport of
+`theories/programs/infra/em_fix_mr.v` at products of free types.
 
 The chapter tells the story in order. First the *degeneracy
 theorem*: the previous operator `Yfix_fun_lin` of
@@ -878,20 +883,28 @@ monotone and `F`, `der` are linear). Coalgebra-morphism-ness of the
 combinator comes for free: the value map `F ↦ sup_n x_n` is built
 from existing `SCones` morphisms, converted to a linear map
 `!(!A ⊸ !A) ⊸ A` by the SAFT hom-bijection `lin`, and packaged by
-`adj_psi` of the `U ⊣ !̃` adjunction.
+`adj_psi` of the `U ⊣ !̃` adjunction. Finally the *mutual-recursion
+transport*: a product of free types is not literally cofree, but it
+is *isomorphic* to a cofree coalgebra through the EM-level Seely-2
+iso, and conjugating `fix_comb` by that iso makes `ne_fix_mr`
+genuine at every free body type.
 
 | Construction | Rocq |
 |---|---|
 | The degeneracy theorem: the zero-seeded operator is the zero linhom | `Yfix_fun_lin_eq0`, `Phi_fun_zero`, `kleene_lin_Phi_fun_eq0` — `theories/programs/infra/em_fix_value.v` |
-| The legacy zero-seeded operator (kept as the contrast; still the `ne_fix_mr` product clause) | `Phi_fun`, `Yfix_fun_lin`, `Yfix_fun_lin_fixpoint`, `Yfix_fun_lin_norm_le1` — `theories/programs/infra/em_fix.v` |
+| The legacy zero-seeded operator (kept as the documented contrast; no longer used by the interpreter) | `Phi_fun`, `Yfix_fun_lin`, `Yfix_fun_lin_fixpoint`, `Yfix_fun_lin_norm_le1` — `theories/programs/infra/em_fix.v` |
 | Seeded Kleene core on any cone (`b0 ≤ f b0` replaces the zero seed) | `kleene_from`, `lfp_from`, `lfp_from_fixpoint` — `theories/programs/infra/em_fix_value.v` |
 | The interleaved chain `x_{n+1} = der (F (x_n!))` | `fix_chain`, `fix_chain_S`, `fix_chain_ball`, `fix_chain_chain` — same file |
 | The stable value map `F ↦ sup_n x_n` in `SCones` | `fix_value`, `fix_value_E`, `fix_value_unfold` — same file |
 | The combinator as an EM morphism, and its computation law | `fix_comb`, `fix_comb_mor`, `fix_prom_E` — same file |
 | Obligation (b): coalgebraic bodies give the literal chain | `fix_setlike_prom`, `fix_coalg_simpl`, `fix_unfold_coalg` — same file |
 | Non-degeneracy witnesses | `fix_prom_neq0`, `fix_id_E`, `fix_id_nontrivial` — same file |
+| Isomorphisms of `!`-coalgebras (id / sym / trans / `EM_prod` congruence) | `coalg_iso`, `coalg_iso_id`, `coalg_iso_sym`, `coalg_iso_trans`, `coalg_iso_prod`, `coalg_hom_prod` — `theories/programs/infra/em_fix_mr.v` |
+| The EM-level Seely-2 iso `EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)` | `seely2_em_iso`, `EM_prod_str_cofree2`, `seely2_fwd_is_coalg_mor`, `seely2_bwd_is_coalg_mor` — same file |
+| The transported combinator, its computation law and norm bound | `fix_comb_iso`, `fix_iso_body_conj`, `fix_comb_iso_prom_E`, `fix_comb_iso_norm` — same file |
+| The free-type decomposition `tyD_cbv t ≅ !̃(free_base t)` | `free_base`, `free_decomp`, `is_free_prodl`, `is_free_prodr`, `fix_mr_comb` — `theories/programs/ppl_cbv.v` |
 | The interpreter wiring `⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧` | `eD_fix_E`, `eD_fix_mr_fun_E`, `eD_fix_mr_prod_E`, `fix_mr_clause` — `theories/programs/ppl_cbv.v` |
-| The recursion-unfolding equations at setlike points | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_at_one1`, `eD_fix_unfold_closed` — `theories/programs/infra/cbv_fix_unfold.v` |
+| The recursion-unfolding equations at setlike points | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_at_one1`, `eD_fix_unfold_closed`, `eD_fix_mr_prod_at_setlike`, `eD_fix_mr_prod_at_setlike_neq0` — `theories/programs/infra/cbv_fix_unfold.v` |
 
 ### The degeneracy theorem (`Yfix_fun_lin_eq0`)
 
@@ -956,10 +969,10 @@ Lemma Yfix_fun_lin_fixpoint : Phi_fun Yfix_fun_lin = Yfix_fun_lin.
 The construction, the ball bound and the fixpoint equation are all
 true — and all satisfied by the zero linhom, which is exactly what
 `Yfix_fun_lin_eq0` shows it is. The operator is kept in `em_fix.v`
-as the documented contrast, and it is still the honest-scope
-placeholder for the `ne_fix_mr` *product* case (`fix_mr_clause` in
-`ppl_cbv.v`), whose repair needs the Seely transport of `fix_comb`
-along `EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)`.
+purely as the documented contrast; it is no longer used by the
+interpreter anywhere — the `ne_fix_mr` *product* case, formerly its
+last consumer, now goes through the genuine Seely-transported
+combinator (see the mutual-recursion transport section below).
 
 ### The seeded Kleene core (`kleene_from`, `lfp_from`)
 
@@ -1120,6 +1133,87 @@ Lemma fix_id_nontrivial :
   Lfun (ch_mor (fix_comb A)) (prom fix_idF) <> precone_zero.
 ```
 
+### The mutual-recursion transport (`coalg_iso`, `seely2_em_iso`, `fix_comb_iso`, `free_decomp`, `fix_mr_comb`)
+
+The layer that makes `ne_fix_mr` genuine at *products* of free
+types, in `theories/programs/infra/em_fix_mr.v` plus the
+decomposition layer of `theories/programs/ppl_cbv.v`. The problem:
+`fix_comb` lives on *cofree* coalgebras, but the CBV interpretation
+of a product is `tyD_cbv (tprod s t) = EM_prod (tyD s) (tyD t)` —
+not literally cofree. The solution, in three moves.
+
+**Isomorphisms of `!`-coalgebras.** `coalg_iso P Q` bundles both
+directions as `coalg_hom`s plus the two round-trips at the
+underlying-`icones_hom` level, with identity / symmetry /
+transitivity and the `EM_prod` congruence `coalg_iso_prod` (the
+tensor of two coalg isos, via `EM_prod_mor`).
+
+**The Seely-2 iso at the EM level.** For cofree coalgebras the
+product *is* cofree on the `&`-product (`sprod`, the cone product —
+note: `&`, not the tensor) of the base cones:
+
+```coq
+(* theories/programs/infra/em_fix_mr.v (Section Seely2EM) *)
+Definition seely2_em_iso (X Y : ICone.type Ar) :
+    coalg_iso (EM_prod (bang_cofree X) (bang_cofree Y))
+              (bang_cofree (sprod X Y)) :=
+  MkCoalgIso (ci_fwd := MkCoalgHom (seely2_fwd_is_coalg_mor X Y))
+    (ci_bwd := MkCoalgHom (seely2_bwd_is_coalg_mor X Y))
+    (iso_fwdK (Seely2 X Y)) (iso_bwdK (Seely2 X Y)).
+```
+
+The carrier of `EM_prod (!̃X) (!̃Y)` is `!X ⊗ !Y` and its structure
+map is the `Seely2`-transported `tens_cofree_str`
+(`EM_prod_str_cofree2`), so the coalgebra-morphism squares for the
+two directions of `Seely2 : !X ⊗ !Y ≅ !(X & Y)` are pure transport
+algebra (`seely2_fwd_is_coalg_mor` / `seely2_bwd_is_coalg_mor` —
+no point computation).
+
+**The transported combinator.** For any coalgebra `P` with
+`iso : coalg_iso P (!̃Z)`, conjugating `fix_comb Z` by the iso gives
+`fix_comb_iso iso : EM( !̃(U P ⊸ U P), P )`: bodies `F : U P ⊸ U P`
+transport to `!Z ⊸ !Z` by pre/post-composition with the iso's
+underlying linear maps (`fix_iso_body_conj`, the hom-functor action
+`linhom_map_icones`), the genuine fixpoint runs at `Z`, and the
+result is carried back by the iso's backward map. The computation
+law is the analogue of `fix_prom_E`:
+
+```coq
+(* theories/programs/infra/em_fix_mr.v (Section FixCombIso) *)
+Lemma fix_comb_iso_prom_E (F : linhom_car Ar UP UP)
+    (HF : cone_norm F <= 1) :
+  Lfun (ch_mor fix_comb_iso) (prom F) =
+  Lfun (ch_mor (ci_bwd iso))
+    (prom (sc_fun (fix_value Z)
+       (linhom_map_fun (ch_mor (ci_bwd iso)) (ch_mor (ci_fwd iso)) F))).
+```
+
+with the norm bound `fix_comb_iso_norm`. On the `ppl_cbv.v` side,
+`free_base t` computes the base cone of a free type (`tfun t1 t2 ↦
+U⟦t1⟧ ⊸ U⟦t2⟧`; `tprod t1 t2 ↦ sprod (free_base t1) (free_base
+t2)`) and `free_decomp t Hfree : coalg_iso (tyD_cbv t) (!̃(free_base
+t))` builds the decomposition by structural induction on the
+`is_free_coalg_type` witness — the `tfun` case is the identity iso
+(the interpretation *is* `bang_cofree`), the `tprod` case composes
+the children's isos (`coalg_iso_prod`) with `seely2_em_iso`.
+`fix_mr_comb t Hfree := fix_comb_iso (free_decomp t Hfree)` is then
+the genuine value-fixpoint combinator at every free type.
+
+```coq
+(* theories/programs/ppl_cbv.v (Section FreeDecomp) *)
+Definition fix_mr_comb (t : ppl_type Ar) (Hfree : is_free_coalg_type t) :
+    coalg_hom (bang_cofree (linhom_car Ar (coalg_obj (tyD_cbv t))
+                                          (coalg_obj (tyD_cbv t))))
+              (tyD_cbv t) :=
+  fix_comb_iso (@free_decomp t Hfree).
+```
+
+The surface witness is the mutual-recursion pair `ex_even_odd_pair`
+of `theories/programs/examples.v` (one recursive name at
+`tprod (tfun tunit tunit) (tfun tunit tunit)`, each component
+calling the other through `fst`/`snd`) — see
+[EXAMPLES.md](../examples/).
+
 ### The interpreter wiring (`eD_fix_E`, `fix_mr_clause`)
 
 The `ne_fix` clause of `eD_cbv` is the composite
@@ -1146,24 +1240,28 @@ Proof. by []. Qed.
 
 `ne_fix_mr` dispatches on the (free) body type through
 `fix_mr_clause`: at `tfun t1 t2` the same genuine composite
-(`eD_fix_mr_fun_E`); at `tprod`-of-frees still the degenerate
-`Yfix_fun_lin` (`eD_fix_mr_prod_E`) — the honest scope record, whose
-repair needs the Seely transport of `fix_comb` along
-`EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)`
-(`Seely2`).
+(`eD_fix_mr_fun_E`); at `tprod`-of-frees the same composite with the
+Seely-transported combinator `fix_mr_comb` of the previous section
+(`eD_fix_mr_prod_E`) — the mutual-recursion fixpoint is genuine at
+every free body type.
 
 ```coq
 (* theories/programs/ppl_cbv.v (Section EDUnfold) *)
-(** [ne_fix_mr] at a PRODUCT body type: still the degenerate
-    [Yfix_fun_lin] — the honest scope record. *)
+(** [ne_fix_mr] at a PRODUCT body type: the GENUINE Seely-transported
+    composite — [fix_mr_comb] (= [fix_comb (free_base _)] conjugated by
+    [free_decomp]) post-composed with the lambda-packaging of the body. *)
 Lemma eD_fix_mr_prod_E (G : named_ctx Ar) (s : string)
     (t1 t2 : ppl_type Ar)
     (Hfree : is_free_coalg_type (tprod t1 t2))
     (M : @named_expr R Ar R_obj ((s, tprod t1 t2) :: G) (tprod t1 t2)) :
   eD_cbv' (ne_fix_mr s (tprod t1 t2) Hfree M) =
-  linhom_icones
-    (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
-    (Yfix_fun_lin_norm_le1 _ _).
+  icones_comp
+    (ch_mor (fix_mr_comb (tprod t1 t2) Hfree))
+    (ch_mor (adj_psi (P := ctxD_cbv (drop_names G))
+                     (B := linhom_car Ar
+                             (coalg_obj (tyD_cbv (tprod t1 t2)))
+                             (coalg_obj (tyD_cbv (tprod t1 t2))))
+             (tensor_curry (eD_cbv' M)))).
 Proof. by []. Qed.
 ```
 
@@ -1215,7 +1313,12 @@ The closed-program corollaries `eD_fix_at_one1` /
 public linhom interpreter `eD` at the unit context point `one1`
 (which is setlike, `coalg_str_one1`). The same two laws also hold
 verbatim for `ne_fix_mr` at function body types
-(`eD_fix_mr_fun_at_setlike` / `eD_fix_mr_fun_unfold`). These
+(`eD_fix_mr_fun_at_setlike` / `eD_fix_mr_fun_unfold`); at *product*
+body types the computation law is the Seely-transported analogue
+`eD_fix_mr_prod_at_setlike` — the denotation at a setlike `γ` is the
+backward transport along `free_decomp` of the promoted fixpoint
+value of the conjugated body (`fix_comb_iso_prom_E`), never the
+cone-zero (`eD_fix_mr_prod_at_setlike_neq0`). These
 equations live in their own file because the setlike-point kit they
 consume (`infra/cbv_anchors.v`) imports `ppl_cbv.v` — an import
 cycle would result if they sat next to the definitional clause pins.
@@ -1261,10 +1364,11 @@ of the prior); the scalar affine-cascade closed form with the
 sup-mass bridge (the bridge from per-iterate mass recurrences to
 fixpoint masses); the setlike-point kit; the shared-sample diagonal
 anchors with their independence contrast; the β-rule and
-if-orientation pins; and the CBV QBS marginals — the headline
-marginal identities of the three non-recursive QBS-mirror examples,
-proved with this chapter's machinery in
-`theories/programs/infra/cbv_qbs_marginals.v`.
+if-orientation pins; and the CBV marginals — the headline marginal
+identities of the non-recursive basic sampling/scoring examples, up
+to the model evidence of the higher-order Bayesian linear
+regression, proved with this chapter's machinery in
+`theories/programs/infra/cbv_marginals.v`.
 
 | Construction | Rocq |
 |---|---|
@@ -1280,11 +1384,12 @@ proved with this chapter's machinery in
 | The independence contrast | `pair_bernoulli_indep`, `pair_sample_indep` — same file |
 | The β-rule at the morphism level | `eD_beta` — same file |
 | The if-orientation pins | `eD_if_true`, `eD_if_false` — same file |
-| The unnormalised Bayes posterior, against `eD` | `ex_bayes_linear_cbv_posterior`, `ex_bayes_linear_cbv_mass` — `theories/programs/infra/cbv_qbs_marginals.v` |
-| Rejection sampling normalises the Bayes-score posterior | `ex_reject_normalises_bayes` — same file |
+| The unnormalised score posterior, against `eD` | `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass` — `theories/programs/infra/cbv_marginals.v` |
+| Rejection sampling normalises the score posterior | `ex_reject_normalises_score` — same file |
 | The sampled-constant marginal at probability test points | `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass` — same file |
 | The random-affine marginal at Dirac test points | `ex_random_linear_cbv_marginal`, `rl_inner_marginal` — same file |
-| QBS-marginal kit: the `FMeas` counit on probabilities; projections at non-setlike points | `coalg_e_FMeas_prob`, `em_proj1_mor_unitE`, `em_proj1_mor_probE`, `Lfun_scaleE`, `one_dirac_ball`, `one_dirac_setlike` — same file |
+| The Bayesian-linear-regression model evidence (general observation list) | `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`, `obs_fold_at` — same file |
+| Marginal kit: the `FMeas` counit on probabilities; projections at non-setlike points | `coalg_e_FMeas_prob`, `em_proj1_mor_unitE`, `em_proj1_mor_probE`, `Lfun_scaleE`, `one_dirac_ball`, `one_dirac_setlike` — same file |
 
 ### The let-at-sample integral law (`eD_let_sample_int`, `eD_let_sample_mu_E`)
 
@@ -1517,12 +1622,12 @@ Lemma eD_if_false (G : named_ctx Ar) (t : ppl_type Ar)
   eD_cbv' (ne_if t ne_false M N) = eD_cbv' N.
 ```
 
-### The CBV QBS marginals (`ex_bayes_linear_cbv_posterior`, `ex_reject_normalises_bayes`, `ex_random_constant_cbv_marginal`, `ex_random_linear_cbv_marginal`)
+### The CBV marginals (`ex_score_posterior_cbv_E`, `ex_reject_normalises_score`, `ex_random_constant_cbv_marginal`, `ex_random_linear_cbv_marginal`, `ex_bayes_linear_cbv_evidence`)
 
-The headline semantic identities of the three non-recursive
-QBS-mirror examples of `theories/programs/examples.v`, proved against
-the CBV interpreter `eD` in
-`theories/programs/infra/cbv_qbs_marginals.v` — the consumers this
+The headline semantic identities of the non-recursive basic
+sampling/scoring examples of `theories/programs/examples.v`, proved
+against the CBV interpreter `eD` in
+`theories/programs/infra/cbv_marginals.v` — the consumers this
 chapter's machinery was built for. The common route: the
 let-at-sample law turns each `let x = sample µ in …` prefix into a
 Pettis integral over Diracs of the prior; dereliction / evaluation at
@@ -1532,18 +1637,19 @@ computes pointwise through the setlike-point kit, closing with a
 Dirac integral (`icone_integral_dirac_fmeas` or
 `icone_integral_fmeas_E`).
 
-**The unnormalised posterior.** The denotation of `ex_bayes_linear`
-(`let m = sample µ in let _ = score f m in m`) at the unit context
-point is, on every measurable `U`, the prior reweighted by the
-evidence density — *not* normalised; the mass corollary
-`ex_bayes_linear_cbv_mass` gives the total evidence `∫ f dµ`.
+**The unnormalised posterior.** The denotation of
+`ex_score_posterior` (`let m = sample µ in let _ = score f m in m`)
+at the unit context point is, on every measurable `U`, the prior
+reweighted by the evidence density — *not* normalised; the mass
+corollary `ex_score_posterior_cbv_mass` gives the total evidence
+`∫ f dµ`.
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v (Section BayesPosterior) *)
-Theorem ex_bayes_linear_cbv_posterior (U : set (ar_carrier Ar R_obj))
+(* theories/programs/infra/cbv_marginals.v (Section ScorePosterior) *)
+Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
-    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 ```
@@ -1552,13 +1658,13 @@ Theorem ex_bayes_linear_cbv_posterior (U : set (ar_carrier Ar R_obj))
 the rejection-sampling master identity of
 `theories/programs/ex_reject_headline.v`: at a probability prior
 (`µ(setT) = 1`), the rejection-sampling denotation times the total
-evidence *is* the Bayes-score denotation — `score` produces the
+evidence *is* the score denotation — `score` produces the
 unnormalised posterior, rejection sampling produces the normalised
 one, and the theorem connects the two programs exactly.
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v (Section BayesPosterior) *)
-Theorem ex_reject_normalises_bayes
+(* theories/programs/infra/cbv_marginals.v (Section ScorePosterior) *)
+Theorem ex_reject_normalises_score
     (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
@@ -1566,7 +1672,7 @@ Theorem ex_reject_normalises_bayes
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
   fmeas_mu
-    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U.
 ```
 
@@ -1585,7 +1691,7 @@ discarded. Dirac test points are probabilities, giving the corollary
 `ex_random_constant_cbv_marginal_mass`.
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v (Section RandomConstantMarginal) *)
+(* theories/programs/infra/cbv_marginals.v (Section RandomConstantMarginal) *)
 Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
   fmeas_mu x [set: ar_carrier Ar R_obj] = 1%E ->
   linhom_fun
@@ -1604,7 +1710,7 @@ the joint pushforward of two independent prior draws along
 `add_lift` / `mul_lift` Dirac rules.
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v (Section RandomLinearMarginal) *)
+(* theories/programs/infra/cbv_marginals.v (Section RandomLinearMarginal) *)
 Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   fmeas_mu
@@ -1620,6 +1726,37 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
           U))%:E))%:E.
 ```
 
+**The Bayesian-linear-regression model evidence.** The headline of
+the file: `ex_bayes_linear l` samples the random affine model *once*
+(it is literally `ex_random_linear`), binds it to `"f"`, scores one
+observation per element of the meta-level list `l : seq (obs R)`
+(each observation `o` scores the model's value at the known input
+`obs_x o` by the density `obs_d o`), and returns `#"f"` — the
+posterior over functions. The theorem, for a *general* `l`: the
+comonoid counit ("total mass") of the function-space denotation is
+the **model evidence**.
+
+```coq
+(* theories/programs/infra/cbv_marginals.v (Section BayesLinearEvidence) *)
+Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
+  ((c1_val (Lfun (coalg_e (tyD_cbv tF))
+      (linhom_fun
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu l)
+         one1)))%:num)%R =
+  fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
+     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+        ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E))%:E).
+```
+
+The 2-observation corollary `ex_bayes_linear_cbv_evidence2` writes
+the product literally. The CBV content: the let-bound *function
+value* is shared — duplicated by the comonoid `coalg_d` at a
+prom-point of the function cone — across all observations and the
+return, so every score weighs the *same* sampled function; the
+workhorse `obs_fold_at` factors the per-observation scalar weights
+out of the fold one at a time, and two let-at-sample integrations
+close the evidence.
+
 The supporting kit of the file (its §1) extends the setlike-point kit
 to *non-setlike* discarded components: the comonoid counit of the
 §9.7 coalgebra `FMeas X` sends every probability measure to `one1`
@@ -1629,8 +1766,8 @@ mass), so the first cartesian projection silently discards an
 `FMeas`-typed probability (`em_proj1_mor_probE`) and weighs by the
 scalar when discarding a `tunit`-typed score result
 (`em_proj1_mor_unitE` — how the score weight becomes a
-`precone_scale` factor in the Bayes proof). The per-program proofs
-are worked example-by-example in
+`precone_scale` factor in the score-posterior proof). The
+per-program proofs are worked example-by-example in
 [EXAMPLES.md](../../examples/index.html).
 
 ---
@@ -1791,13 +1928,19 @@ Definition bool_cone_coalg : Coalgebra Ar :=
 
 A handful of PPL-side items are intentionally left open. (The
 call-by-name interpretation, its headlines and its refinement options
-are not gaps of this document: they live on the `cbn-track` branch.)
+are not gaps of this document: they live on the `cbn-track` branch.
+The former gap "`ne_fix_mr` at product body types" is **closed**: the
+Seely transport of `fix_comb` is delivered in
+`theories/programs/infra/em_fix_mr.v` and wired through
+`fix_mr_comb` / `fix_mr_clause` of `theories/programs/ppl_cbv.v`,
+with the computation law `eD_fix_mr_prod_at_setlike` and the surface
+witness `ex_even_odd_pair`.)
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| `ne_fix_mr` at product body types | The genuine seeded value-fixpoint for the mutual-recursion shape `tprod (tfun A1 B1) (tfun A2 B2)`; the clause currently keeps the provably-zero `Yfix_fun_lin` (`eD_fix_mr_prod_E`, the honest scope record). | Needs the Seely transport of `fix_comb` along `EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)` (`Seely2`) — a self-contained piece of plumbing not yet written. The function-type case is already genuine (`eD_fix_mr_fun_E`). |
 | Distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF, the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
-| External semantic equivalence | A QBS / ProbProg / Pyro / Stan correspondence. | The correctness statements in this development are denotational identities at the categorical level. |
+| Morphism-level recursion unfolding | The `ne_fix` / `ne_fix_mr` unfolding equations as *morphism* equations, not pointwise at setlike context points. | The `adj_psi` packaging computes through `coalg_str`, which is only promoted-point-shaped on setlike inputs. |
+| External semantic equivalence | A correspondence with another formalised semantics (e.g. a quasi-Borel-space development) or a real PPL implementation (ProbProg / Pyro / Stan). | The correctness statements in this development are denotational identities at the categorical level. |
 
 ---
 
@@ -1824,14 +1967,18 @@ echo "Print Assumptions let_bernoulli_pair_diag." | \
   rocq top -Q theories Icones -l theories/programs/infra/cbv_anchors.v
 echo "Print Assumptions meas_stable_diag_bilinear_tensor." | \
   rocq top -Q theories Icones -l theories/stable/diag_bilinear_tensor.v
-echo "Print Assumptions ex_bayes_linear_cbv_posterior." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
-echo "Print Assumptions ex_reject_normalises_bayes." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+echo "Print Assumptions ex_score_posterior_cbv_E." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+echo "Print Assumptions ex_reject_normalises_score." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
 echo "Print Assumptions ex_random_constant_cbv_marginal." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
 echo "Print Assumptions ex_random_linear_cbv_marginal." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+echo "Print Assumptions ex_bayes_linear_cbv_evidence." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+echo "Print Assumptions fix_comb_iso_prom_E." | \
+  rocq top -Q theories Icones -l theories/programs/infra/em_fix_mr.v
 ```
 
 Each command reports only `propositional_extensionality`,

@@ -7,11 +7,13 @@ programs are written exclusively in the direct-style `ppl_named`
 custom entry of `theories/programs/ppl.v` (brackets `[ … ]` enter the
 entry; curly braces `{ x }` escape back to plain Rocq). Every
 constructor of the language is exercised somewhere below. The
-rejection-sampling program carries the headline of the development —
+rejection-sampling program carries one headline of the development —
 its denotation is the normalised posterior
-(`ex_reject_is_normalised_posterior`) — and the three non-recursive
-QBS-style programs carry closed-form CBV marginal identities
-(`theories/programs/infra/cbv_qbs_marginals.v`). A call-by-name
+(`ex_reject_is_normalised_posterior`) — and the basic sampling and
+scoring programs carry closed-form CBV marginal identities, up to and
+including the model evidence of a higher-order Bayesian linear
+regression (`ex_bayes_linear_cbv_evidence`,
+`theories/programs/infra/cbv_marginals.v`). A call-by-name
 interpretation of the same surface programs is preserved on the
 `cbn-track` branch; main is CBV-only.
 
@@ -23,16 +25,23 @@ document covers the **examples themselves**.
 
 ---
 
-## Beyond the paper — QBS-style examples
+## Beyond the paper — Basic sampling and scoring examples
 
-The QBS-paper flagship programs. Three end-to-end probabilistic
-programs that *do not* use recursion. Each one exercises a different
-constructor of the language (`ne_let` + `ne_sample`, `ne_add` +
-`ne_mul`, `ne_score`) and ships a closed-form CBV marginal identity
-tying its denotation to the corresponding distribution, proved in
-`theories/programs/infra/cbv_qbs_marginals.v`. The surface
-constructors and the named-variable machinery the programs are
-written in are documented in
+End-to-end probabilistic programs that *do not* use recursion: two
+random-function programs, a one-parameter score program, and the
+higher-order Bayesian linear regression built out of them. The
+calculus *shape* they are written in mirrors the canonical
+higher-order probabilistic calculus of Heunen–Kammar–Staton–Yang,
+*A Convenient Category for Higher-Order Probability Theory* — only
+the surface-calculus shape is borrowed; the semantics here is the
+integrable-cones model, not quasi-Borel spaces. Each program
+exercises a different constructor group of the language (`ne_let` +
+`ne_sample`, `ne_add` + `ne_mul`, `ne_score`, `ne_app` on a shared
+function value) and ships a closed-form CBV identity tying its
+denotation to the corresponding distribution, proved in
+`theories/programs/infra/cbv_marginals.v`. The surface constructors
+and the named-variable machinery the programs are written in are
+documented in
 [the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html).
 Every proof follows the same route: the let-at-sample integral law
 `eD_let_sample_int` (`theories/programs/infra/let_sample_law.v`)
@@ -43,13 +52,14 @@ to a Dirac integral.
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
-| Constant random function | `let c := sample µ in λx. c` of type `tfun tR tR` denotes the QBS-flagship "distribution over a function space" (constant-output): its marginal at every probability test point is the prior `µ`. | `ex_random_constant` — `theories/programs/examples.v`; `ex_random_constant_cbv_marginal` — `theories/programs/infra/cbv_qbs_marginals.v` |
-| Random affine function | `let m := sample µ in let b := sample µ in λx. m·x + b` of type `tfun tR tR` denotes a random-coefficients linear regression model: its marginal at a Dirac test point `δ_{r0}` is the iterated-integral pushforward of two prior draws along `(m, b) ↦ m·r0 + b`. | `ex_random_linear` — `theories/programs/examples.v`; `ex_random_linear_cbv_marginal` — `theories/programs/infra/cbv_qbs_marginals.v` |
-| Unnormalised Bayesian posterior | `let m := sample µ in let _ := score f #"m" in #"m"` of type `tR` denotes the unnormalised posterior: its measure on every measurable `U` is `∫_U f dµ`. | `ex_bayes_linear` — `theories/programs/examples.v`; `ex_bayes_linear_cbv_posterior` — `theories/programs/infra/cbv_qbs_marginals.v` |
+| Constant random function | `let c := sample µ in λx. c` of type `tfun tR tR` denotes a distribution over a function space (constant-output): its marginal at every probability test point is the prior `µ`. | `ex_random_constant` — `theories/programs/examples.v`; `ex_random_constant_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
+| Random affine function | `let m := sample µ in let b := sample µ in λx. m·x + b` of type `tfun tR tR` denotes a random-coefficients linear regression model: its marginal at a Dirac test point `δ_{r0}` is the iterated-integral pushforward of two prior draws along `(m, b) ↦ m·r0 + b`. | `ex_random_linear` — `theories/programs/examples.v`; `ex_random_linear_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
+| Scored parameter (one-dimensional unnormalised posterior) | `let m := sample µ in let _ := score f #"m" in #"m"` of type `tR` denotes the unnormalised posterior over the sampled parameter: its measure on every measurable `U` is `∫_U f dµ`. | `ex_score_posterior` — `theories/programs/examples.v`; `ex_score_posterior_cbv_E` — `theories/programs/infra/cbv_marginals.v` |
+| Bayesian linear regression (posterior over functions) | Sample the random affine model ONCE, bind it to `"f"`, score one observation per element of an observation list against the model's value at a known input, return `#"f"` — the posterior over functions. The total mass of the denotation is the model evidence `∫∫ ∏_o obs_d o (m·obs_x o + b) dµ dµ`. | `ex_bayes_linear` — `theories/programs/examples.v`; `ex_bayes_linear_cbv_evidence` — `theories/programs/infra/cbv_marginals.v` |
 
 ### ex_random_constant (`ex_random_constant`, `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass`)
 
-The QBS flagship constant-output random function. After sampling a
+The constant-output random function. After sampling a
 single random constant `c ~ µ`, the program returns the function
 `λx. c` — every call to the function returns the same value, but the
 function itself was sampled from `µ`. The headline correctness
@@ -64,7 +74,7 @@ Definition ex_random_constant :
   [ let "c" := Sample (mu, Hmu) in \ "x" ::: tR' => # "c" ].
 ```
 
-All identities live in `theories/programs/infra/cbv_qbs_marginals.v`
+All identities live in `theories/programs/infra/cbv_marginals.v`
 (Section RandomConstantMarginal), stated against the public
 linhom-valued denotation `ex_random_constant_cbv` at the unit context
 point `one1`.
@@ -76,7 +86,7 @@ point `one1`.
 | CBV — the marginal's mass at every measurable set is exactly the prior's mass on that set. | `ex_random_constant_cbv_marginal_mass` — *the marginal's measure at every U equals µ(U)* | axiom-free |
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v — Section RandomConstantMarginal *)
+(* theories/programs/infra/cbv_marginals.v — Section RandomConstantMarginal *)
 Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
   fmeas_mu x [set: ar_carrier Ar R_obj] = 1%E ->
   linhom_fun
@@ -116,7 +126,9 @@ intercept `b` from `µ`, return the function `λx. m·x + b`. Exercises
 arithmetic (`add_lift_dirac` / `mul_lift_dirac`). The marginal
 identity ties the surface program to the iterated-integral
 pushforward of two independent prior draws along
-`(m, b) ↦ m·r0 + b`.
+`(m, b) ↦ m·r0 + b`. This program is also the *model* of the
+Bayesian linear regression `ex_bayes_linear` below — the regression
+program is literally `let "f" := ex_random_linear in …`.
 
 ```coq
 (* theories/programs/examples.v *)
@@ -127,7 +139,7 @@ Definition ex_random_linear :
     \ "x" ::: tR' => # "m" * # "x" + # "b" ].
 ```
 
-Both identities live in `theories/programs/infra/cbv_qbs_marginals.v`
+Both identities live in `theories/programs/infra/cbv_marginals.v`
 (Section RandomLinearMarginal).
 
 | Side | Headline | Status |
@@ -136,7 +148,7 @@ Both identities live in `theories/programs/infra/cbv_qbs_marginals.v`
 | CBV — the inner continuation (one sample left) marginalises to a single integral over the intercept. | `rl_inner_marginal` — *the marginal of ⟦ex_rl_inner⟧(1 ⊗ δ_m) at δ_{r0} on U is ∫ δ_{m·r0+b}(U) µ(db)* | axiom-free |
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v — Section RandomLinearMarginal *)
+(* theories/programs/infra/cbv_marginals.v — Section RandomLinearMarginal *)
 Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   fmeas_mu
@@ -162,43 +174,47 @@ Dirac rules of `mul_lift` and `add_lift` to `δ_{m·r0+b}`
 Pettis integral (`icone_integral_fmeas_E`) lands the iterated
 Lebesgue integral.
 
-### ex_bayes_linear (`ex_bayes_linear`, `ex_bayes_linear_cbv_posterior`, `ex_bayes_linear_cbv_mass`)
+### ex_score_posterior (`ex_score_posterior`, `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass`)
 
-The textbook prior / score / observe shape of Bayesian inference:
-sample a parameter `m` from the prior `µ`, score by a measurable
-density `f(m) ∈ [0, 1]`, return `m`. Exercises `ne_score` and
-delivers the **unnormalised posterior**: the denotation's measure on
-every measurable `U` is `∫_U f dµ` — the prior reweighted by the
-evidence density, with total mass the evidence `∫ f dµ`.
+Scoring a sampled parameter — the one-dimensional unnormalised
+posterior. The textbook prior / score / return shape: sample a
+parameter `m` from the prior `µ`, score by a measurable density
+`f(m) ∈ [0, 1]`, return `m`. Exercises `ne_score` and delivers the
+**unnormalised posterior**: the denotation's measure on every
+measurable `U` is `∫_U f dµ` — the prior reweighted by the evidence
+density, with total mass the evidence `∫ f dµ`. (This program was
+historically misnamed `ex_bayes_linear`; it is not a linear
+regression. The genuine higher-order Bayesian linear regression is
+the next entry.)
 
 ```coq
 (* theories/programs/examples.v *)
-Definition ex_bayes_linear :
+Definition ex_score_posterior :
     @named_expr R Ar R_obj nil tR' :=
   [ let "m" := Sample (mu, Hmu) in
     let "_" := Score { f, Hf_meas, Hf_ge0, Hf_le1 } # "m" in
     # "m" ].
 ```
 
-Both identities live in `theories/programs/infra/cbv_qbs_marginals.v`
-(Section BayesPosterior). They pair with the rejection-sampling
+Both identities live in `theories/programs/infra/cbv_marginals.v`
+(Section ScorePosterior). They pair with the rejection-sampling
 headline of the chapter below: `score` produces the *unnormalised*
 posterior, rejection sampling produces the *normalised* one, and
-`ex_reject_normalises_bayes` (same file) connects the two programs
-exactly — see the Bayes-pairing entry of the rejection-sampling
+`ex_reject_normalises_score` (same file) connects the two programs
+exactly — see the score-pairing entry of the rejection-sampling
 chapter below.
 
 | Side | Headline | Status |
 |---|---|---|
-| CBV — the denotation's measure on every measurable U is the restricted evidence integral: the prior reweighted by the density, NOT normalised. | `ex_bayes_linear_cbv_posterior` — *fmeas_mu ⟦ex_bayes_linear⟧(one1) U = ∫_U f∘cR dµ* | axiom-free |
-| CBV — the total mass of the denotation is the evidence ∫ f dµ. | `ex_bayes_linear_cbv_mass` — *fmeas_mu ⟦ex_bayes_linear⟧(one1) setT = ∫ f∘cR dµ* | axiom-free |
+| CBV — the denotation's measure on every measurable U is the restricted evidence integral: the prior reweighted by the density, NOT normalised. | `ex_score_posterior_cbv_E` — *fmeas_mu ⟦ex_score_posterior⟧(one1) U = ∫_U f∘cR dµ* | axiom-free |
+| CBV — the total mass of the denotation is the evidence ∫ f dµ. | `ex_score_posterior_cbv_mass` — *fmeas_mu ⟦ex_score_posterior⟧(one1) setT = ∫ f∘cR dµ* | axiom-free |
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v — Section BayesPosterior *)
-Theorem ex_bayes_linear_cbv_posterior (U : set (ar_carrier Ar R_obj))
+(* theories/programs/infra/cbv_marginals.v — Section ScorePosterior *)
+Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
-    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 ```
@@ -211,8 +227,99 @@ the returned variable under the score binder is computed by
 `em_proj1_mor_unitE` — a `tunit`-typed score result is *not* setlike,
 so the first projection discards it as its scalar weight, turning the
 score into the `precone_scale` factor `f(r)` on the returned `δ_r`
-(`bl_cont_at_dirac`); the Dirac's measure of `U` is the indicator,
+(`sp_cont_at_dirac`); the Dirac's measure of `U` is the indicator,
 and the integral collapses to `∫_U f dµ`.
+
+### ex_bayes_linear (`ex_bayes_linear`, `ex_bayes_linear3`, `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`)
+
+The paper-faithful Bayesian linear regression (the shape of
+Staton–Yang–Heunen–Kammar–Wood, arXiv 1701.02547 §2.1) — told in
+three steps.
+
+**The model is a random function.** The model is exactly
+`ex_random_linear` above: `let m := sample µ in let b := sample µ in
+λx. m·x + b`, a distribution over affine functions with slope and
+intercept drawn from the prior.
+
+**Bayesian inference = condition the model on data.** Each
+observation is a `Record obs` packaging a known input point `obs_x`
+and an observation density `obs_d : R → [0,1]` (with measurability
+and bound witnesses — e.g. a normal pdf around the measured output,
+scaled into `[0,1]`). Conditioning is a `score`: the model's value
+`#"f" @ [|obs_x o|]` at the known input is scored by `obs_d o`. The
+program samples the model ONCE, binds it to `"f"`, folds the
+observation list into a series of scores, and returns `#"f"` — the
+**posterior over functions**.
+
+```coq
+(* theories/programs/examples.v — the 2-observation surface form
+   (definitionally equal to ex_bayes_linear [:: o1; o2], pinned by a
+   Check (erefl : …) in the source) *)
+[ let "f" := (let "m" := Sample (mu , Hmu) in
+              let "b" := Sample (mu , Hmu) in
+              \ "x" ::: tR' => # "m" * # "x" + # "b") in
+  let "_" := Score { obs_d o1 , obs_meas o1 , obs_ge0 o1 , obs_le1 o1 }
+               # "f" @ [| obs_x o1 |] in
+  let "_" := Score { obs_d o2 , obs_meas o2 , obs_ge0 o2 , obs_le1 o2 }
+               # "f" @ [| obs_x o2 |] in
+  # "f" ]
+```
+
+For a general meta-level list `l : seq (obs R)`, the score series is
+produced by the Rocq `Fixpoint` `obs_fold` (the `ppl_named` custom
+entry cannot recurse over a meta-level `seq`); `ex_bayes_linear l`
+binds the model and runs the fold, and `ex_bayes_linear3` is the
+concrete 3-observation instance.
+
+**The theorems.** The headline `ex_bayes_linear_cbv_evidence`
+(Section BayesLinearEvidence of
+`theories/programs/infra/cbv_marginals.v`), for a *general*
+observation list `l`: the total mass of the posterior-over-functions
+— the comonoid counit of the function-type coalgebra applied to the
+denotation — is the **model evidence**, the integral of the
+likelihood of all observations under the priors. The 2-observation
+corollary `ex_bayes_linear_cbv_evidence2` writes the product
+literally.
+
+| Side | Headline | Status |
+|---|---|---|
+| CBV — the counit ("total mass") of the function-space denotation is the model evidence, for a general observation list. | `ex_bayes_linear_cbv_evidence` — *c1_val (coalg_e ⟦ex_bayes_linear l⟧(one1)) = ∫∫ ∏_{o∈l} obs_d o (m·obs_x o + b) dµ(b) dµ(m)* | axiom-free |
+| CBV — the literal 2-observation instance. | `ex_bayes_linear_cbv_evidence2` — *the counit mass at `[:: o1; o2]` is ∫∫ obs_d o1 (m·x₁+b) · obs_d o2 (m·x₂+b) dµ dµ* | axiom-free |
+
+```coq
+(* theories/programs/infra/cbv_marginals.v — Section BayesLinearEvidence *)
+Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
+  ((c1_val (Lfun (coalg_e (tyD_cbv tF))
+      (linhom_fun
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu l)
+         one1)))%:num)%R =
+  fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
+     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+        ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E))%:E).
+```
+
+**Why call-by-value matters here.** The sampled function is bound
+ONCE and shared across every observation *and* the return: each
+access to `#"f"` goes through the comonoid duplication `coalg_d` of
+the let-clause diagonal at the function-type cone
+`!(U⟦tR⟧ ⊸ U⟦tR⟧)` — duplicating a sampled *function value* at a
+prom-point of the function cone is exactly what the `!`-comonoid
+machinery is for. That duplication is what makes all observations
+score the SAME sampled function (and the returned posterior be over
+that same function), rather than each score drawing a fresh model.
+This is the higher-order sharing story — stronger than the
+first-order accept-passing sharing of `ex_reject` below, where the
+shared value is a real-valued sample. In the proof, the per-`(m,b)`
+weights factor out of the fold one observation at a time
+(`obs_fold_at`: `⟦obs_fold v l⟧` at the depth-`n` environment is the
+promoted closure scaled by `∏_{o∈l} obs_d o (m·x_o + b)`), and two
+applications of the let-at-sample law integrate the weights against
+the priors.
+
+Cross-links: the model's own marginal identity is
+`ex_random_linear_cbv_marginal` above; the one-parameter score
+program (with its rejection pairing `ex_reject_normalises_score`) is
+`ex_score_posterior` above.
 
 ---
 
@@ -234,6 +341,7 @@ recursion constructor is documented in
 | Bare divergence | `(let rec l = λ_. l ()) ()` of type `tunit`, total mass `0`. | `ex_loop` — `theories/programs/examples.v` |
 | Geometric distribution | `(let rec g = λ_. if Bernoulli(½) then 0 else 1 + g ()) ()` of type `tR'`, total mass `1`: the sampler halts almost surely. | `ex_geom` — `examples.v`; `ex_geom_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
 | Parameterised partial termination | `(let rec l = λ_. if Bernoulli(p) then () else l ()) ()` of type `tunit`: mass `1` when `p > 0`, mass `0` when `p = 0`. | `ex_almost_loop` — `examples.v`; `ex_almost_loop_cbv_mass_one`, `ex_almost_loop_cbv_zero` — `theories/programs/ex_reject_headline.v` |
+| Mutual recursion at a product of functions | `fix_mr p : (1→1) × (1→1). (λn. snd p n, λn. fst p n)` — one recursive name bound at a *pair* of function types, each component calling the other; the elaboration witness for the genuine Seely-transported mutual-recursion fixpoint. | `ex_even_odd_pair`, `ex_even`, `ex_odd` — `theories/programs/examples.v` |
 
 ### ex_loop (`ex_loop`)
 
@@ -351,6 +459,41 @@ Theorem ex_almost_loop_cbv_zero : p = 0%R -> al_denot = precone_zero.
 (`al_denot` abbreviates
 `linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas Hp0 Hp1) one1`.)
 
+### ex_even_odd_pair (`ex_even_odd_pair`, `ex_even`, `ex_odd`, `ex_even_odd_pair_cbv`)
+
+The mutual-recursion witness: `ne_fix_mr` binds ONE recursive name
+`p` at the free-coalgebra type `tprod (tfun tunit tunit) (tfun tunit
+tunit)` — a *pair* of functions — and each component calls the other
+via the `fst` / `snd` projections of the rec-bound product. This is
+the classic even/odd mutual-recursion *shape* (each component
+immediately delegates to the other, so operationally it diverges);
+the point of the entry is the elaboration-level witness, not a mass
+claim: the CBV denotation `ex_even_odd_pair_cbv` elaborates through
+the **genuine** Seely-transported fixpoint path `fix_mr_comb` of
+`theories/programs/ppl_cbv.v` (`fix_mr_clause` at `tprod`), closed by
+commit-level work in `theories/programs/infra/em_fix_mr.v` — see the
+PPL tab's value-fixpoint chapter. No mass identities are claimed for
+this entry.
+
+```coq
+(* theories/programs/examples.v *)
+Definition ex_even_odd_pair :
+    @named_expr R Ar R_obj nil pair_ty :=
+  [ fix_mr "p" as pair_ty by erefl
+       in ({ex_even_odd_lam_a}, {ex_even_odd_lam_b}) ].
+```
+
+(`pair_ty` abbreviates `tprod (tfun tunit tunit) (tfun tunit tunit)`;
+the two spliced lambdas are `λn. snd #"p" @ #"n"` and
+`λn. fst #"p" @ #"n"`, and `ex_even` / `ex_odd` are the two
+projections of the pair.) The semantic computation law behind the
+elaboration is `eD_fix_mr_prod_at_setlike` with non-degeneracy
+witness `eD_fix_mr_prod_at_setlike_neq0`
+(`theories/programs/infra/cbv_fix_unfold.v`): at a setlike unit-ball
+context point the denotation is the backward Seely transport of the
+genuine interleaved-Kleene fixpoint value, and it is never the
+cone-zero.
+
 ---
 
 ## Beyond the paper — Rejection sampling denotes the normalised posterior
@@ -366,7 +509,7 @@ reweighted prior, *renormalised* — and the loop may in principle run
 forever, so termination is itself a theorem, not an assumption. The
 formal content lives in `theories/programs/ex_reject_headline.v`
 (the reduction chain and the five theorems, axiom-free) and
-`theories/programs/infra/cbv_qbs_marginals.v` (the Bayes pairing),
+`theories/programs/infra/cbv_marginals.v` (the score pairing),
 on top of the surface program of `theories/programs/examples.v`.
 
 | Paper-style label | English statement | Rocq |
@@ -374,7 +517,7 @@ on top of the surface program of `theories/programs/examples.v`.
 | Rejection sampling | `(let rec rs = λaccept. let x = sample µ in if Bernoulli_f{f} x then accept x else rs accept) (λy. y)` of type `tR` — sample from the prior, accept with probability `f x`, recurse on rejection. | `ex_reject`, `ex_reject_cbv` — `theories/programs/examples.v` |
 | The master identity | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v` |
 | The normalised posterior | If acceptance has positive mass, `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the program denotes the posterior of the prior `µ` given the soft predicate `f`. | `ex_reject_is_normalised_posterior` — same file |
-| The Bayes pairing | `(∫ f dµ) · ν_reject(U) = ν_bayes(U)` at `µ(setT) = 1`: rejection sampling normalises exactly the score program's unnormalised posterior. | `ex_reject_normalises_bayes` — `theories/programs/infra/cbv_qbs_marginals.v` |
+| The score pairing | `(∫ f dµ) · ν_reject(U) = ν_score(U)` at `µ(setT) = 1`: rejection sampling normalises exactly the score program's unnormalised posterior. | `ex_reject_normalises_score` — `theories/programs/infra/cbv_marginals.v` |
 
 ### ex_reject (`ex_reject`, `ex_reject_master`, `ex_reject_is_normalised_posterior`, `ex_reject_mass_one`, `ex_reject_zero`)
 
@@ -518,27 +661,27 @@ Lemma ex_reject_iter_mass n U (mU : measurable U) :
   IUf U + ((1 - fine If)%R)%:E * fmeas_mu (reject_iter n) U.
 ```
 
-### The Bayes pairing (`ex_reject_normalises_bayes`)
+### The score pairing (`ex_reject_normalises_score`)
 
-The rejection sampler pairs with the score program of the QBS
-chapter: `ex_bayes_linear` (sample, *score* by `f`, return) denotes
-the **unnormalised** posterior — its measure on `U` is `∫_U f dµ`
-(`ex_bayes_linear_cbv_posterior`) — while `ex_reject` (sample,
-*accept-or-retry* by `f`) denotes the **normalised** posterior. The
-theorem connects the two programs exactly: at a probability prior,
-the rejection denotation times the total evidence *is* the
-Bayes-score denotation.
+The rejection sampler pairs with the one-parameter score program of
+the basic-examples chapter: `ex_score_posterior` (sample, *score* by
+`f`, return) denotes the **unnormalised** posterior — its measure on
+`U` is `∫_U f dµ` (`ex_score_posterior_cbv_E`) — while `ex_reject`
+(sample, *accept-or-retry* by `f`) denotes the **normalised**
+posterior. The theorem connects the two programs exactly: at a
+probability prior, the rejection denotation times the total evidence
+*is* the score denotation.
 
 | Side | Headline | Status |
 |---|---|---|
-| CBV — rejection sampling normalises exactly the Bayes-score posterior: (∫ f dµ) · ν_reject(U) = ν_bayes(U) at µ(setT) = 1, for every measurable U. | `ex_reject_normalises_bayes` — *(∫ f∘cR dµ) · fmeas_mu ⟦ex_reject⟧(one1) U = fmeas_mu ⟦ex_bayes_linear⟧(one1) U* | axiom-free |
+| CBV — rejection sampling normalises exactly the score posterior: (∫ f dµ) · ν_reject(U) = ν_score(U) at µ(setT) = 1, for every measurable U. | `ex_reject_normalises_score` — *(∫ f∘cR dµ) · fmeas_mu ⟦ex_reject⟧(one1) U = fmeas_mu ⟦ex_score_posterior⟧(one1) U* | axiom-free |
 
 ```coq
-(* theories/programs/infra/cbv_qbs_marginals.v — Section BayesPosterior *)
+(* theories/programs/infra/cbv_marginals.v — Section ScorePosterior *)
 (** Rejection sampling normalises exactly this measure: combining
     [ex_reject_master] with the posterior identity, the rejection
     denotation times the total evidence is the Bayes denotation. *)
-Theorem ex_reject_normalises_bayes
+Theorem ex_reject_normalises_score
     (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
@@ -546,12 +689,12 @@ Theorem ex_reject_normalises_bayes
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
   fmeas_mu
-    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U.
 ```
 
 The proof is one line on top of the two headlines: rewrite the
-right-hand side by `ex_bayes_linear_cbv_posterior` and apply
+right-hand side by `ex_score_posterior_cbv_E` and apply
 `ex_reject_master`. Two inference idioms — soft evidence via `score`,
 hard retry via rejection — and the model proves they compute the same
 posterior up to the evidence constant.
@@ -562,12 +705,17 @@ posterior up to the evidence constant.
 
 The open items are CBV-side; the call-by-name interpretation and its
 headlines are not gaps of this document — they live on the
-`cbn-track` branch.
+`cbn-track` branch. (The former gap "mutual recursion at product
+types" is **closed**: `ne_fix_mr` at products of free types now
+elaborates through the genuine Seely-transported fixpoint
+`fix_mr_comb` of `theories/programs/ppl_cbv.v`, built on
+`theories/programs/infra/em_fix_mr.v`, with the surface witness
+`ex_even_odd_pair` above.)
 
 | Item | What it is | Why not yet |
 |---|---|---|
 | CBV distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF `(1/2)^(k+1)` at every `k`; the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
-| Mutual recursion at product types (`ne_fix_mr` at `tprod`) | A surface example exercising `ne_fix_mr` at `tprod (tfun A1 B1) (tfun A2 B2)` with a genuine semantics. | The CBV clause at product body types still routes through the provably-zero `Yfix_fun_lin` (`eD_fix_mr_prod_E`, the honest scope record); the repair needs the Seely transport of `fix_comb` — see the PPL tab's gaps table. |
+| Operational content for the mutual-recursion witness | A mass or distribution identity for `ex_even_odd_pair` / `ex_even` / `ex_odd` (the pair diverges by design, so the honest statement is a divergence/mass-zero claim at the projections). | The entry is an elaboration-level witness for the Seely-transported fixpoint path; its reduction chain has not been written. |
 
 These choices are deliberate; each requires substantial
 infrastructure outside the current scope and does not block any
@@ -580,13 +728,15 @@ infrastructure outside the current scope and does not block any
 ```sh
 make -j
 
-# QBS-style examples — the CBV marginals
+# Basic sampling/scoring examples — the CBV marginals + the evidence
 echo "Print Assumptions ex_random_constant_cbv_marginal." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
 echo "Print Assumptions ex_random_linear_cbv_marginal."   | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
-echo "Print Assumptions ex_bayes_linear_cbv_posterior."   | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+echo "Print Assumptions ex_score_posterior_cbv_E."        | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+echo "Print Assumptions ex_bayes_linear_cbv_evidence."    | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
 
 # Recursive probabilistic examples — the CBV mass identities
 echo "Print Assumptions ex_geom_cbv_mass_one."          | \
@@ -596,13 +746,13 @@ echo "Print Assumptions ex_almost_loop_cbv_mass_one."   | \
 echo "Print Assumptions ex_almost_loop_cbv_zero."       | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
 
-# The rejection-sampling headline + the Bayes pairing
+# The rejection-sampling headline + the score pairing
 echo "Print Assumptions ex_reject_master."              | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
 echo "Print Assumptions ex_reject_is_normalised_posterior." | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
-echo "Print Assumptions ex_reject_normalises_bayes."    | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+echo "Print Assumptions ex_reject_normalises_score."    | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
 ```
 
 Each command reports only `propositional_extensionality`,

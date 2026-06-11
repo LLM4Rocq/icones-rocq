@@ -144,12 +144,18 @@ The headline result of the PPL layer: the
 axiom-free. The same file proves the **CBV mass-1 identities** for the
 geometric and almost-loop programs (`ex_geom_cbv_mass_one`,
 `ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`), and
-`theories/programs/infra/cbv_qbs_marginals.v` proves the **CBV marginal
-headlines** of the three QBS-style examples — the unnormalised Bayes
-posterior `ex_bayes_linear_cbv_posterior`, paired exactly with the
-rejection sampler by `ex_reject_normalises_bayes`, plus the marginal
+`theories/programs/infra/cbv_marginals.v` proves the **CBV marginal
+headlines** of the basic sampling/scoring examples — the unnormalised
+score posterior `ex_score_posterior_cbv_E`, paired exactly with the
+rejection sampler by `ex_reject_normalises_score`, the marginal
 identities `ex_random_constant_cbv_marginal` /
-`ex_random_linear_cbv_marginal`.
+`ex_random_linear_cbv_marginal`, and the **model evidence of a
+higher-order Bayesian linear regression**
+(`ex_bayes_linear_cbv_evidence`: the program samples a random affine
+function once, scores a series of observations against its values at
+known inputs, and returns the posterior over functions — its total
+mass is the iterated evidence integral, for a general observation
+list).
 
 The CBV interpreter is a clean **linhom-valued, comonoid-primitive**
 presentation in `theories/programs/ppl_cbv.v`. Types are sent into
@@ -161,17 +167,21 @@ multi-use of a variable is free. The exponential `!̃` appears only at
 function boundaries — `ne_lam` wraps a value via the strength `str_Γ`,
 `ne_app` extracts it via dereliction `der` — and everywhere else the
 interpretation is plain cartesian. Recursion (`ne_fix`, and `ne_fix_mr`
-at function types) is the **seeded value-fixpoint combinator**
+at *every* free body type) is the **seeded value-fixpoint combinator**
 `fix_comb : EM(!̃(!A⊸!A), !̃A)` of
 `theories/programs/infra/em_fix_value.v`: the supremum of the
 interleaved Kleene chain `x₀ = 0`, `x_{n+1} = der (F (x_n!))`, seeded
 at the genuine bottom of the value type (the diverging-function value
 `0!`, not the cone-zero of the wrapped hom) and packaged as a coalgebra
-morphism via `lin` + `adj_psi`. The previous zero-seeded operator
+morphism via `lin` + `adj_psi`. At products of free types
+(mutual recursion, witness `ex_even_odd_pair`) the combinator is
+conjugated by the EM-level Seely-2 decomposition
+`EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)` of
+`theories/programs/infra/em_fix_mr.v` (`seely2_em_iso`,
+`fix_comb_iso`). The previous zero-seeded operator
 `Yfix_fun_lin` of `theories/programs/infra/em_fix.v` is *provably the
-zero linhom* (`Yfix_fun_lin_eq0`) and is kept as the documented
-contrast (it is still the honest-scope placeholder for `ne_fix_mr` at
-product body types). The `tbool` clause uses the §9.7-style coalgebra
+zero linhom* (`Yfix_fun_lin_eq0`) and is kept purely as the documented
+contrast. The `tbool` clause uses the §9.7-style coalgebra
 structure on `bool_cone_car` (`bool_cone_coalg` in
 `theories/programs/infra/bool_cone_coalg.v`), giving the shared-sample
 diagonal-pushforward semantics for programs like
@@ -220,16 +230,19 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   clause uses the §9.7-style coalgebra `bool_cone_coalg` on
   `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
   shared-sample diagonal semantics.
-- **The CBV QBS marginals** (`theories/programs/infra/cbv_qbs_marginals.v`,
-  axiom-free): the three non-recursive QBS-style examples now carry closed-form
-  CBV marginal identities — `ex_bayes_linear_cbv_posterior` (the denotation of
+- **The CBV marginals** (`theories/programs/infra/cbv_marginals.v`,
+  axiom-free): the non-recursive basic sampling/scoring examples carry
+  closed-form CBV identities — `ex_score_posterior_cbv_E` (the denotation of
   the score program is the unnormalised posterior `∫_U f dµ`),
   `ex_random_constant_cbv_marginal` (the sampled constant function's marginal
-  at every probability test point is the prior), and
+  at every probability test point is the prior),
   `ex_random_linear_cbv_marginal` (the random-affine marginal at Dirac test
-  points is the iterated-integral pushforward). The pairing theorem
-  `ex_reject_normalises_bayes` connects the score program and the rejection
-  sampler exactly: `(∫ f dµ) · ν_reject(U) = ν_bayes(U)` at a probability prior.
+  points is the iterated-integral pushforward), and
+  `ex_bayes_linear_cbv_evidence` (the total mass of the
+  posterior-over-functions of the Bayesian linear regression is the model
+  evidence, for a general observation list). The pairing theorem
+  `ex_reject_normalises_score` connects the score program and the rejection
+  sampler exactly: `(∫ f dµ) · ν_reject(U) = ν_score(U)` at a probability prior.
 - **The SCones↔ICones-tensor diagonal bilinear stability bridge**
   `meas_stable_diag_bilinear_tensor` (`theories/stable/diag_bilinear_tensor.v`,
   axiom-free) — its `linhom_to_stablehom` lift is the stable ingredient of the
@@ -281,8 +294,9 @@ theories/
                                      comonoid-primitive; tyD / ctxD / eD;
                                      !̃ only at ne_lam / ne_app
                  examples.v          surface programs (ex_random_*,
-                                     ex_bayes_linear, ex_loop, ex_geom,
-                                     ex_almost_loop, ex_reject) —
+                                     ex_score_posterior, ex_bayes_linear,
+                                     ex_loop, ex_geom, ex_almost_loop,
+                                     ex_even_odd_pair, ex_reject) —
                                      pure syntax + the eD-applied CBV
                                      denotations (ex_*_cbv)
                  ex_reject_headline.v
@@ -308,18 +322,25 @@ theories/
                    em_fix.v            the legacy zero-seeded
                                        Yfix_fun_lin — kept as the
                                        documented contrast (provably
-                                       the zero linhom) and as the
-                                       ne_fix_mr product-case clause
+                                       the zero linhom); no longer
+                                       used by the interpreter
                    em_fix_value.v      fix_comb — the seeded CBV
                                        value-fixpoint combinator
                                        (interleaved Kleene chain,
                                        fix_prom_E, fix_coalg_simpl,
                                        Yfix_fun_lin_eq0); ne_fix
                                        resolves here
+                   em_fix_mr.v         the Seely-transported fixpoint
+                                       for mutual recursion: coalg_iso,
+                                       seely2_em_iso (EM_prod (!̃X) (!̃Y)
+                                       ≅ !̃(X & Y)), fix_comb_iso —
+                                       ne_fix_mr at products of free
+                                       types resolves here
                    cbv_fix_unfold.v    the recursion-unfolding
                                        equations of the wired ne_fix
                                        clause (eD_fix_at_setlike,
-                                       eD_fix_unfold)
+                                       eD_fix_unfold) + the ne_fix_mr
+                                       twins at tfun and tprod
                    let_sample_law.v    the let-at-sample Pettis
                                        integral law eD_let_sample_int
                                        and its measure-on-U form
@@ -330,15 +351,19 @@ theories/
                                        setlike-point kit, shared-sample
                                        diagonal vs independent-product
                                        contrast, eD_beta, if-pins
-                   cbv_qbs_marginals.v the CBV marginal headlines of
-                                       the QBS trio — the unnormalised
-                                       Bayes posterior
-                                       (ex_bayes_linear_cbv_posterior),
-                                       the Bayes/rejection pairing
-                                       (ex_reject_normalises_bayes),
-                                       and the marginals
+                   cbv_marginals.v     the CBV marginal headlines of
+                                       the basic sampling/scoring
+                                       examples — the unnormalised
+                                       score posterior
+                                       (ex_score_posterior_cbv_E),
+                                       the score/rejection pairing
+                                       (ex_reject_normalises_score),
+                                       the marginals
                                        ex_random_constant_cbv_marginal /
-                                       ex_random_linear_cbv_marginal
+                                       ex_random_linear_cbv_marginal,
+                                       and the Bayesian-regression
+                                       model evidence
+                                       (ex_bayes_linear_cbv_evidence)
 ```
 
 Two parallel entry points for reviewing the formalization without first opening the
