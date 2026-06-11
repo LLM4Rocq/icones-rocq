@@ -26,7 +26,6 @@
     </a>
     <nav class="pill-nav" aria-label="External resources">
       <a class="pill" href="{{ tab_prefix }}../blueprint/web/index.html">Blueprint</a>
-      <a class="pill" href="{{ tab_prefix }}../coqdoc/toc.html">Docs</a>
       {% set gh_repo = document.build_meta.repo|default('LLM4Rocq/icones-rocq') %}
       <a class="gh-flag" href="https://github.com/{{ gh_repo }}"
          rel="noopener" target="_blank"
@@ -75,7 +74,7 @@
   <div class="footer-grid">
     <div>
       <strong>Icones</strong> — Paper-to-Rocq correspondence dashboard.
-      <br>Mirrors <code>docs/PAPER.md</code> + <code>docs/PPL.md</code> + <code>docs/EXAMPLES.md</code>
+      <br>Three tabs: Paper, PPL, Examples
       ({{ document.build_meta.auditor_lines }} lines combined) built from commit
       {% set _repo = document.build_meta.repo|default('LLM4Rocq/icones-rocq') %}
       <a class="mono"

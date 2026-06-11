@@ -1,4 +1,4 @@
-# PPL.md — A direct-style PPL on top of the integrable-cones model
+# A direct-style PPL on top of the integrable-cones model
 
 A typed probabilistic functional language sits on top of the paper's
 categorical model. Each type denotes a `!`-coalgebra, each program a
@@ -11,7 +11,7 @@ at the diverging function value, computed pointwise through a
 (Plotkin / Girard), named-variable (Saito–Affeldt APLAS 2023), and
 probabilistic effects live entirely in the interpretation — there is
 no `tprob` type marker, no syntactic `return`, no `bind`. Examples
-are listed in [EXAMPLES.md](../examples/). A call-by-name
+are listed in the [Examples tab](../examples/). A call-by-name
 interpretation of the same surface syntax (through the cartesian
 closed `SCones` of paper §7) is preserved on the `cbn-track` branch;
 main is CBV-only.
@@ -232,7 +232,7 @@ conjugated by the coalgebra iso `free_decomp : tyD_cbv t ≅
 `EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)` of
 `theories/programs/infra/em_fix_mr.v`. The mutual-recursion fixpoint
 is genuine at *every* free body type; the surface witness is
-`ex_even_odd_pair` (see [EXAMPLES.md](../examples/)).
+`ex_even_odd_pair` (see the [Examples tab](../examples/)).
 
 ### Variable lookup by canonical structures (`tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'`)
 
@@ -1224,7 +1224,7 @@ The surface witness is the mutual-recursion pair `ex_even_odd_pair`
 of `theories/programs/examples.v` (one recursive name at
 `tprod (tfun tunit tunit) (tfun tunit tunit)`, each component
 calling the other through `fst`/`snd`) — see
-[EXAMPLES.md](../examples/).
+the [Examples tab](../examples/).
 
 ### The interpreter wiring (`eD_fix_E`, `fix_mr_clause`)
 
@@ -1815,7 +1815,7 @@ scalar when discarding a `tunit`-typed score result
 (`em_proj1_mor_unitE` — how the score weight becomes a
 `precone_scale` factor in the score-posterior proof). The
 per-program proofs are worked example-by-example in
-[EXAMPLES.md](../../examples/index.html).
+the [Examples tab](../../examples/index.html).
 
 ---
 
@@ -2035,4 +2035,4 @@ Each command reports only `propositional_extensionality`,
 name, file, and a GitHub link to the Rocq source.
 
 For the example programs and their mass / marginal / PMF identities,
-see the [Examples tab](../examples/) — `docs/EXAMPLES.md`.
+see the [Examples tab](../examples/).

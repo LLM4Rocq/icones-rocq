@@ -1,4 +1,4 @@
-# EXAMPLES.md — End-to-end PPL example programs
+# End-to-end PPL example programs
 
 Each surface program in `theories/programs/examples.v` is reproduced
 here with its headline correctness identities, all proved against the
@@ -964,6 +964,5 @@ Each command reports only `propositional_extensionality`,
 name, file, and a GitHub link to the Rocq source.
 
 For the underlying surface inductive and the CBV interpretation, see
-the [PPL tab](../ppl/) — `docs/PPL.md`. For the paper-side
-correspondence (§§ 2–9 ↔ Rocq), see the [Paper tab](../paper/) —
-`docs/PAPER.md`.
+the [PPL tab](../ppl/). For the paper-side
+correspondence (§§ 2–9 ↔ Rocq), see the [Paper tab](../paper/).

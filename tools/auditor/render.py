@@ -554,7 +554,7 @@ def _entry_body_html(entry: Any) -> str:
         for f in entry.rocq_files:
             parts.append(
                 f'<li><a href="{f.github_url}"><code>{f.path}</code></a>'
-                + (f' (<a href="{f.coqdoc_url}">coqdoc</a>)' if f.coqdoc_url else "")
+                # coqdoc links suppressed: deployment currently absent; re-enable when live.
                 + "</li>"
             )
         parts.append("</ul>")

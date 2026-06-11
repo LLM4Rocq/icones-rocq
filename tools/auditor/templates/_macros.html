@@ -81,10 +81,8 @@
   <code class="mono path">{{ rf.path }}</code>
   {%- if rf.section %} <span class="path-section">·&nbsp;{{ rf.section }}</span>{% endif %}
   <a class="filelink" href="{{ rf.github_url }}" rel="noopener" target="_blank">GitHub</a>
-  {% if rf.coqdoc_url %}
-  <a class="filelink" href="{{ rf.coqdoc_url }}{% if rf.coqdoc_anchor %}#{{ rf.coqdoc_anchor }}{% endif %}"
-     rel="noopener" target="_blank">coqdoc</a>
-  {% endif %}
+  {# coqdoc links suppressed: the coqdoc deployment is best-effort / currently absent.
+     Re-enable when docs/Icones.*.html exist at the deployed site. #}
 </span>
 {%- endmacro %}
 

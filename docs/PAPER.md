@@ -1,12 +1,12 @@
-# PAPER.md — paper-to-Rocq correspondence
+# Paper-to-Rocq correspondence
 
-This document is for a **paper reviewer / mathematician** auditing the Icones
+This tab is for a **paper reviewer / mathematician** auditing the Icones
 formalisation of Ehrhard–Geoffroy *"Integration in Cones"*. It maps each
 definition / lemma / theorem of the paper to its Rocq counterpart, so you can
 verify *what is formalised* without having to read the proof scripts
 themselves.
 
-A separate document — [PPL.md](../ppl/) — covers the **probabilistic
+A separate section — the [PPL tab](../ppl/) — covers the **probabilistic
 programming language** developed on top of the paper's categorical model
 (CBV via EM(!), CBN via SCones, recursive examples). This document covers
 the **paper** itself, plus the paper-cited meta-theorems we had to mechanize
@@ -1285,7 +1285,7 @@ the formalisation adds *to discharge the paper's citations*. Each is
 justified by an external reference (Riehl, Mellies).
 
 The PPL-side beyond-the-paper content (Boolean cascade, CBV value-fixpoint,
-the surface language and its examples) is in [PPL.md](../ppl/).
+the surface language and its examples) is in the [PPL tab](../ppl/).
 
 ### Mechanisation of the Special Adjoint Functor Theorem (paper §4.3, §5, §7, §9)
 
