@@ -36,9 +36,10 @@
     - [eD_if_true] / [eD_if_false]: the if-orientation pins
       [if true then M else N = M] (and dually), at the morphism level.
 
-    All anchors are FIX-FREE: no statement involves [ne_fix] /
-    [Yfix_fun_lin] (whose current denotation is degenerate — see
-    [theories/programs/infra/em_fix_value.v] for the repair).
+    All anchors are FIX-FREE: no statement involves [ne_fix] (the
+    naive zero-seeded iteration is provably the zero linhom —
+    [theories/programs/infra/em_fix_value.v::Phi_fun_lfp_eq0] — and
+    the same file holds the repaired seeded combinator).
 
     The supporting kit (setlike-point computations [coalg_d_setlike] /
     [coalg_str_tensor_setlike] / [em_proj1_morE] / [const_iconesE] /

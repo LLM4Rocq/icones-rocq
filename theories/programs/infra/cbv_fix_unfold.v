@@ -28,8 +28,8 @@
       PROMOTED supremum of the interleaved Kleene chain
       [x_0 = 0, x_{n+1} = der (F_γ (x_n !))] ([fix_prom_E] +
       [fix_value_E] of [em_fix_value.v]).  In particular it is NEVER
-      the cone-zero ([fix_prom_neq0]) — contrast the old degenerate
-      operator ([Yfix_fun_lin_eq0]).
+      the cone-zero ([fix_prom_neq0]) — contrast the naive zero-seeded
+      iteration, provably the zero linhom ([Phi_fun_lfp_eq0]).
 
     - [eD_fix_unfold] — THE recursion equation (the name checked by the
       docs via [Print Assumptions eD_fix_unfold]):
@@ -51,7 +51,7 @@
       [free_decomp] ([fix_comb_iso_prom_E] of
       [theories/programs/infra/em_fix_mr.v]), and is never the
       cone-zero — the mutual-recursion fixpoint is GENUINE (contrast
-      the retired [Yfix_fun_lin] placeholder).
+      the retired zero-seeded placeholder, [Phi_fun_lfp_eq0]).
 
     - [eD_fix_unfold_closed] / [eD_fix_at_one1] — the closed-program
       ([Γ = nil], [γ = one1]) corollaries against the public linhom
@@ -279,7 +279,7 @@ Qed.
 
 (** Non-degeneracy at every setlike unit-ball point: the fixpoint
     denotation is a promoted point, never the cone-zero — contrast
-    [Yfix_fun_lin_eq0]. *)
+    [Phi_fun_lfp_eq0]. *)
 Lemma eD_fix_at_setlike_neq0 (G : named_ctx Ar) (s : string)
     (t1 t2 : ppl_type Ar)
     (body : @named_expr R Ar R_obj ((s, tfun t1 t2) :: G) (tfun t1 t2))
@@ -338,7 +338,7 @@ Qed.
     the conjugated body, and in particular it is never the cone-zero
     (the iso is injective) — the non-degeneracy witness that the
     mutual-recursion fixpoint is genuine (contrast the retired
-    [Yfix_fun_lin] placeholder, [Yfix_fun_lin_eq0]). *)
+    zero-seeded placeholder, [Phi_fun_lfp_eq0]). *)
 
 Lemma eD_fix_mr_prod_at_setlike (G : named_ctx Ar) (s : string)
     (t1 t2 : ppl_type Ar) (Hfree : is_free_coalg_type (tprod t1 t2))

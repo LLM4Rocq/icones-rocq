@@ -575,7 +575,7 @@ see
 chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 The `ne_fix_mr` clause dispatches on the body type
 (`fix_mr_clause`): the same `fix_comb` composite at `tfun`, the
-legacy (provably-zero) `Yfix_fun_lin` at products of frees. Every
+Seely-transported `fix_mr_comb` at products of frees. Every
 other clause is built from the SMC primitives (`linhom_comp`,
 `tensor_mor`, `tensor_braid`, `tensor_curry` / `tensor_uncurry`) and
 the coalgebra-comonoid pair (`coalg_d`, `coalg_e`) only.
@@ -867,10 +867,11 @@ types, and through the Seely transport of
 `theories/programs/infra/em_fix_mr.v` at products of free types.
 
 The chapter tells the story in order. First the *degeneracy
-theorem*: the previous operator `Yfix_fun_lin` of
-`theories/programs/infra/em_fix.v` — Kleene iteration of the linear
-step `prev ↦ M ∘ (id ⊗ prev) ∘ δ` from the linhom cone-zero — is
-*provably the zero linhom*, always (`Yfix_fun_lin_eq0`): a linear
+theorem*: the naive zero-seeded iteration — the Kleene iteration of
+`theories/programs/infra/em_fix.v`'s linear step
+`prev ↦ M ∘ (id ⊗ prev) ∘ δ` from the linhom cone-zero, which used
+to be `em_fix.v`'s CBV value-fixpoint operator before its removal —
+is *provably the zero linhom*, always (`Phi_fun_lfp_eq0`): a linear
 step preserves the zero seed, and the bottom of a CBV function-value
 type is not the cone-zero of `!L` but the promoted zero `(0)!`, the
 diverging-function value of `e_bang`-mass one. Then the repair: seed
@@ -891,8 +892,8 @@ genuine at every free body type.
 
 | Construction | Rocq |
 |---|---|
-| The degeneracy theorem: the zero-seeded operator is the zero linhom | `Yfix_fun_lin_eq0`, `Phi_fun_zero`, `kleene_lin_Phi_fun_eq0` — `theories/programs/infra/em_fix_value.v` |
-| The legacy zero-seeded operator (kept as the documented contrast; no longer used by the interpreter) | `Phi_fun`, `Yfix_fun_lin`, `Yfix_fun_lin_fixpoint`, `Yfix_fun_lin_norm_le1` — `theories/programs/infra/em_fix.v` |
+| The degeneracy theorem: the naive zero-seeded iteration is the zero linhom | `Phi_fun_lfp_eq0`, `Phi_fun_zero`, `kleene_lin_Phi_fun_eq0` — `theories/programs/infra/em_fix_value.v`; the generic collapse `lfp_eq0` — `theories/stable/fixpoint.v` |
+| The naive linear Kleene step and the linhom LFP core (the operator itself was removed after the degeneracy proof) | `Phi_fun`, `kleene_lin`, `linhom_lfp`, `linhom_lfp_fixpoint` — `theories/programs/infra/em_fix.v` |
 | Seeded Kleene core on any cone (`b0 ≤ f b0` replaces the zero seed) | `kleene_from`, `lfp_from`, `lfp_from_fixpoint` — `theories/programs/infra/em_fix_value.v` |
 | The interleaved chain `x_{n+1} = der (F (x_n!))` | `fix_chain`, `fix_chain_S`, `fix_chain_ball`, `fix_chain_chain` — same file |
 | The stable value map `F ↦ sup_n x_n` in `SCones` | `fix_value`, `fix_value_E`, `fix_value_unfold` — same file |
@@ -906,19 +907,28 @@ genuine at every free body type.
 | The interpreter wiring `⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧` | `eD_fix_E`, `eD_fix_mr_fun_E`, `eD_fix_mr_prod_E`, `fix_mr_clause` — `theories/programs/ppl_cbv.v` |
 | The recursion-unfolding equations at setlike points | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_at_one1`, `eD_fix_unfold_closed`, `eD_fix_mr_prod_at_setlike`, `eD_fix_mr_prod_at_setlike_neq0` — `theories/programs/infra/cbv_fix_unfold.v` |
 
-### The degeneracy theorem (`Yfix_fun_lin_eq0`)
+### The degeneracy theorem (`Phi_fun_lfp_eq0`)
 
-For *every* diagonal `diag` and every body `M`, the zero-seeded CBV
-value-fixpoint `Yfix_fun_lin diag M` of
-`theories/programs/infra/em_fix.v` equals the zero linhom. The
-structural reason: the Kleene step `Phi_fun` is *linear* in the
-previous iterate, so it maps the linhom cone-zero seed to the
-cone-zero (`Phi_fun_zero` — the `id_Γ ⊗ 0` tensor vanishes by
-bilinearity, then post-composition by the linear `M` preserves
-zero); by induction every Kleene iterate is zero
-(`kleene_lin_Phi_fun_eq0`), and so is the supremum.
+For *every* diagonal `diag` and every body `M`, the zero-seeded
+Kleene iteration `linhom_lfp (Phi_fun diag M) …` — the construction
+that used to be `em_fix.v`'s CBV value-fixpoint operator — equals
+the zero linhom. The structural reason: the Kleene step `Phi_fun` is
+*linear* in the previous iterate, so it maps the linhom cone-zero
+seed to the cone-zero (`Phi_fun_zero` — the `id_Γ ⊗ 0` tensor
+vanishes by bilinearity, then post-composition by the linear `M`
+preserves zero); by induction every Kleene iterate is zero
+(`kleene_lin_Phi_fun_eq0`), and so is the supremum. The collapse
+itself is generic — `lfp_eq0` of `theories/stable/fixpoint.v`: any
+Kleene step that preserves the zero seed has zero least fixpoint —
+so the degeneracy record is exactly `Phi_fun_zero` (the linearity
+content) plus the generic lemma.
 
 ```coq
+(* theories/stable/fixpoint.v (Section KleeneCore) *)
+(** ... the least fixpoint collapses to zero: the supremum of the
+    constantly-zero chain is zero. *)
+Lemma lfp_eq0 : f 0 = 0 -> lfp = (0 : B).
+
 (* theories/programs/infra/em_fix_value.v (Section CbvFixDegeneracy) *)
 (** STEP B: the Kleene step kills zero. *)
 Lemma Phi_fun_zero : Phi_fun diag M precone_zero = precone_zero.
@@ -927,9 +937,11 @@ Lemma Phi_fun_zero : Phi_fun diag M precone_zero = precone_zero.
 Lemma kleene_lin_Phi_fun_eq0 n :
   kleene_lin (Phi_fun diag M) n = precone_zero.
 
-(** STEP D: the previous CBV value-fixpoint is the zero linhom —
-    DEGENERACY. *)
-Lemma Yfix_fun_lin_eq0 : Yfix_fun_lin diag M = precone_zero.
+(** STEP D: the zero-seeded Kleene iteration of the naive linear step
+    is the zero linhom — DEGENERACY. *)
+Lemma Phi_fun_lfp_eq0 :
+  linhom_lfp (Phi_fun diag M) (Phi_fun_incr diag M) (Phi_fun_ball diag M) =
+  precone_zero.
 ```
 
 The diagnosis behind the repair: the bottom of a CBV function
@@ -939,15 +951,16 @@ and is therefore not even close to `precone_zero` in the cone order.
 A least fixpoint computed from the wrong bottom is the wrong least
 fixpoint.
 
-### The legacy zero-seeded operator (`Phi_fun`, `Yfix_fun_lin`)
+### The naive linear Kleene step (`Phi_fun`)
 
-The operator that the degeneracy theorem is about: `Phi_fun` sends a
+The step that the degeneracy theorem is about: `Phi_fun` sends a
 candidate denotation `prev : Γ ⊸ B` to `M ∘ (id_Γ ⊗ prev) ∘ diag` —
 "run the body with `prev` bound to the recursive variable" —
-extended trivially off the unit ball, and `Yfix_fun_lin` is the
-supremum of its Kleene chain from `precone_zero` on the unit-ball
-ω-CPO of `linhom_car Ar Γ B` (with `Yfix_fun_lin_norm_le1` and the
-fixpoint equation `Yfix_fun_lin_fixpoint`).
+extended trivially off the unit ball. Its zero-seeded Kleene
+supremum on the unit-ball ω-CPO of `linhom_car Ar Γ B` (via
+`em_fix.v`'s linhom LFP core `linhom_lfp`, with the ball bound and
+the fixpoint equation `linhom_lfp_fixpoint`) used to be `em_fix.v`'s
+CBV value-fixpoint operator.
 
 ```coq
 (* theories/programs/infra/em_fix.v *)
@@ -959,19 +972,18 @@ Definition Phi_fun_safe
   linhom_post M
     (linhom_pre_act diag
       (tensor_mor_R_lin Gamma (linhom_icones prev Hprev))).
-
-Definition Yfix_fun_lin : linhom_car Ar Gamma B :=
-  linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball.
-
-Lemma Yfix_fun_lin_fixpoint : Phi_fun Yfix_fun_lin = Yfix_fun_lin.
 ```
 
 The construction, the ball bound and the fixpoint equation are all
 true — and all satisfied by the zero linhom, which is exactly what
-`Yfix_fun_lin_eq0` shows it is. The operator is kept in `em_fix.v`
-purely as the documented contrast; it is no longer used by the
-interpreter anywhere — the `ne_fix_mr` *product* case, formerly its
-last consumer, now goes through the genuine Seely-transported
+`Phi_fun_lfp_eq0` shows the iteration is. The operator itself was
+removed from `em_fix.v` after the degeneracy proof; the record
+survives as `Phi_fun_zero` plus the generic `lfp_eq0`. The step
+`Phi_fun`, its three unit-ball laws and the linhom LFP core stay:
+they are the scaffolding of the genuine seeded combinator below. The
+interpreter never routes through the zero-seeded iteration — the
+`ne_fix_mr` *product* case, formerly the last consumer of the
+removed operator, goes through the genuine Seely-transported
 combinator (see the mutual-recursion transport section below).
 
 ### The seeded Kleene core (`kleene_from`, `lfp_from`)
@@ -1114,7 +1126,7 @@ reason the seeded Kleene core of this file exists.
 
 On *every* promoted body the combinator returns a promoted point of
 `!A`, and a promoted point is never the cone-zero (its `e_bang`-mass
-is `one1`) — the direct contrast with `Yfix_fun_lin_eq0`. The
+is `one1`) — the direct contrast with `Phi_fun_lfp_eq0`. The
 simplest honest instance is the identity body: its interleaved chain
 is constantly `0` (since `der (0!) = 0`), so `fix_comb (id!) = 0!` —
 the *diverging value*, which is provably nonzero.
@@ -1955,7 +1967,7 @@ echo "Print Assumptions eD."                      | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
 echo "Print Assumptions if_icones."               | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
-echo "Print Assumptions Yfix_fun_lin_eq0."        | \
+echo "Print Assumptions Phi_fun_lfp_eq0."         | \
   rocq top -Q theories Icones -l theories/programs/infra/em_fix_value.v
 echo "Print Assumptions fix_prom_E."              | \
   rocq top -Q theories Icones -l theories/programs/infra/em_fix_value.v

@@ -7,16 +7,19 @@
     (paper §9.2 has [Yfix] at SCones level for CBN; the CBV value
     fixpoint is paper-level folklore, not in the literature).
 
-    *** Why this file exists: the degeneracy of [Yfix_fun_lin]
+    *** Why this file exists: the naive zero-seeded iteration is degenerate
 
     Section [CbvFixDegeneracy] below records, as a theorem, that the
-    previous CBV value-fixpoint [Yfix_fun_lin] of [em_fix.v] is the ZERO
-    linhom — always, for every diagonal [diag] and every body [M]
-    ([Yfix_fun_lin_eq0]).  Structurally: its Kleene step [Phi_fun] is
-    LINEAR in the previous iterate, so it preserves the linhom cone-zero
-    seed, and the least fixpoint collapses to [0].  The bottom of a CBV
-    function VALUE type is NOT the cone-zero of [!L]: it is the promoted
-    zero [prom 0], the diverging-function value (of [e_bang]-mass one).
+    naive zero-seeded Kleene iteration of [em_fix.v]'s linear step
+    [Phi_fun] — the previous CBV value-fixpoint operator, since removed
+    from [em_fix.v] — is the ZERO linhom: always, for every diagonal
+    [diag] and every body [M] ([Phi_fun_lfp_eq0] = [Phi_fun_zero] + the
+    generic [lfp_eq0] of [stable/fixpoint.v]).  Structurally: [Phi_fun]
+    is LINEAR in the previous iterate, so it preserves the linhom
+    cone-zero seed, and the least fixpoint collapses to [0].  The bottom
+    of a CBV function VALUE type is NOT the cone-zero of [!L]: it is the
+    promoted zero [prom 0], the diverging-function value (of
+    [e_bang]-mass one).
 
     *** The repaired combinator (expert recipe, 2026-06-10)
 
@@ -73,7 +76,7 @@
       [fix_comb_mor], [fix_prom_E] (the prom-point computation law).
     - Obligation (b): [fix_coalg_simpl], [fix_unfold_coalg].
     - Non-degeneracy: [fix_prom_neq0] (the combinator NEVER returns the
-      zero of [!A] on promoted bodies — contrast [Yfix_fun_lin_eq0]),
+      zero of [!A] on promoted bodies — contrast [Phi_fun_lfp_eq0]),
       and the identity-body witness [fix_id_E] / [fix_id_nontrivial]:
       the fix of the identity body is the diverging value [0!], which
       is provably nonzero.
@@ -150,12 +153,17 @@ Proof. by []. Qed.
    recurses into the [Bang] construction internals. *)
 Local Opaque dig der prom bang_fmap.
 
-(** ** §1 — The degeneracy record: [Yfix_fun_lin = 0], always
+(** ** §1 — The degeneracy record: the zero-seeded Kleene iteration of
+       the naive linear step is [0], always
 
     The honest record of WHY the seeded combinator of §3 exists (gate
     M-R.0, confirmed 2026-06-10).  [em_fix.v]'s [Phi_fun] is linear in
-    the previous iterate and the Kleene chain is seeded at the linhom
-    cone-zero, so every iterate — and the sup — is [0]. *)
+    the previous iterate, so it kills the linhom cone-zero seed
+    ([Phi_fun_zero] — the linearity content) and the zero-seeded least
+    fixpoint [linhom_lfp (Phi_fun diag M)] — the operator that used to
+    be [em_fix.v]'s CBV value-fixpoint, removed after this proof — is
+    [0] by the generic [lfp_eq0] of [stable/fixpoint.v]
+    ([Phi_fun_lfp_eq0]). *)
 
 Section CbvFixDegeneracy.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -226,17 +234,16 @@ elim: n => [|n IH] //.
 by rewrite kleene_lin_S IH Phi_fun_zero.
 Qed.
 
-(** STEP D: the previous CBV value-fixpoint is the zero linhom —
-    DEGENERACY. *)
-Lemma Yfix_fun_lin_eq0 : Yfix_fun_lin diag M = precone_zero.
-Proof.
-rewrite /Yfix_fun_lin /linhom_lfp /lfp.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  rewrite -[kleene _ n]/(kleene_lin _ n) kleene_lin_Phi_fun_eq0.
-  exact: precone_le_refl.
-- exact: precone_le0.
-Qed.
+(** STEP D: the zero-seeded Kleene iteration of the naive linear step
+    [Phi_fun] is the zero linhom — DEGENERACY.  This is the operator
+    that used to be [em_fix.v]'s CBV value-fixpoint (removed after this
+    proof); the collapse is the generic [lfp_eq0] of
+    [stable/fixpoint.v] applied to the linearity content
+    [Phi_fun_zero]. *)
+Lemma Phi_fun_lfp_eq0 :
+  linhom_lfp (Phi_fun diag M) (Phi_fun_incr diag M) (Phi_fun_ball diag M) =
+  precone_zero.
+Proof. exact: lfp_eq0 Phi_fun_zero. Qed.
 
 End CbvFixDegeneracy.
 
@@ -247,7 +254,7 @@ Arguments ptensor_zero_r {R Ar C D} x.
 Arguments tensor_mor_R_lin_zero {R Ar} Gamma B.
 Arguments Phi_fun_zero {R Ar Gamma B} diag M.
 Arguments kleene_lin_Phi_fun_eq0 {R Ar Gamma B} diag M n.
-Arguments Yfix_fun_lin_eq0 {R Ar Gamma B} diag M.
+Arguments Phi_fun_lfp_eq0 {R Ar Gamma B} diag M.
 
 (** ** §2 — Seeded Kleene core on a cone
 
@@ -672,7 +679,7 @@ Proof. exact: cones_hom_norm_le1. Qed.
 
     On EVERY promoted body the combinator returns a promoted point of
     [!A], which is NEVER the cone-zero (its [e_bang]-mass is [one1]).
-    Contrast [Yfix_fun_lin_eq0]. *)
+    Contrast [Phi_fun_lfp_eq0]. *)
 
 Lemma prom_neq0 (x : A) :
   cone_norm x <= 1 -> prom x <> (precone_zero : Bang Ar A).

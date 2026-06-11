@@ -116,19 +116,19 @@
 %                                      Seely-transported fix_mr_comb
 %                                      (free_base / free_decomp +
 %                                      em_fix_mr.v::fix_comb_iso).
-%   theories/programs/infra/em_fix.v   the zero-seeded linear Kleene
-%                                      operator on the linhom cone:
-%                                      Phi_fun / linhom_lfp / Yfix_fun_lin
-%                                      and their ball / monot. /
-%                                      ω-continuity laws.  Kept as the
-%                                      DOCUMENTED CONTRAST: the operator
-%                                      is provably degenerate
-%                                      (em_fix_value.v::Yfix_fun_lin_eq0,
-%                                      the zero linhom on every input);
-%                                      no longer used by the interpreter.
+%   theories/programs/infra/em_fix.v   the linear Kleene step Phi_fun
+%                                      on the linhom cone + the linhom
+%                                      LFP core (kleene_lin /
+%                                      linhom_lfp) and their ball /
+%                                      monot. / ω-continuity laws.  The
+%                                      zero-seeded operator it used to
+%                                      define is provably degenerate
+%                                      (em_fix_value.v::Phi_fun_lfp_eq0,
+%                                      the zero linhom on every input)
+%                                      and has been removed.
 %   theories/programs/infra/em_fix_value.v   the repaired seeded CBV
 %                                      value-fixpoint: the degeneracy
-%                                      record Yfix_fun_lin_eq0; the
+%                                      record Phi_fun_lfp_eq0; the
 %                                      seeded Kleene core kleene_from /
 %                                      lfp_from; the interleaved chain
 %                                      fix_chain (x_{n+1} = der(F(x_n!)));
@@ -257,9 +257,10 @@
 % recursion on named_expr; it is axiom-free, with ne_fix (and ne_fix_mr
 % at EVERY free body type) routed through fix_comb of em_fix_value.v
 % (the seeded CBV value-fixpoint combinator; at products of free types
-% via the Seely transport of em_fix_mr.v; the old zero-seeded
-% Yfix_fun_lin of em_fix.v is provably degenerate and survives only as
-% the documented contrast) and
+% via the Seely transport of em_fix_mr.v; the old zero-seeded iteration
+% of em_fix.v's linear step is provably degenerate —
+% em_fix_value.v::Phi_fun_lfp_eq0 — and the operator it defined has
+% been removed) and
 % tbool routed through bool_cone_coalg of
 % bool_cone_coalg.v (the §9.7-style 2-point !-coalgebra).  The previous
 % Moggi-monad presentation in the now-deleted cbv.v / earlier em_fix.v /
@@ -1234,12 +1235,13 @@ value-fixpoint \emph{combinator}
 built in \texttt{theories/programs/infra/em\_fix\_value.v}, where
 $L = U\sem{A} \multimap U\sem{B}$ is the function-value cone of
 $\sem{\mathtt{tfun}\,A\,B} = \widetilde{\mathord{!}}L$. This section
-records three things. First, the \emph{degeneracy} of the previous
-operator $\mathtt{Yfix\_fun\_lin}$ of
-\texttt{theories/programs/infra/em\_fix.v}: its Kleene step is linear
-in the previous approximant and its chain is seeded at the cone-zero of
-the linhom cone, so every iterate --- and the supremum --- is the zero
-linhom (\autoref{thm:cbv-yfix-degenerate}). The bottom of a CBV
+records three things. First, the \emph{degeneracy} of the naive
+zero-seeded iteration: the Kleene step of
+\texttt{theories/programs/infra/em\_fix.v} is linear in the previous
+approximant, so seeding its chain at the cone-zero of the linhom cone
+makes every iterate --- and the supremum --- the zero linhom
+(\autoref{thm:cbv-yfix-degenerate}; the operator this iteration used
+to define has been removed from \texttt{em\_fix.v}). The bottom of a CBV
 function-\emph{value} type is not the cone-zero of $\mathord{!}L$; it is
 the promoted zero $0^!$, the diverging-function value (of
 $e$-mass one). Second, the repaired combinator: an \emph{interleaved}
@@ -1262,12 +1264,12 @@ the EM-level Seely-2 iso, and conjugating $\mathtt{fix\_comb}$ by
 that iso makes the $\mathtt{ne\_fix\_mr}$ fixpoint genuine at every
 free body type.
 
-\subsection{The zero-seeded operator $\mathtt{Yfix\_fun\_lin}$}%
+\subsection{The naive linear Kleene step $\mathtt{Phi\_fun}$}%
 \label{ssec:cbv-phifun}
 
-We first record the operator that is being replaced, since it is the
-degeneracy contrast (it is no longer used by the interpreter
-anywhere: its last consumer, the
+We first record the step whose zero-seeded iteration is the degeneracy
+contrast (the operator that iteration used to define has been removed
+from \texttt{em\_fix.v}; its last consumer, the
 $\mathtt{ne\_fix\_mr}$-at-$\mathtt{tprod}$ clause, now goes through
 the genuine Seely transport of \autoref{ssec:cbv-fix-mr}). The step
 operator works at the linhom
@@ -1340,8 +1342,7 @@ $\delta$ pre-composition, and
 post-composition).
 \end{lemma}
 
-\subsection{The Kleene supremum $\mathtt{Yfix\_fun\_lin}$, and the
-degeneracy theorem}%
+\subsection{The naive zero-seeded Kleene supremum is degenerate}%
 \label{ssec:cbv-yfix-sup}
 
 The three laws of \autoref{lem:cbv-phi-fun-laws} make the unit-ball
@@ -1375,47 +1376,32 @@ at the linhom cone, the SCones-side \rocq{Icones.stable.fixpoint.lfp} /
 (\autoref{lem:yfix}).
 \end{definition}
 
-\begin{definition}[The zero-seeded operator $\mathtt{Yfix\_fun\_lin}$]%
-\label{def:cbv-yfix-fun-lin}
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin}\rocqok
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_norm_le1}\rocqok
-\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_fixpoint}\rocqok
-\uses{def:cbv-phi-fun, def:cbv-kleene-lin}
-For $\Gamma, B : \ICones$, a diagonal
-$\delta : \Gamma \to \Gamma \otimes \Gamma$ and a body
-$M : \Gamma \otimes B \to B$, the zero-seeded operator is
-\[
-  \mathtt{Yfix\_fun\_lin}\,\delta\,M
-  \;=\;
-  \sup_n (\mathtt{Phi\_fun}\,M)^n\,\mathtt{precone\_zero}
-  \;\;:\;\;
-  \Gamma \to B,
-\]
-the \rocq{Icones.programs.infra.em_fix.linhom_lfp} of
-\rocq{Icones.programs.infra.em_fix.Phi_fun} at this $(\delta, M)$. Its
-norm is at most one
-(\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_norm_le1}) and it
-satisfies the Kleene fixpoint equation
-$\mathtt{Phi\_fun}\,M\,(\mathtt{Yfix\_fun\_lin}\,\delta\,M) =
-\mathtt{Yfix\_fun\_lin}\,\delta\,M$
-(\rocq{Icones.programs.infra.em_fix.Yfix_fun_lin_fixpoint}), proved by
-specialising
-\rocq{Icones.programs.infra.em_fix.linhom_lfp_fixpoint} to the three
-laws of \autoref{lem:cbv-phi-fun-laws}.
-\end{definition}
+Instantiating the engine at the step $\mathtt{Phi\_fun}\,M$ of
+\autoref{def:cbv-phi-fun} yields the naive zero-seeded CBV
+value-fixpoint candidate
+$\sup_n (\mathtt{Phi\_fun}\,M)^n\,\mathtt{precone\_zero}$ --- the
+operator that used to be \texttt{em\_fix.v}'s CBV value-fixpoint. Its
+ball bound and Kleene fixpoint equation (instances of
+\rocq{Icones.programs.infra.em_fix.linhom_lfp_norm_le1} and
+\rocq{Icones.programs.infra.em_fix.linhom_lfp_fixpoint}) are correct
+but vacuous, as the next theorem shows: the iteration never produces
+anything but zero. The operator was removed after the degeneracy
+proof; the record survives as the linearity content
+\rocq{Icones.programs.infra.em_fix_value.Phi_fun_zero} plus the
+generic least-fixpoint collapse lemma
+\rocq{Icones.stable.fixpoint.lfp_eq0}.
 
-The fixpoint equation is correct but vacuous, as the next theorem
-shows: the operator never produces anything but zero.
-
-\begin{theorem}[Degeneracy: $\mathtt{Yfix\_fun\_lin} = 0$, always]%
+\begin{theorem}[Degeneracy: the naive zero-seeded iteration is $0$,
+always]%
 \label{thm:cbv-yfix-degenerate}
-\rocq{Icones.programs.infra.em_fix_value.Yfix_fun_lin_eq0}\rocqok
+\rocq{Icones.programs.infra.em_fix_value.Phi_fun_lfp_eq0}\rocqok
 \rocq{Icones.programs.infra.em_fix_value.Phi_fun_zero}\rocqok
 \rocq{Icones.programs.infra.em_fix_value.kleene_lin_Phi_fun_eq0}\rocqok
-\uses{def:cbv-yfix-fun-lin}
+\rocq{Icones.stable.fixpoint.lfp_eq0}\rocqok
+\uses{def:cbv-phi-fun, def:cbv-kleene-lin}
 For \emph{every} diagonal $\delta$ and \emph{every} body $M$,
 \[
-  \mathtt{Yfix\_fun\_lin}\,\delta\,M
+  \mathtt{linhom\_lfp}\,(\mathtt{Phi\_fun}\,M)
   \;=\;
   \mathtt{precone\_zero}
   \quad : \quad
@@ -1436,7 +1422,9 @@ $\mathtt{Phi\_fun}\,M\,0 = 0$
 chain is seeded at $\mathtt{precone\_zero}$, so by induction every
 iterate is zero
 (\rocq{Icones.programs.infra.em_fix_value.kleene_lin_Phi_fun_eq0}), and
-the supremum of the constantly-zero chain is zero.
+the supremum of the constantly-zero chain is zero --- the collapse is
+the generic lemma \rocq{Icones.stable.fixpoint.lfp_eq0}: any Kleene
+step that preserves the zero seed has zero least fixpoint.
 \end{proof}
 
 The diagnosis: the bottom of a CBV function-\emph{value} type is not
@@ -1887,8 +1875,8 @@ Seely-transported combinator $\mathtt{fix\_mr\_comb}$ of
 \autoref{def:cbv-fix-mr-comb}
 (\rocq{Icones.programs.ppl_cbv.eD_fix_mr_prod_E}) --- the
 mutual-recursion fixpoint is genuine at every free body type
-(formerly the honest-scope placeholder was the degenerate
-$\mathtt{Yfix\_fun\_lin}$ of \autoref{thm:cbv-yfix-degenerate}).
+(formerly the honest-scope placeholder was the degenerate zero-seeded
+iteration of \autoref{thm:cbv-yfix-degenerate}).
 \end{definition}
 
 \begin{theorem}[Semantic unfolding of $\mathtt{ne\_fix}$]%
@@ -1943,7 +1931,8 @@ $\gamma$:
     \autoref{thm:cbv-fix-comb-iso}), and it is never the cone-zero
     (\rocq{Icones.programs.infra.cbv_fix_unfold.eD_fix_mr_prod_at_setlike_neq0})
     --- the mutual-recursion fixpoint is genuine, in contrast with the
-    retired $\mathtt{Yfix\_fun\_lin}$ placeholder.
+    retired zero-seeded placeholder
+    (\autoref{thm:cbv-yfix-degenerate}).
 \end{itemize}
 The honest caveat: the unfolding is stated \emph{pointwise at setlike
 points}, not as a morphism equation --- the $\mathtt{adj\_psi}$
@@ -3084,7 +3073,7 @@ $\sem{\mathtt{tbool}}$; the value-dependent Bernoulli lift
 total-mass identities (\autoref{lem:ppl-bern-lift}), serving the new
 $\mathtt{ne\_bernoulli\_f}$ constructor; the seeded CBV
 value-fixpoint of \autoref{sec:cbv-yfix-fun} --- the degeneracy record
-\rocq{Icones.programs.infra.em_fix_value.Yfix_fun_lin_eq0}
+\rocq{Icones.programs.infra.em_fix_value.Phi_fun_lfp_eq0}
 (\autoref{thm:cbv-yfix-degenerate}), the interleaved chain
 \rocq{Icones.programs.infra.em_fix_value.fix_chain}, the stable value
 map \rocq{Icones.programs.infra.em_fix_value.fix_value}
@@ -3142,7 +3131,7 @@ value-fixpoint combinator
 (\autoref{def:cbv-fix-clause}); $\mathtt{ne\_fix\_mr}$ is genuine at
 \emph{every} free body type through the Seely transport of
 \autoref{ssec:cbv-fix-mr} (formerly the last consumer of the
-degenerate $\mathtt{Yfix\_fun\_lin}$); $\mathtt{tbool}$ is the
+degenerate zero-seeded operator, since removed); $\mathtt{tbool}$ is the
 \S9.7-style
 \rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}; the
 CBV-side mass identities are proved in \autoref{sec:cbv-geom-mass};

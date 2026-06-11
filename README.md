@@ -178,10 +178,11 @@ morphism via `lin` + `adj_psi`. At products of free types
 conjugated by the EM-level Seely-2 decomposition
 `EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)` of
 `theories/programs/infra/em_fix_mr.v` (`seely2_em_iso`,
-`fix_comb_iso`). The previous zero-seeded operator
-`Yfix_fun_lin` of `theories/programs/infra/em_fix.v` is *provably the
-zero linhom* (`Yfix_fun_lin_eq0`) and is kept purely as the documented
-contrast. The `tbool` clause uses the §9.7-style coalgebra
+`fix_comb_iso`). The naive zero-seeded iteration of
+`theories/programs/infra/em_fix.v`'s linear Kleene step is *provably
+the zero linhom* (`Phi_fun_lfp_eq0` in
+`theories/programs/infra/em_fix_value.v`); the operator it used to
+define was removed after that proof. The `tbool` clause uses the §9.7-style coalgebra
 structure on `bool_cone_car` (`bool_cone_coalg` in
 `theories/programs/infra/bool_cone_coalg.v`), giving the shared-sample
 diagonal-pushforward semantics for programs like
@@ -214,8 +215,8 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   `U ctxD Γ ⊸ U tyD τ`. Recursion is the seeded value-fixpoint combinator
   `fix_comb` of `theories/programs/infra/em_fix_value.v` (the interleaved
   Kleene chain `x_{n+1} = der (F (x_n!))` seeded at the diverging value;
-  the old zero-seeded `Yfix_fun_lin` is provably the zero linhom,
-  `Yfix_fun_lin_eq0`), with the recursion-unfolding equations in
+  the naive zero-seeded iteration is provably the zero linhom,
+  `Phi_fun_lfp_eq0`), with the recursion-unfolding equations in
   `theories/programs/infra/cbv_fix_unfold.v`. **The CBV headline**:
   rejection sampling denotes the normalised posterior
   `(∫_U f dµ)/(∫ f dµ)` (`ex_reject_master`,
@@ -255,9 +256,9 @@ missing, and **why** — is in [`docs/PPL.md`](./docs/PPL.md) and on the
 **Open** (genuinely beyond §9): the **§8** analytic exponential and its category `ACONES`;
 the **§9** Eilenberg–Moore *full-subcategory* theorem (needs a Polish / standard-Borel
 layer not yet formalized); and the **§10** probabilistic-coherence-space embedding.
-**Open on the PPL side**: **`ne_fix_mr` at product body types** (the mutual-recursion
-shape still routes through the provably-zero `Yfix_fun_lin`; the repair needs the Seely
-transport of `fix_comb` along `!A ⊗ !B ≅ !(A & B)`).
+**Open on the PPL side**: distribution-level refinements of the recursive examples and
+morphism-level recursion unfolding — see the "not yet" table in
+[`docs/PPL.md`](./docs/PPL.md).
 
 [`PLAN.md`](./PLAN.md) has the full roadmap and design notes.
 
@@ -319,16 +320,16 @@ theories/
                    cbv_adjunction.v    Linear-Logic / EM-cartesian /
                                        bang-comonoid plumbing — no
                                        Moggi monad
-                   em_fix.v            the legacy zero-seeded
-                                       Yfix_fun_lin — kept as the
-                                       documented contrast (provably
-                                       the zero linhom); no longer
-                                       used by the interpreter
+                   em_fix.v            the naive linear Kleene step
+                                       Phi_fun + the linhom LFP core
+                                       (its zero-seeded operator was
+                                       removed after the degeneracy
+                                       proof Phi_fun_lfp_eq0)
                    em_fix_value.v      fix_comb — the seeded CBV
                                        value-fixpoint combinator
                                        (interleaved Kleene chain,
                                        fix_prom_E, fix_coalg_simpl,
-                                       Yfix_fun_lin_eq0); ne_fix
+                                       Phi_fun_lfp_eq0); ne_fix
                                        resolves here
                    em_fix_mr.v         the Seely-transported fixpoint
                                        for mutual recursion: coalg_iso,

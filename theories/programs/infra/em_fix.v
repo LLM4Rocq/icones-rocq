@@ -1,6 +1,6 @@
 (**md**************************************************************************)
-(** * The CBV value-fixpoint Kleene operator [Yfix_fun_lin]
-      — on the CLEAN linhom cone, no [Tobj] / [!̃U] wrap on [B] — CBV §6
+(** * Kleene infrastructure for the CBV value fixpoint — [Phi_fun]
+      + the linhom LFP core, on the CLEAN linhom cone — CBV §6
 
     *** PPL CBV chapter infrastructure
 
@@ -9,31 +9,32 @@
     fixpoint at this clean-cone shape is paper-level folklore not in
     the literature).
 
-    Provides the CBV value-fixpoint operator on the linhom cone
+    Provides the linhom-level Kleene toolkit consumed by the GENUINE
+    seeded CBV value-fixpoint combinator [fix_comb] of
+    [theories/programs/infra/em_fix_value.v]:
 
-      [Yfix_fun_lin M : linhom_car Ar Γ B]
+    - the Kleene step on the clean linhom cone (no [Tobj] / [!̃U] /
+      Kleisli-exponential wrap on [B])
 
-    where [M : icones_hom Ar (Γ ⊗ B) B] is the body of the recursive
-    function (with the self-reference threaded through [B]).  The
-    construction parallels [theories/stable/fixpoint.v]'s [Yfix] for
-    SCones, at the ICones level: iterate the Kleene step
+        [Phi_fun M prev := M ∘ (id_Γ ⊗ prev) ∘ Δ_Γ : Γ → B]
 
-      [Phi_fun M prev := M ∘ (id_Γ ⊗ prev) ∘ Δ_Γ : Γ → B]
+      where [M : icones_hom Ar (Γ ⊗ B) B] is the body of the recursive
+      function (with the self-reference threaded through [B]), together
+      with its three unit-ball laws [Phi_fun_ball] / [Phi_fun_incr] /
+      [Phi_fun_omega_cont];
+    - the ω-continuity workhorses behind them
+      ([tensor_mor_omega_cont_R], [tensor_mor_R_lin_incr],
+      [linhom_pre_icones_sup], [linhom_post_icones_sup]);
+    - the linhom LFP core [kleene_lin] / [linhom_lfp] /
+      [linhom_lfp_fixpoint] — [stable/fixpoint.v]'s generic Kleene
+      engine instantiated at the coneType [linhom_car Ar C D].
 
-    on the unit-ball ω-CPO of [linhom_car Ar Γ B], starting from
-    [precone_zero], and take the supremum.  The result is parametric
-    in [Γ] and [B] — in particular it specialises to:
-    - [B = bang_cofree L] for the function-type case of [ne_fix] (this
-      gives an OCaml-style [let rec] at function types);
-    - [B = coalg_obj (tyD t)] for any [t] with [is_free_coalg_type t]
-      true, for the mutual-recursion constructor [ne_fix_mr];
-    - non-cofree [B] (e.g. [bool_cone_car], [FMeas_coalgebra X]) when
-      a recursive function returns a base / boolean / measure value.
-
-    The clean cone — no [Tobj] / [!̃U] / Kleisli-exponential wrap on
-    [B] — drops one full layer of [bang_fmap]/[der] threading from
-    the old [em_fix.v] [Phi_fun_safe] of the [Tobj]-wrapped setup, so
-    the construction is structurally cleaner.
+    The naive ZERO-SEEDED operator that used to live here (the
+    [linhom_lfp] of [Phi_fun], seeded at the linhom cone-zero) was
+    removed after being proven degenerate — it is the zero linhom for
+    every diagonal and every body; the degeneracy record survives as
+    [em_fix_value.v]'s §1 ([Phi_fun_zero] + the generic [lfp_eq0],
+    packaged as [Phi_fun_lfp_eq0]).
 
     Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
 
@@ -760,21 +761,6 @@ apply: precone_le_anti.
   exact: cone_sup_ball_ub.
 Qed.
 
-(** ** The linhom-level CBV value-fixpoint [Yfix_fun_lin] *)
-
-Definition Yfix_fun_lin : linhom_car Ar Gamma B :=
-  linhom_lfp Phi_fun Phi_fun_incr Phi_fun_ball.
-
-Lemma Yfix_fun_lin_norm_le1 : cone_norm Yfix_fun_lin <= 1.
-Proof. exact: linhom_lfp_norm_le1. Qed.
-
-(** The fixpoint equation: [Phi_fun (Yfix_fun_lin) = Yfix_fun_lin]. *)
-Lemma Yfix_fun_lin_fixpoint : Phi_fun Yfix_fun_lin = Yfix_fun_lin.
-Proof.
-exact: (linhom_lfp_fixpoint Phi_fun Phi_fun_incr Phi_fun_ball
-          Phi_fun_omega_cont).
-Qed.
-
 End PhiFun.
 
 Arguments Phi_fun_safe {R Ar Gamma B} diag M prev Hprev.
@@ -785,6 +771,3 @@ Arguments Phi_fun_ball {R Ar Gamma B} diag M prev.
 Arguments Phi_fun_safe_incr {R Ar Gamma B} diag M prev1 prev2 Hprev1 Hprev2.
 Arguments Phi_fun_incr {R Ar Gamma B} diag M prev1 prev2.
 Arguments Phi_fun_omega_cont {R Ar Gamma B} diag M u uch ub1 Pch Pub1.
-Arguments Yfix_fun_lin {R Ar Gamma B} diag M.
-Arguments Yfix_fun_lin_norm_le1 {R Ar Gamma B} diag M.
-Arguments Yfix_fun_lin_fixpoint {R Ar Gamma B} diag M.

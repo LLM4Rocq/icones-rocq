@@ -128,10 +128,27 @@ apply: (precone_le_trans (y := f y)); last exact: Hfy.
 exact: f_incr.
 Qed.
 
+(** Degeneracy criterion: if the step preserves the zero seed, every
+    Kleene iterate is zero by induction. *)
+Lemma kleene_eq0 : f 0 = 0 -> forall n, kleene n = (0 : B).
+Proof. by move=> f0; elim=> [|n IH] //; rewrite kleeneS IH f0. Qed.
+
+(** ... and the least fixpoint collapses to zero: the supremum of the
+    constantly-zero chain is zero. *)
+Lemma lfp_eq0 : f 0 = 0 -> lfp = (0 : B).
+Proof.
+move=> f0; apply: precone_le_anti.
+- apply: cone_sup_ball_lub => n.
+  rewrite (kleene_eq0 f0 n); exact: precone_le_refl.
+- exact: precone_le0.
+Qed.
+
 End KleeneCore.
 
 Arguments kleene {R B} f n.
 Arguments lfp {R B} f f_incr f_ball.
+Arguments kleene_eq0 {R B f} f0 n.
+Arguments lfp_eq0 {R B} f f_incr f_ball f0.
 
 (** *** ω-continuity gives the fixpoint equation
 

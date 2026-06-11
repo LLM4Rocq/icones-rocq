@@ -58,9 +58,9 @@
     is transported along the Seely decomposition
     [free_decomp : tyD t ≅ !̃(free_base t)]
     ([infra/em_fix_mr.v::fix_comb_iso]) — see [fix_mr_clause] below.
-    (The previous operator [Yfix_fun_lin] of [em_fix.v] is provably the
-    ZERO linhom — [em_fix_value.v::Yfix_fun_lin_eq0]; it remains there
-    as the documented contrast, no longer used here.) *)
+    (The naive zero-seeded iteration of [em_fix.v]'s linear Kleene step
+    is provably the ZERO linhom — [em_fix_value.v::Phi_fun_lfp_eq0];
+    the operator it used to define has been removed from [em_fix.v].) *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -472,8 +472,8 @@ Local Notation EXi G t :=
       !̃(free_base t1 & free_base t2)]
       ([infra/em_fix_mr.v::fix_comb_iso]).  This is what makes the
       MUTUAL-RECURSION fixpoint genuine (the previous honest-scope
-      placeholder was the degenerate [Yfix_fun_lin], provably the zero
-      linhom — [em_fix_value.v::Yfix_fun_lin_eq0]).
+      placeholder was the naive zero-seeded iteration, provably the
+      zero linhom — [em_fix_value.v::Phi_fun_lfp_eq0]).
 
     (The remaining constructors are unreachable: [is_free_coalg_type]
     only holds at [tfun] and [tprod]-of-frees — the clause consumes the
@@ -907,8 +907,9 @@ Proof. by []. Qed.
 (** [ne_fix_mr] at a PRODUCT body type: the GENUINE Seely-transported
     composite — [fix_mr_comb] (= [fix_comb (free_base _)] conjugated by
     [free_decomp]) post-composed with the lambda-packaging of the body.
-    (Previously the degenerate [Yfix_fun_lin] honest-scope placeholder;
-    the transport closed that gap.) *)
+    (Previously the degenerate zero-seeded honest-scope placeholder —
+    [em_fix_value.v::Phi_fun_lfp_eq0]; the transport closed that
+    gap.) *)
 Lemma eD_fix_mr_prod_E (G : named_ctx Ar) (s : string)
     (t1 t2 : ppl_type Ar)
     (Hfree : is_free_coalg_type (tprod t1 t2))
