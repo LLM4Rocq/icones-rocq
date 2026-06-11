@@ -822,6 +822,41 @@ The whole structure is packaged as
 \rocq{Icones.stable.scones_ccc.SCones_CCC}.
 \end{proof}
 
+\section{Least fixpoints --- paper \S9.2}\label{sec:yfix}
+
+The least-fixpoint operators of paper \S9.2 live in
+\texttt{theories/stable/fixpoint.v}: they are pure $\mathbf{SCones}$
+content (the unit-ball $\omega$-cpo of a cone plus the
+cartesian-closed structure of \autoref{sec:scones-ccc}), and they are
+the recursion engine consumed downstream by the CBV value-fixpoint of
+Chapter~\ref{ch:cbv}.
+
+\begin{lemma}[The fixpoint operators $\mathrm{lfp}$ and
+$\mathrm{Yfix}$, paper \S9.2]\label{lem:yfix}
+\rocq{Icones.stable.fixpoint.lfp}\rocqok
+\rocq{Icones.stable.fixpoint.Yfix}\rocqok
+\rocq{Icones.stable.fixpoint.Yfix_fix}\rocqok
+\uses{def:stablehom, thm:scones-ccc}
+For an integrable cone $B$, every monotone ball-preserving
+$f : B \to B$ has a least fixpoint
+$\mathrm{lfp}\,f = \sup_n f^n(0)$, the supremum of the Kleene chain on
+the unit ball (\rocq{Icones.stable.fixpoint.lfp}, with the fixpoint
+equation \rocq{Icones.stable.fixpoint.lfp_fixpoint} under Scott
+continuity on the ball). Packaged parametrically, the assignment
+$f \mapsto \mathrm{lfp}\,f$ is itself a $\mathbf{SCones}$ morphism
+\[
+  \mathrm{Yfix} : (B \mathbin{\Rightarrow_s} B) \longrightarrow B
+\]
+(\rocq{Icones.stable.fixpoint.Yfix}, built through the $Z$-combinator
+on the internal hom and the cartesian-closed structure of
+\autoref{thm:scones-ccc}), satisfying the fixpoint law
+$f(\mathrm{Yfix}\,f) = \mathrm{Yfix}\,f$ for every unit-ball $f$
+(\rocq{Icones.stable.fixpoint.Yfix_fix}). Recursion at any
+$\mathbf{SCones}$ function space is therefore available
+unconditionally --- a single application of $\mathrm{Yfix}$ at the
+internal hom.
+\end{lemma}
+
 \section{Status}\label{sec:stable-status}
 
 \paragraph{Status.}

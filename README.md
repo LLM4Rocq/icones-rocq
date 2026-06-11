@@ -100,7 +100,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~72k lines across 84 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~68k lines across 71 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -128,12 +128,13 @@ description of the PPL — what it is, what works today, what is missing and why
 dashboard.
 
 A one-paragraph summary: we built a multi-variable named-variable surface
-syntax (`named_expr`, modelled on Saito–Affeldt APLAS 2023), and gave it **two
-parallel interpretations** of the same source language —
-**call-by-value (CBV)** via the Eilenberg–Moore category of `!`
-(EM route) and **call-by-name (CBN)** via the cartesian closed `SCones`
-(the co-Kleisli of `!`, with free recursion from `Yfix`).
-The headline result of the PPL layer is on the CBV side: the
+syntax (`named_expr`, modelled on Saito–Affeldt APLAS 2023) and a
+**call-by-value (CBV)** interpretation of it via the Eilenberg–Moore
+category of `!` (a call-by-name interpretation of the same surface
+syntax, via the cartesian closed `SCones` — including its
+`ex_geom_CBN_mass_one` headline — is preserved on the
+[`cbn-track`](../../tree/cbn-track) branch; `main` is CBV-only).
+The headline result of the PPL layer: the
 **rejection-sampling program denotes the normalised posterior** —
 `∫f dµ · ν(U) = ∫_U f dµ` unconditionally (`ex_reject_master`), hence
 `ν(U) = (∫_U f dµ)/(∫ f dµ)` when acceptance has positive mass
@@ -142,10 +143,13 @@ The headline result of the PPL layer is on the CBV side: the
 (`ex_reject_zero`) — all in `theories/programs/ex_reject_headline.v`,
 axiom-free. The same file proves the **CBV mass-1 identities** for the
 geometric and almost-loop programs (`ex_geom_cbv_mass_one`,
-`ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`). On the CBN
-side, the geometric program carries the mass-1 identity
-`ex_geom_CBN_mass_one` and the PMF identity `ex_geom_CBN_PMF`, closed
-by a Kleene-cascade `1 − (1/2)ⁿ` argument inside `SCones`.
+`ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`), and
+`theories/programs/infra/cbv_qbs_marginals.v` proves the **CBV marginal
+headlines** of the three QBS-style examples — the unnormalised Bayes
+posterior `ex_bayes_linear_cbv_posterior`, paired exactly with the
+rejection sampler by `ex_reject_normalises_bayes`, plus the marginal
+identities `ex_random_constant_cbv_marginal` /
+`ex_random_linear_cbv_marginal`.
 
 The CBV interpreter is a clean **linhom-valued, comonoid-primitive**
 presentation in `theories/programs/ppl_cbv.v`. Types are sent into
@@ -191,7 +195,8 @@ the paper-side results).
 ## Status
 
 Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free. Beyond the paper,
-**two parallel interpretations** of the same surface PPL syntax are built:
+the **call-by-value interpretation** of the surface PPL syntax is built (the call-by-name
+interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
 
 - **Call-by-value via `EM(!)`** (`theories/programs/ppl_cbv.v` and infra under
   `programs/infra/`). The interpreter is linhom-valued and comonoid-primitive: types
@@ -215,30 +220,31 @@ Paper **§2–§9** are formalized: the entire linear-logic model, axiom-free. B
   clause uses the §9.7-style coalgebra `bool_cone_coalg` on
   `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
   shared-sample diagonal semantics.
-- **Call-by-name via `SCones`** (`theories/programs/ppl_cbn.v` + `ppl_cbn_eff.v` +
-  `ppl_cbn_bool.v` + `ppl_cbn_arith.v` + `ppl_cbn_geom.v`). Trunk + effects + boolean cascade
-  + `FMeas` arithmetic foundation are all axiom-free. Free recursion at every function type
-  via the paper §9.2 `Yfix`. The **CBN mass-1 identity** `ex_geom_CBN_mass_one` lives in
-  `theories/programs/ppl_cbn_geom.v`.
+- **The CBV QBS marginals** (`theories/programs/infra/cbv_qbs_marginals.v`,
+  axiom-free): the three non-recursive QBS-style examples now carry closed-form
+  CBV marginal identities — `ex_bayes_linear_cbv_posterior` (the denotation of
+  the score program is the unnormalised posterior `∫_U f dµ`),
+  `ex_random_constant_cbv_marginal` (the sampled constant function's marginal
+  at every probability test point is the prior), and
+  `ex_random_linear_cbv_marginal` (the random-affine marginal at Dirac test
+  points is the iterated-integral pushforward). The pairing theorem
+  `ex_reject_normalises_bayes` connects the score program and the rejection
+  sampler exactly: `(∫ f dµ) · ν_reject(U) = ν_bayes(U)` at a probability prior.
 - **The SCones↔ICones-tensor diagonal bilinear stability bridge**
   `meas_stable_diag_bilinear_tensor` (`theories/stable/diag_bilinear_tensor.v`,
-  axiom-free) — the structural unblocker of CBV recursion and of honest CBN bilinear
-  arithmetic via `add_FMeas`/`mul_FMeas`, and of the CBV/CBN soundness comparison.
+  axiom-free) — its `linhom_to_stablehom` lift is the stable ingredient of the
+  CBV value-fixpoint (`fix_value`).
 
-The full top-down description — what each interpretation does, what works today, what is
+The full top-down description — what the interpretation does, what works today, what is
 missing, and **why** — is in [`docs/PPL.md`](./docs/PPL.md) and on the
 [PPL tab](https://llm4rocq.github.io/icones-rocq/auditor/ppl/) of the auditor dashboard.
 
 **Open** (genuinely beyond §9): the **§8** analytic exponential and its category `ACONES`;
 the **§9** Eilenberg–Moore *full-subcategory* theorem (needs a Polish / standard-Borel
 layer not yet formalized); and the **§10** probabilistic-coherence-space embedding.
-**Open on the PPL side**: the **CBV/CBN soundness theorem** (no proof that
-`⟦M⟧_CBV` and `⟦M⟧_CBN` agree, which would require commuting `!` with effect-bearing
-types); **`ne_fix_mr` at product body types** (the mutual-recursion shape still
-routes through the provably-zero `Yfix_fun_lin`; the repair needs the Seely
-transport of `fix_comb` along `!A ⊗ !B ≅ !(A & B)`); the **CBV marginal headlines
-for the QBS trio** (`ex_random_constant` / `ex_random_linear` / `ex_bayes_linear`
-against `eD` — now unblocked by the let-at-sample law, a follow-up).
+**Open on the PPL side**: **`ne_fix_mr` at product body types** (the mutual-recursion
+shape still routes through the provably-zero `Yfix_fun_lin`; the repair needs the Seely
+transport of `fix_comb` along `!A ⊗ !B ≅ !(A & B)`).
 
 [`PLAN.md`](./PLAN.md) has the full roadmap and design notes.
 
@@ -262,29 +268,23 @@ theories/
 ├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
 │              diag_bilinear_tensor.v  the SCones↔ICones-tensor diagonal     (PPL)
 │                                      bilinear stability bridge
-│                                      meas_stable_diag_bilinear_tensor
+│                                      meas_stable_diag_bilinear_tensor;
+│                                      its linhom_to_stablehom lift feeds
+│                                      the CBV value-fixpoint
 ├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
-└── programs/  the PPL — surface syntax and two parallel interpretations:
-                 ppl.v               shared surface syntax (types, terms,
+└── programs/  the PPL — surface syntax and its CBV interpretation
+               (the CBN interpretation lives on branch cbn-track):
+                 ppl.v               surface syntax (types, terms,
                                      surface notation) + measure / arith
-                                     / Bernoulli helpers shared between
-                                     CBV and CBN
+                                     / Bernoulli helpers
                  ppl_cbv.v           CBV interpreter — linhom-valued,
                                      comonoid-primitive; tyD / ctxD / eD;
                                      !̃ only at ne_lam / ne_app
-                 ppl_cbn.v           CBN trunk: tyD_CBN, eD_CBN core
-                                     (var/lam/app/let/pair/fst/snd),
-                                     ne_fix via SCones Yfix (axiom-free)
-                 ppl_cbn_*.v         CBN headlines (geom, almost_loop) +
-                                     boolean and arithmetic extensions +
-                                     geometric / almost-loop distribution
-                                     proofs
                  examples.v          surface programs (ex_random_*,
                                      ex_bayes_linear, ex_loop, ex_geom,
                                      ex_almost_loop, ex_reject) —
                                      pure syntax + the eD-applied CBV
-                                     denotations (ex_*_cbv), shared
-                                     between CBV and CBN
+                                     denotations (ex_*_cbv)
                  ex_reject_headline.v
                                      THE CBV headline: rejection
                                      sampling denotes the normalised
@@ -302,11 +302,9 @@ theories/
                                        pushforward, used for the
                                        CBV tbool shared-sample semantics
                    bool_case_hom.v     bool_case as linhom + icones_hom
-                   bool_case_scones.v  bool_case SCones-side (CBN bool)
                    cbv_adjunction.v    Linear-Logic / EM-cartesian /
                                        bang-comonoid plumbing — no
-                                       Moggi monad; consumed by CBV
-                                       and CBN
+                                       Moggi monad
                    em_fix.v            the legacy zero-seeded
                                        Yfix_fun_lin — kept as the
                                        documented contrast (provably
@@ -332,14 +330,15 @@ theories/
                                        setlike-point kit, shared-sample
                                        diagonal vs independent-product
                                        contrast, eD_beta, if-pins
-                   cbn_bernoulli_cascade.v
-                                       generic CBN Bernoulli cascade
-                                       (sfix_bcascade) used by ex_geom
-                                       and ex_almost_loop on the CBN
-                                       side
-                   geom_dist_infra.v   shared infrastructure for CBN
-                                       geometric / almost-loop
-                                       distribution proofs
+                   cbv_qbs_marginals.v the CBV marginal headlines of
+                                       the QBS trio — the unnormalised
+                                       Bayes posterior
+                                       (ex_bayes_linear_cbv_posterior),
+                                       the Bayes/rejection pairing
+                                       (ex_reject_normalises_bayes),
+                                       and the marginals
+                                       ex_random_constant_cbv_marginal /
+                                       ex_random_linear_cbv_marginal
 ```
 
 Two parallel entry points for reviewing the formalization without first opening the

@@ -7,19 +7,20 @@ context and result coalgebras, and recursion at function type is
 realised by a value-fixpoint *combinator* in the Eilenberg–Moore
 category of `!` — the supremum of an interleaved Kleene chain seeded
 at the diverging function value, computed pointwise through a
-`der`/`prom` sandwich. The same surface syntax also admits a call-by-name
-reading through the cartesian closed `SCones` of stable and
-measurable functions of paper §7. The language is direct-style
+`der`/`prom` sandwich. The language is direct-style
 (Plotkin / Girard), named-variable (Saito–Affeldt APLAS 2023), and
 probabilistic effects live entirely in the interpretation — there is
 no `tprob` type marker, no syntactic `return`, no `bind`. Examples
-are listed in [EXAMPLES.md](../examples/).
+are listed in [EXAMPLES.md](../examples/). A call-by-name
+interpretation of the same surface syntax (through the cartesian
+closed `SCones` of paper §7) is preserved on the `cbn-track` branch;
+main is CBV-only.
 
 The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
 [Paper tab](../paper/). This document covers what sits *above* the
-paper: the surface language, its two interpretations, the shared
-fixpoint and arithmetic infrastructure, and the structural
-correctness statements one can make at the categorical level.
+paper: the surface language, its CBV interpretation, the fixpoint
+and integral-law infrastructure, and the semantic correctness
+statements one can make at the categorical level.
 
 ---
 
@@ -30,8 +31,8 @@ scoring, recursion at function type, a two-point boolean type, and
 mutual recursion at any free-coalgebra type. The syntax is a single
 intrinsically-typed inductive `named_expr Γ τ` in named-variable
 style, indexed by a *named* context `named_ctx = seq (string ×
-ppl_type)`. The same inductive is consumed by both the CBV
-interpretation `eD` and the CBN interpretation `eD_CBN` below.
+ppl_type)`. The inductive is consumed by the CBV interpretation `eD`
+below.
 
 The sections of this chapter: the type grammar and named contexts;
 the free-coalgebra gating predicate; the pure, effectful and
@@ -197,8 +198,7 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G (tfun t1 t2)
 ```
 
-The CBN interpretation routes through paper §9.2's `Yfix`. The CBV
-interpretation in `theories/programs/ppl_cbv.v` resolves `ne_fix`
+The CBV interpretation in `theories/programs/ppl_cbv.v` resolves `ne_fix`
 (and `ne_fix_mr` at function body types) to the composite
 `fix_comb ∘ ⟦λs.body⟧`, where `fix_comb` is the seeded value-fixpoint
 combinator of `theories/programs/infra/em_fix_value.v` — see
@@ -221,7 +221,7 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr ((s, t) :: G) t -> named_expr G t.
 ```
 
-CBN dispatches via `Yfix` at the product cone. CBV in
+The CBV interpretation in
 `theories/programs/ppl_cbv.v` dispatches `ne_fix_mr` on the body
 type (`fix_mr_clause`): at `tfun t1 t2` it is the *same* genuine
 seeded combinator `fix_comb` as `ne_fix`; at products of free types
@@ -758,349 +758,14 @@ chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html
 
 ---
 
-## Beyond the paper — Call-by-name interpretation (SCones)
-
-**Definition (CBN interpretation).** *Each type `τ` denotes an
-integrable cone `⟦τ⟧_n` in `SCones`; each well-typed program
-`Γ ⊢ M : τ` denotes a stable and measurable function
-`⟦M⟧_n : ⟦Γ⟧_n → ⟦τ⟧_n`. Recursion at any free-coalgebra type is
-the fixpoint operator `Yfix` of paper §9.2.*
-
-The sections of this chapter: the type translation and its QBS
-reading; the clause-parametric interpreter `eD_CBN`; the two
-recursion clauses; and the concrete instantiations `eD_CBN_full` /
-`eD_CBN_complete` / `eD_CBN_full_arith` used by every headline.
-
-| Construction | Rocq |
-|---|---|
-| Type translation | `tyD_CBN` — `theories/programs/ppl_cbn.v` |
-| CBN context translation | `ctxD_CBN` — same file |
-| Term interpretation (pure fragment) | `eD_CBN`, `var_lookup_CBN` — same file |
-| Recursion clause | `eD_CBN_fix_E` (the `Yfix`-as-free-recursion identity) — same file |
-| Mutual recursion clause | `eD_CBN_fix_mr_E` — same file |
-| Effect clauses (hypothesised) | `cbn_sample_clause` … `cbn_if_clause` — same file |
-| Instantiated denotations (γ / M4 / β) | `eD_CBN_full` — `theories/programs/ppl_cbn_eff.v`; `eD_CBN_complete` — `theories/programs/ppl_cbn_headlines.v`; `eD_CBN_full_arith` — `theories/programs/ppl_cbn_arith_eff.v` |
-
-### CBN type translation (`tyD_CBN`)
-
-The base type `tbase X` denotes the cone `FMeas X` *directly* — no
-`Bang` lift — the pragmatic QBS reading of
-Heunen–Kammar–Staton–Yang, where a probabilistic program of base
-type *is* a sub-probability measure. Function types denote the
-internal hom `stablehom` of paper §7.32, products the SCones
-`sprod`, the unit the terminal `Stop`, and `tbool` the 2-point cone
-of `bool_cone.v`. Effects live inside the type interpretation; there
-is no `Tobj` wrap on the codomain.
-
-```coq
-(* theories/programs/ppl_cbn.v *)
-Fixpoint tyD_CBN (t : ppl_type Ar) : ICone.type Ar :=
-  match t with
-  | tunit       => Stop Ar
-  | tbool       => bool_cone_car Ar
-  | tbase X     => FMeas X
-  | tprod s1 s2 => sprod (tyD_CBN s1) (tyD_CBN s2)
-  | tfun A B    => stablehom (tyD_CBN A) (tyD_CBN B)
-  end.
-```
-
-Contexts follow by iterated `sprod` (`ctxD_CBN`, same file), with
-variable lookup `var_lookup_CBN` the corresponding projection chain.
-
-### CBN term interpretation (`eD_CBN`)
-
-The interpreter maps the pure fragment to the cartesian-closed
-structure of `SCones` (paper §7.32: `spair` / `sfst` / `ssnd` /
-`curry` / `Ev`), recursion to `Yfix` of paper §9.2, and dispatches
-every effect constructor through a *hypothesised* clause — the CBN
-interpretation is parametric over its effect clauses.
-
-```coq
-(* theories/programs/ppl_cbn.v *)
-Fixpoint eD_CBN (G : named_ctx Ar) (t : ppl_type Ar)
-    (M : @named_expr R Ar R_obj G t) {struct M}
-    : scones_hom (ctxD_CBN (drop_names G)) (tyD_CBN t) :=
-  match M with
-  | ne_var _ _ v => var_lookup_CBN (named_var_to_has_var v)
-  | ne_tt _      => ders (Stop_mor _)
-  | ne_pair _ _ _ M1 M2 => spair (eD_CBN M1) (eD_CBN M2)
-  | ne_fst _ _ _ M0 => scones_comp sfst (eD_CBN M0)
-  | ne_snd _ _ _ M0 => scones_comp ssnd (eD_CBN M0)
-  | ne_lam _ _ _ _ body => curry (eD_CBN body)
-  | ne_app _ _ _ F X => scones_comp Ev (spair (eD_CBN F) (eD_CBN X))
-  | ne_let _ _ _ _ M0 K => scones_comp (eD_CBN K)
-                                       (spair (scones_id _) (eD_CBN M0))
-  | ne_fix _ _ _ _ body =>
-      scones_comp (Yfix (tyD_CBN (tfun _ _))) (curry (eD_CBN body))
-  | ne_fix_mr _ _ t Hfree body =>
-      scones_comp (Yfix (tyD_CBN t)) (curry (eD_CBN body))
-  (* effect clauses dispatched through the hypothesised cbn_*_clause *)
-  | ne_sample _ mu Hmu  => cbn_sample_clause _ mu Hmu
-  | ne_real _ r         => cbn_real_clause _ r
-  | ne_score _ f Hfm Hg0 Hl1 e0 =>
-      cbn_score_clause _ f Hfm Hg0 Hl1 (eD_CBN e0)
-  | ne_add _ M0 N0 => cbn_add_clause _ (eD_CBN M0) (eD_CBN N0)
-  | ne_mul _ M0 N0 => cbn_mul_clause _ (eD_CBN M0) (eD_CBN N0)
-  | ne_true _      => cbn_true_clause _
-  | ne_false _     => cbn_false_clause _
-  | ne_bernoulli _ p Hp0 Hp1 => cbn_bernoulli_clause _ p Hp0 Hp1
-  | ne_if _ _ e M0 N0 =>
-      cbn_if_clause _ _ (eD_CBN e) (eD_CBN M0) (eD_CBN N0)
-  end.
-```
-
-Concrete clause instances are wired in by the instantiated
-denotations below.
-
-### Recursion clause (`eD_CBN_fix_E`, `Yfix`)
-
-The denotation of `fix s. body` is a genuine fixpoint of the body:
-applying `⟦body⟧` (curried, at the current environment `g`) to
-`⟦fix s. body⟧ g` gives back `⟦fix s. body⟧ g`, for every unit-ball
-environment.
-
-```coq
-(* theories/programs/ppl_cbn.v *)
-Lemma eD_CBN_fix_E
-    (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
-    (body : named_expr ((s, tfun t1 t2) :: G) (tfun t1 t2))
-    (g : ctxD_CBN (drop_names G))
-    (Hg : (cone_norm g <= 1)%R) :
-  sh_fun (sc_fun (curry (eD_CBN body)) g)
-         (sc_fun (eD_CBN (ne_fix s body)) g) =
-  sc_fun (eD_CBN (ne_fix s body)) g.
-Proof.
-rewrite eD_CBN_fix scomp_ball//.
-exact: Yfix_fix (sc_image_ball (curry (eD_CBN body)) Hg).
-Qed.
-```
-
-A single line via [paper §9.2's
-`Yfix`](../../paper/entries/sect-9-2.html). The CBN win: no bilinear
-bridge obligation, free recursion at *every* function type.
-
-### Mutual-recursion clause (`eD_CBN_fix_mr_E`)
-
-Same fixpoint identity as `eD_CBN_fix_E`, with the function type
-`tfun t1 t2` replaced by an arbitrary body type `t` — the CBN side
-has no scope restriction at `ne_fix_mr`, because `Yfix` of paper
-§9.2 works at *any* integrable cone, including `tprod (tfun A1 B1)
-(tfun A2 B2)` (the mutually-recursive function pair).
-
-```coq
-(* theories/programs/ppl_cbn.v *)
-Lemma eD_CBN_fix_mr_E
-    (G : named_ctx Ar) (s : string) (t : ppl_type Ar)
-    (Hfree : is_free_coalg_type t)
-    (body : named_expr ((s, t) :: G) t)
-    (g : ctxD_CBN (drop_names G)) (Hg : (cone_norm g <= 1)%R) :
-  sh_fun (sc_fun (curry (eD_CBN body)) g)
-         (sc_fun (eD_CBN (ne_fix_mr s t Hfree body)) g) =
-  sc_fun (eD_CBN (ne_fix_mr s t Hfree body)) g.
-Proof.
-rewrite eD_CBN_fix_mr scomp_ball//.
-exact: Yfix_fix (sc_image_ball (curry (eD_CBN body)) Hg).
-Qed.
-```
-
-### The instantiated CBN denotations (`eD_CBN_full`, `eD_CBN_complete`, `eD_CBN_full_arith`)
-
-Three concrete instantiations of the clause-parametric `eD_CBN`,
-forming the actual interpreters that every CBN headline of
-[EXAMPLES.md](../../examples/index.html) is stated against:
-`eD_CBN_full` fixes the five effect clauses (sample / real / score /
-add / mul, option-γ constants), `eD_CBN_complete` additionally fixes
-the four boolean clauses, and `eD_CBN_full_arith` swaps the add/mul
-clauses for the honest option-β bilinear arithmetic.
-
-The layering mirrors the delivery waves: `eD_CBN_full`
-(`theories/programs/ppl_cbn_eff.v`, Section EDCBNFull) leaves the
-boolean clauses as section variables; `eD_CBN_complete`
-(`theories/programs/ppl_cbn_headlines.v`, Section EDCBNComplete)
-closes them with the `cbn_*_clause_def` of `ppl_cbn_bool.v`;
-`eD_CBN_full_arith` (`theories/programs/ppl_cbn_arith_eff.v`,
-Section EDCBNFullArith) is identical except for
-`cbn_add_clause_arith` / `cbn_mul_clause_arith` — see [the CBN
-arithmetic
-chapter](../../ppl/chapters/ppl-ch-the-cbn-arithmetic-refinement-option.html).
-Each comes with `by []` reduction lemmas (`eD_CBN_full_sample_E`,
-`eD_CBN_full_arith_add_E`, …) unfolding the instantiated clauses.
-
-```coq
-(* theories/programs/ppl_cbn_eff.v (Section EDCBNFull) *)
-Definition eD_CBN_full (G : named_ctx Ar) (t : ppl_type Ar)
-    (M : @named_expr R Ar R_obj G t) :
-    scones_hom (ctxD_CBN (drop_names G)) (tyD_CBN t) :=
-  @eD_CBN R Ar R_obj
-    (@cbn_sample_clause_def R Ar R_obj)
-    (@cbn_real_clause_def R Ar R_obj R_carrier_eq)
-    (@cbn_score_clause_def R Ar R_obj)
-    (@cbn_add_clause_def R Ar R_obj)
-    (@cbn_mul_clause_def R Ar R_obj)
-    cbn_true_clause cbn_false_clause cbn_bernoulli_clause cbn_if_clause
-    G t M.
-```
-
-```coq
-(* theories/programs/ppl_cbn_headlines.v (Section EDCBNComplete) *)
-Definition eD_CBN_complete (G : named_ctx Ar) (t : ppl_type Ar)
-    (M : @named_expr R Ar R_obj G t) :
-    scones_hom (ctxD_CBN (drop_names G)) (tyD_CBN t) :=
-  @eD_CBN_full R Ar R_obj R_carrier_eq
-    (@cbn_true_clause_def R Ar)
-    (@cbn_false_clause_def R Ar)
-    (@cbn_bernoulli_clause_def R Ar)
-    (@cbn_if_clause_def R Ar)
-    G t M.
-```
-
----
-
-## Beyond the paper — The Bernoulli-cascade framework
-
-The shared mathematical core of `ppl_cbn_geom.v` and
-`ppl_cbn_almost_loop.v`: a single SCones endomorphism scheme that
-realises the body of a `if Bernoulli(p) then halt else cont_op µ`
-recursion, with the closed-form Kleene cascade `mass(k^n) = 1 −
-(1−p)^n` and its `sfix` headlines. Both `ex_geom` and
-`ex_almost_loop p` are *instances* of this framework.
-
-The sections of this chapter: the cascade operator itself; the
-Kleene chain and its per-iterate mass recurrence; and the closed
-form with the two `sfix`-level mass headlines.
-
-| Construction | Rocq |
-|---|---|
-| The cascade operator `µ ↦ p·halt + (1−p)·cont_op µ` | `phi_bcascade`, `phi_bcascade_E` — `theories/programs/infra/cbn_bernoulli_cascade.v` |
-| Kleene chain at `precone_zero` | `kleene_bcascade`, `kleene_bcascade_S_E`, `kleene_bcascade_ball` — same file |
-| Per-iterate mass recurrence | `kleene_bcascade_S_mass` — same file |
-| Closed form `mass(k^n) = 1 − (1−p)^n` | `kleene_bcascade_mass_closed` — same file |
-| Convergence: `mass → 1` when `p > 0` | `kleene_bcascade_mass_cvg_if_pos` — same file |
-| Vanishing: `mass = 0` when `p = 0` | `kleene_bcascade_mass_eq_zero_if_zero` — same file |
-| `sfix`-level headline `mass = 1` | `sfix_bcascade_mass_one_if_pos` — same file |
-| `sfix`-level headline `mass = 0` | `sfix_bcascade_mass_zero_if_zero` — same file |
-
-### The cascade operator (`phi_bcascade`, `phi_bcascade_E`)
-
-The cascade operator is the SCones endomorphism on `FMeas R_obj`
-that, on the unit ball, computes `µ ↦ p·halt + (1−p)·cont_op(µ)` —
-the one-step body of a Bernoulli-guarded recursion, parametric in
-the halting measure `halt` and the continuation operator `cont_op`.
-
-```coq
-(* theories/programs/infra/cbn_bernoulli_cascade.v *)
-Definition phi_bcascade : scones_hom Gc A := (* … *).
-
-Lemma phi_bcascade_E (mu : FMeas R_obj) :
-  (cone_norm mu <= 1)%R ->
-  sc_fun phi_bcascade mu =
-  bool_case (bernoulli p Hp_ge0 Hp_le1)
-            halt
-            (sc_fun cont_op mu).
-```
-
-It is built as `Ev ∘ spair (bool_case_linhom of (halt, cont_op) over
-Bernoulli(p)) id` — the universal co-pairing of [the boolean
-cascade](../../ppl/chapters/ppl-ch-the-boolean-cascade.html)
-composed with the chosen continuation operator; the reduction rule
-`phi_bcascade_E` mirrors `phi_CBN_geom_E` / `phi_almost_loop_p_E`.
-
-### The Kleene chain and the mass recurrence (`kleene_bcascade`, `kleene_bcascade_S_E`, `kleene_bcascade_ball`, `kleene_bcascade_S_mass`, `kleene_bcascade_mass_cvg_if_pos`, `kleene_bcascade_mass_eq_zero_if_zero`)
-
-The Kleene iterates `k(n) = phi_bcascade^n(0)` stay in the unit
-ball, decompose per-iterate as `k(n+1) = p·halt + (1−p)·cont_op(k(n))`,
-and their total masses obey the affine recurrence `mass(k(n+1)) =
-p + (1−p)·mass(k(n))` whenever `halt` has mass 1 and `cont_op`
-preserves mass on the unit ball.
-
-```coq
-(* theories/programs/infra/cbn_bernoulli_cascade.v (Section KleeneBCascade) *)
-Definition kleene_bcascade (n : nat) : FMeas R_obj :=
-  kleene (sc_fun phi_bc') n.
-
-Lemma kleene_bcascade_ball (n : nat) :
-  (cone_norm (kleene_bcascade n) <= 1)%R.
-
-(** Per-iterate decomposition on the unit ball. *)
-Lemma kleene_bcascade_S_E (n : nat) :
-  kleene_bcascade n.+1 =
-  (precone_add
-    (precone_scale (NngNum Hp_ge0) (halt : FMeas R_obj))
-    (precone_scale (NngNum (onem_ge0 p Hp_le1))
-       (sc_fun cont_op (kleene_bcascade n) : FMeas R_obj))
-   : FMeas R_obj).
-```
-
-```coq
-(* theories/programs/infra/cbn_bernoulli_cascade.v *)
-Lemma kleene_bcascade_S_mass (n : nat) :
-  fmeas_mu (kleene_bcascade n.+1) [set: ar_carrier Ar R_obj]
-  = (p%:E + (1 - p)%R%:E *
-       fmeas_mu (kleene_bcascade n) [set: ar_carrier Ar R_obj])%E.
-
-Lemma kleene_bcascade_mass_cvg_if_pos :
-  (0 < p)%R ->
-  fmeas_mu (kleene_bcascade n) [set: ar_carrier Ar R_obj]
-    @[n --> \oo] --> (1 : \bar R).
-
-Lemma kleene_bcascade_mass_eq_zero_if_zero (n : nat) :
-  p = 0%R ->
-  fmeas_mu (kleene_bcascade n) [set: ar_carrier Ar R_obj] = 0%E.
-```
-
-Proof shape of the closed form `kleene_bcascade_mass_closed` below:
-induction on `n`; the base case is `fmeas_zeroE` at `precone_zero`;
-the step rewrites by `kleene_bcascade_S_mass` (itself obtained from
-`kleene_bcascade_S_E` via `fmeas_addE` / `fmeas_scaleE` and the two
-mass hypotheses on `halt` / `cont_op`), then closes the algebra
-`p + (1−p)(1 − (1−p)^n) = 1 − (1−p)^{n+1}` with `exprSr`. The
-convergence lemma is then `cvg_expr` on `|1−p| < 1`; the vanishing
-lemma is immediate from the closed form at `p = 0`.
-
-### Closed form and headlines (`kleene_bcascade_mass_closed`, `sfix_bcascade_mass_one_if_pos`, `sfix_bcascade_mass_zero_if_zero`)
-
-The mass of the `n`-th Kleene iterate is exactly `1 − (1−p)^n`, and
-therefore the `sfix`-level fixpoint `sfix_bcascade` has total mass 1
-whenever `p > 0` (and mass 0 when `p = 0`) — partial termination
-with probability one, resp. honest divergence.
-
-```coq
-(* theories/programs/infra/cbn_bernoulli_cascade.v *)
-Lemma kleene_bcascade_mass_closed (n : nat) :
-  fmeas_mu (kleene_bcascade n) [set: ar_carrier Ar R_obj]
-  = (1 - (1 - p)^+n : R)%R%:E.
-
-Theorem sfix_bcascade_mass_one_if_pos :
-  fmeas_mu halt [set: ar_carrier Ar R_obj] = 1%:E ->
-  (forall mu, (cone_norm mu <= 1)%R ->
-              fmeas_mu (sc_fun cont_op mu) [set: ar_carrier Ar R_obj]
-                = fmeas_mu mu [set: ar_carrier Ar R_obj]) ->
-  (0 < p)%R ->
-  fmeas_mu sfix_bcascade [set: ar_carrier Ar R_obj] = 1%:E.
-
-Theorem sfix_bcascade_mass_zero_if_zero :
-  fmeas_mu halt [set: ar_carrier Ar R_obj] = 1%:E ->
-  (forall mu, (cone_norm mu <= 1)%R ->
-              fmeas_mu (sc_fun cont_op mu) [set: ar_carrier Ar R_obj]
-                = fmeas_mu mu [set: ar_carrier Ar R_obj]) ->
-  p = 0%R ->
-  fmeas_mu sfix_bcascade [set: ar_carrier Ar R_obj] = 0%E.
-```
-
-The bridge from per-iterate masses to the `sfix` mass is
-`sfix_bcascade_mass_E` + `sfix_bcascade_sup_cvg` (monotone
-convergence of `fmeas_mu` along the Kleene chain at `setT`), closed
-by uniqueness of limits. Instantiate at `p := 1/2`, `halt := δ_0`,
-`cont_op := shift_scones 1` for `ex_geom`'s `mass = 1`; at `p := p`,
-`halt := δ_0`, `cont_op := scones_id` for `ex_almost_loop p`'s two
-headlines — see the [Examples tab](../../examples/index.html).
-
----
-
 ## Beyond the paper — The SCones↔ICones-tensor bilinear stability bridge
 
-The structural unblocker behind the honest CBN bilinear arithmetic
-on `FMeas`. Given a measurable-stable `K : G → A` and a bilinear
+`stable/`-side infrastructure (paper-§7 material) consumed by the CBV
+value-fixpoint: the lift `linhom_to_stablehom` below is what lets the
+fixpoint chapter's `fix_value` assemble a *stable* map out of linear
+data — it is the first ingredient of `fix_lts` in
+`theories/programs/infra/em_fix_value.v`. The headline statement:
+given a measurable-stable `K : G → A` and a bilinear
 `Φ : G ⊗ A → B` in `ICones`, the diagonal evaluation
 `g ↦ Φ(g ⊗ K(g)) : G → B` is measurable-stable. Built by pure
 structural composition through paper Theorem 5.12's
@@ -1108,8 +773,7 @@ tensor↔internal-hom adjunction — no §7.3 finite-difference replay
 required.
 
 The sections of this chapter: the `linhom → stablehom` lift (paper
-Lemma 7.31 at the internal hom); the diagonal bridge itself; and the
-binary variant on the SCones product consumed by the CBN arithmetic.
+Lemma 7.31 at the internal hom) and the diagonal bridge itself.
 
 | Construction | Rocq |
 |---|---|
@@ -1117,7 +781,6 @@ binary variant on the SCones product consumed by the CBN arithmetic.
 | Composition with an `icones_hom` preserves meas-stability | `meas_stable_comp_post`, `meas_stable_comp_pre` — same file |
 | The diagonal stable pairing | `id_spair_meas_stable`, `spair_meas_stable` — same file |
 | **The deliverable** — diagonal bilinear stability bridge | `meas_stable_diag_bilinear_tensor` — same file |
-| Binary variant on `sprod A B` | `meas_stable_bin_bilinear_tensor` — `theories/programs/ppl_cbn_arith_scones.v` |
 
 ### Lift `linhom → stablehom` (`linhom_to_stablehom`)
 
@@ -1125,6 +788,11 @@ Every inhabitant of the internal hom `linhom_car Ar B C` is a stable
 and measurable map of cones, and the packaging function
 `linhom_to_stablehom : linhom_car Ar B C → stablehom B C` is *itself*
 measurable-stable — the internal-hom version of paper Lemma 7.31.
+This is the lift the CBV value-fixpoint consumes: `fix_lts` of
+`theories/programs/infra/em_fix_value.v` applies it to the
+post-action `F ↦ der ∘ F`, feeding `fix_value` — see
+[the CBV value-fixpoint
+chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 
 ```coq
 (* theories/stable/diag_bilinear_tensor.v *)
@@ -1173,25 +841,6 @@ Lemma meas_stable_diag_bilinear_tensor
                   K g ⟩
    then close by Lem 7.27 (ev) + the meas-stable closure lemmas. *)
 ```
-
-### Binary variant (`meas_stable_bin_bilinear_tensor`)
-
-For a bilinear `Φ : A ⊗ B → C`, the induced map on the SCones
-product `sprod A B`, `p ↦ Φ(fst p ⊗ snd p)`, is measurable-stable —
-the form consumed directly by the honest CBN arithmetic install.
-
-```coq
-(* theories/programs/ppl_cbn_arith_scones.v *)
-Lemma meas_stable_bin_bilinear_tensor
-    (Phi : icones_hom Ar (tensor Ar A B) C) :
-  is_meas_stable
-    (fun p : sprod A B => Phi (ptensor (sprod_fst p) (sprod_snd p))).
-```
-
-It is the diagonal bridge applied to `Phi_lift := Phi ∘ (icones_proj
-true ⊗ id_B)` over the projection-then-second-component pairing.
-Consumed by `add_FMeas_scones` / `mul_FMeas_scones` of
-`ppl_cbn_arith_scones.v`.
 
 ---
 
@@ -1571,17 +1220,18 @@ equations live in their own file because the setlike-point kit they
 consume (`infra/cbv_anchors.v`) imports `ppl_cbv.v` — an import
 cycle would result if they sat next to the definitional clause pins.
 
-### Cross-reference to the SCones side (`Yfix`)
+### The SCones fixpoint core (`Yfix`)
 
-The CBN counterpart is `Yfix : scones_hom BB B` of
+The stable-fixpoint core is `Yfix : scones_hom BB B` of
 `theories/stable/fixpoint.v` — [paper
 §9.2](../../paper/entries/sect-9-2.html): the Kleene fixpoint at the
 `SCones` internal hom, a unit-ball chain from `precone_zero` taken
-as a supremum. On the CBN side `Yfix` serves recursion *directly*
-(the zero seed is the right bottom there); on the CBV side it
-appears one level down, *inside* the construction of `fix_value`
-(`Yfix_kleeneE` identifies its value with the plain Kleene
-supremum), with the seeding repaired by the `der`/`prom`
+as a supremum. At a bare `SCones` function space the zero seed *is*
+the right bottom, and `Yfix` serves recursion directly; at a CBV
+function-*value* type the bottom is the promoted zero `0!` instead,
+so `Yfix` appears one level down, *inside* the construction of
+`fix_value` (`Yfix_kleeneE` identifies its value with the plain
+Kleene supremum), with the seeding repaired by the `der`/`prom`
 interleaving above.
 
 ```coq
@@ -1610,8 +1260,11 @@ The sections of this chapter: the let-at-sample Pettis integral law
 of the prior); the scalar affine-cascade closed form with the
 sup-mass bridge (the bridge from per-iterate mass recurrences to
 fixpoint masses); the setlike-point kit; the shared-sample diagonal
-anchors with their independence contrast; and the β-rule and
-if-orientation pins.
+anchors with their independence contrast; the β-rule and
+if-orientation pins; and the CBV QBS marginals — the headline
+marginal identities of the three non-recursive QBS-mirror examples,
+proved with this chapter's machinery in
+`theories/programs/infra/cbv_qbs_marginals.v`.
 
 | Construction | Rocq |
 |---|---|
@@ -1627,6 +1280,11 @@ if-orientation pins.
 | The independence contrast | `pair_bernoulli_indep`, `pair_sample_indep` — same file |
 | The β-rule at the morphism level | `eD_beta` — same file |
 | The if-orientation pins | `eD_if_true`, `eD_if_false` — same file |
+| The unnormalised Bayes posterior, against `eD` | `ex_bayes_linear_cbv_posterior`, `ex_bayes_linear_cbv_mass` — `theories/programs/infra/cbv_qbs_marginals.v` |
+| Rejection sampling normalises the Bayes-score posterior | `ex_reject_normalises_bayes` — same file |
+| The sampled-constant marginal at probability test points | `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass` — same file |
+| The random-affine marginal at Dirac test points | `ex_random_linear_cbv_marginal`, `rl_inner_marginal` — same file |
+| QBS-marginal kit: the `FMeas` counit on probabilities; projections at non-setlike points | `coalg_e_FMeas_prob`, `em_proj1_mor_unitE`, `em_proj1_mor_probE`, `Lfun_scaleE`, `one_dirac_ball`, `one_dirac_setlike` — same file |
 
 ### The let-at-sample integral law (`eD_let_sample_int`, `eD_let_sample_mu_E`)
 
@@ -1859,6 +1517,122 @@ Lemma eD_if_false (G : named_ctx Ar) (t : ppl_type Ar)
   eD_cbv' (ne_if t ne_false M N) = eD_cbv' N.
 ```
 
+### The CBV QBS marginals (`ex_bayes_linear_cbv_posterior`, `ex_reject_normalises_bayes`, `ex_random_constant_cbv_marginal`, `ex_random_linear_cbv_marginal`)
+
+The headline semantic identities of the three non-recursive
+QBS-mirror examples of `theories/programs/examples.v`, proved against
+the CBV interpreter `eD` in
+`theories/programs/infra/cbv_qbs_marginals.v` — the consumers this
+chapter's machinery was built for. The common route: the
+let-at-sample law turns each `let x = sample µ in …` prefix into a
+Pettis integral over Diracs of the prior; dereliction / evaluation at
+setlike test points pushes inside the integral
+(`icones_hom_pres_int` / `linhom_int_eval`); and the integrand
+computes pointwise through the setlike-point kit, closing with a
+Dirac integral (`icone_integral_dirac_fmeas` or
+`icone_integral_fmeas_E`).
+
+**The unnormalised posterior.** The denotation of `ex_bayes_linear`
+(`let m = sample µ in let _ = score f m in m`) at the unit context
+point is, on every measurable `U`, the prior reweighted by the
+evidence density — *not* normalised; the mass corollary
+`ex_bayes_linear_cbv_mass` gives the total evidence `∫ f dµ`.
+
+```coq
+(* theories/programs/infra/cbv_qbs_marginals.v (Section BayesPosterior) *)
+Theorem ex_bayes_linear_cbv_posterior (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu
+    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+  \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
+```
+
+**The normalisation pairing.** Combining the posterior identity with
+the rejection-sampling master identity of
+`theories/programs/ex_reject_headline.v`: at a probability prior
+(`µ(setT) = 1`), the rejection-sampling denotation times the total
+evidence *is* the Bayes-score denotation — `score` produces the
+unnormalised posterior, rejection sampling produces the normalised
+one, and the theorem connects the two programs exactly.
+
+```coq
+(* theories/programs/infra/cbv_qbs_marginals.v (Section BayesPosterior) *)
+Theorem ex_reject_normalises_bayes
+    (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
+    (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
+  fmeas_mu
+    (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
+                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+  fmeas_mu
+    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U.
+```
+
+**The sampled-constant marginal, and the probability-test-point
+subtlety.** The denotation of `ex_random_constant`
+(`let c = sample µ in λx. c`) is a promoted function value;
+derelicting it and evaluating at a test point `x` recovers the prior
+`µ` — *provided `x` is a probability* (`fmeas_mu x setT = 1`). The
+hypothesis is honest, not an artifact: the closure discards its
+argument, and discarding in `EM(!)` is the comonoid counit, which on
+`FMeas` weighs the kept output by the argument's *total mass*
+(`coalg_e_FMeas_prob` / `em_proj1_mor_probE`) — so at `x = 0` the
+marginal is `0`, not `µ`, and only mass-1 test points are silently
+discarded. Dirac test points are probabilities, giving the corollary
+`ex_random_constant_cbv_marginal_dirac`; the per-`U` reading is
+`ex_random_constant_cbv_marginal_mass`.
+
+```coq
+(* theories/programs/infra/cbv_qbs_marginals.v (Section RandomConstantMarginal) *)
+Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
+  fmeas_mu x [set: ar_carrier Ar R_obj] = 1%E ->
+  linhom_fun
+    (Lfun (der (Lty tR' tR'))
+       (linhom_fun (ex_random_constant_cbv R_carrier_meas
+                      R_to_carrier_meas Hmu) one1)) x = mu.
+```
+
+**The random-affine marginal.** The denotation of `ex_random_linear`
+(`let m = sample µ in let b = sample µ in λx. m·x + b`), derelicted
+and evaluated at a Dirac test point `δ_{r0}`, is on every measurable
+`U` the iterated-integral measure `∫∫ δ_{m·r0+b}(U) µ(db) µ(dm)` —
+the joint pushforward of two independent prior draws along
+`(m, b) ↦ m·r0 + b`. The inner one-sample layer is
+`rl_inner_marginal`; the arithmetic computes on Diracs through the
+`add_lift` / `mul_lift` Dirac rules.
+
+```coq
+(* theories/programs/infra/cbv_qbs_marginals.v (Section RandomLinearMarginal) *)
+Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
+    (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  fmeas_mu
+    (linhom_fun
+       (Lfun (der (Lty tR' tR'))
+          (linhom_fun (ex_random_linear_cbv R_carrier_meas
+                         R_to_carrier_meas Hmu) one1))
+       (dirac_fmeas r0)) U =
+  \int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
+    (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+       (fine (fmeas_mu
+          (dirac_fmeas (R_to_carrier R_carrier_eq (cR m * cR r0 + cR b)))
+          U))%:E))%:E.
+```
+
+The supporting kit of the file (its §1) extends the setlike-point kit
+to *non-setlike* discarded components: the comonoid counit of the
+§9.7 coalgebra `FMeas X` sends every probability measure to `one1`
+(`coalg_e_FMeas_prob` — Diracs are setlike, and the Dirac-to-integral
+lift plus the Pettis equation on `cone_one` reads off the total
+mass), so the first cartesian projection silently discards an
+`FMeas`-typed probability (`em_proj1_mor_probE`) and weighs by the
+scalar when discarding a `tunit`-typed score result
+(`em_proj1_mor_unitE` — how the score weight becomes a
+`precone_scale` factor in the Bayes proof). The per-program proofs
+are worked example-by-example in
+[EXAMPLES.md](../../examples/index.html).
+
 ---
 
 ## Beyond the paper — The boolean cascade
@@ -1867,12 +1641,12 @@ The 2-point cone of [paper §4.4 / Theorem
 4.24](../../paper/sections/sec-4.html) — the coproduct `1 ⊕ 1` — is
 built concretely as `bool_cone_car Ar : {nonneg R} × {nonneg R}`
 with norm `‖(p, q)‖ = p + q`, with its full HB tower, its universal
-co-pairing as a linhom and an icones_hom, a CBN-side `scones_hom`
-packaging via `ders`, and a hand-rolled §9.7-style `!`-coalgebra
-structure giving the shared-sample semantics.
+co-pairing as a linhom and an icones_hom, and a hand-rolled
+§9.7-style `!`-coalgebra structure giving the shared-sample
+semantics.
 
 The sections of this chapter: the carrier; the universal co-pairing
-`bool_case`; its linhom / icones / SCones packagings (with the α/β
+`bool_case`; its linhom / icones packagings (with the α/β
 decomposition); and the §9.7 coalgebra `bool_cone_coalg`.
 
 | Construction | Rocq |
@@ -1883,7 +1657,6 @@ decomposition); and the §9.7 coalgebra `bool_cone_coalg`.
 | Test measurability, generalised | `test_meas_gen` — `theories/mcones/mcone.v` |
 | Icones-hom packaging | `bool_case_linhom`, `bool_case_linhom_gen`, `bool_case_icones_hom` — `theories/programs/infra/bool_case_hom.v` |
 | α / β decomposition | `alpha_linhom`, `beta_linhom`, `bool_case_linhom_gen_alpha_beta` — same file |
-| SCones-side packaging (via paper Lem 7.31) | `bool_case_scones` — `theories/programs/infra/bool_case_scones.v` |
 | The §9.7 coalgebra on `bool_cone_car` | `bool_coalg_str`, `bool_cone_coalg`, `bool_cone_dispatch` — `theories/programs/infra/bool_cone_coalg.v` |
 | CBV `if_icones` consumer (from the interpreter) | `if_icones`, `if_under` — `theories/programs/ppl_cbv.v` |
 
@@ -1935,15 +1708,13 @@ measurability `test_meas_gen` of `theories/mcones/mcone.v` is what
 lets the path-preservation proofs drop the unit ball on test
 scrutinees.
 
-### Icones-hom packaging (`bool_case_linhom`, `bool_case_icones_hom`, `alpha_linhom`, `beta_linhom`, `bool_case_scones`)
+### Icones-hom packaging (`bool_case_linhom`, `bool_case_icones_hom`, `alpha_linhom`, `beta_linhom`)
 
 The co-pairing is packaged once at each categorical level in
 `theories/programs/infra/bool_case_hom.v`: as a linhom
 `bool_case_linhom : bool_cone ⊸ A` (with the unit-ball-free
-`bool_case_linhom_gen`), as an icones_hom `bool_case_icones_hom`,
-and — via paper Lemma 7.31 — as a CBN-side `scones_hom`
-`bool_case_scones` in
-`theories/programs/infra/bool_case_scones.v`.
+`bool_case_linhom_gen`) and as an icones_hom
+`bool_case_icones_hom`.
 
 ```coq
 (* theories/programs/infra/bool_case_hom.v *)
@@ -2016,130 +1787,16 @@ Definition bool_cone_coalg : Coalgebra Ar :=
 
 ---
 
-## Beyond the paper — The CBN arithmetic refinement (option-β)
-
-The CBN denotation `eD_CBN` is parameterised over the effect clauses
-(`cbn_sample_clause`, …, `cbn_if_clause`). The pragmatic *option-γ*
-baseline (`cbn_const_clause`) makes `cbn_add_clause_def` /
-`cbn_mul_clause_def` constant at `precone_zero` — the honest reading
-given that under option-γ the unit type denotes the terminal cone
-`Stop`. The *option-β* refinement replaces those clauses with
-genuine bilinear arithmetic on `FMeas R_obj`, lifted from the FMeas
-lax-monoidal map of paper §5 via the SCones-side bilinear bridge
-above.
-
-The sections of this chapter: the measure-theoretic `add_FMeas` /
-`mul_FMeas`; their SCones packaging through the binary bridge; and
-the option-β replacement clauses with `eD_CBN_full_arith`.
-
-| Construction | Rocq |
-|---|---|
-| `add_FMeas` / `mul_FMeas` measure-theoretic foundation | `add_FMeas`, `add_FMeas_setT`, `add_FMeas_norm`, `add_FMeas_dirac`, `mul_FMeas`, `mul_FMeas_setT`, `mul_FMeas_norm`, `mul_FMeas_dirac` — `theories/programs/ppl_cbn_arith.v` |
-| `linhom`-level bilinear `add_FMeas_lax_icones` / `mul_FMeas_lax_icones` | `add_FMeas_lax_icones`, `add_FMeas_lax_icones_pt`, `mul_FMeas_lax_icones`, `mul_FMeas_lax_icones_pt` — `theories/programs/ppl_cbn_arith_scones.v` |
-| Lifting to a `scones_hom` via the binary bridge | `add_FMeas_pair_fun`, `add_FMeas_pair_fun_meas_stable`, `add_FMeas_scones`, `add_FMeas_scones_E`, `add_FMeas_scones_dirac` — same file |
-| Replacement effect clauses (option-β) | `cbn_add_clause_arith`, `cbn_mul_clause_arith`, `cbn_add_clause_arith_E`, `cbn_mul_clause_arith_E` — `theories/programs/ppl_cbn_arith_eff.v` |
-| Refined CBN denotation `eD_CBN_full_arith` | `eD_CBN_full_arith`, `eD_CBN_full_arith_add_E`, `eD_CBN_full_arith_mul_E` — same file |
-
-### Measure-theoretic foundation (`add_FMeas`, `add_FMeas_dirac`)
-
-`add_FMeas µ ν` is the pushforward of the pre-Fubini pairing
-`fmeas_lax_pre µ ν` under measurable addition: bilinear in `(µ, ν)`,
-with total mass the *product* of the masses, and sending a pair of
-Diracs to the Dirac of the sum — the identity load-bearing for the
-QBS-flagship Dirac reductions.
-
-```coq
-(* theories/programs/ppl_cbn_arith.v *)
-Definition add_FMeas (mu nu : fmeas R (ar_carrier Ar R_obj)) :
-    fmeas R (ar_carrier Ar R_obj) :=
-  (* Pushforward of fmeas_lax_pre mu nu under add_meas. *)
-
-Lemma add_FMeas_setT (mu nu : fmeas R (ar_carrier Ar R_obj)) :
-  fmeas_mu (add_FMeas mu nu) [set: ar_carrier Ar R_obj] =
-  fmeas_mu mu [set: ar_carrier Ar R_obj]
-  * fmeas_mu nu [set: ar_carrier Ar R_obj].
-
-Lemma add_FMeas_dirac (a b : R) :
-  add_FMeas (dirac_fmeas (R_to_carrier R_carrier_eq a))
-            (dirac_fmeas (R_to_carrier R_carrier_eq b)) =
-  dirac_fmeas (R_to_carrier R_carrier_eq (a + b)).
-```
-
-`mul_FMeas` is verbatim analogous with multiplication in place of
-addition.
-
-### SCones packaging (`add_FMeas_scones`, `add_FMeas_lax_icones`)
-
-The bilinear arithmetic enters the categorical pipeline in two
-steps: at the ICones level, `add_FMeas_lax_icones` is the composite
-of paper §5's lax-monoidal `fmeas_lax` with the FMeas-functorial
-action of the measurable `+`; at the SCones level, the binary
-bilinear bridge packages it as a stable arrow on the SCones product.
-
-```coq
-(* theories/programs/ppl_cbn_arith_scones.v *)
-Definition add_FMeas_lax_icones :
-    icones_hom Ar
-      (tensor Ar (FMeas R_obj) (FMeas R_obj))
-      (FMeas R_obj) :=
-  icones_comp (FMeas_fmap add_meas') (fmeas_lax R_obj R_obj).
-
-Definition add_FMeas_scones :
-    scones_hom (sprod (FMeas R_obj) (FMeas R_obj)) (FMeas R_obj) :=
-  MkStablehom (sc_clamp add_FMeas_pair_fun)
-              add_FMeas_pair_fun_meas_stable_clamp
-              (add_FMeas_clamp_norm_le1 _).
-```
-
-The meas-stability obligation `add_FMeas_pair_fun_meas_stable` is
-exactly `meas_stable_bin_bilinear_tensor` of [the bilinear
-bridge](../../ppl/chapters/ppl-ch-the-sconesicones-tensor-bilinear-stability-bridge.html)
-applied at `Phi := add_FMeas_lax_icones`.
-
-### Option-β replacement clauses (`cbn_add_clause_arith`, `eD_CBN_full_arith`)
-
-The option-β clauses interpret `ne_add` / `ne_mul` by composing
-`add_FMeas_scones` / `mul_FMeas_scones` with the stable pairing of
-the two sub-denotations, and `eD_CBN_full_arith` is `eD_CBN`
-instantiated with them (and the option-γ baseline elsewhere) — the
-interpreter behind the CBN-side honest QBS-flagship marginal
-identity `ex_random_linear_arith_marginal_at` of EXAMPLES.md.
-
-```coq
-(* theories/programs/ppl_cbn_arith_eff.v *)
-Definition cbn_add_clause_arith
-    (G : ppl_ctx Ar)
-    (M N : scones_hom (ctxD_CBN G) (FMeas R_obj)) :
-    scones_hom (ctxD_CBN G) (FMeas R_obj) :=
-  scones_comp add_FMeas_scones (spair M N).
-
-Lemma cbn_add_clause_arith_E (G : ppl_ctx Ar)
-    (M N : scones_hom (ctxD_CBN G) (FMeas R_obj))
-    (g : ctxD_CBN G) (Hg : (cone_norm g <= 1)%R) :
-  sc_fun (cbn_add_clause_arith M N) g =
-  add_FMeas (sc_fun M g) (sc_fun N g).
-
-Definition eD_CBN_full_arith (G : named_ctx Ar) (t : ppl_type Ar)
-    (M : @named_expr R Ar R_obj G t) :
-    scones_hom (ctxD_CBN (drop_names G)) (tyD_CBN t) := (* … *).
-```
-
-`eD_CBN_full_arith` sits alongside `eD_CBN_full` /
-`eD_CBN_complete` — see [the instantiated CBN
-denotations](../../ppl/sections/ppl-sec-the-instantiated-cbn-denotations.html).
-
----
-
 ## What is **not** formalised
 
-A handful of PPL-side items are intentionally left open.
+A handful of PPL-side items are intentionally left open. (The
+call-by-name interpretation, its headlines and its refinement options
+are not gaps of this document: they live on the `cbn-track` branch.)
 
 | Item | What it is | Why not yet |
 |---|---|---|
 | `ne_fix_mr` at product body types | The genuine seeded value-fixpoint for the mutual-recursion shape `tprod (tfun A1 B1) (tfun A2 B2)`; the clause currently keeps the provably-zero `Yfix_fun_lin` (`eD_fix_mr_prod_E`, the honest scope record). | Needs the Seely transport of `fix_comb` along `EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)` (`Seely2`) — a self-contained piece of plumbing not yet written. The function-type case is already genuine (`eD_fix_mr_fun_E`). |
-| CBV marginal identities for the QBS examples | The CBV-side analogues of `ex_random_constant_CBN_headline`, `ex_random_linear_arith_marginal_at`, `ex_bayes_linear_CBN_headline` against the linhom-valued `eD` of `ppl_cbv.v`. | The surface terms compile through `eD`, and the let-at-sample integral law `eD_let_sample_int` now provides the missing reduction engine (it is what drives the rejection-sampling headline); restating the three QBS marginals against `eD` is a follow-up, not a blocker. |
-| Option-α refinement | Replace `tyD_CBN tunit := Stop` (terminal) by `Bang(FMeas *)` so `score` and the arithmetic constructors do not collapse to constants. | Needs a parallel `eD_CBN_full_alpha` interpretation and the corresponding `cbn_*_clause_alpha`; not yet packaged. |
-| CBV / CBN soundness theorem | No proof that `⟦M⟧_CBV` and `⟦M⟧_CBN` agree in any sense. | The two interpretations target different categorical objects (CBV: linear morphisms between coalgebras; CBN: stable measurable functions between integrable cones); a soundness comparison is outside the current scope. |
+| Distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF, the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
 | External semantic equivalence | A QBS / ProbProg / Pyro / Stan correspondence. | The correctness statements in this development are denotational identities at the categorical level. |
 
 ---
@@ -2151,10 +1808,6 @@ make -j
 
 echo "Print Assumptions Skern_to_ICones_fully_faithful." | \
   rocq top -Q theories Icones -l theories/kernels/kernel_embedding.v
-echo "Print Assumptions eD_CBN_fix_E."            | \
-  rocq top -Q theories Icones -l theories/programs/ppl_cbn.v
-echo "Print Assumptions eD_CBN_fix_mr_E."         | \
-  rocq top -Q theories Icones -l theories/programs/ppl_cbn.v
 echo "Print Assumptions eD."                      | \
   rocq top -Q theories Icones -l theories/programs/ppl_cbv.v
 echo "Print Assumptions if_icones."               | \
@@ -2171,8 +1824,14 @@ echo "Print Assumptions let_bernoulli_pair_diag." | \
   rocq top -Q theories Icones -l theories/programs/infra/cbv_anchors.v
 echo "Print Assumptions meas_stable_diag_bilinear_tensor." | \
   rocq top -Q theories Icones -l theories/stable/diag_bilinear_tensor.v
-echo "Print Assumptions sfix_bcascade_mass_one_if_pos." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbn_bernoulli_cascade.v
+echo "Print Assumptions ex_bayes_linear_cbv_posterior." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+echo "Print Assumptions ex_reject_normalises_bayes." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+echo "Print Assumptions ex_random_constant_cbv_marginal." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
+echo "Print Assumptions ex_random_linear_cbv_marginal." | \
+  rocq top -Q theories Icones -l theories/programs/infra/cbv_qbs_marginals.v
 ```
 
 Each command reports only `propositional_extensionality`,

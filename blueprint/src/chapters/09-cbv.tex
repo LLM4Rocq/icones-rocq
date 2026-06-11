@@ -75,9 +75,11 @@
 %                                      syntax + cross-cutting helpers
 %                                      (add_meas, mul_meas, add_lift,
 %                                      mul_lift, score_lift, const_icones,
-%                                      bernoulli, etc.) used by BOTH the
-%                                      CBV interpreter of ppl_cbv.v and
-%                                      the CBN interpreter of ppl_cbn*.v.
+%                                      bernoulli, etc.) used by the CBV
+%                                      interpreter of ppl_cbv.v (the
+%                                      call-by-name interpreter consuming
+%                                      the same syntax is preserved on
+%                                      branch cbn-track).
 %   theories/programs/ppl_cbv.v        the CLEAN CBV interpreter — the
 %                                      linhom-valued, comonoid-primitive
 %                                      interpretation of named_expr.  Every
@@ -174,6 +176,20 @@
 %                                      ex_geom_cbv_mass_one and
 %                                      ex_almost_loop_cbv_mass_one /
 %                                      ex_almost_loop_cbv_zero.
+%   theories/programs/infra/cbv_qbs_marginals.v   the CBV marginal
+%                                      headlines of the QBS trio:
+%                                      ex_bayes_linear_cbv_posterior
+%                                      (the unnormalised posterior),
+%                                      ex_reject_normalises_bayes
+%                                      (the Bayes/rejection pairing),
+%                                      ex_random_constant_cbv_marginal
+%                                      (+ _dirac/_mass) and
+%                                      ex_random_linear_cbv_marginal
+%                                      (+ rl_inner_marginal), with the
+%                                      probability-counit kit
+%                                      coalg_e_FMeas_prob /
+%                                      em_proj1_mor_unitE /
+%                                      em_proj1_mor_probE.
 %   theories/programs/infra/bool_cone_coalg.v   the §9.7-style 2-point
 %                                      !-coalgebra on bool_cone_car (a hand
 %                                      built specialisation of FMeas_
@@ -185,9 +201,8 @@
 %                                      lemma bool_cone_dispatch.
 %   theories/programs/examples.v       twelve surface PPL programs (no
 %                                      denotation reduction lemmas; this
-%                                      file is now the shared surface
-%                                      program pool consumed by both the
-%                                      CBV and the CBN interpreters):
+%                                      file is the surface program pool
+%                                      consumed by the CBV interpreter):
 %                                      QBS headlines ex_random_constant,
 %                                      ex_random_linear, ex_bayes_linear;
 %                                      recursive examples ex_loop, ex_geom,
@@ -268,7 +283,9 @@ posterior of its prior given its soft acceptance predicate
 (\rocq{Icones.programs.ex_reject_headline.ex_reject_is_normalised_posterior}),
 through the seeded value-fixpoint combinator of
 \autoref{sec:cbv-yfix-fun} and the let-at-sample integral law of
-\autoref{sec:cbv-laws}.
+\autoref{sec:cbv-laws} --- paired exactly with the unnormalised Bayes
+posterior of the score program by the QBS-marginal identities of
+\autoref{ssec:cbv-qbs-marginals}.
 
 \paragraph{Linhom-valued, comonoid-primitive interpretation.}
 The interpreter assigns to a term
@@ -332,11 +349,12 @@ QBS-mirror calculus --- the modern PPL surface in the style of
 Saito and Affeldt's APLAS 2023 named-variable
 embedding\footnote{Saito and Affeldt, \emph{Towards a practical embedding
 of a probabilistic programming language in Coq}, APLAS 2023.}. It is
-defined once in \texttt{theories/programs/ppl.v} and consumed by
-\emph{two} interpreters: the linhom-valued CBV interpreter of
-\texttt{theories/programs/ppl\_cbv.v} described in this chapter, and
-the SCones-valued CBN interpreter of \texttt{theories/programs/ppl\_cbn*.v}
-of \autoref{ch:cbn}. The shared surface programs
+defined once in \texttt{theories/programs/ppl.v} and consumed by the
+linhom-valued CBV interpreter of
+\texttt{theories/programs/ppl\_cbv.v} described in this chapter. (A
+SCones-valued call-by-name interpretation of the same surface syntax
+is preserved on the \texttt{cbn-track} branch; \texttt{main} is
+CBV-only.) The surface programs
 (\texttt{theories/programs/examples.v}) include
 \rocq{Icones.programs.examples.ex_random_constant} (the QBS
 distribution-over-a-function-space example),
@@ -1181,16 +1199,15 @@ $e$-mass one). Second, the repaired combinator: an \emph{interleaved}
 Kleene chain through the $\mathrm{prom}$/$\mathrm{der}$ pair, seeded at
 the genuine bottom $0$ of the value cone, whose supremum is a
 \emph{stable} map by assembly from existing $\mathbf{SCones}$
-morphisms (the \S9.2 $\mathrm{Yfix}$ of \autoref{lem:cbn-recursion},
+morphisms (the \S9.2 $\mathrm{Yfix}$ of \autoref{lem:yfix},
 the CCC structure of \autoref{thm:scones-ccc}, and the
 linear-to-stable lift), and which the $\mathrm{lin}$ hom-bijection of
 the SAFT $\mathord{!}$ plus the $\mathtt{adj\_psi}$ of the cofree
 adjunction (\autoref{thm:cbv-cofree-adj}) package into an
 Eilenberg--Moore morphism --- coalgebra-morphism-ness is by
-construction. The CBN and the CBV recursions thereby share the same
+construction. The CBV recursion thereby rests on the paper-\S9.2
 stable-fixpoint core: the chain supremum of $\mathtt{fix\_comb}$ is
-computed through the very $\mathrm{Yfix}$ that powers the CBN
-$\mathtt{ne\_fix}$ clause.
+computed through the $\mathrm{Yfix}$ of \autoref{lem:yfix}.
 
 \subsection{The zero-seeded operator $\mathtt{Yfix\_fun\_lin}$}%
 \label{ssec:cbv-phifun}
@@ -1299,8 +1316,8 @@ fixpoint equation
 $\Phi\,(\mathtt{linhom\_lfp}\,\Phi) = \mathtt{linhom\_lfp}\,\Phi$
 (\rocq{Icones.programs.infra.em_fix.linhom_lfp_fixpoint}). This mirrors,
 at the linhom cone, the SCones-side \rocq{Icones.stable.fixpoint.lfp} /
-\rocq{Icones.stable.fixpoint.Yfix_fix} of the CBN chapter
-(\autoref{lem:cbn-recursion}).
+\rocq{Icones.stable.fixpoint.Yfix_fix} of paper \S9.2
+(\autoref{lem:yfix}).
 \end{definition}
 
 \begin{definition}[The zero-seeded operator $\mathtt{Yfix\_fun\_lin}$]%
@@ -1466,7 +1483,7 @@ $\omega$-continuity and path-measurability come for free.
 \rocq{Icones.programs.infra.em_fix_value.fix_step}\rocqok
 \rocq{Icones.programs.infra.em_fix_value.fix_body}\rocqok
 \rocq{Icones.programs.infra.em_fix_value.fix_value}\rocqok
-\uses{lem:cbv-fix-chain-laws, thm:scones-ccc, lem:cbn-recursion}
+\uses{lem:cbv-fix-chain-laws, thm:scones-ccc, lem:yfix}
 In $\mathbf{SCones}$:
 \begin{itemize}
   \item $\mathtt{fix\_lts} : LL \to (\mathord{!}A \Rightarrow_s A)$
@@ -1483,7 +1500,7 @@ In $\mathbf{SCones}$:
     \autoref{thm:scones-ccc};
   \item $\mathtt{fix\_value} = \mathrm{Yfix}_A \circ \mathtt{fix\_body}
     : LL \to A$, post-composing with the \S9.2 stable fixpoint operator
-    \rocq{Icones.stable.fixpoint.Yfix} of \autoref{lem:cbn-recursion}.
+    \rocq{Icones.stable.fixpoint.Yfix} of \autoref{lem:yfix}.
 \end{itemize}
 $\mathtt{fix\_value}$ is a single $\mathbf{SCones}$ morphism
 (\rocq{Icones.programs.infra.em_fix_value.fix_value}), so it is a
@@ -1743,21 +1760,20 @@ packaging computes through $\mathtt{coalg\_str}$, which is only
 promoted-point-shaped on setlike inputs.
 \end{theorem}
 
-\subsection{Cross-reference to the CBN side}%
-\label{ssec:cbv-yfix-cbn}
+\subsection{Cross-reference to the SCones fixpoint core}%
+\label{ssec:cbv-yfix-core}
 
-The CBN and the CBV recursions now share the same stable-fixpoint
-core: the CBN $\mathtt{ne\_fix}$ clause applies the \S9.2
-\rocq{Icones.stable.fixpoint.Yfix} directly at the SCones function
-space (\autoref{lem:cbn-recursion}), while the CBV
-$\mathtt{fix\_comb}$ \emph{factors through the same operator} --- its
-chain supremum is computed by $\mathrm{Yfix}_A$ applied to the curried
-stable body (\autoref{def:cbv-fix-value}), then transported into
-$\mathrm{EM}(\mathord{!})$ by $\mathrm{lin}$ and $\mathtt{adj\_psi}$.
-The two readings differ only in the packaging: SCones-morphisms on
-stable cones feeding \rocq{Icones.programs.ppl_cbn.eD_CBN_fix_E} for
-CBN; an EM-morphism between cofree coalgebras feeding
-\rocq{Icones.programs.ppl_cbv.eD_cbv}'s $\mathtt{ne\_fix}$ for CBV.
+The CBV recursion rests on the paper-\S9.2 stable-fixpoint core of
+\autoref{lem:yfix}: at a bare $\mathbf{SCones}$ function space the
+zero seed is the right bottom and \rocq{Icones.stable.fixpoint.Yfix}
+serves recursion directly, while at a CBV function-\emph{value} type
+the bottom is the promoted zero $0^!$, so $\mathtt{fix\_comb}$
+\emph{factors through the same operator} --- its chain supremum is
+computed by $\mathrm{Yfix}_A$ applied to the curried stable body
+(\autoref{def:cbv-fix-value}), then transported into
+$\mathrm{EM}(\mathord{!})$ by $\mathrm{lin}$ and $\mathtt{adj\_psi}$,
+with the seeding repaired by the $\mathrm{der}$/$\mathrm{prom}$
+interleaving.
 
 \paragraph{Consequence for the recursive surface programs.}
 The recursive examples \rocq{Icones.programs.examples.ex_loop},
@@ -1766,10 +1782,7 @@ The recursive examples \rocq{Icones.programs.examples.ex_loop},
 \rocq{Icones.programs.examples.ex_reject} have honest CBV denotations
 through \rocq{Icones.programs.ppl_cbv.eD}: the $\mathtt{ne\_fix}$ slot
 is the promoted supremum of the interleaved Kleene chain, not the
-constant zero. The closed-form mass identities --- including the CBV
-twin of the CBN
-\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
-(\autoref{thm:cbn-ex-geom}) --- are now proved in
+constant zero. The closed-form mass identities are proved in
 \autoref{sec:cbv-geom-mass}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2258,7 +2271,11 @@ equational \emph{anchors} that pin the operational reading of the
 interpreter (shared-sample diagonal vs.\ independent tensor, the
 $\beta$-rule, the if-orientation) so that a refactor of the \S7/\S9
 cartesian machinery that silently flipped the semantics would fail to
-compile.
+compile. The section closes with their first consumers
+(\autoref{ssec:cbv-qbs-marginals}): the closed-form CBV marginal
+identities of the three non-recursive QBS-mirror examples, including
+the unnormalised Bayes posterior and its exact pairing with the
+rejection sampler.
 
 \subsection{The let-at-sample Pettis integral law}%
 \label{ssec:cbv-let-sample}
@@ -2393,6 +2410,122 @@ dual (\rocq{Icones.programs.infra.cbv_anchors.eD_if_true},
 level.
 \end{lemma}
 
+\subsection{The CBV QBS marginals}\label{ssec:cbv-qbs-marginals}
+
+The three non-recursive QBS-mirror examples
+(\rocq{Icones.programs.examples.ex_random_constant},
+\rocq{Icones.programs.examples.ex_random_linear},
+\rocq{Icones.programs.examples.ex_bayes_linear}) carry closed-form
+CBV marginal identities, proved in
+\texttt{theories/programs/infra/cbv\_qbs\_marginals.v} on top of the
+let-at-sample law of \autoref{thm:cbv-let-sample}. The common route:
+the law turns each $\mathtt{let}$-$\mathtt{sample}$ prefix into a
+Pettis integral over Diracs of the prior, dereliction / evaluation at
+setlike test points pushes inside the integral, and the integrand
+computes pointwise down to a Dirac integral.
+
+\begin{lemma}[The probability-counit kit]%
+\label{lem:cbv-qbs-kit}
+\rocq{Icones.programs.infra.cbv_qbs_marginals.coalg_e_FMeas_prob}\rocqok
+\rocq{Icones.programs.infra.cbv_qbs_marginals.em_proj1_mor_unitE}\rocqok
+\rocq{Icones.programs.infra.cbv_qbs_marginals.em_proj1_mor_probE}\rocqok
+\uses{lem:cbv-anchor-diag, thm:cbv-cartesian}
+The comonoid counit of the \S9.7 coalgebra on $\FMeas(X)$ sends every
+\emph{probability} measure to the unit point
+(\rocq{Icones.programs.infra.cbv_qbs_marginals.coalg_e_FMeas_prob}:
+on Diracs the counit is the unit since Diracs are setlike, and the
+Dirac-to-integral lift plus the Pettis equation on the unit cone read
+off the total mass). Consequently the first cartesian projection of
+$\mathrm{EM}(\mathord{!})$ discards an $\FMeas$-typed probability
+component silently
+(\rocq{Icones.programs.infra.cbv_qbs_marginals.em_proj1_mor_probE}),
+and discards a non-setlike $\mathtt{tunit}$-typed component as its
+scalar weight
+(\rocq{Icones.programs.infra.cbv_qbs_marginals.em_proj1_mor_unitE})
+--- the mechanism by which a score result becomes a scaling factor.
+\end{lemma}
+
+\begin{theorem}[The unnormalised Bayes posterior]%
+\label{thm:cbv-qbs-bayes}
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_bayes_linear_cbv_posterior}\rocqok
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_bayes_linear_cbv_mass}\rocqok
+\uses{lem:cbv-let-sample-mu, lem:cbv-qbs-kit}
+The closed CBV denotation of $\mathtt{ex\_bayes\_linear}$ (sample
+$m \sim \mu$, score by a measurable density $f : \mathbb{R} \to
+[0,1]$, return $m$) is the \emph{unnormalised posterior}: for every
+measurable $U$,
+\[
+  \sem{\mathtt{ex\_bayes\_linear}}(1)(U) \;=\; \int_U f\,d\mu,
+\]
+with total mass the evidence $\int f\,d\mu$
+(\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_bayes_linear_cbv_mass}).
+The proof applies the measure-on-$U$ law of
+\autoref{lem:cbv-let-sample-mu}; at the one-Dirac environment
+$1 \otimes \delta_r$ the score evaluates to the scalar $f(r)$
+(\rocq{Icones.programs.ppl.score_lift_dirac}), which the
+$\mathtt{tunit}$-projection of \autoref{lem:cbv-qbs-kit} turns into a
+$\mathtt{precone\_scale}$ weight on the returned $\delta_r$.
+\end{theorem}
+
+\begin{theorem}[Rejection sampling normalises the Bayes-score
+posterior]\label{thm:cbv-reject-bayes}
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_reject_normalises_bayes}\rocqok
+\uses{thm:cbv-qbs-bayes, thm:cbv-reject-master}
+At a probability prior ($\mu(\mathbb{R}) = 1$), for every measurable
+$U$,
+\[
+  \Bigl(\int f\,d\mu\Bigr)\cdot
+  \sem{\mathtt{ex\_reject}}(1)(U)
+  \;=\;
+  \sem{\mathtt{ex\_bayes\_linear}}(1)(U)
+\]
+--- the rejection-sampling denotation times the total evidence is
+exactly the Bayes-score denotation: $\mathtt{score}$ computes the
+unnormalised posterior, rejection sampling computes the normalised
+one, and the two programs are related by precisely the evidence
+constant. The proof is one line on top of
+\autoref{thm:cbv-qbs-bayes} and the master identity of
+\autoref{thm:cbv-reject-master}.
+\end{theorem}
+
+\begin{theorem}[The QBS marginals]\label{thm:cbv-qbs-marginals}
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_random_constant_cbv_marginal}\rocqok
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_random_constant_cbv_marginal_dirac}\rocqok
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_random_linear_cbv_marginal}\rocqok
+\uses{thm:cbv-let-sample, lem:cbv-qbs-kit, thm:cbv-fix-comb}
+The denotation of $\mathtt{ex\_random\_constant}$
+($\mathtt{let}\,c = \mathtt{sample}\,\mu\,\mathtt{in}\,\lambda x.\,c$)
+is a promoted function value; derelicting it and evaluating at any
+\emph{probability} test point $x$ recovers the prior:
+\[
+  \mathrm{der}\bigl(\sem{\mathtt{ex\_random\_constant}}(1)\bigr)(x)
+  \;=\; \mu
+  \qquad\text{whenever } x(\mathbb{R}) = 1.
+\]
+The probability hypothesis is honest: discarding the unused argument
+is the comonoid counit, which weighs by the argument's total mass
+(\autoref{lem:cbv-qbs-kit}) --- at $x = 0$ the marginal is $0$, not
+$\mu$. The Dirac instance is
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_random_constant_cbv_marginal_dirac}.
+For $\mathtt{ex\_random\_linear}$
+($\mathtt{let}\,m = \mathtt{sample}\,\mu\,\mathtt{in}\,
+\mathtt{let}\,b = \mathtt{sample}\,\mu\,\mathtt{in}\,
+\lambda x.\,m\,x + b$), the marginal at a Dirac test point
+$\delta_{r_0}$ is the iterated-integral measure
+\[
+  \mathrm{der}\bigl(\sem{\mathtt{ex\_random\_linear}}(1)\bigr)
+    (\delta_{r_0})(U)
+  \;=\;
+  \int\!\!\int \delta_{m r_0 + b}(U)\;\mu(db)\,\mu(dm)
+\]
+(\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_random_linear_cbv_marginal},
+with the one-sample inner layer
+\rocq{Icones.programs.infra.cbv_qbs_marginals.rl_inner_marginal}):
+two applications of \autoref{thm:cbv-let-sample}, the arithmetic
+Dirac rules, and the per-$U$ evaluation of an $\FMeas$-valued Pettis
+integral.
+\end{theorem}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The rejection-sampling headline and the CBV mass identities}%
 \label{sec:cbv-geom-mass}
@@ -2408,9 +2541,8 @@ the prior given the soft acceptance predicate. Everything is
 axiom-free (the three classical \texttt{boolp} axioms only). The same
 reduction-chain skeleton then yields, as riders, the mass identities
 for the geometric counter and the parameterised almost-loop ---
-closing the CBV side of the mass-identity programme that
-\autoref{ch:cbn} opened with the CBN
-\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}.
+completing the mass-identity programme for the recursive surface
+programs.
 
 \begin{definition}[The surface program $\mathtt{ex\_reject}$]%
 \label{def:cbv-ex-reject}
@@ -2619,10 +2751,6 @@ arithmetic lift; translation-mass invariance
 (\texttt{add\_lift\_mass}) reduces the cascade to
 $x_{n+1} = \tfrac12 + \tfrac12 x_n$, whose limit is $1$
 (\rocq{Icones.programs.infra.affine_cascade.affine_iter_cvg_half}).
-Together with the CBN twin
-\rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
-(\autoref{thm:cbn-ex-geom}), \emph{both} interpretations of the shared
-surface program now prove mass one for the geometric counter.
 \end{theorem}
 
 \begin{theorem}[Dichotomy for the parameterised almost-loop]%
@@ -2705,9 +2833,9 @@ CBV interpreter \rocq{Icones.programs.ppl_cbv.eD} of
 \autoref{sec:cbv-ppl}, with its type interpretation
 \rocq{Icones.programs.ppl_cbv.tyD_cbv}, context interpretation
 \rocq{Icones.programs.ppl_cbv.ctxD_cbv}, and variable lookup
-\rocq{Icones.programs.ppl_cbv.var_lookup_cbv}; the shared surface
-syntax of \texttt{theories/programs/ppl.v} consumed by both this CBV
-interpreter and the CBN interpreter of \autoref{ch:cbn}, with the
+\rocq{Icones.programs.ppl_cbv.var_lookup_cbv}; the surface
+syntax of \texttt{theories/programs/ppl.v} consumed by this CBV
+interpreter, with the
 twelve surface programs of \texttt{theories/programs/examples.v}
 (\rocq{Icones.programs.examples.ex_random_constant},
 \rocq{Icones.programs.examples.ex_random_linear},
@@ -2725,7 +2853,12 @@ sanity checks); and the rejection-sampling headline of
 riders
 \rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_mass_one} and
 \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_mass_one}
-/ \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_zero}.
+/ \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_zero};
+and the CBV QBS marginals of \autoref{ssec:cbv-qbs-marginals} ---
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_bayes_linear_cbv_posterior},
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_reject_normalises_bayes},
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_random_constant_cbv_marginal},
+\rocq{Icones.programs.infra.cbv_qbs_marginals.ex_random_linear_cbv_marginal}.
 
 \paragraph{Follow-ups.}
 The CBV-side residues listed in earlier drafts of this status section
@@ -2733,11 +2866,11 @@ have landed: the $\mathtt{ne\_fix}$ clause is the seeded
 value-fixpoint combinator
 \rocq{Icones.programs.infra.em_fix_value.fix_comb}
 (\autoref{def:cbv-fix-clause}); $\mathtt{tbool}$ is the \S9.7-style
-\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}; and the
-CBV-side mass identities --- including the geometric twin of the
-CBN-side \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
-(\autoref{thm:cbn-ex-geom}) --- are proved in
-\autoref{sec:cbv-geom-mass}. What remains as follow-up:
+\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}; the
+CBV-side mass identities are proved in \autoref{sec:cbv-geom-mass};
+and the closed-form CBV marginal identities for the QBS trio are
+proved in \autoref{ssec:cbv-qbs-marginals}. What remains as
+follow-up:
 \begin{itemize}
   \item $\mathtt{ne\_fix\_mr}$ at $\mathtt{tprod}$ body types still
     routes through the degenerate $\mathtt{Yfix\_fun\_lin}$
@@ -2747,15 +2880,7 @@ CBN-side \rocq{Icones.programs.ppl_cbn_geom.ex_geom_CBN_mass_one}
     $\mathrm{EM\_prod}(\widetilde{\mathord{!}}X,
     \widetilde{\mathord{!}}Y) \cong
     \widetilde{\mathord{!}}(X \otimes Y)$
-    (\autoref{def:cbv-fix-clause});
-  \item closed-form CBV marginal identities for the QBS trio
-    \rocq{Icones.programs.examples.ex_random_constant} /
-    \rocq{Icones.programs.examples.ex_random_linear} /
-    \rocq{Icones.programs.examples.ex_bayes_linear}, mirroring the
-    CBN-side headlines --- now unblocked by the let-at-sample
-    integral law (\autoref{thm:cbv-let-sample}), which supplies
-    exactly the integral reading of the $\mathtt{let}$-$\mathtt{sample}$
-    prefix these programs share.
+    (\autoref{def:cbv-fix-clause}).
 \end{itemize}
 
 \paragraph{What is not interpreted.}
