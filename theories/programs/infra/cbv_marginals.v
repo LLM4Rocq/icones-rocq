@@ -23,6 +23,13 @@
       derelicted and evaluated at a Dirac test point [δ_{r0}], has on
       every measurable [U] the iterated-integral measure
       [∫∫ δ_{m·r0+b}(U) µ(db) µ(dm)].
+    - [ex_bayes_linear_cbv_evidence] (§5) : the higher-order Bayesian
+      LINEAR-REGRESSION headline, for a GENERAL observation list [l] —
+      the counit ("total mass") of the function-space denotation of
+      [examples.v::ex_bayes_linear l] is the MODEL EVIDENCE
+      [∫∫ ∏_{o ∈ l} (obs_d o)(m·(obs_x o)+b) dµ(m) dµ(b)]; the
+      2-observation corollary [ex_bayes_linear_cbv_evidence2] writes
+      the product literally.
 
     These restate, against [eD], the identities the retired CBN track
     proved; the score posterior is new content the CBN option-γ
@@ -978,3 +985,411 @@ by rewrite (rl_inner_marginal m r0 mU).
 Qed.
 
 End RandomLinearMarginal.
+
+(** ** §5 — [ex_bayes_linear]: the model evidence
+
+    THE Bayesian-linear-regression headline, for a GENERAL observation
+    list [l] (seq induction).  The program samples the random affine
+    model [f = λx. m·x + b] (EXACTLY Example 2's [ex_random_linear] —
+    §4's kit is reused wholesale), scores each observation [o ∈ l] of
+    the model's value [f(obs_x o)] by the density [obs_d o], and
+    returns [f].  The denotation lives in the FUNCTION-space cone
+    [!(U⟦tR⟧ ⊸ U⟦tR⟧)]; the honest "total mass" reading is the
+    comonoid counit [coalg_e] (the [e_bang]-style discard — NOT
+    [cone_norm], which at [!]-level is provably not the operational
+    mass in this model), and the headline computes it as the MODEL
+    EVIDENCE
+    [[
+       ∫∫ ∏_{o ∈ l} (obs_d o)(m·(obs_x o) + b) dµ(m) dµ(b).
+    ]]
+
+    Route: the outer [let "f"] diagonal at the setlike [one1] feeds
+    the model value [Φ = ⟦ex_random_linear⟧(1)] into the observation
+    fold's environment; [Φ] is the double Pettis integral of the
+    promoted closures [(ℓ_{m,b})!] (the let-at-sample law twice); the
+    [one1 ⊗ −] packaging, the fold and the counit all push inside the
+    integrals ([ptensor_icone_integral] / [icones_hom_pres_int]).
+    Pointwise at [(m,b)] the fold peels one observation per step
+    ([obs_fold_at], seq induction over a tower [obs_env] of growing
+    setlike environments): the scored value computes through
+    [eD_app_at_setlike] / [rl_body_at] / [score_lift_dirac] to the
+    SCALAR [obs_d o (m·x_o + b)], which factors out of the
+    environment by bilinearity ([ptensorZr]) and linearity
+    ([Lfun_scaleE]) — the shared ["f"] is duplicated by the comonoid
+    [coalg_d] at a SETLIKE point of the function-type coalgebra, so
+    each duplicate is again the promoted closure ([obs_var_E]).  The
+    counit sends the weighted prom-point to the weighted [one1]
+    ([coalg_e_setlike]), and the iterated [cone_one]-valued Pettis
+    integral reads off as the iterated Lebesgue integral
+    ([icone_integral_c1E] via [cone_one_int]). *)
+
+Section BayesLinearEvidence.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+(** The prior: a unit-ball measure on the reals. *)
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation eD_cbv' :=
+  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation eD' :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation tR' := (tR R_obj).
+Local Notation tF := (tfun tR' tR').
+Local Notation Lty t1 t2 :=
+  (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
+Local Notation rl_clo' :=
+  (rl_clo (R_carrier_eq:=R_carrier_eq) R_carrier_meas R_to_carrier_meas).
+
+Let Hone : cone_norm (one1 : cone_one_car Ar) <= 1.
+Proof. by rewrite one1_norm. Qed.
+
+(** *** The promoted closure is a setlike unit-ball point of [⟦tF⟧] *)
+
+Lemma rl_clo_prom_ball (m b : ar_carrier Ar R_obj) :
+  cone_norm ((rl_clo' m b)!) <= 1.
+Proof. exact: prom_ball (rl_clo_ball R_carrier_meas R_to_carrier_meas m b). Qed.
+
+Lemma rl_clo_prom_setlike (m b : ar_carrier Ar R_obj) :
+  Lfun (coalg_str (tyD_cbv tF)) ((rl_clo' m b)!) = ((rl_clo' m b)!)!.
+Proof.
+rewrite -[tyD_cbv tF]/(bang_cofree (Lty tR' tR')) bang_cofree_str.
+exact: (dig_prom _ (rl_clo_ball R_carrier_meas R_to_carrier_meas m b)).
+Qed.
+
+(** *** The observation tower: contexts, witnesses, environments
+
+    [obs_ctx n] is the context after [n] observations
+    ([("_", tunit)ⁿ ++ [("f", tF)]]); [obs_var n] the [nv_tail]-chain
+    locating ["f"]; [obs_env m b n] the environment after the scalar
+    score weights have been factored out: [n] copies of [one1] over
+    the base environment [one1 ⊗ (ℓ_{m,b})!]. *)
+
+Fixpoint obs_ctx (n : nat) : named_ctx Ar :=
+  if n is n'.+1 then ("_"%string, tunit) :: obs_ctx n'
+  else [:: ("f"%string, tF)].
+
+Fixpoint obs_var (n : nat) : named_var (obs_ctx n) tF :=
+  match n with
+  | 0 => nv_head "f"%string tF nil
+  | n'.+1 => nv_tail "_"%string tunit (obs_ctx n') (obs_var n')
+  end.
+
+Fixpoint obs_env (m b : ar_carrier Ar R_obj) (n : nat) :
+    coalg_obj (ctxD_cbv (drop_names (obs_ctx n))) :=
+  match n with
+  | 0 => (one1 : cone_one_car Ar) ⊗p (rl_clo' m b)!
+  | n'.+1 => obs_env m b n' ⊗p (one1 : cone_one_car Ar)
+  end.
+
+Lemma obs_env_ball (m b : ar_carrier Ar R_obj) n :
+  cone_norm (obs_env m b n) <= 1.
+Proof.
+elim: n => [ | n IH] /=.
+- exact: (ptensor_prom_ball Hone (rl_clo_prom_ball m b)).
+- exact: (ptensor_prom_ball IH Hone).
+Qed.
+
+Lemma obs_env_setlike (m b : ar_carrier Ar R_obj) n :
+  Lfun (coalg_str (ctxD_cbv (drop_names (obs_ctx n)))) (obs_env m b n) =
+  (obs_env m b n)!.
+Proof.
+elim: n => [ | n IH].
+- exact: (coalg_str_tensor_setlike (P:=EM_term) (Q:=tyD_cbv tF)
+            Hone (rl_clo_prom_ball m b) coalg_str_one1
+            (rl_clo_prom_setlike m b)).
+- exact: (coalg_str_tensor_setlike
+            (P:=ctxD_cbv (drop_names (obs_ctx n))) (Q:=EM_term)
+            (obs_env_ball m b n) Hone IH coalg_str_one1).
+Qed.
+
+(** The ["f"] lookup returns the promoted closure at EVERY depth: each
+    [("_", tunit)] slot holds [one1] (weight already factored out), so
+    [em_proj1_mor_unitE] peels it as a [precone_scale 1]. *)
+Lemma obs_var_E (m b : ar_carrier Ar R_obj) n :
+  Lfun (eD_cbv' (ne_var (obs_var n))) (obs_env m b n) = (rl_clo' m b)!.
+Proof.
+elim: n => [ | n IH].
+- apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R) EM_term (tyD_cbv tF))
+      ((one1 : cone_one_car Ar) ⊗p (rl_clo' m b)!))).
+    by [].
+  exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
+- apply: (eq_trans (y := Lfun (icones_comp
+      (ch_mor (var_lookup_cbv (named_var_to_has_var (obs_var n))))
+      (em_proj1_mor (R:=R) (ctxD_cbv (drop_names (obs_ctx n)))
+                    (EM_term : Coalgebra Ar)))
+      (obs_env m b n.+1))).
+    by [].
+  rewrite (Lfun_comp
+    (ch_mor (var_lookup_cbv (named_var_to_has_var (obs_var n))))
+    (em_proj1_mor (R:=R) (ctxD_cbv (drop_names (obs_ctx n)))
+                  (EM_term : Coalgebra Ar))
+    (obs_env m b n.+1)).
+  rewrite [obs_env m b n.+1]/=.
+  rewrite (em_proj1_mor_unitE
+    (P:=ctxD_cbv (drop_names (obs_ctx n))) (obs_env m b n) one1).
+  rewrite -[c1_val one1]/(1%:nng) precone_scale_1.
+  exact: IH.
+Qed.
+
+(** *** The per-observation scalar weights *)
+
+Definition obs_w (m b : ar_carrier Ar R_obj) (o : obs R) : R :=
+  obs_d o (cR m * obs_x o + cR b).
+
+Lemma obs_prod_ge0 (m b : ar_carrier Ar R_obj) (l : seq (obs R)) :
+  (0 <= \prod_(o <- l) obs_w m b o)%R.
+Proof. by apply: prodr_ge0 => o _; exact: obs_ge0. Qed.
+
+(** A [cone_one] element is its [c1]-scalar times [one1]. *)
+Lemma cone_one_scaleE (w : {nonneg R}) :
+  MkConeOne Ar w = precone_scale w (one1 : cone_one_car Ar).
+Proof. by apply: cone_one_eq; apply: val_inj; rewrite /= mulr1. Qed.
+
+(** One scored observation at depth [n] computes to the scalar
+    [obs_d o (m·x_o + b)]: the application clause at the setlike
+    environment, the model closure at the Dirac argument
+    ([rl_body_at]), and the score lift on the resulting Dirac. *)
+Lemma obs_score_E (m b : ar_carrier Ar R_obj) n (o : obs R) :
+  Lfun (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+       (obs_env m b n) =
+  MkConeOne Ar (NngNum (obs_ge0 o (cR m * obs_x o + cR b))).
+Proof.
+rewrite eD_score_E.
+rewrite (Lfun_comp
+  (score_lift (R_carrier_meas:=R_carrier_meas)
+     (obs_meas o) (obs_ge0 o) (obs_le1 o))
+  (eD_cbv' (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))
+  (obs_env m b n)).
+rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas
+  (ne_var (obs_var n)) (ne_real (obs_x o))
+  (obs_env_ball m b n) (obs_env_setlike m b n)).
+rewrite obs_var_E
+  (der_prom _ (rl_clo_ball R_carrier_meas R_to_carrier_meas m b)).
+rewrite eD_real_E /real_icones
+  (const_iconesE (obs_env_ball m b n) (obs_env_setlike m b n)).
+rewrite /rl_clo tensor_curryE.
+rewrite (rl_body_at R_carrier_meas R_to_carrier_meas m b
+           (R_to_carrier R_carrier_eq (obs_x o))).
+rewrite R_to_carrierK.
+by rewrite (score_lift_dirac (obs_meas o) (obs_ge0 o) (obs_le1 o)
+              (cR m * obs_x o + cR b)).
+Qed.
+
+(** *** The workhorse — the fold accumulates the product of densities
+
+    [⟦obs_fold v l⟧] at the depth-[n] environment is the promoted
+    closure weighted by [∏_{o ∈ l} obs_d o (m·x_o + b)].  Seq
+    induction; each step factors the score scalar out by [ptensorZr]
+    and the linearity of the remaining fold. *)
+Lemma obs_fold_at (m b : ar_carrier Ar R_obj) (l : seq (obs R)) :
+  forall n,
+  Lfun (eD_cbv' (obs_fold (obs_var n) l)) (obs_env m b n) =
+  precone_scale (NngNum (obs_prod_ge0 m b l)) ((rl_clo' m b)!).
+Proof.
+elim: l => [ | o l' IH] n.
+- rewrite [LHS]obs_var_E.
+  rewrite [NngNum _](_ : _ = 1%:nng) ?precone_scale_1//.
+  by apply: val_inj; rewrite /= big_nil.
+- have -> : obs_fold (obs_var n) (o :: l') =
+      ne_let "_"%string
+        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))
+        (obs_fold (obs_var n.+1) l').
+    by [].
+  rewrite eD_let_E.
+  rewrite (Lfun_comp (eD_cbv' (obs_fold (obs_var n.+1) l'))
+    (em_pair_mor
+       (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
+       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+    (obs_env m b n)).
+  rewrite /em_pair_mor.
+  rewrite (Lfun_comp
+    (tensor_mor
+       (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
+       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+    (coalg_d (ctxD_cbv (drop_names (obs_ctx n))))
+    (obs_env m b n)).
+  rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (obs_ctx n)))
+    (obs_env_ball m b n) (obs_env_setlike m b n)).
+  rewrite (tensor_morE
+    (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
+    (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+        (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+    (obs_env m b n) (obs_env m b n)).
+  rewrite icones_idE (obs_score_E m b n o).
+  rewrite (cone_one_scaleE (NngNum (obs_ge0 o (cR m * obs_x o + cR b)))).
+  rewrite ptensorZr.
+  rewrite (Lfun_scaleE (eD_cbv' (obs_fold (obs_var n.+1) l'))
+    (NngNum (obs_ge0 o (cR m * obs_x o + cR b)))
+    (obs_env m b n ⊗p (one1 : cone_one_car Ar))).
+  rewrite -[obs_env m b n ⊗p (one1 : cone_one_car Ar)]/(obs_env m b n.+1).
+  rewrite IH.
+  rewrite -precone_scale_A.
+  congr (precone_scale _ _).
+  by apply: val_inj; rewrite /= big_cons.
+Qed.
+
+(** *** Reading off [cone_one]-valued Pettis integrals *)
+
+Local Open Scope ereal_scope.
+
+Lemma icone_integral_c1E (X : ar_obj Ar)
+    (beta : ar_carrier Ar X -> cone_one_car Ar)
+    (Hbeta : is_measurable_path beta) (nu : fmeas R (ar_carrier Ar X)) :
+  ((c1_val (icone_integral beta Hbeta nu))%:num)%R =
+  fine (\int[fmeas_mu nu]_(r in [set: ar_carrier Ar X])
+          (((c1_val (beta r))%:num)%R)%:E).
+Proof.
+have <- : cone_one_int Hbeta nu = icone_integral beta Hbeta nu.
+  by apply: icone_integral_eqP; exact: cone_one_int_pettis.
+by [].
+Qed.
+
+(** *** The inner (b)-integral at a fixed slope Dirac *)
+
+Lemma obs_evidence_inner (l : seq (obs R)) (m : ar_carrier Ar R_obj) :
+  ((c1_val (Lfun (coalg_e (tyD_cbv tF))
+      (Lfun (eD_cbv' (obs_fold (obs_var 0) l))
+         ((one1 : cone_one_car Ar) ⊗p
+          Lfun (eD_cbv' (ex_rl_inner mu Hmu))
+            (one1 ⊗p dirac_fmeas m)))))%:num)%R =
+  fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+     ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E).
+Proof.
+have -> : Lfun (eD_cbv' (ex_rl_inner mu Hmu)) (one1 ⊗p dirac_fmeas m)
+        = icone_integral
+            (fun b => Lfun (eD_cbv' (ne_lam "x" (rl_body R_obj)))
+                        ((one1 ⊗p dirac_fmeas m) ⊗p dirac_fmeas b))
+            (let_sample_path R_carrier_meas R_to_carrier_meas
+               (ne_lam "x" (rl_body R_obj)) (one1 ⊗p dirac_fmeas m)) mu.
+  exact: (eD_let_sample_int R_carrier_meas R_to_carrier_meas Hmu
+            (ne_lam "x" (rl_body R_obj)) (one1 ⊗p dirac_fmeas m)).
+rewrite (ptensor_icone_integral (one1 : cone_one_car Ar)
+  (let_sample_path R_carrier_meas R_to_carrier_meas
+     (ne_lam "x" (rl_body R_obj)) (one1 ⊗p dirac_fmeas m)) mu).
+rewrite (icones_hom_pres_int (eD_cbv' (obs_fold (obs_var 0) l)) R_obj _
+  (ptensor_path (one1 : cone_one_car Ar)
+     (let_sample_path R_carrier_meas R_to_carrier_meas
+        (ne_lam "x" (rl_body R_obj)) (one1 ⊗p dirac_fmeas m))) mu).
+rewrite (icones_hom_pres_int (coalg_e (tyD_cbv tF)) R_obj _
+  (mcones_hom_pres_path
+     (icones_hom_mcones (eD_cbv' (obs_fold (obs_var 0) l))) R_obj _
+     (ptensor_path (one1 : cone_one_car Ar)
+        (let_sample_path R_carrier_meas R_to_carrier_meas
+           (ne_lam "x" (rl_body R_obj)) (one1 ⊗p dirac_fmeas m)))) mu).
+rewrite icone_integral_c1E.
+congr fine; apply: eq_integral => b _; congr ((_)%:E).
+rewrite (rl_lam_at R_carrier_meas R_to_carrier_meas m b).
+rewrite -[(one1 : cone_one_car Ar) ⊗p (rl_clo' m b)!]/(obs_env m b 0).
+rewrite (obs_fold_at m b l 0).
+rewrite (Lfun_scaleE (coalg_e (tyD_cbv tF))
+  (NngNum (obs_prod_ge0 m b l)) ((rl_clo' m b)!)).
+rewrite (coalg_e_setlike (P:=tyD_cbv tF) (rl_clo_prom_ball m b)
+  (rl_clo_prom_setlike m b)).
+rewrite -(cone_one_scaleE (NngNum (obs_prod_ge0 m b l))).
+by [].
+Qed.
+
+(** *** THE HEADLINE — the model evidence
+
+    The counit ("total mass") of the denotation of [ex_bayes_linear l]
+    is the model evidence: the iterated integral of the product of the
+    observation densities at the model's values, over the priors on
+    slope and intercept.  GENERAL [l]. *)
+Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
+  ((c1_val (Lfun (coalg_e (tyD_cbv tF))
+      (linhom_fun
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu l)
+         one1)))%:num)%R =
+  fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
+     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+        ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E))%:E).
+Proof.
+rewrite /ex_bayes_linear_cbv.
+rewrite -[linhom_fun (eD' (ex_bayes_linear mu Hmu l)) one1]
+        /(Lfun (eD_cbv' (ex_bayes_linear mu Hmu l)) one1).
+have -> : ex_bayes_linear mu Hmu l =
+    ne_let "f"%string (ex_random_linear mu Hmu) (obs_fold (obs_var 0) l).
+  by [].
+rewrite eD_let_E.
+rewrite (Lfun_comp (eD_cbv' (obs_fold (obs_var 0) l))
+  (em_pair_mor
+     (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))))
+     (eD_cbv' (ex_random_linear mu Hmu)))
+  one1).
+rewrite /em_pair_mor.
+rewrite (Lfun_comp
+  (tensor_mor
+     (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))))
+     (eD_cbv' (ex_random_linear mu Hmu)))
+  (coalg_d (ctxD_cbv (drop_names (nil : named_ctx Ar))))
+  one1).
+rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (nil : named_ctx Ar)))
+  Hone coalg_str_one1).
+rewrite (tensor_morE
+  (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))))
+  (eD_cbv' (ex_random_linear mu Hmu)) one1 one1).
+rewrite icones_idE.
+have -> : Lfun (eD_cbv' (ex_random_linear mu Hmu)) one1
+        = icone_integral
+            (fun m0 => Lfun (eD_cbv' (ex_rl_inner mu Hmu))
+                         (one1 ⊗p dirac_fmeas m0))
+            (let_sample_path R_carrier_meas R_to_carrier_meas
+               (ex_rl_inner mu Hmu) one1) mu.
+  exact: (eD_let_sample_int R_carrier_meas R_to_carrier_meas Hmu
+            (ex_rl_inner mu Hmu) one1).
+rewrite (ptensor_icone_integral (one1 : cone_one_car Ar)
+  (let_sample_path R_carrier_meas R_to_carrier_meas
+     (ex_rl_inner mu Hmu) one1) mu).
+rewrite (icones_hom_pres_int (eD_cbv' (obs_fold (obs_var 0) l)) R_obj _
+  (ptensor_path (one1 : cone_one_car Ar)
+     (let_sample_path R_carrier_meas R_to_carrier_meas
+        (ex_rl_inner mu Hmu) one1)) mu).
+rewrite (icones_hom_pres_int (coalg_e (tyD_cbv tF)) R_obj _
+  (mcones_hom_pres_path
+     (icones_hom_mcones (eD_cbv' (obs_fold (obs_var 0) l))) R_obj _
+     (ptensor_path (one1 : cone_one_car Ar)
+        (let_sample_path R_carrier_meas R_to_carrier_meas
+           (ex_rl_inner mu Hmu) one1))) mu).
+rewrite icone_integral_c1E.
+congr fine; apply: eq_integral => m0 _; congr ((_)%:E).
+exact: (obs_evidence_inner l m0).
+Qed.
+
+(** Two-observation corollary, product written literally. *)
+Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
+  ((c1_val (Lfun (coalg_e (tyD_cbv tF))
+      (linhom_fun
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu
+            [:: o1; o2])
+         one1)))%:num)%R =
+  fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
+     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+        ((obs_d o1 (cR m * obs_x o1 + cR b) *
+          obs_d o2 (cR m * obs_x o2 + cR b))%R)%:E))%:E).
+Proof.
+rewrite (ex_bayes_linear_cbv_evidence [:: o1; o2]).
+congr fine; apply: eq_integral => m _; congr ((fine _)%:E).
+apply: eq_integral => b _; congr ((_)%:E).
+by rewrite !big_cons big_nil mulr1.
+Qed.
+
+End BayesLinearEvidence.

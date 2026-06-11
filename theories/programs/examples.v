@@ -200,6 +200,113 @@ End ScorePosterior.
 Arguments ex_sp_cont {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
 Arguments ex_score_posterior {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
 
+(** ** Example — [ex_bayes_linear] — higher-order Bayesian linear regression
+
+    THE paper-faithful Bayesian linear-regression example (the shape of
+    Staton–Yang–Heunen–Kammar–Wood, arXiv 1701.02547 §2.1): the program
+    samples a FUNCTION — the random affine map [λx. m*x + b] of
+    Example 2 ([ex_random_linear]; slope [m] and intercept [b] both
+    drawn from the prior [µ]) — binds it to the name ["f"], then scores
+    a SERIES of observations: for each observation [o] in the
+    meta-level list [l], the model's value [f(obs_x o)] at the known
+    input point [obs_x o] is scored by the observation density
+    [obs_d o].  The program RETURNS ["f"]: the denotation is the
+    unnormalised posterior over FUNCTIONS.
+    [[
+       let "f" := (let "m" := Sample µ in
+                   let "b" := Sample µ in
+                   \ "x" ::: tR => # "m" * # "x" + # "b") in
+       let "_" := Score { d₁ } (# "f" @ [| x₁ |]) in
+       …
+       let "_" := Score { dₙ } (# "f" @ [| xₙ |]) in
+       # "f"
+    ]]
+    The observation fold [obs_fold] is a Rocq [Fixpoint] producing raw
+    constructors (the [ppl_named] custom entry cannot recurse over a
+    meta-level [seq]); the context grows by one [("_", tunit)] slot per
+    observation and the [named_var] witness [v] locating ["f"] is
+    extended by [nv_tail] in lock-step.  The 2-observation sanity
+    [Check] below confirms the fold agrees definitionally with the
+    surface-syntax sugar. *)
+
+Section Obs.
+Variable (R : realType).
+
+(** One observation = a known input point [obs_x] plus a meta-level
+    density on the model's value at that point: [obs_d r ∈ [0,1]]
+    scores how well the value [r] fits the observed output (e.g. a
+    normal pdf around the measured output, scaled into [[0,1]]).  The
+    witness layout mirrors [ne_score]'s one-for-one. *)
+Record obs := MkObs {
+  obs_x : R;                       (* the input point *)
+  obs_d : R -> R;                  (* the observation density *)
+  obs_meas : measurable_fun [set: R] obs_d;
+  obs_ge0 : forall r : R, (0 <= obs_d r)%R;
+  obs_le1 : forall r : R, (obs_d r <= 1)%R }.
+
+End Obs.
+
+Section BayesLinear.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The observation fold: for each [o] in [l], score the model's value
+    at [obs_x o]; when the list is exhausted, return the model.
+    Parameterised by the [named_var] witness [v] locating
+    ["f" : tfun tR' tR'] in the current context [G]; each [ne_let "_"]
+    step extends [G] by a [tunit] slot and [v] by [nv_tail] (the final
+    [#"f"] lookup skips the [tunit] slots by name). *)
+Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
+    (l : seq (obs R)) : named_expr G (tfun tR' tR') :=
+  match l with
+  | nil => ne_var v
+  | o :: l' =>
+      ne_let "_"%string
+        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var v) (ne_real (obs_x o))))
+        (obs_fold (nv_tail "_"%string tunit _ v) l')
+  end.
+
+(** The full program.  The model is EXACTLY Example 2's
+    [ex_random_linear] (the sampled affine function); ["f"] is bound at
+    the head of the context, witness [nv_head]. *)
+Definition ex_bayes_linear (l : seq (obs R)) :
+    @named_expr R Ar R_obj nil (tfun tR' tR') :=
+  ne_let "f"%string (ex_random_linear mu Hmu)
+    (obs_fold (nv_head "f"%string (tfun tR' tR') nil) l).
+
+Variables (o1 o2 o3 : obs R).
+
+(** Surface-syntax sanity: on a concrete 2-observation list the fold
+    agrees DEFINITIONALLY with the [ppl_named] sugar — the [#"f"]
+    lookups resolve through the [("_", tunit)] slots by
+    canonical-structure search, building exactly the [nv_tail] chain
+    that [obs_fold] constructs. *)
+Check (erefl : ex_bayes_linear [:: o1; o2] =
+  [ let "f" := (let "m" := Sample (mu , Hmu) in
+                let "b" := Sample (mu , Hmu) in
+                \ "x" ::: tR' => # "m" * # "x" + # "b") in
+    let "_" := Score { obs_d o1 , obs_meas o1 , obs_ge0 o1 , obs_le1 o1 }
+                 # "f" @ [| obs_x o1 |] in
+    let "_" := Score { obs_d o2 , obs_meas o2 , obs_ge0 o2 , obs_le1 o2 }
+                 # "f" @ [| obs_x o2 |] in
+    # "f" ]).
+
+(** The concrete 3-observation instance (for the docs to quote). *)
+Definition ex_bayes_linear3 : @named_expr R Ar R_obj nil (tfun tR' tR') :=
+  ex_bayes_linear [:: o1; o2; o3].
+
+End BayesLinear.
+
+Arguments obs_fold {R Ar R_obj G} v l.
+Arguments ex_bayes_linear {R Ar R_obj} mu Hmu l.
+Arguments ex_bayes_linear3 {R Ar R_obj} mu Hmu o1 o2 o3.
+
 (** ** Example 4 — [ex_loop] — bare divergence *)
 
 Section ExLoopDemo.
@@ -518,6 +625,18 @@ Definition ex_score_posterior_cbv
     (Hf_ge0 : forall r : R, (0 <= f r)%R)
     (Hf_le1 : forall r : R, (f r <= 1)%R) :=
   eDv (ex_score_posterior mu Hmu f Hf_meas Hf_ge0 Hf_le1).
+
+(** The Bayesian-linear-regression elaboration smoke test.  The shared
+    ["f"] is consulted once per observation AND returned at the end:
+    every access goes through the comonoid duplication [coalg_d] of the
+    let-clause diagonal AT THE FUNCTION-TYPE CONE [!(U⟦tR⟧ ⊸ U⟦tR⟧)]
+    (a [bang_cofree] coalgebra) — duplicating a sampled FUNCTION value
+    is exactly what the [!]-comonoid machinery is for. *)
+Definition ex_bayes_linear_cbv
+    (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : (cone_norm mu <= 1)%R)
+    (l : seq (obs R)) :=
+  eDv (ex_bayes_linear mu Hmu l).
 
 Definition ex_loop_cbv := eDv (ex_loop : @named_expr R Ar R_obj nil tunit).
 
