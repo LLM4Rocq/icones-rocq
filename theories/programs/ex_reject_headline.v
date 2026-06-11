@@ -815,7 +815,7 @@ have -> : (bool_case
     (dirac_fmeas r) (reject_iter n) : fmeas R (ar_carrier Ar R_obj)) =
   fmeas_add
     (fmeas_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r))
-    (fmeas_scale (NngNum (onem_ge0 (f (cR r)) (Hf_le1 (cR r))))
+    (fmeas_scale (NngNum (subr_ge0_le1 (f (cR r)) (Hf_le1 (cR r))))
        (reject_iter n)).
   by [].
 rewrite fmeas_addE 2!fmeas_scaleE (dirac_fmeas_E r mU) diracE/=.
@@ -1630,7 +1630,7 @@ have -> : (bool_case (bernoulli (Ar:=Ar) (1 / 2 : R) (bernoulli_half_ge0 R)
   fmeas_add
     (fmeas_scale (NngNum (bernoulli_half_ge0 R))
        (dirac_fmeas (R_to_carrier R_carrier_eq 0%R)))
-    (fmeas_scale (NngNum (onem_ge0 (1 / 2 : R) (bernoulli_half_le1 R)))
+    (fmeas_scale (NngNum (subr_ge0_le1 (1 / 2 : R) (bernoulli_half_le1 R)))
        (Lfun (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas
                 R_to_carrier_meas)
           (dirac_fmeas (R_to_carrier R_carrier_eq 1%R) ⊗p g_iter n))).

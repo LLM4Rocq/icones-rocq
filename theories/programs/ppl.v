@@ -577,34 +577,40 @@ Definition mul_fun (p : ar_carrier Ar (ar_prod Ar R_obj R_obj)) :
     (carrier_to_R R_carrier_eq (ar_prod_uncast p).1 *
      carrier_to_R R_carrier_eq (ar_prod_uncast p).2).
 
+(** Shared measurability kit for [add_fun_meas] / [mul_fun_meas]: the
+    two projections of [ar_prod_uncast], read back in [R] through
+    [carrier_to_R]. *)
+Local Lemma uncast_fst_R_meas :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => carrier_to_R R_carrier_eq
+                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
+Proof.
+have meas_unc : measurable_fun [set: _]
+    (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj))
+  by exact: (ar_prod_uncast_meas Ar R_obj R_obj).
+apply: (measurableT_comp carrier_to_R_meas).
+exact: (measurableT_comp measurable_fst meas_unc).
+Qed.
+
+Local Lemma uncast_snd_R_meas :
+  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
+    (fun p => carrier_to_R R_carrier_eq
+                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
+Proof.
+have meas_unc : measurable_fun [set: _]
+    (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj))
+  by exact: (ar_prod_uncast_meas Ar R_obj R_obj).
+apply: (measurableT_comp carrier_to_R_meas).
+exact: (measurableT_comp measurable_snd meas_unc).
+Qed.
+
 (** [add_fun] is measurable. *)
 Lemma add_fun_meas : measurable_fun [set: _] add_fun.
 Proof.
 rewrite /add_fun.
 apply: (measurableT_comp (f := R_to_carrier R_carrier_eq));
   first exact: R_to_carrier_meas.
-have meas_unc : measurable_fun [set: _]
-    (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj))
-  by exact: (ar_prod_uncast_meas Ar R_obj R_obj).
-have meas_fst :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
-    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
-  exact: (measurableT_comp measurable_fst meas_unc).
-have meas_snd :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
-    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
-  exact: (measurableT_comp measurable_snd meas_unc).
-have meas_fst_R :
-  measurable_fun [set: _]
-    (fun p => carrier_to_R R_carrier_eq
-                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
-  exact: (measurableT_comp carrier_to_R_meas meas_fst).
-have meas_snd_R :
-  measurable_fun [set: _]
-    (fun p => carrier_to_R R_carrier_eq
-                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
-  exact: (measurableT_comp carrier_to_R_meas meas_snd).
-exact: measurable_funD.
+exact: (measurable_funD uncast_fst_R_meas uncast_snd_R_meas).
 Qed.
 
 Lemma mul_fun_meas : measurable_fun [set: _] mul_fun.
@@ -612,28 +618,7 @@ Proof.
 rewrite /mul_fun.
 apply: (measurableT_comp (f := R_to_carrier R_carrier_eq));
   first exact: R_to_carrier_meas.
-have meas_unc : measurable_fun [set: _]
-    (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj))
-  by exact: (ar_prod_uncast_meas Ar R_obj R_obj).
-have meas_fst :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
-    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
-  exact: (measurableT_comp measurable_fst meas_unc).
-have meas_snd :
-  measurable_fun [set: ar_carrier Ar (ar_prod Ar R_obj R_obj)]
-    (fun p => (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
-  exact: (measurableT_comp measurable_snd meas_unc).
-have meas_fst_R :
-  measurable_fun [set: _]
-    (fun p => carrier_to_R R_carrier_eq
-                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).1).
-  exact: (measurableT_comp carrier_to_R_meas meas_fst).
-have meas_snd_R :
-  measurable_fun [set: _]
-    (fun p => carrier_to_R R_carrier_eq
-                (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) p).2).
-  exact: (measurableT_comp carrier_to_R_meas meas_snd).
-exact: measurable_funM.
+exact: (measurable_funM uncast_fst_R_meas uncast_snd_R_meas).
 Qed.
 
 HB.instance Definition _ :=
@@ -645,7 +630,8 @@ HB.instance Definition _ :=
 Definition add_meas : ar_hom Ar (ar_prod Ar R_obj R_obj) R_obj := add_fun.
 Definition mul_meas : ar_hom Ar (ar_prod Ar R_obj R_obj) R_obj := mul_fun.
 
-(** Computation: [add_meas (ar_prod_cast (a, b)) = R_to_carrier (cR a + cR b)]. *)
+(** Computation:
+    [add_meas (ar_prod_cast (a, b)) = R_to_carrier (cR a + cR b)]. *)
 Lemma add_meas_cast (a b : ar_carrier Ar R_obj) :
   add_meas (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (a, b)) =
   R_to_carrier R_carrier_eq
@@ -694,7 +680,8 @@ rewrite -[LHS]/(Lfun (FMeas_fmap add_meas)
     (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
        (dirac_fmeas (R_to_carrier R_carrier_eq a))
        (dirac_fmeas (R_to_carrier R_carrier_eq b))))).
-rewrite (fmeas_lax_dirac (R_to_carrier R_carrier_eq a) (R_to_carrier R_carrier_eq b)).
+rewrite (fmeas_lax_dirac (R_to_carrier R_carrier_eq a)
+           (R_to_carrier R_carrier_eq b)).
 rewrite (FMeas_fmap_dirac add_meas
   (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)
                 (R_to_carrier R_carrier_eq a, R_to_carrier R_carrier_eq b))).
@@ -714,7 +701,8 @@ rewrite -[LHS]/(Lfun (FMeas_fmap mul_meas)
     (ptensor (B := FMeas R_obj) (C := FMeas R_obj)
        (dirac_fmeas (R_to_carrier R_carrier_eq a))
        (dirac_fmeas (R_to_carrier R_carrier_eq b))))).
-rewrite (fmeas_lax_dirac (R_to_carrier R_carrier_eq a) (R_to_carrier R_carrier_eq b)).
+rewrite (fmeas_lax_dirac (R_to_carrier R_carrier_eq a)
+           (R_to_carrier R_carrier_eq b)).
 rewrite (FMeas_fmap_dirac mul_meas
   (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)
                 (R_to_carrier R_carrier_eq a, R_to_carrier R_carrier_eq b))).
@@ -737,81 +725,45 @@ Qed.
     the recursive tail [1 + g()] contributes zero mass when [g] is
     bound to a diverging value [g() = 0], via bilinear [add_lift]. *)
 
+(** Shared core: an [icones_hom] out of the tensor (here [add_lift] /
+    [mul_lift]) kills an argument equal to the cone zero — its
+    [cones_hom] underlay is linear; the four headline lemmas reduce
+    the pure tensor to [precone_zero] via [ptensor_0r]/[ptensor_0l]. *)
+Local Lemma lift_zero_core
+    (h : icones_hom Ar (tensor Ar (FMeas R_obj) (FMeas R_obj))
+           (FMeas R_obj))
+    (z : tensor Ar (FMeas R_obj) (FMeas R_obj)) :
+  z = precone_zero -> Lfun h z = precone_zero.
+Proof.
+move=> ->.
+have [Hzero _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones h)).
+exact: Hzero.
+Qed.
+
 Lemma add_lift_zero_R (x : FMeas R_obj) :
   Lfun add_lift
     (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero) =
   precone_zero.
-Proof.
-rewrite /add_lift.
-rewrite -[LHS]/(Lfun (FMeas_fmap add_meas)
-  (Lfun (fmeas_lax R_obj R_obj)
-    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero))).
-have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero
-        = precone_zero by exact: ptensor_0r.
-have [Hfl0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
-rewrite Hfl0.
-have [Hfm0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap add_meas))).
-exact: Hfm0.
-Qed.
+Proof. by apply: lift_zero_core; exact: ptensor_0r. Qed.
 
 Lemma add_lift_zero_L (y : FMeas R_obj) :
   Lfun add_lift
     (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y) =
   precone_zero.
-Proof.
-rewrite /add_lift.
-rewrite -[LHS]/(Lfun (FMeas_fmap add_meas)
-  (Lfun (fmeas_lax R_obj R_obj)
-    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y))).
-have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y
-        = precone_zero by exact: ptensor_0l.
-have [Hfl0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
-rewrite Hfl0.
-have [Hfm0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap add_meas))).
-exact: Hfm0.
-Qed.
+Proof. by apply: lift_zero_core; exact: ptensor_0l. Qed.
 
 Lemma mul_lift_zero_R (x : FMeas R_obj) :
   Lfun mul_lift
     (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero) =
   precone_zero.
-Proof.
-rewrite /mul_lift.
-rewrite -[LHS]/(Lfun (FMeas_fmap mul_meas)
-  (Lfun (fmeas_lax R_obj R_obj)
-    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero))).
-have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) x precone_zero
-        = precone_zero by exact: ptensor_0r.
-have [Hfl0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
-rewrite Hfl0.
-have [Hfm0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap mul_meas))).
-exact: Hfm0.
-Qed.
+Proof. by apply: lift_zero_core; exact: ptensor_0r. Qed.
 
 Lemma mul_lift_zero_L (y : FMeas R_obj) :
   Lfun mul_lift
     (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y) =
   precone_zero.
-Proof.
-rewrite /mul_lift.
-rewrite -[LHS]/(Lfun (FMeas_fmap mul_meas)
-  (Lfun (fmeas_lax R_obj R_obj)
-    (ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y))).
-have -> : ptensor (B := FMeas R_obj) (C := FMeas R_obj) precone_zero y
-        = precone_zero by exact: ptensor_0l.
-have [Hfl0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (fmeas_lax R_obj R_obj))).
-rewrite Hfl0.
-have [Hfm0 _ _] := cones_hom_linear
-  (mcones_hom_cones (icones_hom_mcones (FMeas_fmap mul_meas))).
-exact: Hfm0.
-Qed.
+Proof. by apply: lift_zero_core; exact: ptensor_0l. Qed.
 
 Local Open Scope ereal_scope.
 
@@ -950,13 +902,20 @@ Arguments add_meas {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments mul_meas {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments add_lift {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
 Arguments mul_lift {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas}.
-Arguments add_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
-Arguments mul_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
-Arguments add_lift_zero_R {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
-Arguments add_lift_zero_L {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
-Arguments mul_lift_zero_R {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
-Arguments mul_lift_zero_L {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
-Arguments add_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a m.
+Arguments add_lift_dirac
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
+Arguments mul_lift_dirac
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a b.
+Arguments add_lift_zero_R
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
+Arguments add_lift_zero_L
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
+Arguments mul_lift_zero_R
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x.
+Arguments mul_lift_zero_L
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} y.
+Arguments add_lift_mass
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a m.
 
 
 Section ScoreTmLift.
@@ -1114,7 +1073,7 @@ End NormHelpers.
 Arguments precone_zero_norm_le1 {R Ar} P.
 Arguments dirac_fmeas_norm_le1 {R Ar X} r.
 
-Section BoolKleisliHelpers.
+Section BoolConstHelpers.
 Variables (R : realType) (Ar : MeasSubcat R).
 
 (** Norm bound for [bool_dirac_true]: norm exactly [1]. *)
@@ -1128,15 +1087,15 @@ Lemma bool_dirac_false_norm_le1 :
 Proof. by rewrite bool_dirac_false_norm. Qed.
 
 (** [1 - p ≥ 0] from [p ≤ 1] via [subr_ge0]. *)
-Lemma onem_ge0 (p : R) (Hp_le1 : (p <= 1)%R) : (0 <= 1 - p)%R.
+Lemma subr_ge0_le1 (p : R) (Hp_le1 : (p <= 1)%R) : (0 <= 1 - p)%R.
 Proof. by rewrite subr_ge0. Qed.
 
 (** The Bernoulli element [(p, 1-p)] as a [bool_cone_car Ar],
     parameterised by [Hp_ge0 : 0 ≤ p] and [Hp_le1 : p ≤ 1] (the latter
-    witnesses [0 ≤ 1-p] via [onem_ge0]). *)
+    witnesses [0 ≤ 1-p] via [subr_ge0_le1]). *)
 Definition bernoulli (p : R) (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R)
     : bool_cone_car Ar :=
-  MkBoolCone Ar (NngNum Hp_ge0) (NngNum (onem_ge0 Hp_le1)).
+  MkBoolCone Ar (NngNum Hp_ge0) (NngNum (subr_ge0_le1 Hp_le1)).
 
 (** Norm-1 fact for [bernoulli]: total mass is [p + (1-p) = 1]. *)
 Lemma bernoulli_norm (p : R) (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
@@ -1151,11 +1110,11 @@ Lemma bernoulli_norm_le1 (p : R) (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
   (cone_norm (bernoulli Hp_ge0 Hp_le1) <= 1)%R.
 Proof. by rewrite bernoulli_norm. Qed.
 
-End BoolKleisliHelpers.
+End BoolConstHelpers.
 
 Arguments bool_dirac_true_norm_le1 {R Ar}.
 Arguments bool_dirac_false_norm_le1 {R Ar}.
-Arguments onem_ge0 {R} p Hp_le1.
+Arguments subr_ge0_le1 {R} p Hp_le1.
 Arguments bernoulli {R Ar} p Hp_ge0 Hp_le1.
 Arguments bernoulli_norm {R Ar} p Hp_ge0 Hp_le1.
 Arguments bernoulli_norm_le1 {R Ar} p Hp_ge0 Hp_le1.

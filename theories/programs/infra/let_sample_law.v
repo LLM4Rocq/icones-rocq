@@ -98,6 +98,7 @@ Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
+Require Import Icones.programs.infra.em_fix_value.
 Require Import Icones.programs.ppl_cbv.
 
 Set Implicit Arguments.
@@ -137,10 +138,8 @@ Lemma icones_compE (B C D : ICone.type Ar)
   Lfun (icones_comp g f) x = Lfun g (Lfun f x).
 Proof. by []. Qed.
 
-(** Pointwise identity in [ICones]. *)
-Lemma icones_idE (B : ICone.type Ar) (x : B) :
-  Lfun (icones_id Ar B) x = x.
-Proof. by []. Qed.
+(** Pointwise identity in [ICones]: [icones_idE] — the single public
+    copy lives in [em_fix_value.v] (imported above). *)
 
 (** Integrand extensionality: two pointwise-equal measurable paths have
     the same Pettis integral (the measurability witnesses need not
@@ -218,7 +217,6 @@ Qed.
 End IConesPointwise.
 
 Arguments icones_compE {R Ar B C D} g f x.
-Arguments icones_idE {R Ar B} x.
 Arguments icone_integral_ext {R Ar B X β1 β2} Hβ1 Hβ2 µ.
 Arguments icone_integral_dirac_fmeas {R Ar X} µ.
 Arguments ptensor_path {R Ar B C} γ {X β} Hβ.

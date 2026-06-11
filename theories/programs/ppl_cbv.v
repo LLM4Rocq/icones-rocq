@@ -117,9 +117,9 @@ Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
 
-Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
+Local Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
        ptensor tau Seely2.
-Opaque dig der prom bang_fmap d_bang e_bang unit_cofree_str Coalg
+Local Opaque dig der prom bang_fmap d_bang e_bang unit_cofree_str Coalg
        tens_cofree_str m_bang.
 
 Local Open Scope classical_set_scope.
@@ -286,10 +286,10 @@ Let m_lh : linhom_car Ar (coalg_obj G) (coalg_obj A) :=
 Let n_lh : linhom_car Ar (coalg_obj G) (coalg_obj A) :=
   icones_to_linhom n.
 
-Lemma if_m_lh_norm : (cone_norm m_lh <= 1)%R.
+Local Lemma if_m_lh_norm : (cone_norm m_lh <= 1)%R.
 Proof. exact: icones_to_linhom_norm_le1. Qed.
 
-Lemma if_n_lh_norm : (cone_norm n_lh <= 1)%R.
+Local Lemma if_n_lh_norm : (cone_norm n_lh <= 1)%R.
 Proof. exact: icones_to_linhom_norm_le1. Qed.
 
 (** Step 2: [bool_case_linhom] at the linhom-cone level. *)
@@ -297,7 +297,7 @@ Let if_lh : linhom_car Ar (bool_cone_car Ar)
     (linhom_car Ar (coalg_obj G) (coalg_obj A)) :=
   bool_case_linhom m_lh n_lh if_m_lh_norm if_n_lh_norm.
 
-Lemma if_lh_norm : (cone_norm if_lh <= 1)%R.
+Local Lemma if_lh_norm : (cone_norm if_lh <= 1)%R.
 Proof. exact: bool_case_linhom_norm_le1. Qed.
 
 (** Step 3: bridge to an [icones_hom]. *)

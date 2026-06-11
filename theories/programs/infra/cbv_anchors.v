@@ -489,7 +489,7 @@ Lemma let_bernoulli_pair_diag_scale (p : R)
   precone_add
     (precone_scale (NngNum Hp0)
        (bool_dirac_true ⊗p bool_dirac_true))
-    (precone_scale (NngNum (onem_ge0 p Hp1))
+    (precone_scale (NngNum (subr_ge0_le1 p Hp1))
        (bool_dirac_false ⊗p bool_dirac_false)).
 Proof. by rewrite let_bernoulli_pair_diag. Qed.
 

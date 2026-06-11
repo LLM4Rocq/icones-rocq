@@ -227,11 +227,13 @@ Qed.
 Definition bool_cone_coalg : Coalgebra Ar :=
   MkCoalgebra bool_coalg_counit bool_coalg_coassoc.
 
-(** Sanity: its underlying carrier is [bool_cone_car Ar]. *)
+(** Sanity: its underlying carrier is [bool_cone_car Ar].
+    Regression sanity; intentionally unused. *)
 Lemma bool_cone_coalg_obj : coalg_obj bool_cone_coalg = T.
 Proof. by []. Qed.
 
-(** Sanity: its structure map is [bool_coalg_str]. *)
+(** Sanity: its structure map is [bool_coalg_str].
+    Regression sanity; intentionally unused. *)
 Lemma bool_cone_coalg_str_E : coalg_str bool_cone_coalg = bool_coalg_str.
 Proof. by []. Qed.
 
