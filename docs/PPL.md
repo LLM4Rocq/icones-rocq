@@ -1372,7 +1372,10 @@ break in a named lemma instead of compiling quietly.
 
 The sections of this chapter: the let-at-sample Pettis integral law
 (the bridge from `let x = sample µ in K` to an integral over Diracs
-of the prior); the scalar affine-cascade closed form with the
+of the prior), together with its generalisation to an *arbitrary*
+bound computation (`eD_let_int` — the law the rejection-sampling
+combinator consumes with `M = m @ a`); the scalar affine-cascade
+closed form with the
 sup-mass bridge (the bridge from per-iterate mass recurrences to
 fixpoint masses); the setlike-point kit; the shared-sample diagonal
 anchors with their independence contrast; the β-rule and
@@ -1388,6 +1391,7 @@ regression, proved with this chapter's machinery in
 | The let-at-sample Pettis integral law (arbitrary `γ`) | `eD_let_sample_int`, `ptensor_icone_integral`, `icone_integral_dirac_fmeas` — same file |
 | Per-`U` evaluation of an `FMeas`-valued Pettis integral | `icone_integral_fmeas_E` — same file |
 | The fused measure-on-`U` form at result type `tR` | `eD_let_sample_mu_E`, sanity `let_sample_var_E` — same file |
+| The GENERAL let-law — arbitrary bound computation `M : tR`, setlike `γ`: `⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)` | `eD_let_collapse_setlike`, `eD_let_int`, `eD_let_mu_E` — same file |
 | Affine Kleene cascade: closed form, geometric form, limit | `affine_iter_closed`, `affine_iter_geom`, `affine_iter_cvg`, `affine_iter_deg_eq0` — `theories/programs/infra/affine_cascade.v` |
 | The sup-mass bridge for unit-ball ω-chains in `FMeas` | `fmeas_kleene_sup_U_cvg`, `fmeas_kleene_sup_U_E` — same file |
 | The setlike-point kit (Eq-88 comonoid at sub-Dirac points) | `coalg_d_setlike`, `coalg_e_setlike`, `coalg_str_one1`, `coalg_str_tensor_setlike`, `em_pair_mor_constE` — `theories/programs/infra/cbv_anchors.v` |
@@ -1403,7 +1407,7 @@ regression, proved with this chapter's machinery in
 | The Bayesian-linear-regression model evidence (general observation list) | `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`, `obs_fold_at` — same file |
 | Marginal kit: the `FMeas` counit on probabilities; projections at non-setlike points | `coalg_e_FMeas_prob`, `em_proj1_mor_unitE`, `em_proj1_mor_probE`, `Lfun_scaleE`, `one_dirac_ball`, `one_dirac_setlike` — same file |
 
-### The let-at-sample integral law (`eD_let_sample_int`, `eD_let_sample_mu_E`)
+### The let-at-sample integral law (`eD_let_sample_int`, `eD_let_sample_mu_E`, `eD_let_int`)
 
 The law ties the CBV interpretation of `let x = sample µ in K` to
 the Pettis integral of `K`'s denotation over the Diracs of `µ`:
@@ -1461,6 +1465,37 @@ Lemma eD_let_sample_mu_E (γ : Gamo) (U : set (ar_carrier Ar R_obj))
 
 (** Sanity DoD — [⟦let x = sample µ in x⟧(1) = µ]. *)
 Lemma let_sample_var_E : linhom_fun (eD' ex_let_sample_var) one1 = mu.
+```
+
+**The general let-law.** The sample case is the special case
+`M = sample µ` of the general CBV sequencing law for an *arbitrary*
+bound computation `M : tR`:
+
+```
+⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)
+```
+
+— the bound *sub-distribution* `⟦M⟧γ` replaces the constant prior.
+Unlike the sample case, the step-1 collapse now genuinely consumes
+the comonoid copy of the context (`em_pair_mor id ⟦M⟧` feeds `γ` to
+*both* legs), so the law holds at setlike unit-ball context points
+(`eD_let_collapse_setlike`) — which is harmless: in every consumer
+the let sits under binders whose environments are setlike by
+construction. Steps 2–4 are reused verbatim — none of them mention
+the bound measure. The fused measure-on-`U` form `eD_let_mu_E` is the
+exact shape the rejection-sampling *combinator* mass recurrence
+consumes (`theories/programs/ex_reject_model.v`, with `M = m @ a` the
+model applied to the input).
+
+```coq
+(* theories/programs/infra/let_sample_law.v *)
+Lemma eD_let_int (γ : Gamo) :
+  cone_norm γ <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) γ = prom γ ->
+  linhom_fun (eD' (ne_let x M K)) γ =
+  icone_integral (fun r => Lfun (eD_cbv' K) (γ ⊗p dirac_fmeas r))
+    (let_sample_path R_carrier_meas R_to_carrier_meas K γ)
+    (Lfun (eD_cbv' M) γ).
 ```
 
 ### The affine cascade and the sup-mass bridge (`affine_iter_closed`, `fmeas_kleene_sup_U_E`)

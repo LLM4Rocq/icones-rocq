@@ -134,14 +134,26 @@ category of `!` (a call-by-name interpretation of the same surface
 syntax, via the cartesian closed `SCones` — including its
 `ex_geom_CBN_mass_one` headline — is preserved on the
 [`cbn-track`](../../tree/cbn-track) branch; `main` is CBV-only).
-The headline result of the PPL layer: the
-**rejection-sampling program denotes the normalised posterior** —
-`∫f dµ · ν(U) = ∫_U f dµ` unconditionally (`ex_reject_master`), hence
-`ν(U) = (∫_U f dµ)/(∫ f dµ)` when acceptance has positive mass
-(`ex_reject_is_normalised_posterior`), with almost-sure termination
-(`ex_reject_mass_one`) and honest divergence at `f ≡ 0`
-(`ex_reject_zero`) — all in `theories/programs/ex_reject_headline.v`,
-axiom-free. The same file proves the **CBV mass-1 identities** for the
+The headline result of the PPL layer: **rejection sampling, as a
+higher-order combinator over any model, denotes the normalised
+distribution** — `ex_reject_comb` takes an arbitrary probabilistic
+model `m : ta → tR` (a function value, itself free to contain
+samples, scores and recursion) and an input, and writing `ν_M` for
+the model's output sub-distribution, `m₀` for its mass and
+`If := ∫ f dν_M`, satisfies the sub-probability-honest master
+identity `(1 − m₀ + If) · ν(U) = ∫_U f dν_M` unconditionally
+(`reject_model_master`), hence
+`ν(U) = (∫_U f dν_M)/(1 − m₀ + If)` under loop progress
+(`reject_model_is_normalised`), with almost-sure termination for
+probability models (`reject_model_mass_one`) and honest divergence at
+`f ≡ 0` (`reject_model_zero`) — all in
+`theories/programs/ex_reject_model.v`, axiom-free. The original
+hard-coded sampler is the simplest instance: at the model
+`λ_. sample µ`, the combinator denotes **the same measure** as
+`ex_reject` (`ex_reject_comb_sampler_E`), whose direct theorems
+(`ex_reject_master`, `ex_reject_is_normalised_posterior`,
+`ex_reject_mass_one`, `ex_reject_zero`) remain in
+`theories/programs/ex_reject_headline.v`, axiom-free. The same file proves the **CBV mass-1 identities** for the
 geometric and almost-loop programs (`ex_geom_cbv_mass_one`,
 `ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`), and
 `theories/programs/infra/cbv_marginals.v` proves the **CBV marginal
@@ -218,11 +230,15 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   the naive zero-seeded iteration is provably the zero linhom,
   `Phi_fun_lfp_eq0`), with the recursion-unfolding equations in
   `theories/programs/infra/cbv_fix_unfold.v`. **The CBV headline**:
-  rejection sampling denotes the normalised posterior
-  `(∫_U f dµ)/(∫ f dµ)` (`ex_reject_master`,
+  rejection sampling over ANY model denotes the normalised distribution
+  `(∫_U f dν_M)/(1 − m₀ + ∫ f dν_M)` (`reject_model_master`,
+  `reject_model_is_normalised` in `theories/programs/ex_reject_model.v`,
+  with the hard-coded instance `ex_reject_master` /
   `ex_reject_is_normalised_posterior` in
-  `theories/programs/ex_reject_headline.v`), via the let-at-sample Pettis
-  integral law `eD_let_sample_int` (`theories/programs/infra/let_sample_law.v`),
+  `theories/programs/ex_reject_headline.v` and the instance bridge
+  `ex_reject_comb_sampler_E`), via the let-at-sample Pettis
+  integral law `eD_let_sample_int` and its arbitrary-bound-computation
+  generalisation `eD_let_int` (`theories/programs/infra/let_sample_law.v`),
   the affine-cascade closed form + sup-mass bridge
   (`theories/programs/infra/affine_cascade.v`), and the setlike-point
   regression anchors (`theories/programs/infra/cbv_anchors.v`). The same

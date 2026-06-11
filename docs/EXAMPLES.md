@@ -7,9 +7,14 @@ programs are written exclusively in the direct-style `ppl_named`
 custom entry of `theories/programs/ppl.v` (brackets `[ … ]` enter the
 entry; curly braces `{ x }` escape back to plain Rocq). Every
 constructor of the language is exercised somewhere below. The
-rejection-sampling program carries one headline of the development —
-its denotation is the normalised posterior
-(`ex_reject_is_normalised_posterior`) — and the basic sampling and
+rejection-sampling COMBINATOR carries the headline of the
+development — it takes an arbitrary probabilistic *model* (a function
+value, itself free to contain samples, scores and recursion) and an
+input, and computes the corresponding normalised distribution
+(`reject_model_is_normalised`,
+`theories/programs/ex_reject_model.v`), with the original hard-coded
+sampler `ex_reject` recovered as its simplest instance
+(`ex_reject_comb_sampler_E`) — and the basic sampling and
 scoring programs carry closed-form CBV marginal identities, up to and
 including the model evidence of a higher-order Bayesian linear
 regression (`ex_bayes_linear_cbv_evidence`,
@@ -496,33 +501,221 @@ cone-zero.
 
 ---
 
-## Beyond the paper — Rejection sampling denotes the normalised posterior
+## Beyond the paper — Rejection sampling over any model denotes the normalised distribution
 
 The headline of the development, told start to finish. *What
 rejection sampling is*: you want to sample from a distribution you
-can only describe as "the prior `µ`, reweighted by an acceptance
-function `f` with values in `[0, 1]`". Rejection sampling does it
-with a loop — propose a candidate `x` from the prior, accept it with
-probability `f(x)`, and on rejection throw the candidate away and
-retry with a fresh draw. The accepted output is distributed as the
-reweighted prior, *renormalised* — and the loop may in principle run
-forever, so termination is itself a theorem, not an assumption. The
-formal content lives in `theories/programs/ex_reject_headline.v`
-(the reduction chain and the five theorems, axiom-free) and
-`theories/programs/infra/cbv_marginals.v` (the score pairing),
-on top of the surface program of `theories/programs/examples.v`.
+can only describe as "what my model outputs, reweighted by an
+acceptance function `f` with values in `[0, 1]`". Rejection sampling
+does it with a loop — run the model to propose a candidate `x`,
+accept it with probability `f(x)`, and on rejection throw the
+candidate away and retry with a fresh run. The accepted output is
+distributed as the reweighted model output, *renormalised* — and the
+loop may in principle run forever, so termination is itself a
+theorem, not an assumption.
+
+The formalisation delivers this at full generality, as a
+**higher-order combinator**: `ex_reject_comb` is a closed program of
+type `(ta → tR) → (ta → tR)` that takes a probabilistic *model* — any
+function value `m : ta → tR`, itself a lambda-written program free to
+contain samples, scores, recursion, … — and an input `a : ta`, and
+computes the corresponding normalised distribution. The theorems
+quantify over the model and input values and are **sub-probability
+honest**: the model may itself diverge, and its missing mass
+`1 − m₀` shows up in the normaliser. The formal content lives in
+`theories/programs/ex_reject_model.v` (the combinator's reduction
+chain, the master identity and its corollaries, and the
+instance bridge), `theories/programs/ex_reject_headline.v` (the
+original hard-coded sampler `ex_reject`, now the simplest instance)
+and `theories/programs/infra/cbv_marginals.v` (the score pairing), on
+top of the surface programs of `theories/programs/examples.v`.
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
-| Rejection sampling | `(let rec rs = λaccept. let x = sample µ in if Bernoulli_f{f} x then accept x else rs accept) (λy. y)` of type `tR` — sample from the prior, accept with probability `f x`, recurse on rejection. | `ex_reject`, `ex_reject_cbv` — `theories/programs/examples.v` |
-| The master identity | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v` |
-| The normalised posterior | If acceptance has positive mass, `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the program denotes the posterior of the prior `µ` given the soft predicate `f`. | `ex_reject_is_normalised_posterior` — same file |
+| The rejection-sampling combinator | `fix rs = λm. λa. let x = m a in if Bernoulli_f{f} x then x else rs m a` of type `(ta → tR) → (ta → tR)`, for an arbitrary input type `ta` — run the model at the input, accept with probability `f x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
+| The combinator master identity | Writing `ν_M := ⟦m⟧(a)` for the model's output sub-distribution, `m₀ := ν_M(setT)`, `If := ∫ f dν_M`: `(1 − m₀ + If) · ν(U) = ∫_U f dν_M` for every measurable `U`, unconditionally. | `reject_model_master` — `theories/programs/ex_reject_model.v` |
+| The normalised distribution | If `0 < 1 − m₀ + If` (loop progress), `ν(U) = (∫_U f dν_M) / (1 − m₀ + If)` — the sub-probability-honest normaliser; at a probability model (`m₀ = 1`) it is the classical `∫ f dν_M`. | `reject_model_is_normalised`, `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero` — same file |
+| Rejection sampling (the simplest instance) | `(let rec rs = λaccept. let x = sample µ in if Bernoulli_f{f} x then accept x else rs accept) (λy. y)` of type `tR` — sample from the prior, accept with probability `f x`, recurse on rejection. | `ex_reject`, `ex_reject_cbv` — `theories/programs/examples.v` |
+| The master identity (instance) | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v`; re-derived from the combinator as `ex_reject_comb_sampler_master` — `theories/programs/ex_reject_model.v` |
+| The normalised posterior (instance) | If acceptance has positive mass, `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the program denotes the posterior of the prior `µ` given the soft predicate `f`. | `ex_reject_is_normalised_posterior` — same file |
+| The instance bridge | The combinator applied to the sampler model `λ_. sample µ` (`ex_sampler`) at the unit input denotes THE SAME measure as `ex_reject` — equal Kleene-iterate masses pass to the suprema. | `ex_reject_comb_sampler_E` — `theories/programs/ex_reject_model.v` |
 | The score pairing | `(∫ f dµ) · ν_reject(U) = ν_score(U)` at `µ(setT) = 1`: rejection sampling normalises exactly the score program's unnormalised posterior. | `ex_reject_normalises_score` — `theories/programs/infra/cbv_marginals.v` |
 
-### ex_reject (`ex_reject`, `ex_reject_master`, `ex_reject_is_normalised_posterior`, `ex_reject_mass_one`, `ex_reject_zero`)
+### The rejection-sampling combinator (`ex_reject_comb`, `reject_model_master`, `reject_model_is_normalised`, `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero`)
 
-`ex_reject` is a higher-order, probabilistic, possibly
-non-terminating closed term of type `tR`:
+`ex_reject_comb` is a higher-order, probabilistic, possibly
+non-terminating closed term of type `(ta → tR) → (ta → tR)`, for an
+**arbitrary** PPL input type `ta`:
+
+```coq
+(* theories/programs/examples.v *)
+Definition ex_reject_comb :
+    @named_expr R Ar R_obj nil (tfun (tfun ta tR') (tfun ta tR')) :=
+  [ fix "rs" ::: tfun (tfun ta tR') (tfun ta tR') in
+      \ "m" ::: (tfun ta tR') =>
+        \ "a" ::: ta =>
+          (let "x" := # "m" @ # "a" in
+           if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+           then # "x"
+           else # "rs" @ # "m" @ # "a") ].
+```
+
+Token by token:
+
+- `fix "rs" ::: tfun (tfun ta tR') (tfun ta tR') in …` — the
+  recursion binder (`ne_fix`) at the function type
+  *model → (input → real)*: the fixpoint VALUE is the combinator
+  itself. Semantically this is the seeded value-fixpoint combinator
+  `fix_comb`.
+- `\ "m" ::: (tfun ta tR') => \ "a" ::: ta => …` — the combinator
+  abstracts over the **model** `m` (any function value `ta → tR`)
+  and the **input** `a`; both are carried through the recursion as
+  ordinary lambda parameters.
+- `let "x" := # "m" @ # "a" in …` — propose: RUN THE MODEL at the
+  input. This is the generalisation point: where `ex_reject` had the
+  hard-coded `Sample (mu, Hmu)`, the combinator binds the output of
+  an arbitrary model application.
+- `if Bernoulli_f { f, … } # "x" then # "x" else …` — the
+  value-dependent coin (`ne_bernoulli_f`): accept the candidate with
+  probability `f(x)`, returning it directly.
+- `# "rs" @ # "m" @ # "a"` — on rejection, recurse at the *same*
+  model and the *same* input: the new call re-runs `m a`, drawing a
+  fresh candidate from the model's output distribution.
+
+**The semantic set-up.** The theorems quantify over the model VALUE
+and the input VALUE: the model argument is the promoted point `g!` of
+an arbitrary unit-ball linear map `g : U⟦ta⟧ ⊸ FMeas` — every
+lambda-written model denotes such a point (the `ne_lam` clause
+promotes the curried body at setlike environments,
+`adj_psi_at_setlike`; `sampler_val_E` is the worked instance), so no
+generality is lost — and the input is an arbitrary setlike unit-ball
+point `a₀ : U⟦ta⟧` (at `ta = tR` these are exactly the Diracs; at
+`ta = tunit` the unit point).
+
+**What the theorems say.** Write `ν_M := g(a₀)` for the model's
+output distribution at the input — a SUB-probability: the model may
+itself diverge — `m₀ := ν_M(setT)` for its total mass,
+`If := ∫ f dν_M`, `IUf U := ∫_U f dν_M`, and `ν` for the denotation
+of `(ex_reject_comb m) a`. All in
+`theories/programs/ex_reject_model.v` (Section RejectModel),
+axiom-free:
+
+| Side | Headline | Status |
+|---|---|---|
+| CBV — the division-free, sub-probability-honest master identity, unconditionally: a single trial is rejected with probability `m₀ − If` (the model terminated AND the coin said no), so the success-per-trial mass is `1 − (m₀ − If)`. | `reject_model_master` — *measurable U → (1 − m₀ + If) · fmeas_mu ν U = IUf U* | axiom-free |
+| CBV — when the loop makes progress (automatic as soon as `0 < If`, and also whenever the model is a strict sub-probability), the combinator denotes the normalised distribution. | `reject_model_is_normalised` — *0 < 1 − m₀ + If → fmeas_mu ν U = (fine (IUf U) / (1 − m₀ + fine If))%:E* | axiom-free |
+| CBV — the total-mass identity: the probability that some trial eventually accepts. | `reject_model_mass` — *ν(setT) = If / (1 − m₀ + If)* | axiom-free |
+| CBV — almost-sure termination for probability models with positive acceptance. | `reject_model_mass_one` — *m₀ = 1 → 0 < If → ν(setT) = 1* | axiom-free |
+| CBV — certain rejection diverges, whatever the model does. | `reject_model_zero` — *(∀r, f r = 0) → ν = precone_zero* | axiom-free |
+
+In plain English: each trial runs the model (which terminates with
+probability `m₀`) and flips the coin; the trial *succeeds* with
+probability `If = ∫ f dν_M`, is *rejected-and-retried* with
+probability `m₀ − If`, and *hangs inside the model* with probability
+`1 − m₀`. The combinator's output mass on `U` is therefore the
+geometric-series sum `IUf U · Σ_n (m₀ − If)^n`, i.e.
+`IUf U / (1 − m₀ + If)` — the master identity states exactly this,
+division-free. The degenerate corner `1 − m₀ + If = 0` (a probability
+model whose output `f`-mass is zero — the loop never terminates) is
+graceful: both sides vanish. At `m₀ = 1` the normaliser is the
+classical evidence `∫ f dν_M`, and the textbook posterior statement
+drops out.
+
+```coq
+(* theories/programs/ex_reject_model.v — Section RejectModel *)
+Theorem reject_model_master U (mU : measurable U) :
+  ((1 - m0 + fine If)%R)%:E * fmeas_mu reject_model_denot U = IUf U.
+
+Theorem reject_model_is_normalised :
+  (0 < 1 - m0 + fine If)%R ->
+  forall U, measurable U ->
+  fmeas_mu reject_model_denot U =
+  ((fine (IUf U) / (1 - m0 + fine If))%R)%:E.
+
+Theorem reject_model_mass_one :
+  m0 = 1%R -> 0 < If ->
+  fmeas_mu reject_model_denot [set: ar_carrier Ar R_obj] = 1.
+```
+
+(`reject_model_denot` is the CBV application of the program value to
+the model value `g!` and then the input `a₀`; `m0`, `If`, `IUf U` are
+notations for `fine (ν_M(setT))`, `∫ f∘cR dν_M`, `∫_U f∘cR dν_M`
+with `ν_M := linhom_fun g a₀`.)
+
+**How the proof goes.** The reduction chain of the original headline,
+parameterised (`theories/programs/ex_reject_model.v`):
+
+1. `reject_comb_val_E` / `reject_model_app_E` — the closed fixpoint
+   program denotes the promoted fixpoint VALUE, and the two CBV
+   applications (to the model `g!`, then the input `a₀`) strip
+   promotions by `der ∘ prom` cancellation before any continuity
+   argument.
+2. `reject_model_sup_E` — the denotation is the `cone_sup_ball` of
+   the per-iterate measures
+   `ν_n := der(fix_chain W₀ n (g!))(a₀)`: evaluation at `g!`, the
+   counit `der`, and evaluation at `a₀` all commute with the Kleene
+   supremum (`linhom_fun_sup_ball` twice, plus `Lfun_sup_ball` — the
+   ω-continuity field every `Cones` morphism carries by definition).
+3. `reject_model_iter_S` — one Kleene step is the inner let-if body
+   at the extended setlike environment `((1 ⊗ rs_n!) ⊗ g!) ⊗ a₀`.
+4. `reject_model_if_at_dirac` — at the Dirac extension the dispatch
+   computes: the scrutinee is the coin `bernoulli (f r)`, THEN
+   returns the accepted candidate `δ_r`, and ELSE — the recursive
+   call at the SAME model and input — is the previous iterate `ν_n`.
+   The let-bound model application itself computes to the model's
+   output distribution: `⟦m @ a⟧ = ν_M` (`rm_model_app_E`).
+5. `reject_model_iter_mass` — the GENERAL let-law `eD_let_mu_E`
+   (`theories/programs/infra/let_sample_law.v`: the let-at-sample
+   law with the bound sub-distribution `⟦M⟧γ` in place of the
+   constant prior; setlike `γ`) turns the iterate into a Lebesgue
+   integral over `ν_M`, giving the affine mass recurrence
+   `ν_{n+1}(U) = IUf U + (m₀ − If) · ν_n(U)` — the rejection weight
+   is `∫(1−f) dν_M = m₀ − If`: the model's own divergence mass never
+   re-enters the loop.
+6. The affine cascade (`affine_iter_cvg`,
+   `theories/programs/infra/affine_cascade.v`) with `a := IUf U` and
+   `q := m₀ − If` computes the limit `IUf U / (1 − q)`, and the
+   sup-mass bridge `fmeas_kleene_sup_U_E` identifies it with `ν(U)`;
+   the degenerate corner `q = 1` (forcing `m₀ = 1`, `If = 0`) is
+   covered by the constantly-zero chain.
+
+```coq
+(* theories/programs/ex_reject_model.v *)
+Lemma reject_model_iter_mass n U (mU : measurable U) :
+  fmeas_mu (reject_model_iter n.+1) U =
+  IUf U + ((m0 - fine If)%R)%:E * fmeas_mu (reject_model_iter n) U.
+```
+
+**The instance bridge.** At `ta := tunit` and the lambda-written
+sampler model `λ_. sample µ` (`ex_sampler`,
+`theories/programs/examples.v`) with a unit-mass prior, `ν_M = µ`
+(`sampler_out_E`) and `m₀ = 1`: the combinator REPRODUCES the
+original headline. `ex_reject_comb_sampler_E` proves the combinator
+applied to the sampler model and the unit input denotes **the same
+measure** as `ex_reject` — the two programs have different surface
+shapes (the old one abstracts over an acceptance continuation, the
+combinator over a model), but their Kleene chains satisfy the same
+per-iterate mass cascade from `0`, so the suprema coincide by
+uniqueness of limits. `ex_reject_comb_sampler_master` then re-derives
+the old master identity `∫f dµ · ν(U) = ∫_U f dµ` through the bridge.
+
+```coq
+(* theories/programs/ex_reject_model.v — Section SamplerInstance *)
+Theorem ex_reject_comb_sampler_E :
+  inst_denot =
+  linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
+                Hmu_ball Hf_meas Hf_ge0 Hf_le1) one1.
+```
+
+### ex_reject — the simplest instance (`ex_reject`, `ex_reject_master`, `ex_reject_is_normalised_posterior`, `ex_reject_mass_one`, `ex_reject_zero`)
+
+The original hard-coded rejection sampler — now the simplest instance
+of the combinator above (the model is `λ_. sample µ`, the input the
+unit point; `ex_reject_comb_sampler_E` identifies the denotations).
+Its own theorems stand unchanged, proved directly in
+`theories/programs/ex_reject_headline.v`. `ex_reject` is a
+higher-order, probabilistic, possibly non-terminating closed term of
+type `tR`:
 
 ```coq
 (* theories/programs/examples.v *)
@@ -746,7 +939,16 @@ echo "Print Assumptions ex_almost_loop_cbv_mass_one."   | \
 echo "Print Assumptions ex_almost_loop_cbv_zero."       | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
 
-# The rejection-sampling headline + the score pairing
+# The rejection-sampling COMBINATOR — master identity, normalised
+# distribution, and the instance bridge
+echo "Print Assumptions reject_model_master."           | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+echo "Print Assumptions reject_model_is_normalised."    | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+echo "Print Assumptions ex_reject_comb_sampler_E."      | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+
+# The original rejection-sampling instance + the score pairing
 echo "Print Assumptions ex_reject_master."              | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
 echo "Print Assumptions ex_reject_is_normalised_posterior." | \

@@ -197,6 +197,20 @@
 %                                      ex_geom_cbv_mass_one and
 %                                      ex_almost_loop_cbv_mass_one /
 %                                      ex_almost_loop_cbv_zero.
+%   theories/programs/ex_reject_model.v   the rejection-sampling
+%                                      COMBINATOR over any model:
+%                                      reject_model_master /
+%                                      reject_model_is_normalised /
+%                                      reject_model_mass(_one) /
+%                                      reject_model_zero (the
+%                                      sub-probability-honest
+%                                      normaliser 1 - m0 + If), plus
+%                                      the instance bridge
+%                                      ex_reject_comb_sampler_E /
+%                                      ex_reject_comb_sampler_master
+%                                      (the combinator at the sampler
+%                                      model λ_. sample µ denotes the
+%                                      SAME measure as ex_reject).
 %   theories/programs/infra/cbv_marginals.v   the CBV marginal headlines
 %                                      of the basic sampling/scoring
 %                                      examples:
@@ -243,7 +257,11 @@
 %                                      sanity checks ex_true, ex_false,
 %                                      ex_fair_coin, ex_if_demo; the
 %                                      rejection-sampling headline
-%                                      program ex_reject.
+%                                      program ex_reject, the
+%                                      rejection-sampling COMBINATOR
+%                                      ex_reject_comb (over any model
+%                                      m : ta -> tR), and the sampler
+%                                      model ex_sampler.
 %
 % Status note (post-cleanup): every section of this chapter is AXIOM-FREE
 % (only the three classical boolp axioms): the Eilenberg–Moore category
@@ -2536,6 +2554,49 @@ $\sem{\mathtt{let}\,x = \mathtt{sample}\,\mu\,\mathtt{in}\,x}(1) =
 (\rocq{Icones.programs.infra.let_sample_law.let_sample_var_E}).
 \end{lemma}
 
+\begin{lemma}[The general let-law: arbitrary bound computation]%
+\label{lem:cbv-let-general}
+\rocq{Icones.programs.infra.let_sample_law.eD_let_collapse_setlike}\rocqok
+\rocq{Icones.programs.infra.let_sample_law.eD_let_int}\rocqok
+\rocq{Icones.programs.infra.let_sample_law.eD_let_mu_E}\rocqok
+\uses{thm:cbv-let-sample, lem:cbv-let-sample-mu}
+The let-at-sample law is the special case $M = \mathtt{sample}\,\mu$
+of the general CBV sequencing law: for an \emph{arbitrary} bound
+computation $M : \mathtt{tR}$ and any \emph{setlike unit-ball}
+context point $\gamma$,
+\[
+  \sem{\mathtt{let}\,x = M\,\mathtt{in}\,K}(\gamma)
+  \;=\;
+  \int \sem{K}(\gamma \otimes \delta_r)\;\sem{M}(\gamma)(dr)
+\]
+--- the bound \emph{sub-distribution} $\sem{M}(\gamma)$ replaces the
+constant prior
+(\rocq{Icones.programs.infra.let_sample_law.eD_let_int}); the fused
+measure-on-$U$ form
+\rocq{Icones.programs.infra.let_sample_law.eD_let_mu_E} reads it per
+measurable set. This is the law the rejection-sampling
+\emph{combinator} (\autoref{ssec:cbv-reject-model}) consumes, with
+$M = m\,@\,a$ the model applied to the input.
+\end{lemma}
+
+\begin{proof}
+Only the step-1 collapse changes against
+\autoref{thm:cbv-let-sample}: the pairing
+$\langle\mathrm{id}, \sem{M}\rangle$ now feeds $\gamma$ to
+\emph{both} legs, so the comonoid copy must compute --- at setlike
+unit-ball points the diagonal is the literal pure tensor
+$\gamma \mapsto \gamma \otimes \gamma$ (the setlike-point kit,
+\rocq{Icones.programs.infra.cbv_anchors.coalg_d_setlike}), giving
+$\sem{\mathtt{let}\,x = M\,\mathtt{in}\,K}(\gamma) =
+\sem{K}(\gamma \otimes \sem{M}(\gamma))$
+(\rocq{Icones.programs.infra.let_sample_law.eD_let_collapse_setlike}).
+The setlike restriction is harmless: in every consumer the let sits
+under binders whose environments are setlike by construction. Steps
+2--4 (Dirac decomposition, tensor-preserves-integrals, the
+integral-preservation field of $\sem{K}$) are reused verbatim ---
+none of them mention the bound measure.
+\end{proof}
+
 \subsection{Semantic anchors: shared-sample diagonal vs.\ independent
 tensor}\label{ssec:cbv-anchors}
 
@@ -2790,14 +2851,19 @@ two priors
 \section{The rejection-sampling headline and the CBV mass identities}%
 \label{sec:cbv-geom-mass}
 
-This section assembles the full semantic analysis of the
-rejection-sampling program: a \emph{higher-order} (the recursive
-function abstracts over the acceptance continuation),
-\emph{probabilistic} (continuous $\mathtt{sample}$ plus
-value-dependent $\mathtt{Bernoulli\_f}$), \emph{non-terminating}
-(rejection recurses, and may loop forever) program whose CBV
-denotation is identified in closed form: the normalised posterior of
-the prior given the soft acceptance predicate. Everything is
+This section assembles the full semantic analysis of rejection
+sampling: a \emph{higher-order}, \emph{probabilistic} (continuous
+$\mathtt{sample}$ plus value-dependent $\mathtt{Bernoulli\_f}$),
+\emph{non-terminating} (rejection recurses, and may loop forever)
+program whose CBV denotation is identified in closed form. The story
+is told twice: first for the hard-coded sampler $\mathtt{ex\_reject}$
+(the original headline --- the normalised posterior of the prior
+given the soft acceptance predicate), then in full generality as a
+higher-order \emph{combinator} over an arbitrary probabilistic model
+(\autoref{ssec:cbv-reject-model},
+\texttt{theories/programs/ex\_reject\_model.v}), with the hard-coded
+sampler recovered as its simplest instance
+(\autoref{thm:cbv-reject-model-instance}). Everything is
 axiom-free (the three classical \texttt{boolp} axioms only). The same
 reduction-chain skeleton then yields, as riders, the mass identities
 for the geometric counter and the parameterised almost-loop ---
@@ -2989,6 +3055,200 @@ almost surely whenever acceptance has positive mass
 (\rocq{Icones.programs.ex_reject_headline.ex_reject_mass_one}); and if
 $f \equiv 0$ then $\nu = 0$ --- certain rejection diverges
 (\rocq{Icones.programs.ex_reject_headline.ex_reject_zero}).
+\end{theorem}
+
+\subsection{The rejection-sampling combinator over any model}%
+\label{ssec:cbv-reject-model}
+
+The headline generalises from the hard-coded sampler to a
+higher-order \emph{combinator} over an arbitrary probabilistic model
+(\texttt{theories/programs/ex\_reject\_model.v}): a model is any
+function value $m : t_a \to \mathtt{tR}$ --- itself a lambda-written
+program, free to contain samples, scores and recursion --- and the
+combinator takes the model and an input and computes the
+corresponding normalised distribution. The theorems are
+\emph{sub-probability honest}: the model may itself diverge, and its
+missing mass enters the normaliser.
+
+\begin{definition}[The surface combinator
+$\mathtt{ex\_reject\_comb}$]\label{def:cbv-ex-reject-comb}
+\rocq{Icones.programs.examples.ex_reject_comb}\rocqok
+\rocq{Icones.programs.examples.ex_sampler}\rocqok
+\uses{def:cbv-fix-clause, lem:ppl-bern-lift, def:cbv-ex-reject}
+For an \emph{arbitrary} PPL input type $t_a$ and a measurable
+acceptance density $f : \mathbb{R} \to [0,1]$, the combinator is the
+closed program of type
+$(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
+\[
+  \mathtt{ex\_reject\_comb}
+  \;=\;
+  \mathtt{fix}\;\textit{rs}.\;\lambda m.\;\lambda a.\;
+    \mathtt{let}\;x = m\;a\;\mathtt{in}\;
+    \mathtt{if}\;\mathtt{Bernoulli\_f}\{f\}\,(x)\;
+    \mathtt{then}\;x\;
+    \mathtt{else}\;\textit{rs}\;m\;a
+\]
+--- run the model at the input, accept the produced value with
+probability $f(x)$, recurse at the \emph{same} model and input on
+rejection. The simplest model is the lambda-written sampler
+$\mathtt{ex\_sampler} = \lambda\_.\,\mathtt{sample}\,\mu$
+(\rocq{Icones.programs.examples.ex_sampler}), of type
+$\mathtt{tunit} \to \mathtt{tR}$.
+
+The theorems quantify over the model VALUE and the input VALUE: the
+model argument is the promoted point $g^!$ of an arbitrary unit-ball
+linear map $g : U\sem{t_a} \multimap \FMeas$ --- every lambda-written
+model denotes such a point, since the $\lambda$-clause promotes the
+curried body at setlike environments
+(\rocq{Icones.programs.ex_reject_model.sampler_val_E} is the worked
+instance) --- and the input is an arbitrary setlike unit-ball point
+$a_0 : U\sem{t_a}$. Write
+$\nu_M = g(a_0)$ for the model's output \emph{sub}-distribution at
+the input (\rocq{Icones.programs.ex_reject_model.reject_model_dist}),
+$m_0 = \nu_M(\mathbb{R})$ for its total mass,
+$I_f = \int f\,d\nu_M$, $I_f^U = \int_U f\,d\nu_M$, and $\nu$ for the
+CBV denotation of $(\mathtt{ex\_reject\_comb}\;m)\;a$
+(\rocq{Icones.programs.ex_reject_model.reject_model_denot}).
+\end{definition}
+
+\begin{lemma}[The parameterised reduction chain]%
+\label{lem:cbv-reject-model-chain}
+\rocq{Icones.programs.ex_reject_model.reject_comb_val_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_sup_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_iter_S}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_if_at_dirac}\rocqok
+\rocq{Icones.programs.ex_reject_model.rm_model_app_E}\rocqok
+\uses{def:cbv-ex-reject-comb, lem:cbv-reject-chain,
+thm:cbv-fix-unfold, thm:cbv-fix-value, def:cbv-case-em}
+The reduction chain of \autoref{lem:cbv-reject-chain},
+parameterised by the model and the input:
+\begin{enumerate}
+  \item the closed fixpoint program denotes the promoted fixpoint
+    value
+    (\rocq{Icones.programs.ex_reject_model.reject_comb_val_E}), and
+    the two CBV applications --- to the model $g^!$, then the input
+    $a_0$ --- strip promotions by
+    $\mathrm{der} \circ \mathrm{prom} = \mathrm{id}$ before any
+    continuity argument;
+  \item $\nu$ is the unit-ball supremum of the per-iterate measures
+    $\nu_n$
+    (\rocq{Icones.programs.ex_reject_model.reject_model_sup_E}):
+    evaluation at $g^!$, the counit $\mathrm{der}$, and evaluation at
+    $a_0$ all commute with the Kleene supremum --- two pointwise
+    linhom-sup readings plus the $\omega$-continuity field carried by
+    every $\Cones$ morphism
+    (\rocq{Icones.programs.ex_reject_model.Lfun_sup_ball});
+  \item the Kleene step is the inner let-if body at the extended
+    setlike environment
+    $((1 \otimes \textit{rs}_n^!) \otimes g^!) \otimes a_0$
+    (\rocq{Icones.programs.ex_reject_model.reject_model_iter_S});
+  \item the let-bound \emph{model application} computes to the
+    model's output distribution, $\sem{m\;@\;a} = \nu_M$
+    (\rocq{Icones.programs.ex_reject_model.rm_model_app_E}), and at
+    the Dirac extension the branch dispatch computes
+    (\rocq{Icones.programs.ex_reject_model.reject_model_if_at_dirac}):
+    THEN returns the accepted candidate $\delta_r$, ELSE --- the
+    recursive call at the \emph{same} model and input --- is the
+    previous iterate $\nu_n$.
+\end{enumerate}
+\end{lemma}
+
+\begin{lemma}[The sub-probability mass recurrence]%
+\label{lem:cbv-reject-model-recurrence}
+\rocq{Icones.programs.ex_reject_model.reject_model_iter_mass}\rocqok
+\rocq{Icones.programs.ex_reject_model.rm_case_mass}\rocqok
+\uses{lem:cbv-reject-model-chain, lem:cbv-let-general}
+For every measurable $U$,
+\[
+  \nu_{n+1}(U)
+  \;=\;
+  \int_U f\,d\nu_M
+  \;+\;
+  \bigl(m_0 - I_f\bigr)\cdot \nu_n(U).
+\]
+\end{lemma}
+
+\begin{proof}
+The general let-law (\autoref{lem:cbv-let-general}, with bound
+computation $M = m\,@\,a$) turns the iterate into an integral over
+$r \sim \nu_M$ of the dispatched branch mass
+$f(r)\cdot\mathbf{1}_U(r) + (1 - f(r))\cdot\nu_n(U)$
+(\rocq{Icones.programs.ex_reject_model.rm_case_mass}); splitting the
+integral, the rejected-AND-model-terminated weight is
+$\int (1 - f)\,d\nu_M = m_0 - I_f$
+(\rocq{Icones.programs.ex_reject_model.rm_int_onem}) --- the model's
+own divergence mass $1 - m_0$ never re-enters the loop.
+\end{proof}
+
+\begin{theorem}[Rejection sampling over any model denotes the
+normalised distribution]\label{thm:cbv-reject-model}
+\rocq{Icones.programs.ex_reject_model.reject_model_master}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_is_normalised}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_mass}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_mass_one}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_zero}\rocqok
+\uses{lem:cbv-reject-model-recurrence, lem:cbv-affine-cascade,
+lem:cbv-sup-mass}
+Unconditionally, for every measurable $U$, the
+\emph{sub-probability-honest} master identity
+\[
+  \bigl(1 - m_0 + I_f\bigr) \cdot \nu(U) \;=\; I_f^U
+\]
+(\rocq{Icones.programs.ex_reject_model.reject_model_master}): a
+single trial is rejected-and-retried with probability $m_0 - I_f$
+(the model terminated AND the coin rejected), so the
+success-per-trial mass is $1 - (m_0 - I_f)$. Corollaries: under loop
+progress $0 < 1 - m_0 + I_f$ (automatic as soon as $0 < I_f$, and
+also whenever the model is a strict sub-probability),
+\[
+  \nu(U) \;=\; \frac{I_f^U}{1 - m_0 + I_f},
+  \qquad
+  \nu(\mathbb{R}) \;=\; \frac{I_f}{1 - m_0 + I_f}
+\]
+(\rocq{Icones.programs.ex_reject_model.reject_model_is_normalised},
+\rocq{Icones.programs.ex_reject_model.reject_model_mass}); for a
+\emph{probability} model ($m_0 = 1$) with positive acceptance
+($0 < I_f$), $\nu(\mathbb{R}) = 1$ --- almost-sure termination, with
+the classical normaliser $I_f$
+(\rocq{Icones.programs.ex_reject_model.reject_model_mass_one}); and
+$f \equiv 0$ gives $\nu = 0$ --- certain rejection diverges, whatever
+the model does
+(\rocq{Icones.programs.ex_reject_model.reject_model_zero}).
+\end{theorem}
+
+\begin{proof}
+The per-iterate masses satisfy the affine cascade of
+\autoref{lem:cbv-reject-model-recurrence} with $a = I_f^U$ and
+$q = m_0 - I_f$; here $0 \le q \le 1$ ($I_f \le m_0$ since
+$f \le 1$, and $m_0 \le 1$ since the model value and the input are
+unit-ball). When $q < 1$ the cascade converges to $a / (1 - q)$
+(\autoref{lem:cbv-affine-cascade}) and the sup-mass bridge
+(\autoref{lem:cbv-sup-mass}) closes the identity; the degenerate
+corner $q = 1$ forces $m_0 = 1$ and $I_f = 0$ --- the loop never
+terminates --- and both sides vanish (the chain is constantly zero).
+\end{proof}
+
+\begin{theorem}[The instance bridge: the hard-coded sampler is the
+simplest model]\label{thm:cbv-reject-model-instance}
+\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_master}\rocqok
+\uses{thm:cbv-reject-model, thm:cbv-reject-master,
+def:cbv-ex-reject-comb}
+At $t_a = \mathtt{tunit}$ and the sampler model
+$\mathtt{ex\_sampler} = \lambda\_.\,\mathtt{sample}\,\mu$ with a
+unit-mass prior, $\nu_M = \mu$
+(\rocq{Icones.programs.ex_reject_model.sampler_out_E}) and
+$m_0 = 1$: the combinator applied to the sampler model and the unit
+input denotes \emph{the same measure} as the original
+$\mathtt{ex\_reject}$ of \autoref{def:cbv-ex-reject}
+(\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_E}) ---
+the two programs have different surface shapes (one abstracts over an
+acceptance continuation, the other over a model), but their Kleene
+chains satisfy the same per-iterate mass cascade from $0$
+(\rocq{Icones.programs.ex_reject_model.inst_iter_massE}), so the
+suprema coincide by uniqueness of limits. The classical master
+identity $I_f \cdot \nu(U) = I_f^U$ is re-derived through the bridge
+(\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_master}).
 \end{theorem}
 
 \subsection{Riders: the CBV mass identities for
