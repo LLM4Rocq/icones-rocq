@@ -49,15 +49,18 @@
     The file compiles cleanly with no [Admitted] stubs; every
     clause is built from the SMC primitives, the coalgebra-comonoid
     pair, and the existing arithmetic / score / boolean helpers of
-    [ppl.v].  Recursion ([ne_fix], and [ne_fix_mr] at function types)
-    routes through the seeded value-fixpoint COMBINATOR [fix_comb] of
-    [theories/programs/infra/em_fix_value.v]:
+    [ppl.v].  Recursion ([ne_fix], and [ne_fix_mr] at EVERY free body
+    type) routes through the seeded value-fixpoint COMBINATOR
+    [fix_comb] of [theories/programs/infra/em_fix_value.v]:
     [⟦fix s.M⟧ = fix_comb ∘ ⟦λs.M⟧] — interpret the self-abstraction as
-    an ordinary lambda, post-compose with the combinator.  (The
-    previous operator [Yfix_fun_lin] of [em_fix.v] is provably the ZERO
-    linhom — [em_fix_value.v::Yfix_fun_lin_eq0]; it remains there as
-    the documented contrast, and is still the honest-scope placeholder
-    for the [ne_fix_mr] PRODUCT case, see [fix_mr_clause] below.) *)
+    an ordinary lambda, post-compose with the combinator.  At products
+    of free types ([ne_fix_mr]'s mutual-recursion case) the combinator
+    is transported along the Seely decomposition
+    [free_decomp : tyD t ≅ !̃(free_base t)]
+    ([infra/em_fix_mr.v::fix_comb_iso]) — see [fix_mr_clause] below.
+    (The previous operator [Yfix_fun_lin] of [em_fix.v] is provably the
+    ZERO linhom — [em_fix_value.v::Yfix_fun_lin_eq0]; it remains there
+    as the documented contrast, no longer used here.) *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -110,6 +113,7 @@ Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.infra.em_fix_value.
+Require Import Icones.programs.infra.em_fix_mr.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -169,6 +173,79 @@ End TypeInterpCBV.
 
 Arguments tyD_cbv {R Ar} t.
 Arguments ctxD_cbv {R Ar} G.
+
+(** ** Free-type decomposition — every free type denotes a cofree coalgebra
+
+    [is_free_coalg_type t] ([ppl.v]) characterises the surface types
+    whose CBV interpretation is (isomorphic to) a FREE [!]-coalgebra:
+    [tfun A B] is LITERALLY cofree ([tyD_cbv (tfun A B) = bang_cofree
+    L]), and a product of frees is cofree on the [&]-product of the
+    children's base cones via the EM-level Seely-2 iso
+    [EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)]
+    ([infra/em_fix_mr.v::seely2_em_iso]).
+
+    [free_base t] computes the base cone; [free_decomp t Hfree] builds
+    the coalgebra iso [tyD_cbv t ≅ !̃(free_base t)] by structural
+    induction.  [fix_mr_comb t Hfree] is then the GENUINE seeded
+    value-fixpoint combinator at [t]: [fix_comb (free_base t)]
+    conjugated by the iso ([fix_comb_iso]). *)
+
+Section FreeDecomp.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** Both components of a free product type are free. *)
+Lemma is_free_prodl (t1 t2 : ppl_type Ar) :
+  is_free_coalg_type (tprod t1 t2) -> is_free_coalg_type t1.
+Proof. by case/andP. Qed.
+
+Lemma is_free_prodr (t1 t2 : ppl_type Ar) :
+  is_free_coalg_type (tprod t1 t2) -> is_free_coalg_type t2.
+Proof. by case/andP. Qed.
+
+(** The base cone of a free type: [tyD_cbv t ≅ !̃(free_base t)].
+    (The catch-all clause is arbitrary — those types are not free.) *)
+Fixpoint free_base (t : ppl_type Ar) : ICone.type Ar :=
+  match t with
+  | tfun t1 t2 =>
+      linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))
+  | tprod t1 t2 => sprod (free_base t1) (free_base t2)
+  | _ => cone_one_car Ar
+  end.
+
+(** The decomposition iso, by structural induction: the [tfun] case is
+    the identity iso (the interpretation IS [bang_cofree]); the [tprod]
+    case composes the children's isos (via the [EM_prod] congruence
+    [coalg_iso_prod]) with the Seely-2 EM iso. *)
+Fixpoint free_decomp (t : ppl_type Ar) :
+    is_free_coalg_type t ->
+    coalg_iso (tyD_cbv t) (bang_cofree (free_base t)) :=
+  match t return
+      is_free_coalg_type t ->
+      coalg_iso (tyD_cbv t) (bang_cofree (free_base t)) with
+  | tfun t1 t2 => fun _ => coalg_iso_id (tyD_cbv (tfun t1 t2))
+  | tprod t1 t2 => fun Hfree =>
+      coalg_iso_trans
+        (coalg_iso_prod (@free_decomp t1 (is_free_prodl Hfree))
+                        (@free_decomp t2 (is_free_prodr Hfree)))
+        (seely2_em_iso (free_base t1) (free_base t2))
+  | _ => fun Hfree => match notF Hfree with end
+  end.
+
+(** The genuine value-fixpoint combinator at any free type [t]:
+    [fix_comb (free_base t)] transported along [free_decomp]. *)
+Definition fix_mr_comb (t : ppl_type Ar) (Hfree : is_free_coalg_type t) :
+    coalg_hom (bang_cofree (linhom_car Ar (coalg_obj (tyD_cbv t))
+                                          (coalg_obj (tyD_cbv t))))
+              (tyD_cbv t) :=
+  fix_comb_iso (@free_decomp t Hfree).
+
+End FreeDecomp.
+
+Arguments is_free_prodl {R Ar t1 t2}.
+Arguments is_free_prodr {R Ar t1 t2}.
+Arguments free_base {R Ar} t.
+Arguments free_decomp {R Ar} t Hfree.
+Arguments fix_mr_comb {R Ar} t Hfree.
 
 (** ** Variable lookup — projection chains over a coalgebra context
 
@@ -357,8 +434,9 @@ Arguments if_icones {R Ar G A} m n b.
     the seeded value-fixpoint combinator
     [fix_comb : EM(!̃(!L ⊸ !L), !̃L)] of
     [theories/programs/infra/em_fix_value.v] is post-composed.  The
-    [ne_fix_mr] PRODUCT case keeps the (degenerate) [Yfix_fun_lin]
-    path — see [fix_mr_clause]. *)
+    [ne_fix_mr] PRODUCT case is the same composite with the
+    Seely-transported combinator [fix_mr_comb] — see
+    [fix_mr_clause]. *)
 Section TermInterpCBV.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
@@ -376,33 +454,41 @@ Local Notation EXi G t :=
                    (coalg_obj (tyD_cbv t))).
 
 (** Dispatcher for the [ne_fix_mr] clause, by case on the (free) body
-    type [ty].
+    type [ty] — both reachable cases are the GENUINE seeded
+    value-fixpoint [⟦fix_mr s.M⟧ = comb ∘ adj_psi (curry d)] where [d]
+    is the body's denotation over the extended context:
 
-    - [tfun t1 t2] — the GENUINE seeded value-fixpoint: the composite
-      [fix_comb ∘ adj_psi (curry d)] where [d] is the body's denotation
-      over the extended context.  [tyD_cbv (tfun t1 t2) = bang_cofree L]
-      with [L := U⟦t1⟧ ⊸ U⟦t2⟧]; the lambda-packaging lands in
-      [Bang (!L ⊸ !L)] — exactly the domain of [fix_comb L].
+    - [tfun t1 t2] — [comb = fix_comb L] directly:
+      [tyD_cbv (tfun t1 t2) = bang_cofree L] with
+      [L := U⟦t1⟧ ⊸ U⟦t2⟧]; the lambda-packaging lands in
+      [Bang (!L ⊸ !L)] — exactly the domain of [fix_comb L].  (Kept as
+      a SEPARATE arm, identical to the [ne_fix] clause, so the [tfun]
+      consumers [eD_fix_mr_fun_E] / [cbv_fix_unfold.v] see the same
+      composite as before.)
 
-    - [tprod _ _] (of free types) — HONEST SCOPE LIMITATION: still the
-      degenerate [Yfix_fun_lin] (provably the zero linhom,
-      [em_fix_value.v::Yfix_fun_lin_eq0]).  Repairing the product case
-      needs the Seely transport of [fix_comb] along
-      [EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)]
-      ([Seely2]) — out of scope here; matches the historical
-      honest-scope status of [ne_fix_mr].
+    - [tprod t1 t2] (of free types) — [comb = fix_mr_comb _ Hfree], the
+      Seely transport of [fix_comb (free_base _)] along the
+      decomposition iso [free_decomp : tyD_cbv (tprod t1 t2) ≅
+      !̃(free_base t1 & free_base t2)]
+      ([infra/em_fix_mr.v::fix_comb_iso]).  This is what makes the
+      MUTUAL-RECURSION fixpoint genuine (the previous honest-scope
+      placeholder was the degenerate [Yfix_fun_lin], provably the zero
+      linhom — [em_fix_value.v::Yfix_fun_lin_eq0]).
 
     (The remaining constructors are unreachable: [is_free_coalg_type]
-    only holds at [tfun] and [tprod]-of-frees.) *)
+    only holds at [tfun] and [tprod]-of-frees — the clause consumes the
+    [Hfree] witness carried by [ne_fix_mr] and refutes them.) *)
 Definition fix_mr_clause (G0 : Coalgebra Ar) (ty : T)
+    (Hfree : is_free_coalg_type ty)
     (d : icones_hom Ar (tensor Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty)))
                        (coalg_obj (tyD_cbv ty))) :
     icones_hom Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty)) :=
   (match ty as ty0 return
+      is_free_coalg_type ty0 ->
       icones_hom Ar (tensor Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty0)))
                     (coalg_obj (tyD_cbv ty0)) ->
       icones_hom Ar (coalg_obj G0) (coalg_obj (tyD_cbv ty0)) with
-  | tfun t1 t2 => fun d =>
+  | tfun t1 t2 => fun _ d =>
       icones_comp
         (ch_mor (fix_comb (linhom_car Ar (coalg_obj (tyD_cbv t1))
                                          (coalg_obj (tyD_cbv t2)))))
@@ -411,10 +497,16 @@ Definition fix_mr_clause (G0 : Coalgebra Ar) (ty : T)
                                  (coalg_obj (tyD_cbv (tfun t1 t2)))
                                  (coalg_obj (tyD_cbv (tfun t1 t2))))
                  (tensor_curry d)))
-  | ty0 => fun d0 =>
-      linhom_icones (Yfix_fun_lin (coalg_d G0) d0)
-                    (Yfix_fun_lin_norm_le1 _ _)
-  end) d.
+  | tprod t1 t2 => fun Hf d =>
+      icones_comp
+        (ch_mor (fix_mr_comb (tprod t1 t2) Hf))
+        (ch_mor (adj_psi (P := G0)
+                         (B := linhom_car Ar
+                                 (coalg_obj (tyD_cbv (tprod t1 t2)))
+                                 (coalg_obj (tyD_cbv (tprod t1 t2))))
+                 (tensor_curry d)))
+  | _ => fun Hf _ => match notF Hf with end
+  end) Hfree d.
 
 Arguments fix_mr_clause : clear implicits.
 
@@ -539,17 +631,18 @@ refine (
                     (eD_cbv ((_, tfun t1 t2) :: G0) (tfun t1 t2) body))))
   (* [ne_fix_mr s t Hfree M]: mutual-recursion / free-coalg-type
      fixpoint, dispatched on the body type by [fix_mr_clause]:
-     the genuine [fix_comb] composite at [tfun], the (degenerate)
-     [Yfix_fun_lin] at products of frees — see [fix_mr_clause]. *)
-  | ne_fix_mr G0 _ ty _ body =>
-      fix_mr_clause (ctxD_cbv (drop_names G0)) ty
+     the genuine [fix_comb] composite at [tfun], the genuine
+     Seely-transported [fix_mr_comb] composite at products of frees
+     — see [fix_mr_clause]. *)
+  | ne_fix_mr G0 _ ty Hfree body =>
+      fix_mr_clause (ctxD_cbv (drop_names G0)) ty Hfree
         (eD_cbv ((_, ty) :: G0) ty body)
   end).
 Defined.
 
 End TermInterpCBV.
 
-Arguments fix_mr_clause {R Ar} G0 ty d.
+Arguments fix_mr_clause {R Ar} G0 ty Hfree d.
 Arguments eD_cbv
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G t} M.
 
@@ -791,7 +884,7 @@ Lemma eD_fix_mr_E (G : named_ctx Ar) (s : string) (t : ppl_type Ar)
     (Hfree : is_free_coalg_type t)
     (M : @named_expr R Ar R_obj ((s, t) :: G) t) :
   eD_cbv' (ne_fix_mr s t Hfree M) =
-  fix_mr_clause (ctxD_cbv (drop_names G)) t (eD_cbv' M).
+  fix_mr_clause (ctxD_cbv (drop_names G)) t Hfree (eD_cbv' M).
 Proof. by []. Qed.
 
 (** [ne_fix_mr] at a FUNCTION body type: the same genuine [fix_comb]
@@ -811,17 +904,23 @@ Lemma eD_fix_mr_fun_E (G : named_ctx Ar) (s : string)
              (tensor_curry (eD_cbv' M)))).
 Proof. by []. Qed.
 
-(** [ne_fix_mr] at a PRODUCT body type: still the degenerate
-    [Yfix_fun_lin] — the honest scope record (the repair needs the
-    Seely transport of [fix_comb], see [fix_mr_clause]). *)
+(** [ne_fix_mr] at a PRODUCT body type: the GENUINE Seely-transported
+    composite — [fix_mr_comb] (= [fix_comb (free_base _)] conjugated by
+    [free_decomp]) post-composed with the lambda-packaging of the body.
+    (Previously the degenerate [Yfix_fun_lin] honest-scope placeholder;
+    the transport closed that gap.) *)
 Lemma eD_fix_mr_prod_E (G : named_ctx Ar) (s : string)
     (t1 t2 : ppl_type Ar)
     (Hfree : is_free_coalg_type (tprod t1 t2))
     (M : @named_expr R Ar R_obj ((s, tprod t1 t2) :: G) (tprod t1 t2)) :
   eD_cbv' (ne_fix_mr s (tprod t1 t2) Hfree M) =
-  linhom_icones
-    (Yfix_fun_lin (coalg_d (ctxD_cbv (drop_names G))) (eD_cbv' M))
-    (Yfix_fun_lin_norm_le1 _ _).
+  icones_comp
+    (ch_mor (fix_mr_comb (tprod t1 t2) Hfree))
+    (ch_mor (adj_psi (P := ctxD_cbv (drop_names G))
+                     (B := linhom_car Ar
+                             (coalg_obj (tyD_cbv (tprod t1 t2)))
+                             (coalg_obj (tyD_cbv (tprod t1 t2))))
+             (tensor_curry (eD_cbv' M)))).
 Proof. by []. Qed.
 
 End EDUnfold.

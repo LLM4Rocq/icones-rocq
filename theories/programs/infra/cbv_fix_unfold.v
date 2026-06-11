@@ -43,6 +43,16 @@
       two laws for [ne_fix_mr] at a FUNCTION body type (the clause is
       the same composite).
 
+    - [eD_fix_mr_prod_at_setlike] / [eD_fix_mr_prod_at_setlike_neq0] —
+      the prom-point computation law and the non-degeneracy witness for
+      [ne_fix_mr] at a PRODUCT of free types (the Seely-transported
+      clause): the denotation at setlike [γ] is the backward transport
+      of [(fix_value (conjugated F_γ))!] along the decomposition iso
+      [free_decomp] ([fix_comb_iso_prom_E] of
+      [theories/programs/infra/em_fix_mr.v]), and is never the
+      cone-zero — the mutual-recursion fixpoint is GENUINE (contrast
+      the retired [Yfix_fun_lin] placeholder).
+
     - [eD_fix_unfold_closed] / [eD_fix_at_one1] — the closed-program
       ([Γ = nil], [γ = one1]) corollaries against the public linhom
       interpreter [eD].
@@ -82,6 +92,7 @@ Require Import Icones.stable.scones_cat.
 Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.linhom.
+Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_construct.
@@ -102,6 +113,7 @@ Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.infra.em_fix_value.
+Require Import Icones.programs.infra.em_fix_mr.
 Require Import Icones.programs.ppl_cbv.
 Require Import Icones.programs.infra.cbv_anchors.
 
@@ -163,10 +175,42 @@ have Hh : cone_norm (Lfun h gam) <= 1.
 exact: (fix_prom_E Hh).
 Qed.
 
+(** The Seely-transported analogue: the [fix_comb_iso ∘ adj_psi]
+    composite (the [ne_fix_mr]-at-[tprod] clause shape) at a setlike
+    point — the [adj_psi] packaging promotes as above, and the
+    transported combinator computes on promoted points by
+    [em_fix_mr.v::fix_comb_iso_prom_E]. *)
+Lemma fix_iso_comp_at_setlike (G0 : Coalgebra Ar)
+    (P : Coalgebra Ar) (Z : ICone.type Ar)
+    (iso : coalg_iso P (bang_cofree Z))
+    (h : icones_hom Ar (coalg_obj G0)
+           (linhom_car Ar (coalg_obj P) (coalg_obj P)))
+    (gam : coalg_obj G0) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str G0) gam = prom gam ->
+  Lfun (icones_comp (ch_mor (fix_comb_iso iso))
+                    (ch_mor (adj_psi (P := G0) h))) gam =
+  Lfun (ch_mor (ci_bwd iso))
+    (prom (sc_fun (fix_value Z)
+       (linhom_map_fun (ch_mor (ci_bwd iso)) (ch_mor (ci_fwd iso))
+          (Lfun h gam)))).
+Proof.
+move=> Hg Hs.
+rewrite (Lfun_comp (ch_mor (fix_comb_iso iso))
+                   (ch_mor (adj_psi (P := G0) h)) gam).
+rewrite (adj_psi_morE h).
+rewrite (Lfun_comp (bang_fmap h) (coalg_str G0) gam).
+rewrite Hs (bang_fmap_prom h _ Hg).
+have Hh : cone_norm (Lfun h gam) <= 1.
+  exact: le_trans (cones_hom_norm_le1 _ _) Hg.
+exact: (fix_comb_iso_prom_E iso Hh).
+Qed.
+
 End FixUnfoldEngine.
 
 Arguments adj_psi_morE {R Ar P B} g.
 Arguments fix_comp_at_setlike {R Ar G0 L} h {gam}.
+Arguments fix_iso_comp_at_setlike {R Ar G0 P Z} iso h {gam}.
 
 (** ** The unfolding laws of the interpreter's [ne_fix] / [ne_fix_mr]
        clauses *)
@@ -286,6 +330,71 @@ have HF : cone_norm (Lfun (tensor_curry (eD_cbv' body)) gam) <= 1.
 by rewrite (fix_value_unfold HF).
 Qed.
 
+(** *** [ne_fix_mr] at a product body type — the transported laws
+
+    With the Seely-transported combinator the same prom-point
+    computation goes through at [tprod]: the denotation at a setlike
+    context point is the BACKWARD-transported promoted [fix_value] of
+    the conjugated body, and in particular it is never the cone-zero
+    (the iso is injective) — the non-degeneracy witness that the
+    mutual-recursion fixpoint is genuine (contrast the retired
+    [Yfix_fun_lin] placeholder, [Yfix_fun_lin_eq0]). *)
+
+Lemma eD_fix_mr_prod_at_setlike (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar) (Hfree : is_free_coalg_type (tprod t1 t2))
+    (body : @named_expr R Ar R_obj
+              ((s, tprod t1 t2) :: G) (tprod t1 t2))
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = prom gam ->
+  Lfun (eD_cbv' (ne_fix_mr s (tprod t1 t2) Hfree body)) gam =
+  Lfun (ch_mor (ci_bwd (free_decomp (tprod t1 t2) Hfree)))
+    (prom (sc_fun (fix_value (free_base (tprod t1 t2)))
+       (linhom_map_fun
+          (ch_mor (ci_bwd (free_decomp (tprod t1 t2) Hfree)))
+          (ch_mor (ci_fwd (free_decomp (tprod t1 t2) Hfree)))
+          (Lfun (tensor_curry (eD_cbv' body)) gam)))).
+Proof.
+move=> Hg Hs.
+rewrite eD_fix_mr_prod_E.
+exact: (fix_iso_comp_at_setlike (free_decomp (tprod t1 t2) Hfree)
+          (tensor_curry (eD_cbv' body)) Hg Hs).
+Qed.
+
+(** Non-degeneracy at every setlike unit-ball point: the transported
+    fixpoint denotation is the backward image of a promoted point under
+    a coalgebra ISO, hence never the cone-zero. *)
+Lemma eD_fix_mr_prod_at_setlike_neq0 (G : named_ctx Ar) (s : string)
+    (t1 t2 : ppl_type Ar) (Hfree : is_free_coalg_type (tprod t1 t2))
+    (body : @named_expr R Ar R_obj
+              ((s, tprod t1 t2) :: G) (tprod t1 t2))
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = prom gam ->
+  Lfun (eD_cbv' (ne_fix_mr s (tprod t1 t2) Hfree body)) gam <>
+  precone_zero.
+Proof.
+move=> Hg Hs.
+rewrite (eD_fix_mr_prod_at_setlike Hfree body Hg Hs).
+set iso := free_decomp (tprod t1 t2) Hfree.
+set v := sc_fun _ _.
+have Hv : cone_norm v <= 1.
+  apply: fix_value_ball.
+  apply: le_trans (linhom_map_norm_le1 _ _ _) _.
+  exact: le_trans (cones_hom_norm_le1 _ _) Hg.
+move=> Heq.
+have := congr1 (Lfun (ch_mor (ci_fwd iso))) Heq.
+rewrite -[Lfun (ch_mor (ci_fwd iso)) (Lfun (ch_mor (ci_bwd iso)) (prom v))]
+        /(Lfun (icones_comp (ch_mor (ci_fwd iso)) (ch_mor (ci_bwd iso)))
+            (prom v)).
+rewrite (ci_bwdK iso).
+rewrite -[Lfun (icones_id _ _) (prom v)]/(prom v).
+have [Z0 _ _] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones (ch_mor (ci_fwd iso)))).
+rewrite Z0.
+exact: prom_neq0 Hv.
+Qed.
+
 (** *** Closed programs — [Γ = nil], [γ = one1], public interpreter *)
 
 (** The unit context point is setlike of norm [1]. *)
@@ -332,6 +441,12 @@ Arguments eD_fix_mr_fun_at_setlike
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} s
   {t1 t2} Hfree body {gam}.
 Arguments eD_fix_mr_fun_unfold
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} s
+  {t1 t2} Hfree body {gam}.
+Arguments eD_fix_mr_prod_at_setlike
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} s
+  {t1 t2} Hfree body {gam}.
+Arguments eD_fix_mr_prod_at_setlike_neq0
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} s
   {t1 t2} Hfree body {gam}.
 Arguments eD_fix_at_one1

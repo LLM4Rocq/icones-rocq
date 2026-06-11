@@ -26,6 +26,12 @@
     ** Boolean / if-then-else sanity checks
     - [ex_true], [ex_false], [ex_fair_coin], [ex_if_demo]
 
+    ** Mutual recursion (product-of-functions fixpoint)
+    - [ex_even_odd_pair]     : [fix_mr p : (1→1) × (1→1).
+                                 (λn. snd p n, λn. fst p n)]
+      with projections [ex_even] / [ex_odd] — the [ne_fix_mr]
+      elaboration witness for the Seely-transported value-fixpoint
+
     ** Rejection sampling (the killer example)
     - [ex_reject]            : [(let rec rs = λaccept.
                                    let x = sample µ in
@@ -310,6 +316,68 @@ Arguments ex_geom_body {R Ar R_obj}.
 Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
 Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
 
+(** ** Example — [ex_even_odd] — mutual recursion at a product of functions
+
+    The [ne_fix_mr] constructor binds ONE recursive name [p] at the
+    free-coalgebra type [tprod (tfun tunit tunit) (tfun tunit tunit)] —
+    a PAIR of functions; each component calls the other via the
+    [fst]/[snd] projections of the rec-bound product.  This is the
+    classic even/odd mutual-recursion SHAPE (each component immediately
+    delegates to the other, so operationally it diverges — the point
+    here is the elaboration smoke test for the genuine
+    Seely-transported [fix_mr_comb] path of [ppl_cbv.v::fix_mr_clause];
+    mass identities are out of scope). *)
+
+Section ExEvenOdd.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Local Notation pair_ty := (tprod (tfun tunit tunit) (tfun tunit tunit)).
+
+(** The two components, pre-named in the context extended with the rec
+    name [p : pair_ty] (the lambda notation sits at a level above the
+    pair-component level, so inline lambdas cannot syntactically be
+    pair components — we splice them via the [{...}] escape). *)
+Definition ex_even_odd_lam_a :
+    @named_expr R Ar R_obj (("p"%string, pair_ty) :: nil)
+                           (tfun tunit tunit) :=
+  [ \ "n" ::: tunit => snd # "p" @ # "n" ].
+
+Definition ex_even_odd_lam_b :
+    @named_expr R Ar R_obj (("p"%string, pair_ty) :: nil)
+                           (tfun tunit tunit) :=
+  [ \ "n" ::: tunit => fst # "p" @ # "n" ].
+
+(** The mutually-recursive function PAIR, bound under the single
+    recursive name [p] (free-coalgebra witness: [erefl]). *)
+Definition ex_even_odd_pair :
+    @named_expr R Ar R_obj nil pair_ty :=
+  [ fix_mr "p" as pair_ty by erefl
+       in ({ex_even_odd_lam_a}, {ex_even_odd_lam_b}) ].
+
+(** The two projections. *)
+Definition ex_even :
+    @named_expr R Ar R_obj nil (tfun tunit tunit) :=
+  [ fst {ex_even_odd_pair} ].
+
+Definition ex_odd :
+    @named_expr R Ar R_obj nil (tfun tunit tunit) :=
+  [ snd {ex_even_odd_pair} ].
+
+(** The body of the [fix_mr] (for stating reduction lemmas). *)
+Definition ex_even_odd_body :
+    @named_expr R Ar R_obj (("p"%string, pair_ty) :: nil) pair_ty :=
+  [ ({ex_even_odd_lam_a}, {ex_even_odd_lam_b}) ].
+
+End ExEvenOdd.
+
+Arguments ex_even_odd_lam_a {R Ar R_obj}.
+Arguments ex_even_odd_lam_b {R Ar R_obj}.
+Arguments ex_even_odd_pair {R Ar R_obj}.
+Arguments ex_even {R Ar R_obj}.
+Arguments ex_odd {R Ar R_obj}.
+Arguments ex_even_odd_body {R Ar R_obj}.
+
 (** ** Example — [ex_reject] — rejection sampling (THE killer example)
 
     Normalised-posterior rejection sampling: sample [x ~ µ], accept
@@ -389,13 +457,14 @@ Arguments ex_reject_inner {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
     One definition per closed surface program above: these are the
     CBV-side entry points for the headline lemmas to come, and they
     double as a compile-time smoke test of the interpreter — together
-    they exercise every constructor of the language except [ne_fix_mr]
+    they exercise EVERY constructor of the language
     ([ne_let]/[ne_sample]/[ne_lam]/[ne_var] in Examples 1–3, [ne_score]
     in Example 3, [ne_add]/[ne_mul] in Example 2,
     [ne_fix]/[ne_app]/[ne_tt] in the recursive examples,
     [ne_true]/[ne_false]/[ne_bernoulli]/[ne_if] in the boolean checks,
-    [ne_bernoulli_f] in the rejection-sampling example;
-    [ne_fix_mr] awaits a mutual-recursion surface example).
+    [ne_bernoulli_f] in the rejection-sampling example,
+    [ne_fix_mr]/[ne_pair]/[ne_fst]/[ne_snd] in the even/odd
+    mutual-recursion example).
 
     Each denotation is a norm-[≤1] linear morphism
     [linhom_car Ar (coalg_obj (ctxD_cbv nil)) (coalg_obj (tyD_cbv t))]
@@ -454,6 +523,20 @@ Definition ex_geom_cbv :=
 Definition ex_almost_loop_cbv (p : R)
     (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :=
   eDv (ex_almost_loop p Hp_ge0 Hp_le1).
+
+(** The mutual-recursion smoke test: [ne_fix_mr] at a PRODUCT of
+    function types elaborates through the genuine Seely-transported
+    [fix_mr_comb] path of [fix_mr_clause]. *)
+Definition ex_even_odd_pair_cbv :=
+  eDv (ex_even_odd_pair
+         : @named_expr R Ar R_obj nil
+             (tprod (tfun tunit tunit) (tfun tunit tunit))).
+
+Definition ex_even_cbv :=
+  eDv (ex_even : @named_expr R Ar R_obj nil (tfun tunit tunit)).
+
+Definition ex_odd_cbv :=
+  eDv (ex_odd : @named_expr R Ar R_obj nil (tfun tunit tunit)).
 
 (** The rejection-sampling denotation — also the compile-time smoke
     test for [ne_bernoulli_f]'s elaboration under three binders

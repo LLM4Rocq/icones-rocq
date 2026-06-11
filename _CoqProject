@@ -71,6 +71,7 @@ theories/programs/ppl.v
 theories/programs/infra/affine_cascade.v
 theories/programs/infra/em_fix.v
 theories/programs/infra/em_fix_value.v
+theories/programs/infra/em_fix_mr.v
 theories/programs/ppl_cbv.v
 theories/programs/examples.v
 theories/programs/infra/cbv_anchors.v

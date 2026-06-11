@@ -403,11 +403,11 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
      on the body type ([fix_mr_clause]): at [tfun t1 t2] it routes
      through the SAME genuine seeded value-fixpoint combinator
      [fix_comb] of [theories/programs/infra/em_fix_value.v] as
-     [ne_fix]; at [tprod]-of-frees it still keeps the legacy
-     [Yfix_fun_lin] of [theories/programs/infra/em_fix.v] (provably
-     the zero linhom — [em_fix_value.v::Yfix_fun_lin_eq0]) pending the
-     Seely transport of [fix_comb] along
-     [EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X ⊗ Y)]. *)
+     [ne_fix]; at [tprod]-of-frees it routes through the GENUINE
+     Seely-transported combinator [fix_mr_comb] — [fix_comb] at the
+     base cone conjugated along the decomposition iso
+     [EM_prod (bang_cofree X) (bang_cofree Y) ≅ bang_cofree (X & Y)]
+     ([theories/programs/infra/em_fix_mr.v]). *)
   | ne_fix_mr (G : named_ctx Ar) (s : string) (t : T)
               (Hfree : is_free_coalg_type t) :
       named_expr ((s, t) :: G) t -> named_expr G t
