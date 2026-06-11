@@ -9,14 +9,23 @@
     OLD CBV [eD] have been retired and are being re-grown at the
     linhom level inside the new [ppl_cbv.v].
 
-    ** QBS-headline examples (1–3)
+    ** Basic sampling/scoring examples (1–3)
     - [ex_random_constant]   : [let "c" := sample mu in λx. c]
     - [ex_random_linear]     : [let "m" := sample mu in
                                 let "b" := sample mu in
                                 λx. m * x + b]
-    - [ex_bayes_linear]      : [let "m" := sample mu in
+    - [ex_score_posterior]   : [let "m" := sample mu in
                                 let "_" := score(f) #"m" in
                                 #"m"]
+      (sample-score-return: the unnormalised one-parameter posterior)
+
+    ** Higher-order Bayesian linear regression
+    - [ex_bayes_linear l]    : sample a FUNCTION [λx. s·x+b]
+      (slope [s] and intercept [b] from the prior), score one
+      observation per [o ∈ l] of the function's value at a known
+      input point, and return the function — the posterior over
+      functions (arXiv 1701.02547 §2.1 shape); 3-observation
+      instance [ex_bayes_linear3]
 
     ** Recursive partial-termination examples (4–6)
     - [ex_loop]              : [(let rec l = λ_. l ()) ()]
@@ -150,9 +159,15 @@ Arguments ex_rl_inner {R Ar R_obj} mu Hmu.
 Arguments ex_rl_lam {R Ar R_obj}.
 Arguments ex_random_linear {R Ar R_obj} mu Hmu.
 
-(** ** Example 3 — [ex_bayes_linear] *)
+(** ** Example 3 — [ex_score_posterior]
 
-Section BayesLinear.
+    Sample one parameter, score it by a soft observation density [f],
+    return it: the unnormalised one-parameter posterior.  (This program
+    was historically misnamed "bayes_linear" — it is NOT a linear
+    regression; the genuine higher-order Bayesian linear regression is
+    [ex_bayes_linear] below.) *)
+
+Section ScorePosterior.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
@@ -168,22 +183,22 @@ Local Notation tR' := (tR R_obj).
 
 (** The PPL term:
     [let "m" := sample mu in let "_" := score(f) #"m" in #"m"]. *)
-Definition ex_bayes_linear :
+Definition ex_score_posterior :
     @named_expr R Ar R_obj nil tR' :=
   [ let "m" := Sample (mu , Hmu) in
     let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
     # "m" ].
 
 (** The continuation under the prior bind. *)
-Definition ex_bl_cont :
+Definition ex_sp_cont :
     @named_expr R Ar R_obj (("m"%string, tR') :: nil) tR' :=
   [ let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
     # "m" ].
 
-End BayesLinear.
+End ScorePosterior.
 
-Arguments ex_bl_cont {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_bayes_linear {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_sp_cont {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_score_posterior {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
 
 (** ** Example 4 — [ex_loop] — bare divergence *)
 
@@ -495,14 +510,14 @@ Definition ex_random_linear_cbv
     (Hmu : (cone_norm mu <= 1)%R) :=
   eDv (ex_random_linear mu Hmu).
 
-Definition ex_bayes_linear_cbv
+Definition ex_score_posterior_cbv
     (mu : fmeas R (ar_carrier Ar R_obj))
     (Hmu : (cone_norm mu <= 1)%R)
     (f : R -> R)
     (Hf_meas : measurable_fun [set: R] f)
     (Hf_ge0 : forall r : R, (0 <= f r)%R)
     (Hf_le1 : forall r : R, (f r <= 1)%R) :=
-  eDv (ex_bayes_linear mu Hmu f Hf_meas Hf_ge0 Hf_le1).
+  eDv (ex_score_posterior mu Hmu f Hf_meas Hf_ge0 Hf_le1).
 
 Definition ex_loop_cbv := eDv (ex_loop : @named_expr R Ar R_obj nil tunit).
 

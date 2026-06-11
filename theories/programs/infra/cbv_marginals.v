@@ -1,16 +1,16 @@
 (**md**************************************************************************)
-(** * CBV marginal headlines for the three QBS-style examples
+(** * CBV marginal headlines for the basic sampling/scoring examples
 
     BEYOND THE PAPER.  This file is NOT part of the Ehrhard-Geoffroy
     2025 formalization (paper §2-§9).  It proves, against the CBV
     interpreter [eD] of [theories/programs/ppl_cbv.v], the headline
-    semantic identities of the three non-recursive QBS-mirror examples
-    of [theories/programs/examples.v]:
+    semantic identities of the three non-recursive basic
+    sampling/scoring examples of [theories/programs/examples.v]:
 
-    - [ex_bayes_linear_cbv_posterior] : the denotation of
+    - [ex_score_posterior_cbv_E] : the denotation of
       [let m = sample µ in let _ = score f m in m] is the UNNORMALISED
       POSTERIOR: its measure on every measurable [U] is [∫_U f dµ].
-      The companion [ex_reject_normalises_bayes] records that the
+      The companion [ex_reject_normalises_score] records that the
       rejection-sampling program of [ex_reject_headline.v] denotes
       exactly the normalisation of this measure.
     - [ex_random_constant_cbv_marginal] : the denotation of
@@ -25,7 +25,7 @@
       [∫∫ δ_{m·r0+b}(U) µ(db) µ(dm)].
 
     These restate, against [eD], the identities the retired CBN track
-    proved; the Bayes posterior is new content the CBN option-γ
+    proved; the score posterior is new content the CBN option-γ
     interpreter could not express (its score collapsed).
 
     Supporting kit (§1):
@@ -131,7 +131,7 @@ Local Open Scope ring_scope.
 (** ** §1 — Kit: the [FMeas] counit on probabilities, projections at
     non-setlike points, one-Dirac environments *)
 
-Section QbsCounitKit.
+Section FMeasCounitKit.
 Variables (R : realType) (Ar : MeasSubcat R).
 
 Local Notation Lfun h :=
@@ -166,11 +166,11 @@ rewrite Em /ConeOneMConeAux.id_test /= /ConeOneMConeAux.id_test_fun /=.
 by rewrite integral_cst// mul1e Hnu1.
 Qed.
 
-End QbsCounitKit.
+End FMeasCounitKit.
 
 Arguments coalg_e_FMeas_prob {R Ar X nu}.
 
-Section QbsProjKit.
+Section EMProjKit.
 Variables (R : realType) (Ar : MeasSubcat R).
 
 Local Notation Lfun h :=
@@ -214,7 +214,7 @@ by have [_ _ HZ] := cones_hom_linear
   (mcones_hom_cones (icones_hom_mcones h)); rewrite HZ.
 Qed.
 
-End QbsProjKit.
+End EMProjKit.
 
 Arguments em_proj1_mor_unitE {R Ar P} x s.
 Arguments em_proj1_mor_probE {R Ar P X} x {nu}.
@@ -258,9 +258,9 @@ End OneDiracEnv.
 Arguments one_dirac_ball {R Ar R_obj} r.
 Arguments one_dirac_setlike {R Ar R_obj} r.
 
-(** ** §2 — [ex_bayes_linear]: the unnormalised posterior *)
+(** ** §2 — [ex_score_posterior]: the unnormalised posterior *)
 
-Section BayesPosterior.
+Section ScorePosterior.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
@@ -299,23 +299,23 @@ Proof. by rewrite one1_norm. Qed.
 (** *** Syntactic decomposition — all definitional *)
 
 (** The scored variable [#m], in the prior-extended context. *)
-Definition bl_var_m : @named_expr R Ar R_obj (("m"%string, tR') :: nil) tR' :=
+Definition sp_var_m : @named_expr R Ar R_obj (("m"%string, tR') :: nil) tR' :=
   [ # "m" ].
 
 (** The returned variable [#m], under the score binder. *)
-Definition bl_body :
+Definition sp_body :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("m"%string, tR') :: nil) tR' :=
   [ # "m" ].
 
-Lemma ex_bl_cont_decomp :
-  ex_bl_cont f Hf_meas Hf_ge0 Hf_le1 =
-  ne_let "_" (ne_score f Hf_meas Hf_ge0 Hf_le1 bl_var_m) bl_body.
+Lemma ex_sp_cont_decomp :
+  ex_sp_cont f Hf_meas Hf_ge0 Hf_le1 =
+  ne_let "_" (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m) sp_body.
 Proof. by []. Qed.
 
-Lemma ex_bayes_linear_decomp :
-  ex_bayes_linear mu Hmu f Hf_meas Hf_ge0 Hf_le1 =
-  ne_let "m" (ne_sample mu Hmu) (ex_bl_cont f Hf_meas Hf_ge0 Hf_le1).
+Lemma ex_score_posterior_decomp :
+  ex_score_posterior mu Hmu f Hf_meas Hf_ge0 Hf_le1 =
+  ne_let "m" (ne_sample mu Hmu) (ex_sp_cont f Hf_meas Hf_ge0 Hf_le1).
 Proof. by []. Qed.
 
 (** *** The continuation at the Dirac environment
@@ -324,8 +324,8 @@ Proof. by []. Qed.
     the density: [⟦let _ = score f m in m⟧(1 ⊗ δ_r) = (f r)·δ_r]. *)
 
 (** The scored variable projects the bound sample. *)
-Lemma bl_var_m_E (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' bl_var_m) (one1 ⊗p dirac_fmeas r) = dirac_fmeas r.
+Lemma sp_var_m_E (r : ar_carrier Ar R_obj) :
+  Lfun (eD_cbv' sp_var_m) (one1 ⊗p dirac_fmeas r) = dirac_fmeas r.
 Proof.
 apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R) EM_term
                               (FMeas_coalgebra R_obj))
@@ -335,16 +335,16 @@ exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
 (** The score value at [δ_r] is the scalar [f r] ([score_lift_dirac]). *)
-Lemma bl_score_E (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 bl_var_m))
+Lemma sp_score_E (r : ar_carrier Ar R_obj) :
+  Lfun (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
        (one1 ⊗p dirac_fmeas r) =
   MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
 Proof.
 rewrite eD_score_E.
 rewrite (Lfun_comp
   (score_lift (R_carrier_meas:=R_carrier_meas) Hf_meas Hf_ge0 Hf_le1)
-  (eD_cbv' bl_var_m) (one1 ⊗p dirac_fmeas r)).
-rewrite bl_var_m_E.
+  (eD_cbv' sp_var_m) (one1 ⊗p dirac_fmeas r)).
+rewrite sp_var_m_E.
 rewrite -{1}(carrier_to_RK R_carrier_eq r).
 by rewrite (score_lift_dirac Hf_meas Hf_ge0 Hf_le1 (cR r)).
 Qed.
@@ -354,8 +354,8 @@ Qed.
     by [em_proj1_mor_unitE] — the score scalar becomes a
     [precone_scale] weight, pulled through the second projection by
     linearity. *)
-Lemma bl_body_at (r : ar_carrier Ar R_obj) (s : cone_one_car Ar) :
-  Lfun (eD_cbv' bl_body) ((one1 ⊗p dirac_fmeas r) ⊗p s) =
+Lemma sp_body_at (r : ar_carrier Ar R_obj) (s : cone_one_car Ar) :
+  Lfun (eD_cbv' sp_body) ((one1 ⊗p dirac_fmeas r) ⊗p s) =
   precone_scale (c1_val s) (dirac_fmeas r).
 Proof.
 apply: (eq_trans (y := Lfun (icones_comp
@@ -374,57 +374,57 @@ rewrite (Lfun_scaleE
 by rewrite (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
-Lemma bl_cont_at_dirac (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ex_bl_cont f Hf_meas Hf_ge0 Hf_le1))
+Lemma sp_cont_at_dirac (r : ar_carrier Ar R_obj) :
+  Lfun (eD_cbv' (ex_sp_cont f Hf_meas Hf_ge0 Hf_le1))
        (one1 ⊗p dirac_fmeas r) =
   precone_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r).
 Proof.
-rewrite ex_bl_cont_decomp eD_let_E.
-rewrite (Lfun_comp (eD_cbv' bl_body)
+rewrite ex_sp_cont_decomp eD_let_E.
+rewrite (Lfun_comp (eD_cbv' sp_body)
   (em_pair_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 bl_var_m)))
+     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
   (one1 ⊗p dirac_fmeas r)).
 rewrite /em_pair_mor.
 rewrite (Lfun_comp
   (tensor_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 bl_var_m)))
+     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
   (coalg_d (ctxD_cbv (drop_names (("m"%string, tR') :: nil))))
   (one1 ⊗p dirac_fmeas r)).
 rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (("m"%string, tR') :: nil)))
   (one_dirac_ball r) (one_dirac_setlike r)).
 rewrite (tensor_morE
   (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-  (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 bl_var_m))
+  (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
   (one1 ⊗p dirac_fmeas r) (one1 ⊗p dirac_fmeas r)).
-rewrite icones_idE bl_score_E bl_body_at.
+rewrite icones_idE sp_score_E sp_body_at.
 by [].
 Qed.
 
 (** *** THE HEADLINE — the unnormalised posterior
 
-    On every measurable [U], the denotation of [ex_bayes_linear] is
+    On every measurable [U], the denotation of [ex_score_posterior] is
     [∫_U f dµ] — the prior reweighted by the evidence density, NOT
     normalised.  This is the identity the retired CBN interpreter
     could not state (its score collapsed). *)
 
 Local Open Scope ereal_scope.
 
-Theorem ex_bayes_linear_cbv_posterior (U : set (ar_carrier Ar R_obj))
+Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
-    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 Proof.
-rewrite /ex_bayes_linear_cbv ex_bayes_linear_decomp.
+rewrite /ex_score_posterior_cbv ex_score_posterior_decomp.
 rewrite (eD_let_sample_mu_E R_carrier_meas R_to_carrier_meas Hmu
-           (ex_bl_cont f Hf_meas Hf_ge0 Hf_le1) one1 mU).
+           (ex_sp_cont f Hf_meas Hf_ge0 Hf_le1) one1 mU).
 under eq_integral => r _.
-  rewrite bl_cont_at_dirac.
+  rewrite sp_cont_at_dirac.
   rewrite fmeas_scaleE (dirac_fmeas_E r mU) diracE -EFinM /=.
   over.
 rewrite [RHS](integral_mkcond U) epatch_indic.
@@ -433,18 +433,18 @@ by rewrite /= EFinM.
 Qed.
 
 (** Mass corollary: the total evidence [∫ f dµ]. *)
-Theorem ex_bayes_linear_cbv_mass :
+Theorem ex_score_posterior_cbv_mass :
   fmeas_mu
-    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1)
     [set: ar_carrier Ar R_obj] =
   \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
-Proof. by apply: ex_bayes_linear_cbv_posterior. Qed.
+Proof. by apply: ex_score_posterior_cbv_E. Qed.
 
 (** Rejection sampling normalises exactly this measure: combining
     [ex_reject_master] with the posterior identity, the rejection
     denotation times the total evidence is the Bayes denotation. *)
-Theorem ex_reject_normalises_bayes
+Theorem ex_reject_normalises_score
     (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
@@ -452,15 +452,15 @@ Theorem ex_reject_normalises_bayes
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
   fmeas_mu
-    (linhom_fun (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    Hmu Hf_meas Hf_ge0 Hf_le1) one1) U.
 Proof.
-rewrite (ex_bayes_linear_cbv_posterior mU).
+rewrite (ex_score_posterior_cbv_E mU).
 exact: (ex_reject_master R_carrier_meas R_to_carrier_meas Hmu Hmu1
           Hf_meas Hf_ge0 Hf_le1 mU).
 Qed.
 
-End BayesPosterior.
+End ScorePosterior.
 
 (** ** §3 — [ex_random_constant]: the sampled constant's marginal *)
 

@@ -3,10 +3,12 @@
        shared surface syntax + shared semantic helpers
 
     A higher-order probabilistic programming calculus, intrinsically
-    typed.  The calculus shape follows the canonical QBS paper PPL
-    (Heunen–Kammar–Staton–Yang, "A Convenient Category for Higher-Order
-    Probability Theory"); the named-variable surface follows the
-    Saito–Affeldt encoding (APLAS 2023 §5.1–§5.3, §6).
+    typed.  The calculus shape follows the canonical higher-order
+    probabilistic calculus of Heunen–Kammar–Staton–Yang ("A Convenient
+    Category for Higher-Order Probability Theory" — only the CALCULUS
+    shape is borrowed; the semantics here is integrable cones, not
+    their model); the named-variable surface follows the Saito–Affeldt
+    encoding (APLAS 2023 §5.1–§5.3, §6).
 
     THIS FILE CONTAINS NO INTERPRETER.  It provides the shared surface
     syntax (types [ppl_type], named contexts, the intrinsically-typed
@@ -103,7 +105,7 @@
       reduces to [f r · one1] packaged as a [cone_one_car] element.
 
     Three end-to-end examples in surface syntax — [ex_random_constant]
-    / [ex_random_linear] / [ex_bayes_linear] — live in
+    / [ex_random_linear] / [ex_score_posterior] — live in
     [theories/programs/examples.v] together with their structural
     reduction lemmas. *)
 
@@ -329,7 +331,7 @@ Arguments is_free_coalg_type {R Ar} t.
     identifiers at every binding slot and variable lookup is by string.
     Direct-style application [ne_app : named_expr G (tfun t1 t2) ->
     named_expr G t1 -> named_expr G t2] (not Moggi fine-grain) matches
-    the QBS-paper calculus shape; effects appear only in the
+    the Heunen–Kammar–Staton–Yang calculus shape; effects appear only in the
     interpretation ([ppl_cbv.v]).
 
     The constructors:
