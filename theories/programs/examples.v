@@ -574,6 +574,132 @@ Arguments ex_reject {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
 Arguments ex_reject_body {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
 Arguments ex_reject_inner {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
 
+(** ** Example — [ex_reject_comb] — rejection sampling as a COMBINATOR
+
+    The higher-order generalisation of [ex_reject]: rejection sampling
+    as a function of the MODEL.  A model is any function value
+    [m : ta → tR] (a lambda-written probabilistic program — itself free
+    to contain samples, scores, recursion, …); [ex_reject_comb] takes
+    the model and an input [a : ta], runs the model at the input, and
+    accepts the produced value [x] with probability [f x], recursing
+    (at the SAME model and input) on rejection:
+    [[
+       fix rs = λ m. λ a.
+         let x = m a in
+         if Bernoulli_f { f } x then x else rs m a
+    ]]
+    The recursion is at the function type
+    [(ta → tR) → (ta → tR)] — the fixpoint VALUE is itself the
+    combinator, and the model/input are carried through the recursion
+    as ordinary lambda parameters.
+
+    Expected denotation (proved in
+    [theories/programs/ex_reject_model.v]): writing
+    [ν_M := ⟦m⟧(a)] for the model's output distribution at the input
+    (a SUB-probability: the model may itself diverge),
+    [m₀ := ν_M(setT)] its total mass and [If := ∫ f dν_M], the
+    combinator's output [ν] satisfies the sub-probability-honest
+    master identity [(1 - m₀ + If) · ν(U) = ∫_U f dν_M]. *)
+
+Section RejectCombinator.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+(** The model's INPUT type is an arbitrary PPL type. *)
+Variable (ta : ppl_type Ar).
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The combinator itself: a closed program of type
+    [(ta → tR) → (ta → tR)]. *)
+Definition ex_reject_comb :
+    @named_expr R Ar R_obj nil (tfun (tfun ta tR') (tfun ta tR')) :=
+  [ fix "rs" ::: tfun (tfun ta tR') (tfun ta tR') in
+      \ "m" ::: (tfun ta tR') =>
+        \ "a" ::: ta =>
+          (let "x" := # "m" @ # "a" in
+           if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+           then # "x"
+           else # "rs" @ # "m" @ # "a") ].
+
+(** The body of the fixpoint lambda (the [λm.λa.…] under the rec
+    binder), in the extended context [("rs", (ta→tR)→(ta→tR)) :: nil]. *)
+Definition ex_reject_comb_body :
+    @named_expr R Ar R_obj
+      (("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
+      (tfun (tfun ta tR') (tfun ta tR')) :=
+  [ \ "m" ::: (tfun ta tR') =>
+      \ "a" ::: ta =>
+        (let "x" := # "m" @ # "a" in
+         if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+         then # "x"
+         else # "rs" @ # "m" @ # "a") ].
+
+(** The partially-applied stage [λa.…], in context
+    [("m", ta→tR) :: ("rs", …) :: nil]. *)
+Definition ex_reject_comb_fun :
+    @named_expr R Ar R_obj
+      (("m"%string, tfun ta tR') ::
+       ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
+      (tfun ta tR') :=
+  [ \ "a" ::: ta =>
+      (let "x" := # "m" @ # "a" in
+       if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+       then # "x"
+       else # "rs" @ # "m" @ # "a") ].
+
+(** The run-test-recurse inner expression under all three binders. *)
+Definition ex_reject_comb_inner :
+    @named_expr R Ar R_obj
+      (("a"%string, ta) :: ("m"%string, tfun ta tR') ::
+       ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
+      tR' :=
+  [ let "x" := # "m" @ # "a" in
+    if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+    then # "x"
+    else # "rs" @ # "m" @ # "a" ].
+
+End RejectCombinator.
+
+Arguments ex_reject_comb {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_comb_body {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_comb_fun {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_comb_inner {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+
+(** ** Example — [ex_sampler] — the simplest model for the combinator
+
+    The lambda-written model [λ_. sample µ] of type [tunit → tR]: ignore
+    the input, draw from the prior.  Feeding it to [ex_reject_comb]
+    recovers exactly the [ex_reject] headline semantics
+    ([theories/programs/ex_reject_model.v], instance section). *)
+
+Section SamplerModel.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+Definition ex_sampler : @named_expr R Ar R_obj nil (tfun tunit tR') :=
+  [ \ "_" ::: tunit => Sample (mu , Hmu) ].
+
+(** The sample expression under the (discarded) binder. *)
+Definition ex_sampler_body :
+    @named_expr R Ar R_obj (("_"%string, tunit) :: nil) tR' :=
+  [ Sample (mu , Hmu) ].
+
+End SamplerModel.
+
+Arguments ex_sampler {R Ar R_obj} mu Hmu.
+Arguments ex_sampler_body {R Ar R_obj} mu Hmu.
+
 (** ** CBV denotations — [ppl_cbv.v]'s [eD] applied to every closed example
 
     One definition per closed surface program above: these are the
@@ -684,5 +810,23 @@ Definition ex_reject_cbv
     (Hf_ge0 : forall r : R, (0 <= f r)%R)
     (Hf_le1 : forall r : R, (f r <= 1)%R) :=
   eDv (ex_reject mu Hmu f Hf_meas Hf_ge0 Hf_le1).
+
+(** The rejection-sampling COMBINATOR denotation: the closed program of
+    type [(ta → tR) → (ta → tR)] denotes a (promoted) function VALUE —
+    the headline theorems of [ex_reject_model.v] quantify over the
+    model/input it is applied to. *)
+Definition ex_reject_comb_cbv
+    (ta : ppl_type Ar)
+    (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
+  eDv (ex_reject_comb ta f Hf_meas Hf_ge0 Hf_le1).
+
+(** The sampler-model denotation (the combinator's simplest input). *)
+Definition ex_sampler_cbv
+    (mu : fmeas R (ar_carrier Ar R_obj))
+    (Hmu : (cone_norm mu <= 1)%R) :=
+  eDv (ex_sampler mu Hmu).
 
 End CBVDenotations.

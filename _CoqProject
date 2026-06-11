@@ -78,4 +78,5 @@ theories/programs/infra/cbv_anchors.v
 theories/programs/infra/cbv_fix_unfold.v
 theories/programs/infra/let_sample_law.v
 theories/programs/ex_reject_headline.v
+theories/programs/ex_reject_model.v
 theories/programs/infra/cbv_marginals.v
