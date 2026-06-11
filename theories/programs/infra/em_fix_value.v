@@ -223,19 +223,18 @@ Lemma kleene_lin_Phi_fun_eq0 n :
   kleene_lin (Phi_fun diag M) n = precone_zero.
 Proof.
 elim: n => [|n IH] //.
-by rewrite /kleene_lin iterS -/(kleene_lin _ n) IH Phi_fun_zero.
+by rewrite kleene_lin_S IH Phi_fun_zero.
 Qed.
 
 (** STEP D: the previous CBV value-fixpoint is the zero linhom —
     DEGENERACY. *)
 Lemma Yfix_fun_lin_eq0 : Yfix_fun_lin diag M = precone_zero.
 Proof.
-rewrite /Yfix_fun_lin /linhom_lfp.
-rewrite -[linhom_sup_ball _ _ _]
-        /(cone_sup_ball (kleene_lin (Phi_fun diag M)) _ _).
+rewrite /Yfix_fun_lin /linhom_lfp /lfp.
 apply: precone_le_anti.
 - apply: cone_sup_ball_lub => n.
-  rewrite kleene_lin_Phi_fun_eq0; exact: precone_le_refl.
+  rewrite -[kleene _ n]/(kleene_lin _ n) kleene_lin_Phi_fun_eq0.
+  exact: precone_le_refl.
 - exact: precone_le0.
 Qed.
 
