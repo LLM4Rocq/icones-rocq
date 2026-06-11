@@ -3,9 +3,8 @@
 
     Twelve surface programs for the named-variable PPL of
     [theories/programs/ppl.v], each written in the [ppl_named] custom
-    entry [[ … ]].  This file is now the SHARED SURFACE PROGRAM POOL
-    for both CBN ([theories/programs/ppl_cbn*.v]) and CBV
-    ([theories/programs/ppl_cbv.v]); the denotational machinery and
+    entry [[ … ]].  This file is the SURFACE PROGRAM POOL for the CBV
+    stack ([theories/programs/ppl_cbv.v]); the denotational machinery and
     structural reduction lemmas previously living here against the
     OLD CBV [eD] have been retired and are being re-grown at the
     linhom level inside the new [ppl_cbv.v].

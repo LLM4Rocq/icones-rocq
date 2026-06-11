@@ -1,6 +1,6 @@
 (**md**************************************************************************)
 (** * A higher-order probabilistic PPL — named-variable, direct-style,
-       shared surface syntax + shared CBN/CBV semantic helpers
+       shared surface syntax + shared semantic helpers
 
     A higher-order probabilistic programming calculus, intrinsically
     typed.  The calculus shape follows the canonical QBS paper PPL
@@ -11,14 +11,15 @@
     THIS FILE CONTAINS NO INTERPRETER.  It provides the shared surface
     syntax (types [ppl_type], named contexts, the intrinsically-typed
     terms [named_expr Γ τ], the [Custom Entry ppl_named] notation) and
-    the measure/arithmetic helpers shared by the CBN and CBV stacks
+    the measure/arithmetic helpers used by the CBV stack
     ([add_lift] / [mul_lift] / [score_lift] / [const_icones] / the
-    boolean-primitive norm bounds).  The interpretations live in:
-    - [theories/programs/ppl_cbv.v] — the CBV interpreter: linhom-valued
-      [eD], comonoid-primitive; types denote [EM(!̃)]-coalgebras with a
-      SINGLE outer [!̃] on [tfun A B] = [!̃(U⟦A⟧ ⊸ U⟦B⟧)] (no [Tobj]
-      on the codomain — the old Kleisli-exponential design is gone);
-    - [theories/programs/ppl_cbn*.v] — the CBN stack.
+    boolean-primitive norm bounds).  The interpretation lives in
+    [theories/programs/ppl_cbv.v] — the CBV interpreter: linhom-valued
+    [eD], comonoid-primitive; types denote [EM(!̃)]-coalgebras with a
+    SINGLE outer [!̃] on [tfun A B] = [!̃(U⟦A⟧ ⊸ U⟦B⟧)] (no [Tobj]
+    on the codomain — the old Kleisli-exponential design is gone).
+    (A call-by-name interpretation stack is preserved on the
+    [cbn-track] branch; main is CBV-only.)
 
     ** Surface calculus — direct style **
 
@@ -80,8 +81,7 @@
     NOT in this file.  The CBV interpretation ([tyD_cbv] / [ctxD_cbv]
     on the De Bruijn skeleton [drop_names Γ], and the linhom-valued
     [eD]) is in [theories/programs/ppl_cbv.v]; see its header for the
-    clause-by-clause recipes.  The CBN interpretation is in
-    [theories/programs/ppl_cbn.v].
+    clause-by-clause recipes.
 
     ** Infrastructure **
 
@@ -330,7 +330,7 @@ Arguments is_free_coalg_type {R Ar} t.
     Direct-style application [ne_app : named_expr G (tfun t1 t2) ->
     named_expr G t1 -> named_expr G t2] (not Moggi fine-grain) matches
     the QBS-paper calculus shape; effects appear only in the
-    interpretations ([ppl_cbv.v] / [ppl_cbn.v]).
+    interpretation ([ppl_cbv.v]).
 
     The constructors:
     - [ne_var] : project a value from the named context (via a
@@ -506,15 +506,14 @@ Arguments ne_bernoulli_f {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_if {R Ar R_obj G} & t e M N.
 
 
-(** ** Shared CBN/CBV helpers — arithmetic, score, boolean, constants
+(** ** Shared semantic helpers — arithmetic, score, boolean, constants
 
     These helpers were originally part of the OLD-CBV [eD] machinery in
     [ppl.v].  After the CBV refactor (task #207) the OLD [eD] / Moggi
     apparatus is gone, but the helpers themselves are independent of
     that machinery: they package arithmetic-on-FMeas, term-level
     scoring, constant icones_homs and the boolean primitives' norm
-    bounds in a form usable by both the CBN stack ([ppl_cbn*.v]) and
-    the new CBV stack ([ppl_cbv.v]).  See
+    bounds in a form usable by the CBV stack ([ppl_cbv.v]).  See
     [theories/programs/examples.v] for the surface programs that
     exercise them. *)
 

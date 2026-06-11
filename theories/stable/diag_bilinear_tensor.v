@@ -2,8 +2,10 @@
 (** * Diagonal bilinear stability bridge — SCones ↔ ICones-tensor
 
     This file delivers the "diagonal bilinear" stability bridge needed by
-    the CBN consumer for [ex_geom_CBN_mass_one] (and friends), and the
-    generic CBV stage of [Yfix_arr_g] (Bang-fix at [eD ne_fix]):
+    the generic CBV stage of [Yfix_arr_g] (Bang-fix at [eD ne_fix]); it
+    was originally also consumed by the CBN headline
+    [ex_geom_CBN_mass_one] (and friends), now preserved on the
+    [cbn-track] branch:
 
     if [K : G → !A] is meas-stable and [Φ : G ⊗ !A → !B] is bilinear
     (i.e., an [icones_hom]), then [g ↦ Φ(g ⊗ K g)] is meas-stable.

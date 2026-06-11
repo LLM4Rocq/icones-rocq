@@ -77,17 +77,3 @@ theories/programs/infra/cbv_anchors.v
 theories/programs/infra/cbv_fix_unfold.v
 theories/programs/infra/let_sample_law.v
 theories/programs/ex_reject_headline.v
-theories/programs/infra/bool_case_scones.v
-theories/programs/ppl_cbn.v
-theories/programs/ppl_cbn_eff.v
-theories/programs/ppl_cbn_bool.v
-theories/programs/ppl_cbn_arith.v
-theories/programs/ppl_cbn_headlines.v
-theories/programs/infra/cbn_bernoulli_cascade.v
-theories/programs/infra/geom_dist_infra.v
-theories/programs/ppl_cbn_geom.v
-theories/programs/ppl_cbn_almost_loop.v
-theories/programs/ppl_cbn_geom_dist.v
-theories/programs/ppl_cbn_almost_loop_dist.v
-theories/programs/ppl_cbn_arith_scones.v
-theories/programs/ppl_cbn_arith_eff.v
