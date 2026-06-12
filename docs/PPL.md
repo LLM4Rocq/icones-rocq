@@ -1788,7 +1788,7 @@ Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 ```
 
@@ -1808,10 +1808,10 @@ Theorem ex_reject_normalises_score
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
   fmeas_mu
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U.
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U.
 ```
 
 **The sampled-constant marginal, and the probability-test-point
@@ -1835,7 +1835,7 @@ Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
   linhom_fun
     (Lfun (der (Lty tR' tR'))
        (linhom_fun (ex_random_constant_cbv R_carrier_meas
-                      R_to_carrier_meas Hmu) one1)) x = mu.
+                      R_to_carrier_meas pm) one1)) x = mu.
 ```
 
 **The random-affine marginal.** The denotation of `ex_random_linear`
@@ -1855,7 +1855,7 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
     (linhom_fun
        (Lfun (der (Lty tR' tR'))
           (linhom_fun (ex_random_linear_cbv R_carrier_meas
-                         R_to_carrier_meas Hmu) one1))
+                         R_to_carrier_meas pm) one1))
        (dirac_fmeas r0)) U =
   \int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
@@ -1866,11 +1866,11 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
 
 **The Bayesian-linear-regression model evidence.** The headline of
 the file: `ex_bayes_linear l` samples the random affine model *once*
-(it is literally `ex_random_linear`), binds it to `"f"`, scores one
-observation per element of the meta-level list `l : seq (obs R)`
-(each observation `o` scores the model's value at the known input
-`obs_x o` by the density `obs_d o`), and returns `#"f"` — the
-posterior over functions. The theorem, for a *general* `l`: the
+(it is literally `ex_random_linear`), binds it to `"f"`, CONDITIONS
+it on each element of the meta-level list `l : seq (obs R)` in turn
+(`iter_condition`: each observation `o` scores the model's value at
+the known input `obs_x o` by the density `obs_d o`), and returns
+`#"f"` — the posterior over functions. The theorem, for a *general* `l`: the
 comonoid counit ("total mass") of the function-space denotation is
 the **model evidence**.
 
@@ -1879,7 +1879,7 @@ the **model evidence**.
 Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
-         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu l)
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas pm l)
          one1)))%:num)%R =
   fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
      (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
@@ -1960,9 +1960,9 @@ The division form `reject_prog_computes_condition` divides through at
 `reject_normalises_condition_prob` identifies the normaliser with the
 model evidence `⟦condition_prog⟧(setT)`. The historical special case
 at the sampler model is `ex_reject_normalises_score` above; the
-regression-side reading — `ex_bayes_linear` as *iterated
-conditioning* (`condition_at` / `iter_condition` /
-`ex_bayes_linear_is_iter_condition`,
+regression side — `ex_bayes_linear` is *defined* as iterated
+conditioning (`condition_at` / `iter_condition`, with the named
+anchor `ex_bayes_linear_is_iter_condition` now definitional,
 `theories/programs/examples.v`) — and the full narrative live on the
 [Examples tab](../../examples/index.html).
 

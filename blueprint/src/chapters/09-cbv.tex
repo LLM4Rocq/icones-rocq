@@ -2876,10 +2876,14 @@ $\mathtt{let\,\_ = Score}\,\{\mathtt{obs\_d}\,o\}\,
 \,\mathtt{in}\,\cdots$, scoring the model's value at the known input;
 the program returns $\#\mathtt{"f"}$ --- the posterior over
 \emph{functions}. The fold over a meta-level observation list is the
-Rocq fixpoint \rocq{Icones.programs.examples.obs_fold} (the custom
-notation entry cannot recurse over a meta-level \texttt{seq}); a
-definitional \texttt{Check} pins the 2-observation instance to the
-literal surface sugar, and
+iterated-conditioning Rocq fixpoint
+\rocq{Icones.programs.examples.iter_condition} (the custom notation
+entry cannot recurse over a meta-level \texttt{seq}); the historical
+raw score-fold reading is the derived
+\rocq{Icones.programs.examples.ex_bayes_linear_obs_fold} via
+\rocq{Icones.programs.examples.obs_fold}, a definitional
+\texttt{Check} pins the 2-observation instance to the literal
+surface sugar, and
 \rocq{Icones.programs.examples.ex_bayes_linear3} is the concrete
 3-observation instance. The CBV reading is the point: the sampled
 \emph{function value} is bound once and shared --- duplicated by the
@@ -2949,25 +2953,27 @@ programs.
 \label{def:cbv-ex-reject}
 \rocq{Icones.programs.examples.ex_reject}\rocqok
 \uses{def:cbv-fix-clause, lem:ppl-bern-lift}
-Given a prior $\mu$ (a unit-mass measure on the reals) and a
-measurable acceptance density $f : \mathbb{R} \to [0, 1]$, the
-program is
+Given a bundled prior $m$ (a \texttt{pmeas}: a sub-probability on
+the reals, here assumed of unit mass) and a measurable acceptance
+density $f : \mathbb{R} \to [0, 1]$, the program is
 \[
   \mathtt{ex\_reject}
   \;=\;
-  \Bigl(\mathtt{fix}\;\textit{rs}.\;\lambda\,\textit{accept}.\;
-    \mathtt{let}\;x = \mathtt{sample}\,\mu\;\mathtt{in}\;
+  \mathtt{let\,rec}\;\textit{rs}\;\textit{accept} =
+    \mathtt{let}\;x = \mathtt{sample}\,m\;\mathtt{in}\;
     \mathtt{if}\;\mathtt{Bernoulli\_f}\{f\}\,(x)\;
     \mathtt{then}\;\textit{accept}\;x\;
-    \mathtt{else}\;\textit{rs}\;\textit{accept}\Bigr)
-  \;@\;
-  (\lambda y.\,y),
+    \mathtt{else}\;\textit{rs}\;\textit{accept}
+  \;\;\mathtt{in}\;\;
+  \textit{rs}\;(\lambda y.\,y),
 \]
 a closed term of type $\mathtt{tR}$ written in the direct-style
-surface notation, with the recursive sampler applied to the identity
-acceptance continuation. Write
+surface notation (the OCaml-style \texttt{let rec} sugar, over the
+bundled sub-probability prior $m$), with the recursive sampler
+applied to the identity acceptance continuation in the
+\texttt{let rec} continuation. Write
 $\nu = \sem{\mathtt{ex\_reject}}(1) \in \FMeas(R_\mathrm{obj})$ for
-its closed CBV denotation,
+its closed CBV denotation, $\mu$ for the measure carried by $m$,
 $I_f = \int f\,d\mu$ and $I_f^U = \int_U f\,d\mu$.
 \end{definition}
 
@@ -3468,13 +3474,16 @@ at the known input by the observation density is the score clause of
 --- the regression scores the application directly and returns the
 \emph{function} at the end). Packaging one such step as
 \rocq{Icones.programs.examples.condition_at} and its fold as
-\rocq{Icones.programs.examples.iter_condition}, the observation fold
-\emph{is} the iterated conditioning
-(\rocq{Icones.programs.examples.obs_fold_is_iter_condition}), and the
-regression is the random affine model bound once, then conditioned on
-each observation in turn
-(\rocq{Icones.programs.examples.ex_bayes_linear_is_iter_condition});
-the one-observation case is definitional.
+\rocq{Icones.programs.examples.iter_condition}, the regression is
+\emph{defined} as the random affine model bound once, then
+conditioned on each observation in turn --- the named agreement
+anchor
+(\rocq{Icones.programs.examples.ex_bayes_linear_is_iter_condition})
+is now definitional, and the historical raw observation fold is the
+derived reading
+(\rocq{Icones.programs.examples.obs_fold_is_iter_condition},
+\rocq{Icones.programs.examples.ex_bayes_linear_obs_fold}); the
+one-observation case is definitional.
 \end{lemma}
 
 \subsection{Riders: the CBV mass identities for

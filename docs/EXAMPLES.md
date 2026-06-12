@@ -96,7 +96,7 @@ the prior `µ`.
 (* theories/programs/examples.v *)
 Definition ex_random_constant :
     @named_expr R Ar R_obj nil (tfun tR' tR') :=
-  [ let "c" := Sample (mu, Hmu) in \ "x" ::: tR' => # "c" ].
+  [ let "c" := sample m in \ "x" ::: tR' => # "c" ].
 ```
 
 All identities live in `theories/programs/infra/cbv_marginals.v`
@@ -117,13 +117,13 @@ Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
   linhom_fun
     (Lfun (der (Lty tR' tR'))
        (linhom_fun (ex_random_constant_cbv R_carrier_meas
-                      R_to_carrier_meas Hmu) one1)) x = mu.
+                      R_to_carrier_meas pm) one1)) x = mu.
 
 Theorem ex_random_constant_cbv_marginal_dirac (r0 : ar_carrier Ar R_obj) :
   linhom_fun
     (Lfun (der (Lty tR' tR'))
        (linhom_fun (ex_random_constant_cbv R_carrier_meas
-                      R_to_carrier_meas Hmu) one1)) (dirac_fmeas r0) = mu.
+                      R_to_carrier_meas pm) one1)) (dirac_fmeas r0) = mu.
 ```
 
 Proof idea: the let-at-sample law turns the denotation into the
@@ -159,8 +159,8 @@ program is literally `let "f" := ex_random_linear in …`.
 (* theories/programs/examples.v *)
 Definition ex_random_linear :
     @named_expr R Ar R_obj nil (tfun tR' tR') :=
-  [ let "m" := Sample (mu, Hmu) in
-    let "b" := Sample (mu, Hmu) in
+  [ let "m" := sample m in
+    let "b" := sample m in
     \ "x" ::: tR' => # "m" * # "x" + # "b" ].
 ```
 
@@ -180,7 +180,7 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
     (linhom_fun
        (Lfun (der (Lty tR' tR'))
           (linhom_fun (ex_random_linear_cbv R_carrier_meas
-                         R_to_carrier_meas Hmu) one1))
+                         R_to_carrier_meas pm) one1))
        (dirac_fmeas r0)) U =
   \int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
@@ -216,7 +216,7 @@ the next entry.)
 (* theories/programs/examples.v *)
 Definition ex_score_posterior :
     @named_expr R Ar R_obj nil tR' :=
-  [ let "m" := Sample (mu, Hmu) in
+  [ let "m" := sample m in
     let "_" := Score { f, Hf_meas, Hf_ge0, Hf_le1 } # "m" in
     # "m" ].
 ```
@@ -240,7 +240,7 @@ Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 ```
 
@@ -280,8 +280,8 @@ observation list into a series of scores, and returns `#"f"` — the
 (* theories/programs/examples.v — the 2-observation surface form
    (definitionally equal to ex_bayes_linear [:: o1; o2], pinned by a
    Check (erefl : …) in the source) *)
-[ let "f" := (let "m" := Sample (mu , Hmu) in
-              let "b" := Sample (mu , Hmu) in
+[ let "f" := (let "m" := sample m in
+              let "b" := sample m in
               \ "x" ::: tR' => # "m" * # "x" + # "b") in
   let "_" := Score { obs_d o1 , obs_meas o1 , obs_ge0 o1 , obs_le1 o1 }
                # "f" @ [| obs_x o1 |] in
@@ -290,27 +290,25 @@ observation list into a series of scores, and returns `#"f"` — the
   # "f" ]
 ```
 
-For a general meta-level list `l : seq (obs R)`, the score series is
-produced by the Rocq `Fixpoint` `obs_fold` (the `ppl_named` custom
-entry cannot recurse over a meta-level `seq`); `ex_bayes_linear l`
-binds the model and runs the fold, and `ex_bayes_linear3` is the
-concrete 3-observation instance.
-
-**The regression IS iterated conditioning.** Each observation step is
-a soft conditioning of the model's value at the observation point:
-scoring `#"f" @ [|obs_x o|]` by `obs_d o` is the score clause of the
-`condition` operator (the centrepiece chapter below) at the model
-`#"f"` and the input `obs_x o` — the only difference is A-normal
-form (`condition` binds the model's value and returns it; the
-regression scores the application directly and returns the *function*
-at the end). `condition_at o` packages one such step,
-`iter_condition` is its fold, and THE AGREEMENT
-`ex_bayes_linear_is_iter_condition`
-(`theories/programs/examples.v`) proves the regression equal to the
-model bound once followed by the iterated conditioning — for a
-*general* observation list (`obs_fold_is_iter_condition`); the
-1-observation case is definitional, pinned by a `Check (erefl : …)`
-in the source.
+**The regression IS iterated conditioning — by definition.** Each
+observation step is a soft conditioning of the model's value at the
+observation point: scoring `#"f" @ [|obs_x o|]` by `obs_d o` is the
+score clause of the `condition` operator (the centrepiece chapter
+below) at the model `#"f"` and the input `obs_x o` — the only
+difference is A-normal form (`condition` binds the model's value and
+returns it; the regression scores the application directly and
+returns the *function* at the end). `condition_at o` packages one
+such step and `iter_condition` is its fold over a general meta-level
+list `l : seq (obs R)` (the `ppl_named` custom entry cannot recurse
+over a meta-level `seq`); `ex_bayes_linear l` is **defined** as the
+model bound once followed by `iter_condition`, with the named
+agreement anchor `ex_bayes_linear_is_iter_condition`
+(`theories/programs/examples.v`) now holding by `erefl`. The
+historical raw score-fold shape is the derived reading
+`ex_bayes_linear_obs_fold` (via `obs_fold_is_iter_condition`), and
+`ex_bayes_linear3` is the concrete 3-observation instance; the
+1-observation conditioning step and the 2-observation surface form
+are pinned by `Check (erefl : …)` in the source.
 
 **The theorems.** The headline `ex_bayes_linear_cbv_evidence`
 (Section BayesLinearEvidence of
@@ -332,7 +330,7 @@ literally.
 Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
-         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu l)
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas pm l)
          one1)))%:num)%R =
   fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
      (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
@@ -379,14 +377,14 @@ recursion constructor is documented in
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
-| Bare divergence | `(let rec l = λ_. l ()) ()` of type `tunit`, total mass `0`. | `ex_loop` — `theories/programs/examples.v` |
-| Geometric distribution | `(let rec g = λ_. if Bernoulli(½) then 0 else 1 + g ()) ()` of type `tR'`, total mass `1`: the sampler halts almost surely. | `ex_geom` — `examples.v`; `ex_geom_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
-| Parameterised partial termination | `(let rec l = λ_. if Bernoulli(p) then () else l ()) ()` of type `tunit`: mass `1` when `p > 0`, mass `0` when `p = 0`. | `ex_almost_loop` — `examples.v`; `ex_almost_loop_cbv_mass_one`, `ex_almost_loop_cbv_zero` — `theories/programs/ex_reject_headline.v` |
+| Bare divergence | `let rec l _ = l () in l ()` of type `tunit`, total mass `0`. | `ex_loop` — `theories/programs/examples.v` |
+| Geometric distribution | `let rec g _ = if Bernoulli(½) then 0 else 1 + g () in g ()` of type `tR'`, total mass `1`: the sampler halts almost surely. | `ex_geom` — `examples.v`; `ex_geom_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
+| Parameterised partial termination | `let rec l _ = if Bernoulli(p) then () else l () in l ()` of type `tunit`: mass `1` when `p > 0`, mass `0` when `p = 0`. | `ex_almost_loop` — `examples.v`; `ex_almost_loop_cbv_mass_one`, `ex_almost_loop_cbv_zero` — `theories/programs/ex_reject_headline.v` |
 | Mutual recursion at a product of functions | `fix_mr p : (1→1) × (1→1). (λn. snd p n, λn. fst p n)` — one recursive name bound at a *pair* of function types, each component calling the other; the elaboration witness for the genuine Seely-transported mutual-recursion fixpoint. | `ex_even_odd_pair`, `ex_even`, `ex_odd` — `theories/programs/examples.v` |
 
 ### ex_loop (`ex_loop`)
 
-Bare divergence: `let rec l = λ_. l () in l ()`. No effect, no
+Bare divergence: `let rec l _ = l () in l ()`. No effect, no
 sampling, no scoring — just an infinite chain of unit-typed
 recursive calls. Mathematically the program has total mass `0`: the
 recursion never terminates.
@@ -395,7 +393,8 @@ recursion never terminates.
 (* theories/programs/examples.v *)
 Definition ex_loop :
     @named_expr R Ar R_obj nil tunit :=
-  [ (fix "l" ::: tfun tunit tunit in \ "_" ::: tunit => # "l" @ ()) @ () ].
+  [ let rec "l" "_" ::: tunit ==> tunit := # "l" @ ()
+    in # "l" @ () ].
 ```
 
 No standalone CBV headline is recorded for the bare loop: the
@@ -415,11 +414,11 @@ measure of total mass `1` — the sampler halts almost surely.
 ```coq
 (* theories/programs/examples.v *)
 Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
-  [ (fix "g" ::: tfun tunit tR' in
-       \ "_" ::: tunit =>
-         (if Bernoulli { (1 / 2 : R), bernoulli_half_ge0, bernoulli_half_le1 }
-          then [| 0%R |]
-          else [| 1%R |] + # "g" @ ())) @ () ].
+  [ let rec "g" "_" ::: tunit ==> tR' :=
+      (if Bernoulli [| (1 / 2 : R) |]
+       then [| 0%R |]
+       else [| 1%R |] + # "g" @ ())
+    in # "g" @ () ].
 ```
 
 | Side | Headline | Status |
@@ -463,14 +462,13 @@ visible as the point's norm.
 
 ```coq
 (* theories/programs/examples.v *)
-Definition ex_almost_loop (p : R)
-    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+Definition ex_almost_loop (p : R) :
     @named_expr R Ar R_obj nil tunit :=
-  [ (fix "l" ::: tfun tunit tunit in
-       \ "_" ::: tunit =>
-         (if Bernoulli { p, Hp_ge0, Hp_le1 }
-          then ()
-          else # "l" @ ())) @ () ].
+  [ let rec "l" "_" ::: tunit ==> tunit :=
+      (if Bernoulli [| p |]
+       then ()
+       else # "l" @ ())
+    in # "l" @ () ].
 ```
 
 | Side | Headline | Status |
@@ -498,7 +496,9 @@ Theorem ex_almost_loop_cbv_zero : p = 0%R -> al_denot = precone_zero.
 ```
 
 (`al_denot` abbreviates
-`linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas Hp0 Hp1) one1`.)
+`linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas p) one1`;
+the `0 ≤ p ≤ 1` witnesses live in the theorems, not the program — the
+unified `Bernoulli [| p |]` clamps.)
 
 ### ex_even_odd_pair (`ex_even_odd_pair`, `ex_even`, `ex_odd`, `ex_even_odd_pair_cbv`)
 
@@ -583,7 +583,7 @@ top of the surface programs of `theories/programs/examples.v`.
 | The rejection-sampling combinator | `fix rs = λm. λa. let x = m a in if Bernoulli_f{f} x then x else rs m a` of type `(ta → tR) → (ta → tR)`, for an arbitrary input type `ta` — run the model at the input, accept with probability `f x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
 | The combinator master identity | Writing `ν_M := ⟦m⟧(a)` for the model's output sub-distribution, `m₀ := ν_M(setT)`, `If := ∫ f dν_M`: `(1 − m₀ + If) · ν(U) = ∫_U f dν_M` for every measurable `U`, unconditionally. | `reject_model_master` — `theories/programs/ex_reject_model.v` |
 | The normalised distribution | If `0 < 1 − m₀ + If` (loop progress), `ν(U) = (∫_U f dν_M) / (1 − m₀ + If)` — the sub-probability-honest normaliser; at a probability model (`m₀ = 1`) it is the classical `∫ f dν_M`. | `reject_model_is_normalised`, `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero` — same file |
-| Rejection sampling (the simplest instance) | `(let rec rs = λaccept. let x = sample µ in if Bernoulli_f{f} x then accept x else rs accept) (λy. y)` of type `tR` — sample from the prior, accept with probability `f x`, recurse on rejection. | `ex_reject`, `ex_reject_cbv` — `theories/programs/examples.v` |
+| Rejection sampling (the simplest instance) | `let rec rs accept = let x = sample m in if Bernoulli_f{f} x then accept x else rs accept in rs (λy. y)` of type `tR` — sample from the prior, accept with probability `f x`, recurse on rejection. | `ex_reject`, `ex_reject_cbv` — `theories/programs/examples.v` |
 | The master identity (instance) | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v`; re-derived from the combinator as `ex_reject_comb_sampler_master` — `theories/programs/ex_reject_model.v` |
 | The normalised posterior (instance) | If acceptance has positive mass, `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the program denotes the posterior of the prior `µ` given the soft predicate `f`. | `ex_reject_is_normalised_posterior` — same file |
 | The instance bridge | The combinator applied to the sampler model `λ_. sample µ` (`ex_sampler`) at the unit input denotes THE SAME measure as `ex_reject` — equal Kleene-iterate masses pass to the suprema. | `ex_reject_comb_sampler_E` — `theories/programs/ex_reject_model.v` |
@@ -741,7 +741,7 @@ Token by token:
   ordinary lambda parameters.
 - `let "x" := # "m" @ # "a" in …` — propose: RUN THE MODEL at the
   input. This is the generalisation point: where `ex_reject` had the
-  hard-coded `Sample (mu, Hmu)`, the combinator binds the output of
+  hard-coded `sample m`, the combinator binds the output of
   an arbitrary model application.
 - `if Bernoulli_f { f, … } # "x" then # "x" else …` — the
   value-dependent coin (`ne_bernoulli_f`): accept the candidate with
@@ -872,7 +872,7 @@ the old master identity `∫f dµ · ν(U) = ∫_U f dµ` through the bridge.
 Theorem ex_reject_comb_sampler_E :
   inst_denot =
   linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                Hmu_ball Hf_meas Hf_ge0 Hf_le1) one1.
+                m Hf_meas Hf_ge0 Hf_le1) one1.
 ```
 
 ### ex_reject — the simplest instance (`ex_reject`, `ex_reject_master`, `ex_reject_is_normalised_posterior`, `ex_reject_mass_one`, `ex_reject_zero`)
@@ -888,27 +888,26 @@ type `tR`:
 ```coq
 (* theories/programs/examples.v *)
 Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
-  [ (fix "rs" ::: tfun (tfun tR' tR') tR' in
-       \ "accept" ::: (tfun tR' tR') =>
-         (let "x" := Sample (mu , Hmu) in
-          if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
-          then # "accept" @ # "x"
-          else # "rs" @ # "accept"))
-    @ (\ "y" ::: tR' => # "y") ].
+  [ let rec "rs" "accept" :=
+      (let "x" := sample m in
+       if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+       then # "accept" @ # "x"
+       else # "rs" @ # "accept")
+    in # "rs" @ (\ "y" ::: tR' => # "y") ].
 ```
 
 Token by token:
 
-- `fix "rs" ::: tfun (tfun tR' tR') tR' in …` — the recursion
-  binder (`ne_fix`): `rs` names the sampler itself inside its own
-  body, at the function type *continuation → real*. Semantically
-  this is the seeded value-fixpoint combinator `fix_comb`.
-- `\ "accept" ::: (tfun tR' tR') => …` — the sampler is
+- `let rec "rs" "accept" := … in …` — the OCaml-style recursion
+  binding (sugar for `ne_let` of `ne_fix` of `ne_lam`): `rs` names
+  the sampler itself inside its own body, and the binder types are
+  inferred from the body. Semantically the fixpoint is the seeded
+  value-fixpoint combinator `fix_comb`. The sampler is
   **higher-order**: it abstracts over the acceptance continuation
   `accept`, a function value passed to the recursive call unchanged.
-- `let "x" := Sample (mu, Hmu) in …` — propose: draw a candidate
-  `x` from the prior `µ` (`ne_sample`; the witness `Hmu` bounds the
-  prior's mass by 1).
+- `let "x" := sample m in …` — propose: draw a candidate
+  `x` from the bundled prior `m : pmeas` (`ne_sample`; the bundle
+  carries the unit-ball witness).
 - `if Bernoulli_f { f, … } # "x" then … else …` — the
   **value-dependent** coin (`ne_bernoulli_f`): flip with success
   probability `f(x)`, where `x` is the candidate just drawn. The
@@ -919,9 +918,10 @@ Token by token:
 - `# "rs" @ # "accept"` — on rejection, recurse with the *same*
   continuation: the new call re-runs the `let`-`sample`, drawing a
   fresh candidate.
-- `@ (\ "y" ::: tR' => # "y")` — finally the recursive sampler is
-  applied to the identity continuation, so the whole program returns
-  the accepted sample itself.
+- `in # "rs" @ (\ "y" ::: tR' => # "y")` — in the `let rec`
+  continuation the recursive sampler is applied to the identity
+  continuation, so the whole program returns the accepted sample
+  itself.
 
 **What the theorems say.** Write `ν := ⟦ex_reject⟧(one1)` for the
 closed CBV denotation, `If := ∫ f dµ` for the acceptance mass, and
@@ -1048,10 +1048,10 @@ Theorem ex_reject_normalises_score
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
   fmeas_mu
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U.
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U.
 ```
 
 The proof is one line on top of the two headlines: rewrite the

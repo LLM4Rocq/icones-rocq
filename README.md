@@ -158,8 +158,9 @@ sub-probability-honest master identity
 probability models (`reject_model_mass_one`) and honest divergence at
 `f ≡ 0` (`reject_model_zero`) — all in
 `theories/programs/ex_reject_model.v`, axiom-free. The Bayesian
-linear regression below is itself *iterated conditioning*
-(`ex_bayes_linear_is_iter_condition`). The original
+linear regression below is *defined as* iterated conditioning
+(the named anchor `ex_bayes_linear_is_iter_condition` is now
+definitional). The original
 hard-coded sampler is the simplest instance: at the model
 `λ_. sample µ`, the combinator denotes **the same measure** as
 `ex_reject` (`ex_reject_comb_sampler_E`), whose direct theorems
@@ -176,8 +177,8 @@ identities `ex_random_constant_cbv_marginal` /
 `ex_random_linear_cbv_marginal`, and the **model evidence of a
 higher-order Bayesian linear regression**
 (`ex_bayes_linear_cbv_evidence`: the program samples a random affine
-function once, scores a series of observations against its values at
-known inputs, and returns the posterior over functions — its total
+function once, conditions it on each observation in turn
+(`iter_condition`), and returns the posterior over functions — its total
 mass is the iterated evidence integral, for a general observation
 list).
 
@@ -341,8 +342,8 @@ theories/
                                      ex_even_odd_pair, ex_reject,
                                      ex_reject_comb, ex_condition_comb +
                                      Condition surface form, condition_at /
-                                     iter_condition + the regression-as-
-                                     iterated-conditioning agreement,
+                                     iter_condition — ex_bayes_linear IS
+                                     the iterated conditioning,
                                      gaussian / uniform, ex_surface_demo) —
                                      pure syntax + the eD-applied CBV
                                      denotations (ex_*_cbv)
