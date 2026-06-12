@@ -18,21 +18,21 @@
       [⟦let x = sample µ in K⟧(γ) = ⟦K⟧(γ ⊗ µ)], via the comonoid
       counit law [emc_counitR] (Melliès Prop 27 / [em_cartesian.v])
       through the general constant-pairing law [em_pair_mor_const_E].
-    - [icone_integral_dirac_fmeas] — step 2, [µ = ∫ δ_r µ(dr)]
-      with the bare [dirac_fmeas] integrand (re-spelling of
-      [bilin.v]'s Thm 6.1 Dirac approximation
-      [icone_integral_dirac_path]).
+    - step 2, [µ = ∫ δ_r µ(dr)] with the bare [dirac_fmeas]
+      integrand: [distributions.v::icone_integral_dirac_fmeas]
+      (imported; re-spelling of [bilin.v]'s Thm 6.1 Dirac
+      approximation [icone_integral_dirac_path]).
     - [ptensor_icone_integral] — step 3, tensoring with a fixed
       point preserves Pettis integrals,
       [γ ⊗ (∫ β dµ) = ∫ (γ ⊗ β r) µ(dr)], from the
       [linhom_pres_int] field of [τ(γ)] ([tensor.v::tau]).
     - [eD_let_sample_int] — THE LAW (step 4): step 3 + the
       [icones_hom_pres_int] field of [⟦K⟧] pushed under the integral.
-    - [icone_integral_fmeas_E] — step 5, the per-U evaluation of an
-      [FMeas]-valued Pettis integral
-      [(∫ β dµ)(U) = ∫ (β r)(U) µ(dr)] for ARBITRARY measurable [U],
-      generalising [ppl.v::FMeas_fmap_setT_E] from [setT] to [U] via
-      the test [fmeas_eU U] ([fmeas.v]).
+    - step 5, the per-U evaluation of an [FMeas]-valued Pettis
+      integral [(∫ β dµ)(U) = ∫ (β r)(U) µ(dr)] for ARBITRARY
+      measurable [U]: [distributions.v::icone_integral_fmeas_E]
+      (imported), generalising [ppl.v::FMeas_fmap_setT_E] from [setT]
+      to [U] via the test [fmeas_eU U] ([fmeas.v]).
     - [eD_let_sample_mu_E] — the fused 4+5 corollary at result type
       [tR]: the measure-on-[U] reading of the law, the exact shape
       the rejection-sampling mass recurrence (M4) consumes.
@@ -106,6 +106,7 @@ Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
+Require Import Icones.programs.distributions.
 Require Import Icones.programs.infra.em_fix_value.
 Require Import Icones.programs.ppl_cbv.
 Require Import Icones.programs.infra.cbv_anchors.
@@ -167,17 +168,8 @@ by congr fine; apply: eq_integral => r _; rewrite eqβ.
 Qed.
 
 (** Step 2 — Dirac approximation, [µ = ∫ δ_r µ(dr)], with the bare
-    [dirac_fmeas] integrand (the form the law's proof composes with).
-    Re-spelling of [bilin.v]'s [icone_integral_dirac_path]. *)
-Lemma icone_integral_dirac_fmeas (X : ar_obj Ar)
-    (µ : fmeas R (ar_carrier Ar X)) :
-  icone_integral (@dirac_fmeas R Ar X) (dirac_fmeas_is_path X) µ = µ.
-Proof.
-have HP := icone_integralP (path_fun (dirac_path Ar X))
-             (path_is_path (dirac_path Ar X)) µ.
-rewrite icone_integral_dirac_path in HP.
-by apply/esym/icone_integral_eqP.
-Qed.
+    [dirac_fmeas] integrand (the form the law's proof composes with):
+    [distributions.v::icone_integral_dirac_fmeas] (imported above). *)
 
 (** [linhom_pres_int] re-spelled through [linhom_fun], so that it can
     be used as a plain [rewrite]/[have] after a [ptensorE] step. *)
@@ -227,7 +219,6 @@ End IConesPointwise.
 
 Arguments icones_compE {R Ar B C D} g f x.
 Arguments icone_integral_ext {R Ar B X β1 β2} Hβ1 Hβ2 µ.
-Arguments icone_integral_dirac_fmeas {R Ar X} µ.
 Arguments ptensor_path {R Ar B C} γ {X β} Hβ.
 Arguments ptensor_icone_integral {R Ar B C} γ {X β} Hβ µ.
 
@@ -236,57 +227,9 @@ Arguments ptensor_icone_integral {R Ar B C} γ {X β} Hβ µ.
     [(∫ β dµ)(U) = ∫ (β r)(U) µ(dr)] for ARBITRARY measurable [U] —
     the generalisation of [ppl.v::FMeas_fmap_setT_E] from [setT] to
     [U], read off the Pettis equation against the test [fmeas_eU U]
-    ([fmeas.v], paper §3.2.1).  This is the lemma the headline mass
-    recurrence (plan M4, [ex_reject_iter_mass]) consumes. *)
-
-Section FMeasIntegralEval.
-Local Open Scope ereal_scope.
-Variables (R : realType) (Ar : MeasSubcat R).
-
-Lemma icone_integral_fmeas_E (X Y : ar_obj Ar)
-    (β : ar_carrier Ar X -> FMeas Y)
-    (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X))
-    (U : set (ar_carrier Ar Y)) (mU : measurable U) :
-  fmeas_mu (icone_integral β Hβ µ) U =
-  \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
-     (fine (fmeas_mu (β r) U))%:E.
-Proof.
-(* The Pettis equation against [fmeas_eU U]: both sides in [fine]. *)
-have HP := icone_integralP β Hβ µ (fmeas_eU (ar_zero Ar) mU)
-             (ex_intro _ U (ex_intro _ mU erefl)) (ar_zero_pt Ar).
-(* Finiteness of the LHS: finite measures are finite on U. *)
-have HLfin : fmeas_mu (icone_integral β Hβ µ) U \is a fin_num
-  by exact: fmeas_fin.
-(* Measurability of the [ereal] integrand (the [e_U]-test section). *)
-have mInt : measurable_fun [set: ar_carrier Ar X]
-              (fun r => (fine (fmeas_mu (β r) U))%:E).
-  apply/measurable_EFinP.
-  exact: (measurable_test_path_section
-            (m := fmeas_eU (ar_zero Ar) mU)
-            (ex_intro _ U (ex_intro _ mU erefl)) Hβ (ar_zero_pt Ar)).
-(* Finiteness of the RHS: the integrand is bounded by the path bound
-   [M], and [µ] has finite total mass. *)
-have [[M HM] _] := Hβ.
-have HRfin : \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
-                (fine (fmeas_mu (β r) U))%:E \is a fin_num.
-  rewrite ge0_fin_numE; last first.
-    by apply: integral_ge0 => r _; rewrite lee_fin fine_ge0// measure_ge0.
-  apply: (le_lt_trans
-    (y := \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) M%:E)).
-    apply: ge0_le_integral => //.
-    move=> r _; rewrite lee_fin.
-    apply: le_trans (HM r).
-    exact: (test_norm_le (fmeas_eU (ar_zero Ar) mU) (ar_zero_pt Ar) (β r)).
-  rewrite (_ : (fun _ => M%:E) = cst M%:E)// integral_cst//.
-  have HfT : fmeas_mu µ [set: ar_carrier Ar X] \is a fin_num
-    by exact: fmeas_setT_fin.
-  by rewrite ltey_eq fin_numM.
-by rewrite -(fineK HLfin) -(fineK HRfin); congr (_%:E); exact: HP.
-Qed.
-
-End FMeasIntegralEval.
-
-Arguments icone_integral_fmeas_E {R Ar X Y β} Hβ µ {U} mU.
+    ([fmeas.v], paper §3.2.1): [distributions.v::icone_integral_fmeas_E]
+    (imported above).  This is the lemma the headline mass recurrence
+    consumes. *)
 
 (** ** Step 1 — the sample-let collapse, then the law
 

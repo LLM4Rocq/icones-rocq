@@ -111,6 +111,7 @@ Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
+Require Import Icones.programs.distributions.
 Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.infra.em_fix_value.
 Require Import Icones.programs.ppl_cbv.
