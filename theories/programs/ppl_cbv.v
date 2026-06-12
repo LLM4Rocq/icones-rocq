@@ -925,6 +925,61 @@ Lemma eD_fix_mr_fun_E (G : named_ctx Ar) (s : string)
              (tensor_curry (eD_cbv' M)))).
 Proof. by []. Qed.
 
+(** ** Agreement: unified [Bernoulli e] vs the witness form
+
+    On a real literal [p ∈ [0,1]], the unified surface coin
+    [Bernoulli [|p|]] (= [ne_bernoulli_f] at the clamped density) and
+    the witness form [Bernoulli { p , Hp_ge0 , Hp_le1 }]
+    (= [ne_bernoulli]) have THE SAME denotation: both are the constant
+    morphism at the two-point sub-probability [(p, 1-p)].  Proof:
+    pointwise on the context; the constant clause produces a
+    [lin_pt]-scaling of the Dirac at [p], the [bern_lift]
+    post-composition is linear, and [bern_lift_dirac] + [clamp_id]
+    compute the coin. *)
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Lemma eD_bernoulli_clamp_const_E (G : named_ctx Ar) (p : R)
+    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+  eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+             (@ne_real R Ar R_obj G p)) =
+  eD_cbv' (ne_bernoulli p Hp_ge0 Hp_le1).
+Proof.
+rewrite eD_bernoulli_f_E eD_real_E eD_bernoulli_E.
+apply: icones_hom_eq => γ.
+set BL := bern_lift (R_carrier_meas := R_carrier_meas)
+            clamp_meas clamp_ge0 clamp_le1.
+rewrite (Lfun_comp BL
+  (real_icones R_obj R_carrier_eq (ctxD_cbv (drop_names G)) p) γ).
+rewrite /real_icones /bernoulli_icones /const_icones.
+rewrite (Lfun_comp (linhom_icones
+    (lin_pt (dirac_fmeas (R_to_carrier R_carrier_eq p)))
+    (lin_pt_norm_le1 _ (dirac_fmeas_norm_le1 _)))
+  (coalg_e (ctxD_cbv (drop_names G))) γ).
+rewrite (Lfun_comp (linhom_icones
+    (lin_pt (bernoulli p Hp_ge0 Hp_le1))
+    (lin_pt_norm_le1 _ (bernoulli_norm_le1 p Hp_ge0 Hp_le1)))
+  (coalg_e (ctxD_cbv (drop_names G))) γ).
+set s := Lfun (coalg_e (ctxD_cbv (drop_names G))) γ.
+rewrite !linhom_iconesE.
+rewrite -[linhom_fun (lin_pt _) s]/(precone_scale (c1_val s)
+  (dirac_fmeas (R_to_carrier R_carrier_eq p))).
+rewrite -[linhom_fun (lin_pt _) s]/(precone_scale (c1_val s)
+  (bernoulli p Hp_ge0 Hp_le1)).
+have [_ _ HZ] := cones_hom_linear
+  (mcones_hom_cones (icones_hom_mcones BL)).
+rewrite -[linhom_fun (int_to_linhom (bern_path clamp_meas clamp_ge0 clamp_le1))
+          (c1_val s *: dirac_fmeas (R_to_carrier R_carrier_eq p))%PC]/(Lfun BL
+  (c1_val s *: dirac_fmeas (R_to_carrier R_carrier_eq p))%PC).
+rewrite HZ.
+rewrite -[cones_hom_fun _ (dirac_fmeas _)]/(Lfun BL
+  (dirac_fmeas (R_to_carrier R_carrier_eq p))).
+rewrite (bern_lift_dirac (R_carrier_meas := R_carrier_meas)
+  clamp_meas clamp_ge0 clamp_le1 p).
+congr precone_scale.
+by apply: bool_cone_eq; apply: val_inj => /=; rewrite clamp_id.
+Qed.
+
 (** [ne_fix_mr] at a PRODUCT body type: the GENUINE Seely-transported
     composite — [fix_mr_comb] (= [fix_comb (free_base _)] conjugated by
     [free_decomp]) post-composed with the lambda-packaging of the body.

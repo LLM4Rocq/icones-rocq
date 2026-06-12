@@ -117,7 +117,7 @@ From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
-From mathcomp.analysis Require Import measure dirac_measure.
+From mathcomp.analysis Require Import measure dirac_measure numfun.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 
@@ -1171,6 +1171,94 @@ End NormHelpers.
 Arguments precone_zero_norm_le1 {R Ar} P.
 Arguments dirac_fmeas_norm_le1 {R Ar X} r.
 
+(** ** Real-function kit for the surface sugar — [clamp], [negr],
+       [gt0_ind]
+
+    Three meta-level functions [R -> R] with their measurability /
+    [[0,1]]-bound witnesses, consumed by the derived surface forms:
+    - [clamp r = min 1 (max 0 r)] — the density clamp behind the
+      unified [Bernoulli e] / [Score e] sugar (any [tR]-valued
+      expression becomes a valid density once clamped);
+    - [negr r = - r] — negation via [ne_meas], used by the comparison
+      sugar [e1 > e2];
+    - [gt0_ind = \1_(0, ∞)] — the strict-positivity indicator, the
+      density of the comparison coin: [e1 > e2] flips a Bernoulli with
+      success probability [gt0_ind (e1 - e2)] (i.e. THE deterministic
+      test on point masses). *)
+
+Section RealFunKit.
+Variable (R : realType).
+
+(** Clamp into [[0,1]]. *)
+Definition clamp (r : R) : R := Order.min 1 (Order.max 0 r).
+
+Lemma clamp_meas : measurable_fun [set: R] clamp.
+Proof.
+apply: measurable_minr; first exact: measurable_cst.
+apply: measurable_maxr; first exact: measurable_cst.
+exact: measurable_id.
+Qed.
+
+Lemma clamp_ge0 (r : R) : (0 <= clamp r)%R.
+Proof. by rewrite /clamp le_min ler01/= le_max lexx. Qed.
+
+Lemma clamp_le1 (r : R) : (clamp r <= 1)%R.
+Proof. by rewrite /clamp ge_min lexx. Qed.
+
+(** On [[0,1]] the clamp is the identity — the agreement lemmas'
+    computation rule. *)
+Lemma clamp_id (r : R) : (0 <= r)%R -> (r <= 1)%R -> clamp r = r.
+Proof. by move=> r0 r1; rewrite /clamp max_r// min_r. Qed.
+
+(** Negation. *)
+Definition negr (r : R) : R := - r.
+
+Lemma negr_meas : measurable_fun [set: R] negr.
+Proof. exact: measurable_funN. Qed.
+
+(** The strict-positivity indicator [\1_(0, ∞)]. *)
+Definition gt0_ind (r : R) : R := \1_([set x : R | 0 < x]) r.
+
+Lemma gt0_ind_meas : measurable_fun [set: R] gt0_ind.
+Proof.
+apply: measurable_indic.
+have := @measurable_itv R
+  (interval.Interval (interval.BRight (0 : R)) (interval.BInfty R false)).
+set S := [set` _] => mS.
+have -> : [set x : R | 0 < x] = S.
+  by apply/seteqP; split => x; rewrite /S/= interval.in_itv/= andbT.
+exact: mS.
+Qed.
+
+Lemma gt0_ind_ge0 (r : R) : (0 <= gt0_ind r)%R.
+Proof. by rewrite /gt0_ind indicE; case: (_ \in _). Qed.
+
+Lemma gt0_ind_le1 (r : R) : (gt0_ind r <= 1)%R.
+Proof. by rewrite /gt0_ind indicE; case: (_ \in _); rewrite ?ler01. Qed.
+
+(** Computation rule: the indicator IS the boolean test. *)
+Lemma gt0_indE (r : R) : gt0_ind r = if (0 < r)%R then 1%R else 0%R.
+Proof.
+rewrite /gt0_ind indicE.
+by have [r0|r0] := ltP 0 r;
+  [rewrite mem_set | rewrite memNset//=; apply/negP; rewrite -leNgt].
+Qed.
+
+End RealFunKit.
+
+Arguments clamp {R} r.
+Arguments clamp_meas {R}.
+Arguments clamp_ge0 {R} r.
+Arguments clamp_le1 {R} r.
+Arguments clamp_id {R} r.
+Arguments negr {R} r.
+Arguments negr_meas {R}.
+Arguments gt0_ind {R} r.
+Arguments gt0_ind_meas {R}.
+Arguments gt0_ind_ge0 {R} r.
+Arguments gt0_ind_le1 {R} r.
+Arguments gt0_indE {R} r.
+
 Section BoolConstHelpers.
 Variables (R : realType) (Ar : MeasSubcat R).
 
@@ -1447,6 +1535,173 @@ Arguments bern_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas f}
                             Hf_meas Hf_ge0 Hf_le1 mu.
 
 
+(** ** [pmeas] — bundled sub-probability measures for [sample]
+
+    The [ne_sample] constructor takes a measure together with its
+    unit-ball witness.  [pmeas] bundles the two so the surface form
+    [sample m] needs a SINGLE argument; the named distributions
+    ([gaussian] / [uniform] of [examples.v]) are [pmeas] values. *)
+
+Section PMeasDef.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Record pmeas : Type := MkPmeas {
+  pm_meas : fmeas R (ar_carrier Ar R_obj);
+  pm_ball : (cone_norm pm_meas <= 1)%R
+}.
+
+End PMeasDef.
+
+Arguments pmeas {R} Ar R_obj.
+Arguments MkPmeas {R Ar R_obj} pm_meas pm_ball.
+Arguments pm_meas {R Ar R_obj} p.
+Arguments pm_ball {R Ar R_obj} p.
+
+Coercion pm_meas : pmeas >-> fmeas.
+
+(** ** Transporting a (sub-)probability on [R] to a [pmeas]
+
+    The named distributions of mathcomp-analysis ([normal_prob],
+    [uniform_prob], …) are measures on the measurable space [R]; the
+    PPL's [sample] wants an [fmeas] on [ar_carrier Ar R_obj].  The
+    bridge is the PUSHFORWARD along the (measurable, by the standing
+    [R_to_carrier_meas] hypothesis) carrier cast
+    [R_to_carrier : R -> ar_carrier Ar R_obj], canonically extended by
+    [0] on non-measurable sets (the [dirac_canon_fun] recipe of
+    [bilin.v]).
+
+    The section is generic over the function [nu : set R -> \bar R]
+    with the four measure facts as hypotheses, so that it applies
+    verbatim to mathcomp-analysis measures REGARDLESS of which
+    (definitionally equal) canonical measurable structure on [R] they
+    are typed at. *)
+
+Section ProbTransport.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Local Notation toC := (R_to_carrier R_carrier_eq).
+
+(** Preimages along the carrier cast are measurable (in the canonical
+    measurable structure on [R]). *)
+Lemma prob_push_pre_meas (U : set (ar_carrier Ar R_obj)) :
+  measurable U -> measurable (toC @^-1` U).
+Proof.
+move=> mU.
+by rewrite -(setTI (toC @^-1` U)); exact: R_to_carrier_meas.
+Qed.
+
+(** The measure facts the transport consumes, as bare hypotheses on
+    the FUNCTION [nu] — so the section applies to mathcomp-analysis
+    measures regardless of which (definitionally equal) canonical
+    measurable structure on [R] they are typed at.  The unit bound is
+    phrased on carrier-preimages: a bare [measurable U] on [set R] is
+    ambiguous between the canonical structures, while the preimage
+    phrasing is exactly the form both sides produce/consume. *)
+Variable (nu : set R -> \bar R).
+Hypothesis Hnu0 : nu set0 = 0%E.
+Hypothesis Hnu_ge0 : forall U : set R, (0 <= nu U)%E.
+Hypothesis Hnu_sigma : semi_sigma_additive nu.
+Hypothesis Hnu_le1 : forall U : set (ar_carrier Ar R_obj),
+  measurable U -> (nu (toC @^-1` U) <= 1)%E.
+
+(** The canonically-extended pushforward. *)
+Definition prob_push_fun (U : set (ar_carrier Ar R_obj)) : \bar R :=
+  if `[< measurable U >] then nu (toC @^-1` U) else 0%E.
+
+Local Lemma prob_push_funE (U : set (ar_carrier Ar R_obj)) :
+  measurable U -> prob_push_fun U = nu (toC @^-1` U).
+Proof. by move=> mU; rewrite /prob_push_fun asboolT. Qed.
+
+Local Lemma prob_push_fun_off (U : set (ar_carrier Ar R_obj)) :
+  ~ measurable U -> prob_push_fun U = 0%E.
+Proof. by move=> nmU; rewrite /prob_push_fun asboolF. Qed.
+
+Local Lemma prob_push_set0 : prob_push_fun set0 = 0%E.
+Proof. by rewrite prob_push_funE ?measurable0// preimage_set0. Qed.
+
+Local Lemma prob_push_ge0 (U : set (ar_carrier Ar R_obj)) :
+  (0 <= prob_push_fun U)%E.
+Proof.
+by rewrite /prob_push_fun; case: asboolP => _; [exact: Hnu_ge0 | exact: lexx].
+Qed.
+
+Local Lemma prob_push_sigma_additive : semi_sigma_additive prob_push_fun.
+Proof.
+move=> F mF tF mUF.
+have step n :
+    (\sum_(0 <= i < n) prob_push_fun (F i))%E =
+    (\sum_(0 <= i < n) nu (toC @^-1` F i))%E.
+  by apply: eq_bigr => i _; rewrite prob_push_funE//; exact: mF.
+rewrite prob_push_funE// preimage_bigcup.
+under eq_fun do rewrite step.
+apply: Hnu_sigma.
+- by move=> i; apply: prob_push_pre_meas; exact: mF.
+- apply/trivIsetP => i j _ _ ij.
+  rewrite -preimage_setI.
+  by move/trivIsetP : tF => /(_ i j Logic.I Logic.I ij) ->;
+    rewrite preimage_set0.
+- by rewrite -preimage_bigcup; exact: prob_push_pre_meas.
+Unshelve.
+all: by [].
+Qed.
+
+HB.instance Definition _ :=
+  @isMeasure.Build (ar_disp Ar R_obj) (ar_carrier Ar R_obj) R
+    prob_push_fun
+    prob_push_set0 prob_push_ge0 prob_push_sigma_additive.
+
+Local Lemma prob_push_finP : fmeas_finP (R := R) prob_push_fun.
+Proof.
+move=> U mU; rewrite prob_push_funE// ge0_fin_numE//.
+exact: le_lt_trans (Hnu_le1 mU) (ltry _).
+Qed.
+
+Local Lemma prob_push_canon : fmeas_canon (R := R) prob_push_fun.
+Proof. exact: prob_push_fun_off. Qed.
+
+(** The transported finite measure. *)
+Definition prob_fmeas : fmeas R (ar_carrier Ar R_obj) :=
+  MkFmeas [the {measure set _ -> \bar R} of prob_push_fun]
+          prob_push_finP prob_push_canon.
+
+Lemma prob_fmeasE (U : set (ar_carrier Ar R_obj)) :
+  measurable U -> fmeas_mu prob_fmeas U = nu (toC @^-1` U).
+Proof. exact: prob_push_funE. Qed.
+
+Lemma prob_fmeas_ball : (cone_norm prob_fmeas <= 1)%R.
+Proof.
+rewrite -[cone_norm _]/(fmeas_norm prob_fmeas) /fmeas_norm.
+rewrite prob_fmeasE ?measurableT//.
+have HleT := Hnu_le1 measurableT.
+rewrite preimage_setT in HleT.
+have Hfin : nu [set: R] \is a fin_num.
+  by rewrite ge0_fin_numE//; exact: le_lt_trans HleT (ltry _).
+by rewrite preimage_setT -lee_fin fineK.
+Qed.
+
+(** The bundled sub-probability. *)
+Definition prob_pmeas : pmeas Ar R_obj := MkPmeas prob_fmeas prob_fmeas_ball.
+
+End ProbTransport.
+
+Arguments prob_push_pre_meas {R Ar R_obj R_carrier_eq}
+  R_to_carrier_meas {U} mU.
+Arguments prob_push_fun {R Ar R_obj} R_carrier_eq nu U.
+Arguments prob_fmeas {R Ar R_obj} R_carrier_eq R_to_carrier_meas
+  nu Hnu0 Hnu_ge0 Hnu_sigma Hnu_le1.
+Arguments prob_fmeasE {R Ar R_obj} R_carrier_eq R_to_carrier_meas
+  {nu Hnu0 Hnu_ge0 Hnu_sigma Hnu_le1} U.
+Arguments prob_fmeas_ball {R Ar R_obj R_carrier_eq R_to_carrier_meas
+  nu Hnu0 Hnu_ge0 Hnu_sigma Hnu_le1}.
+Arguments prob_pmeas {R Ar R_obj} R_carrier_eq R_to_carrier_meas
+  nu Hnu0 Hnu_ge0 Hnu_sigma Hnu_le1.
+
+
 (** ** Variable lookup by string — Saito–Affeldt canonical structures
 
     The Saito–Affeldt encoding (APLAS 2023 §5.2) uses a tagged structure
@@ -1719,4 +1974,103 @@ Notation "'if' e 'then' M 'else' N" :=
    e custom ppl_named at level 80,
    M custom ppl_named at level 80,
    N custom ppl_named at level 80,
+   right associativity).
+
+(** ** Derived surface forms — the readable layer
+
+    The notations below are SUGAR ONLY: each elaborates to existing
+    constructors (plus the [ne_meas] pushforward primitive); no new
+    semantics is introduced.
+
+      Meas { f , Hf } e        measurable function application (ne_meas)
+      Bernoulli e              value-dependent coin with CLAMPED density
+                               (= Bernoulli_f { clamp ∘ value }); the
+                               witness-free unified form — for p ∈ [0,1]
+                               it agrees with [Bernoulli { p , _ , _ }]
+                               on real literals ([ppl_cbv.v::
+                               eD_bernoulli_clamp_const_E])
+      Score e                  score by the clamped runtime value
+                               (= Score { clamp } e)
+      sample m                 sample from a bundled sub-probability
+                               [m : pmeas Ar R_obj] (= ne_sample)
+      e1 > e2                  comparison coin: flip with success
+                               probability 1 on point masses where
+                               value(e1) > value(e2), 0 otherwise
+                               (= Bernoulli_f { gt0_ind } (e1 + neg e2))
+      let rec f x := M in K    OCaml-style recursive function binding
+                               (= ne_let f (ne_fix f (ne_lam x M)) K);
+                               binder types inferred from the body
+      let rec f x ::: T1 ==> T2 := M in K
+                               same, with explicit binder annotations
+                               (for bodies that do not pin [x]'s type) *)
+
+(** Measurable function application — [Meas { f , Hf } e]: push the
+    value of [e] through the measurable [f : R -> R].  Same shape as
+    [Score { … } e] (Coq-level witnesses in braces, surface scrutinee
+    outside). *)
+Notation "'Meas' '{' f ',' Hf '}' e" :=
+  (ne_meas f Hf e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   f constr, Hf constr, right associativity).
+
+(** Unified value-dependent Bernoulli — [Bernoulli e]: flip a coin
+    whose success probability is the CLAMPED value of [e].  No
+    witnesses: [clamp] is measurable and [[0,1]]-valued by
+    construction.
+
+    GRAMMAR NOTE: declared at the SAME level (1) as the witness form
+    [Bernoulli { p , Hp_ge0 , Hp_le1 }] so the two productions
+    factorize on the keyword (verified: both parse).  One corner: a
+    scrutinee STARTING with the [{...}] Coq escape commits to the
+    witness branch — write [Bernoulli ({ M })] with parentheses. *)
+Notation "'Bernoulli' e" :=
+  (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1 e)
+  (in custom ppl_named at level 1, e custom ppl_named at level 60).
+
+(** Unified score — [Score e]: weight the trace by the clamped value
+    of [e]. *)
+Notation "'Score' e" :=
+  (ne_score clamp clamp_meas clamp_ge0 clamp_le1 e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   right associativity).
+
+(** Bundled sampling — [sample m] for [m : pmeas Ar R_obj].  The
+    lowercase keyword is distinct from the unbundled [Sample (mu, Hmu)]
+    form, which stays. *)
+Notation "'sample' m" :=
+  (ne_sample (pm_meas m) (pm_ball m))
+  (in custom ppl_named at level 1, m constr at level 0).
+
+(** Comparison — [e1 > e2]: the Bernoulli coin with success density
+    [gt0_ind (value(e1) - value(e2))].  On point masses [δ_a > δ_b] is
+    the DETERMINISTIC test [a > b] (indicator density); on diffuse
+    arguments it is the probability that an independent draw of [e1]
+    exceeds an independent draw of [e2]. *)
+Notation "M > N" :=
+  (ne_bernoulli_f gt0_ind gt0_ind_meas gt0_ind_ge0 gt0_ind_le1
+     (ne_add M (ne_meas negr negr_meas N)))
+  (in custom ppl_named at level 50, left associativity,
+   N custom ppl_named at level 49).
+
+(** OCaml-style [let rec] — annotation-free form: binder types are
+    inferred from the body (works whenever the body USES [x] at a
+    type-determining position). *)
+Notation "'let' 'rec' f x ':=' M 'in' K" :=
+  (ne_let f%string (ne_fix f%string (ne_lam x%string M)) K)
+  (in custom ppl_named at level 80, f constr at level 0,
+   x constr at level 0,
+   M custom ppl_named at level 70,
+   K custom ppl_named at level 80,
+   right associativity).
+
+(** OCaml-style [let rec] — annotated form [::: T1 ==> T2] for bodies
+    that leave the binder type undetermined (e.g. an unused [x]). *)
+Notation "'let' 'rec' f x ':::' T1 '==>' T2 ':=' M 'in' K" :=
+  (ne_let f%string
+     (ne_fix f%string (t1 := T1) (t2 := T2) (ne_lam x%string (t1 := T1) M))
+     K)
+  (in custom ppl_named at level 80, f constr at level 0,
+   x constr at level 0, T1 constr at level 0, T2 constr at level 0,
+   M custom ppl_named at level 70,
+   K custom ppl_named at level 80,
    right associativity).
