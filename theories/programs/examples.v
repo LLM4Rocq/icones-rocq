@@ -47,6 +47,12 @@
       with projections [ex_even] / [ex_odd] — the [ne_fix_mr]
       elaboration witness for the Seely-transported value-fixpoint
 
+    ** Runtime-parameter distributions (the kernel surface)
+    - [ex_gaussian_walk]     : [let s = Gaussian(0,1) in Gaussian(s,1)]
+      — the two-level Gaussian hierarchy: the parameter of the second
+      draw is the SAMPLED value of the first ([ne_gaussian]);
+      [ex_unit_interval] is the uniform smoke test
+
     ** Rejection sampling
     - [ex_reject]            : [let rec rs accept :=
                                    let x = sample m in
@@ -979,6 +985,58 @@ Arguments pmeas_of_prob {R Ar R_obj} R_carrier_eq R_to_carrier_meas P.
 Arguments gaussian {R Ar R_obj} R_carrier_eq R_to_carrier_meas m s.
 Arguments uniform {R Ar R_obj} R_carrier_eq R_to_carrier_meas {a b} ab.
 
+(** ** Example — [ex_gaussian_walk] — a two-level Gaussian hierarchy
+
+    The previously-inexpressible hierarchical model: the runtime
+    parameter of the second draw is the SAMPLED VALUE of the first.
+    [[
+        let s = Gaussian(0, 1) in Gaussian(s, 1)
+    ]]
+    Both [Gaussian(e1,e2)] sites are the runtime-parameter constructor
+    [ne_gaussian] (no witnesses; the kernel family is total) — the
+    constant-parameter first draw is just the kernel surface at real
+    literals ([eD_gaussian_sample_agree] in
+    [theories/programs/infra/kernel_anchors.v] pins it to the old
+    [sample (gaussian 0 1)] form).  The denotation reduction
+    [ex_gaussian_walk_E] and the mass-1 corollary
+    [ex_gaussian_walk_mass] live in the same anchors file (they consume
+    the general let-law of [infra/let_sample_law.v], which sits after
+    this file). *)
+
+Section GaussianWalk.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Local Notation tR' := (tR R_obj).
+
+Definition ex_gaussian_walk : @named_expr R Ar R_obj nil tR' :=
+  [ let "s" := Gaussian( [| 0%R |] , [| 1%R |] ) in
+    Gaussian( # "s" , [| 1%R |] ) ].
+
+(** The second-stage draw under the binder (for stating reduction
+    lemmas), in context [("s", tR') :: nil]. *)
+Definition ex_gaussian_walk_body :
+    @named_expr R Ar R_obj (("s"%string, tR') :: nil) tR' :=
+  [ Gaussian( # "s" , [| 1%R |] ) ].
+
+(** Elaboration pin: the surface program is the let of two
+    [ne_gaussian] nodes. *)
+Lemma ex_gaussian_walk_decomp :
+  ex_gaussian_walk =
+  ne_let "s" (ne_gaussian (ne_real 0) (ne_real 1)) ex_gaussian_walk_body.
+Proof. by []. Qed.
+
+(** Uniform smoke test: the runtime-parameter uniform draw on
+    [[0, 1]]. *)
+Definition ex_unit_interval : @named_expr R Ar R_obj nil tR' :=
+  [ Uniform( [| 0%R |] , [| 1%R |] ) ].
+
+End GaussianWalk.
+
+Arguments ex_gaussian_walk {R Ar R_obj}.
+Arguments ex_gaussian_walk_body {R Ar R_obj}.
+Arguments ex_unit_interval {R Ar R_obj}.
+
 (** ** [ex_surface_demo] — the new surface forms, end to end
 
     The user-level program
@@ -1192,6 +1250,17 @@ Definition ex_condition_cbv
 (** The sampler-model denotation (the combinator's simplest input). *)
 Definition ex_sampler_cbv (m : pmeas Ar R_obj) :=
   eDv (ex_sampler m).
+
+(** The Gaussian-hierarchy denotation — the runtime-parameter
+    [ne_gaussian] smoke test; the denotation reduction
+    [ex_gaussian_walk_E] / mass-1 corollary [ex_gaussian_walk_mass]
+    live in [theories/programs/infra/kernel_anchors.v]. *)
+Definition ex_gaussian_walk_cbv :=
+  eDv (ex_gaussian_walk : @named_expr R Ar R_obj nil (tR R_obj)).
+
+(** The runtime-parameter uniform smoke test. *)
+Definition ex_unit_interval_cbv :=
+  eDv (ex_unit_interval : @named_expr R Ar R_obj nil (tR R_obj)).
 
 (** The surface-demo denotations — compile-time smoke tests for the
     new surface layer: [let rec] sugar, [sample] of a bundled
