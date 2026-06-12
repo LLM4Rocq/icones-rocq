@@ -68,6 +68,7 @@ theories/programs/infra/bool_case_hom.v
 theories/programs/infra/bool_cone_coalg.v
 theories/programs/infra/cbv_adjunction.v
 theories/programs/ppl.v
+theories/programs/distributions.v
 theories/programs/infra/affine_cascade.v
 theories/programs/infra/em_fix.v
 theories/programs/infra/em_fix_value.v

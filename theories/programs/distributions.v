@@ -1,0 +1,980 @@
+(**md**************************************************************************)
+(** * Distributions in general — measurable probability-kernel families
+
+    The general distribution/kernel layer for the PPL: a [pkernel X Y]
+    bundles a family of sub-probability measures [pk_ker : X → FMeas Y]
+    with the two facts that make it usable as a semantic primitive —
+    measurability of the family ([pk_meas], the mathcomp-analysis
+    kernel condition [x ↦ k(x)(U)] measurable for every measurable
+    [U], phrased in [fine] form, which is exactly the [e_U]-test form
+    the [FMeas] cone consumes) and the unit-ball bound ([pk_ball],
+    mirroring [ppl.v::pmeas]).
+
+    Deliverables:
+    - [pkernel X Y] — the record; [pkernel_is_path] shows the family
+      IS a measurable path of [FMeas Y] (paper Def 3.7), so the whole
+      [int_to_linhom] machinery of Thm 6.1 applies verbatim.
+    - [kernel_lift k : icones_hom (FMeas X) (FMeas Y)] — the semantic
+      lift [ν ↦ ∫ k(x) ν(dx)] (Pettis integral), built exactly as
+      [ppl.v::bern_lift] (path → [int_to_linhom] → [linhom_icones]).
+      Laws: [kernel_lift_E] (per-[U] evaluation
+      [(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)]), [kernel_lift_mass]
+      (mass preservation for pointwise-mass-1 kernels) and
+      [kernel_lift_dirac] ([kernel_lift k δ_x = k(x)]).
+    - Instances: [dirac_kernel] ([x ↦ δ_x], with
+      [dirac_kernel_lift_id : kernel_lift dirac_kernel ν = ν]),
+      [bernoulli_kernel] ([r ↦ Bernoulli(clamp r)] as a two-point
+      measure on [R_obj], with the [bern_lift]-agreement lemmas
+      [bernoulli_kernel_bern_lift_t]/[_f]), [gaussian_kernel]
+      ([(m,s) ↦ N(m,s)], totalised at [s = 0] as [δ_m]; for [s ≠ 0]
+      mathcomp-analysis' [normal_prob m s] is already total with
+      deviation [|s|]) and [uniform_kernel] ([(a,b) ↦ U(a,b)],
+      totalised at [b ≤ a] as [δ_a]).
+    - The mathcomp-analysis side of the gaussian/uniform family
+      measurability: [measurable_funV] (inversion is measurable),
+      [measurable_normal_peak] / [measurable_normal_pdf_pair] /
+      [measurable_normal_prob_pair] and
+      [measurable_uniform_pdf_pair] / [measurable_uniform_int_pair] —
+      joint measurability in the PARAMETERS via Fubini–Tonelli
+      ([measurable_fun_fubini_tonelli_F] against Lebesgue measure).
+
+    Surface-syntax wiring (an [ne_kernel]-style constructor consuming
+    [kernel_lift]) is deliberately NOT here; this file provides the
+    semantic layer only.
+
+    Supporting infrastructure: private copies of
+    [icone_integral_dirac_fmeas] and [icone_integral_fmeas_E] (also in
+    [theories/programs/infra/let_sample_law.v]; dedup at
+    integration). *)
+
+From HB Require Import structures.
+From mathcomp Require Import all_ssreflect ssralg ssrnum.
+From mathcomp.classical Require Import boolp classical_sets functions.
+From mathcomp.classical Require Import set_interval.
+From mathcomp.reals Require Import reals signed constructive_ereal.
+From mathcomp.algebra Require Import interval_inference.
+From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import measurable_realfun realfun exp.
+From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
+From mathcomp.analysis Require Import measure dirac_measure numfun.
+From mathcomp.analysis Require Import lebesgue_measure.
+From mathcomp.analysis Require Import lebesgue_integral_definition.
+From mathcomp.analysis Require Import lebesgue_integral_nonneg.
+From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
+From mathcomp.analysis Require Import lebesgue_integrable.
+From mathcomp.analysis Require Import lebesgue_integral_fubini.
+From mathcomp.analysis Require Import probability.
+
+Require Import Icones.cones.precone.
+Require Import Icones.cones.basic_lemmas.
+Require Import Icones.cones.cone.
+Require Import Icones.cones.cone_cat.
+Require Import Icones.programs.infra.bool_cone.
+Require Import Icones.mcones.ar.
+Require Import Icones.mcones.mcone.
+Require Import Icones.mcones.fmeas.
+Require Import Icones.mcones.path.
+Require Import Icones.mcones.mcone_cat.
+Require Import Icones.icones.icone.
+Require Import Icones.icones.icone_integral.
+Require Import Icones.icones.examples_icone.
+Require Import Icones.icones.icone_cat.
+Require Import Icones.homs.icones_iso.
+Require Import Icones.homs.linhom.
+Require Import Icones.homs.bilin.
+Require Import Icones.homs.seely.
+Require Import Icones.homs.coalgebra.
+Require Import Icones.programs.ppl.
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
+
+Import Order.TTheory GRing.Theory Num.Theory.
+
+Local Open Scope classical_set_scope.
+Local Open Scope ring_scope.
+
+(** ** [pkernel] — measurable families of sub-probability measures
+
+    A probability kernel from [X] to [Y] (both in [Ar]): a function
+    [pk_ker : ar_carrier X → fmeas (ar_carrier Y)] together with
+    - [pk_meas]: for every measurable [U ⊆ Y], the evaluation
+      [x ↦ k(x)(U)] is measurable (the mathcomp-analysis kernel
+      condition, [fine]-valued since [fmeas] values are finite — this
+      is verbatim the [e_U]-test section the [FMeas] cone tests
+      compute);
+    - [pk_ball]: each [k(x)] is a sub-probability ([‖k(x)‖ ≤ 1],
+      mirroring [pmeas]). *)
+
+Section PKernelDef.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X Y : ar_obj Ar).
+
+Record pkernel : Type := MkPkernel {
+  pk_ker : ar_carrier Ar X -> fmeas R (ar_carrier Ar Y);
+  pk_meas : forall U : set (ar_carrier Ar Y),
+    measurable U ->
+    measurable_fun [set: ar_carrier Ar X]
+      (fun x => fine (fmeas_mu (pk_ker x) U));
+  pk_ball : forall x, (cone_norm (pk_ker x) <= 1)%R
+}.
+
+(** The mathcomp-analysis kernel condition in its native [ereal] form
+    ([kernel.v]'s [measurable_fun (k ^~ U)]), recovered from the
+    [fine] field through [fineK] on finite values. *)
+Lemma pk_meas_ereal (k : pkernel) (U : set (ar_carrier Ar Y)) :
+  measurable U ->
+  measurable_fun [set: ar_carrier Ar X]
+    (fun x => fmeas_mu (pk_ker k x) U).
+Proof.
+move=> mU.
+apply: (eq_measurable_fun
+  (fun x => (fine (fmeas_mu (pk_ker k x) U))%:E)).
+  by move=> x _; rewrite fineK//; exact: fmeas_fin.
+apply/measurable_EFinP.
+exact: pk_meas mU.
+Qed.
+
+(** A [pkernel] is a measurable path of [FMeas Y] (paper Def 3.7):
+    boundedness is [pk_ball]; the tests of [FMeas Y] are the [e_U]
+    family, whose path sections are exactly [pk_meas]. *)
+Lemma pkernel_is_path (k : pkernel) :
+  is_measurable_path (Ar := Ar) (C := fmeas R (ar_carrier Ar Y))
+    (X := X) (pk_ker k).
+Proof.
+split.
+  by exists 1%R => x; exact: pk_ball.
+move=> Z m [U [mU ->]].
+apply: (measurableT_comp
+  (f := fun x => fine (fmeas_mu (pk_ker k x) U))).
+- exact: pk_meas mU.
+- exact: measurable_snd.
+Qed.
+
+Definition kernel_path (k : pkernel) :
+    path_car Ar X (fmeas R (ar_carrier Ar Y)) :=
+  MkPath (pkernel_is_path k).
+
+(** Path-norm bound: the values are sub-probabilities, so the sup is
+    [≤ 1]. *)
+Lemma kernel_path_norm_le1 (k : pkernel) :
+  (path_norm (kernel_path k) <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [x ->] /=; exact: pk_ball.
+Qed.
+
+(** Norm bound for [int_to_linhom (kernel_path k)]. *)
+Lemma kernel_int_norm_le1 (k : pkernel) :
+  (cone_norm (int_to_linhom (kernel_path k)) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le (kernel_path k)) _.
+exact: kernel_path_norm_le1.
+Qed.
+
+(** ** [kernel_lift] — the lift [ν ↦ ∫ k(x) ν(dx)] as an [icones_hom]
+
+    The Pettis integral of the kernel path against the input measure,
+    promoted by Thm 6.1 ([int_to_linhom]) and packaged through
+    [linhom_icones] — the construction of [ppl.v::bern_lift], with
+    [FMeas Y] in place of the bool cone. *)
+Definition kernel_lift (k : pkernel) :
+    icones_hom Ar (FMeas X) (FMeas Y) :=
+  linhom_icones (int_to_linhom (kernel_path k)) (kernel_int_norm_le1 k).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The lift IS the Pettis integral of the kernel (definitional
+    reading of the [linhom_icones]/[int_to_linhom] packaging). *)
+Lemma kernel_liftE (k : pkernel) (nu : fmeas R (ar_carrier Ar X)) :
+  Lfun (kernel_lift k) nu =
+  icone_integral (pk_ker k) (pkernel_is_path k) nu.
+Proof.
+by rewrite /kernel_lift (linhom_iconesE _ (kernel_int_norm_le1 k) nu).
+Qed.
+
+(** **** Load-bearing Dirac identity: [kernel_lift k δ_x = k(x)]. *)
+Lemma kernel_lift_dirac (k : pkernel) (x : ar_carrier Ar X) :
+  Lfun (kernel_lift k) (dirac_fmeas x) = pk_ker k x.
+Proof.
+rewrite /kernel_lift
+        (linhom_iconesE _ (kernel_int_norm_le1 k) (dirac_fmeas x)).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun (kernel_path k)
+                             (dirac_fmeas x)).
+exact: (int_to_linhom_fun_dirac (kernel_path k) x).
+Qed.
+
+End PKernelDef.
+
+Arguments pkernel {R Ar} X Y.
+Arguments MkPkernel {R Ar X Y} pk_ker pk_meas pk_ball.
+Arguments pk_ker {R Ar X Y} p x.
+Arguments pk_meas {R Ar X Y} p {U} mU.
+Arguments pk_ball {R Ar X Y} p x.
+Arguments pk_meas_ereal {R Ar X Y} k {U} mU.
+Arguments pkernel_is_path {R Ar X Y} k.
+Arguments kernel_path {R Ar X Y} k.
+Arguments kernel_path_norm_le1 {R Ar X Y} k.
+Arguments kernel_int_norm_le1 {R Ar X Y} k.
+Arguments kernel_lift {R Ar X Y} k.
+Arguments kernel_liftE {R Ar X Y} k nu.
+Arguments kernel_lift_dirac {R Ar X Y} k x.
+
+(** ** Per-[U] evaluation and the mass identity
+
+    [(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)] for any measurable [U],
+    via the per-[U] evaluation of [FMeas]-valued Pettis integrals
+    (private copy of [let_sample_law.v::icone_integral_fmeas_E];
+    dedup at integration). *)
+
+Section KernelLiftEval.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Per-[U] evaluation of an [FMeas]-valued Pettis integral —
+    [(∫ β dµ)(U) = ∫ (β r)(U) µ(dr)].  Private copy of
+    [let_sample_law.v::icone_integral_fmeas_E]. *)
+Lemma icone_integral_fmeas_E (X Y : ar_obj Ar)
+    (β : ar_carrier Ar X -> FMeas Y)
+    (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X))
+    (U : set (ar_carrier Ar Y)) (mU : measurable U) :
+  fmeas_mu (icone_integral β Hβ µ) U =
+  \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+     (fine (fmeas_mu (β r) U))%:E.
+Proof.
+have HP := icone_integralP β Hβ µ (fmeas_eU (ar_zero Ar) mU)
+             (ex_intro _ U (ex_intro _ mU erefl)) (ar_zero_pt Ar).
+have HLfin : fmeas_mu (icone_integral β Hβ µ) U \is a fin_num
+  by exact: fmeas_fin.
+have mInt : measurable_fun [set: ar_carrier Ar X]
+              (fun r => (fine (fmeas_mu (β r) U))%:E).
+  apply/measurable_EFinP.
+  exact: (measurable_test_path_section
+            (m := fmeas_eU (ar_zero Ar) mU)
+            (ex_intro _ U (ex_intro _ mU erefl)) Hβ (ar_zero_pt Ar)).
+have [[M HM] _] := Hβ.
+have HRfin : \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
+                (fine (fmeas_mu (β r) U))%:E \is a fin_num.
+  rewrite ge0_fin_numE; last first.
+    by apply: integral_ge0 => r _; rewrite lee_fin fine_ge0// measure_ge0.
+  apply: (le_lt_trans
+    (y := \int[fmeas_mu µ]_(r in [set: ar_carrier Ar X]) M%:E)).
+    apply: ge0_le_integral => //.
+    move=> r _; rewrite lee_fin.
+    apply: le_trans (HM r).
+    exact: (test_norm_le (fmeas_eU (ar_zero Ar) mU) (ar_zero_pt Ar) (β r)).
+  rewrite (_ : (fun _ => M%:E) = cst M%:E)// integral_cst//.
+  have HfT : fmeas_mu µ [set: ar_carrier Ar X] \is a fin_num
+    by exact: fmeas_setT_fin.
+  by rewrite ltey_eq fin_numM.
+by rewrite -(fineK HLfin) -(fineK HRfin); congr (_%:E); exact: HP.
+Qed.
+
+(** **** THE evaluation law:
+    [(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)]. *)
+Lemma kernel_lift_E (X Y : ar_obj Ar) (k : pkernel X Y)
+    (nu : fmeas R (ar_carrier Ar X))
+    (U : set (ar_carrier Ar Y)) (mU : measurable U) :
+  fmeas_mu (Lfun (kernel_lift k) nu) U =
+  \int[fmeas_mu nu]_(x in [set: ar_carrier Ar X])
+     (fine (fmeas_mu (pk_ker k x) U))%:E.
+Proof.
+rewrite kernel_liftE.
+exact: (icone_integral_fmeas_E (pkernel_is_path k) nu mU).
+Qed.
+
+(** **** Mass identity: a pointwise-mass-1 (probability) kernel
+    preserves total mass. *)
+Lemma kernel_lift_mass (X Y : ar_obj Ar) (k : pkernel X Y)
+    (nu : fmeas R (ar_carrier Ar X)) :
+  (forall x, cone_norm (pk_ker k x) = 1%R) ->
+  fmeas_mu (Lfun (kernel_lift k) nu) [set: ar_carrier Ar Y] =
+  fmeas_mu nu [set: ar_carrier Ar X].
+Proof.
+move=> Hk1.
+rewrite (kernel_lift_E k nu (@measurableT _ (ar_carrier Ar Y))).
+under eq_integral => x _.
+  have -> : fine (fmeas_mu (pk_ker k x) [set: ar_carrier Ar Y]) = 1%R
+    by exact: Hk1 x.
+  over.
+rewrite integral_cst//= mul1e//.
+Qed.
+
+End KernelLiftEval.
+
+Arguments icone_integral_fmeas_E {R Ar X Y β} Hβ µ {U} mU.
+Arguments kernel_lift_E {R Ar X Y} k nu {U} mU.
+Arguments kernel_lift_mass {R Ar X Y} k nu Hk1.
+
+(** ** [dirac_kernel] — the identity kernel [x ↦ δ_x] *)
+
+Section DiracKernel.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (X : ar_obj Ar).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Lemma dirac_kernel_meas (U : set (ar_carrier Ar X)) :
+  measurable U ->
+  measurable_fun [set: ar_carrier Ar X]
+    (fun x => fine (fmeas_mu (dirac_fmeas x) U)).
+Proof.
+move=> mU.
+apply: (eq_measurable_fun (fun x => fine (\d_x U : \bar R))).
+  by move=> x _; rewrite dirac_fmeas_E.
+apply: (measurableT_comp (f := fine)).
+- exact: (fine_measurable measurableT).
+- exact: measurable_fun_dirac.
+Qed.
+
+Lemma dirac_kernel_ball (x : ar_carrier Ar X) :
+  (cone_norm (dirac_fmeas x : fmeas R (ar_carrier Ar X)) <= 1)%R.
+Proof. by rewrite dirac_fmeas_norm. Qed.
+
+Definition dirac_kernel : pkernel X X :=
+  MkPkernel (@dirac_fmeas R Ar X) dirac_kernel_meas dirac_kernel_ball.
+
+(** Pointwise the Dirac kernel is a probability (norm exactly 1). *)
+Lemma dirac_kernel_norm1 (x : ar_carrier Ar X) :
+  cone_norm (pk_ker dirac_kernel x) = 1%R.
+Proof. exact: dirac_fmeas_norm. Qed.
+
+(** [µ = ∫ δ_r µ(dr)] with the bare [dirac_fmeas] integrand —
+    private copy of [let_sample_law.v::icone_integral_dirac_fmeas]
+    (dedup at integration). *)
+Lemma icone_integral_dirac_fmeas (µ : fmeas R (ar_carrier Ar X)) :
+  icone_integral (@dirac_fmeas R Ar X) (dirac_fmeas_is_path X) µ = µ.
+Proof.
+have HP := icone_integralP (path_fun (dirac_path Ar X))
+             (path_is_path (dirac_path Ar X)) µ.
+rewrite icone_integral_dirac_path in HP.
+by apply/esym/icone_integral_eqP.
+Qed.
+
+(** **** [kernel_lift dirac_kernel] is the identity. *)
+Lemma dirac_kernel_lift_id (nu : fmeas R (ar_carrier Ar X)) :
+  Lfun (kernel_lift dirac_kernel) nu = nu.
+Proof.
+rewrite kernel_liftE.
+rewrite (_ : pkernel_is_path dirac_kernel = dirac_fmeas_is_path X);
+  last exact: Prop_irrelevance.
+exact: icone_integral_dirac_fmeas.
+Qed.
+
+End DiracKernel.
+
+Arguments dirac_kernel {R Ar} X.
+Arguments dirac_kernel_norm1 {R Ar X} x.
+Arguments dirac_kernel_lift_id {R Ar X} nu.
+
+(** ** [bernoulli_kernel] — [r ↦ Bernoulli(clamp r)] on the reals object
+
+    The Bernoulli kernel as a two-point measure on [R_obj]:
+    [clamp(r)·δ_1 + (1 − clamp(r))·δ_0], with the carrier points
+    [toC 1] / [toC 0].  The density is the [clamp] of the parameter,
+    matching the unified [Bernoulli e] surface form of [ppl.v]; the
+    agreement with the bool-cone primitive [bern_lift] (at the
+    clamped-identity instance) is [bernoulli_kernel_bern_lift_t]/[_f]:
+    the coordinates of [bern_lift µ] are the masses of
+    [kernel_lift bernoulli_kernel µ] on the fibres of [1] and [0]. *)
+
+Section BernoulliKernel.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation toC := (R_to_carrier R_carrier_eq).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The two-point Bernoulli measure [p·δ_1 + (1−p)·δ_0] on the
+    carrier. *)
+Definition bern2_fmeas (p : R) (Hp0 : (0 <= p)%R) (Hp1 : (p <= 1)%R) :
+    fmeas R (ar_carrier Ar R_obj) :=
+  fmeas_add
+    (fmeas_scale (NngNum Hp0) (dirac_fmeas (toC 1%R)))
+    (fmeas_scale (NngNum (subr_ge0_le1 p Hp1)) (dirac_fmeas (toC 0%R))).
+
+Lemma bern2_fmeasE (p : R) (Hp0 : (0 <= p)%R) (Hp1 : (p <= 1)%R)
+    (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (bern2_fmeas Hp0 Hp1) U =
+  p%:E * \d_(toC 1%R) U + (1 - p)%R%:E * \d_(toC 0%R) U.
+Proof.
+by move=> mU; rewrite /bern2_fmeas fmeas_addE !fmeas_scaleE !dirac_fmeas_E.
+Qed.
+
+(** The value depends only on the density, not on the witnesses. *)
+Lemma bern2_fmeas_eqP (p q : R)
+    (Hp0 : (0 <= p)%R) (Hp1 : (p <= 1)%R)
+    (Hq0 : (0 <= q)%R) (Hq1 : (q <= 1)%R) :
+  p = q -> bern2_fmeas Hp0 Hp1 = bern2_fmeas Hq0 Hq1.
+Proof.
+move=> epq; move: Hp0 Hp1; rewrite epq => Hp0 Hp1.
+by rewrite (Prop_irrelevance Hp0 Hq0) (Prop_irrelevance Hp1 Hq1).
+Qed.
+
+(** The coin is norm-1 exactly: total mass [p + (1−p) = 1]. *)
+Lemma bern2_fmeas_norm (p : R) (Hp0 : (0 <= p)%R) (Hp1 : (p <= 1)%R) :
+  cone_norm (bern2_fmeas Hp0 Hp1) = 1%R.
+Proof.
+rewrite -[cone_norm _]/(fmeas_norm (bern2_fmeas Hp0 Hp1)) /fmeas_norm.
+rewrite bern2_fmeasE ?measurableT// !diracT !mule1 -EFinD/=.
+by rewrite addrCA subrr addr0.
+Qed.
+
+(** The kernel function: flip with success probability
+    [clamp (cR x)]. *)
+Definition bernoulli_ker_fun (x : ar_carrier Ar R_obj) :
+    fmeas R (ar_carrier Ar R_obj) :=
+  bern2_fmeas (clamp_ge0 (cR x)) (clamp_le1 (cR x)).
+
+Lemma bernoulli_ker_meas (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun x => fine (fmeas_mu (bernoulli_ker_fun x) U)).
+Proof.
+move=> mU.
+apply: (eq_measurable_fun (fun x =>
+  (clamp (cR x) * fine (\d_(toC 1%R) U : \bar R) +
+   (1 - clamp (cR x)) * fine (\d_(toC 0%R) U : \bar R))%R)).
+  move=> x _.
+  by rewrite /bernoulli_ker_fun bern2_fmeasE// fineD// !fineM.
+have meas_clamp : measurable_fun [set: ar_carrier Ar R_obj]
+    (fun x => clamp (cR x)).
+  apply: (measurableT_comp (f := clamp)).
+  - exact: clamp_meas.
+  - exact: R_carrier_meas.
+apply: measurable_funD; apply: measurable_funM => //.
+exact: measurable_funB.
+Qed.
+
+Lemma bernoulli_ker_ball (x : ar_carrier Ar R_obj) :
+  (cone_norm (bernoulli_ker_fun x) <= 1)%R.
+Proof. by rewrite /bernoulli_ker_fun bern2_fmeas_norm. Qed.
+
+Definition bernoulli_kernel : pkernel R_obj R_obj :=
+  MkPkernel bernoulli_ker_fun bernoulli_ker_meas bernoulli_ker_ball.
+
+(** Pointwise the Bernoulli kernel is a probability (norm exactly 1):
+    the coin always lands. *)
+Lemma bernoulli_kernel_norm1 (x : ar_carrier Ar R_obj) :
+  cone_norm (pk_ker bernoulli_kernel x) = 1%R.
+Proof. exact: bern2_fmeas_norm. Qed.
+
+(** Dirac reading: on a point mass at [toC r] the lifted kernel is the
+    two-point measure with density [clamp r]. *)
+Lemma bernoulli_kernel_dirac (r : R) :
+  Lfun (kernel_lift bernoulli_kernel) (dirac_fmeas (toC r)) =
+  bern2_fmeas (clamp_ge0 r) (clamp_le1 r).
+Proof.
+rewrite kernel_lift_dirac -[pk_ker _ _]/(bernoulli_ker_fun (toC r)).
+rewrite /bernoulli_ker_fun.
+apply: bern2_fmeas_eqP.
+by rewrite R_to_carrierK.
+Qed.
+
+(** *** Agreement with [ppl.v::bern_lift] at the clamped identity
+
+    The [true]-coordinate of [bern_lift_{clamp} µ] is the mass that
+    [kernel_lift bernoulli_kernel µ] puts on the fibre of [1] — and
+    dually for [false] at the fibre of [0].  (The fibres are the
+    [cR]-preimages of the singletons, measurable since [cR] is.) *)
+
+(** Fibres of the carrier over a real point. *)
+Lemma fibre_meas (r : R) : measurable (cR @^-1` [set r]).
+Proof.
+have m1 : measurable [set r] by rewrite -set_itv1.
+by have := R_carrier_meas measurableT m1; rewrite setTI.
+Qed.
+
+Lemma toC_in_fibre (r : R) : toC r \in cR @^-1` [set r].
+Proof. by apply: mem_set; rewrite /preimage/= R_to_carrierK. Qed.
+
+Lemma toC_notin_fibre (r s : R) :
+  r != s -> (toC r \in cR @^-1` [set s]) = false.
+Proof.
+move=> rs; apply: memNset; rewrite /preimage/= R_to_carrierK => ers.
+by move/eqP : rs; rewrite ers.
+Qed.
+
+Lemma bernoulli_kernel_bern_lift_t (mu : fmeas R (ar_carrier Ar R_obj)) :
+  fine (fmeas_mu (Lfun (kernel_lift bernoulli_kernel) mu)
+          (cR @^-1` [set 1%R])) =
+  ((bc_t (Lfun (bern_lift (R_carrier_meas := R_carrier_meas)
+                  clamp_meas clamp_ge0 clamp_le1) mu))%:num)%R.
+Proof.
+rewrite (kernel_lift_E bernoulli_kernel mu (fibre_meas 1%R)).
+under eq_integral => x _.
+  rewrite -[pk_ker _ _]/(bernoulli_ker_fun x) /bernoulli_ker_fun
+          bern2_fmeasE//.
+  rewrite !diracE toC_in_fibre (toC_notin_fibre (r := 0%R))
+          ?oner_neq0//=.
+  rewrite mulr1 mulr0 addr0.
+  over.
+- by rewrite eq_sym oner_neq0.
+- exact: fibre_meas.
+by rewrite (bern_lift_t_E (R_carrier_meas := R_carrier_meas)
+              clamp_meas clamp_ge0 clamp_le1 mu).
+Qed.
+
+Lemma bernoulli_kernel_bern_lift_f (mu : fmeas R (ar_carrier Ar R_obj)) :
+  fine (fmeas_mu (Lfun (kernel_lift bernoulli_kernel) mu)
+          (cR @^-1` [set 0%R])) =
+  ((bc_f (Lfun (bern_lift (R_carrier_meas := R_carrier_meas)
+                  clamp_meas clamp_ge0 clamp_le1) mu))%:num)%R.
+Proof.
+rewrite (kernel_lift_E bernoulli_kernel mu (fibre_meas 0%R)).
+under eq_integral => x _.
+  rewrite -[pk_ker _ _]/(bernoulli_ker_fun x) /bernoulli_ker_fun
+          bern2_fmeasE//.
+  rewrite !diracE toC_in_fibre (toC_notin_fibre (r := 1%R))
+          ?oner_neq0//=.
+  rewrite mulr1 mulr0 add0r.
+  over.
+- exact: fibre_meas.
+by rewrite (bern_lift_f_E (R_carrier_meas := R_carrier_meas)
+              clamp_meas clamp_ge0 clamp_le1 mu).
+Qed.
+
+End BernoulliKernel.
+
+(** ** Family measurability for the named distributions
+
+    The pure mathcomp-analysis layer: joint measurability of the
+    normal/uniform families IN THEIR PARAMETERS.  The route is
+    Fubini–Tonelli ([measurable_fun_fubini_tonelli_F] against Lebesgue
+    measure): for a fixed measurable [V],
+    [(m,s) ↦ ∫_V normal_pdf m s x dx] is the partial integral of the
+    jointly measurable density [((m,s),x) ↦ 1_V(x) · pdf(m,s,x)].
+    Joint measurability of the densities needs measurability of
+    inversion ([measurable_funV], proved by splitting at the sign and
+    reading [x^-1] off [powR]). *)
+
+Section RealFamilyMeasurability.
+Variable R : realType.
+Local Notation mu := (@lebesgue_measure R).
+
+(** Inversion is measurable: on [{x > 0}] it is [x ↦ x `^ (-1)], on
+    [{x < 0}] it is [x ↦ -((-x) `^ (-1))], and [0^-1 = 0]. *)
+Lemma measurable_funV : measurable_fun [set: R] (@GRing.inv R).
+Proof.
+have mpos : measurable [set y : R | 0 < y]%R.
+  have := @measurable_itv R
+    (interval.Interval (interval.BRight (0 : R)) (interval.BInfty R false)).
+  set S := [set` _] => mS.
+  have -> : [set y : R | 0 < y]%R = S.
+    by apply/seteqP; split => y; rewrite /S/= interval.in_itv/= andbT.
+  exact: mS.
+have mneg : measurable [set y : R | y < 0]%R.
+  have := @measurable_itv R
+    (interval.Interval (interval.BInfty R true) (interval.BLeft (0 : R))).
+  by set S := [set` _] => mS; exact: mS.
+apply: (eq_measurable_fun (fun x : R =>
+  (\1_([set y : R | 0 < y]%R) x * (x `^ (-1)) -
+   \1_([set y : R | y < 0]%R) x * ((- x) `^ (-1)))%R)).
+  move=> x _ /=; rewrite !indicE.
+  have [x0|x0|e] := ltgtP 0%R x.
+  - rewrite mem_set//= memNset/=; last by apply/negP; rewrite -leNgt ltW.
+    by rewrite mul1r mul0r subr0 powR_inv1// ltW.
+  - rewrite memNset/=; last by apply/negP; rewrite -leNgt ltW.
+    rewrite mem_set//= mul0r mul1r sub0r powR_inv1;
+      last by rewrite oppr_ge0 ltW.
+    by rewrite invrN opprK.
+  - rewrite -e memNset/=; last by rewrite ltxx.
+    rewrite memNset/=; last by rewrite ltxx.
+    by rewrite !mul0r subr0 invr0.
+apply: measurable_funB.
+- apply: measurable_funM; first exact: measurable_indic.
+  exact: measurable_powR.
+- apply: measurable_funM; first exact: measurable_indic.
+  apply: (measurableT_comp (f := fun y : R => y `^ (-1))).
+  + exact: measurable_powR.
+  + exact: oppr_measurable.
+Qed.
+
+(** The normal-density peak [s ↦ (√(s²·2π))^-1] is measurable. *)
+Lemma measurable_normal_peak : measurable_fun [set: R] (@normal_peak R).
+Proof.
+rewrite /normal_peak.
+apply: (measurableT_comp (f := @GRing.inv R)); first exact: measurable_funV.
+apply: (measurableT_comp (f := @Num.sqrt R)).
+  exact: (continuous_measurable_fun (@sqrt_continuous R)).
+apply: (measurableT_comp (f := fun y : R => y *+ 2)).
+  exact: natmul_measurable.
+by apply: measurable_funM => //; exact: exprn_measurable.
+Qed.
+
+(** Joint measurability of the normal pdf in (parameters, point). *)
+Lemma measurable_normal_pdf_pair :
+  measurable_fun [set: ((R * R)%type * R)%type]
+    (fun q => normal_pdf q.1.1 q.1.2 q.2).
+Proof.
+rewrite /normal_pdf.
+apply: measurable_fun_if => //.
+- apply: measurable_fun_eqr => //.
+  exact: (measurableT_comp measurable_snd measurable_fst).
+- apply: (measurable_funS measurableT (subsetT _)).
+  by apply: measurableT_comp;
+    [exact: measurable_indic | exact: measurable_snd].
+- apply: (measurable_funS measurableT (subsetT _)).
+  apply: measurable_funM.
+    apply: (measurableT_comp (f := @normal_peak R)).
+    + exact: measurable_normal_peak.
+    + exact: (measurableT_comp measurable_snd measurable_fst).
+  rewrite /normal_fun.
+  apply: measurableT_comp; first exact: measurable_expR.
+  apply: measurable_funM.
+    apply: measurable_funN.
+    apply: measurable_funX.
+    apply: measurable_funB; first exact: measurable_snd.
+    exact: (measurableT_comp measurable_fst measurable_fst).
+  apply: (measurableT_comp (f := @GRing.inv R)).
+    exact: measurable_funV.
+  apply: (measurableT_comp (f := fun y : R => y *+ 2)).
+    exact: natmul_measurable.
+  apply: (measurableT_comp (f := fun y : R => y ^+ 2)).
+    exact: exprn_measurable.
+  exact: (measurableT_comp measurable_snd measurable_fst).
+Qed.
+
+(** Family measurability: for fixed measurable [V],
+    [(m,s) ↦ normal_prob m s V] is measurable. *)
+Lemma measurable_normal_prob_pair (V : set R) (mV : measurable V) :
+  measurable_fun [set: (R * R)%type] (fun p => normal_prob p.1 p.2 V).
+Proof.
+pose f : ((R * R)%type * R)%type -> \bar R :=
+  fun q => (\1_V q.2 * normal_pdf q.1.1 q.1.2 q.2)%:E.
+have mf : measurable_fun [set: ((R * R)%type * R)%type] f.
+  apply/measurable_EFinP; apply: measurable_funM.
+    exact: (measurableT_comp (measurable_indic mV) measurable_snd).
+  exact: measurable_normal_pdf_pair.
+have f0 q : (0 <= f q)%E.
+  by rewrite lee_fin mulr_ge0 ?normal_pdf_ge0.
+have H := measurable_fun_fubini_tonelli_F
+  (m2 := [the {sigma_finite_measure set _ -> \bar R} of mu]) f mf f0.
+apply: eq_measurable_fun H => p _.
+rewrite /fubini_F/= /f /normal_prob [RHS]integral_mkcond.
+apply: eq_integral => y _.
+rewrite patchE indicE; case: ifPn => yV; first by rewrite mul1r.
+by rewrite mul0r.
+Qed.
+
+(** The TOTAL uniform pdf [if a ≤ x ≤ b then (b−a)^-1 else 0] is
+    nonnegative for ALL [a b] (when the test holds, [a ≤ b]). *)
+Lemma uniform_pdf_ge0_total (a b x : R) : (0 <= uniform_pdf a b x)%R.
+Proof.
+rewrite /uniform_pdf; case: ifPn => // /andP[ax xb].
+by rewrite invr_ge0 subr_ge0 (le_trans ax xb).
+Qed.
+
+(** Joint measurability of the uniform pdf in (parameters, point). *)
+Lemma measurable_uniform_pdf_pair :
+  measurable_fun [set: ((R * R)%type * R)%type]
+    (fun q => uniform_pdf q.1.1 q.1.2 q.2).
+Proof.
+rewrite /uniform_pdf.
+apply: measurable_fun_if => //.
+- apply: measurable_and; apply: measurable_fun_ler.
+  + exact: (measurableT_comp measurable_fst measurable_fst).
+  + exact: measurable_snd.
+  + exact: measurable_snd.
+  + exact: (measurableT_comp measurable_snd measurable_fst).
+- apply: (measurable_funS measurableT (subsetT _)).
+  apply: (measurableT_comp (f := @GRing.inv R)).
+    exact: measurable_funV.
+  apply: measurable_funB.
+  + exact: (measurableT_comp measurable_snd measurable_fst).
+  + exact: (measurableT_comp measurable_fst measurable_fst).
+Qed.
+
+(** The total uniform measure formula — agrees with [uniform_prob]
+    whenever [a < b] ([uniform_int_probE]). *)
+Definition uniform_int (a b : R) (V : set R) : \bar R :=
+  (\int[mu]_(x in V) (uniform_pdf a b x)%:E)%E.
+
+Lemma uniform_int_probE (a b : R) (ab : (a < b)%R) (V : set R) :
+  uniform_int a b V = uniform_prob ab V.
+Proof. by []. Qed.
+
+(** Family measurability: for fixed measurable [V],
+    [(a,b) ↦ ∫_V uniform_pdf a b dx] is measurable. *)
+Lemma measurable_uniform_int_pair (V : set R) (mV : measurable V) :
+  measurable_fun [set: (R * R)%type] (fun p => uniform_int p.1 p.2 V).
+Proof.
+pose f : ((R * R)%type * R)%type -> \bar R :=
+  fun q => (\1_V q.2 * uniform_pdf q.1.1 q.1.2 q.2)%:E.
+have mf : measurable_fun [set: ((R * R)%type * R)%type] f.
+  apply/measurable_EFinP; apply: measurable_funM.
+    exact: (measurableT_comp (measurable_indic mV) measurable_snd).
+  exact: measurable_uniform_pdf_pair.
+have f0 q : (0 <= f q)%E.
+  by rewrite lee_fin mulr_ge0 ?uniform_pdf_ge0_total.
+have H := measurable_fun_fubini_tonelli_F
+  (m2 := [the {sigma_finite_measure set _ -> \bar R} of mu]) f mf f0.
+apply: eq_measurable_fun H => p _.
+rewrite /fubini_F/= /f /uniform_int [RHS]integral_mkcond.
+apply: eq_integral => y _.
+rewrite patchE indicE; case: ifPn => yV; first by rewrite mul1r.
+by rewrite mul0r.
+Qed.
+
+End RealFamilyMeasurability.
+
+(** ** [gaussian_kernel] / [uniform_kernel] — named-distribution kernels
+
+    Kernels on the product object [R_obj × R_obj]: the parameters are
+    a pair of reals read off the carrier through [ar_prod_uncast] and
+    the carrier cast.
+    - [gaussian_kernel]: [(m,s) ↦ normal_prob m s] transported along
+      [toC] (the [ppl.v::ProbTransport] pushforward), TOTALISED at
+      [s = 0] as [δ_m] (the degenerate weak limit; mathcomp-analysis'
+      own [s = 0] convention is a placeholder uniform-[0,1] pdf, while
+      [s ≠ 0] — including [s < 0] — is the genuine normal with
+      deviation [|s|], which we keep).
+    - [uniform_kernel]: [(a,b) ↦ uniform_prob ab] for [a < b],
+      totalised as [δ_a] otherwise.
+    Family measurability is [measurable_normal_prob_pair] /
+    [measurable_uniform_int_pair] composed with the parameter
+    projections. *)
+
+Section NamedKernels.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation toC := (R_to_carrier R_carrier_eq).
+Local Notation P2 := (ar_prod Ar R_obj R_obj).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** *** Transporting a mathcomp-analysis probability on [R] into an
+    [fmeas] — the [fmeas]-level reading of [examples.v]'s
+    [pmeas_of_prob], through [ppl.v::prob_fmeas]. *)
+Section ProbFmeas.
+Variable P : probability
+  (g_sigma_algebraType ((R.-ocitv).-measurable : set (set (ocitv_type R))))
+  R.
+
+Let nuP : set R -> \bar R := fun U => P U.
+
+Local Lemma nuP0 : nuP set0 = 0.
+Proof. exact: measure0. Qed.
+
+Local Lemma nuP_ge0 (U : set R) : 0 <= nuP U.
+Proof. exact: measure_ge0. Qed.
+
+Local Lemma nuP_sigma : semi_sigma_additive nuP.
+Proof.
+move=> F mF tF mUF.
+have HH := @measure_semi_sigma_additive _ _ R P F.
+by apply: HH.
+Qed.
+
+Local Lemma nuP_le1 (U : set (ar_carrier Ar R_obj)) :
+  measurable U -> nuP (toC @^-1` U) <= 1.
+Proof.
+move=> mU.
+apply: probability_le1.
+exact: (prob_push_pre_meas R_to_carrier_meas mU).
+Qed.
+
+Definition fmeas_of_prob : fmeas R (ar_carrier Ar R_obj) :=
+  prob_fmeas R_carrier_eq R_to_carrier_meas nuP nuP0 nuP_ge0 nuP_sigma nuP_le1.
+
+Lemma fmeas_of_probE (U : set (ar_carrier Ar R_obj)) :
+  measurable U -> fmeas_mu fmeas_of_prob U = P (toC @^-1` U).
+Proof. exact: prob_fmeasE. Qed.
+
+Lemma fmeas_of_prob_ball : (cone_norm fmeas_of_prob <= 1)%R.
+Proof. exact: prob_fmeas_ball. Qed.
+
+(** Probabilities transport to norm-EXACTLY-1 measures. *)
+Lemma fmeas_of_prob_norm1 : cone_norm fmeas_of_prob = 1%R.
+Proof.
+rewrite -[cone_norm _]/(fmeas_norm fmeas_of_prob) /fmeas_norm.
+by rewrite fmeas_of_probE ?measurableT// preimage_setT probability_setT.
+Qed.
+
+End ProbFmeas.
+
+(** *** Parameter projections from the product-object carrier *)
+
+Definition par1 (c : ar_carrier Ar P2) : R :=
+  cR (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) c).1.
+Definition par2 (c : ar_carrier Ar P2) : R :=
+  cR (ar_prod_uncast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) c).2.
+
+Lemma par1_meas : measurable_fun [set: ar_carrier Ar P2] par1.
+Proof.
+apply: (measurableT_comp (f := cR)); first exact: R_carrier_meas.
+exact: (measurableT_comp measurable_fst (ar_prod_uncast_meas Ar R_obj R_obj)).
+Qed.
+
+Lemma par2_meas : measurable_fun [set: ar_carrier Ar P2] par2.
+Proof.
+apply: (measurableT_comp (f := cR)); first exact: R_carrier_meas.
+exact: (measurableT_comp measurable_snd (ar_prod_uncast_meas Ar R_obj R_obj)).
+Qed.
+
+Lemma par_pair_meas :
+  measurable_fun [set: ar_carrier Ar P2] (fun c => (par1 c, par2 c)).
+Proof. exact: (measurable_fun_pair par1_meas par2_meas). Qed.
+
+(** *** The gaussian kernel *)
+
+Definition gaussian_ker_fun (c : ar_carrier Ar P2) :
+    fmeas R (ar_carrier Ar R_obj) :=
+  if par2 c == 0%R then dirac_fmeas (toC (par1 c))
+  else fmeas_of_prob
+         [the probability _ _ of normal_prob (par1 c) (par2 c)].
+
+Lemma gaussian_ker_funE (c : ar_carrier Ar P2)
+    (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (gaussian_ker_fun c) U =
+  if par2 c == 0%R then \d_(toC (par1 c)) U
+  else normal_prob (par1 c) (par2 c) (toC @^-1` U).
+Proof.
+move=> mU; rewrite /gaussian_ker_fun; case: (par2 c == 0%R).
+- exact: dirac_fmeas_E.
+- exact: fmeas_of_probE.
+Qed.
+
+Lemma gaussian_ker_meas (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  measurable_fun [set: ar_carrier Ar P2]
+    (fun c => fine (fmeas_mu (gaussian_ker_fun c) U)).
+Proof.
+move=> mU.
+have mV : measurable (toC @^-1` U)
+  := prob_push_pre_meas R_to_carrier_meas mU.
+apply: (eq_measurable_fun (fun c =>
+  if par2 c == 0%R then (\1_U (toC (par1 c)) : R)
+  else fine (normal_prob (par1 c) (par2 c) (toC @^-1` U)))).
+  move=> c _; rewrite gaussian_ker_funE//.
+  by case: (par2 c == 0%R) => //; rewrite diracE indicE.
+apply: measurable_fun_if => //.
+- apply: measurable_fun_eqr => //; exact: par2_meas.
+- apply: (measurable_funS measurableT (subsetT _)).
+  apply: (measurableT_comp (measurable_indic mU)).
+  apply: (measurableT_comp (f := toC)); first exact: R_to_carrier_meas.
+  exact: par1_meas.
+- apply: (measurable_funS measurableT (subsetT _)).
+  apply: (measurableT_comp (f := fine)).
+    exact: (fine_measurable measurableT).
+  exact: (measurableT_comp (measurable_normal_prob_pair mV) par_pair_meas).
+Qed.
+
+Lemma gaussian_ker_ball (c : ar_carrier Ar P2) :
+  (cone_norm (gaussian_ker_fun c) <= 1)%R.
+Proof.
+rewrite /gaussian_ker_fun; case: (par2 c == 0%R).
+- by rewrite dirac_fmeas_norm.
+- exact: fmeas_of_prob_ball.
+Qed.
+
+Definition gaussian_kernel : pkernel P2 R_obj :=
+  MkPkernel gaussian_ker_fun gaussian_ker_meas gaussian_ker_ball.
+
+(** Pointwise the gaussian kernel is a probability. *)
+Lemma gaussian_kernel_norm1 (c : ar_carrier Ar P2) :
+  cone_norm (pk_ker gaussian_kernel c) = 1%R.
+Proof.
+rewrite -[pk_ker _ _]/(gaussian_ker_fun c) /gaussian_ker_fun.
+case: (par2 c == 0%R).
+- by rewrite dirac_fmeas_norm.
+- exact: fmeas_of_prob_norm1.
+Qed.
+
+(** *** The uniform kernel *)
+
+Definition uniform_ker_fun (c : ar_carrier Ar P2) :
+    fmeas R (ar_carrier Ar R_obj) :=
+  match pselect ((par1 c < par2 c)%R) with
+  | left ab => fmeas_of_prob [the probability _ _ of uniform_prob ab]
+  | right _ => dirac_fmeas (toC (par1 c))
+  end.
+
+Lemma uniform_ker_funE (c : ar_carrier Ar P2)
+    (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (uniform_ker_fun c) U =
+  if (par1 c < par2 c)%R
+  then uniform_int (par1 c) (par2 c) (toC @^-1` U)
+  else \d_(toC (par1 c)) U.
+Proof.
+move=> mU; rewrite /uniform_ker_fun; case: pselect => [ab|nab].
+- by rewrite ab fmeas_of_probE.
+- have -> : (par1 c < par2 c)%R = false by apply/negbTE/negP.
+  exact: dirac_fmeas_E.
+Qed.
+
+Lemma uniform_ker_meas (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  measurable_fun [set: ar_carrier Ar P2]
+    (fun c => fine (fmeas_mu (uniform_ker_fun c) U)).
+Proof.
+move=> mU.
+have mV : measurable (toC @^-1` U)
+  := prob_push_pre_meas R_to_carrier_meas mU.
+apply: (eq_measurable_fun (fun c =>
+  if (par1 c < par2 c)%R
+  then fine (uniform_int (par1 c) (par2 c) (toC @^-1` U))
+  else (\1_U (toC (par1 c)) : R))).
+  move=> c _; rewrite uniform_ker_funE//.
+  by case: (par1 c < par2 c)%R => //; rewrite diracE indicE.
+apply: measurable_fun_if => //.
+- apply: measurable_fun_ltr; [exact: par1_meas | exact: par2_meas].
+- apply: (measurable_funS measurableT (subsetT _)).
+  apply: (measurableT_comp (f := fine)).
+    exact: (fine_measurable measurableT).
+  exact: (measurableT_comp (measurable_uniform_int_pair mV) par_pair_meas).
+- apply: (measurable_funS measurableT (subsetT _)).
+  apply: (measurableT_comp (measurable_indic mU)).
+  apply: (measurableT_comp (f := toC)); first exact: R_to_carrier_meas.
+  exact: par1_meas.
+Qed.
+
+Lemma uniform_ker_ball (c : ar_carrier Ar P2) :
+  (cone_norm (uniform_ker_fun c) <= 1)%R.
+Proof.
+rewrite /uniform_ker_fun; case: pselect => [ab|_].
+- exact: fmeas_of_prob_ball.
+- by rewrite dirac_fmeas_norm.
+Qed.
+
+Definition uniform_kernel : pkernel P2 R_obj :=
+  MkPkernel uniform_ker_fun uniform_ker_meas uniform_ker_ball.
+
+(** Pointwise the uniform kernel is a probability. *)
+Lemma uniform_kernel_norm1 (c : ar_carrier Ar P2) :
+  cone_norm (pk_ker uniform_kernel c) = 1%R.
+Proof.
+rewrite -[pk_ker _ _]/(uniform_ker_fun c) /uniform_ker_fun.
+case: pselect => [ab|_].
+- exact: fmeas_of_prob_norm1.
+- by rewrite dirac_fmeas_norm.
+Qed.
+
+End NamedKernels.
