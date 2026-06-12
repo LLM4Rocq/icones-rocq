@@ -526,13 +526,15 @@ def test_ppl_chapter_section_shape_b(tmp_path):
     assert len(doc.beyond) >= 1
 
 
-def test_examples_headline_table_shape_a(tmp_path):
-    """EXAMPLES-shape fixture: H3 with a Side/Headline/Status table.
+def test_examples_overview_table_shape_c(tmp_path):
+    """EXAMPLES-shape fixture: H3 with a Paper-style overview table.
 
-    Position 0 is a synthesised ``Def``-tagged program entry carrying
-    the ``Definition ex_<name>`` snippet (used to live in the
-    standalone section.snippets block above the entries grid).  The
-    three table rows follow at positions 1..3.
+    One entry per table row; the leftmost label carries the kind
+    (``Def`` / ``Thm`` / ``Lem``, paper number optional), and each
+    row's identifiers are matched against the section's snippets to
+    populate the entry's foldable detail.  The fixture's H2 has no
+    "Beyond the paper" prefix — chapter mode treats every plain H2 as
+    a chapter.
     """
     path = GOLDEN / "11_examples_headline_table.md"
     doc, _ = parse(
@@ -547,11 +549,12 @@ def test_examples_headline_table_shape_a(tmp_path):
     assert ch.id.startswith("examples-ch-")
     assert len(ch.sections) == 1
     sec = ch.sections[0]
-    # 1 synthesised program entry + 3 Side/Headline/Status table rows.
-    assert len(sec.entries) == 4
+    # 3 overview-table rows → 3 entries.
+    assert len(sec.entries) == 3
     # Position 0 = the program entry (Definition ex_geom).
     prog = sec.entries[0]
     assert prog.paper_kind == "Def"
+    assert prog.paper_number is None
     assert prog.rocq_idents == ["ex_geom"]
     assert prog.detail is not None
     assert len(prog.detail.snippets) == 1
@@ -559,33 +562,29 @@ def test_examples_headline_table_shape_a(tmp_path):
         prog.detail.snippets[0].source_file
         == "theories/programs/examples.v"
     )
-    # Program entry has no status badges (empty list).
-    assert prog.status == []
-    # Position 1 = first table row (CBV — total mass identity).
+    # Position 1 = the mass theorem; the matched snippet is the one
+    # whose source_file is em_fix_arr.v (it declares
+    # `Theorem ex_geom_arr_mass_one`).
     e1 = sec.entries[1]
-    # Headline cell carries `ex_geom_arr_mass_one`.
     assert e1.rocq_idents == ["ex_geom_arr_mass_one"]
-    # CBV side prefix → paper_kind "CBV".
-    assert e1.paper_kind == "CBV"
+    assert e1.paper_kind == "Thm"
     assert e1.detail is not None
-    # The matching snippet should be the one whose source_file is
-    # em_fix_arr.v (it carries `Theorem ex_geom_arr_mass_one`).
     assert e1.detail.snippets
     assert (
         e1.detail.snippets[0].source_file
         == "theories/programs/infra/em_fix_arr.v"
     )
-    # Stats roll up the synthesised entry too.
-    assert ch.stats.n_entries == 4
+    # Position 2 = the structural lemma.
+    assert sec.entries[2].paper_kind == "Lem"
+    # Stats roll up.
+    assert ch.stats.n_entries == 3
+    assert ch.stats.n_defs == 1
+    assert ch.stats.n_thms == 2
     assert ch.stats.loc > 0
-    # Status on the first table row passes through verbatim.
-    assert e1.status == ["axiom-free"]
-    # Last table row (CBN — total mass identity) classifies to CBN.
-    assert sec.entries[3].paper_kind == "CBN"
     # Section-level snippets list is empty — every H3 snippet got
-    # hoisted into an entry (program entry + per-row matched
-    # snippets).  This is what lets the section template skip the
-    # standalone ``<section class="snippets">`` block at the top.
+    # hoisted into an entry's detail.  This is what lets the section
+    # template skip the standalone ``<section class="snippets">``
+    # block at the top.
     assert sec.snippets == []
 
 
