@@ -217,7 +217,7 @@
 %                                      (reject_prog_master,
 %                                      condition_E,
 %                                      condition_prog_evidence) with
-%                                      THE EQUIVALENCE
+%                                      the equivalence
 %                                      reject_normalises_condition /
 %                                      reject_prog_computes_condition /
 %                                      reject_normalises_condition_prob
@@ -2508,12 +2508,8 @@ witness simultaneously. The custom entry \texttt{ppl\_named} supports
 \rocq{Icones.programs.ppl.ne_fix}, the seeded value-fixpoint
 combinator of \autoref{thm:cbv-fix-comb} under the CBV reading),
 \texttt{Sample (mu, Hmu)},
-\texttt{Score \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e},
 \texttt{True} / \texttt{False},
 \texttt{Bernoulli \{ p, Hp\_ge0, Hp\_le1 \}},
-\texttt{Bernoulli\_f \{ f, Hf\_meas, Hf\_ge0, Hf\_le1 \} e}
-(the value-dependent Bernoulli, desugaring to
-\rocq{Icones.programs.ppl.ne_bernoulli_f}),
 \texttt{if e then M else N} (dispatched via
 \autoref{def:cbv-case-em}),
 \texttt{\# "x"}, \texttt{M @ N}, \texttt{M + N}, \texttt{M * N},
@@ -2549,7 +2545,7 @@ deterministic on point masses); OCaml-style
 $\mathtt{ne\_let}$-of-$\mathtt{ne\_fix}$-of-$\mathtt{ne\_lam}$, with
 an annotated variant for bodies that leave the binder type
 undetermined); and the soft conditioning form
-\texttt{Condition \{ f, \ldots \} M} of
+\texttt{Condition \{ f, Hm \} M} of
 \autoref{def:cbv-ex-condition}. The end-to-end demos are
 \rocq{Icones.programs.examples.ex_surface_demo} and
 \rocq{Icones.programs.examples.ex_surface_walk}, with the elaboration
@@ -2932,8 +2928,8 @@ observation (a record \rocq{Icones.programs.examples.obs} packaging
 a known input point $\mathtt{obs\_x}$ and an observation density
 $\mathtt{obs\_d} : \mathbb{R} \to [0,1]$ with its measurability and
 bound witnesses) contributes one clause
-$\mathtt{let\,\_ = Score}\,\{\mathtt{obs\_d}\,o\}\,
-(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!])
+$\mathtt{let\,\_ = Score}\,(\mathtt{Meas}\,\{\mathtt{obs\_d}\,o\}\,
+(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!]))
 \,\mathtt{in}\,\cdots$, scoring the model's value at the known input;
 the program returns $\#\mathtt{"f"}$ --- the posterior over
 \emph{functions}. The fold over a meta-level observation list is the
@@ -2993,7 +2989,7 @@ two priors
 
 This section assembles the full semantic analysis of rejection
 sampling: a \emph{higher-order}, \emph{probabilistic} (continuous
-$\mathtt{sample}$ plus value-dependent $\mathtt{Bernoulli\_f}$),
+$\mathtt{sample}$ plus value-dependent coin $\mathtt{ne\_bernoulli\_f}$),
 \emph{non-terminating} (rejection recurses, and may loop forever)
 program whose CBV denotation is identified in closed form. The story
 is told twice: first for the hard-coded sampler $\mathtt{ex\_reject}$
@@ -3022,7 +3018,7 @@ density $f : \mathbb{R} \to [0, 1]$, the program is
   \;=\;
   \mathtt{let\,rec}\;\textit{rs}\;\textit{accept} =
     \mathtt{let}\;x = \mathtt{sample}\,m\;\mathtt{in}\;
-    \mathtt{if}\;\mathtt{Bernoulli\_f}\{f\}\,(x)\;
+    \mathtt{if}\;\mathtt{Bernoulli}\,(\mathtt{Meas}\{f\}\,x)\;
     \mathtt{then}\;\textit{accept}\;x\;
     \mathtt{else}\;\textit{rs}\;\textit{accept}
   \;\;\mathtt{in}\;\;
@@ -3226,7 +3222,7 @@ $(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
   \;=\;
   \mathtt{fix}\;\textit{rs}.\;\lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{if}\;\mathtt{Bernoulli\_f}\{f\}\,(x)\;
+    \mathtt{if}\;\mathtt{Bernoulli}\,(\mathtt{Meas}\{f\}\,x)\;
     \mathtt{then}\;x\;
     \mathtt{else}\;\textit{rs}\;m\;a
 \]
@@ -3418,7 +3414,7 @@ $(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
   \;=\;
   \lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{let}\;\_ = \mathtt{Score}\{f\}\,(x)\;\mathtt{in}\;
+    \mathtt{let}\;\_ = \mathtt{Score}\,(\mathtt{Meas}\{f\}\,x)\;\mathtt{in}\;
     x
 \]
 --- run the model at the input, weigh the trace by the likelihood of

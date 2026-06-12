@@ -143,7 +143,7 @@ arbitrary probabilistic model `m : ta → tR` (a function value, itself
 free to contain samples, scores and recursion); writing `ν_M` for the
 model's output sub-distribution, the conditioning law gives
 `⟦condition m a⟧(U) = ∫_U f dν_M` (`condition_model_E` /
-`condition_E`) and THE EQUIVALENCE
+`condition_E`) and the equivalence
 `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U` with
 `Z := 1 − ν_M(setT) + ∫ f dν_M` holds unconditionally
 (`reject_normalises_condition`; division form
@@ -371,7 +371,7 @@ theories/
                                      reject_model_is_normalised), the
                                      condition combinator's law
                                      (condition_model_E, condition_E)
-                                     and THE EQUIVALENCE
+                                     and the equivalence
                                      (reject_normalises_condition +
                                      division / probability forms)
                  infra/              PPL support:
