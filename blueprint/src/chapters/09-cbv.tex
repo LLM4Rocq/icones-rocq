@@ -210,7 +210,20 @@
 %                                      ex_reject_comb_sampler_master
 %                                      (the combinator at the sampler
 %                                      model λ_. sample µ denotes the
-%                                      SAME measure as ex_reject).
+%                                      SAME measure as ex_reject);
+%                                      the CONDITION combinator's law
+%                                      condition_model_E(_mass) and
+%                                      the readable ⟦·⟧ restatements
+%                                      (reject_prog_master,
+%                                      condition_E,
+%                                      condition_prog_evidence) with
+%                                      THE EQUIVALENCE
+%                                      reject_normalises_condition /
+%                                      reject_prog_computes_condition /
+%                                      reject_normalises_condition_prob
+%                                      (rejection sampling computes
+%                                      the conditioned model's
+%                                      normalised distribution).
 %   theories/programs/infra/cbv_marginals.v   the CBV marginal headlines
 %                                      of the basic sampling/scoring
 %                                      examples:
@@ -260,8 +273,21 @@
 %                                      program ex_reject, the
 %                                      rejection-sampling COMBINATOR
 %                                      ex_reject_comb (over any model
-%                                      m : ta -> tR), and the sampler
-%                                      model ex_sampler.
+%                                      m : ta -> tR), the sampler
+%                                      model ex_sampler, the soft
+%                                      conditioning combinator
+%                                      ex_condition_comb /
+%                                      ex_condition (+ the Condition
+%                                      surface form), the iterated-
+%                                      conditioning reading of the
+%                                      regression (condition_at /
+%                                      iter_condition /
+%                                      ex_bayes_linear_is_iter_condition),
+%                                      the named distributions
+%                                      gaussian / uniform (pmeas), and
+%                                      the surface demos
+%                                      ex_surface_demo /
+%                                      ex_surface_walk.
 %
 % Status note (post-cleanup): every section of this chapter is AXIOM-FREE
 % (only the three classical boolp axioms): the Eilenberg–Moore category
@@ -329,11 +355,16 @@ $\mathord{!}$-coalgebras as the cartesian non-linear / value side. The
 \texttt{theories/programs/ppl\_cbv.v}, a linhom-valued, comonoid-primitive
 denotation on the shared surface inductive \texttt{named\_expr} of
 \texttt{theories/programs/ppl.v}. The chapter culminates in the
-rejection-sampling headline (\autoref{sec:cbv-geom-mass}): the CBV
-denotation of a higher-order, probabilistic, possibly non-terminating
-rejection sampler is identified in closed form as the normalised
-posterior of its prior given its soft acceptance predicate
-(\rocq{Icones.programs.ex_reject_headline.ex_reject_is_normalised_posterior}),
+conditioning / rejection equivalence
+(\autoref{thm:cbv-condition-reject}): the Pyro-style soft
+conditioning operator denotes the likelihood-reweighted model output
+(\autoref{lem:cbv-condition-law}), and the CBV denotation of a
+higher-order, probabilistic, possibly non-terminating rejection
+sampler over the \emph{same} arbitrary model is identified in closed
+form as its normalisation
+(\rocq{Icones.programs.ex_reject_model.reject_normalises_condition};
+the hard-coded instance is
+\rocq{Icones.programs.ex_reject_headline.ex_reject_is_normalised_posterior}),
 through the seeded value-fixpoint combinator of
 \autoref{sec:cbv-yfix-fun} and the let-at-sample integral law of
 \autoref{sec:cbv-laws} --- paired exactly with the unnormalised
@@ -2189,6 +2220,18 @@ $\sem{\tau}$'s carrier.
     (\rocq{Icones.programs.ppl_cbv.eD_bernoulli_f_E}). This is the
     accept/reject primitive of the rejection-sampling headline
     (\autoref{sec:cbv-geom-mass}).
+  \item $\mathtt{ne\_meas}\,f\,e$ (measurable function application):
+    $\mathtt{meas\_lift}\,f \circ \sem{e}$, with
+    \rocq{Icones.programs.ppl.meas_lift} the $\FMeas$ functorial
+    action (pushforward) at the carrier transport of the measurable
+    $f : \mathbb{R} \to \mathbb{R}$ --- no $[0,1]$ bounds are needed,
+    since the pushforward already has operator norm at most one. The
+    Dirac identity \rocq{Icones.programs.ppl.meas_lift_dirac}
+    ($\delta_r \mapsto \delta_{f(r)}$) and the total-mass identity
+    \rocq{Icones.programs.ppl.meas_lift_mass} are the load-bearing
+    laws; the clause pin is
+    \rocq{Icones.programs.ppl_cbv.eD_meas_E} --- the
+    $\FMeas$-functorial mirror of the $\mathtt{ne\_score}$ clause.
   \item $\mathtt{ne\_if}\,b\,M\,N$:
     $\mathtt{if\_icones}\,\sem{M}\,\sem{N}\,\sem{b}$ of
     \autoref{def:cbv-case-em} --- the six steps use
@@ -2455,9 +2498,41 @@ combinator of \autoref{thm:cbv-fix-comb} under the CBV reading),
 \texttt{\# "x"}, \texttt{M @ N}, \texttt{M + N}, \texttt{M * N},
 \texttt{(e1, e2)}, \texttt{fst e}, \texttt{snd e}, \texttt{()},
 \texttt{[|r|]}, and \texttt{\{x\}}-escape. There is no
-\texttt{Ret} surface form. All twelve programs in
+\texttt{Ret} surface form. All programs in
 \texttt{theories/programs/examples.v} are written exclusively in this
 direct-style surface notation.
+
+\paragraph{The derived surface layer.}
+On top of the kernel notations sits a readable layer of sugar-only
+forms (each elaborates to existing constructors plus the
+$\mathtt{ne\_meas}$ pushforward primitive): measurable function
+application \texttt{Meas \{ f, Hf \} e} (desugaring to
+\rocq{Icones.programs.ppl.ne_meas}); the \emph{witness-free} unified
+coin and score \texttt{Bernoulli e} / \texttt{Score e}, whose density
+is the clamped runtime value via
+\rocq{Icones.programs.ppl.clamp} (measurable and $[0,1]$-valued by
+construction; on real literals in $[0,1]$ the clamped coin agrees
+with the witness form,
+\rocq{Icones.programs.ppl_cbv.eD_bernoulli_clamp_const_E});
+bundled sampling \texttt{sample m} for a sub-probability packaged
+with its unit-ball witness as a \rocq{Icones.programs.ppl.pmeas},
+with the named distributions
+\rocq{Icones.programs.examples.gaussian} /
+\rocq{Icones.programs.examples.uniform} transported from
+\mathcompA{}-analysis probabilities by
+\rocq{Icones.programs.ppl.prob_pmeas}; the comparison coin
+\texttt{e1 > e2} (the value-dependent Bernoulli at the indicator
+density \rocq{Icones.programs.ppl.gt0_ind} of the difference ---
+deterministic on point masses); OCaml-style
+\texttt{let rec f x := M in K} (desugaring to
+$\mathtt{ne\_let}$-of-$\mathtt{ne\_fix}$-of-$\mathtt{ne\_lam}$, with
+an annotated variant for bodies that leave the binder type
+undetermined); and the soft conditioning form
+\texttt{Condition \{ f, \ldots \} M} of
+\autoref{def:cbv-ex-condition}. The end-to-end demos are
+\rocq{Icones.programs.examples.ex_surface_demo} and
+\rocq{Icones.programs.examples.ex_surface_walk}, with the elaboration
+pin \rocq{Icones.programs.examples.ex_surface_demo_decomp}.
 
 \paragraph{Out-of-scope items.}
 Adequacy, normalization, and full-abstraction (traditional metatheory,
@@ -3251,6 +3326,157 @@ identity $I_f \cdot \nu(U) = I_f^U$ is re-derived through the bridge
 (\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_master}).
 \end{theorem}
 
+\subsection{Soft conditioning, and the equivalence with rejection
+sampling}\label{ssec:cbv-condition}
+
+The declarative counterpart of the rejection combinator: the
+Pyro-style \emph{soft conditioning} operator takes a model and
+returns the conditioned model --- run the model, \emph{score} the
+produced value by the likelihood, return it. The capstone theorem of
+this section identifies the two combinators' semantics: rejection
+sampling computes the conditioned model's \emph{normalised}
+distribution.
+
+\begin{definition}[The condition combinator
+$\mathtt{ex\_condition\_comb}$]\label{def:cbv-ex-condition}
+\rocq{Icones.programs.examples.ex_condition_comb}\rocqok
+\rocq{Icones.programs.examples.ex_condition}\rocqok
+\uses{def:cbv-ex-reject-comb, lem:ppl-score-tm-lift}
+For an arbitrary PPL input type $t_a$ and a measurable likelihood
+density $f : \mathbb{R} \to [0,1]$, the soft conditioning operator is
+the closed program of type
+$(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
+\[
+  \mathtt{condition}
+  \;=\;
+  \lambda m.\;\lambda a.\;
+    \mathtt{let}\;x = m\;a\;\mathtt{in}\;
+    \mathtt{let}\;\_ = \mathtt{Score}\{f\}\,(x)\;\mathtt{in}\;
+    x
+\]
+--- run the model at the input, weigh the trace by the likelihood of
+the produced value, return the value
+(\rocq{Icones.programs.examples.ex_condition_comb}). The applied form
+$\mathtt{condition}\;M$ --- the conditioned MODEL, again of type
+$t_a \to \mathtt{tR}$ --- is
+\rocq{Icones.programs.examples.ex_condition}, with the surface
+notation \texttt{Condition \{ f, \ldots \} M}. No recursion is
+involved: the combinator is a plain double lambda.
+\end{definition}
+
+\begin{lemma}[The conditioning law]\label{lem:cbv-condition-law}
+\rocq{Icones.programs.ex_reject_model.condition_model_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.condition_model_mass}\rocqok
+\rocq{Icones.programs.ex_reject_model.condition_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.condition_prog_evidence}\rocqok
+\uses{def:cbv-ex-condition, lem:cbv-let-general,
+lem:ppl-score-tm-lift}
+In the set-up of \autoref{def:cbv-ex-reject-comb} --- a unit-ball
+model value $g^!$, a setlike unit-ball input $a_0$, and the model's
+output sub-distribution $\nu_M = g(a_0)$ --- the conditioned model's
+output at the input is the likelihood-reweighted measure: for every
+measurable $U$,
+\[
+  \sem{(\mathtt{condition}\;m)\;a}(U)
+  \;=\;
+  \int_U f\,d\nu_M
+\]
+(\rocq{Icones.programs.ex_reject_model.condition_model_E}); at
+$U = \mathbb{R}$ the total mass is the \emph{model evidence}
+$I_f = \int f\,d\nu_M$
+(\rocq{Icones.programs.ex_reject_model.condition_model_mass}). This
+generalises the unnormalised score posterior of
+\autoref{thm:cbv-score-posterior} from the hard-coded
+$\mathtt{sample}\,\mu$ to an arbitrary model. The readable
+restatements
+\rocq{Icones.programs.ex_reject_model.condition_E} and
+\rocq{Icones.programs.ex_reject_model.condition_prog_evidence} phrase
+the law under the denotation brackets, over an arbitrary thunked
+model program.
+\end{lemma}
+
+\begin{proof}
+The reduction chain of \autoref{lem:cbv-reject-model-chain} minus the
+fixpoint: the closed double lambda denotes a promoted curried stage
+and the two applications strip promotions by
+$\mathrm{der} \circ \mathrm{prom} = \mathrm{id}$; the general let-law
+(\autoref{lem:cbv-let-general}, bound computation $M = m\,@\,a$)
+turns the body into an integral over $r \sim \nu_M$; and at each
+Dirac $\delta_r$ the score-and-return continuation computes to the
+weighted point mass $f(r)\cdot\delta_r$ (the score scalar via the
+Dirac identity of \autoref{lem:ppl-score-tm-lift}, discharged into a
+$\mathrm{precone\_scale}$ weight through the non-setlike
+$\mathtt{tunit}$ projection
+\rocq{Icones.programs.infra.cbv_marginals.em_proj1_mor_unitE}).
+\end{proof}
+
+\begin{theorem}[Rejection sampling computes the conditioned model's
+normalised distribution]\label{thm:cbv-condition-reject}
+\rocq{Icones.programs.ex_reject_model.reject_normalises_condition}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_prog_computes_condition}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_normalises_condition_prob}\rocqok
+\uses{lem:cbv-condition-law, thm:cbv-reject-model}
+Over the same arbitrary model program and the same input, write
+$Z = 1 - \nu_M(\mathbb{R}) + \int f\,d\nu_M$ for the
+sub-probability-honest normaliser. Then, unconditionally, for every
+measurable $U$,
+\[
+  Z \cdot \sem{\mathtt{reject}\;M\;f}(U)
+  \;=\;
+  \sem{\mathtt{condition}\;M\;f}(U)
+\]
+(\rocq{Icones.programs.ex_reject_model.reject_normalises_condition});
+under loop progress $0 < Z$, the division form
+\[
+  \sem{\mathtt{reject}\;M\;f}(U)
+  \;=\;
+  \frac{\sem{\mathtt{condition}\;M\;f}(U)}{Z}
+\]
+(\rocq{Icones.programs.ex_reject_model.reject_prog_computes_condition});
+and for a \emph{probability} model ($\nu_M(\mathbb{R}) = 1$) the
+normaliser is the conditioned model's total mass --- the model
+evidence --- so
+\[
+  \sem{\mathtt{condition}\;M\;f}(\mathbb{R})
+  \cdot \sem{\mathtt{reject}\;M\;f}(U)
+  \;=\;
+  \sem{\mathtt{condition}\;M\;f}(U)
+\]
+(\rocq{Icones.programs.ex_reject_model.reject_normalises_condition_prob}).
+\end{theorem}
+
+\begin{proof}
+Both sides equal $\int_U f\,d\nu_M$: rewrite the right-hand side by
+the conditioning law (\autoref{lem:cbv-condition-law}) and apply the
+master identity of \autoref{thm:cbv-reject-model} (in its readable
+restatement). The probability-model form additionally identifies
+$Z = \int f\,d\nu_M = \sem{\mathtt{condition}\;M\;f}(\mathbb{R})$.
+\end{proof}
+
+\begin{lemma}[The Bayesian regression is iterated conditioning]%
+\label{lem:cbv-bayes-iter-condition}
+\rocq{Icones.programs.examples.condition_at}\rocqok
+\rocq{Icones.programs.examples.iter_condition}\rocqok
+\rocq{Icones.programs.examples.obs_fold_is_iter_condition}\rocqok
+\rocq{Icones.programs.examples.ex_bayes_linear_is_iter_condition}\rocqok
+\uses{def:cbv-ex-condition, thm:cbv-bayes-evidence}
+Each observation step of the Bayesian linear regression
+(\autoref{thm:cbv-bayes-evidence}) is a soft conditioning of the
+model's value at the observation point: scoring the model application
+at the known input by the observation density is the score clause of
+\autoref{def:cbv-ex-condition} (the only difference is A-normal form
+--- the regression scores the application directly and returns the
+\emph{function} at the end). Packaging one such step as
+\rocq{Icones.programs.examples.condition_at} and its fold as
+\rocq{Icones.programs.examples.iter_condition}, the observation fold
+\emph{is} the iterated conditioning
+(\rocq{Icones.programs.examples.obs_fold_is_iter_condition}), and the
+regression is the random affine model bound once, then conditioned on
+each observation in turn
+(\rocq{Icones.programs.examples.ex_bayes_linear_is_iter_condition});
+the one-observation case is definitional.
+\end{lemma}
+
 \subsection{Riders: the CBV mass identities for
 \texorpdfstring{$\mathtt{ex\_geom}$}{ex\_geom} and
 \texorpdfstring{$\mathtt{ex\_almost\_loop}$}{ex\_almost\_loop}}%
@@ -3376,12 +3602,25 @@ riders
 \rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_mass_one} and
 \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_mass_one}
 / \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_zero};
-and the CBV marginals of \autoref{ssec:cbv-marginals} ---
+the CBV marginals of \autoref{ssec:cbv-marginals} ---
 \rocq{Icones.programs.infra.cbv_marginals.ex_score_posterior_cbv_E},
 \rocq{Icones.programs.infra.cbv_marginals.ex_reject_normalises_score},
 \rocq{Icones.programs.infra.cbv_marginals.ex_random_constant_cbv_marginal},
 \rocq{Icones.programs.infra.cbv_marginals.ex_random_linear_cbv_marginal},
-\rocq{Icones.programs.infra.cbv_marginals.ex_bayes_linear_cbv_evidence}.
+\rocq{Icones.programs.infra.cbv_marginals.ex_bayes_linear_cbv_evidence};
+and the soft conditioning capstone of \autoref{ssec:cbv-condition}
+--- the combinator
+\rocq{Icones.programs.examples.ex_condition_comb}, the conditioning
+law \rocq{Icones.programs.ex_reject_model.condition_model_E} with its
+readable form \rocq{Icones.programs.ex_reject_model.condition_E}, THE
+EQUIVALENCE
+\rocq{Icones.programs.ex_reject_model.reject_normalises_condition}
+(with the division and probability-model forms
+\rocq{Icones.programs.ex_reject_model.reject_prog_computes_condition}
+/
+\rocq{Icones.programs.ex_reject_model.reject_normalises_condition_prob}),
+and the iterated-conditioning reading of the regression
+\rocq{Icones.programs.examples.ex_bayes_linear_is_iter_condition}.
 
 \paragraph{Follow-ups.}
 The CBV-side residues listed in earlier drafts of this status section
@@ -3426,8 +3665,9 @@ denotational model); coproducts beyond the 2-point boolean case of
 Moggi metalanguage with an explicit value/computation split
 (orthogonal to the linhom-valued framing adopted here). A general
 $\mathtt{normalize}$ / Bayesian-posterior \emph{pass} is also not
-interpreted, but the rejection-sampling headline
-(\autoref{thm:cbv-reject-posterior}) shows the model computes the
-normalised posterior for the soft-acceptance shape: normalisation
-there is performed by the program's own recursion, not by a
-metalanguage primitive.
+interpreted, but the conditioning / rejection equivalence
+(\autoref{thm:cbv-condition-reject}, with the hard-coded instance
+\autoref{thm:cbv-reject-posterior}) shows the model computes the
+conditioned model's normalised distribution for the soft-likelihood
+shape: normalisation there is performed by the rejection program's
+own recursion, not by a metalanguage primitive.

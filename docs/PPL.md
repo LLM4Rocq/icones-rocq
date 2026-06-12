@@ -36,19 +36,24 @@ below.
 
 The sections of this chapter: the type grammar and named contexts;
 the free-coalgebra gating predicate; the pure, effectful and
-recursive constructor groups of `named_expr`; the
-canonical-structure variable-lookup machinery behind `#"x"`; and the
-`ppl_named` surface notation.
+recursive constructor groups of `named_expr`; the measurable
+function-application primitive `ne_meas`; the canonical-structure
+variable-lookup machinery behind `#"x"`; the `ppl_named` surface
+notation; and the derived readable layer (witness-free
+`Bernoulli e` / `Score e`, `Meas`, bundled `sample`, the comparison
+coin `>`, and the `let rec` sugar).
 
 | Construction | Rocq |
 |---|---|
 | Types `tunit`, `tbase X`, `tprod`, `tfun`, `tbool` | `ppl_type` — `theories/programs/ppl.v` |
 | Named contexts | `named_ctx`, `drop_names` — same file |
 | Named variables (witness) | `named_var`, `nv_head`, `nv_tail` — same file |
-| Term constructors | `named_expr` (the 20 constructors below) — same file |
+| Term constructors | `named_expr` (the 21 constructors below) — same file |
 | Free-coalgebra type predicate (gating `ne_fix_mr`) | `is_free_coalg_type` — same file |
+| Measurable function application (pushforward) | `ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass` — same file |
 | Variable lookup via canonical structures | `tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'` — same file |
 | Surface notation `[ … ]` and the `ppl_named` custom entry | `ppl_named` (custom entry) — same file |
+| Derived surface forms (`Bernoulli e`, `Score e`, `Meas`, `sample`, `>`, `let rec`) | `clamp`, `gt0_ind`, `negr`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
 
 ### Types and contexts (`ppl_type`, `named_ctx`)
 
@@ -181,6 +186,33 @@ section](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html))
 exactly as `ne_score` post-composes with `score_lift`. This is the
 accept/reject primitive of the rejection-sampling headline
 `examples.v::ex_reject`.
+
+### Measurable function application (`ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass`)
+
+`ne_meas f Hf e` pushes the value of the `tR'`-valued sub-expression
+`e` through a measurable meta-level function `f : R → R` — surface
+form `Meas { f , Hf } e`. Unlike `ne_score` / `ne_bernoulli_f`, no
+`[0,1]` bounds are needed: the semantics is the `FMeas` functorial
+action (pushforward), whose operator norm is already `≤ 1`.
+
+```coq
+(* theories/programs/ppl.v *)
+Inductive named_expr : named_ctx Ar -> T -> Type :=
+  (* … *)
+  | ne_meas  : forall G,
+      forall f : R -> R,
+      measurable_fun [set: R] f ->
+      named_expr G tR' -> named_expr G tR'.
+```
+
+The semantic engine is `meas_lift := FMeas_fmap meas_hom` (the
+Dirac-path pushforward at the carrier transport
+`f̂ = R_to_carrier ∘ f ∘ carrier_to_R`), with the two load-bearing
+laws `meas_lift_dirac` (`Meas f` on a point mass is application:
+`δ_r ↦ δ_{f r}`) and `meas_lift_mass` (the pushforward preserves
+total mass). The CBV clause is `eD_meas_E`
+(`theories/programs/ppl_cbv.v`): `⟦Meas f e⟧ = meas_lift ∘ ⟦e⟧` —
+the `FMeas`-functorial mirror of the `ne_score` clause.
 
 ### Recursion at function type (`ne_fix`)
 
@@ -327,6 +359,59 @@ Notation "'fix_mr' x 'as' t 'by' Hfree 'in' M" :=
 Direct-style: no `Ret` notation; `let "x" := M in N` desugars to
 `ne_let` (not `ne_bind`). Brackets `[ … ]` enter the entry; curly
 braces `{ x }` escape back to plain Rocq.
+
+### Derived surface forms (`clamp`, `gt0_ind`, `negr`, `pmeas`, `prob_pmeas`)
+
+The readable layer on top of the kernel notations — sugar only: each
+form elaborates to existing constructors (plus the `ne_meas`
+pushforward primitive); no new semantics is introduced.
+
+```coq
+(* theories/programs/ppl.v — the derived surface layer *)
+Notation "'Meas' '{' f ',' Hf '}' e" := (ne_meas f Hf e) (* … *).
+Notation "'Bernoulli' e" :=
+  (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1 e) (* … *).
+Notation "'Score' e" :=
+  (ne_score clamp clamp_meas clamp_ge0 clamp_le1 e) (* … *).
+Notation "'sample' m" :=
+  (ne_sample (pm_meas m) (pm_ball m)) (* … *).
+Notation "M > N" :=
+  (ne_bernoulli_f gt0_ind gt0_ind_meas gt0_ind_ge0 gt0_ind_le1
+     (ne_add M (ne_meas negr negr_meas N))) (* … *).
+Notation "'let' 'rec' f x ':=' M 'in' K" :=
+  (ne_let f%string (ne_fix f%string (ne_lam x%string M)) K) (* … *).
+```
+
+- **Witness-free `Bernoulli e` / `Score e`** — the density is the
+  CLAMPED runtime value (`clamp r = min 1 (max 0 r)`, measurable and
+  `[0,1]`-valued by construction: `clamp_meas` / `clamp_ge0` /
+  `clamp_le1`, with `clamp_id` on `[0,1]`). On real literals in
+  `[0,1]` the clamped coin agrees with the witness form
+  (`eD_bernoulli_clamp_const_E`, `theories/programs/ppl_cbv.v`).
+- **Bundled sampling `sample m`** — `pmeas` packages a sub-probability
+  with its unit-ball witness; `prob_pmeas` transports any
+  mathcomp-analysis probability on `R` to a `pmeas`, giving the named
+  distributions `gaussian m s` / `uniform a b`
+  (`theories/programs/examples.v`): `let "m" := sample gaussian01 in …`.
+- **The comparison coin `e1 > e2`** — `Bernoulli_f { gt0_ind }` at
+  `e1 + Meas{negr} e2`: on point masses the deterministic test
+  `a > b`; on diffuse arguments the probability that an independent
+  draw of `e1` exceeds one of `e2`.
+- **`let rec f x := M in K`** — OCaml-style recursive function
+  binding, `ne_let f (ne_fix f (ne_lam x M)) K`; an annotated form
+  `let rec f x ::: T1 ==> T2 := M in K` covers bodies that leave the
+  binder type undetermined.
+- **`Condition { f , … } M`** — the Pyro-style soft conditioning
+  operator applied to a closed model `M`
+  (`examples.v::ex_condition_comb`; see the [Examples
+  tab](../examples/) for the conditioning law and the
+  rejection-sampling equivalence).
+
+The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
+`sample gaussian01`, the `>` coin) and `ex_surface_walk`
+(annotation-free `let rec`, unified `Bernoulli`/`Score`), both with
+elaboration pins (`ex_surface_demo_decomp`) and compile-time CBV
+denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
 
 ---
 
@@ -1379,11 +1464,15 @@ closed form with the
 sup-mass bridge (the bridge from per-iterate mass recurrences to
 fixpoint masses); the setlike-point kit; the shared-sample diagonal
 anchors with their independence contrast; the β-rule and
-if-orientation pins; and the CBV marginals — the headline marginal
+if-orientation pins; the CBV marginals — the headline marginal
 identities of the non-recursive basic sampling/scoring examples, up
 to the model evidence of the higher-order Bayesian linear
 regression, proved with this chapter's machinery in
-`theories/programs/infra/cbv_marginals.v`.
+`theories/programs/infra/cbv_marginals.v`; and the conditioning law
+with THE EQUIVALENCE — the Pyro-style `condition` operator's
+semantics and the theorem that rejection sampling computes the
+conditioned model's normalised distribution
+(`theories/programs/ex_reject_model.v`).
 
 | Construction | Rocq |
 |---|---|
@@ -1402,6 +1491,8 @@ regression, proved with this chapter's machinery in
 | The if-orientation pins | `eD_if_true`, `eD_if_false` — same file |
 | The unnormalised score posterior, against `eD` | `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass` — `theories/programs/infra/cbv_marginals.v` |
 | Rejection sampling normalises the score posterior | `ex_reject_normalises_score` — same file |
+| THE CONDITIONING LAW — `⟦condition m a⟧(U) = ∫_U f dν_M` for an *arbitrary* model (the score posterior generalised from `sample µ`) | `condition_model_E`, `condition_model_mass`, readable `condition_E`, `condition_prog_evidence` — `theories/programs/ex_reject_model.v` |
+| THE EQUIVALENCE — rejection sampling computes the conditioned model's normalised distribution: `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U` | `reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob` — same file |
 | The sampled-constant marginal at probability test points | `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass` — same file |
 | The random-affine marginal at Dirac test points | `ex_random_linear_cbv_marginal`, `rl_inner_marginal` — same file |
 | The Bayesian-linear-regression model evidence (general observation list) | `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`, `obs_fold_at` — same file |
@@ -1816,6 +1907,64 @@ scalar when discarding a `tunit`-typed score result
 `precone_scale` factor in the score-posterior proof). The
 per-program proofs are worked example-by-example in
 the [Examples tab](../../examples/index.html).
+
+### The conditioning law and THE EQUIVALENCE (`condition_model_E`, `condition_E`, `reject_normalises_condition`)
+
+The score-posterior identity, promoted to an operator: the Pyro-style
+soft conditioning combinator `condition`
+(`examples.v::ex_condition_comb`, surface form
+`Condition { f , … } M`) takes a MODEL `m : ta → tR` and returns the
+conditioned model — `λa. let x = m a in let _ = Score{f} x in x`.
+THE CONDITIONING LAW (Section ConditionModel of
+`theories/programs/ex_reject_model.v`): at a unit-ball model value
+`g!` and a setlike unit-ball input `a₀`, writing `ν_M := g(a₀)` for
+the model's output sub-distribution, the conditioned model's output
+is the likelihood-reweighted measure — `ex_score_posterior_cbv_E`
+with an arbitrary model in place of `sample µ`. The proof engine is
+this chapter's general let-law `eD_let_mu_E` at `ν_M`, with the
+score clause computing on Diracs (`score_lift_dirac`) and the
+returned variable projected through `em_proj1_mor_unitE` /
+`Lfun_scaleE`.
+
+```coq
+(* theories/programs/ex_reject_model.v (Section ConditionModel) *)
+Theorem condition_model_E (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu cond_model_denot U =
+  \int[fmeas_mu (reject_model_dist g a0)]_(r in U) (f (cR r))%:E.
+```
+
+In the readable `⟦·⟧` brackets (Section ReadableHeadlines, over an
+arbitrary thunked model `model_prog := λ_. Mbody` with
+`model_run := model_prog ()` and
+`condition_prog := (condition model_prog f) ()`), the law is
+`condition_E`, and combining it with the rejection master identity
+`reject_prog_master` gives THE EQUIVALENCE — rejection sampling
+computes the conditioned model's normalised distribution:
+
+```coq
+(* theories/programs/ex_reject_model.v (Section ReadableHeadlines) *)
+Theorem condition_E U (mU : measurable U) :
+  ⟦ condition_prog ⟧ U = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
+
+Theorem reject_normalises_condition U (mU : measurable U) :
+  ((1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+      + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+                (f (cR x))%:E))%R)%:E
+    * ⟦ reject_prog ⟧ U
+  = ⟦ condition_prog ⟧ U.
+```
+
+The division form `reject_prog_computes_condition` divides through at
+`0 < Z`, and the probability-model form
+`reject_normalises_condition_prob` identifies the normaliser with the
+model evidence `⟦condition_prog⟧(setT)`. The historical special case
+at the sampler model is `ex_reject_normalises_score` above; the
+regression-side reading — `ex_bayes_linear` as *iterated
+conditioning* (`condition_at` / `iter_condition` /
+`ex_bayes_linear_is_iter_condition`,
+`theories/programs/examples.v`) — and the full narrative live on the
+[Examples tab](../../examples/index.html).
 
 ---
 

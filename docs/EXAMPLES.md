@@ -7,20 +7,40 @@ programs are written exclusively in the direct-style `ppl_named`
 custom entry of `theories/programs/ppl.v` (brackets `[ … ]` enter the
 entry; curly braces `{ x }` escape back to plain Rocq). Every
 constructor of the language is exercised somewhere below. The
-rejection-sampling COMBINATOR carries the headline of the
-development — it takes an arbitrary probabilistic *model* (a function
-value, itself free to contain samples, scores and recursion) and an
-input, and computes the corresponding normalised distribution
-(`reject_model_is_normalised`,
-`theories/programs/ex_reject_model.v`), with the original hard-coded
-sampler `ex_reject` recovered as its simplest instance
-(`ex_reject_comb_sampler_E`) — and the basic sampling and
-scoring programs carry closed-form CBV marginal identities, up to and
-including the model evidence of a higher-order Bayesian linear
-regression (`ex_bayes_linear_cbv_evidence`,
-`theories/programs/infra/cbv_marginals.v`). A call-by-name
-interpretation of the same surface programs is preserved on the
-`cbn-track` branch; main is CBV-only.
+centrepiece is the conditioning/rejection pair: `condition M f`
+(`ex_condition_comb`) is the Pyro-style soft conditioning operator —
+run the model, score the output by the likelihood `f`, return it —
+and `reject M f` (`ex_reject_comb`) is the executable sampler — run
+the model, accept the output with probability `f`, retry on
+rejection. THE THEOREM (`reject_normalises_condition`,
+`theories/programs/ex_reject_model.v`): rejection sampling computes
+the conditioned model's normalised distribution,
+`Z · ⟦reject M f⟧ = ⟦condition M f⟧` with
+`Z := 1 − ν_M(setT) + ∫ f dν_M`, for an arbitrary probabilistic
+*model* (a function value, itself free to contain samples, scores and
+recursion) — with the original hard-coded sampler `ex_reject`
+recovered as the combinator's simplest instance
+(`ex_reject_comb_sampler_E`). The basic sampling and scoring programs
+carry closed-form CBV marginal identities, up to and including the
+model evidence of a higher-order Bayesian linear regression
+(`ex_bayes_linear_cbv_evidence`,
+`theories/programs/infra/cbv_marginals.v`) — itself re-read as
+*iterated conditioning* (`ex_bayes_linear_is_iter_condition`,
+`theories/programs/examples.v`). A call-by-name interpretation of the
+same surface programs is preserved on the `cbn-track` branch; main is
+CBV-only.
+
+The surface language itself gained a readable layer in the latest
+pass (`theories/programs/ppl.v`): witness-free `Bernoulli e` /
+`Score e` forms (densities clamped into `[0,1]` by `clamp`),
+measurable function application `Meas { f , Hf } e` (`ne_meas`),
+bundled distributions `sample m` for `m : pmeas` with the named
+`gaussian` / `uniform` of `theories/programs/examples.v`, the
+comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
+sugar, and the `Condition { f , … } M` form below — demoed end to
+end by `ex_surface_demo` / `ex_surface_walk`
+(`theories/programs/examples.v`) and documented in
+[the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html).
 
 The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
 [Paper tab](../paper/); the categorical-level PPL infrastructure
@@ -276,6 +296,22 @@ entry cannot recurse over a meta-level `seq`); `ex_bayes_linear l`
 binds the model and runs the fold, and `ex_bayes_linear3` is the
 concrete 3-observation instance.
 
+**The regression IS iterated conditioning.** Each observation step is
+a soft conditioning of the model's value at the observation point:
+scoring `#"f" @ [|obs_x o|]` by `obs_d o` is the score clause of the
+`condition` operator (the centrepiece chapter below) at the model
+`#"f"` and the input `obs_x o` — the only difference is A-normal
+form (`condition` binds the model's value and returns it; the
+regression scores the application directly and returns the *function*
+at the end). `condition_at o` packages one such step,
+`iter_condition` is its fold, and THE AGREEMENT
+`ex_bayes_linear_is_iter_condition`
+(`theories/programs/examples.v`) proves the regression equal to the
+model bound once followed by the iterated conditioning — for a
+*general* observation list (`obs_fold_is_iter_condition`); the
+1-observation case is definitional, pinned by a `Check (erefl : …)`
+in the source.
+
 **The theorems.** The headline `ex_bayes_linear_cbv_evidence`
 (Section BayesLinearEvidence of
 `theories/programs/infra/cbv_marginals.v`), for a *general*
@@ -501,37 +537,49 @@ cone-zero.
 
 ---
 
-## Beyond the paper — Rejection sampling over any model denotes the normalised distribution
+## Beyond the paper — Rejection sampling computes the conditioned model's normalised distribution
 
-The headline of the development, told start to finish. *What
-rejection sampling is*: you want to sample from a distribution you
-can only describe as "what my model outputs, reweighted by an
-acceptance function `f` with values in `[0, 1]`". Rejection sampling
-does it with a loop — run the model to propose a candidate `x`,
-accept it with probability `f(x)`, and on rejection throw the
-candidate away and retry with a fresh run. The accepted output is
-distributed as the reweighted model output, *renormalised* — and the
-loop may in principle run forever, so termination is itself a
-theorem, not an assumption.
+The headline of the development, told start to finish — as a pair of
+**higher-order combinators** over an arbitrary probabilistic model.
+`condition M f` is the Pyro-style soft conditioning operator: run the
+model, *score* the produced value by the likelihood `f` (values in
+`[0, 1]`), return it — the declarative statement "what my model
+outputs, reweighted by `f`", as an unnormalised measure. `reject M f`
+is the executable sampler for the same target: run the model to
+propose a candidate `x`, accept it with probability `f(x)`, and on
+rejection throw the candidate away and retry with a fresh run — a
+loop that may in principle run forever, so termination is itself a
+theorem, not an assumption. THE THEOREM
+(`reject_normalises_condition`): rejection sampling computes the
+conditioned model's normalised distribution,
 
-The formalisation delivers this at full generality, as a
-**higher-order combinator**: `ex_reject_comb` is a closed program of
-type `(ta → tR) → (ta → tR)` that takes a probabilistic *model* — any
-function value `m : ta → tR`, itself a lambda-written program free to
-contain samples, scores, recursion, … — and an input `a : ta`, and
-computes the corresponding normalised distribution. The theorems
-quantify over the model and input values and are **sub-probability
-honest**: the model may itself diverge, and its missing mass
-`1 − m₀` shows up in the normaliser. The formal content lives in
-`theories/programs/ex_reject_model.v` (the combinator's reduction
-chain, the master identity and its corollaries, and the
-instance bridge), `theories/programs/ex_reject_headline.v` (the
-original hard-coded sampler `ex_reject`, now the simplest instance)
-and `theories/programs/infra/cbv_marginals.v` (the score pairing), on
+```
+Z · ⟦ reject M f ⟧ U = ⟦ condition M f ⟧ U,    Z := 1 − ν_M(setT) + ∫ f dν_M
+```
+
+— division-free and unconditional, with the division form at `0 < Z`
+and, for probability models, the normaliser equal to the conditioned
+model's total mass (the model evidence).
+
+Both combinators are closed programs of type `(ta → tR) → (ta → tR)`
+taking a probabilistic *model* — any function value `m : ta → tR`,
+itself a lambda-written program free to contain samples, scores,
+recursion, … — and the theorems quantify over the model and input
+values and are **sub-probability honest**: the model may itself
+diverge, and its missing mass `1 − m₀` shows up in the normaliser.
+The formal content lives in `theories/programs/ex_reject_model.v`
+(the combinators' reduction chains, the master identity, the
+conditioning law, THE EQUIVALENCE, and the instance bridge),
+`theories/programs/ex_reject_headline.v` (the original hard-coded
+sampler `ex_reject`, now the simplest instance) and
+`theories/programs/infra/cbv_marginals.v` (the score pairing), on
 top of the surface programs of `theories/programs/examples.v`.
 
 | Paper-style label | English statement | Rocq |
 |---|---|---|
+| The condition combinator | `condition = λm. λa. let x = m a in let _ = Score{f} x in x` of type `(ta → tR) → (ta → tR)` — Pyro-style soft conditioning: run the model at the input, weigh the trace by the likelihood of the produced value, return the value. Surface form `Condition { f , … } M`. | `ex_condition_comb`, `ex_condition`, `ex_condition_comb_cbv` — `theories/programs/examples.v` |
+| The conditioning law | Writing `ν_M := ⟦m⟧(a)` for the model's output sub-distribution: `⟦condition m a⟧(U) = ∫_U f dν_M` for every measurable `U` — the model's output reweighted by the likelihood (unnormalised); at `U = setT` the model evidence. Generalises `ex_score_posterior_cbv_E` from `sample µ` to any model. | `condition_model_E`, `condition_model_mass`, readable forms `condition_E`, `condition_prog_evidence` — `theories/programs/ex_reject_model.v` |
+| THE EQUIVALENCE | `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U` with `Z := 1 − ⟦model_run⟧(setT) + ∫ f d⟦model_run⟧`, unconditionally; division form `⟦reject_prog⟧ U = ⟦condition_prog⟧ U / Z` at `0 < Z`; at a probability model `⟦condition_prog⟧(setT) · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U` — the normaliser IS the evidence. | `reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob` — `theories/programs/ex_reject_model.v` |
 | The rejection-sampling combinator | `fix rs = λm. λa. let x = m a in if Bernoulli_f{f} x then x else rs m a` of type `(ta → tR) → (ta → tR)`, for an arbitrary input type `ta` — run the model at the input, accept with probability `f x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
 | The combinator master identity | Writing `ν_M := ⟦m⟧(a)` for the model's output sub-distribution, `m₀ := ν_M(setT)`, `If := ∫ f dν_M`: `(1 − m₀ + If) · ν(U) = ∫_U f dν_M` for every measurable `U`, unconditionally. | `reject_model_master` — `theories/programs/ex_reject_model.v` |
 | The normalised distribution | If `0 < 1 − m₀ + If` (loop progress), `ν(U) = (∫_U f dν_M) / (1 − m₀ + If)` — the sub-probability-honest normaliser; at a probability model (`m₀ = 1`) it is the classical `∫ f dν_M`. | `reject_model_is_normalised`, `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero` — same file |
@@ -540,6 +588,126 @@ top of the surface programs of `theories/programs/examples.v`.
 | The normalised posterior (instance) | If acceptance has positive mass, `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the program denotes the posterior of the prior `µ` given the soft predicate `f`. | `ex_reject_is_normalised_posterior` — same file |
 | The instance bridge | The combinator applied to the sampler model `λ_. sample µ` (`ex_sampler`) at the unit input denotes THE SAME measure as `ex_reject` — equal Kleene-iterate masses pass to the suprema. | `ex_reject_comb_sampler_E` — `theories/programs/ex_reject_model.v` |
 | The score pairing | `(∫ f dµ) · ν_reject(U) = ν_score(U)` at `µ(setT) = 1`: rejection sampling normalises exactly the score program's unnormalised posterior. | `ex_reject_normalises_score` — `theories/programs/infra/cbv_marginals.v` |
+
+### The condition combinator (`ex_condition_comb`, `ex_condition`, `ex_condition_comb_cbv`)
+
+`ex_condition_comb` is the Pyro-style soft conditioning operator — a
+closed program of type `(ta → tR) → (ta → tR)`, the same type as the
+rejection combinator below, for an **arbitrary** PPL input type `ta`:
+
+```coq
+(* theories/programs/examples.v *)
+Definition ex_condition_comb :
+    @named_expr R Ar R_obj nil (tfun (tfun ta tR') (tfun ta tR')) :=
+  [ \ "m" ::: (tfun ta tR') =>
+      \ "a" ::: ta =>
+        (let "x" := # "m" @ # "a" in
+         let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x" in
+         # "x") ].
+```
+
+Token by token:
+
+- `\ "m" ::: (tfun ta tR') => \ "a" ::: ta => …` — the operator takes
+  the **model** `m` (any function value `ta → tR`) and returns the
+  conditioned model: a new function of the same type.
+- `let "x" := # "m" @ # "a" in …` — run the model at the input.
+- `let "_" := Score { f , … } # "x" in # "x"` — weigh the trace by
+  the likelihood `f(x)` of the produced value (`ne_score`), then
+  return the value. This is exactly the score-and-return tail of
+  `ex_score_posterior`, with the model application in place of the
+  hard-coded `sample µ`.
+
+`ex_condition M` packages the application: `condition M f` is the
+conditioned MODEL, again a closed program of type `ta → tR`. The
+surface form `Condition { f , Hm , Hg , Hl } M` (witness braces
+first, like `Score`) elaborates to the same term, pinned by a
+`Check (erefl : …)` in the source. No recursion is involved: the
+combinator's reduction chain is the rejection chain *minus* the
+fixpoint (Section ConditionModel of
+`theories/programs/ex_reject_model.v`).
+
+### The conditioning law (`condition_model_E`, `condition_model_mass`, `condition_E`, `condition_prog_evidence`)
+
+The semantic content of `condition`: at a unit-ball model value `g!`
+and a setlike unit-ball input `a₀` (the same quantification as the
+rejection theorems — every lambda-written model denotes such a
+point), the conditioned model's output is the model's output
+**reweighted by the likelihood**:
+
+```coq
+(* theories/programs/ex_reject_model.v — Section ConditionModel *)
+Theorem condition_model_E (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu cond_model_denot U =
+  \int[fmeas_mu (reject_model_dist g a0)]_(r in U) (f (cR r))%:E.
+```
+
+(`cond_model_denot` is the CBV application of the combinator value to
+`g!` then `a₀`; `reject_model_dist g a0` is `ν_M := g(a₀)`, the
+model's output sub-distribution — the same object the rejection
+theorems normalise against.) This is the generalisation of the
+unnormalised-posterior identity `ex_score_posterior_cbv_E`
+(`theories/programs/infra/cbv_marginals.v`) from the sampler
+`m = λ_. sample µ` to an **arbitrary** model; at `U = setT`
+(`condition_model_mass`) it is the **model evidence** `∫ f dν_M`.
+
+In the readable `⟦·⟧` form (Section ReadableHeadlines, where
+`model_prog := λ_. Mbody` is an arbitrary thunked model,
+`model_run := model_prog ()`, and
+`condition_prog := (condition model_prog f) ()`):
+
+```coq
+(* theories/programs/ex_reject_model.v — Section ReadableHeadlines *)
+Theorem condition_E U (mU : measurable U) :
+  ⟦ condition_prog ⟧ U = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
+```
+
+The proof is the score-posterior computation run at `ν_M`: the
+general let-law `eD_let_mu_E`
+(`theories/programs/infra/let_sample_law.v`) turns the bound model
+application into a Lebesgue integral over `ν_M`, and at each Dirac
+`δ_r` the score-and-return continuation computes to the weighted
+point mass `(f r)·δ_r` (`score_lift_dirac` + the score-discard kit
+`em_proj1_mor_unitE` of `theories/programs/infra/cbv_marginals.v`).
+
+### THE EQUIVALENCE (`reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob`)
+
+The capstone: the two operators compute the same distribution, up to
+the normaliser. Both statements live in the same `⟦·⟧` framework
+(Section ReadableHeadlines of `theories/programs/ex_reject_model.v`),
+over the same arbitrary model program and the same unit input, so
+they compose literally:
+
+| Side | Headline | Status |
+|---|---|---|
+| CBV — rejection sampling computes the conditioned model's normalised distribution, division-free and unconditional. | `reject_normalises_condition` — *Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U, Z := 1 − ⟦model_run⟧(setT) + ∫ f d⟦model_run⟧* | axiom-free |
+| CBV — the division form: when the loop makes progress. | `reject_prog_computes_condition` — *0 < Z → ⟦reject_prog⟧ U = (fine (⟦condition_prog⟧ U) / Z)%:E* | axiom-free |
+| CBV — for probability models the normaliser IS the conditioned model's total mass (the evidence). | `reject_normalises_condition_prob` — *⟦model_run⟧(setT) = 1 → ⟦condition_prog⟧(setT) · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U* | axiom-free |
+
+```coq
+(* theories/programs/ex_reject_model.v — Section ReadableHeadlines *)
+Theorem reject_normalises_condition U (mU : measurable U) :
+  ((1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+      + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+                (f (cR x))%:E))%R)%:E
+    * ⟦ reject_prog ⟧ U
+  = ⟦ condition_prog ⟧ U.
+
+Theorem reject_normalises_condition_prob U (mU : measurable U) :
+  ⟦ model_run ⟧ [set: ar_carrier Ar R_obj] = 1 ->
+  ⟦ condition_prog ⟧ [set: ar_carrier Ar R_obj] * ⟦ reject_prog ⟧ U
+  = ⟦ condition_prog ⟧ U.
+```
+
+The proof of the equivalence is two lines: rewrite the right-hand
+side by the conditioning law `condition_E` and apply the rejection
+master identity `reject_prog_master` — both sides equal
+`∫_U f d⟦model_run⟧`. The probability-model form additionally
+identifies the normaliser with the evidence (`1 − 1 + ∫f dν_M
+= ∫f dν_M = ⟦condition_prog⟧(setT)`). The score pairing
+`ex_reject_normalises_score` below is the historical special case of
+this statement at the sampler model.
 
 ### The rejection-sampling combinator (`ex_reject_comb`, `reject_model_master`, `reject_model_is_normalised`, `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero`)
 
@@ -947,6 +1115,18 @@ echo "Print Assumptions reject_model_is_normalised."    | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
 echo "Print Assumptions ex_reject_comb_sampler_E."      | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+
+# The condition combinator — the conditioning law and THE EQUIVALENCE
+echo "Print Assumptions condition_model_E."             | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+echo "Print Assumptions condition_E."                   | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+echo "Print Assumptions reject_normalises_condition."   | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+echo "Print Assumptions reject_normalises_condition_prob." | \
+  rocq top -Q theories Icones -l theories/programs/ex_reject_model.v
+echo "Print Assumptions ex_bayes_linear_is_iter_condition." | \
+  rocq top -Q theories Icones -l theories/programs/examples.v
 
 # The original rejection-sampling instance + the score pairing
 echo "Print Assumptions ex_reject_master."              | \
