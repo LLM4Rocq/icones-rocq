@@ -37,20 +37,23 @@ below.
 The sections of this chapter: the type grammar and named contexts;
 the free-coalgebra gating predicate; the pure, effectful and
 recursive constructor groups of `named_expr`; the measurable
-function-application primitive `ne_meas`; the canonical-structure
-variable-lookup machinery behind `#"x"`; the `ppl_named` surface
-notation; and the derived readable layer (witness-free
-`Bernoulli e` / `Score e`, `Meas`, bundled `sample`, the comparison
-coin `>`, and the `let rec` sugar).
+function-application primitive `ne_meas`; the runtime-parameter
+distribution constructors `Gaussian(e1,e2)` / `Uniform(e1,e2)` and
+the probability-kernel layer underneath them; the
+canonical-structure variable-lookup machinery behind `#"x"`; the
+`ppl_named` surface notation; and the derived readable layer
+(witness-free `Bernoulli e` / `Score e`, `Meas`, bundled `sample`,
+the comparison coin `>`, and the `let rec` sugar).
 
 | Construction | Rocq |
 |---|---|
 | Types `tunit`, `tbase X`, `tprod`, `tfun`, `tbool` | `ppl_type` — `theories/programs/ppl.v` |
 | Named contexts | `named_ctx`, `drop_names` — same file |
 | Named variables (witness) | `named_var`, `nv_head`, `nv_tail` — same file |
-| Term constructors | `named_expr` (the 21 constructors below) — same file |
+| Term constructors | `named_expr` (the 23 constructors below) — same file |
 | Free-coalgebra type predicate (gating `ne_fix_mr`) | `is_free_coalg_type` — same file |
 | Measurable function application (pushforward) | `ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass` — same file |
+| Runtime-parameter distributions `Gaussian(e1,e2)` / `Uniform(e1,e2)` | `ne_gaussian`, `ne_uniform` — same file; `pkernel`, `kernel_lift`, `kernel_lift2`, `gaussian_kernel`, `uniform_kernel` — `theories/programs/distributions.v` |
 | Variable lookup via canonical structures | `tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'` — same file |
 | Surface notation `[ … ]` and the `ppl_named` custom entry | `ppl_named` (custom entry) — same file |
 | Derived surface forms (`Bernoulli e`, `Score e`, `Meas`, `sample`, `>`, `let rec`) | `clamp`, `gt0_ind`, `negr`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
@@ -213,6 +216,77 @@ laws `meas_lift_dirac` (`Meas f` on a point mass is application:
 total mass). The CBV clause is `eD_meas_E`
 (`theories/programs/ppl_cbv.v`): `⟦Meas f e⟧ = meas_lift ∘ ⟦e⟧` —
 the `FMeas`-functorial mirror of the `ne_score` clause.
+
+### Runtime-parameter distributions (`ne_gaussian`, `ne_uniform`, `pkernel`, `kernel_lift`, `kernel_lift2`)
+
+`Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )` draw from the
+normal/uniform family whose parameters are the **values** of the two
+`tR'`-valued sub-expressions — so a sampled value can itself
+parameterise the next draw (hierarchical models, e.g.
+`examples.v::ex_gaussian_walk`). No witness braces: the kernel
+families are *total*.
+
+```coq
+(* theories/programs/ppl.v *)
+Inductive named_expr : named_ctx Ar -> T -> Type :=
+  (* … *)
+  | ne_gaussian : forall G,
+      named_expr G tR' -> named_expr G tR' -> named_expr G tR'
+  | ne_uniform : forall G,
+      named_expr G tR' -> named_expr G tR' -> named_expr G tR'.
+```
+
+**The kernel layer** (`theories/programs/distributions.v`). A
+`pkernel X Y` bundles a family of sub-probability measures
+`pk_ker : X → FMeas Y` with the mathcomp-analysis kernel condition
+(`pk_meas`: `x ↦ k(x)(U)` measurable for every measurable `U`) and
+the unit-ball bound (`pk_ball`). Such a family *is* a measurable path
+(`pkernel_is_path`, paper Def 3.7), so the Thm 6.1 machinery promotes
+it to the semantic lift `kernel_lift k : FMeas X ⊸ FMeas Y`,
+`ν ↦ ∫ k(x) ν(dx)` (Pettis integral), with the computation laws
+`kernel_lift_E` (`(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)`),
+`kernel_lift_mass` (pointwise-mass-1 kernels preserve total mass) and
+`kernel_lift_dirac` (`kernel_lift k δ_x = k(x)`). Two-argument
+kernels go through `kernel_lift2 k := kernel_lift k ∘ fmeas_lax` —
+the tensored argument pair becomes a joint measure on the product
+object, exactly the `add_lift` / `mul_lift` route — with
+`kernel_lift2_dirac` and the product-mass law `kernel_lift2_mass`.
+
+Instances: `dirac_kernel` (`kernel_lift dirac_kernel = id`,
+`dirac_kernel_lift_id`), `bernoulli_kernel` (the clamped
+value-dependent coin as a two-point measure on `R_obj`, agreeing with
+`bern_lift` coordinatewise: `bernoulli_kernel_bern_lift_t` /
+`bernoulli_kernel_bern_lift_f`), `gaussian_kernel`
+(`(m,s) ↦ normal_prob m s` transported along the carrier cast) and
+`uniform_kernel` (`(a,b) ↦ uniform_prob` for `a < b`, else `δ_a`).
+**The `s = 0` convention**: `gaussian_kernel` overrides the `s = 0`
+fibre to the Dirac `δ_m` — the degenerate weak limit of
+`N(m, s) as s → 0` — because mathcomp-analysis' own `normal_prob m 0`
+is a junk uniform-`[0,1]` *placeholder* (its `normal_pdf` falls back
+to `uniform_pdf 0 1` at `s = 0`), not a meaningful distribution;
+`s ≠ 0` (including `s < 0`) keeps mathcomp's genuine normal with
+deviation `|s|`. Family measurability *in the parameters*
+(`measurable_normal_prob_pair`, `measurable_uniform_int_pair`) is
+proved by Fubini–Tonelli against Lebesgue measure.
+
+The CBV clauses (`eD_gaussian_E` / `eD_uniform_E`,
+`theories/programs/ppl_cbv.v`) are the `ne_add` shape with the kernel
+lift in place of the pushforward:
+`⟦Gaussian(e1,e2)⟧ = δ_Γ ; (⟦e1⟧ ⊗ ⟦e2⟧) ; kernel_lift2
+gaussian_kernel`. The anchors
+(`theories/programs/infra/kernel_anchors.v`): `eD_gaussian_at` /
+`eD_gaussian_dirac_E` (on point-mass arguments the draw *is* the
+transported `normal_prob`, with the `s = 0` Dirac fibre),
+`eD_gaussian_mass` (the result's mass is the product of the argument
+masses — the kernel is a pointwise probability,
+`gaussian_kernel_norm1`), and the constant-parameter agreement
+`eD_gaussian_sample_agree`:
+`⟦Gaussian([|m|],[|s|])⟧γ = ⟦sample (gaussian m s)⟧γ` for `s ≠ 0` —
+the old bundled-`sample` surface is the kernel surface at real
+literals (the two transports are identified by
+`pmeas_of_prob_fmeas`). The `Uniform` mirror is
+`eD_uniform_at` / `eD_uniform_dirac_E` / `eD_uniform_mass` /
+`eD_uniform_sample_agree`.
 
 ### Recursion at function type (`ne_fix`)
 
@@ -463,11 +537,12 @@ and
 | Variable lookup (projection chain) | `var_lookup_cbv` — same file |
 | Constant `icones_hom` helpers (`sample`, `real`, `true`/`false`, `bernoulli`) | `sample_icones`, `real_icones`, `true_icones`, `false_icones`, `bernoulli_icones` — same file |
 | The value-dependent Bernoulli lift (semantics of `ne_bernoulli_f`) | `bern_lift`, `bern_lift_dirac`, `bern_lift_E`, `bern_lift_t_E`, `bern_lift_f_E`, `bern_lift_mass` — `theories/programs/ppl.v` (Section BernTmLift) |
+| Runtime-parameter kernel lifts (semantics of `ne_gaussian` / `ne_uniform`) | `kernel_lift2`, `gaussian_kernel`, `uniform_kernel` — `theories/programs/distributions.v`; anchors `eD_gaussian_at`, `eD_gaussian_dirac_E`, `eD_gaussian_mass`, `eD_gaussian_sample_agree` (+ `Uniform` mirrors) — `theories/programs/infra/kernel_anchors.v` |
 | If-then-else combinator at the icones level | `if_icones`, `if_under` — `theories/programs/ppl_cbv.v` |
 | Internal icones-valued term interpretation | `eD_cbv`, `fix_mr_clause` — same file |
 | Public linhom-valued term interpretation | `eD` — same file |
 | EM cartesian primitives (`δ`, `ε`, projections, pairing) | `coalg_d`, `coalg_e`, `em_proj1_mor`, `em_proj2_mor`, `em_pair_mor`, `em_term_mor` — `theories/homs/em_cartesian.v`; cartesian-η `em_pair_mor_proj_id` — `theories/programs/infra/cbv_adjunction.v` |
-| Definitional-unfolding pack (one lemma per clause) | `eD_var_E` … `eD_fix_mr_prod_E` (22 lemmas) — `theories/programs/ppl_cbv.v` (Section EDUnfold) |
+| Definitional-unfolding pack (one lemma per clause) | `eD_var_E` … `eD_fix_mr_prod_E` (25 lemmas) — `theories/programs/ppl_cbv.v` (Section EDUnfold) |
 | Recursion-unfolding equations (semantic; setlike points) | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_unfold_closed` — `theories/programs/infra/cbv_fix_unfold.v` |
 
 ### Type translation (`tyD_cbv`)
@@ -628,6 +703,13 @@ Fixpoint eD_cbv (G : named_ctx Ar) (t : T)
                                (em_pair_mor (eD_cbv M0) (eD_cbv N0))
   | ne_mul _ M0 N0        => icones_comp mul_lift
                                (em_pair_mor (eD_cbv M0) (eD_cbv N0))
+  | ne_meas _ f Hfm e0    => icones_comp (meas_lift Hfm) (eD_cbv e0)
+  | ne_gaussian _ M0 N0   =>
+      icones_comp (kernel_lift2 (gaussian_kernel _ _))
+                  (em_pair_mor (eD_cbv M0) (eD_cbv N0))
+  | ne_uniform _ M0 N0    =>
+      icones_comp (kernel_lift2 (uniform_kernel _ _))
+                  (em_pair_mor (eD_cbv M0) (eD_cbv N0))
   | ne_true G0            => true_icones (ctxD_cbv (drop_names G0))
   | ne_false G0           => false_icones (ctxD_cbv (drop_names G0))
   | ne_bernoulli G0 p H0 H1 =>
@@ -784,7 +866,7 @@ chapter](../../ppl/chapters/ppl-ch-the-boolean-cascade.html).
 
 ### The definitional-unfolding pack (`eD_var_E` … `eD_fix_mr_prod_E`)
 
-One lemma per `eD_cbv` clause — 22 in total: one for each of the 20
+One lemma per `eD_cbv` clause — 25 in total: one for each of the 23
 `named_expr` constructors, plus the two per-body-type refinements
 `eD_fix_mr_fun_E` / `eD_fix_mr_prod_E` of the dispatched `ne_fix_mr`
 clause — pins the exact clause body of the interpreter, so any
@@ -829,8 +911,9 @@ Lemma eD_fix_E (G : named_ctx Ar) (s : string) (t1 t2 : ppl_type Ar)
              (tensor_curry (eD_cbv' M)))).
 Proof. by []. Qed.
 
-(* … 19 more: eD_tt_E, eD_pair_E, eD_fst_E, eD_snd_E, eD_lam_E,
+(* … 22 more: eD_tt_E, eD_pair_E, eD_fst_E, eD_snd_E, eD_lam_E,
    eD_app_E, eD_sample_E, eD_real_E, eD_score_E, eD_add_E, eD_mul_E,
+   eD_meas_E, eD_gaussian_E, eD_uniform_E,
    eD_true_E, eD_false_E, eD_bernoulli_E, eD_bernoulli_f_E, eD_if_E,
    eD_fix_mr_E, eD_fix_mr_fun_E, eD_fix_mr_prod_E. *)
 ```
@@ -2175,6 +2258,10 @@ echo "Print Assumptions ex_bayes_linear_cbv_evidence." | \
   rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
 echo "Print Assumptions fix_comb_iso_prom_E." | \
   rocq top -Q theories Icones -l theories/programs/infra/em_fix_mr.v
+echo "Print Assumptions eD_gaussian_sample_agree." | \
+  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
+echo "Print Assumptions ex_gaussian_walk_mass." | \
+  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
 ```
 
 Each command reports only `propositional_extensionality`,

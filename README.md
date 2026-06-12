@@ -218,6 +218,15 @@ diagonal-pushforward semantics for programs like
 **let-at-sample Pettis integral law** `eD_let_sample_int`
 (`theories/programs/infra/let_sample_law.v`):
 `⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)` at arbitrary `γ`.
+The surface also has **runtime-parameter distributions**
+`Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )` (`ne_gaussian` /
+`ne_uniform`) over a generic probability-kernel layer
+(`pkernel` / `kernel_lift` / `kernel_lift2` in
+`theories/programs/distributions.v`), enabling hierarchical models —
+`let s = Gaussian(0,1) in Gaussian(s,1)` (`ex_gaussian_walk`) is
+proved a probability of mass `1` with the hierarchy integral as its
+measure (`ex_gaussian_walk_E` / `ex_gaussian_walk_mass` in
+`theories/programs/infra/kernel_anchors.v`).
 
 Two pieces of this layer are formalizations we have not seen elsewhere
 in Coq / Rocq: the cartesian-η identity `em_pair_mor_proj_id` (Fox 1976

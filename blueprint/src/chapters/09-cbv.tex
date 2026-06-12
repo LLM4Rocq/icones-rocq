@@ -2232,6 +2232,27 @@ $\sem{\tau}$'s carrier.
     laws; the clause pin is
     \rocq{Icones.programs.ppl_cbv.eD_meas_E} --- the
     $\FMeas$-functorial mirror of the $\mathtt{ne\_score}$ clause.
+  \item $\mathtt{ne\_gaussian}\,e_1\,e_2$ /
+    $\mathtt{ne\_uniform}\,e_1\,e_2$ (runtime-parameter
+    distributions, surface \texttt{Gaussian( e1 , e2 )} /
+    \texttt{Uniform( e1 , e2 )}): the $\mathtt{ne\_add}$ clause shape
+    with the two-argument kernel lift in place of the arithmetic
+    pushforward,
+    $\mathtt{kernel\_lift2}\,k \circ
+     \mathtt{em\_pair\_mor}\,\sem{e_1}\,\sem{e_2}$, where
+    $\mathtt{kernel\_lift2}\,k = \mathtt{kernel\_lift}\,k \circ
+     \mathtt{fmeas\_lax}$ packages the tensored argument pair as a
+    joint measure on the product object and feeds it to the
+    probability kernel $k$ ---
+    \rocq{Icones.programs.distributions.kernel_lift2} at the
+    instances \rocq{Icones.programs.distributions.gaussian_kernel}
+    ($(m,s) \mapsto \mathcal{N}(m,s)$, totalised at $s = 0$ as the
+    Dirac $\delta_m$, the degenerate weak limit) and
+    \rocq{Icones.programs.distributions.uniform_kernel}
+    ($(a,b) \mapsto \mathcal{U}(a,b)$ for $a < b$, else
+    $\delta_a$); clause pins
+    \rocq{Icones.programs.ppl_cbv.eD_gaussian_E} /
+    \rocq{Icones.programs.ppl_cbv.eD_uniform_E}.
   \item $\mathtt{ne\_if}\,b\,M\,N$:
     $\mathtt{if\_icones}\,\sem{M}\,\sem{N}\,\sem{b}$ of
     \autoref{def:cbv-case-em} --- the six steps use
@@ -2533,6 +2554,46 @@ undetermined); and the soft conditioning form
 \rocq{Icones.programs.examples.ex_surface_demo} and
 \rocq{Icones.programs.examples.ex_surface_walk}, with the elaboration
 pin \rocq{Icones.programs.examples.ex_surface_demo_decomp}.
+
+\begin{definition}[Runtime-parameter distributions: the
+probability-kernel layer]\label{def:cbv-pkernel}
+A \emph{probability kernel} from $X$ to $Y$ (both objects of
+$\mathbf{Ar}$) is a family of sub-probability measures
+$k : X \to \FMeas\,Y$ together with the measurability of every
+evaluation $x \mapsto k(x)(U)$ ($U$ measurable) and the unit-ball
+bound $\cnorm{k(x)} \le 1$ --- the record
+\rocq{Icones.programs.distributions.pkernel}. Such a family is a
+measurable path (paper Definition~3.7,
+\rocq{Icones.programs.distributions.pkernel_is_path}), so
+Theorem~6.1 promotes it to the linear morphism
+$\mathtt{kernel\_lift}\,k : \FMeas\,X \multimap \FMeas\,Y$,
+$\nu \mapsto \int k(x)\,\nu(dx)$ (a Pettis integral), with the
+evaluation law $(\mathtt{kernel\_lift}\,k\,\nu)(U) =
+\int k(x)(U)\,\nu(dx)$
+(\rocq{Icones.programs.distributions.kernel_lift_E}), the mass law
+for pointwise-probability kernels
+(\rocq{Icones.programs.distributions.kernel_lift_mass}) and the
+Dirac reduction $\mathtt{kernel\_lift}\,k\,\delta_x = k(x)$
+(\rocq{Icones.programs.distributions.kernel_lift_dirac}). The
+surface forms \texttt{Gaussian( e1 , e2 )} /
+\texttt{Uniform( e1 , e2 )} consume two-argument kernels on the
+product object through
+\rocq{Icones.programs.distributions.kernel_lift2}; the semantic
+anchors (\rocq{Icones.programs.infra.kernel_anchors.eD_gaussian_at},
+\rocq{Icones.programs.infra.kernel_anchors.eD_gaussian_dirac_E},
+\rocq{Icones.programs.infra.kernel_anchors.eD_gaussian_mass},
+agreement with the bundled-sample surface at literals
+\rocq{Icones.programs.infra.kernel_anchors.eD_gaussian_sample_agree},
+and the \texttt{Uniform} mirrors) compute the draws on point-mass
+arguments. The hierarchy demo
+\rocq{Icones.programs.examples.ex_gaussian_walk} ---
+\texttt{let s = Gaussian(0,1) in Gaussian(s,1)}, the runtime
+parameter being the sampled value --- denotes the hierarchy integral
+$U \mapsto \int \mathcal{N}(r,1)(U)\,d\mathcal{N}(0,1)(r)$
+(\rocq{Icones.programs.infra.kernel_anchors.ex_gaussian_walk_E}) and
+is a probability of total mass one
+(\rocq{Icones.programs.infra.kernel_anchors.ex_gaussian_walk_mass}).
+\end{definition}
 
 \paragraph{Out-of-scope items.}
 Adequacy, normalization, and full-abstraction (traditional metatheory,

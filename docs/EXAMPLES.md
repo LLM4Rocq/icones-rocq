@@ -36,9 +36,12 @@ pass (`theories/programs/ppl.v`): witness-free `Bernoulli e` /
 measurable function application `Meas { f , Hf } e` (`ne_meas`),
 bundled distributions `sample m` for `m : pmeas` with the named
 `gaussian` / `uniform` of `theories/programs/examples.v`, the
-comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
-sugar, and the `Condition { f , … } M` form below — demoed end to
-end by `ex_surface_demo` / `ex_surface_walk`
+RUNTIME-PARAMETER forms `Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )`
+(`ne_gaussian` / `ne_uniform`, over the probability-kernel layer of
+`theories/programs/distributions.v` — hierarchical models, demoed by
+`ex_gaussian_walk` below), the comparison coin `e1 > e2`, OCaml-style
+`let rec f x := M in K` sugar, and the `Condition { f , … } M` form
+below — demoed end to end by `ex_surface_demo` / `ex_surface_walk`
 (`theories/programs/examples.v`) and documented in
 [the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html).
 
@@ -81,6 +84,7 @@ to a Dirac integral.
 | Random affine function | `let m := sample µ in let b := sample µ in λx. m·x + b` of type `tfun tR tR` denotes a random-coefficients linear regression model: its marginal at a Dirac test point `δ_{r0}` is the iterated-integral pushforward of two prior draws along `(m, b) ↦ m·r0 + b`. | `ex_random_linear` — `theories/programs/examples.v`; `ex_random_linear_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
 | Scored parameter (one-dimensional unnormalised posterior) | `let m := sample µ in let _ := score f #"m" in #"m"` of type `tR` denotes the unnormalised posterior over the sampled parameter: its measure on every measurable `U` is `∫_U f dµ`. | `ex_score_posterior` — `theories/programs/examples.v`; `ex_score_posterior_cbv_E` — `theories/programs/infra/cbv_marginals.v` |
 | Bayesian linear regression (posterior over functions) | Sample the random affine model ONCE, bind it to `"f"`, score one observation per element of an observation list against the model's value at a known input, return `#"f"` — the posterior over functions. The total mass of the denotation is the model evidence `∫∫ ∏_o obs_d o (m·obs_x o + b) dµ dµ`. | `ex_bayes_linear` — `theories/programs/examples.v`; `ex_bayes_linear_cbv_evidence` — `theories/programs/infra/cbv_marginals.v` |
+| Two-level Gaussian hierarchy (runtime-parameter distributions) | `let s := Gaussian(0,1) in Gaussian(s,1)` of type `tR`: the parameter of the second draw is the SAMPLED value of the first. Its measure on every measurable `U` is the hierarchy integral `∫ N(r,1)(U) dN(0,1)(r)`, and its total mass is exactly `1`. | `ex_gaussian_walk` — `theories/programs/examples.v`; `ex_gaussian_walk_E`, `ex_gaussian_walk_mass` — `theories/programs/infra/kernel_anchors.v` |
 
 ### ex_random_constant (`ex_random_constant`, `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass`)
 
@@ -359,6 +363,58 @@ Cross-links: the model's own marginal identity is
 `ex_random_linear_cbv_marginal` above; the one-parameter score
 program (with its rejection pairing `ex_reject_normalises_score`) is
 `ex_score_posterior` above.
+
+### ex_gaussian_walk (`ex_gaussian_walk`, `ex_gaussian_walk_E`, `ex_gaussian_walk_mass`)
+
+The two-level Gaussian hierarchy — the previously-inexpressible
+hierarchical model, written with the runtime-parameter
+`Gaussian(e1,e2)` constructor (`ne_gaussian`,
+[the runtime-parameter section of the surface
+chapter](../../ppl/sections/ppl-sec-runtime-parameter-distributions.html)):
+the parameter of the second draw is the *sampled value* of the
+first. The constant-parameter first stage is just the kernel surface
+at real literals (`eD_gaussian_sample_agree` pins it to the old
+`sample (gaussian 0 1)` form).
+
+```coq
+(* theories/programs/examples.v *)
+Definition ex_gaussian_walk : @named_expr R Ar R_obj nil tR' :=
+  [ let "s" := Gaussian( [| 0%R |] , [| 1%R |] ) in
+    Gaussian( # "s" , [| 1%R |] ) ].
+```
+
+| Side | Headline | Status |
+|---|---|---|
+| CBV — the denotation's measure on every measurable U is the hierarchy integral: integrate the second-stage normal against the first-stage prior. | `ex_gaussian_walk_E` — *fmeas_mu ⟦ex_gaussian_walk⟧(one1) U = ∫ N(cR r, 1)(toC⁻¹ U) dN(0,1)(r)* | axiom-free |
+| CBV — the program is a probability: total mass exactly 1. | `ex_gaussian_walk_mass` — *fmeas_mu ⟦ex_gaussian_walk⟧(one1) setT = 1* | axiom-free |
+
+```coq
+(* theories/programs/infra/kernel_anchors.v *)
+Lemma ex_gaussian_walk_E (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (linhom_fun (eD' ex_gaussian_walk) one1) U =
+  \int[fmeas_mu gw_prior]_(r in [set: ar_carrier Ar R_obj])
+     (fine (normal_prob (cR r) 1 (toC @^-1` U)))%:E.
+
+Lemma ex_gaussian_walk_mass :
+  fmeas_mu (linhom_fun (eD' ex_gaussian_walk) one1)
+    [set: ar_carrier Ar R_obj] = 1.
+```
+
+Proof idea: the general let-law `eD_let_mu_E`
+(`theories/programs/infra/let_sample_law.v`) turns the denotation's
+measure on `U` into an integral of the body's mass at the one-Dirac
+environment `1 ⊗ δ_r` against the bound sub-distribution — here the
+first stage, which the setlike/Dirac anchor `eD_gaussian_at` computes
+to the transported prior `N(0,1)` (`gw_prior`,
+`gaussian_ker_fun_cast` at literals). Under the binder, `#"s"`
+projects to `δ_r` and the literal `[|1|]` to `δ_{toC 1}`, so the same
+anchor computes the body to the gaussian kernel at `(r, 1)`; its
+per-`U` reading (`gaussian_ker_cast_E`) is `N(cR r, 1)(toC⁻¹ U)`.
+For the mass corollary the integrand is identically `1`
+(`normal_prob` is a probability; pointwise norm-1 is
+`gaussian_kernel_norm1`), and `∫ 1 dN(0,1) = 1`
+(`fmeas_of_prob_setT`).
 
 ---
 
@@ -1073,10 +1129,16 @@ elaborates through the genuine Seely-transported fixpoint
 `theories/programs/infra/em_fix_mr.v`, with the surface witness
 `ex_even_odd_pair` above.)
 
+(The former item "runtime-parameter distributions" is **delivered**:
+`Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )` over the
+probability-kernel layer of `theories/programs/distributions.v`, with
+the hierarchy demo `ex_gaussian_walk` and its mass-1 identity above.)
+
 | Item | What it is | Why not yet |
 |---|---|---|
 | CBV distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF `(1/2)^(k+1)` at every `k`; the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
 | Operational content for the mutual-recursion witness | A mass or distribution identity for `ex_even_odd_pair` / `ex_even` / `ex_odd` (the pair diverges by design, so the honest statement is a divergence/mass-zero claim at the projections). | The entry is an elaboration-level witness for the Seely-transported fixpoint path; its reduction chain has not been written. |
+| Runtime-parameter kernels for other distribution families | `pkernel` instances beyond `dirac` / `bernoulli` / `gaussian` / `uniform` (e.g. exponential, beta) and surface forms for them. | Each family needs its own parameter-measurability proof (the Fubini–Tonelli route of `measurable_normal_prob_pair`) and a totalisation convention for degenerate parameters; the kernel layer itself is generic and ready. |
 
 These choices are deliberate; each requires substantial
 infrastructure outside the current scope and does not block any
@@ -1098,6 +1160,12 @@ echo "Print Assumptions ex_score_posterior_cbv_E."        | \
   rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
 echo "Print Assumptions ex_bayes_linear_cbv_evidence."    | \
   rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+
+# Runtime-parameter distributions — the Gaussian hierarchy demo
+echo "Print Assumptions ex_gaussian_walk_E."    | \
+  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
+echo "Print Assumptions ex_gaussian_walk_mass." | \
+  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
 
 # Recursive probabilistic examples — the CBV mass identities
 echo "Print Assumptions ex_geom_cbv_mass_one."          | \
