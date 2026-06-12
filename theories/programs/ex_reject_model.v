@@ -1246,3 +1246,237 @@ exact: (ex_reject_master R_carrier_meas R_to_carrier_meas
 Qed.
 
 End SamplerInstance.
+
+(** ** §4 — Readable restatements: the [⟦·⟧] denotation brackets
+
+    RESTATED ALIASES ONLY — every theorem in this section is a
+    corollary of the §2 results above; nothing is re-proved.  The
+    point is the SHAPE of the statements: closed surface PROGRAMS
+    under semantic brackets, masses and integrals against the
+    program-denoted measures.
+
+    [⟦ M ⟧] denotes the MEASURE of the closed [tR]-typed program [M]:
+    [⟦ M ⟧ := fmeas_mu (linhom_fun (eD M) one1)] — so [⟦ M ⟧ U] is the
+    sub-probability mass on [U] and [\int[⟦ M ⟧]_(x in U) …]
+    integrates against it.  (The notation is section-local: the
+    interpreter [eD] carries the three standing carrier-cast
+    hypotheses, which a global notation cannot infer.)
+
+    The programs:
+    - [model_prog := λ_. Mbody] — an ARBITRARY thunked model: [Mbody]
+      is any program of type [tR] (samples, scores, recursion, …);
+    - [model_run  := model_prog ()] — the model, run;
+    - [reject_prog := reject_comb model_prog ()] — rejection sampling
+      over the model, run at the unit input.
+
+    The master identity then reads (with [ν_M := ⟦ model_run ⟧]):
+    [[
+       (1 - ν_M(setT) + ∫ f dν_M) · ⟦ reject_prog ⟧ U = ∫_U f dν_M
+    ]] *)
+
+Section ReadableHeadlines.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+(** The soft acceptance density. *)
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation eD_cbv' :=
+  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation eD' :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation tR' := (tR R_obj).
+Local Notation Lty t1 t2 :=
+  (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
+
+(** THE semantic brackets: the measure denoted by a closed [tR]-typed
+    program. *)
+Local Notation "⟦ M ⟧" :=
+  (fmeas_mu (linhom_fun (eD' M) one1)) (at level 0, format "⟦ M ⟧").
+
+(** The model body: an ARBITRARY [tR]-typed program over the thunk
+    context. *)
+Variable (Mbody : @named_expr R Ar R_obj (("_"%string, tunit) :: nil) tR').
+
+(** The three closed programs. *)
+Definition model_prog : @named_expr R Ar R_obj nil (tfun tunit tR') :=
+  [ \ "_" ::: tunit => {Mbody} ].
+
+Definition model_run : @named_expr R Ar R_obj nil tR' :=
+  [ {model_prog} @ () ].
+
+Definition reject_prog : @named_expr R Ar R_obj nil tR' :=
+  [ {ex_reject_comb tunit f Hf_meas Hf_ge0 Hf_le1} @ {model_prog} @ () ].
+
+(** *** The semantic bridges — the program denotations are the §2
+    semantic objects at [g := model_lin], [a₀ := one1] *)
+
+Let Hone : cone_norm (one1 : cone_one_car Ar) <= 1.
+Proof. by rewrite one1_norm. Qed.
+
+(** [Hone] retyped at the empty-context coalgebra (the form
+    [eD_app_at_setlike] keys on). *)
+Let HoneG : cone_norm
+    (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
+Proof. by rewrite one1_norm. Qed.
+
+(** The model's underlying linear map (the [sampler_lin] pattern). *)
+Definition model_lin : Lty tunit tR' :=
+  Lfun (tensor_curry (eD_cbv' Mbody)) one1.
+
+Lemma model_lin_ball : cone_norm model_lin <= 1.
+Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
+
+(** [⟦λ_. Mbody⟧(1) = model_lin!]. *)
+Lemma model_prog_val_E :
+  Lfun (eD_cbv' model_prog) one1 = model_lin!.
+Proof.
+rewrite -[model_prog]/(ne_lam "_"%string Mbody) eD_lam_E.
+by rewrite (adj_psi_at_setlike (tensor_curry (eD_cbv' Mbody))
+              Hone coalg_str_one1).
+Qed.
+
+(** [⟦()⟧(1) = one1] — the unit value at the closed environment. *)
+Lemma tt_val_E :
+  Lfun (eD_cbv' (@ne_tt R Ar R_obj nil)) one1 = one1.
+Proof.
+rewrite eD_tt_E.
+rewrite -[ch_mor (em_term_mor (ctxD_cbv (drop_names (nil : named_ctx Ar))))]
+        /(coalg_e (EM_term : Coalgebra Ar)).
+by rewrite coalg_e_term.
+Qed.
+
+(** [⟦model_prog ()⟧(1) = ν_M] — running the model is the §2 output
+    distribution. *)
+Lemma model_run_val_E :
+  Lfun (eD_cbv' model_run) one1 =
+  reject_model_dist (ta := tunit) (R_obj := R_obj) model_lin one1.
+Proof.
+rewrite -[model_run]/(ne_app model_prog (@ne_tt R Ar R_obj nil)).
+rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
+           HoneG coalg_str_one1).
+rewrite model_prog_val_E tt_val_E.
+by rewrite (der_prom _ model_lin_ball).
+Qed.
+
+(** [⟦reject_comb model_prog ()⟧(1) = ν] — the program denotes the §2
+    combinator denotation. *)
+Lemma reject_prog_val_E :
+  Lfun (eD_cbv' reject_prog) one1 =
+  reject_model_denot R_carrier_meas R_to_carrier_meas
+    Hf_meas Hf_ge0 Hf_le1 model_lin one1.
+Proof.
+rewrite -[reject_prog]/(ne_app
+  (ne_app (ex_reject_comb tunit f Hf_meas Hf_ge0 Hf_le1) model_prog)
+  (@ne_tt R Ar R_obj nil)).
+rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
+           HoneG coalg_str_one1).
+rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
+           HoneG coalg_str_one1).
+rewrite model_prog_val_E tt_val_E.
+by [].
+Qed.
+
+(** The linhom-level readings of the bridges (for rewriting under
+    [⟦·⟧], which is phrased on the public [eD]). *)
+Let model_run_lin_E :
+  linhom_fun (eD' model_run) one1 =
+  reject_model_dist (ta := tunit) (R_obj := R_obj) model_lin one1.
+Proof. by rewrite /eD icones_to_linhomE model_run_val_E. Qed.
+
+Let reject_prog_lin_E :
+  linhom_fun (eD' reject_prog) one1 =
+  reject_model_denot R_carrier_meas R_to_carrier_meas
+    Hf_meas Hf_ge0 Hf_le1 model_lin one1.
+Proof. by rewrite /eD icones_to_linhomE reject_prog_val_E. Qed.
+
+Local Open Scope ereal_scope.
+
+(** *** The restated headlines *)
+
+(** THE MASTER, in math form: writing [ν_M := ⟦ model_run ⟧] for the
+    model's output distribution,
+    [[
+       (1 - ν_M(setT) + ∫ f dν_M) · ⟦ reject_prog ⟧ U = ∫_U f dν_M.
+    ]] *)
+Theorem reject_prog_master U (mU : measurable U) :
+  ((1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+      + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+                (f (cR x))%:E))%R)%:E
+    * ⟦ reject_prog ⟧ U
+  = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
+Proof.
+rewrite model_run_lin_E reject_prog_lin_E.
+exact: (reject_model_master _ _ _ _ _ model_lin_ball Hone
+          coalg_str_one1 mU).
+Qed.
+
+(** THE NORMALISED FORM: when the loop makes progress, the program
+    denotes the normalised distribution
+    [[
+       ⟦ reject_prog ⟧ U = (∫_U f dν_M) / (1 - ν_M(setT) + ∫ f dν_M).
+    ]] *)
+Theorem reject_prog_is_normalised :
+  (0 < 1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+     + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+               (f (cR x))%:E))%R ->
+  forall U, measurable U ->
+  ⟦ reject_prog ⟧ U =
+  ((fine (\int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E)
+    / (1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+         + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+                   (f (cR x))%:E)))%R)%:E.
+Proof.
+rewrite model_run_lin_E reject_prog_lin_E => Hpos U mU.
+exact: (reject_model_is_normalised _ _ _ _ _ model_lin_ball Hone
+          coalg_str_one1 Hpos mU).
+Qed.
+
+(** ALMOST-SURE TERMINATION for probability models: if the model is a
+    probability ([⟦ model_run ⟧(setT) = 1]) with positive acceptance
+    mass, the sampler accepts almost surely:
+    [[
+       ⟦ reject_prog ⟧ (setT) = 1.
+    ]] *)
+Theorem reject_prog_mass_one :
+  ⟦ model_run ⟧ [set: ar_carrier Ar R_obj] = 1 ->
+  0 < \int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+        (f (cR x))%:E ->
+  ⟦ reject_prog ⟧ [set: ar_carrier Ar R_obj] = 1.
+Proof.
+rewrite model_run_lin_E reject_prog_lin_E => Hm1 HIf.
+apply: (reject_model_mass_one _ _ _ _ _ model_lin_ball Hone
+          coalg_str_one1 _ HIf).
+by rewrite -[1%R]/(fine (1 : \bar R)) Hm1.
+Qed.
+
+(** CERTAIN REJECTION DIVERGES: [f ≡ 0] forces the zero measure,
+    whatever the model does:
+    [[
+       ⟦ reject_prog ⟧ U = 0.
+    ]] *)
+Theorem reject_prog_zero U :
+  (forall r : R, f r = 0%R) -> ⟦ reject_prog ⟧ U = 0.
+Proof.
+rewrite reject_prog_lin_E => Hf0.
+rewrite (reject_model_zero _ _ _ _ _ model_lin_ball Hone
+           coalg_str_one1 Hf0).
+by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
+           fmeas_zeroE.
+Qed.
+
+End ReadableHeadlines.
