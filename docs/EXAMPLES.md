@@ -839,7 +839,7 @@ with the hierarchy demo `ex_gaussian_walk` above).
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| CBV distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF `(1/2)^(k+1)` at every `k`; the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
+| Distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF `(1/2)^(k+1)` at every `k`; the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
 | Operational content for the mutual-recursion witness | A mass or distribution identity for `ex_even_odd_pair` / `ex_even` / `ex_odd` (the pair diverges by design, so the honest statement is a divergence/mass-zero claim at the projections). | The entry is an elaboration-level witness for the Seely-transported fixpoint path; its reduction chain has not been written. |
 | Runtime-parameter kernels for other distribution families | `pkernel` instances beyond `dirac` / `bernoulli` / `gaussian` / `uniform` (e.g. exponential, beta) and surface forms for them. | Each family needs its own parameter-measurability proof (the Fubini–Tonelli route of `measurable_normal_prob_pair`) and a totalisation convention for degenerate parameters; the kernel layer itself is generic and ready. |
 
