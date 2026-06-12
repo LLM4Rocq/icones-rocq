@@ -271,7 +271,7 @@ rewrite icones_compA (iso_fwdK (tensor_runit (coalg_obj Z)))
 exact: H2.
 Qed.
 
-(** THE workhorse: pairing the identity with a CONSTANT computes at
+(** The key computation rule: pairing the identity with a constant computes at
     EVERY point — [⟨id, const c⟩(γ) = γ ⊗ c] — because the discarded
     diagonal copy is erased by the comonoid counit law, with no
     setlike hypothesis on [γ]. *)

@@ -31,7 +31,7 @@
       the cone-zero ([fix_prom_neq0]) — contrast the naive zero-seeded
       iteration, provably the zero linhom ([Phi_fun_lfp_eq0]).
 
-    - [eD_fix_unfold] — THE recursion equation (the name checked by the
+    - [eD_fix_unfold] — the recursion equation (the name checked by the
       docs via [Print Assumptions eD_fix_unfold]):
 
         [( der (F_γ (⟦fix s. body⟧ γ)) )! = ⟦fix s. body⟧ γ]
@@ -256,7 +256,7 @@ rewrite eD_fix_E.
 exact: (fix_comp_at_setlike (tensor_curry (eD_cbv' body)) Hg Hs).
 Qed.
 
-(** THE recursion equation: one more body unfolding at the fixpoint
+(** The recursion equation: one more body unfolding at the fixpoint
     value, re-promoted, is the fixpoint value —
     [( der (F_γ (⟦fix s.body⟧ γ)) )! = ⟦fix s.body⟧ γ]. *)
 Lemma eD_fix_unfold (G : named_ctx Ar) (s : string)

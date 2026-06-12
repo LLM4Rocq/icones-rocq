@@ -27,7 +27,7 @@
       [linhom_car] level: two norm-[≤1] linear maps out of [!B] agreeing
       on all [x!] are equal.
     - [tens_excl_charact] — Paper Lemma [tens-excl-equal-charact] for
-      [n=2]: the [!]-tensor promotion extensionality.  THE workhorse.
+      [n=2]: the [!]-tensor promotion extensionality — the workhorse lemma.
     - [tens_excl_charact3]/[tens_excl_charact3l] — the [n=3] cases (right-
       and left-associated), for the monoidal-functor associativity.
     - [spair]/[sprod_assoc]/[sprod_braid]/[sprod_lunit]/[sprod_runit] —

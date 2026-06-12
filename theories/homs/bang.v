@@ -20,7 +20,7 @@
     - [prom] ([x!]) — the promoted point [x! = nl_B(x)], with the
       pointwise reading [Theta_prom] of [Θ] on the unit ball.
     - [bang_ext] (Lemma [tens-excl-equal-charact], [n=1]) — linear maps
-      out of [!B] agreeing on all [x!] are equal.  THE workhorse.
+      out of [!B] agreeing on all [x!] are equal — the workhorse lemma.
     - [bang_fmap] ([!f = E(Der f)]) with [bang_fmap_prom] (Lemma
       [excl-fun-prom]: [(!f)(x!) = (f x)!]) and the functor laws
       [bang_fmap_id]/[bang_fmap_comp].
@@ -125,7 +125,7 @@ Qed.
     hypothesis, off the ball both are [0] by the [scones_comp]
     0-extension), so [f = lin (Θ f) = lin (Θ g) = g] by [linK].
 
-    THE workhorse for every comonad law below. *)
+    The workhorse for every comonad law below. *)
 Lemma bang_ext (B C : ICone.type Ar) (f g : icones_hom Ar (Bang Ar B) C) :
   (forall x : B, cone_norm x <= 1 -> Lfun f x! = Lfun g x!) ->
   f = g.

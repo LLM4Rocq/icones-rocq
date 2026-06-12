@@ -26,7 +26,7 @@
       point preserves Pettis integrals,
       [γ ⊗ (∫ β dµ) = ∫ (γ ⊗ β r) µ(dr)], from the
       [linhom_pres_int] field of [τ(γ)] ([tensor.v::tau]).
-    - [eD_let_sample_int] — THE LAW (step 4): step 3 + the
+    - [eD_let_sample_int] — the law (step 4): step 3 + the
       [icones_hom_pres_int] field of [⟦K⟧] pushed under the integral.
     - step 5, the per-U evaluation of an [FMeas]-valued Pettis
       integral [(∫ β dµ)(U) = ∫ (β r)(U) µ(dr)] for ARBITRARY
@@ -331,7 +331,7 @@ apply: (mcones_hom_pres_path (icones_hom_mcones (eD_cbv' K)) R_obj
 exact: (ptensor_path (C := FMeas R_obj) γ (dirac_fmeas_is_path R_obj)).
 Qed.
 
-(** *** THE LAW — step 4
+(** *** The law — step 4
 
     [[
        ⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)

@@ -823,7 +823,7 @@ by rewrite fix_chain_S fix_chain_0.
 Qed.
 
 (** **Obligation (b)**: on a coalgebraic body, the combinator is the
-    SUP OF THE LITERAL CHAIN [n ↦ Fⁿ(0!)] (seeded Kleene in [!A]). *)
+    supremum of the literal chain [n ↦ Fⁿ(0!)] (seeded Kleene in [!A]). *)
 Lemma fix_coalg_simpl :
   Lfun (ch_mor (fix_comb A)) (prom F) =
   lfp_from (f := linhom_fun F) (b0 := prom (precone_zero : A))
