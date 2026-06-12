@@ -308,6 +308,87 @@ Arguments obs_fold {R Ar R_obj G} v l.
 Arguments ex_bayes_linear {R Ar R_obj} mu Hmu l.
 Arguments ex_bayes_linear3 {R Ar R_obj} mu Hmu o1 o2 o3.
 
+(** ** The regression as ITERATED CONDITIONING
+
+    Each observation step of [ex_bayes_linear] IS a soft conditioning
+    of the model's value at the observation point: scoring
+    [f(obs_x o)] by the observation density [obs_d o] is exactly the
+    score clause of [condition] ([ex_condition_comb] below) at the
+    model [#"f"] and the input [obs_x o] — the only difference is
+    A-normal form: [condition] first binds the model's value
+    ([let x = m a in let _ = Score{f} x in x], returning the value),
+    while the regression scores the application directly and continues
+    with the rest of the observations, returning the FUNCTION at the
+    end (the two shapes agree semantically by the general let-law
+    [let_sample_law.v::eD_let_int]).
+
+    [condition_at o] packages one such observation-conditioning step;
+    [iter_condition] is its fold.  THE AGREEMENT
+    ([ex_bayes_linear_is_iter_condition]): the Bayesian linear
+    regression is DEFINITIONALLY the model bound once, then iterated
+    conditioning over the observation list. *)
+
+Section IteratedConditioning.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** One observation-conditioning step: score the model's value at the
+    observation point [obs_x o] by the observation density [obs_d o],
+    then continue with [K].  [v] locates the model in the context. *)
+Definition condition_at (G : named_ctx Ar)
+    (v : named_var G (tfun tR' tR')) (o : obs R) (t : ppl_type Ar)
+    (K : @named_expr R Ar R_obj (("_"%string, tunit) :: G) t) :
+    @named_expr R Ar R_obj G t :=
+  ne_let "_"%string
+    (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+       (ne_app (ne_var v) (ne_real (obs_x o))))
+    K.
+
+(** The iterated-conditioning fold: condition the model on each
+    observation in turn, then return the model. *)
+Fixpoint iter_condition (G : named_ctx Ar)
+    (v : named_var G (tfun tR' tR')) (l : seq (obs R)) :
+    @named_expr R Ar R_obj G (tfun tR' tR') :=
+  match l with
+  | nil => ne_var v
+  | o :: l' =>
+      condition_at v o (iter_condition (nv_tail "_"%string tunit _ v) l')
+  end.
+
+(** The observation fold IS the iterated conditioning. *)
+Lemma obs_fold_is_iter_condition (G : named_ctx Ar)
+    (v : named_var G (tfun tR' tR')) (l : seq (obs R)) :
+  obs_fold v l = iter_condition v l.
+Proof. by elim: l G v => [ | o l IH] G v //=; rewrite IH. Qed.
+
+(** THE AGREEMENT: Bayesian linear regression = the random affine
+    model, conditioned on each observation in turn. *)
+Theorem ex_bayes_linear_is_iter_condition (l : seq (obs R)) :
+  ex_bayes_linear mu Hmu l =
+  ne_let "f"%string (ex_random_linear mu Hmu)
+    (iter_condition (nv_head "f"%string (tfun tR' tR') nil) l).
+Proof. by rewrite /ex_bayes_linear obs_fold_is_iter_condition. Qed.
+
+(** The 1-observation case is DEFINITIONAL (no rewriting needed): one
+    observation = one conditioning step. *)
+Variable (o1 : obs R).
+
+Check (erefl : ex_bayes_linear mu Hmu [:: o1] =
+  ne_let "f"%string (ex_random_linear mu Hmu)
+    (condition_at (nv_head "f"%string (tfun tR' tR') nil) o1
+       (ne_var (nv_tail "_"%string tunit _
+                  (nv_head "f"%string (tfun tR' tR') nil))))).
+
+End IteratedConditioning.
+
+Arguments condition_at {R Ar R_obj G} v o {t} K.
+Arguments iter_condition {R Ar R_obj G} v l.
+
 (** ** Example 4 — [ex_loop] — bare divergence *)
 
 Section ExLoopDemo.
@@ -672,6 +753,102 @@ Arguments ex_reject_comb_body {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
 Arguments ex_reject_comb_fun {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
 Arguments ex_reject_comb_inner {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
 
+(** ** Example — [ex_condition_comb] — Pyro-style soft conditioning
+
+    The [condition] operator of Pyro-style probabilistic programming:
+    take a MODEL [m : ta → tR] and return the CONDITIONED MODEL — the
+    function that runs the model at the input, SCORES the produced
+    value [x] by the soft observation density [f] (the likelihood of
+    the observation given [x]), and returns [x]:
+    [[
+       condition = λ m. λ a.
+         let x = m a in
+         let _ = Score { f } x in
+         x
+    ]]
+    [ex_condition_comb] is the combinator (a closed program of type
+    [(ta → tR) → (ta → tR)], the same type as [ex_reject_comb]);
+    [ex_condition M] is the conditioned model [condition M f].
+
+    Expected denotation (proved in
+    [theories/programs/ex_reject_model.v::condition_model_E]): writing
+    [ν_M := ⟦m⟧(a)] for the model's output distribution at the input,
+    the conditioned model's output at [a] is the REWEIGHTED measure
+    [U ↦ ∫_U f dν_M] — unnormalised soft conditioning.  THE
+    EQUIVALENCE ([ex_reject_model.v::reject_normalises_condition]):
+    rejection sampling over the same model and density computes
+    exactly this measure, normalised —
+    [Z · ⟦reject_comb m a⟧ = ⟦condition_comb m a⟧] with
+    [Z := 1 - ν_M(setT) + ∫ f dν_M]. *)
+
+Section ConditionCombinator.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+(** The model's INPUT type is an arbitrary PPL type. *)
+Variable (ta : ppl_type Ar).
+
+(** The soft observation density (the likelihood). *)
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation tR' := (tR R_obj).
+
+(** The combinator itself: a closed program of type
+    [(ta → tR) → (ta → tR)]. *)
+Definition ex_condition_comb :
+    @named_expr R Ar R_obj nil (tfun (tfun ta tR') (tfun ta tR')) :=
+  [ \ "m" ::: (tfun ta tR') =>
+      \ "a" ::: ta =>
+        (let "x" := # "m" @ # "a" in
+         let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x" in
+         # "x") ].
+
+(** The partially-applied stage [λa.…], in context
+    [("m", ta→tR) :: nil]. *)
+Definition ex_condition_fun :
+    @named_expr R Ar R_obj
+      (("m"%string, tfun ta tR') :: nil) (tfun ta tR') :=
+  [ \ "a" ::: ta =>
+      (let "x" := # "m" @ # "a" in
+       let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x" in
+       # "x") ].
+
+(** The run-score-return inner expression under both binders. *)
+Definition ex_condition_inner :
+    @named_expr R Ar R_obj
+      (("a"%string, ta) :: ("m"%string, tfun ta tR') :: nil) tR' :=
+  [ let "x" := # "m" @ # "a" in
+    let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x" in
+    # "x" ].
+
+(** The applied form — [condition M f]: the combinator at a closed
+    model program [M] is the conditioned MODEL, again a closed program
+    of type [ta → tR]. *)
+Definition ex_condition (M : @named_expr R Ar R_obj nil (tfun ta tR')) :
+    @named_expr R Ar R_obj nil (tfun ta tR') :=
+  [ {ex_condition_comb} @ {M} ].
+
+End ConditionCombinator.
+
+Arguments ex_condition_comb {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_condition_fun {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_condition_inner {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_condition {R Ar R_obj ta} f Hf_meas Hf_ge0 Hf_le1 M.
+
+(** Surface form — [Condition { f , Hm , Hg , Hl } M]: the conditioned
+    model, written directly in the [ppl_named] custom entry (witness
+    braces first, like [Score { … } e]).  Elaborates to
+    [ne_app (ex_condition_comb _ f Hm Hg Hl) M]; the ambient context
+    must be CLOSED ([nil]) since the combinator is a closed program. *)
+Notation "'Condition' '{' f ',' Hm ',' Hg ',' Hl '}' M" :=
+  (ne_app (ex_condition_comb _ f Hm Hg Hl) M)
+  (in custom ppl_named at level 20,
+   M custom ppl_named at level 19,
+   f constr, Hm constr, Hg constr, Hl constr).
+
 (** ** Example — [ex_sampler] — the simplest model for the combinator
 
     The lambda-written model [λ_. sample µ] of type [tunit → tR]: ignore
@@ -700,6 +877,31 @@ End SamplerModel.
 
 Arguments ex_sampler {R Ar R_obj} mu Hmu.
 Arguments ex_sampler_body {R Ar R_obj} mu Hmu.
+
+(** Smoke test for the [Condition] surface form: conditioning the
+    sampler model and running the result parses, types, and pins to
+    the [ex_condition] combinator application. *)
+
+Section ConditionSmoke.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (mu : fmeas R (ar_carrier Ar R_obj)).
+Hypothesis Hmu : (cone_norm mu <= 1)%R.
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Check [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler mu Hmu }
+        @ () ].
+
+Check (erefl :
+  [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler mu Hmu } ] =
+  ex_condition f Hf_meas Hf_ge0 Hf_le1 (ex_sampler mu Hmu)).
+
+End ConditionSmoke.
 
 (** ** Named distributions — [gaussian] / [uniform] as [pmeas] values
 
@@ -971,6 +1173,30 @@ Definition ex_reject_comb_cbv
     (Hf_ge0 : forall r : R, (0 <= f r)%R)
     (Hf_le1 : forall r : R, (f r <= 1)%R) :=
   eDv (ex_reject_comb ta f Hf_meas Hf_ge0 Hf_le1).
+
+(** The soft-conditioning COMBINATOR denotation ([ex_condition_comb]):
+    a closed program of type [(ta → tR) → (ta → tR)], like the
+    rejection combinator — the conditioning law of
+    [ex_reject_model.v::condition_model_E] quantifies over the
+    model/input it is applied to. *)
+Definition ex_condition_comb_cbv
+    (ta : ppl_type Ar)
+    (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
+  eDv (ex_condition_comb ta f Hf_meas Hf_ge0 Hf_le1).
+
+(** The conditioned-model denotation: [condition M f] at a closed
+    model [M]. *)
+Definition ex_condition_cbv
+    (ta : ppl_type Ar)
+    (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (M : @named_expr R Ar R_obj nil (tfun ta (tR R_obj))) :=
+  eDv (ex_condition f Hf_meas Hf_ge0 Hf_le1 M).
 
 (** The sampler-model denotation (the combinator's simplest input). *)
 Definition ex_sampler_cbv
