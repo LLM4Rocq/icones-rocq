@@ -395,6 +395,71 @@ rewrite Z0.
 exact: prom_neq0 Hv.
 Qed.
 
+(** *** Setlike computation laws for the [let rec] elaboration
+
+    The [let rec f x := M in K] sugar elaborates to
+    [ne_let f (ne_fix f (ne_lam x M)) K]: relative to the bare
+    application [(fix f. λx. M) N], the binding inserts one [ne_let]
+    layer and one head-variable lookup.  The three laws below compute
+    both at setlike unit-ball context points, so the headline
+    reduction chains absorb the extra layer in three rewrites. *)
+
+(** [ne_let] at a setlike point: the bound value is paired onto the
+    environment ([coalg_d] collapses to the pure tensor). *)
+Lemma eD_let_at_setlike (G : named_ctx Ar) (x : string)
+    (t1 t2 : ppl_type Ar)
+    (M : @named_expr R Ar R_obj G t1)
+    (K : @named_expr R Ar R_obj ((x, t1) :: G) t2)
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = prom gam ->
+  Lfun (eD_cbv' (ne_let x M K)) gam =
+  Lfun (eD_cbv' K) (ptensor gam (Lfun (eD_cbv' M) gam)).
+Proof.
+move=> Hg Hs.
+rewrite eD_let_E.
+rewrite (Lfun_comp (eD_cbv' K)
+  (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
+               (eD_cbv' M)) gam).
+rewrite /em_pair_mor (Lfun_comp
+  (tensor_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names G))))
+              (eD_cbv' M))
+  (coalg_d (ctxD_cbv (drop_names G))) gam).
+rewrite (coalg_d_setlike Hg Hs) tensor_morE icones_idE.
+by [].
+Qed.
+
+(** Head-variable lookup at a pure tensor with a setlike discarded
+    environment: the projection returns the bound value. *)
+Lemma eD_var_head_at_setlike (G : named_ctx Ar) (x : string)
+    (t : ppl_type Ar)
+    (gam : coalg_obj (ctxD_cbv (drop_names G)))
+    (v : coalg_obj (tyD_cbv t)) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = prom gam ->
+  Lfun (eD_cbv' (ne_var (nv_head x t G))) (ptensor gam v) = v.
+Proof.
+move=> Hg Hs.
+apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R)
+  (ctxD_cbv (drop_names G)) (tyD_cbv t)) (ptensor gam v))).
+  by [].
+exact: (em_proj2_morE Hg Hs).
+Qed.
+
+(** The unit value at any setlike unit-ball environment is [one1]. *)
+Lemma eD_tt_at_setlike (G : named_ctx Ar)
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = prom gam ->
+  Lfun (eD_cbv' (@ne_tt R Ar R_obj G)) gam = one1.
+Proof.
+move=> Hg Hs.
+rewrite eD_tt_E.
+apply: (eq_trans (y := Lfun (coalg_e (ctxD_cbv (drop_names G))) gam)).
+  by [].
+exact: (coalg_e_setlike Hg Hs).
+Qed.
+
 (** *** Closed programs — [Γ = nil], [γ = one1], public interpreter *)
 
 (** The unit context point is setlike of norm [1]. *)
@@ -449,6 +514,14 @@ Arguments eD_fix_mr_prod_at_setlike
 Arguments eD_fix_mr_prod_at_setlike_neq0
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} s
   {t1 t2} Hfree body {gam}.
+Arguments eD_let_at_setlike
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} x
+  {t1 t2} M K {gam}.
+Arguments eD_var_head_at_setlike
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} x
+  {t} {gam} v.
+Arguments eD_tt_at_setlike
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G} {gam}.
 Arguments eD_fix_at_one1
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} s
   {t1 t2} body.
