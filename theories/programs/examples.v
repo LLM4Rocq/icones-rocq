@@ -9,26 +9,32 @@
     OLD CBV [eD] have been retired and are being re-grown at the
     linhom level inside the new [ppl_cbv.v].
 
+    All programs are written in the MODERN surface layer: bundled
+    sub-probabilities [m : pmeas] consumed by [sample m], the unified
+    witness-free [Bernoulli e] coin (clamped density), and OCaml-style
+    [let rec] for the recursive examples.
+
     ** Basic sampling/scoring examples (1–3)
-    - [ex_random_constant]   : [let "c" := sample mu in λx. c]
-    - [ex_random_linear]     : [let "m" := sample mu in
-                                let "b" := sample mu in
+    - [ex_random_constant]   : [let "c" := sample m in λx. c]
+    - [ex_random_linear]     : [let "m" := sample m in
+                                let "b" := sample m in
                                 λx. m * x + b]
-    - [ex_score_posterior]   : [let "m" := sample mu in
+    - [ex_score_posterior]   : [let "m" := sample m in
                                 let "_" := score(f) #"m" in
                                 #"m"]
       (sample-score-return: the unnormalised one-parameter posterior)
 
-    ** Higher-order Bayesian linear regression
+    ** Higher-order Bayesian linear regression — ITERATED CONDITIONING
     - [ex_bayes_linear l]    : sample a FUNCTION [λx. s·x+b]
-      (slope [s] and intercept [b] from the prior), score one
-      observation per [o ∈ l] of the function's value at a known
-      input point, and return the function — the posterior over
-      functions (arXiv 1701.02547 §2.1 shape); 3-observation
-      instance [ex_bayes_linear3]
+      (slope [s] and intercept [b] from the prior), then CONDITION it
+      on each observation [o ∈ l] in turn ([iter_condition]) and
+      return the function — the posterior over functions
+      (arXiv 1701.02547 §2.1 shape); 3-observation instance
+      [ex_bayes_linear3]; the historical raw score-fold shape is the
+      derived reading [ex_bayes_linear_obs_fold]
 
     ** Recursive partial-termination examples (4–6)
-    - [ex_loop]              : [(let rec l = λ_. l ()) ()]
+    - [ex_loop]              : [let rec l _ := l () in l ()]
     - [ex_geom]              : geometric counter (mass 1)
     - [ex_almost_loop p]     : parameterised partial divergence (mass p)
 
@@ -41,11 +47,12 @@
       with projections [ex_even] / [ex_odd] — the [ne_fix_mr]
       elaboration witness for the Seely-transported value-fixpoint
 
-    ** Rejection sampling (the killer example)
-    - [ex_reject]            : [(let rec rs = λaccept.
-                                   let x = sample µ in
+    ** Rejection sampling
+    - [ex_reject]            : [let rec rs accept :=
+                                   let x = sample m in
                                    if Bernoulli_f{f} x then accept x
-                                   else rs accept) (λy. y)] *)
+                                   else rs accept
+                                 in rs (λy. y)] *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -101,15 +108,14 @@ Section RandomConstant.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (m : pmeas Ar R_obj).
 
 Local Notation tR' := (tR R_obj).
 
-(** The PPL term: [let "c" := sample mu in λ x. c] in surface syntax. *)
+(** The PPL term: [let "c" := sample m in λ x. c] in surface syntax. *)
 Definition ex_random_constant :
     @named_expr R Ar R_obj nil (tfun tR' tR') :=
-  [ let "c" := Sample (mu , Hmu) in \ "x" ::: tR' => # "c" ].
+  [ let "c" := sample m in \ "x" ::: tR' => # "c" ].
 
 (** The lambda body extracted as a named-syntax sub-term, in the
     extended context [("c", tR) :: nil]. *)
@@ -120,7 +126,7 @@ Definition ex_rc_lam :
 End RandomConstant.
 
 Arguments ex_rc_lam {R Ar R_obj}.
-Arguments ex_random_constant {R Ar R_obj} mu Hmu.
+Arguments ex_random_constant {R Ar R_obj} m.
 
 (** ** Example 2 — [ex_random_linear] *)
 
@@ -128,24 +134,23 @@ Section RandomLinear.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (m : pmeas Ar R_obj).
 
 Local Notation tR' := (tR R_obj).
 
 (** The PPL term:
-    [let "m" := sample mu in let "b" := sample mu in λx. m*x + b]. *)
+    [let "m" := sample m in let "b" := sample m in λx. m*x + b]. *)
 Definition ex_random_linear :
     @named_expr R Ar R_obj nil (tfun tR' tR') :=
-  [ let "m" := Sample (mu , Hmu) in
-    let "b" := Sample (mu , Hmu) in
+  [ let "m" := sample m in
+    let "b" := sample m in
     \ "x" ::: tR' => # "m" * # "x" + # "b" ].
 
 (** The inner continuation after the outer [m]-bind. *)
 Definition ex_rl_inner :
     @named_expr R Ar R_obj
       (("m"%string, tR') :: nil) (tfun tR' tR') :=
-  [ let "b" := Sample (mu , Hmu) in
+  [ let "b" := sample m in
     \ "x" ::: tR' => # "m" * # "x" + # "b" ].
 
 (** The lambda closure body, in context [("b", tR) :: ("m", tR) :: nil]. *)
@@ -156,9 +161,9 @@ Definition ex_rl_lam :
 
 End RandomLinear.
 
-Arguments ex_rl_inner {R Ar R_obj} mu Hmu.
+Arguments ex_rl_inner {R Ar R_obj} m.
 Arguments ex_rl_lam {R Ar R_obj}.
-Arguments ex_random_linear {R Ar R_obj} mu Hmu.
+Arguments ex_random_linear {R Ar R_obj} m.
 
 (** ** Example 3 — [ex_score_posterior]
 
@@ -172,8 +177,7 @@ Section ScorePosterior.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (m : pmeas Ar R_obj).
 
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
@@ -183,10 +187,10 @@ Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 Local Notation tR' := (tR R_obj).
 
 (** The PPL term:
-    [let "m" := sample mu in let "_" := score(f) #"m" in #"m"]. *)
+    [let "m" := sample m in let "_" := score(f) #"m" in #"m"]. *)
 Definition ex_score_posterior :
     @named_expr R Ar R_obj nil tR' :=
-  [ let "m" := Sample (mu , Hmu) in
+  [ let "m" := sample m in
     let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
     # "m" ].
 
@@ -199,7 +203,7 @@ Definition ex_sp_cont :
 End ScorePosterior.
 
 Arguments ex_sp_cont {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_score_posterior {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_score_posterior {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
 
 (** ** Example — [ex_bayes_linear] — higher-order Bayesian linear regression
 
@@ -247,93 +251,28 @@ Record obs := MkObs {
 
 End Obs.
 
-Section BayesLinear.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+(** ** Soft conditioning, one observation at a time
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
-
-Local Notation tR' := (tR R_obj).
-
-(** The observation fold: for each [o] in [l], score the model's value
-    at [obs_x o]; when the list is exhausted, return the model.
-    Parameterised by the [named_var] witness [v] locating
-    ["f" : tfun tR' tR'] in the current context [G]; each [ne_let "_"]
-    step extends [G] by a [tunit] slot and [v] by [nv_tail] (the final
-    [#"f"] lookup skips the [tunit] slots by name). *)
-Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
-    (l : seq (obs R)) : named_expr G (tfun tR' tR') :=
-  match l with
-  | nil => ne_var v
-  | o :: l' =>
-      ne_let "_"%string
-        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var v) (ne_real (obs_x o))))
-        (obs_fold (nv_tail "_"%string tunit _ v) l')
-  end.
-
-(** The full program.  The model is EXACTLY Example 2's
-    [ex_random_linear] (the sampled affine function); ["f"] is bound at
-    the head of the context, witness [nv_head]. *)
-Definition ex_bayes_linear (l : seq (obs R)) :
-    @named_expr R Ar R_obj nil (tfun tR' tR') :=
-  ne_let "f"%string (ex_random_linear mu Hmu)
-    (obs_fold (nv_head "f"%string (tfun tR' tR') nil) l).
-
-Variables (o1 o2 o3 : obs R).
-
-(** Surface-syntax sanity: on a concrete 2-observation list the fold
-    agrees DEFINITIONALLY with the [ppl_named] sugar — the [#"f"]
-    lookups resolve through the [("_", tunit)] slots by
-    canonical-structure search, building exactly the [nv_tail] chain
-    that [obs_fold] constructs. *)
-Check (erefl : ex_bayes_linear [:: o1; o2] =
-  [ let "f" := (let "m" := Sample (mu , Hmu) in
-                let "b" := Sample (mu , Hmu) in
-                \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := Score { obs_d o1 , obs_meas o1 , obs_ge0 o1 , obs_le1 o1 }
-                 # "f" @ [| obs_x o1 |] in
-    let "_" := Score { obs_d o2 , obs_meas o2 , obs_ge0 o2 , obs_le1 o2 }
-                 # "f" @ [| obs_x o2 |] in
-    # "f" ]).
-
-(** The concrete 3-observation instance (for the docs to quote). *)
-Definition ex_bayes_linear3 : @named_expr R Ar R_obj nil (tfun tR' tR') :=
-  ex_bayes_linear [:: o1; o2; o3].
-
-End BayesLinear.
-
-Arguments obs_fold {R Ar R_obj G} v l.
-Arguments ex_bayes_linear {R Ar R_obj} mu Hmu l.
-Arguments ex_bayes_linear3 {R Ar R_obj} mu Hmu o1 o2 o3.
-
-(** ** The regression as ITERATED CONDITIONING
-
-    Each observation step of [ex_bayes_linear] IS a soft conditioning
-    of the model's value at the observation point: scoring
-    [f(obs_x o)] by the observation density [obs_d o] is exactly the
-    score clause of [condition] ([ex_condition_comb] below) at the
-    model [#"f"] and the input [obs_x o] — the only difference is
-    A-normal form: [condition] first binds the model's value
-    ([let x = m a in let _ = Score{f} x in x], returning the value),
-    while the regression scores the application directly and continues
-    with the rest of the observations, returning the FUNCTION at the
-    end (the two shapes agree semantically by the general let-law
+    One observation step IS a soft conditioning of the model's value
+    at the observation point: scoring [f(obs_x o)] by the observation
+    density [obs_d o] is exactly the score clause of [condition]
+    ([ex_condition_comb] below) at the model [#"f"] and the input
+    [obs_x o] — the only difference is A-normal form: [condition]
+    first binds the model's value ([let x = m a in
+    let _ = Score{f} x in x], returning the value), while the
+    regression scores the application directly and continues with the
+    rest of the observations, returning the FUNCTION at the end (the
+    two shapes agree semantically by the general let-law
     [let_sample_law.v::eD_let_int]).
 
     [condition_at o] packages one such observation-conditioning step;
-    [iter_condition] is its fold.  THE AGREEMENT
-    ([ex_bayes_linear_is_iter_condition]): the Bayesian linear
-    regression is DEFINITIONALLY the model bound once, then iterated
-    conditioning over the observation list. *)
+    [iter_condition] is its fold, and the Bayesian linear regression
+    [ex_bayes_linear] below is DEFINED as the model bound once, then
+    [iter_condition] over the observation list. *)
 
 Section IteratedConditioning.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
-
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
 
 Local Notation tR' := (tR R_obj).
 
@@ -350,7 +289,10 @@ Definition condition_at (G : named_ctx Ar)
     K.
 
 (** The iterated-conditioning fold: condition the model on each
-    observation in turn, then return the model. *)
+    observation in turn, then return the model.  Parameterised by the
+    [named_var] witness [v] locating the model in the current context
+    [G]; each conditioning step extends [G] by a [("_", tunit)] slot
+    and [v] by [nv_tail]. *)
 Fixpoint iter_condition (G : named_ctx Ar)
     (v : named_var G (tfun tR' tR')) (l : seq (obs R)) :
     @named_expr R Ar R_obj G (tfun tR' tR') :=
@@ -360,34 +302,99 @@ Fixpoint iter_condition (G : named_ctx Ar)
       condition_at v o (iter_condition (nv_tail "_"%string tunit _ v) l')
   end.
 
+End IteratedConditioning.
+
+Arguments condition_at {R Ar R_obj G} v o {t} K.
+Arguments iter_condition {R Ar R_obj G} v l.
+
+Section BayesLinear.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+
+Variable (m : pmeas Ar R_obj).
+
+Local Notation tR' := (tR R_obj).
+
+(** THE program: the model is EXACTLY Example 2's [ex_random_linear]
+    (the sampled affine function), bound at the head of the context
+    (witness [nv_head]), then CONDITIONED on each observation in
+    turn. *)
+Definition ex_bayes_linear (l : seq (obs R)) :
+    @named_expr R Ar R_obj nil (tfun tR' tR') :=
+  ne_let "f"%string (ex_random_linear m)
+    (iter_condition (nv_head "f"%string (tfun tR' tR') nil) l).
+
+(** The raw observation fold — the historical shape of the program:
+    for each [o] in [l], score the model's value at [obs_x o]; when
+    the list is exhausted, return the model. *)
+Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
+    (l : seq (obs R)) : named_expr G (tfun tR' tR') :=
+  match l with
+  | nil => ne_var v
+  | o :: l' =>
+      ne_let "_"%string
+        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var v) (ne_real (obs_x o))))
+        (obs_fold (nv_tail "_"%string tunit _ v) l')
+  end.
+
 (** The observation fold IS the iterated conditioning. *)
 Lemma obs_fold_is_iter_condition (G : named_ctx Ar)
     (v : named_var G (tfun tR' tR')) (l : seq (obs R)) :
   obs_fold v l = iter_condition v l.
 Proof. by elim: l G v => [ | o l IH] G v //=; rewrite IH. Qed.
 
-(** THE AGREEMENT: Bayesian linear regression = the random affine
-    model, conditioned on each observation in turn. *)
+(** THE AGREEMENT (now definitional — the named anchor of the
+    iterated-conditioning reading): Bayesian linear regression = the
+    random affine model, conditioned on each observation in turn. *)
 Theorem ex_bayes_linear_is_iter_condition (l : seq (obs R)) :
-  ex_bayes_linear mu Hmu l =
-  ne_let "f"%string (ex_random_linear mu Hmu)
+  ex_bayes_linear l =
+  ne_let "f"%string (ex_random_linear m)
     (iter_condition (nv_head "f"%string (tfun tR' tR') nil) l).
-Proof. by rewrite /ex_bayes_linear obs_fold_is_iter_condition. Qed.
+Proof. by []. Qed.
 
-(** The 1-observation case is DEFINITIONAL (no rewriting needed): one
-    observation = one conditioning step. *)
-Variable (o1 : obs R).
+(** The derived raw-fold reading: the regression unfolds to the
+    score-per-observation fold. *)
+Lemma ex_bayes_linear_obs_fold (l : seq (obs R)) :
+  ex_bayes_linear l =
+  ne_let "f"%string (ex_random_linear m)
+    (obs_fold (nv_head "f"%string (tfun tR' tR') nil) l).
+Proof. by rewrite obs_fold_is_iter_condition. Qed.
 
-Check (erefl : ex_bayes_linear mu Hmu [:: o1] =
-  ne_let "f"%string (ex_random_linear mu Hmu)
+Variables (o1 o2 o3 : obs R).
+
+(** Surface-syntax sanity: on a concrete 2-observation list the
+    iterated conditioning agrees DEFINITIONALLY with the [ppl_named]
+    sugar — the [#"f"] lookups resolve through the [("_", tunit)]
+    slots by canonical-structure search, building exactly the
+    [nv_tail] chain that [iter_condition] constructs. *)
+Check (erefl : ex_bayes_linear [:: o1; o2] =
+  [ let "f" := (let "m" := sample m in
+                let "b" := sample m in
+                \ "x" ::: tR' => # "m" * # "x" + # "b") in
+    let "_" := Score { obs_d o1 , obs_meas o1 , obs_ge0 o1 , obs_le1 o1 }
+                 # "f" @ [| obs_x o1 |] in
+    let "_" := Score { obs_d o2 , obs_meas o2 , obs_ge0 o2 , obs_le1 o2 }
+                 # "f" @ [| obs_x o2 |] in
+    # "f" ]).
+
+(** The 1-observation case: one observation = one conditioning step
+    (definitional). *)
+Check (erefl : ex_bayes_linear [:: o1] =
+  ne_let "f"%string (ex_random_linear m)
     (condition_at (nv_head "f"%string (tfun tR' tR') nil) o1
        (ne_var (nv_tail "_"%string tunit _
                   (nv_head "f"%string (tfun tR' tR') nil))))).
 
-End IteratedConditioning.
+(** The concrete 3-observation instance (for the docs to quote). *)
+Definition ex_bayes_linear3 : @named_expr R Ar R_obj nil (tfun tR' tR') :=
+  ex_bayes_linear [:: o1; o2; o3].
 
-Arguments condition_at {R Ar R_obj G} v o {t} K.
-Arguments iter_condition {R Ar R_obj G} v l.
+End BayesLinear.
+
+Arguments obs_fold {R Ar R_obj G} v l.
+Arguments ex_bayes_linear {R Ar R_obj} m l.
+Arguments ex_bayes_linear3 {R Ar R_obj} m o1 o2 o3.
 
 (** ** Example 4 — [ex_loop] — bare divergence *)
 
@@ -395,10 +402,13 @@ Section ExLoopDemo.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-(** The divergence example.  Source: [(let rec l = λ _. l ()) ()]. *)
+(** The divergence example.  Source: [let rec l _ = l () in l ()]
+    (annotated [let rec]: the binder ["_"] is unused, so its type
+    cannot be inferred from the body). *)
 Definition ex_loop :
     @named_expr R Ar R_obj nil tunit :=
-  [ (fix "l" ::: tfun tunit tunit in \ "_" ::: tunit => # "l" @ ()) @ () ].
+  [ let rec "l" "_" ::: tunit ==> tunit := # "l" @ ()
+    in # "l" @ () ].
 
 End ExLoopDemo.
 
@@ -414,14 +424,10 @@ Definition ex_true : @named_expr R Ar R_obj nil tbool := [ True ].
 
 Definition ex_false : @named_expr R Ar R_obj nil tbool := [ False ].
 
-Lemma half_ge0 : (0 <= 1 / 2 :> R)%R.
-Proof. by rewrite divr_ge0// ler01. Qed.
-
-Lemma half_le1 : (1 / 2 <= 1 :> R)%R.
-Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
-
+(** The fair coin, in the unified witness-free form: [Bernoulli e]
+    flips with the CLAMPED value of [e] as success probability. *)
 Definition ex_fair_coin : @named_expr R Ar R_obj nil tbool :=
-  [ Bernoulli { (1 / 2 : R), half_ge0, half_le1 } ].
+  [ Bernoulli [| (1 / 2 : R) |] ].
 
 End ExBoolDemo.
 
@@ -435,17 +441,11 @@ Section ExIfDemo.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-Lemma if_demo_half_ge0 : (0 <= 1 / 2 :> R)%R.
-Proof. by rewrite divr_ge0// ler01. Qed.
-
-Lemma if_demo_half_le1 : (1 / 2 <= 1 :> R)%R.
-Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
-
 (** The closed [tbool]-typed [if-then-else] term:
-    [if Bernoulli { 1/2 } then True else False]. *)
+    [if Bernoulli (1/2) then True else False]. *)
 Definition ex_if_demo :
     @named_expr R Ar R_obj nil tbool :=
-  [ if Bernoulli { (1 / 2 : R), if_demo_half_ge0, if_demo_half_le1 }
+  [ if Bernoulli [| (1 / 2 : R) |]
     then True else False ].
 
 End ExIfDemo.
@@ -458,8 +458,10 @@ Section RecExamples.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-(** Witnesses [0 ≤ 1/2 ≤ 1] for the geometric example's fair-coin
-    Bernoulli scrutinee. *)
+(** Witnesses [0 ≤ 1/2 ≤ 1] for the geometric example's fair coin —
+    not needed by the PROGRAM (the unified [Bernoulli e] clamps), but
+    the semantic riders ([ex_reject_headline.v]) name the Bernoulli
+    element [(½, ½)] through them. *)
 Lemma bernoulli_half_ge0 : (0 <= 1 / 2 :> R)%R.
 Proof. by rewrite divr_ge0// ler01. Qed.
 
@@ -469,15 +471,15 @@ Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
 Local Notation tR' := (tR R_obj).
 
 (** *** [ex_geom] — geometric distribution
-    Source: [(let rec g = λ_. if Bernoulli(½) then 0
-                                            else 1 + g ()) ()]. *)
+    Source: [let rec g _ = if Bernoulli(½) then 0
+                                           else 1 + g () in g ()]. *)
 
 Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
-  [ (fix "g" ::: tfun tunit tR' in
-       \ "_" ::: tunit =>
-         (if Bernoulli { (1 / 2 : R), bernoulli_half_ge0, bernoulli_half_le1 }
-          then [| 0%R |]
-          else [| 1%R |] + # "g" @ ())) @ () ].
+  [ let rec "g" "_" ::: tunit ==> tR' :=
+      (if Bernoulli [| (1 / 2 : R) |]
+       then [| 0%R |]
+       else [| 1%R |] + # "g" @ ())
+    in # "g" @ () ].
 
 (** The body of the fixed-point lambda. *)
 Definition ex_geom_body :
@@ -485,31 +487,31 @@ Definition ex_geom_body :
       (("g"%string, tfun tunit tR') :: nil)
       (tfun tunit tR') :=
   [ \ "_" ::: tunit =>
-      (if Bernoulli { (1 / 2 : R), bernoulli_half_ge0, bernoulli_half_le1 }
+      (if Bernoulli [| (1 / 2 : R) |]
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ()) ].
 
-(** *** [ex_almost_loop p Hp_ge0 Hp_le1] — parameterised divergence
-    Source: [(let rec l = λ_. if Bernoulli(p) then ()
-                                              else l ()) ()]. *)
-Definition ex_almost_loop (p : R)
-    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+(** *** [ex_almost_loop p] — parameterised divergence
+    Source: [let rec l _ = if Bernoulli(p) then ()
+                                           else l () in l ()].
+    No witnesses on [p]: the unified [Bernoulli e] clamps the
+    parameter into [[0,1]]. *)
+Definition ex_almost_loop (p : R) :
     @named_expr R Ar R_obj nil tunit :=
-  [ (fix "l" ::: tfun tunit tunit in
-       \ "_" ::: tunit =>
-         (if Bernoulli { p, Hp_ge0, Hp_le1 }
-          then ()
-          else # "l" @ ())) @ () ].
+  [ let rec "l" "_" ::: tunit ==> tunit :=
+      (if Bernoulli [| p |]
+       then ()
+       else # "l" @ ())
+    in # "l" @ () ].
 
 (** Its lambda body, in the extended context
     [("l", tfun tunit tunit) :: nil]. *)
-Definition ex_almost_loop_body (p : R)
-    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
+Definition ex_almost_loop_body (p : R) :
     @named_expr R Ar R_obj
       (("l"%string, tfun tunit tunit) :: nil)
       (tfun tunit tunit) :=
   [ \ "_" ::: tunit =>
-      (if Bernoulli { p, Hp_ge0, Hp_le1 }
+      (if Bernoulli [| p |]
        then ()
        else # "l" @ ()) ].
 
@@ -517,8 +519,8 @@ End RecExamples.
 
 Arguments ex_geom {R Ar R_obj}.
 Arguments ex_geom_body {R Ar R_obj}.
-Arguments ex_almost_loop {R Ar R_obj} p Hp_ge0 Hp_le1.
-Arguments ex_almost_loop_body {R Ar R_obj} p Hp_ge0 Hp_le1.
+Arguments ex_almost_loop {R Ar R_obj} p.
+Arguments ex_almost_loop_body {R Ar R_obj} p.
 
 (** ** Example — [ex_even_odd] — mutual recursion at a product of functions
 
@@ -582,7 +584,7 @@ Arguments ex_even {R Ar R_obj}.
 Arguments ex_odd {R Ar R_obj}.
 Arguments ex_even_odd_body {R Ar R_obj}.
 
-(** ** Example — [ex_reject] — rejection sampling (THE killer example)
+(** ** Example — [ex_reject] — rejection sampling
 
     Normalised-posterior rejection sampling: sample [x ~ µ], accept
     with probability [f x] (the value-dependent Bernoulli
@@ -591,10 +593,10 @@ Arguments ex_even_odd_body {R Ar R_obj}.
     the headline instantiates it at the identity [λy. y] (so the
     program returns the accepted sample itself):
     [[
-       (let rec rs = λ accept.
-           let x = sample µ in
-           if Bernoulli_f { f } x then accept x else rs accept)
-         (λ y. y)
+       let rec rs accept :=
+         let x = sample m in
+         if Bernoulli_f { f } x then accept x else rs accept
+       in rs (λ y. y)
     ]]
     Expected denotation (the M4 headline): the sub-probability
     [ν] with [∫f dµ · ν(U) = ∫_U f dµ] — the normalised posterior,
@@ -604,8 +606,7 @@ Section RejectSampling.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (m : pmeas Ar R_obj).
 
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
@@ -614,16 +615,15 @@ Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
 Local Notation tR' := (tR R_obj).
 
-(** The full surface program: the recursive sampler applied to the
-    identity acceptance continuation. *)
+(** The full surface program: the recursive sampler, applied to the
+    identity acceptance continuation in the [let rec] continuation. *)
 Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
-  [ (fix "rs" ::: tfun (tfun tR' tR') tR' in
-       \ "accept" ::: (tfun tR' tR') =>
-         (let "x" := Sample (mu , Hmu) in
-          if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
-          then # "accept" @ # "x"
-          else # "rs" @ # "accept"))
-    @ (\ "y" ::: tR' => # "y") ].
+  [ let rec "rs" "accept" :=
+      (let "x" := sample m in
+       if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+       then # "accept" @ # "x"
+       else # "rs" @ # "accept")
+    in # "rs" @ (\ "y" ::: tR' => # "y") ].
 
 (** The body of the fixed-point lambda, in the extended context
     [("rs", (tR' -> tR') -> tR') :: nil] (the [ex_geom_body]
@@ -633,7 +633,7 @@ Definition ex_reject_body :
       (("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       (tfun (tfun tR' tR') tR') :=
   [ \ "accept" ::: (tfun tR' tR') =>
-      (let "x" := Sample (mu , Hmu) in
+      (let "x" := sample m in
        if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
        then # "accept" @ # "x"
        else # "rs" @ # "accept") ].
@@ -645,16 +645,16 @@ Definition ex_reject_inner :
       (("accept"%string, tfun tR' tR') ::
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       tR' :=
-  [ let "x" := Sample (mu , Hmu) in
+  [ let "x" := sample m in
     if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
 End RejectSampling.
 
-Arguments ex_reject {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_reject_body {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_reject_inner {R Ar R_obj} mu Hmu f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_body {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_inner {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
 
 (** ** Example — [ex_reject_comb] — rejection sampling as a COMBINATOR
 
@@ -860,23 +860,22 @@ Section SamplerModel.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (m : pmeas Ar R_obj).
 
 Local Notation tR' := (tR R_obj).
 
 Definition ex_sampler : @named_expr R Ar R_obj nil (tfun tunit tR') :=
-  [ \ "_" ::: tunit => Sample (mu , Hmu) ].
+  [ \ "_" ::: tunit => sample m ].
 
 (** The sample expression under the (discarded) binder. *)
 Definition ex_sampler_body :
     @named_expr R Ar R_obj (("_"%string, tunit) :: nil) tR' :=
-  [ Sample (mu , Hmu) ].
+  [ sample m ].
 
 End SamplerModel.
 
-Arguments ex_sampler {R Ar R_obj} mu Hmu.
-Arguments ex_sampler_body {R Ar R_obj} mu Hmu.
+Arguments ex_sampler {R Ar R_obj} m.
+Arguments ex_sampler_body {R Ar R_obj} m.
 
 (** Smoke test for the [Condition] surface form: conditioning the
     sampler model and running the result parses, types, and pins to
@@ -886,20 +885,19 @@ Section ConditionSmoke.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (m : pmeas Ar R_obj).
 
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
 Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
 Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
-Check [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler mu Hmu }
+Check [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler m }
         @ () ].
 
 Check (erefl :
-  [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler mu Hmu } ] =
-  ex_condition f Hf_meas Hf_ge0 Hf_le1 (ex_sampler mu Hmu)).
+  [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler m } ] =
+  ex_condition f Hf_meas Hf_ge0 Hf_le1 (ex_sampler m)).
 
 End ConditionSmoke.
 
@@ -1060,10 +1058,11 @@ Arguments ex_surface_walk {R Ar R_obj}.
     ([ne_let]/[ne_sample]/[ne_lam]/[ne_var] in Examples 1–3, [ne_score]
     in Example 3, [ne_add]/[ne_mul] in Example 2,
     [ne_fix]/[ne_app]/[ne_tt] in the recursive examples,
-    [ne_true]/[ne_false]/[ne_bernoulli]/[ne_if] in the boolean checks,
-    [ne_bernoulli_f] in the rejection-sampling example,
-    [ne_fix_mr]/[ne_pair]/[ne_fst]/[ne_snd] in the even/odd
-    mutual-recursion example).
+    [ne_true]/[ne_false]/[ne_if] and the unified clamped coin
+    ([ne_bernoulli_f] at [clamp]) in the boolean checks,
+    [ne_bernoulli_f] in the rejection-sampling example, [ne_meas] in
+    the surface demos, [ne_fix_mr]/[ne_pair]/[ne_fst]/[ne_snd] in the
+    even/odd mutual-recursion example).
 
     Each denotation is a norm-[≤1] linear morphism
     [linhom_car Ar (coalg_obj (ctxD_cbv nil)) (coalg_obj (tyD_cbv t))]
@@ -1084,24 +1083,19 @@ Hypothesis R_to_carrier_meas :
 Local Notation eDv M :=
   (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _ M).
 
-Definition ex_random_constant_cbv
-    (mu : fmeas R (ar_carrier Ar R_obj))
-    (Hmu : (cone_norm mu <= 1)%R) :=
-  eDv (ex_random_constant mu Hmu).
+Definition ex_random_constant_cbv (m : pmeas Ar R_obj) :=
+  eDv (ex_random_constant m).
 
-Definition ex_random_linear_cbv
-    (mu : fmeas R (ar_carrier Ar R_obj))
-    (Hmu : (cone_norm mu <= 1)%R) :=
-  eDv (ex_random_linear mu Hmu).
+Definition ex_random_linear_cbv (m : pmeas Ar R_obj) :=
+  eDv (ex_random_linear m).
 
 Definition ex_score_posterior_cbv
-    (mu : fmeas R (ar_carrier Ar R_obj))
-    (Hmu : (cone_norm mu <= 1)%R)
+    (m : pmeas Ar R_obj)
     (f : R -> R)
     (Hf_meas : measurable_fun [set: R] f)
     (Hf_ge0 : forall r : R, (0 <= f r)%R)
     (Hf_le1 : forall r : R, (f r <= 1)%R) :=
-  eDv (ex_score_posterior mu Hmu f Hf_meas Hf_ge0 Hf_le1).
+  eDv (ex_score_posterior m f Hf_meas Hf_ge0 Hf_le1).
 
 (** The Bayesian-linear-regression elaboration smoke test.  The shared
     ["f"] is consulted once per observation AND returned at the end:
@@ -1110,10 +1104,9 @@ Definition ex_score_posterior_cbv
     (a [bang_cofree] coalgebra) — duplicating a sampled FUNCTION value
     is exactly what the [!]-comonoid machinery is for. *)
 Definition ex_bayes_linear_cbv
-    (mu : fmeas R (ar_carrier Ar R_obj))
-    (Hmu : (cone_norm mu <= 1)%R)
+    (m : pmeas Ar R_obj)
     (l : seq (obs R)) :=
-  eDv (ex_bayes_linear mu Hmu l).
+  eDv (ex_bayes_linear m l).
 
 Definition ex_loop_cbv := eDv (ex_loop : @named_expr R Ar R_obj nil tunit).
 
@@ -1131,9 +1124,8 @@ Definition ex_if_demo_cbv :=
 Definition ex_geom_cbv :=
   eDv (ex_geom : @named_expr R Ar R_obj nil (tR R_obj)).
 
-Definition ex_almost_loop_cbv (p : R)
-    (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :=
-  eDv (ex_almost_loop p Hp_ge0 Hp_le1).
+Definition ex_almost_loop_cbv (p : R) :=
+  eDv (ex_almost_loop p).
 
 (** The mutual-recursion smoke test: [ne_fix_mr] at a PRODUCT of
     function types elaborates through the genuine Seely-transported
@@ -1154,13 +1146,12 @@ Definition ex_odd_cbv :=
     (canonical-structure variable lookup for ["x"], ["accept"],
     ["rs"]). *)
 Definition ex_reject_cbv
-    (mu : fmeas R (ar_carrier Ar R_obj))
-    (Hmu : (cone_norm mu <= 1)%R)
+    (m : pmeas Ar R_obj)
     (f : R -> R)
     (Hf_meas : measurable_fun [set: R] f)
     (Hf_ge0 : forall r : R, (0 <= f r)%R)
     (Hf_le1 : forall r : R, (f r <= 1)%R) :=
-  eDv (ex_reject mu Hmu f Hf_meas Hf_ge0 Hf_le1).
+  eDv (ex_reject m f Hf_meas Hf_ge0 Hf_le1).
 
 (** The rejection-sampling COMBINATOR denotation: the closed program of
     type [(ta → tR) → (ta → tR)] denotes a (promoted) function VALUE —
@@ -1199,10 +1190,8 @@ Definition ex_condition_cbv
   eDv (ex_condition f Hf_meas Hf_ge0 Hf_le1 M).
 
 (** The sampler-model denotation (the combinator's simplest input). *)
-Definition ex_sampler_cbv
-    (mu : fmeas R (ar_carrier Ar R_obj))
-    (Hmu : (cone_norm mu <= 1)%R) :=
-  eDv (ex_sampler mu Hmu).
+Definition ex_sampler_cbv (m : pmeas Ar R_obj) :=
+  eDv (ex_sampler m).
 
 (** The surface-demo denotations — compile-time smoke tests for the
     new surface layer: [let rec] sugar, [sample] of a bundled

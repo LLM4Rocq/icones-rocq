@@ -279,8 +279,9 @@ Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 (** The prior: a unit-ball measure on the reals. *)
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (pm : pmeas Ar R_obj).
+Local Notation mu := (pm_meas pm).
+Local Notation Hmu := (pm_ball pm).
 
 (** The soft evidence: a [[0,1]]-valued density. *)
 Variable (f : R -> R).
@@ -321,7 +322,7 @@ Lemma ex_sp_cont_decomp :
 Proof. by []. Qed.
 
 Lemma ex_score_posterior_decomp :
-  ex_score_posterior mu Hmu f Hf_meas Hf_ge0 Hf_le1 =
+  ex_score_posterior pm f Hf_meas Hf_ge0 Hf_le1 =
   ne_let "m" (ne_sample mu Hmu) (ex_sp_cont f Hf_meas Hf_ge0 Hf_le1).
 Proof. by []. Qed.
 
@@ -424,7 +425,7 @@ Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 Proof.
 rewrite /ex_score_posterior_cbv ex_score_posterior_decomp.
@@ -443,7 +444,7 @@ Qed.
 Theorem ex_score_posterior_cbv_mass :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1)
+                   pm Hf_meas Hf_ge0 Hf_le1) one1)
     [set: ar_carrier Ar R_obj] =
   \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
 Proof. by apply: ex_score_posterior_cbv_E. Qed.
@@ -457,13 +458,13 @@ Theorem ex_reject_normalises_score
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
   fmeas_mu
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   Hmu Hf_meas Hf_ge0 Hf_le1) one1) U.
+                   pm Hf_meas Hf_ge0 Hf_le1) one1) U.
 Proof.
 rewrite (ex_score_posterior_cbv_E mU).
-exact: (ex_reject_master R_carrier_meas R_to_carrier_meas Hmu Hmu1
+exact: (ex_reject_master R_carrier_meas R_to_carrier_meas Hmu1
           Hf_meas Hf_ge0 Hf_le1 mU).
 Qed.
 
@@ -483,8 +484,9 @@ Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 (** The prior: a unit-ball measure on the reals. *)
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (pm : pmeas Ar R_obj).
+Local Notation mu := (pm_meas pm).
+Local Notation Hmu := (pm_ball pm).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -511,7 +513,7 @@ Definition rc_var_c :
   [ # "c" ].
 
 Lemma ex_random_constant_decomp :
-  ex_random_constant mu Hmu = ne_let "c" (ne_sample mu Hmu)
+  ex_random_constant pm = ne_let "c" (ne_sample mu Hmu)
                                 (ne_lam "x" rc_var_c).
 Proof. by []. Qed.
 
@@ -577,7 +579,7 @@ Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
   linhom_fun
     (Lfun (der (Lty tR' tR'))
        (linhom_fun (ex_random_constant_cbv R_carrier_meas
-                      R_to_carrier_meas Hmu) one1)) x = mu.
+                      R_to_carrier_meas pm) one1)) x = mu.
 Proof.
 move=> Hx1.
 rewrite /ex_random_constant_cbv ex_random_constant_decomp.
@@ -610,7 +612,7 @@ Theorem ex_random_constant_cbv_marginal_dirac (r0 : ar_carrier Ar R_obj) :
   linhom_fun
     (Lfun (der (Lty tR' tR'))
        (linhom_fun (ex_random_constant_cbv R_carrier_meas
-                      R_to_carrier_meas Hmu) one1)) (dirac_fmeas r0) = mu.
+                      R_to_carrier_meas pm) one1)) (dirac_fmeas r0) = mu.
 Proof.
 apply: ex_random_constant_cbv_marginal.
 exact: dirac_fmeas_setT_E.
@@ -625,7 +627,7 @@ Theorem ex_random_constant_cbv_marginal_mass (x : FMeas R_obj)
     (linhom_fun
        (Lfun (der (Lty tR' tR'))
           (linhom_fun (ex_random_constant_cbv R_carrier_meas
-                         R_to_carrier_meas Hmu) one1)) x) U =
+                         R_to_carrier_meas pm) one1)) x) U =
   fmeas_mu mu U.
 Proof. by rewrite (ex_random_constant_cbv_marginal Hx1). Qed.
 
@@ -645,8 +647,9 @@ Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 (** The prior: a unit-ball measure on the reals. *)
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (pm : pmeas Ar R_obj).
+Local Notation mu := (pm_meas pm).
+Local Notation Hmu := (pm_ball pm).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -697,12 +700,12 @@ Lemma rl_body_decomp :
 Proof. by []. Qed.
 
 Lemma ex_random_linear_decomp :
-  ex_random_linear mu Hmu =
-  ne_let "m" (ne_sample mu Hmu) (ex_rl_inner mu Hmu).
+  ex_random_linear pm =
+  ne_let "m" (ne_sample mu Hmu) (ex_rl_inner pm).
 Proof. by []. Qed.
 
 Lemma ex_rl_inner_decomp :
-  ex_rl_inner mu Hmu =
+  ex_rl_inner pm =
   ne_let "b" (ne_sample mu Hmu) (ne_lam "x" rl_body).
 Proof. by []. Qed.
 
@@ -918,14 +921,14 @@ Lemma rl_inner_marginal (m r0 : ar_carrier Ar R_obj)
   fmeas_mu
     (linhom_fun
        (Lfun (der (Lty tR' tR'))
-          (Lfun (eD_cbv' (ex_rl_inner mu Hmu)) (one1 ⊗p dirac_fmeas m)))
+          (Lfun (eD_cbv' (ex_rl_inner pm)) (one1 ⊗p dirac_fmeas m)))
        (dirac_fmeas r0)) U =
   \int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
      (fine (fmeas_mu
         (dirac_fmeas (R_to_carrier R_carrier_eq (cR m * cR r0 + cR b)))
         U))%:E.
 Proof.
-have -> : Lfun (eD_cbv' (ex_rl_inner mu Hmu)) (one1 ⊗p dirac_fmeas m)
+have -> : Lfun (eD_cbv' (ex_rl_inner pm)) (one1 ⊗p dirac_fmeas m)
         = icone_integral
             (fun b => Lfun (eD_cbv' (ne_lam "x" rl_body))
                         ((one1 ⊗p dirac_fmeas m) ⊗p dirac_fmeas b))
@@ -959,7 +962,7 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
     (linhom_fun
        (Lfun (der (Lty tR' tR'))
           (linhom_fun (ex_random_linear_cbv R_carrier_meas
-                         R_to_carrier_meas Hmu) one1))
+                         R_to_carrier_meas pm) one1))
        (dirac_fmeas r0)) U =
   \int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
@@ -969,16 +972,16 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
 Proof.
 rewrite /ex_random_linear_cbv ex_random_linear_decomp.
 rewrite (eD_let_sample_int R_carrier_meas R_to_carrier_meas Hmu
-           (ex_rl_inner mu Hmu) one1).
+           (ex_rl_inner pm) one1).
 rewrite (icones_hom_pres_int (der (Lty tR' tR')) R_obj _
   (let_sample_path R_carrier_meas R_to_carrier_meas
-     (ex_rl_inner mu Hmu) one1) mu).
+     (ex_rl_inner pm) one1) mu).
 rewrite (linhom_int_eval
   (mcones_hom_pres_path (der (Lty tR' tR')) R_obj
      (fun m : ar_carrier Ar R_obj =>
-      Lfun (eD_cbv' (ex_rl_inner mu Hmu)) (one1 ⊗p dirac_fmeas m))
+      Lfun (eD_cbv' (ex_rl_inner pm)) (one1 ⊗p dirac_fmeas m))
      (let_sample_path R_carrier_meas R_to_carrier_meas
-        (ex_rl_inner mu Hmu) one1)) mu (dirac_fmeas r0)).
+        (ex_rl_inner pm) one1)) mu (dirac_fmeas r0)).
 rewrite (icone_integral_fmeas_E _ mu mU).
 apply: eq_integral => m _.
 by rewrite (rl_inner_marginal m r0 mU).
@@ -1035,8 +1038,9 @@ Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
 (** The prior: a unit-ball measure on the reals. *)
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu : (cone_norm mu <= 1)%R.
+Variable (pm : pmeas Ar R_obj).
+Local Notation mu := (pm_meas pm).
+Local Notation Hmu := (pm_ball pm).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -1269,12 +1273,12 @@ Lemma obs_evidence_inner (l : seq (obs R)) (m : ar_carrier Ar R_obj) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (Lfun (eD_cbv' (obs_fold (obs_var 0) l))
          ((one1 : cone_one_car Ar) ⊗p
-          Lfun (eD_cbv' (ex_rl_inner mu Hmu))
+          Lfun (eD_cbv' (ex_rl_inner pm))
             (one1 ⊗p dirac_fmeas m)))))%:num)%R =
   fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
      ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E).
 Proof.
-have -> : Lfun (eD_cbv' (ex_rl_inner mu Hmu)) (one1 ⊗p dirac_fmeas m)
+have -> : Lfun (eD_cbv' (ex_rl_inner pm)) (one1 ⊗p dirac_fmeas m)
         = icone_integral
             (fun b => Lfun (eD_cbv' (ne_lam "x" (rl_body R_obj)))
                         ((one1 ⊗p dirac_fmeas m) ⊗p dirac_fmeas b))
@@ -1317,58 +1321,58 @@ Qed.
 Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
-         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu l)
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas pm l)
          one1)))%:num)%R =
   fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
      (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
         ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E))%:E).
 Proof.
 rewrite /ex_bayes_linear_cbv.
-rewrite -[linhom_fun (eD' (ex_bayes_linear mu Hmu l)) one1]
-        /(Lfun (eD_cbv' (ex_bayes_linear mu Hmu l)) one1).
-have -> : ex_bayes_linear mu Hmu l =
-    ne_let "f"%string (ex_random_linear mu Hmu) (obs_fold (obs_var 0) l).
-  by [].
+rewrite -[linhom_fun (eD' (ex_bayes_linear pm l)) one1]
+        /(Lfun (eD_cbv' (ex_bayes_linear pm l)) one1).
+have -> : ex_bayes_linear pm l =
+    ne_let "f"%string (ex_random_linear pm) (obs_fold (obs_var 0) l).
+  by rewrite ex_bayes_linear_obs_fold.
 rewrite eD_let_E.
 rewrite (Lfun_comp (eD_cbv' (obs_fold (obs_var 0) l))
   (em_pair_mor
      (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))))
-     (eD_cbv' (ex_random_linear mu Hmu)))
+     (eD_cbv' (ex_random_linear pm)))
   one1).
 rewrite /em_pair_mor.
 rewrite (Lfun_comp
   (tensor_mor
      (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))))
-     (eD_cbv' (ex_random_linear mu Hmu)))
+     (eD_cbv' (ex_random_linear pm)))
   (coalg_d (ctxD_cbv (drop_names (nil : named_ctx Ar))))
   one1).
 rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (nil : named_ctx Ar)))
   Hone coalg_str_one1).
 rewrite (tensor_morE
   (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))))
-  (eD_cbv' (ex_random_linear mu Hmu)) one1 one1).
+  (eD_cbv' (ex_random_linear pm)) one1 one1).
 rewrite icones_idE.
-have -> : Lfun (eD_cbv' (ex_random_linear mu Hmu)) one1
+have -> : Lfun (eD_cbv' (ex_random_linear pm)) one1
         = icone_integral
-            (fun m0 => Lfun (eD_cbv' (ex_rl_inner mu Hmu))
+            (fun m0 => Lfun (eD_cbv' (ex_rl_inner pm))
                          (one1 ⊗p dirac_fmeas m0))
             (let_sample_path R_carrier_meas R_to_carrier_meas
-               (ex_rl_inner mu Hmu) one1) mu.
+               (ex_rl_inner pm) one1) mu.
   exact: (eD_let_sample_int R_carrier_meas R_to_carrier_meas Hmu
-            (ex_rl_inner mu Hmu) one1).
+            (ex_rl_inner pm) one1).
 rewrite (ptensor_icone_integral (one1 : cone_one_car Ar)
   (let_sample_path R_carrier_meas R_to_carrier_meas
-     (ex_rl_inner mu Hmu) one1) mu).
+     (ex_rl_inner pm) one1) mu).
 rewrite (icones_hom_pres_int (eD_cbv' (obs_fold (obs_var 0) l)) R_obj _
   (ptensor_path (one1 : cone_one_car Ar)
      (let_sample_path R_carrier_meas R_to_carrier_meas
-        (ex_rl_inner mu Hmu) one1)) mu).
+        (ex_rl_inner pm) one1)) mu).
 rewrite (icones_hom_pres_int (coalg_e (tyD_cbv tF)) R_obj _
   (mcones_hom_pres_path
      (icones_hom_mcones (eD_cbv' (obs_fold (obs_var 0) l))) R_obj _
      (ptensor_path (one1 : cone_one_car Ar)
         (let_sample_path R_carrier_meas R_to_carrier_meas
-           (ex_rl_inner mu Hmu) one1))) mu).
+           (ex_rl_inner pm) one1))) mu).
 rewrite icone_integral_c1E.
 congr fine; apply: eq_integral => m0 _; congr ((_)%:E).
 exact: (obs_evidence_inner l m0).
@@ -1378,7 +1382,7 @@ Qed.
 Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
-         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas Hmu
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas pm
             [:: o1; o2])
          one1)))%:num)%R =
   fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])

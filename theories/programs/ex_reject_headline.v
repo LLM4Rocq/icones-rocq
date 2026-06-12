@@ -6,10 +6,10 @@
     analysis of the rejection-sampling program [ex_reject] of
     [theories/programs/examples.v]
     [[
-       (let rec rs = λ accept.
-           let x = sample µ in
-           if Bernoulli_f { f } x then accept x else rs accept)
-         (λ y. y)
+       let rec rs accept :=
+         let x = sample m in
+         if Bernoulli_f { f } x then accept x else rs accept
+       in rs (λ y. y)
     ]]
     under the CBV interpreter [eD] of [theories/programs/ppl_cbv.v]: a
     HIGHER-ORDER (the recursive function abstracts over the acceptance
@@ -247,9 +247,10 @@ Hypothesis R_carrier_meas :
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
-(** The prior: a unit-mass measure on the reals. *)
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu_ball : (cone_norm mu <= 1)%R.
+(** The prior: a bundled sub-probability, assumed of unit mass. *)
+Variable (m : pmeas Ar R_obj).
+Local Notation mu := (pm_meas m).
+Local Notation Hmu_ball := (pm_ball m).
 Hypothesis Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1%E.
 
 (** The soft acceptance predicate: a [[0,1]]-valued density. *)
@@ -272,10 +273,17 @@ Local Notation tR' := (tR R_obj).
 Local Notation Lty t1 t2 :=
   (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
 
-(** *** Syntactic decomposition of [ex_reject] — all definitional *)
+(** *** Syntactic decomposition of [ex_reject] — all definitional
 
-(** The identity acceptance continuation [λ y. y]. *)
-Definition reject_lam_id : @named_expr R Ar R_obj nil (tfun tR' tR') :=
+    The [let rec] surface form elaborates to a [ne_let] binding the
+    fixpoint under ["rs"], whose continuation applies the bound
+    recursive sampler to the identity acceptance continuation. *)
+
+(** The identity acceptance continuation [λ y. y], in the [let rec]
+    continuation context. *)
+Definition reject_lam_id :
+    @named_expr R Ar R_obj
+      (("rs"%string, tfun (tfun tR' tR') tR') :: nil) (tfun tR' tR') :=
   [ \ "y" ::: tR' => # "y" ].
 
 (** The test-and-dispatch body under the sample binder. *)
@@ -288,57 +296,110 @@ Definition reject_if :
     else # "rs" @ # "accept" ].
 
 Lemma ex_reject_decomp :
-  ex_reject mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1 =
-  ne_app (ne_fix "rs" (ex_reject_body mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1))
-         reject_lam_id.
+  ex_reject m f Hf_meas Hf_ge0 Hf_le1 =
+  ne_let "rs" (ne_fix "rs" (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1))
+    (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
+            reject_lam_id).
 Proof. by []. Qed.
 
 Lemma ex_reject_body_decomp :
-  ex_reject_body mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1 =
-  ne_lam "accept" (ex_reject_inner mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1).
+  ex_reject_body m f Hf_meas Hf_ge0 Hf_le1 =
+  ne_lam "accept" (ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1).
 Proof. by []. Qed.
 
 Lemma ex_reject_inner_decomp :
-  ex_reject_inner mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1 =
+  ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1 =
   ne_let "x" (ne_sample mu Hmu_ball) reject_if.
 Proof. by []. Qed.
 
 (** The variable body of the identity continuation. *)
 Definition reject_id_var :
-    @named_expr R Ar R_obj (("y"%string, tR') :: nil) tR' :=
+    @named_expr R Ar R_obj
+      (("y"%string, tR') ::
+       ("rs"%string, tfun (tfun tR' tR') tR') :: nil) tR' :=
   [ # "y" ].
 
 Lemma reject_lam_id_decomp : reject_lam_id = ne_lam "y" reject_id_var.
 Proof. by []. Qed.
 
-(** *** The semantic objects: the continuation value [a₀ = ℓ!] and the
-    body's endo-function [W₀] *)
+Let Hone : cone_norm (one1 : cone_one_car Ar) <= 1.
+Proof. by rewrite one1_norm. Qed.
+
+(** *** The semantic objects: the body's endo-function [W₀], the
+    [let rec] environment, and the continuation value [a₀ = ℓ!] *)
+
+(** [W₀ := curry ⟦body⟧ (one1) : !L₁ ⊸ !L₁] — the recursion body's
+    endo-function at the closed environment ([L₁ := U⟦(R→R)→R⟧]). *)
+Definition reject_W0 :
+    linhom_car Ar (Bang Ar (Lty (tfun tR' tR') tR'))
+                  (Bang Ar (Lty (tfun tR' tR') tR')) :=
+  Lfun (tensor_curry
+         (eD_cbv' (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1)))
+       one1.
+
+Lemma reject_W0_ball : cone_norm reject_W0 <= 1.
+Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
+
+(** The promoted fixpoint value is a setlike unit-ball point. *)
+Lemma reject_fix_prom_ball :
+  cone_norm ((sc_fun (fix_value (Lty (tfun tR' tR') tR')) reject_W0)!) <= 1.
+Proof. exact: prom_ball (fix_value_ball reject_W0 reject_W0_ball). Qed.
+
+Lemma reject_fix_prom_setlike :
+  Lfun (coalg_str (tyD_cbv (tfun (tfun tR' tR') tR')))
+       ((sc_fun (fix_value (Lty (tfun tR' tR') tR')) reject_W0)!) =
+  ((sc_fun (fix_value (Lty (tfun tR' tR') tR')) reject_W0)!)!.
+Proof.
+rewrite -[tyD_cbv (tfun (tfun tR' tR') tR')]
+        /(bang_cofree (Lty (tfun tR' tR') tR')) bang_cofree_str.
+exact: (dig_prom _ (fix_value_ball reject_W0 reject_W0_ball)).
+Qed.
+
+(** The [let rec] continuation environment: ["rs"] bound to the
+    promoted fixpoint value. *)
+Definition reject_env0 :
+    coalg_obj (ctxD_cbv (drop_names
+      (("rs"%string, tfun (tfun tR' tR') tR') :: nil))) :=
+  one1 ⊗p (sc_fun (fix_value (Lty (tfun tR' tR') tR')) reject_W0)!.
+
+Lemma reject_env0_ball : cone_norm reject_env0 <= 1.
+Proof.
+by rewrite /reject_env0 tensor_normME one1_norm mul1r reject_fix_prom_ball.
+Qed.
+
+Lemma reject_env0_setlike :
+  Lfun (coalg_str (ctxD_cbv (drop_names
+         (("rs"%string, tfun (tfun tR' tR') tR') :: nil))))
+       reject_env0 = reject_env0!.
+Proof.
+exact: (coalg_str_tensor_setlike (P:=EM_term)
+          (Q:=tyD_cbv (tfun (tfun tR' tR') tR'))
+          Hone reject_fix_prom_ball coalg_str_one1
+          reject_fix_prom_setlike).
+Qed.
 
 (** [ℓ] — the function value of the identity continuation: the linear
-    map [⟦λy.y⟧] is closed over the empty environment. *)
+    map [⟦λy.y⟧] is closed over the [let rec] environment. *)
 Definition reject_acc : Lty tR' tR' :=
-  Lfun (tensor_curry (eD_cbv' reject_id_var)) one1.
+  Lfun (tensor_curry (eD_cbv' reject_id_var)) reject_env0.
 
 (** [a₀ := ℓ!] — the PROMOTED identity continuation, the function
     value the fixpoint is applied to. *)
 Definition reject_arg : coalg_obj (tyD_cbv (tfun tR' tR')) := reject_acc!.
 
-Let Hone : cone_norm (one1 : cone_one_car Ar) <= 1.
-Proof. by rewrite one1_norm. Qed.
-
 Lemma reject_acc_ball : cone_norm reject_acc <= 1.
-Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
+Proof. exact: le_trans (cones_hom_norm_le1 _ _) reject_env0_ball. Qed.
 
 (** [ℓ] IS the identity function on measures. *)
 Lemma reject_acc_E (x : coalg_obj (tyD_cbv tR')) :
   linhom_fun reject_acc x = x.
 Proof.
 rewrite /reject_acc tensor_curryE.
-apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R) EM_term
-                              (FMeas_coalgebra R_obj)) (one1 ⊗p x))).
+apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R)
+  (ctxD_cbv (drop_names (("rs"%string, tfun (tfun tR' tR') tR') :: nil)))
+  (FMeas_coalgebra R_obj)) (reject_env0 ⊗p x))).
   by [].
-exact: (em_proj2_morE (P:=EM_term) (Q:=FMeas_coalgebra R_obj)
-          Hone coalg_str_one1).
+exact: (em_proj2_morE reject_env0_ball reject_env0_setlike).
 Qed.
 
 Lemma reject_arg_ball : cone_norm reject_arg <= 1.
@@ -353,24 +414,13 @@ rewrite -[tyD_cbv (tfun tR' tR')]/(bang_cofree (Lty tR' tR'))
 exact: (dig_prom _ reject_acc_ball).
 Qed.
 
-Lemma reject_arg_E : Lfun (eD_cbv' reject_lam_id) one1 = reject_arg.
+Lemma reject_arg_E :
+  Lfun (eD_cbv' reject_lam_id) reject_env0 = reject_arg.
 Proof.
 rewrite reject_lam_id_decomp eD_lam_E.
 by rewrite (adj_psi_at_setlike (tensor_curry (eD_cbv' reject_id_var))
-              Hone coalg_str_one1).
+              reject_env0_ball reject_env0_setlike).
 Qed.
-
-(** [W₀ := curry ⟦body⟧ (one1) : !L₁ ⊸ !L₁] — the recursion body's
-    endo-function at the closed environment ([L₁ := U⟦(R→R)→R⟧]). *)
-Definition reject_W0 :
-    linhom_car Ar (Bang Ar (Lty (tfun tR' tR') tR'))
-                  (Bang Ar (Lty (tfun tR' tR') tR')) :=
-  Lfun (tensor_curry
-         (eD_cbv' (ex_reject_body mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1)))
-       one1.
-
-Lemma reject_W0_ball : cone_norm reject_W0 <= 1.
-Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
 
 (** *** The application clause at a setlike point (generic; reused for
     the THEN/ELSE branches in step 4) *)
@@ -401,13 +451,15 @@ rewrite tensor_uncurryE icones_idE.
 by [].
 Qed.
 
-(** *** Step 1 — the outer application collapses: [der ∘ prom] cancels
-    BEFORE any continuity argument, leaving the fixpoint VALUE applied
-    to the (promoted) identity continuation. *)
+(** *** Step 1 — the [let rec] binding collapses: the let pairs the
+    promoted fixpoint value onto the environment, the head-variable
+    lookup recovers it, and [der ∘ prom] cancels BEFORE any continuity
+    argument, leaving the fixpoint VALUE applied to the (promoted)
+    identity continuation. *)
 
 Local Notation reject_denot :=
   (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                 Hmu_ball Hf_meas Hf_ge0 Hf_le1) one1).
+                 m Hf_meas Hf_ge0 Hf_le1) one1).
 
 Lemma ex_reject_app_E :
   reject_denot =
@@ -418,11 +470,20 @@ rewrite /ex_reject_cbv /eD icones_to_linhomE ex_reject_decomp.
 have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
-rewrite (eD_app_at_setlike _ _ HoneG coalg_str_one1).
-rewrite reject_arg_E.
-rewrite (eD_fix_at_setlike "rs"
-          (ex_reject_body mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1)
+rewrite (eD_let_at_setlike "rs"
+          (ne_fix "rs" (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1))
+          (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
+                  reject_lam_id)
           HoneG coalg_str_one1).
+rewrite (eD_fix_at_setlike "rs"
+          (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1)
+          HoneG coalg_str_one1).
+rewrite (eD_app_at_setlike _ _ reject_env0_ball reject_env0_setlike).
+rewrite (eD_var_head_at_setlike "rs"
+          (t := tfun (tfun tR' tR') tR')
+          ((sc_fun (fix_value (Lty (tfun tR' tR') tR')) reject_W0)!)
+          HoneG coalg_str_one1).
+rewrite reject_arg_E.
 rewrite (der_prom _ (fix_value_ball reject_W0 reject_W0_ball)).
 by [].
 Qed.
@@ -501,7 +562,7 @@ Qed.
 Lemma reject_W0_at_prom n :
   linhom_fun reject_W0 ((fix_chain reject_W0 n)!) =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_inner mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1)))
+          (eD_cbv' (ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1)))
      (one1 ⊗p (fix_chain reject_W0 n)!))!.
 Proof.
 rewrite {1}/reject_W0 tensor_curryE ex_reject_body_decomp eD_lam_E.
@@ -512,7 +573,7 @@ Qed.
 
 Lemma ex_reject_iter_S n :
   reject_iter n.+1 =
-  Lfun (eD_cbv' (ex_reject_inner mu Hmu_ball f Hf_meas Hf_ge0 Hf_le1))
+  Lfun (eD_cbv' (ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1))
        ((one1 ⊗p (fix_chain reject_W0 n)!) ⊗p reject_arg).
 Proof.
 rewrite /reject_iter fix_chain_S reject_W0_at_prom.
@@ -1023,20 +1084,23 @@ Definition al_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)
       tunit :=
-  [ if Bernoulli { p , Hp0 , Hp1 } then () else # "l" @ () ].
+  [ if Bernoulli [| p |] then () else # "l" @ () ].
 
 Lemma ex_almost_loop_decomp :
-  ex_almost_loop p Hp0 Hp1 =
-  ne_app (ne_fix "l" (ex_almost_loop_body p Hp0 Hp1))
-         (@ne_tt R Ar R_obj nil).
+  ex_almost_loop (R_obj := R_obj) p =
+  ne_let "l" (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) p))
+    (ne_app (ne_var (nv_head "l" (tfun tunit tunit) nil)) ne_tt).
 Proof. by []. Qed.
 
 Lemma ex_almost_loop_body_decomp :
-  ex_almost_loop_body p Hp0 Hp1 = ne_lam "_" al_if.
+  ex_almost_loop_body (R_obj := R_obj) p = ne_lam "_" al_if.
 Proof. by []. Qed.
 
 Lemma al_if_decomp :
-  al_if = ne_if tunit (ne_bernoulli p Hp0 Hp1) ne_tt
+  al_if = ne_if tunit
+            (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+               (ne_real p))
+            ne_tt
             (ne_app al_var_l ne_tt).
 Proof. by []. Qed.
 
@@ -1045,22 +1109,49 @@ Proof. by rewrite one1_norm. Qed.
 
 (** *** The reduction chain (steps 1-4, mirrored) *)
 
-Lemma al_arg_E :
-  Lfun (eD_cbv' (@ne_tt R Ar R_obj nil)) one1 = one1.
-Proof.
-rewrite eD_tt_E.
-apply: (eq_trans (y := Lfun (coalg_e (EM_term : Coalgebra Ar)) one1)).
-  by [].
-exact: (coalg_e_setlike (P:=EM_term) Hone coalg_str_one1).
-Qed.
-
 Definition al_W0 :
     linhom_car Ar (Bang Ar (Lty tunit tunit))
                   (Bang Ar (Lty tunit tunit)) :=
-  Lfun (tensor_curry (eD_cbv' (ex_almost_loop_body p Hp0 Hp1))) one1.
+  Lfun (tensor_curry (eD_cbv' (ex_almost_loop_body (R_obj := R_obj) p)))
+       one1.
 
 Lemma al_W0_ball : cone_norm al_W0 <= 1.
 Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
+
+(** The promoted fixpoint value is a setlike unit-ball point, so the
+    [let rec] continuation environment is one too. *)
+Lemma al_fix_prom_ball :
+  cone_norm ((sc_fun (fix_value (Lty tunit tunit)) al_W0)!) <= 1.
+Proof. exact: prom_ball (fix_value_ball al_W0 al_W0_ball). Qed.
+
+Lemma al_fix_prom_setlike :
+  Lfun (coalg_str (tyD_cbv (tfun tunit tunit)))
+       ((sc_fun (fix_value (Lty tunit tunit)) al_W0)!) =
+  ((sc_fun (fix_value (Lty tunit tunit)) al_W0)!)!.
+Proof.
+rewrite -[tyD_cbv (tfun tunit tunit)]
+        /(bang_cofree (Lty tunit tunit)) bang_cofree_str.
+exact: (dig_prom _ (fix_value_ball al_W0 al_W0_ball)).
+Qed.
+
+Definition al_env0 :
+    coalg_obj (ctxD_cbv (drop_names
+      (("l"%string, tfun tunit tunit) :: nil))) :=
+  one1 ⊗p (sc_fun (fix_value (Lty tunit tunit)) al_W0)!.
+
+Lemma al_env0_ball : cone_norm al_env0 <= 1.
+Proof.
+by rewrite /al_env0 tensor_normME one1_norm mul1r al_fix_prom_ball.
+Qed.
+
+Lemma al_env0_setlike :
+  Lfun (coalg_str (ctxD_cbv (drop_names
+         (("l"%string, tfun tunit tunit) :: nil)))) al_env0 = al_env0!.
+Proof.
+exact: (coalg_str_tensor_setlike (P:=EM_term)
+          (Q:=tyD_cbv (tfun tunit tunit))
+          Hone al_fix_prom_ball coalg_str_one1 al_fix_prom_setlike).
+Qed.
 
 Definition al_iter (n : nat) : cone_one_car Ar :=
   linhom_fun (fix_chain al_W0 n) one1.
@@ -1078,8 +1169,8 @@ by rewrite mul1r Hone.
 Qed.
 
 Local Notation al_denot :=
-  (linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas
-                 Hp0 Hp1) one1).
+  (linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas p)
+     one1).
 
 Lemma ex_almost_loop_app_E :
   al_denot =
@@ -1089,11 +1180,19 @@ rewrite /ex_almost_loop_cbv /eD icones_to_linhomE ex_almost_loop_decomp.
 have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
-rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
-           HoneG coalg_str_one1).
-rewrite al_arg_E.
-rewrite (eD_fix_at_setlike "l" (ex_almost_loop_body p Hp0 Hp1)
+rewrite (eD_let_at_setlike "l"
+          (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) p))
+          (ne_app (ne_var (nv_head "l" (tfun tunit tunit) nil)) ne_tt)
           HoneG coalg_str_one1).
+rewrite (eD_fix_at_setlike "l" (ex_almost_loop_body (R_obj := R_obj) p)
+          HoneG coalg_str_one1).
+rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
+           al_env0_ball al_env0_setlike).
+rewrite (eD_var_head_at_setlike "l"
+          (t := tfun tunit tunit)
+          ((sc_fun (fix_value (Lty tunit tunit)) al_W0)!)
+          HoneG coalg_str_one1).
+rewrite (eD_tt_at_setlike al_env0_ball al_env0_setlike).
 rewrite (der_prom _ (fix_value_ball al_W0 al_W0_ball)).
 by [].
 Qed.
@@ -1229,9 +1328,12 @@ rewrite (if_icones_at
   (eD_cbv' (@ne_tt R Ar R_obj
      (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)))
   (eD_cbv' (ne_app al_var_l ne_tt))
-  (eD_cbv' (ne_bernoulli p Hp0 Hp1))
+  (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+              (ne_real p)))
   (al_env3_ball n) (al_env3_setlike n)).
 rewrite al_tt_E al_else_E.
+rewrite (eD_bernoulli_clamp_const_E R_carrier_meas R_to_carrier_meas _
+           Hp0 Hp1).
 rewrite eD_bernoulli_E /bernoulli_icones.
 by rewrite (const_iconesE (al_env3_ball n) (al_env3_setlike n)).
 Qed.
@@ -1339,14 +1441,14 @@ Definition g_var :
 Definition g_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) tR' :=
-  [ if Bernoulli { (1 / 2 : R), bernoulli_half_ge0 R, bernoulli_half_le1 R }
+  [ if Bernoulli [| (1 / 2 : R) |]
     then [| 0%R |]
     else [| 1%R |] + # "g" @ () ].
 
 Lemma ex_geom_decomp :
   (ex_geom : @named_expr R Ar R_obj nil tR') =
-  ne_app (ne_fix "g" (ex_geom_body : @named_expr R Ar R_obj _ _))
-         (@ne_tt R Ar R_obj nil).
+  ne_let "g" (ne_fix "g" (ex_geom_body : @named_expr R Ar R_obj _ _))
+    (ne_app (ne_var (nv_head "g" (tfun tunit tR') nil)) ne_tt).
 Proof. by []. Qed.
 
 Lemma ex_geom_body_decomp :
@@ -1355,8 +1457,8 @@ Proof. by []. Qed.
 
 Lemma g_if_decomp :
   g_if = ne_if tR'
-           (ne_bernoulli (1 / 2 : R) (bernoulli_half_ge0 R)
-              (bernoulli_half_le1 R))
+           (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+              (ne_real (1 / 2 : R)))
            (ne_real 0%R)
            (ne_add (ne_real 1%R) (ne_app g_var ne_tt)).
 Proof. by []. Qed.
@@ -1366,15 +1468,6 @@ Proof. by rewrite one1_norm. Qed.
 
 (** *** The reduction chain (steps 1-4, mirrored) *)
 
-Lemma g_arg_E :
-  Lfun (eD_cbv' (@ne_tt R Ar R_obj nil)) one1 = one1.
-Proof.
-rewrite eD_tt_E.
-apply: (eq_trans (y := Lfun (coalg_e (EM_term : Coalgebra Ar)) one1)).
-  by [].
-exact: (coalg_e_setlike (P:=EM_term) Hone coalg_str_one1).
-Qed.
-
 Definition g_W0 :
     linhom_car Ar (Bang Ar (Lty tunit tR')) (Bang Ar (Lty tunit tR')) :=
   Lfun (tensor_curry
@@ -1382,6 +1475,41 @@ Definition g_W0 :
 
 Lemma g_W0_ball : cone_norm g_W0 <= 1.
 Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
+
+(** The promoted fixpoint value is a setlike unit-ball point, so the
+    [let rec] continuation environment is one too. *)
+Lemma g_fix_prom_ball :
+  cone_norm ((sc_fun (fix_value (Lty tunit tR')) g_W0)!) <= 1.
+Proof. exact: prom_ball (fix_value_ball g_W0 g_W0_ball). Qed.
+
+Lemma g_fix_prom_setlike :
+  Lfun (coalg_str (tyD_cbv (tfun tunit tR')))
+       ((sc_fun (fix_value (Lty tunit tR')) g_W0)!) =
+  ((sc_fun (fix_value (Lty tunit tR')) g_W0)!)!.
+Proof.
+rewrite -[tyD_cbv (tfun tunit tR')]
+        /(bang_cofree (Lty tunit tR')) bang_cofree_str.
+exact: (dig_prom _ (fix_value_ball g_W0 g_W0_ball)).
+Qed.
+
+Definition g_env0 :
+    coalg_obj (ctxD_cbv (drop_names
+      (("g"%string, tfun tunit tR') :: nil))) :=
+  one1 ⊗p (sc_fun (fix_value (Lty tunit tR')) g_W0)!.
+
+Lemma g_env0_ball : cone_norm g_env0 <= 1.
+Proof.
+by rewrite /g_env0 tensor_normME one1_norm mul1r g_fix_prom_ball.
+Qed.
+
+Lemma g_env0_setlike :
+  Lfun (coalg_str (ctxD_cbv (drop_names
+         (("g"%string, tfun tunit tR') :: nil)))) g_env0 = g_env0!.
+Proof.
+exact: (coalg_str_tensor_setlike (P:=EM_term)
+          (Q:=tyD_cbv (tfun tunit tR'))
+          Hone g_fix_prom_ball coalg_str_one1 g_fix_prom_setlike).
+Qed.
 
 Definition g_iter (n : nat) : coalg_obj (tyD_cbv tR') :=
   linhom_fun (fix_chain g_W0 n) one1.
@@ -1408,11 +1536,19 @@ rewrite /ex_geom_cbv /eD icones_to_linhomE ex_geom_decomp.
 have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
-rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
-           HoneG coalg_str_one1).
-rewrite g_arg_E.
+rewrite (eD_let_at_setlike "g"
+          (ne_fix "g" (ex_geom_body : @named_expr R Ar R_obj _ _))
+          (ne_app (ne_var (nv_head "g" (tfun tunit tR') nil)) ne_tt)
+          HoneG coalg_str_one1).
 rewrite (eD_fix_at_setlike "g" (ex_geom_body : @named_expr R Ar R_obj _ _)
           HoneG coalg_str_one1).
+rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
+           g_env0_ball g_env0_setlike).
+rewrite (eD_var_head_at_setlike "g"
+          (t := tfun tunit tR')
+          ((sc_fun (fix_value (Lty tunit tR')) g_W0)!)
+          HoneG coalg_str_one1).
+rewrite (eD_tt_at_setlike g_env0_ball g_env0_setlike).
 rewrite (der_prom _ (fix_value_ball g_W0 g_W0_ball)).
 by [].
 Qed.
@@ -1588,10 +1724,12 @@ rewrite (if_icones_at
   (eD_cbv' (@ne_real R Ar R_obj
      (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) 0%R))
   (eD_cbv' (ne_add (ne_real 1%R) (ne_app g_var ne_tt)))
-  (eD_cbv' (ne_bernoulli (1 / 2 : R) (bernoulli_half_ge0 R)
-              (bernoulli_half_le1 R)))
+  (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+              (ne_real (1 / 2 : R))))
   (g_env3_ball n) (g_env3_setlike n)).
 rewrite g_then_E g_else_E.
+rewrite (eD_bernoulli_clamp_const_E R_carrier_meas R_to_carrier_meas _
+           (bernoulli_half_ge0 R) (bernoulli_half_le1 R)).
 rewrite eD_bernoulli_E /bernoulli_icones.
 by rewrite (const_iconesE (g_env3_ball n) (g_env3_setlike n)).
 Qed.

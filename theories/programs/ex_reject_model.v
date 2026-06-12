@@ -1129,9 +1129,10 @@ Hypothesis R_carrier_meas :
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
-(** The prior: a unit-mass measure (the [ex_reject] hypotheses). *)
-Variable (mu : fmeas R (ar_carrier Ar R_obj)).
-Hypothesis Hmu_ball : (cone_norm mu <= 1)%R.
+(** The prior: a bundled sub-probability of unit mass (the
+    [ex_reject] hypotheses). *)
+Variable (m : pmeas Ar R_obj).
+Local Notation mu := (pm_meas m).
 Hypothesis Hmu1 : (fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)%E.
 
 Variable (f : R -> R).
@@ -1161,23 +1162,23 @@ Proof. by rewrite one1_norm. Qed.
     combinator theorems quantify over. *)
 
 Definition sampler_lin : Lty tunit tR' :=
-  Lfun (tensor_curry (eD_cbv' (ex_sampler_body mu Hmu_ball))) one1.
+  Lfun (tensor_curry (eD_cbv' (ex_sampler_body m))) one1.
 
 Lemma sampler_lin_ball : cone_norm sampler_lin <= 1.
 Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
 
 Lemma ex_sampler_decomp :
-  ex_sampler mu Hmu_ball = ne_lam "_" (ex_sampler_body mu Hmu_ball).
+  ex_sampler m = ne_lam "_" (ex_sampler_body m).
 Proof. by []. Qed.
 
 (** [⟦λ_. sample µ⟧(1) = g_µ!] — the lambda-written model denotes the
     promoted point of [g_µ]. *)
 Lemma sampler_val_E :
-  Lfun (eD_cbv' (ex_sampler mu Hmu_ball)) one1 = sampler_lin!.
+  Lfun (eD_cbv' (ex_sampler m)) one1 = sampler_lin!.
 Proof.
 rewrite ex_sampler_decomp eD_lam_E.
 by rewrite (adj_psi_at_setlike
-              (tensor_curry (eD_cbv' (ex_sampler_body mu Hmu_ball)))
+              (tensor_curry (eD_cbv' (ex_sampler_body m)))
               Hone coalg_str_one1).
 Qed.
 
@@ -1222,7 +1223,7 @@ Proof. exact: sampler_out_E. Qed.
 Lemma inst_iter_massE n U (mU : measurable U) :
   fmeas_mu (inst_iter n) U =
   fmeas_mu
-    (reject_iter R_carrier_meas R_to_carrier_meas Hmu_ball
+    (reject_iter R_carrier_meas R_to_carrier_meas m
        Hf_meas Hf_ge0 Hf_le1 n) U.
 Proof.
 elim: n U mU => [ | n IH] U mU.
@@ -1230,7 +1231,7 @@ elim: n U mU => [ | n IH] U mU.
 rewrite (reject_model_iter_mass _ _ _ _ _ sampler_lin_ball Hone
            coalg_str_one1 n mU).
 rewrite (ex_reject_iter_mass R_carrier_meas R_to_carrier_meas
-           Hmu_ball Hmu1 Hf_meas Hf_ge0 Hf_le1 n mU).
+           Hmu1 Hf_meas Hf_ge0 Hf_le1 n mU).
 by rewrite inst_dist_E Hmu1 IH.
 Qed.
 
@@ -1240,16 +1241,16 @@ Qed.
 Theorem ex_reject_comb_sampler_E :
   inst_denot =
   linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                Hmu_ball Hf_meas Hf_ge0 Hf_le1) one1.
+                m Hf_meas Hf_ge0 Hf_le1) one1.
 Proof.
 apply: fmeas_eq => U mU.
 rewrite (reject_model_sup_E _ _ _ _ _ sampler_lin_ball Hone).
 rewrite (ex_reject_sup_E R_carrier_meas R_to_carrier_meas
-           Hmu_ball Hf_meas Hf_ge0 Hf_le1).
+           m Hf_meas Hf_ge0 Hf_le1).
 apply: (fmeas_kleene_sup_U_E _ _ mU).
 have HE : (fun n => fmeas_mu (inst_iter n) U) =
           (fun n => fmeas_mu
-             (reject_iter R_carrier_meas R_to_carrier_meas Hmu_ball
+             (reject_iter R_carrier_meas R_to_carrier_meas m
                 Hf_meas Hf_ge0 Hf_le1 n) U).
   by apply/funext => n; exact: inst_iter_massE.
 rewrite HE.
@@ -1265,7 +1266,7 @@ Theorem ex_reject_comb_sampler_master U (mU : measurable U) :
 Proof.
 rewrite ex_reject_comb_sampler_E.
 exact: (ex_reject_master R_carrier_meas R_to_carrier_meas
-          Hmu_ball Hmu1 Hf_meas Hf_ge0 Hf_le1 mU).
+          Hmu1 Hf_meas Hf_ge0 Hf_le1 mU).
 Qed.
 
 End SamplerInstance.
