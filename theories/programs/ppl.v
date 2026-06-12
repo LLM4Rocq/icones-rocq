@@ -434,6 +434,18 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   | ne_mul   (G : named_ctx Ar) :
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'
+  (* [ne_meas f Hf e] — MEASURABLE FUNCTION APPLICATION: push the value
+     of the [tR']-valued sub-expression [e] through the measurable
+     meta-level function [f : R -> R].  Semantically the [FMeas]
+     functorial action (pushforward) [FMeas(f̂)], where [f̂] transports
+     [f] through the carrier cast — see [Section MeasTmLift] below and
+     the [eD] clause in [ppl_cbv.v].  No [[0,1]]-bounds are needed: the
+     pushforward of a unit-ball measure is unit-ball ([FMeas_fmap]
+     already has operator norm [≤ 1]). *)
+  | ne_meas  (G : named_ctx Ar)
+             (f : R -> R)
+             (Hf_meas : measurable_fun [set: R] f)
+             (e : named_expr G tR') : named_expr G tR'
   (* Boolean constants [True], [False] of type [tbool]. *)
   | ne_true  (G : named_ctx Ar) : named_expr G tbool
   | ne_false (G : named_ctx Ar) : named_expr G tbool
@@ -498,6 +510,7 @@ Arguments ne_let {R Ar R_obj G} x & {t1 t2} M K.
 Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_add {R Ar R_obj G} & M N.
 Arguments ne_mul {R Ar R_obj G} & M N.
+Arguments ne_meas {R Ar R_obj G} & f Hf_meas e.
 Arguments ne_true {R Ar R_obj G}.
 Arguments ne_false {R Ar R_obj G}.
 Arguments ne_bernoulli {R Ar R_obj G} p Hp_ge0 Hp_le1.
@@ -919,6 +932,89 @@ Arguments mul_lift_zero_L
 Arguments add_lift_mass
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} a m.
 
+
+(** ** [meas_lift] — measurable function application (pushforward)
+
+    The semantic engine of [ne_meas]: for a measurable [f : R -> R],
+    the [FMeas] functorial action [FMeas(f̂) : FMeas R_obj → FMeas R_obj]
+    of [theories/homs/coalgebra.v] at the carrier transport
+    [f̂ := R_to_carrier ∘ f ∘ carrier_to_R].  No new path construction
+    is needed: [FMeas_fmap] IS the Dirac-path pushforward
+    [µ ↦ ∫ δ_(f̂ r) dµ(r)], with the computation law
+    [FMeas_fmap_dirac].  The Dirac identity [meas_lift_dirac] and the
+    mass identity [meas_lift_mass] are the load-bearing laws. *)
+
+Section MeasTmLift.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The carrier transport [f̂ = R_to_carrier ∘ f ∘ cR]. *)
+Definition meas_fun (c : ar_carrier Ar R_obj) : ar_carrier Ar R_obj :=
+  R_to_carrier R_carrier_eq (f (cR c)).
+
+Lemma meas_fun_meas : measurable_fun [set: ar_carrier Ar R_obj] meas_fun.
+Proof.
+apply: (measurableT_comp (f := R_to_carrier R_carrier_eq));
+  first exact: R_to_carrier_meas.
+apply: (measurableT_comp (f := f)); first exact: Hf_meas.
+exact: R_carrier_meas.
+Qed.
+
+HB.instance Definition _ :=
+  isMeasurableFun.Build _ _ _ _ meas_fun meas_fun_meas.
+
+Definition meas_hom : ar_hom Ar R_obj R_obj := meas_fun.
+
+(** The lift as an [icones_hom]: the [FMeas] functorial action. *)
+Definition meas_lift : icones_hom Ar (FMeas R_obj) (FMeas R_obj) :=
+  FMeas_fmap meas_hom.
+
+(** **** Load-bearing Dirac identity.
+
+    On a Dirac at [R_to_carrier r], the lift evaluates to the Dirac at
+    [R_to_carrier (f r)] — measurable application on point masses is
+    application. *)
+Lemma meas_lift_dirac (r : R) :
+  Lfun meas_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
+  dirac_fmeas (R_to_carrier R_carrier_eq (f r)).
+Proof.
+rewrite /meas_lift
+        (FMeas_fmap_dirac meas_hom (R_to_carrier R_carrier_eq r)).
+by rewrite -[meas_hom _]/(meas_fun (R_to_carrier R_carrier_eq r))
+           /meas_fun R_to_carrierK.
+Qed.
+
+(** **** Total-mass identity: the pushforward preserves total mass. *)
+Lemma meas_lift_mass (mu : fmeas R (ar_carrier Ar R_obj)) :
+  fmeas_mu (Lfun meas_lift mu) [set: ar_carrier Ar R_obj] =
+  fmeas_mu mu [set: ar_carrier Ar R_obj].
+Proof. exact: FMeas_fmap_setT_E. Qed.
+
+End MeasTmLift.
+
+Arguments meas_fun {R Ar R_obj} R_carrier_eq f c.
+Arguments meas_hom {R Ar R_obj R_carrier_eq R_carrier_meas
+                       R_to_carrier_meas f} Hf_meas.
+Arguments meas_lift {R Ar R_obj R_carrier_eq R_carrier_meas
+                        R_to_carrier_meas f} Hf_meas.
+Arguments meas_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas
+                              R_to_carrier_meas f} Hf_meas r.
+Arguments meas_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas
+                             R_to_carrier_meas f} Hf_meas mu.
 
 Section ScoreTmLift.
 Variables (R : realType) (Ar : MeasSubcat R).

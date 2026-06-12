@@ -592,6 +592,15 @@ refine (
       icones_comp
         (@mul_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas)
         (em_pair_mor (eD_cbv G0 _ M0) (eD_cbv G0 _ N0))
+  (* [ne_meas f e]: post-compose [eD e] with the pushforward lift
+     [meas_lift f] (the [FMeas] functorial action of [ppl.v]'s
+     [Section MeasTmLift]) — the same post-composition shape as
+     [ne_score]/[ne_bernoulli_f], landing back in [FMeas R_obj]. *)
+  | ne_meas G0 f Hf_meas e0 =>
+      icones_comp
+        (@meas_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                    R_to_carrier_meas f Hf_meas)
+        (eD_cbv G0 _ e0)
   | ne_true G0 => true_icones (ctxD_cbv (drop_names G0))
   | ne_false G0 => false_icones (ctxD_cbv (drop_names G0))
   | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
@@ -820,6 +829,18 @@ Lemma eD_mul_E (G : named_ctx Ar)
   icones_comp
     (@mul_lift R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas)
     (em_pair_mor (eD_cbv' M) (eD_cbv' N)).
+Proof. by []. Qed.
+
+(** [ne_meas]: post-compose with the pushforward lift [meas_lift] —
+    the [FMeas]-functorial mirror of [eD_score_E]. *)
+Lemma eD_meas_E (G : named_ctx Ar) (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (e : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_meas f Hf_meas e) =
+  icones_comp
+    (@meas_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                R_to_carrier_meas f Hf_meas)
+    (eD_cbv' e).
 Proof. by []. Qed.
 
 (** [ne_true]: constant at [bool_dirac_true]. *)
