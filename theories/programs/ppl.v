@@ -485,7 +485,7 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
   | ne_bernoulli (G : named_ctx Ar) (p : R)
                  (Hp_ge0 : (0 <= p)%R) (Hp_le1 : (p <= 1)%R) :
       named_expr G tbool
-  (* [Bernoulli_f { f, Hm, Hg, Hl } e] : VALUE-DEPENDENT Bernoulli —
+  (* [ne_bernoulli_f f Hm Hg Hl e] : VALUE-DEPENDENT Bernoulli —
      sample from the 2-point sub-probability [(f r, 1 - f r)] where
      [r] is the value of the [tR']-valued sub-expression [e].  The
      witness layout mirrors [ne_score] one-for-one ([f : R -> R]
@@ -1565,6 +1565,97 @@ Arguments bern_lift_f_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
 Arguments bern_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas f}
                             Hf_meas Hf_ge0 Hf_le1 mu.
 
+(** ** Agreement: the clamped lifts at a pushforward
+
+    For a density [f] that is already [[0,1]]-valued, pushing the
+    value through [f] ([meas_lift]) and then scoring (resp. flipping)
+    at the clamped identity is THE SAME morphism as scoring
+    (resp. flipping) at [f] directly: on a Dirac both sides compute to
+    the same element ([meas_lift_dirac] + [clamp_id]), and an
+    [icones_hom] out of [FMeas] is determined by its values on Diracs
+    ([coalgebra.v::dirac_dense]).  These two equations let the unified
+    surface forms [Score (Meas { f , Hf } e)] and
+    [Bernoulli (Meas { f , Hf } e)] inherit, verbatim, every law
+    proved for the primitive witness-carrying lifts. *)
+
+Section ClampMeasAgree.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation clamp_lift_score :=
+  (score_lift (R_carrier_eq := R_carrier_eq)
+     (R_carrier_meas := R_carrier_meas)
+     (clamp_meas (R := R)) clamp_ge0 clamp_le1).
+Local Notation clamp_lift_bern :=
+  (bern_lift (R_carrier_eq := R_carrier_eq)
+     (R_carrier_meas := R_carrier_meas)
+     (clamp_meas (R := R)) clamp_ge0 clamp_le1).
+Local Notation f_push :=
+  (meas_lift (R_carrier_eq := R_carrier_eq)
+     (R_carrier_meas := R_carrier_meas)
+     (R_to_carrier_meas := R_to_carrier_meas) Hf_meas).
+
+(** Scoring the clamped value of the pushforward is scoring by [f]. *)
+Lemma score_lift_clamp_meas :
+  icones_comp clamp_lift_score f_push =
+  score_lift (R_carrier_meas := R_carrier_meas) Hf_meas Hf_ge0 Hf_le1.
+Proof.
+apply: dirac_dense => r.
+have -> : Lfun (score_lift (R_carrier_meas := R_carrier_meas)
+                  Hf_meas Hf_ge0 Hf_le1) (dirac_fmeas r)
+        = MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
+  by rewrite -{1}(carrier_to_RK R_carrier_eq r)
+             (score_lift_dirac Hf_meas Hf_ge0 Hf_le1 (cR r)).
+rewrite (Lfun_comp clamp_lift_score f_push (dirac_fmeas r)).
+rewrite -{1}(carrier_to_RK R_carrier_eq r)
+        (meas_lift_dirac Hf_meas (cR r)).
+rewrite (score_lift_dirac clamp_meas clamp_ge0 clamp_le1 (f (cR r))).
+by apply: cone_one_eq; apply: val_inj => /=; rewrite clamp_id.
+Qed.
+
+(** Flipping at the clamped value of the pushforward is flipping at
+    [f]. *)
+Lemma bern_lift_clamp_meas :
+  icones_comp clamp_lift_bern f_push =
+  bern_lift (R_carrier_meas := R_carrier_meas) Hf_meas Hf_ge0 Hf_le1.
+Proof.
+apply: dirac_dense => r.
+have -> : Lfun (bern_lift (R_carrier_meas := R_carrier_meas)
+                  Hf_meas Hf_ge0 Hf_le1) (dirac_fmeas r)
+        = bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
+  by rewrite -{1}(carrier_to_RK R_carrier_eq r)
+             (bern_lift_dirac Hf_meas Hf_ge0 Hf_le1 (cR r)).
+rewrite (Lfun_comp clamp_lift_bern f_push (dirac_fmeas r)).
+rewrite -{1}(carrier_to_RK R_carrier_eq r)
+        (meas_lift_dirac Hf_meas (cR r)).
+rewrite (bern_lift_dirac clamp_meas clamp_ge0 clamp_le1 (f (cR r))).
+by apply: bool_cone_eq; apply: val_inj => /=; rewrite clamp_id.
+Qed.
+
+End ClampMeasAgree.
+
+Arguments score_lift_clamp_meas
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas f}
+  Hf_meas Hf_ge0 Hf_le1.
+Arguments bern_lift_clamp_meas
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas f}
+  Hf_meas Hf_ge0 Hf_le1.
+
 
 (** ** [pmeas] — bundled sub-probability measures for [sample]
 
@@ -1831,7 +1922,7 @@ Arguments ne_var' {R Ar R_obj} s {t} g.
       {...}                         escape back to Coq
       let "x" := M in N             direct-style CBV let (= ne_let)
       Sample (mu , Hmu)             sample primitive
-      Score { f, Hm, Hg, Hl } e     term-level score primitive
+      Score e                       term-level score (clamped; below)
       \ "x" ::: A => M              lambda with named binder of type A
       M @ N                         direct application
       # "x"                         variable lookup by string
@@ -1879,24 +1970,14 @@ Notation "'Sample' ( mu , Hmu )" :=
   (ne_sample mu Hmu)
   (in custom ppl_named at level 1, mu constr, Hmu constr).
 
-(** Term-level score primitive — [Score { f , Hf_meas , Hf_ge0 , Hf_le1 } e]:
-    score by the measurable function [f : R -> R] applied to the value of
-    the named sub-expression [e : named_expr G tR'].
-      - braces around the Coq-level measurability witnesses [{ f , Hm , Hg , Hl }];
-      - a SURFACE sub-expression [e] outside the braces, parsed in the
-        custom entry [ppl_named].
-    This matches the [ne_score] constructor one-for-one. *)
-Notation "'Score' '{' f ',' Hf_meas ',' Hf_ge0 ',' Hf_le1 '}' e" :=
-  (ne_score f Hf_meas Hf_ge0 Hf_le1 e)
-  (in custom ppl_named at level 60, e custom ppl_named at level 60,
-   f constr, Hf_meas constr, Hf_ge0 constr, Hf_le1 constr,
-   right associativity).
-
-(** Pair, projections. *)
+(** Pair, projections.  The components parse at the TOP level so the
+    prefix factorizes with the plain parenthesisation [( e )]: after
+    [(], the parser reads one full expression and then dispatches on
+    [,] (pair) versus [)] (grouping). *)
 Notation "( e1 , e2 )" := (ne_pair e1 e2)
   (in custom ppl_named at level 0,
-   e1 custom ppl_named at level 60,
-   e2 custom ppl_named at level 60).
+   e1 custom ppl_named,
+   e2 custom ppl_named).
 Notation "'fst' e" := (ne_fst e)
   (in custom ppl_named at level 10, e custom ppl_named at level 10).
 Notation "'snd' e" := (ne_snd e)
@@ -1962,9 +2043,9 @@ Notation "'let' x ':=' M 'in' N" :=
 
     The boolean primitives ([True], [False], [Bernoulli p Hp_ge0
     Hp_le1]) are constants of type [tbool].  [True] / [False] are
-    written as keywords; [Bernoulli] follows the [Score { ... }]
-    convention of putting the Coq-level non-negativity / unit-ball
-    witnesses in braces. *)
+    written as keywords; the constant [Bernoulli { p , Hg , Hl }] form
+    puts the Coq-level non-negativity / unit-ball witnesses in braces
+    (the same shape as [Meas { f , Hf } e] below). *)
 
 (** Boolean true literal — [True] in surface syntax. *)
 Notation "'True'" := ne_true (in custom ppl_named at level 0).
@@ -1978,19 +2059,6 @@ Notation "'Bernoulli' '{' p ',' Hp_ge0 ',' Hp_le1 '}'" :=
   (ne_bernoulli p Hp_ge0 Hp_le1)
   (in custom ppl_named at level 1,
    p constr, Hp_ge0 constr, Hp_le1 constr).
-
-(** Value-dependent Bernoulli —
-    [Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } e]: flip a coin
-    whose success probability is [f] applied to the value of the
-    [tR]-typed surface sub-expression [e].  Same shape as the
-    [Score { … } e] notation (Coq-level witnesses in braces, surface
-    scrutinee outside); the leading keyword [Bernoulli_f] is distinct
-    from [Bernoulli], so the two grammars do not conflict. *)
-Notation "'Bernoulli_f' '{' f ',' Hf_meas ',' Hf_ge0 ',' Hf_le1 '}' e" :=
-  (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e)
-  (in custom ppl_named at level 60, e custom ppl_named at level 60,
-   f constr, Hf_meas constr, Hf_ge0 constr, Hf_le1 constr,
-   right associativity).
 
 (** Runtime-parameter named distributions — [Gaussian( e1 , e2 )] /
     [Uniform( e1 , e2 )]: both PARAMETERS are surface sub-expressions
@@ -2034,19 +2102,26 @@ Notation "'if' e 'then' M 'else' N" :=
 
       Meas { f , Hf } e        measurable function application (ne_meas)
       Bernoulli e              value-dependent coin with CLAMPED density
-                               (= Bernoulli_f { clamp ∘ value }); the
+                               (= ne_bernoulli_f at clamp); the
                                witness-free unified form — for p ∈ [0,1]
                                it agrees with [Bernoulli { p , _ , _ }]
                                on real literals ([ppl_cbv.v::
-                               eD_bernoulli_clamp_const_E])
+                               eD_bernoulli_clamp_const_E]); a coin
+                               with density [f] is written
+                               [Bernoulli (Meas { f , Hf } e)]
+                               ([ppl_cbv.v::eD_bernoulli_meas_E])
       Score e                  score by the clamped runtime value
-                               (= Score { clamp } e)
+                               (= ne_score at clamp); a score with
+                               density [f] is written
+                               [Score (Meas { f , Hf } e)]
+                               ([ppl_cbv.v::eD_score_meas_E])
       sample m                 sample from a bundled sub-probability
                                [m : pmeas Ar R_obj] (= ne_sample)
       e1 > e2                  comparison coin: flip with success
                                probability 1 on point masses where
                                value(e1) > value(e2), 0 otherwise
-                               (= Bernoulli_f { gt0_ind } (e1 + neg e2))
+                               (= ne_bernoulli_f at gt0_ind, on
+                                e1 + Meas { negr } e2)
       let rec f x := M in K    OCaml-style recursive function binding
                                (= ne_let f (ne_fix f (ne_lam x M)) K);
                                binder types inferred from the body
@@ -2055,9 +2130,8 @@ Notation "'if' e 'then' M 'else' N" :=
                                (for bodies that do not pin [x]'s type) *)
 
 (** Measurable function application — [Meas { f , Hf } e]: push the
-    value of [e] through the measurable [f : R -> R].  Same shape as
-    [Score { … } e] (Coq-level witnesses in braces, surface scrutinee
-    outside). *)
+    value of [e] through the measurable [f : R -> R] (Coq-level
+    witnesses in braces, surface scrutinee outside). *)
 Notation "'Meas' '{' f ',' Hf '}' e" :=
   (ne_meas f Hf e)
   (in custom ppl_named at level 60, e custom ppl_named at level 60,

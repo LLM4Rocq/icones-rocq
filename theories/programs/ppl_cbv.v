@@ -1018,6 +1018,48 @@ congr precone_scale.
 by apply: bool_cone_eq; apply: val_inj => /=; rewrite clamp_id.
 Qed.
 
+(** ** Agreement: unified [Bernoulli]/[Score] at a pushforward vs the
+    primitive witness forms
+
+    For a density [f] already valued in [[0,1]], the unified surface
+    coin on the pushforward — [Bernoulli (Meas { f , Hf } e)], i.e.
+    [ne_bernoulli_f] at [clamp] over [ne_meas f] — has THE SAME
+    denotation as the primitive witness-carrying node
+    [ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e]; likewise for [Score].
+    Both are immediate from the hom-level agreement laws
+    [ppl.v::bern_lift_clamp_meas] / [ppl.v::score_lift_clamp_meas]
+    (Dirac density + [clamp_id]).  These are the transport lemmas the
+    downstream headline proofs rewrite with, once, before computing
+    with the primitive lifts. *)
+
+Lemma eD_bernoulli_meas_E (G : named_ctx Ar) (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (e : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+             (ne_meas f Hf_meas e)) =
+  eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 e).
+Proof.
+rewrite eD_bernoulli_f_E eD_meas_E eD_bernoulli_f_E icones_compA.
+by rewrite (bern_lift_clamp_meas (R_carrier_eq := R_carrier_eq)
+              Hf_meas Hf_ge0 Hf_le1).
+Qed.
+
+Lemma eD_score_meas_E (G : named_ctx Ar) (f : R -> R)
+    (Hf_meas : measurable_fun [set: R] f)
+    (Hf_ge0 : forall r : R, (0 <= f r)%R)
+    (Hf_le1 : forall r : R, (f r <= 1)%R)
+    (e : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+             (ne_meas f Hf_meas e)) =
+  eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 e).
+Proof.
+rewrite eD_score_E eD_meas_E eD_score_E icones_compA.
+by rewrite (score_lift_clamp_meas (R_carrier_eq := R_carrier_eq)
+              Hf_meas Hf_ge0 Hf_le1).
+Qed.
+
 (** [ne_fix_mr] at a PRODUCT body type: the GENUINE Seely-transported
     composite — [fix_mr_comb] (= [fix_comb (free_base _)] conjugated by
     [free_decomp]) post-composed with the lambda-packaging of the body.
@@ -1039,3 +1081,10 @@ Lemma eD_fix_mr_prod_E (G : named_ctx Ar) (s : string)
 Proof. by []. Qed.
 
 End EDUnfold.
+
+Arguments eD_bernoulli_meas_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G f}
+  Hf_meas Hf_ge0 Hf_le1 e.
+Arguments eD_score_meas_E
+  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas G f}
+  Hf_meas Hf_ge0 Hf_le1 e.

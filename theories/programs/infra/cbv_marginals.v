@@ -318,13 +318,14 @@ Definition sp_body :
   [ # "m" ].
 
 Lemma ex_sp_cont_decomp :
-  ex_sp_cont f Hf_meas Hf_ge0 Hf_le1 =
-  ne_let "_" (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m) sp_body.
+  ex_sp_cont f Hf_meas =
+  ne_let "_" (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas f Hf_meas sp_var_m)) sp_body.
 Proof. by []. Qed.
 
 Lemma ex_score_posterior_decomp :
-  ex_score_posterior pm f Hf_meas Hf_ge0 Hf_le1 =
-  ne_let "m" (ne_sample mu Hmu) (ex_sp_cont f Hf_meas Hf_ge0 Hf_le1).
+  ex_score_posterior pm f Hf_meas =
+  ne_let "m" (ne_sample mu Hmu) (ex_sp_cont f Hf_meas).
 Proof. by []. Qed.
 
 (** *** The continuation at the Dirac environment
@@ -343,12 +344,15 @@ apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R) EM_term
 exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
-(** The score value at [δ_r] is the scalar [f r] ([score_lift_dirac]). *)
+(** The score value at [δ_r] is the scalar [f r] ([eD_score_meas_E] +
+    [score_lift_dirac]). *)
 Lemma sp_score_E (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
+  Lfun (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas f Hf_meas sp_var_m)))
        (one1 ⊗p dirac_fmeas r) =
   MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
 Proof.
+rewrite (eD_score_meas_E Hf_meas Hf_ge0 Hf_le1 sp_var_m).
 rewrite eD_score_E.
 rewrite (Lfun_comp
   (score_lift (R_carrier_meas:=R_carrier_meas) Hf_meas Hf_ge0 Hf_le1)
@@ -384,7 +388,7 @@ by rewrite (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
 Lemma sp_cont_at_dirac (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ex_sp_cont f Hf_meas Hf_ge0 Hf_le1))
+  Lfun (eD_cbv' (ex_sp_cont f Hf_meas))
        (one1 ⊗p dirac_fmeas r) =
   precone_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r).
 Proof.
@@ -393,27 +397,30 @@ rewrite (Lfun_comp (eD_cbv' sp_body)
   (em_pair_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
+     (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas f Hf_meas sp_var_m))))
   (one1 ⊗p dirac_fmeas r)).
 rewrite /em_pair_mor.
 rewrite (Lfun_comp
   (tensor_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
+     (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas f Hf_meas sp_var_m))))
   (coalg_d (ctxD_cbv (drop_names (("m"%string, tR') :: nil))))
   (one1 ⊗p dirac_fmeas r)).
 rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (("m"%string, tR') :: nil)))
   (one_dirac_ball r) (one_dirac_setlike r)).
 rewrite (tensor_morE
   (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-  (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
+  (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas f Hf_meas sp_var_m)))
   (one1 ⊗p dirac_fmeas r) (one1 ⊗p dirac_fmeas r)).
 rewrite icones_idE sp_score_E sp_body_at.
 by [].
 Qed.
 
-(** *** THE HEADLINE — the unnormalised posterior
+(** *** Main result — the unnormalised posterior
 
     On every measurable [U], the denotation of [ex_score_posterior] is
     [∫_U f dµ] — the prior reweighted by the evidence density, NOT
@@ -426,12 +433,12 @@ Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 Proof.
 rewrite /ex_score_posterior_cbv ex_score_posterior_decomp.
 rewrite (eD_let_sample_mu_E R_carrier_meas R_to_carrier_meas Hmu
-           (ex_sp_cont f Hf_meas Hf_ge0 Hf_le1) one1 mU).
+           (ex_sp_cont f Hf_meas) one1 mU).
 under eq_integral => r _.
   rewrite sp_cont_at_dirac.
   rewrite fmeas_scaleE (dirac_fmeas_E r mU) diracE -EFinM /=.
@@ -445,7 +452,7 @@ Qed.
 Theorem ex_score_posterior_cbv_mass :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas Hf_ge0 Hf_le1) one1)
+                   pm Hf_meas) one1)
     [set: ar_carrier Ar R_obj] =
   \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
 Proof. by apply: ex_score_posterior_cbv_E. Qed.
@@ -459,10 +466,10 @@ Theorem ex_reject_normalises_score
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
   fmeas_mu
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas Hf_ge0 Hf_le1) one1) U =
+                   pm Hf_meas) one1) U =
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas Hf_ge0 Hf_le1) one1) U.
+                   pm Hf_meas) one1) U.
 Proof.
 rewrite (ex_score_posterior_cbv_E mU).
 exact: (ex_reject_master R_carrier_meas R_to_carrier_meas Hmu1
@@ -566,7 +573,7 @@ rewrite (em_proj1_mor_probE
 exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
-(** *** THE HEADLINE — the marginal recovers the prior
+(** *** Main result — the marginal recovers the prior
 
     The denotation of [let c = sample µ in λx. c] lives in [!(L)];
     derelicting it and evaluating at any PROBABILITY test point [x]
@@ -954,7 +961,7 @@ apply: eq_integral => b _.
 by rewrite rl_marginal_pt.
 Qed.
 
-(** THE HEADLINE — at a Dirac test point [δ_{r0}], the marginal of the
+(** Main result — at a Dirac test point [δ_{r0}], the marginal of the
     sampled affine function is the iterated-integral measure
     [∫∫ δ_{m·r0+b}(U) µ(db) µ(dm)]. *)
 Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
@@ -1170,11 +1177,14 @@ Proof. by apply: cone_one_eq; apply: val_inj; rewrite /= mulr1. Qed.
     environment, the model closure at the Dirac argument
     ([rl_body_at]), and the score lift on the resulting Dirac. *)
 Lemma obs_score_E (m b : ar_carrier Ar R_obj) n (o : obs R) :
-  Lfun (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+  Lfun (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas (obs_d o) (obs_meas o)
+             (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
        (obs_env m b n) =
   MkConeOne Ar (NngNum (obs_ge0 o (cR m * obs_x o + cR b))).
 Proof.
+rewrite (eD_score_meas_E (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))).
 rewrite eD_score_E.
 rewrite (Lfun_comp
   (score_lift (R_carrier_meas:=R_carrier_meas)
@@ -1196,7 +1206,7 @@ by rewrite (score_lift_dirac (obs_meas o) (obs_ge0 o) (obs_le1 o)
               (cR m * obs_x o + cR b)).
 Qed.
 
-(** *** The workhorse — the fold accumulates the product of densities
+(** *** The fold accumulates the product of densities
 
     [⟦obs_fold v l⟧] at the depth-[n] environment is the promoted
     closure weighted by [∏_{o ∈ l} obs_d o (m·x_o + b)].  Seq
@@ -1213,31 +1223,35 @@ elim: l => [ | o l' IH] n.
   by apply: val_inj; rewrite /= big_nil.
 - have -> : obs_fold (obs_var n) (o :: l') =
       ne_let "_"%string
-        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))
+        (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+           (ne_meas (obs_d o) (obs_meas o)
+              (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
         (obs_fold (obs_var n.+1) l').
     by [].
   rewrite eD_let_E.
   rewrite (Lfun_comp (eD_cbv' (obs_fold (obs_var n.+1) l'))
     (em_pair_mor
        (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+       (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas (obs_d o) (obs_meas o)
+             (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))))
     (obs_env m b n)).
   rewrite /em_pair_mor.
   rewrite (Lfun_comp
     (tensor_mor
        (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+       (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+          (ne_meas (obs_d o) (obs_meas o)
+             (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))))
     (coalg_d (ctxD_cbv (drop_names (obs_ctx n))))
     (obs_env m b n)).
   rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (obs_ctx n)))
     (obs_env_ball m b n) (obs_env_setlike m b n)).
   rewrite (tensor_morE
     (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-    (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-        (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+    (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+        (ne_meas (obs_d o) (obs_meas o)
+           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
     (obs_env m b n) (obs_env m b n)).
   rewrite icones_idE (obs_score_E m b n o).
   rewrite (cone_one_scaleE (NngNum (obs_ge0 o (cR m * obs_x o + cR b)))).
@@ -1313,7 +1327,7 @@ rewrite -(cone_one_scaleE (NngNum (obs_prod_ge0 m b l))).
 by [].
 Qed.
 
-(** *** THE HEADLINE — the model evidence
+(** *** Main result — the model evidence
 
     The counit ("total mass") of the denotation of [ex_bayes_linear l]
     is the model evidence: the iterated integral of the product of the

@@ -56,7 +56,7 @@
     ** Rejection sampling
     - [ex_reject]            : [let rec rs accept :=
                                    let x = sample m in
-                                   if Bernoulli_f{f} x then accept x
+                                   if Bernoulli (Meas{f} x) then accept x
                                    else rs accept
                                  in rs (λy. y)] *)
 
@@ -187,8 +187,6 @@ Variable (m : pmeas Ar R_obj).
 
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
 Local Notation tR' := (tR R_obj).
 
@@ -197,23 +195,23 @@ Local Notation tR' := (tR R_obj).
 Definition ex_score_posterior :
     @named_expr R Ar R_obj nil tR' :=
   [ let "m" := sample m in
-    let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
+    let "_" := Score (Meas { f , Hf_meas } # "m") in
     # "m" ].
 
 (** The continuation under the prior bind. *)
 Definition ex_sp_cont :
     @named_expr R Ar R_obj (("m"%string, tR') :: nil) tR' :=
-  [ let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "m" in
+  [ let "_" := Score (Meas { f , Hf_meas } # "m") in
     # "m" ].
 
 End ScorePosterior.
 
-Arguments ex_sp_cont {R Ar R_obj} f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_score_posterior {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_sp_cont {R Ar R_obj} f Hf_meas.
+Arguments ex_score_posterior {R Ar R_obj} m f Hf_meas.
 
 (** ** Example — [ex_bayes_linear] — higher-order Bayesian linear regression
 
-    THE paper-faithful Bayesian linear-regression example (the shape of
+    The paper-faithful Bayesian linear-regression example (the shape of
     Staton–Yang–Heunen–Kammar–Wood, arXiv 1701.02547 §2.1): the program
     samples a FUNCTION — the random affine map [λx. m*x + b] of
     Example 2 ([ex_random_linear]; slope [m] and intercept [b] both
@@ -227,9 +225,9 @@ Arguments ex_score_posterior {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
        let "f" := (let "m" := Sample µ in
                    let "b" := Sample µ in
                    \ "x" ::: tR => # "m" * # "x" + # "b") in
-       let "_" := Score { d₁ } (# "f" @ [| x₁ |]) in
+       let "_" := Score (Meas { d₁ } (# "f" @ [| x₁ |])) in
        …
-       let "_" := Score { dₙ } (# "f" @ [| xₙ |]) in
+       let "_" := Score (Meas { dₙ } (# "f" @ [| xₙ |])) in
        # "f"
     ]]
     The observation fold [obs_fold] is a Rocq [Fixpoint] producing raw
@@ -290,8 +288,9 @@ Definition condition_at (G : named_ctx Ar)
     (K : @named_expr R Ar R_obj (("_"%string, tunit) :: G) t) :
     @named_expr R Ar R_obj G t :=
   ne_let "_"%string
-    (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-       (ne_app (ne_var v) (ne_real (obs_x o))))
+    (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+       (ne_meas (obs_d o) (obs_meas o)
+          (ne_app (ne_var v) (ne_real (obs_x o)))))
     K.
 
 (** The iterated-conditioning fold: condition the model on each
@@ -321,7 +320,7 @@ Variable (m : pmeas Ar R_obj).
 
 Local Notation tR' := (tR R_obj).
 
-(** THE program: the model is EXACTLY Example 2's [ex_random_linear]
+(** The program: the model is exactly Example 2's [ex_random_linear]
     (the sampled affine function), bound at the head of the context
     (witness [nv_head]), then CONDITIONED on each observation in
     turn. *)
@@ -339,8 +338,9 @@ Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
   | nil => ne_var v
   | o :: l' =>
       ne_let "_"%string
-        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var v) (ne_real (obs_x o))))
+        (ne_score clamp clamp_meas clamp_ge0 clamp_le1
+           (ne_meas (obs_d o) (obs_meas o)
+              (ne_app (ne_var v) (ne_real (obs_x o)))))
         (obs_fold (nv_tail "_"%string tunit _ v) l')
   end.
 
@@ -350,8 +350,8 @@ Lemma obs_fold_is_iter_condition (G : named_ctx Ar)
   obs_fold v l = iter_condition v l.
 Proof. by elim: l G v => [ | o l IH] G v //=; rewrite IH. Qed.
 
-(** THE AGREEMENT (now definitional — the named anchor of the
-    iterated-conditioning reading): Bayesian linear regression = the
+(** The agreement, now definitional — the named anchor of the
+    iterated-conditioning reading: Bayesian linear regression = the
     random affine model, conditioned on each observation in turn. *)
 Theorem ex_bayes_linear_is_iter_condition (l : seq (obs R)) :
   ex_bayes_linear l =
@@ -378,10 +378,10 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
   [ let "f" := (let "m" := sample m in
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := Score { obs_d o1 , obs_meas o1 , obs_ge0 o1 , obs_le1 o1 }
-                 # "f" @ [| obs_x o1 |] in
-    let "_" := Score { obs_d o2 , obs_meas o2 , obs_ge0 o2 , obs_le1 o2 }
-                 # "f" @ [| obs_x o2 |] in
+    let "_" := Score (Meas { obs_d o1 , obs_meas o1 }
+                        (# "f" @ [| obs_x o1 |])) in
+    let "_" := Score (Meas { obs_d o2 , obs_meas o2 }
+                        (# "f" @ [| obs_x o2 |])) in
     # "f" ]).
 
 (** The 1-observation case: one observation = one conditioning step
@@ -601,7 +601,7 @@ Arguments ex_even_odd_body {R Ar R_obj}.
     [[
        let rec rs accept :=
          let x = sample m in
-         if Bernoulli_f { f } x then accept x else rs accept
+         if Bernoulli (Meas{f} x) then accept x else rs accept
        in rs (λ y. y)
     ]]
     Expected denotation (the M4 headline): the sub-probability
@@ -616,8 +616,6 @@ Variable (m : pmeas Ar R_obj).
 
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
 Local Notation tR' := (tR R_obj).
 
@@ -626,7 +624,7 @@ Local Notation tR' := (tR R_obj).
 Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+       if Bernoulli (Meas { f , Hf_meas } # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].
@@ -640,7 +638,7 @@ Definition ex_reject_body :
       (tfun (tfun tR' tR') tR') :=
   [ \ "accept" ::: (tfun tR' tR') =>
       (let "x" := sample m in
-       if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+       if Bernoulli (Meas { f , Hf_meas } # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept") ].
 
@@ -652,15 +650,15 @@ Definition ex_reject_inner :
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       tR' :=
   [ let "x" := sample m in
-    if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+    if Bernoulli (Meas { f , Hf_meas } # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
 End RejectSampling.
 
-Arguments ex_reject {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_reject_body {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_reject_inner {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject {R Ar R_obj} m f Hf_meas.
+Arguments ex_reject_body {R Ar R_obj} m f Hf_meas.
+Arguments ex_reject_inner {R Ar R_obj} m f Hf_meas.
 
 (** ** Example — [ex_reject_comb] — rejection sampling as a COMBINATOR
 
@@ -674,7 +672,7 @@ Arguments ex_reject_inner {R Ar R_obj} m f Hf_meas Hf_ge0 Hf_le1.
     [[
        fix rs = λ m. λ a.
          let x = m a in
-         if Bernoulli_f { f } x then x else rs m a
+         if Bernoulli (Meas{f} x) then x else rs m a
     ]]
     The recursion is at the function type
     [(ta → tR) → (ta → tR)] — the fixpoint VALUE is itself the
@@ -698,8 +696,6 @@ Variable (ta : ppl_type Ar).
 
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
 Local Notation tR' := (tR R_obj).
 
@@ -711,7 +707,7 @@ Definition ex_reject_comb :
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+           if Bernoulli (Meas { f , Hf_meas } # "x")
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 
@@ -724,7 +720,7 @@ Definition ex_reject_comb_body :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+         if Bernoulli (Meas { f , Hf_meas } # "x")
          then # "x"
          else # "rs" @ # "m" @ # "a") ].
 
@@ -737,7 +733,7 @@ Definition ex_reject_comb_fun :
       (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+       if Bernoulli (Meas { f , Hf_meas } # "x")
        then # "x"
        else # "rs" @ # "m" @ # "a") ].
 
@@ -748,16 +744,16 @@ Definition ex_reject_comb_inner :
        ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       tR' :=
   [ let "x" := # "m" @ # "a" in
-    if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+    if Bernoulli (Meas { f , Hf_meas } # "x")
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
 End RejectCombinator.
 
-Arguments ex_reject_comb {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_reject_comb_body {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_reject_comb_fun {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_reject_comb_inner {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
+Arguments ex_reject_comb {R Ar R_obj} ta f Hf_meas.
+Arguments ex_reject_comb_body {R Ar R_obj} ta f Hf_meas.
+Arguments ex_reject_comb_fun {R Ar R_obj} ta f Hf_meas.
+Arguments ex_reject_comb_inner {R Ar R_obj} ta f Hf_meas.
 
 (** ** Example — [ex_condition_comb] — Pyro-style soft conditioning
 
@@ -769,7 +765,7 @@ Arguments ex_reject_comb_inner {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
     [[
        condition = λ m. λ a.
          let x = m a in
-         let _ = Score { f } x in
+         let _ = Score (Meas{f} x) in
          x
     ]]
     [ex_condition_comb] is the combinator (a closed program of type
@@ -797,8 +793,6 @@ Variable (ta : ppl_type Ar).
 (** The soft observation density (the likelihood). *)
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
 Local Notation tR' := (tR R_obj).
 
@@ -809,7 +803,7 @@ Definition ex_condition_comb :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x" in
+         let "_" := Score (Meas { f , Hf_meas } # "x") in
          # "x") ].
 
 (** The partially-applied stage [λa.…], in context
@@ -819,7 +813,7 @@ Definition ex_condition_fun :
       (("m"%string, tfun ta tR') :: nil) (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x" in
+       let "_" := Score (Meas { f , Hf_meas } # "x") in
        # "x") ].
 
 (** The run-score-return inner expression under both binders. *)
@@ -827,7 +821,7 @@ Definition ex_condition_inner :
     @named_expr R Ar R_obj
       (("a"%string, ta) :: ("m"%string, tfun ta tR') :: nil) tR' :=
   [ let "x" := # "m" @ # "a" in
-    let "_" := Score { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x" in
+    let "_" := Score (Meas { f , Hf_meas } # "x") in
     # "x" ].
 
 (** The applied form — [condition M f]: the combinator at a closed
@@ -839,21 +833,21 @@ Definition ex_condition (M : @named_expr R Ar R_obj nil (tfun ta tR')) :
 
 End ConditionCombinator.
 
-Arguments ex_condition_comb {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_condition_fun {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_condition_inner {R Ar R_obj} ta f Hf_meas Hf_ge0 Hf_le1.
-Arguments ex_condition {R Ar R_obj ta} f Hf_meas Hf_ge0 Hf_le1 M.
+Arguments ex_condition_comb {R Ar R_obj} ta f Hf_meas.
+Arguments ex_condition_fun {R Ar R_obj} ta f Hf_meas.
+Arguments ex_condition_inner {R Ar R_obj} ta f Hf_meas.
+Arguments ex_condition {R Ar R_obj ta} f Hf_meas M.
 
-(** Surface form — [Condition { f , Hm , Hg , Hl } M]: the conditioned
-    model, written directly in the [ppl_named] custom entry (witness
-    braces first, like [Score { … } e]).  Elaborates to
-    [ne_app (ex_condition_comb _ f Hm Hg Hl) M]; the ambient context
-    must be CLOSED ([nil]) since the combinator is a closed program. *)
-Notation "'Condition' '{' f ',' Hm ',' Hg ',' Hl '}' M" :=
-  (ne_app (ex_condition_comb _ f Hm Hg Hl) M)
+(** Surface form — [Condition { f , Hm } M]: the conditioned model,
+    written directly in the [ppl_named] custom entry (witness braces
+    first, like [Meas { f , Hf } e]).  Elaborates to
+    [ne_app (ex_condition_comb _ f Hm) M]; the ambient context must be
+    CLOSED ([nil]) since the combinator is a closed program. *)
+Notation "'Condition' '{' f ',' Hm '}' M" :=
+  (ne_app (ex_condition_comb _ f Hm) M)
   (in custom ppl_named at level 20,
    M custom ppl_named at level 19,
-   f constr, Hm constr, Hg constr, Hl constr).
+   f constr, Hm constr).
 
 (** ** Example — [ex_sampler] — the simplest model for the combinator
 
@@ -895,15 +889,12 @@ Variable (m : pmeas Ar R_obj).
 
 Variable (f : R -> R).
 Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
 
-Check [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler m }
-        @ () ].
+Check [ Condition { f , Hf_meas } { ex_sampler m } @ () ].
 
 Check (erefl :
-  [ Condition { f , Hf_meas , Hf_ge0 , Hf_le1 } { ex_sampler m } ] =
-  ex_condition f Hf_meas Hf_ge0 Hf_le1 (ex_sampler m)).
+  [ Condition { f , Hf_meas } { ex_sampler m } ] =
+  ex_condition f Hf_meas (ex_sampler m)).
 
 End ConditionSmoke.
 
@@ -1055,7 +1046,7 @@ Arguments ex_unit_interval {R Ar R_obj}.
 
     What the sugar elaborates to (checked by the [_decomp] lemmas):
     [let rec f x := M in K] is [ne_let f (ne_fix f (ne_lam x M)) K];
-    [e1 > e2] is [Bernoulli_f { gt0_ind } (e1 + Meas { negr } e2)];
+    [e1 > e2] is [ne_bernoulli_f] at [gt0_ind] on [e1 + Meas { negr } e2];
     [sample m] is [ne_sample (pm_meas m) (pm_ball m)]. *)
 
 Section SurfaceDemo.
@@ -1150,10 +1141,8 @@ Definition ex_random_linear_cbv (m : pmeas Ar R_obj) :=
 Definition ex_score_posterior_cbv
     (m : pmeas Ar R_obj)
     (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f)
-    (Hf_ge0 : forall r : R, (0 <= f r)%R)
-    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
-  eDv (ex_score_posterior m f Hf_meas Hf_ge0 Hf_le1).
+    (Hf_meas : measurable_fun [set: R] f) :=
+  eDv (ex_score_posterior m f Hf_meas).
 
 (** The Bayesian-linear-regression elaboration smoke test.  The shared
     ["f"] is consulted once per observation AND returned at the end:
@@ -1206,10 +1195,8 @@ Definition ex_odd_cbv :=
 Definition ex_reject_cbv
     (m : pmeas Ar R_obj)
     (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f)
-    (Hf_ge0 : forall r : R, (0 <= f r)%R)
-    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
-  eDv (ex_reject m f Hf_meas Hf_ge0 Hf_le1).
+    (Hf_meas : measurable_fun [set: R] f) :=
+  eDv (ex_reject m f Hf_meas).
 
 (** The rejection-sampling COMBINATOR denotation: the closed program of
     type [(ta → tR) → (ta → tR)] denotes a (promoted) function VALUE —
@@ -1218,10 +1205,8 @@ Definition ex_reject_cbv
 Definition ex_reject_comb_cbv
     (ta : ppl_type Ar)
     (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f)
-    (Hf_ge0 : forall r : R, (0 <= f r)%R)
-    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
-  eDv (ex_reject_comb ta f Hf_meas Hf_ge0 Hf_le1).
+    (Hf_meas : measurable_fun [set: R] f) :=
+  eDv (ex_reject_comb ta f Hf_meas).
 
 (** The soft-conditioning COMBINATOR denotation ([ex_condition_comb]):
     a closed program of type [(ta → tR) → (ta → tR)], like the
@@ -1231,10 +1216,8 @@ Definition ex_reject_comb_cbv
 Definition ex_condition_comb_cbv
     (ta : ppl_type Ar)
     (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f)
-    (Hf_ge0 : forall r : R, (0 <= f r)%R)
-    (Hf_le1 : forall r : R, (f r <= 1)%R) :=
-  eDv (ex_condition_comb ta f Hf_meas Hf_ge0 Hf_le1).
+    (Hf_meas : measurable_fun [set: R] f) :=
+  eDv (ex_condition_comb ta f Hf_meas).
 
 (** The conditioned-model denotation: [condition M f] at a closed
     model [M]. *)
@@ -1242,10 +1225,8 @@ Definition ex_condition_cbv
     (ta : ppl_type Ar)
     (f : R -> R)
     (Hf_meas : measurable_fun [set: R] f)
-    (Hf_ge0 : forall r : R, (0 <= f r)%R)
-    (Hf_le1 : forall r : R, (f r <= 1)%R)
     (M : @named_expr R Ar R_obj nil (tfun ta (tR R_obj))) :=
-  eDv (ex_condition f Hf_meas Hf_ge0 Hf_le1 M).
+  eDv (ex_condition f Hf_meas M).
 
 (** The sampler-model denotation (the combinator's simplest input). *)
 Definition ex_sampler_cbv (m : pmeas Ar R_obj) :=

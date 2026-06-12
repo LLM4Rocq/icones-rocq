@@ -8,14 +8,15 @@
     [[
        let rec rs accept :=
          let x = sample m in
-         if Bernoulli_f { f } x then accept x else rs accept
+         if Bernoulli (Meas{f} x) then accept x else rs accept
        in rs (λ y. y)
     ]]
     under the CBV interpreter [eD] of [theories/programs/ppl_cbv.v]: a
     HIGHER-ORDER (the recursive function abstracts over the acceptance
     continuation), PROBABILISTIC (continuous [sample] + value-dependent
-    [Bernoulli_f]), NON-TERMINATING (rejection recurses, and may loop
-    forever) program, whose denotation we identify in closed form.
+    coin [ne_bernoulli_f]), NON-TERMINATING (rejection recurses, and
+    may loop forever) program, whose denotation we identify in closed
+    form.
 
     Writing [ν := ⟦ex_reject⟧(one1) : FMeas R_obj],
     [If := ∫ f dµ] and [IUf U := ∫_U f dµ], the results are:
@@ -23,7 +24,7 @@
     - [ex_reject_master] : [If * ν(U) = IUf U]  — unconditionally
       (graceful at [If = 0]);
     - [ex_reject_is_normalised_posterior] : [0 < If] implies
-      [ν(U) = IUf U / If]  — THE normalised posterior of the prior [µ]
+      [ν(U) = IUf U / If]  — the normalised posterior of the prior [µ]
       given the soft acceptance predicate [f];
     - [ex_reject_posterior_simple] : [If = 1] implies [ν(U) = IUf U];
     - [ex_reject_mass_one] : [0 < If] implies [ν(setT) = 1] — the
@@ -291,24 +292,24 @@ Definition reject_if :
     @named_expr R Ar R_obj
       (("x"%string, tR') :: ("accept"%string, tfun tR' tR') ::
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil) tR' :=
-  [ if Bernoulli_f { f , Hf_meas , Hf_ge0 , Hf_le1 } # "x"
+  [ if Bernoulli (Meas { f , Hf_meas } # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
 Lemma ex_reject_decomp :
-  ex_reject m f Hf_meas Hf_ge0 Hf_le1 =
-  ne_let "rs" (ne_fix "rs" (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1))
+  ex_reject m f Hf_meas =
+  ne_let "rs" (ne_fix "rs" (ex_reject_body m f Hf_meas))
     (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
             reject_lam_id).
 Proof. by []. Qed.
 
 Lemma ex_reject_body_decomp :
-  ex_reject_body m f Hf_meas Hf_ge0 Hf_le1 =
-  ne_lam "accept" (ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1).
+  ex_reject_body m f Hf_meas =
+  ne_lam "accept" (ex_reject_inner m f Hf_meas).
 Proof. by []. Qed.
 
 Lemma ex_reject_inner_decomp :
-  ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1 =
+  ex_reject_inner m f Hf_meas =
   ne_let "x" (ne_sample mu Hmu_ball) reject_if.
 Proof. by []. Qed.
 
@@ -334,7 +335,7 @@ Definition reject_W0 :
     linhom_car Ar (Bang Ar (Lty (tfun tR' tR') tR'))
                   (Bang Ar (Lty (tfun tR' tR') tR')) :=
   Lfun (tensor_curry
-         (eD_cbv' (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1)))
+         (eD_cbv' (ex_reject_body m f Hf_meas)))
        one1.
 
 Lemma reject_W0_ball : cone_norm reject_W0 <= 1.
@@ -459,7 +460,7 @@ Qed.
 
 Local Notation reject_denot :=
   (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                 m Hf_meas Hf_ge0 Hf_le1) one1).
+                 m Hf_meas) one1).
 
 Lemma ex_reject_app_E :
   reject_denot =
@@ -471,12 +472,12 @@ have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
 rewrite (eD_let_at_setlike "rs"
-          (ne_fix "rs" (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1))
+          (ne_fix "rs" (ex_reject_body m f Hf_meas))
           (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
                   reject_lam_id)
           HoneG coalg_str_one1).
 rewrite (eD_fix_at_setlike "rs"
-          (ex_reject_body m f Hf_meas Hf_ge0 Hf_le1)
+          (ex_reject_body m f Hf_meas)
           HoneG coalg_str_one1).
 rewrite (eD_app_at_setlike _ _ reject_env0_ball reject_env0_setlike).
 rewrite (eD_var_head_at_setlike "rs"
@@ -562,7 +563,7 @@ Qed.
 Lemma reject_W0_at_prom n :
   linhom_fun reject_W0 ((fix_chain reject_W0 n)!) =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1)))
+          (eD_cbv' (ex_reject_inner m f Hf_meas)))
      (one1 ⊗p (fix_chain reject_W0 n)!))!.
 Proof.
 rewrite {1}/reject_W0 tensor_curryE ex_reject_body_decomp eD_lam_E.
@@ -573,7 +574,7 @@ Qed.
 
 Lemma ex_reject_iter_S n :
   reject_iter n.+1 =
-  Lfun (eD_cbv' (ex_reject_inner m f Hf_meas Hf_ge0 Hf_le1))
+  Lfun (eD_cbv' (ex_reject_inner m f Hf_meas))
        ((one1 ⊗p (fix_chain reject_W0 n)!) ⊗p reject_arg).
 Proof.
 rewrite /reject_iter fix_chain_S reject_W0_at_prom.
@@ -612,7 +613,8 @@ Definition reject_var_rs :
 
 Lemma reject_if_decomp :
   reject_if =
-  ne_if tR' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x)
+  ne_if tR' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+               (ne_meas f Hf_meas reject_var_x))
         (ne_app reject_var_acc reject_var_x)
         (ne_app reject_var_rs reject_var_acc).
 Proof. by []. Qed.
@@ -731,12 +733,15 @@ rewrite (em_proj1_morE (Q:=tyD_cbv (tfun tR' tR'))
 exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
-(** The scrutinee at [δ_r] is the [f r]-coin ([bern_lift_dirac]). *)
+(** The scrutinee at [δ_r] is the [f r]-coin ([eD_bernoulli_meas_E] +
+    [bern_lift_dirac]). *)
 Lemma reject_scrut_E n r :
-  Lfun (eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x))
+  Lfun (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+                   (ne_meas f Hf_meas reject_var_x)))
        (reject_env3 n r) =
   bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
 Proof.
+rewrite (eD_bernoulli_meas_E Hf_meas Hf_ge0 Hf_le1 reject_var_x).
 rewrite eD_bernoulli_f_E.
 rewrite (Lfun_comp
   (bern_lift (R_carrier_meas:=R_carrier_meas) Hf_meas Hf_ge0 Hf_le1)
@@ -779,7 +784,8 @@ rewrite reject_if_decomp eD_if_E.
 rewrite (if_icones_at
   (eD_cbv' (ne_app reject_var_acc reject_var_x))
   (eD_cbv' (ne_app reject_var_rs reject_var_acc))
-  (eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x))
+  (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
+              (ne_meas f Hf_meas reject_var_x)))
   (reject_env3_ball n r) (reject_env3_setlike n r)).
 by rewrite reject_scrut_E reject_then_E reject_else_E.
 Qed.
@@ -938,7 +944,7 @@ have -> : (reject_iter 0 : fmeas R (ar_carrier Ar R_obj)) = fmeas_zero.
 exact: fmeas_zeroE.
 Qed.
 
-(** THE HEADLINE: when acceptance has positive mass, rejection
+(** Main result: when acceptance has positive mass, rejection
     sampling denotes the NORMALISED POSTERIOR
     [ν(U) = (∫_U f dµ) / (∫ f dµ)]. *)
 Theorem ex_reject_is_normalised_posterior :
