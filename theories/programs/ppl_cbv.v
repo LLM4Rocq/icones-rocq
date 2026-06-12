@@ -32,6 +32,8 @@
       ⟦r⟧             = ε_Γ ; const δ_r
       ⟦e₁ + e₂⟧       = δ_Γ ; (e₁ ⊗ e₂) ; add_lift
       ⟦e₁ × e₂⟧       = δ_Γ ; (e₁ ⊗ e₂) ; mul_lift
+      ⟦Gaussian(e₁,e₂)⟧ = δ_Γ ; (e₁ ⊗ e₂) ; kernel_lift2 gaussian_kernel
+      ⟦Uniform(e₁,e₂)⟧  = δ_Γ ; (e₁ ⊗ e₂) ; kernel_lift2 uniform_kernel
       ⟦true⟧/⟦false⟧  = ε_Γ ; const δ_T/δ_F
       ⟦Bernoulli p⟧   = ε_Γ ; const Bern(p)
       ⟦if b then M else N⟧ = δ_Γ ; (id_Γ ⊗ b) ; braid
@@ -111,6 +113,7 @@ Require Import Icones.homs.em_seely_comonoid.
 Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
+Require Import Icones.programs.distributions.
 Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.infra.em_fix_value.
 Require Import Icones.programs.infra.em_fix_mr.
@@ -601,6 +604,21 @@ refine (
         (@meas_lift R Ar R_obj R_carrier_eq R_carrier_meas
                     R_to_carrier_meas f Hf_meas)
         (eD_cbv G0 _ e0)
+  (* [ne_gaussian e1 e2]:
+       δ_Γ ; (eD e1 ⊗ eD e2) ; kernel_lift2 gaussian_kernel
+     — the [ne_add]/[ne_mul] two-argument clause shape, with the
+     runtime-parameter Gaussian kernel lift
+     ([distributions.v::kernel_lift2] = [kernel_lift ∘ fmeas_lax]) in
+     place of the arithmetic pushforward. *)
+  | ne_gaussian G0 M0 N0 =>
+      icones_comp
+        (kernel_lift2 (gaussian_kernel R_carrier_meas R_to_carrier_meas))
+        (em_pair_mor (eD_cbv G0 _ M0) (eD_cbv G0 _ N0))
+  (* [ne_uniform e1 e2]: same shape at the uniform kernel. *)
+  | ne_uniform G0 M0 N0 =>
+      icones_comp
+        (kernel_lift2 (uniform_kernel R_carrier_meas R_to_carrier_meas))
+        (em_pair_mor (eD_cbv G0 _ M0) (eD_cbv G0 _ N0))
   | ne_true G0 => true_icones (ctxD_cbv (drop_names G0))
   | ne_false G0 => false_icones (ctxD_cbv (drop_names G0))
   | ne_bernoulli G0 p Hp_ge0 Hp_le1 =>
@@ -841,6 +859,26 @@ Lemma eD_meas_E (G : named_ctx Ar) (f : R -> R)
     (@meas_lift R Ar R_obj R_carrier_eq R_carrier_meas
                 R_to_carrier_meas f Hf_meas)
     (eD_cbv' e).
+Proof. by []. Qed.
+
+(** [ne_gaussian]: [δ_Γ ; (⟦M⟧ ⊗ ⟦N⟧) ; kernel_lift2 gaussian_kernel]
+    — the runtime-parameter Gaussian through the two-argument kernel
+    lift of [distributions.v]. *)
+Lemma eD_gaussian_E (G : named_ctx Ar)
+    (M N : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_gaussian M N) =
+  icones_comp
+    (kernel_lift2 (gaussian_kernel R_carrier_meas R_to_carrier_meas))
+    (em_pair_mor (eD_cbv' M) (eD_cbv' N)).
+Proof. by []. Qed.
+
+(** [ne_uniform]: same shape at the uniform kernel. *)
+Lemma eD_uniform_E (G : named_ctx Ar)
+    (M N : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_uniform M N) =
+  icones_comp
+    (kernel_lift2 (uniform_kernel R_carrier_meas R_to_carrier_meas))
+    (em_pair_mor (eD_cbv' M) (eD_cbv' N)).
 Proof. by []. Qed.
 
 (** [ne_true]: constant at [bool_dirac_true]. *)

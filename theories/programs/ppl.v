@@ -77,6 +77,14 @@
       composite of [eD e] with the path lift [bern_lift]
       ([µ ↦ (∫ f dµ, ∫ (1-f) dµ)]).  The accept/reject primitive
       of [examples.v::ex_reject].
+    - [ne_gaussian e1 e2] / [ne_uniform e1 e2] — RUNTIME-PARAMETER
+      named distributions (surface [Gaussian(e1,e2)] /
+      [Uniform(e1,e2)]): draw from the normal/uniform family whose
+      parameters are the VALUES of the two [tR]-valued sub-expressions;
+      semantically the two-argument kernel lift
+      [distributions.v::kernel_lift2] at [gaussian_kernel] /
+      [uniform_kernel] (the [ne_add]/[ne_mul] clause shape with the
+      kernel lift in place of the pushforward).
 
     ** Type, context and term interpretation **
 
@@ -446,6 +454,27 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
              (f : R -> R)
              (Hf_meas : measurable_fun [set: R] f)
              (e : named_expr G tR') : named_expr G tR'
+  (* [ne_gaussian e1 e2] — RUNTIME-PARAMETER Gaussian: sample from the
+     normal distribution whose mean and deviation are the VALUES of the
+     two [tR']-valued sub-expressions (so a sampled value can itself
+     parameterise the next draw — hierarchical models).  No witnesses:
+     the kernel family [distributions.v::gaussian_kernel] is total
+     (the [s = 0] fibre is the Dirac at the mean — the degenerate weak
+     limit; mathcomp-analysis' own [s = 0] convention is a junk
+     uniform-[0,1] placeholder, while [s ≠ 0] is the genuine normal
+     with deviation [|s|]).  The CBV denotation pairs the two argument
+     measures through [fmeas_lax] and feeds the joint measure to
+     [kernel_lift gaussian_kernel] — the exact [ne_add]/[ne_mul]
+     two-argument clause shape ([distributions.v::kernel_lift2]). *)
+  | ne_gaussian (G : named_ctx Ar) :
+      named_expr G tR' -> named_expr G tR' -> named_expr G tR'
+  (* [ne_uniform e1 e2] — RUNTIME-PARAMETER uniform draw on [[a, b]]
+     where [a], [b] are the values of the two sub-expressions;
+     totalised at [b ≤ a] as the Dirac at [a]
+     ([distributions.v::uniform_kernel]).  Same clause shape as
+     [ne_gaussian]. *)
+  | ne_uniform (G : named_ctx Ar) :
+      named_expr G tR' -> named_expr G tR' -> named_expr G tR'
   (* Boolean constants [True], [False] of type [tbool]. *)
   | ne_true  (G : named_ctx Ar) : named_expr G tbool
   | ne_false (G : named_ctx Ar) : named_expr G tbool
@@ -511,6 +540,8 @@ Arguments ne_score {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
 Arguments ne_add {R Ar R_obj G} & M N.
 Arguments ne_mul {R Ar R_obj G} & M N.
 Arguments ne_meas {R Ar R_obj G} & f Hf_meas e.
+Arguments ne_gaussian {R Ar R_obj G} & M N.
+Arguments ne_uniform {R Ar R_obj G} & M N.
 Arguments ne_true {R Ar R_obj G}.
 Arguments ne_false {R Ar R_obj G}.
 Arguments ne_bernoulli {R Ar R_obj G} p Hp_ge0 Hp_le1.
@@ -1960,6 +1991,25 @@ Notation "'Bernoulli_f' '{' f ',' Hf_meas ',' Hf_ge0 ',' Hf_le1 '}' e" :=
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
    f constr, Hf_meas constr, Hf_ge0 constr, Hf_le1 constr,
    right associativity).
+
+(** Runtime-parameter named distributions — [Gaussian( e1 , e2 )] /
+    [Uniform( e1 , e2 )]: both PARAMETERS are surface sub-expressions
+    (so a sampled value can parameterise the next draw).  No witness
+    braces: the kernel families are total ([distributions.v];
+    [Gaussian]'s [s = 0] fibre is the Dirac at the mean, [Uniform]'s
+    [b ≤ a] fibre the Dirac at [a]).  The leading keyword keeps the
+    grammar disjoint from the bare pair notation [( e1 , e2 )]. *)
+Notation "'Gaussian' ( e1 , e2 )" :=
+  (ne_gaussian e1 e2)
+  (in custom ppl_named at level 1,
+   e1 custom ppl_named at level 60,
+   e2 custom ppl_named at level 60).
+
+Notation "'Uniform' ( e1 , e2 )" :=
+  (ne_uniform e1 e2)
+  (in custom ppl_named at level 1,
+   e1 custom ppl_named at level 60,
+   e2 custom ppl_named at level 60).
 
 (** [if e then M else N] — boolean elimination in surface syntax.
 

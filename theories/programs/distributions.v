@@ -38,14 +38,20 @@
       joint measurability in the PARAMETERS via Fubini–Tonelli
       ([measurable_fun_fubini_tonelli_F] against Lebesgue measure).
 
-    Surface-syntax wiring (an [ne_kernel]-style constructor consuming
-    [kernel_lift]) is deliberately NOT here; this file provides the
-    semantic layer only.
+    Two-argument kernels through the lax map: [kernel_lift2 k] packages
+    [kernel_lift k ∘ fmeas_lax X Y] — the tensored argument pair becomes
+    a joint measure on [ar_prod X Y], fed to the kernel.  Laws:
+    [kernel_lift2_dirac] (point masses reduce to the kernel at the
+    cast pair) and [kernel_lift2_mass] (a pointwise-mass-1 kernel sends
+    [µ ⊗ ν] to a measure of total mass [µ(setT)·ν(setT)]).  This is the
+    semantic engine of the surface forms [Gaussian(e1,e2)] /
+    [Uniform(e1,e2)] ([ppl.v::ne_gaussian]/[ne_uniform], interpreted in
+    [ppl_cbv.v] by the exact [add_lift]/[mul_lift] clause shape).
 
-    Supporting infrastructure: private copies of
-    [icone_integral_dirac_fmeas] and [icone_integral_fmeas_E] (also in
-    [theories/programs/infra/let_sample_law.v]; dedup at
-    integration). *)
+    Supporting infrastructure: THE canonical copies of
+    [icone_integral_dirac_fmeas] and [icone_integral_fmeas_E]
+    (re-exported to [theories/programs/infra/let_sample_law.v], which
+    imports this file). *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -82,8 +88,12 @@ Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
+Require Import Icones.homs.tensor.
+Require Import Icones.homs.tensor_construct.
+Require Import Icones.homs.smcc.
 Require Import Icones.homs.seely.
 Require Import Icones.homs.coalgebra.
+Require Import Icones.homs.fmeas_lax.
 Require Import Icones.programs.ppl.
 
 Set Implicit Arguments.
@@ -91,6 +101,9 @@ Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
+
+Local Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
+       ptensor tau Seely2.
 
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
@@ -226,8 +239,8 @@ Arguments kernel_lift_dirac {R Ar X Y} k x.
 
     [(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)] for any measurable [U],
     via the per-[U] evaluation of [FMeas]-valued Pettis integrals
-    (private copy of [let_sample_law.v::icone_integral_fmeas_E];
-    dedup at integration). *)
+    ([icone_integral_fmeas_E] — the canonical copy; consumed by
+    [theories/programs/infra/let_sample_law.v]). *)
 
 Section KernelLiftEval.
 Local Open Scope ereal_scope.
@@ -237,8 +250,8 @@ Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
 (** Per-[U] evaluation of an [FMeas]-valued Pettis integral —
-    [(∫ β dµ)(U) = ∫ (β r)(U) µ(dr)].  Private copy of
-    [let_sample_law.v::icone_integral_fmeas_E]. *)
+    [(∫ β dµ)(U) = ∫ (β r)(U) µ(dr)].  The CANONICAL copy (the
+    [let_sample_law.v] law layer imports it from here). *)
 Lemma icone_integral_fmeas_E (X Y : ar_obj Ar)
     (β : ar_carrier Ar X -> FMeas Y)
     (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X))
@@ -311,6 +324,70 @@ Arguments icone_integral_fmeas_E {R Ar X Y β} Hβ µ {U} mU.
 Arguments kernel_lift_E {R Ar X Y} k nu {U} mU.
 Arguments kernel_lift_mass {R Ar X Y} k nu Hk1.
 
+(** ** [kernel_lift2] — two-argument kernels through the lax map
+
+    A kernel on a PRODUCT object consumed from a TENSORED pair of
+    measures: [kernel_lift2 k = kernel_lift k ∘ fmeas_lax X Y], the
+    same "tensored pair → joint measure" route as [ppl.v::add_lift] /
+    [mul_lift] (with the kernel lift in place of the [FMeas_fmap] of a
+    measurable function).  This is the semantic engine of the
+    runtime-parameter surface forms [Gaussian(e1,e2)] /
+    [Uniform(e1,e2)]. *)
+
+Section KernelLift2.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (X Y Z : ar_obj Ar).
+Variable (k : pkernel (ar_prod Ar X Y) Z).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+Definition kernel_lift2 :
+    icones_hom Ar (tensor Ar (FMeas X) (FMeas Y)) (FMeas Z) :=
+  icones_comp (kernel_lift k) (fmeas_lax X Y).
+
+(** **** Load-bearing Dirac identity: on point masses the two-argument
+    lift is the kernel at the cast pair. *)
+Lemma kernel_lift2_dirac (x : ar_carrier Ar X) (y : ar_carrier Ar Y) :
+  Lfun kernel_lift2
+    (ptensor (B := FMeas X) (C := FMeas Y)
+       (dirac_fmeas x) (dirac_fmeas y)) =
+  pk_ker k (ar_prod_cast (R:=R) (Ar:=Ar) (X:=X) (Y:=Y) (x, y)).
+Proof.
+rewrite /kernel_lift2.
+rewrite -[LHS]/(Lfun (kernel_lift k)
+  (Lfun (fmeas_lax X Y)
+     (ptensor (B := FMeas X) (C := FMeas Y)
+        (dirac_fmeas x) (dirac_fmeas y)))).
+rewrite (fmeas_lax_dirac x y).
+exact: kernel_lift_dirac.
+Qed.
+
+(** **** Mass identity: for a pointwise-mass-1 kernel, the mass of the
+    two-argument lift on a pure tensor is the PRODUCT of the argument
+    masses ([kernel_lift_mass] + [fmeas_lax_pre_setT]). *)
+Lemma kernel_lift2_mass
+    (µ : fmeas R (ar_carrier Ar X)) (ν : fmeas R (ar_carrier Ar Y)) :
+  (forall c, cone_norm (pk_ker k c) = 1%R) ->
+  fmeas_mu (Lfun kernel_lift2 (ptensor (B := FMeas X) (C := FMeas Y) µ ν))
+    [set: ar_carrier Ar Z] =
+  fmeas_mu µ [set: ar_carrier Ar X] * fmeas_mu ν [set: ar_carrier Ar Y].
+Proof.
+move=> Hk1.
+rewrite /kernel_lift2.
+rewrite -[Lfun _ _]/(Lfun (kernel_lift k)
+  (Lfun (fmeas_lax X Y) (ptensor (B := FMeas X) (C := FMeas Y) µ ν))).
+rewrite (fmeas_lax_E µ ν) (kernel_lift_mass k _ Hk1).
+exact: fmeas_lax_pre_setT.
+Qed.
+
+End KernelLift2.
+
+Arguments kernel_lift2 {R Ar X Y Z} k.
+Arguments kernel_lift2_dirac {R Ar X Y Z} k x y.
+Arguments kernel_lift2_mass {R Ar X Y Z} k µ ν Hk1.
+
 (** ** [dirac_kernel] — the identity kernel [x ↦ δ_x] *)
 
 Section DiracKernel.
@@ -346,8 +423,8 @@ Lemma dirac_kernel_norm1 (x : ar_carrier Ar X) :
 Proof. exact: dirac_fmeas_norm. Qed.
 
 (** [µ = ∫ δ_r µ(dr)] with the bare [dirac_fmeas] integrand —
-    private copy of [let_sample_law.v::icone_integral_dirac_fmeas]
-    (dedup at integration). *)
+    the CANONICAL copy (consumed by
+    [theories/programs/infra/let_sample_law.v]). *)
 Lemma icone_integral_dirac_fmeas (µ : fmeas R (ar_carrier Ar X)) :
   icone_integral (@dirac_fmeas R Ar X) (dirac_fmeas_is_path X) µ = µ.
 Proof.
@@ -816,6 +893,13 @@ rewrite -[cone_norm _]/(fmeas_norm fmeas_of_prob) /fmeas_norm.
 by rewrite fmeas_of_probE ?measurableT// preimage_setT probability_setT.
 Qed.
 
+(** The ereal form of the norm-1 fact: total mass exactly [1]. *)
+Lemma fmeas_of_prob_setT :
+  fmeas_mu fmeas_of_prob [set: ar_carrier Ar R_obj] = 1.
+Proof.
+by rewrite fmeas_of_probE ?measurableT// preimage_setT probability_setT.
+Qed.
+
 End ProbFmeas.
 
 (** *** Parameter projections from the product-object carrier *)
@@ -841,6 +925,16 @@ Lemma par_pair_meas :
   measurable_fun [set: ar_carrier Ar P2] (fun c => (par1 c, par2 c)).
 Proof. exact: (measurable_fun_pair par1_meas par2_meas). Qed.
 
+(** Computation at a cast pair: the projections read off the
+    components ([ar_prod_castK]). *)
+Lemma par1_cast (a b : ar_carrier Ar R_obj) :
+  par1 (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (a, b)) = cR a.
+Proof. by rewrite /par1 ar_prod_castK. Qed.
+
+Lemma par2_cast (a b : ar_carrier Ar R_obj) :
+  par2 (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (a, b)) = cR b.
+Proof. by rewrite /par2 ar_prod_castK. Qed.
+
 (** *** The gaussian kernel *)
 
 Definition gaussian_ker_fun (c : ar_carrier Ar P2) :
@@ -859,6 +953,31 @@ Proof.
 move=> mU; rewrite /gaussian_ker_fun; case: (par2 c == 0%R).
 - exact: dirac_fmeas_E.
 - exact: fmeas_of_probE.
+Qed.
+
+(** Computation at a cast pair of transported reals: the kernel IS
+    the (totalised) transported normal family at the parameters. *)
+Lemma gaussian_ker_fun_cast (m s : R) :
+  gaussian_ker_fun
+    (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (toC m, toC s)) =
+  if s == 0%R then dirac_fmeas (toC m)
+  else fmeas_of_prob [the probability _ _ of normal_prob m s].
+Proof.
+by rewrite /gaussian_ker_fun par1_cast par2_cast !R_to_carrierK.
+Qed.
+
+(** The per-[U] reading at a cast pair with a RAW carrier first
+    component (the runtime-parameter shape: the mean is a sampled
+    carrier point [c], the deviation a transported literal [s]). *)
+Lemma gaussian_ker_cast_E (c : ar_carrier Ar R_obj) (s : R)
+    (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (gaussian_ker_fun
+    (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (c, toC s))) U =
+  if s == 0%R then \d_(toC (cR c)) U
+  else normal_prob (cR c) s (toC @^-1` U).
+Proof.
+by move=> mU; rewrite gaussian_ker_funE// par1_cast par2_cast R_to_carrierK.
 Qed.
 
 Lemma gaussian_ker_meas (U : set (ar_carrier Ar R_obj)) :
@@ -928,6 +1047,17 @@ move=> mU; rewrite /uniform_ker_fun; case: pselect => [ab|nab].
 - by rewrite ab fmeas_of_probE.
 - have -> : (par1 c < par2 c)%R = false by apply/negbTE/negP.
   exact: dirac_fmeas_E.
+Qed.
+
+(** The per-[U] reading at a cast pair of transported reals. *)
+Lemma uniform_ker_cast_E (a b : R) (U : set (ar_carrier Ar R_obj)) :
+  measurable U ->
+  fmeas_mu (uniform_ker_fun
+    (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj) (toC a, toC b))) U =
+  if (a < b)%R then uniform_int a b (toC @^-1` U)
+  else \d_(toC a) U.
+Proof.
+by move=> mU; rewrite uniform_ker_funE// par1_cast par2_cast !R_to_carrierK.
 Qed.
 
 Lemma uniform_ker_meas (U : set (ar_carrier Ar R_obj)) :
