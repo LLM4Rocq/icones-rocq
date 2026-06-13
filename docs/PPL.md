@@ -170,7 +170,10 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 
 `ne_score` carries a measurable density `f : R → R` valued in
 `[0,1]`; the bound is needed by the unit-ball discipline of
-`linhom_icones`. `ne_bernoulli_f` is the *value-dependent*
+`linhom_icones` (see [Scores, densities, and the sub-probability
+boundary](../../ppl/sections/ppl-sec-scores-densities-and-the-sub-probability-boundary.html)
+for what the bound rules out — densities above `1`, such as narrow
+Gaussians — and the envelope workaround). `ne_bernoulli_f` is the *value-dependent*
 Bernoulli: sample from the 2-point sub-probability
 `(f r, 1 − f r)` where `r` is the value of the `tR'`-valued
 sub-expression `e`. Its witness layout mirrors `ne_score`
@@ -488,6 +491,81 @@ The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
 (annotation-free `let rec`, unified `Bernoulli`/`Score`), both with
 elaboration pins (`ex_surface_demo_decomp`) and compile-time CBV
 denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
+
+### Scores, densities, and the sub-probability boundary (`ne_score`, `cones_hom_norm_le1`, `score_lift`)
+
+This is a sub-probability model, and that fixes exactly which scores
+it can express. Every morphism of `ICone` is non-expansive: the
+`cones_hom` record carries a norm-bound field, so a map never
+increases mass.
+
+```coq
+(* theories/cones/cone_cat.v *)
+Record cones_hom (P Q : coneType R) : Type := ConesHom {
+  cones_hom_fun :> P -> Q;
+  cones_hom_linear : is_linear cones_hom_fun;
+  cones_hom_continuous : is_omega_continuous cones_hom_fun;
+  cones_hom_norm_le1 :
+    forall x : P, cone_norm (cones_hom_fun x) <= cone_norm x;
+}.
+```
+
+Scoring weights a measure by a density: `score_lift f` sends a
+measure `µ` to `f · µ`, of mass `∫ f dµ`. As a morphism its operator
+norm is `sup f`, so `score_lift f` is a map of the category — and
+`ne_score f` is well-typed — exactly when `f` is bounded by `1`.
+That is the source of the `forall r, f r <= 1` witness on `ne_score`
+and `ne_bernoulli_f`: not a modelling convenience but the condition
+for the score to be a morphism at all.
+
+The distinction that matters in practice is between *sampling* and
+*observing*. Sampling is always fine: `sample (gaussian m s)`
+denotes a probability measure of mass `1`, a good morphism for every
+`m` and `s`. Observing — scoring by a density, `observe d x` weighing
+the trace by `pdf_d(x)` — is the constrained operation, a morphism
+only while the density stays in `[0,1]`.
+
+For the Gaussian the numbers decide it. The standard normal `N(0,1)`
+peaks at `1/√(2π) ≈ 0.399 < 1`, so `observe (gaussian 0 1) x` is
+representable: its density never exceeds `1`. A narrow Gaussian is
+not. `N(m, σ)` peaks at `1/(σ√(2π))`, which crosses `1` as soon as
+`σ < 1/√(2π) ≈ 0.399`, and sharp or product likelihoods run far
+higher. Such an observation is not a morphism of `ICone` and has no
+denotation here.
+
+There are two honest responses to a density above `1`, and one true
+limit.
+
+- **Bounded density — divide by the envelope.** When `f` is bounded
+  by a known `B ≥ sup f`, score by the normalised density `f / B`, a
+  legal `[0,1]` weight. For the conditioning/rejection pair this is
+  classical rejection sampling with envelope `B`, and for a
+  probability model the envelope cancels: the normalised posterior
+  `∫_U f dν / ∫ f dν` is `B`-independent. A bounded `observe` — a
+  Gaussian with `σ` bounded below — is thus expressible after
+  dividing by its peak.
+- **Clamping — keep the program total.** The surface forms `Score e`
+  and `Bernoulli e` apply `clamp = min 1 ∘ max 0`, saturating any
+  out-of-range density into `[0,1]` so that every program is
+  well-defined. Clamping preserves a density already in `[0,1]`
+  (`clamp_id`) but changes one that exceeds `1`; this is why the
+  conditioning theorems assume `0 ≤ f ≤ 1` as hypotheses rather than
+  clamp silently and report a different weight.
+- **Unbounded family — a genuine limit.** When the density has no
+  finite envelope — a Gaussian with `σ` free to approach `0`, a
+  likelihood that can be arbitrarily peaked — no normalisation brings
+  it inside the unit ball, and the observation is outside this model.
+  This is a property of every sub-probability model, integrable cones
+  and probabilistic coherence spaces alike, not of the encoding.
+
+The semantics designed to score by arbitrary unbounded weights is
+the *s-finite kernel* model (Staton and collaborators): it drops the
+norm bound and lets `score w` denote a measure of any finite mass.
+The cone model makes the opposite trade — it keeps the
+sub-probability discipline and, in return, carries the higher-order
+and analytic structure (the `!` comonad, the Seely and
+Eilenberg–Moore development) that the kernel model does not. An
+`observe` with an unbounded density is the price of that structure.
 
 ---
 
