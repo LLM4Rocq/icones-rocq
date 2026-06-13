@@ -1397,6 +1397,24 @@ apply: precone_le_anti.
 - exact: precone_le0.
 Qed.
 
+(** A norm-one element of the one-dimensional unit cone is the unit
+    point: [cone_one_car Ar] is a thin wrapper around a nonnegative
+    scalar, so [cone_norm x = (c1_val x)%:num] and [one1] is the
+    scalar [1]. *)
+Lemma cone_one_norm_eq1 (x : cone_one_car Ar) :
+  cone_norm x = 1%R -> x = one1.
+Proof.
+rewrite /cone_norm/= /c1_norm => Hx.
+by apply: cone_one_eq; apply: val_inj; rewrite /= Hx.
+Qed.
+
+(** Almost-sure termination at positive flip probability pins the CBV
+    denotation as the unit point [one1] (the Dirac on the one-point
+    space), strengthening [ex_almost_loop_cbv_mass_one] from the total
+    mass to the cone element itself. *)
+Theorem ex_almost_loop_cbv_dirac : (0 < p)%R -> al_denot = one1.
+Proof. by move=> Hp; apply: cone_one_norm_eq1; exact: ex_almost_loop_cbv_mass_one. Qed.
+
 End AlmostLoopRider.
 
 (** ** §4 — Rider: [ex_geom] — the geometric counter has total mass [1]
