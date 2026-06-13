@@ -384,6 +384,235 @@ def test_xref_prose_idempotent(parse_md):
     assert before == after
 
 
+# -- global cross-tab + source-fallback linkify tests -----------------------
+
+
+def _name_span(ident: str) -> str:
+    """A bare Pygments name token, as the lexer emits it."""
+    return f'<span class="n">{ident}</span>'
+
+
+def _entry(
+    *,
+    eid: str,
+    idents: list[str],
+    snippet_html: str,
+    prose_html: str = "",
+):
+    """A minimal :class:`Entry` carrying one detail snippet."""
+    from tools.auditor.schema import CoqSnippet, Entry, EntryDetail
+
+    detail = EntryDetail(
+        prose_html=prose_html,
+        snippets=[
+            CoqSnippet(
+                source_file="x.v",
+                source_section=None,
+                highlighted_html=snippet_html,
+            )
+        ],
+    )
+    return Entry(
+        id=eid,
+        paper_label=eid,
+        paper_kind="Def",
+        paper_number=None,
+        paper_section_id="sec-x",
+        statement_html="",
+        rocq_idents=list(idents),
+        rocq_files=[],
+        status=[],
+        detail=detail,
+    )
+
+
+def _section_with(entries):
+    from tools.auditor.schema import Section
+
+    return Section(
+        id="sec-x",
+        paper_section="§ X",
+        paper_section_number="X",
+        title="X",
+        intro_html="",
+        entries=list(entries),
+    )
+
+
+def _three_tabs(*, paper_entries=(), ppl_entries=(), examples_entries=()):
+    from tools.auditor.schema import Document, ThreeTabDocument
+
+    def _doc(entries):
+        d = Document(preamble_html="")
+        if entries:
+            d.sections = [_section_with(entries)]
+        return d
+
+    return ThreeTabDocument(
+        paper=_doc(paper_entries),
+        ppl=_doc(ppl_entries),
+        examples=_doc(examples_entries),
+    )
+
+
+def test_xref_global_cross_tab_entry_link():
+    """A PPL snippet ident defined on the Paper tab links cross-tab.
+
+    The href carries the ``../../<tab>/`` prefix that hops out of the PPL
+    subtree and into the Paper subtree.
+    """
+    from tools.auditor.xref import linkify_all
+
+    # `EM_term` is a documented Paper entry; the PPL entry's snippet
+    # mentions it.  No same-tab claimant, so the global map resolves it
+    # to the Paper page.
+    paper = _entry(
+        eid="thm-9-7",
+        idents=["EM_term"],
+        snippet_html=_name_span("EM_term"),
+    )
+    ppl = _entry(
+        eid="ppl-sec-type-translation",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("EM_term"),
+    )
+    three = _three_tabs(paper_entries=[paper], ppl_entries=[ppl])
+    linkify_all(three, resolver=_resolver(), theories_root="/nonexistent")
+
+    ppl_html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert (
+        '<a class="code-xref" href="../../paper/entries/thm-9-7.html">'
+        "EM_term</a>" in ppl_html
+    )
+
+
+def test_xref_source_fallback_link(tmp_path):
+    """An ident documented nowhere links to its GitHub source ``#L`` line."""
+    from tools.auditor.xref import linkify_all
+
+    theories = tmp_path / "theories"
+    theories.mkdir()
+    (theories / "foo.v").write_text(
+        "Definition lonely_widget := tt.\n", encoding="utf-8"
+    )
+
+    ppl = _entry(
+        eid="ppl-sec-type-translation",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("lonely_widget"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(
+        three,
+        resolver=_resolver(repo="demo/demo", commit="cafe"),
+        theories_root=theories,
+        repo_root=tmp_path,
+    )
+
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert (
+        '<a class="code-xref code-xref-src" '
+        'href="https://github.com/demo/demo/blob/cafe/theories/foo.v#L1">'
+        "lonely_widget</a>" in html
+    )
+
+
+def test_xref_self_link_suppressed_in_global_pass():
+    """An ident on its OWN entry page is left plain by the global pass."""
+    from tools.auditor.xref import linkify_all
+
+    ppl = _entry(
+        eid="ppl-sec-types-and-contexts",
+        idents=["ppl_type"],
+        snippet_html=_name_span("ppl_type"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(three, resolver=_resolver(), theories_root="/nonexistent")
+
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert html == _name_span("ppl_type")
+    assert "code-xref" not in html
+
+
+def test_xref_ambiguous_source_ident_not_mislinked(tmp_path):
+    """An ident declared in two .v files is dropped from the source index."""
+    from tools.auditor.xref import build_source_index, linkify_all
+
+    theories = tmp_path / "theories"
+    (theories / "sub").mkdir(parents=True)
+    (theories / "a.v").write_text(
+        "Definition dup_ident := tt.\n", encoding="utf-8"
+    )
+    (theories / "sub" / "b.v").write_text(
+        "Definition dup_ident := tt.\n"
+        "Definition uniq_ident := tt.\n",
+        encoding="utf-8",
+    )
+
+    idx = build_source_index(theories, repo_root=tmp_path)
+    # The multiply-declared ident is excluded; the unique one survives.
+    assert "dup_ident" not in idx
+    assert idx["uniq_ident"] == ("theories/sub/b.v", 2)
+
+    ppl = _entry(
+        eid="ppl-sec-type-translation",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("dup_ident") + _name_span("uniq_ident"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(
+        three,
+        resolver=_resolver(),
+        theories_root=theories,
+        repo_root=tmp_path,
+    )
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    # The ambiguous ident stays a plain name token (no wrong link).
+    assert _name_span("dup_ident") in html
+    assert "dup_ident</a>" not in html
+    # The unique ident does get a source link.
+    assert "uniq_ident</a>" in html
+
+
+def test_xref_global_same_tab_entry_link():
+    """A cross-entry ident WITHIN one tab links with the same-tab prefix."""
+    from tools.auditor.xref import linkify_all
+
+    a = _entry(eid="def-1", idents=["alpha_widget"], snippet_html="")
+    b = _entry(
+        eid="def-2",
+        idents=["beta_widget"],
+        snippet_html=_name_span("alpha_widget"),
+    )
+    three = _three_tabs(paper_entries=[a, b])
+    linkify_all(three, resolver=_resolver(), theories_root="/nonexistent")
+
+    b_html = three.paper.sections[0].entries[1].detail.snippets[0].highlighted_html
+    # Same tab → one ``../`` level, no ``<tab>/`` hop.
+    assert (
+        '<a class="code-xref" href="../entries/def-1.html">alpha_widget</a>'
+        in b_html
+    )
+
+
+def test_xref_global_idempotent():
+    """Running the global pass twice changes nothing."""
+    from tools.auditor.xref import linkify_all
+
+    paper = _entry(eid="thm-9-7", idents=["EM_term"], snippet_html="")
+    ppl = _entry(
+        eid="ppl-x",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("EM_term"),
+    )
+    three = _three_tabs(paper_entries=[paper], ppl_entries=[ppl])
+    linkify_all(three, resolver=_resolver(), theories_root="/nonexistent")
+    once = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    linkify_all(three, resolver=_resolver(), theories_root="/nonexistent")
+    twice = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert once == twice
+
+
 # -- two-tab orchestrator tests --------------------------------------------
 
 

@@ -29,6 +29,7 @@ if __package__ in {None, ""}:
 from tools.auditor.coqdoc import CoqdocResolver, parse_coqproject  # noqa: E402
 from tools.auditor.parser import parse_three_tabs  # noqa: E402
 from tools.auditor.render import render  # noqa: E402
+from tools.auditor.xref import linkify_all  # noqa: E402
 
 
 def _build_argparser() -> argparse.ArgumentParser:
@@ -105,6 +106,18 @@ def main(argv: list[str] | None = None) -> int:
         resolver=resolver,
         project_root=project_root,
         strict=args.strict,
+    )
+    # Global cross-tab + source-line go-to-definition pass.  Each tab's
+    # per-document linkify (run inside parse_file) has already wired
+    # same-tab entry links; this pass mops up the remaining plain idents
+    # by consulting the cross-tab entry map and a theories/ source index,
+    # so e.g. a PPL snippet's `EM_term` links to its Paper entry page and
+    # an undocumented ident links to its GitHub blob line.
+    linkify_all(
+        three,
+        resolver=resolver,
+        theories_root=project_root / "theories",
+        repo_root=project_root,
     )
     # Provenance — shared between tabs at the top-level.
     built_at = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
