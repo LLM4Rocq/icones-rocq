@@ -564,11 +564,6 @@ Definition line_hom : icones_hom Ar One (linhom_car Ar C D) :=
                  (fun X g Hg => line_pres_path (X:=X) (γ:=g) Hg))
     line_pres_int.
 
-Lemma line_homE (r : One) (z : C) :
-  cones_hom_fun (mcones_hom_cones (icones_hom_mcones line_hom)) r =
-  linhom_scale (c1_val r) psi.
-Proof. by []. Qed.
-
 End LineHom.
 
 Arguments line_hom {R Ar C D} psi Hpsi.
@@ -1200,11 +1195,6 @@ congr (sup _).
 apply: eq_imagel => n _ /=.
 by rewrite /linhom_test /linhom_test_fun /Phi_map Phi_innerE.
 Qed.
-
-(** *** Boundedness of [Φ] (operator norm [≤ 1]). *)
-Lemma Phi_bounded :
-  exists M : R, forall g : Dom, cnorm g <= 1 -> cnorm (Phi_map g) <= M.
-Proof. by exists 1 => g Hg; apply: le_trans (Phi_norm_le1 g) _. Qed.
 
 (** *** Measurable-path preservation of [Φ].
 

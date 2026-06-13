@@ -502,13 +502,6 @@ Definition limpl_prod_inv_icones :
     icones_hom Ar Lprod (linhom_car Ar C Dprod) :=
   MkIConesHom limpl_prod_inv_mcones limpl_prod_inv_map_pres_int.
 
-(** The underlying function of [limpl_prod_inv_icones] is [kinv]. *)
-Lemma limpl_prod_inv_iconesE (fv : Lprod) :
-  cones_hom_fun (mcones_hom_cones (icones_hom_mcones limpl_prod_inv_icones)) fv =
-  limpl_prod_inv_map fv.
-Proof. by []. Qed.
-
-
 (** *** The two cancellation equations *)
 
 (** [k] applied to [f] has [i]-th component [π_i ∘ f].  Pointwise:
@@ -676,9 +669,6 @@ Qed.
 Definition corestr_car : linhom_car Ar C E :=
   MkLinhom corestr_pre corestr_pres_int.
 
-Lemma corestr_carE (x : C) : linhom_fun corestr_car x = corestr_fun x.
-Proof. by []. Qed.
-
 End CoRestrict.
 
 (** *** The equaliser universal property of [(C ⊸ E, C ⊸ e)] *)
@@ -817,15 +807,6 @@ have := HhΦm Z (linhom_test γ γub m' m'M)
           (ex_intro _ γ (ex_intro _ γub (ex_intro _ m' (ex_intro _ m'M (erefl _))))).
 apply: eq_measurable_fun => sr _ /=.
 by rewrite mEq /linhom_test /= /linhom_test_fun /eqTest /= /eqTest_fun /=.
-Qed.
-
-Lemma limpl_eq_med_bounded :
-  exists M : R, forall z : H, cnorm z <= 1 -> cnorm (limpl_eq_med_fun z) <= M.
-Proof.
-exists 1 => z Hz.
-apply: le_trans (limpl_eq_med_norm_le z) _.
-apply: le_trans (cones_hom_norm_le1 (mcones_hom_cones (icones_hom_mcones h)) z) _.
-exact: Hz.
 Qed.
 
 Definition limpl_eq_med_cones : cones_hom H (linhom_car Ar C E) :=

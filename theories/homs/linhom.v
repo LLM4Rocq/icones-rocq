@@ -496,19 +496,6 @@ split.
   apply: val_inj => /=; exact: mulrC.
 Qed.
 
-(** Splitting hypothesis for the unit-ball image-chain of [f + g]:
-    if [‖f x + g x‖ ≤ 1], then [‖f x‖ ≤ 1] and [‖g x‖ ≤ 1]. *)
-Lemma linhom_add_unit_split (f g : linhom_car Ar C D) (x : C) :
-  cnorm (linhom_add_fun f g x) <= 1 ->
-  cnorm (linhom_fun f x) <= 1 /\ cnorm (linhom_fun g x) <= 1.
-Proof.
-move=> H; split.
-- apply: le_trans H; apply: cone_normp.
-  by exists (linhom_fun g x).
-- apply: le_trans H; apply: cone_normp.
-  by exists (linhom_fun f x); rewrite precone_addC.
-Qed.
-
 (** Boundedness of the pointwise sum, with composite bound [Mf + Mg]. *)
 Lemma linhom_add_fun_bounded (f g : linhom_car Ar C D) :
   exists M : R,
@@ -1342,18 +1329,8 @@ apply: lt_le_trans ltr01 _; rewrite -[X in X <= _]add0r lerD2r.
 exact: cone_norm_ge0.
 Qed.
 
-Lemma cnorm_div_succ_le1 (x : C) : cnorm x / (cnorm x + 1) <= 1.
-Proof.
-have h1 : 0 < cnorm x + 1 by exact: cnorm_succ_pos.
-rewrite ler_pdivrMr // mul1r.
-by rewrite -[X in X <= _]addr0 lerD2l ler01.
-Qed.
-
 Definition cnorm_succ_nng (x : C) : {nonneg R} :=
   NngNum (ltW (cnorm_succ_pos x)).
-
-Lemma cnorm_succ_nng_pos (x : C) : 0 < (cnorm_succ_nng x)%:num.
-Proof. exact: cnorm_succ_pos. Qed.
 
 Lemma cnorm_succ_inv_ge0 (x : C) : 0 <= (cnorm x + 1)^-1.
 Proof. by rewrite invr_ge0 ltW//; exact: cnorm_succ_pos. Qed.
@@ -1361,16 +1338,9 @@ Proof. by rewrite invr_ge0 ltW//; exact: cnorm_succ_pos. Qed.
 Definition cnorm_succ_inv_nng (x : C) : {nonneg R} :=
   NngNum (cnorm_succ_inv_ge0 x).
 
-Lemma cnorm_succ_invE (x : C) : (cnorm_succ_inv_nng x)%:num = (cnorm x + 1)^-1.
-Proof. by []. Qed.
-
 Lemma cnorm_succ_mulV (x : C) :
   (cnorm_succ_nng x)%:num * (cnorm_succ_inv_nng x)%:num = 1.
 Proof. by rewrite /= mulfV// gt_eqF//; exact: cnorm_succ_pos. Qed.
-
-Lemma cnorm_succ_mulVl (x : C) :
-  (cnorm_succ_inv_nng x)%:num * (cnorm_succ_nng x)%:num = 1.
-Proof. by rewrite /= mulVf// gt_eqF//; exact: cnorm_succ_pos. Qed.
 
 (** Helper: scaling by [(cnorm x + 1)] cancels with scaling by its
     inverse. *)
@@ -5093,11 +5063,6 @@ Qed.
 (** The precomposed map [f ∘ h] as a [linhom_car]. *)
 Definition linhom_prec : linhom_car Ar C2 D :=
   MkLinhom prec_pre prec_pres_int.
-
-Lemma linhom_prec_E (x : C2) :
-  linhom_fun linhom_prec x =
-  linhom_fun f (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) x).
-Proof. by []. Qed.
 
 End LinhomPrec.
 

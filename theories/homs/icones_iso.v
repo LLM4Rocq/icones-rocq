@@ -159,16 +159,6 @@ Proof. by move=> x1 x2 Hx; rewrite -(iso_can x1) Hx iso_can. Qed.
 Lemma iso_fwd_bij : bijective (iso_fwd phi).
 Proof. by exists (iso_bwd phi); [exact: iso_can | exact: iso_can']. Qed.
 
-(** The forward function of an [icones_iso] is a bijection from [setT]
-    to [setT] (classical-sets form). *)
-Lemma iso_fwd_setbij : set_bij setT setT (iso_fwd phi).
-Proof.
-split.
-- by [].
-- by apply: in2W; exact: iso_fwd_inj.
-- by move=> y _ /=; exists (iso_bwd phi y) => //; rewrite iso_can'.
-Qed.
-
 End IConesIsoCancel.
 
 Arguments iso_can {R Ar B C}.

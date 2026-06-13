@@ -198,12 +198,6 @@ Definition eval_path : linhom_car Ar P E :=
 Lemma eval_pathE (γ : P) : linhom_fun eval_path γ = path_fun γ r.
 Proof. by []. Qed.
 
-Lemma eval_path_norm : cone_norm eval_path <= 1.
-Proof.
-rewrite -[cone_norm _]/(linhom_norm eval_path).
-by apply: linhom_norm_sup_lub => γ Hγ; apply: le_trans (eval_path_norm_le1 γ) _.
-Qed.
-
 End EvalPath.
 
 Arguments eval_path {R Ar X E} r.
@@ -1456,13 +1450,6 @@ Lemma eta_pathE (b : B) (c : C) (r : ar_carrier Ar X) :
   path_fun (eta_path b c) r = lin_pt (linhom_fun (η r) (ptensor b c)).
 Proof. by rewrite /eta_path /= pt_QE. Qed.
 
-(** [path_fun (eta_path b c) r = linhom_fun (pt_Q b r) c] — bridges the
-    inner path to the composite integrable map [pt_Q b r], whose [c]-slot
-    fields (linearity/ω-continuity/integral) are inherited for free. *)
-Lemma eta_pathQ (b : B) (c : C) (r : ar_carrier Ar X) :
-  path_fun (eta_path b c) r = linhom_fun (pt_Q b r) c.
-Proof. by rewrite eta_pathE pt_QE. Qed.
-
 (** *** The inner map [eta_inner b : C ⊸ Path(X, 1⊸1)] (fixed [b]). *)
 
 Section EtaInner.
@@ -2267,10 +2254,6 @@ Definition etaX_path (b : B) (c : C) : PX := MkPath (ptX_inner_path b c).
 Lemma etaX_pathE (b : B) (c : C) (r : ar_carrier Ar X) :
   path_fun (etaX_path b c) r = lin_pt (linhom_fun (η r) (ptensor b c)).
 Proof. by rewrite /etaX_path /= ptX_QE. Qed.
-
-Lemma etaX_pathQ (b : B) (c : C) (r : ar_carrier Ar X) :
-  path_fun (etaX_path b c) r = linhom_fun (ptX_Q b r) c.
-Proof. by rewrite etaX_pathE ptX_QE. Qed.
 
 (** *** The inner map [etaX_inner b : C ⊸ Path(X, 1⊸D)] (fixed [b]). *)
 
@@ -3100,11 +3083,6 @@ congr (sup _); rewrite eqEsubset; split.
 - move=> _ [n _ <-]; rewrite evalE.
   by exists (test_fun mCD s0 (linhom_fun (u n) b)) => //; exists n.
 Qed.
-
-(** *** Boundedness of [Ψ] (operator norm [≤ 1]). *)
-Lemma Psi_bounded :
-  exists M : R, forall h : Dom, cnorm h <= 1 -> cnorm (Psi_map h) <= M.
-Proof. by exists 1 => h Hh; apply: le_trans (Psi_norm_le1 h) _. Qed.
 
 (** [Ψ] packaged as a [cones_hom]. *)
 Definition Psi_cones : cones_hom Dom Cod :=

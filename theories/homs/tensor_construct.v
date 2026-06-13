@@ -840,13 +840,6 @@ Definition eAtup :
 Definition eAprod : icones_hom Ar B (linhom_car Ar C (pb_prod p D)) :=
   icones_comp (iso_bwd (limpl_preserves_prod C (pb_fam p D))) eAtup.
 
-(** Pointwise component value of [eAprod]:
-    [eAprod b c . b' = (if b' then eB b c else g b c) . b']. *)
-Lemma eAprodE (b : B) (c : C) (b' : bool) :
-  cones_prod_val (linhom_fun ((eAprod : icones_hom _ _ _) b) c) b' =
-  linhom_fun ((eAtupfam b' : icones_hom _ _ _) b) c.
-Proof. by rewrite /eAprod /=. Qed.
-
 (** [(C ⊸ π_b) ∘ eAprod = eAtupfam b]: the [true]/[false] components
     of [eAprod] are [eB] / [g]. *)
 Lemma eAprod_pi (b' : bool) :
