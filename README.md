@@ -313,9 +313,11 @@ missing, and **why** — is in [`docs/PPL.md`](./docs/PPL.md) and on the
 **Open** (genuinely beyond §9): the **§8** analytic exponential and its category `ACONES`;
 the **§9** Eilenberg–Moore *full-subcategory* theorem (needs a Polish / standard-Borel
 layer not yet formalized); and the **§10** probabilistic-coherence-space embedding.
-**Open on the PPL side**: distribution-level refinements of the recursive examples and
-morphism-level recursion unfolding — see the "not yet" table in
-[`docs/PPL.md`](./docs/PPL.md).
+**On the PPL side**: the recursive examples are now pinned as measures (the geometric
+PMF, the unit Dirac, and the mutual-recursion divergence identity), and the recursion
+equation is proven at the value level (`fix_value_unfold`, morphism-free) and at every
+reachable context point (`eD_fix_unfold`); the morphism-level form at non-setlike,
+unreachable points is intentionally out of scope — see [`docs/PPL.md`](./docs/PPL.md).
 
 [`PLAN.md`](./PLAN.md) has the full roadmap and design notes.
 

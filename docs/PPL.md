@@ -2262,10 +2262,28 @@ Seely transport of `fix_comb` is delivered in
 with the computation law `eD_fix_mr_prod_at_setlike` and the surface
 witness `ex_even_odd_pair`.)
 
+The recursion equation `fix F = F (fix F)` is proven where it carries
+semantic content, at two levels. At the value level,
+`fix_value_unfold` (`theories/programs/infra/em_fix_value.v`) states
+`der(F(prom(fix_value F))) = fix_value F` as a *morphism-free*
+identity — the fixpoint value satisfies its defining equation
+unconditionally. At the interpreter level, `eD_fix_unfold`
+(`theories/programs/infra/cbv_fix_unfold.v`) discharges the same
+equation at every setlike unit-ball context point — which is every
+point a program evaluation reaches: a closed term denotes
+`linhom_fun (eD M) one1` with `one1` setlike (`coalg_str_one1`), and
+every binding, `let` and `λ` computes through setlike environments.
+The unfolding as a *morphism* equation at the remaining,
+*non-setlike* context points is intentionally out of scope: such
+points never arise from program execution, no result in this
+development consumes the morphism-level form, and `adj_psi` reduces
+through `coalg_str` only on the promoted-point (setlike) shape. The
+categorical statement would buy uniform-fixpoint-operator
+cleanliness, not any program-level fact.
+
 | Item | What it is | Why not yet |
 |---|---|---|
-| Morphism-level recursion unfolding | The `ne_fix` / `ne_fix_mr` unfolding equations as *morphism* equations, not pointwise at setlike context points. | The `adj_psi` packaging computes through `coalg_str`, which is only promoted-point-shaped on setlike inputs. |
-| External semantic equivalence | A correspondence with another formalised semantics (e.g. a quasi-Borel-space development) or a real PPL implementation (ProbProg / Pyro / Stan). | The correctness statements in this development are denotational identities at the categorical level. |
+| External semantic equivalence | A correspondence with another formalised semantics or a real PPL implementation (ProbProg / Pyro / Stan). | The correctness statements in this development are denotational identities at the categorical level. |
 
 ---
 
