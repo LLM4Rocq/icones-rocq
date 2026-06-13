@@ -21,7 +21,7 @@
     promoted zero [prom 0], the diverging-function value (of
     [e_bang]-mass one).
 
-    *** The repaired combinator (expert recipe, 2026-06-10)
+    *** The repaired combinator
 
     We build the fixpoint COMBINATOR as a morphism of [!]-coalgebras
 
@@ -37,7 +37,7 @@
     ([nl] analytic, [F] and [der] linear) from the genuine bottom
     [0 : A], so no degeneracy.
 
-    The two expert obligations:
+    The two obligations:
 
     (a) the formula extends to a genuine coalgebra morphism.  Route:
         the assignment [F ↦ sup_n x_n] is the composite of [SCones]
@@ -156,8 +156,8 @@ Local Opaque dig der prom bang_fmap.
 (** ** §1 — The degeneracy record: the zero-seeded Kleene iteration of
        the naive linear step is [0], always
 
-    The honest record of WHY the seeded combinator of §3 exists (gate
-    M-R.0, confirmed 2026-06-10).  [em_fix.v]'s [Phi_fun] is linear in
+    The record of WHY the seeded combinator of §3 exists.
+    [em_fix.v]'s [Phi_fun] is linear in
     the previous iterate, so it kills the linhom cone-zero seed
     ([Phi_fun_zero] — the linearity content) and the zero-seeded least
     fixpoint [linhom_lfp (Phi_fun diag M)] — the operator that used to
@@ -655,7 +655,7 @@ Lemma fix_comb_mor :
   ch_mor fix_comb = icones_comp (bang_fmap fix_lin) (dig LL).
 Proof. by []. Qed.
 
-(** The prom-point computation law — the expert's defining formula. *)
+(** The prom-point computation law — the defining formula. *)
 Lemma fix_prom_E (F : LL) (HF : cone_norm F <= 1) :
   Lfun (ch_mor fix_comb) (prom F) = prom (sc_fun fix_value F).
 Proof.

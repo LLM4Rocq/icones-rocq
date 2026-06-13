@@ -1,6 +1,6 @@
 (**md*** Affine Kleene cascades — closed form, limit, and sup-mass bridge
 
-    Scalarised core of the rejection-sampling killer example (plan §M3).
+    Scalarised core of the rejection-sampling example (CBV programs layer).
 
     ** Affine iteration
 
