@@ -585,11 +585,6 @@ def make_three_tab_document() -> dict:
     }
 
 
-# Back-compat aliases.
-make_two_tab_document = make_three_tab_document
-make_document = make_paper_document
-
-
 def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__)

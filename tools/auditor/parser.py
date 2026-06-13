@@ -52,7 +52,6 @@ from .schema import (
     TAB_PAPER,
     TAB_PPL,
     ThreeTabDocument,
-    TwoTabDocument,
 )
 
 
@@ -234,11 +233,6 @@ def _extract_snippet_provenance(raw: str) -> tuple[str | None, str | None]:
     m_sec = _SECTION_QUAL_RE.search(blob)
     section = m_sec.group(1) if m_sec else None
     return file_, section
-
-
-def _strip_label_kind(text: str) -> str:
-    """Strip a leading ``"Def 2.1"`` / ``"§ 8"`` etc., keeping the rest as label."""
-    return text.strip()
 
 
 def _parse_h2_heading(heading: str) -> tuple[str, str | None, str | None]:
@@ -796,7 +790,6 @@ def normalise(
                     continue
                 statement_html = _inline_to_html(md, statement_md)
                 idents, files, sec_qual = _extract_rocq_cell(md, rocq_md)
-                rocq_html_unused = _inline_to_html(md, rocq_md)  # noqa: F841 (future use)
 
                 # Slug derivation: use the H3 label if matched, else from the paper label.
                 base = slugify_label(paper_label)

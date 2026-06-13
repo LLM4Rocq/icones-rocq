@@ -54,10 +54,6 @@ def _is_multi_tab(data: dict) -> bool:
     return "paper" in data and "ppl" in data and "sections" not in data
 
 
-# Back-compat alias.
-_is_two_tab = _is_multi_tab
-
-
 def _empty_doc() -> dict:
     """Stand-in for a missing tab (e.g. legacy dual-tab payload)."""
     return {

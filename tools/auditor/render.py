@@ -40,15 +40,12 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader, TemplateNotFound
 from pygments.formatters import HtmlFormatter
 
 from .schema import (
-    ALL_TABS,
     TAB_EXAMPLES,
     TAB_PAPER,
     TAB_PPL,
     Document,
     ThreeTabDocument,
-    TwoTabDocument,
     three_tab_to_dict,
-    two_tab_to_dict,
 )
 
 
