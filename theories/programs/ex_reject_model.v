@@ -813,9 +813,6 @@ apply: le_trans (linhom_norm_apply_le Hg_ball a0) _.
 by rewrite mul1r Ha_ball.
 Qed.
 
-Lemma rm_m0_ge0 : (0 <= m0)%R.
-Proof. by rewrite fine_ge0// measure_ge0. Qed.
-
 Lemma rm_m0_le1 : (m0 <= 1)%R.
 Proof. exact: rm_dist_ball. Qed.
 
@@ -1643,8 +1640,7 @@ rewrite (tensor_morE
   (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
      (ne_meas f Hf_meas cm_var_x)))
   (cond_env3 r) (cond_env3 r)).
-rewrite icones_idE cm_score_E cm_ret_at.
-by [].
+by rewrite icones_idE cm_score_E cm_ret_at.
 Qed.
 
 (** *** Step 5 — the conditioning law *)
@@ -1826,8 +1822,7 @@ rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
            HoneG coalg_str_one1).
 rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
            HoneG coalg_str_one1).
-rewrite model_prog_val_E tt_val_E.
-by [].
+by rewrite model_prog_val_E tt_val_E.
 Qed.
 
 (** The linhom-level readings of the bridges (for rewriting under
@@ -1931,14 +1926,6 @@ Qed.
 Definition condition_prog : @named_expr R Ar R_obj nil tR' :=
   [ {ex_condition f Hf_meas model_prog} @ () ].
 
-(** The conditioned model unfolds to the combinator application (the
-    [reject_prog] shape with [condition_comb] for [reject_comb]). *)
-Lemma condition_prog_decomp :
-  condition_prog =
-  [ {ex_condition_comb tunit f Hf_meas}
-    @ {model_prog} @ () ].
-Proof. by []. Qed.
-
 (** [⟦condition_comb model_prog ()⟧(1) = ν_cond] — the program denotes
     the §4 conditioned-model denotation. *)
 Lemma condition_prog_val_E :
@@ -1953,8 +1940,7 @@ rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
            HoneG coalg_str_one1).
 rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
            HoneG coalg_str_one1).
-rewrite model_prog_val_E tt_val_E.
-by [].
+by rewrite model_prog_val_E tt_val_E.
 Qed.
 
 Let condition_prog_lin_E :

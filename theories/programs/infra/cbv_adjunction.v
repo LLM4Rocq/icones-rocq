@@ -721,8 +721,7 @@ rewrite -(tensor_mor_comp (icones_id Ar (Bg (coalg_obj P))) (coalg_str P)
                           (coalg_e (bang_cofree (coalg_obj Q))) (coalg_str Q)).
 rewrite icones_compIl.
 rewrite (coalg_e_cofree (coalg_obj Q)).
-rewrite -[icones_comp (e_bang (coalg_obj Q)) (coalg_str Q)]/(coalg_e Q).
-by [].
+by rewrite -[icones_comp (e_bang (coalg_obj Q)) (coalg_str Q)]/(coalg_e Q).
 Qed.
 
 Lemma coalg_str_em_proj2 (P Q : Coalgebra Ar) :
@@ -742,8 +741,7 @@ rewrite -(tensor_mor_comp (coalg_e (bang_cofree (coalg_obj P))) (coalg_str P)
                           (icones_id Ar (Bg (coalg_obj Q))) (coalg_str Q)).
 rewrite icones_compIl.
 rewrite (coalg_e_cofree (coalg_obj P)).
-rewrite -[icones_comp (e_bang (coalg_obj P)) (coalg_str P)]/(coalg_e P).
-by [].
+by rewrite -[icones_comp (e_bang (coalg_obj P)) (coalg_str P)]/(coalg_e P).
 Qed.
 
 (** *** Step 4 — the headline.  Lift the cofree case along the retract

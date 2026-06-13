@@ -193,8 +193,7 @@ rewrite /if_under (Lfun_comp (tensor_uncurry _)
   (iso_fwd (tensor_braid (coalg_obj G) (bool_cone_car Ar)))
   (gam ⊗p Lfun b gam)).
 rewrite tensor_braidEp tensor_uncurryE.
-rewrite linhom_iconesE bool_case_linhomE.
-by [].
+by rewrite linhom_iconesE bool_case_linhomE.
 Qed.
 
 (** The ball-sup of a chain does not depend on the chain/ball
@@ -450,8 +449,7 @@ rewrite (Lfun_comp
 rewrite /em_pair_mor (Lfun_comp (tensor_mor (eD_cbv' F) (eD_cbv' X))
   (coalg_d (ctxD_cbv (drop_names G))) gam).
 rewrite (coalg_d_setlike Hg Hs) tensor_morE tensor_morE icones_idE.
-rewrite tensor_uncurryE icones_idE.
-by [].
+by rewrite tensor_uncurryE icones_idE.
 Qed.
 
 (** *** Step 1 — the [let rec] binding collapses: the let pairs the
@@ -487,8 +485,7 @@ rewrite (eD_var_head_at_setlike "rs"
           ((sc_fun (fix_value (Lty (tfun tR' tR') tR')) reject_W0)!)
           HoneG coalg_str_one1).
 rewrite reject_arg_E.
-rewrite (der_prom _ (fix_value_ball reject_W0 reject_W0_ball)).
-by [].
+by rewrite (der_prom _ (fix_value_ball reject_W0 reject_W0_ball)).
 Qed.
 
 (** *** Step 2 — the denotation is the sup of the per-iterate measures
@@ -1201,8 +1198,7 @@ rewrite (eD_var_head_at_setlike "l"
           ((sc_fun (fix_value (Lty tunit tunit)) al_W0)!)
           HoneG coalg_str_one1).
 rewrite (eD_tt_at_setlike al_env0_ball al_env0_setlike).
-rewrite (der_prom _ (fix_value_ball al_W0 al_W0_ball)).
-by [].
+by rewrite (der_prom _ (fix_value_ball al_W0 al_W0_ball)).
 Qed.
 
 Lemma ex_almost_loop_sup_E :
@@ -1575,8 +1571,7 @@ rewrite (eD_var_head_at_setlike "g"
           ((sc_fun (fix_value (Lty tunit tR')) g_W0)!)
           HoneG coalg_str_one1).
 rewrite (eD_tt_at_setlike g_env0_ball g_env0_setlike).
-rewrite (der_prom _ (fix_value_ball g_W0 g_W0_ball)).
-by [].
+by rewrite (der_prom _ (fix_value_ball g_W0 g_W0_ball)).
 Qed.
 
 Lemma ex_geom_sup_E :

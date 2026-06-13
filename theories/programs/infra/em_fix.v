@@ -475,8 +475,6 @@ Hypothesis Phi_ball : forall x : linhom_car Ar C D,
 (** The Kleene iterates [Phi^n(0)] (using the linhom cone-zero). *)
 Definition kleene_lin (n : nat) : linhom_car Ar C D := kleene Phi n.
 
-Lemma kleene_lin_0 : kleene_lin 0 = precone_zero. Proof. by []. Qed.
-
 Lemma kleene_lin_S n : kleene_lin n.+1 = Phi (kleene_lin n).
 Proof. exact: kleeneS. Qed.
 

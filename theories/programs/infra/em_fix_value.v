@@ -302,12 +302,6 @@ Qed.
 Definition lfp_from : B :=
   cone_sup_ball kleene_from kleene_from_chain kleene_from_ball.
 
-Lemma lfp_from_ball : cone_norm lfp_from <= 1.
-Proof. exact: cone_sup_ball_norm. Qed.
-
-Lemma kleene_from_le_lfp n : precone_le (kleene_from n) lfp_from.
-Proof. exact: cone_sup_ball_ub. Qed.
-
 (** The fixpoint equation, under ω-continuity of [f] on the ball. *)
 Hypothesis f_cont : is_omega_continuous f.
 
@@ -669,11 +663,6 @@ rewrite fix_comb_mor Lfun_comp (dig_prom _ HF).
 rewrite (bang_fmap_prom fix_lin _ (prom_ball HF)).
 by rewrite (fix_lin_promE HF).
 Qed.
-
-(** Norm bound (the underlying [icones_hom] is norm-decreasing). *)
-Lemma fix_comb_norm (v : Bang Ar LL) :
-  cone_norm (Lfun (ch_mor fix_comb) v) <= cone_norm v.
-Proof. exact: cones_hom_norm_le1. Qed.
 
 (** *** §3.7 — Non-degeneracy
 

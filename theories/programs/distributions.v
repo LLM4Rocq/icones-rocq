@@ -545,24 +545,6 @@ Proof. by rewrite /bernoulli_ker_fun bern2_fmeas_norm. Qed.
 Definition bernoulli_kernel : pkernel R_obj R_obj :=
   MkPkernel bernoulli_ker_fun bernoulli_ker_meas bernoulli_ker_ball.
 
-(** Pointwise the Bernoulli kernel is a probability (norm exactly 1):
-    the coin always lands. *)
-Lemma bernoulli_kernel_norm1 (x : ar_carrier Ar R_obj) :
-  cone_norm (pk_ker bernoulli_kernel x) = 1%R.
-Proof. exact: bern2_fmeas_norm. Qed.
-
-(** Dirac reading: on a point mass at [toC r] the lifted kernel is the
-    two-point measure with density [clamp r]. *)
-Lemma bernoulli_kernel_dirac (r : R) :
-  Lfun (kernel_lift bernoulli_kernel) (dirac_fmeas (toC r)) =
-  bern2_fmeas (clamp_ge0 r) (clamp_le1 r).
-Proof.
-rewrite kernel_lift_dirac -[pk_ker _ _]/(bernoulli_ker_fun (toC r)).
-rewrite /bernoulli_ker_fun.
-apply: bern2_fmeas_eqP.
-by rewrite R_to_carrierK.
-Qed.
-
 (** *** Agreement with [ppl.v::bern_lift] at the clamped identity
 
     The [true]-coordinate of [bern_lift_{clamp} µ] is the mass that

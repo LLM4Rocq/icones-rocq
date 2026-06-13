@@ -1220,34 +1220,6 @@ Section BoolCaseOmegaCont.
 Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
 Local Notation T := (bool_cone_car Ar).
 
-(** Image-chain monotonicity: [bool_case u_n a b] is increasing in [n]. *)
-Lemma bool_case_chain (a b : A) (u : nat -> T)
-    (uch : forall n, precone_le (u n) (u n.+1)) (n : nat) :
-  precone_le (bool_case (u n) a b) (bool_case (u n.+1) a b).
-Proof.
-have /bc_leE [Ht Hf] := uch n.
-rewrite /bool_case.
-have Hta : precone_le (precone_scale (bc_t (u n)) a)
-                       (precone_scale (bc_t (u n.+1)) a).
-  have Hge0 : (0 <= (bc_t (u n.+1))%:num - (bc_t (u n))%:num)%R
-    by rewrite subr_ge0.
-  exists (precone_scale (NngNum Hge0) a).
-  rewrite -precone_scale_DAl.
-  congr (precone_scale _ a); apply: nngnum_inj; rewrite nng_addE/=.
-  by rewrite addrC subrK.
-have Hfb : precone_le (precone_scale (bc_f (u n)) b)
-                       (precone_scale (bc_f (u n.+1)) b).
-  have Hge0 : (0 <= (bc_f (u n.+1))%:num - (bc_f (u n))%:num)%R
-    by rewrite subr_ge0.
-  exists (precone_scale (NngNum Hge0) b).
-  rewrite -precone_scale_DAl.
-  congr (precone_scale _ b); apply: nngnum_inj; rewrite nng_addE/=.
-  by rewrite addrC subrK.
-case: Hta => [za Ea]; case: Hfb => [zb Eb].
-exists (precone_add za zb).
-by rewrite Ea Eb precone_addACA.
-Qed.
-
 (** Image-chain unit-ball bound. *)
 Lemma bool_case_chain_ub1 (a b : A)
     (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1)

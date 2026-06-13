@@ -416,8 +416,7 @@ rewrite (tensor_morE
   (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
           (ne_meas f Hf_meas sp_var_m)))
   (one1 ⊗p dirac_fmeas r) (one1 ⊗p dirac_fmeas r)).
-rewrite icones_idE sp_score_E sp_body_at.
-by [].
+by rewrite icones_idE sp_score_E sp_body_at.
 Qed.
 
 (** *** Main result — the unnormalised posterior
@@ -1323,8 +1322,7 @@ rewrite (Lfun_scaleE (coalg_e (tyD_cbv tF))
   (NngNum (obs_prod_ge0 m b l)) ((rl_clo' m b)!)).
 rewrite (coalg_e_setlike (P:=tyD_cbv tF) (rl_clo_prom_ball m b)
   (rl_clo_prom_setlike m b)).
-rewrite -(cone_one_scaleE (NngNum (obs_prod_ge0 m b l))).
-by [].
+by rewrite -(cone_one_scaleE (NngNum (obs_prod_ge0 m b l))).
 Qed.
 
 (** *** Main result — the model evidence
