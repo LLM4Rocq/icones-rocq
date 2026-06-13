@@ -24,7 +24,6 @@
     Paper reference: §7.4 (page 1:65), Lemma 7.27, Theorem 7.32. *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
-From mathcomp Require Import perm.
 From mathcomp.classical Require Import boolp classical_sets.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
@@ -223,19 +222,6 @@ Proof. by apply: cones_prod_eq => -[]. Qed.
 Lemma sprod_pairD (X Y : ICone.type Ar) (x1 x2 : X) (y1 y2 : Y) :
   sprod_pair (x1 + x2) (y1 + y2) = sprod_pair x1 y1 + sprod_pair x2 y2.
 Proof. by apply: cones_prod_eq => -[]. Qed.
-
-(** Components of a product cone-sum are the componentwise sums. *)
-Lemma sprod_fst_big (X Y : ICone.type Ar) (T : finType) (A : {set T})
-    (h : T -> sprod X Y) :
-  sprod_fst (\big[precone_add/precone_zero]_(j in A) h j) =
-  \big[precone_add/precone_zero]_(j in A) sprod_fst (h j).
-Proof. exact: cones_prod_val_big. Qed.
-
-Lemma sprod_snd_big (X Y : ICone.type Ar) (T : finType) (A : {set T})
-    (h : T -> sprod X Y) :
-  sprod_snd (\big[precone_add/precone_zero]_(j in A) h j) =
-  \big[precone_add/precone_zero]_(j in A) sprod_snd (h j).
-Proof. exact: cones_prod_val_big. Qed.
 
 End SProd.
 

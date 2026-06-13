@@ -55,7 +55,6 @@
     Lemma 7.31. *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
-From mathcomp Require Import perm.
 From mathcomp.classical Require Import boolp classical_sets.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
@@ -830,14 +829,6 @@ Definition scones_tuple_fun (y : Q) : P :=
 Lemma scones_tuple_val (y : Q) (Hy : cone_norm y <= 1) (i : I) :
   cones_prod_val (scones_tuple_fun y) i = sc_fun (f i) y.
 Proof. by rewrite /scones_tuple_fun /= (sc_clamp_ball Hy). Qed.
-
-(** Off the ball, the bare tuple is the product zero. *)
-Lemma scones_tuple_off (y : Q) : ~~ (cone_norm y <= 1) ->
-  scones_tuple_fun y = precone_zero.
-Proof.
-move=> Hy; apply: cones_prod_eq => i.
-by rewrite /scones_tuple_fun /= (sc_clamp_offball Hy).
-Qed.
 
 (** On the ball, the tuple's norm is [≤ 1]: every component is [≤ 1]
     ([sc_image_ball]), so the product norm — the [sup] of the component

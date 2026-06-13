@@ -327,18 +327,6 @@ Proof.
 by rewrite /Delta_pos Ppos0 big_set1 /Delta_arg big_set0 precone_addr0.
 Qed.
 
-(** [Δf(())(x) = f (lc_val x)]: the difference [Δ⁺ ⊖ Δ⁻] at [n = 0]
-    collapses to [Δ⁺ = f ∘ lc_val] since [Δ⁻ = 0]. *)
-Lemma Delta0 (u : 'I_0 -> B)
-    (x : local_cone (\big[precone_add/precone_zero]_(i : 'I_0) u i)) :
-  Delta f u x = f (lc_val x).
-Proof.
-have le : precone_le (Delta_neg f u x) (Delta_pos f u x).
-  by rewrite Delta_neg0; exact: precone_le0.
-have := Delta_E le.
-by rewrite Delta_neg0 Delta_pos0 precone_add0 => ->.
-Qed.
-
 End DeltaZero.
 
 (** ** Well-definedness of [Δ]: [Δ⁻ ≤ Δ⁺] on the ball — Paper §7.3
@@ -2056,9 +2044,6 @@ HB.instance Definition _ := @isPrecone.Build R snb_car
 
 (** [snb_sum] is a precone homomorphism (re-export through the registered
     [+]/[·:]/[0] of [snb_car]) and monotone for the (pointwise) order. *)
-Lemma snb_sum_zero : snb_sum (0 : snb_car) = 0.
-Proof. exact: snb_sum0. Qed.
-
 Lemma snb_sum_add (g h : snb_car) : snb_sum (g + h) = snb_sum g + snb_sum h.
 Proof. exact: snb_sumD. Qed.
 

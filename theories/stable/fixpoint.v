@@ -113,9 +113,6 @@ Definition lfp : B := cone_sup_ball kleene kleene_chain kleene_ball.
 Lemma lfp_ball : cone_norm lfp <= 1.
 Proof. exact: cone_sup_ball_norm. Qed.
 
-Lemma kleene_le_lfp n : kleene n <=p lfp.
-Proof. exact: cone_sup_ball_ub. Qed.
-
 (** Leastness: any [y] in the unit ball with [f y ≤p y] is a pre-fixpoint
     and dominates [lfp]. *)
 Lemma lfp_least (y : B) :

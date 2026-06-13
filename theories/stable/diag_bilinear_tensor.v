@@ -93,11 +93,6 @@ Variables (R : realType) (Ar : MeasSubcat R).
 Variables B C : ICone.type Ar.
 Local Open Scope precone_scope.
 
-(** A linear continuous map is in particular meas-stable. *)
-Lemma linhom_is_meas_stable (h : linhom_car Ar B C) :
-  is_meas_stable (linhom_fun h).
-Proof. exact: linhom_meas_stable. Qed.
-
 (** The lift, point-level 0-extended off the unit ball. *)
 Definition linhom_to_stablehom (h : linhom_car Ar B C) : stablehom B C :=
   MkStablehom (sc_clamp (linhom_fun h))

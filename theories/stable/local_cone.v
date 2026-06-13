@@ -1216,15 +1216,6 @@ Lemma lc_mcone_M_pull (Y : ar_obj Ar) (m : test_of Ar Y B) :
   mcone_M Y m -> lc_mcone_M (lc_test m).
 Proof. by move=> mM; exists m => //; exists 1 => // r u; rewrite mul1r. Qed.
 
-(** Paper §7.1 (Mscomp): pullback commutes with reindexing,
-    [test_reindex φ (lc_test m) = lc_test (test_reindex φ m)]. *)
-Lemma lc_test_reindex (Y' Y : ar_obj Ar) (φ : ar_hom Ar Y' Y)
-    (m : test_of Ar Y B) :
-  test_reindex φ (lc_test m) = lc_test (test_reindex φ m).
-Proof.
-by apply: test_eq => s u; rewrite /test_reindex/= /test_reindex_fun/=.
-Qed.
-
 (** Paper §7.1 (Mscomp): the family is closed under reindexing.  A
     scaled pullback [(r,u) ↦ c · m(r, lc_val u)] reindexes to
     [(s,u) ↦ c · (test_reindex φ m)(s, lc_val u)], with the reindexed

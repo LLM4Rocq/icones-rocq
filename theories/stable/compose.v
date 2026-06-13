@@ -259,17 +259,6 @@ move=> Hle; rewrite /bumpJ.
 by case: ifP => _; [exact: precone_le_refl | exact: Hle].
 Qed.
 
-(** Sum monotonicity of a bumped family: [Σ (bumpJ J) ≤p Σ u']. *)
-Lemma bumpJ_sum_le (n : nat) (u u' : 'I_n -> B) (J : {set 'I_n}) :
-  (forall j, u j <=p u' j) ->
-  \big[precone_add/precone_zero]_(i : 'I_n) bumpJ u u' J i <=p
-  \big[precone_add/precone_zero]_(i : 'I_n) u' i.
-Proof.
-move=> Hle; elim/big_rec2: _ => [|i s s' _ Hs]; first exact: precone_le_refl.
-apply: precone_le_trans (precone_add_le_l _ Hs).
-by apply: precone_add_le_r; exact: bumpJ_le.
-Qed.
-
 (** Flipping the bumped set [J → J] grows the difference [SD] monotonically,
     one index at a time ([SD_mono_idx]).  Strong induction on [#|J|]. *)
 Lemma SD_dirs_J (n : nat) (u u' : 'I_n.+1 -> B) (xb : B)
