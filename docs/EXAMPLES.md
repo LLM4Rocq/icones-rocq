@@ -609,17 +609,36 @@ for `p > 0`, the constantly-zero chain at `p = 0`. The element
 identity is then immediate: the unit cone is one-dimensional, so
 `cone_one_norm_eq1` upgrades the norm-one fact to `al_denot = one1`.
 
-### ex_even_odd_pair (`ex_even_odd_pair`, `ex_even`, `ex_odd`, `ex_even_odd_pair_cbv`)
+### ex_even_odd_pair (`ex_even_odd_pair`, `ex_even`, `ex_odd`, `ex_even_cbv_diverges`, `ex_odd_cbv_diverges`, `ex_even_odd_pair_cbv_value`)
 
 The mutual-recursion witness. `ne_fix_mr` binds one recursive name
 `p` at the free-coalgebra type
 `tprod (tfun tunit tunit) (tfun tunit tunit)` — a pair of
 functions — and each component calls the other via the `fst` / `snd`
 projections of the rec-bound product. This is the classic even/odd
-mutual-recursion shape (each component immediately delegates to the
-other, so operationally it diverges); the point of the entry is the
-elaboration witness, not a mass claim: the CBV denotation elaborates
-through the genuine Seely-transported fixpoint path `fix_mr_comb` of
+mutual-recursion shape: `ex_even` is `λn. snd p @ n`, `ex_odd` is
+`λn. fst p @ n`, so each component immediately delegates to the
+*other* with **no base case**. The closed runs
+`ex_even @ ()` and `ex_odd @ ()` therefore never terminate, and the
+operational identity is honest divergence — mass `0`.
+
+Both projection runs land in the **unit cone** as its zero element:
+`ex_even_cbv_diverges` and `ex_odd_cbv_diverges` state that
+`Lfun (eD_cbv' ex_even_run) one1 = precone_zero` (resp. `ex_odd_run`),
+where `ex_even_run := ne_app ex_even ne_tt`. That is the certain
+divergence — `precone_zero` in the one-dimensional unit cone is mass
+`0`.
+
+The honest accuracy point: the **pair** denotation is *not* the
+cone-zero. `ex_even_odd_pair_cbv_value` shows the pair value is
+`(precone_zero : L)! ⊗p (precone_zero : L)!` — a pair of
+*promoted-zero functions* `0! ⊗p 0!`, the backward Seely transport of
+the promoted base-cone zero. That element is provably never the
+cone-zero (`eD_fix_mr_prod_at_setlike_neq0`,
+`theories/programs/infra/cbv_fix_unfold.v`). The mass-`0` content
+appears **only** after projecting (`fst` / `snd`) *and* applying to
+`()`, landing in the unit cone. The CBV denotation elaborates through
+the genuine Seely-transported fixpoint path `fix_mr_comb` of
 `theories/programs/ppl_cbv.v` (`fix_mr_clause` at `tprod`), built on
 `theories/programs/infra/em_fix_mr.v` — see the PPL tab's
 value-fixpoint chapter.
@@ -628,6 +647,9 @@ value-fixpoint chapter.
 |---|---|---|
 | Def (`ex_even_odd_pair`) | `fix_mr p : (1→1) × (1→1). (λn. snd p n, λn. fst p n)` — one recursive name bound at a pair of function types, each component calling the other. | `ex_even_odd_pair`, `ex_even_odd_pair_cbv` — `theories/programs/examples.v` |
 | Def (`ex_even` / `ex_odd`) | The two projections of the recursive pair. | `ex_even`, `ex_odd` — same file |
+| Thm (`ex_even_cbv_diverges`) | The closed run `ex_even @ ()` lands in the unit cone as the zero element — mass `0`, certain divergence. | `ex_even_cbv_diverges` — `theories/programs/ex_reject_headline.v` |
+| Thm (`ex_odd_cbv_diverges`) | The closed run `ex_odd @ ()` likewise denotes the unit-cone zero — mass `0`. | `ex_odd_cbv_diverges` — same file |
+| Lem (`ex_even_odd_pair_cbv_value`) | The pair denotation is `0! ⊗p 0!`, the pair of promoted-zero functions — *not* the cone-zero. Divergence is the statement about the projections applied to `()`. | `ex_even_odd_pair_cbv_value` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -650,13 +672,43 @@ Definition ex_odd :
 
 (`pair_ty` abbreviates `tprod (tfun tunit tunit) (tfun tunit tunit)`;
 the two spliced lambdas are `λn. snd #"p" @ #"n"` and
-`λn. fst #"p" @ #"n"`.) The semantic computation law behind the
-elaboration is `eD_fix_mr_prod_at_setlike` with the non-degeneracy
-witness `eD_fix_mr_prod_at_setlike_neq0`
-(`theories/programs/infra/cbv_fix_unfold.v`): at a setlike unit-ball
-context point the denotation is the backward Seely transport of the
-genuine interleaved-Kleene fixpoint value, and it is never the
-cone-zero.
+`λn. fst #"p" @ #"n"`.)
+
+```coq
+(* theories/programs/ex_reject_headline.v — Section ExEvenOddRider *)
+Theorem ex_even_cbv_diverges :
+  Lfun (eD_cbv' ex_even_run) one1 = precone_zero.
+```
+
+```coq
+(* theories/programs/ex_reject_headline.v — Section ExEvenOddRider *)
+Theorem ex_odd_cbv_diverges :
+  Lfun (eD_cbv' ex_odd_run) one1 = precone_zero.
+```
+
+```coq
+(* theories/programs/ex_reject_headline.v — Section ExEvenOddRider *)
+Lemma ex_even_odd_pair_cbv_value :
+  Lfun (eD_cbv' (ex_even_odd_pair : @named_expr R Ar R_obj nil pair_ty))
+       one1 =
+  (precone_zero : L)! ⊗p (precone_zero : L)!.
+```
+
+(`ex_even_run := ne_app ex_even ne_tt`, `ex_odd_run` likewise;
+`Lfun h` abbreviates the underlying cones-hom function and `_!` is
+`prom`, `_ ⊗p _` the `ptensor` of the promoted unit-cone homset `L`.)
+
+**Proof idea.** The recursion is seeded at the cone-zero, and the
+zero-seeded interleaved-Kleene chain stays there: `even_odd_iter_zero`
+shows every iterate `fix_chain eo_W0 n = precone_zero` by induction
+(each step is `der 0! = 0`). Hence the value-fixpoint at the base cone
+is the sup of zero iterates, `ex_even_odd_fix_value_zero`. Feeding
+this through the semantic computation law `eD_fix_mr_prod_at_setlike`
+gives the pair value `0! ⊗p 0!`. Each projection-then-apply then uses
+the homogeneity helper `linhom_cone_one_zero` (with
+`cone_one_scale_rep`): a linhom out of the one-dimensional unit cone
+that vanishes at `one1` is the zero linhom, so the derelicted
+promoted-zero function evaluated at the unit point is `precone_zero`.
 
 ---
 
@@ -1056,17 +1108,19 @@ Theorem ex_reject_normalises_score
 
 The open items are CBV-side; the call-by-name interpretation and its
 headlines are not gaps of this document — they live on the
-`cbn-track` branch. Two former gaps are closed: mutual recursion at
+`cbn-track` branch. Three former gaps are closed: mutual recursion at
 product types (`ne_fix_mr` at products of free types elaborates
 through the genuine Seely-transported fixpoint `fix_mr_comb`, with
-the surface witness `ex_even_odd_pair` above) and runtime-parameter
+the surface witness `ex_even_odd_pair` above); the operational content
+of that witness (`ex_even_cbv_diverges` / `ex_odd_cbv_diverges` pin
+the projection runs `ex_even @ ()` / `ex_odd @ ()` to the unit-cone
+zero — certain divergence, mass `0`); and runtime-parameter
 distributions (`Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )` over the
 probability-kernel layer of `theories/programs/distributions.v`,
 with the hierarchy demo `ex_gaussian_walk` above).
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| Operational content for the mutual-recursion witness | A mass or distribution identity for `ex_even_odd_pair` / `ex_even` / `ex_odd` (the pair diverges by design, so the honest statement is a divergence/mass-zero claim at the projections). | The entry is an elaboration-level witness for the Seely-transported fixpoint path; its reduction chain has not been written. |
 | Runtime-parameter kernels for other distribution families | `pkernel` instances beyond `dirac` / `bernoulli` / `gaussian` / `uniform` (e.g. exponential, beta) and surface forms for them. | Each family needs its own parameter-measurability proof (the Fubini–Tonelli route of `measurable_normal_prob_pair`) and a totalisation convention for degenerate parameters; the kernel layer itself is generic and ready. |
 
 These choices are deliberate; each requires substantial

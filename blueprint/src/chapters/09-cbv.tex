@@ -2476,7 +2476,18 @@ other through $\mathtt{ne\_fst}$ / $\mathtt{ne\_snd}$; projections
 \rocq{Icones.programs.examples.ex_odd}) exercises
 $\mathtt{ne\_fix\_mr}$ at a product body type --- its denotation
 elaborates through the genuine Seely-transported combinator of
-\autoref{def:cbv-fix-mr-comb}. The boolean sanity examples
+\autoref{def:cbv-fix-mr-comb}. Its operational identity is honest
+divergence: each component delegates to the other with no base case,
+so the closed runs $\mathtt{ex\_even}\,@\,()$ and
+$\mathtt{ex\_odd}\,@\,()$ never terminate. The theorems
+\rocq{Icones.programs.ex_reject_headline.ex_even_cbv_diverges} and
+\rocq{Icones.programs.ex_reject_headline.ex_odd_cbv_diverges} pin both
+projection runs to the zero point of the unit cone (mass $0$). The
+\emph{pair} value itself is not the cone-zero: it is the pair of
+promoted-zero functions $0!\otimes 0!$
+(\rocq{Icones.programs.ex_reject_headline.ex_even_odd_pair_cbv_value}),
+and the mass-$0$ content appears only after projecting and applying to
+$()$. The boolean sanity examples
 \rocq{Icones.programs.examples.ex_true},
 \rocq{Icones.programs.examples.ex_false},
 \rocq{Icones.programs.examples.ex_fair_coin}, and
@@ -3716,14 +3727,16 @@ degenerate zero-seeded operator, since removed); $\mathtt{tbool}$ is the
 CBV-side mass identities are proved in \autoref{sec:cbv-geom-mass};
 and the closed-form CBV marginal identities for the basic
 sampling/scoring examples --- through the Bayesian-regression model
-evidence --- are proved in \autoref{ssec:cbv-marginals}. What remains
-as follow-up:
-\begin{itemize}
-  \item operational content for the mutual-recursion witness
-    \rocq{Icones.programs.examples.ex_even_odd_pair}: a mass /
-    divergence identity at the projections (the entry is currently an
-    elaboration-level witness for the transported fixpoint path).
-\end{itemize}
+evidence --- are proved in \autoref{ssec:cbv-marginals}. The
+operational content of the mutual-recursion witness
+\rocq{Icones.programs.examples.ex_even_odd_pair} is now also
+discharged: the projection runs $\mathtt{ex\_even}\,@\,()$ /
+$\mathtt{ex\_odd}\,@\,()$ denote the zero point of the unit cone
+(\rocq{Icones.programs.ex_reject_headline.ex_even_cbv_diverges} /
+\rocq{Icones.programs.ex_reject_headline.ex_odd_cbv_diverges}, mass
+$0$), with the pair value itself being $0!\otimes 0!$ rather than the
+cone-zero
+(\rocq{Icones.programs.ex_reject_headline.ex_even_odd_pair_cbv_value}).
 
 \paragraph{What is not interpreted.}
 $\mathrm{EM}(\mathord{!})$ is not cartesian closed and is not expected

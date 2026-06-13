@@ -1459,7 +1459,12 @@ Definition fix_mr_comb (t : ppl_type Ar) (Hfree : is_free_coalg_type t) :
 The surface witness is the mutual-recursion pair `ex_even_odd_pair`
 of `theories/programs/examples.v` (one recursive name at
 `tprod (tfun tunit tunit) (tfun tunit tunit)`, each component
-calling the other through `fst`/`snd`) — see
+calling the other through `fst`/`snd`). Its operational identity is
+honest divergence: each component delegates to the other with no base
+case, so `ex_even_cbv_diverges` / `ex_odd_cbv_diverges` pin the closed
+runs `ex_even @ ()` / `ex_odd @ ()` to the unit-cone zero (mass `0`),
+while the pair value itself is `0! ⊗p 0!`
+(`ex_even_odd_pair_cbv_value`), never the cone-zero — see
 the [Examples tab](../examples/).
 
 ### The interpreter wiring (`eD_fix_E`, `fix_mr_clause`)

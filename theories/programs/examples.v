@@ -535,10 +535,15 @@ Arguments ex_almost_loop_body {R Ar R_obj} p.
     a PAIR of functions; each component calls the other via the
     [fst]/[snd] projections of the rec-bound product.  This is the
     classic even/odd mutual-recursion SHAPE (each component immediately
-    delegates to the other, so operationally it diverges — the point
-    here is the elaboration smoke test for the genuine
-    Seely-transported [fix_mr_comb] path of [ppl_cbv.v::fix_mr_clause];
-    mass identities are out of scope). *)
+    delegates to the other with no base case, so operationally it
+    diverges).  The denotation elaborates through the genuine
+    Seely-transported [fix_mr_comb] path of [ppl_cbv.v::fix_mr_clause],
+    and the operational identity is discharged in
+    [ex_reject_headline.v], Section [ExEvenOddRider]:
+    [ex_even_cbv_diverges] / [ex_odd_cbv_diverges] pin the projection
+    runs [ex_even @ ()] / [ex_odd @ ()] to the unit-cone zero (mass
+    [0]), while the pair value itself is [0! ⊗p 0!]
+    ([ex_even_odd_pair_cbv_value]), never the cone-zero. *)
 
 Section ExEvenOdd.
 Variables (R : realType) (Ar : MeasSubcat R).
