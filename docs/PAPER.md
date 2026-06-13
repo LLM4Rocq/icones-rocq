@@ -370,8 +370,8 @@ builds the full HB tower `Precone → Cone → MCone → ICone`.
 | Def 4.1 | An *integrable cone* (`ICone`) is a measurable cone in which every path admits a Pettis integral with respect to every (sub-)probability measure. | `ICone.type` (via `isICone` mixin) — `theories/icones/icone.v` |
 | Def 4.2 | The Pettis integral `∫_µ η : C` is the unique element pairing with every test `t` as `∫ ⟨t, η(r)⟩ dµ`. | `icone_integral`, `icone_integral_eqP` (uniqueness) — `theories/icones/icone.v` |
 | Lem 4.7 | The Pettis integral satisfies the natural change-of-variable / Fubini-type identities (the conversion lemma threading all integrability arguments). | `icone_integral_*` family + `bilin.v` — `theories/icones/pettis.v`, `theories/homs/bilin.v` |
-| Thm 4.5 | The set of paths into a cone is itself an `ICone`. | `path_isICone` (via `path_int_exists`) — `theories/mcones/path.v`, `theories/icones/examples_icone.v` |
-| Thm 4.12 | `FMeas(X)` and the dual cone `⊥` are integrable. | `FMeas` is an `ICone`; `Bottom`-cone instances — `theories/icones/examples_icone.v` |
+| Thm 4.5 | The set of paths into a cone is itself an `ICone`. | the anonymous `isICone` instance built from `path_int_exists` — `theories/icones/examples_icone.v` |
+| Thm 4.12 | `FMeas(X)` and the dual cone `⊥` are integrable. | `FMeas` is an `ICone`; the `isICone` instance on `cone_one_car Ar` — `theories/icones/examples_icone.v` |
 | Cat 4 | The category `ICones` has integrable cones and `MCones`-morphisms preserving the integral. | `icones_hom`, `icones_comp`, `ICones` — `theories/icones/icone_cat.v` |
 | Fubini (§4) | The Fubini / iterated-integral identity for paths over a product space. | `fubini_iter_fun_X` — `theories/icones/fubini.v` |
 | Thm 4.18 | `ICones` is well-powered. | `icones_well_powered` (full proof, no stub) — `theories/icones/representable.v` |
@@ -575,7 +575,7 @@ Proof. by exists icones_subobject_class; exact: icones_subobject_classP. Qed.
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| Def 5.1 / 5.7 | The internal hom `C ⊸ D` carrier (the cone of `Cones`-morphisms `C → D`); its action `(h ⊸ g) : (C₁ ⊸ D₁) → (C₂ ⊸ D₂)`. | `linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map` — `theories/homs/linhom.v` |
+| Def 5.1 / 5.7 | The internal hom `C ⊸ D` carrier (the cone of `Cones`-morphisms `C → D`); its action `(h ⊸ g) : (C₁ ⊸ D₁) → (C₂ ⊸ D₂)`. | `linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun` — `theories/homs/linhom.v` |
 | Prop 5.8 | The internal-hom action lifts to an `icones` morphism. | `linhom_map_icones` — `theories/homs/linhom_functor.v` |
 | Thm 5.9 | The functor `(C ⊸ −)` preserves all limits. | `limpl_preserves_prod`, `limpl_preserves_limits` — `theories/homs/limpl_continuous.v` |
 | Thm 5.12 | The currying isomorphism `(B ⊗ C) ⊸ D ≃ B ⊸ (C ⊸ D)`. | `tensor_hom_iso` — `theories/homs/tensor_iso.v` |
