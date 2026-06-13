@@ -166,9 +166,15 @@ hard-coded sampler is the simplest instance: at the model
 `ex_reject` (`ex_reject_comb_sampler_E`), whose direct theorems
 (`ex_reject_master`, `ex_reject_is_normalised_posterior`,
 `ex_reject_mass_one`, `ex_reject_zero`) remain in
-`theories/programs/ex_reject_headline.v`, axiom-free. The same file proves the **CBV mass-1 identities** for the
-geometric and almost-loop programs (`ex_geom_cbv_mass_one`,
-`ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`), and
+`theories/programs/ex_reject_headline.v`, axiom-free. The same file proves the **CBV distribution identities** for the
+geometric and almost-loop programs: the geometric counter denotes the
+geometric law — the geometric PMF `(1/2)^(k+1)` at every embedded
+natural `k` (`ex_geom_cbv_distribution`, `ex_geom_cbv_pmf`), with the
+total-mass-1 specialisation `ex_geom_cbv_mass_one`; the almost-loop
+denotation is the unit Dirac `one1` for `p > 0`
+(`ex_almost_loop_cbv_dirac`, strengthening
+`ex_almost_loop_cbv_mass_one`) and the zero point at `p = 0`
+(`ex_almost_loop_cbv_zero`), and
 `theories/programs/infra/cbv_marginals.v` proves the **CBV marginal
 headlines** of the basic sampling/scoring examples — the unnormalised
 score posterior `ex_score_posterior_cbv_E`, paired exactly with the

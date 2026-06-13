@@ -440,7 +440,9 @@ pointwise probability, `gaussian_kernel_norm1`) and
 
 Recursive probabilistic programs combining `ne_fix` with the boolean
 cascade, exhibiting productive partial termination. The CBV mass
-identities are proved in `theories/programs/ex_reject_headline.v`
+identities — and, for the two halting samplers, the full
+distribution refinements that pin the denotations as *measures* —
+are proved in `theories/programs/ex_reject_headline.v`
 against the seeded value-fixpoint interpreter (`fix_comb`,
 [the CBV value-fixpoint chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html)),
 by the same reduction-chain-plus-affine-cascade recipe as the
@@ -471,17 +473,28 @@ pins the denotation of the Bernoulli-guarded loop with a
 never-succeeding coin to `precone_zero`, and `ex_loop` is the same
 loop with the coin erased.
 
-### ex_geom (`ex_geom`, `ex_geom_cbv_mass_one`)
+### ex_geom (`ex_geom`, `ex_geom_cbv_mass_one`, `ex_geom_cbv_distribution`, `ex_geom_cbv_pmf`)
 
 A geometric counter built from a fair-coin Bernoulli recursion: each
 call halts with probability `½` (returning `0`) and otherwise
 recurses, adding `1` to the returned real. The program denotes a
-measure of total mass `1` — the sampler halts almost surely.
+measure of total mass `1` — the sampler halts almost surely — and
+that measure is the geometric law: on every measurable `U` the
+denotation evaluates as the series `Σ_k (1/2)^(k+1) δ_k(U)`
+(`ex_geom_cbv_distribution`), and the atom at the embedded natural
+`k` carries mass exactly `(1/2)^(k+1)` (`ex_geom_cbv_pmf`). The
+embedded point `gpt k := R_to_carrier R_carrier_eq (k%:R)` places the
+natural `k` in the real carrier; the points are distinct
+(`gpt_inj`) and each singleton is measurable (`measurable_gpt`). The
+mass identity `ex_geom_cbv_mass_one` is the `U = setT` specialisation
+where the geometric weights sum to `1`.
 
 | Result | Statement | Rocq |
 |---|---|---|
 | Def (`ex_geom`) | `let rec g _ = if Bernoulli(½) then 0 else 1 + g () in g ()` of type `tR`. | `ex_geom` — `theories/programs/examples.v` |
 | Thm (`ex_geom_cbv_mass_one`) | The denotation has total mass one on the whole carrier: the sampler halts almost surely. | `ex_geom_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
+| Thm (`ex_geom_cbv_distribution`) | On every measurable `U` the denotation is the geometric series `Σ_k (1/2)^(k+1) δ_{gpt k}(U)`. | `ex_geom_cbv_distribution` — same file |
+| Thm (`ex_geom_cbv_pmf`) | The atom at the embedded natural `gpt k` carries mass exactly `(1/2)^(k+1)`: the geometric PMF. | `ex_geom_cbv_pmf` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -499,6 +512,22 @@ Theorem ex_geom_cbv_mass_one :
   fmeas_mu g_denot [set: ar_carrier Ar R_obj] = 1.
 ```
 
+```coq
+(* theories/programs/ex_reject_headline.v — Section GeomRider
+   gpt k := R_to_carrier R_carrier_eq (k%:R : R)
+   geom_w k := (((1 / 2 : R) ^+ k.+1)%:E) *)
+Theorem ex_geom_cbv_distribution (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu g_denot U =
+  \sum_(k <oo) geom_w k * fmeas_mu (dirac_fmeas (gpt k)) U.
+```
+
+```coq
+(* theories/programs/ex_reject_headline.v — Section GeomRider *)
+Theorem ex_geom_cbv_pmf (k : nat) :
+  fmeas_mu g_denot [set gpt k] = ((1 / 2 : R) ^+ k.+1)%:E.
+```
+
 (`g_denot` abbreviates
 `linhom_fun (ex_geom_cbv R_carrier_meas R_to_carrier_meas) one1`,
 the CBV denotation of the closed program at the unit context point.)
@@ -511,8 +540,18 @@ the boolean dispatch `ν_{n+1} = ½·δ_0 + ½·(add_lift (δ_1 ⊗ ν_n))`
 the mass cascade to `x_{n+1} = ½ + ½·x_n` (`g_val_S`); the affine
 cascade and the sup-mass bridge of
 `theories/programs/infra/affine_cascade.v` close the limit at `1`.
+The distribution refinement runs the same induction per set: the
+per-`U` step recurrence `g_iter_U_S` splits the THEN branch into
+`(1/2) δ_0` and the ELSE branch into the previous iterate pushed
+forward by `+1` (`g_shift_atom`), so the `n`-th iterate is the
+truncated geometric law `Σ_{k<n} (1/2)^(k+1) δ_{gpt k}`
+(`g_iter_closed`); the partial sums converge to the full ereal
+series (`g_iter_series_cvg`) through the same `cone_sup_ball`
+limit, giving `ex_geom_cbv_distribution`, and evaluating it at the
+singleton `[set gpt k]` isolates the single surviving atom for
+`ex_geom_cbv_pmf`.
 
-### ex_almost_loop (`ex_almost_loop`, `ex_almost_loop_cbv_mass_one`, `ex_almost_loop_cbv_zero`)
+### ex_almost_loop (`ex_almost_loop`, `ex_almost_loop_cbv_mass_one`, `ex_almost_loop_cbv_dirac`, `ex_almost_loop_cbv_zero`)
 
 A parameterised Bernoulli cascade: with probability `p` the recursion
 halts (returning `()`), and with probability `1 − p` it recurses.
@@ -520,12 +559,18 @@ When `p > 0` the program terminates almost surely (total mass `1`);
 when `p = 0` it diverges (total mass `0`). The dichotomy is an honest
 theorem pair: the denotation at `tunit` is a point of the unit cone
 (the CBV `tunit` is the terminal coalgebra on `cone_one_car`), so the
-termination probability is visible as the point's norm.
+termination probability is visible as the point's norm. At `p > 0`
+the denotation is moreover pinned as the *element* `one1` — the unit
+point, the Dirac on the one-point space — strengthening the norm
+identity to the point itself (`ex_almost_loop_cbv_dirac`), since a
+norm-one element of the one-dimensional unit cone is `one1`
+(`cone_one_norm_eq1`).
 
 | Result | Statement | Rocq |
 |---|---|---|
 | Def (`ex_almost_loop`) | `let rec l _ = if Bernoulli(p) then () else l () in l ()` of type `tunit`. The unified `Bernoulli [\| p \|]` clamps, so the program needs no `[0,1]` witnesses on `p`. | `ex_almost_loop` — `theories/programs/examples.v` |
 | Thm (`ex_almost_loop_cbv_mass_one`) | For every `p > 0` the denotation has norm one: almost-sure termination. | `ex_almost_loop_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
+| Thm (`ex_almost_loop_cbv_dirac`) | For every `p > 0` the denotation IS the unit point `one1` (the Dirac on the one-point space), strengthening the norm identity to the element. | `ex_almost_loop_cbv_dirac` — same file |
 | Thm (`ex_almost_loop_cbv_zero`) | At `p = 0` the denotation is the zero point of the unit cone: the loop diverges with probability one. | `ex_almost_loop_cbv_zero` — same file |
 
 ```coq
@@ -547,6 +592,11 @@ Theorem ex_almost_loop_cbv_mass_one : (0 < p)%R ->
 Theorem ex_almost_loop_cbv_zero : p = 0%R -> al_denot = precone_zero.
 ```
 
+```coq
+(* theories/programs/ex_reject_headline.v — Section AlmostLoopRider *)
+Theorem ex_almost_loop_cbv_dirac : (0 < p)%R -> al_denot = one1.
+```
+
 (`al_denot` abbreviates
 `linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas p) one1`;
 the `0 ≤ p ≤ 1` witnesses live in the theorems, not the program.)
@@ -555,7 +605,9 @@ Proof idea: as for the geometric counter — reduce to the
 compute one Kleene step to the scalar recurrence
 `al_val (n+1) = p + (1−p)·al_val n` (`al_step` / `al_val_S`), and
 close with `affine_iter_cvg_real`: the limit `p / (1 − (1−p)) = 1`
-for `p > 0`, the constantly-zero chain at `p = 0`.
+for `p > 0`, the constantly-zero chain at `p = 0`. The element
+identity is then immediate: the unit cone is one-dimensional, so
+`cone_one_norm_eq1` upgrades the norm-one fact to `al_denot = one1`.
 
 ### ex_even_odd_pair (`ex_even_odd_pair`, `ex_even`, `ex_odd`, `ex_even_odd_pair_cbv`)
 
@@ -1014,7 +1066,6 @@ with the hierarchy demo `ex_gaussian_walk` above).
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| Distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF `(1/2)^(k+1)` at every `k`; the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
 | Operational content for the mutual-recursion witness | A mass or distribution identity for `ex_even_odd_pair` / `ex_even` / `ex_odd` (the pair diverges by design, so the honest statement is a divergence/mass-zero claim at the projections). | The entry is an elaboration-level witness for the Seely-transported fixpoint path; its reduction chain has not been written. |
 | Runtime-parameter kernels for other distribution families | `pkernel` instances beyond `dirac` / `bernoulli` / `gaussian` / `uniform` (e.g. exponential, beta) and surface forms for them. | Each family needs its own parameter-measurability proof (the Fubini–Tonelli route of `measurable_normal_prob_pair`) and a totalisation convention for degenerate parameters; the kernel layer itself is generic and ready. |
 

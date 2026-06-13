@@ -2259,7 +2259,6 @@ witness `ex_even_odd_pair`.)
 
 | Item | What it is | Why not yet |
 |---|---|---|
-| Distribution refinements for the recursive programs | Pinning the CBV denotations of `ex_geom` / `ex_almost_loop` as *measures* (the geometric PMF, the Dirac at 0), not just their total mass. | The mass identities reduce to a scalar affine cascade; the distribution identities need the per-set version of the same per-iterate induction, which has not been written. |
 | Morphism-level recursion unfolding | The `ne_fix` / `ne_fix_mr` unfolding equations as *morphism* equations, not pointwise at setlike context points. | The `adj_psi` packaging computes through `coalg_str`, which is only promoted-point-shaped on setlike inputs. |
 | External semantic equivalence | A correspondence with another formalised semantics (e.g. a quasi-Borel-space development) or a real PPL implementation (ProbProg / Pyro / Stan). | The correctness statements in this development are denotational identities at the categorical level. |
 

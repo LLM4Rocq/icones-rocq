@@ -3563,6 +3563,14 @@ arithmetic lift; translation-mass invariance
 (\texttt{add\_lift\_mass}) reduces the cascade to
 $x_{n+1} = \tfrac12 + \tfrac12 x_n$, whose limit is $1$
 (\rocq{Icones.programs.infra.affine_cascade.affine_iter_cvg_half}).
+The same per-iterate induction run per measurable set pins the
+denotation as the geometric \emph{measure}, not merely its total
+mass: on every measurable $U$ the denotation evaluates as the series
+$\sum_k (1/2)^{k+1}\,\delta_{k}(U)$
+(\rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_distribution}\rocqok),
+and the atom at the embedded natural $k$ carries mass exactly
+$(1/2)^{k+1}$ --- the geometric PMF
+(\rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_pmf}\rocqok).
 \end{theorem}
 
 \begin{theorem}[Dichotomy for the parameterised almost-loop]%
@@ -3577,6 +3585,12 @@ denotation has full mass
 (\rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_mass_one});
 if $p = 0$ it is the zero point --- certain divergence
 (\rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_zero}).
+For $0 < p$ the denotation is moreover pinned as the \emph{element}
+$\mathtt{one1}$ --- the unit point, the Dirac on the one-point space ---
+strengthening the norm identity to the cone element itself
+(\rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_dirac}\rocqok),
+since a norm-one element of the one-dimensional unit cone is
+$\mathtt{one1}$.
 \end{theorem}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -3705,13 +3719,6 @@ sampling/scoring examples --- through the Bayesian-regression model
 evidence --- are proved in \autoref{ssec:cbv-marginals}. What remains
 as follow-up:
 \begin{itemize}
-  \item distribution refinements for the recursive programs: pinning
-    the CBV denotations of
-    \rocq{Icones.programs.examples.ex_geom} /
-    \rocq{Icones.programs.examples.ex_almost_loop} as \emph{measures}
-    (the geometric PMF, the Dirac at $0$), not just their total mass
-    --- the per-set version of the per-iterate induction of
-    \autoref{sec:cbv-geom-mass} has not been written;
   \item operational content for the mutual-recursion witness
     \rocq{Icones.programs.examples.ex_even_odd_pair}: a mass /
     divergence identity at the projections (the entry is currently an
