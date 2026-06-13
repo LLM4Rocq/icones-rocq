@@ -45,7 +45,7 @@ From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
-From mathcomp.analysis Require Import ereal sequences.
+From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
@@ -66,7 +66,6 @@ Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.examples_icone.
-Require Import Icones.icones.fubini.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
@@ -416,34 +415,3 @@ by congr (icone_integral _ _ _).
 Qed.
 
 End SkernToIConesFunctoriality.
-
-(** ** Sanity checks — paper Thm 6.5 deliverables *)
-
-Section MVPSanity.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variables X Y : ar_obj Ar.
-
-(** Functor on objects. *)
-Check (@Skern_to_ICones_obj R Ar X : ICone.type Ar).
-
-(** Functor on morphisms. *)
-Check (fun κ : Skern_hom Ar X Y =>
-         Skern_to_ICones_mor κ :
-         icones_hom Ar (fmeas R (ar_carrier Ar X))
-                       (fmeas R (ar_carrier Ar Y))).
-
-(** Paper Thm 6.5 — faithful. *)
-Check (Skern_to_ICones_faithful :
-  forall κ1 κ2 : Skern_hom Ar X Y,
-    Skern_to_ICones_mor κ1 = Skern_to_ICones_mor κ2 -> κ1 = κ2).
-
-(** Paper Thm 6.5 — full. *)
-Check (Skern_to_ICones_full :
-  forall f : icones_hom Ar (fmeas R (ar_carrier Ar X))
-                           (fmeas R (ar_carrier Ar Y)),
-    exists κ : Skern_hom Ar X Y, Skern_to_ICones_mor κ = f).
-
-(** Paper Thm 6.5 — fully faithful (the headline result). *)
-Check (Skern_to_ICones_fully_faithful X Y).
-
-End MVPSanity.

@@ -33,7 +33,7 @@ From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
-From mathcomp.analysis Require Import ereal sequences.
+From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
@@ -54,7 +54,6 @@ Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.examples_icone.
-Require Import Icones.icones.fubini.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
@@ -237,19 +236,3 @@ by congr (icone_integral _ _ _).
 Qed.
 
 End SkernLaws.
-
-(** ** Sanity checks *)
-
-Section SkernSanity.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variables (X Y Z : ar_obj Ar).
-
-Check (Skern_id Ar X : Skern_hom Ar X X).
-Check (fun (λ : Skern_hom Ar X Y) (κ : Skern_hom Ar Y Z) =>
-         Skern_comp λ κ : Skern_hom Ar X Z).
-Check (fun (λ : Skern_hom Ar X Y) =>
-         Skern_compIl λ : Skern_comp λ (Skern_id Ar Y) = λ).
-Check (fun (λ : Skern_hom Ar X Y) =>
-         Skern_compIr λ : Skern_comp (Skern_id Ar X) λ = λ).
-
-End SkernSanity.
