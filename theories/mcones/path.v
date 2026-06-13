@@ -1046,17 +1046,6 @@ Lemma path_fl_fun_inv (η : path_car Ar X (path_car Ar Y B))
   path_fl_inv_fun (path_fl_fun η) r s = path_fun (path_fun η r) s.
 Proof. by []. Qed.
 
-(** The other direction is also definitional once the underlying
-    function is fixed: for any [β : X × Y -> B],
-    [path_fl_fun (η_β) (r, s) = β (r, s)] where [η_β r s := β (r, s)].
-    Stated without packaging [η_β] into a [path_car] (which would
-    require measurable-path proofs). *)
-Lemma path_fl_inv_fun_id
-  (β : (ar_carrier Ar X * ar_carrier Ar Y)%type -> B)
-  (r : ar_carrier Ar X) (s : ar_carrier Ar Y) :
-  (path_fl_inv_fun β) r s = β (r, s).
-Proof. by []. Qed.
-
 End PathFlatten.
 
 (** ** Norm of the flattened path equals norm of the original

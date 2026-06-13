@@ -472,16 +472,3 @@ End Lemma310.
     [cnorm x ≤ m(x) + ε]. This lemma is stated for documentation;
     no downstream client needs it as written. *)
 
-Section MConeNormEps.
-Variables (R : realType) (Ar : MeasSubcat R) (C : MCone.type Ar).
-
-(** Paper Remark 3.3 (simplified form): the test furnished by
-    (Msnorm) provides the ε-tight evaluation for any non-zero [x]. *)
-Lemma mcone_norm_eps (x : C) (eps : R) :
-  x <> precone_zero -> 0 < eps ->
-  exists m : test_of Ar (ar_zero Ar) C,
-    mcone_M (ar_zero Ar) m /\
-    cone_norm x <= test_fun m (ar_zero_pt Ar) x + eps.
-Proof. exact: mcone_M_norm. Qed.
-
-End MConeNormEps.

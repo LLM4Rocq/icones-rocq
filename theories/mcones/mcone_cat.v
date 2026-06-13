@@ -329,9 +329,6 @@ Proof. exact: ltW. Qed.
 Lemma α_inv_ge0 : 0 <= (pos_real_val α)^-1.
 Proof. by rewrite invr_ge0 α_ge0. Qed.
 
-Lemma α_inv_gt0 : 0 < (pos_real_val α)^-1.
-Proof. by rewrite invr_gt0 αp. Qed.
-
 Definition α_nng : {nonneg R} := NngNum α_ge0.
 Definition α_inv_nng : {nonneg R} := NngNum α_inv_ge0.
 
@@ -868,13 +865,5 @@ Let αpos : 0 < pos_real_val α := pos_real_pos α.
 Variable B : MCone.type Ar.
 
 Local Notation T := (alpha_rescale_car α B).
-
-(** Helper: every test on [αB] is the scaled image [α⁻¹ · m^B] of
-    a test on [B]. This unfolds [αB_mcone_M] inline. *)
-Lemma αB_test_fun_eq (Y : ar_obj Ar) (m : test_of Ar Y B)
-    (s : ar_carrier Ar Y) (x : T) :
-  test_fun (αB_test α m) s x =
-  (pos_real_val α)^-1 * test_fun m s (alpha_rescale_val x).
-Proof. by []. Qed.
 
 End MConesIsoAlpha.

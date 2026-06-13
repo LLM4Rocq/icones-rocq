@@ -198,9 +198,6 @@ Definition fmeas_norm (m : fmeas R X) : R := fine (m setT).
 Lemma fmeas_setT_fin (m : fmeas R X) : m setT \is a fin_num.
 Proof. by apply: fmeas_fin; exact: measurableT. Qed.
 
-Lemma fmeas_setT_ge0 (m : fmeas R X) : 0 <= m setT.
-Proof. exact: measure_ge0. Qed.
-
 Lemma fmeas_norm_ge0 (m : fmeas R X) : (0 <= fmeas_norm m)%R.
 Proof.
 by rewrite /fmeas_norm -lee_fin fineK ?fmeas_setT_fin// measure_ge0.
