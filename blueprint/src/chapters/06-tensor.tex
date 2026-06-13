@@ -140,7 +140,7 @@ The proved data fall into five groups.
     (\rocq{Icones.homs.tensor_construct.tensor_curry_natural_B}\rocqok{}),
     and the \emph{concrete} naturality in $D$ whose witness
     is the explicit hom-functor action $C \lin h$
-    (\rocq{Icones.homs.tensor.tensor_curry_natural_post}\rocqok{}).
+    (\rocq{Icones.homs.tensor_construct.tensor_curry_natural_post}\rocqok{}).
     The last one is the workhorse: it yields Eq~5.1 below.
   \item \emph{Element-level packaging and the norm equation.} The
     Thm~5.12 iso of integrable cones
@@ -430,7 +430,7 @@ and pointwise $\Phi(f)(x)(y) = f(x \otimes y)$
 
 \begin{proof}
 From the concrete naturality of $\Phi$ in $D$
-(\rocq{Icones.homs.tensor.tensor_curry_natural_post},
+(\rocq{Icones.homs.tensor_construct.tensor_curry_natural_post},
 \S\ref{sec:tensor-staging}) with $h := f$
 and $f_0 := \id_{B \otimes C}$: $\Phi(f) = \Phi(f \circ \id) = (C \lin
 f) \circ \Phi(\id) = (C \lin f) \circ \tau$. Pointwise, evaluating the
@@ -769,7 +769,7 @@ tensor\_iso\}.v} (\S\ref{sec:tensor-staging}) --- comprises the tensor
 object former (\rocq{Icones.homs.tensor.tensor}), the hom-bijection and
 its naturality (\rocq{Icones.homs.tensor.tensor_curry},
 \rocq{Icones.homs.tensor.tensor_uncurry},
-\rocq{Icones.homs.tensor.tensor_curry_natural_post}), the Thm~5.12
+\rocq{Icones.homs.tensor_construct.tensor_curry_natural_post}), the Thm~5.12
 iso (\rocq{Icones.homs.tensor.tensor_hom_Phi}), the Thm~5.13 norm
 equation (\rocq{Icones.homs.tensor.tensor_normM}), and the structural
 isos of Eqs~5.2--5.4
