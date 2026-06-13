@@ -16,15 +16,6 @@ Import Order.TTheory GRing.Theory Num.Theory.
 
 Local Open Scope ring_scope.
 
-(** A module-local notation for the nonnegative reals of [R].  We avoid
-    polluting the global namespace; clients of this prelude should write
-    [Import NonnegNotation.] inside their own section/module if they want
-    the shorthand. *)
-Module NonnegNotation.
-Notation "'R≥0[' R ]" := ({nonneg R})
-  (at level 0, format "'R≥0[' R ]") : ring_scope.
-End NonnegNotation.
-
 Section NonnegExtra.
 Context {R : numDomainType}.
 
@@ -42,11 +33,6 @@ Proof. exact: val_inj. Qed.
 Lemma nonneg_eq0 r : r%:num = 0 -> r = 0%:nng.
 Proof. by move=> r0; apply: nngnum_inj; rewrite r0. Qed.
 
-(** Mirror of [nonneg_eq0] in [bool]-equality form, useful for
-    rewriting under [==]. *)
-Lemma nngnum_eq0 r : (r%:num == 0) = (r == 0%:nng).
-Proof. by apply/eqP/eqP => [/nonneg_eq0|->]. Qed.
-
 (** Underlying value of a [{nonneg R}] is non-negative.  This is the
     [%:num]-side companion of the canonical [num_spec] machinery and is
     cheaper to invoke than going through [ge0]. *)
@@ -57,9 +43,6 @@ Proof. exact: ge0. Qed.
     zero and one.  These hold definitionally but are useful as named
     rewrite rules so callers do not have to unfold [widen_itv]. *)
 Lemma nngnum0 : (0%:nng : {nonneg R})%:num = 0.
-Proof. by []. Qed.
-
-Lemma nngnum1 : (1%:nng : {nonneg R})%:num = 1.
 Proof. by []. Qed.
 
 End NonnegExtra.
@@ -105,16 +88,6 @@ Proof.
 move=> /(congr1 (@Itv.r _ _ _)); rewrite nng_addE nngnum0 => /eqP.
 rewrite paddr_eq0 ?nngnum_ge0// => /andP[/eqP r0 /eqP s0].
 by split; apply: nonneg_eq0.
-Qed.
-
-(** Bool-equality form of [nonneg_addr0], more convenient under
-    [rewrite]. *)
-Lemma nng_add_eq0 r s :
-  (nng_add r s == 0%:nng) = (r == 0%:nng) && (s == 0%:nng).
-Proof.
-apply/eqP/andP => [/nonneg_addr0[-> ->]|[/eqP-> /eqP->]];
-  first by rewrite !eqxx.
-by apply: nngnum_inj; rewrite nng_addE !nngnum0 addr0.
 Qed.
 
 End NonnegPos.

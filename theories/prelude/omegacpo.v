@@ -92,9 +92,7 @@ Proof. exact: ocpo_sup_lub. Qed.
 Lemma sup_irrelevant (u : nat -> T) (uch1 uch2 : omegacpo_chain u) :
   ocpo_sup u uch1 = ocpo_sup u uch2.
 Proof.
-apply: le_anti; apply/andP; split.
-- by apply: sup_lub => n; exact: sup_ub.
-- by apply: sup_lub => n; exact: sup_ub.
+by apply/le_anti/andP; split; apply: sup_lub => n; exact: sup_ub.
 Qed.
 
 End OmegaCpoTheory.

@@ -62,7 +62,6 @@ From mathcomp.analysis Require Import measurable_fun_approximation.
 
 Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
-Require Import Icones.prelude.ereal_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.examples_cone.
