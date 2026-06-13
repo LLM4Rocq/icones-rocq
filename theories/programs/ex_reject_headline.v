@@ -1762,6 +1762,102 @@ Qed.
 
 Local Open Scope ereal_scope.
 
+(** *** Per-[U] pushforward evaluation
+
+    Generalises [ppl.v::FMeas_fmap_setT_E] from [setT] to an arbitrary
+    measurable [U]: the pushforward [FMeas_fmap φ] of a measure [ν]
+    evaluates at [U] by integrating the Dirac masses [δ_(φ r)(U)]
+    against [ν], which is the indicator of [φ ⁻¹` U]. *)
+Lemma FMeas_fmap_U_E (X Y : ar_obj Ar) (φ : ar_hom Ar X Y)
+    (ν : fmeas R (ar_carrier Ar X))
+    (U : set (ar_carrier Ar Y)) (mU : measurable U) :
+  fmeas_mu (Lfun (FMeas_fmap φ) ν) U =
+  fmeas_mu ν (φ @^-1` U).
+Proof.
+have HE : Lfun (FMeas_fmap φ) ν =
+    icone_integral (path_fun (push_dirac_path φ))
+                   (path_is_path (push_dirac_path φ)) ν.
+  by rewrite /FMeas_fmap (linhom_iconesE _ (FMeas_fmap_norm_le1 φ) ν).
+rewrite HE.
+rewrite (distributions.icone_integral_fmeas_E
+           (path_is_path (push_dirac_path φ)) ν mU).
+have mpreU : measurable (φ @^-1` U).
+  have H := measurable_funPT φ measurableT U mU.
+  by rewrite setTI in H.
+under eq_integral => r _.
+  have -> : fmeas_mu (path_fun (push_dirac_path φ) r) U
+          = fmeas_mu (dirac_fmeas (φ r) : FMeas Y) U by [].
+  rewrite (dirac_fmeas_E (φ r) mU) diracE/=.
+  have -> : ((φ r \in U)%:R)%:E = (\1_(φ @^-1` U) r)%:E :> \bar R.
+    by rewrite indicE.
+  over.
+by rewrite integral_indic// setIT.
+Qed.
+
+(** The shift map [+a] on the real carrier, [s_shift a c = a + c]. *)
+Local Notation s_shift a :=
+  (fun c : ar_carrier Ar R_obj =>
+     R_to_carrier R_carrier_eq (a + carrier_to_R R_carrier_eq c)).
+
+(** Per-[U] evaluation of the arithmetic shift [add_lift (δ_a ⊗ ν)]:
+    adding the constant [a] to each sample is the pushforward of [ν]
+    along [+a].  This is the per-[U] refinement of [ppl.v::add_lift_mass]
+    (the [U = setT] case). *)
+Lemma add_lift_dirac_U (a : R) (ν : fmeas R (ar_carrier Ar R_obj))
+    (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  fmeas_mu (Lfun (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                   R_to_carrier_meas)
+              (dirac_fmeas (R_to_carrier R_carrier_eq a) ⊗p ν)) U =
+  fmeas_mu ν ((s_shift a) @^-1` U).
+Proof.
+set am := @add_meas R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas.
+set apc := (ar_prod_cast (R:=R) (Ar:=Ar) (X:=R_obj) (Y:=R_obj)).
+rewrite /add_lift.
+rewrite -[Lfun _ _]/(Lfun (FMeas_fmap am)
+  (Lfun (fmeas_lax R_obj R_obj)
+    (dirac_fmeas (R_to_carrier R_carrier_eq a) ⊗p ν))).
+have maddU : measurable (am @^-1` U).
+  have H := measurable_funPT am measurableT U mU.
+  by rewrite setTI in H.
+rewrite (FMeas_fmap_U_E am _ mU).
+rewrite (fmeas_lax_E (dirac_fmeas (R_to_carrier R_carrier_eq a)) ν).
+rewrite (fmeas_lax_preE (dirac_fmeas (R_to_carrier R_carrier_eq a)) ν
+           (am @^-1` U) maddU).
+have mprecast : measurable (apc @^-1` (am @^-1` U)).
+  have Hc := ar_prod_cast_meas Ar R_obj R_obj.
+  have H := Hc measurableT (am @^-1` U) maddU.
+  by rewrite setTI in H.
+rewrite (fubini.fmeas_prodE _ _ (apc @^-1` (am @^-1` U)) mprecast).
+(* The product measure on a general set is the iterated integral of
+   the [ν]-sections against the outer Dirac, which collapses to the
+   section at [R_to_carrier a]. *)
+rewrite -[lebesgue_integral_fubini.product_measure1 _ _ _]/(
+  \int[fubini.fmeas_fin_view (dirac_fmeas (R_to_carrier R_carrier_eq a))]_x
+   (fubini.fmeas_fin_view ν) (xsection (apc @^-1` (am @^-1` U)) x)).
+have eq_xint :
+    \int[fubini.fmeas_fin_view (dirac_fmeas (R_to_carrier R_carrier_eq a))]_x
+       (fubini.fmeas_fin_view ν) (xsection (apc @^-1` (am @^-1` U)) x)
+    = \int[\d_(R_to_carrier R_carrier_eq a)]_x
+       (fubini.fmeas_fin_view ν) (xsection (apc @^-1` (am @^-1` U)) x).
+  apply: eq_measure_integral => W mW _.
+  transitivity (fmeas_mu (dirac_fmeas (R_to_carrier R_carrier_eq a)) W).
+    exact: (fubini.fmeas_fin_viewE (dirac_fmeas (R_to_carrier R_carrier_eq a))
+              W mW).
+  exact: (dirac_fmeas_E _ mW).
+have ms_sec : measurable_fun [set: ar_carrier Ar R_obj]
+    (fun x => fubini.fmeas_fin_view ν (xsection (apc @^-1` (am @^-1` U)) x)).
+  exact: (lebesgue_integral_fubini.measurable_fun_xsection
+            (fubini.fmeas_fin_view ν) mprecast).
+rewrite eq_xint (integral_dirac _ measurableT ms_sec).
+rewrite diracT mul1e.
+rewrite (fubini.fmeas_fin_viewE ν); last first.
+  exact: (measurable_xsection _ mprecast).
+congr (fmeas_mu ν _).
+apply/seteqP; split=> y; rewrite /xsection/= inE /am /apc /preimage/=
+  (add_meas_cast R_carrier_meas R_to_carrier_meas (R_to_carrier R_carrier_eq a) y)
+  R_to_carrierK//.
+Qed.
+
 Lemma g_iter_0 : g_iter 0 = precone_zero.
 Proof. by rewrite /g_iter fix_chain_0 linhom_fun_zero. Qed.
 
@@ -1818,6 +1914,176 @@ have HE : (fun n => fmeas_mu (g_iter n) [set: ar_carrier Ar R_obj]) =
   by apply/funext => n; rewrite /g_val fineK// fmeas_setT_fin.
 rewrite HE.
 exact: (affine_iter_cvg_half g_val_0 g_val_S).
+Qed.
+
+(** *** The geometric distribution: [⟦ex_geom⟧ = Σ_k (1/2)^(k+1) δ_k]
+
+    The per-iterate scaffolding above pins not just the total mass but
+    the full per-set behaviour: the [n]-th Kleene iterate is the
+    truncated geometric law [Σ_{k<n} (1/2)^(k+1) δ_k], and the
+    denotation is its limit. *)
+
+(** The embedded atom [k ∈ ℕ] as a point of the real carrier. *)
+Local Notation gpt k := (R_to_carrier R_carrier_eq (k%:R : R)).
+
+(** The geometric weight [(1/2)^(k+1)] as an ereal. *)
+Local Notation geom_w k := (((1 / 2 : R) ^+ k.+1)%:E).
+
+(** [add_lift] shifts the atom index by one: [s_shift 1] maps
+    [gpt k] to [gpt k.+1]. *)
+Lemma g_shift_atom (k : nat) (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu (dirac_fmeas (gpt k)) ((s_shift (1 : R)) @^-1` U) =
+  fmeas_mu (dirac_fmeas (gpt k.+1)) U.
+Proof.
+have ms : measurable_fun [set: ar_carrier Ar R_obj] (s_shift (1 : R)).
+  apply: measurableT_comp; first exact: R_to_carrier_meas.
+  apply: measurable_funD; first exact: measurable_cst.
+  exact: (carrier_to_R_meas R_carrier_meas).
+have mpre : measurable ((s_shift (1 : R)) @^-1` U).
+  have H := ms measurableT _ mU.
+  by rewrite setTI in H.
+rewrite (dirac_fmeas_E (gpt k) mpre).
+rewrite (dirac_fmeas_E (gpt k.+1) mU).
+rewrite !diracE.
+congr (_%:R)%:E; congr (nat_of_bool _).
+by congr (_ \in U); rewrite /preimage/= R_to_carrierK -natr1 addrC.
+Qed.
+
+(** Per-[U] iterate recurrence: the measure refinement of [g_val_S].
+    The THEN branch contributes [(1/2) δ_0]; the ELSE branch the
+    previous iterate pushed forward by [+1]. *)
+Lemma g_iter_U_S n (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  fmeas_mu (g_iter n.+1) U =
+  (1 / 2)%:E * fmeas_mu (dirac_fmeas (gpt 0%N)) U
+  + (1 / 2)%:E * fmeas_mu (g_iter n) ((s_shift (1 : R)) @^-1` U).
+Proof.
+rewrite g_step.
+have -> : (bool_case (bernoulli (Ar:=Ar) (1 / 2 : R) (bernoulli_half_ge0 R)
+               (bernoulli_half_le1 R))
+    (dirac_fmeas (R_to_carrier R_carrier_eq 0%R))
+    (Lfun (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas
+             R_to_carrier_meas)
+       (dirac_fmeas (R_to_carrier R_carrier_eq 1%R) ⊗p g_iter n))
+    : fmeas R (ar_carrier Ar R_obj)) =
+  fmeas_add
+    (fmeas_scale (NngNum (bernoulli_half_ge0 R))
+       (dirac_fmeas (R_to_carrier R_carrier_eq 0%R)))
+    (fmeas_scale (NngNum (subr_ge0_le1 (1 / 2 : R) (bernoulli_half_le1 R)))
+       (Lfun (@add_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                R_to_carrier_meas)
+          (dirac_fmeas (R_to_carrier R_carrier_eq 1%R) ⊗p g_iter n))).
+  by [].
+rewrite fmeas_addE 2!fmeas_scaleE/=.
+rewrite (add_lift_dirac_U 1%R (g_iter n) mU).
+have -> : ((1 - 1 / 2)%R : R) = (1 / 2)%R
+  by rewrite {1}(splitr (1 : R)) addrK.
+have -> : (gpt 0%N) = R_to_carrier R_carrier_eq 0%R by rewrite mulr0n.
+by [].
+Qed.
+
+(** Closed form: the [n]-th iterate is the truncated geometric law. *)
+Lemma g_iter_closed n (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  fmeas_mu (g_iter n) U =
+  \sum_(k < n) geom_w k * fmeas_mu (dirac_fmeas (gpt k)) U.
+Proof.
+elim: n U mU => [ | n IH] U mU.
+  rewrite big_ord0.
+  have -> : (g_iter 0 : fmeas R (ar_carrier Ar R_obj)) = fmeas_zero
+    by rewrite g_iter_0.
+  by rewrite fmeas_zeroE.
+have ms : measurable_fun [set: ar_carrier Ar R_obj] (s_shift (1 : R)).
+  apply: measurableT_comp; first exact: R_to_carrier_meas.
+  apply: measurable_funD; first exact: measurable_cst.
+  exact: (carrier_to_R_meas R_carrier_meas).
+have mpre : measurable ((s_shift (1 : R)) @^-1` U).
+  have H := ms measurableT _ mU.
+  by rewrite setTI in H.
+rewrite (g_iter_U_S n mU) (IH _ mpre).
+rewrite big_ord_recl/= expr1 mulr0n; congr (_ + _).
+under [RHS]eq_bigr => i _ do rewrite /bump/= add1n.
+rewrite ge0_sume_distrr; last first.
+  move=> i _.
+  by rewrite mule_ge0// ?lee_fin ?exprn_ge0// ?divr_ge0// measure_ge0.
+apply: eq_bigr => i _.
+by rewrite (g_shift_atom i mU) muleA -EFinM -exprS.
+Qed.
+
+(** The geometric series limit: the partial sums of the geometric
+    weights converge to the full ereal series. *)
+Lemma g_iter_series_cvg (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu (g_iter n) U @[n --> \oo] -->
+    \sum_(k <oo) geom_w k * fmeas_mu (dirac_fmeas (gpt k)) U.
+Proof.
+have HE : (fun n => fmeas_mu (g_iter n) U) =
+          (fun n => \sum_(0 <= k < n)
+             geom_w k * fmeas_mu (dirac_fmeas (gpt k)) U).
+  by apply/funext => n; rewrite big_mkord; exact: g_iter_closed.
+rewrite HE.
+apply: (is_cvg_nneseries (N := 0%N)) => k _ _.
+by rewrite mule_ge0// ?measure_ge0// lee_fin exprn_ge0// divr_ge0.
+Qed.
+
+(** The distribution identity: the CBV denotation of [ex_geom]
+    evaluates on every measurable [U] as the geometric series
+    [Σ_k (1/2)^(k+1) δ_k(U)]. *)
+Theorem ex_geom_cbv_distribution (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu g_denot U =
+  \sum_(k <oo) geom_w k * fmeas_mu (dirac_fmeas (gpt k)) U.
+Proof.
+rewrite ex_geom_sup_E.
+apply: (fmeas_kleene_sup_U_E g_iter_chain g_iter_ball mU).
+exact: g_iter_series_cvg.
+Qed.
+
+(** The atoms are distinct: [gpt] is injective, since [R_to_carrier]
+    has the left inverse [carrier_to_R] and [_%:R] is injective on
+    [nat]. *)
+Lemma gpt_inj : injective (fun k : nat => gpt k).
+Proof.
+move=> i j /(congr1 (carrier_to_R R_carrier_eq)).
+rewrite !R_to_carrierK => Hij.
+by apply/eqP; rewrite -(eqr_nat R) Hij eqxx.
+Qed.
+
+(** The embedded atom set is measurable: it is the [carrier_to_R]
+    preimage of the (measurable) real singleton [{k%:R}]. *)
+Lemma measurable_gpt (k : nat) : measurable [set gpt k].
+Proof.
+have -> : [set gpt k] = carrier_to_R R_carrier_eq @^-1` [set (k%:R : R)].
+  apply/seteqP; split=> c.
+    by move=> ->; rewrite /preimage/= R_to_carrierK.
+  rewrite /preimage/= => Hc.
+  by rewrite -(carrier_to_RK R_carrier_eq c) Hc.
+have m1 : measurable [set (k%:R : R)] by rewrite -set_itv1.
+rewrite -[X in measurable X]setTI.
+exact: (carrier_to_R_meas R_carrier_meas measurableT m1).
+Qed.
+
+(** The probability mass function: the denotation assigns mass exactly
+    [(1/2)^(k+1)] to each embedded natural [k]. *)
+Theorem ex_geom_cbv_pmf (k : nat) :
+  fmeas_mu g_denot [set gpt k] = ((1 / 2 : R) ^+ k.+1)%:E.
+Proof.
+have mpt : measurable [set gpt k] by exact: measurable_gpt.
+have hge0 : forall j : nat,
+    0 <= geom_w j * fmeas_mu (dirac_fmeas (gpt j)) [set gpt k].
+  move=> j.
+  by rewrite mule_ge0// ?measure_ge0// lee_fin exprn_ge0// divr_ge0.
+rewrite (ex_geom_cbv_distribution mpt).
+rewrite (nneseriesD1 (n := k) (P := xpredT) (fun j _ => hge0 j) isT).
+have -> : geom_w k * fmeas_mu (dirac_fmeas (gpt k)) [set gpt k]
+        = ((1 / 2 : R) ^+ k.+1)%:E.
+  rewrite (dirac_fmeas_E _ mpt) diracE/= mem_set// mulr1n mule1//.
+rewrite [X in _ + X](_ : _ = 0) ?adde0//.
+apply: (eseries0 (N := 0%N)) => j _; rewrite andTb => Hjk.
+rewrite (dirac_fmeas_E _ mpt) diracE/=.
+have -> : (gpt j \in [set gpt k]) = false.
+  apply: memNset => /= /gpt_inj Heq.
+  by rewrite Heq eqxx in Hjk.
+by rewrite mulr0n mule0.
 Qed.
 
 End GeomRider.
