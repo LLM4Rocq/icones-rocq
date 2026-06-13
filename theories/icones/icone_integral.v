@@ -161,9 +161,6 @@ Local Open Scope ereal_scope.
 Local Definition kernel46 (s : Y) : {measure set X -> \bar R} :=
   fmeas_mu (κ s).
 
-Local Lemma kernel46E s U : kernel46 s U = fmeas_mu (κ s) U.
-Proof. by []. Qed.
-
 Local Lemma kernel46_meas U : measurable U ->
   measurable_fun setT (kernel46 ^~ U).
 Proof. exact: κ_meas. Qed.

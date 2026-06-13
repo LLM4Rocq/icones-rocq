@@ -383,16 +383,6 @@ split.
 - by move=> r x; apply: inj2; rewrite phiE g1Z g2Z phiE.
 Qed.
 
-(** Symmetric statement for [psi]. *)
-Lemma psi_lin : is_linear psi.
-Proof.
-have [g10 g1D g1Z] := g1_lin; have [g20 g2D g2Z] := g2_lin.
-split.
-- by apply: inj1; rewrite psiE g20 g10.
-- by move=> x y; apply: inj1; rewrite psiE g2D g1D !psiE.
-- by move=> r x; apply: inj1; rewrite psiE g2Z g1Z psiE.
-Qed.
-
 (** Norm-preservation: [‖phi a‖_{A2} = ‖a‖_{A1}].  The transported-norm
     table at [b = g1 a] gives [‖hinv h2 (g1 a)‖ = ‖hinv h1 (g1 a)‖], and
     [hinv h1 (g1 a) = a] by [hinvK]. *)
@@ -401,13 +391,6 @@ Proof.
 rewrite /phi.
 have := f_equal (fun f => f (g1 a)) Hnrm => /= ->.
 by rewrite (hinvK h1 inj1).
-Qed.
-
-Lemma psi_norm (a : A2) : cone_norm (psi a) = cone_norm a.
-Proof.
-rewrite /psi.
-have := f_equal (fun f => f (g2 a)) Hnrm => /= <-.
-by rewrite (hinvK h2 inj2).
 Qed.
 
 (** ω-continuity of [g1], [g2]. *)
@@ -531,10 +514,6 @@ Qed.
 (** [phi] as an [icones_hom A1 A2]. *)
 Definition phi_icones : icones_hom Ar A1 A2 :=
   MkIConesHom phi_mcones phi_pres_int.
-
-(** The underlying point map of [phi_icones] is [phi]. *)
-Lemma phi_iconesE (a : A1) : hfun phi_icones a = phi a.
-Proof. by []. Qed.
 
 End ForcedMap.
 
@@ -1034,9 +1013,6 @@ Hypothesis mM : mcone_M (ar_zero Ar) m.
 (** The point map [D → 1]: wrap [m s0 x ∈ R≥0]. *)
 Definition hot_fun (x : D) : T1 :=
   examples_icone.MkConeOne Ar (NngNum (test_ge0 m s0 x)).
-
-Lemma hot_val (x : D) : (examples_icone.c1_val (hot_fun x))%:num = test_fun m s0 x.
-Proof. by []. Qed.
 
 (** Linearity, from [test_lin0] / [test_linD] / [test_linZ]. *)
 Lemma hot_linear : is_linear hot_fun.

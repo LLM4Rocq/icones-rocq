@@ -1068,11 +1068,6 @@ by move/(congr1 (fun w : icones_hom Ar T C =>
                      (mcones_hom_cones (icones_hom_mcones w)) u)).
 Qed.
 
-Definition icones_eq_med_fun (u : T) : E :=
-  {| cones_eq_val := cones_hom_fun
-                       (mcones_hom_cones (icones_hom_mcones h)) u;
-     cones_eq_eq := icones_eq_med_eq u |}.
-
 (** Auxiliary: the underlying [cones_hom] equation. *)
 Lemma icones_eq_med_cones_eq :
   cones_comp (mcones_hom_cones (icones_hom_mcones f))
