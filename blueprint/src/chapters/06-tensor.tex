@@ -135,9 +135,9 @@ The proved data fall into five groups.
     (all proved in \texttt{tensor\_construct.v}).
   \item \emph{Naturality of $\Phi$.} Naturality in $D$ stated
     existentially
-    (\rocq{Icones.homs.tensor.tensor_curry_natural_D}\rocqok{}),
+    (\rocq{Icones.homs.tensor_construct.tensor_curry_natural_D}\rocqok{}),
     naturality in $B$
-    (\rocq{Icones.homs.tensor.tensor_curry_natural_B}\rocqok{}),
+    (\rocq{Icones.homs.tensor_construct.tensor_curry_natural_B}\rocqok{}),
     and the \emph{concrete} naturality in $D$ whose witness
     is the explicit hom-functor action $C \lin h$
     (\rocq{Icones.homs.tensor.tensor_curry_natural_post}\rocqok{}).
@@ -152,18 +152,18 @@ The proved data fall into five groups.
     Eqs~5.2--5.4), proved in \texttt{tensor\_iso.v}.} The associator
     \rocq{Icones.homs.tensor.tensor_assoc_iso}\rocqok{}
     with
-    \rocq{Icones.homs.tensor.tensor_assocE}\rocqok{}, the
+    \rocq{Icones.homs.tensor_iso.tensor_assocE}\rocqok{}, the
     unitors
     \rocq{Icones.homs.tensor.tensor_lunit_iso}\rocqok{}
     /
     \rocq{Icones.homs.tensor.tensor_runit_iso}\rocqok{}
     with
-    \rocq{Icones.homs.tensor.tensor_lunitE}\rocqok{} /
-    \rocq{Icones.homs.tensor.tensor_runitE}\rocqok{}, and
+    \rocq{Icones.homs.tensor_iso.tensor_lunitE}\rocqok{} /
+    \rocq{Icones.homs.tensor_iso.tensor_runitE}\rocqok{}, and
     the braiding
     \rocq{Icones.homs.tensor.tensor_braid_iso}\rocqok{}
     with
-    \rocq{Icones.homs.tensor.tensor_braidE}\rocqok{}.
+    \rocq{Icones.homs.tensor_iso.tensor_braidE}\rocqok{}.
 \end{itemize}
 
 \begin{remark}[Naturality of $\Phi$ in the $C$ slot]
@@ -634,7 +634,7 @@ namely \rocq{Icones.homs.smcc.tensor_assocEp},
 \rocq{Icones.homs.smcc.tensor_runitEp},
 \rocq{Icones.homs.smcc.tensor_braidEp} (here $u \in 1 = \Rnn$ acts by
 scaling). These restate the proved computation laws
-\rocq{Icones.homs.tensor.tensor_assocE} etc.\ of \texttt{tensor\_iso.v}
+\rocq{Icones.homs.tensor_iso.tensor_assocE} etc.\ of \texttt{tensor\_iso.v}
 (\S\ref{sec:tensor-staging}).
 \end{definition}
 
