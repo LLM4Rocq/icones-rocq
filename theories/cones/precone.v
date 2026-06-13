@@ -102,10 +102,6 @@ Proof. by rewrite precone_addC precone_add0. Qed.
 Lemma precone_posl x y : x + y = 0 -> x = 0.
 Proof. by move/precone_pos => -[]. Qed.
 
-(** (Pos) "right half": if [x + y = 0] then [y = 0]. *)
-Lemma precone_posr x y : x + y = 0 -> y = 0.
-Proof. by move/precone_pos => -[]. Qed.
-
 (** Right cancellation, derived from [precone_cancel] via commutativity. *)
 Lemma precone_cancelr x y z : y + x = z + x -> y = z.
 Proof.

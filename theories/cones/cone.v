@@ -142,18 +142,4 @@ Proof.
 split=> [/cone_normz//|->]; exact: cone_norm0.
 Qed.
 
-(** The unit ball [B_P] of a cone: characterised by [cone_norm x <= 1]. *)
-Definition cone_unit_ball : pred P := fun x => cnorm x <= 1.
-
-Lemma cone_unit_ball0 : cone_unit_ball (precone_zero : P).
-Proof. by rewrite /cone_unit_ball cone_norm0 ler01. Qed.
-
-(** [cone_sup_ball] lives in the unit ball. *)
-Lemma cone_sup_ball_in_unit
-  (u : nat -> P)
-  (uch : forall n, precone_le (u n) (u n.+1))
-  (ub1 : forall n, cnorm (u n) <= 1) :
-  cone_unit_ball (cone_sup_ball u uch ub1).
-Proof. exact: cone_sup_ball_norm. Qed.
-
 End ConeLemmas.

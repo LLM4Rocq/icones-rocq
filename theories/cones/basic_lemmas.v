@@ -136,9 +136,6 @@ Definition invf (y : Q) : P := projT1 (cid (Hsurj y)).
 Lemma invfK : forall y, f (invf y) = y.
 Proof. by move=> y; exact: projT2 (cid (Hsurj y)). Qed.
 
-Lemma invKf : forall x, invf (f x) = x.
-Proof. by move=> x; apply: Hinj; rewrite invfK. Qed.
-
 (** Paper Lemma 2.8, first half: [invf] is linear.
 
     Proof. By injectivity of [f], applied after rewriting with [f
@@ -152,10 +149,6 @@ split.
 - move=> r y; apply: Hinj.
   rewrite invfK (linearZ Hlin) invfK //.
 Qed.
-
-(** [invf] is increasing as a corollary of linearity. *)
-Lemma invf_increasing : is_increasing invf.
-Proof. exact: linear_increasing invf_linear. Qed.
 
 (** Paper Lemma 2.8, second half: [invf] is ω-continuous.
 
@@ -535,11 +528,6 @@ Section Lemma211.
 Variable R : realType.
 Variables P Q : coneType R.
 
-(** The set [{ ‖f x‖ | x ∈ B_P }] of norms of values of [f] on the
-    unit ball. *)
-Definition linmap_image_norm (f : P -> Q) : set R :=
-  [set y | exists2 x : P, cone_norm x <= 1 & y = cone_norm (f x)].
-
 (** Paper Lemma 2.11: [f(B_P)] is bounded — the unit-ball image is
     norm-bounded.
 
@@ -556,8 +544,8 @@ Definition linmap_image_norm (f : P -> Q) : set R :=
       [‖f y‖] finite.
 
     Our formalisation: as in the spec, we use the real [sup] from
-    [mathcomp.reals.reals]. [linmap_norm f] is defined as [sup
-    (linmap_image_norm f)] — returning [0] if the set is not
+    [mathcomp.reals.reals]. [linmap_norm f] is defined as a [sup] over
+    the unit-ball image norms — returning [0] if the set is not
     bounded — but we prove it IS bounded for [f] linear.
 
     Time-box note: the partial-sum sequence requires a non-trivial
