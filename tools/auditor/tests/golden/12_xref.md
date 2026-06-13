@@ -11,7 +11,9 @@ Intro paragraph.
 
 ### Def 2.1 (`alpha_thing`)
 
-Alpha detail prose.
+Alpha detail prose: `beta_gadget` is referenced here, as is `alpha_thing`
+itself (self, suppressed), plus short `mu`, unknown `unknown_zzz` and a
+math span `⟦ M ⟧ x`.
 
 ```coq
 (* theories/cones/alpha.v *)

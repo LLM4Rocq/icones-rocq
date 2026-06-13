@@ -31,6 +31,20 @@ Design decisions
 * **Idempotency** — the token regex matches ``[^<]+`` span bodies only;
   a span already containing an ``<a>`` can never match again, so
   running the pass twice is a no-op.
+
+Prose cross-references
+----------------------
+The same ``{ident: entry_id}`` map also linkifies prose: statement
+HTML, entry detail prose, section/chapter intros and notes.  Prose is
+rendered by the parser's ``_inline_to_html`` into ``<code>ident</code>``
+spans (never Pygments).  We wrap a ``<code>`` body in a ``code-xref``
+anchor when, after HTML-unescape, it ``fullmatch``es the identifier
+regex, is at least :data:`MIN_IDENT_LEN` long and is a known map key.
+Math / notation ``<code>`` (spaces, operators, ``⟦``, ``∫``, ``·`` …)
+never matches the identifier regex and is left untouched, as are
+self-links (an ident mapping back to the owning entry).  The ``[^<]+``
+body discipline keeps the pass idempotent: a ``<code>`` already holding
+an ``<a>`` cannot re-match.
 """
 
 from __future__ import annotations
@@ -54,6 +68,12 @@ _NAME_SPAN_RE = re.compile(r'<span class="(n|nf|nb|nc)">([^<]+)</span>')
 #: Relative href prefix from any snippet-embedding page (all depth 1
 #: within the tab) back to the tab root.
 _HREF_PREFIX = "../"
+
+#: A single ``<code>…</code>`` prose span.  ``[^<]+`` keeps the match
+#: within one leaf span: a ``<code>`` already containing markup (e.g. an
+#: ``<a>`` from a previous pass) can never match, keeping the pass
+#: idempotent.
+_CODE_SPAN_RE = re.compile(r"<code>([^<]+)</code>")
 
 
 def build_ident_map(doc: Document) -> dict[str, str]:
@@ -117,6 +137,39 @@ def _linkify_html(
     return _NAME_SPAN_RE.sub(repl, highlighted_html)
 
 
+def _linkify_prose(
+    prose_html: str,
+    mapping: dict[str, str],
+    owner_entry_id: str | None,
+) -> str:
+    """Wrap known-ident ``<code>`` prose spans in ``code-xref`` anchors.
+
+    Only ``<code>`` bodies that, after HTML-unescape, are a single
+    identifier (``_IDENT_RE.fullmatch``), at least :data:`MIN_IDENT_LEN`
+    long and a key in ``mapping`` are wrapped.  Math / notation spans
+    (spaces, operators, non-identifier glyphs) never match the regex and
+    are returned verbatim, as are self-links and unknown idents.
+    """
+    if not prose_html or "<code>" not in prose_html:
+        return prose_html
+
+    def repl(m: re.Match[str]) -> str:
+        escaped_tok = m.group(1)
+        ident = html_mod.unescape(escaped_tok)
+        if len(ident) < MIN_IDENT_LEN or not _IDENT_RE.fullmatch(ident):
+            return m.group(0)
+        target = mapping.get(ident)
+        if target is None or target == owner_entry_id:
+            return m.group(0)
+        return (
+            f"<code>"
+            f'<a class="code-xref" href="{_HREF_PREFIX}entries/{target}.html">'
+            f"{escaped_tok}</a></code>"
+        )
+
+    return _CODE_SPAN_RE.sub(repl, prose_html)
+
+
 def linkify_document(doc: Document) -> Document:
     """Linkify every snippet of ``doc`` in place; returns ``doc``.
 
@@ -139,23 +192,42 @@ def linkify_document(doc: Document) -> Document:
             s.highlighted_html = _linkify_html(s.highlighted_html, mapping, owner)
 
     def do_entry(entry: Entry) -> None:
+        entry.statement_html = _linkify_prose(
+            entry.statement_html, mapping, entry.id
+        )
         if entry.detail is not None:
             do_snippets(entry.detail.snippets, entry.id)
+            entry.detail.prose_html = _linkify_prose(
+                entry.detail.prose_html, mapping, entry.id
+            )
 
     for section in doc.sections:
+        section.intro_html = _linkify_prose(section.intro_html, mapping, None)
+        section.notes_html = _linkify_prose(section.notes_html, mapping, None)
         do_snippets(section.snippets, None)
         for entry in section.entries:
             do_entry(entry)
     for chapter in doc.chapters:
+        chapter.intro_html = _linkify_prose(chapter.intro_html, mapping, None)
+        chapter.notes_html = _linkify_prose(chapter.notes_html, mapping, None)
         for section in chapter.sections:
+            section.intro_html = _linkify_prose(section.intro_html, mapping, None)
+            section.notes_html = _linkify_prose(section.notes_html, mapping, None)
             do_snippets(section.snippets, None)
             for entry in section.entries:
                 do_entry(entry)
     for contrib in doc.beyond:
+        contrib.intro_html = _linkify_prose(contrib.intro_html, mapping, None)
+        contrib.notes_html = _linkify_prose(contrib.notes_html, mapping, None)
         do_snippets(contrib.snippets, None)
         for entry in contrib.entries:
             do_entry(entry)
+    doc.preamble_html = _linkify_prose(doc.preamble_html, mapping, None)
     return doc
 
 
-__all__ = ["MIN_IDENT_LEN", "build_ident_map", "linkify_document"]
+__all__ = [
+    "MIN_IDENT_LEN",
+    "build_ident_map",
+    "linkify_document",
+]

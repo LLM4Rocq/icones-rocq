@@ -349,6 +349,41 @@ def test_xref_linkify_idempotent(parse_md):
     assert before == after
 
 
+def test_xref_prose_linkify(parse_md):
+    """Idents in prose <code> spans link; math/short/unknown/self don't."""
+    doc, _ = parse_md("12_xref.md")
+    sec = doc.sections[0]
+    a, b = sec.entries
+    a_prose = a.detail.prose_html
+    # (a) a cross-entry ident in prose gets an anchor to its defining page.
+    assert (
+        '<code><a class="code-xref" href="../entries/def-2-2.html">'
+        "beta_gadget</a></code>" in a_prose
+    )
+    # (b) the self-occurrence (alpha_thing on A's own page) stays plain.
+    assert "<code>alpha_thing</code>" in a_prose
+    assert "entries/def-2-1.html" not in a_prose
+    # (c) short idents stay plain.
+    assert "<code>mu</code>" in a_prose
+    # (d) unknown idents stay plain.
+    assert "<code>unknown_zzz</code>" in a_prose
+    # (e) math / notation spans (spaces, ⟦ ⟧) are never wrapped.
+    assert "<code>⟦ M ⟧ x</code>" in a_prose
+    assert a_prose.count("code-xref") == 1
+
+
+def test_xref_prose_idempotent(parse_md):
+    """A second prose linkify pass is a no-op."""
+    from tools.auditor.xref import linkify_document
+
+    doc, _ = parse_md("12_xref.md")
+    sec = doc.sections[0]
+    before = [e.detail.prose_html for e in sec.entries if e.detail]
+    linkify_document(doc)
+    after = [e.detail.prose_html for e in sec.entries if e.detail]
+    assert before == after
+
+
 # -- two-tab orchestrator tests --------------------------------------------
 
 
