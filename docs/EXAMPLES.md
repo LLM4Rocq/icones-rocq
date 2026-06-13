@@ -111,6 +111,19 @@ Theorem ex_random_constant_cbv_marginal_dirac (r0 : ar_carrier Ar R_obj) :
                       R_to_carrier_meas pm) one1)) (dirac_fmeas r0) = mu.
 ```
 
+```coq
+(* theories/programs/infra/cbv_marginals.v — Section RandomConstantMarginal *)
+Theorem ex_random_constant_cbv_marginal_mass (x : FMeas R_obj)
+    (Hx1 : fmeas_mu x [set: ar_carrier Ar R_obj] = 1%E)
+    (U : set (ar_carrier Ar R_obj)) :
+  fmeas_mu
+    (linhom_fun
+       (Lfun (der (Lty tR' tR'))
+          (linhom_fun (ex_random_constant_cbv R_carrier_meas
+                         R_to_carrier_meas pm) one1)) x) U =
+  fmeas_mu mu U.
+```
+
 Proof idea: the let-at-sample law turns the denotation into the
 Pettis integral `∫ (ℓ_c)! µ(dc)` of the promoted closures
 `ℓ_c := ⟦λx. c⟧(1 ⊗ δ_c)` (the lambda clause promotes at the setlike
@@ -170,6 +183,21 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
           U))%:E))%:E.
 ```
 
+```coq
+(* theories/programs/infra/cbv_marginals.v — Section RandomLinearMarginal *)
+Lemma rl_inner_marginal (m r0 : ar_carrier Ar R_obj)
+    (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  fmeas_mu
+    (linhom_fun
+       (Lfun (der (Lty tR' tR'))
+          (Lfun (eD_cbv' (ex_rl_inner pm)) (one1 ⊗p dirac_fmeas m)))
+       (dirac_fmeas r0)) U =
+  \int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+     (fine (fmeas_mu
+        (dirac_fmeas (R_to_carrier R_carrier_eq (cR m * cR r0 + cR b)))
+        U))%:E.
+```
+
 Proof idea: two applications of the let-at-sample law peel the two
 sample binders into nested Pettis integrals; dereliction and
 evaluation at `δ_{r0}` push inside both layers. At the three-Dirac
@@ -218,6 +246,16 @@ Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
                    pm Hf_meas) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
+```
+
+```coq
+(* theories/programs/infra/cbv_marginals.v — Section ScorePosterior *)
+Theorem ex_score_posterior_cbv_mass :
+  fmeas_mu
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
+                   pm Hf_meas) one1)
+    [set: ar_carrier Ar R_obj] =
+  \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
 ```
 
 Proof idea: the let-at-sample mass law `eD_let_sample_mu_E` turns the
@@ -273,6 +311,23 @@ raw score-fold shape is the derived reading
 | Cor (`ex_bayes_linear_cbv_evidence2`) | The literal 2-observation instance: the counit mass at `[:: o1; o2]` is `∫∫ obs_d o1 (m·x₁+b) · obs_d o2 (m·x₂+b) dµ dµ`. | `ex_bayes_linear_cbv_evidence2` — same file |
 
 ```coq
+(* theories/programs/examples.v *)
+Definition ex_bayes_linear (l : seq (obs R)) :
+    @named_expr R Ar R_obj nil (tfun tR' tR') :=
+  ne_let "f"%string (ex_random_linear m)
+    (iter_condition (nv_head "f"%string (tfun tR' tR') nil) l).
+```
+
+```coq
+(* theories/programs/examples.v *)
+Theorem ex_bayes_linear_is_iter_condition (l : seq (obs R)) :
+  ex_bayes_linear l =
+  ne_let "f"%string (ex_random_linear m)
+    (iter_condition (nv_head "f"%string (tfun tR' tR') nil) l).
+Proof. by []. Qed.
+```
+
+```coq
 (* theories/programs/examples.v — the 2-observation surface form
    (definitionally equal to ex_bayes_linear [:: o1; o2], pinned by a
    Check (erefl : …) in the source) *)
@@ -296,6 +351,20 @@ Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
   fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
      (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
         ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E))%:E).
+```
+
+```coq
+(* theories/programs/infra/cbv_marginals.v — Section BayesLinearEvidence *)
+Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
+  ((c1_val (Lfun (coalg_e (tyD_cbv tF))
+      (linhom_fun
+         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas pm
+            [:: o1; o2])
+         one1)))%:num)%R =
+  fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
+     (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+        ((obs_d o1 (cR m * obs_x o1 + cR b) *
+          obs_d o2 (cR m * obs_x o2 + cR b))%R)%:E))%:E).
 ```
 
 Call-by-value matters here. The sampled function is bound once and
@@ -516,6 +585,17 @@ Definition ex_even_odd_pair :
        in ({ex_even_odd_lam_a}, {ex_even_odd_lam_b}) ].
 ```
 
+```coq
+(* theories/programs/examples.v *)
+Definition ex_even :
+    @named_expr R Ar R_obj nil (tfun tunit tunit) :=
+  [ fst {ex_even_odd_pair} ].
+
+Definition ex_odd :
+    @named_expr R Ar R_obj nil (tfun tunit tunit) :=
+  [ snd {ex_even_odd_pair} ].
+```
+
 (`pair_ty` abbreviates `tprod (tfun tunit tunit) (tfun tunit tunit)`;
 the two spliced lambdas are `λn. snd #"p" @ #"n"` and
 `λn. fst #"p" @ #"n"`.) The semantic computation law behind the
@@ -602,6 +682,13 @@ conditioned model, again a closed program of type `ta → tR`, with
 the surface form `Condition { f , Hm } M` pinned to the same term by
 a `Check (erefl : …)` in the source.
 
+```coq
+(* theories/programs/examples.v — Section ConditionCombinator *)
+Definition ex_condition (M : @named_expr R Ar R_obj nil (tfun ta tR')) :
+    @named_expr R Ar R_obj nil (tfun ta tR') :=
+  [ {ex_condition_comb} @ {M} ].
+```
+
 | Result | Statement | Rocq |
 |---|---|---|
 | Def (`ex_condition_comb`) | `condition = λm. λa. let x = m a in let _ = Score (Meas{f} x) in x` of type `(ta → tR) → (ta → tR)` — run the model at the input, weigh the trace by the likelihood of the produced value, return the value. | `ex_condition_comb`, `ex_condition_comb_cbv` — `theories/programs/examples.v` |
@@ -648,6 +735,23 @@ Theorem condition_model_E (U : set (ar_carrier Ar R_obj))
 (* theories/programs/ex_reject_model.v — Section ReadableHeadlines *)
 Theorem condition_E U (mU : measurable U) :
   ⟦ condition_prog ⟧ U = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
+```
+
+```coq
+(* theories/programs/ex_reject_model.v — Section ConditionModel *)
+Theorem condition_model_mass :
+  fmeas_mu cond_model_denot [set: ar_carrier Ar R_obj] =
+  \int[fmeas_mu (reject_model_dist g a0)]_
+     (r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
+Proof. exact: (condition_model_E measurableT). Qed.
+```
+
+```coq
+(* theories/programs/ex_reject_model.v — Section ReadableHeadlines *)
+Theorem condition_prog_evidence :
+  ⟦ condition_prog ⟧ [set: ar_carrier Ar R_obj] =
+  \int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E.
+Proof. exact: (condition_E measurableT). Qed.
 ```
 
 (`cond_model_denot` is the CBV application of the combinator value
@@ -705,6 +809,18 @@ Theorem reject_model_mass_one :
   fmeas_mu reject_model_denot [set: ar_carrier Ar R_obj] = 1.
 ```
 
+```coq
+(* theories/programs/ex_reject_model.v — Section RejectModel *)
+Theorem reject_model_mass :
+  (0 < 1 - m0 + fine If)%R ->
+  fmeas_mu reject_model_denot [set: ar_carrier Ar R_obj] =
+  ((fine If / (1 - m0 + fine If))%R)%:E.
+Proof. move=> Hpos; exact: (reject_model_is_normalised Hpos measurableT). Qed.
+
+Theorem reject_model_zero :
+  (forall r : R, f r = 0%R) -> reject_model_denot = precone_zero.
+```
+
 (`reject_model_denot` is the CBV application of the program value to
 the model value `g!` and then the input `a₀`; `m0`, `If`, `IUf U`
 are notations for `fine (ν_M(setT))`, `∫ f∘cR dν_M`, `∫_U f∘cR dν_M`.)
@@ -750,6 +866,16 @@ Lemma reject_model_iter_mass n U (mU : measurable U) :
   IUf U + ((m0 - fine If)%R)%:E * fmeas_mu (reject_model_iter n) U.
 ```
 
+```coq
+(* theories/programs/ex_reject_model.v — Section ReadableHeadlines *)
+Theorem reject_prog_master U (mU : measurable U) :
+  ((1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+      + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+                (f (cR x))%:E))%R)%:E
+    * ⟦ reject_prog ⟧ U
+  = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
+```
+
 ### The equivalence theorem (`reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob`)
 
 The two operators compute the same distribution, up to the
@@ -779,6 +905,20 @@ Theorem reject_normalises_condition_prob U (mU : measurable U) :
   ⟦ model_run ⟧ [set: ar_carrier Ar R_obj] = 1 ->
   ⟦ condition_prog ⟧ [set: ar_carrier Ar R_obj] * ⟦ reject_prog ⟧ U
   = ⟦ condition_prog ⟧ U.
+```
+
+```coq
+(* theories/programs/ex_reject_model.v — Section ReadableHeadlines *)
+Theorem reject_prog_computes_condition :
+  (0 < 1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+     + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+               (f (cR x))%:E))%R ->
+  forall U, measurable U ->
+  ⟦ reject_prog ⟧ U =
+  ((fine (⟦ condition_prog ⟧ U)
+    / (1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
+         + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
+                   (f (cR x))%:E)))%R)%:E.
 ```
 
 The proof is two lines: rewrite the right-hand side by the
@@ -821,6 +961,41 @@ Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].
+```
+
+```coq
+(* theories/programs/ex_reject_headline.v — Section RejectHeadline *)
+Theorem ex_reject_master U : measurable U ->
+  If * fmeas_mu reject_denot U = IUf U.
+```
+
+```coq
+(* theories/programs/ex_reject_headline.v — Section RejectHeadline *)
+Theorem ex_reject_is_normalised_posterior :
+  0 < If -> forall U, measurable U ->
+  fmeas_mu reject_denot U = ((fine (IUf U) / fine If)%R)%:E.
+```
+
+```coq
+(* theories/programs/ex_reject_model.v — Section SamplerInstance *)
+Theorem ex_reject_comb_sampler_E :
+  inst_denot =
+  linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
+                m Hf_meas) one1.
+```
+
+```coq
+(* theories/programs/infra/cbv_marginals.v — Section RejectScore *)
+Theorem ex_reject_normalises_score
+    (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
+    (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
+  fmeas_mu
+    (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
+                   pm Hf_meas) one1) U =
+  fmeas_mu
+    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
+                   pm Hf_meas) one1) U.
 ```
 
 ---
