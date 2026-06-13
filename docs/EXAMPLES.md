@@ -1089,7 +1089,7 @@ Theorem ex_reject_comb_sampler_E :
 ```
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v — Section RejectScore *)
+(* theories/programs/infra/cbv_marginals.v — Section ScorePosterior *)
 Theorem ex_reject_normalises_score
     (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
