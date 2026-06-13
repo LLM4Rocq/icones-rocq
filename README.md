@@ -53,7 +53,7 @@ The model is assembled in three layers, each adding *just enough* structure to i
 `ICones` is the category of integrable cones together with the structure-preserving maps
 between them (linear, continuous, integral-preserving). In Rocq this is a four-level
 [Hierarchy Builder](https://github.com/math-comp/hierarchy-builder) tower —
-`PreCone → Cone → MCone → ICone` — on a single carrier type.
+`Precone → Cone → MCone → ICone` — on a single carrier type.
 
 ## Main results
 
@@ -100,7 +100,7 @@ in `monospace` are the corresponding Rocq declarations.
 Every result above depends only on the three standard classical-logic axioms inherited from
 `mathcomp-analysis` — `propositional_extensionality`, `functional_extensionality_dep`,
 `constructive_indefinite_description` — with **no project-specific axioms** and **no
-`Admitted`** anywhere (~68k lines across 71 files). Run [`./verify.sh`](./verify.sh) to
+`Admitted`** anywhere (~75k lines across 75 files). Run [`./verify.sh`](./verify.sh) to
 clean-rebuild and `Print Assumptions` the headline results yourself.
 
 This is worth a note. The tensor `⊗`, the exponential `!`, and the Seely isomorphisms are
@@ -195,8 +195,9 @@ presentation in `theories/programs/ppl_cbv.v`. Types are sent into
 the commutative comonoid `(δ, ε)` that every coalgebra carries
 (Cor 20): each branching node copies the context through `δ_Γ`, so
 multi-use of a variable is free. The exponential `!̃` appears only at
-function boundaries — `ne_lam` wraps a value via the strength `str_Γ`,
-`ne_app` extracts it via dereliction `der` — and everywhere else the
+function boundaries — `ne_lam` wraps a value by currying and promoting
+via the U ⊣ !̃ adjunction `adj_psi`, `ne_app` extracts it via
+dereliction `der` — and everywhere else the
 interpretation is plain cartesian. Recursion (`ne_fix`, and `ne_fix_mr`
 at *every* free body type) is the **seeded value-fixpoint combinator**
 `fix_comb : EM(!̃(!A⊸!A), !̃A)` of
