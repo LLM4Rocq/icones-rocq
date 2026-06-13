@@ -135,10 +135,19 @@ the Saito–Affeldt APLAS 2023 §5.1 pattern.
 
 ### Effectful term constructors (`ne_sample`, `ne_score`, `ne_bernoulli`, `ne_bernoulli_f`, `ne_if`)
 
-The effectful constructors are direct-style: `ne_sample` returns a
-pure `tR'`, `ne_score` a pure `tunit`, `ne_bernoulli` and
-`ne_bernoulli_f` a pure `tbool`; the probability monad is hidden in
-the interpretation `eD`, not in the source types.
+The effectful constructors are direct-style — the probability monad
+lives in the interpretation `eD`, not in the source types — and they
+divide by what they produce. `ne_sample` is one real draw from a
+fixed sub-probability measure (`→ tR'`). `ne_bernoulli` /
+`ne_bernoulli_f` are the **boolean coin** (`→ tbool`), the sole
+source of boolean randomness, consumed by `ne_if` for probabilistic
+branching. `ne_score` is soft conditioning (`→ tunit`). The
+real-valued *named* and *runtime-parameter* distributions
+(`gaussian` / `uniform`, and `Gaussian` / `Uniform`) are not
+primitives: they are built on `ne_sample` and the probability-kernel
+layer (the [Runtime-parameter distributions](#) section below). So
+the only randomness baked into the syntax is one fixed-measure
+sample, one boolean coin, and one score; everything else is derived.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -168,29 +177,28 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G t -> named_expr G t -> named_expr G t.
 ```
 
-`ne_score` carries a measurable density `f : R → R` valued in
-`[0,1]`; the bound is needed by the unit-ball discipline of
-`linhom_icones` (see [Scores, densities, and the sub-probability
+`ne_score` carries a density `f : R → R` valued in `[0,1]`; the
+bound is the unit-ball discipline of `linhom_icones` (see [Scores,
+densities, and the sub-probability
 boundary](../../ppl/sections/ppl-sec-scores-densities-and-the-sub-probability-boundary.html)
-for what the bound rules out — densities above `1`, such as narrow
-Gaussians — and the envelope workaround). `ne_bernoulli_f` is the *value-dependent*
-Bernoulli: sample from the 2-point sub-probability
-`(f r, 1 − f r)` where `r` is the value of the `tR'`-valued
-sub-expression `e`. Its witness layout mirrors `ne_score`
-one-for-one, and so does its CBV interpretation: `eD e`
-post-composed with the path lift `bern_lift` (documented in
-[the value-dependent Bernoulli
-section](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html))
-exactly as `ne_score` post-composes with `score_lift`. In surface
-syntax both primitives are reached through the unified clamped forms
-`Score e` / `Bernoulli e`; a coin or score with an explicit density
-`f` is written `Bernoulli (Meas { f , Hf } e)` /
-`Score (Meas { f , Hf } e)`, and the agreement lemmas
+for what it rules out — densities above `1`, such as narrow
+Gaussians — and the envelope workaround). The boolean coin shares
+that discipline: `ne_bernoulli p` is the constant coin `(p, 1 − p)`,
+and `ne_bernoulli_f f e` is value-dependent — the coin
+`(f r, 1 − f r)` at the value `r` of the `tR'`-valued
+sub-expression `e` — its CBV engine the path lift `bern_lift` (the
+boolean twin of `score_lift`; see [the value-dependent Bernoulli
+section](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html)).
+Neither coin is written with explicit witnesses at the surface: the
+readable layer exposes the single form `Bernoulli e`
+(`= ne_bernoulli_f` at `clamp`, so any real expression is accepted
+and saturated into `[0,1]`) and the comparison coin `e1 > e2`
+(`= ne_bernoulli_f` at an indicator density). A coin or score with an
+explicit density `f` is the composite `Bernoulli (Meas { f , Hf } e)`
+/ `Score (Meas { f , Hf } e)`, identified with the primitive by
 `eD_bernoulli_meas_E` / `eD_score_meas_E`
-(`theories/programs/ppl_cbv.v`) identify these composites with the
-primitive witness-carrying nodes for densities already valued in
-`[0,1]`. The coin is the accept/reject primitive of the
-rejection-sampling example `examples.v::ex_reject`.
+(`theories/programs/ppl_cbv.v`) when `0 ≤ f ≤ 1`. The same coin is
+the accept/reject test of `examples.v::ex_reject`.
 
 ### Measurable function application (`ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass`)
 
