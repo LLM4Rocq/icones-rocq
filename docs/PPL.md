@@ -48,7 +48,7 @@ and the derived readable forms on top of it.
 | Runtime-parameter distributions `Gaussian(e1,e2)` / `Uniform(e1,e2)` | `ne_gaussian`, `ne_uniform` — same file; `pkernel`, `kernel_lift`, `kernel_lift2`, `gaussian_kernel`, `uniform_kernel` — `theories/programs/distributions.v` |
 | Variable lookup via canonical structures | `tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'` — same file |
 | Surface notation `[ … ]` and the `ppl_named` custom entry | `ppl_named` (custom entry) — same file |
-| Derived surface forms (`Bernoulli e`, `Score e`, `Meas`, `sample`, `>`, `let rec`) | `clamp`, `gt0_ind`, `negr`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
+| Bundled densities and surface forms (`Bernoulli p`, `Bernoulli d e`, `Score d e`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `udensity`, `prob`, `mk_udensity`, `mk_prob`, `gauss_udensity`, `gt0_udensity`, `gauss_obs_density`, `negr`, `pmeas`, `prob_pmeas` — same file; `prob_half`, `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
 
 ### Types and contexts (`ppl_type`, `named_ctx`)
 
@@ -181,24 +181,30 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 bound is the unit-ball discipline of `linhom_icones` (see [Scores,
 densities, and the sub-probability
 boundary](../../ppl/sections/ppl-sec-scores-densities-and-the-sub-probability-boundary.html)
-for what it rules out — densities above `1`, such as narrow
-Gaussians — and the envelope workaround). The boolean coin shares
-that discipline: `ne_bernoulli p` is the constant coin `(p, 1 − p)`,
-and `ne_bernoulli_f f e` is value-dependent — the coin
+for what it rules out — genuinely unbounded densities — and how a
+bounded density is conditioned via its intrinsic peak). The boolean
+coin shares that discipline: `ne_bernoulli p` is the constant coin
+`(p, 1 − p)`, and `ne_bernoulli_f f e` is value-dependent — the coin
 `(f r, 1 − f r)` at the value `r` of the `tR'`-valued
 sub-expression `e` — its CBV engine the path lift `bern_lift` (the
 boolean twin of `score_lift`; see [the value-dependent Bernoulli
 section](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html)).
-Neither coin is written with explicit witnesses at the surface: the
-readable layer exposes the single form `Bernoulli e`
-(`= ne_bernoulli_f` at `clamp`, so any real expression is accepted
-and saturated into `[0,1]`) and the comparison coin `e1 > e2`
-(`= ne_bernoulli_f` at an indicator density). A coin or score with an
-explicit density `f` is the composite `Bernoulli (Meas { f , Hf } e)`
-/ `Score (Meas { f , Hf } e)`, identified with the primitive by
-`eD_bernoulli_meas_E` / `eD_score_meas_E`
-(`theories/programs/ppl_cbv.v`) when `0 ≤ f ≤ 1`. The same coin is
-the accept/reject test of `examples.v::ex_reject`.
+The `[0,1]` witnesses are never written loose at the surface: the
+readable layer carries them in two bundled records. The constant coin
+`Bernoulli p` takes a bundled scalar `p : prob` (the pair of bounds
+travels with the value); the value-dependent coin `Bernoulli d e` and
+the score `Score d e` take a bundled `[0,1]` density `d : udensity`
+(measurability and both bounds), with the comparison coin `e1 > e2`
+desugaring to `ne_bernoulli_f` at the indicator bundle
+`gt0_udensity`. The bundles are built with the smart constructors
+`mk_udensity` and `mk_prob`. The Bayesian-conditioning operator
+`observe Gaussian { s , y } e` is the same `ne_score` at the bundled
+Gaussian observation likelihood `gauss_udensity` (denotation
+`observe_gauss_E`). See [Bundled
+densities and the `observe`
+operator](../../ppl/sections/ppl-sec-bundled-densities-and-the-observe-operator.html)
+for the records and smart constructors. The same value-dependent coin
+is the accept/reject test of `examples.v::ex_reject`.
 
 ### Measurable function application (`ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass`)
 
@@ -263,7 +269,7 @@ object, exactly the `add_lift` / `mul_lift` route — with
 `kernel_lift2_dirac` and the product-mass law `kernel_lift2_mass`.
 
 Instances: `dirac_kernel` (`kernel_lift dirac_kernel = id`,
-`dirac_kernel_lift_id`), `bernoulli_kernel` (the clamped
+`dirac_kernel_lift_id`), `bernoulli_kernel` (the bundled `[0,1]`
 value-dependent coin as a two-point measure on `R_obj`, agreeing with
 `bern_lift` coordinatewise: `bernoulli_kernel_bern_lift_t` /
 `bernoulli_kernel_bern_lift_f`), `gaussian_kernel`
@@ -442,63 +448,107 @@ Direct-style: no `Ret` notation; `let "x" := M in N` desugars to
 `ne_let` (not `ne_bind`). Brackets `[ … ]` enter the entry; curly
 braces `{ x }` escape back to plain Rocq.
 
-### Derived surface forms (`clamp`, `gt0_ind`, `negr`, `pmeas`, `prob_pmeas`)
+### Bundled densities and the `observe` operator (`udensity`, `prob`, `mk_udensity`, `mk_prob`, `gauss_udensity`, `observe`, `observe_gauss_E`)
 
 The readable layer on top of the kernel notations — sugar only: each
 form elaborates to existing constructors (plus the `ne_meas`
-pushforward primitive); no new semantics is introduced.
+pushforward primitive); no new semantics is introduced. The `[0,1]`
+proof obligations on coins and scores travel inside two bundled
+records, so the surface forms never carry loose witnesses.
 
 ```coq
+(* theories/programs/ppl.v — the bundled-density kit (Section RealFunKit) *)
+Record udensity := MkUdensity {
+  ud_f    : R -> R ;
+  ud_meas : measurable_fun [set: R] ud_f ;
+  ud_ge0  : forall r : R, (0 <= ud_f r)%R ;
+  ud_le1  : forall r : R, (ud_f r <= 1)%R }.
+Record prob := MkProb {
+  pr_val : R ;
+  pr_ge0 : (0 <= pr_val)%R ;
+  pr_le1 : (pr_val <= 1)%R }.
+
 (* theories/programs/ppl.v — the derived surface layer *)
 Notation "'Meas' '{' f ',' Hf '}' e" := (ne_meas f Hf e) (* … *).
-Notation "'Bernoulli' e" :=
-  (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1 e) (* … *).
-Notation "'Score' e" :=
-  (ne_score clamp clamp_meas clamp_ge0 clamp_le1 e) (* … *).
+Notation "'Bernoulli' p" :=
+  (ne_bernoulli (pr_val p) (pr_ge0 p) (pr_le1 p)) (* … *).
+Notation "'Bernoulli' d e" :=
+  (ne_bernoulli_f (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d) e) (* … *).
+Notation "'Score' d e" :=
+  (ne_score (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d) e) (* … *).
+Notation "'observe' 'Gaussian' '{' s ',' y '}' e" :=
+  (ne_score (ud_f (gauss_udensity s y)) (ud_meas (gauss_udensity s y))
+            (ud_ge0 (gauss_udensity s y)) (ud_le1 (gauss_udensity s y)) e) (* … *).
 Notation "'sample' m" :=
   (ne_sample (pm_meas m) (pm_ball m)) (* … *).
 Notation "M > N" :=
-  (ne_bernoulli_f gt0_ind gt0_ind_meas gt0_ind_ge0 gt0_ind_le1
+  (ne_bernoulli_f (ud_f gt0_udensity) (ud_meas gt0_udensity)
+     (ud_ge0 gt0_udensity) (ud_le1 gt0_udensity)
      (ne_add M (ne_meas negr negr_meas N))) (* … *).
 Notation "'let' 'rec' f x ':=' M 'in' K" :=
   (ne_let f%string (ne_fix f%string (ne_lam x%string M)) K) (* … *).
 ```
 
-- **Witness-free `Bernoulli e` / `Score e`** — the density is the
-  *clamped* runtime value (`clamp r = min 1 (max 0 r)`, measurable
-  and `[0,1]`-valued by construction: `clamp_meas` / `clamp_ge0` /
-  `clamp_le1`, with `clamp_id` on `[0,1]`). On real literals in
-  `[0,1]` the clamped coin agrees with the constant witness form
-  (`eD_bernoulli_clamp_const_E`, `theories/programs/ppl_cbv.v`). A
-  coin or score with an explicit density `f` is the composite
-  `Bernoulli (Meas { f , Hf } e)` / `Score (Meas { f , Hf } e)`,
-  identified with the primitive witness-carrying nodes by
-  `eD_bernoulli_meas_E` / `eD_score_meas_E` (same file) whenever
-  `0 ≤ f ≤ 1`.
+- **Bundled `[0,1]` densities and scalars — `udensity` / `prob`.** A
+  `udensity` packages a `[0,1]`-valued measurable density `ud_f`
+  together with its three witnesses (`ud_meas`, `ud_ge0`, `ud_le1`); a
+  `prob` packages a `[0,1]` scalar with its two bounds (`pr_ge0`,
+  `pr_le1`). The smart constructors `mk_udensity f Hm Hg Hl` and
+  `mk_prob p Hg Hl` build them from loose witnesses at example sites.
+  Both records have primitive projections, so `ud_f (mk_udensity f …)
+  = f` and `pr_val (mk_prob p …) = p` hold *definitionally* — the pins
+  the downstream `bern_lift` / `score_lift` computations rely on.
+- **The constant coin `Bernoulli p`** takes `p : prob` and flips the
+  fair-or-biased coin `(pr_val p, 1 − pr_val p)`; the fair coin is
+  `prob_half : prob` (`theories/programs/examples.v`).
+- **The value-dependent coin `Bernoulli d e` and the score `Score d
+  e`** take a bundled density `d : udensity` and the `tR'`-valued
+  scrutinee `e`: the coin flips with success probability `ud_f d r`,
+  the score weights the trace by `ud_f d r`, at the runtime value `r`
+  of `e`. A coin or score with an explicit density `f` bounded in
+  `[0,1]` is written `Bernoulli (mk_udensity f Hm Hg Hl) e` /
+  `Score (mk_udensity f Hm Hg Hl) e`.
+- **The `observe` operator — `observe Gaussian { s , y } e`.** Bayesian
+  conditioning: score the trace by the likelihood of the datum `y`
+  under `N(value(e), s)`, normalised by the distribution's intrinsic
+  peak so the weight is a legal `[0,1]` density. The deviation `s` and
+  datum `y` are Rocq-level constrs (the brace group); the predicted
+  MEAN is the surface sub-expression `e` (e.g. a regression prediction
+  `m·x + b`). It desugars through `Score (gauss_udensity s y) e`, i.e.
+  `ne_score (ud_f (gauss_udensity s y)) … e`; since `ud_f (gauss_udensity
+  s y) = gauss_obs_density s y` definitionally, `observe` and `Score`
+  share the same density bundle. `gauss_udensity s y : udensity`
+  bundles `gauss_obs_density s y = (fun μ ⇒ normal_pdf μ s y /
+  normal_peak s)` with its `[0,1]` proofs; there is no user-supplied
+  envelope — the peak `normal_peak s` is intrinsic. The denotation
+  lemma is `observe_gauss_E` (`theories/programs/ppl_cbv.v`): at a
+  setlike Dirac environment the trace is weighted by
+  `normal_pdf μ s y / normal_peak s` at the runtime mean `μ`.
 - **Bundled sampling `sample m`** — `pmeas` packages a sub-probability
   with its unit-ball witness; `prob_pmeas` transports any
   mathcomp-analysis probability on `R` to a `pmeas`, giving the named
   distributions `gaussian m s` / `uniform a b`
   (`theories/programs/examples.v`): `let "m" := sample gaussian01 in …`.
-- **The comparison coin `e1 > e2`** — `ne_bernoulli_f` at the
-  indicator density `gt0_ind`, on `e1 + Meas{negr} e2`: on point
-  masses the deterministic test `a > b`; on diffuse arguments the
-  probability that an independent draw of `e1` exceeds one of `e2`.
+- **The comparison coin `e1 > e2`** — `ne_bernoulli_f` at the bundled
+  indicator density `gt0_udensity` (whose `ud_f` is `gt0_ind`), on
+  `e1 + Meas{negr} e2`: on point masses the deterministic test
+  `a > b`; on diffuse arguments the probability that an independent
+  draw of `e1` exceeds one of `e2`.
 - **`let rec f x := M in K`** — OCaml-style recursive function
   binding, `ne_let f (ne_fix f (ne_lam x M)) K`; an annotated form
   `let rec f x ::: T1 ==> T2 := M in K` covers bodies that leave the
   binder type undetermined.
-- **`Condition { f , Hm } M`** — the Pyro-style soft conditioning
-  operator applied to a closed model `M`
+- **`Condition { d } M`** — the Pyro-style soft conditioning operator
+  for a bundled density `d : udensity` applied to a closed model `M`
   (`examples.v::ex_condition_comb`; see the [Examples
   tab](../examples/) for the conditioning law and the
   rejection-sampling equivalence).
 
 The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
 `sample gaussian01`, the `>` coin) and `ex_surface_walk`
-(annotation-free `let rec`, unified `Bernoulli`/`Score`), both with
-elaboration pins (`ex_surface_demo_decomp`) and compile-time CBV
-denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
+(annotation-free `let rec`, the bundled `Bernoulli`/`Score` forms),
+both with elaboration pins (`ex_surface_demo_decomp`) and compile-time
+CBV denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
 
 ### Scores, densities, and the sub-probability boundary (`ne_score`, `cones_hom_norm_le1`, `score_lift`)
 
@@ -529,42 +579,33 @@ for the score to be a morphism at all.
 The distinction that matters in practice is between *sampling* and
 *observing*. Sampling is always fine: `sample (gaussian m s)`
 denotes a probability measure of mass `1`, a good morphism for every
-`m` and `s`. Observing — scoring by a density, `observe d x` weighing
-the trace by `pdf_d(x)` — is the constrained operation, a morphism
-only while the density stays in `[0,1]`.
+`m` and `s`. Observing — scoring by a density, `observe Gaussian {s,y}
+e` weighing the trace by the Gaussian likelihood of `y` — is the
+constrained operation, a morphism only while the weight stays in
+`[0,1]`. The line that matters is **bounded vs unbounded**.
 
-For the Gaussian the numbers decide it. The standard normal `N(0,1)`
-peaks at `1/√(2π) ≈ 0.399 < 1`, so `observe (gaussian 0 1) x` is
-representable: its density never exceeds `1`. A narrow Gaussian is
-not. `N(m, σ)` peaks at `1/(σ√(2π))`, which crosses `1` as soon as
-`σ < 1/√(2π) ≈ 0.399`, and sharp or product likelihoods run far
-higher. Such an observation is not a morphism of `ICone` and has no
-denotation here.
+A **bounded** likelihood is always conditionable, and `observe` does
+exactly this. `N(μ, σ)` peaks at its intrinsic peak `normal_peak σ =
+1/(σ√(2π))`; the *unnormalised* pdf crosses `1` as soon as
+`σ < 1/√(2π) ≈ 0.399`, so it is not directly a `[0,1]` weight. But the
+peak is a finite bound, and dividing by it gives the legal weight
+`gauss_obs_density σ y = normal_pdf μ σ y / normal_peak σ ∈ [0,1]`
+(the `udensity` bundle `gauss_udensity σ y`). This is exactly what
+`observe` scores by — no user-supplied envelope, the peak is intrinsic
+to the distribution. The normaliser cancels in the posterior: the
+conditioned distribution `∫_U f dν / ∫ f dν` is independent of any
+positive scaling of `f`, so dividing by `normal_peak σ` changes the
+total evidence but never the posterior. The same holds for the
+conditioning/rejection pair, where dividing by the peak is classical
+rejection sampling with that envelope.
 
-There are two honest responses to a density above `1`, and one true
-limit.
-
-- **Bounded density — divide by the envelope.** When `f` is bounded
-  by a known `B ≥ sup f`, score by the normalised density `f / B`, a
-  legal `[0,1]` weight. For the conditioning/rejection pair this is
-  classical rejection sampling with envelope `B`, and for a
-  probability model the envelope cancels: the normalised posterior
-  `∫_U f dν / ∫ f dν` is `B`-independent. A bounded `observe` — a
-  Gaussian with `σ` bounded below — is thus expressible after
-  dividing by its peak.
-- **Clamping — keep the program total.** The surface forms `Score e`
-  and `Bernoulli e` apply `clamp = min 1 ∘ max 0`, saturating any
-  out-of-range density into `[0,1]` so that every program is
-  well-defined. Clamping preserves a density already in `[0,1]`
-  (`clamp_id`) but changes one that exceeds `1`; this is why the
-  conditioning theorems assume `0 ≤ f ≤ 1` as hypotheses rather than
-  clamp silently and report a different weight.
-- **Unbounded family — a genuine limit.** When the density has no
-  finite envelope — a Gaussian with `σ` free to approach `0`, a
-  likelihood that can be arbitrarily peaked — no normalisation brings
-  it inside the unit ball, and the observation is outside this model.
-  This is a property of every sub-probability model, integrable cones
-  and probabilistic coherence spaces alike, not of the encoding.
+Only a **genuinely unbounded** family is out of scope. When a density
+has no finite peak — a Gaussian with `σ` free to approach `0`, a
+likelihood that can be arbitrarily sharp — no normalisation brings it
+inside the unit ball, and the observation is not a morphism of `ICone`
+and has no denotation here. This is a property of every
+sub-probability model, integrable cones and probabilistic coherence
+spaces alike, not of the encoding.
 
 The semantics designed to score by arbitrary unbounded weights is
 the *s-finite kernel* model (Staton and collaborators): it drops the
@@ -2053,11 +2094,11 @@ the [Examples tab](../../examples/index.html).
 
 The score-posterior identity, promoted to an operator: the Pyro-style
 soft conditioning combinator `condition`
-(`examples.v::ex_condition_comb`, surface form
-`Condition { f , Hm } M`) takes a model `m : ta → tR` and returns
-the conditioned model
-`λa. let x = m a in let _ = Score (Meas{f} x) in x`. The
-conditioning law (Section ConditionModel of
+(`examples.v::ex_condition_comb`, surface form `Condition { d } M`)
+takes a bundled likelihood `d : udensity` and a model `m : ta → tR`,
+and returns the conditioned model
+`λa. let x = m a in let _ = Score d x in x` (writing `f := ud_f d`).
+The conditioning law (Section ConditionModel of
 `theories/programs/ex_reject_model.v`) states that at a unit-ball
 model value `g!` and a setlike unit-ball input `a₀`, writing
 `ν_M := g(a₀)` for the model's output sub-distribution, the
@@ -2065,7 +2106,7 @@ conditioned model's output is the likelihood-reweighted measure —
 `ex_score_posterior_cbv_E` with an arbitrary model in place of
 `sample µ`. The proof engine is this chapter's general let-law
 `eD_let_mu_E` at `ν_M`, with the score clause computing on Diracs
-(`eD_score_meas_E` + `score_lift_dirac`) and the returned variable
+(`eD_score_E` + `score_lift_dirac`) and the returned variable
 projected through `em_proj1_mor_unitE` / `Lfun_scaleE`.
 
 ```coq

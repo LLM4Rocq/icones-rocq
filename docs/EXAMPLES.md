@@ -32,13 +32,15 @@ iterated conditioning (`ex_bayes_linear_is_iter_condition`,
 same surface programs is preserved on the `cbn-track` branch; main is
 CBV-only.
 
-The surface layer the programs are written in — witness-free
-`Bernoulli e` / `Score e` (densities clamped into `[0,1]`),
-measurable function application `Meas { f , Hf } e`, bundled
-distributions `sample m`, the runtime-parameter forms
-`Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )`, the comparison coin
-`e1 > e2`, OCaml-style `let rec`, and the `Condition { f , Hm } M`
-form — is documented in
+The surface layer the programs are written in — the constant coin
+`Bernoulli p` over a bundled `prob`, the value-dependent
+`Bernoulli d e` / `Score d e` over a bundled `[0,1]` density
+`udensity`, the Bayesian-conditioning operator
+`observe Gaussian { s , y } e`, measurable function application
+`Meas { f , Hf } e`, bundled distributions `sample m`, the
+runtime-parameter forms `Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )`,
+the comparison coin `e1 > e2`, OCaml-style `let rec`, and the
+`Condition { d } M` form — is documented in
 [the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html)
 and demoed end to end by `ex_surface_demo` / `ex_surface_walk`
 (`theories/programs/examples.v`).
@@ -212,8 +214,9 @@ Lebesgue integral.
 
 Scoring a sampled parameter — the one-dimensional unnormalised
 posterior, in the textbook prior / score / return shape: sample a
-parameter `m` from the prior `µ`, score by a measurable density
-`f(m) ∈ [0, 1]`, return `m`. The denotation's measure of every
+parameter `m` from the prior `µ`, score by a bundled `[0,1]` density
+`d : udensity` (writing `f := ud_f d`), return `m`. The denotation's
+measure of every
 measurable `U` is `∫_U f dµ` — the prior reweighted by the evidence
 density, with total mass the evidence `∫ f dµ`.
 
@@ -225,7 +228,7 @@ programs exactly.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_score_posterior`) | `let m := sample µ in let _ := Score (Meas{f} #"m") in #"m"` of type `tR` — sample, score by the density `f`, return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
+| Def (`ex_score_posterior`) | `let m := sample µ in let _ := Score d #"m" in #"m"` of type `tR` — sample, score by the bundled density `d : udensity` (`f := ud_f d`), return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
 | Thm (`ex_score_posterior_cbv_E`) | The denotation's measure of every measurable `U` is `∫_U f dµ` — the prior reweighted by the density, not normalised. | `ex_score_posterior_cbv_E` — `theories/programs/infra/cbv_marginals.v` |
 | Cor (`ex_score_posterior_cbv_mass`) | The total mass of the denotation is the evidence `∫ f dµ`. | `ex_score_posterior_cbv_mass` — same file |
 
@@ -234,7 +237,7 @@ programs exactly.
 Definition ex_score_posterior :
     @named_expr R Ar R_obj nil tR' :=
   [ let "m" := sample m in
-    let "_" := Score (Meas { f , Hf_meas } # "m") in
+    let "_" := Score d # "m" in
     # "m" ].
 ```
 
@@ -261,7 +264,7 @@ Theorem ex_score_posterior_cbv_mass :
 Proof idea: the let-at-sample mass law `eD_let_sample_mu_E` turns the
 denotation's measure of `U` into an integral over `r ~ µ` of the
 continuation's mass at the one-Dirac environment `1 ⊗ δ_r`. There the
-score clause evaluates to the scalar `f(r)` (`eD_score_meas_E` +
+score clause evaluates to the scalar `f(r)` (`eD_score_E` +
 `score_lift_dirac`), and the returned variable under the score binder
 is computed by `em_proj1_mor_unitE`: a `tunit`-typed score result is
 not setlike, so the first projection discards it as its scalar
@@ -269,7 +272,7 @@ weight, turning the score into the `precone_scale` factor `f(r)` on
 the returned `δ_r` (`sp_cont_at_dirac`). The Dirac's measure of `U`
 is the indicator, and the integral collapses to `∫_U f dµ`.
 
-### ex_bayes_linear (`ex_bayes_linear`, `ex_bayes_linear3`, `condition_at`, `iter_condition`, `obs_fold`, `ex_bayes_linear_is_iter_condition`, `ex_bayes_linear_obs_fold`, `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`)
+### ex_bayes_linear (`ex_bayes_linear`, `ex_bayes_linear3`, `observe`, `gauss_obs_density`, `obs_d`, `condition_at`, `iter_condition`, `obs_fold`, `ex_bayes_linear_is_iter_condition`, `ex_bayes_linear_obs_fold`, `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`)
 
 The Bayesian linear regression of Staton–Yang–Heunen–Kammar–Wood
 (arXiv 1701.02547 §2.1), in three steps.
@@ -279,14 +282,19 @@ above, a distribution over affine functions with slope and intercept
 drawn from the prior.
 
 Second, inference conditions the model on data. Each observation is a
-`Record obs` packaging a known input point `obs_x` and an observation
-density `obs_d : R → [0,1]` with measurability and bound witnesses
-(for example a normal pdf around the measured output, scaled into
-`[0,1]`). Conditioning is a score: the model's value
-`#"f" @ [|obs_x o|]` at the known input is scored by `obs_d o`. The
-program samples the model once, binds it to `"f"`, folds the
-observation list into a series of scores, and returns `#"f"` — the
-posterior over functions.
+`Record obs = MkObs { obs_x ; obs_s ; obs_y }` packaging a known input
+point `obs_x`, the likelihood deviation `obs_s`, and the observed
+datum `obs_y`. Its observation density is the envelope-normalised
+Gaussian likelihood `obs_d o := gauss_obs_density (obs_s o) (obs_y o)`,
+i.e. `obs_d o r = normal_pdf r (obs_s o) (obs_y o) / normal_peak (obs_s
+o) ∈ [0,1]` (`theories/programs/ppl.v`) — the surface form is the
+`observe Gaussian { obs_s o , obs_y o }` operator. The peak is
+intrinsic to the distribution, so the observation carries no
+user-supplied envelope.
+Conditioning is a score: the model's value `#"f" @ [|obs_x o|]` at the
+known input is scored by `obs_d o`. The program samples the model
+once, binds it to `"f"`, folds the observation list into a series of
+`observe` steps, and returns `#"f"` — the posterior over functions.
 
 Third, the regression *is* iterated conditioning, by definition.
 Scoring `#"f" @ [|obs_x o|]` by `obs_d o` is the score clause of the
@@ -334,10 +342,10 @@ Proof. by []. Qed.
 [ let "f" := (let "m" := sample m in
               let "b" := sample m in
               \ "x" ::: tR' => # "m" * # "x" + # "b") in
-  let "_" := Score (Meas { obs_d o1 , obs_meas o1 }
-                      (# "f" @ [| obs_x o1 |])) in
-  let "_" := Score (Meas { obs_d o2 , obs_meas o2 }
-                      (# "f" @ [| obs_x o2 |])) in
+  let "_" := observe Gaussian { obs_s o1 , obs_y o1 }
+                      (# "f" @ [| obs_x o1 |]) in
+  let "_" := observe Gaussian { obs_s o2 , obs_y o2 }
+                      (# "f" @ [| obs_x o2 |]) in
   # "f" ]
 ```
 
@@ -473,9 +481,10 @@ pins the denotation of the Bernoulli-guarded loop with a
 never-succeeding coin to `precone_zero`, and `ex_loop` is the same
 loop with the coin erased.
 
-### ex_geom (`ex_geom`, `ex_geom_cbv_mass_one`, `ex_geom_cbv_distribution`, `ex_geom_cbv_pmf`)
+### ex_geom (`ex_geom`, `prob_half`, `ex_geom_cbv_mass_one`, `ex_geom_cbv_distribution`, `ex_geom_cbv_pmf`)
 
-A geometric counter built from a fair-coin Bernoulli recursion: each
+A geometric counter built from a fair-coin Bernoulli recursion (the
+bundled constant coin `Bernoulli prob_half`): each
 call halts with probability `½` (returning `0`) and otherwise
 recurses, adding `1` to the returned real. The program denotes a
 measure of total mass `1` — the sampler halts almost surely — and
@@ -491,7 +500,7 @@ where the geometric weights sum to `1`.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_geom`) | `let rec g _ = if Bernoulli(½) then 0 else 1 + g () in g ()` of type `tR`. | `ex_geom` — `theories/programs/examples.v` |
+| Def (`ex_geom`) | `let rec g _ = if Bernoulli prob_half then 0 else 1 + g () in g ()` of type `tR` — the fair coin is the bundled constant form `Bernoulli prob_half`. | `ex_geom`, `prob_half` — `theories/programs/examples.v` |
 | Thm (`ex_geom_cbv_mass_one`) | The denotation has total mass one on the whole carrier: the sampler halts almost surely. | `ex_geom_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
 | Thm (`ex_geom_cbv_distribution`) | On every measurable `U` the denotation is the geometric series `Σ_k (1/2)^(k+1) δ_{gpt k}(U)`. | `ex_geom_cbv_distribution` — same file |
 | Thm (`ex_geom_cbv_pmf`) | The atom at the embedded natural `gpt k` carries mass exactly `(1/2)^(k+1)`: the geometric PMF. | `ex_geom_cbv_pmf` — same file |
@@ -500,7 +509,7 @@ where the geometric weights sum to `1`.
 (* theories/programs/examples.v *)
 Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
   [ let rec "g" "_" ::: tunit ==> tR' :=
-      (if Bernoulli [| (1 / 2 : R) |]
+      (if Bernoulli (prob_half : prob R)
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ())
     in # "g" @ () ].
@@ -568,17 +577,17 @@ norm-one element of the one-dimensional unit cone is `one1`
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_almost_loop`) | `let rec l _ = if Bernoulli(p) then () else l () in l ()` of type `tunit`. The unified `Bernoulli [\| p \|]` clamps, so the program needs no `[0,1]` witnesses on `p`. | `ex_almost_loop` — `theories/programs/examples.v` |
+| Def (`ex_almost_loop`) | `let rec l _ = if Bernoulli pr then () else l () in l ()` of type `tunit`. The parameter is a bundled probability `pr : prob` carrying its `[0,1]` bounds, so the program needs no loose witnesses. | `ex_almost_loop` — `theories/programs/examples.v` |
 | Thm (`ex_almost_loop_cbv_mass_one`) | For every `p > 0` the denotation has norm one: almost-sure termination. | `ex_almost_loop_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
 | Thm (`ex_almost_loop_cbv_dirac`) | For every `p > 0` the denotation IS the unit point `one1` (the Dirac on the one-point space), strengthening the norm identity to the element. | `ex_almost_loop_cbv_dirac` — same file |
 | Thm (`ex_almost_loop_cbv_zero`) | At `p = 0` the denotation is the zero point of the unit cone: the loop diverges with probability one. | `ex_almost_loop_cbv_zero` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
-Definition ex_almost_loop (p : R) :
+Definition ex_almost_loop (pr : prob R) :
     @named_expr R Ar R_obj nil tunit :=
   [ let rec "l" "_" ::: tunit ==> tunit :=
-      (if Bernoulli [| p |]
+      (if Bernoulli pr
        then ()
        else # "l" @ ())
     in # "l" @ () ].
@@ -598,8 +607,9 @@ Theorem ex_almost_loop_cbv_dirac : (0 < p)%R -> al_denot = one1.
 ```
 
 (`al_denot` abbreviates
-`linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas p) one1`;
-the `0 ≤ p ≤ 1` witnesses live in the theorems, not the program.)
+`linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas pr) one1`,
+and `p := pr_val pr`; the `0 ≤ p ≤ 1` bounds travel inside the bundled
+`pr : prob`, so the program carries no loose witnesses.)
 Proof idea: as for the geometric counter — reduce to the
 `cone_sup_ball` of the iterate points (`ex_almost_loop_sup_E`),
 compute one Kleene step to the scalar recurrence
@@ -743,9 +753,10 @@ Both combinators are closed programs of type
 `(ta → tR) → (ta → tR)`, for an arbitrary PPL input type `ta`. The
 conditioning operator is a plain double lambda: it takes the model
 `m`, takes the input `a`, runs the model at the input, scores the
-produced value by the likelihood, and returns the value — the
-score-and-return tail of `ex_score_posterior` with a model
-application in place of the hard-coded `sample µ`.
+produced value by the bundled likelihood `d : udensity` (writing
+`f := ud_f d`), and returns the value — the score-and-return tail of
+`ex_score_posterior` with a model application in place of the
+hard-coded `sample µ`.
 
 ```coq
 (* theories/programs/examples.v *)
@@ -754,13 +765,14 @@ Definition ex_condition_comb :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Score (Meas { f , Hf_meas } # "x") in
+         let "_" := Score d # "x" in
          # "x") ].
 ```
 
 The rejection sampler wraps the same propose step in a recursion: it
 runs the model, accepts the candidate `x` with probability `f(x)`
-(the value-dependent coin `Bernoulli (Meas{f} #"x")`), and on
+(the value-dependent coin `Bernoulli d #"x"` at the bundled density
+`d : udensity`, `f := ud_f d`), and on
 rejection recurses at the *same* model and the *same* input — the
 recursive call re-runs `m a`, drawing a fresh candidate. The
 recursion binder `fix "rs"` sits at the function type
@@ -776,14 +788,14 @@ Definition ex_reject_comb :
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bernoulli (Meas { f , Hf_meas } # "x")
+           if Bernoulli d # "x"
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 ```
 
 `ex_condition M` packages the application: `condition M f` is the
 conditioned model, again a closed program of type `ta → tR`, with
-the surface form `Condition { f , Hm } M` pinned to the same term by
+the surface form `Condition { d } M` pinned to the same term by
 a `Check (erefl : …)` in the source.
 
 ```coq
@@ -795,9 +807,9 @@ Definition ex_condition (M : @named_expr R Ar R_obj nil (tfun ta tR')) :
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_condition_comb`) | `condition = λm. λa. let x = m a in let _ = Score (Meas{f} x) in x` of type `(ta → tR) → (ta → tR)` — run the model at the input, weigh the trace by the likelihood of the produced value, return the value. | `ex_condition_comb`, `ex_condition_comb_cbv` — `theories/programs/examples.v` |
-| Def (`ex_condition`) | The applied form `condition M f` and its surface notation `Condition { f , Hm } M`. | `ex_condition`, `ex_condition_cbv` — same file |
-| Def (`ex_reject_comb`) | `fix rs = λm. λa. let x = m a in if Bernoulli (Meas{f} x) then x else rs m a` of the same type — run the model at the input, accept with probability `f x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
+| Def (`ex_condition_comb`) | `condition = λm. λa. let x = m a in let _ = Score d x in x` of type `(ta → tR) → (ta → tR)` — run the model at the input, weigh the trace by the bundled likelihood `d : udensity` (`f := ud_f d`) of the produced value, return the value. | `ex_condition_comb`, `ex_condition_comb_cbv` — `theories/programs/examples.v` |
+| Def (`ex_condition`) | The applied form `condition M f` and its surface notation `Condition { d } M`. | `ex_condition`, `ex_condition_cbv` — same file |
+| Def (`ex_reject_comb`) | `fix rs = λm. λa. let x = m a in if Bernoulli d x then x else rs m a` of the same type — run the model at the input, accept with probability `f x = ud_f d x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
 
 The theorems below quantify over the model value and the input
 value: the model argument is the promoted point `g!` of an arbitrary
@@ -867,7 +879,7 @@ score-posterior computation run at `ν_M`. The general let-law
 `eD_let_mu_E` (`theories/programs/infra/let_sample_law.v`) turns the
 bound model application into a Lebesgue integral over `ν_M`, and at
 each Dirac `δ_r` the score-and-return continuation computes to the
-weighted point mass `(f r)·δ_r` (`eD_score_meas_E` +
+weighted point mass `(f r)·δ_r` (`eD_score_E` +
 `score_lift_dirac`, with the score-discard kit
 `em_proj1_mor_unitE`). No recursion is involved: the combinator's
 reduction chain is the rejection chain minus the fixpoint.
@@ -945,7 +957,7 @@ Proof idea, in six steps (`theories/programs/ex_reject_model.v`):
    at the extended setlike environment `((1 ⊗ rs_n!) ⊗ g!) ⊗ a₀`.
 4. `reject_model_if_at_dirac` — at the Dirac extension the dispatch
    computes: the scrutinee is the coin `bernoulli (f r)`
-   (`eD_bernoulli_meas_E` + `bern_lift_dirac`), the then-branch
+   (`eD_bernoulli_f_E` + `bern_lift_dirac`), the then-branch
    returns the accepted candidate `δ_r`, and the else-branch — the
    recursive call at the same model and input — is the previous
    iterate `ν_n`. The let-bound model application itself computes to
@@ -1050,7 +1062,7 @@ normalises exactly the score program's unnormalised posterior.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_reject`) | `let rec rs accept = let x = sample µ in if Bernoulli (Meas{f} x) then accept x else rs accept in rs (λy. y)` of type `tR` — the standalone sampler, abstracted over an acceptance continuation. | `ex_reject`, `ex_reject_cbv`, `ex_sampler` — `theories/programs/examples.v` |
+| Def (`ex_reject`) | `let rec rs accept = let x = sample µ in if Bernoulli d x then accept x else rs accept in rs (λy. y)` of type `tR` — the standalone sampler at the bundled acceptance density `d : udensity` (`f := ud_f d`), abstracted over an acceptance continuation. | `ex_reject`, `ex_reject_cbv`, `ex_sampler` — `theories/programs/examples.v` |
 | Thm (`ex_reject_master`) | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v` |
 | Thm (`ex_reject_is_normalised_posterior`) | If `0 < ∫f dµ` then `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the normalised posterior of the prior `µ` given the soft predicate `f`; `ν(setT) = 1` (`ex_reject_mass_one`); at `∫f dµ = 1` no normalisation is needed (`ex_reject_posterior_simple`); at `f ≡ 0` the denotation is the zero measure (`ex_reject_zero`). | `ex_reject_is_normalised_posterior`, `ex_reject_posterior_simple`, `ex_reject_mass_one`, `ex_reject_zero` — same file |
 | Thm (`ex_reject_comb_sampler_E`) | The combinator applied to the sampler model `λ_. sample µ` at the unit input denotes the same measure as `ex_reject`; the master identity re-derived through the bridge is `ex_reject_comb_sampler_master`. | `ex_reject_comb_sampler_E`, `ex_reject_comb_sampler_master` — `theories/programs/ex_reject_model.v` |
@@ -1061,7 +1073,7 @@ normalises exactly the score program's unnormalised posterior.
 Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bernoulli (Meas { f , Hf_meas } # "x")
+       if Bernoulli d # "x"
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].

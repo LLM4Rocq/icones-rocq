@@ -2520,7 +2520,8 @@ witness simultaneously. The custom entry \texttt{ppl\_named} supports
 combinator of \autoref{thm:cbv-fix-comb} under the CBV reading),
 \texttt{Sample (mu, Hmu)},
 \texttt{True} / \texttt{False},
-\texttt{Bernoulli \{ p, Hp\_ge0, Hp\_le1 \}},
+\texttt{Bernoulli p} (the constant coin over a bundled
+\rocq{Icones.programs.ppl.prob}),
 \texttt{if e then M else N} (dispatched via
 \autoref{def:cbv-case-em}),
 \texttt{\# "x"}, \texttt{M @ N}, \texttt{M + N}, \texttt{M * N},
@@ -2535,13 +2536,19 @@ On top of the kernel notations sits a readable layer of sugar-only
 forms (each elaborates to existing constructors plus the
 $\mathtt{ne\_meas}$ pushforward primitive): measurable function
 application \texttt{Meas \{ f, Hf \} e} (desugaring to
-\rocq{Icones.programs.ppl.ne_meas}); the \emph{witness-free} unified
-coin and score \texttt{Bernoulli e} / \texttt{Score e}, whose density
-is the clamped runtime value via
-\rocq{Icones.programs.ppl.clamp} (measurable and $[0,1]$-valued by
-construction; on real literals in $[0,1]$ the clamped coin agrees
-with the witness form,
-\rocq{Icones.programs.ppl_cbv.eD_bernoulli_clamp_const_E});
+\rocq{Icones.programs.ppl.ne_meas}); the value-dependent coin and
+score \texttt{Bernoulli d e} / \texttt{Score d e} over a bundled
+$[0,1]$ density \rocq{Icones.programs.ppl.udensity} (carrying its
+measurability and both bounds, so no loose witnesses appear at the
+surface); the Bayesian-conditioning operator
+\texttt{observe Gaussian \{ s, y \} e}, scoring by the
+envelope-normalised Gaussian observation likelihood
+\rocq{Icones.programs.ppl.gauss_udensity} --- the deviation $s$ and
+datum $y$ are bundled parameters, the predicted mean is the surface
+sub-expression $e$, and the normaliser is the distribution's intrinsic
+peak \rocq{Icones.programs.ppl.normal_peak} (no user-supplied
+envelope), with the denotation law
+\rocq{Icones.programs.ppl_cbv.observe_gauss_E};
 bundled sampling \texttt{sample m} for a sub-probability packaged
 with its unit-ball witness as a \rocq{Icones.programs.ppl.pmeas},
 with the named distributions
@@ -2549,14 +2556,14 @@ with the named distributions
 \rocq{Icones.programs.examples.uniform} transported from
 \mathcompA{}-analysis probabilities by
 \rocq{Icones.programs.ppl.prob_pmeas}; the comparison coin
-\texttt{e1 > e2} (the value-dependent Bernoulli at the indicator
-density \rocq{Icones.programs.ppl.gt0_ind} of the difference ---
-deterministic on point masses); OCaml-style
+\texttt{e1 > e2} (the value-dependent Bernoulli at the bundled
+indicator density \rocq{Icones.programs.ppl.gt0_udensity} of the
+difference --- deterministic on point masses); OCaml-style
 \texttt{let rec f x := M in K} (desugaring to
 $\mathtt{ne\_let}$-of-$\mathtt{ne\_fix}$-of-$\mathtt{ne\_lam}$, with
 an annotated variant for bodies that leave the binder type
 undetermined); and the soft conditioning form
-\texttt{Condition \{ f, Hm \} M} of
+\texttt{Condition \{ d \} M} of
 \autoref{def:cbv-ex-condition}. The end-to-end demos are
 \rocq{Icones.programs.examples.ex_surface_demo} and
 \rocq{Icones.programs.examples.ex_surface_walk}, with the elaboration
@@ -2935,12 +2942,15 @@ Staton--Yang--Heunen--Kammar--Wood, arXiv 1701.02547 \S2.1) samples
 the random affine model \emph{once} --- the bound expression is
 literally $\mathtt{ex\_random\_linear}$ --- binds it to the name
 $\mathtt{"f"}$, then folds a \emph{series} of observations: each
-observation (a record \rocq{Icones.programs.examples.obs} packaging
-a known input point $\mathtt{obs\_x}$ and an observation density
-$\mathtt{obs\_d} : \mathbb{R} \to [0,1]$ with its measurability and
-bound witnesses) contributes one clause
-$\mathtt{let\,\_ = Score}\,(\mathtt{Meas}\,\{\mathtt{obs\_d}\,o\}\,
-(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!]))
+observation (a record \rocq{Icones.programs.examples.obs}, $\mathtt{MkObs}$
+of a known input point $\mathtt{obs\_x}$, a likelihood deviation
+$\mathtt{obs\_s}$, and an observed datum $\mathtt{obs\_y}$, whose
+observation density is the envelope-normalised Gaussian likelihood
+$\mathtt{obs\_d}\,o := \mathtt{gauss\_obs\_density}\,(\mathtt{obs\_s}\,o)\,
+(\mathtt{obs\_y}\,o) : \mathbb{R} \to [0,1]$) contributes one clause
+$\mathtt{let\,\_ = observe\,Gaussian}\,\{\mathtt{obs\_s}\,o,
+\mathtt{obs\_y}\,o\}\,
+(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!])
 \,\mathtt{in}\,\cdots$, scoring the model's value at the known input;
 the program returns $\#\mathtt{"f"}$ --- the posterior over
 \emph{functions}. The fold over a meta-level observation list is the
@@ -3022,14 +3032,15 @@ programs.
 \rocq{Icones.programs.examples.ex_reject}\rocqok
 \uses{def:cbv-fix-clause, lem:ppl-bern-lift}
 Given a bundled prior $m$ (a \texttt{pmeas}: a sub-probability on
-the reals, here assumed of unit mass) and a measurable acceptance
-density $f : \mathbb{R} \to [0, 1]$, the program is
+the reals, here assumed of unit mass) and a bundled acceptance
+density $d : \mathtt{udensity}$ (write $f := \mathtt{ud\_f}\,d :
+\mathbb{R} \to [0, 1]$), the program is
 \[
   \mathtt{ex\_reject}
   \;=\;
   \mathtt{let\,rec}\;\textit{rs}\;\textit{accept} =
     \mathtt{let}\;x = \mathtt{sample}\,m\;\mathtt{in}\;
-    \mathtt{if}\;\mathtt{Bernoulli}\,(\mathtt{Meas}\{f\}\,x)\;
+    \mathtt{if}\;\mathtt{Bernoulli}\,d\,x\;
     \mathtt{then}\;\textit{accept}\;x\;
     \mathtt{else}\;\textit{rs}\;\textit{accept}
   \;\;\mathtt{in}\;\;
@@ -3224,8 +3235,9 @@ $\mathtt{ex\_reject\_comb}$]\label{def:cbv-ex-reject-comb}
 \rocq{Icones.programs.examples.ex_reject_comb}\rocqok
 \rocq{Icones.programs.examples.ex_sampler}\rocqok
 \uses{def:cbv-fix-clause, lem:ppl-bern-lift, def:cbv-ex-reject}
-For an \emph{arbitrary} PPL input type $t_a$ and a measurable
-acceptance density $f : \mathbb{R} \to [0,1]$, the combinator is the
+For an \emph{arbitrary} PPL input type $t_a$ and a bundled acceptance
+density $d : \mathtt{udensity}$ (write $f := \mathtt{ud\_f}\,d :
+\mathbb{R} \to [0,1]$), the combinator is the
 closed program of type
 $(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
 \[
@@ -3233,7 +3245,7 @@ $(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
   \;=\;
   \mathtt{fix}\;\textit{rs}.\;\lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{if}\;\mathtt{Bernoulli}\,(\mathtt{Meas}\{f\}\,x)\;
+    \mathtt{if}\;\mathtt{Bernoulli}\,d\,x\;
     \mathtt{then}\;x\;
     \mathtt{else}\;\textit{rs}\;m\;a
 \]
@@ -3416,8 +3428,9 @@ $\mathtt{ex\_condition\_comb}$]\label{def:cbv-ex-condition}
 \rocq{Icones.programs.examples.ex_condition_comb}\rocqok
 \rocq{Icones.programs.examples.ex_condition}\rocqok
 \uses{def:cbv-ex-reject-comb, lem:ppl-score-tm-lift}
-For an arbitrary PPL input type $t_a$ and a measurable likelihood
-density $f : \mathbb{R} \to [0,1]$, the soft conditioning operator is
+For an arbitrary PPL input type $t_a$ and a bundled likelihood
+density $d : \mathtt{udensity}$ (write $f := \mathtt{ud\_f}\,d :
+\mathbb{R} \to [0,1]$), the soft conditioning operator is
 the closed program of type
 $(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
 \[
@@ -3425,7 +3438,7 @@ $(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
   \;=\;
   \lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{let}\;\_ = \mathtt{Score}\,(\mathtt{Meas}\{f\}\,x)\;\mathtt{in}\;
+    \mathtt{let}\;\_ = \mathtt{Score}\,d\,x\;\mathtt{in}\;
     x
 \]
 --- run the model at the input, weigh the trace by the likelihood of
@@ -3434,7 +3447,7 @@ the produced value, return the value
 $\mathtt{condition}\;M$ --- the conditioned MODEL, again of type
 $t_a \to \mathtt{tR}$ --- is
 \rocq{Icones.programs.examples.ex_condition}, with the surface
-notation \texttt{Condition \{ f, \ldots \} M}. No recursion is
+notation \texttt{Condition \{ d \} M}. No recursion is
 involved: the combinator is a plain double lambda.
 \end{definition}
 

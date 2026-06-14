@@ -281,13 +281,17 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
   shared-sample diagonal semantics.
 - **The readable surface layer** (`theories/programs/ppl.v` /
-  `theories/programs/examples.v`): witness-free `Bernoulli e` /
-  `Score e` (densities clamped by `clamp`), measurable function
-  application `Meas { f , Hf } e` (the new `ne_meas` pushforward
-  constructor), bundled distributions `sample m` over `pmeas` with
-  named `gaussian` / `uniform` transported from mathcomp-analysis,
-  the comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
-  sugar, and the `Condition { f , … } M` form — demoed end to end by
+  `theories/programs/examples.v`): the constant coin `Bernoulli p`
+  over a bundled `prob`, the value-dependent `Bernoulli d e` /
+  `Score d e` over a bundled `[0,1]` density `udensity`, the
+  Bayesian-conditioning operator `observe Gaussian { s , y } e`
+  (scoring by the envelope-normalised Gaussian likelihood
+  `gauss_udensity s y`), measurable function application
+  `Meas { f , Hf } e` (the `ne_meas` pushforward constructor),
+  bundled distributions `sample m` over `pmeas` with named
+  `gaussian` / `uniform` transported from mathcomp-analysis, the
+  comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
+  sugar, and the `Condition { d } M` form — demoed end to end by
   `ex_surface_demo` / `ex_surface_walk`.
 - **The CBV marginals** (`theories/programs/infra/cbv_marginals.v`,
   axiom-free): the non-recursive basic sampling/scoring examples carry
