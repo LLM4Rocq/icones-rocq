@@ -110,9 +110,13 @@ def main(argv: list[str] | None = None) -> int:
     # Global cross-tab + source-line go-to-definition pass.  Each tab's
     # per-document linkify (run inside parse_file) has already wired
     # same-tab entry links; this pass mops up the remaining plain idents
-    # by consulting the cross-tab entry map and a theories/ source index,
-    # so e.g. a PPL snippet's `EM_term` links to its Paper entry page and
-    # an undocumented ident links to its GitHub blob line.
+    # by consulting the cross-tab entry map, a theories/ source index and
+    # the installed mathcomp sources, so e.g. a PPL snippet's `EM_term`
+    # links to its Paper entry page, an undocumented project ident links
+    # to its GitHub blob line, and a mathcomp ident (`measurable`,
+    # `dirac`, …) links out to mathcomp's versioned online source.
+    # ``mathcomp_root=None`` lets linkify_all auto-locate the installed
+    # package (and silently skip external links if it is absent).
     linkify_all(
         three,
         resolver=resolver,

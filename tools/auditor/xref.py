@@ -78,7 +78,7 @@ from __future__ import annotations
 import html as html_mod
 import re
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterator
 
 from .coqdoc import CoqdocResolver
 from .schema import (
@@ -145,6 +145,53 @@ _DECL_RE = re.compile(
 #: ``HB.instance Definition Name := …`` (and the ``HB.structure`` analogue).
 _HB_DECL_RE = re.compile(
     r"^\s*HB\.(?:instance|structure)\s+Definition\s+([A-Za-z_][A-Za-z0-9_']*)"
+)
+
+#: Keywords that open an ``Inductive``/``Variant``/``CoInductive`` block
+#: whose body lists constructors (``| Cn …``).  A block runs from this
+#: keyword to the terminating ``.`` at end of statement.
+_IND_KEYWORDS = ("Inductive", "CoInductive", "Variant")
+
+#: Start of an inductive-family block; the family name is captured so the
+#: scanner can skip it (it is already harvested as a top-level decl).
+_IND_OPEN_RE = re.compile(
+    r"^\s*(?:" + "|".join(_IND_KEYWORDS) + r")\s+([A-Za-z_][A-Za-z0-9_']*)"
+)
+
+#: A constructor line inside an inductive body: ``| Cn …``.  The name is
+#: the bare identifier immediately following the ``|`` bar.  Constructor
+#: signatures may span several lines, but the *name* always sits on the
+#: bar line, so a per-line scan suffices.
+_CTOR_RE = re.compile(r"^\s*\|\s*([A-Za-z_][A-Za-z0-9_']*)")
+
+#: Inline constructor(s) on the opener line *after* ``:=``, for the compact
+#: ``Inductive T := A | B.`` / ``:= | A | B.`` form.  Applied to the text
+#: following ``:=``: the first identifier (leading ``|`` optional) and each
+#: ``| Cn`` thereafter.
+_INLINE_CTOR_RE = re.compile(r"(?:^\s*\|?|\|)\s*([A-Za-z_][A-Za-z0-9_']*)")
+
+#: Keywords that open a record-like block whose body lists fields (the
+#: projection functions).  ``HB.mixin Record`` is matched by the same
+#: opener via its ``Record`` token.
+_RECORD_KEYWORDS = ("Record", "Structure", "Class")
+
+#: Start of a record-like block.  We do not capture the structure name
+#: here (it is harvested as a top-level decl by :data:`_DECL_RE`); we only
+#: need to know a ``{ … }`` field list has begun.  Matches both the bare
+#: forms and the ``HB.mixin Record`` form.
+_RECORD_OPEN_RE = re.compile(
+    r"^\s*(?:HB\.mixin\s+)?(?:" + "|".join(_RECORD_KEYWORDS) + r")\b"
+)
+
+#: A field declaration inside a record body: ``field_name : …``.  A field
+#: opens either at the start of a (possibly indented) line — the common
+#: multi-line layout ``{\n  f1 : ty;\n  f2 : ty;\n}`` — or right after a
+#: ``{`` / ``;`` separator on the same line — the compact single-line
+#: layout ``Record R := Mk { f1 : ty; f2 : ty }``.  A trailing ``:`` that
+#: is *not* ``:=`` confirms a field rather than a ``:=`` body or a
+#: type-ascription continuation.
+_FIELD_RE = re.compile(
+    r"(?:^\s*|[{;]\s*)([A-Za-z_][A-Za-z0-9_']*)\s*:(?!=)"
 )
 
 
@@ -230,6 +277,132 @@ def build_global_entry_map(three: ThreeTabDocument) -> dict[str, tuple[str, str]
     return mapping
 
 
+def _scan_vfile(lines: list[str]) -> "Iterator[tuple[str, int, int]]":
+    """Yield ``(name, lineno, priority)`` for every indexable ident.
+
+    ``priority`` is 0 for a top-level declaration and 1 for a
+    constructor/field, so a same-file clash resolves in favour of the
+    top-level decl (constructors and projections rank *below* decls within
+    one file).  Three forms are recognised, each anchored at the start of a
+    (possibly indented) line:
+
+    * **Top-level declarations** (:data:`_DECL_RE`, plus named
+      ``HB.instance``/``HB.structure``) — priority 0.
+    * **Inductive/Variant/CoInductive constructors** — every ``| Cn …``
+      line *inside* an ``Inductive``-family block, priority 1.  The block
+      runs from its opening keyword to the statement-terminating ``.`` at
+      end of line; constructor signatures spanning several lines are
+      handled because the constructor name always sits on the bar line.
+    * **Record / Structure / Class / HB.mixin Record fields** (the
+      projection functions) — every ``field : ty`` entry inside a
+      record body, priority 1.  The body runs from the opening keyword to
+      its terminating ``.``.
+
+    The function is line-oriented and brace/keyword driven rather than a
+    full parser; it deliberately over-accepts inside a block (a stray
+    ``ident : ty`` is taken as a field) but the caller's ambiguity
+    exclusion and the ``code-xref`` priority ladder keep wrong links out.
+    """
+
+    def stmt_ends(text: str) -> bool:
+        # A Rocq statement terminates at a ``.`` followed by whitespace or
+        # end-of-line (``..``/``...`` ellipses and ``.(`` projections are
+        # not statement ends, but inside these declaration bodies a bare
+        # trailing ``.`` reliably closes the block).
+        stripped = text.rstrip()
+        return stripped.endswith(".") and not stripped.endswith("..")
+
+    in_inductive = False
+    in_record = False
+    for lineno, text in enumerate(lines, start=1):
+        if in_inductive:
+            m = _CTOR_RE.match(text)
+            if m:
+                yield (m.group(1), lineno, 1)
+            if stmt_ends(text):
+                in_inductive = False
+            continue
+        if in_record:
+            for fm in _FIELD_RE.finditer(text):
+                yield (fm.group(1), lineno, 1)
+            if stmt_ends(text):
+                in_record = False
+            continue
+
+        # Not inside a block: try the openers first so the family/record
+        # name is harvested as a top-level decl and the body is scanned.
+        m_ind = _IND_OPEN_RE.match(text)
+        if m_ind:
+            yield (m_ind.group(1), lineno, 0)
+            # Inline constructors after ``:=`` on the opener line — the
+            # compact ``Inductive T := | A | B.`` (or ``:= A | B.``) form.
+            eq = text.find(":=")
+            if eq != -1:
+                for cm in _INLINE_CTOR_RE.finditer(text[eq + 2 :]):
+                    yield (cm.group(1), lineno, 1)
+            if not stmt_ends(text):
+                in_inductive = True
+            continue
+        if _RECORD_OPEN_RE.match(text):
+            # The structure name is captured by _DECL_RE for the bare forms
+            # and the ``HB.mixin Record`` form alike (the ``Record`` token
+            # precedes the name in both).
+            md = _DECL_RE.match(text)
+            if md and len(md.group(1)) >= MIN_IDENT_LEN:
+                yield (md.group(1), lineno, 0)
+            # The compact single-line layout ``Record R := Mk { f : ty }``
+            # carries its fields on the opener line *after* the ``{``; the
+            # multi-line layout opens the brace here and lists fields on
+            # following lines.  Scan whatever follows the first ``{`` so the
+            # single-line case is not missed (the structure/type-ascription
+            # tokens before ``{`` are excluded by slicing at the brace).
+            brace = text.find("{")
+            if brace != -1:
+                for fm in _FIELD_RE.finditer(text[brace:]):
+                    yield (fm.group(1), lineno, 1)
+            if not stmt_ends(text):
+                in_record = True
+            continue
+
+        m = _DECL_RE.match(text) or _HB_DECL_RE.match(text)
+        if m:
+            yield (m.group(1), lineno, 0)
+
+
+def _build_decl_index(
+    files: list[tuple[str, list[str]]],
+) -> dict[str, tuple[str, int]]:
+    """Build ``{ident: (key, line)}`` from pre-read ``(key, lines)`` files.
+
+    ``key`` is whatever the caller wants to associate with a file (a
+    repo-relative ``.v`` path for the local index, a dotted module name
+    for the mathcomp index).  Within a single file the lower ``priority``
+    wins (top-level decl beats a constructor/field of the same name);
+    across *different* files any clash marks the ident ambiguous and it is
+    dropped.  Idents shorter than :data:`MIN_IDENT_LEN` are excluded.
+    """
+    # Per-ident: the winning (key, line, priority) so far.
+    first: dict[str, tuple[str, int, int]] = {}
+    ambiguous: set[str] = set()
+
+    for key, lines in files:
+        for name, lineno, priority in _scan_vfile(lines):
+            if len(name) < MIN_IDENT_LEN:
+                continue
+            existing = first.get(name)
+            if existing is None:
+                first[name] = (key, lineno, priority)
+            elif existing[0] != key:
+                ambiguous.add(name)
+            elif priority < existing[2]:
+                # Same file, higher-priority (top-level) sighting wins.
+                first[name] = (key, lineno, priority)
+
+    for name in ambiguous:
+        first.pop(name, None)
+    return {name: (key, line) for name, (key, line, _prio) in first.items()}
+
+
 def build_source_index(
     theories_root: str | Path,
     *,
@@ -240,25 +413,26 @@ def build_source_index(
     ``vfile`` is repository-relative (e.g. ``theories/homs/coalgebra.v``),
     suitable for :meth:`CoqdocResolver.github_url`.  Paths are made
     relative to ``repo_root`` (the directory holding ``theories/``);
-    when omitted it defaults to ``theories_root``'s parent.  Only
-    top-level declarations are indexed (see :data:`_DECL_KEYWORDS`, plus
-    named ``HB.instance``/``HB.structure`` forms); constructors, local
-    binders and ``Notation "…"`` string forms are not.
+    when omitted it defaults to ``theories_root``'s parent.
 
-    Ambiguity is resolved by *exclusion*: an ident declared at top level
-    in more than one file is dropped, so the index never yields a wrong
-    target.  Idents shorter than :data:`MIN_IDENT_LEN` are excluded.
+    Three declaration forms are indexed (see :func:`_scan_vfile`):
+    top-level declarations (:data:`_DECL_KEYWORDS`, plus named
+    ``HB.instance``/``HB.structure``), inductive/variant constructors, and
+    record/structure/class/``HB.mixin Record`` fields (projection
+    functions).  Local binders and ``Notation "…"`` string forms are not.
+
+    Ambiguity is resolved by *exclusion*: an ident declared in more than
+    one file — whether as a decl, a constructor or a field — is dropped,
+    so the index never yields a wrong target.  Within one file a top-level
+    decl outranks a constructor/field of the same name.  Idents shorter
+    than :data:`MIN_IDENT_LEN` are excluded.
     """
     root = Path(theories_root)
     if not root.is_dir():
         return {}
     base = Path(repo_root) if repo_root is not None else root.parent
 
-    # First sighting wins per ident; a later sighting in a *different*
-    # file marks it ambiguous and it is removed at the end.
-    first: dict[str, tuple[str, int]] = {}
-    ambiguous: set[str] = set()
-
+    files: list[tuple[str, list[str]]] = []
     for vfile in sorted(root.rglob("*.v")):
         try:
             rel = vfile.relative_to(base).as_posix()
@@ -268,32 +442,209 @@ def build_source_index(
             lines = vfile.read_text(encoding="utf-8").splitlines()
         except OSError:
             continue
-        for lineno, text in enumerate(lines, start=1):
-            m = _DECL_RE.match(text) or _HB_DECL_RE.match(text)
-            if not m:
-                continue
-            name = m.group(1)
-            if len(name) < MIN_IDENT_LEN:
-                continue
-            existing = first.get(name)
-            if existing is None:
-                first[name] = (rel, lineno)
-            elif existing[0] != rel:
-                ambiguous.add(name)
+        files.append((rel, lines))
 
-    for name in ambiguous:
-        first.pop(name, None)
-    return first
+    return _build_decl_index(files)
+
+
+# -- mathcomp external index ------------------------------------------------
+
+#: Pinned source tags matching the *installed* mathcomp packages — see the
+#: project memory (``rocq-mathcomp-ssreflect 2.5.0`` ⇒ tag
+#: ``mathcomp-2.5.0`` in ``math-comp/math-comp``; ``rocq-mathcomp-analysis
+#: 1.16.0`` ⇒ tag ``1.16.0`` in ``math-comp/analysis``).  Pinning to the
+#: installed version avoids path/version skew (the repo layout is
+#: reorganised across releases); the URLs below were verified to resolve
+#: against these exact tags.
+_MATHCOMP_CORE_REPO = "math-comp/math-comp"
+_MATHCOMP_CORE_TAG = "mathcomp-2.5.0"
+_MATHCOMP_ANALYSIS_REPO = "math-comp/analysis"
+_MATHCOMP_ANALYSIS_TAG = "1.16.0"
+
+#: Installed top-level mathcomp directories that ship in the *core*
+#: ``math-comp`` repo (path inside the repo == the directory name).
+_MATHCOMP_CORE_DIRS = frozenset(
+    {
+        "algebra",
+        "boot",
+        "field",
+        "fingroup",
+        "order",
+        "solvable",
+        "ssreflect",
+        "character",
+    }
+)
+
+#: Installed top-level dirs shipped by the ``analysis`` repo whose repo
+#: path equals the directory name (``classical/…``, ``reals/…``).  The
+#: ``analysis`` dir itself maps to ``theories/`` and is handled below.
+_MATHCOMP_ANALYSIS_FLAT_DIRS = frozenset({"classical", "reals"})
+
+
+def _mathcomp_source_url(module: str) -> str | None:
+    """Map a dotted ``mathcomp.<dir>.<…>.<file>`` module to a GitHub blob.
+
+    Returns a versioned source-file URL (no ``#L`` line, to avoid line
+    skew) in the repo that actually ships that directory, or ``None`` if
+    the module's top directory is not one we recognise.  The mapping was
+    verified file-by-file against the pinned tags:
+
+    * ``mathcomp.<core>.<rest>``     → ``math-comp/<core>/<rest>.v``
+    * ``mathcomp.classical.<rest>``  → ``analysis/classical/<rest>.v``
+    * ``mathcomp.reals.<rest>``      → ``analysis/reals/<rest>.v``
+    * ``mathcomp.analysis.<rest>``   → ``analysis/theories/<rest>.v``
+    """
+    parts = module.split(".")
+    if len(parts) < 3 or parts[0] != "mathcomp":
+        return None
+    top = parts[1]
+    rest = "/".join(parts[2:])
+    if top in _MATHCOMP_CORE_DIRS:
+        repo, tag, path = _MATHCOMP_CORE_REPO, _MATHCOMP_CORE_TAG, f"{top}/{rest}.v"
+    elif top in _MATHCOMP_ANALYSIS_FLAT_DIRS:
+        repo, tag = _MATHCOMP_ANALYSIS_REPO, _MATHCOMP_ANALYSIS_TAG
+        path = f"{top}/{rest}.v"
+    elif top == "analysis":
+        repo, tag = _MATHCOMP_ANALYSIS_REPO, _MATHCOMP_ANALYSIS_TAG
+        path = f"theories/{rest}.v"
+    else:
+        return None
+    return f"https://github.com/{repo}/blob/{tag}/{path}"
+
+
+def _mathcomp_module_name(vfile: Path) -> str | None:
+    """Read the dotted logical module name from a ``.v`` file's ``.glob``.
+
+    coqdoc/``.glob`` files begin with an ``F<module>`` directive carrying
+    the full logical path (e.g. ``Fmathcomp.analysis.measure_theory.
+    dirac_measure``).  This is the authoritative module name — robust to
+    the on-disk subdirectory reshuffles across releases — so we prefer it
+    over reconstructing from the path.  Returns ``None`` when no sibling
+    ``.glob`` exists or it lacks the directive.
+    """
+    glob = vfile.with_suffix(".glob")
+    try:
+        head = glob.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in head:
+        if line.startswith("F"):
+            return line[1:].strip()
+        if not line.startswith("DIGEST"):
+            break
+    return None
+
+
+def build_mathcomp_index(
+    mathcomp_root: str | Path,
+) -> dict[str, str]:
+    """Scrape ``{ident: source_url}`` from the installed mathcomp sources.
+
+    ``mathcomp_root`` is the ``…/user-contrib/mathcomp`` directory.  Each
+    ``.v`` file is scanned with the same :func:`_scan_vfile` machinery as
+    the local index (top-level decls + constructors + record fields), its
+    logical module is read from the sibling ``.glob`` (falling back to the
+    relative path), and a verified GitHub source URL is built per
+    :func:`_mathcomp_source_url`.  Modules whose top directory is not
+    recognised (or files lacking a resolvable URL) are skipped.
+
+    Ambiguity exclusion and :data:`MIN_IDENT_LEN` match the local index:
+    an ident appearing in more than one mathcomp module is dropped.  The
+    returned map is the lowest-priority (external) tier of the resolution
+    ladder, consulted only after the local source index misses.
+    """
+    root = Path(mathcomp_root)
+    if not root.is_dir():
+        return {}
+
+    files: list[tuple[str, list[str]]] = []
+    module_url: dict[str, str] = {}
+    for vfile in sorted(root.rglob("*.v")):
+        module = _mathcomp_module_name(vfile)
+        if module is None:
+            # Fall back to reconstructing ``mathcomp.<rel-with-dots>``.
+            try:
+                rel = vfile.relative_to(root.parent).with_suffix("")
+            except ValueError:
+                continue
+            module = ".".join(rel.parts)
+        url = _mathcomp_source_url(module)
+        if url is None:
+            continue
+        try:
+            lines = vfile.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        files.append((module, lines))
+        module_url[module] = url
+
+    decl_index = _build_decl_index(files)
+    return {
+        ident: module_url[module] for ident, (module, _line) in decl_index.items()
+    }
+
+
+def find_mathcomp_root() -> Path | None:
+    """Locate the installed ``…/user-contrib/mathcomp`` source directory.
+
+    Searches the active opam switch (``$OPAM_SWITCH_PREFIX``) first, then
+    common ``COQLIB``/``ROCQLIB`` roots, returning the first existing
+    ``mathcomp`` directory.  Returns ``None`` when none is found (e.g. the
+    package is not installed), in which case external linking is skipped.
+    """
+    import os
+
+    candidates: list[Path] = []
+    for var in ("OPAM_SWITCH_PREFIX", "COQLIB", "ROCQLIB"):
+        prefix = os.environ.get(var)
+        if not prefix:
+            continue
+        p = Path(prefix)
+        candidates.append(p / "lib" / "coq" / "user-contrib" / "mathcomp")
+        candidates.append(p / "lib" / "rocq" / "user-contrib" / "mathcomp")
+        candidates.append(p / "user-contrib" / "mathcomp")
+        candidates.append(p / "coq" / "user-contrib" / "mathcomp")
+    for cand in candidates:
+        if cand.is_dir():
+            return cand
+    return None
 
 
 # -- shared linkify core ----------------------------------------------------
 
-#: A resolver maps an ident to ``(href, extra_class)`` or ``None``.
-#: ``href`` is the anchor target; ``extra_class`` is appended to the base
-#: ``code-xref`` class (``""`` for entry links, ``" code-xref-src"`` for
-#: source links).  ``None`` means "leave the token plain" (unknown ident
-#: or self-link).
-Resolver = Callable[[str], "tuple[str, str] | None"]
+#: A resolver maps an ident to a :class:`LinkTarget` or ``None``.
+#: ``None`` means "leave the token plain" (unknown ident or self-link).
+Resolver = Callable[[str], "LinkTarget | None"]
+
+
+class LinkTarget:
+    """One resolved anchor: ``href``, a ``code-xref`` class suffix and
+    optional extra tag attributes.
+
+    * ``class_suffix`` is appended *inside* the ``class="code-xref…"``
+      attribute — ``""`` for entry links, ``" code-xref-src"`` for local
+      source links, ``" code-xref-ext"`` for mathcomp-external links.
+    * ``attrs`` is verbatim markup placed after the ``href`` attribute —
+      empty for internal links, ``' target="_blank" rel="noopener"'`` for
+      external links so they open in a new tab.
+    """
+
+    __slots__ = ("href", "class_suffix", "attrs")
+
+    def __init__(self, href: str, class_suffix: str = "", attrs: str = "") -> None:
+        self.href = href
+        self.class_suffix = class_suffix
+        self.attrs = attrs
+
+
+def _anchor(escaped_tok: str, target: "LinkTarget") -> str:
+    """Render the ``<a …>escaped_tok</a>`` for a resolved link target."""
+    return (
+        f'<a class="code-xref{target.class_suffix}" '
+        f'href="{target.href}"{target.attrs}>'
+        f"{escaped_tok}</a>"
+    )
 
 
 def _linkify_html(highlighted_html: str, resolve: Resolver) -> str:
@@ -305,12 +656,7 @@ def _linkify_html(highlighted_html: str, resolve: Resolver) -> str:
         target = resolve(ident)
         if target is None:
             return m.group(0)
-        href, extra = target
-        return (
-            f'<span class="{cls}">'
-            f'<a class="code-xref{extra}" href="{href}">'
-            f"{escaped_tok}</a></span>"
-        )
+        return f'<span class="{cls}">{_anchor(escaped_tok, target)}</span>'
 
     return _NAME_SPAN_RE.sub(repl, highlighted_html)
 
@@ -335,12 +681,7 @@ def _linkify_prose(prose_html: str, resolve: Resolver) -> str:
         target = resolve(ident)
         if target is None:
             return m.group(0)
-        href, extra = target
-        return (
-            f"<code>"
-            f'<a class="code-xref{extra}" href="{href}">'
-            f"{escaped_tok}</a></code>"
-        )
+        return f"<code>{_anchor(escaped_tok, target)}</code>"
 
     return _CODE_SPAN_RE.sub(repl, prose_html)
 
@@ -421,11 +762,11 @@ def linkify_document(doc: Document) -> Document:
         return doc
 
     def resolve_for(owner: str | None) -> Resolver:
-        def resolve(ident: str) -> tuple[str, str] | None:
+        def resolve(ident: str) -> LinkTarget | None:
             target = mapping.get(ident)
             if target is None or target == owner:
                 return None
-            return (f"{_HREF_PREFIX}entries/{target}.html", "")
+            return LinkTarget(f"{_HREF_PREFIX}entries/{target}.html")
 
         return resolve
 
@@ -442,6 +783,7 @@ def linkify_all(
     resolver: CoqdocResolver,
     theories_root: str | Path,
     repo_root: str | Path | None = None,
+    mathcomp_root: str | Path | None = None,
 ) -> ThreeTabDocument:
     """Global linkify pass across all three tabs; returns ``three``.
 
@@ -452,9 +794,17 @@ def linkify_all(
     2. global entry map → link to that entry page with a tab-aware href
        (same tab ``../entries/X.html``; cross tab
        ``../../<tab>/entries/X.html``);
-    3. source index → absolute GitHub blob ``#L`` line, class
+    3. local source index → absolute GitHub blob ``#L`` line, class
        ``code-xref code-xref-src``;
-    4. otherwise leave plain.
+    4. mathcomp external index → versioned mathcomp source-file URL opened
+       in a new tab, class ``code-xref code-xref-ext``;
+    5. otherwise leave plain.
+
+    A project-local definition therefore always wins over a mathcomp one
+    of the same name (step 3 before step 4).  ``mathcomp_root`` points at
+    the installed ``…/user-contrib/mathcomp`` directory; when omitted it
+    is auto-located via :func:`find_mathcomp_root`, and if still not found
+    (package absent) mathcomp idents simply stay plain.
 
     Composes with :func:`linkify_document`: the per-tab pass has already
     wrapped same-tab entry idents, so step 2's same-tab branch only ever
@@ -463,13 +813,21 @@ def linkify_all(
     """
     entry_map = build_global_entry_map(three)
     source_index = build_source_index(theories_root, repo_root=repo_root)
+    mc_root = mathcomp_root if mathcomp_root is not None else find_mathcomp_root()
+    mathcomp_index = build_mathcomp_index(mc_root) if mc_root is not None else {}
 
-    def source_target(ident: str) -> tuple[str, str] | None:
+    def fallback_target(ident: str) -> LinkTarget | None:
+        """Local source link (preferred) else mathcomp-external link."""
         src = source_index.get(ident)
-        if src is None:
-            return None
-        vfile, line = src
-        return (resolver.github_url(vfile, line), " code-xref-src")
+        if src is not None:
+            vfile, line = src
+            return LinkTarget(resolver.github_url(vfile, line), " code-xref-src")
+        url = mathcomp_index.get(ident)
+        if url is not None:
+            return LinkTarget(
+                url, " code-xref-ext", ' target="_blank" rel="noopener"'
+            )
+        return None
 
     for tab in ALL_TABS:
         doc = three.tab(tab)
@@ -477,7 +835,7 @@ def linkify_all(
         def resolve_for(owner: str | None, _tab: str = tab) -> Resolver:
             # Depth-2 pages (sections/entries/beyond): own tab root is one
             # level up; another tab is two up then into ``<tab>/``.
-            def resolve(ident: str) -> tuple[str, str] | None:
+            def resolve(ident: str) -> LinkTarget | None:
                 hit = entry_map.get(ident)
                 if hit is not None:
                     target_tab, target_id = hit
@@ -487,8 +845,8 @@ def linkify_all(
                         href = f"{_HREF_PREFIX}entries/{target_id}.html"
                     else:
                         href = f"../../{target_tab}/entries/{target_id}.html"
-                    return (href, "")
-                return source_target(ident)
+                    return LinkTarget(href)
+                return fallback_target(ident)
 
             return resolve
 
@@ -498,7 +856,7 @@ def linkify_all(
         # so its relative hrefs drop one ``../`` level: same tab is
         # ``entries/X.html``, another tab is ``../<tab>/entries/X.html``.
         # There is no "owner entry" on the landing, so no self-links.
-        def preamble_resolve(ident: str, _tab: str = tab) -> tuple[str, str] | None:
+        def preamble_resolve(ident: str, _tab: str = tab) -> LinkTarget | None:
             hit = entry_map.get(ident)
             if hit is not None:
                 target_tab, target_id = hit
@@ -506,8 +864,8 @@ def linkify_all(
                     href = f"entries/{target_id}.html"
                 else:
                     href = f"../{target_tab}/entries/{target_id}.html"
-                return (href, "")
-            return source_target(ident)
+                return LinkTarget(href)
+            return fallback_target(ident)
 
         doc.preamble_html = _linkify_prose(doc.preamble_html, preamble_resolve)
     return three
@@ -515,9 +873,12 @@ def linkify_all(
 
 __all__ = [
     "MIN_IDENT_LEN",
+    "LinkTarget",
     "build_global_entry_map",
     "build_ident_map",
+    "build_mathcomp_index",
     "build_source_index",
+    "find_mathcomp_root",
     "linkify_all",
     "linkify_document",
 ]

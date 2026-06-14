@@ -613,6 +613,229 @@ def test_xref_global_idempotent():
     assert once == twice
 
 
+# -- constructor / projection source-index tests ----------------------------
+
+
+def _mc_tree(tmp_path):
+    """Create a minimal installed-mathcomp source tree under ``tmp_path``.
+
+    Lays out one core (``boot/``) and one analysis (``measure_theory/``,
+    served from the analysis repo's ``theories/``) module, each with a
+    sibling ``.glob`` carrying the authoritative ``F<module>`` directive,
+    and returns the ``mathcomp`` root directory.
+    """
+    mc = tmp_path / "user-contrib" / "mathcomp"
+    boot = mc / "boot"
+    boot.mkdir(parents=True)
+    (boot / "seq.v").write_text(
+        "Definition mc_seq_widget := tt.\n", encoding="utf-8"
+    )
+    (boot / "seq.glob").write_text(
+        "DIGEST deadbeef\nFmathcomp.boot.seq\n", encoding="utf-8"
+    )
+    meas = mc / "analysis" / "measure_theory"
+    meas.mkdir(parents=True)
+    (meas / "dirac_measure.v").write_text(
+        "Definition mc_dirac_widget := tt.\n", encoding="utf-8"
+    )
+    (meas / "dirac_measure.glob").write_text(
+        "DIGEST cafef00d\nFmathcomp.analysis.measure_theory.dirac_measure\n",
+        encoding="utf-8",
+    )
+    return mc
+
+
+def test_xref_inductive_constructor_source_link(tmp_path):
+    """An Inductive constructor links to its GitHub source ``#L`` line."""
+    from tools.auditor.xref import build_source_index, linkify_all
+
+    theories = tmp_path / "theories"
+    theories.mkdir()
+    (theories / "ind.v").write_text(
+        "Inductive widget_ty : Type :=\n"
+        "  | widget_ctor_a\n"
+        "  | widget_ctor_b (n : nat).\n",
+        encoding="utf-8",
+    )
+    idx = build_source_index(theories, repo_root=tmp_path)
+    assert idx["widget_ty"] == ("theories/ind.v", 1)
+    assert idx["widget_ctor_a"] == ("theories/ind.v", 2)
+    assert idx["widget_ctor_b"] == ("theories/ind.v", 3)
+
+    ppl = _entry(
+        eid="ppl-sec-type-translation",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("widget_ctor_a"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(
+        three,
+        resolver=_resolver(repo="demo/demo", commit="cafe"),
+        theories_root=theories,
+        repo_root=tmp_path,
+    )
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert (
+        '<a class="code-xref code-xref-src" '
+        'href="https://github.com/demo/demo/blob/cafe/theories/ind.v#L2">'
+        "widget_ctor_a</a>" in html
+    )
+
+
+def test_xref_record_field_source_link(tmp_path):
+    """A Record / HB.mixin Record field (projection) links to its source."""
+    from tools.auditor.xref import build_source_index, linkify_all
+
+    theories = tmp_path / "theories"
+    theories.mkdir()
+    (theories / "rec.v").write_text(
+        "Record Gadget : Type := MkGadget {\n"
+        "  gadget_obj : nat;\n"
+        "  gadget_str : bool;\n"
+        "}.\n"
+        "HB.mixin Record isThing T := {\n"
+        "  thing_zero : T;\n"
+        "}.\n",
+        encoding="utf-8",
+    )
+    idx = build_source_index(theories, repo_root=tmp_path)
+    assert idx["gadget_obj"] == ("theories/rec.v", 2)
+    assert idx["gadget_str"] == ("theories/rec.v", 3)
+    assert idx["thing_zero"] == ("theories/rec.v", 6)
+
+    ppl = _entry(
+        eid="ppl-x",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("gadget_obj"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(
+        three,
+        resolver=_resolver(repo="demo/demo", commit="cafe"),
+        theories_root=theories,
+        repo_root=tmp_path,
+    )
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert (
+        '<a class="code-xref code-xref-src" '
+        'href="https://github.com/demo/demo/blob/cafe/theories/rec.v#L2">'
+        "gadget_obj</a>" in html
+    )
+
+
+def test_xref_mathcomp_external_link(tmp_path):
+    """A mathcomp ident links OUT to a versioned source URL in a new tab."""
+    from tools.auditor.xref import build_mathcomp_index, linkify_all
+
+    mc = _mc_tree(tmp_path)
+    idx = build_mathcomp_index(mc)
+    assert idx["mc_seq_widget"] == (
+        "https://github.com/math-comp/math-comp/blob/mathcomp-2.5.0/boot/seq.v"
+    )
+    assert idx["mc_dirac_widget"] == (
+        "https://github.com/math-comp/analysis/blob/1.16.0/"
+        "theories/measure_theory/dirac_measure.v"
+    )
+
+    ppl = _entry(
+        eid="ppl-x",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("mc_dirac_widget"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(
+        three,
+        resolver=_resolver(),
+        theories_root="/nonexistent",
+        mathcomp_root=mc,
+    )
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert (
+        '<a class="code-xref code-xref-ext" '
+        'href="https://github.com/math-comp/analysis/blob/1.16.0/'
+        'theories/measure_theory/dirac_measure.v" '
+        'target="_blank" rel="noopener">mc_dirac_widget</a>' in html
+    )
+
+
+def test_xref_local_precedence_over_mathcomp(tmp_path):
+    """An ident that is BOTH a theories decl and a mathcomp decl links LOCAL."""
+    from tools.auditor.xref import linkify_all
+
+    theories = tmp_path / "theories"
+    theories.mkdir()
+    # Reuse the same name the mathcomp tree defines in boot/seq.v.
+    (theories / "loc.v").write_text(
+        "Definition mc_seq_widget := tt.\n", encoding="utf-8"
+    )
+    mc = _mc_tree(tmp_path)
+
+    ppl = _entry(
+        eid="ppl-x",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("mc_seq_widget"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(
+        three,
+        resolver=_resolver(repo="demo/demo", commit="cafe"),
+        theories_root=theories,
+        repo_root=tmp_path,
+        mathcomp_root=mc,
+    )
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    # Local source wins: a code-xref-src link, NOT the external one.
+    assert (
+        '<a class="code-xref code-xref-src" '
+        'href="https://github.com/demo/demo/blob/cafe/theories/loc.v#L1">'
+        "mc_seq_widget</a>" in html
+    )
+    assert "code-xref-ext" not in html
+
+
+def test_xref_ambiguous_constructor_not_mislinked(tmp_path):
+    """A constructor / field name in two files is dropped from the index."""
+    from tools.auditor.xref import build_source_index
+
+    theories = tmp_path / "theories"
+    (theories / "sub").mkdir(parents=True)
+    (theories / "a.v").write_text(
+        "Inductive ty_a : Type := | shared_ctor.\n", encoding="utf-8"
+    )
+    (theories / "sub" / "b.v").write_text(
+        "Record rec_b := MkB { shared_ctor : nat; uniq_field : bool }.\n",
+        encoding="utf-8",
+    )
+    idx = build_source_index(theories, repo_root=tmp_path)
+    # ``shared_ctor`` is a constructor in a.v AND a field in b.v → ambiguous.
+    assert "shared_ctor" not in idx
+    # The unique field still resolves.
+    assert idx["uniq_field"] == ("theories/sub/b.v", 1)
+
+
+def test_xref_external_idempotent(tmp_path):
+    """Running the global pass twice with external links changes nothing."""
+    from tools.auditor.xref import linkify_all
+
+    mc = _mc_tree(tmp_path)
+    ppl = _entry(
+        eid="ppl-x",
+        idents=["tyD_cbv"],
+        snippet_html=_name_span("mc_seq_widget"),
+    )
+    three = _three_tabs(ppl_entries=[ppl])
+    linkify_all(
+        three, resolver=_resolver(), theories_root="/nonexistent", mathcomp_root=mc
+    )
+    once = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    linkify_all(
+        three, resolver=_resolver(), theories_root="/nonexistent", mathcomp_root=mc
+    )
+    twice = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    assert once == twice
+    assert "code-xref-ext" in once
+
+
 # -- two-tab orchestrator tests --------------------------------------------
 
 
