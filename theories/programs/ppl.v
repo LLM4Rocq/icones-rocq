@@ -128,6 +128,8 @@ From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import measure dirac_measure numfun.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
+From mathcomp.analysis Require Import sequences realfun exp.
+From mathcomp.analysis Require Import probability.
 
 From Stdlib Require Import Strings.String.
 
@@ -1275,6 +1277,68 @@ by have [r0|r0] := ltP 0 r;
   [rewrite mem_set | rewrite memNset//=; apply/negP; rewrite -leNgt].
 Qed.
 
+(** *** Envelope-normalised Gaussian observation density
+
+    The likelihood of a datum [y] under [N(mu, s)], normalised by the
+    distribution's peak [normal_peak s = (√(s²·2π))^-1].  The mean [mu]
+    is the RUNTIME argument (what a regression observes); [s] (deviation)
+    and [y] (datum) are bundled parameters.  Since
+    [normal_pdf mu s y ≤ normal_peak s] with [s ≠ 0]
+    ([normal_pdf_ub]), the ratio is provably in [[0,1]] — a legal
+    [ne_score] density with NO clamp and NO user-supplied envelope.
+
+    At [s = 0] the family is degenerate: [normal_peak 0 = 0], so the
+    ratio is [normal_pdf mu 0 y · 0^-1 = _ · 0 = 0 ∈ [0,1]] (the
+    Dirac convention, consistent with [distributions.v::gaussian_kernel]).
+    The [[0,1]] witnesses hold for ALL [s] by case split on [s == 0]. *)
+Definition gauss_obs_density (s y : R) : R -> R :=
+  fun mu => normal_pdf mu s y / normal_peak s.
+
+(** Measurability of [mu ↦ normal_pdf mu s y] (the MEAN as variable, the
+    datum [y] fixed): at [s = 0] the pdf is constant [\1_[0,1] y]; for
+    [s ≠ 0] it is [normal_peak s · expR(-(y-mu)²/(s²·2))]. *)
+Lemma measurable_normal_pdf_mean (s y : R) :
+  measurable_fun [set: R] (fun mu => normal_pdf mu s y).
+Proof.
+have [->|s0] := eqVneq s 0%R.
+  rewrite (_ : (fun mu => normal_pdf mu 0%R y) = (fun=> normal_pdf 0%R 0%R y)).
+    exact: measurable_cst.
+  by apply/funext => mu; rewrite /normal_pdf eqxx.
+rewrite (_ : (fun mu => normal_pdf mu s y) =
+  (fun mu => normal_peak s * expR (- (y - mu) ^+ 2 / (s ^+ 2 *+ 2)))%R).
+  apply: measurable_funM; first exact: measurable_cst.
+  apply: (measurableT_comp (f := @expR R)); first exact: measurable_expR.
+  apply: measurable_funM; last exact: measurable_cst.
+  apply: measurable_funN; apply: measurable_funX.
+  by apply: measurable_funB; [exact: measurable_cst | exact: measurable_id].
+by apply/funext => mu; rewrite /normal_pdf (negbTE s0) /normal_fun.
+Qed.
+
+Lemma gauss_obs_density_meas (s y : R) :
+  measurable_fun [set: R] (gauss_obs_density s y).
+Proof.
+rewrite /gauss_obs_density.
+apply: measurable_funM; last exact: measurable_cst.
+exact: measurable_normal_pdf_mean.
+Qed.
+
+Lemma gauss_obs_density_ge0 (s y : R) (mu : R) :
+  (0 <= gauss_obs_density s y mu)%R.
+Proof.
+by rewrite /gauss_obs_density mulr_ge0 ?normal_pdf_ge0 ?invr_ge0 ?normal_peak_ge0.
+Qed.
+
+Lemma gauss_obs_density_le1 (s y : R) (mu : R) :
+  (gauss_obs_density s y mu <= 1)%R.
+Proof.
+rewrite /gauss_obs_density; have [->|s0] := eqVneq s 0%R.
+  have -> : normal_peak 0%R = 0%R :> R.
+    by rewrite /normal_peak expr0n/= mul0r mul0rn sqrtr0 invr0.
+  by rewrite invr0 mulr0 ler01.
+rewrite ler_pdivrMr ?mul1r; first exact: normal_pdf_ub.
+exact: normal_peak_gt0.
+Qed.
+
 End RealFunKit.
 
 Arguments clamp {R} r.
@@ -1289,6 +1353,11 @@ Arguments gt0_ind_meas {R}.
 Arguments gt0_ind_ge0 {R} r.
 Arguments gt0_ind_le1 {R} r.
 Arguments gt0_indE {R} r.
+Arguments measurable_normal_pdf_mean {R} s y.
+Arguments gauss_obs_density {R} s y mu.
+Arguments gauss_obs_density_meas {R} s y.
+Arguments gauss_obs_density_ge0 {R} s y mu.
+Arguments gauss_obs_density_le1 {R} s y mu.
 
 Section BoolConstHelpers.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -2157,6 +2226,21 @@ Notation "'Score' e" :=
   (ne_score clamp clamp_meas clamp_ge0 clamp_le1 e)
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
    right associativity).
+
+(** Envelope-normalised Bayesian conditioning — [observe Gaussian{ s, y } e]:
+    score the trace by the likelihood of the datum [y] under the Gaussian
+    [N(value(e), s)], NORMALISED by the distribution's peak so it is a legal
+    [[0,1]]-valued score density.  The deviation [s] and datum [y] are
+    Coq-level constrs (in the brace group, like [Bernoulli { p , … }]); the
+    predicted MEAN is the surface sub-expression [e] (e.g. a regression
+    prediction [m·x + b]).  No clamp, no envelope argument: the peak
+    [normal_peak s] is intrinsic to the distribution and lives inside
+    [gauss_obs_density].  Desugars to [ne_score (gauss_obs_density s y) … e]. *)
+Notation "'observe' 'Gaussian' '{' s ',' y '}' e" :=
+  (ne_score (gauss_obs_density s y) (gauss_obs_density_meas s y)
+            (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y) e)
+  (in custom ppl_named at level 60, s constr, y constr,
+   e custom ppl_named at level 60, right associativity).
 
 (** Bundled sampling — [sample m] for [m : pmeas Ar R_obj].  The
     lowercase keyword is distinct from the unbundled [Sample (mu, Hmu)]

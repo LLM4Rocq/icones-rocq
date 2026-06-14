@@ -1060,6 +1060,23 @@ by rewrite (score_lift_clamp_meas (R_carrier_eq := R_carrier_eq)
               Hf_meas Hf_ge0 Hf_le1).
 Qed.
 
+(** The [observe Gaussian{s,y} e] denotation: post-compose the predicted
+    mean [⟦e⟧] with the score lift of the envelope-normalised Gaussian
+    likelihood [gauss_obs_density s y] — the [eD_score_E] clause at the
+    bundled density.  At a setlike Dirac environment the trace is weighted
+    by [normal_pdf μ s y / normal_peak s] at the runtime mean [μ]
+    ([score_lift_dirac]). *)
+Lemma observe_gauss_E (G : named_ctx Ar) (s y : R)
+    (e : @named_expr R Ar R_obj G (tR R_obj)) :
+  eD_cbv' (ne_score (gauss_obs_density s y) (gauss_obs_density_meas s y)
+             (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y) e) =
+  icones_comp
+    (@score_lift R Ar R_obj R_carrier_eq R_carrier_meas
+                 (gauss_obs_density s y) (gauss_obs_density_meas s y)
+                 (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y))
+    (eD_cbv' e).
+Proof. exact: eD_score_E. Qed.
+
 (** [ne_fix_mr] at a PRODUCT body type: the GENUINE Seely-transported
     composite — [fix_mr_comb] (= [fix_comb (free_base _)] conjugated by
     [free_decomp]) post-composed with the lambda-packaging of the body.

@@ -26,12 +26,13 @@
 
     ** Higher-order Bayesian linear regression — ITERATED CONDITIONING
     - [ex_bayes_linear l]    : sample a FUNCTION [λx. s·x+b]
-      (slope [s] and intercept [b] from the prior), then CONDITION it
-      on each observation [o ∈ l] in turn ([iter_condition]) and
-      return the function — the posterior over functions
-      (arXiv 1701.02547 §2.1 shape); 3-observation instance
-      [ex_bayes_linear3]; the historical raw score-fold shape is the
-      derived reading [ex_bayes_linear_obs_fold]
+      (slope [s] and intercept [b] from the prior), then for each
+      Gaussian observation [o ∈ l] [observe Gaussian{obs_s o, obs_y o}]
+      the model's prediction [(# "f" @ obs_x o)] in turn
+      ([iter_condition]) and return the function — the posterior over
+      functions (arXiv 1701.02547 §2.1 shape); 3-observation instance
+      [ex_bayes_linear3]; the raw observe-fold shape is the derived
+      reading [ex_bayes_linear_obs_fold]
 
     ** Recursive partial-termination examples (4–6)
     - [ex_loop]              : [let rec l _ := l () in l ()]
@@ -177,7 +178,13 @@ Arguments ex_random_linear {R Ar R_obj} m.
     return it: the unnormalised one-parameter posterior.  (This program
     was historically misnamed "bayes_linear" — it is NOT a linear
     regression; the genuine higher-order Bayesian linear regression is
-    [ex_bayes_linear] below.) *)
+    [ex_bayes_linear] below.)
+
+    This example scores by an ARBITRARY user density [f], not the
+    likelihood of a built-in distribution; it is therefore NOT an
+    [observe] (which is specialised to the bundled, envelope-normalised
+    density of a named distribution) but the general [Score]/[Meas]
+    combination — left as is. *)
 
 Section ScorePosterior.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -241,19 +248,41 @@ Arguments ex_score_posterior {R Ar R_obj} m f Hf_meas.
 Section Obs.
 Variable (R : realType).
 
-(** One observation = a known input point [obs_x] plus a meta-level
-    density on the model's value at that point: [obs_d r ∈ [0,1]]
-    scores how well the value [r] fits the observed output (e.g. a
-    normal pdf around the measured output, scaled into [[0,1]]).  The
-    witness layout mirrors [ne_score]'s one-for-one. *)
+(** One Gaussian observation = a known input point [obs_x], a likelihood
+    deviation [obs_s], and an observed datum [obs_y].  The observation
+    scores the model's value [r] at the input by the ENVELOPE-NORMALISED
+    Gaussian likelihood of the datum, [obs_d o r = gauss_obs_density obs_s
+    obs_y r = normal_pdf r obs_s obs_y / normal_peak obs_s ∈ [0,1]]
+    ([ppl.v]) — the [observe Gaussian{obs_s, obs_y}] surface form.  The
+    [[0,1]] bound is intrinsic to the distribution (the peak is bundled in
+    [gauss_obs_density]); no clamp and no user-supplied envelope are
+    needed.  The derived projections [obs_d]/[obs_meas]/[obs_ge0]/[obs_le1]
+    expose the score-density interface ([ne_score]'s witness layout). *)
 Record obs := MkObs {
   obs_x : R;                       (* the input point *)
-  obs_d : R -> R;                  (* the observation density *)
-  obs_meas : measurable_fun [set: R] obs_d;
-  obs_ge0 : forall r : R, (0 <= obs_d r)%R;
-  obs_le1 : forall r : R, (obs_d r <= 1)%R }.
+  obs_s : R;                       (* the likelihood deviation *)
+  obs_y : R }.                     (* the observed datum *)
+
+Definition obs_d (o : obs) : R -> R := gauss_obs_density (obs_s o) (obs_y o).
+
+(** The score-density witnesses, TRANSPARENT (definitionally the bundled
+    Gaussian witnesses) so the [observe Gaussian{·} ·] surface form and the
+    [condition_at]/[obs_fold] folds elaborate to the SAME [ne_score]. *)
+Definition obs_meas (o : obs) : measurable_fun [set: R] (obs_d o) :=
+  gauss_obs_density_meas (obs_s o) (obs_y o).
+
+Definition obs_ge0 (o : obs) (r : R) : (0 <= obs_d o r)%R :=
+  gauss_obs_density_ge0 (obs_s o) (obs_y o) r.
+
+Definition obs_le1 (o : obs) (r : R) : (obs_d o r <= 1)%R :=
+  gauss_obs_density_le1 (obs_s o) (obs_y o) r.
 
 End Obs.
+
+Arguments obs_d {R} o.
+Arguments obs_meas {R} o.
+Arguments obs_ge0 {R} o r.
+Arguments obs_le1 {R} o r.
 
 (** ** Soft conditioning, one observation at a time
 
@@ -280,17 +309,18 @@ Variable (R_obj : ar_obj Ar).
 
 Local Notation tR' := (tR R_obj).
 
-(** One observation-conditioning step: score the model's value at the
-    observation point [obs_x o] by the observation density [obs_d o],
-    then continue with [K].  [v] locates the model in the context. *)
+(** One observation-conditioning step: [observe Gaussian{obs_s o, obs_y o}]
+    the model's prediction at the input point [obs_x o], then continue
+    with [K].  [v] locates the model in the context.  The step scores the
+    model's value directly by the bundled, envelope-normalised density
+    [obs_d o] — NO clamp, NO [ne_meas] wrapper, NO envelope argument. *)
 Definition condition_at (G : named_ctx Ar)
     (v : named_var G (tfun tR' tR')) (o : obs R) (t : ppl_type Ar)
     (K : @named_expr R Ar R_obj (("_"%string, tunit) :: G) t) :
     @named_expr R Ar R_obj G t :=
   ne_let "_"%string
-    (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-       (ne_meas (obs_d o) (obs_meas o)
-          (ne_app (ne_var v) (ne_real (obs_x o)))))
+    (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+       (ne_app (ne_var v) (ne_real (obs_x o))))
     K.
 
 (** The iterated-conditioning fold: condition the model on each
@@ -338,9 +368,8 @@ Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
   | nil => ne_var v
   | o :: l' =>
       ne_let "_"%string
-        (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-           (ne_meas (obs_d o) (obs_meas o)
-              (ne_app (ne_var v) (ne_real (obs_x o)))))
+        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var v) (ne_real (obs_x o))))
         (obs_fold (nv_tail "_"%string tunit _ v) l')
   end.
 
@@ -378,10 +407,10 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
   [ let "f" := (let "m" := sample m in
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := Score (Meas { obs_d o1 , obs_meas o1 }
-                        (# "f" @ [| obs_x o1 |])) in
-    let "_" := Score (Meas { obs_d o2 , obs_meas o2 }
-                        (# "f" @ [| obs_x o2 |])) in
+    let "_" := observe Gaussian { obs_s o1 , obs_y o1 }
+                        (# "f" @ [| obs_x o1 |]) in
+    let "_" := observe Gaussian { obs_s o2 , obs_y o2 }
+                        (# "f" @ [| obs_x o2 |]) in
     # "f" ]).
 
 (** The 1-observation case: one observation = one conditioning step

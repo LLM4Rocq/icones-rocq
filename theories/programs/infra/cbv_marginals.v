@@ -1176,14 +1176,11 @@ Proof. by apply: cone_one_eq; apply: val_inj; rewrite /= mulr1. Qed.
     environment, the model closure at the Dirac argument
     ([rl_body_at]), and the score lift on the resulting Dirac. *)
 Lemma obs_score_E (m b : ar_carrier Ar R_obj) n (o : obs R) :
-  Lfun (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas (obs_d o) (obs_meas o)
-             (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+  Lfun (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
        (obs_env m b n) =
   MkConeOne Ar (NngNum (obs_ge0 o (cR m * obs_x o + cR b))).
 Proof.
-rewrite (eD_score_meas_E (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))).
 rewrite eD_score_E.
 rewrite (Lfun_comp
   (score_lift (R_carrier_meas:=R_carrier_meas)
@@ -1222,35 +1219,31 @@ elim: l => [ | o l' IH] n.
   by apply: val_inj; rewrite /= big_nil.
 - have -> : obs_fold (obs_var n) (o :: l') =
       ne_let "_"%string
-        (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-           (ne_meas (obs_d o) (obs_meas o)
-              (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))
         (obs_fold (obs_var n.+1) l').
     by [].
   rewrite eD_let_E.
   rewrite (Lfun_comp (eD_cbv' (obs_fold (obs_var n.+1) l'))
     (em_pair_mor
        (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-       (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas (obs_d o) (obs_meas o)
-             (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))))
+       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
     (obs_env m b n)).
   rewrite /em_pair_mor.
   rewrite (Lfun_comp
     (tensor_mor
        (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-       (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas (obs_d o) (obs_meas o)
-             (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))))
+       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
     (coalg_d (ctxD_cbv (drop_names (obs_ctx n))))
     (obs_env m b n)).
   rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (obs_ctx n)))
     (obs_env_ball m b n) (obs_env_setlike m b n)).
   rewrite (tensor_morE
     (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-    (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-        (ne_meas (obs_d o) (obs_meas o)
-           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+    (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
+           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
     (obs_env m b n) (obs_env m b n)).
   rewrite icones_idE (obs_score_E m b n o).
   rewrite (cone_one_scaleE (NngNum (obs_ge0 o (cR m * obs_x o + cR b)))).
