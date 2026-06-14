@@ -1204,44 +1204,25 @@ End NormHelpers.
 Arguments precone_zero_norm_le1 {R Ar} P.
 Arguments dirac_fmeas_norm_le1 {R Ar X} r.
 
-(** ** Real-function kit for the surface sugar — [clamp], [negr],
-       [gt0_ind]
+(** ** Real-function kit for the surface sugar — [negr], [gt0_ind]
 
-    Three meta-level functions [R -> R] with their measurability /
+    Two meta-level functions [R -> R] with their measurability /
     [[0,1]]-bound witnesses, consumed by the derived surface forms:
-    - [clamp r = min 1 (max 0 r)] — the density clamp behind the
-      unified [Bernoulli e] / [Score e] sugar (any [tR]-valued
-      expression becomes a valid density once clamped);
     - [negr r = - r] — negation via [ne_meas], used by the comparison
       sugar [e1 > e2];
     - [gt0_ind = \1_(0, ∞)] — the strict-positivity indicator, the
       density of the comparison coin: [e1 > e2] flips a Bernoulli with
       success probability [gt0_ind (e1 - e2)] (i.e. THE deterministic
-      test on point masses). *)
+      test on point masses).
+
+    There is NO probability clamp: the value-dependent surface
+    [Bernoulli]/[Score] forms take a BUNDLED [[0,1]]-density record
+    ([udensity], below) and the constant coin takes a bundled [[0,1]]
+    scalar ([prob], below), so no user-supplied value is ever silently
+    saturated. *)
 
 Section RealFunKit.
 Variable (R : realType).
-
-(** Clamp into [[0,1]]. *)
-Definition clamp (r : R) : R := Order.min 1 (Order.max 0 r).
-
-Lemma clamp_meas : measurable_fun [set: R] clamp.
-Proof.
-apply: measurable_minr; first exact: measurable_cst.
-apply: measurable_maxr; first exact: measurable_cst.
-exact: measurable_id.
-Qed.
-
-Lemma clamp_ge0 (r : R) : (0 <= clamp r)%R.
-Proof. by rewrite /clamp le_min ler01/= le_max lexx. Qed.
-
-Lemma clamp_le1 (r : R) : (clamp r <= 1)%R.
-Proof. by rewrite /clamp ge_min lexx. Qed.
-
-(** On [[0,1]] the clamp is the identity — the agreement lemmas'
-    computation rule. *)
-Lemma clamp_id (r : R) : (0 <= r)%R -> (r <= 1)%R -> clamp r = r.
-Proof. by move=> r0 r1; rewrite /clamp max_r// min_r. Qed.
 
 (** Negation. *)
 Definition negr (r : R) : R := - r.
@@ -1339,13 +1320,79 @@ rewrite ler_pdivrMr ?mul1r; first exact: normal_pdf_ub.
 exact: normal_peak_gt0.
 Qed.
 
+(** *** Bundled [[0,1]]-valued density — [udensity]
+
+    A value-dependent density [f : R -> R] together with its three
+    surface witnesses: measurability, non-negativity and the unit
+    bound.  The bundle is the single argument carried by the
+    value-dependent surface forms [Bernoulli d e] / [Score d e] and by
+    [observe] (via [gauss_udensity]); there are NO loose proof-witnesses
+    on the surface.  All projections are primitive, hence
+    [ud_f (mk_udensity f _ _ _) = f] holds DEFINITIONALLY — load-bearing
+    for [erefl] elaboration pins and the downstream [bern_lift]/
+    [score_lift] computations. *)
+Record udensity := MkUdensity {
+  ud_f : R -> R ;
+  ud_meas : measurable_fun [set: R] ud_f ;
+  ud_ge0 : forall r : R, (0 <= ud_f r)%R ;
+  ud_le1 : forall r : R, (ud_f r <= 1)%R
+}.
+
+(** Smart constructor from loose witnesses (alias of the record
+    constructor, for readability at example sites). *)
+Definition mk_udensity (f : R -> R)
+    (Hm : measurable_fun [set: R] f)
+    (Hg : forall r : R, (0 <= f r)%R)
+    (Hl : forall r : R, (f r <= 1)%R) : udensity :=
+  MkUdensity Hm Hg Hl.
+
+(** The envelope-normalised Gaussian observation density as a bundle:
+    [observe Gaussian{s,y} e] elaborates through [Score (gauss_udensity
+    s y) e]. *)
+Definition gauss_udensity (s y : R) : udensity :=
+  MkUdensity (gauss_obs_density_meas s y)
+             (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y).
+
+Lemma gauss_udensityE (s y : R) : ud_f (gauss_udensity s y) = gauss_obs_density s y.
+Proof. by []. Qed.
+
+(** The strict-positivity indicator as a bundle — the density of the
+    comparison coin [e1 > e2]. *)
+Definition gt0_udensity : udensity :=
+  MkUdensity gt0_ind_meas gt0_ind_ge0 gt0_ind_le1.
+
+(** *** Bundled [[0,1]]-valued scalar — [prob]
+
+    A constant success probability [p] with its two bounds, the single
+    argument carried by the CONSTANT surface coin [Bernoulli p]
+    ([ne_bernoulli]).  Projections are primitive (definitional). *)
+Record prob := MkProb {
+  pr_val : R ;
+  pr_ge0 : (0 <= pr_val)%R ;
+  pr_le1 : (pr_val <= 1)%R
+}.
+
+(** Smart constructor from loose witnesses. *)
+Definition mk_prob (p : R) (Hg : (0 <= p)%R) (Hl : (p <= 1)%R) : prob :=
+  MkProb Hg Hl.
+
 End RealFunKit.
 
-Arguments clamp {R} r.
-Arguments clamp_meas {R}.
-Arguments clamp_ge0 {R} r.
-Arguments clamp_le1 {R} r.
-Arguments clamp_id {R} r.
+Arguments MkUdensity {R}.
+Arguments ud_f {R}.
+Arguments ud_meas {R}.
+Arguments ud_ge0 {R}.
+Arguments ud_le1 {R}.
+Arguments mk_udensity {R} f Hm Hg Hl.
+Arguments gauss_udensity {R} s y.
+Arguments gauss_udensityE {R} s y.
+Arguments gt0_udensity {R}.
+Arguments MkProb {R}.
+Arguments pr_val {R}.
+Arguments pr_ge0 {R}.
+Arguments pr_le1 {R}.
+Arguments mk_prob {R} p Hg Hl.
+
 Arguments negr {R} r.
 Arguments negr_meas {R}.
 Arguments gt0_ind {R} r.
@@ -1634,98 +1681,6 @@ Arguments bern_lift_f_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
 Arguments bern_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas f}
                             Hf_meas Hf_ge0 Hf_le1 mu.
 
-(** ** Agreement: the clamped lifts at a pushforward
-
-    For a density [f] that is already [[0,1]]-valued, pushing the
-    value through [f] ([meas_lift]) and then scoring (resp. flipping)
-    at the clamped identity is THE SAME morphism as scoring
-    (resp. flipping) at [f] directly: on a Dirac both sides compute to
-    the same element ([meas_lift_dirac] + [clamp_id]), and an
-    [icones_hom] out of [FMeas] is determined by its values on Diracs
-    ([coalgebra.v::dirac_dense]).  These two equations let the unified
-    surface forms [Score (Meas { f , Hf } e)] and
-    [Bernoulli (Meas { f , Hf } e)] inherit, verbatim, every law
-    proved for the primitive witness-carrying lifts. *)
-
-Section ClampMeasAgree.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
-
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
-
-Local Notation cR := (carrier_to_R R_carrier_eq).
-Local Notation Lfun h :=
-  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-Local Notation clamp_lift_score :=
-  (score_lift (R_carrier_eq := R_carrier_eq)
-     (R_carrier_meas := R_carrier_meas)
-     (clamp_meas (R := R)) clamp_ge0 clamp_le1).
-Local Notation clamp_lift_bern :=
-  (bern_lift (R_carrier_eq := R_carrier_eq)
-     (R_carrier_meas := R_carrier_meas)
-     (clamp_meas (R := R)) clamp_ge0 clamp_le1).
-Local Notation f_push :=
-  (meas_lift (R_carrier_eq := R_carrier_eq)
-     (R_carrier_meas := R_carrier_meas)
-     (R_to_carrier_meas := R_to_carrier_meas) Hf_meas).
-
-(** Scoring the clamped value of the pushforward is scoring by [f]. *)
-Lemma score_lift_clamp_meas :
-  icones_comp clamp_lift_score f_push =
-  score_lift (R_carrier_meas := R_carrier_meas) Hf_meas Hf_ge0 Hf_le1.
-Proof.
-apply: dirac_dense => r.
-have -> : Lfun (score_lift (R_carrier_meas := R_carrier_meas)
-                  Hf_meas Hf_ge0 Hf_le1) (dirac_fmeas r)
-        = MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
-  by rewrite -{1}(carrier_to_RK R_carrier_eq r)
-             (score_lift_dirac Hf_meas Hf_ge0 Hf_le1 (cR r)).
-rewrite (Lfun_comp clamp_lift_score f_push (dirac_fmeas r)).
-rewrite -{1}(carrier_to_RK R_carrier_eq r)
-        (meas_lift_dirac Hf_meas (cR r)).
-rewrite (score_lift_dirac clamp_meas clamp_ge0 clamp_le1 (f (cR r))).
-by apply: cone_one_eq; apply: val_inj => /=; rewrite clamp_id.
-Qed.
-
-(** Flipping at the clamped value of the pushforward is flipping at
-    [f]. *)
-Lemma bern_lift_clamp_meas :
-  icones_comp clamp_lift_bern f_push =
-  bern_lift (R_carrier_meas := R_carrier_meas) Hf_meas Hf_ge0 Hf_le1.
-Proof.
-apply: dirac_dense => r.
-have -> : Lfun (bern_lift (R_carrier_meas := R_carrier_meas)
-                  Hf_meas Hf_ge0 Hf_le1) (dirac_fmeas r)
-        = bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
-  by rewrite -{1}(carrier_to_RK R_carrier_eq r)
-             (bern_lift_dirac Hf_meas Hf_ge0 Hf_le1 (cR r)).
-rewrite (Lfun_comp clamp_lift_bern f_push (dirac_fmeas r)).
-rewrite -{1}(carrier_to_RK R_carrier_eq r)
-        (meas_lift_dirac Hf_meas (cR r)).
-rewrite (bern_lift_dirac clamp_meas clamp_ge0 clamp_le1 (f (cR r))).
-by apply: bool_cone_eq; apply: val_inj => /=; rewrite clamp_id.
-Qed.
-
-End ClampMeasAgree.
-
-Arguments score_lift_clamp_meas
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas f}
-  Hf_meas Hf_ge0 Hf_le1.
-Arguments bern_lift_clamp_meas
-  {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas f}
-  Hf_meas Hf_ge0 Hf_le1.
-
-
 (** ** [pmeas] — bundled sub-probability measures for [sample]
 
     The [ne_sample] constructor takes a measure together with its
@@ -1991,7 +1946,7 @@ Arguments ne_var' {R Ar R_obj} s {t} g.
       {...}                         escape back to Coq
       let "x" := M in N             direct-style CBV let (= ne_let)
       Sample (mu , Hmu)             sample primitive
-      Score e                       term-level score (clamped; below)
+      Score d e                     term-level score (bundled density; below)
       \ "x" ::: A => M              lambda with named binder of type A
       M @ N                         direct application
       # "x"                         variable lookup by string
@@ -2122,12 +2077,13 @@ Notation "'True'" := ne_true (in custom ppl_named at level 0).
 (** Boolean false literal — [False] in surface syntax. *)
 Notation "'False'" := ne_false (in custom ppl_named at level 0).
 
-(** Bernoulli sampling — [Bernoulli { p, Hp_ge0, Hp_le1 }] returns
-    a [tbool] expression. *)
-Notation "'Bernoulli' '{' p ',' Hp_ge0 ',' Hp_le1 '}'" :=
-  (ne_bernoulli p Hp_ge0 Hp_le1)
-  (in custom ppl_named at level 1,
-   p constr, Hp_ge0 constr, Hp_le1 constr).
+(** Constant Bernoulli sampling — [Bernoulli p] for a bundled
+    probability [p : prob] returns a [tbool] expression.  The two
+    [[0,1]] bounds are carried by the bundle (projections
+    [pr_ge0]/[pr_le1]); NO loose witnesses. *)
+Notation "'Bernoulli' p" :=
+  (ne_bernoulli (pr_val p) (pr_ge0 p) (pr_le1 p))
+  (in custom ppl_named at level 1, p constr at level 0).
 
 (** Runtime-parameter named distributions — [Gaussian( e1 , e2 )] /
     [Uniform( e1 , e2 )]: both PARAMETERS are surface sub-expressions
@@ -2170,26 +2126,20 @@ Notation "'if' e 'then' M 'else' N" :=
     semantics is introduced.
 
       Meas { f , Hf } e        measurable function application (ne_meas)
-      Bernoulli e              value-dependent coin with CLAMPED density
-                               (= ne_bernoulli_f at clamp); the
-                               witness-free unified form — for p ∈ [0,1]
-                               it agrees with [Bernoulli { p , _ , _ }]
-                               on real literals ([ppl_cbv.v::
-                               eD_bernoulli_clamp_const_E]); a coin
-                               with density [f] is written
-                               [Bernoulli (Meas { f , Hf } e)]
-                               ([ppl_cbv.v::eD_bernoulli_meas_E])
-      Score e                  score by the clamped runtime value
-                               (= ne_score at clamp); a score with
-                               density [f] is written
-                               [Score (Meas { f , Hf } e)]
-                               ([ppl_cbv.v::eD_score_meas_E])
+      Bernoulli d e            value-dependent coin: flip with success
+                               probability [ud_f d r] at the runtime
+                               value [r] of [e], for a BUNDLED [[0,1]]
+                               density [d : udensity] (= ne_bernoulli_f);
+                               NO clamp, NO loose witnesses
+      Score d e                score by the bundled [[0,1]] density
+                               [d : udensity] at the runtime value of
+                               [e] (= ne_score)
       sample m                 sample from a bundled sub-probability
                                [m : pmeas Ar R_obj] (= ne_sample)
       e1 > e2                  comparison coin: flip with success
                                probability 1 on point masses where
                                value(e1) > value(e2), 0 otherwise
-                               (= ne_bernoulli_f at gt0_ind, on
+                               (= ne_bernoulli_f at gt0_udensity, on
                                 e1 + Meas { negr } e2)
       let rec f x := M in K    OCaml-style recursive function binding
                                (= ne_let f (ne_fix f (ne_lam x M)) K);
@@ -2206,26 +2156,27 @@ Notation "'Meas' '{' f ',' Hf '}' e" :=
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
    f constr, Hf constr, right associativity).
 
-(** Unified value-dependent Bernoulli — [Bernoulli e]: flip a coin
-    whose success probability is the CLAMPED value of [e].  No
-    witnesses: [clamp] is measurable and [[0,1]]-valued by
-    construction.
+(** Value-dependent Bernoulli — [Bernoulli d e] for a bundled density
+    [d : udensity]: flip a coin whose success probability is [ud_f d r]
+    at the runtime value [r] of [e].  The bundle carries measurability
+    and the [[0,1]] bounds; NO clamp, NO loose witnesses.
 
-    GRAMMAR NOTE: declared at the SAME level (1) as the witness form
-    [Bernoulli { p , Hp_ge0 , Hp_le1 }] so the two productions
-    factorize on the keyword (verified: both parse).  One corner: a
-    scrutinee STARTING with the [{...}] Coq escape commits to the
-    witness branch — write [Bernoulli ({ M })] with parentheses. *)
-Notation "'Bernoulli' e" :=
-  (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1 e)
-  (in custom ppl_named at level 1, e custom ppl_named at level 60).
+    GRAMMAR NOTE: declared at level 1, like the constant form
+    [Bernoulli p].  The two productions factorize on the keyword: the
+    value-dependent form is followed by a SURFACE sub-expression [e],
+    the constant form by nothing (verified: both parse). *)
+Notation "'Bernoulli' d e" :=
+  (ne_bernoulli_f (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d) e)
+  (in custom ppl_named at level 1, d constr at level 0,
+   e custom ppl_named at level 60).
 
-(** Unified score — [Score e]: weight the trace by the clamped value
-    of [e]. *)
-Notation "'Score' e" :=
-  (ne_score clamp clamp_meas clamp_ge0 clamp_le1 e)
-  (in custom ppl_named at level 60, e custom ppl_named at level 60,
-   right associativity).
+(** Value-dependent score — [Score d e] for a bundled density
+    [d : udensity]: weight the trace by [ud_f d r] at the runtime value
+    [r] of [e]. *)
+Notation "'Score' d e" :=
+  (ne_score (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d) e)
+  (in custom ppl_named at level 60, d constr at level 0,
+   e custom ppl_named at level 60, right associativity).
 
 (** Envelope-normalised Bayesian conditioning — [observe Gaussian{ s, y } e]:
     score the trace by the likelihood of the datum [y] under the Gaussian
@@ -2235,10 +2186,13 @@ Notation "'Score' e" :=
     predicted MEAN is the surface sub-expression [e] (e.g. a regression
     prediction [m·x + b]).  No clamp, no envelope argument: the peak
     [normal_peak s] is intrinsic to the distribution and lives inside
-    [gauss_obs_density].  Desugars to [ne_score (gauss_obs_density s y) … e]. *)
+    [gauss_obs_density].  Desugars through [Score (gauss_udensity s y) e],
+    i.e. [ne_score (ud_f (gauss_udensity s y)) … e]; since
+    [ud_f (gauss_udensity s y) = gauss_obs_density s y] definitionally,
+    observe and Score share the same density bundle. *)
 Notation "'observe' 'Gaussian' '{' s ',' y '}' e" :=
-  (ne_score (gauss_obs_density s y) (gauss_obs_density_meas s y)
-            (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y) e)
+  (ne_score (ud_f (gauss_udensity s y)) (ud_meas (gauss_udensity s y))
+            (ud_ge0 (gauss_udensity s y)) (ud_le1 (gauss_udensity s y)) e)
   (in custom ppl_named at level 60, s constr, y constr,
    e custom ppl_named at level 60, right associativity).
 
@@ -2255,7 +2209,8 @@ Notation "'sample' m" :=
     arguments it is the probability that an independent draw of [e1]
     exceeds an independent draw of [e2]. *)
 Notation "M > N" :=
-  (ne_bernoulli_f gt0_ind gt0_ind_meas gt0_ind_ge0 gt0_ind_le1
+  (ne_bernoulli_f (ud_f gt0_udensity) (ud_meas gt0_udensity)
+     (ud_ge0 gt0_udensity) (ud_le1 gt0_udensity)
      (ne_add M (ne_meas negr negr_meas N)))
   (in custom ppl_named at level 50, left associativity,
    N custom ppl_named at level 49).

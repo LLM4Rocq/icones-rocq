@@ -284,11 +284,13 @@ Variable (pm : pmeas Ar R_obj).
 Local Notation mu := (pm_meas pm).
 Local Notation Hmu := (pm_ball pm).
 
-(** The soft evidence: a [[0,1]]-valued density. *)
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+(** The soft evidence as a BUNDLED [[0,1]]-valued density; its
+    projections are exposed under their historical names. *)
+Variable (d : udensity R).
+Local Notation f := (ud_f d).
+Local Notation Hf_meas := (ud_meas d).
+Local Notation Hf_ge0 := (ud_ge0 d).
+Local Notation Hf_le1 := (ud_le1 d).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -318,14 +320,13 @@ Definition sp_body :
   [ # "m" ].
 
 Lemma ex_sp_cont_decomp :
-  ex_sp_cont f Hf_meas =
-  ne_let "_" (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas f Hf_meas sp_var_m)) sp_body.
+  ex_sp_cont d =
+  ne_let "_" (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m) sp_body.
 Proof. by []. Qed.
 
 Lemma ex_score_posterior_decomp :
-  ex_score_posterior pm f Hf_meas =
-  ne_let "m" (ne_sample mu Hmu) (ex_sp_cont f Hf_meas).
+  ex_score_posterior pm d =
+  ne_let "m" (ne_sample mu Hmu) (ex_sp_cont d).
 Proof. by []. Qed.
 
 (** *** The continuation at the Dirac environment
@@ -344,15 +345,14 @@ apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R) EM_term
 exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
-(** The score value at [δ_r] is the scalar [f r] ([eD_score_meas_E] +
+(** The score value at [δ_r] is the scalar [f r] (the bundled
+    [ne_score] node desugared directly — no clamp transport — then
     [score_lift_dirac]). *)
 Lemma sp_score_E (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas f Hf_meas sp_var_m)))
+  Lfun (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
        (one1 ⊗p dirac_fmeas r) =
   MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
 Proof.
-rewrite (eD_score_meas_E Hf_meas Hf_ge0 Hf_le1 sp_var_m).
 rewrite eD_score_E.
 rewrite (Lfun_comp
   (score_lift (R_carrier_meas:=R_carrier_meas) Hf_meas Hf_ge0 Hf_le1)
@@ -388,7 +388,7 @@ by rewrite (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
 Lemma sp_cont_at_dirac (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ex_sp_cont f Hf_meas))
+  Lfun (eD_cbv' (ex_sp_cont d))
        (one1 ⊗p dirac_fmeas r) =
   precone_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r).
 Proof.
@@ -397,24 +397,21 @@ rewrite (Lfun_comp (eD_cbv' sp_body)
   (em_pair_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas f Hf_meas sp_var_m))))
+     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
   (one1 ⊗p dirac_fmeas r)).
 rewrite /em_pair_mor.
 rewrite (Lfun_comp
   (tensor_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas f Hf_meas sp_var_m))))
+     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
   (coalg_d (ctxD_cbv (drop_names (("m"%string, tR') :: nil))))
   (one1 ⊗p dirac_fmeas r)).
 rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (("m"%string, tR') :: nil)))
   (one_dirac_ball r) (one_dirac_setlike r)).
 rewrite (tensor_morE
   (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-  (eD_cbv' (ne_score clamp clamp_meas clamp_ge0 clamp_le1
-          (ne_meas f Hf_meas sp_var_m)))
+  (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
   (one1 ⊗p dirac_fmeas r) (one1 ⊗p dirac_fmeas r)).
 by rewrite icones_idE sp_score_E sp_body_at.
 Qed.
@@ -432,12 +429,12 @@ Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas) one1) U =
+                   pm d) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 Proof.
 rewrite /ex_score_posterior_cbv ex_score_posterior_decomp.
 rewrite (eD_let_sample_mu_E R_carrier_meas R_to_carrier_meas Hmu
-           (ex_sp_cont f Hf_meas) one1 mU).
+           (ex_sp_cont d) one1 mU).
 under eq_integral => r _.
   rewrite sp_cont_at_dirac.
   rewrite fmeas_scaleE (dirac_fmeas_E r mU) diracE -EFinM /=.
@@ -451,7 +448,7 @@ Qed.
 Theorem ex_score_posterior_cbv_mass :
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas) one1)
+                   pm d) one1)
     [set: ar_carrier Ar R_obj] =
   \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
 Proof. by apply: ex_score_posterior_cbv_E. Qed.
@@ -465,14 +462,14 @@ Theorem ex_reject_normalises_score
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
   fmeas_mu
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas) one1) U =
+                   pm d) one1) U =
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm Hf_meas) one1) U.
+                   pm d) one1) U.
 Proof.
 rewrite (ex_score_posterior_cbv_E mU).
 exact: (ex_reject_master R_carrier_meas R_to_carrier_meas Hmu1
-          Hf_meas Hf_ge0 Hf_le1 mU).
+          d mU).
 Qed.
 
 End ScorePosterior.

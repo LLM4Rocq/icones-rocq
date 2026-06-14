@@ -255,11 +255,14 @@ Local Notation mu := (pm_meas m).
 Local Notation Hmu_ball := (pm_ball m).
 Hypothesis Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1%E.
 
-(** The soft acceptance predicate: a [[0,1]]-valued density. *)
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+(** The soft acceptance predicate: a BUNDLED [[0,1]]-valued density.
+    The three projections are exposed under their historical names so
+    the proof bodies below read unchanged. *)
+Variable (d : udensity R).
+Local Notation f := (ud_f d).
+Local Notation Hf_meas := (ud_meas d).
+Local Notation Hf_ge0 := (ud_ge0 d).
+Local Notation Hf_le1 := (ud_le1 d).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -293,24 +296,24 @@ Definition reject_if :
     @named_expr R Ar R_obj
       (("x"%string, tR') :: ("accept"%string, tfun tR' tR') ::
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil) tR' :=
-  [ if Bernoulli (Meas { f , Hf_meas } # "x")
+  [ if Bernoulli d # "x"
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
 Lemma ex_reject_decomp :
-  ex_reject m f Hf_meas =
-  ne_let "rs" (ne_fix "rs" (ex_reject_body m f Hf_meas))
+  ex_reject m d =
+  ne_let "rs" (ne_fix "rs" (ex_reject_body m d))
     (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
             reject_lam_id).
 Proof. by []. Qed.
 
 Lemma ex_reject_body_decomp :
-  ex_reject_body m f Hf_meas =
-  ne_lam "accept" (ex_reject_inner m f Hf_meas).
+  ex_reject_body m d =
+  ne_lam "accept" (ex_reject_inner m d).
 Proof. by []. Qed.
 
 Lemma ex_reject_inner_decomp :
-  ex_reject_inner m f Hf_meas =
+  ex_reject_inner m d =
   ne_let "x" (ne_sample mu Hmu_ball) reject_if.
 Proof. by []. Qed.
 
@@ -336,7 +339,7 @@ Definition reject_W0 :
     linhom_car Ar (Bang Ar (Lty (tfun tR' tR') tR'))
                   (Bang Ar (Lty (tfun tR' tR') tR')) :=
   Lfun (tensor_curry
-         (eD_cbv' (ex_reject_body m f Hf_meas)))
+         (eD_cbv' (ex_reject_body m d)))
        one1.
 
 Lemma reject_W0_ball : cone_norm reject_W0 <= 1.
@@ -460,7 +463,7 @@ Qed.
 
 Local Notation reject_denot :=
   (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                 m Hf_meas) one1).
+                 m d) one1).
 
 Lemma ex_reject_app_E :
   reject_denot =
@@ -472,12 +475,12 @@ have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
 rewrite (eD_let_at_setlike "rs"
-          (ne_fix "rs" (ex_reject_body m f Hf_meas))
+          (ne_fix "rs" (ex_reject_body m d))
           (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
                   reject_lam_id)
           HoneG coalg_str_one1).
 rewrite (eD_fix_at_setlike "rs"
-          (ex_reject_body m f Hf_meas)
+          (ex_reject_body m d)
           HoneG coalg_str_one1).
 rewrite (eD_app_at_setlike _ _ reject_env0_ball reject_env0_setlike).
 rewrite (eD_var_head_at_setlike "rs"
@@ -562,7 +565,7 @@ Qed.
 Lemma reject_W0_at_prom n :
   linhom_fun reject_W0 ((fix_chain reject_W0 n)!) =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_inner m f Hf_meas)))
+          (eD_cbv' (ex_reject_inner m d)))
      (one1 ⊗p (fix_chain reject_W0 n)!))!.
 Proof.
 rewrite {1}/reject_W0 tensor_curryE ex_reject_body_decomp eD_lam_E.
@@ -573,7 +576,7 @@ Qed.
 
 Lemma ex_reject_iter_S n :
   reject_iter n.+1 =
-  Lfun (eD_cbv' (ex_reject_inner m f Hf_meas))
+  Lfun (eD_cbv' (ex_reject_inner m d))
        ((one1 ⊗p (fix_chain reject_W0 n)!) ⊗p reject_arg).
 Proof.
 rewrite /reject_iter fix_chain_S reject_W0_at_prom.
@@ -612,8 +615,7 @@ Definition reject_var_rs :
 
 Lemma reject_if_decomp :
   reject_if =
-  ne_if tR' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
-               (ne_meas f Hf_meas reject_var_x))
+  ne_if tR' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x)
         (ne_app reject_var_acc reject_var_x)
         (ne_app reject_var_rs reject_var_acc).
 Proof. by []. Qed.
@@ -732,15 +734,14 @@ rewrite (em_proj1_morE (Q:=tyD_cbv (tfun tR' tR'))
 exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
-(** The scrutinee at [δ_r] is the [f r]-coin ([eD_bernoulli_meas_E] +
-    [bern_lift_dirac]). *)
+(** The scrutinee at [δ_r] is the [f r]-coin (the bundled
+    [ne_bernoulli_f] node desugared directly — no clamp transport —
+    then [bern_lift_dirac]). *)
 Lemma reject_scrut_E n r :
-  Lfun (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
-                   (ne_meas f Hf_meas reject_var_x)))
+  Lfun (eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x))
        (reject_env3 n r) =
   bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
 Proof.
-rewrite (eD_bernoulli_meas_E Hf_meas Hf_ge0 Hf_le1 reject_var_x).
 rewrite eD_bernoulli_f_E.
 rewrite (Lfun_comp
   (bern_lift (R_carrier_meas:=R_carrier_meas) Hf_meas Hf_ge0 Hf_le1)
@@ -783,8 +784,7 @@ rewrite reject_if_decomp eD_if_E.
 rewrite (if_icones_at
   (eD_cbv' (ne_app reject_var_acc reject_var_x))
   (eD_cbv' (ne_app reject_var_rs reject_var_acc))
-  (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
-              (ne_meas f Hf_meas reject_var_x)))
+  (eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x))
   (reject_env3_ball n r) (reject_env3_setlike n r)).
 by rewrite reject_scrut_E reject_then_E reject_else_E.
 Qed.
@@ -915,7 +915,7 @@ have m2 : measurable_fun [set: ar_carrier Ar R_obj]
   by apply: measurable_funB => //; exact: f_cR_meas.
 rewrite ge0_integralD//; first last.
 - by move=> r _; rewrite lee_fin mulr_ge0// ?subr_ge0 ?Hf_le1.
-- by move=> r _; rewrite lee_fin mulr_ge0// indicE; case: (_ \in _).
+- by move=> r _; rewrite lee_fin mulr_ge0// Hf_ge0.
 congr (_ + _).
 - rewrite [RHS](integral_mkcond U) epatch_indic.
   apply: eq_integral => r _.
@@ -1061,9 +1061,12 @@ Hypothesis R_carrier_meas :
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
-Variable (p : R).
-Hypothesis Hp0 : (0 <= p)%R.
-Hypothesis Hp1 : (p <= 1)%R.
+(** The divergence parameter as a BUNDLED probability; its scalar and
+    bounds are exposed under their historical names. *)
+Variable (pr : prob R).
+Local Notation p := (pr_val pr).
+Local Notation Hp0 := (pr_ge0 pr).
+Local Notation Hp1 := (pr_le1 pr).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -1089,22 +1092,21 @@ Definition al_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)
       tunit :=
-  [ if Bernoulli [| p |] then () else # "l" @ () ].
+  [ if Bernoulli pr then () else # "l" @ () ].
 
 Lemma ex_almost_loop_decomp :
-  ex_almost_loop (R_obj := R_obj) p =
-  ne_let "l" (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) p))
+  ex_almost_loop (R_obj := R_obj) pr =
+  ne_let "l" (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) pr))
     (ne_app (ne_var (nv_head "l" (tfun tunit tunit) nil)) ne_tt).
 Proof. by []. Qed.
 
 Lemma ex_almost_loop_body_decomp :
-  ex_almost_loop_body (R_obj := R_obj) p = ne_lam "_" al_if.
+  ex_almost_loop_body (R_obj := R_obj) pr = ne_lam "_" al_if.
 Proof. by []. Qed.
 
 Lemma al_if_decomp :
   al_if = ne_if tunit
-            (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
-               (ne_real p))
+            (ne_bernoulli p Hp0 Hp1)
             ne_tt
             (ne_app al_var_l ne_tt).
 Proof. by []. Qed.
@@ -1117,7 +1119,7 @@ Proof. by rewrite one1_norm. Qed.
 Definition al_W0 :
     linhom_car Ar (Bang Ar (Lty tunit tunit))
                   (Bang Ar (Lty tunit tunit)) :=
-  Lfun (tensor_curry (eD_cbv' (ex_almost_loop_body (R_obj := R_obj) p)))
+  Lfun (tensor_curry (eD_cbv' (ex_almost_loop_body (R_obj := R_obj) pr)))
        one1.
 
 Lemma al_W0_ball : cone_norm al_W0 <= 1.
@@ -1174,7 +1176,7 @@ by rewrite mul1r Hone.
 Qed.
 
 Local Notation al_denot :=
-  (linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas p)
+  (linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas pr)
      one1).
 
 Lemma ex_almost_loop_app_E :
@@ -1186,10 +1188,10 @@ have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
 rewrite (eD_let_at_setlike "l"
-          (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) p))
+          (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) pr))
           (ne_app (ne_var (nv_head "l" (tfun tunit tunit) nil)) ne_tt)
           HoneG coalg_str_one1).
-rewrite (eD_fix_at_setlike "l" (ex_almost_loop_body (R_obj := R_obj) p)
+rewrite (eD_fix_at_setlike "l" (ex_almost_loop_body (R_obj := R_obj) pr)
           HoneG coalg_str_one1).
 rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
            al_env0_ball al_env0_setlike).
@@ -1332,12 +1334,9 @@ rewrite (if_icones_at
   (eD_cbv' (@ne_tt R Ar R_obj
      (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)))
   (eD_cbv' (ne_app al_var_l ne_tt))
-  (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
-              (ne_real p)))
+  (eD_cbv' (ne_bernoulli p Hp0 Hp1))
   (al_env3_ball n) (al_env3_setlike n)).
 rewrite al_tt_E al_else_E.
-rewrite (eD_bernoulli_clamp_const_E R_carrier_meas R_to_carrier_meas _
-           Hp0 Hp1).
 rewrite eD_bernoulli_E /bernoulli_icones.
 by rewrite (const_iconesE (al_env3_ball n) (al_env3_setlike n)).
 Qed.
@@ -1366,7 +1365,7 @@ Proof.
 move=> Hp.
 apply/le_anti/andP; split.
 - by rewrite ex_almost_loop_sup_E cone_sup_ball_norm.
-- have Hq0 : (0 <= 1 - p)%R by rewrite subr_ge0.
+- have Hq0 : (0 <= 1 - p)%R by rewrite subr_ge0 Hp1.
   have Hq1 : (1 - p < 1)%R by rewrite ltrBlDr ltrDl.
   have Hcvg := affine_iter_cvg_real p (1 - p) Hq0 al_val_0 al_val_S Hq1.
   rewrite subKr divff ?gt_eqF// in Hcvg.
@@ -1463,7 +1462,7 @@ Definition g_var :
 Definition g_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) tR' :=
-  [ if Bernoulli [| (1 / 2 : R) |]
+  [ if Bernoulli (prob_half : prob R)
     then [| 0%R |]
     else [| 1%R |] + # "g" @ () ].
 
@@ -1479,8 +1478,8 @@ Proof. by []. Qed.
 
 Lemma g_if_decomp :
   g_if = ne_if tR'
-           (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
-              (ne_real (1 / 2 : R)))
+           (ne_bernoulli (pr_val (prob_half : prob R))
+              (pr_ge0 prob_half) (pr_le1 prob_half))
            (ne_real 0%R)
            (ne_add (ne_real 1%R) (ne_app g_var ne_tt)).
 Proof. by []. Qed.
@@ -1745,12 +1744,10 @@ rewrite (if_icones_at
   (eD_cbv' (@ne_real R Ar R_obj
      (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) 0%R))
   (eD_cbv' (ne_add (ne_real 1%R) (ne_app g_var ne_tt)))
-  (eD_cbv' (ne_bernoulli_f clamp clamp_meas clamp_ge0 clamp_le1
-              (ne_real (1 / 2 : R))))
+  (eD_cbv' (ne_bernoulli (pr_val (prob_half : prob R))
+              (pr_ge0 prob_half) (pr_le1 prob_half)))
   (g_env3_ball n) (g_env3_setlike n)).
 rewrite g_then_E g_else_E.
-rewrite (eD_bernoulli_clamp_const_E R_carrier_meas R_to_carrier_meas _
-           (bernoulli_half_ge0 R) (bernoulli_half_le1 R)).
 rewrite eD_bernoulli_E /bernoulli_icones.
 by rewrite (const_iconesE (g_env3_ball n) (g_env3_setlike n)).
 Qed.

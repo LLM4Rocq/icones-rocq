@@ -10,9 +10,11 @@
     linhom level inside the new [ppl_cbv.v].
 
     All programs are written in the MODERN surface layer: bundled
-    sub-probabilities [m : pmeas] consumed by [sample m], the unified
-    witness-free [Bernoulli e] coin (clamped density), and OCaml-style
-    [let rec] for the recursive examples.
+    sub-probabilities [m : pmeas] consumed by [sample m], the bundled
+    [Bernoulli p] / [Bernoulli d e] coins (the probability [p : prob]
+    or density [d : udensity] is [[0,1]]-valued BY CONSTRUCTION — no
+    clamp, no loose witnesses), and OCaml-style [let rec] for the
+    recursive examples.
 
     ** Basic sampling/scoring examples (1–3)
     - [ex_random_constant]   : [let "c" := sample m in λx. c]
@@ -192,29 +194,32 @@ Variable (R_obj : ar_obj Ar).
 
 Variable (m : pmeas Ar R_obj).
 
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
+(** The soft-conditioning density as a BUNDLED [[0,1]] record — no
+    loose witnesses. *)
+Variable (d : udensity R).
 
 Local Notation tR' := (tR R_obj).
 
 (** The PPL term:
-    [let "m" := sample m in let "_" := score(f) #"m" in #"m"]. *)
+    [let "m" := sample m in let "_" := Score d #"m" in #"m"].  The
+    [[0,1]] density is bundled in [d] — no clamp, no loose
+    witnesses. *)
 Definition ex_score_posterior :
     @named_expr R Ar R_obj nil tR' :=
   [ let "m" := sample m in
-    let "_" := Score (Meas { f , Hf_meas } # "m") in
+    let "_" := Score d # "m" in
     # "m" ].
 
 (** The continuation under the prior bind. *)
 Definition ex_sp_cont :
     @named_expr R Ar R_obj (("m"%string, tR') :: nil) tR' :=
-  [ let "_" := Score (Meas { f , Hf_meas } # "m") in
+  [ let "_" := Score d # "m" in
     # "m" ].
 
 End ScorePosterior.
 
-Arguments ex_sp_cont {R Ar R_obj} f Hf_meas.
-Arguments ex_score_posterior {R Ar R_obj} m f Hf_meas.
+Arguments ex_sp_cont {R Ar R_obj} d.
+Arguments ex_score_posterior {R Ar R_obj} m d.
 
 (** ** Example — [ex_bayes_linear] — higher-order Bayesian linear regression
 
@@ -449,6 +454,21 @@ End ExLoopDemo.
 
 Arguments ex_loop {R Ar R_obj}.
 
+(** Witnesses [0 ≤ 1/2 ≤ 1] for the fair coin, and the bundled
+    probability [prob_half : prob] built from them — the constant
+    Bernoulli surface form [Bernoulli prob_half] carries its [[0,1]]
+    bounds through the bundle (no clamp). *)
+Lemma bernoulli_half_ge0 (R : realType) : (0 <= 1 / 2 :> R)%R.
+Proof. by rewrite divr_ge0// ler01. Qed.
+
+Lemma bernoulli_half_le1 (R : realType) : (1 / 2 <= 1 :> R)%R.
+Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
+
+Definition prob_half (R : realType) : prob R :=
+  mk_prob (1 / 2 : R) (bernoulli_half_ge0 R) (bernoulli_half_le1 R).
+
+Arguments prob_half {R}.
+
 (** ** Boolean primitives sanity check — [True], [False], [Bernoulli p] *)
 
 Section ExBoolDemo.
@@ -459,10 +479,11 @@ Definition ex_true : @named_expr R Ar R_obj nil tbool := [ True ].
 
 Definition ex_false : @named_expr R Ar R_obj nil tbool := [ False ].
 
-(** The fair coin, in the unified witness-free form: [Bernoulli e]
-    flips with the CLAMPED value of [e] as success probability. *)
+(** The fair coin, in the bundled constant form [Bernoulli prob_half]:
+    the success probability [1/2] is supplied with its [[0,1]] bounds
+    through the [prob] bundle — no clamp, no loose witnesses. *)
 Definition ex_fair_coin : @named_expr R Ar R_obj nil tbool :=
-  [ Bernoulli [| (1 / 2 : R) |] ].
+  [ Bernoulli (prob_half : prob R) ].
 
 End ExBoolDemo.
 
@@ -477,10 +498,10 @@ Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
 (** The closed [tbool]-typed [if-then-else] term:
-    [if Bernoulli (1/2) then True else False]. *)
+    [if Bernoulli prob_half then True else False]. *)
 Definition ex_if_demo :
     @named_expr R Ar R_obj nil tbool :=
-  [ if Bernoulli [| (1 / 2 : R) |]
+  [ if Bernoulli (prob_half : prob R)
     then True else False ].
 
 End ExIfDemo.
@@ -493,25 +514,17 @@ Section RecExamples.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 
-(** Witnesses [0 ≤ 1/2 ≤ 1] for the geometric example's fair coin —
-    not needed by the PROGRAM (the unified [Bernoulli e] clamps), but
-    the semantic riders ([ex_reject_headline.v]) name the Bernoulli
-    element [(½, ½)] through them. *)
-Lemma bernoulli_half_ge0 : (0 <= 1 / 2 :> R)%R.
-Proof. by rewrite divr_ge0// ler01. Qed.
-
-Lemma bernoulli_half_le1 : (1 / 2 <= 1 :> R)%R.
-Proof. by rewrite ler_pdivrMr ?mul1r ?ler1n. Qed.
-
 Local Notation tR' := (tR R_obj).
 
 (** *** [ex_geom] — geometric distribution
     Source: [let rec g _ = if Bernoulli(½) then 0
-                                           else 1 + g () in g ()]. *)
+                                           else 1 + g () in g ()].
+    The fair coin is the bundled constant form [Bernoulli prob_half] —
+    no clamp. *)
 
 Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
   [ let rec "g" "_" ::: tunit ==> tR' :=
-      (if Bernoulli [| (1 / 2 : R) |]
+      (if Bernoulli (prob_half : prob R)
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ())
     in # "g" @ () ].
@@ -522,31 +535,31 @@ Definition ex_geom_body :
       (("g"%string, tfun tunit tR') :: nil)
       (tfun tunit tR') :=
   [ \ "_" ::: tunit =>
-      (if Bernoulli [| (1 / 2 : R) |]
+      (if Bernoulli (prob_half : prob R)
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ()) ].
 
-(** *** [ex_almost_loop p] — parameterised divergence
+(** *** [ex_almost_loop pr] — parameterised divergence
     Source: [let rec l _ = if Bernoulli(p) then ()
                                            else l () in l ()].
-    No witnesses on [p]: the unified [Bernoulli e] clamps the
-    parameter into [[0,1]]. *)
-Definition ex_almost_loop (p : R) :
+    The parameter is a BUNDLED probability [pr : prob] carrying its
+    [[0,1]] bounds (no clamp, no loose witnesses). *)
+Definition ex_almost_loop (pr : prob R) :
     @named_expr R Ar R_obj nil tunit :=
   [ let rec "l" "_" ::: tunit ==> tunit :=
-      (if Bernoulli [| p |]
+      (if Bernoulli pr
        then ()
        else # "l" @ ())
     in # "l" @ () ].
 
 (** Its lambda body, in the extended context
     [("l", tfun tunit tunit) :: nil]. *)
-Definition ex_almost_loop_body (p : R) :
+Definition ex_almost_loop_body (pr : prob R) :
     @named_expr R Ar R_obj
       (("l"%string, tfun tunit tunit) :: nil)
       (tfun tunit tunit) :=
   [ \ "_" ::: tunit =>
-      (if Bernoulli [| p |]
+      (if Bernoulli pr
        then ()
        else # "l" @ ()) ].
 
@@ -554,8 +567,8 @@ End RecExamples.
 
 Arguments ex_geom {R Ar R_obj}.
 Arguments ex_geom_body {R Ar R_obj}.
-Arguments ex_almost_loop {R Ar R_obj} p.
-Arguments ex_almost_loop_body {R Ar R_obj} p.
+Arguments ex_almost_loop {R Ar R_obj} pr.
+Arguments ex_almost_loop_body {R Ar R_obj} pr.
 
 (** ** Example — [ex_even_odd] — mutual recursion at a product of functions
 
@@ -648,8 +661,10 @@ Variable (R_obj : ar_obj Ar).
 
 Variable (m : pmeas Ar R_obj).
 
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
+(** The acceptance density as a BUNDLED [[0,1]] record — its
+    measurability and bounds are carried by [d], no loose witnesses,
+    no clamp. *)
+Variable (d : udensity R).
 
 Local Notation tR' := (tR R_obj).
 
@@ -658,7 +673,7 @@ Local Notation tR' := (tR R_obj).
 Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bernoulli (Meas { f , Hf_meas } # "x")
+       if Bernoulli d # "x"
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].
@@ -672,7 +687,7 @@ Definition ex_reject_body :
       (tfun (tfun tR' tR') tR') :=
   [ \ "accept" ::: (tfun tR' tR') =>
       (let "x" := sample m in
-       if Bernoulli (Meas { f , Hf_meas } # "x")
+       if Bernoulli d # "x"
        then # "accept" @ # "x"
        else # "rs" @ # "accept") ].
 
@@ -684,15 +699,15 @@ Definition ex_reject_inner :
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       tR' :=
   [ let "x" := sample m in
-    if Bernoulli (Meas { f , Hf_meas } # "x")
+    if Bernoulli d # "x"
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
 End RejectSampling.
 
-Arguments ex_reject {R Ar R_obj} m f Hf_meas.
-Arguments ex_reject_body {R Ar R_obj} m f Hf_meas.
-Arguments ex_reject_inner {R Ar R_obj} m f Hf_meas.
+Arguments ex_reject {R Ar R_obj} m d.
+Arguments ex_reject_body {R Ar R_obj} m d.
+Arguments ex_reject_inner {R Ar R_obj} m d.
 
 (** ** Example — [ex_reject_comb] — rejection sampling as a COMBINATOR
 
@@ -728,8 +743,9 @@ Variable (R_obj : ar_obj Ar).
 (** The model's INPUT type is an arbitrary PPL type. *)
 Variable (ta : ppl_type Ar).
 
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
+(** The acceptance density as a BUNDLED [[0,1]] record — no clamp, no
+    loose witnesses. *)
+Variable (d : udensity R).
 
 Local Notation tR' := (tR R_obj).
 
@@ -741,7 +757,7 @@ Definition ex_reject_comb :
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bernoulli (Meas { f , Hf_meas } # "x")
+           if Bernoulli d # "x"
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 
@@ -754,7 +770,7 @@ Definition ex_reject_comb_body :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         if Bernoulli (Meas { f , Hf_meas } # "x")
+         if Bernoulli d # "x"
          then # "x"
          else # "rs" @ # "m" @ # "a") ].
 
@@ -767,7 +783,7 @@ Definition ex_reject_comb_fun :
       (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       if Bernoulli (Meas { f , Hf_meas } # "x")
+       if Bernoulli d # "x"
        then # "x"
        else # "rs" @ # "m" @ # "a") ].
 
@@ -778,16 +794,16 @@ Definition ex_reject_comb_inner :
        ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       tR' :=
   [ let "x" := # "m" @ # "a" in
-    if Bernoulli (Meas { f , Hf_meas } # "x")
+    if Bernoulli d # "x"
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
 End RejectCombinator.
 
-Arguments ex_reject_comb {R Ar R_obj} ta f Hf_meas.
-Arguments ex_reject_comb_body {R Ar R_obj} ta f Hf_meas.
-Arguments ex_reject_comb_fun {R Ar R_obj} ta f Hf_meas.
-Arguments ex_reject_comb_inner {R Ar R_obj} ta f Hf_meas.
+Arguments ex_reject_comb {R Ar R_obj} ta d.
+Arguments ex_reject_comb_body {R Ar R_obj} ta d.
+Arguments ex_reject_comb_fun {R Ar R_obj} ta d.
+Arguments ex_reject_comb_inner {R Ar R_obj} ta d.
 
 (** ** Example — [ex_condition_comb] — Pyro-style soft conditioning
 
@@ -824,9 +840,9 @@ Variable (R_obj : ar_obj Ar).
 (** The model's INPUT type is an arbitrary PPL type. *)
 Variable (ta : ppl_type Ar).
 
-(** The soft observation density (the likelihood). *)
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
+(** The soft observation density (the likelihood) as a BUNDLED [[0,1]]
+    record — no clamp, no loose witnesses. *)
+Variable (d : udensity R).
 
 Local Notation tR' := (tR R_obj).
 
@@ -837,7 +853,7 @@ Definition ex_condition_comb :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Score (Meas { f , Hf_meas } # "x") in
+         let "_" := Score d # "x" in
          # "x") ].
 
 (** The partially-applied stage [λa.…], in context
@@ -847,7 +863,7 @@ Definition ex_condition_fun :
       (("m"%string, tfun ta tR') :: nil) (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       let "_" := Score (Meas { f , Hf_meas } # "x") in
+       let "_" := Score d # "x" in
        # "x") ].
 
 (** The run-score-return inner expression under both binders. *)
@@ -855,7 +871,7 @@ Definition ex_condition_inner :
     @named_expr R Ar R_obj
       (("a"%string, ta) :: ("m"%string, tfun ta tR') :: nil) tR' :=
   [ let "x" := # "m" @ # "a" in
-    let "_" := Score (Meas { f , Hf_meas } # "x") in
+    let "_" := Score d # "x" in
     # "x" ].
 
 (** The applied form — [condition M f]: the combinator at a closed
@@ -867,21 +883,21 @@ Definition ex_condition (M : @named_expr R Ar R_obj nil (tfun ta tR')) :
 
 End ConditionCombinator.
 
-Arguments ex_condition_comb {R Ar R_obj} ta f Hf_meas.
-Arguments ex_condition_fun {R Ar R_obj} ta f Hf_meas.
-Arguments ex_condition_inner {R Ar R_obj} ta f Hf_meas.
-Arguments ex_condition {R Ar R_obj ta} f Hf_meas M.
+Arguments ex_condition_comb {R Ar R_obj} ta d.
+Arguments ex_condition_fun {R Ar R_obj} ta d.
+Arguments ex_condition_inner {R Ar R_obj} ta d.
+Arguments ex_condition {R Ar R_obj ta} d M.
 
-(** Surface form — [Condition { f , Hm } M]: the conditioned model,
-    written directly in the [ppl_named] custom entry (witness braces
-    first, like [Meas { f , Hf } e]).  Elaborates to
-    [ne_app (ex_condition_comb _ f Hm) M]; the ambient context must be
+(** Surface form — [Condition { d } M]: the conditioned model, written
+    directly in the [ppl_named] custom entry from a BUNDLED density
+    [d : udensity] (no loose witnesses, no clamp).  Elaborates to
+    [ne_app (ex_condition_comb _ d) M]; the ambient context must be
     CLOSED ([nil]) since the combinator is a closed program. *)
-Notation "'Condition' '{' f ',' Hm '}' M" :=
-  (ne_app (ex_condition_comb _ f Hm) M)
+Notation "'Condition' '{' d '}' M" :=
+  (ne_app (ex_condition_comb _ d) M)
   (in custom ppl_named at level 20,
    M custom ppl_named at level 19,
-   f constr, Hm constr).
+   d constr).
 
 (** ** Example — [ex_sampler] — the simplest model for the combinator
 
@@ -921,14 +937,13 @@ Variable (R_obj : ar_obj Ar).
 
 Variable (m : pmeas Ar R_obj).
 
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
+Variable (d : udensity R).
 
-Check [ Condition { f , Hf_meas } { ex_sampler m } @ () ].
+Check [ Condition { d } { ex_sampler m } @ () ].
 
 Check (erefl :
-  [ Condition { f , Hf_meas } { ex_sampler m } ] =
-  ex_condition f Hf_meas (ex_sampler m)).
+  [ Condition { d } { ex_sampler m } ] =
+  ex_condition d (ex_sampler m)).
 
 End ConditionSmoke.
 
@@ -1102,12 +1117,14 @@ Definition ex_surface_demo : @named_expr R Ar R_obj nil tbool :=
        if # "m" > [| 0%R |] then True else False)
     in # "model" @ () ].
 
-(** Annotation-free [let rec] + unified [Bernoulli]/[Score]: the
-    binder ["x"] occurs in the body, so its type is inferred. *)
+(** Annotation-free [let rec] + the bundled value-dependent
+    [Bernoulli]/[Score] forms: the binder ["x"] occurs in the body, so
+    its type is inferred.  The density is the strict-positivity
+    indicator bundle [gt0_udensity] — no clamp, no loose witnesses. *)
 Definition ex_surface_walk : @named_expr R Ar R_obj nil tR' :=
   [ let rec "walk" "x" :=
-      (let "b" := Bernoulli # "x" in
-       let "_" := Score # "x" in
+      (let "b" := Bernoulli gt0_udensity # "x" in
+       let "_" := Score gt0_udensity # "x" in
        if # "b" then # "x" else # "walk" @ # "x" * [| 1 / 2 |])
     in # "walk" @ [| 1 |] ].
 
@@ -1120,7 +1137,8 @@ Lemma ex_surface_demo_decomp :
           (ne_let "m"
              (ne_sample (pm_meas gaussian01) (pm_ball gaussian01))
              (ne_if tbool
-                (ne_bernoulli_f gt0_ind gt0_ind_meas gt0_ind_ge0 gt0_ind_le1
+                (ne_bernoulli_f (ud_f gt0_udensity) (ud_meas gt0_udensity)
+                   (ud_ge0 gt0_udensity) (ud_le1 gt0_udensity)
                    (ne_add (ne_var' "m" _)
                       (ne_meas negr negr_meas (ne_real 0))))
                 ne_true ne_false))))
@@ -1141,8 +1159,8 @@ Arguments ex_surface_walk {R Ar R_obj}.
     ([ne_let]/[ne_sample]/[ne_lam]/[ne_var] in Examples 1–3, [ne_score]
     in Example 3, [ne_add]/[ne_mul] in Example 2,
     [ne_fix]/[ne_app]/[ne_tt] in the recursive examples,
-    [ne_true]/[ne_false]/[ne_if] and the unified clamped coin
-    ([ne_bernoulli_f] at [clamp]) in the boolean checks,
+    [ne_true]/[ne_false]/[ne_if] and the bundled constant coin
+    ([ne_bernoulli] via [prob]) in the boolean checks,
     [ne_bernoulli_f] in the rejection-sampling example, [ne_meas] in
     the surface demos, [ne_fix_mr]/[ne_pair]/[ne_fst]/[ne_snd] in the
     even/odd mutual-recursion example).
@@ -1174,9 +1192,8 @@ Definition ex_random_linear_cbv (m : pmeas Ar R_obj) :=
 
 Definition ex_score_posterior_cbv
     (m : pmeas Ar R_obj)
-    (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f) :=
-  eDv (ex_score_posterior m f Hf_meas).
+    (d : udensity R) :=
+  eDv (ex_score_posterior m d).
 
 (** The Bayesian-linear-regression elaboration smoke test.  The shared
     ["f"] is consulted once per observation AND returned at the end:
@@ -1205,8 +1222,8 @@ Definition ex_if_demo_cbv :=
 Definition ex_geom_cbv :=
   eDv (ex_geom : @named_expr R Ar R_obj nil (tR R_obj)).
 
-Definition ex_almost_loop_cbv (p : R) :=
-  eDv (ex_almost_loop p).
+Definition ex_almost_loop_cbv (pr : prob R) :=
+  eDv (ex_almost_loop pr).
 
 (** The mutual-recursion smoke test: [ne_fix_mr] at a PRODUCT of
     function types elaborates through the genuine Seely-transported
@@ -1228,9 +1245,8 @@ Definition ex_odd_cbv :=
     ["rs"]). *)
 Definition ex_reject_cbv
     (m : pmeas Ar R_obj)
-    (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f) :=
-  eDv (ex_reject m f Hf_meas).
+    (d : udensity R) :=
+  eDv (ex_reject m d).
 
 (** The rejection-sampling COMBINATOR denotation: the closed program of
     type [(ta → tR) → (ta → tR)] denotes a (promoted) function VALUE —
@@ -1238,9 +1254,8 @@ Definition ex_reject_cbv
     model/input it is applied to. *)
 Definition ex_reject_comb_cbv
     (ta : ppl_type Ar)
-    (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f) :=
-  eDv (ex_reject_comb ta f Hf_meas).
+    (d : udensity R) :=
+  eDv (ex_reject_comb ta d).
 
 (** The soft-conditioning COMBINATOR denotation ([ex_condition_comb]):
     a closed program of type [(ta → tR) → (ta → tR)], like the
@@ -1249,18 +1264,16 @@ Definition ex_reject_comb_cbv
     model/input it is applied to. *)
 Definition ex_condition_comb_cbv
     (ta : ppl_type Ar)
-    (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f) :=
-  eDv (ex_condition_comb ta f Hf_meas).
+    (d : udensity R) :=
+  eDv (ex_condition_comb ta d).
 
 (** The conditioned-model denotation: [condition M f] at a closed
     model [M]. *)
 Definition ex_condition_cbv
     (ta : ppl_type Ar)
-    (f : R -> R)
-    (Hf_meas : measurable_fun [set: R] f)
+    (d : udensity R)
     (M : @named_expr R Ar R_obj nil (tfun ta (tR R_obj))) :=
-  eDv (ex_condition f Hf_meas M).
+  eDv (ex_condition d M).
 
 (** The sampler-model denotation (the combinator's simplest input). *)
 Definition ex_sampler_cbv (m : pmeas Ar R_obj) :=
