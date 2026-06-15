@@ -32,8 +32,10 @@ client can render, colour, filter and navigate without a second fetch.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
+from .glob_deps import build_glob_edges
 from .schema import ALL_TABS, Document, Entry, ThreeTabDocument
 from .xref import build_entry_edges
 
@@ -182,14 +184,36 @@ def _collect_nodes(
     return nodes, entry_keys
 
 
-def build_graph(three: ThreeTabDocument) -> dict[str, Any]:
+def build_graph(
+    three: ThreeTabDocument,
+    *,
+    theories_root: str | Path | None = None,
+) -> dict[str, Any]:
     """Assemble the ``graph.json`` payload (nodes + edges + meta).
 
     * ``nodes`` — one per entry, plus group (section/contribution) and tab
       compound parents, each ``{data: {...}}`` in Cytoscape.js shape.
     * ``edges`` — deduped directed dependency edges between entry nodes,
-      ``{data: {source, target}}`` (self-edges already dropped upstream).
-    * ``meta`` — counts for the build log / tests.
+      ``{data: {source, target, kind}}`` (self-edges already dropped
+      upstream).  Two kinds are emitted:
+
+      - ``depends`` — a **real Coq proof-level dependency** read from the
+        ``.glob`` files (entry ``A``'s documented lemma *uses* an identifier
+        that entry ``B`` documents).  These are the load-bearing edges and
+        are styled solid in the client.
+      - ``mentions`` — a **doc co-reference** (``A``'s statement/prose/snippet
+        text names an identifier ``B`` documents).  Styled dashed/lighter.
+
+      When the same ordered pair is both a real dependency and a doc mention
+      it is emitted once as ``depends`` (the stronger relation wins).
+
+    * ``meta`` — counts for the build log / tests (including per-kind edge
+      counts and any graceful-degradation ``notices``).
+
+    ``theories_root`` points at the ``theories/`` directory so the ``.glob``
+    files can be located next to the ``.v`` sources.  When ``None`` (or when
+    no ``.glob`` is found) the ``depends`` edges degrade gracefully to empty
+    and a NOTICE is recorded in ``meta["notices"]`` — the build never fails.
 
     Edges whose source or target is not a node (defensive; should not
     happen given both derive from the same entry walk) are filtered out so
@@ -197,23 +221,55 @@ def build_graph(three: ThreeTabDocument) -> dict[str, Any]:
     """
     nodes, entry_keys = _collect_nodes(three)
 
-    raw_edges = build_entry_edges(three)
+    # Real Coq proof dependencies (.glob) and doc co-references (text).
+    notices: list[str] = []
+    if theories_root is not None:
+        depends_raw, notices = build_glob_edges(three, theories_root)
+    else:
+        depends_raw = []
+        notices = [
+            "graph: no theories root provided; real Coq dependency edges "
+            "(.glob) are disabled — doc co-reference edges only."
+        ]
+    mentions_raw = build_entry_edges(three)
+
     edges: list[dict[str, Any]] = []
-    seen_edge: set[tuple[str, str]] = set()
-    for (s_tab, s_id), (t_tab, t_id) in raw_edges:
-        if (s_tab, s_id) not in entry_keys or (t_tab, t_id) not in entry_keys:
-            continue
-        src = _entry_node_id(s_tab, s_id)
-        tgt = _entry_node_id(t_tab, t_id)
-        key = (src, tgt)
-        if key in seen_edge:
-            continue
-        seen_edge.add(key)
-        edges.append({"data": {"id": f"e{len(edges)}", "source": src, "target": tgt}})
+    edge_kind: dict[tuple[str, str], str] = {}
+
+    def _emit(raw, kind: str) -> None:
+        for (s_tab, s_id), (t_tab, t_id) in raw:
+            if (s_tab, s_id) not in entry_keys or (t_tab, t_id) not in entry_keys:
+                continue
+            src = _entry_node_id(s_tab, s_id)
+            tgt = _entry_node_id(t_tab, t_id)
+            key = (src, tgt)
+            prev = edge_kind.get(key)
+            if prev == "depends":
+                continue  # depends already wins for this pair
+            edge_kind[key] = kind if prev is None else "depends"
+
+    # Order matters only for which kind "wins"; the merge above makes the
+    # result order-independent (depends always beats mentions).
+    _emit(depends_raw, "depends")
+    _emit(mentions_raw, "mentions")
+
+    for (src, tgt), kind in sorted(edge_kind.items()):
+        edges.append(
+            {
+                "data": {
+                    "id": f"e{len(edges)}",
+                    "source": src,
+                    "target": tgt,
+                    "kind": kind,
+                }
+            }
+        )
 
     n_entry = sum(1 for n in nodes if n["data"]["ntype"] == "entry")
     n_group = sum(1 for n in nodes if n["data"]["ntype"] == "group")
     n_tab = sum(1 for n in nodes if n["data"]["ntype"] == "tab")
+    n_depends = sum(1 for e in edges if e["data"]["kind"] == "depends")
+    n_mentions = sum(1 for e in edges if e["data"]["kind"] == "mentions")
     return {
         "nodes": nodes,
         "edges": edges,
@@ -223,6 +279,9 @@ def build_graph(three: ThreeTabDocument) -> dict[str, Any]:
             "n_groups": n_group,
             "n_tabs": n_tab,
             "n_edges": len(edges),
+            "n_depends": n_depends,
+            "n_mentions": n_mentions,
+            "notices": notices,
         },
     }
 

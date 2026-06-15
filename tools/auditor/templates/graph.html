@@ -22,13 +22,24 @@
   <h1>Dependency graph</h1>
   <p class="lede">
     Every documented entry is a node; a directed edge <strong>A&nbsp;→&nbsp;B</strong>
-    means A's Rocq code or prose mentions an identifier <em>owned</em> by B
-    (the same cross-reference relation the snippet linkifier uses). Entries
-    are nested inside their section, sections inside their tab — colour marks
-    the tab, boxes mark the section. <strong>Click any node</strong> to open its
+    is one of two kinds. A <strong>depends</strong> edge (solid, dark) is a
+    <em>real Coq proof-level dependency</em> read from the
+    <code>.glob</code> files: A's documented lemma <em>uses</em> an identifier
+    that B documents. A <strong>mentions</strong> edge (dashed, light) is a
+    <em>doc co-reference</em>: A's statement, prose or snippet text names an
+    identifier B documents (the same relation the snippet linkifier uses).
+    The <strong>depends</strong> edges are the load-bearing ones. Entries are
+    nested inside their section, sections inside their tab — colour marks the
+    tab, boxes mark the section. <strong>Click any node</strong> to open its
     page. Use the controls to filter by tab, change layout, or focus a node's
     neighbourhood.
   </p>
+  <ul class="graph-legend" aria-label="Edge legend">
+    <li><span class="graph-legend-edge graph-legend-edge-depends"></span>
+      <strong>depends</strong> — real Coq proof dependency (from <code>.glob</code>)</li>
+    <li><span class="graph-legend-edge graph-legend-edge-mentions"></span>
+      <strong>mentions</strong> — doc co-reference (statement / prose / snippet text)</li>
+  </ul>
 </header>
 
 <div class="graph-toolbar" role="toolbar" aria-label="Graph controls">

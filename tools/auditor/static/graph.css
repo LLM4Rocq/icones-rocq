@@ -84,3 +84,34 @@
 @media (prefers-color-scheme: dark) {
   .graph-toolbar { background: rgba(255, 255, 255, 0.03); }
 }
+
+/* Edge-kind legend (depends vs mentions). */
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.92rem;
+}
+.graph-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.graph-legend-edge {
+  display: inline-block;
+  width: 34px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: solid;
+}
+.graph-legend-edge-depends {
+  border-top-color: #4b5563;
+  border-top-width: 2.5px;
+}
+.graph-legend-edge-mentions {
+  border-top-color: #c0c7d1;
+  border-top-style: dashed;
+}

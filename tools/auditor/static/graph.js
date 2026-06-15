@@ -150,13 +150,38 @@
               "opacity": 0.45,
             },
           },
+          // Doc co-reference ("mentions"): lighter, dashed — the weaker
+          // relation (A's text names an ident B documents).
+          {
+            selector: "edge.mentions",
+            style: {
+              "line-style": "dashed",
+              "line-color": "#c0c7d1",
+              "target-arrow-color": "#c0c7d1",
+              "opacity": 0.35,
+            },
+          },
+          // Real Coq proof dependency ("depends", from .glob): solid,
+          // darker, thicker — the load-bearing relation (A's proof USES a
+          // lemma B documents).
+          {
+            selector: "edge.depends",
+            style: {
+              "line-style": "solid",
+              "width": 1.6,
+              "line-color": "#4b5563",
+              "target-arrow-color": "#4b5563",
+              "arrow-scale": 0.85,
+              "opacity": 0.65,
+            },
+          },
+          // Cross-tab edges keep their purple hue but the depends/mentions
+          // line-style above still distinguishes the two kinds.
           {
             selector: "edge.cross-tab",
             style: {
-              "line-style": "dashed",
               "line-color": "#a855f7",
               "target-arrow-color": "#a855f7",
-              "opacity": 0.6,
             },
           },
           { selector: ".dimmed", style: { "opacity": 0.08 } },
@@ -172,8 +197,11 @@
         layout: { name: "preset" },
       });
 
-      // Mark cross-tab edges (source tab ≠ target tab) for distinct styling.
+      // Tag each edge with its kind (real Coq dependency vs doc mention) and
+      // mark cross-tab edges (source tab ≠ target tab) for distinct styling.
       cy.edges().forEach(function (e) {
+        var kind = e.data("kind");
+        e.addClass(kind === "depends" ? "depends" : "mentions");
         var s = e.source().data("tab");
         var t = e.target().data("tab");
         if (s && t && s !== t) e.addClass("cross-tab");

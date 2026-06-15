@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -389,6 +390,7 @@ def render(
     out_dir: str | Path,
     *,
     template_dir: str | Path | None = None,
+    theories_root: str | Path | None = None,
 ) -> dict[str, int]:
     """Emit the triple-tab dashboard under ``out_dir``.
 
@@ -454,16 +456,22 @@ def render(
             totals[k] += per[k]
 
     # -- dependency graph (graph.json + graph.html, both depth-0) -------
-    graph_meta = _emit_graph(env, out, doc)
+    graph_meta = _emit_graph(env, out, doc, theories_root=theories_root)
     totals["graph"] = 1
     totals["graph_nodes"] = graph_meta["n_nodes"]
     totals["graph_edges"] = graph_meta["n_edges"]
+    totals["graph_depends"] = graph_meta.get("n_depends", 0)
+    totals["graph_mentions"] = graph_meta.get("n_mentions", 0)
 
     return totals
 
 
 def _emit_graph(
-    env: Environment, out: Path, doc: ThreeTabDocument
+    env: Environment,
+    out: Path,
+    doc: ThreeTabDocument,
+    *,
+    theories_root: str | Path | None = None,
 ) -> dict[str, int]:
     """Emit ``graph.json`` and ``graph.html`` at the site root (depth 0).
 
@@ -472,8 +480,13 @@ def _emit_graph(
     (``<tab>/entries/<id>.html``) and the page's own asset prefixes use the
     empty depth-0 prefix.  Returns the graph ``meta`` (node/edge counts) for
     the build log and the artefact totals.
+
+    ``theories_root`` is forwarded to :func:`build_graph` so the real Coq
+    dependency edges can be read from the ``.glob`` files; when it is
+    ``None`` or no ``.glob`` is present the graph degrades to doc
+    co-reference edges only (a NOTICE is surfaced in ``meta["notices"]``).
     """
-    graph = build_graph(doc)
+    graph = build_graph(doc, theories_root=theories_root)
     (out / "graph.json").write_text(
         json.dumps({"nodes": graph["nodes"], "edges": graph["edges"]}, indent=2),
         encoding="utf-8",
@@ -489,6 +502,8 @@ def _emit_graph(
         },
         root_prefix="", static_prefix="", tab_prefix="",
     )
+    for notice in graph["meta"].get("notices", []):
+        print(f"[build_auditor] NOTICE: {notice}", file=sys.stderr)
     return graph["meta"]
 
 

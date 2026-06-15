@@ -189,7 +189,12 @@ def main(argv: list[str] | None = None) -> int:
     # Per-tab build_meta is overridden inside _emit_tab() to match
     # the top-level metadata, so the footer is consistent across pages.
 
-    counts = render(three, out_path, template_dir=args.template_dir)
+    counts = render(
+        three,
+        out_path,
+        template_dir=args.template_dir,
+        theories_root=project_root / "theories",
+    )
 
     # Post-render: build the Pagefind search index over the emitted HTML.
     # This populates ``out/pagefind/`` (index + UI bundle) that the search
@@ -220,6 +225,12 @@ def main(argv: list[str] | None = None) -> int:
         f"entries={x_n} files={x_f}"
     )
     print(f"[build_auditor] artefact counts: {counts}")
+    print(
+        "[build_auditor] graph edges: "
+        f"depends={counts.get('graph_depends', 0)} "
+        f"mentions={counts.get('graph_mentions', 0)} "
+        f"total={counts.get('graph_edges', 0)}"
+    )
     print(f"[build_auditor] paper    status distribution: {p_status}")
     print(f"[build_auditor] ppl      status distribution: {l_status}")
     print(f"[build_auditor] examples status distribution: {x_status}")
