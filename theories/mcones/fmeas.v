@@ -55,13 +55,11 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets.
 From mathcomp.reals Require Import reals.
-From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
-From mathcomp.analysis Require Import measurable_realfun.
-From mathcomp.analysis Require Import measure measure_function.
+From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
-From mathcomp.analysis Require Import topology normedtype sequences.
+From mathcomp.analysis Require Import normedtype sequences.
 Import numFieldTopology.Exports.
 
 Require Import Icones.prelude.classical_extra.
