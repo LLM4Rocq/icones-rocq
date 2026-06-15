@@ -25,6 +25,7 @@
       </span>
     </a>
     <nav class="pill-nav" aria-label="External resources">
+      <a class="pill" href="{{ tab_prefix }}graph.html">Graph</a>
       <a class="pill" href="{{ tab_prefix }}../blueprint/web/index.html">Blueprint</a>
       {% set gh_repo = document.build_meta.repo|default('LLM4Rocq/icones-rocq') %}
       <a class="gh-flag" href="https://github.com/{{ gh_repo }}"
@@ -98,5 +99,6 @@
 </footer>
 
 <script src="{{ static_prefix }}static/app.js" defer></script>
+{% block scripts_extra %}{% endblock %}
 </body>
 </html>

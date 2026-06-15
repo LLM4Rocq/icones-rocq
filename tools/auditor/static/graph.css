@@ -1,0 +1,86 @@
+/* Interactive dependency-graph page (graph.html). */
+
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  margin: 1rem 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 8px;
+  background: var(--surface, #f6f8fa);
+  font-size: 0.9rem;
+}
+
+.graph-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.graph-toolbar-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.graph-toolbar-label {
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.cy-swatch {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+/* Tab colours — kept in sync with graph.js TAB_COLORS. */
+.cy-swatch-paper    { background: #2563eb; }
+.cy-swatch-ppl      { background: #16a34a; }
+.cy-swatch-examples { background: #d97706; }
+
+.graph-stats {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+#cy-layout,
+#cy-reset {
+  font: inherit;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 6px;
+  background: var(--bg, #fff);
+  color: inherit;
+  cursor: pointer;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: min(72vh, 820px);
+  min-height: 460px;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(127,127,127,0.06) 24px),
+    repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(127,127,127,0.06) 24px);
+  overflow: hidden;
+}
+
+.graph-empty {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid #d97706;
+  background: rgba(217, 119, 6, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  .graph-toolbar { background: rgba(255, 255, 255, 0.03); }
+}

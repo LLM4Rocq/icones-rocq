@@ -39,6 +39,7 @@ from typing import Any
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 from pygments.formatters import HtmlFormatter
 
+from .graph import build_graph
 from .schema import (
     TAB_EXAMPLES,
     TAB_PAPER,
@@ -403,6 +404,7 @@ def render(
     totals = {
         "index": 0, "sections": 0, "entries": 0, "beyond": 0,
         "gaps": 0, "json": 0, "tabs": 0, "chapters": 0,
+        "graph": 0, "graph_nodes": 0, "graph_edges": 0,
     }
 
     # -- static assets (copied from bundled tree, plus generated pygments.css) -
@@ -451,7 +453,43 @@ def render(
         for k in ("index", "sections", "entries", "beyond", "gaps", "json", "chapters"):
             totals[k] += per[k]
 
+    # -- dependency graph (graph.json + graph.html, both depth-0) -------
+    graph_meta = _emit_graph(env, out, doc)
+    totals["graph"] = 1
+    totals["graph_nodes"] = graph_meta["n_nodes"]
+    totals["graph_edges"] = graph_meta["n_edges"]
+
     return totals
+
+
+def _emit_graph(
+    env: Environment, out: Path, doc: ThreeTabDocument
+) -> dict[str, int]:
+    """Emit ``graph.json`` and ``graph.html`` at the site root (depth 0).
+
+    The data file is consumed client-side by ``static/graph.js`` (vendored
+    Cytoscape.js); both live at the root so every entry ``url`` in the data
+    (``<tab>/entries/<id>.html``) and the page's own asset prefixes use the
+    empty depth-0 prefix.  Returns the graph ``meta`` (node/edge counts) for
+    the build log and the artefact totals.
+    """
+    graph = build_graph(doc)
+    (out / "graph.json").write_text(
+        json.dumps({"nodes": graph["nodes"], "edges": graph["edges"]}, indent=2),
+        encoding="utf-8",
+    )
+    _emit(
+        env, out, Path("graph.html"), "graph.html",
+        {
+            "document": doc.paper,  # footer macros reach into build_meta etc.
+            "build_meta": doc.build_meta,
+            "tab": None,
+            "title": "Dependency graph — Icones auditor",
+            "graph_meta": graph["meta"],
+        },
+        root_prefix="", static_prefix="", tab_prefix="",
+    )
+    return graph["meta"]
 
 
 # -- small helpers used by the placeholder template -------------------------

@@ -745,6 +745,86 @@ def _walk_document(
     # :func:`_linkify_preamble`, so it is deliberately skipped here.
 
 
+# -- dependency edges (graph) -----------------------------------------------
+
+#: Strips every HTML tag, leaving the text payload.  Used to recover the
+#: plain identifier stream from a snippet's Pygments HTML or a prose
+#: ``<code>`` block regardless of whether the linkify pass has already
+#: wrapped some tokens in ``<a>`` anchors (so edge extraction is order
+#: independent w.r.t. :func:`linkify_all`).
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _entry_text_idents(entry: Entry) -> set[str]:
+    """Collect the identifier tokens an entry's code/prose mentions.
+
+    Recovers a plain-text stream from the entry's statement, detail prose
+    and every detail snippet (HTML tags stripped, entities unescaped),
+    tokenises it with :data:`_IDENT_RE` and returns the distinct tokens at
+    least :data:`MIN_IDENT_LEN` long.  This is the raw mention set; the
+    caller maps it through the global entry map to obtain dependency
+    targets.  It is robust to the linkify pass having already wrapped some
+    tokens in anchors (the tags are stripped either way).
+    """
+    chunks: list[str] = []
+    if entry.statement_html:
+        chunks.append(entry.statement_html)
+    if entry.detail is not None:
+        if entry.detail.prose_html:
+            chunks.append(entry.detail.prose_html)
+        for snip in entry.detail.snippets:
+            chunks.append(snip.highlighted_html)
+    idents: set[str] = set()
+    for chunk in chunks:
+        text = html_mod.unescape(_TAG_RE.sub(" ", chunk))
+        for m in _IDENT_RE.finditer(text):
+            tok = m.group(0)
+            if len(tok) >= MIN_IDENT_LEN:
+                idents.add(tok)
+    return idents
+
+
+def build_entry_edges(
+    three: ThreeTabDocument,
+) -> list[tuple[tuple[str, str], tuple[str, str]]]:
+    """Derive directed dependency edges between entries across all tabs.
+
+    An edge ``A -> B`` is emitted when entry ``A``'s code/prose mentions an
+    identifier *owned* by a different entry ``B`` (per the cross-tab
+    :func:`build_global_entry_map`).  This is exactly the relation the
+    snippet/prose linkifier uses to turn an ident token into a link to its
+    defining entry, surfaced here as graph data.
+
+    Each endpoint is a ``(tab, entry_id)`` pair.  Self-edges (``A`` to
+    itself) are dropped and duplicates are removed; the returned list is
+    sorted for determinism.
+    """
+    entry_map = build_global_entry_map(three)
+    # Index every entry by (tab, id) so we only emit edges between known
+    # nodes (mirrors the node set the renderer builds).
+    known: set[tuple[str, str]] = set()
+    owners: list[tuple[str, str, Entry]] = []
+    for tab in ALL_TABS:
+        doc = three.tab(tab)
+        seen: set[int] = set()
+        for entry in _iter_entries(doc):
+            if id(entry) in seen:
+                continue
+            seen.add(id(entry))
+            known.add((tab, entry.id))
+            owners.append((tab, entry.id, entry))
+
+    edges: set[tuple[tuple[str, str], tuple[str, str]]] = set()
+    for tab, eid, entry in owners:
+        src = (tab, eid)
+        for ident in _entry_text_idents(entry):
+            tgt = entry_map.get(ident)
+            if tgt is None or tgt == src or tgt not in known:
+                continue
+            edges.add((src, tgt))
+    return sorted(edges)
+
+
 # -- per-tab pass (legacy / single-tab) -------------------------------------
 
 
@@ -874,6 +954,7 @@ def linkify_all(
 __all__ = [
     "MIN_IDENT_LEN",
     "LinkTarget",
+    "build_entry_edges",
     "build_global_entry_map",
     "build_ident_map",
     "build_mathcomp_index",
