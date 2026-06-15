@@ -1052,12 +1052,12 @@ End RejectHeadline.
 
 Section AlmostLoopRider.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+(* Reparameterized over the bundled [probObj]: the real object and its
+   carrier casts come from [P], the clean [tProb] surface's bundle. *)
+Variable (P : probObj Ar).
+Local Notation R_obj := (po_robj P).
+Local Notation R_carrier_eq := (po_robj_eq P).
+Local Notation R_carrier_meas := (po_robj_meas P).
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
@@ -1092,21 +1092,29 @@ Definition al_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)
       tunit :=
-  [ if Bernoulli pr then () else # "l" @ () ].
+  [ if Bern (Const pr [| 0%R |]) then () else # "l" @ () ].
 
 Lemma ex_almost_loop_decomp :
-  ex_almost_loop (R_obj := R_obj) pr =
-  ne_let "l" (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) pr))
+  ex_almost_loop (P := P) pr =
+  ne_let "l" (ne_fix "l" (ex_almost_loop_body (P := P) pr))
     (ne_app (ne_var (nv_head "l" (tfun tunit tunit) nil)) ne_tt).
 Proof. by []. Qed.
 
 Lemma ex_almost_loop_body_decomp :
-  ex_almost_loop_body (R_obj := R_obj) pr = ne_lam "_" al_if.
+  ex_almost_loop_body (P := P) pr = ne_lam "_" al_if.
 Proof. by []. Qed.
+
+(** The clean coin's underlying [tProb] argument: the constant
+    [pr_val pr] pushed through the bundle's factoring [po_into] at the
+    real literal [0]. *)
+Local Notation al_coin_arg :=
+  (ne_to_prob (po_into P (cst (pr_val pr)) (measurable_cst (pr_val pr))
+                 (fun=> pr_ge0 pr) (fun=> pr_le1 pr)) (ne_real 0%R)).
 
 Lemma al_if_decomp :
   al_if = ne_if tunit
-            (ne_bernoulli p Hp0 Hp1)
+            (ne_bernoulli_p (po_density P) (po_density_meas P)
+               (po_ge0 P) (po_le1 P) al_coin_arg)
             ne_tt
             (ne_app al_var_l ne_tt).
 Proof. by []. Qed.
@@ -1119,7 +1127,7 @@ Proof. by rewrite one1_norm. Qed.
 Definition al_W0 :
     linhom_car Ar (Bang Ar (Lty tunit tunit))
                   (Bang Ar (Lty tunit tunit)) :=
-  Lfun (tensor_curry (eD_cbv' (ex_almost_loop_body (R_obj := R_obj) pr)))
+  Lfun (tensor_curry (eD_cbv' (ex_almost_loop_body (P := P) pr)))
        one1.
 
 Lemma al_W0_ball : cone_norm al_W0 <= 1.
@@ -1176,7 +1184,7 @@ by rewrite mul1r Hone.
 Qed.
 
 Local Notation al_denot :=
-  (linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas pr)
+  (linhom_fun (ex_almost_loop_cbv P R_to_carrier_meas pr)
      one1).
 
 Lemma ex_almost_loop_app_E :
@@ -1188,10 +1196,10 @@ have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
 rewrite (eD_let_at_setlike "l"
-          (ne_fix "l" (ex_almost_loop_body (R_obj := R_obj) pr))
+          (ne_fix "l" (ex_almost_loop_body (P := P) pr))
           (ne_app (ne_var (nv_head "l" (tfun tunit tunit) nil)) ne_tt)
           HoneG coalg_str_one1).
-rewrite (eD_fix_at_setlike "l" (ex_almost_loop_body (R_obj := R_obj) pr)
+rewrite (eD_fix_at_setlike "l" (ex_almost_loop_body (P := P) pr)
           HoneG coalg_str_one1).
 rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
            al_env0_ball al_env0_setlike).
@@ -1323,6 +1331,28 @@ rewrite al_var_l_E al_tt_E.
 by rewrite (der_prom _ (fix_chain_ball al_W0_ball n)).
 Qed.
 
+(** *** Clean-surface coin leaf
+
+    The clean [tProb] constant coin [Bern (Const pr [|0|])] denotes, at
+    any setlike unit-ball environment, the SAME [bernoulli p] cone as
+    the legacy constant coin [Bernoulli pr]: the real literal [0] is the
+    Dirac [δ_0], pushed by the bundle factoring [po_into (cst p)] to
+    [δ_(po_into 0)], on which the carrier-density Bernoulli lift
+    [bern_lift_P] reads off [bernoulli (po_density P (po_into 0))], and
+    [po_into_E] computes that density back to [pr_val pr = p]. *)
+Lemma al_coin_E n :
+  Lfun (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
+                   (po_ge0 P) (po_le1 P) al_coin_arg))
+       (al_env3 n) = bernoulli (Ar:=Ar) p Hp0 Hp1.
+Proof.
+rewrite eD_bernoulli_p_E Lfun_comp.
+rewrite -[bern_lift_g _ _ _]/(bern_lift_P P).
+rewrite eD_to_prob_E Lfun_comp.
+rewrite eD_real_E /real_icones (const_iconesE (al_env3_ball n) (al_env3_setlike n)).
+rewrite FMeas_fmap_dirac bern_lift_P_dirac.
+apply: bool_cone_eq; apply: val_inj => /=; by rewrite /po_density po_into_E.
+Qed.
+
 (** The Kleene step is the affine combination
     [ν_{n+1} = p·1 + (1-p)·ν_n]. *)
 Lemma al_step n :
@@ -1334,11 +1364,10 @@ rewrite (if_icones_at
   (eD_cbv' (@ne_tt R Ar R_obj
      (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)))
   (eD_cbv' (ne_app al_var_l ne_tt))
-  (eD_cbv' (ne_bernoulli p Hp0 Hp1))
+  (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
+              (po_ge0 P) (po_le1 P) al_coin_arg))
   (al_env3_ball n) (al_env3_setlike n)).
-rewrite al_tt_E al_else_E.
-rewrite eD_bernoulli_E /bernoulli_icones.
-by rewrite (const_iconesE (al_env3_ball n) (al_env3_setlike n)).
+by rewrite al_tt_E al_else_E al_coin_E.
 Qed.
 
 (** *** The scalar cascade and the dichotomy theorems *)
@@ -1428,12 +1457,12 @@ End AlmostLoopRider.
 
 Section GeomRider.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+(* Reparameterized over the bundled [probObj]: the real object and its
+   carrier casts come from [P]. *)
+Variable (P : probObj Ar).
+Local Notation R_obj := (po_robj P).
+Local Notation R_carrier_eq := (po_robj_eq P).
+Local Notation R_carrier_meas := (po_robj_meas P).
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
@@ -1462,7 +1491,7 @@ Definition g_var :
 Definition g_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) tR' :=
-  [ if Bernoulli (prob_half : prob R)
+  [ if Bern (Const (prob_half : prob R) [| 0%R |])
     then [| 0%R |]
     else [| 1%R |] + # "g" @ () ].
 
@@ -1476,10 +1505,19 @@ Lemma ex_geom_body_decomp :
   (ex_geom_body : @named_expr R Ar R_obj _ _) = ne_lam "_" g_if.
 Proof. by []. Qed.
 
+(** The clean coin's underlying [tProb] argument: the constant [1/2]
+    pushed through the bundle's factoring [po_into] at the real
+    literal [0]. *)
+Local Notation g_coin_arg :=
+  (ne_to_prob (po_into P (cst (pr_val (prob_half : prob R)))
+                 (measurable_cst (pr_val (prob_half : prob R)))
+                 (fun=> pr_ge0 prob_half) (fun=> pr_le1 prob_half))
+              (ne_real 0%R)).
+
 Lemma g_if_decomp :
   g_if = ne_if tR'
-           (ne_bernoulli (pr_val (prob_half : prob R))
-              (pr_ge0 prob_half) (pr_le1 prob_half))
+           (ne_bernoulli_p (po_density P) (po_density_meas P)
+              (po_ge0 P) (po_le1 P) g_coin_arg)
            (ne_real 0%R)
            (ne_add (ne_real 1%R) (ne_app g_var ne_tt)).
 Proof. by []. Qed.
@@ -1548,7 +1586,7 @@ by rewrite mul1r Hone.
 Qed.
 
 Local Notation g_denot :=
-  (linhom_fun (ex_geom_cbv R_carrier_meas R_to_carrier_meas) one1).
+  (linhom_fun (ex_geom_cbv P R_to_carrier_meas) one1).
 
 Lemma ex_geom_app_E :
   g_denot = linhom_fun (sc_fun (fix_value (Lty tunit tR')) g_W0) one1.
@@ -1730,6 +1768,27 @@ rewrite (coalg_d_setlike (g_env3_ball n) (g_env3_setlike n)) tensor_morE.
 by rewrite g_one_E g_call_E.
 Qed.
 
+(** *** Clean-surface coin leaf
+
+    The fair coin [Bern (Const prob_half [|0|])] denotes, at any setlike
+    unit-ball environment, the same [bernoulli (1/2)] cone as the legacy
+    constant coin: the real literal [0] is [δ_0], pushed by the bundle
+    factoring [po_into (cst (1/2))] to a Dirac on which [bern_lift_P]
+    reads off [bernoulli (po_density (po_into 0)) = bernoulli (1/2)]. *)
+Lemma g_coin_E n :
+  Lfun (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
+                   (po_ge0 P) (po_le1 P) g_coin_arg))
+       (g_env3 n) =
+  bernoulli (Ar:=Ar) (1 / 2 : R) (bernoulli_half_ge0 R) (bernoulli_half_le1 R).
+Proof.
+rewrite eD_bernoulli_p_E Lfun_comp.
+rewrite -[bern_lift_g _ _ _]/(bern_lift_P P).
+rewrite eD_to_prob_E Lfun_comp.
+rewrite eD_real_E /real_icones (const_iconesE (g_env3_ball n) (g_env3_setlike n)).
+rewrite FMeas_fmap_dirac bern_lift_P_dirac.
+apply: bool_cone_eq; apply: val_inj => /=; by rewrite /po_density po_into_E.
+Qed.
+
 Lemma g_step n :
   g_iter n.+1 =
   bool_case (bernoulli (Ar:=Ar) (1 / 2 : R) (bernoulli_half_ge0 R)
@@ -1744,12 +1803,10 @@ rewrite (if_icones_at
   (eD_cbv' (@ne_real R Ar R_obj
      (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) 0%R))
   (eD_cbv' (ne_add (ne_real 1%R) (ne_app g_var ne_tt)))
-  (eD_cbv' (ne_bernoulli (pr_val (prob_half : prob R))
-              (pr_ge0 prob_half) (pr_le1 prob_half)))
+  (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
+              (po_ge0 P) (po_le1 P) g_coin_arg))
   (g_env3_ball n) (g_env3_setlike n)).
-rewrite g_then_E g_else_E.
-rewrite eD_bernoulli_E /bernoulli_icones.
-by rewrite (const_iconesE (g_env3_ball n) (g_env3_setlike n)).
+by rewrite g_then_E g_else_E g_coin_E.
 Qed.
 
 (** *** The half-half cascade and the mass-one theorem *)

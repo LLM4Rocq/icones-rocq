@@ -512,42 +512,43 @@ Arguments ex_if_demo {R Ar R_obj}.
 
 Section RecExamples.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
 
 (** *** [ex_geom] — geometric distribution
     Source: [let rec g _ = if Bernoulli(½) then 0
                                            else 1 + g () in g ()].
-    The fair coin is the bundled constant form [Bernoulli prob_half] —
-    no clamp. *)
+    The fair coin is the clean [tProb] constant form
+    [Bern (Const prob_half [|0|])] — the value-coin at a constant
+    success probability [1/2] over the bundle [P], no loose witnesses. *)
 
-Definition ex_geom : @named_expr R Ar R_obj nil tR' :=
+Definition ex_geom : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "g" "_" ::: tunit ==> tR' :=
-      (if Bernoulli (prob_half : prob R)
+      (if Bern (Const (prob_half : prob R) [| 0%R |])
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ())
     in # "g" @ () ].
 
 (** The body of the fixed-point lambda. *)
 Definition ex_geom_body :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("g"%string, tfun tunit tR') :: nil)
       (tfun tunit tR') :=
   [ \ "_" ::: tunit =>
-      (if Bernoulli (prob_half : prob R)
+      (if Bern (Const (prob_half : prob R) [| 0%R |])
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ()) ].
 
 (** *** [ex_almost_loop pr] — parameterised divergence
     Source: [let rec l _ = if Bernoulli(p) then ()
                                            else l () in l ()].
-    The parameter is a BUNDLED probability [pr : prob] carrying its
-    [[0,1]] bounds (no clamp, no loose witnesses). *)
+    The parameter is a BUNDLED probability [pr : prob]; the clean coin
+    is [Bern (Const pr [|0|])] — the constant value-coin over [P]. *)
 Definition ex_almost_loop (pr : prob R) :
-    @named_expr R Ar R_obj nil tunit :=
+    @named_expr R Ar (po_robj P) nil tunit :=
   [ let rec "l" "_" ::: tunit ==> tunit :=
-      (if Bernoulli pr
+      (if Bern (Const pr [| 0%R |])
        then ()
        else # "l" @ ())
     in # "l" @ () ].
@@ -555,20 +556,20 @@ Definition ex_almost_loop (pr : prob R) :
 (** Its lambda body, in the extended context
     [("l", tfun tunit tunit) :: nil]. *)
 Definition ex_almost_loop_body (pr : prob R) :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("l"%string, tfun tunit tunit) :: nil)
       (tfun tunit tunit) :=
   [ \ "_" ::: tunit =>
-      (if Bernoulli pr
+      (if Bern (Const pr [| 0%R |])
        then ()
        else # "l" @ ()) ].
 
 End RecExamples.
 
-Arguments ex_geom {R Ar R_obj}.
-Arguments ex_geom_body {R Ar R_obj}.
-Arguments ex_almost_loop {R Ar R_obj} pr.
-Arguments ex_almost_loop_body {R Ar R_obj} pr.
+Arguments ex_geom {R Ar P}.
+Arguments ex_geom_body {R Ar P}.
+Arguments ex_almost_loop {R Ar P} pr.
+Arguments ex_almost_loop_body {R Ar P} pr.
 
 (** ** Example — [ex_even_odd] — mutual recursion at a product of functions
 
@@ -1219,12 +1220,6 @@ Definition ex_fair_coin_cbv :=
 Definition ex_if_demo_cbv :=
   eDv (ex_if_demo : @named_expr R Ar R_obj nil tbool).
 
-Definition ex_geom_cbv :=
-  eDv (ex_geom : @named_expr R Ar R_obj nil (tR R_obj)).
-
-Definition ex_almost_loop_cbv (pr : prob R) :=
-  eDv (ex_almost_loop pr).
-
 (** The mutual-recursion smoke test: [ne_fix_mr] at a PRODUCT of
     function types elaborates through the genuine Seely-transported
     [fix_mr_comb] path of [fix_mr_clause]. *)
@@ -1301,6 +1296,33 @@ Definition ex_surface_walk_cbv :=
   eDv (ex_surface_walk : @named_expr R Ar R_obj nil (tR R_obj)).
 
 End CBVDenotations.
+
+(** ** CBV denotations for the [probObj]-parameterised recursive examples
+
+    [ex_geom] / [ex_almost_loop] are now defined over a bundled
+    [P : probObj Ar] (their fair / parameterised coin is the clean
+    [tProb] constant value-coin [Bern (Const pr [|0|])]); their CBV
+    pins therefore live over [po_robj P], with the carrier casts read
+    from the bundle ([po_robj_eq P] / [po_robj_meas P]). *)
+Section RecCBVDenotations.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (P : probObj Ar).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier (po_robj_eq P)).
+
+Local Notation eDvP M :=
+  (@eD R Ar (po_robj P) (po_robj_eq P) (po_robj_meas P) R_to_carrier_meas _ _ M).
+
+Definition ex_geom_cbv :=
+  eDvP (ex_geom : @named_expr R Ar (po_robj P) nil (tR (po_robj P))).
+
+Definition ex_almost_loop_cbv (pr : prob R) :=
+  eDvP (ex_almost_loop pr).
+
+End RecCBVDenotations.
+
+Arguments ex_geom_cbv {R Ar} P R_to_carrier_meas.
+Arguments ex_almost_loop_cbv {R Ar} P R_to_carrier_meas pr.
 
 (** ** Example — [ex_tprob_demo] — the clean [tProb] surface end-to-end
        (STAGE T1, ADDITIVE smoke test — the CANONICAL [probObj] ACCEPTANCE
