@@ -33,17 +33,19 @@ same surface programs is preserved on the `cbn-track` branch; main is
 CBV-only.
 
 The surface layer the programs are written in — the constant coin
-`Bernoulli [| p |]` over a real literal, the value coin `Bern e` and
-the score `Sc e` over the probability type `tProb`, the
-`tProb`-producing primitives `Sigmoid e` / `Gausslik { s , y } e` /
-`Gt0 e` / `ToProb { φ } e` / `Const pr e`, the Bayesian-conditioning
-operator `observe Gaussian { s , y } e ≡ Sc (Gausslik { s , y } e)`,
+`Bernoulli [| p |]` over a real literal, the value coin `Bernoulli e`
+and the score `Score e` over the probability type `tProb`, the
+`tProb`-producing primitives `Sigmoid e` / `Gausslik e { s , y }` /
+`Gt0 e` / `Density d e` / `Const pr e`, the Bayesian-conditioning
+operator `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`,
 measurable function application `Meas { f , Hf } e`, bundled
 distributions `sample m`, the runtime-parameter forms
 `Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )`, the comparison coin
 `e1 > e2`, OCaml-style `let rec`, and the `Condition { d } M` form —
-where `Sigmoid`, `Gausslik`, `Gt0`, `ToProb`, `Const` and `InclP` push
-a real value into (or read it back from) the probability type `tProb` —
+where `Sigmoid`, `Gausslik`, `Gt0`, `Density` (the user-density coin,
+folding the `po_into` factoring of a bundled `d : udensity` into
+`pdensity`) and `Const` push a real value into the probability type
+`tProb` (and `InclP` reads it back) —
 is documented in
 [the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html)
 and demoed end to end by `ex_surface_demo` / `ex_surface_walk`
@@ -232,7 +234,7 @@ programs exactly.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_score_posterior`) | `let m := sample µ in let _ := Sc (ToProb {sp_phi} #"m") in #"m"` of type `tR` — sample, score the parameter through the `tProb` factoring `sp_phi := po_into d` of the bundled density `d : udensity` (`f := ud_f d`), return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
+| Def (`ex_score_posterior`) | `let m := sample µ in let _ := Score (Density d #"m") in #"m"` of type `tR` — sample, score the parameter by the bundled density coin `Density d` of the bundled density `d : udensity` (`f := ud_f d`), return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
 | Thm (`ex_score_posterior_cbv_E`) | The denotation's measure of every measurable `U` is `∫_U f dµ` — the prior reweighted by the density, not normalised. | `ex_score_posterior_cbv_E` — `theories/programs/infra/cbv_marginals.v` |
 | Cor (`ex_score_posterior_cbv_mass`) | The total mass of the denotation is the evidence `∫ f dµ`. | `ex_score_posterior_cbv_mass` — same file |
 
@@ -241,7 +243,7 @@ programs exactly.
 Definition ex_score_posterior :
     @named_expr R Ar (po_robj P) nil tR' :=
   [ let "m" := sample m in
-    let "_" := Sc (ToProb {sp_phi} # "m") in
+    let "_" := Score (Density d # "m") in
     # "m" ].
 ```
 
@@ -293,8 +295,9 @@ density is the envelope-normalised Gaussian likelihood
 `obs_d o := gauss_obs_density (1/2) (obs_y o)`, i.e.
 `obs_d o r = normal_pdf r (1/2) (obs_y o) / normal_peak (1/2) ∈ [0,1]`
 (`theories/programs/ppl.v`) — the surface form is the
-`observe Gaussian { 1/2 , obs_y o } ≡ Sc (Gausslik { 1/2 , obs_y o })`
-operator. The peak is intrinsic to the distribution, so the
+`observe Gaussian (#"f" @ [|obs_x o|]) { 1/2 } (obs_y o) ≡ Score (Gausslik (#"f" @ [|obs_x o|]) { 1/2 , obs_y o })`
+operator (mean expression first, then `{ stddev }`, then the observed
+datum). The peak is intrinsic to the distribution, so the
 observation carries no user-supplied envelope.
 Conditioning is a score: the model's value `#"f" @ [|obs_x o|]` at the
 known input is scored by `obs_d o`. The program samples the model
@@ -347,10 +350,10 @@ Proof. by []. Qed.
 [ let "f" := (let "m" := sample m in
               let "b" := sample m in
               \ "x" ::: tR' => # "m" * # "x" + # "b") in
-  let "_" := Sc (Gausslik { 1 / 2 , obs_y o1 }
-                      (# "f" @ [| obs_x o1 |])) in
-  let "_" := Sc (Gausslik { 1 / 2 , obs_y o2 }
-                      (# "f" @ [| obs_x o2 |])) in
+  let "_" := observe Gaussian (# "f" @ [| obs_x o1 |])
+                      { 1 / 2 } (obs_y o1) in
+  let "_" := observe Gaussian (# "f" @ [| obs_x o2 |])
+                      { 1 / 2 } (obs_y o2) in
   # "f" ]
 ```
 
@@ -582,7 +585,7 @@ norm-one element of the one-dimensional unit cone is `one1`
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_almost_loop`) | `let rec l _ = if Bern (Const pr [|0|]) then () else l () in l ()` of type `tunit`. The parameter is a bundled probability `pr : prob`; `Const pr` is the constant `tProb`-value coin carrying its `[0,1]` bounds, so the program needs no loose witnesses. | `ex_almost_loop` — `theories/programs/examples.v` |
+| Def (`ex_almost_loop`) | `let rec l _ = if Bernoulli (Const pr [|0|]) then () else l () in l ()` of type `tunit`. The parameter is a bundled probability `pr : prob`; `Const pr` is the constant `tProb`-value coin carrying its `[0,1]` bounds, so the program needs no loose witnesses. | `ex_almost_loop` — `theories/programs/examples.v` |
 | Thm (`ex_almost_loop_cbv_mass_one`) | For every `p > 0` the denotation has norm one: almost-sure termination. | `ex_almost_loop_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
 | Thm (`ex_almost_loop_cbv_dirac`) | For every `p > 0` the denotation IS the unit point `one1` (the Dirac on the one-point space), strengthening the norm identity to the element. | `ex_almost_loop_cbv_dirac` — same file |
 | Thm (`ex_almost_loop_cbv_zero`) | At `p = 0` the denotation is the zero point of the unit cone: the loop diverges with probability one. | `ex_almost_loop_cbv_zero` — same file |
@@ -592,7 +595,7 @@ norm-one element of the one-dimensional unit cone is `one1`
 Definition ex_almost_loop (pr : prob R) :
     @named_expr R Ar (po_robj P) nil tunit :=
   [ let rec "l" "_" ::: tunit ==> tunit :=
-      (if Bern (Const pr [| 0%R |])
+      (if Bernoulli (Const pr [| 0%R |])
        then ()
        else # "l" @ ())
     in # "l" @ () ].
@@ -758,7 +761,7 @@ Both combinators are closed programs of type
 `(ta → tR) → (ta → tR)`, for an arbitrary PPL input type `ta`. The
 conditioning operator is a plain double lambda: it takes the model
 `m`, takes the input `a`, runs the model at the input, scores the
-produced value through the `tProb` factoring `cc_phi := po_into d` of
+produced value by the bundled density coin `Score (Density d #"x")` of
 the bundled likelihood `d : udensity` (writing `f := ud_f d`), and
 returns the value — the score-and-return tail of `ex_score_posterior`
 with a model application in place of the hard-coded `sample µ`.
@@ -770,15 +773,14 @@ Definition ex_condition_comb :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Sc (ToProb {cc_phi} # "x") in
+         let "_" := Score (Density d # "x") in
          # "x") ].
 ```
 
 The rejection sampler wraps the same propose step in a recursion: it
 runs the model, accepts the candidate `x` with probability `f(x)`
-(the value coin `Bern (ToProb {rc_phi} #"x")` through the `tProb`
-factoring `rc_phi := po_into d` of the bundled density `d : udensity`,
-`f := ud_f d`), and on
+(the value coin `Bernoulli (Density d #"x")` over the bundled density
+`d : udensity`, `f := ud_f d`), and on
 rejection recurses at the *same* model and the *same* input — the
 recursive call re-runs `m a`, drawing a fresh candidate. The
 recursion binder `fix "rs"` sits at the function type
@@ -794,7 +796,7 @@ Definition ex_reject_comb :
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bern (ToProb {rc_phi} # "x")
+           if Bernoulli (Density d # "x")
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 ```
@@ -813,9 +815,9 @@ Definition ex_condition (M : @named_expr R Ar (po_robj P) nil (tfun ta tR')) :
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_condition_comb`) | `condition = λm. λa. let x = m a in let _ = Sc (ToProb {po_into d} x) in x` of type `(ta → tR) → (ta → tR)` — run the model at the input, weigh the trace by the bundled likelihood `d : udensity` (`f := ud_f d`) of the produced value through the `tProb` factoring, return the value. | `ex_condition_comb`, `ex_condition_comb_cbv` — `theories/programs/examples.v` |
+| Def (`ex_condition_comb`) | `condition = λm. λa. let x = m a in let _ = Score (Density d x) in x` of type `(ta → tR) → (ta → tR)` — run the model at the input, weigh the trace by the bundled likelihood `d : udensity` (`f := ud_f d`) of the produced value through the `Density d` coin, return the value. | `ex_condition_comb`, `ex_condition_comb_cbv` — `theories/programs/examples.v` |
 | Def (`ex_condition`) | The applied form `condition M f` and its surface notation `Condition { d } M`. | `ex_condition`, `ex_condition_cbv` — same file |
-| Def (`ex_reject_comb`) | `fix rs = λm. λa. let x = m a in if Bern (ToProb {po_into d} x) then x else rs m a` of the same type — run the model at the input, accept with probability `f x = ud_f d x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
+| Def (`ex_reject_comb`) | `fix rs = λm. λa. let x = m a in if Bernoulli (Density d x) then x else rs m a` of the same type — run the model at the input, accept with probability `f x = ud_f d x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
 
 The theorems below quantify over the model value and the input
 value: the model argument is the promoted point `g!` of an arbitrary
@@ -1064,8 +1066,8 @@ unit-mass prior recovers textbook rejection sampling against a
 prior: `ν_M = µ`, `m₀ = 1`, and the master identity specialises to
 the classical `∫f dµ · ν(U) = ∫_U f dµ`. The standalone program
 `ex_reject` — sample from the prior, accept with probability `f(x)`
-(the value coin `Bern (ToProb {rj_phi} #"x")` at the acceptance
-factoring `rj_phi := po_into d`), recurse on rejection through an
+(the value coin `Bernoulli (Density d #"x")` over the bundled
+acceptance density `d : udensity`), recurse on rejection through an
 explicit acceptance continuation — was proved first and is kept as a
 regression anchor; its theorems are proved directly in
 `theories/programs/ex_reject_headline.v`.
@@ -1077,7 +1079,7 @@ normalises exactly the score program's unnormalised posterior.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_reject`) | `let rec rs accept = let x = sample µ in if Bern (ToProb {po_into d} x) then accept x else rs accept in rs (λy. y)` of type `tR` — the standalone sampler at the bundled acceptance density `d : udensity` (`f := ud_f d`), accepting through the `tProb` factoring, abstracted over an acceptance continuation. | `ex_reject`, `ex_reject_cbv`, `ex_sampler` — `theories/programs/examples.v` |
+| Def (`ex_reject`) | `let rec rs accept = let x = sample µ in if Bernoulli (Density d x) then accept x else rs accept in rs (λy. y)` of type `tR` — the standalone sampler at the bundled acceptance density `d : udensity` (`f := ud_f d`), accepting through the `Density d` coin, abstracted over an acceptance continuation. | `ex_reject`, `ex_reject_cbv`, `ex_sampler` — `theories/programs/examples.v` |
 | Thm (`ex_reject_master`) | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v` |
 | Thm (`ex_reject_is_normalised_posterior`) | If `0 < ∫f dµ` then `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the normalised posterior of the prior `µ` given the soft predicate `f`; `ν(setT) = 1` (`ex_reject_mass_one`); at `∫f dµ = 1` no normalisation is needed (`ex_reject_posterior_simple`); at `f ≡ 0` the denotation is the zero measure (`ex_reject_zero`). | `ex_reject_is_normalised_posterior`, `ex_reject_posterior_simple`, `ex_reject_mass_one`, `ex_reject_zero` — same file |
 | Thm (`ex_reject_comb_sampler_E`) | The combinator applied to the sampler model `λ_. sample µ` at the unit input denotes the same measure as `ex_reject`; the master identity re-derived through the bridge is `ex_reject_comb_sampler_master`. | `ex_reject_comb_sampler_E`, `ex_reject_comb_sampler_master` — `theories/programs/ex_reject_model.v` |
@@ -1088,7 +1090,7 @@ normalises exactly the score program's unnormalised posterior.
 Definition ex_reject : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bern (ToProb {rj_phi} # "x")
+       if Bernoulli (Density d # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].

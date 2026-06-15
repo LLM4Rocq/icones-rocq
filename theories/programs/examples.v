@@ -29,8 +29,8 @@
     ** Higher-order Bayesian linear regression — ITERATED CONDITIONING
     - [ex_bayes_linear l]    : sample a FUNCTION [λx. s·x+b]
       (slope [s] and intercept [b] from the prior), then for each
-      Gaussian observation [o ∈ l] [observe Gaussian{1/2, obs_y o}]
-      the model's prediction [(# "f" @ obs_x o)] in turn
+      Gaussian observation [o ∈ l]
+      [observe Gaussian (# "f" @ obs_x o) {1/2} (obs_y o)] in turn
       ([iter_condition]) and return the function — the posterior over
       functions (arXiv 1701.02547 §2.1 shape); 3-observation instance
       [ex_bayes_linear3]; the raw observe-fold shape is the derived
@@ -261,8 +261,8 @@ Variable (R : realType).
     observation scores the model's value [r] at the input by the
     ENVELOPE-NORMALISED Gaussian likelihood of the datum, [obs_d o r =
     gauss_obs_density (1/2) obs_y r = normal_pdf r (1/2) obs_y /
-    normal_peak (1/2) ∈ [0,1]] ([ppl.v]) — the [observe Gaussian{1/2,
-    obs_y}] surface form.  The [[0,1]] bound is intrinsic to the
+    normal_peak (1/2) ∈ [0,1]] ([ppl.v]) — the
+    [observe Gaussian r {1/2} obs_y] surface form.  The [[0,1]] bound is intrinsic to the
     distribution (the peak is bundled in [gauss_obs_density]); no clamp
     and no user-supplied envelope are needed.  The derived projections
     [obs_d]/[obs_meas]/[obs_ge0]/[obs_le1] expose the score-density
@@ -274,7 +274,7 @@ Record obs := MkObs {
 Definition obs_d (o : obs) : R -> R := gauss_obs_density (1 / 2) (obs_y o).
 
 (** The score-density witnesses, TRANSPARENT (definitionally the bundled
-    Gaussian witnesses) so the [observe Gaussian e {·,·}] surface form — the
+    Gaussian witnesses) so the [observe Gaussian e {σ} y] surface form — the
     general operator [pobserve (obsGaussian e σ) y] — and the
     [condition_at]/[obs_fold] folds elaborate to the SAME [ne_score]. *)
 Definition obs_meas (o : obs) : measurable_fun [set: R] (obs_d o) :=
@@ -320,13 +320,14 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of one observation's Gaussian likelihood
     [obs_d o] into the probability object, the clean [tProb]-score map
-    behind [observe Gaussian (#"f" @ [|obs_x o|]) {1/2, obs_y o}] — i.e.
+    behind [observe Gaussian (#"f" @ [|obs_x o|]) {1/2} (obs_y o)] — i.e.
     the general operator [pobserve (obsGaussian (#"f" @ [|obs_x o|]) (1/2))
     (obs_y o)] (see [ppl.v]'s [obsDist]/[pobserve]/[obsGaussian]). *)
 Local Notation obs_phi o :=
   (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)).
 
-(** One observation-conditioning step: [observe Gaussian{1/2, obs_y o}]
+(** One observation-conditioning step:
+    [observe Gaussian (#"f" @ obs_x o) {1/2} (obs_y o)] —
     the model's prediction at the input point [obs_x o], then continue
     with [K].  [v] locates the model in the context.  The step scores
     the model's value through the clean [tProb] score [Score]: push the
@@ -381,7 +382,7 @@ Definition ex_bayes_linear (l : seq (obs R)) :
 
 (** The raw observation fold — the historical shape of the program:
     for each [o] in [l], score the model's value at [obs_x o] through
-    the clean [tProb] score [Score (Gausslik{·} ·)]; when the list is
+    the clean [tProb] score [Score (Gausslik · {·,·})]; when the list is
     exhausted, return the model. *)
 Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
     (l : seq (obs R)) : @named_expr R Ar (po_robj P) G (tfun tR' tR') :=

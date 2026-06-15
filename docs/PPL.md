@@ -49,7 +49,8 @@ and the derived readable forms on top of it.
 | Variable lookup via canonical structures | `tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'` — same file |
 | Surface notation `[ … ]` and the `ppl_named` custom entry | `ppl_named` (custom entry) — same file |
 | The probability type and its bundle (`tProb`, `probObj`, `tProb_robj`) | `probObj`, `po_obj`, `po_incl`, `po_into`, `tProb`, `po_density` — same file |
-| Probability surface forms (`Bern`, `Bernoulli [\|p\|]`, `Sc`, `Sigmoid`, `Gausslik`, `Gt0`, `ToProb`, `Const`, `InclP`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `pbern`, `pscore`, `psigmoid`, `pgausslik`, `pgt0`, `pconst`, `pincl`, `bern_lift_P`, `score_lift_P`, `sigmoid`, `gauss_obs_density`, `gt0_ind`, `negr`, `prob`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
+| Probability surface forms (`Bernoulli`, `Bernoulli [\|p\|]`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `Density`, `Const`, `InclP`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `pbern`, `pscore`, `psigmoid`, `pgausslik`, `pgt0`, `pdensity`, `pconst`, `pincl`, `bern_lift_P`, `score_lift_P`, `sigmoid`, `gauss_obs_density`, `gt0_ind`, `negr`, `prob`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
+| The `observe` operator and its distribution bundle | `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `pobserve_obsGaussian`, `Density`, `pdensity` — same file |
 
 ### Types and contexts (`ppl_type`, `named_ctx`)
 
@@ -200,20 +201,23 @@ The readable surface (the [probability surface
 section](../../ppl/sections/ppl-sec-the-probability-type-and-the-tprob-surface.html))
 is then witness-free: the constant coin `Bernoulli [| p |]` takes a
 bare real literal `p : R`, its `[0,1]` bounds discharged by `lra`; the
-value-dependent coin `Bern e` and the score `Sc e` read their success
-probability / weight off the `tProb`-typed value `e` through the
-bundle density `po_density P`; the `tProb`-producing primitives
-`Sigmoid e` / `Gausslik { s , y } e` / `Gt0 e` push a real value
-through a named `R → [0,1]` map into `tProb`, and `ToProb { φ } e`
-does so through an arbitrary `[0,1]` map `φ`. The comparison coin
-`e1 > e2` desugars to `Bern (Gt0 (e1 + Meas{negr} e2))` at the
+value-dependent coin `Bernoulli e` and the score `Score e` read their
+success probability / weight off the `tProb`-typed value `e` through
+the bundle density `po_density P`; the `tProb`-producing primitives
+`Sigmoid e` / `Gausslik e { s , y }` / `Gt0 e` push a real value
+through a named `R → [0,1]` map into `tProb`, and the user-density
+coin `Density d e` (`pdensity`) pushes through the bundled density
+`d : udensity` — folding the universal factoring `po_into (ud_f d)`
+into a single witness-free wrapper. The comparison coin
+`e1 > e2` desugars to `Bernoulli (Gt0 (e1 + Meas{negr} e2))` at the
 strict-positivity indicator `gt0_ind`. The Bayesian-conditioning
-operator `observe Gaussian { s , y } e ≡ Sc (Gausslik { s , y } e)`
-scores by the envelope-normalised Gaussian likelihood
-`gauss_obs_density s y` (denotation `observe_gauss_E`). See [the
+operator `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`
+(= `pobserve (obsGaussian e s) y`) scores by the envelope-normalised
+Gaussian likelihood `gauss_obs_density s y` (denotation
+`observe_gauss_E`). See [the
 probability type and the `tProb`
 surface](../../ppl/sections/ppl-sec-the-probability-type-and-the-tprob-surface.html)
-for the bundle and the surface forms. The same value coin `Bern`
+for the bundle and the surface forms. The same value coin `Bernoulli`
 is the accept/reject test of `examples.v::ex_reject`.
 
 ### Measurable function application (`ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass`)
@@ -458,7 +462,7 @@ Direct-style: no `Ret` notation; `let "x" := M in N` desugars to
 `ne_let` (not `ne_bind`). Brackets `[ … ]` enter the entry; curly
 braces `{ x }` escape back to plain Rocq.
 
-### The probability type and the `tProb` surface (`probObj`, `tProb`, `po_into`, `po_density`, `Bern`, `Bernoulli`, `Sc`, `Sigmoid`, `Gausslik`, `Gt0`, `ToProb`, `Const`, `InclP`, `observe`, `observe_gauss_E`)
+### The probability type and the `tProb` surface (`probObj`, `tProb`, `po_into`, `po_density`, `Bernoulli`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `Density`, `pdensity`, `Const`, `InclP`, `observe`, `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `observe_gauss_E`)
 
 The `[0,1]` discipline of coins and scores is carried by a **type**.
 A single bundle `probObj` packages the `[0,1]` sub-object the surface
@@ -491,16 +495,18 @@ Definition tProb (P : probObj Ar) : ppl_type Ar := tbase (po_obj P).
 Notation "'Meas' '{' f ',' Hf '}' e" := (ne_meas f Hf e) (* … *).
 Notation "'Bernoulli' '[|' p '|]'" :=
   (ne_bernoulli p (* [0 <= p] and [p <= 1] discharged by lra *)) (* … *).
-Notation "'Bern' e"   := (pbern e)   (* … *).
-Notation "'Sc' e"     := (pscore e)  (* … *).
+Notation "'Bernoulli' e" := (pbern e)   (* … value-dependent coin *).
+Notation "'Score' e"     := (pscore e)  (* … *).
 Notation "'Sigmoid' e" := (psigmoid e) (* … *).
-Notation "'Gausslik' '{' s ',' y '}' e" := (pgausslik s y e) (* … *).
+Notation "'Gausslik' e '{' s ',' y '}'" := (pgausslik s y e) (* mean-first *).
 Notation "'Gt0' e"    := (pgt0 e)    (* … *).
-Notation "'ToProb' '{' phi '}' e" := (ne_to_prob phi e) (* … *).
+Notation "'Density' d e" := (pdensity d e) (* user-density coin *).
 Notation "'Const' pr e" := (pconst pr e) (* … *).
 Notation "'InclP' e"  := (pincl e)   (* … *).
+Notation "'observe' 'Gaussian' e '{' s '}' y" :=
+  (pobserve (obsGaussian e s) y) (* … *).
 Notation "'sample' m" := (ne_sample (pm_meas m) (pm_ball m)) (* … *).
-Notation "M > N"      := (Bern (Gt0 (ne_add M (ne_meas negr negr_meas N)))) (* … *).
+Notation "M > N"      := (Bernoulli (Gt0 (ne_add M (ne_meas negr negr_meas N)))) (* … *).
 Notation "'let' 'rec' f x ':=' M 'in' K" :=
   (ne_let f%string (ne_fix f%string (ne_lam x%string M)) K) (* … *).
 ```
@@ -515,46 +521,62 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
   the two lifts `bern_lift_P` / `score_lift_P` at the base object
   `po_obj` (see [the lifts at an arbitrary base
   object](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html)).
-- **The value coin `Bern e` and the score `Sc e`** read their success
-  probability / weight off the `tProb P`-typed sub-expression `e`
-  through `po_density P`: `Bern e` flips with that probability, `Sc e`
-  weighs the trace by it. The bundle `P` is inferred from `e`'s type —
-  e.g. `Bern (Sigmoid #"x")`, `Sc (Gausslik { 1 / 2 , y } e)`.
+- **The value coin `Bernoulli e` and the score `Score e`** read their
+  success probability / weight off the `tProb P`-typed sub-expression
+  `e` through `po_density P`: `Bernoulli e` flips with that probability,
+  `Score e` weighs the trace by it. The bundle `P` is inferred from
+  `e`'s type — e.g. `Bernoulli (Sigmoid #"x")`,
+  `Score (Gausslik e { 1 / 2 , y })`.
 - **The constant coin `Bernoulli [| p |]`** takes a bare real literal
   `p : R`; its `[0,1]` bounds are discharged automatically by `lra`. No
   bundle, no loose witness — the fair coin is `Bernoulli [| (1/2 : R) |]`.
 - **The `tProb`-producing primitives.** `Sigmoid e` pushes a real value
-  through the logistic map `sigmoid : R → [0,1]`; `Gausslik { s , y } e`
+  through the logistic map `sigmoid : R → [0,1]`; `Gausslik e { s , y }`
   through the envelope-normalised Gaussian likelihood
-  `gauss_obs_density s y`; `Gt0 e` through the strict-positivity
-  indicator `gt0_ind = \1_(0,∞)`. Each returns `tProb P` and is built
-  by feeding the underlying `[0,1]` map (whose measurability and bounds
-  already exist) into the bundle factoring `po_into`. `ToProb { φ } e`
-  is the general form: push the value through an arbitrary `[0,1]` map
-  `φ : tbase X → tProb P` — the object-language workhorse behind every
-  `tProb`-producing primitive. `Const pr e` is the constant-literal
-  `tProb`-map at the bundled probability `pr : prob` (used by the
-  parameterised `ex_almost_loop`). `InclP e` is the forgetful read of a
-  `tProb P` value back to `tR` along the inclusion `ι`.
-- **The `observe` operator — `observe Gaussian { s , y } e ≡
-  Sc (Gausslik { s , y } e)`.** Bayesian conditioning: score the trace
-  by the likelihood of the datum `y` under `N(value(e), s)`, normalised
-  by the distribution's intrinsic peak so the weight is a legal `[0,1]`
-  density. The deviation `s` and datum `y` are Rocq-level constrs (the
-  brace group); the predicted MEAN is the surface sub-expression `e`
-  (e.g. a regression prediction `m·x + b`). It pushes `e` through the
-  bundle factoring of `gauss_obs_density s y = (fun μ ⇒ normal_pdf μ s y
-  / normal_peak s)`, whose `[0,1]` proofs already exist; there is no
-  user-supplied envelope — the peak `normal_peak s` is intrinsic. The
-  denotation lemma is `observe_gauss_E` (`theories/programs/ppl_cbv.v`):
-  at a setlike Dirac environment the trace is weighted by
-  `normal_pdf μ s y / normal_peak s` at the runtime mean `μ`.
+  `gauss_obs_density s y` (mean expression `e` first, then the
+  meta-level `{ stddev , datum }` braces); `Gt0 e` through the
+  strict-positivity indicator `gt0_ind = \1_(0,∞)`. Each returns
+  `tProb P` and is built once, in `ppl.v`, by feeding the underlying
+  `[0,1]` map (whose measurability and bounds already exist) into the
+  bundle factoring `po_into` — the use site never sees `po_into`.
+  `Density d e` (`pdensity`) is the user-density coin: push the value
+  through the bundled density `d : udensity` (its `ud_f`/`ud_meas`/
+  `ud_ge0`/`ud_le1` fields supplying map and proofs), again folding
+  `po_into (ud_f d)` into one witness-free wrapper — so a use site reads
+  `Bernoulli (Density d #"x")` / `Score (Density d #"m")`, the
+  `udensity`-parameterised sibling of `Sigmoid` / `Gausslik`. `Const pr
+  e` is the constant-literal `tProb`-map at the bundled probability
+  `pr : prob` (used by the parameterised `ex_almost_loop`). `InclP e` is
+  the forgetful read of a `tProb P` value back to `tR` along the
+  inclusion `ι`.
+- **The `observe` operator — `observe Gaussian e { s } y ≡
+  Score (Gausslik e { s , y })` (= `pobserve (obsGaussian e s) y`).**
+  `observe` is a general conditioning OPERATOR, not a Gaussian-specific
+  notation. It is `pobserve (D : obsDist) (y : R)` over a
+  distribution-with-density record `obsDist { od_arg ; od_dens ; od_meas
+  ; od_ge0 ; od_le1 }` — `od_arg` is the runtime parameter (the
+  predicted mean), `od_dens point param` the family of `[0,1]`-valued
+  densities; `pobserve D y` scores `od_arg D` by `od_dens D y` through
+  the bundle factoring `po_into`, reusing `pscore`. `obsGaussian e s :
+  obsDist` is the first instance — `od_arg := e`, `od_dens := gauss_obs_density
+  s` — so `pobserve (obsGaussian e s) y = pscore (pgausslik s y e)`
+  definitionally (`pobserve_obsGaussian`). The surface reads mean
+  expression `e` first, then `{ stddev }`, then the trailing observed
+  point `y`. Adding another observable distribution is a new `obsDist`
+  instance plus a one-line sugar; `pobserve` stays fixed. Bayesian
+  conditioning: score the trace by the likelihood of `y` under
+  `N(value(e), s)`, normalised by the distribution's intrinsic peak so
+  the weight is a legal `[0,1]` density — no user-supplied envelope, the
+  peak `normal_peak s` is intrinsic. The denotation lemma is
+  `observe_gauss_E` (`theories/programs/ppl_cbv.v`): at a setlike Dirac
+  environment the trace is weighted by `normal_pdf μ s y / normal_peak
+  s` at the runtime mean `μ`.
 - **Bundled sampling `sample m`** — `pmeas` packages a sub-probability
   with its unit-ball witness; `prob_pmeas` transports any
   mathcomp-analysis probability on `R` to a `pmeas`, giving the named
   distributions `gaussian m s` / `uniform a b`
   (`theories/programs/examples.v`): `let "m" := sample gaussian01 in …`.
-- **The comparison coin `e1 > e2`** — `Bern (Gt0 (e1 + Meas{negr} e2))`
+- **The comparison coin `e1 > e2`** — `Bernoulli (Gt0 (e1 + Meas{negr} e2))`
   at the strict-positivity indicator `gt0_ind` of the difference: on
   point masses the deterministic test `a > b`; on diffuse arguments the
   probability that an independent draw of `e1` exceeds one of `e2`.
@@ -564,8 +586,8 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
   binder type undetermined.
 - **`Condition { d } M`** — the Pyro-style soft conditioning operator
   for a bundled density `d : udensity` applied to a closed model `M`
-  (`examples.v::ex_condition_comb`, internally `Sc (ToProb { po_into d }
-  #"x")`; see the [Examples tab](../examples/) for the conditioning law
+  (`examples.v::ex_condition_comb`, internally `Score (Density d #"x")`;
+  see the [Examples tab](../examples/) for the conditioning law
   and the rejection-sampling equivalence).
 
 The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
@@ -603,8 +625,8 @@ for the score to be a morphism at all.
 The distinction that matters in practice is between *sampling* and
 *observing*. Sampling is always fine: `sample (gaussian m s)`
 denotes a probability measure of mass `1`, a good morphism for every
-`m` and `s`. Observing — scoring by a density, `observe Gaussian {s,y}
-e` weighing the trace by the Gaussian likelihood of `y` — is the
+`m` and `s`. Observing — scoring by a density, `observe Gaussian e {s}
+y` weighing the trace by the Gaussian likelihood of `y` — is the
 constrained operation, a morphism only while the weight stays in
 `[0,1]`. The line that matters is **bounded vs unbounded**.
 
@@ -615,7 +637,7 @@ exactly this. `N(μ, σ)` peaks at its intrinsic peak `normal_peak σ =
 peak is a finite bound, and dividing by it gives the legal weight
 `gauss_obs_density σ y = normal_pdf μ σ y / normal_peak σ ∈ [0,1]` —
 a map into the `[0,1]` object `po_obj P`, factored through the bundle
-inclusion by `po_into`. This is exactly what `Gausslik { σ , y }`
+inclusion by `po_into`. This is exactly what `Gausslik e { σ , y }`
 (hence `observe`) scores by — no user-supplied envelope, the peak is
 intrinsic to the distribution. The normaliser cancels in the posterior: the
 conditioned distribution `∫_U f dν / ∫ f dν` is independent of any
@@ -984,8 +1006,8 @@ object — the `[0,1]` object `po_obj P` of a bundle `P : probObj` — not
 just at `R_obj`. `bern_lift_P P` and `score_lift_P P` instantiate the
 path route at `X := po_obj P` with the carrier density `po_density P`
 and the bundle's `[0,1]` witnesses (`po_ge0` / `po_le1`), with no
-`R_to_carrier` round trip: `bern_lift_P` is the engine behind `Bern e`,
-`score_lift_P` behind `Sc e`. The Dirac and mass laws transport
+`R_to_carrier` round trip: `bern_lift_P` is the engine behind `Bernoulli e`,
+`score_lift_P` behind `Score e`. The Dirac and mass laws transport
 verbatim (`bern_lift_P_dirac`, `score_lift_P_dirac`).
 
 ```coq
@@ -2139,8 +2161,9 @@ soft conditioning combinator `condition`
 (`examples.v::ex_condition_comb`, surface form `Condition { d } M`)
 takes a bundled likelihood `d : udensity` and a model `m : ta → tR`,
 and returns the conditioned model
-`λa. let x = m a in let _ = Sc (ToProb { po_into d } x) in x`
-(writing `f := ud_f d`, the `[0,1]` likelihood factored into `tProb`).
+`λa. let x = m a in let _ = Score (Density d x) in x`
+(writing `f := ud_f d`, the `[0,1]` likelihood the `Density d` coin
+folds into `tProb`).
 The conditioning law (Section ConditionModel of
 `theories/programs/ex_reject_model.v`) states that at a unit-ball
 model value `g!` and a setlike unit-ball input `a₀`, writing
