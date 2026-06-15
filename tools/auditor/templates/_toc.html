@@ -63,7 +63,12 @@
 
 {%- macro toc_sidebar() -%}
 <nav class="toc-sidebar" id="toc-sidebar" aria-label="Table of contents">
-  <details class="toc-mobile" id="toc-mobile">
+  {# Open by default so the tree is genuinely laid out: on desktop the
+     summary is hidden (the rail just shows the tree); on mobile the visible
+     "Contents" toggle collapses it. A *closed* <details> hides its content
+     at the element level, which a child `display` override cannot reliably
+     un-hide — so the wrapper must start open, not rely on that override. #}
+  <details class="toc-mobile" id="toc-mobile" open>
     <summary class="toc-mobile-toggle">Contents</summary>
     <div class="toc-scroll">
       <p class="toc-heading">Contents</p>
