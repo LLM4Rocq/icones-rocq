@@ -190,36 +190,43 @@ Arguments ex_random_linear {R Ar R_obj} m.
 
 Section ScorePosterior.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
-Variable (m : pmeas Ar R_obj).
+Variable (m : pmeas Ar (po_robj P)).
 
 (** The soft-conditioning density as a BUNDLED [[0,1]] record — no
     loose witnesses. *)
 Variable (d : udensity R).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
+
+(** The bundle factoring of the soft [[0,1]] density [d] into the
+    probability object [po_obj P]. *)
+Local Notation sp_phi :=
+  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
 (** The PPL term:
-    [let "m" := sample m in let "_" := Score d #"m" in #"m"].  The
-    [[0,1]] density is bundled in [d] — no clamp, no loose
-    witnesses. *)
+    [let "m" := sample m in let "_" := Sc (ToProb d #"m") in #"m"].
+    The clean [tProb] score [Sc] weighs by [po_density P] of the
+    factored value, which [po_into_E] reads back as [ud_f d] of the
+    sampled real — the same soft-evidence weight as the legacy
+    [Score d #"m"]. *)
 Definition ex_score_posterior :
-    @named_expr R Ar R_obj nil tR' :=
+    @named_expr R Ar (po_robj P) nil tR' :=
   [ let "m" := sample m in
-    let "_" := Score d # "m" in
+    let "_" := Sc (ToProb {sp_phi} # "m") in
     # "m" ].
 
 (** The continuation under the prior bind. *)
 Definition ex_sp_cont :
-    @named_expr R Ar R_obj (("m"%string, tR') :: nil) tR' :=
-  [ let "_" := Score d # "m" in
+    @named_expr R Ar (po_robj P) (("m"%string, tR') :: nil) tR' :=
+  [ let "_" := Sc (ToProb {sp_phi} # "m") in
     # "m" ].
 
 End ScorePosterior.
 
-Arguments ex_sp_cont {R Ar R_obj} d.
-Arguments ex_score_posterior {R Ar R_obj} m d.
+Arguments ex_sp_cont {R Ar P} d.
+Arguments ex_score_posterior {R Ar P} m d.
 
 (** ** Example — [ex_bayes_linear] — higher-order Bayesian linear regression
 
@@ -1191,11 +1198,6 @@ Definition ex_random_constant_cbv (m : pmeas Ar R_obj) :=
 Definition ex_random_linear_cbv (m : pmeas Ar R_obj) :=
   eDv (ex_random_linear m).
 
-Definition ex_score_posterior_cbv
-    (m : pmeas Ar R_obj)
-    (d : udensity R) :=
-  eDv (ex_score_posterior m d).
-
 (** The Bayesian-linear-regression elaboration smoke test.  The shared
     ["f"] is consulted once per observation AND returned at the end:
     every access goes through the comonoid duplication [coalg_d] of the
@@ -1319,10 +1321,16 @@ Definition ex_geom_cbv :=
 Definition ex_almost_loop_cbv (pr : prob R) :=
   eDvP (ex_almost_loop pr).
 
+Definition ex_score_posterior_cbv
+    (m : pmeas Ar (po_robj P))
+    (d : udensity R) :=
+  eDvP (ex_score_posterior m d).
+
 End RecCBVDenotations.
 
 Arguments ex_geom_cbv {R Ar} P R_to_carrier_meas.
 Arguments ex_almost_loop_cbv {R Ar} P R_to_carrier_meas pr.
+Arguments ex_score_posterior_cbv {R Ar} P R_to_carrier_meas m d.
 
 (** ** Example — [ex_tprob_demo] — the clean [tProb] surface end-to-end
        (STAGE T1, ADDITIVE smoke test — the CANONICAL [probObj] ACCEPTANCE

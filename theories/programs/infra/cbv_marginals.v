@@ -270,12 +270,11 @@ Arguments one_dirac_setlike {R Ar R_obj} r.
 
 Section ScorePosterior.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+(* Reparameterized over the bundled [probObj]. *)
+Variable (P : probObj Ar).
+Local Notation R_obj := (po_robj P).
+Local Notation R_carrier_eq := (po_robj_eq P).
+Local Notation R_carrier_meas := (po_robj_meas P).
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
@@ -291,6 +290,10 @@ Local Notation f := (ud_f d).
 Local Notation Hf_meas := (ud_meas d).
 Local Notation Hf_ge0 := (ud_ge0 d).
 Local Notation Hf_le1 := (ud_le1 d).
+
+(** The bundle factoring of [d] into the probability object, the
+    clean-surface [tProb]-score map behind [Sc (ToProb d #"m")]. *)
+Local Notation sp_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -319,9 +322,15 @@ Definition sp_body :
       (("_"%string, tunit) :: ("m"%string, tR') :: nil) tR' :=
   [ # "m" ].
 
+(** The clean [tProb]-score node: weigh by [po_density P] of the
+    factored value [ToProb sp_phi #"m"]. *)
+Local Notation sp_score :=
+  (ne_score_p (po_density P) (po_density_meas P) (po_ge0 P) (po_le1 P)
+     (ne_to_prob sp_phi sp_var_m)).
+
 Lemma ex_sp_cont_decomp :
   ex_sp_cont d =
-  ne_let "_" (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m) sp_body.
+  ne_let "_" sp_score sp_body.
 Proof. by []. Qed.
 
 Lemma ex_score_posterior_decomp :
@@ -349,17 +358,23 @@ Qed.
     [ne_score] node desugared directly — no clamp transport — then
     [score_lift_dirac]). *)
 Lemma sp_score_E (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
+  Lfun (eD_cbv' sp_score)
        (one1 ⊗p dirac_fmeas r) =
   MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
 Proof.
-rewrite eD_score_E.
-rewrite (Lfun_comp
-  (score_lift (R_carrier_meas:=R_carrier_meas) Hf_meas Hf_ge0 Hf_le1)
-  (eD_cbv' sp_var_m) (one1 ⊗p dirac_fmeas r)).
-rewrite sp_var_m_E.
-rewrite -{1}(carrier_to_RK R_carrier_eq r).
-by rewrite (score_lift_dirac Hf_meas Hf_ge0 Hf_le1 (cR r)).
+(* Clean-surface score leaf: push the sampled real through the bundle
+   factoring [po_into f] and read off the score scalar with
+   [score_lift_P]; [po_into_E] recovers [f r]. *)
+rewrite eD_score_p_E.
+rewrite -[score_lift_g _ _ _]/(score_lift_P P).
+rewrite (Lfun_comp (score_lift_P P) (eD_cbv' (ne_to_prob sp_phi sp_var_m))
+  (one1 ⊗p dirac_fmeas r)).
+rewrite eD_to_prob_E.
+rewrite (Lfun_comp (FMeas_fmap sp_phi) (eD_cbv' sp_var_m)
+  (one1 ⊗p dirac_fmeas r)).
+rewrite sp_var_m_E FMeas_fmap_dirac score_lift_P_dirac.
+apply: cone_one_eq; apply: val_inj => /=.
+by rewrite /po_density po_into_E.
 Qed.
 
 (** The returned variable under the score binder: the [tunit]-typed
@@ -397,21 +412,21 @@ rewrite (Lfun_comp (eD_cbv' sp_body)
   (em_pair_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
+     (eD_cbv' sp_score))
   (one1 ⊗p dirac_fmeas r)).
 rewrite /em_pair_mor.
 rewrite (Lfun_comp
   (tensor_mor
      (icones_id Ar
         (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-     (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m)))
+     (eD_cbv' sp_score))
   (coalg_d (ctxD_cbv (drop_names (("m"%string, tR') :: nil))))
   (one1 ⊗p dirac_fmeas r)).
 rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (("m"%string, tR') :: nil)))
   (one_dirac_ball r) (one_dirac_setlike r)).
 rewrite (tensor_morE
   (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (("m"%string, tR') :: nil)))))
-  (eD_cbv' (ne_score f Hf_meas Hf_ge0 Hf_le1 sp_var_m))
+  (eD_cbv' sp_score)
   (one1 ⊗p dirac_fmeas r) (one1 ⊗p dirac_fmeas r)).
 by rewrite icones_idE sp_score_E sp_body_at.
 Qed.
@@ -428,8 +443,7 @@ Local Open Scope ereal_scope.
 Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
-    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm d) one1) U =
+    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm d) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 Proof.
 rewrite /ex_score_posterior_cbv ex_score_posterior_decomp.
@@ -447,8 +461,7 @@ Qed.
 (** Mass corollary: the total evidence [∫ f dµ]. *)
 Theorem ex_score_posterior_cbv_mass :
   fmeas_mu
-    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm d) one1)
+    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm d) one1)
     [set: ar_carrier Ar R_obj] =
   \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
 Proof. by apply: ex_score_posterior_cbv_E. Qed.
@@ -464,8 +477,7 @@ Theorem ex_reject_normalises_score
     (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
                    pm d) one1) U =
   fmeas_mu
-    (linhom_fun (ex_score_posterior_cbv R_carrier_meas R_to_carrier_meas
-                   pm d) one1) U.
+    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm d) one1) U.
 Proof.
 rewrite (ex_score_posterior_cbv_E mU).
 exact: (ex_reject_master R_carrier_meas R_to_carrier_meas Hmu1
