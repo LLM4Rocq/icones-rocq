@@ -72,7 +72,7 @@ From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp Require Import lra.
 From mathcomp.classical Require Import boolp classical_sets functions.
-From mathcomp.reals Require Import reals signed constructive_ereal.
+From mathcomp.reals Require Import reals constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
