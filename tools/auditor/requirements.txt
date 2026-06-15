@@ -4,3 +4,8 @@ markdown-it-py>=3.0
 mistune>=3.0
 pygments>=2.18
 pytest>=8.0
+# Static-site search: the build runs the Pagefind indexer over the rendered
+# HTML to populate out/pagefind/.  The [extended] extra pulls the prebuilt
+# pagefind_extended binary.  Optional at runtime — the build degrades
+# gracefully if absent — but required to ship a working search bar.
+pagefind[extended]>=1.5

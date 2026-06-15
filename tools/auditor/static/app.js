@@ -73,9 +73,13 @@
     shell.dataset.loaded = '1';
     const base = (document.documentElement.dataset.pagefindBase || '/pagefind/');
     import(/* webpackIgnore: true */ base + 'pagefind-ui.js').then(({ PagefindUI }) => {
-      // Pagefind CSS is auto-injected by the UI module.
+      // Pagefind CSS is auto-injected by the UI module.  `bundlePath` tells the
+      // UI where the index/fragment files live — it must match the (relative)
+      // base the script was imported from, else the UI defaults to /pagefind/
+      // and 404s on non-root or nested-page hosting (incl. file://).
       new PagefindUI({
         element: '#search',
+        bundlePath: base,
         showImages: false,
         resetStyles: false,
         showSubResults: true,

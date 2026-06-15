@@ -61,6 +61,52 @@ def _build_argparser() -> argparse.ArgumentParser:
     return p
 
 
+def _build_search_index(out_path: Path) -> str | None:
+    """Run the Pagefind indexer over the rendered HTML in ``out_path``.
+
+    Pagefind is a static-site search: it crawls the generated HTML (the main
+    content region is marked ``data-pagefind-body``) and writes a search index
+    plus the UI bundle to ``out_path/pagefind/``.  The page's app.js then loads
+    ``pagefind/pagefind-ui.js`` and initialises the ``#search`` box.
+
+    We use the official ``pagefind`` Python package (a thin wrapper around the
+    Rust ``pagefind_extended`` binary).  If it is not installed, we degrade
+    gracefully: search simply won't appear, and we surface a clear warning
+    rather than failing the build.
+
+    Returns a human-readable warning string if indexing was skipped/failed,
+    else ``None`` on success.
+    """
+    try:
+        import asyncio
+
+        from pagefind.index import PagefindIndex
+    except Exception as exc:  # noqa: BLE001 — any import failure → degrade.
+        return (
+            "Pagefind not available (%s); search index NOT built. "
+            "Install it with `pip install \"pagefind[extended]\"` to enable "
+            "the search bar." % type(exc).__name__
+        )
+
+    async def _run() -> dict:
+        async with PagefindIndex(
+            config={"output_path": str(out_path / "pagefind")}
+        ) as index:
+            return await index.add_directory(str(out_path))
+
+    try:
+        result = asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001 — missing binary, IO, etc.
+        return (
+            "Pagefind indexing failed (%s: %s); search index NOT built."
+            % (type(exc).__name__, exc)
+        )
+
+    pages = result.get("page_count") if isinstance(result, dict) else None
+    print(f"[build_auditor] pagefind: indexed {pages} page(s) → {out_path}/pagefind/")
+    return None
+
+
 def _tab_counts(doc) -> tuple[int, int, dict[str, int]]:
     """Return (entries, files, status_counts) for a single Document."""
     n_entries = sum(len(s.entries) for s in doc.sections) + sum(
@@ -144,6 +190,14 @@ def main(argv: list[str] | None = None) -> int:
     # the top-level metadata, so the footer is consistent across pages.
 
     counts = render(three, out_path, template_dir=args.template_dir)
+
+    # Post-render: build the Pagefind search index over the emitted HTML.
+    # This populates ``out/pagefind/`` (index + UI bundle) that the search
+    # bar loads at runtime.  A missing/broken Pagefind degrades gracefully:
+    # it prints a NOTICE (not a parser warning), so it never fails --strict.
+    search_notice = _build_search_index(out_path)
+    if search_notice:
+        print(f"[build_auditor] NOTICE: {search_notice}", file=sys.stderr)
 
     p_n, p_f, p_status = _tab_counts(three.paper)
     l_n, l_f, l_status = _tab_counts(three.ppl)
