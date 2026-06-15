@@ -493,40 +493,41 @@ Arguments prob_half {R}.
 
 Section ExBoolDemo.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
-Definition ex_true : @named_expr R Ar R_obj nil tbool := [ True ].
+Definition ex_true : @named_expr R Ar (po_robj P) nil tbool := [ True ].
 
-Definition ex_false : @named_expr R Ar R_obj nil tbool := [ False ].
+Definition ex_false : @named_expr R Ar (po_robj P) nil tbool := [ False ].
 
-(** The fair coin, in the bundled constant form [Bernoulli prob_half]:
-    the success probability [1/2] is supplied with its [[0,1]] bounds
-    through the [prob] bundle — no clamp, no loose witnesses. *)
-Definition ex_fair_coin : @named_expr R Ar R_obj nil tbool :=
-  [ Bernoulli (prob_half : prob R) ].
+(** The fair coin, in the clean [tProb] constant form
+    [Bern (Const prob_half [|0|])]: the success probability [1/2] is the
+    constant map pushed through the bundle factoring [po_into] at the
+    real literal [0] — no clamp, no loose witnesses. *)
+Definition ex_fair_coin : @named_expr R Ar (po_robj P) nil tbool :=
+  [ Bern (Const (prob_half : prob R) [| 0%R |]) ].
 
 End ExBoolDemo.
 
-Arguments ex_true {R Ar R_obj}.
-Arguments ex_false {R Ar R_obj}.
-Arguments ex_fair_coin {R Ar R_obj}.
+Arguments ex_true {R Ar P}.
+Arguments ex_false {R Ar P}.
+Arguments ex_fair_coin {R Ar P}.
 
 (** ** Example — [ex_if_demo] — if-then-else sanity check *)
 
 Section ExIfDemo.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
 (** The closed [tbool]-typed [if-then-else] term:
-    [if Bernoulli prob_half then True else False]. *)
+    [if Bern (Const prob_half [|0|]) then True else False]. *)
 Definition ex_if_demo :
-    @named_expr R Ar R_obj nil tbool :=
-  [ if Bernoulli (prob_half : prob R)
+    @named_expr R Ar (po_robj P) nil tbool :=
+  [ if Bern (Const (prob_half : prob R) [| 0%R |])
     then True else False ].
 
 End ExIfDemo.
 
-Arguments ex_if_demo {R Ar R_obj}.
+Arguments ex_if_demo {R Ar P}.
 
 (** ** Recursive partial-termination examples *)
 
@@ -1235,17 +1236,6 @@ Definition ex_random_linear_cbv (m : pmeas Ar R_obj) :=
 
 Definition ex_loop_cbv := eDv (ex_loop : @named_expr R Ar R_obj nil tunit).
 
-Definition ex_true_cbv := eDv (ex_true : @named_expr R Ar R_obj nil tbool).
-
-Definition ex_false_cbv :=
-  eDv (ex_false : @named_expr R Ar R_obj nil tbool).
-
-Definition ex_fair_coin_cbv :=
-  eDv (ex_fair_coin : @named_expr R Ar R_obj nil tbool).
-
-Definition ex_if_demo_cbv :=
-  eDv (ex_if_demo : @named_expr R Ar R_obj nil tbool).
-
 (** The mutual-recursion smoke test: [ne_fix_mr] at a PRODUCT of
     function types elaborates through the genuine Seely-transported
     [fix_mr_comb] path of [fix_mr_clause]. *)
@@ -1362,6 +1352,20 @@ Definition ex_bayes_linear_cbv
     (l : seq (obs R)) :=
   eDvP (ex_bayes_linear m l).
 
+(** The boolean-primitive smoke tests (the [tProb] constant coin
+    [Bern (Const prob_half [|0|])] in [ex_fair_coin] / [ex_if_demo]). *)
+Definition ex_true_cbv :=
+  eDvP (ex_true : @named_expr R Ar (po_robj P) nil tbool).
+
+Definition ex_false_cbv :=
+  eDvP (ex_false : @named_expr R Ar (po_robj P) nil tbool).
+
+Definition ex_fair_coin_cbv :=
+  eDvP (ex_fair_coin : @named_expr R Ar (po_robj P) nil tbool).
+
+Definition ex_if_demo_cbv :=
+  eDvP (ex_if_demo : @named_expr R Ar (po_robj P) nil tbool).
+
 End RecCBVDenotations.
 
 Arguments ex_geom_cbv {R Ar} P R_to_carrier_meas.
@@ -1374,6 +1378,10 @@ Arguments ex_condition_cbv {R Ar} P R_to_carrier_meas ta d M.
 Arguments ex_surface_demo_cbv {R Ar} P R_to_carrier_meas.
 Arguments ex_surface_walk_cbv {R Ar} P R_to_carrier_meas.
 Arguments ex_bayes_linear_cbv {R Ar} P R_to_carrier_meas m l.
+Arguments ex_true_cbv {R Ar} P R_to_carrier_meas.
+Arguments ex_false_cbv {R Ar} P R_to_carrier_meas.
+Arguments ex_fair_coin_cbv {R Ar} P R_to_carrier_meas.
+Arguments ex_if_demo_cbv {R Ar} P R_to_carrier_meas.
 
 (** ** Example — [ex_tprob_demo] — the clean [tProb] surface end-to-end
        (STAGE T1, ADDITIVE smoke test — the CANONICAL [probObj] ACCEPTANCE
