@@ -29,7 +29,7 @@
     ** Higher-order Bayesian linear regression — ITERATED CONDITIONING
     - [ex_bayes_linear l]    : sample a FUNCTION [λx. s·x+b]
       (slope [s] and intercept [b] from the prior), then for each
-      Gaussian observation [o ∈ l] [observe Gaussian{obs_s o, obs_y o}]
+      Gaussian observation [o ∈ l] [observe Gaussian{1/2, obs_y o}]
       the model's prediction [(# "f" @ obs_x o)] in turn
       ([iter_condition]) and return the function — the posterior over
       functions (arXiv 1701.02547 §2.1 shape); 3-observation instance
@@ -260,34 +260,35 @@ Arguments ex_score_posterior {R Ar P} m d.
 Section Obs.
 Variable (R : realType).
 
-(** One Gaussian observation = a known input point [obs_x], a likelihood
-    deviation [obs_s], and an observed datum [obs_y].  The observation
-    scores the model's value [r] at the input by the ENVELOPE-NORMALISED
-    Gaussian likelihood of the datum, [obs_d o r = gauss_obs_density obs_s
-    obs_y r = normal_pdf r obs_s obs_y / normal_peak obs_s ∈ [0,1]]
-    ([ppl.v]) — the [observe Gaussian{obs_s, obs_y}] surface form.  The
-    [[0,1]] bound is intrinsic to the distribution (the peak is bundled in
-    [gauss_obs_density]); no clamp and no user-supplied envelope are
-    needed.  The derived projections [obs_d]/[obs_meas]/[obs_ge0]/[obs_le1]
-    expose the score-density interface ([ne_score]'s witness layout). *)
+(** One Gaussian observation = a known input point [obs_x] and an
+    observed datum [obs_y].  Following the paper (arXiv:1701.02547) every
+    observation shares the SAME fixed likelihood deviation [σ = 1/2]; the
+    observation scores the model's value [r] at the input by the
+    ENVELOPE-NORMALISED Gaussian likelihood of the datum, [obs_d o r =
+    gauss_obs_density (1/2) obs_y r = normal_pdf r (1/2) obs_y /
+    normal_peak (1/2) ∈ [0,1]] ([ppl.v]) — the [observe Gaussian{1/2,
+    obs_y}] surface form.  The [[0,1]] bound is intrinsic to the
+    distribution (the peak is bundled in [gauss_obs_density]); no clamp
+    and no user-supplied envelope are needed.  The derived projections
+    [obs_d]/[obs_meas]/[obs_ge0]/[obs_le1] expose the score-density
+    interface ([ne_score]'s witness layout). *)
 Record obs := MkObs {
   obs_x : R;                       (* the input point *)
-  obs_s : R;                       (* the likelihood deviation *)
   obs_y : R }.                     (* the observed datum *)
 
-Definition obs_d (o : obs) : R -> R := gauss_obs_density (obs_s o) (obs_y o).
+Definition obs_d (o : obs) : R -> R := gauss_obs_density (1 / 2) (obs_y o).
 
 (** The score-density witnesses, TRANSPARENT (definitionally the bundled
     Gaussian witnesses) so the [observe Gaussian{·} ·] surface form and the
     [condition_at]/[obs_fold] folds elaborate to the SAME [ne_score]. *)
 Definition obs_meas (o : obs) : measurable_fun [set: R] (obs_d o) :=
-  gauss_obs_density_meas (obs_s o) (obs_y o).
+  gauss_obs_density_meas (1 / 2) (obs_y o).
 
 Definition obs_ge0 (o : obs) (r : R) : (0 <= obs_d o r)%R :=
-  gauss_obs_density_ge0 (obs_s o) (obs_y o) r.
+  gauss_obs_density_ge0 (1 / 2) (obs_y o) r.
 
 Definition obs_le1 (o : obs) (r : R) : (obs_d o r <= 1)%R :=
-  gauss_obs_density_le1 (obs_s o) (obs_y o) r.
+  gauss_obs_density_le1 (1 / 2) (obs_y o) r.
 
 End Obs.
 
@@ -323,11 +324,11 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of one observation's Gaussian likelihood
     [obs_d o] into the probability object, the clean [tProb]-score map
-    behind [Sc (Gausslik{obs_s o, obs_y o} (#"f" @ [|obs_x o|]))]. *)
+    behind [Sc (Gausslik{1/2, obs_y o} (#"f" @ [|obs_x o|]))]. *)
 Local Notation obs_phi o :=
   (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)).
 
-(** One observation-conditioning step: [observe Gaussian{obs_s o, obs_y o}]
+(** One observation-conditioning step: [observe Gaussian{1/2, obs_y o}]
     the model's prediction at the input point [obs_x o], then continue
     with [K].  [v] locates the model in the context.  The step scores
     the model's value through the clean [tProb] score [Sc]: push the
@@ -431,9 +432,9 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
   [ let "f" := (let "m" := sample m in
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := Sc (Gausslik { obs_s o1 , obs_y o1 }
+    let "_" := Sc (Gausslik { 1 / 2 , obs_y o1 }
                         (# "f" @ [| obs_x o1 |])) in
-    let "_" := Sc (Gausslik { obs_s o2 , obs_y o2 }
+    let "_" := Sc (Gausslik { 1 / 2 , obs_y o2 }
                         (# "f" @ [| obs_x o2 |])) in
     # "f" ]).
 
