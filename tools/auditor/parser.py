@@ -1234,6 +1234,15 @@ def normalise(
             for h3 in blk.h3_blocks:
                 contrib_id = claim_slug("beyond-" + slugify_label(h3.paper_label), h3.heading)
                 contrib_entries: list[Entry] = []
+                # Match each overview-table row's identifiers against the
+                # H3's fenced snippets (Shape (c), shared with PPL/Examples):
+                # the first snippet whose declared top-level idents intersect
+                # the row's idents becomes that entry's foldable detail — so a
+                # Beyond entry renders with the SAME anatomy as a Paper §-entry
+                # (statement → code fence → clickable xref links).  A snippet
+                # claimed by an entry is dropped from the contrib's flat list
+                # so the standalone "Code" block shows no duplicate.
+                consumed_snippet_idxs: set[int] = set()
                 for tbl in h3.tables:
                     for row in tbl.rows:
                         if not row.cells:
@@ -1274,6 +1283,26 @@ def normalise(
                                     coqdoc_anchor=None,
                                 )
                             )
+                        matched_raw = _match_snippet(idents, h3.snippets)
+                        detail: EntryDetail | None = None
+                        if matched_raw:
+                            detail = EntryDetail(
+                                prose_html="",
+                                notes=[],
+                                snippets=[
+                                    CoqSnippet(
+                                        source_file=s.source_file or "",
+                                        source_section=s.source_section,
+                                        highlighted_html=_highlight_coq(s.raw),
+                                    )
+                                    for s in matched_raw
+                                ],
+                            )
+                            for m in matched_raw:
+                                for snip_i, s in enumerate(h3.snippets):
+                                    if s is m:
+                                        consumed_snippet_idxs.add(snip_i)
+                                        break
                         contrib_entries.append(
                             Entry(
                                 id=slug,
@@ -1285,7 +1314,7 @@ def normalise(
                                 rocq_idents=idents,
                                 rocq_files=rocq_files,
                                 status=status,
-                                detail=None,
+                                detail=detail,
                                 cross_refs=[],
                             )
                         )
@@ -1295,7 +1324,8 @@ def normalise(
                         source_section=s.source_section,
                         highlighted_html=_highlight_coq(s.raw),
                     )
-                    for s in h3.snippets
+                    for snip_i, s in enumerate(h3.snippets)
+                    if snip_i not in consumed_snippet_idxs
                 ]
                 beyond.append(
                     BeyondContrib(

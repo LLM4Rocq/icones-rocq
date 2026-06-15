@@ -70,6 +70,12 @@ def _xref_href(prefix: str):
         if kind == "entry":
             return f"{prefix}entries/{tgt}.html"
         if kind == "beyond":
+            # The synthetic "see Beyond the paper" cross-ref (target=="beyond")
+            # points at the Beyond section of the tab landing, not a per-
+            # contribution page (there is no single "beyond/beyond.html").
+            # A concrete contribution id routes to its own page.
+            if tgt == "beyond":
+                return f"{prefix}index.html#beyond"
             return f"{prefix}beyond/{tgt}.html"
         if kind == "chapter":
             return f"{prefix}chapters/{tgt}.html"

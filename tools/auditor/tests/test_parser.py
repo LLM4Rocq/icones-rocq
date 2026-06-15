@@ -178,7 +178,21 @@ def test_two_col_beyond(parse_md):
     contrib = [c for c in doc.beyond if "SAFT" in c.title][0]
     assert len(contrib.entries) == 2
     assert all("beyond-paper" in e.status for e in contrib.entries)
-    assert len(contrib.snippets) == 1
+    # Beyond entries now render with the Paper §-entry anatomy: the fenced
+    # `coq` snippet whose declared idents intersect a row's idents is
+    # attached to that row's entry detail (so the per-entry page carries a
+    # code fence) and is dropped from the contrib's standalone "Code" list.
+    # The `wi_obj` snippet matches the "Wide intersection" row
+    # (idents `wi_obj`, `wi_med`).
+    wi_entry = [e for e in contrib.entries if "wi_obj" in e.rocq_idents][0]
+    assert wi_entry.detail is not None
+    assert len(wi_entry.detail.snippets) == 1
+    assert "<pre>" in wi_entry.detail.snippets[0].highlighted_html
+    # The snippet was consumed out of the flat contrib list (no duplicate).
+    assert len(contrib.snippets) == 0
+    # The other row (no matching snippet) keeps detail empty.
+    other = [e for e in contrib.entries if "wi_obj" not in e.rocq_idents][0]
+    assert other.detail is None
 
 
 def test_h3_multiple_snippets(parse_md):
@@ -276,6 +290,22 @@ def test_full_document_smoke():
     assert any(
         "regression-anchor" in e.status for s in doc.sections for e in s.entries
     )
+    # Beyond-the-paper entries now render with the Paper §-entry anatomy:
+    # at least some carry a matched code fence in their detail, and those
+    # fences flow through the code-xref linkifier (clickable identifier
+    # cross-references), just like the §-section entries.
+    beyond_detail = [
+        e
+        for b in doc.beyond
+        for e in b.entries
+        if e.detail is not None and e.detail.snippets
+    ]
+    assert beyond_detail, "no beyond entry carries a code fence in its detail"
+    assert any(
+        "code-xref" in s.highlighted_html
+        for e in beyond_detail
+        for s in e.detail.snippets
+    ), "beyond entry code fences carry no code-xref links"
 
 
 # -- snippet identifier cross-reference tests --------------------------------

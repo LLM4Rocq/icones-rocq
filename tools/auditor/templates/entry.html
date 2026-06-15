@@ -11,6 +11,10 @@
     {% if chapter %}
     <li><a href="{{ root_prefix }}chapters/{{ chapter.id }}.html">{{ chapter.title }}</a></li>
     {% endif %}
+    {% if contrib %}
+    <li><a href="{{ root_prefix }}index.html#beyond">Beyond the paper</a></li>
+    <li><a href="{{ root_prefix }}beyond/{{ contrib.id }}.html">{{ contrib.title }}</a></li>
+    {% endif %}
     {% if section %}
     <li><a href="{{ root_prefix }}sections/{{ section.id }}.html">
       {% if section.paper_section_number %}§ {{ section.paper_section_number }} {{ section.title }}{% else %}{{ section.title }}{% endif %}
@@ -28,6 +32,8 @@
     <p class="eyebrow mono">§ {{ section.paper_section_number }} · {{ entry.paper_kind }}</p>
     {% elif chapter %}
     <p class="eyebrow mono">{{ tab|upper }} chapter · {{ chapter.title }}{% if entry.paper_kind %} · {{ entry.paper_kind }}{% endif %}</p>
+    {% elif contrib %}
+    <p class="eyebrow mono">Beyond the paper · {{ contrib.title }}{% if entry.paper_kind and entry.paper_kind != 'Other' %} · {{ entry.paper_kind }}{% endif %}</p>
     {% elif entry.paper_kind %}
     <p class="eyebrow mono">{{ entry.paper_kind }}</p>
     {% endif %}
