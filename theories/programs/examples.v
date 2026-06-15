@@ -274,7 +274,8 @@ Record obs := MkObs {
 Definition obs_d (o : obs) : R -> R := gauss_obs_density (1 / 2) (obs_y o).
 
 (** The score-density witnesses, TRANSPARENT (definitionally the bundled
-    Gaussian witnesses) so the [observe Gaussian{·} ·] surface form and the
+    Gaussian witnesses) so the [observe Gaussian e {·,·}] surface form — the
+    general operator [pobserve (obsGaussian e σ) y] — and the
     [condition_at]/[obs_fold] folds elaborate to the SAME [ne_score]. *)
 Definition obs_meas (o : obs) : measurable_fun [set: R] (obs_d o) :=
   gauss_obs_density_meas (1 / 2) (obs_y o).
@@ -319,7 +320,9 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of one observation's Gaussian likelihood
     [obs_d o] into the probability object, the clean [tProb]-score map
-    behind [Score (Gausslik (#"f" @ [|obs_x o|]) {1/2, obs_y o})]. *)
+    behind [observe Gaussian (#"f" @ [|obs_x o|]) {1/2, obs_y o}] — i.e.
+    the general operator [pobserve (obsGaussian (#"f" @ [|obs_x o|]) (1/2))
+    (obs_y o)] (see [ppl.v]'s [obsDist]/[pobserve]/[obsGaussian]). *)
 Local Notation obs_phi o :=
   (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)).
 
