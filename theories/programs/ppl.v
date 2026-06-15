@@ -2777,6 +2777,72 @@ Arguments pgt0 {R Ar P G} & e.
 Arguments pconst {R Ar P G} & pr e.
 Arguments pdensity {R Ar P G} & d e.
 
+(** ** The general [observe] operator over a distribution-with-density
+
+    [obsDist] bundles a distribution that carries a peak-normalised density
+    together with its RUNTIME parameter — the object-language prediction
+    [od_arg] (e.g. the regression mean) — paired with the family of
+    [[0,1]]-valued densities [od_dens point param] and their measurability /
+    bound witnesses (in the [param] variable, for every observation point).
+    [pobserve D y] then scores [od_arg D] by [od_dens D y] through the bundle
+    factoring [po_into], reusing the term-level [pscore].  This is the
+    GENERAL conditioning operator: a new distribution (Uniform, Exponential,
+    …) is a few lines — a fresh [obsDist] instance over its density family
+    (see [obsGaussian]); the operator and notation stay fixed. *)
+Section ObserveOperator.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (P : probObj Ar).
+Variable (G : named_ctx Ar).
+
+Local Notation nexpr t := (@named_expr R Ar (po_robj P) G t).
+
+Record obsDist := MkObsDist {
+  od_arg  : nexpr (tProb_robj P) ;        (* runtime parameter (e.g. mean) *)
+  od_dens : R -> R -> R ;                  (* [od_dens point param] ∈ [0,1] *)
+  od_meas : forall y, measurable_fun [set: R] (od_dens y) ;
+  od_ge0  : forall y r, (0 <= od_dens y r)%R ;
+  od_le1  : forall y r, (od_dens y r <= 1)%R ;
+}.
+
+(** The observation operator: condition on seeing datum [y] under the
+    distribution [D] whose runtime parameter is [od_arg D].  Pushes the
+    parameter through the bundle factoring of [od_dens D y], then scores. *)
+Definition pobserve (D : obsDist) (y : R) : nexpr tunit :=
+  pscore (ne_to_prob (po_into P (od_dens D y) (od_meas D y)
+                        (od_ge0 D y) (od_le1 D y)) (od_arg D)).
+
+(** The Gaussian instance: mean = the object argument [e], stddev [s] meta.
+    Adding [obsUniform] / [obsExp] is the same shape with the matching
+    density family + witnesses. *)
+Definition obsGaussian (e : nexpr (tProb_robj P)) (s : R) : obsDist :=
+  {| od_arg  := e;
+     od_dens := gauss_obs_density s;
+     od_meas := gauss_obs_density_meas s;
+     od_ge0  := fun y r => gauss_obs_density_ge0 s y r;
+     od_le1  := fun y r => gauss_obs_density_le1 s y r |}.
+
+End ObserveOperator.
+
+Arguments obsDist {R Ar} P G.
+Arguments MkObsDist {R Ar P G} od_arg od_dens od_meas od_ge0 od_le1.
+Arguments od_arg {R Ar P G} o.
+Arguments od_dens {R Ar P G} o.
+Arguments od_meas {R Ar P G} o.
+Arguments od_ge0 {R Ar P G} o.
+Arguments od_le1 {R Ar P G} o.
+Arguments pobserve {R Ar P G} & D y.
+Arguments obsGaussian {R Ar P G} & e s.
+
+(** [pobserve (obsGaussian e s) y] reduces to the old [pscore (pgausslik s y e)]
+    DEFINITIONALLY: both unfold to [pscore (ne_to_prob (po_into P
+    (gauss_obs_density s y) …) e)].  Recorded as a [Lemma … : … by [].] so the
+    bayes migration is denotation-preserving by construction. *)
+Lemma pobserve_obsGaussian {R : realType} {Ar : MeasSubcat R}
+    {P : probObj Ar} {G : named_ctx Ar}
+    (e : @named_expr R Ar (po_robj P) G (tProb_robj P)) (s y : R) :
+  pobserve (obsGaussian e s) y = pscore (pgausslik s y e).
+Proof. by []. Qed.
+
 (** Clean witness-free surface notations over the canonical bundle.
 
     [Bernoulli e] / [Score e] / [Sigmoid e] / [Gausslik e {s,y}] / [Gt0 e] /
@@ -2806,12 +2872,31 @@ Notation "'Gausslik' e '{' s ',' y '}'" :=
   (in custom ppl_named at level 60, s constr at level 0, y constr at level 0,
    e custom ppl_named at level 60, right associativity).
 
-(** [observe Gaussian e { s , y }] — the observation operator: condition on
-    seeing datum [y] under the Gaussian of mean [e] (the runtime prediction)
-    and standard deviation [s].  Sugar for [Score (Gausslik e { s , y })]
-    (i.e. [pscore (pgausslik s y e)]); mean-first, like [Gausslik]. *)
+(** [observe Gaussian ( e , s ) y] — the GENERAL observation operator
+    [pobserve] applied to the Gaussian distribution.  [Gaussian ( e , s )]
+    denotes the [obsDist] [obsGaussian e s] with runtime mean [e] (the
+    prediction sub-expression) and standard deviation [s]; [observe D y]
+    conditions on seeing datum [y] under the distribution [D], scoring by
+    [od_dens D y / peak] through the bundle factoring.  The underlying term
+    is the GENERAL [pobserve (obsGaussian e s) y] — NOT a Gaussian-specific
+    score.  Adding Uniform / Exponential is a sibling [observe Uniform(e,a,b)]
+    notation over a fresh [obsDist]; [observe]/[pobserve] are reused unchanged.
+
+    Surface form [observe Gaussian e { s , y }] reading "observe the Gaussian
+    of mean [e] (the runtime prediction) and standard deviation [s] at the
+    datum [y]".  Unlike the removed stopgap — which desugared to a
+    Gaussian-specific [pscore (pgausslik s y e)] — this desugars to the GENERAL
+    operator [pobserve (obsGaussian e s) y].  [obsGaussian e s : obsDist] is one
+    instance of the distribution-with-density abstraction, and [pobserve] is the
+    distribution-agnostic conditioning operator (score by [od_dens D y / peak]);
+    a sibling distribution is a fresh [obsDist] instance plus a one-line sugar
+    [observe Uniform e { a , b , y }], reusing [pobserve] unchanged.  The brace
+    group keeps the grammar disjoint from the sampling primitive [ne_gaussian]'s
+    [Gaussian ( e1 , e2 )].  Denotationally identical to the old form: by
+    [pobserve_obsGaussian], [pobserve (obsGaussian e s) y = pscore (pgausslik s
+    y e)] holds by [reflexivity]. *)
 Notation "'observe' 'Gaussian' e '{' s ',' y '}'" :=
-  (pscore (pgausslik s y e))
+  (pobserve (obsGaussian e s) y)
   (in custom ppl_named at level 60, s constr at level 0, y constr at level 0,
    e custom ppl_named at level 60, right associativity).
 
