@@ -324,7 +324,7 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of one observation's Gaussian likelihood
     [obs_d o] into the probability object, the clean [tProb]-score map
-    behind [Score (Gausslik{1/2, obs_y o} (#"f" @ [|obs_x o|]))]. *)
+    behind [Score (Gausslik (#"f" @ [|obs_x o|]) {1/2, obs_y o})]. *)
 Local Notation obs_phi o :=
   (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)).
 
@@ -432,10 +432,10 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
   [ let "f" := (let "m" := sample m in
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := Score (Gausslik { 1 / 2 , obs_y o1 }
-                        (# "f" @ [| obs_x o1 |])) in
-    let "_" := Score (Gausslik { 1 / 2 , obs_y o2 }
-                        (# "f" @ [| obs_x o2 |])) in
+    let "_" := Score (Gausslik (# "f" @ [| obs_x o1 |])
+                        { 1 / 2 , obs_y o1 }) in
+    let "_" := Score (Gausslik (# "f" @ [| obs_x o2 |])
+                        { 1 / 2 , obs_y o2 }) in
     # "f" ]).
 
 (** The 1-observation case: one observation = one conditioning step

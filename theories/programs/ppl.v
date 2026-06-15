@@ -2650,7 +2650,7 @@ Notation "'Meas' '{' f ',' Hf '}' e" :=
     canonical [probObj P]:
       - [Bernoulli d e]            ↝ [Bernoulli (ToProb {po_into d} e)]
       - [Score d e]                ↝ [Score (ToProb {po_into d} e)]
-      - [observe Gaussian{s,y} e]  ↝ [Score (Gausslik {s, y} e)]
+      - [observe Gaussian{s,y} e]  ↝ [Score (Gausslik e {s, y})]
       - [M > N]                    ↝ [Bernoulli (Gt0 (M + Meas{negr} N))]
     (see [theories/programs/ppl.v]'s bundled-wrapper section and the
     migrated examples in [theories/programs/examples.v]). *)
@@ -2769,7 +2769,7 @@ Arguments pconst {R Ar P G} & pr e.
 
 (** Clean witness-free surface notations over the canonical bundle.
 
-    [Bernoulli e] / [Score e] / [Sigmoid e] / [Gausslik{s,y} e] / [Gt0 e] /
+    [Bernoulli e] / [Score e] / [Sigmoid e] / [Gausslik e {s,y}] / [Gt0 e] /
     [Const pr e] / [Incl e] — NO braces, [P] inferred. *)
 Notation "'Bernoulli' e" :=
   (pbern e)
@@ -2785,7 +2785,13 @@ Notation "'Sigmoid' e" :=
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
    right associativity).
 
-Notation "'Gausslik' '{' s ',' y '}' e" :=
+(** Gaussian observation likelihood, [mean]-first: [Gausslik e { s , y }]
+    scores the [tProb]-mean expression [e] (the runtime prediction) under
+    the envelope-normalised Gaussian density of standard deviation [s] at
+    the observed datum [y].  The mean comes FIRST (a custom sub-expression),
+    then the meta-level [{ stddev , datum }] braces — reading
+    [(mean, stddev, datum)].  Denotation unchanged: [pgausslik s y e]. *)
+Notation "'Gausslik' e '{' s ',' y '}'" :=
   (pgausslik s y e)
   (in custom ppl_named at level 60, s constr at level 0, y constr at level 0,
    e custom ppl_named at level 60, right associativity).
