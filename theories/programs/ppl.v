@@ -119,7 +119,6 @@
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
-From mathcomp Require Import lra.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals signed constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
@@ -2553,8 +2552,15 @@ Notation "'Bernoulli' p" :=
     bracketed [[| p |]] keyword shape parses disjointly from the bundled
     [Bernoulli p] (whose [p] is a bare [constr], never a [[|…|]]
     token). *)
+(** lra-free discharge of the [[0,1]] bounds for a probability literal.
+    Avoids a dependency on [mathcomp.algebra_tactics] (which ships no
+    [.vos] and so breaks vos-mode builds); the two branches cover the
+    [0 <= p] and [p <= 1] obligations for the literals in use. *)
+Ltac prob_lit_bound :=
+  solve [ by rewrite divr_ge0// ler01
+        | by rewrite ler_pdivrMr ?mul1r ?ler1n ].
 Notation "'Bernoulli' '[|' p '|]'" :=
-  (ne_bernoulli p ltac:(lra) ltac:(lra))
+  (ne_bernoulli p ltac:(prob_lit_bound) ltac:(prob_lit_bound))
   (in custom ppl_named at level 1, p constr at level 0).
 
 (** Runtime-parameter named distributions — [Gaussian( e1 , e2 )] /
