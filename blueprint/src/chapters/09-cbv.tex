@@ -2520,8 +2520,8 @@ witness simultaneously. The custom entry \texttt{ppl\_named} supports
 combinator of \autoref{thm:cbv-fix-comb} under the CBV reading),
 \texttt{Sample (mu, Hmu)},
 \texttt{True} / \texttt{False},
-\texttt{Bernoulli p} (the constant coin over a bundled
-\rocq{Icones.programs.ppl.prob}),
+\texttt{Bernoulli [| p |]} (the constant-literal coin over a bare
+real $p$, its $[0,1]$ bounds discharged by \texttt{lra}),
 \texttt{if e then M else N} (dispatched via
 \autoref{def:cbv-case-em}),
 \texttt{\# "x"}, \texttt{M @ N}, \texttt{M + N}, \texttt{M * N},
@@ -2532,19 +2532,40 @@ combinator of \autoref{thm:cbv-fix-comb} under the CBV reading),
 direct-style surface notation.
 
 \paragraph{The derived surface layer.}
-On top of the kernel notations sits a readable layer of sugar-only
-forms (each elaborates to existing constructors plus the
-$\mathtt{ne\_meas}$ pushforward primitive): measurable function
-application \texttt{Meas \{ f, Hf \} e} (desugaring to
-\rocq{Icones.programs.ppl.ne_meas}); the value-dependent coin and
-score \texttt{Bernoulli d e} / \texttt{Score d e} over a bundled
-$[0,1]$ density \rocq{Icones.programs.ppl.udensity} (carrying its
-measurability and both bounds, so no loose witnesses appear at the
-surface); the Bayesian-conditioning operator
-\texttt{observe Gaussian \{ s, y \} e}, scoring by the
-envelope-normalised Gaussian observation likelihood
-\rocq{Icones.programs.ppl.gauss_udensity} --- the deviation $s$ and
-datum $y$ are bundled parameters, the predicted mean is the surface
+The $[0,1]$ discipline of coins and scores is carried by a
+\emph{type}. A bundle \rocq{Icones.programs.ppl.probObj} packages the
+$[0,1]$ sub-object the surface needs --- a distinguished object with
+its inclusion $\iota$, the two $[0,1]$ bounds on $\iota$, and the
+universal factoring \rocq{Icones.programs.ppl.po_into} of any
+measurable $[0,1]$ map through $\iota$ --- and the probability type
+\rocq{Icones.programs.ppl.tProb} is the \texttt{tbase} over that
+object. A value of type $\mathtt{tProb}\,P$ is a $[0,1]$-supported
+measure; a coin or score over it integrates the inclusion. On top of
+the kernel notations sits a witness-free readable layer: measurable
+function application \texttt{Meas \{ f, Hf \} e} (desugaring to
+\rocq{Icones.programs.ppl.ne_meas}); the value coin \texttt{Bern e}
+(\rocq{Icones.programs.ppl.pbern}) and the score \texttt{Sc e}
+(\rocq{Icones.programs.ppl.pscore}) over a $\mathtt{tProb}\,P$ value,
+reading the success probability / weight off the bundle density
+\rocq{Icones.programs.ppl.po_density}, with the engines
+\rocq{Icones.programs.ppl.bern_lift_P} /
+\rocq{Icones.programs.ppl.score_lift_P}; the constant-literal coin
+\texttt{Bernoulli [| p |]} over a bare real $p$, its $[0,1]$ bounds
+discharged by \texttt{lra}; the \texttt{tProb}-producing primitives
+\texttt{Sigmoid e} (\rocq{Icones.programs.ppl.psigmoid}, the logistic
+map \rocq{Icones.programs.ppl.sigmoid}),
+\texttt{Gausslik \{ s, y \} e} (\rocq{Icones.programs.ppl.pgausslik},
+the envelope-normalised Gaussian likelihood
+\rocq{Icones.programs.ppl.gauss_obs_density}) and \texttt{Gt0 e}
+(\rocq{Icones.programs.ppl.pgt0}, the strict-positivity indicator
+\rocq{Icones.programs.ppl.gt0_ind}), each pushing a real value through
+the bundle factoring \rocq{Icones.programs.ppl.po_into}, plus the
+general \texttt{ToProb \{ phi \} e} and the constant
+\texttt{Const pr e}; the Bayesian-conditioning operator
+\texttt{observe Gaussian \{ s, y \} e}, equal to
+\texttt{Sc (Gausslik \{ s, y \} e)}, scoring by
+\rocq{Icones.programs.ppl.gauss_obs_density} --- the deviation $s$ and
+datum $y$ are parameters, the predicted mean is the surface
 sub-expression $e$, and the normaliser is the distribution's intrinsic
 peak \rocq{Icones.programs.ppl.normal_peak} (no user-supplied
 envelope), with the denotation law
@@ -2556,9 +2577,9 @@ with the named distributions
 \rocq{Icones.programs.examples.uniform} transported from
 \mathcompA{}-analysis probabilities by
 \rocq{Icones.programs.ppl.prob_pmeas}; the comparison coin
-\texttt{e1 > e2} (the value-dependent Bernoulli at the bundled
-indicator density \rocq{Icones.programs.ppl.gt0_udensity} of the
-difference --- deterministic on point masses); OCaml-style
+\texttt{e1 > e2} (the value coin at the strict-positivity indicator
+\rocq{Icones.programs.ppl.gt0_ind} of the difference ---
+deterministic on point masses); OCaml-style
 \texttt{let rec f x := M in K} (desugaring to
 $\mathtt{ne\_let}$-of-$\mathtt{ne\_fix}$-of-$\mathtt{ne\_lam}$, with
 an annotated variant for bodies that leave the binder type
@@ -2943,15 +2964,18 @@ the random affine model \emph{once} --- the bound expression is
 literally $\mathtt{ex\_random\_linear}$ --- binds it to the name
 $\mathtt{"f"}$, then folds a \emph{series} of observations: each
 observation (a record \rocq{Icones.programs.examples.obs}, $\mathtt{MkObs}$
-of a known input point $\mathtt{obs\_x}$, a likelihood deviation
-$\mathtt{obs\_s}$, and an observed datum $\mathtt{obs\_y}$, whose
-observation density is the envelope-normalised Gaussian likelihood
-$\mathtt{obs\_d}\,o := \mathtt{gauss\_obs\_density}\,(\mathtt{obs\_s}\,o)\,
+of a known input point $\mathtt{obs\_x}$ and an observed datum
+$\mathtt{obs\_y}$, with a single fixed noise $\sigma = 1/2$ for every
+observation, whose observation density is the envelope-normalised
+Gaussian likelihood
+$\mathtt{obs\_d}\,o := \mathtt{gauss\_obs\_density}\,(1/2)\,
 (\mathtt{obs\_y}\,o) : \mathbb{R} \to [0,1]$) contributes one clause
-$\mathtt{let\,\_ = observe\,Gaussian}\,\{\mathtt{obs\_s}\,o,
+$\mathtt{let\,\_ = Sc\,(Gausslik}\,\{1/2,
 \mathtt{obs\_y}\,o\}\,
-(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!])
-\,\mathtt{in}\,\cdots$, scoring the model's value at the known input;
+(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!]))
+\,\mathtt{in}\,\cdots$, the $\mathtt{observe\,Gaussian}\,\{1/2,
+\mathtt{obs\_y}\,o\}$ surface form scoring the model's value at the
+known input;
 the program returns $\#\mathtt{"f"}$ --- the posterior over
 \emph{functions}. The fold over a meta-level observation list is the
 iterated-conditioning Rocq fixpoint

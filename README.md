@@ -281,16 +281,19 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
   shared-sample diagonal semantics.
 - **The readable surface layer** (`theories/programs/ppl.v` /
-  `theories/programs/examples.v`): the constant coin `Bernoulli p`
-  over a bundled `prob`, the value-dependent `Bernoulli d e` /
-  `Score d e` over a bundled `[0,1]` density `udensity`, the
-  Bayesian-conditioning operator `observe Gaussian { s , y } e`
-  (scoring by the envelope-normalised Gaussian likelihood
-  `gauss_udensity s y`), measurable function application
-  `Meas { f , Hf } e` (the `ne_meas` pushforward constructor),
-  bundled distributions `sample m` over `pmeas` with named
-  `gaussian` / `uniform` transported from mathcomp-analysis, the
-  comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
+  `theories/programs/examples.v`): the constant coin `Bernoulli [| p |]`
+  over a real literal (its `[0,1]` bounds discharged by `lra`), the
+  value coin `Bern e` and the score `Sc e` over the probability type
+  `tProb` (the `[0,1]` object of a `probObj` bundle, so the bound is
+  carried by the type), the `tProb`-producing primitives `Sigmoid e` /
+  `Gausslik { s , y } e` / `Gt0 e` / `ToProb { φ } e` / `Const pr e`,
+  the Bayesian-conditioning operator
+  `observe Gaussian { s , y } e ≡ Sc (Gausslik { s , y } e)` (scoring
+  by the envelope-normalised Gaussian likelihood `gauss_obs_density s y`),
+  measurable function application `Meas { f , Hf } e` (the `ne_meas`
+  pushforward constructor), bundled distributions `sample m` over `pmeas`
+  with named `gaussian` / `uniform` transported from mathcomp-analysis,
+  the comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
   sugar, and the `Condition { d } M` form — demoed end to end by
   `ex_surface_demo` / `ex_surface_walk`.
 - **The CBV marginals** (`theories/programs/infra/cbv_marginals.v`,
