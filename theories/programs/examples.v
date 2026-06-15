@@ -1126,31 +1126,33 @@ Arguments ex_unit_interval {R Ar R_obj}.
 
 Section SurfaceDemo.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Variable (P : probObj Ar).
 Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+  measurable_fun [set: R] (R_to_carrier (po_robj_eq P)).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
 Local Notation gaussian01 :=
-  (gaussian R_carrier_eq R_to_carrier_meas 0 1).
+  (gaussian (po_robj_eq P) R_to_carrier_meas 0 1).
 
-(** The user's program, verbatim (modulo the [:::] annotation on the
-    unused binder). *)
-Definition ex_surface_demo : @named_expr R Ar R_obj nil tbool :=
+(** The user's program, verbatim.  The comparison coin [m > 0] is the
+    clean [tProb] coin [Bern (Gt0 (m - 0))]: the strict-positivity
+    indicator [gt0_ind] pushed through the bundle factoring [po_into]
+    of the difference [m + (-0)]. *)
+Definition ex_surface_demo : @named_expr R Ar (po_robj P) nil tbool :=
   [ let rec "model" "x" ::: tunit ==> tbool :=
       (let "m" := sample gaussian01 in
-       if # "m" > [| 0%R |] then True else False)
+       if Bern (Gt0 (# "m" + Meas {negr, negr_meas} [| 0%R |]))
+       then True else False)
     in # "model" @ () ].
 
-(** Annotation-free [let rec] + the bundled value-dependent
-    [Bernoulli]/[Score] forms: the binder ["x"] occurs in the body, so
-    its type is inferred.  The density is the strict-positivity
-    indicator bundle [gt0_udensity] — no clamp, no loose witnesses. *)
-Definition ex_surface_walk : @named_expr R Ar R_obj nil tR' :=
+(** Annotation-free [let rec] + the clean value-dependent [tProb]
+    [Bern]/[Sc] forms: the binder ["x"] occurs in the body, so its type
+    is inferred.  [Gt0] is the strict-positivity indicator pushed
+    through the bundle factoring [po_into gt0_ind]. *)
+Definition ex_surface_walk : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "walk" "x" :=
-      (let "b" := Bernoulli gt0_udensity # "x" in
-       let "_" := Score gt0_udensity # "x" in
+      (let "b" := Bern (Gt0 # "x") in
+       let "_" := Sc (Gt0 # "x") in
        if # "b" then # "x" else # "walk" @ # "x" * [| 1 / 2 |])
     in # "walk" @ [| 1 |] ].
 
@@ -1163,18 +1165,20 @@ Lemma ex_surface_demo_decomp :
           (ne_let "m"
              (ne_sample (pm_meas gaussian01) (pm_ball gaussian01))
              (ne_if tbool
-                (ne_bernoulli_f (ud_f gt0_udensity) (ud_meas gt0_udensity)
-                   (ud_ge0 gt0_udensity) (ud_le1 gt0_udensity)
-                   (ne_add (ne_var' "m" _)
-                      (ne_meas negr negr_meas (ne_real 0))))
+                (ne_bernoulli_p (po_density P) (po_density_meas P)
+                   (po_ge0 P) (po_le1 P)
+                   (ne_to_prob
+                      (po_into P gt0_ind gt0_ind_meas gt0_ind_ge0 gt0_ind_le1)
+                      (ne_add (ne_var' "m" _)
+                         (ne_meas negr negr_meas (ne_real 0)))))
                 ne_true ne_false))))
     (ne_app (ne_var' "model" _) ne_tt).
 Proof. by []. Qed.
 
 End SurfaceDemo.
 
-Arguments ex_surface_demo {R Ar R_obj} R_carrier_eq R_to_carrier_meas.
-Arguments ex_surface_walk {R Ar R_obj}.
+Arguments ex_surface_demo {R Ar P} R_to_carrier_meas.
+Arguments ex_surface_walk {R Ar P}.
 
 (** ** CBV denotations — [ppl_cbv.v]'s [eD] applied to every closed example
 
@@ -1269,15 +1273,6 @@ Definition ex_gaussian_walk_cbv :=
 Definition ex_unit_interval_cbv :=
   eDv (ex_unit_interval : @named_expr R Ar R_obj nil (tR R_obj)).
 
-(** The surface-demo denotations — compile-time smoke tests for the
-    new surface layer: [let rec] sugar, [sample] of a bundled
-    [gaussian], the comparison coin [>] (hence [ne_meas]), and the
-    unified [Bernoulli]/[Score] forms. *)
-Definition ex_surface_demo_cbv :=
-  eDv (ex_surface_demo R_carrier_eq R_to_carrier_meas).
-
-Definition ex_surface_walk_cbv :=
-  eDv (ex_surface_walk : @named_expr R Ar R_obj nil (tR R_obj)).
 
 End CBVDenotations.
 
@@ -1344,6 +1339,16 @@ Definition ex_condition_cbv
     (M : @named_expr R Ar (po_robj P) nil (tfun ta (tR (po_robj P)))) :=
   eDvP (ex_condition d M).
 
+(** The surface-demo denotations — compile-time smoke tests for the
+    clean surface layer: [let rec] sugar, [sample] of a bundled
+    [gaussian], the comparison coin [Bern (Gt0 (m - 0))], and the
+    [Bern]/[Sc] value forms over [Gt0]. *)
+Definition ex_surface_demo_cbv :=
+  eDvP (ex_surface_demo R_to_carrier_meas).
+
+Definition ex_surface_walk_cbv :=
+  eDvP (ex_surface_walk : @named_expr R Ar (po_robj P) nil (tR (po_robj P))).
+
 End RecCBVDenotations.
 
 Arguments ex_geom_cbv {R Ar} P R_to_carrier_meas.
@@ -1353,6 +1358,8 @@ Arguments ex_reject_cbv {R Ar} P R_to_carrier_meas m d.
 Arguments ex_reject_comb_cbv {R Ar} P R_to_carrier_meas ta d.
 Arguments ex_condition_comb_cbv {R Ar} P R_to_carrier_meas ta d.
 Arguments ex_condition_cbv {R Ar} P R_to_carrier_meas ta d M.
+Arguments ex_surface_demo_cbv {R Ar} P R_to_carrier_meas.
+Arguments ex_surface_walk_cbv {R Ar} P R_to_carrier_meas.
 
 (** ** Example — [ex_tprob_demo] — the clean [tProb] surface end-to-end
        (STAGE T1, ADDITIVE smoke test — the CANONICAL [probObj] ACCEPTANCE
