@@ -665,23 +665,29 @@ Arguments ex_even_odd_body {R Ar R_obj}.
 
 Section RejectSampling.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
-Variable (m : pmeas Ar R_obj).
+Variable (m : pmeas Ar (po_robj P)).
 
 (** The acceptance density as a BUNDLED [[0,1]] record — its
     measurability and bounds are carried by [d], no loose witnesses,
     no clamp. *)
 Variable (d : udensity R).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
+
+(** The bundle factoring of the acceptance density [d] into the
+    probability object [po_obj P] — the clean [tProb]-coin map behind
+    [Bern (ToProb d #"x")]. *)
+Local Notation rj_phi :=
+  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
 (** The full surface program: the recursive sampler, applied to the
     identity acceptance continuation in the [let rec] continuation. *)
-Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
+Definition ex_reject : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bernoulli d # "x"
+       if Bern (ToProb {rj_phi} # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].
@@ -690,32 +696,32 @@ Definition ex_reject : @named_expr R Ar R_obj nil tR' :=
     [("rs", (tR' -> tR') -> tR') :: nil] (the [ex_geom_body]
     pattern). *)
 Definition ex_reject_body :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       (tfun (tfun tR' tR') tR') :=
   [ \ "accept" ::: (tfun tR' tR') =>
       (let "x" := sample m in
-       if Bernoulli d # "x"
+       if Bern (ToProb {rj_phi} # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept") ].
 
 (** The sample-then-test inner expression under both binders, in
     context [("accept", tR' -> tR') :: ("rs", …) :: nil]. *)
 Definition ex_reject_inner :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("accept"%string, tfun tR' tR') ::
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       tR' :=
   [ let "x" := sample m in
-    if Bernoulli d # "x"
+    if Bern (ToProb {rj_phi} # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
 End RejectSampling.
 
-Arguments ex_reject {R Ar R_obj} m d.
-Arguments ex_reject_body {R Ar R_obj} m d.
-Arguments ex_reject_inner {R Ar R_obj} m d.
+Arguments ex_reject {R Ar P} m d.
+Arguments ex_reject_body {R Ar P} m d.
+Arguments ex_reject_inner {R Ar P} m d.
 
 (** ** Example — [ex_reject_comb] — rejection sampling as a COMBINATOR
 
@@ -746,7 +752,7 @@ Arguments ex_reject_inner {R Ar R_obj} m d.
 
 Section RejectCombinator.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
 (** The model's INPUT type is an arbitrary PPL type. *)
 Variable (ta : ppl_type Ar).
@@ -755,63 +761,69 @@ Variable (ta : ppl_type Ar).
     loose witnesses. *)
 Variable (d : udensity R).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
+
+(** The bundle factoring of the acceptance density [d] into the
+    probability object [po_obj P] — the clean [tProb]-coin map behind
+    [Bern (ToProb d #"x")]. *)
+Local Notation rc_phi :=
+  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
 (** The combinator itself: a closed program of type
     [(ta → tR) → (ta → tR)]. *)
 Definition ex_reject_comb :
-    @named_expr R Ar R_obj nil (tfun (tfun ta tR') (tfun ta tR')) :=
+    @named_expr R Ar (po_robj P) nil (tfun (tfun ta tR') (tfun ta tR')) :=
   [ fix "rs" ::: tfun (tfun ta tR') (tfun ta tR') in
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bernoulli d # "x"
+           if Bern (ToProb {rc_phi} # "x")
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 
 (** The body of the fixpoint lambda (the [λm.λa.…] under the rec
     binder), in the extended context [("rs", (ta→tR)→(ta→tR)) :: nil]. *)
 Definition ex_reject_comb_body :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       (tfun (tfun ta tR') (tfun ta tR')) :=
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         if Bernoulli d # "x"
+         if Bern (ToProb {rc_phi} # "x")
          then # "x"
          else # "rs" @ # "m" @ # "a") ].
 
 (** The partially-applied stage [λa.…], in context
     [("m", ta→tR) :: ("rs", …) :: nil]. *)
 Definition ex_reject_comb_fun :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("m"%string, tfun ta tR') ::
        ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       if Bernoulli d # "x"
+       if Bern (ToProb {rc_phi} # "x")
        then # "x"
        else # "rs" @ # "m" @ # "a") ].
 
 (** The run-test-recurse inner expression under all three binders. *)
 Definition ex_reject_comb_inner :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("a"%string, ta) :: ("m"%string, tfun ta tR') ::
        ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       tR' :=
   [ let "x" := # "m" @ # "a" in
-    if Bernoulli d # "x"
+    if Bern (ToProb {rc_phi} # "x")
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
 End RejectCombinator.
 
-Arguments ex_reject_comb {R Ar R_obj} ta d.
-Arguments ex_reject_comb_body {R Ar R_obj} ta d.
-Arguments ex_reject_comb_fun {R Ar R_obj} ta d.
-Arguments ex_reject_comb_inner {R Ar R_obj} ta d.
+Arguments ex_reject_comb {R Ar P} ta d.
+Arguments ex_reject_comb_body {R Ar P} ta d.
+Arguments ex_reject_comb_fun {R Ar P} ta d.
+Arguments ex_reject_comb_inner {R Ar P} ta d.
 
 (** ** Example — [ex_condition_comb] — Pyro-style soft conditioning
 
@@ -843,7 +855,7 @@ Arguments ex_reject_comb_inner {R Ar R_obj} ta d.
 
 Section ConditionCombinator.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
 (** The model's INPUT type is an arbitrary PPL type. *)
 Variable (ta : ppl_type Ar).
@@ -852,49 +864,55 @@ Variable (ta : ppl_type Ar).
     record — no clamp, no loose witnesses. *)
 Variable (d : udensity R).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
+
+(** The bundle factoring of the likelihood [d] into the probability
+    object [po_obj P] — the clean [tProb]-score map behind
+    [Sc (ToProb d #"x")]. *)
+Local Notation cc_phi :=
+  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
 (** The combinator itself: a closed program of type
     [(ta → tR) → (ta → tR)]. *)
 Definition ex_condition_comb :
-    @named_expr R Ar R_obj nil (tfun (tfun ta tR') (tfun ta tR')) :=
+    @named_expr R Ar (po_robj P) nil (tfun (tfun ta tR') (tfun ta tR')) :=
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Score d # "x" in
+         let "_" := Sc (ToProb {cc_phi} # "x") in
          # "x") ].
 
 (** The partially-applied stage [λa.…], in context
     [("m", ta→tR) :: nil]. *)
 Definition ex_condition_fun :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("m"%string, tfun ta tR') :: nil) (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       let "_" := Score d # "x" in
+       let "_" := Sc (ToProb {cc_phi} # "x") in
        # "x") ].
 
 (** The run-score-return inner expression under both binders. *)
 Definition ex_condition_inner :
-    @named_expr R Ar R_obj
+    @named_expr R Ar (po_robj P)
       (("a"%string, ta) :: ("m"%string, tfun ta tR') :: nil) tR' :=
   [ let "x" := # "m" @ # "a" in
-    let "_" := Score d # "x" in
+    let "_" := Sc (ToProb {cc_phi} # "x") in
     # "x" ].
 
 (** The applied form — [condition M f]: the combinator at a closed
     model program [M] is the conditioned MODEL, again a closed program
     of type [ta → tR]. *)
-Definition ex_condition (M : @named_expr R Ar R_obj nil (tfun ta tR')) :
-    @named_expr R Ar R_obj nil (tfun ta tR') :=
+Definition ex_condition (M : @named_expr R Ar (po_robj P) nil (tfun ta tR')) :
+    @named_expr R Ar (po_robj P) nil (tfun ta tR') :=
   [ {ex_condition_comb} @ {M} ].
 
 End ConditionCombinator.
 
-Arguments ex_condition_comb {R Ar R_obj} ta d.
-Arguments ex_condition_fun {R Ar R_obj} ta d.
-Arguments ex_condition_inner {R Ar R_obj} ta d.
-Arguments ex_condition {R Ar R_obj ta} d M.
+Arguments ex_condition_comb {R Ar P} ta d.
+Arguments ex_condition_fun {R Ar P} ta d.
+Arguments ex_condition_inner {R Ar P} ta d.
+Arguments ex_condition {R Ar P ta} d M.
 
 (** Surface form — [Condition { d } M]: the conditioned model, written
     directly in the [ppl_named] custom entry from a BUNDLED density
@@ -941,9 +959,9 @@ Arguments ex_sampler_body {R Ar R_obj} m.
 
 Section ConditionSmoke.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
-Variable (m : pmeas Ar R_obj).
+Variable (m : pmeas Ar (po_robj P)).
 
 Variable (d : udensity R).
 
@@ -1236,42 +1254,6 @@ Definition ex_even_cbv :=
 Definition ex_odd_cbv :=
   eDv (ex_odd : @named_expr R Ar R_obj nil (tfun tunit tunit)).
 
-(** The rejection-sampling denotation — also the compile-time smoke
-    test for [ne_bernoulli_f]'s elaboration under three binders
-    (canonical-structure variable lookup for ["x"], ["accept"],
-    ["rs"]). *)
-Definition ex_reject_cbv
-    (m : pmeas Ar R_obj)
-    (d : udensity R) :=
-  eDv (ex_reject m d).
-
-(** The rejection-sampling COMBINATOR denotation: the closed program of
-    type [(ta → tR) → (ta → tR)] denotes a (promoted) function VALUE —
-    the headline theorems of [ex_reject_model.v] quantify over the
-    model/input it is applied to. *)
-Definition ex_reject_comb_cbv
-    (ta : ppl_type Ar)
-    (d : udensity R) :=
-  eDv (ex_reject_comb ta d).
-
-(** The soft-conditioning COMBINATOR denotation ([ex_condition_comb]):
-    a closed program of type [(ta → tR) → (ta → tR)], like the
-    rejection combinator — the conditioning law of
-    [ex_reject_model.v::condition_model_E] quantifies over the
-    model/input it is applied to. *)
-Definition ex_condition_comb_cbv
-    (ta : ppl_type Ar)
-    (d : udensity R) :=
-  eDv (ex_condition_comb ta d).
-
-(** The conditioned-model denotation: [condition M f] at a closed
-    model [M]. *)
-Definition ex_condition_cbv
-    (ta : ppl_type Ar)
-    (d : udensity R)
-    (M : @named_expr R Ar R_obj nil (tfun ta (tR R_obj))) :=
-  eDv (ex_condition d M).
-
 (** The sampler-model denotation (the combinator's simplest input). *)
 Definition ex_sampler_cbv (m : pmeas Ar R_obj) :=
   eDv (ex_sampler m).
@@ -1326,11 +1308,51 @@ Definition ex_score_posterior_cbv
     (d : udensity R) :=
   eDvP (ex_score_posterior m d).
 
+(** The rejection-sampling denotation — also the compile-time smoke
+    test for the value-coin [Bern (ToProb d #"x")] under three binders
+    (canonical-structure variable lookup for ["x"], ["accept"],
+    ["rs"]). *)
+Definition ex_reject_cbv
+    (m : pmeas Ar (po_robj P))
+    (d : udensity R) :=
+  eDvP (ex_reject m d).
+
+(** The rejection-sampling COMBINATOR denotation: the closed program of
+    type [(ta → tR) → (ta → tR)] denotes a (promoted) function VALUE —
+    the headline theorems of [ex_reject_model.v] quantify over the
+    model/input it is applied to. *)
+Definition ex_reject_comb_cbv
+    (ta : ppl_type Ar)
+    (d : udensity R) :=
+  eDvP (ex_reject_comb ta d).
+
+(** The soft-conditioning COMBINATOR denotation ([ex_condition_comb]):
+    a closed program of type [(ta → tR) → (ta → tR)], like the
+    rejection combinator — the conditioning law of
+    [ex_reject_model.v::condition_model_E] quantifies over the
+    model/input it is applied to. *)
+Definition ex_condition_comb_cbv
+    (ta : ppl_type Ar)
+    (d : udensity R) :=
+  eDvP (ex_condition_comb ta d).
+
+(** The conditioned-model denotation: [condition M f] at a closed
+    model [M]. *)
+Definition ex_condition_cbv
+    (ta : ppl_type Ar)
+    (d : udensity R)
+    (M : @named_expr R Ar (po_robj P) nil (tfun ta (tR (po_robj P)))) :=
+  eDvP (ex_condition d M).
+
 End RecCBVDenotations.
 
 Arguments ex_geom_cbv {R Ar} P R_to_carrier_meas.
 Arguments ex_almost_loop_cbv {R Ar} P R_to_carrier_meas pr.
 Arguments ex_score_posterior_cbv {R Ar} P R_to_carrier_meas m d.
+Arguments ex_reject_cbv {R Ar} P R_to_carrier_meas m d.
+Arguments ex_reject_comb_cbv {R Ar} P R_to_carrier_meas ta d.
+Arguments ex_condition_comb_cbv {R Ar} P R_to_carrier_meas ta d.
+Arguments ex_condition_cbv {R Ar} P R_to_carrier_meas ta d M.
 
 (** ** Example — [ex_tprob_demo] — the clean [tProb] surface end-to-end
        (STAGE T1, ADDITIVE smoke test — the CANONICAL [probObj] ACCEPTANCE

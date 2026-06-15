@@ -236,9 +236,13 @@ Arguments if_icones_at {R Ar G A} m n b {gam}.
 Arguments cone_sup_ball_irr {R B u} c1 c2 b1 b2.
 Arguments linhom_fun_sup_ball {R Ar C D u} uch ub1 {x} Hx pwch pwub.
 
-(** ** §2 — The rejection-sampling reduction chain *)
-
-Section RejectHeadline.
+(** *** The application clause at a setlike point (generic over the real
+    object and its carrier casts; reused by every example rider —
+    [probObj]-parameterised or not — for the THEN/ELSE branches in
+    step 4).  Kept generic over a free [R_obj] so the [probObj]-based
+    riders (where [R_obj := po_robj P]) AND the still-[R_obj]-based
+    even/odd rider share the same lemma. *)
+Section AppAtSetlike.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
 Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
@@ -246,6 +250,56 @@ Hypothesis R_carrier_meas :
   measurable_fun [set: ar_carrier Ar R_obj]
     (fun c : ar_carrier Ar R_obj =>
        eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation eD_cbv' :=
+  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation Lty t1 t2 :=
+  (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
+
+Lemma eD_app_at_setlike (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (F : @named_expr R Ar R_obj G (tfun t1 t2))
+    (X : @named_expr R Ar R_obj G t1)
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = gam! ->
+  Lfun (eD_cbv' (ne_app F X)) gam =
+  linhom_fun (Lfun (der (Lty t1 t2)) (Lfun (eD_cbv' F) gam))
+             (Lfun (eD_cbv' X) gam).
+Proof.
+move=> Hg Hs.
+rewrite eD_app_E.
+rewrite (Lfun_comp (tensor_uncurry (icones_id Ar (Lty t1 t2)))
+  (icones_comp
+    (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
+    (em_pair_mor (eD_cbv' F) (eD_cbv' X))) gam).
+rewrite (Lfun_comp
+  (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
+  (em_pair_mor (eD_cbv' F) (eD_cbv' X)) gam).
+rewrite /em_pair_mor (Lfun_comp (tensor_mor (eD_cbv' F) (eD_cbv' X))
+  (coalg_d (ctxD_cbv (drop_names G))) gam).
+rewrite (coalg_d_setlike Hg Hs) tensor_morE tensor_morE icones_idE.
+by rewrite tensor_uncurryE icones_idE.
+Qed.
+
+End AppAtSetlike.
+
+Arguments eD_app_at_setlike {R Ar R_obj} R_carrier_eq R_carrier_meas
+  R_to_carrier_meas {G t1 t2 F X gam}.
+
+(** ** §2 — The rejection-sampling reduction chain *)
+
+Section RejectHeadline.
+Variables (R : realType) (Ar : MeasSubcat R).
+(* Reparameterized over the bundled [probObj]. *)
+Variable (P : probObj Ar).
+Local Notation R_obj := (po_robj P).
+Local Notation R_carrier_eq := (po_robj_eq P).
+Local Notation R_carrier_meas := (po_robj_meas P).
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
@@ -263,6 +317,10 @@ Local Notation f := (ud_f d).
 Local Notation Hf_meas := (ud_meas d).
 Local Notation Hf_ge0 := (ud_ge0 d).
 Local Notation Hf_le1 := (ud_le1 d).
+
+(** The bundle factoring of [d] into the probability object, the
+    clean [tProb]-coin map behind [Bern (ToProb d #"x")]. *)
+Local Notation rj_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -296,7 +354,7 @@ Definition reject_if :
     @named_expr R Ar R_obj
       (("x"%string, tR') :: ("accept"%string, tfun tR' tR') ::
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil) tR' :=
-  [ if Bernoulli d # "x"
+  [ if Bern (ToProb {rj_phi} # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
@@ -427,34 +485,6 @@ by rewrite (adj_psi_at_setlike (tensor_curry (eD_cbv' reject_id_var))
               reject_env0_ball reject_env0_setlike).
 Qed.
 
-(** *** The application clause at a setlike point (generic; reused for
-    the THEN/ELSE branches in step 4) *)
-
-Lemma eD_app_at_setlike (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
-    (F : @named_expr R Ar R_obj G (tfun t1 t2))
-    (X : @named_expr R Ar R_obj G t1)
-    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
-  cone_norm gam <= 1 ->
-  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = gam! ->
-  Lfun (eD_cbv' (ne_app F X)) gam =
-  linhom_fun (Lfun (der (Lty t1 t2)) (Lfun (eD_cbv' F) gam))
-             (Lfun (eD_cbv' X) gam).
-Proof.
-move=> Hg Hs.
-rewrite eD_app_E.
-rewrite (Lfun_comp (tensor_uncurry (icones_id Ar (Lty t1 t2)))
-  (icones_comp
-    (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
-    (em_pair_mor (eD_cbv' F) (eD_cbv' X))) gam).
-rewrite (Lfun_comp
-  (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
-  (em_pair_mor (eD_cbv' F) (eD_cbv' X)) gam).
-rewrite /em_pair_mor (Lfun_comp (tensor_mor (eD_cbv' F) (eD_cbv' X))
-  (coalg_d (ctxD_cbv (drop_names G))) gam).
-rewrite (coalg_d_setlike Hg Hs) tensor_morE tensor_morE icones_idE.
-by rewrite tensor_uncurryE icones_idE.
-Qed.
-
 (** *** Step 1 — the [let rec] binding collapses: the let pairs the
     promoted fixpoint value onto the environment, the head-variable
     lookup recovers it, and [der ∘ prom] cancels BEFORE any continuity
@@ -462,8 +492,7 @@ Qed.
     identity continuation. *)
 
 Local Notation reject_denot :=
-  (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                 m d) one1).
+  (linhom_fun (ex_reject_cbv P R_to_carrier_meas m d) one1).
 
 Lemma ex_reject_app_E :
   reject_denot =
@@ -482,7 +511,7 @@ rewrite (eD_let_at_setlike "rs"
 rewrite (eD_fix_at_setlike "rs"
           (ex_reject_body m d)
           HoneG coalg_str_one1).
-rewrite (eD_app_at_setlike _ _ reject_env0_ball reject_env0_setlike).
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas reject_env0_ball reject_env0_setlike).
 rewrite (eD_var_head_at_setlike "rs"
           (t := tfun (tfun tR' tR') tR')
           ((sc_fun (fix_value (Lty (tfun tR' tR') tR')) reject_W0)!)
@@ -613,9 +642,15 @@ Definition reject_var_rs :
       (tfun (tfun tR' tR') tR') :=
   [ # "rs" ].
 
+(** The clean coin's underlying [tProb] argument: the acceptance
+    density [d] pushed through the bundle factoring [po_into] at the
+    sampled variable. *)
+Local Notation reject_coin_arg := (ne_to_prob rj_phi reject_var_x).
+
 Lemma reject_if_decomp :
   reject_if =
-  ne_if tR' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x)
+  ne_if tR' (ne_bernoulli_p (po_density P) (po_density_meas P)
+               (po_ge0 P) (po_le1 P) reject_coin_arg)
         (ne_app reject_var_acc reject_var_x)
         (ne_app reject_var_rs reject_var_acc).
 Proof. by []. Qed.
@@ -738,17 +773,19 @@ Qed.
     [ne_bernoulli_f] node desugared directly — no clamp transport —
     then [bern_lift_dirac]). *)
 Lemma reject_scrut_E n r :
-  Lfun (eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x))
+  Lfun (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
+                   (po_ge0 P) (po_le1 P) reject_coin_arg))
        (reject_env3 n r) =
   bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
 Proof.
-rewrite eD_bernoulli_f_E.
-rewrite (Lfun_comp
-  (bern_lift (R_carrier_meas:=R_carrier_meas) Hf_meas Hf_ge0 Hf_le1)
-  (eD_cbv' reject_var_x) (reject_env3 n r)).
-rewrite reject_var_x_E.
-rewrite -{1}(carrier_to_RK R_carrier_eq r).
-by rewrite (bern_lift_dirac Hf_meas Hf_ge0 Hf_le1 (cR r)).
+(* Clean-surface coin leaf: push the sampled real through the bundle
+   factoring [po_into f] and read off the [f r]-coin with
+   [bern_lift_P]; [po_into_E] recovers [f r]. *)
+rewrite eD_bernoulli_p_E Lfun_comp.
+rewrite -[bern_lift_g _ _ _]/(bern_lift_P P).
+rewrite eD_to_prob_E Lfun_comp.
+rewrite reject_var_x_E FMeas_fmap_dirac bern_lift_P_dirac.
+apply: bool_cone_eq; apply: val_inj => /=; by rewrite /po_density po_into_E.
 Qed.
 
 (** THEN: the identity continuation applied to the bound sample. *)
@@ -756,7 +793,7 @@ Lemma reject_then_E n r :
   Lfun (eD_cbv' (ne_app reject_var_acc reject_var_x)) (reject_env3 n r) =
   dirac_fmeas r.
 Proof.
-rewrite (eD_app_at_setlike _ _ (reject_env3_ball n r)
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas (reject_env3_ball n r)
            (reject_env3_setlike n r)).
 rewrite reject_var_acc_E reject_var_x_E.
 rewrite (der_prom _ reject_acc_ball).
@@ -769,7 +806,7 @@ Lemma reject_else_E n r :
   Lfun (eD_cbv' (ne_app reject_var_rs reject_var_acc)) (reject_env3 n r) =
   reject_iter n.
 Proof.
-rewrite (eD_app_at_setlike _ _ (reject_env3_ball n r)
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas (reject_env3_ball n r)
            (reject_env3_setlike n r)).
 rewrite reject_var_rs_E reject_var_acc_E.
 by rewrite (der_prom _ (fix_chain_ball reject_W0_ball n)).
@@ -784,7 +821,8 @@ rewrite reject_if_decomp eD_if_E.
 rewrite (if_icones_at
   (eD_cbv' (ne_app reject_var_acc reject_var_x))
   (eD_cbv' (ne_app reject_var_rs reject_var_acc))
-  (eD_cbv' (ne_bernoulli_f f Hf_meas Hf_ge0 Hf_le1 reject_var_x))
+  (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
+              (po_ge0 P) (po_le1 P) reject_coin_arg))
   (reject_env3_ball n r) (reject_env3_setlike n r)).
 by rewrite reject_scrut_E reject_then_E reject_else_E.
 Qed.
@@ -1201,8 +1239,7 @@ rewrite (eD_let_at_setlike "l"
           HoneG coalg_str_one1).
 rewrite (eD_fix_at_setlike "l" (ex_almost_loop_body (P := P) pr)
           HoneG coalg_str_one1).
-rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
-           al_env0_ball al_env0_setlike).
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas al_env0_ball al_env0_setlike).
 rewrite (eD_var_head_at_setlike "l"
           (t := tfun tunit tunit)
           ((sc_fun (fix_value (Lty tunit tunit)) al_W0)!)
@@ -1325,8 +1362,7 @@ Qed.
 Lemma al_else_E n :
   Lfun (eD_cbv' (ne_app al_var_l ne_tt)) (al_env3 n) = al_iter n.
 Proof.
-rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
-           (al_env3_ball n) (al_env3_setlike n)).
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas (al_env3_ball n) (al_env3_setlike n)).
 rewrite al_var_l_E al_tt_E.
 by rewrite (der_prom _ (fix_chain_ball al_W0_ball n)).
 Qed.
@@ -1601,8 +1637,7 @@ rewrite (eD_let_at_setlike "g"
           HoneG coalg_str_one1).
 rewrite (eD_fix_at_setlike "g" (ex_geom_body : @named_expr R Ar R_obj _ _)
           HoneG coalg_str_one1).
-rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
-           g_env0_ball g_env0_setlike).
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas g_env0_ball g_env0_setlike).
 rewrite (eD_var_head_at_setlike "g"
           (t := tfun tunit tR')
           ((sc_fun (fix_value (Lty tunit tR')) g_W0)!)
@@ -1742,8 +1777,7 @@ Qed.
 Lemma g_call_E n :
   Lfun (eD_cbv' (ne_app g_var ne_tt)) (g_env3 n) = g_iter n.
 Proof.
-rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas _ _
-           (g_env3_ball n) (g_env3_setlike n)).
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas (g_env3_ball n) (g_env3_setlike n)).
 rewrite g_var_E g_tt_E.
 by rewrite (der_prom _ (fix_chain_ball g_W0_ball n)).
 Qed.
@@ -2354,7 +2388,7 @@ have Hext_s :
 rewrite (eD_app_at_setlike
            (G := [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])
            (t1 := tunit) (t2 := tunit)
-           R_carrier_meas R_to_carrier_meas _ _ Hext_ball Hext_s).
+           R_carrier_eq R_carrier_meas R_to_carrier_meas Hext_ball Hext_s).
 have Hp_E :
   Lfun (eD_cbv' ([# "p"] : @named_expr R Ar R_obj
           [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)] pair_ty))
@@ -2412,7 +2446,7 @@ have Hext_s :
 rewrite (eD_app_at_setlike
            (G := [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])
            (t1 := tunit) (t2 := tunit)
-           R_carrier_meas R_to_carrier_meas _ _ Hext_ball Hext_s).
+           R_carrier_eq R_carrier_meas R_to_carrier_meas Hext_ball Hext_s).
 have Hp_E :
   Lfun (eD_cbv' ([# "p"] : @named_expr R Ar R_obj
           [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)] pair_ty))
@@ -2547,7 +2581,7 @@ Theorem ex_even_cbv_diverges :
 Proof.
 rewrite /ex_even_run.
 rewrite (eD_app_at_setlike (G := nil) (t1 := @tunit R Ar) (t2 := tunit)
-           R_carrier_meas R_to_carrier_meas _ _ Hone coalg_str_one1).
+           R_carrier_eq R_carrier_meas R_to_carrier_meas Hone coalg_str_one1).
 rewrite ex_even_cbv_fun_zero (der_prom _ Hzero).
 exact: linhom_fun_zero.
 Qed.
@@ -2558,7 +2592,7 @@ Theorem ex_odd_cbv_diverges :
 Proof.
 rewrite /ex_odd_run.
 rewrite (eD_app_at_setlike (G := nil) (t1 := @tunit R Ar) (t2 := tunit)
-           R_carrier_meas R_to_carrier_meas _ _ Hone coalg_str_one1).
+           R_carrier_eq R_carrier_meas R_to_carrier_meas Hone coalg_str_one1).
 rewrite ex_odd_cbv_fun_zero (der_prom _ Hzero).
 exact: linhom_fun_zero.
 Qed.

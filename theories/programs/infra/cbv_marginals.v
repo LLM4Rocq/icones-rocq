@@ -474,14 +474,12 @@ Theorem ex_reject_normalises_score
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
   fmeas_mu
-    (linhom_fun (ex_reject_cbv R_carrier_meas R_to_carrier_meas
-                   pm d) one1) U =
+    (linhom_fun (ex_reject_cbv P R_to_carrier_meas pm d) one1) U =
   fmeas_mu
     (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm d) one1) U.
 Proof.
 rewrite (ex_score_posterior_cbv_E mU).
-exact: (ex_reject_master R_carrier_meas R_to_carrier_meas Hmu1
-          d mU).
+exact: (ex_reject_master R_to_carrier_meas Hmu1 d mU).
 Qed.
 
 End ScorePosterior.
@@ -1196,8 +1194,8 @@ rewrite (Lfun_comp
      (obs_meas o) (obs_ge0 o) (obs_le1 o))
   (eD_cbv' (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))
   (obs_env m b n)).
-rewrite (eD_app_at_setlike R_carrier_meas R_to_carrier_meas
-  (ne_var (obs_var n)) (ne_real (obs_x o))
+rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas
+  (F := ne_var (obs_var n)) (X := ne_real (obs_x o))
   (obs_env_ball m b n) (obs_env_setlike m b n)).
 rewrite obs_var_E
   (der_prom _ (rl_clo_ball R_carrier_meas R_to_carrier_meas m b)).
