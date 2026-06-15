@@ -2895,7 +2895,7 @@ Notation "'Gausslik' e '{' s ',' y '}'" :=
     [Gaussian ( e1 , e2 )].  Denotationally identical to the old form: by
     [pobserve_obsGaussian], [pobserve (obsGaussian e s) y = pscore (pgausslik s
     y e)] holds by [reflexivity]. *)
-Notation "'observe' 'Gaussian' e '{' s ',' y '}'" :=
+Notation "'observe' 'Gaussian' e '{' s '}' y" :=
   (pobserve (obsGaussian e s) y)
   (in custom ppl_named at level 60, s constr at level 0, y constr at level 0,
    e custom ppl_named at level 60, right associativity).

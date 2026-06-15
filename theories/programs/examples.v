@@ -431,9 +431,9 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
     let "_" := observe Gaussian (# "f" @ [| obs_x o1 |])
-                        { 1 / 2 , obs_y o1 } in
+                        { 1 / 2 } (obs_y o1) in
     let "_" := observe Gaussian (# "f" @ [| obs_x o2 |])
-                        { 1 / 2 , obs_y o2 } in
+                        { 1 / 2 } (obs_y o2) in
     # "f" ]).
 
 (** The 1-observation case: one observation = one conditioning step
