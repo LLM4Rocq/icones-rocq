@@ -2756,6 +2756,15 @@ Definition pconst (pr : prob R) (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
   ne_to_prob (po_into P (cst (pr_val pr)) (measurable_cst (pr_val pr))
                 (fun=> pr_ge0 pr) (fun=> pr_le1 pr)) e.
 
+(** Score by a user-supplied density bundle [d : udensity R]: push a real
+    value through the bundle's factoring of [d]'s carrier map [ud_f d].  The
+    [udensity]-parameterised sibling of [psigmoid] / [pgausslik]; it is the
+    object-language density-coin behind the conditioning/rejection examples,
+    so a use site reads [Bernoulli (Density d #"x")] (cf. [Sigmoid #"x"])
+    with no [po_into] / [ToProb] plumbing exposed. *)
+Definition pdensity (d : udensity R) (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
+  ne_to_prob (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)) e.
+
 End ProbSurfaceWrappers.
 
 Arguments tProb_robj {R Ar} P.
@@ -2766,6 +2775,7 @@ Arguments psigmoid {R Ar P G} & e.
 Arguments pgausslik {R Ar P G} & s y e.
 Arguments pgt0 {R Ar P G} & e.
 Arguments pconst {R Ar P G} & pr e.
+Arguments pdensity {R Ar P G} & d e.
 
 (** Clean witness-free surface notations over the canonical bundle.
 
@@ -2796,6 +2806,15 @@ Notation "'Gausslik' e '{' s ',' y '}'" :=
   (in custom ppl_named at level 60, s constr at level 0, y constr at level 0,
    e custom ppl_named at level 60, right associativity).
 
+(** [observe Gaussian e { s , y }] — the observation operator: condition on
+    seeing datum [y] under the Gaussian of mean [e] (the runtime prediction)
+    and standard deviation [s].  Sugar for [Score (Gausslik e { s , y })]
+    (i.e. [pscore (pgausslik s y e)]); mean-first, like [Gausslik]. *)
+Notation "'observe' 'Gaussian' e '{' s ',' y '}'" :=
+  (pscore (pgausslik s y e))
+  (in custom ppl_named at level 60, s constr at level 0, y constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
 Notation "'Gt0' e" :=
   (pgt0 e)
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
@@ -2804,6 +2823,14 @@ Notation "'Gt0' e" :=
 Notation "'Const' pr e" :=
   (pconst pr e)
   (in custom ppl_named at level 60, pr constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
+(** [Density d e] — the user-density coin: score the real value [e] by the
+    bundled density [d : udensity R], [P] inferred.  Reads like [Sigmoid e],
+    replacing the explicit [ToProb { po_into (ud_f d) … } e] at every use. *)
+Notation "'Density' d e" :=
+  (pdensity d e)
+  (in custom ppl_named at level 60, d constr at level 0,
    e custom ppl_named at level 60, right associativity).
 
 Notation "'InclP' e" :=
