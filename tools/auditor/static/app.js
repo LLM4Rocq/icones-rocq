@@ -72,14 +72,21 @@
   if (shell && !shell.dataset.loaded) {
     shell.dataset.loaded = '1';
     const base = (document.documentElement.dataset.pagefindBase || '/pagefind/');
-    import(/* webpackIgnore: true */ base + 'pagefind-ui.js').then(({ PagefindUI }) => {
+    // `base` is relative to the *page* (e.g. "pagefind/", "../pagefind/").  A
+    // bare dynamic-import specifier is resolved against this module's URL
+    // (…/static/app.js), not the document — that pointed at
+    // …/static/pagefind/pagefind-ui.js and 404'd, silently leaving the inert
+    // CSS placeholder visible.  Resolve against the document base instead so
+    // the absolute URL is correct on every page depth and hosting subpath.
+    const uiUrl = new URL(base + 'pagefind-ui.js', document.baseURI).href;
+    import(/* webpackIgnore: true */ uiUrl).then(({ PagefindUI }) => {
       // Pagefind CSS is auto-injected by the UI module.  `bundlePath` tells the
-      // UI where the index/fragment files live — it must match the (relative)
-      // base the script was imported from, else the UI defaults to /pagefind/
-      // and 404s on non-root or nested-page hosting (incl. file://).
+      // UI where the index/fragment files live — give it the same absolute,
+      // document-resolved base so its index/fragment fetches don't default to
+      // /pagefind/ and 404 on non-root or nested-page hosting (incl. file://).
       new PagefindUI({
         element: '#search',
-        bundlePath: base,
+        bundlePath: new URL(base, document.baseURI).href,
         showImages: false,
         resetStyles: false,
         showSubResults: true,
