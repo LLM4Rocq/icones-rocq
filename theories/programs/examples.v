@@ -317,22 +317,31 @@ Arguments obs_le1 {R} o r.
 
 Section IteratedConditioning.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
+
+(** The bundle factoring of one observation's Gaussian likelihood
+    [obs_d o] into the probability object, the clean [tProb]-score map
+    behind [Sc (Gausslik{obs_s o, obs_y o} (#"f" @ [|obs_x o|]))]. *)
+Local Notation obs_phi o :=
+  (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)).
 
 (** One observation-conditioning step: [observe Gaussian{obs_s o, obs_y o}]
     the model's prediction at the input point [obs_x o], then continue
-    with [K].  [v] locates the model in the context.  The step scores the
-    model's value directly by the bundled, envelope-normalised density
-    [obs_d o] — NO clamp, NO [ne_meas] wrapper, NO envelope argument. *)
+    with [K].  [v] locates the model in the context.  The step scores
+    the model's value through the clean [tProb] score [Sc]: push the
+    model's prediction through the bundle factoring [po_into (obs_d o)]
+    of the envelope-normalised Gaussian likelihood, which [po_into_E]
+    reads back as [obs_d o] of the prediction. *)
 Definition condition_at (G : named_ctx Ar)
     (v : named_var G (tfun tR' tR')) (o : obs R) (t : ppl_type Ar)
-    (K : @named_expr R Ar R_obj (("_"%string, tunit) :: G) t) :
-    @named_expr R Ar R_obj G t :=
+    (K : @named_expr R Ar (po_robj P) (("_"%string, tunit) :: G) t) :
+    @named_expr R Ar (po_robj P) G t :=
   ne_let "_"%string
-    (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-       (ne_app (ne_var v) (ne_real (obs_x o))))
+    (ne_score_p (po_density P) (po_density_meas P) (po_ge0 P) (po_le1 P)
+       (ne_to_prob (obs_phi o)
+          (ne_app (ne_var v) (ne_real (obs_x o)))))
     K.
 
 (** The iterated-conditioning fold: condition the model on each
@@ -342,7 +351,7 @@ Definition condition_at (G : named_ctx Ar)
     and [v] by [nv_tail]. *)
 Fixpoint iter_condition (G : named_ctx Ar)
     (v : named_var G (tfun tR' tR')) (l : seq (obs R)) :
-    @named_expr R Ar R_obj G (tfun tR' tR') :=
+    @named_expr R Ar (po_robj P) G (tfun tR' tR') :=
   match l with
   | nil => ne_var v
   | o :: l' =>
@@ -351,37 +360,40 @@ Fixpoint iter_condition (G : named_ctx Ar)
 
 End IteratedConditioning.
 
-Arguments condition_at {R Ar R_obj G} v o {t} K.
-Arguments iter_condition {R Ar R_obj G} v l.
+Arguments condition_at {R Ar P G} v o {t} K.
+Arguments iter_condition {R Ar P G} v l.
 
 Section BayesLinear.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
+Variable (P : probObj Ar).
 
-Variable (m : pmeas Ar R_obj).
+Variable (m : pmeas Ar (po_robj P)).
 
-Local Notation tR' := (tR R_obj).
+Local Notation tR' := (tR (po_robj P)).
 
 (** The program: the model is exactly Example 2's [ex_random_linear]
     (the sampled affine function), bound at the head of the context
     (witness [nv_head]), then CONDITIONED on each observation in
     turn. *)
 Definition ex_bayes_linear (l : seq (obs R)) :
-    @named_expr R Ar R_obj nil (tfun tR' tR') :=
+    @named_expr R Ar (po_robj P) nil (tfun tR' tR') :=
   ne_let "f"%string (ex_random_linear m)
     (iter_condition (nv_head "f"%string (tfun tR' tR') nil) l).
 
 (** The raw observation fold — the historical shape of the program:
-    for each [o] in [l], score the model's value at [obs_x o]; when
-    the list is exhausted, return the model. *)
+    for each [o] in [l], score the model's value at [obs_x o] through
+    the clean [tProb] score [Sc (Gausslik{·} ·)]; when the list is
+    exhausted, return the model. *)
 Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
-    (l : seq (obs R)) : named_expr G (tfun tR' tR') :=
+    (l : seq (obs R)) : @named_expr R Ar (po_robj P) G (tfun tR' tR') :=
   match l with
   | nil => ne_var v
   | o :: l' =>
       ne_let "_"%string
-        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var v) (ne_real (obs_x o))))
+        (ne_score_p (po_density P) (po_density_meas P) (po_ge0 P) (po_le1 P)
+           (ne_to_prob
+              (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o))
+              (ne_app (ne_var v) (ne_real (obs_x o)))))
         (obs_fold (nv_tail "_"%string tunit _ v) l')
   end.
 
@@ -419,10 +431,10 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
   [ let "f" := (let "m" := sample m in
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := observe Gaussian { obs_s o1 , obs_y o1 }
-                        (# "f" @ [| obs_x o1 |]) in
-    let "_" := observe Gaussian { obs_s o2 , obs_y o2 }
-                        (# "f" @ [| obs_x o2 |]) in
+    let "_" := Sc (Gausslik { obs_s o1 , obs_y o1 }
+                        (# "f" @ [| obs_x o1 |])) in
+    let "_" := Sc (Gausslik { obs_s o2 , obs_y o2 }
+                        (# "f" @ [| obs_x o2 |])) in
     # "f" ]).
 
 (** The 1-observation case: one observation = one conditioning step
@@ -434,14 +446,15 @@ Check (erefl : ex_bayes_linear [:: o1] =
                   (nv_head "f"%string (tfun tR' tR') nil))))).
 
 (** The concrete 3-observation instance (for the docs to quote). *)
-Definition ex_bayes_linear3 : @named_expr R Ar R_obj nil (tfun tR' tR') :=
+Definition ex_bayes_linear3 :
+    @named_expr R Ar (po_robj P) nil (tfun tR' tR') :=
   ex_bayes_linear [:: o1; o2; o3].
 
 End BayesLinear.
 
-Arguments obs_fold {R Ar R_obj G} v l.
-Arguments ex_bayes_linear {R Ar R_obj} m l.
-Arguments ex_bayes_linear3 {R Ar R_obj} m o1 o2 o3.
+Arguments obs_fold {R Ar P G} v l.
+Arguments ex_bayes_linear {R Ar P} m l.
+Arguments ex_bayes_linear3 {R Ar P} m o1 o2 o3.
 
 (** ** Example 4 — [ex_loop] — bare divergence *)
 
@@ -1220,17 +1233,6 @@ Definition ex_random_constant_cbv (m : pmeas Ar R_obj) :=
 Definition ex_random_linear_cbv (m : pmeas Ar R_obj) :=
   eDv (ex_random_linear m).
 
-(** The Bayesian-linear-regression elaboration smoke test.  The shared
-    ["f"] is consulted once per observation AND returned at the end:
-    every access goes through the comonoid duplication [coalg_d] of the
-    let-clause diagonal AT THE FUNCTION-TYPE CONE [!(U⟦tR⟧ ⊸ U⟦tR⟧)]
-    (a [bang_cofree] coalgebra) — duplicating a sampled FUNCTION value
-    is exactly what the [!]-comonoid machinery is for. *)
-Definition ex_bayes_linear_cbv
-    (m : pmeas Ar R_obj)
-    (l : seq (obs R)) :=
-  eDv (ex_bayes_linear m l).
-
 Definition ex_loop_cbv := eDv (ex_loop : @named_expr R Ar R_obj nil tunit).
 
 Definition ex_true_cbv := eDv (ex_true : @named_expr R Ar R_obj nil tbool).
@@ -1349,6 +1351,17 @@ Definition ex_surface_demo_cbv :=
 Definition ex_surface_walk_cbv :=
   eDvP (ex_surface_walk : @named_expr R Ar (po_robj P) nil (tR (po_robj P))).
 
+(** The Bayesian-linear-regression elaboration smoke test.  The shared
+    ["f"] is consulted once per observation AND returned at the end:
+    every access goes through the comonoid duplication [coalg_d] of the
+    let-clause diagonal AT THE FUNCTION-TYPE CONE [!(U⟦tR⟧ ⊸ U⟦tR⟧)]
+    (a [bang_cofree] coalgebra) — duplicating a sampled FUNCTION value
+    is exactly what the [!]-comonoid machinery is for. *)
+Definition ex_bayes_linear_cbv
+    (m : pmeas Ar (po_robj P))
+    (l : seq (obs R)) :=
+  eDvP (ex_bayes_linear m l).
+
 End RecCBVDenotations.
 
 Arguments ex_geom_cbv {R Ar} P R_to_carrier_meas.
@@ -1360,6 +1373,7 @@ Arguments ex_condition_comb_cbv {R Ar} P R_to_carrier_meas ta d.
 Arguments ex_condition_cbv {R Ar} P R_to_carrier_meas ta d M.
 Arguments ex_surface_demo_cbv {R Ar} P R_to_carrier_meas.
 Arguments ex_surface_walk_cbv {R Ar} P R_to_carrier_meas.
+Arguments ex_bayes_linear_cbv {R Ar} P R_to_carrier_meas m l.
 
 (** ** Example — [ex_tprob_demo] — the clean [tProb] surface end-to-end
        (STAGE T1, ADDITIVE smoke test — the CANONICAL [probObj] ACCEPTANCE

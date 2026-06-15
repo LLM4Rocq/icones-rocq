@@ -1042,12 +1042,11 @@ End RandomLinearMarginal.
 
 Section BayesLinearEvidence.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+(* Reparameterized over the bundled [probObj]. *)
+Variable (P : probObj Ar).
+Local Notation R_obj := (po_robj P).
+Local Notation R_carrier_eq := (po_robj_eq P).
+Local Notation R_carrier_meas := (po_robj_meas P).
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
@@ -1182,16 +1181,32 @@ Proof. by apply: cone_one_eq; apply: val_inj; rewrite /= mulr1. Qed.
     [obs_d o (m·x_o + b)]: the application clause at the setlike
     environment, the model closure at the Dirac argument
     ([rl_body_at]), and the score lift on the resulting Dirac. *)
+(** The clean [tProb]-score node for one observation [o]: weigh by
+    [po_density P] of the model's prediction pushed through the bundle
+    factoring [po_into (obs_d o)] of the Gaussian likelihood. *)
+Local Notation obs_score n o :=
+  (ne_score_p (po_density P) (po_density_meas P) (po_ge0 P) (po_le1 P)
+     (ne_to_prob (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o))
+        (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))).
+
 Lemma obs_score_E (m b : ar_carrier Ar R_obj) n (o : obs R) :
-  Lfun (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-          (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+  Lfun (eD_cbv' (obs_score n o))
        (obs_env m b n) =
   MkConeOne Ar (NngNum (obs_ge0 o (cR m * obs_x o + cR b))).
 Proof.
-rewrite eD_score_E.
+(* Clean-surface score leaf: the model's prediction at the input, a
+   Dirac at [m·x_o + b], pushed through [po_into (obs_d o)], on which
+   [score_lift_P] reads off the score scalar; [po_into_E] recovers
+   [obs_d o]. *)
+rewrite eD_score_p_E.
+rewrite -[score_lift_g _ _ _]/(score_lift_P P).
+rewrite (Lfun_comp (score_lift_P P)
+  (eD_cbv' (ne_to_prob (po_into P (obs_d o) (obs_meas o) (obs_ge0 o)
+              (obs_le1 o)) (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+  (obs_env m b n)).
+rewrite eD_to_prob_E.
 rewrite (Lfun_comp
-  (score_lift (R_carrier_meas:=R_carrier_meas)
-     (obs_meas o) (obs_ge0 o) (obs_le1 o))
+  (FMeas_fmap (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)))
   (eD_cbv' (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))
   (obs_env m b n)).
 rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas
@@ -1204,9 +1219,9 @@ rewrite eD_real_E /real_icones
 rewrite /rl_clo tensor_curryE.
 rewrite (rl_body_at R_carrier_meas R_to_carrier_meas m b
            (R_to_carrier R_carrier_eq (obs_x o))).
-rewrite R_to_carrierK.
-by rewrite (score_lift_dirac (obs_meas o) (obs_ge0 o) (obs_le1 o)
-              (cR m * obs_x o + cR b)).
+rewrite R_to_carrierK FMeas_fmap_dirac score_lift_P_dirac.
+apply: cone_one_eq; apply: val_inj => /=.
+by rewrite po_into_E R_to_carrierK.
 Qed.
 
 (** *** The fold accumulates the product of densities
@@ -1226,31 +1241,27 @@ elim: l => [ | o l' IH] n.
   by apply: val_inj; rewrite /= big_nil.
 - have -> : obs_fold (obs_var n) (o :: l') =
       ne_let "_"%string
-        (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))
+        (obs_score n o)
         (obs_fold (obs_var n.+1) l').
     by [].
   rewrite eD_let_E.
   rewrite (Lfun_comp (eD_cbv' (obs_fold (obs_var n.+1) l'))
     (em_pair_mor
        (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+       (eD_cbv' (obs_score n o)))
     (obs_env m b n)).
   rewrite /em_pair_mor.
   rewrite (Lfun_comp
     (tensor_mor
        (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-       (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o))))))
+       (eD_cbv' (obs_score n o)))
     (coalg_d (ctxD_cbv (drop_names (obs_ctx n))))
     (obs_env m b n)).
   rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names (obs_ctx n)))
     (obs_env_ball m b n) (obs_env_setlike m b n)).
   rewrite (tensor_morE
     (icones_id Ar (coalg_obj (ctxD_cbv (drop_names (obs_ctx n)))))
-    (eD_cbv' (ne_score (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)
-           (ne_app (ne_var (obs_var n)) (ne_real (obs_x o)))))
+    (eD_cbv' (obs_score n o))
     (obs_env m b n) (obs_env m b n)).
   rewrite icones_idE (obs_score_E m b n o).
   rewrite (cone_one_scaleE (NngNum (obs_ge0 o (cR m * obs_x o + cR b)))).
@@ -1334,7 +1345,7 @@ Qed.
 Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
-         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas pm l)
+         (ex_bayes_linear_cbv P R_to_carrier_meas pm l)
          one1)))%:num)%R =
   fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
      (fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
@@ -1395,7 +1406,7 @@ Qed.
 Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
-         (ex_bayes_linear_cbv R_carrier_meas R_to_carrier_meas pm
+         (ex_bayes_linear_cbv P R_to_carrier_meas pm
             [:: o1; o2])
          one1)))%:num)%R =
   fine (\int[fmeas_mu mu]_(m in [set: ar_carrier Ar R_obj])
