@@ -200,13 +200,8 @@ Variable (d : udensity R).
 
 Local Notation tR' := (tR (po_robj P)).
 
-(** The bundle factoring of the soft [[0,1]] density [d] into the
-    probability object [po_obj P]. *)
-Local Notation sp_phi :=
-  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
-
 (** The PPL term:
-    [let "m" := sample m in let "_" := Score (ToProb d #"m") in #"m"].
+    [let "m" := sample m in let "_" := Score (Density d #"m") in #"m"].
     The clean [tProb] score [Score] weighs by [po_density P] of the
     factored value, which [po_into_E] reads back as [ud_f d] of the
     sampled real — the same soft-evidence weight as the legacy
@@ -214,13 +209,13 @@ Local Notation sp_phi :=
 Definition ex_score_posterior :
     @named_expr R Ar (po_robj P) nil tR' :=
   [ let "m" := sample m in
-    let "_" := Score (ToProb {sp_phi} # "m") in
+    let "_" := Score (Density d # "m") in
     # "m" ].
 
 (** The continuation under the prior bind. *)
 Definition ex_sp_cont :
     @named_expr R Ar (po_robj P) (("m"%string, tR') :: nil) tR' :=
-  [ let "_" := Score (ToProb {sp_phi} # "m") in
+  [ let "_" := Score (Density d # "m") in
     # "m" ].
 
 End ScorePosterior.
@@ -432,10 +427,10 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
   [ let "f" := (let "m" := sample m in
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := Score (Gausslik (# "f" @ [| obs_x o1 |])
-                        { 1 / 2 , obs_y o1 }) in
-    let "_" := Score (Gausslik (# "f" @ [| obs_x o2 |])
-                        { 1 / 2 , obs_y o2 }) in
+    let "_" := observe Gaussian (# "f" @ [| obs_x o1 |])
+                        { 1 / 2 , obs_y o1 } in
+    let "_" := observe Gaussian (# "f" @ [| obs_x o2 |])
+                        { 1 / 2 , obs_y o2 } in
     # "f" ]).
 
 (** The 1-observation case: one observation = one conditioning step
@@ -692,18 +687,12 @@ Variable (d : udensity R).
 
 Local Notation tR' := (tR (po_robj P)).
 
-(** The bundle factoring of the acceptance density [d] into the
-    probability object [po_obj P] — the clean [tProb]-coin map behind
-    [Bernoulli (ToProb d #"x")]. *)
-Local Notation rj_phi :=
-  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
-
 (** The full surface program: the recursive sampler, applied to the
     identity acceptance continuation in the [let rec] continuation. *)
 Definition ex_reject : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bernoulli (ToProb {rj_phi} # "x")
+       if Bernoulli (Density d # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].
@@ -717,7 +706,7 @@ Definition ex_reject_body :
       (tfun (tfun tR' tR') tR') :=
   [ \ "accept" ::: (tfun tR' tR') =>
       (let "x" := sample m in
-       if Bernoulli (ToProb {rj_phi} # "x")
+       if Bernoulli (Density d # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept") ].
 
@@ -729,7 +718,7 @@ Definition ex_reject_inner :
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       tR' :=
   [ let "x" := sample m in
-    if Bernoulli (ToProb {rj_phi} # "x")
+    if Bernoulli (Density d # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
@@ -779,12 +768,6 @@ Variable (d : udensity R).
 
 Local Notation tR' := (tR (po_robj P)).
 
-(** The bundle factoring of the acceptance density [d] into the
-    probability object [po_obj P] — the clean [tProb]-coin map behind
-    [Bernoulli (ToProb d #"x")]. *)
-Local Notation rc_phi :=
-  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
-
 (** The combinator itself: a closed program of type
     [(ta → tR) → (ta → tR)]. *)
 Definition ex_reject_comb :
@@ -793,7 +776,7 @@ Definition ex_reject_comb :
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bernoulli (ToProb {rc_phi} # "x")
+           if Bernoulli (Density d # "x")
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 
@@ -806,7 +789,7 @@ Definition ex_reject_comb_body :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         if Bernoulli (ToProb {rc_phi} # "x")
+         if Bernoulli (Density d # "x")
          then # "x"
          else # "rs" @ # "m" @ # "a") ].
 
@@ -819,7 +802,7 @@ Definition ex_reject_comb_fun :
       (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       if Bernoulli (ToProb {rc_phi} # "x")
+       if Bernoulli (Density d # "x")
        then # "x"
        else # "rs" @ # "m" @ # "a") ].
 
@@ -830,7 +813,7 @@ Definition ex_reject_comb_inner :
        ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       tR' :=
   [ let "x" := # "m" @ # "a" in
-    if Bernoulli (ToProb {rc_phi} # "x")
+    if Bernoulli (Density d # "x")
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
@@ -882,12 +865,6 @@ Variable (d : udensity R).
 
 Local Notation tR' := (tR (po_robj P)).
 
-(** The bundle factoring of the likelihood [d] into the probability
-    object [po_obj P] — the clean [tProb]-score map behind
-    [Score (ToProb d #"x")]. *)
-Local Notation cc_phi :=
-  (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
-
 (** The combinator itself: a closed program of type
     [(ta → tR) → (ta → tR)]. *)
 Definition ex_condition_comb :
@@ -895,7 +872,7 @@ Definition ex_condition_comb :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Score (ToProb {cc_phi} # "x") in
+         let "_" := Score (Density d # "x") in
          # "x") ].
 
 (** The partially-applied stage [λa.…], in context
@@ -905,7 +882,7 @@ Definition ex_condition_fun :
       (("m"%string, tfun ta tR') :: nil) (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       let "_" := Score (ToProb {cc_phi} # "x") in
+       let "_" := Score (Density d # "x") in
        # "x") ].
 
 (** The run-score-return inner expression under both binders. *)
@@ -913,7 +890,7 @@ Definition ex_condition_inner :
     @named_expr R Ar (po_robj P)
       (("a"%string, ta) :: ("m"%string, tfun ta tR') :: nil) tR' :=
   [ let "x" := # "m" @ # "a" in
-    let "_" := Score (ToProb {cc_phi} # "x") in
+    let "_" := Score (Density d # "x") in
     # "x" ].
 
 (** The applied form — [condition M f]: the combinator at a closed
