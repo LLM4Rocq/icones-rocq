@@ -206,8 +206,7 @@ apply: bool_cone_dispatch.
   rewrite -[RHS]/(Lfun (bang_fmap bool_coalg_str)
                        (Lfun bool_coalg_str bool_dirac_true)).
   rewrite bool_coalg_str_true.
-  rewrite (dig_prom bool_dirac_true);
-    last by rewrite bool_dirac_true_norm.
+  rewrite [LHS]dig_prom; last by rewrite bool_dirac_true_norm.
   rewrite (bang_fmap_prom bool_coalg_str bool_dirac_true);
     last by rewrite bool_dirac_true_norm.
   by rewrite bool_coalg_str_true.
@@ -216,8 +215,7 @@ apply: bool_cone_dispatch.
   rewrite -[RHS]/(Lfun (bang_fmap bool_coalg_str)
                        (Lfun bool_coalg_str bool_dirac_false)).
   rewrite bool_coalg_str_false.
-  rewrite (dig_prom bool_dirac_false);
-    last by rewrite bool_dirac_false_norm.
+  rewrite [LHS]dig_prom; last by rewrite bool_dirac_false_norm.
   rewrite (bang_fmap_prom bool_coalg_str bool_dirac_false);
     last by rewrite bool_dirac_false_norm.
   by rewrite bool_coalg_str_false.
