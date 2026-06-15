@@ -1,0 +1,225 @@
+/* ============================================================ TOC sidebar
+ *
+ * Two-column layout: a sticky, independently-scrollable table-of-contents
+ * rail on the left, the existing <main> content on the right.  The whole
+ * shell is centred within --maxw-wide so the content column keeps roughly
+ * its previous width.  Tab groups are colour-coded to match the dependency
+ * graph swatches (paper=blue, ppl=green, examples=amber).
+ *
+ * No-JS baseline: collapse is native <details>/<summary>; toc.js only
+ * enhances (persist open state + scroll active into view).
+ */
+
+:root {
+  --toc-width: 17rem;
+  --toc-paper: #2563eb;
+  --toc-ppl: #16a34a;
+  --toc-examples: #d97706;
+}
+
+/* Two-column shell -------------------------------------------------------- */
+
+.layout-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(1rem, 2vw, 2rem);
+  max-width: calc(var(--maxw) + var(--toc-width) + 2rem);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* Neutralise the standalone <main> centring/max-width when it lives inside
+   the flex shell: the shell now owns horizontal layout. */
+.layout-shell > main {
+  flex: 1 1 auto;
+  min-width: 0;          /* allow the content column to shrink (no overflow) */
+  max-width: none;
+  margin: 0;
+  padding: 2rem 0 4rem;
+}
+
+.toc-rail {
+  flex: 0 0 var(--toc-width);
+  width: var(--toc-width);
+}
+
+/* Sticky + independently scrollable nav ---------------------------------- */
+
+.toc-sidebar {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  padding-right: 0.25rem;
+}
+
+.toc-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--fg-faint);
+  font-weight: 600;
+}
+
+/* Lists ------------------------------------------------------------------- */
+
+.toc-root,
+.toc-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.toc-children {
+  margin-left: 0.6rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--border-soft);
+}
+
+.toc-node {
+  margin: 0.05rem 0;
+}
+
+/* Links ------------------------------------------------------------------- */
+
+.toc-link {
+  display: block;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--fg-mute);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.toc-link:hover,
+.toc-link:focus-visible {
+  background: var(--bg-soft);
+  color: var(--link-hover);
+}
+
+.toc-leaf {
+  color: var(--fg-faint);
+}
+
+/* The active node + its enclosing summary line. */
+.toc-link[aria-current="true"] {
+  background: var(--accent-soft);
+  color: var(--link-hover);
+  font-weight: 600;
+}
+
+/* <details>/<summary> collapse ------------------------------------------- */
+
+.toc-fold > .toc-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+}
+.toc-fold > .toc-summary::-webkit-details-marker { display: none; }
+
+/* Custom disclosure triangle on the summary so the row reads as foldable. */
+.toc-summary::before {
+  content: "▸";
+  flex: 0 0 auto;
+  margin-right: 0.15rem;
+  font-size: 0.65em;
+  color: var(--fg-faint);
+  transition: transform 0.12s ease;
+}
+.toc-fold[open] > .toc-summary::before {
+  transform: rotate(90deg);
+}
+.toc-summary > .toc-link {
+  flex: 1 1 auto;
+}
+
+/* Tab groups: colour-coded, slightly larger -----------------------------*/
+
+.toc-tab-summary > .toc-tab-link {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--fg);
+}
+.toc-tab {
+  margin-top: 0.5rem;
+  padding-left: 0.35rem;
+  border-left: 3px solid transparent;
+}
+.toc-tab-paper    { border-left-color: var(--toc-paper); }
+.toc-tab-ppl      { border-left-color: var(--toc-ppl); }
+.toc-tab-examples { border-left-color: var(--toc-examples); }
+
+.toc-section > .toc-fold > .toc-summary > .toc-link,
+.toc-beyond  > .toc-fold > .toc-summary > .toc-link,
+.toc-chapter > .toc-fold > .toc-summary > .toc-link {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* Mobile toggle ----------------------------------------------------------- */
+
+.toc-mobile-toggle {
+  display: none;            /* desktop: the rail is always shown */
+}
+.toc-mobile[open] .toc-scroll,
+.toc-mobile .toc-scroll {
+  display: block;
+}
+
+/* Responsive: collapse the rail into a "Contents" disclosure ------------- */
+
+@media (max-width: 60rem) {
+  .layout-shell {
+    display: block;
+  }
+  .toc-rail {
+    width: auto;
+  }
+  .toc-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    margin: 0 0 1rem;
+  }
+  .toc-mobile-toggle {
+    display: block;
+    cursor: pointer;
+    padding: 0.55rem 0.8rem;
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    list-style: none;
+  }
+  .toc-mobile-toggle::-webkit-details-marker { display: none; }
+  .toc-mobile-toggle::before {
+    content: "☰ ";
+  }
+  /* On narrow screens the whole rail is hidden until the user opens it. */
+  .toc-mobile:not([open]) .toc-scroll {
+    display: none;
+  }
+  .toc-mobile[open] .toc-scroll {
+    margin-top: 0.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.6rem;
+  }
+  .layout-shell > main {
+    padding-top: 0.5rem;
+  }
+}
+
+/* On wide screens the mobile <details> wrapper must never hide the tree;
+   force it open regardless of its `open` attribute. */
+@media (min-width: 60.01rem) {
+  .toc-mobile > .toc-scroll {
+    display: block !important;
+  }
+}

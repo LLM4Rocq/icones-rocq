@@ -41,6 +41,7 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader, TemplateNotFound
 from pygments.formatters import HtmlFormatter
 
 from .graph import build_graph
+from .toc import build_toc
 from .schema import (
     TAB_EXAMPLES,
     TAB_PAPER,
@@ -85,6 +86,36 @@ def _xref_href(prefix: str):
             return f"{prefix}../../blueprint/{tgt}"
         return "#" + tgt
     return _h
+
+
+def _toc_active(ctx: dict[str, Any]) -> dict[str, str]:
+    """Derive the sidebar's active node ``{tab, kind, id}`` from a page ctx.
+
+    The active node is the most specific piece of content the page is
+    about: an entry page → that entry; a section/chapter/beyond page →
+    that group; a tab landing → the tab itself.  The gaps/graph/root pages
+    have no single TOC node, so ``id`` is empty (only the tab, if any, is
+    marked).  The template uses ``(tab, kind, id)`` to highlight the node
+    and auto-open its ancestors.
+    """
+    tab = ctx.get("tab") or ""
+    entry = ctx.get("entry")
+    if entry is not None:
+        return {"tab": tab, "kind": "entry", "id": getattr(entry, "id", "")}
+    contrib = ctx.get("beyond") or ctx.get("contrib")
+    section = ctx.get("section")
+    chapter = ctx.get("chapter")
+    # A section page in a chapter tab still carries ``chapter`` in ctx; the
+    # section is the more specific active node, so test it first.
+    if section is not None:
+        return {"tab": tab, "kind": "section", "id": getattr(section, "id", "")}
+    if contrib is not None:
+        return {"tab": tab, "kind": "beyond", "id": getattr(contrib, "id", "")}
+    if chapter is not None:
+        return {"tab": tab, "kind": "chapter", "id": getattr(chapter, "id", "")}
+    # Tab landing: mark the tab node itself.  Gaps/graph/root: tab may be
+    # set (gaps) or None (graph/root) — no group node is active.
+    return {"tab": tab, "kind": "tab" if tab else "", "id": tab}
 
 
 def _depth_prefix(rel_path: Path) -> str:
@@ -163,6 +194,11 @@ def _emit(
         "static_prefix": static_prefix,
         "tab_prefix": tab_prefix,
         "xref_href": _xref_href(root_prefix),
+        # Sidebar TOC: the same global tree on every page (set as an env
+        # global in ``render``); only the active node differs, which we
+        # derive from the per-page ctx so the template can highlight it and
+        # auto-expand its ancestors.
+        "toc_active": _toc_active(ctx),
     }
     dest = out / rel
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -403,6 +439,13 @@ def render(
     out.mkdir(parents=True, exist_ok=True)
 
     env = _make_env(Path(template_dir) if template_dir else None)
+    # Global sidebar TOC: built once from the three tabs and registered as
+    # an env global so every page (which extends base.html) renders the
+    # SAME tree.  Per-page differences (active node + auto-expand) come
+    # from the ``toc_active`` ctx value computed in ``_emit``.  Links carry
+    # site-root-relative URLs; the template prepends ``tab_prefix`` (which
+    # resolves to the site root from any page depth).
+    env.globals["toc"] = build_toc(doc)
     totals = {
         "index": 0, "sections": 0, "entries": 0, "beyond": 0,
         "gaps": 0, "json": 0, "tabs": 0, "chapters": 0,

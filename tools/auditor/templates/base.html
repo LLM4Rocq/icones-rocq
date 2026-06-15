@@ -1,3 +1,4 @@
+{% from "_toc.html" import toc_sidebar with context %}
 <!doctype html>
 <html lang="en" data-pagefind-base="{{ static_prefix }}pagefind/">
 <head>
@@ -5,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Icones — Auditor dashboard{% endblock %}</title>
   <link rel="stylesheet" href="{{ static_prefix }}static/style.css">
+  <link rel="stylesheet" href="{{ static_prefix }}static/toc.css">
   <link rel="stylesheet" href="{{ static_prefix }}static/pygments.css">
   <link rel="stylesheet" media="print" href="{{ static_prefix }}static/print.css">
   {# Pagefind UI is loaded lazily by app.js (it's an ESM that ships its own CSS too). #}
@@ -67,9 +69,19 @@
   {% block breadcrumbs %}{% endblock %}
 </header>
 
-<main id="main" data-pagefind-body>
-  {% block content %}{% endblock %}
-</main>
+<div class="layout-shell">
+  {# Table-of-contents sidebar: same global tree on every page, active node
+     highlighted + ancestors auto-expanded.  No-JS baseline via <details>;
+     marked data-pagefind-ignore so its 162 entry links don't pollute the
+     per-page search index. #}
+  <div class="toc-rail" data-pagefind-ignore>
+    {{ toc_sidebar() }}
+  </div>
+
+  <main id="main" data-pagefind-body>
+    {% block content %}{% endblock %}
+  </main>
+</div>
 
 <footer class="site-footer" role="contentinfo">
   <div class="footer-grid">
@@ -99,6 +111,7 @@
 </footer>
 
 <script src="{{ static_prefix }}static/app.js" defer></script>
+<script src="{{ static_prefix }}static/toc.js" defer></script>
 {% block scripts_extra %}{% endblock %}
 </body>
 </html>

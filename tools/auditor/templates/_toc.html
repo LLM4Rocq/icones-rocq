@@ -1,0 +1,90 @@
+{# Collapsible table-of-contents sidebar.
+
+   Renders the global `toc` tree (built in tools/auditor/toc.py, registered
+   as a Jinja env global) on every page.  The tree is identical on all
+   pages; `toc_active` ({tab, kind, id}, computed per page in render._emit)
+   selects the active node and drives the auto-expand of its ancestors.
+
+   No-JS baseline: collapsing uses native <details>/<summary>, so the
+   sidebar is fully usable without any JavaScript.  The `open` attribute is
+   set on the active branch (active tab → active group) so the current
+   page's neighbourhood is expanded on load; everything else is collapsed.
+   static/toc.js only *enhances* (persist open state, scroll active into
+   view); it is not required for correctness.
+
+   Links: each node.url is site-root-relative (e.g. "paper/entries/x.html").
+   We prepend `tab_prefix`, which resolves to the site root (out/) from any
+   page depth — so a link from a depth-2 entry page to another tab's entry
+   becomes "../../<tab>/entries/<id>.html", matching the page tree. #}
+
+{%- macro _active(node, tab) -%}
+{#- True iff `node` is the page's active node. -#}
+{{- toc_active and toc_active.tab == tab and toc_active.kind == node.kind and toc_active.id == node.id -}}
+{%- endmacro -%}
+
+{%- macro _contains_active(node, tab) -%}
+{#- True iff the active entry/group lives somewhere under `node`. Used to
+    auto-open the ancestor branch.  Only one level of nesting needs a deep
+    check (group → entries); chapters check their sections' entries too. -#}
+{%- set ns = namespace(hit=false) -%}
+{%- for child in node.children -%}
+  {%- if toc_active and toc_active.tab == tab and toc_active.kind == child.kind and toc_active.id == child.id -%}
+    {%- set ns.hit = true -%}
+  {%- endif -%}
+  {%- for gchild in child.children -%}
+    {%- if toc_active and toc_active.tab == tab and toc_active.kind == gchild.kind and toc_active.id == gchild.id -%}
+      {%- set ns.hit = true -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endfor -%}
+{{- 'true' if ns.hit else '' -}}
+{%- endmacro -%}
+
+{%- macro toc_group(node, tab) -%}
+{%- set is_active = (toc_active and toc_active.tab == tab and toc_active.kind == node.kind and toc_active.id == node.id) -%}
+{%- set has_active = _contains_active(node, tab)|trim == 'true' -%}
+<li class="toc-node toc-{{ node.kind }}{% if is_active %} is-active{% endif %}">
+  {%- if node.children -%}
+  <details class="toc-fold"{% if is_active or has_active %} open{% endif %}>
+    <summary class="toc-summary">
+      <a class="toc-link" href="{{ tab_prefix }}{{ node.url }}"{% if is_active %} aria-current="true"{% endif %}>{{ node.title }}</a>
+    </summary>
+    <ul class="toc-children">
+      {%- for child in node.children -%}
+        {{ toc_group(child, tab) }}
+      {%- endfor -%}
+    </ul>
+  </details>
+  {%- else -%}
+  <a class="toc-link toc-leaf" href="{{ tab_prefix }}{{ node.url }}"{% if is_active %} aria-current="true"{% endif %}>{{ node.title }}</a>
+  {%- endif -%}
+</li>
+{%- endmacro -%}
+
+{%- macro toc_sidebar() -%}
+<nav class="toc-sidebar" id="toc-sidebar" aria-label="Table of contents">
+  <details class="toc-mobile" id="toc-mobile">
+    <summary class="toc-mobile-toggle">Contents</summary>
+    <div class="toc-scroll">
+      <p class="toc-heading">Contents</p>
+      <ul class="toc-root">
+        {%- for tabnode in toc -%}
+        {%- set tab_active = (toc_active and toc_active.tab == tabnode.id) -%}
+        <li class="toc-node toc-tab toc-tab-{{ tabnode.id }}{% if tab_active %} is-active-branch{% endif %}">
+          <details class="toc-fold toc-tab-fold"{% if tab_active %} open{% endif %}>
+            <summary class="toc-summary toc-tab-summary">
+              <a class="toc-link toc-tab-link" href="{{ tab_prefix }}{{ tabnode.url }}"{% if tab_active and toc_active.kind == 'tab' %} aria-current="true"{% endif %}>{{ tabnode.title }}</a>
+            </summary>
+            <ul class="toc-children">
+              {%- for child in tabnode.children -%}
+                {{ toc_group(child, tabnode.id) }}
+              {%- endfor -%}
+            </ul>
+          </details>
+        </li>
+        {%- endfor -%}
+      </ul>
+    </div>
+  </details>
+</nav>
+{%- endmacro -%}
