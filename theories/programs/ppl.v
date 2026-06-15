@@ -511,7 +511,58 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G tbool ->
       named_expr G t ->
       named_expr G t ->
-      named_expr G t.
+      named_expr G t
+  (* ===================================================================
+     [tProb]-typed surface (STAGE T1, ADDITIVE) — a probability type
+     [tProb := tbase I_obj] for an ABSTRACT [[0,1]] object [I_obj].
+
+     [named_expr] is parameterised only by the distinguished real object
+     [R_obj], so each [tProb]-constructor carries ITS OWN [I_obj] (and the
+     density / morphism data the CBV denotation needs) as explicit fields.
+     This keeps the addition fully additive — no change to the inductive's
+     parameters and so no break to the existing constructor [Arguments] or
+     the downstream [eD_cbv] dispatch.  The standing [I_obj]-interface
+     section [ProbObj] below packages the canonical [g := cR ∘ incl] and
+     the [into_I] factoring; these constructors take the resulting data
+     directly. *)
+  (* [ne_bernoulli_p I_obj g … e] : VALUE-DEPENDENT Bernoulli at a [tProb]
+     value [e : tbase I_obj], success probability read into [[0,1]] by the
+     carrier density [g : ar_carrier Ar I_obj -> R].  CBV: post-compose
+     [eD e] with [bern_lift_g] ([Section BernTmLiftG]).  Mirror of
+     [ne_bernoulli_f], but the density reads the [I]-carrier directly (no
+     [R]-cast) so NO per-call [[0,1]] witness on the SAMPLED value is
+     needed — the witnesses are on [g] itself. *)
+  | ne_bernoulli_p (G : named_ctx Ar) (I_obj : ar_obj Ar)
+                   (g : ar_carrier Ar I_obj -> R)
+                   (Hg_meas : measurable_fun [set: ar_carrier Ar I_obj] g)
+                   (Hg_ge0 : forall x : ar_carrier Ar I_obj, (0 <= g x)%R)
+                   (Hg_le1 : forall x : ar_carrier Ar I_obj, (g x <= 1)%R)
+                   (e : named_expr G (tbase I_obj)) : named_expr G tbool
+  (* [ne_score_p I_obj g … e] : term-level score by the [I]-carrier
+     density [g] at a [tProb] value [e].  CBV: post-compose [eD e] with
+     [score_lift_g].  Mirror of [ne_score]. *)
+  | ne_score_p (G : named_ctx Ar) (I_obj : ar_obj Ar)
+               (g : ar_carrier Ar I_obj -> R)
+               (Hg_meas : measurable_fun [set: ar_carrier Ar I_obj] g)
+               (Hg_ge0 : forall x : ar_carrier Ar I_obj, (0 <= g x)%R)
+               (Hg_le1 : forall x : ar_carrier Ar I_obj, (g x <= 1)%R)
+               (e : named_expr G (tbase I_obj)) : named_expr G tunit
+  (* [ne_to_prob phi e] : push the value of a [tbase X]-expression [e]
+     through a morphism [phi : X → I_obj] in [Ar], landing in [tbase
+     I_obj = tProb].  CBV: [FMeas_fmap phi ∘ ⟦e⟧].  The object-language
+     workhorse behind every [tR → tProb] primitive ([Sigmoid] / [Gausslik]
+     / [Gt0prob]): the [ProbObj] interface's [into_I] builds the [phi]
+     factoring a measurable [[0,1]] map through the [[0,1]] sub-object. *)
+  | ne_to_prob (G : named_ctx Ar) (X I_obj : ar_obj Ar)
+               (phi : ar_hom Ar X I_obj)
+               (e : named_expr G (tbase X)) : named_expr G (tbase I_obj)
+  (* [ne_incl incl e] : forgetful read of a [tProb] value back to [tR]
+     (or any [tbase Y]) along a morphism [incl : I_obj → Y].  CBV:
+     [FMeas_fmap incl ∘ ⟦e⟧].  At [Y := R_obj], [incl] is the [[0,1] ↪ R]
+     inclusion. *)
+  | ne_incl (G : named_ctx Ar) (I_obj Y : ar_obj Ar)
+            (incl : ar_hom Ar I_obj Y)
+            (e : named_expr G (tbase I_obj)) : named_expr G (tbase Y).
 
 End Syntax.
 
@@ -552,6 +603,10 @@ Arguments ne_bernoulli_f {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
     scrutinee and the branches' types), then propagate into the
     sub-expressions.  Same pattern as [ne_let] / [ne_app]. *)
 Arguments ne_if {R Ar R_obj G} & t e M N.
+Arguments ne_bernoulli_p {R Ar R_obj G I_obj} g Hg_meas Hg_ge0 Hg_le1 e.
+Arguments ne_score_p {R Ar R_obj G I_obj} g Hg_meas Hg_ge0 Hg_le1 e.
+Arguments ne_to_prob {R Ar R_obj G X I_obj} phi e.
+Arguments ne_incl {R Ar R_obj G I_obj Y} incl e.
 
 
 (** ** Shared semantic helpers — arithmetic, score, boolean, constants
@@ -1258,6 +1313,39 @@ by have [r0|r0] := ltP 0 r;
   [rewrite mem_set | rewrite memNset//=; apply/negP; rewrite -leNgt].
 Qed.
 
+(** *** The logistic sigmoid [σ(x) = eˣ / (1 + eˣ)]
+
+    A measurable, [[0,1]]-valued map [R -> R] — the canonical
+    [tR -> tProb] primitive ([Sigmoid] below).  [0 ≤ σ] because both
+    [eˣ] and [1 + eˣ] are positive; [σ ≤ 1] because [eˣ ≤ 1 + eˣ]. *)
+Definition sigmoid (x : R) : R := expR x / (1 + expR x).
+
+Lemma measurable_sigmoid : measurable_fun [set: R] sigmoid.
+Proof.
+rewrite /sigmoid.
+apply: (eq_measurable_fun (fun x : R => expR x * ((1 + expR x) `^ (-1)))%R).
+  move=> x _ /=.
+  by rewrite powR_inv1 ?addr_ge0 ?ler01 ?expR_ge0.
+apply: measurable_funM; first exact: measurable_expR.
+apply: (measurableT_comp (f := fun y : R => y `^ (-1))%R).
+  exact: measurable_powR.
+by apply: measurable_funD; [exact: measurable_cst | exact: measurable_expR].
+Qed.
+
+Lemma sigmoid_gt0_den (x : R) : (0 < 1 + expR x)%R.
+Proof. by rewrite ltr_pwDl ?ltr01 ?expR_ge0. Qed.
+
+Lemma sigmoid_ge0 (x : R) : (0 <= sigmoid x)%R.
+Proof.
+by rewrite /sigmoid divr_ge0 ?expR_ge0// ltW// sigmoid_gt0_den.
+Qed.
+
+Lemma sigmoid_le1 (x : R) : (sigmoid x <= 1)%R.
+Proof.
+rewrite /sigmoid ler_pdivrMr ?sigmoid_gt0_den// mul1r.
+by rewrite lerDr ler01.
+Qed.
+
 (** *** Envelope-normalised Gaussian observation density
 
     The likelihood of a datum [y] under [N(mu, s)], normalised by the
@@ -1400,6 +1488,10 @@ Arguments gt0_ind_meas {R}.
 Arguments gt0_ind_ge0 {R} r.
 Arguments gt0_ind_le1 {R} r.
 Arguments gt0_indE {R} r.
+Arguments sigmoid {R} x.
+Arguments measurable_sigmoid {R}.
+Arguments sigmoid_ge0 {R} x.
+Arguments sigmoid_le1 {R} x.
 Arguments measurable_normal_pdf_mean {R} s y.
 Arguments gauss_obs_density {R} s y mu.
 Arguments gauss_obs_density_meas {R} s y.
@@ -1680,6 +1772,363 @@ Arguments bern_lift_f_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
                            Hf_meas Hf_ge0 Hf_le1 mu.
 Arguments bern_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas f}
                             Hf_meas Hf_ge0 Hf_le1 mu.
+
+(** ** Carrier-density lifts — [score_lift_g] / [bern_lift_g]
+
+    The [score_lift]/[bern_lift] sections above key the density on a
+    function [f : R -> R] read through the [R_carrier_eq] cast (the
+    distinguished real object [R_obj] whose carrier IS [R]).  The
+    [tProb] machinery needs the SAME lifts at an ARBITRARY base object
+    [X : ar_obj Ar] (e.g. the abstract [[0,1]] object [I_obj], whose
+    carrier is NOT [R]), with the density given DIRECTLY as a
+    carrier-level measurable [[0,1]] map [g : ar_carrier Ar X -> R].
+
+    Both sections are verbatim clones of [Section ScoreTmLift] /
+    [Section BernTmLift] with [f ∘ cR] replaced by [g] — no carrier
+    cast, so the Dirac identity reads at an arbitrary carrier point [x]
+    (no [R_to_carrier] round trip).  The [tProb] instances
+    [score_lift_I] / [bern_lift_I] below are this section at
+    [X := I_obj], [g := cR ∘ incl]. *)
+
+Section ScoreTmLiftG.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (X : ar_obj Ar).
+Variable (g : ar_carrier Ar X -> R).
+Hypothesis Hg_meas : measurable_fun [set: ar_carrier Ar X] g.
+Hypothesis Hg_ge0 : forall x : ar_carrier Ar X, (0 <= g x)%R.
+Hypothesis Hg_le1 : forall x : ar_carrier Ar X, (g x <= 1)%R.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The path value at [x] : [MkConeOne (NngNum (Hg_ge0 x))]. *)
+Definition score_g_path_fun (x : ar_carrier Ar X) : cone_one_car Ar :=
+  MkConeOne Ar (NngNum (Hg_ge0 x)).
+
+Lemma score_g_path_fun_norm (x : ar_carrier Ar X) :
+  (cone_norm (score_g_path_fun x) <= 1)%R.
+Proof.
+by rewrite /cone_norm/= /c1_norm/= /score_g_path_fun/=; exact: Hg_le1.
+Qed.
+
+(** [score_g_path_fun] is a measurable path. *)
+Lemma score_g_path_is_path :
+  is_measurable_path (Ar := Ar) (C := cone_one_car Ar) (X := X)
+    score_g_path_fun.
+Proof.
+split.
+  exists 1 => x; exact: score_g_path_fun_norm.
+move=> Y m mM.
+have Em : m = ConeOneMConeAux.id_test (R := R) (Ar := Ar) Y := mM.
+rewrite Em /ConeOneMConeAux.id_test /=
+        /ConeOneMConeAux.id_test_fun /score_g_path_fun /=.
+apply: (measurableT_comp (f := g)).
+- exact: Hg_meas.
+- exact: measurable_snd.
+Qed.
+
+Definition score_g_path : path_car Ar X (cone_one_car Ar) :=
+  MkPath score_g_path_is_path.
+
+Lemma score_g_path_norm_le1 : (path_norm score_g_path <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [x ->] /=; exact: score_g_path_fun_norm.
+Qed.
+
+Lemma score_g_int_norm_le1 :
+  (cone_norm (int_to_linhom score_g_path) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le score_g_path) _.
+exact: score_g_path_norm_le1.
+Qed.
+
+Definition score_lift_g :
+    icones_hom Ar (FMeas X) (cone_one_car Ar) :=
+  linhom_icones (int_to_linhom score_g_path) score_g_int_norm_le1.
+
+(** Load-bearing Dirac identity at an arbitrary carrier point [x]. *)
+Lemma score_lift_g_dirac (x : ar_carrier Ar X) :
+  Lfun score_lift_g (dirac_fmeas x) = MkConeOne Ar (NngNum (Hg_ge0 x)).
+Proof.
+rewrite /score_lift_g.
+rewrite (linhom_iconesE _ score_g_int_norm_le1 (dirac_fmeas x)).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun score_g_path (dirac_fmeas x)).
+rewrite (int_to_linhom_fun_dirac score_g_path x).
+by rewrite -[path_fun _ _]/(score_g_path_fun x).
+Qed.
+
+End ScoreTmLiftG.
+
+Arguments score_g_path_fun {R Ar X g} Hg_ge0 x.
+Arguments score_g_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments score_lift_g {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments score_lift_g_dirac {R Ar X g} Hg_meas Hg_ge0 Hg_le1 x.
+
+Section BernTmLiftG.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (X : ar_obj Ar).
+Variable (g : ar_carrier Ar X -> R).
+Hypothesis Hg_meas : measurable_fun [set: ar_carrier Ar X] g.
+Hypothesis Hg_ge0 : forall x : ar_carrier Ar X, (0 <= g x)%R.
+Hypothesis Hg_le1 : forall x : ar_carrier Ar X, (g x <= 1)%R.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The path value at [x] : the Bernoulli element [(g x, 1 - g x)]. *)
+Definition bern_g_path_fun (x : ar_carrier Ar X) : bool_cone_car Ar :=
+  bernoulli (g x) (Hg_ge0 x) (Hg_le1 x).
+
+Lemma bern_g_path_fun_norm (x : ar_carrier Ar X) :
+  cone_norm (bern_g_path_fun x) = 1%R.
+Proof. exact: bernoulli_norm. Qed.
+
+Lemma bern_g_path_is_path :
+  is_measurable_path (Ar := Ar) (C := bool_cone_car Ar) (X := X)
+    bern_g_path_fun.
+Proof.
+split.
+  by exists 1%R => x; rewrite bern_g_path_fun_norm.
+move=> Y m [o _ <-].
+have meas_g :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar X)%type]
+      (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type => g p.2).
+  apply: (measurableT_comp (f := g)).
+  - exact: Hg_meas.
+  - exact: measurable_snd.
+have meas_onem :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar X)%type]
+      (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type => (1 - g p.2)%R).
+  by apply: measurable_funB; [exact: measurable_cst | exact: meas_g].
+rewrite /BoolConeMConeAux.bool_test/= /BoolConeMConeAux.bool_test_fun
+        /BoolConeMConeAux.bc_test_val /bern_g_path_fun /bernoulli/=.
+case: o => [[]|]/=.
+- exact: meas_g.
+- exact: meas_onem.
+- exact: measurable_funD meas_g meas_onem.
+Qed.
+
+Definition bern_g_path : path_car Ar X (bool_cone_car Ar) :=
+  MkPath bern_g_path_is_path.
+
+Lemma bern_g_path_norm_le1 : (path_norm bern_g_path <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [x ->] /=; rewrite bern_g_path_fun_norm.
+Qed.
+
+Lemma bern_g_int_norm_le1 :
+  (cone_norm (int_to_linhom bern_g_path) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le bern_g_path) _.
+exact: bern_g_path_norm_le1.
+Qed.
+
+Definition bern_lift_g :
+    icones_hom Ar (FMeas X) (bool_cone_car Ar) :=
+  linhom_icones (int_to_linhom bern_g_path) bern_g_int_norm_le1.
+
+(** Load-bearing Dirac identity at an arbitrary carrier point [x]. *)
+Lemma bern_lift_g_dirac (x : ar_carrier Ar X) :
+  Lfun bern_lift_g (dirac_fmeas x) = bernoulli (g x) (Hg_ge0 x) (Hg_le1 x).
+Proof.
+rewrite /bern_lift_g.
+rewrite (linhom_iconesE _ bern_g_int_norm_le1 (dirac_fmeas x)).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun bern_g_path (dirac_fmeas x)).
+rewrite (int_to_linhom_fun_dirac bern_g_path x).
+rewrite -[path_fun _ _]/(bern_g_path_fun x).
+by rewrite /bern_g_path_fun /bernoulli.
+Qed.
+
+Local Open Scope ereal_scope.
+
+(** The integral identity, via Pettis uniqueness. *)
+Lemma bern_lift_g_E (mu : fmeas R (ar_carrier Ar X)) :
+  Lfun bern_lift_g mu = bool_int bern_g_path_is_path mu.
+Proof.
+rewrite /bern_lift_g (linhom_iconesE _ bern_g_int_norm_le1 mu).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun bern_g_path mu).
+rewrite /int_to_linhom_fun.
+apply/esym/icone_integral_eqP.
+exact: bool_int_pettis.
+Qed.
+
+(** The [true]-coordinate is [∫ g dµ]. *)
+Lemma bern_lift_g_t_E (mu : fmeas R (ar_carrier Ar X)) :
+  ((bc_t (Lfun bern_lift_g mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(x in [set: ar_carrier Ar X]) (g x)%:E).
+Proof. by rewrite bern_lift_g_E. Qed.
+
+(** Total-mass identity: the coin is norm-1 pointwise, so the lift
+    preserves total mass. *)
+Lemma bern_lift_g_mass (mu : fmeas R (ar_carrier Ar X)) :
+  cone_norm (Lfun bern_lift_g mu) =
+  fine (fmeas_mu mu [set: ar_carrier Ar X]).
+Proof.
+rewrite bern_lift_g_E.
+have fin_t : \int[fmeas_mu mu]_(x in [set: ar_carrier Ar X]) (g x)%:E
+               \is a fin_num
+  by exact: (bool_int_fin bern_g_path_is_path mu true).
+have fin_f : \int[fmeas_mu mu]_(x in [set: ar_carrier Ar X])
+               ((1 - g x)%R)%:E \is a fin_num
+  by exact: (bool_int_fin bern_g_path_is_path mu false).
+have meas_t : measurable_fun [set: ar_carrier Ar X] (fun x => (g x)%:E)
+  by exact: (bool_coord_meas bern_g_path_is_path true).
+have meas_f : measurable_fun [set: ar_carrier Ar X]
+                (fun x => ((1 - g x)%R)%:E)
+  by exact: (bool_coord_meas bern_g_path_is_path false).
+rewrite -[cone_norm _]/(((bc_t (bool_int bern_g_path_is_path mu))%:num
+                       + (bc_f (bool_int bern_g_path_is_path mu))%:num)%R).
+rewrite -[((bc_t (bool_int bern_g_path_is_path mu))%:num)%R]/(fine
+  (\int[fmeas_mu mu]_(x in [set: ar_carrier Ar X]) (g x)%:E)).
+rewrite -[((bc_f (bool_int bern_g_path_is_path mu))%:num)%R]/(fine
+  (\int[fmeas_mu mu]_(x in [set: ar_carrier Ar X]) ((1 - g x)%R)%:E)).
+rewrite -fineD//.
+rewrite -ge0_integralD//; first last.
+- by move=> x _; rewrite lee_fin subr_ge0.
+- by move=> x _; rewrite lee_fin.
+under eq_integral => x _.
+  rewrite -EFinD addrCA subrr addr0.
+  over.
+by rewrite integral_cst//= mul1e.
+Qed.
+
+End BernTmLiftG.
+
+Arguments bern_g_path_fun {R Ar X g} Hg_ge0 Hg_le1 x.
+Arguments bern_g_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments bern_g_path_is_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments bern_lift_g {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments bern_lift_g_dirac {R Ar X g} Hg_meas Hg_ge0 Hg_le1 x.
+Arguments bern_lift_g_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
+Arguments bern_lift_g_t_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
+Arguments bern_lift_g_mass {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
+
+(** ** The abstract [[0,1]] object [I_obj] and [tProb] (STAGE T1)
+
+    [tProb := tbase I_obj] is the surface PROBABILITY type, the base
+    object [I_obj] standing for the [[0,1]] sub-object of the line.  Like
+    [R_obj], [I_obj] is NEVER concretely instantiated — it is an abstract
+    [Variable] with a carrier read [cI : ar_carrier Ar I_obj -> R] (an
+    inclusion-style cast) and the standing hypotheses below.  The crux
+    addition over the [R_obj] interface is the FACTORING operation
+    [into_I]: every measurable [[0,1]]-valued map [R -> R] factors through
+    [I] (the universal property of the [[0,1]] sub-object).  This is what
+    makes [sigmoid] / [gauss_lik] / a probability literal CONSTRUCTIBLE
+    as [tProb] primitives in the abstract setting. *)
+
+Section ProbObj.
+Variables (R : realType) (Ar : MeasSubcat R).
+(* The distinguished real object, exactly as elsewhere. *)
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+
+(* The abstract [[0,1]] object and the inclusion [ι : I → R] in [Ar]. *)
+Variable (I_obj : ar_obj Ar).
+Variable (incl : ar_hom Ar I_obj R_obj).
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+
+(* [ι] is [[0,1]]-valued (read into [R] via the [R_obj] cast). *)
+Hypothesis incl_ge0 : forall x : ar_carrier Ar I_obj, (0 <= cR (incl x))%R.
+Hypothesis incl_le1 : forall x : ar_carrier Ar I_obj, (cR (incl x) <= 1)%R.
+
+(* The factoring: every measurable [[0,1]] map [h : R -> R] yields a
+   morphism [R → I] in [Ar], with the computation law [into_I_E] reading
+   [ι ∘ into_I h = h] (under the [R]-cast).  This is the universal
+   property of the [[0,1]] sub-object. *)
+Variable (into_I :
+  forall (h : R -> R), measurable_fun [set: R] h ->
+    (forall r : R, (0 <= h r)%R) -> (forall r : R, (h r <= 1)%R) ->
+    ar_hom Ar R_obj I_obj).
+Hypothesis into_I_E :
+  forall (h : R -> R) (Hm : measurable_fun [set: R] h)
+         (Hg : forall r : R, (0 <= h r)%R) (Hl : forall r : R, (h r <= 1)%R)
+         (r : ar_carrier Ar R_obj),
+    cR (incl (into_I Hm Hg Hl r)) = h (cR r).
+
+(** The surface probability type. *)
+Definition tProb : ppl_type Ar := tbase I_obj.
+
+(** *** The canonical [I]-density and its [[0,1]] witnesses. *)
+Definition incl_density (x : ar_carrier Ar I_obj) : R := cR (incl x).
+
+Lemma incl_density_meas : measurable_fun [set: ar_carrier Ar I_obj] incl_density.
+Proof.
+rewrite /incl_density.
+apply: (measurableT_comp (f := cR)).
+- exact: R_carrier_meas.
+- exact: measurable_funPT.
+Qed.
+
+(** *** The Bernoulli / score lifts AT [I] — clones of [Section
+    BernTmLiftG] / [ScoreTmLiftG] at [X := I_obj], density [cR ∘ incl]
+    (the inclusion read into [R]); the [[0,1]] witnesses are
+    [incl_ge0]/[incl_le1].  No per-call witness. *)
+Definition bern_lift_I : icones_hom Ar (FMeas I_obj) (bool_cone_car Ar) :=
+  bern_lift_g incl_density_meas incl_ge0 incl_le1.
+
+Definition score_lift_I : icones_hom Ar (FMeas I_obj) (cone_one_car Ar) :=
+  score_lift_g incl_density_meas incl_ge0 incl_le1.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Load-bearing Dirac identity: on [δ_x] the lift is the Bernoulli
+    [(cR (incl x), 1 - cR (incl x))]. *)
+Lemma bern_lift_I_dirac (x : ar_carrier Ar I_obj) :
+  Lfun bern_lift_I (dirac_fmeas x) =
+  bernoulli (cR (incl x)) (incl_ge0 x) (incl_le1 x).
+Proof. exact: bern_lift_g_dirac. Qed.
+
+(** Integral law: the [true]-coordinate is [∫ (cR ∘ incl) dµ]. *)
+Lemma bern_lift_I_E (mu : fmeas R (ar_carrier Ar I_obj)) :
+  ((bc_t (Lfun bern_lift_I mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(x in [set: ar_carrier Ar I_obj]) (cR (incl x))%:E).
+Proof. exact: bern_lift_g_t_E. Qed.
+
+(** Total-mass / norm-1 preservation. *)
+Lemma bern_lift_I_mass (mu : fmeas R (ar_carrier Ar I_obj)) :
+  cone_norm (Lfun bern_lift_I mu) =
+  fine (fmeas_mu mu [set: ar_carrier Ar I_obj]).
+Proof. exact: bern_lift_g_mass. Qed.
+
+(** Score Dirac identity at [I]. *)
+Lemma score_lift_I_dirac (x : ar_carrier Ar I_obj) :
+  Lfun score_lift_I (dirac_fmeas x) = MkConeOne Ar (NngNum (incl_ge0 x)).
+Proof. exact: score_lift_g_dirac. Qed.
+
+(** The forgetful coalgebra morphism [FMeas(ι)] is exactly the existing
+    generic [FMeas_fmap incl] (no new def); it IS a coalgebra morphism. *)
+Lemma FMeas_incl_is_coalg_mor :
+  is_coalg_mor (FMeas_coalgebra I_obj) (FMeas_coalgebra R_obj)
+    (FMeas_fmap incl).
+Proof. exact: FMeas_fmap_is_coalg_mor. Qed.
+
+End ProbObj.
+
+Arguments tProb {R Ar} I_obj.
+Arguments incl_density {R Ar R_obj} R_carrier_eq {I_obj} incl x.
+Arguments incl_density_meas {R Ar R_obj} R_carrier_eq R_carrier_meas {I_obj} incl.
+Arguments bern_lift_I {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
+                        incl incl_ge0 incl_le1.
+Arguments score_lift_I {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
+                         incl incl_ge0 incl_le1.
+Arguments bern_lift_I_dirac {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
+                              incl incl_ge0 incl_le1 x.
+Arguments bern_lift_I_E {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
+                          incl incl_ge0 incl_le1 mu.
+Arguments bern_lift_I_mass {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
+                             incl incl_ge0 incl_le1 mu.
+Arguments score_lift_I_dirac {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
+                               incl incl_ge0 incl_le1 x.
 
 (** ** [pmeas] — bundled sub-probability measures for [sample]
 
@@ -2237,3 +2686,99 @@ Notation "'let' 'rec' f x ':::' T1 '==>' T2 ':=' M 'in' K" :=
    M custom ppl_named at level 70,
    K custom ppl_named at level 80,
    right associativity).
+
+(** ** [tProb]-typed surface forms (STAGE T1, ADDITIVE)
+
+    Sugar for the four new constructors.  The density / morphism data is
+    supplied in brace groups (like [Meas { f , Hf }]); the surface
+    sub-expression follows.  The [ProbObj]-interface section provides
+    [into_I] (the factoring) so that [Sigmoid] / [Gausslik] / [Gt0prob] /
+    a probability literal are constructible by passing the appropriate
+    [into_I _ _ _] morphism into [ToProb]. *)
+
+(** [BernoulliP { g , Hm , Hg , Hl } e] — value-dependent coin at a
+    [tProb = tbase I_obj] value [e], success probability the carrier
+    density [g]. *)
+Notation "'BernoulliP' '{' g ',' Hm ',' Hg ',' Hl '}' e" :=
+  (ne_bernoulli_p g Hm Hg Hl e)
+  (in custom ppl_named at level 1, g constr at level 0,
+   Hm constr at level 0, Hg constr at level 0, Hl constr at level 0,
+   e custom ppl_named at level 60).
+
+(** [ScoreP { g , Hm , Hg , Hl } e] — score by the carrier density [g]
+    at a [tProb] value [e]. *)
+Notation "'ScoreP' '{' g ',' Hm ',' Hg ',' Hl '}' e" :=
+  (ne_score_p g Hm Hg Hl e)
+  (in custom ppl_named at level 60, g constr at level 0,
+   Hm constr at level 0, Hg constr at level 0, Hl constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
+(** [ToProb { phi } e] — push a [tbase X] value through [phi : X → I_obj]
+    into [tProb].  The object-language workhorse behind [Sigmoid] etc. *)
+Notation "'ToProb' '{' phi '}' e" :=
+  (ne_to_prob phi e)
+  (in custom ppl_named at level 60, phi constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
+(** [Incl { incl } e] — forgetful read of a [tProb] value along [incl]. *)
+Notation "'Incl' '{' incl '}' e" :=
+  (ne_incl incl e)
+  (in custom ppl_named at level 60, incl constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
+(** *** [tProb]-producing map literals via [into_I]
+
+    [prob_map into_I h Hm Hg Hl] packages the [tR → tProb] morphism
+    [into_I Hm Hg Hl : R_obj → I_obj] built from a measurable [[0,1]]
+    map [h].  The three canonical instances [prob_sigmoid] /
+    [prob_gausslik] / [prob_gt0] feed [sigmoid] / [gauss_obs_density] /
+    [gt0_ind] (whose [[0,1]] witnesses already exist).  A constant
+    probability literal feeds the constant map [fun _ => pr_val pr]. *)
+
+Section ProbPrimitives.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj I_obj : ar_obj Ar).
+Variable (into_I :
+  forall (h : R -> R), measurable_fun [set: R] h ->
+    (forall r : R, (0 <= h r)%R) -> (forall r : R, (h r <= 1)%R) ->
+    ar_hom Ar R_obj I_obj).
+
+(** The sigmoid morphism [R_obj → I_obj]. *)
+Definition prob_sigmoid : ar_hom Ar R_obj I_obj :=
+  into_I measurable_sigmoid sigmoid_ge0 sigmoid_le1.
+
+(** The Gaussian-likelihood morphism [R_obj → I_obj]. *)
+Definition prob_gausslik (s y : R) : ar_hom Ar R_obj I_obj :=
+  into_I (gauss_obs_density_meas s y)
+         (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y).
+
+(** The strict-positivity-indicator morphism [R_obj → I_obj]. *)
+Definition prob_gt0 : ar_hom Ar R_obj I_obj :=
+  into_I gt0_ind_meas gt0_ind_ge0 gt0_ind_le1.
+
+(** A constant probability literal [pr : prob R] as a morphism: the
+    constant map [fun _ => pr_val pr], in [[0,1]] by the bundle. *)
+Definition prob_const (pr : prob R) : ar_hom Ar R_obj I_obj :=
+  into_I (measurable_cst (pr_val pr)) (fun=> pr_ge0 pr) (fun=> pr_le1 pr).
+
+End ProbPrimitives.
+
+Arguments prob_sigmoid {R Ar R_obj I_obj} into_I.
+Arguments prob_gausslik {R Ar R_obj I_obj} into_I s y.
+Arguments prob_gt0 {R Ar R_obj I_obj} into_I.
+Arguments prob_const {R Ar R_obj I_obj} into_I pr.
+
+(** [Sigmoid { into_I } e] — push the [tR] value of [e] through the
+    logistic sigmoid into [tProb].  [into_I] is the [ProbObj] factoring. *)
+Notation "'Sigmoid' '{' into_I '}' e" :=
+  (ne_to_prob (prob_sigmoid into_I) e)
+  (in custom ppl_named at level 60, into_I constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
+(** [Gausslik { into_I , s , y } e] — the Gaussian observation
+    likelihood as a [tProb] map. *)
+Notation "'Gausslik' '{' into_I ',' s ',' y '}' e" :=
+  (ne_to_prob (prob_gausslik into_I s y) e)
+  (in custom ppl_named at level 60, into_I constr at level 0,
+   s constr at level 0, y constr at level 0,
+   e custom ppl_named at level 60, right associativity).

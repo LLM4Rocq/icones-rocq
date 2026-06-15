@@ -664,6 +664,29 @@ refine (
   | ne_fix_mr G0 _ ty Hfree body =>
       fix_mr_clause (ctxD_cbv (drop_names G0)) ty Hfree
         (eD_cbv ((_, ty) :: G0) ty body)
+  (* [ne_bernoulli_p g e]: post-compose [eD e] (a [tbase I_obj] value,
+     i.e. an [FMeas I_obj] point) with the carrier-density Bernoulli
+     lift [bern_lift_g] ([ppl.v::Section BernTmLiftG]) — the [tProb]
+     mirror of the [ne_bernoulli_f]/[bern_lift] clause. *)
+  | ne_bernoulli_p G0 _ g Hg_meas Hg_ge0 Hg_le1 e0 =>
+      icones_comp
+        (@bern_lift_g R Ar _ g Hg_meas Hg_ge0 Hg_le1)
+        (eD_cbv G0 _ e0)
+  (* [ne_score_p g e]: post-compose with [score_lift_g] — the [tProb]
+     mirror of the [ne_score]/[score_lift] clause. *)
+  | ne_score_p G0 _ g Hg_meas Hg_ge0 Hg_le1 e0 =>
+      icones_comp
+        (@score_lift_g R Ar _ g Hg_meas Hg_ge0 Hg_le1)
+        (eD_cbv G0 _ e0)
+  (* [ne_to_prob phi e]: push the [tbase X] value through [FMeas(phi)],
+     landing in [tbase I_obj].  The [FMeas]-functorial action — same
+     post-composition shape as [ne_meas]. *)
+  | ne_to_prob G0 _ _ phi e0 =>
+      icones_comp (FMeas_fmap phi) (eD_cbv G0 _ e0)
+  (* [ne_incl incl e]: forgetful read of a [tProb] value along [incl],
+     also [FMeas(incl)]. *)
+  | ne_incl G0 _ _ incl e0 =>
+      icones_comp (FMeas_fmap incl) (eD_cbv G0 _ e0)
   end).
 Defined.
 
@@ -912,6 +935,43 @@ Lemma eD_bernoulli_f_E (G : named_ctx Ar) (f : R -> R)
     (@bern_lift R Ar R_obj R_carrier_eq R_carrier_meas
                 f Hf_meas Hf_ge0 Hf_le1)
     (eD_cbv' e).
+Proof. by []. Qed.
+
+(** [ne_bernoulli_p]: post-compose with the carrier-density Bernoulli
+    lift [bern_lift_g] — the [tProb] mirror of [eD_bernoulli_f_E]. *)
+Lemma eD_bernoulli_p_E (G : named_ctx Ar) (I_obj : ar_obj Ar)
+    (g : ar_carrier Ar I_obj -> R)
+    (Hg_meas : measurable_fun [set: ar_carrier Ar I_obj] g)
+    (Hg_ge0 : forall x : ar_carrier Ar I_obj, (0 <= g x)%R)
+    (Hg_le1 : forall x : ar_carrier Ar I_obj, (g x <= 1)%R)
+    (e : @named_expr R Ar R_obj G (tbase I_obj)) :
+  eD_cbv' (ne_bernoulli_p g Hg_meas Hg_ge0 Hg_le1 e) =
+  icones_comp (@bern_lift_g R Ar I_obj g Hg_meas Hg_ge0 Hg_le1) (eD_cbv' e).
+Proof. by []. Qed.
+
+(** [ne_score_p]: post-compose with [score_lift_g]. *)
+Lemma eD_score_p_E (G : named_ctx Ar) (I_obj : ar_obj Ar)
+    (g : ar_carrier Ar I_obj -> R)
+    (Hg_meas : measurable_fun [set: ar_carrier Ar I_obj] g)
+    (Hg_ge0 : forall x : ar_carrier Ar I_obj, (0 <= g x)%R)
+    (Hg_le1 : forall x : ar_carrier Ar I_obj, (g x <= 1)%R)
+    (e : @named_expr R Ar R_obj G (tbase I_obj)) :
+  eD_cbv' (ne_score_p g Hg_meas Hg_ge0 Hg_le1 e) =
+  icones_comp (@score_lift_g R Ar I_obj g Hg_meas Hg_ge0 Hg_le1) (eD_cbv' e).
+Proof. by []. Qed.
+
+(** [ne_to_prob]: [FMeas(phi) ∘ ⟦e⟧]. *)
+Lemma eD_to_prob_E (G : named_ctx Ar) (X I_obj : ar_obj Ar)
+    (phi : ar_hom Ar X I_obj)
+    (e : @named_expr R Ar R_obj G (tbase X)) :
+  eD_cbv' (ne_to_prob phi e) = icones_comp (FMeas_fmap phi) (eD_cbv' e).
+Proof. by []. Qed.
+
+(** [ne_incl]: [FMeas(incl) ∘ ⟦e⟧]. *)
+Lemma eD_incl_E (G : named_ctx Ar) (I_obj Y : ar_obj Ar)
+    (incl : ar_hom Ar I_obj Y)
+    (e : @named_expr R Ar R_obj G (tbase I_obj)) :
+  eD_cbv' (ne_incl incl e) = icones_comp (FMeas_fmap incl) (eD_cbv' e).
 Proof. by []. Qed.
 
 (** [ne_if]: dispatch via [if_icones] (the [bool_case] co-pairing). *)
