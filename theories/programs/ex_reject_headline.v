@@ -836,10 +836,15 @@ Qed.
 
 Local Open Scope ereal_scope.
 
+(** [If] / [IUf U] abbreviate the acceptance-mass integrals in the
+    PROOFS only ([only parsing]); the headline STATEMENTS below spell the
+    integrals out explicitly so the reader sees the real measure
+    [fmeas_mu mu] and integrand [(f (cR ·))%:E]. *)
 Local Notation If :=
-  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E).
+  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E)
+  (only parsing).
 Local Notation IUf U :=
-  (\int[fmeas_mu mu]_(r in U) (f (cR r))%:E).
+  (\int[fmeas_mu mu]_(r in U) (f (cR r))%:E) (only parsing).
 
 Let f_cR_meas : measurable_fun [set: ar_carrier Ar R_obj]
     (fun r => f (cR r)).
@@ -985,8 +990,12 @@ Qed.
     sampling denotes the NORMALISED POSTERIOR
     [ν(U) = (∫_U f dµ) / (∫ f dµ)]. *)
 Theorem ex_reject_is_normalised_posterior :
-  0 < If -> forall U, measurable U ->
-  fmeas_mu reject_denot U = ((fine (IUf U) / fine If)%R)%:E.
+  0 < \int[fmeas_mu mu]_(x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E) ->
+  forall U, measurable U ->
+  fmeas_mu reject_denot U =
+  ((fine (\int[fmeas_mu mu]_(x in U) ((f (cR x))%:E))
+    / fine (\int[fmeas_mu mu]_(x in [set: ar_carrier Ar R_obj])
+              ((f (cR x))%:E)))%R)%:E.
 Proof.
 move=> HIf U mU.
 rewrite ex_reject_sup_E.
@@ -1014,7 +1023,9 @@ Qed.
 (** The division-free master form — unconditional, graceful at
     [∫ f dµ = 0]. *)
 Theorem ex_reject_master U : measurable U ->
-  If * fmeas_mu reject_denot U = IUf U.
+  \int[fmeas_mu mu]_(x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E)
+    * fmeas_mu reject_denot U
+  = \int[fmeas_mu mu]_(x in U) ((f (cR x))%:E).
 Proof.
 move=> mU.
 have := reject_If_ge0; rewrite le_eqVlt => /orP[/eqP HIf0 | HIfpos].
@@ -1031,8 +1042,10 @@ Qed.
 
 (** When the acceptance density already integrates to [1], the
     denotation is the un-normalised reweighted prior itself. *)
-Theorem ex_reject_posterior_simple : If = 1 ->
-  forall U, measurable U -> fmeas_mu reject_denot U = IUf U.
+Theorem ex_reject_posterior_simple :
+  \int[fmeas_mu mu]_(x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E) = 1 ->
+  forall U, measurable U ->
+  fmeas_mu reject_denot U = \int[fmeas_mu mu]_(x in U) ((f (cR x))%:E).
 Proof.
 move=> HIf1 U mU.
 by rewrite -(ex_reject_master mU) HIf1 mul1e.
@@ -1040,7 +1053,8 @@ Qed.
 
 (** Almost-sure termination: positive acceptance mass gives a
     PROBABILITY distribution. *)
-Theorem ex_reject_mass_one : 0 < If ->
+Theorem ex_reject_mass_one :
+  0 < \int[fmeas_mu mu]_(x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E) ->
   fmeas_mu reject_denot [set: ar_carrier Ar R_obj] = 1.
 Proof.
 move=> HIf.

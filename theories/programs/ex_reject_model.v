@@ -805,11 +805,15 @@ Qed.
 
 Local Open Scope ereal_scope.
 
+(** [If] / [IUf U] abbreviate the acceptance-mass integrals in the
+    PROOFS only ([only parsing]); the headline STATEMENTS below spell the
+    integrals out explicitly so the reader sees the real measure
+    [fmeas_mu reject_model_dist] and integrand [(f (cR ·))%:E]. *)
 Local Notation If :=
   (\int[fmeas_mu reject_model_dist]_(r in [set: ar_carrier Ar R_obj])
-     (f (cR r))%:E).
+     (f (cR r))%:E) (only parsing).
 Local Notation IUf U :=
-  (\int[fmeas_mu reject_model_dist]_(r in U) (f (cR r))%:E).
+  (\int[fmeas_mu reject_model_dist]_(r in U) (f (cR r))%:E) (only parsing).
 Local Notation m0 :=
   (fine (fmeas_mu reject_model_dist [set: ar_carrier Ar R_obj])).
 
@@ -995,7 +999,11 @@ Qed.
     rejects); the degenerate corner [q = 1] (a probability model with
     [f ≡ 0] [ν_M]-a.e.) has both sides [0]. *)
 Theorem reject_model_master U (mU : measurable U) :
-  ((1 - m0 + fine If)%R)%:E * fmeas_mu reject_model_denot U = IUf U.
+  ((1 - m0
+      + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
+                ((f (cR x))%:E)))%R)%:E
+    * fmeas_mu reject_model_denot U
+  = \int[fmeas_mu reject_model_dist]_(x in U) ((f (cR x))%:E).
 Proof.
 have HnormE : (1 - m0 + fine If)%R = (1 - (m0 - fine If))%R.
   by rewrite opprB addrA addrAC.
@@ -1050,10 +1058,15 @@ Qed.
     [ν(U) = (∫_U f dν_M) / (1 - m₀ + ∫f dν_M)].  At [m₀ = 1] the
     normaliser is the classical [∫ f dν_M]. *)
 Theorem reject_model_is_normalised :
-  (0 < 1 - m0 + fine If)%R ->
+  (0 < 1 - m0
+     + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
+               ((f (cR x))%:E)))%R ->
   forall U, measurable U ->
   fmeas_mu reject_model_denot U =
-  ((fine (IUf U) / (1 - m0 + fine If))%R)%:E.
+  ((fine (\int[fmeas_mu reject_model_dist]_(x in U) ((f (cR x))%:E))
+    / (1 - m0
+         + fine (\int[fmeas_mu reject_model_dist]_
+                   (x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E))))%R)%:E.
 Proof.
 move=> Hpos U mU.
 have HmF : ((1 - m0 + fine If) *
@@ -1067,9 +1080,15 @@ Qed.
 (** The total-mass identity: [ν(setT) = ∫f dν_M / (1 - m₀ + ∫f dν_M)]
     — the probability that SOME trial eventually accepts. *)
 Theorem reject_model_mass :
-  (0 < 1 - m0 + fine If)%R ->
+  (0 < 1 - m0
+     + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
+               ((f (cR x))%:E)))%R ->
   fmeas_mu reject_model_denot [set: ar_carrier Ar R_obj] =
-  ((fine If / (1 - m0 + fine If))%R)%:E.
+  ((fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
+            ((f (cR x))%:E))
+    / (1 - m0
+         + fine (\int[fmeas_mu reject_model_dist]_
+                   (x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E))))%R)%:E.
 Proof.
 move=> Hpos; exact: (reject_model_is_normalised Hpos measurableT).
 Qed.
@@ -1078,7 +1097,9 @@ Qed.
     positive acceptance mass the combinator denotes a probability
     distribution. *)
 Theorem reject_model_mass_one :
-  m0 = 1%R -> 0 < If ->
+  m0 = 1%R ->
+  0 < \int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
+        ((f (cR x))%:E) ->
   fmeas_mu reject_model_denot [set: ar_carrier Ar R_obj] = 1.
 Proof.
 move=> Hm01 HIf.
