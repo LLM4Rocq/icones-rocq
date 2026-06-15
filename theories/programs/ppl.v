@@ -1434,20 +1434,13 @@ Definition mk_udensity (f : R -> R)
     (Hl : forall r : R, (f r <= 1)%R) : udensity :=
   MkUdensity Hm Hg Hl.
 
-(** The envelope-normalised Gaussian observation density as a bundle:
-    [observe Gaussian{s,y} e] elaborates through [Score (gauss_udensity
-    s y) e]. *)
-Definition gauss_udensity (s y : R) : udensity :=
-  MkUdensity (gauss_obs_density_meas s y)
-             (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y).
-
-Lemma gauss_udensityE (s y : R) : ud_f (gauss_udensity s y) = gauss_obs_density s y.
-Proof. by []. Qed.
-
-(** The strict-positivity indicator as a bundle — the density of the
-    comparison coin [e1 > e2]. *)
-Definition gt0_udensity : udensity :=
-  MkUdensity gt0_ind_meas gt0_ind_ge0 gt0_ind_le1.
+(** RETIRED (tProb migration): the [gauss_udensity] / [gt0_udensity]
+    [udensity] instances fed only the now-removed [observe Gaussian{·}]
+    / [M > N] meta-density notations.  Their clean replacements push the
+    underlying [gauss_obs_density] / [gt0_ind] maps through the bundle
+    factoring [po_into] (the [Gausslik {s, y}] / [Gt0] wrappers).  The
+    [udensity] record itself is RETAINED: it remains the density-data
+    bundle carried by the examples' [Variable d : udensity R]. *)
 
 (** *** Bundled [[0,1]]-valued scalar — [prob]
 
@@ -1472,9 +1465,6 @@ Arguments ud_meas {R}.
 Arguments ud_ge0 {R}.
 Arguments ud_le1 {R}.
 Arguments mk_udensity {R} f Hm Hg Hl.
-Arguments gauss_udensity {R} s y.
-Arguments gauss_udensityE {R} s y.
-Arguments gt0_udensity {R}.
 Arguments MkProb {R}.
 Arguments pr_val {R}.
 Arguments pr_ge0 {R}.
@@ -2621,45 +2611,18 @@ Notation "'Meas' '{' f ',' Hf '}' e" :=
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
    f constr, Hf constr, right associativity).
 
-(** Value-dependent Bernoulli — [Bernoulli d e] for a bundled density
-    [d : udensity]: flip a coin whose success probability is [ud_f d r]
-    at the runtime value [r] of [e].  The bundle carries measurability
-    and the [[0,1]] bounds; NO clamp, NO loose witnesses.
-
-    GRAMMAR NOTE: declared at level 1, like the constant form
-    [Bernoulli p].  The two productions factorize on the keyword: the
-    value-dependent form is followed by a SURFACE sub-expression [e],
-    the constant form by nothing (verified: both parse). *)
-Notation "'Bernoulli' d e" :=
-  (ne_bernoulli_f (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d) e)
-  (in custom ppl_named at level 1, d constr at level 0,
-   e custom ppl_named at level 60).
-
-(** Value-dependent score — [Score d e] for a bundled density
-    [d : udensity]: weight the trace by [ud_f d r] at the runtime value
-    [r] of [e]. *)
-Notation "'Score' d e" :=
-  (ne_score (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d) e)
-  (in custom ppl_named at level 60, d constr at level 0,
-   e custom ppl_named at level 60, right associativity).
-
-(** Envelope-normalised Bayesian conditioning — [observe Gaussian{ s, y } e]:
-    score the trace by the likelihood of the datum [y] under the Gaussian
-    [N(value(e), s)], NORMALISED by the distribution's peak so it is a legal
-    [[0,1]]-valued score density.  The deviation [s] and datum [y] are
-    Coq-level constrs (in the brace group, like [Bernoulli { p , … }]); the
-    predicted MEAN is the surface sub-expression [e] (e.g. a regression
-    prediction [m·x + b]).  No clamp, no envelope argument: the peak
-    [normal_peak s] is intrinsic to the distribution and lives inside
-    [gauss_obs_density].  Desugars through [Score (gauss_udensity s y) e],
-    i.e. [ne_score (ud_f (gauss_udensity s y)) … e]; since
-    [ud_f (gauss_udensity s y) = gauss_obs_density s y] definitionally,
-    observe and Score share the same density bundle. *)
-Notation "'observe' 'Gaussian' '{' s ',' y '}' e" :=
-  (ne_score (ud_f (gauss_udensity s y)) (ud_meas (gauss_udensity s y))
-            (ud_ge0 (gauss_udensity s y)) (ud_le1 (gauss_udensity s y)) e)
-  (in custom ppl_named at level 60, s constr, y constr,
-   e custom ppl_named at level 60, right associativity).
+(** RETIRED (tProb migration): the value-dependent meta-density surface
+    notations [Bernoulli d e] / [Score d e] / [observe Gaussian{s,y} e]
+    / [M > N] (which desugared to [ne_bernoulli_f] / [ne_score] via the
+    [udensity] / [gauss_udensity] / [gt0_udensity] bundles) are REMOVED.
+    Their clean replacements are the witness-free [tProb] forms over a
+    canonical [probObj P]:
+      - [Bernoulli d e]            ↝ [Bern (ToProb {po_into d} e)]
+      - [Score d e]                ↝ [Sc (ToProb {po_into d} e)]
+      - [observe Gaussian{s,y} e]  ↝ [Sc (Gausslik {s, y} e)]
+      - [M > N]                    ↝ [Bern (Gt0 (M + Meas{negr} N))]
+    (see [theories/programs/ppl.v]'s bundled-wrapper section and the
+    migrated examples in [theories/programs/examples.v]). *)
 
 (** Bundled sampling — [sample m] for [m : pmeas Ar R_obj].  The
     lowercase keyword is distinct from the unbundled [Sample (mu, Hmu)]
@@ -2667,18 +2630,6 @@ Notation "'observe' 'Gaussian' '{' s ',' y '}' e" :=
 Notation "'sample' m" :=
   (ne_sample (pm_meas m) (pm_ball m))
   (in custom ppl_named at level 1, m constr at level 0).
-
-(** Comparison — [e1 > e2]: the Bernoulli coin with success density
-    [gt0_ind (value(e1) - value(e2))].  On point masses [δ_a > δ_b] is
-    the DETERMINISTIC test [a > b] (indicator density); on diffuse
-    arguments it is the probability that an independent draw of [e1]
-    exceeds an independent draw of [e2]. *)
-Notation "M > N" :=
-  (ne_bernoulli_f (ud_f gt0_udensity) (ud_meas gt0_udensity)
-     (ud_ge0 gt0_udensity) (ud_le1 gt0_udensity)
-     (ne_add M (ne_meas negr negr_meas N)))
-  (in custom ppl_named at level 50, left associativity,
-   N custom ppl_named at level 49).
 
 (** OCaml-style [let rec] — annotation-free form: binder types are
     inferred from the body (works whenever the body USES [x] at a
