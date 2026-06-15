@@ -2007,128 +2007,144 @@ Arguments bern_lift_g_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 Arguments bern_lift_g_t_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 Arguments bern_lift_g_mass {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 
-(** ** The abstract [[0,1]] object [I_obj] and [tProb] (STAGE T1)
+(** ** The bundled [[0,1]] object [probObj] and [tProb] (STAGE T1)
 
-    [tProb := tbase I_obj] is the surface PROBABILITY type, the base
-    object [I_obj] standing for the [[0,1]] sub-object of the line.  Like
-    [R_obj], [I_obj] is NEVER concretely instantiated — it is an abstract
-    [Variable] with a carrier read [cI : ar_carrier Ar I_obj -> R] (an
-    inclusion-style cast) and the standing hypotheses below.  The crux
-    addition over the [R_obj] interface is the FACTORING operation
-    [into_I]: every measurable [[0,1]]-valued map [R -> R] factors through
-    [I] (the universal property of the [[0,1]] sub-object).  This is what
-    makes [sigmoid] / [gauss_lik] / a probability literal CONSTRUCTIBLE
-    as [tProb] primitives in the abstract setting. *)
+    A single CANONICAL structure [probObj] packages the whole [[0,1]]
+    sub-object interface that the [tProb] surface needs: the distinguished
+    real object [R_obj] (with its carrier cast), the abstract [[0,1]]
+    object [po_obj] with the inclusion [ι : po_obj → R_obj], the two
+    [[0,1]] bounds on [ι], and the FACTORING [po_into] (the universal
+    property: every measurable [[0,1]]-valued map [R → R] factors through
+    [po_obj]) with its computation law [po_into_E].
 
-Section ProbObj.
-Variables (R : realType) (Ar : MeasSubcat R).
-(* The distinguished real object, exactly as elsewhere. *)
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+    The point of bundling is INFERENCE.  The surface type is
+    [tProb P := tbase (po_obj P)].  A surface expression [e : tProb P]
+    keeps its type folded as [tProb P], so a [tProb]-constructor wrapper
+    that takes [P] as an IMPLICIT argument and an [e : named_expr G
+    (tProb P)] recovers [P] by plain first-order unification of
+    [tProb ?P] against the folded [tProb P] of [e]'s type — NO loose
+    section witnesses, NO explicit braces at the call site.  This is the
+    whole T1 surface fix: [Bernoulli (Sigmoid #"x")] elaborates with
+    [P] inferred. *)
 
-(* The abstract [[0,1]] object and the inclusion [ι : I → R] in [Ar]. *)
-Variable (I_obj : ar_obj Ar).
-Variable (incl : ar_hom Ar I_obj R_obj).
+(** The bundled [[0,1]] sub-object interface.  Carries the real object
+    and its carrier cast so that the [[0,1]] bounds [po_ge0]/[po_le1]
+    (and [po_into_E]) can be stated with [cR := carrier_to_R].  One
+    [P : probObj] replaces the five-plus loose section variables of the
+    old [Section ProbObj]. *)
+Record probObj (R : realType) (Ar : MeasSubcat R) := MkProbObj {
+  po_robj : ar_obj Ar ;
+  po_robj_eq : ar_carrier Ar po_robj = R :> Type ;
+  po_robj_meas :
+    measurable_fun [set: ar_carrier Ar po_robj]
+      (fun c : ar_carrier Ar po_robj =>
+         eq_rect _ (fun T : Type => T) c _ po_robj_eq : R) ;
+  po_obj : ar_obj Ar ;
+  po_incl : ar_hom Ar po_obj po_robj ;
+  po_ge0 : forall x : ar_carrier Ar po_obj,
+    (0 <= carrier_to_R po_robj_eq (po_incl x))%R ;
+  po_le1 : forall x : ar_carrier Ar po_obj,
+    (carrier_to_R po_robj_eq (po_incl x) <= 1)%R ;
+  po_into :
+    forall (h : R -> R), measurable_fun [set: R] h ->
+      (forall r : R, (0 <= h r)%R) -> (forall r : R, (h r <= 1)%R) ->
+      ar_hom Ar po_robj po_obj ;
+  po_into_E :
+    forall (h : R -> R) (Hm : measurable_fun [set: R] h)
+           (Hg : forall r : R, (0 <= h r)%R) (Hl : forall r : R, (h r <= 1)%R)
+           (r : ar_carrier Ar po_robj),
+      carrier_to_R po_robj_eq (po_incl (po_into Hm Hg Hl r)) = h (carrier_to_R po_robj_eq r)
+}.
 
-Local Notation cR := (carrier_to_R R_carrier_eq).
+Arguments po_robj {R Ar} P : rename.
+Arguments po_robj_eq {R Ar} P : rename.
+Arguments po_robj_meas {R Ar} P : rename.
+Arguments po_obj {R Ar} P : rename.
+Arguments po_incl {R Ar} P : rename.
+Arguments po_ge0 {R Ar} P x : rename.
+Arguments po_le1 {R Ar} P x : rename.
+Arguments po_into {R Ar} P h Hm Hg Hl : rename.
+Arguments po_into_E {R Ar} P h Hm Hg Hl r : rename.
 
-(* [ι] is [[0,1]]-valued (read into [R] via the [R_obj] cast). *)
-Hypothesis incl_ge0 : forall x : ar_carrier Ar I_obj, (0 <= cR (incl x))%R.
-Hypothesis incl_le1 : forall x : ar_carrier Ar I_obj, (cR (incl x) <= 1)%R.
+(** The surface probability type, keyed on the bundle [P].  Kept FOLDED
+    (a [Definition], not [Notation]) so that [tProb ?P] unifies [?P := P]
+    syntactically when a constructor wrapper meets an [e : tProb P]. *)
+Definition tProb {R : realType} {Ar : MeasSubcat R} (P : probObj Ar)
+  : ppl_type Ar := tbase (po_obj P).
 
-(* The factoring: every measurable [[0,1]] map [h : R -> R] yields a
-   morphism [R → I] in [Ar], with the computation law [into_I_E] reading
-   [ι ∘ into_I h = h] (under the [R]-cast).  This is the universal
-   property of the [[0,1]] sub-object. *)
-Variable (into_I :
-  forall (h : R -> R), measurable_fun [set: R] h ->
-    (forall r : R, (0 <= h r)%R) -> (forall r : R, (h r <= 1)%R) ->
-    ar_hom Ar R_obj I_obj).
-Hypothesis into_I_E :
-  forall (h : R -> R) (Hm : measurable_fun [set: R] h)
-         (Hg : forall r : R, (0 <= h r)%R) (Hl : forall r : R, (h r <= 1)%R)
-         (r : ar_carrier Ar R_obj),
-    cR (incl (into_I Hm Hg Hl r)) = h (cR r).
+(** The (read-into-[R]) carrier density of the inclusion of [P], and its
+    measurability — the canonical [I]-density of the bundle. *)
+Definition po_density {R : realType} {Ar : MeasSubcat R} (P : probObj Ar)
+  (x : ar_carrier Ar (po_obj P)) : R :=
+  carrier_to_R (po_robj_eq P) (po_incl P x).
 
-(** The surface probability type. *)
-Definition tProb : ppl_type Ar := tbase I_obj.
+Arguments po_density {R Ar} P x.
 
-(** *** The canonical [I]-density and its [[0,1]] witnesses. *)
-Definition incl_density (x : ar_carrier Ar I_obj) : R := cR (incl x).
-
-Lemma incl_density_meas : measurable_fun [set: ar_carrier Ar I_obj] incl_density.
+Lemma po_density_meas {R : realType} {Ar : MeasSubcat R} (P : probObj Ar) :
+  measurable_fun [set: ar_carrier Ar (po_obj P)]
+    (fun x : ar_carrier Ar (po_obj P) => po_density P x).
 Proof.
-rewrite /incl_density.
-apply: (measurableT_comp (f := cR)).
-- exact: R_carrier_meas.
+rewrite /po_density.
+apply: (measurableT_comp (f := carrier_to_R (po_robj_eq P))).
+- exact: (po_robj_meas P).
 - exact: measurable_funPT.
 Qed.
 
-(** *** The Bernoulli / score lifts AT [I] — clones of [Section
-    BernTmLiftG] / [ScoreTmLiftG] at [X := I_obj], density [cR ∘ incl]
-    (the inclusion read into [R]); the [[0,1]] witnesses are
-    [incl_ge0]/[incl_le1].  No per-call witness. *)
-Definition bern_lift_I : icones_hom Ar (FMeas I_obj) (bool_cone_car Ar) :=
-  bern_lift_g incl_density_meas incl_ge0 incl_le1.
+Arguments po_density_meas {R Ar} P.
 
-Definition score_lift_I : icones_hom Ar (FMeas I_obj) (cone_one_car Ar) :=
-  score_lift_g incl_density_meas incl_ge0 incl_le1.
+(** *** Bundled Bernoulli / score lifts at [P] — clones of [bern_lift_g]
+    / [score_lift_g] at [X := po_obj P], density [po_density P], witnesses
+    [po_ge0 P] / [po_le1 P].  No per-call witness; everything comes from
+    the bundle. *)
+Section ProbObjLifts.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (P : probObj Ar).
+
+Definition bern_lift_P
+  : icones_hom Ar (FMeas (po_obj P)) (bool_cone_car Ar) :=
+  bern_lift_g (po_density_meas P) (po_ge0 P) (po_le1 P).
+
+Definition score_lift_P
+  : icones_hom Ar (FMeas (po_obj P)) (cone_one_car Ar) :=
+  score_lift_g (po_density_meas P) (po_ge0 P) (po_le1 P).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
 (** Load-bearing Dirac identity: on [δ_x] the lift is the Bernoulli
-    [(cR (incl x), 1 - cR (incl x))]. *)
-Lemma bern_lift_I_dirac (x : ar_carrier Ar I_obj) :
-  Lfun bern_lift_I (dirac_fmeas x) =
-  bernoulli (cR (incl x)) (incl_ge0 x) (incl_le1 x).
+    [(po_density P x, 1 - po_density P x)]. *)
+Lemma bern_lift_P_dirac (x : ar_carrier Ar (po_obj P)) :
+  Lfun bern_lift_P (dirac_fmeas x) =
+  bernoulli (po_density P x) (po_ge0 P x) (po_le1 P x).
 Proof. exact: bern_lift_g_dirac. Qed.
 
-(** Integral law: the [true]-coordinate is [∫ (cR ∘ incl) dµ]. *)
-Lemma bern_lift_I_E (mu : fmeas R (ar_carrier Ar I_obj)) :
-  ((bc_t (Lfun bern_lift_I mu))%:num)%R =
-  fine (\int[fmeas_mu mu]_(x in [set: ar_carrier Ar I_obj]) (cR (incl x))%:E).
-Proof. exact: bern_lift_g_t_E. Qed.
-
-(** Total-mass / norm-1 preservation. *)
-Lemma bern_lift_I_mass (mu : fmeas R (ar_carrier Ar I_obj)) :
-  cone_norm (Lfun bern_lift_I mu) =
-  fine (fmeas_mu mu [set: ar_carrier Ar I_obj]).
+(** Total-mass / norm preservation. *)
+Lemma bern_lift_P_mass (mu : fmeas R (ar_carrier Ar (po_obj P))) :
+  cone_norm (Lfun bern_lift_P mu) =
+  fine (fmeas_mu mu [set: ar_carrier Ar (po_obj P)]).
 Proof. exact: bern_lift_g_mass. Qed.
 
-(** Score Dirac identity at [I]. *)
-Lemma score_lift_I_dirac (x : ar_carrier Ar I_obj) :
-  Lfun score_lift_I (dirac_fmeas x) = MkConeOne Ar (NngNum (incl_ge0 x)).
+(** Score Dirac identity at [P]. *)
+Lemma score_lift_P_dirac (x : ar_carrier Ar (po_obj P)) :
+  Lfun score_lift_P (dirac_fmeas x) = MkConeOne Ar (NngNum (po_ge0 P x)).
 Proof. exact: score_lift_g_dirac. Qed.
 
-(** The forgetful coalgebra morphism [FMeas(ι)] is exactly the existing
-    generic [FMeas_fmap incl] (no new def); it IS a coalgebra morphism. *)
-Lemma FMeas_incl_is_coalg_mor :
-  is_coalg_mor (FMeas_coalgebra I_obj) (FMeas_coalgebra R_obj)
-    (FMeas_fmap incl).
+End ProbObjLifts.
+
+Arguments bern_lift_P {R Ar} P.
+Arguments score_lift_P {R Ar} P.
+Arguments bern_lift_P_dirac {R Ar} P x.
+Arguments bern_lift_P_mass {R Ar} P mu.
+Arguments score_lift_P_dirac {R Ar} P x.
+
+(** The forgetful coalgebra morphism [FMeas(ι)] for the bundle [P] is the
+    generic [FMeas_fmap (po_incl P)]; it IS a coalgebra morphism. *)
+Lemma FMeas_po_incl_is_coalg_mor
+    (R : realType) (Ar : MeasSubcat R) (P : probObj Ar) :
+  is_coalg_mor (FMeas_coalgebra (po_obj P)) (FMeas_coalgebra (po_robj P))
+    (FMeas_fmap (po_incl P)).
 Proof. exact: FMeas_fmap_is_coalg_mor. Qed.
 
-End ProbObj.
-
-Arguments tProb {R Ar} I_obj.
-Arguments incl_density {R Ar R_obj} R_carrier_eq {I_obj} incl x.
-Arguments incl_density_meas {R Ar R_obj} R_carrier_eq R_carrier_meas {I_obj} incl.
-Arguments bern_lift_I {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
-                        incl incl_ge0 incl_le1.
-Arguments score_lift_I {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
-                         incl incl_ge0 incl_le1.
-Arguments bern_lift_I_dirac {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
-                              incl incl_ge0 incl_le1 x.
-Arguments bern_lift_I_E {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
-                          incl incl_ge0 incl_le1 mu.
-Arguments bern_lift_I_mass {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
-                             incl incl_ge0 incl_le1 mu.
-Arguments score_lift_I_dirac {R Ar R_obj R_carrier_eq R_carrier_meas I_obj}
-                               incl incl_ge0 incl_le1 x.
 
 (** ** [pmeas] — bundled sub-probability measures for [sample]
 
@@ -2687,14 +2703,136 @@ Notation "'let' 'rec' f x ':::' T1 '==>' T2 ':=' M 'in' K" :=
    K custom ppl_named at level 80,
    right associativity).
 
-(** ** [tProb]-typed surface forms (STAGE T1, ADDITIVE)
+(** ** Bundled [tProb] surface wrappers over a canonical [probObj] (STAGE T1)
+
+    These wrappers replace the witness-carrying [BernoulliP {..} e] /
+    [ScoreP {..} e] / [Sigmoid {into_I} e] braces by taking a SINGLE
+    bundle [P : probObj Ar] — inferred, not written — from the FOLDED type
+    [tProb P] of the argument / result.
+
+    *** How [P] is recovered by inference (the whole point).
+
+    [tProb P := tbase (po_obj P)] is a [Definition], kept folded; the
+    wrappers take [P] as a MAXIMAL IMPLICIT.
+
+    - [pbern] / [pscore] take [e : named_expr G (tProb P)].  When the
+      elaborator meets [pbern e0] it unifies the expected argument type
+      [named_expr G (tProb ?P)] with the ACTUAL type of [e0].  If [e0]'s
+      type is the folded [tProb P] (which it is, because [psigmoid] /
+      [pconst] below RETURN [tProb P]), first-order unification of
+      [tProb ?P ≡ tProb P] solves [?P := P] syntactically — no canonical
+      structure, no witnesses.
+    - [psigmoid] / [pgausslik] / [pgt0] / [pconst] RETURN [tProb P] and
+      take their real-typed argument at [tProb_robj P := tbase (po_robj P)]
+      (also folded), so a nested [Bernoulli (Sigmoid e)] threads ONE [?P]
+      top-down: [pbern] gets [?P] from [psigmoid]'s [tProb ?P] result, and
+      [psigmoid] gets the SAME [?P] from the surrounding expected type by
+      bidirectionality.  At a closed call site with a single section
+      [P : probObj Ar] in scope this resolves to that [P]. *)
+
+(** The real-object surface type keyed on the bundle [P] — the folded
+    domain of the [tProb]-producing primitives. *)
+Definition tProb_robj {R : realType} {Ar : MeasSubcat R} (P : probObj Ar)
+  : ppl_type Ar := tbase (po_robj P).
+
+Section ProbSurfaceWrappers.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (P : probObj Ar).
+Variable (G : named_ctx Ar).
+
+(* All wrappers live over [named_expr] at the real object [po_robj P] of
+   the bundle [P]. *)
+Local Notation nexpr t := (@named_expr R Ar (po_robj P) G t).
+
+(** Value-dependent [tProb]-coin: [P] inferred from [e : tProb P]. *)
+Definition pbern (e : nexpr (tProb P)) : nexpr tbool :=
+  ne_bernoulli_p (po_density P) (po_density_meas P) (po_ge0 P) (po_le1 P) e.
+
+(** Term-level score by the bundle density: [P] inferred from [e]. *)
+Definition pscore (e : nexpr (tProb P)) : nexpr tunit :=
+  ne_score_p (po_density P) (po_density_meas P) (po_ge0 P) (po_le1 P) e.
+
+(** Forgetful read of a [tProb] value back to the line along [ι]. *)
+Definition pincl (e : nexpr (tProb P)) : nexpr (tProb_robj P) :=
+  ne_incl (po_incl P) e.
+
+(** [tProb]-producing primitives: push a real value through the bundle's
+    factoring of the named [[0,1]] map.  Each RETURNS [tProb P]. *)
+Definition psigmoid (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
+  ne_to_prob (po_into P sigmoid measurable_sigmoid sigmoid_ge0 sigmoid_le1) e.
+
+Definition pgausslik (s y : R) (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
+  ne_to_prob (po_into P (gauss_obs_density s y) (gauss_obs_density_meas s y)
+                (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y)) e.
+
+Definition pgt0 (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
+  ne_to_prob (po_into P gt0_ind gt0_ind_meas gt0_ind_ge0 gt0_ind_le1) e.
+
+(** A constant probability literal as a closed [tProb] map applied to a
+    real argument: the constant [[0,1]] map [fun _ => pr_val pr]. *)
+Definition pconst (pr : prob R) (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
+  ne_to_prob (po_into P (cst (pr_val pr)) (measurable_cst (pr_val pr))
+                (fun=> pr_ge0 pr) (fun=> pr_le1 pr)) e.
+
+End ProbSurfaceWrappers.
+
+Arguments tProb_robj {R Ar} P.
+Arguments pbern {R Ar P G} e.
+Arguments pscore {R Ar P G} e.
+Arguments pincl {R Ar P G} e.
+Arguments psigmoid {R Ar P G} & e.
+Arguments pgausslik {R Ar P G} & s y e.
+Arguments pgt0 {R Ar P G} & e.
+Arguments pconst {R Ar P G} & pr e.
+
+(** Clean witness-free surface notations over the canonical bundle.
+
+    [Bern e] / [Sc e] / [Sigmoid e] / [Gausslik{s,y} e] / [Gt0 e] /
+    [Const pr e] / [Incl e] — NO braces, [P] inferred. *)
+Notation "'Bern' e" :=
+  (pbern e)
+  (in custom ppl_named at level 1, e custom ppl_named at level 60).
+
+Notation "'Sc' e" :=
+  (pscore e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   right associativity).
+
+Notation "'Sigmoid' e" :=
+  (psigmoid e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   right associativity).
+
+Notation "'Gausslik' '{' s ',' y '}' e" :=
+  (pgausslik s y e)
+  (in custom ppl_named at level 60, s constr at level 0, y constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
+Notation "'Gt0' e" :=
+  (pgt0 e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   right associativity).
+
+Notation "'Const' pr e" :=
+  (pconst pr e)
+  (in custom ppl_named at level 60, pr constr at level 0,
+   e custom ppl_named at level 60, right associativity).
+
+Notation "'InclP' e" :=
+  (pincl e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   right associativity).
+
+(** ** [tProb]-typed surface forms (STAGE T1, ADDITIVE — LEGACY braces)
 
     Sugar for the four new constructors.  The density / morphism data is
     supplied in brace groups (like [Meas { f , Hf }]); the surface
     sub-expression follows.  The [ProbObj]-interface section provides
     [into_I] (the factoring) so that [Sigmoid] / [Gausslik] / [Gt0prob] /
     a probability literal are constructible by passing the appropriate
-    [into_I _ _ _] morphism into [ToProb]. *)
+    [into_I _ _ _] morphism into [ToProb].  These are KEPT for any
+    callers still on the explicit-witness surface; the bundled wrappers
+    above are the clean replacement. *)
 
 (** [BernoulliP { g , Hm , Hg , Hl } e] — value-dependent coin at a
     [tProb = tbase I_obj] value [e], success probability the carrier
@@ -2768,17 +2906,8 @@ Arguments prob_gausslik {R Ar R_obj I_obj} into_I s y.
 Arguments prob_gt0 {R Ar R_obj I_obj} into_I.
 Arguments prob_const {R Ar R_obj I_obj} into_I pr.
 
-(** [Sigmoid { into_I } e] — push the [tR] value of [e] through the
-    logistic sigmoid into [tProb].  [into_I] is the [ProbObj] factoring. *)
-Notation "'Sigmoid' '{' into_I '}' e" :=
-  (ne_to_prob (prob_sigmoid into_I) e)
-  (in custom ppl_named at level 60, into_I constr at level 0,
-   e custom ppl_named at level 60, right associativity).
-
-(** [Gausslik { into_I , s , y } e] — the Gaussian observation
-    likelihood as a [tProb] map. *)
-Notation "'Gausslik' '{' into_I ',' s ',' y '}' e" :=
-  (ne_to_prob (prob_gausslik into_I s y) e)
-  (in custom ppl_named at level 60, into_I constr at level 0,
-   s constr at level 0, y constr at level 0,
-   e custom ppl_named at level 60, right associativity).
+(** NOTE: the legacy witness-carrying [Sigmoid { into_I } e] /
+    [Gausslik { into_I , s , y } e] surface notations are SUPERSEDED by
+    the bundled, witness-free [Sigmoid e] / [Gausslik { s , y } e] above
+    (which infer the [probObj] bundle [P]); the legacy [prob_sigmoid] /
+    [prob_gausslik] morphism builders are retained for any direct use. *)

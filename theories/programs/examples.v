@@ -1302,70 +1302,63 @@ Definition ex_surface_walk_cbv :=
 
 End CBVDenotations.
 
-(** ** Example — [ex_tprob_demo] — the [tProb] surface end-to-end
-       (STAGE T1, ADDITIVE smoke test)
+(** ** Example — [ex_tprob_demo] — the clean [tProb] surface end-to-end
+       (STAGE T1, ADDITIVE smoke test — the CANONICAL [probObj] ACCEPTANCE
+       TEST)
 
-    A closed program exercising the new probability type [tProb]:
+    A closed program exercising the new probability type [tProb] over a
+    SINGLE bundled [P : probObj Ar] — NO threaded witnesses:
     [[
        let "x" := sample m in
-       if BernoulliP { cR∘incl } (Sigmoid { into_I } #"x") then [|1|] else [|0|]
+       if Bern (Sigmoid #"x") then [|1|] else [|0|]
     ]]
     — sample a real [x], push it through the logistic sigmoid into the
-    [[0,1]] object [I] (a [tProb] value), flip a [tProb]-Bernoulli on it,
-    and branch.  This exercises EVERY new piece: [ne_to_prob] (via
-    [Sigmoid] / [prob_sigmoid] / [into_I]), [ne_bernoulli_p] (via
-    [BernoulliP] at the canonical [I]-density [cR ∘ incl]), the type
-    [tProb = tbase I_obj], and the CBV clauses [eD_to_prob_E] /
-    [eD_bernoulli_p_E].  The denotation [ex_tprob_demo_cbv] is the
-    compile-time check that the whole chain elaborates. *)
+    [[0,1]] object [po_obj P] (a [tProb P] value), flip a [tProb]-Bernoulli
+    on it, and branch.  The point of the redesign: [Sigmoid #"x"] and
+    [Bern (..)] carry NO density / inclusion / factoring witnesses — the
+    bundle [P] is recovered by inference from the FOLDED types [tProb P] /
+    [tProb_robj P].  This is the acceptance test for the canonical
+    [probObj] structure.  [ex_tprob_demo2] is the constant-coin variant
+    [Bern (Const prob_half #"x")]. *)
 
 Section TProbDemo.
 Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+
+(* The whole [[0,1]] interface is now ONE bundle. *)
+Variable (P : probObj Ar).
+
+(* The only remaining standing hypothesis is the [sample]-transport
+   measurability of the carrier cast — an [eD] requirement, unrelated to
+   the [probObj] bundle. *)
 Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+  measurable_fun [set: R] (R_to_carrier (po_robj_eq P)).
 
-(* The abstract [[0,1]] object interface (the [ProbObj] standing data). *)
-Variable (I_obj : ar_obj Ar).
-Variable (incl : ar_hom Ar I_obj R_obj).
-Hypothesis incl_ge0 : forall x : ar_carrier Ar I_obj,
-  (0 <= carrier_to_R R_carrier_eq (incl x))%R.
-Hypothesis incl_le1 : forall x : ar_carrier Ar I_obj,
-  (carrier_to_R R_carrier_eq (incl x) <= 1)%R.
-Variable (into_I :
-  forall (h : R -> R), measurable_fun [set: R] h ->
-    (forall r : R, (0 <= h r)%R) -> (forall r : R, (h r <= 1)%R) ->
-    ar_hom Ar R_obj I_obj).
+Variable (m : pmeas Ar (po_robj P)).
 
-Variable (m : pmeas Ar R_obj).
-
-Local Notation tR' := (tR R_obj).
-
-(* The canonical [I]-density [cR ∘ incl] and its [[0,1]] witnesses, as a
-   density-bundle for [BernoulliP]. *)
-Local Notation gI := (incl_density R_carrier_eq incl).
-Local Notation gI_meas := (incl_density_meas R_carrier_eq R_carrier_meas incl).
-
-Definition ex_tprob_demo : @named_expr R Ar R_obj nil tR' :=
+(** The clean surface program — [P] inferred everywhere, no witnesses. *)
+Definition ex_tprob_demo
+    : @named_expr R Ar (po_robj P) nil (tProb_robj P) :=
   [ let "x" := sample m in
-    if BernoulliP { gI , gI_meas , incl_ge0 , incl_le1 }
-         (Sigmoid { into_I } # "x")
-    then [| 1 |] else [| 0 |] ].
+    if Bern (Sigmoid # "x") then [| 1 |] else [| 0 |] ].
 
-(** The CBV denotation — the end-to-end elaboration smoke test. *)
+(** The constant-coin variant: [Bern (Const prob_half #"x")]. *)
+Definition ex_tprob_demo2
+    : @named_expr R Ar (po_robj P) nil (tProb_robj P) :=
+  [ let "x" := sample m in
+    if Bern (Const prob_half # "x") then [| 1 |] else [| 0 |] ].
+
+(** The CBV denotations — the end-to-end elaboration smoke tests. *)
 Definition ex_tprob_demo_cbv :=
-  @eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _
+  @eD R Ar (po_robj P) (po_robj_eq P) (po_robj_meas P) R_to_carrier_meas _ _
       ex_tprob_demo.
+
+Definition ex_tprob_demo2_cbv :=
+  @eD R Ar (po_robj P) (po_robj_eq P) (po_robj_meas P) R_to_carrier_meas _ _
+      ex_tprob_demo2.
 
 End TProbDemo.
 
-Arguments ex_tprob_demo {R Ar R_obj} R_carrier_eq R_carrier_meas
-                          {I_obj} incl incl_ge0 incl_le1 into_I m.
-Arguments ex_tprob_demo_cbv {R Ar R_obj} R_carrier_eq R_carrier_meas
-                              R_to_carrier_meas {I_obj} incl
-                              incl_ge0 incl_le1 into_I m.
+Arguments ex_tprob_demo {R Ar} P m.
+Arguments ex_tprob_demo2 {R Ar} P m.
+Arguments ex_tprob_demo_cbv {R Ar} P R_to_carrier_meas m.
+Arguments ex_tprob_demo2_cbv {R Ar} P R_to_carrier_meas m.
