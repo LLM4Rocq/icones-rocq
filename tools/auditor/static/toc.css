@@ -21,7 +21,11 @@
 
 .layout-shell {
   display: flex;
-  align-items: flex-start;
+  /* stretch (not flex-start): the rail must be as tall as the content column
+     so the sticky sidebar inside it has room to stick. With flex-start the
+     rail is only as tall as the sidebar, and `position: sticky` then has no
+     scroll range — the sidebar scrolls away with the page. */
+  align-items: stretch;
   gap: clamp(1rem, 2vw, 2rem);
   max-width: calc(var(--maxw) + var(--toc-width) + 2rem);
   margin: 0 auto;
@@ -47,8 +51,11 @@
 
 .toc-sidebar {
   position: sticky;
-  top: 1rem;
-  max-height: calc(100vh - 2rem);
+  /* Clear the sticky 3-row header (external-resources pills + tab-nav +
+     search ≈ 7rem) so the pinned sidebar sits below it rather than under it.
+     Tunable via --toc-sticky-top if the header height changes. */
+  top: var(--toc-sticky-top, 7rem);
+  max-height: calc(100vh - var(--toc-sticky-top, 7rem) - 1rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   font-size: 0.85rem;
