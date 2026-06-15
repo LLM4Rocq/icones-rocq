@@ -65,6 +65,7 @@
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
+From mathcomp Require Import lra.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
@@ -500,12 +501,12 @@ Definition ex_true : @named_expr R Ar (po_robj P) nil tbool := [ True ].
 
 Definition ex_false : @named_expr R Ar (po_robj P) nil tbool := [ False ].
 
-(** The fair coin, in the clean [tProb] constant form
-    [Bern (Const prob_half [|0|])]: the success probability [1/2] is the
-    constant map pushed through the bundle factoring [po_into] at the
-    real literal [0] — no clamp, no loose witnesses. *)
+(** The fair coin, in the clean constant-literal form
+    [Bernoulli [| (1/2 : R) |]]: the success probability [1/2] is a bare
+    real literal whose [[0,1]] bounds are discharged on the spot by
+    [lra] — no [prob_half] bundle, no [Const], no loose witnesses. *)
 Definition ex_fair_coin : @named_expr R Ar (po_robj P) nil tbool :=
-  [ Bern (Const (prob_half : prob R) [| 0%R |]) ].
+  [ Bernoulli [| (1 / 2 : R) |] ].
 
 End ExBoolDemo.
 
@@ -520,10 +521,10 @@ Variables (R : realType) (Ar : MeasSubcat R).
 Variable (P : probObj Ar).
 
 (** The closed [tbool]-typed [if-then-else] term:
-    [if Bern (Const prob_half [|0|]) then True else False]. *)
+    [if Bernoulli [| (1/2 : R) |] then True else False]. *)
 Definition ex_if_demo :
     @named_expr R Ar (po_robj P) nil tbool :=
-  [ if Bern (Const (prob_half : prob R) [| 0%R |])
+  [ if Bernoulli [| (1 / 2 : R) |]
     then True else False ].
 
 End ExIfDemo.
@@ -541,13 +542,14 @@ Local Notation tR' := (tR (po_robj P)).
 (** *** [ex_geom] — geometric distribution
     Source: [let rec g _ = if Bernoulli(½) then 0
                                            else 1 + g () in g ()].
-    The fair coin is the clean [tProb] constant form
-    [Bern (Const prob_half [|0|])] — the value-coin at a constant
-    success probability [1/2] over the bundle [P], no loose witnesses. *)
+    The fair coin is the clean constant-literal form
+    [Bernoulli [| (1/2 : R) |]] — the success probability [1/2] is a
+    bare real literal, its [[0,1]] bounds discharged by [lra]; no
+    [prob_half] bundle, no [Const], no loose witnesses. *)
 
 Definition ex_geom : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "g" "_" ::: tunit ==> tR' :=
-      (if Bern (Const (prob_half : prob R) [| 0%R |])
+      (if Bernoulli [| (1 / 2 : R) |]
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ())
     in # "g" @ () ].
@@ -558,7 +560,7 @@ Definition ex_geom_body :
       (("g"%string, tfun tunit tR') :: nil)
       (tfun tunit tR') :=
   [ \ "_" ::: tunit =>
-      (if Bern (Const (prob_half : prob R) [| 0%R |])
+      (if Bernoulli [| (1 / 2 : R) |]
        then [| 0%R |]
        else [| 1%R |] + # "g" @ ()) ].
 

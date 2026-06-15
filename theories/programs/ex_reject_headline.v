@@ -70,6 +70,7 @@
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
+From mathcomp Require Import lra.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals signed constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
@@ -1541,7 +1542,7 @@ Definition g_var :
 Definition g_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) tR' :=
-  [ if Bern (Const (prob_half : prob R) [| 0%R |])
+  [ if Bernoulli [| (1 / 2 : R) |]
     then [| 0%R |]
     else [| 1%R |] + # "g" @ () ].
 
@@ -1555,22 +1556,23 @@ Lemma ex_geom_body_decomp :
   (ex_geom_body : @named_expr R Ar R_obj _ _) = ne_lam "_" g_if.
 Proof. by []. Qed.
 
-(** The clean coin's underlying [tProb] argument: the constant [1/2]
-    pushed through the bundle's factoring [po_into] at the real
-    literal [0]. *)
-Local Notation g_coin_arg :=
-  (ne_to_prob (po_into P (cst (pr_val (prob_half : prob R)))
-                 (measurable_cst (pr_val (prob_half : prob R)))
-                 (fun=> pr_ge0 prob_half) (fun=> pr_le1 prob_half))
-              (ne_real 0%R)).
+(** The fair coin's underlying constant-literal Bernoulli: success
+    probability [1/2] with the [[0,1]] bounds discharged by [lra]
+    (the [Bernoulli [| (1/2 : R) |]] surface form). *)
+Local Notation g_coin :=
+  (ne_bernoulli (Ar:=Ar) (R_obj:=R_obj)
+     (G := ("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil)
+     (1 / 2 : R) (bernoulli_half_ge0 R) (bernoulli_half_le1 R)).
 
 Lemma g_if_decomp :
   g_if = ne_if tR'
-           (ne_bernoulli_p (po_density P) (po_density_meas P)
-              (po_ge0 P) (po_le1 P) g_coin_arg)
+           g_coin
            (ne_real 0%R)
            (ne_add (ne_real 1%R) (ne_app g_var ne_tt)).
-Proof. by []. Qed.
+Proof.
+rewrite /g_if /=; congr (ne_if _ (ne_bernoulli _ _ _) _ _);
+  exact: bool_irrelevance.
+Qed.
 
 Let Hone : cone_norm (one1 : cone_one_car Ar) <= 1.
 Proof. by rewrite one1_norm. Qed.
@@ -1816,25 +1818,20 @@ rewrite (coalg_d_setlike (g_env3_ball n) (g_env3_setlike n)) tensor_morE.
 by rewrite g_one_E g_call_E.
 Qed.
 
-(** *** Clean-surface coin leaf
+(** *** Constant-literal coin leaf
 
-    The fair coin [Bern (Const prob_half [|0|])] denotes, at any setlike
-    unit-ball environment, the same [bernoulli (1/2)] cone as the legacy
-    constant coin: the real literal [0] is [δ_0], pushed by the bundle
-    factoring [po_into (cst (1/2))] to a Dirac on which [bern_lift_P]
-    reads off [bernoulli (po_density (po_into 0)) = bernoulli (1/2)]. *)
+    The fair coin [Bernoulli [| (1/2 : R) |]] denotes, at any setlike
+    unit-ball environment, the [bernoulli (1/2)] cone directly: the
+    constant-coin denotation pin [eD_bernoulli_E] rewrites the leaf to
+    the constant [icones_hom] [bernoulli_icones … (1/2)], which
+    [const_iconesE] evaluates to [bernoulli (1/2)] at the setlike
+    environment.  No [tProb]/[po_into]/[bern_lift_P] detour. *)
 Lemma g_coin_E n :
-  Lfun (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
-                   (po_ge0 P) (po_le1 P) g_coin_arg))
-       (g_env3 n) =
+  Lfun (eD_cbv' g_coin) (g_env3 n) =
   bernoulli (Ar:=Ar) (1 / 2 : R) (bernoulli_half_ge0 R) (bernoulli_half_le1 R).
 Proof.
-rewrite eD_bernoulli_p_E Lfun_comp.
-rewrite -[bern_lift_g _ _ _]/(bern_lift_P P).
-rewrite eD_to_prob_E Lfun_comp.
-rewrite eD_real_E /real_icones (const_iconesE (g_env3_ball n) (g_env3_setlike n)).
-rewrite FMeas_fmap_dirac bern_lift_P_dirac.
-apply: bool_cone_eq; apply: val_inj => /=; by rewrite /po_density po_into_E.
+rewrite eD_bernoulli_E.
+exact: (const_iconesE (g_env3_ball n) (g_env3_setlike n)).
 Qed.
 
 Lemma g_step n :
@@ -1851,8 +1848,7 @@ rewrite (if_icones_at
   (eD_cbv' (@ne_real R Ar R_obj
      (("_"%string, tunit) :: ("g"%string, tfun tunit tR') :: nil) 0%R))
   (eD_cbv' (ne_add (ne_real 1%R) (ne_app g_var ne_tt)))
-  (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
-              (po_ge0 P) (po_le1 P) g_coin_arg))
+  (eD_cbv' g_coin)
   (g_env3_ball n) (g_env3_setlike n)).
 by rewrite g_then_E g_else_E g_coin_E.
 Qed.

@@ -119,6 +119,7 @@
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
+From mathcomp Require Import lra.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals signed constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
@@ -2538,6 +2539,22 @@ Notation "'False'" := ne_false (in custom ppl_named at level 0).
     [pr_ge0]/[pr_le1]); NO loose witnesses. *)
 Notation "'Bernoulli' p" :=
   (ne_bernoulli (pr_val p) (pr_ge0 p) (pr_le1 p))
+  (in custom ppl_named at level 1, p constr at level 0).
+
+(** Constant Bernoulli sampling at a LITERAL probability — [Bernoulli
+    [| p |]] for a bare real [p : R] returns a [tbool] expression, with
+    the two [[0,1]] bounds [0 <= p] and [p <= 1] discharged on the spot
+    by [lra].  Use this for closed literals such as
+    [Bernoulli [| (1/2 : R) |]] where the bounds are decidable over an
+    abstract [realType] (the [: R] ascription pins the literal's ring,
+    since a bare numeric literal is ring-ambiguous and [lra] is
+    elaborated eagerly); for a runtime PARAMETER [p] (where [lra] cannot
+    prove the bounds) use the bundled form [Bernoulli p] above.  The
+    bracketed [[| p |]] keyword shape parses disjointly from the bundled
+    [Bernoulli p] (whose [p] is a bare [constr], never a [[|…|]]
+    token). *)
+Notation "'Bernoulli' '[|' p '|]'" :=
+  (ne_bernoulli p ltac:(lra) ltac:(lra))
   (in custom ppl_named at level 1, p constr at level 0).
 
 (** Runtime-parameter named distributions — [Gaussian( e1 , e2 )] /
