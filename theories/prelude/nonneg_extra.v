@@ -4,8 +4,6 @@
     multiplication, beyond what mathcomp-analysis provides out of the box.
 *)
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
-From mathcomp.classical Require Import boolp.
-From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 
 Set Implicit Arguments.

@@ -16,9 +16,8 @@
     arbitrary partial orders; in particular, on the cone order of the
     unit ball of a cone (Paper Def 2.2, condition (Normc)).
 *)
-From mathcomp Require Import all_ssreflect ssralg.
+From mathcomp Require Import all_ssreflect.
 From mathcomp.order Require Import preorder order.
-From mathcomp.classical Require Import boolp.
 From HB Require Import structures.
 
 Set Implicit Arguments.

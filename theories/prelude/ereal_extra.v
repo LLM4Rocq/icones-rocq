@@ -4,10 +4,8 @@
     a measure value is fed into a cone operation.
 *)
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
-From mathcomp.classical Require Import boolp classical_sets.
-From mathcomp.reals Require Import reals constructive_ereal.
+From mathcomp.reals Require Import constructive_ereal.
 From mathcomp.algebra Require Import interval_inference.
-From mathcomp.analysis Require Import ereal.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
