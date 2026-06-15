@@ -206,21 +206,21 @@ Local Notation sp_phi :=
   (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
 (** The PPL term:
-    [let "m" := sample m in let "_" := Sc (ToProb d #"m") in #"m"].
-    The clean [tProb] score [Sc] weighs by [po_density P] of the
+    [let "m" := sample m in let "_" := Score (ToProb d #"m") in #"m"].
+    The clean [tProb] score [Score] weighs by [po_density P] of the
     factored value, which [po_into_E] reads back as [ud_f d] of the
     sampled real — the same soft-evidence weight as the legacy
     [Score d #"m"]. *)
 Definition ex_score_posterior :
     @named_expr R Ar (po_robj P) nil tR' :=
   [ let "m" := sample m in
-    let "_" := Sc (ToProb {sp_phi} # "m") in
+    let "_" := Score (ToProb {sp_phi} # "m") in
     # "m" ].
 
 (** The continuation under the prior bind. *)
 Definition ex_sp_cont :
     @named_expr R Ar (po_robj P) (("m"%string, tR') :: nil) tR' :=
-  [ let "_" := Sc (ToProb {sp_phi} # "m") in
+  [ let "_" := Score (ToProb {sp_phi} # "m") in
     # "m" ].
 
 End ScorePosterior.
@@ -324,14 +324,14 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of one observation's Gaussian likelihood
     [obs_d o] into the probability object, the clean [tProb]-score map
-    behind [Sc (Gausslik{1/2, obs_y o} (#"f" @ [|obs_x o|]))]. *)
+    behind [Score (Gausslik{1/2, obs_y o} (#"f" @ [|obs_x o|]))]. *)
 Local Notation obs_phi o :=
   (po_into P (obs_d o) (obs_meas o) (obs_ge0 o) (obs_le1 o)).
 
 (** One observation-conditioning step: [observe Gaussian{1/2, obs_y o}]
     the model's prediction at the input point [obs_x o], then continue
     with [K].  [v] locates the model in the context.  The step scores
-    the model's value through the clean [tProb] score [Sc]: push the
+    the model's value through the clean [tProb] score [Score]: push the
     model's prediction through the bundle factoring [po_into (obs_d o)]
     of the envelope-normalised Gaussian likelihood, which [po_into_E]
     reads back as [obs_d o] of the prediction. *)
@@ -383,7 +383,7 @@ Definition ex_bayes_linear (l : seq (obs R)) :
 
 (** The raw observation fold — the historical shape of the program:
     for each [o] in [l], score the model's value at [obs_x o] through
-    the clean [tProb] score [Sc (Gausslik{·} ·)]; when the list is
+    the clean [tProb] score [Score (Gausslik{·} ·)]; when the list is
     exhausted, return the model. *)
 Fixpoint obs_fold (G : named_ctx Ar) (v : named_var G (tfun tR' tR'))
     (l : seq (obs R)) : @named_expr R Ar (po_robj P) G (tfun tR' tR') :=
@@ -432,9 +432,9 @@ Check (erefl : ex_bayes_linear [:: o1; o2] =
   [ let "f" := (let "m" := sample m in
                 let "b" := sample m in
                 \ "x" ::: tR' => # "m" * # "x" + # "b") in
-    let "_" := Sc (Gausslik { 1 / 2 , obs_y o1 }
+    let "_" := Score (Gausslik { 1 / 2 , obs_y o1 }
                         (# "f" @ [| obs_x o1 |])) in
-    let "_" := Sc (Gausslik { 1 / 2 , obs_y o2 }
+    let "_" := Score (Gausslik { 1 / 2 , obs_y o2 }
                         (# "f" @ [| obs_x o2 |])) in
     # "f" ]).
 
@@ -567,11 +567,11 @@ Definition ex_geom_body :
     Source: [let rec l _ = if Bernoulli(p) then ()
                                            else l () in l ()].
     The parameter is a BUNDLED probability [pr : prob]; the clean coin
-    is [Bern (Const pr [|0|])] — the constant value-coin over [P]. *)
+    is [Bernoulli (Const pr [|0|])] — the constant value-coin over [P]. *)
 Definition ex_almost_loop (pr : prob R) :
     @named_expr R Ar (po_robj P) nil tunit :=
   [ let rec "l" "_" ::: tunit ==> tunit :=
-      (if Bern (Const pr [| 0%R |])
+      (if Bernoulli (Const pr [| 0%R |])
        then ()
        else # "l" @ ())
     in # "l" @ () ].
@@ -583,7 +583,7 @@ Definition ex_almost_loop_body (pr : prob R) :
       (("l"%string, tfun tunit tunit) :: nil)
       (tfun tunit tunit) :=
   [ \ "_" ::: tunit =>
-      (if Bern (Const pr [| 0%R |])
+      (if Bernoulli (Const pr [| 0%R |])
        then ()
        else # "l" @ ()) ].
 
@@ -694,7 +694,7 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of the acceptance density [d] into the
     probability object [po_obj P] — the clean [tProb]-coin map behind
-    [Bern (ToProb d #"x")]. *)
+    [Bernoulli (ToProb d #"x")]. *)
 Local Notation rj_phi :=
   (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
@@ -703,7 +703,7 @@ Local Notation rj_phi :=
 Definition ex_reject : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bern (ToProb {rj_phi} # "x")
+       if Bernoulli (ToProb {rj_phi} # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].
@@ -717,7 +717,7 @@ Definition ex_reject_body :
       (tfun (tfun tR' tR') tR') :=
   [ \ "accept" ::: (tfun tR' tR') =>
       (let "x" := sample m in
-       if Bern (ToProb {rj_phi} # "x")
+       if Bernoulli (ToProb {rj_phi} # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept") ].
 
@@ -729,7 +729,7 @@ Definition ex_reject_inner :
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       tR' :=
   [ let "x" := sample m in
-    if Bern (ToProb {rj_phi} # "x")
+    if Bernoulli (ToProb {rj_phi} # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
@@ -781,7 +781,7 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of the acceptance density [d] into the
     probability object [po_obj P] — the clean [tProb]-coin map behind
-    [Bern (ToProb d #"x")]. *)
+    [Bernoulli (ToProb d #"x")]. *)
 Local Notation rc_phi :=
   (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
@@ -793,7 +793,7 @@ Definition ex_reject_comb :
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bern (ToProb {rc_phi} # "x")
+           if Bernoulli (ToProb {rc_phi} # "x")
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 
@@ -806,7 +806,7 @@ Definition ex_reject_comb_body :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         if Bern (ToProb {rc_phi} # "x")
+         if Bernoulli (ToProb {rc_phi} # "x")
          then # "x"
          else # "rs" @ # "m" @ # "a") ].
 
@@ -819,7 +819,7 @@ Definition ex_reject_comb_fun :
       (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       if Bern (ToProb {rc_phi} # "x")
+       if Bernoulli (ToProb {rc_phi} # "x")
        then # "x"
        else # "rs" @ # "m" @ # "a") ].
 
@@ -830,7 +830,7 @@ Definition ex_reject_comb_inner :
        ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       tR' :=
   [ let "x" := # "m" @ # "a" in
-    if Bern (ToProb {rc_phi} # "x")
+    if Bernoulli (ToProb {rc_phi} # "x")
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
@@ -884,7 +884,7 @@ Local Notation tR' := (tR (po_robj P)).
 
 (** The bundle factoring of the likelihood [d] into the probability
     object [po_obj P] — the clean [tProb]-score map behind
-    [Sc (ToProb d #"x")]. *)
+    [Score (ToProb d #"x")]. *)
 Local Notation cc_phi :=
   (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)).
 
@@ -895,7 +895,7 @@ Definition ex_condition_comb :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Sc (ToProb {cc_phi} # "x") in
+         let "_" := Score (ToProb {cc_phi} # "x") in
          # "x") ].
 
 (** The partially-applied stage [λa.…], in context
@@ -905,7 +905,7 @@ Definition ex_condition_fun :
       (("m"%string, tfun ta tR') :: nil) (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       let "_" := Sc (ToProb {cc_phi} # "x") in
+       let "_" := Score (ToProb {cc_phi} # "x") in
        # "x") ].
 
 (** The run-score-return inner expression under both binders. *)
@@ -913,7 +913,7 @@ Definition ex_condition_inner :
     @named_expr R Ar (po_robj P)
       (("a"%string, ta) :: ("m"%string, tfun ta tR') :: nil) tR' :=
   [ let "x" := # "m" @ # "a" in
-    let "_" := Sc (ToProb {cc_phi} # "x") in
+    let "_" := Score (ToProb {cc_phi} # "x") in
     # "x" ].
 
 (** The applied form — [condition M f]: the combinator at a closed
@@ -1151,24 +1151,24 @@ Local Notation gaussian01 :=
   (gaussian (po_robj_eq P) R_to_carrier_meas 0 1).
 
 (** The user's program, verbatim.  The comparison coin [m > 0] is the
-    clean [tProb] coin [Bern (Gt0 (m - 0))]: the strict-positivity
+    clean [tProb] coin [Bernoulli (Gt0 (m - 0))]: the strict-positivity
     indicator [gt0_ind] pushed through the bundle factoring [po_into]
     of the difference [m + (-0)]. *)
 Definition ex_surface_demo : @named_expr R Ar (po_robj P) nil tbool :=
   [ let rec "model" "x" ::: tunit ==> tbool :=
       (let "m" := sample gaussian01 in
-       if Bern (Gt0 (# "m" + Meas {negr, negr_meas} [| 0%R |]))
+       if Bernoulli (Gt0 (# "m" + Meas {negr, negr_meas} [| 0%R |]))
        then True else False)
     in # "model" @ () ].
 
 (** Annotation-free [let rec] + the clean value-dependent [tProb]
-    [Bern]/[Sc] forms: the binder ["x"] occurs in the body, so its type
+    [Bernoulli]/[Score] forms: the binder ["x"] occurs in the body, so its type
     is inferred.  [Gt0] is the strict-positivity indicator pushed
     through the bundle factoring [po_into gt0_ind]. *)
 Definition ex_surface_walk : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "walk" "x" :=
-      (let "b" := Bern (Gt0 # "x") in
-       let "_" := Sc (Gt0 # "x") in
+      (let "b" := Bernoulli (Gt0 # "x") in
+       let "_" := Score (Gt0 # "x") in
        if # "b" then # "x" else # "walk" @ # "x" * [| 1 / 2 |])
     in # "walk" @ [| 1 |] ].
 
@@ -1274,7 +1274,7 @@ End CBVDenotations.
 
     [ex_geom] / [ex_almost_loop] are now defined over a bundled
     [P : probObj Ar] (their fair / parameterised coin is the clean
-    [tProb] constant value-coin [Bern (Const pr [|0|])]); their CBV
+    [tProb] constant value-coin [Bernoulli (Const pr [|0|])]); their CBV
     pins therefore live over [po_robj P], with the carrier casts read
     from the bundle ([po_robj_eq P] / [po_robj_meas P]). *)
 Section RecCBVDenotations.
@@ -1298,7 +1298,7 @@ Definition ex_score_posterior_cbv
   eDvP (ex_score_posterior m d).
 
 (** The rejection-sampling denotation — also the compile-time smoke
-    test for the value-coin [Bern (ToProb d #"x")] under three binders
+    test for the value-coin [Bernoulli (ToProb d #"x")] under three binders
     (canonical-structure variable lookup for ["x"], ["accept"],
     ["rs"]). *)
 Definition ex_reject_cbv
@@ -1335,8 +1335,8 @@ Definition ex_condition_cbv
 
 (** The surface-demo denotations — compile-time smoke tests for the
     clean surface layer: [let rec] sugar, [sample] of a bundled
-    [gaussian], the comparison coin [Bern (Gt0 (m - 0))], and the
-    [Bern]/[Sc] value forms over [Gt0]. *)
+    [gaussian], the comparison coin [Bernoulli (Gt0 (m - 0))], and the
+    [Bernoulli]/[Score] value forms over [Gt0]. *)
 Definition ex_surface_demo_cbv :=
   eDvP (ex_surface_demo R_to_carrier_meas).
 
@@ -1355,7 +1355,7 @@ Definition ex_bayes_linear_cbv
   eDvP (ex_bayes_linear m l).
 
 (** The boolean-primitive smoke tests (the [tProb] constant coin
-    [Bern (Const prob_half [|0|])] in [ex_fair_coin] / [ex_if_demo]). *)
+    [Bernoulli (Const prob_half [|0|])] in [ex_fair_coin] / [ex_if_demo]). *)
 Definition ex_true_cbv :=
   eDvP (ex_true : @named_expr R Ar (po_robj P) nil tbool).
 
@@ -1393,16 +1393,16 @@ Arguments ex_if_demo_cbv {R Ar} P R_to_carrier_meas.
     SINGLE bundled [P : probObj Ar] — NO threaded witnesses:
     [[
        let "x" := sample m in
-       if Bern (Sigmoid #"x") then [|1|] else [|0|]
+       if Bernoulli (Sigmoid #"x") then [|1|] else [|0|]
     ]]
     — sample a real [x], push it through the logistic sigmoid into the
     [[0,1]] object [po_obj P] (a [tProb P] value), flip a [tProb]-Bernoulli
     on it, and branch.  The point of the redesign: [Sigmoid #"x"] and
-    [Bern (..)] carry NO density / inclusion / factoring witnesses — the
+    [Bernoulli (..)] carry NO density / inclusion / factoring witnesses — the
     bundle [P] is recovered by inference from the FOLDED types [tProb P] /
     [tProb_robj P].  This is the acceptance test for the canonical
     [probObj] structure.  [ex_tprob_demo2] is the constant-coin variant
-    [Bern (Const prob_half #"x")]. *)
+    [Bernoulli (Const prob_half #"x")]. *)
 
 Section TProbDemo.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -1422,13 +1422,13 @@ Variable (m : pmeas Ar (po_robj P)).
 Definition ex_tprob_demo
     : @named_expr R Ar (po_robj P) nil (tProb_robj P) :=
   [ let "x" := sample m in
-    if Bern (Sigmoid # "x") then [| 1 |] else [| 0 |] ].
+    if Bernoulli (Sigmoid # "x") then [| 1 |] else [| 0 |] ].
 
-(** The constant-coin variant: [Bern (Const prob_half #"x")]. *)
+(** The constant-coin variant: [Bernoulli (Const prob_half #"x")]. *)
 Definition ex_tprob_demo2
     : @named_expr R Ar (po_robj P) nil (tProb_robj P) :=
   [ let "x" := sample m in
-    if Bern (Const prob_half # "x") then [| 1 |] else [| 0 |] ].
+    if Bernoulli (Const prob_half # "x") then [| 1 |] else [| 0 |] ].
 
 (** The CBV denotations — the end-to-end elaboration smoke tests. *)
 Definition ex_tprob_demo_cbv :=

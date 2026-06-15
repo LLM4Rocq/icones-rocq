@@ -278,7 +278,7 @@ Local Notation Hf_ge0 := (ud_ge0 d).
 Local Notation Hf_le1 := (ud_le1 d).
 
 (** The bundle factoring of [d] into the probability object, the clean
-    [tProb]-coin map behind [Bern (ToProb d #"x")]. *)
+    [tProb]-coin map behind [Bernoulli (ToProb d #"x")]. *)
 Local Notation rm_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 Local Notation Lfun h :=
@@ -332,7 +332,7 @@ Local Notation ctx_x :=
 
 (** The test-and-dispatch body under the sample binder. *)
 Definition rm_if : @named_expr R Ar R_obj ctx_x tR' :=
-  [ if Bern (ToProb {rm_phi} # "x")
+  [ if Bernoulli (ToProb {rm_phi} # "x")
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
@@ -1402,7 +1402,7 @@ Definition cm_var_x : @named_expr R Ar R_obj cctx_x tR' := [ # "x" ].
 Definition cm_ret : @named_expr R Ar R_obj cctx_u tR' := [ # "x" ].
 
 (** The bundle factoring of the likelihood [d] into the probability
-    object, the clean [tProb]-score map behind [Sc (ToProb d #"x")]. *)
+    object, the clean [tProb]-score map behind [Score (ToProb d #"x")]. *)
 Local Notation cm_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 (** The clean [tProb]-score node. *)

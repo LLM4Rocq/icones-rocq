@@ -35,7 +35,7 @@
       ⟦Gaussian(e₁,e₂)⟧ = δ_Γ ; (e₁ ⊗ e₂) ; kernel_lift2 gaussian_kernel
       ⟦Uniform(e₁,e₂)⟧  = δ_Γ ; (e₁ ⊗ e₂) ; kernel_lift2 uniform_kernel
       ⟦true⟧/⟦false⟧  = ε_Γ ; const δ_T/δ_F
-      ⟦Bernoulli p⟧   = ε_Γ ; const Bern(p)
+      ⟦Bernoulli p⟧   = ε_Γ ; const Bernoulli(p)
       ⟦if b then M else N⟧ = δ_Γ ; (id_Γ ⊗ b) ; braid
                              ; uncurry (bool_case M N)
       ⟦fix s.M⟧       = fix_comb ∘ ⟦λs.M⟧  (the genuine value-fixpoint)

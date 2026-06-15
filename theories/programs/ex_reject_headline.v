@@ -319,7 +319,7 @@ Local Notation Hf_ge0 := (ud_ge0 d).
 Local Notation Hf_le1 := (ud_le1 d).
 
 (** The bundle factoring of [d] into the probability object, the
-    clean [tProb]-coin map behind [Bern (ToProb d #"x")]. *)
+    clean [tProb]-coin map behind [Bernoulli (ToProb d #"x")]. *)
 Local Notation rj_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 Local Notation Lfun h :=
@@ -354,7 +354,7 @@ Definition reject_if :
     @named_expr R Ar R_obj
       (("x"%string, tR') :: ("accept"%string, tfun tR' tR') ::
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil) tR' :=
-  [ if Bern (ToProb {rj_phi} # "x")
+  [ if Bernoulli (ToProb {rj_phi} # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
@@ -1144,7 +1144,7 @@ Definition al_if :
     @named_expr R Ar R_obj
       (("_"%string, tunit) :: ("l"%string, tfun tunit tunit) :: nil)
       tunit :=
-  [ if Bern (Const pr [| 0%R |]) then () else # "l" @ () ].
+  [ if Bernoulli (Const pr [| 0%R |]) then () else # "l" @ () ].
 
 Lemma ex_almost_loop_decomp :
   ex_almost_loop (P := P) pr =
@@ -1383,7 +1383,7 @@ Qed.
 
 (** *** Clean-surface coin leaf
 
-    The clean [tProb] constant coin [Bern (Const pr [|0|])] denotes, at
+    The clean [tProb] constant coin [Bernoulli (Const pr [|0|])] denotes, at
     any setlike unit-ball environment, the SAME [bernoulli p] cone as
     the legacy constant coin [Bernoulli pr]: the real literal [0] is the
     Dirac [δ_0], pushed by the bundle factoring [po_into (cst p)] to

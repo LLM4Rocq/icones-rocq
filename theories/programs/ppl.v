@@ -2532,11 +2532,19 @@ Notation "'True'" := ne_true (in custom ppl_named at level 0).
 (** Boolean false literal — [False] in surface syntax. *)
 Notation "'False'" := ne_false (in custom ppl_named at level 0).
 
-(** Constant Bernoulli sampling — [Bernoulli p] for a bundled
+(** Constant Bernoulli sampling — [BernoulliC p] for a bundled
     probability [p : prob] returns a [tbool] expression.  The two
     [[0,1]] bounds are carried by the bundle (projections
-    [pr_ge0]/[pr_le1]); NO loose witnesses. *)
-Notation "'Bernoulli' p" :=
+    [pr_ge0]/[pr_le1]); NO loose witnesses.
+
+    NOTE: the keyword is [BernoulliC] (Constant), NOT [Bernoulli]: the
+    bare-[constr] form [Bernoulli p] would clash at the grammar entry
+    with the value-dependent coin [Bernoulli e] (which takes a custom
+    [ppl_named] sub-expression at level 60), so the two cannot share the
+    [Bernoulli] keyword.  The bracketed literal [Bernoulli [| p |]] and
+    the value-dependent [Bernoulli e] coexist (the [[|] token
+    disambiguates); the bundled bare-prob form is spelled [BernoulliC]. *)
+Notation "'BernoulliC' p" :=
   (ne_bernoulli (pr_val p) (pr_ge0 p) (pr_le1 p))
   (in custom ppl_named at level 1, p constr at level 0).
 
@@ -2640,10 +2648,10 @@ Notation "'Meas' '{' f ',' Hf '}' e" :=
     [udensity] / [gauss_udensity] / [gt0_udensity] bundles) are REMOVED.
     Their clean replacements are the witness-free [tProb] forms over a
     canonical [probObj P]:
-      - [Bernoulli d e]            ↝ [Bern (ToProb {po_into d} e)]
-      - [Score d e]                ↝ [Sc (ToProb {po_into d} e)]
-      - [observe Gaussian{s,y} e]  ↝ [Sc (Gausslik {s, y} e)]
-      - [M > N]                    ↝ [Bern (Gt0 (M + Meas{negr} N))]
+      - [Bernoulli d e]            ↝ [Bernoulli (ToProb {po_into d} e)]
+      - [Score d e]                ↝ [Score (ToProb {po_into d} e)]
+      - [observe Gaussian{s,y} e]  ↝ [Score (Gausslik {s, y} e)]
+      - [M > N]                    ↝ [Bernoulli (Gt0 (M + Meas{negr} N))]
     (see [theories/programs/ppl.v]'s bundled-wrapper section and the
     migrated examples in [theories/programs/examples.v]). *)
 
@@ -2761,13 +2769,13 @@ Arguments pconst {R Ar P G} & pr e.
 
 (** Clean witness-free surface notations over the canonical bundle.
 
-    [Bern e] / [Sc e] / [Sigmoid e] / [Gausslik{s,y} e] / [Gt0 e] /
+    [Bernoulli e] / [Score e] / [Sigmoid e] / [Gausslik{s,y} e] / [Gt0 e] /
     [Const pr e] / [Incl e] — NO braces, [P] inferred. *)
-Notation "'Bern' e" :=
+Notation "'Bernoulli' e" :=
   (pbern e)
   (in custom ppl_named at level 1, e custom ppl_named at level 60).
 
-Notation "'Sc' e" :=
+Notation "'Score' e" :=
   (pscore e)
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
    right associativity).
