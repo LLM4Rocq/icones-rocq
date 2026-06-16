@@ -11,8 +11,8 @@
 
     All programs are written in the MODERN surface layer: bundled
     sub-probabilities [m : pmeas] consumed by [sample m], the bundled
-    [Bernoulli p] / [Bernoulli d e] coins (the probability [p : prob]
-    or density [d : udensity] is [[0,1]]-valued BY CONSTRUCTION — no
+    [Bernoulli p] / [Bernoulli f e] coins (the probability [p : prob]
+    or test function [f : testfn] is [[0,1]]-valued BY CONSTRUCTION — no
     clamp, no loose witnesses), and OCaml-style [let rec] for the
     recursive examples.
 
@@ -194,34 +194,34 @@ Variable (P : probObj Ar).
 
 Variable (m : pmeas Ar (po_robj P)).
 
-(** The soft-conditioning density as a BUNDLED [[0,1]] record — no
+(** The soft-conditioning test function as a BUNDLED [[0,1]] record — no
     loose witnesses. *)
-Variable (d : udensity R).
+Variable (f : testfn R).
 
 Local Notation tR' := (tR (po_robj P)).
 
 (** The PPL term:
-    [let "m" := sample m in let "_" := Score (Density d #"m") in #"m"].
+    [let "m" := sample m in let "_" := Score (test f #"m") in #"m"].
     The clean [tProb] score [Score] weighs by [po_density P] of the
-    factored value, which [po_into_E] reads back as [ud_f d] of the
+    factored value, which [po_into_E] reads back as [test_fun f] of the
     sampled real — the same soft-evidence weight as the legacy
-    [Score d #"m"]. *)
+    [Score f #"m"]. *)
 Definition ex_score_posterior :
     @named_expr R Ar (po_robj P) nil tR' :=
   [ let "m" := sample m in
-    let "_" := Score (Density d # "m") in
+    let "_" := Score (test f # "m") in
     # "m" ].
 
 (** The continuation under the prior bind. *)
 Definition ex_sp_cont :
     @named_expr R Ar (po_robj P) (("m"%string, tR') :: nil) tR' :=
-  [ let "_" := Score (Density d # "m") in
+  [ let "_" := Score (test f # "m") in
     # "m" ].
 
 End ScorePosterior.
 
-Arguments ex_sp_cont {R Ar P} d.
-Arguments ex_score_posterior {R Ar P} m d.
+Arguments ex_sp_cont {R Ar P} f.
+Arguments ex_score_posterior {R Ar P} m f.
 
 (** ** Example — [ex_bayes_linear] — higher-order Bayesian linear regression
 
@@ -685,9 +685,9 @@ Variable (P : probObj Ar).
 Variable (m : pmeas Ar (po_robj P)).
 
 (** The acceptance density as a BUNDLED [[0,1]] record — its
-    measurability and bounds are carried by [d], no loose witnesses,
+    measurability and bounds are carried by [f], no loose witnesses,
     no clamp. *)
-Variable (d : udensity R).
+Variable (f : testfn R).
 
 Local Notation tR' := (tR (po_robj P)).
 
@@ -696,7 +696,7 @@ Local Notation tR' := (tR (po_robj P)).
 Definition ex_reject : @named_expr R Ar (po_robj P) nil tR' :=
   [ let rec "rs" "accept" :=
       (let "x" := sample m in
-       if Bernoulli (Density d # "x")
+       if Bernoulli (test f # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept")
     in # "rs" @ (\ "y" ::: tR' => # "y") ].
@@ -710,7 +710,7 @@ Definition ex_reject_body :
       (tfun (tfun tR' tR') tR') :=
   [ \ "accept" ::: (tfun tR' tR') =>
       (let "x" := sample m in
-       if Bernoulli (Density d # "x")
+       if Bernoulli (test f # "x")
        then # "accept" @ # "x"
        else # "rs" @ # "accept") ].
 
@@ -722,15 +722,15 @@ Definition ex_reject_inner :
        ("rs"%string, tfun (tfun tR' tR') tR') :: nil)
       tR' :=
   [ let "x" := sample m in
-    if Bernoulli (Density d # "x")
+    if Bernoulli (test f # "x")
     then # "accept" @ # "x"
     else # "rs" @ # "accept" ].
 
 End RejectSampling.
 
-Arguments ex_reject {R Ar P} m d.
-Arguments ex_reject_body {R Ar P} m d.
-Arguments ex_reject_inner {R Ar P} m d.
+Arguments ex_reject {R Ar P} m f.
+Arguments ex_reject_body {R Ar P} m f.
+Arguments ex_reject_inner {R Ar P} m f.
 
 (** ** Example — [ex_reject_comb] — rejection sampling as a COMBINATOR
 
@@ -768,7 +768,7 @@ Variable (ta : ppl_type Ar).
 
 (** The acceptance density as a BUNDLED [[0,1]] record — no clamp, no
     loose witnesses. *)
-Variable (d : udensity R).
+Variable (f : testfn R).
 
 Local Notation tR' := (tR (po_robj P)).
 
@@ -780,7 +780,7 @@ Definition ex_reject_comb :
       \ "m" ::: (tfun ta tR') =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Bernoulli (Density d # "x")
+           if Bernoulli (test f # "x")
            then # "x"
            else # "rs" @ # "m" @ # "a") ].
 
@@ -793,7 +793,7 @@ Definition ex_reject_comb_body :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         if Bernoulli (Density d # "x")
+         if Bernoulli (test f # "x")
          then # "x"
          else # "rs" @ # "m" @ # "a") ].
 
@@ -806,7 +806,7 @@ Definition ex_reject_comb_fun :
       (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       if Bernoulli (Density d # "x")
+       if Bernoulli (test f # "x")
        then # "x"
        else # "rs" @ # "m" @ # "a") ].
 
@@ -817,16 +817,16 @@ Definition ex_reject_comb_inner :
        ("rs"%string, tfun (tfun ta tR') (tfun ta tR')) :: nil)
       tR' :=
   [ let "x" := # "m" @ # "a" in
-    if Bernoulli (Density d # "x")
+    if Bernoulli (test f # "x")
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
 End RejectCombinator.
 
-Arguments ex_reject_comb {R Ar P} ta d.
-Arguments ex_reject_comb_body {R Ar P} ta d.
-Arguments ex_reject_comb_fun {R Ar P} ta d.
-Arguments ex_reject_comb_inner {R Ar P} ta d.
+Arguments ex_reject_comb {R Ar P} ta f.
+Arguments ex_reject_comb_body {R Ar P} ta f.
+Arguments ex_reject_comb_fun {R Ar P} ta f.
+Arguments ex_reject_comb_inner {R Ar P} ta f.
 
 (** ** Example — [ex_condition_comb] — Pyro-style soft conditioning
 
@@ -865,7 +865,7 @@ Variable (ta : ppl_type Ar).
 
 (** The soft observation density (the likelihood) as a BUNDLED [[0,1]]
     record — no clamp, no loose witnesses. *)
-Variable (d : udensity R).
+Variable (f : testfn R).
 
 Local Notation tR' := (tR (po_robj P)).
 
@@ -876,7 +876,7 @@ Definition ex_condition_comb :
   [ \ "m" ::: (tfun ta tR') =>
       \ "a" ::: ta =>
         (let "x" := # "m" @ # "a" in
-         let "_" := Score (Density d # "x") in
+         let "_" := Score (test f # "x") in
          # "x") ].
 
 (** The partially-applied stage [λa.…], in context
@@ -886,7 +886,7 @@ Definition ex_condition_fun :
       (("m"%string, tfun ta tR') :: nil) (tfun ta tR') :=
   [ \ "a" ::: ta =>
       (let "x" := # "m" @ # "a" in
-       let "_" := Score (Density d # "x") in
+       let "_" := Score (test f # "x") in
        # "x") ].
 
 (** The run-score-return inner expression under both binders. *)
@@ -894,7 +894,7 @@ Definition ex_condition_inner :
     @named_expr R Ar (po_robj P)
       (("a"%string, ta) :: ("m"%string, tfun ta tR') :: nil) tR' :=
   [ let "x" := # "m" @ # "a" in
-    let "_" := Score (Density d # "x") in
+    let "_" := Score (test f # "x") in
     # "x" ].
 
 (** The applied form — [condition M f]: the combinator at a closed
@@ -906,14 +906,14 @@ Definition ex_condition (M : @named_expr R Ar (po_robj P) nil (tfun ta tR')) :
 
 End ConditionCombinator.
 
-Arguments ex_condition_comb {R Ar P} ta d.
-Arguments ex_condition_fun {R Ar P} ta d.
-Arguments ex_condition_inner {R Ar P} ta d.
-Arguments ex_condition {R Ar P ta} d M.
+Arguments ex_condition_comb {R Ar P} ta f.
+Arguments ex_condition_fun {R Ar P} ta f.
+Arguments ex_condition_inner {R Ar P} ta f.
+Arguments ex_condition {R Ar P ta} f M.
 
 (** Surface form — [Condition { d } M]: the conditioned model, written
     directly in the [ppl_named] custom entry from a BUNDLED density
-    [d : udensity] (no loose witnesses, no clamp).  Elaborates to
+    [d : testfn] (no loose witnesses, no clamp).  Elaborates to
     [ne_app (ex_condition_comb _ d) M]; the ambient context must be
     CLOSED ([nil]) since the combinator is a closed program. *)
 Notation "'Condition' '{' d '}' M" :=
@@ -960,13 +960,13 @@ Variable (P : probObj Ar).
 
 Variable (m : pmeas Ar (po_robj P)).
 
-Variable (d : udensity R).
+Variable (f : testfn R).
 
-Check [ Condition { d } { ex_sampler m } @ () ].
+Check [ Condition { f } { ex_sampler m } @ () ].
 
 Check (erefl :
-  [ Condition { d } { ex_sampler m } ] =
-  ex_condition d (ex_sampler m)).
+  [ Condition { f } { ex_sampler m } ] =
+  ex_condition f (ex_sampler m)).
 
 End ConditionSmoke.
 
@@ -1275,7 +1275,7 @@ Definition ex_almost_loop_cbv (pr : prob R) :=
 
 Definition ex_score_posterior_cbv
     (m : pmeas Ar (po_robj P))
-    (d : udensity R) :=
+    (d : testfn R) :=
   eDvP (ex_score_posterior m d).
 
 (** The rejection-sampling denotation — also the compile-time smoke
@@ -1284,7 +1284,7 @@ Definition ex_score_posterior_cbv
     ["rs"]). *)
 Definition ex_reject_cbv
     (m : pmeas Ar (po_robj P))
-    (d : udensity R) :=
+    (d : testfn R) :=
   eDvP (ex_reject m d).
 
 (** The rejection-sampling COMBINATOR denotation: the closed program of
@@ -1293,7 +1293,7 @@ Definition ex_reject_cbv
     model/input it is applied to. *)
 Definition ex_reject_comb_cbv
     (ta : ppl_type Ar)
-    (d : udensity R) :=
+    (d : testfn R) :=
   eDvP (ex_reject_comb ta d).
 
 (** The soft-conditioning COMBINATOR denotation ([ex_condition_comb]):
@@ -1303,14 +1303,14 @@ Definition ex_reject_comb_cbv
     model/input it is applied to. *)
 Definition ex_condition_comb_cbv
     (ta : ppl_type Ar)
-    (d : udensity R) :=
+    (d : testfn R) :=
   eDvP (ex_condition_comb ta d).
 
 (** The conditioned-model denotation: [condition M f] at a closed
     model [M]. *)
 Definition ex_condition_cbv
     (ta : ppl_type Ar)
-    (d : udensity R)
+    (d : testfn R)
     (M : @named_expr R Ar (po_robj P) nil (tfun ta (tR (po_robj P)))) :=
   eDvP (ex_condition d M).
 

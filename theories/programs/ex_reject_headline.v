@@ -309,17 +309,17 @@ Local Notation mu := (pm_meas m).
 Local Notation Hmu_ball := (pm_ball m).
 Hypothesis Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1%E.
 
-(** The soft acceptance predicate: a BUNDLED [[0,1]]-valued density.
-    The three projections are exposed under their historical names so
-    the proof bodies below read unchanged. *)
-Variable (d : udensity R).
-Local Notation f := (ud_f d).
-Local Notation Hf_meas := (ud_meas d).
-Local Notation Hf_ge0 := (ud_ge0 d).
-Local Notation Hf_le1 := (ud_le1 d).
+(** The soft acceptance predicate: a BUNDLED [[0,1]]-valued test
+    function.  The function carrier is supplied by the [test_fun]
+    coercion, and the three proof projections are exposed under their
+    historical names so the proof bodies below read unchanged. *)
+Variable (f : testfn R).
+Local Notation Hf_meas := (test_meas f).
+Local Notation Hf_ge0 := (test_ge0 f).
+Local Notation Hf_le1 := (test_le1 f).
 
-(** The bundle factoring of [d] into the probability object, the
-    clean [tProb]-coin map behind [Bernoulli (ToProb d #"x")]. *)
+(** The bundle factoring of [f] into the probability object, the
+    clean [tProb]-coin map behind [Bernoulli (ToProb f #"x")]. *)
 Local Notation rj_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 Local Notation Lfun h :=
@@ -359,19 +359,19 @@ Definition reject_if :
     else # "rs" @ # "accept" ].
 
 Lemma ex_reject_decomp :
-  ex_reject m d =
-  ne_let "rs" (ne_fix "rs" (ex_reject_body m d))
+  ex_reject m f =
+  ne_let "rs" (ne_fix "rs" (ex_reject_body m f))
     (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
             reject_lam_id).
 Proof. by []. Qed.
 
 Lemma ex_reject_body_decomp :
-  ex_reject_body m d =
-  ne_lam "accept" (ex_reject_inner m d).
+  ex_reject_body m f =
+  ne_lam "accept" (ex_reject_inner m f).
 Proof. by []. Qed.
 
 Lemma ex_reject_inner_decomp :
-  ex_reject_inner m d =
+  ex_reject_inner m f =
   ne_let "x" (ne_sample mu Hmu_ball) reject_if.
 Proof. by []. Qed.
 
@@ -397,7 +397,7 @@ Definition reject_W0 :
     linhom_car Ar (Bang Ar (Lty (tfun tR' tR') tR'))
                   (Bang Ar (Lty (tfun tR' tR') tR')) :=
   Lfun (tensor_curry
-         (eD_cbv' (ex_reject_body m d)))
+         (eD_cbv' (ex_reject_body m f)))
        one1.
 
 Lemma reject_W0_ball : cone_norm reject_W0 <= 1.
@@ -492,7 +492,7 @@ Qed.
     identity continuation. *)
 
 Local Notation reject_denot :=
-  (linhom_fun (ex_reject_cbv P R_to_carrier_meas m d) one1).
+  (linhom_fun (ex_reject_cbv P R_to_carrier_meas m f) one1).
 
 Lemma ex_reject_app_E :
   reject_denot =
@@ -504,12 +504,12 @@ have HoneG : cone_norm
     (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
   by rewrite one1_norm.
 rewrite (eD_let_at_setlike "rs"
-          (ne_fix "rs" (ex_reject_body m d))
+          (ne_fix "rs" (ex_reject_body m f))
           (ne_app (ne_var (nv_head "rs" (tfun (tfun tR' tR') tR') nil))
                   reject_lam_id)
           HoneG coalg_str_one1).
 rewrite (eD_fix_at_setlike "rs"
-          (ex_reject_body m d)
+          (ex_reject_body m f)
           HoneG coalg_str_one1).
 rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas reject_env0_ball reject_env0_setlike).
 rewrite (eD_var_head_at_setlike "rs"
@@ -594,7 +594,7 @@ Qed.
 Lemma reject_W0_at_prom n :
   linhom_fun reject_W0 ((fix_chain reject_W0 n)!) =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_inner m d)))
+          (eD_cbv' (ex_reject_inner m f)))
      (one1 ⊗p (fix_chain reject_W0 n)!))!.
 Proof.
 rewrite {1}/reject_W0 tensor_curryE ex_reject_body_decomp eD_lam_E.
@@ -605,7 +605,7 @@ Qed.
 
 Lemma ex_reject_iter_S n :
   reject_iter n.+1 =
-  Lfun (eD_cbv' (ex_reject_inner m d))
+  Lfun (eD_cbv' (ex_reject_inner m f))
        ((one1 ⊗p (fix_chain reject_W0 n)!) ⊗p reject_arg).
 Proof.
 rewrite /reject_iter fix_chain_S reject_W0_at_prom.
@@ -643,8 +643,8 @@ Definition reject_var_rs :
   [ # "rs" ].
 
 (** The clean coin's underlying [tProb] argument: the acceptance
-    density [d] pushed through the bundle factoring [po_into] at the
-    sampled variable. *)
+    test function [f] pushed through the bundle factoring [po_into] at
+    the sampled variable. *)
 Local Notation reject_coin_arg := (ne_to_prob rj_phi reject_var_x).
 
 Lemma reject_if_decomp :

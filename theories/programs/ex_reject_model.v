@@ -269,16 +269,15 @@ Hypothesis R_to_carrier_meas :
 (** The model's input type: an ARBITRARY PPL type. *)
 Variable (ta : ppl_type Ar).
 
-(** The soft acceptance predicate: a BUNDLED [[0,1]]-valued density;
+(** The soft acceptance predicate: a BUNDLED [[0,1]]-valued test function;
     its projections are exposed under their historical names. *)
-Variable (d : udensity R).
-Local Notation f := (ud_f d).
-Local Notation Hf_meas := (ud_meas d).
-Local Notation Hf_ge0 := (ud_ge0 d).
-Local Notation Hf_le1 := (ud_le1 d).
+Variable (f : testfn R).
+Local Notation Hf_meas := (test_meas f).
+Local Notation Hf_ge0 := (test_ge0 f).
+Local Notation Hf_le1 := (test_le1 f).
 
-(** The bundle factoring of [d] into the probability object, the clean
-    [tProb]-coin map behind [Bernoulli (ToProb d #"x")]. *)
+(** The bundle factoring of [f] into the probability object, the clean
+    [tProb]-coin map behind [Bernoulli (ToProb f #"x")]. *)
 Local Notation rm_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 Local Notation Lfun h :=
@@ -345,27 +344,27 @@ Definition rm_var_a3 : @named_expr R Ar R_obj ctx_a ta := [ # "a" ].
 Definition rm_var_m3 : @named_expr R Ar R_obj ctx_a tmod := [ # "m" ].
 
 Lemma ex_reject_comb_decomp :
-  ex_reject_comb (P := P) ta d =
-  ne_fix "rs" (ex_reject_comb_body ta d).
+  ex_reject_comb (P := P) ta f =
+  ne_fix "rs" (ex_reject_comb_body ta f).
 Proof. by []. Qed.
 
 Lemma ex_reject_comb_body_decomp :
-  ex_reject_comb_body (P := P) ta d =
-  ne_lam "m" (ex_reject_comb_fun ta d).
+  ex_reject_comb_body (P := P) ta f =
+  ne_lam "m" (ex_reject_comb_fun ta f).
 Proof. by []. Qed.
 
 Lemma ex_reject_comb_fun_decomp :
-  ex_reject_comb_fun (P := P) ta d =
-  ne_lam "a" (ex_reject_comb_inner ta d).
+  ex_reject_comb_fun (P := P) ta f =
+  ne_lam "a" (ex_reject_comb_inner ta f).
 Proof. by []. Qed.
 
 Lemma ex_reject_comb_inner_decomp :
-  ex_reject_comb_inner (P := P) ta d =
+  ex_reject_comb_inner (P := P) ta f =
   ne_let "x" (ne_app rm_var_m3 rm_var_a3) rm_if.
 Proof. by []. Qed.
 
 (** The clean coin's underlying [tProb] argument: the acceptance
-    density [d] pushed through the bundle factoring [po_into] at the
+    test function [f] pushed through the bundle factoring [po_into] at the
     produced value [#"x"]. *)
 Local Notation rm_coin_arg := (ne_to_prob rm_phi rm_var_x).
 
@@ -389,7 +388,7 @@ Definition reject_model_dist : coalg_obj (tyD_cbv tR') := linhom_fun g a0.
     endo-function at the closed environment. *)
 Definition rm_W0 : linhom_car Ar (Bang Ar Lrec) (Bang Ar Lrec) :=
   Lfun (tensor_curry
-         (eD_cbv' (ex_reject_comb_body ta d)))
+         (eD_cbv' (ex_reject_comb_body ta f)))
        one1.
 
 Lemma rm_W0_ball : cone_norm rm_W0 <= 1.
@@ -415,7 +414,7 @@ Qed.
     promotion by [der ∘ prom = id] BEFORE any continuity argument. *)
 
 Definition reject_comb_val : coalg_obj (tyD_cbv trec) :=
-  Lfun (eD_cbv' (ex_reject_comb ta d)) one1.
+  Lfun (eD_cbv' (ex_reject_comb ta f)) one1.
 
 Lemma reject_comb_val_E :
   reject_comb_val = (sc_fun (fix_value Lrec) rm_W0)!.
@@ -425,7 +424,7 @@ have HoneG : cone_norm
   by rewrite one1_norm.
 rewrite /reject_comb_val ex_reject_comb_decomp.
 exact: (eD_fix_at_setlike "rs"
-          (ex_reject_comb_body ta d)
+          (ex_reject_comb_body ta f)
           HoneG coalg_str_one1).
 Qed.
 
@@ -603,7 +602,7 @@ Qed.
 Lemma rm_W0_at_prom n :
   linhom_fun rm_W0 ((fix_chain rm_W0 n)!) =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_comb_fun ta d)))
+          (eD_cbv' (ex_reject_comb_fun ta f)))
      (rm_env1 n))!.
 Proof.
 rewrite {1}/rm_W0 tensor_curryE ex_reject_comb_body_decomp eD_lam_E.
@@ -615,7 +614,7 @@ Qed.
     — and the [λa]-packaging promotes the curried inner body in turn. *)
 Lemma rm_chain_S n :
   rm_chain n.+1 =
-  Lfun (eD_cbv' (ex_reject_comb_fun ta d))
+  Lfun (eD_cbv' (ex_reject_comb_fun ta f))
        (rm_env2 n).
 Proof.
 rewrite /rm_chain fix_chain_S rm_W0_at_prom.
@@ -626,7 +625,7 @@ Qed.
 Lemma rm_chain_S_prom n :
   rm_chain n.+1 =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_comb_inner ta d)))
+          (eD_cbv' (ex_reject_comb_inner ta f)))
      (rm_env2 n))!.
 Proof.
 rewrite rm_chain_S ex_reject_comb_fun_decomp eD_lam_E.
@@ -636,7 +635,7 @@ Qed.
 
 Lemma reject_model_iter_S n :
   reject_model_iter n.+1 =
-  Lfun (eD_cbv' (ex_reject_comb_inner ta d))
+  Lfun (eD_cbv' (ex_reject_comb_inner ta f))
        (rm_env3 n).
 Proof.
 rewrite /reject_model_iter /rm_der rm_chain_S_prom.
@@ -1167,11 +1166,10 @@ Variable (m : pmeas Ar R_obj).
 Local Notation mu := (pm_meas m).
 Hypothesis Hmu1 : (fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)%E.
 
-Variable (d : udensity R).
-Local Notation f := (ud_f d).
-Local Notation Hf_meas := (ud_meas d).
-Local Notation Hf_ge0 := (ud_ge0 d).
-Local Notation Hf_le1 := (ud_le1 d).
+Variable (f : testfn R).
+Local Notation Hf_meas := (test_meas f).
+Local Notation Hf_ge0 := (test_ge0 f).
+Local Notation Hf_le1 := (test_le1 f).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -1239,11 +1237,11 @@ Qed.
 (** The combinator applied to the sampler model at the unit input. *)
 Local Notation inst_denot :=
   (reject_model_denot R_to_carrier_meas
-     d sampler_lin one1).
+     f sampler_lin one1).
 
 Local Notation inst_iter :=
   (reject_model_iter R_to_carrier_meas
-     d sampler_lin one1).
+     f sampler_lin one1).
 
 (** The instance's model-output distribution is the prior. *)
 Lemma inst_dist_E :
@@ -1257,14 +1255,14 @@ Lemma inst_iter_massE n U (mU : measurable U) :
   fmeas_mu (inst_iter n) U =
   fmeas_mu
     (reject_iter R_to_carrier_meas m
-       d n) U.
+       f n) U.
 Proof.
 elim: n U mU => [ | n IH] U mU.
   by rewrite rm_iter_0_mass reject_iter_0_mass.
 rewrite (reject_model_iter_mass _ _ sampler_lin_ball Hone
            coalg_str_one1 n mU).
 rewrite (ex_reject_iter_mass R_to_carrier_meas
-           Hmu1 d n mU).
+           Hmu1 f n mU).
 by rewrite inst_dist_E Hmu1 IH.
 Qed.
 
@@ -1274,17 +1272,17 @@ Qed.
 Theorem ex_reject_comb_sampler_E :
   inst_denot =
   linhom_fun (ex_reject_cbv P R_to_carrier_meas
-                m d) one1.
+                m f) one1.
 Proof.
 apply: fmeas_eq => U mU.
 rewrite (reject_model_sup_E _ _ sampler_lin_ball Hone).
 rewrite (ex_reject_sup_E R_to_carrier_meas
-           m d).
+           m f).
 apply: (fmeas_kleene_sup_U_E _ _ mU).
 have HE : (fun n => fmeas_mu (inst_iter n) U) =
           (fun n => fmeas_mu
              (reject_iter R_to_carrier_meas m
-                d n) U).
+                f n) U).
   by apply/funext => n; exact: inst_iter_massE.
 rewrite HE.
 exact: (fmeas_kleene_sup_U_cvg _ _ mU).
@@ -1299,7 +1297,7 @@ Theorem ex_reject_comb_sampler_master U (mU : measurable U) :
 Proof.
 rewrite ex_reject_comb_sampler_E.
 exact: (ex_reject_master R_to_carrier_meas
-          Hmu1 d mU).
+          Hmu1 f mU).
 Qed.
 
 End SamplerInstance.
@@ -1346,13 +1344,13 @@ Hypothesis R_to_carrier_meas :
 (** The model's input type: an ARBITRARY PPL type. *)
 Variable (ta : ppl_type Ar).
 
-(** The soft observation density (the likelihood) as a BUNDLED [[0,1]]
-    record; its projections are exposed under their historical names. *)
-Variable (d : udensity R).
-Local Notation f := (ud_f d).
-Local Notation Hf_meas := (ud_meas d).
-Local Notation Hf_ge0 := (ud_ge0 d).
-Local Notation Hf_le1 := (ud_le1 d).
+(** The soft observation test function (the likelihood) as a BUNDLED
+    [[0,1]] record; its projections are exposed under their historical
+    names. *)
+Variable (f : testfn R).
+Local Notation Hf_meas := (test_meas f).
+Local Notation Hf_ge0 := (test_ge0 f).
+Local Notation Hf_le1 := (test_le1 f).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -1401,8 +1399,8 @@ Definition cm_var_a : @named_expr R Ar R_obj cctx_a ta := [ # "a" ].
 Definition cm_var_x : @named_expr R Ar R_obj cctx_x tR' := [ # "x" ].
 Definition cm_ret : @named_expr R Ar R_obj cctx_u tR' := [ # "x" ].
 
-(** The bundle factoring of the likelihood [d] into the probability
-    object, the clean [tProb]-score map behind [Score (ToProb d #"x")]. *)
+(** The bundle factoring of the likelihood [f] into the probability
+    object, the clean [tProb]-score map behind [Score (ToProb f #"x")]. *)
 Local Notation cm_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 (** The clean [tProb]-score node. *)
@@ -1415,17 +1413,17 @@ Definition cm_K : @named_expr R Ar R_obj cctx_x tR' :=
   ne_let "_" cm_score cm_ret.
 
 Lemma ex_condition_comb_decomp :
-  ex_condition_comb (P := P) ta d =
-  ne_lam "m" (ex_condition_fun ta d).
+  ex_condition_comb (P := P) ta f =
+  ne_lam "m" (ex_condition_fun ta f).
 Proof. by []. Qed.
 
 Lemma ex_condition_fun_decomp :
-  ex_condition_fun (P := P) ta d =
-  ne_lam "a" (ex_condition_inner ta d).
+  ex_condition_fun (P := P) ta f =
+  ne_lam "a" (ex_condition_inner ta f).
 Proof. by []. Qed.
 
 Lemma ex_condition_inner_decomp :
-  ex_condition_inner (P := P) ta d =
+  ex_condition_inner (P := P) ta f =
   ne_let "x" (ne_app cm_var_m cm_var_a) cm_K.
 Proof. by []. Qed.
 
@@ -1453,7 +1451,7 @@ Qed.
 (** The combinator's underlying linear map (the [λa]-stage curried at
     the closed environment). *)
 Definition cond_fun_lin : Lty tmod tmod :=
-  Lfun (tensor_curry (eD_cbv' (ex_condition_fun ta d)))
+  Lfun (tensor_curry (eD_cbv' (ex_condition_fun ta f)))
        one1.
 
 Lemma cond_fun_lin_ball : cone_norm cond_fun_lin <= 1.
@@ -1461,14 +1459,14 @@ Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
 
 (** The combinator program's value. *)
 Definition cond_comb_val : coalg_obj (tyD_cbv (tfun tmod tmod)) :=
-  Lfun (eD_cbv' (ex_condition_comb ta d)) one1.
+  Lfun (eD_cbv' (ex_condition_comb ta f)) one1.
 
 Lemma cond_comb_val_E : cond_comb_val = cond_fun_lin!.
 Proof.
 rewrite /cond_comb_val ex_condition_comb_decomp eD_lam_E.
 by rewrite (adj_psi_at_setlike
               (tensor_curry
-                 (eD_cbv' (ex_condition_fun ta d)))
+                 (eD_cbv' (ex_condition_fun ta f)))
               Hone coalg_str_one1).
 Qed.
 
@@ -1542,7 +1540,7 @@ Qed.
 Lemma cond_fun_at_g :
   linhom_fun cond_fun_lin (g!) =
   (Lfun (tensor_curry
-           (eD_cbv' (ex_condition_inner ta d)))
+           (eD_cbv' (ex_condition_inner ta f)))
      cond_env1)!.
 Proof.
 rewrite /cond_fun_lin tensor_curryE ex_condition_fun_decomp eD_lam_E.
@@ -1553,7 +1551,7 @@ Qed.
 (** The full collapse: [ν_cond = ⟦inner⟧((1 ⊗ g!) ⊗ a₀)]. *)
 Lemma cond_model_denot_E :
   cond_model_denot =
-  Lfun (eD_cbv' (ex_condition_inner ta d))
+  Lfun (eD_cbv' (ex_condition_inner ta f))
        cond_env2.
 Proof.
 rewrite /cond_model_denot cond_comb_val_E.
@@ -1761,13 +1759,12 @@ Local Notation R_carrier_meas := (po_robj_meas P).
 Hypothesis R_to_carrier_meas :
   measurable_fun [set: R] (R_to_carrier R_carrier_eq).
 
-(** The soft acceptance density as a BUNDLED [[0,1]] record; its
+(** The soft acceptance test function as a BUNDLED [[0,1]] record; its
     projections are exposed under their historical names. *)
-Variable (d : udensity R).
-Local Notation f := (ud_f d).
-Local Notation Hf_meas := (ud_meas d).
-Local Notation Hf_ge0 := (ud_ge0 d).
-Local Notation Hf_le1 := (ud_le1 d).
+Variable (f : testfn R).
+Local Notation Hf_meas := (test_meas f).
+Local Notation Hf_ge0 := (test_ge0 f).
+Local Notation Hf_le1 := (test_le1 f).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -1798,7 +1795,7 @@ Definition model_run : @named_expr R Ar R_obj nil tR' :=
   [ {model_prog} @ () ].
 
 Definition reject_prog : @named_expr R Ar R_obj nil tR' :=
-  [ {ex_reject_comb tunit d} @ {model_prog} @ () ].
+  [ {ex_reject_comb tunit f} @ {model_prog} @ () ].
 
 (** *** The semantic bridges — the program denotations are the §2
     semantic objects at [g := model_lin], [a₀ := one1] *)
@@ -1856,10 +1853,10 @@ Qed.
 Lemma reject_prog_val_E :
   Lfun (eD_cbv' reject_prog) one1 =
   reject_model_denot R_to_carrier_meas
-    d model_lin one1.
+    f model_lin one1.
 Proof.
 rewrite -[reject_prog]/(ne_app
-  (ne_app (ex_reject_comb tunit d) model_prog)
+  (ne_app (ex_reject_comb tunit f) model_prog)
   (@ne_tt R Ar R_obj nil)).
 rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas
            HoneG coalg_str_one1).
@@ -1878,7 +1875,7 @@ Proof. by rewrite /eD icones_to_linhomE model_run_val_E. Qed.
 Let reject_prog_lin_E :
   linhom_fun (eD' reject_prog) one1 =
   reject_model_denot R_to_carrier_meas
-    d model_lin one1.
+    f model_lin one1.
 Proof. by rewrite /eD icones_to_linhomE reject_prog_val_E. Qed.
 
 Local Open Scope ereal_scope.
@@ -1967,17 +1964,17 @@ Qed.
     distribution. *)
 
 Definition condition_prog : @named_expr R Ar R_obj nil tR' :=
-  [ {ex_condition d model_prog} @ () ].
+  [ {ex_condition f model_prog} @ () ].
 
 (** [⟦condition_comb model_prog ()⟧(1) = ν_cond] — the program denotes
     the §4 conditioned-model denotation. *)
 Lemma condition_prog_val_E :
   Lfun (eD_cbv' condition_prog) one1 =
   cond_model_denot R_to_carrier_meas
-    d model_lin one1.
+    f model_lin one1.
 Proof.
 rewrite -[condition_prog]/(ne_app
-  (ne_app (ex_condition_comb tunit d) model_prog)
+  (ne_app (ex_condition_comb tunit f) model_prog)
   (@ne_tt R Ar R_obj nil)).
 rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas
            HoneG coalg_str_one1).
@@ -1989,7 +1986,7 @@ Qed.
 Let condition_prog_lin_E :
   linhom_fun (eD' condition_prog) one1 =
   cond_model_denot R_to_carrier_meas
-    d model_lin one1.
+    f model_lin one1.
 Proof. by rewrite /eD icones_to_linhomE condition_prog_val_E. Qed.
 
 (** The conditioning law, in math form: the conditioned model denotes
@@ -2067,7 +2064,7 @@ have HIf_fin :
     (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
        (f (cR x))%:E) \is a fin_num.
   rewrite model_run_lin_E.
-  exact: (rm_If_fin d model_lin one1).
+  exact: (rm_If_fin f model_lin one1).
 by rewrite -[in LHS](fineK HIf_fin)/= subrr add0r.
 Qed.
 

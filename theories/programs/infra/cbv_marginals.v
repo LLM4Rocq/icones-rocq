@@ -283,16 +283,15 @@ Variable (pm : pmeas Ar R_obj).
 Local Notation mu := (pm_meas pm).
 Local Notation Hmu := (pm_ball pm).
 
-(** The soft evidence as a BUNDLED [[0,1]]-valued density; its
+(** The soft evidence as a BUNDLED [[0,1]]-valued test function; its
     projections are exposed under their historical names. *)
-Variable (d : udensity R).
-Local Notation f := (ud_f d).
-Local Notation Hf_meas := (ud_meas d).
-Local Notation Hf_ge0 := (ud_ge0 d).
-Local Notation Hf_le1 := (ud_le1 d).
+Variable (f : testfn R).
+Local Notation Hf_meas := (test_meas f).
+Local Notation Hf_ge0 := (test_ge0 f).
+Local Notation Hf_le1 := (test_le1 f).
 
-(** The bundle factoring of [d] into the probability object, the
-    clean-surface [tProb]-score map behind [Sc (ToProb d #"m")]. *)
+(** The bundle factoring of [f] into the probability object, the
+    clean-surface [tProb]-score map behind [Sc (ToProb f #"m")]. *)
 Local Notation sp_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
 
 Local Notation Lfun h :=
@@ -329,13 +328,13 @@ Local Notation sp_score :=
      (ne_to_prob sp_phi sp_var_m)).
 
 Lemma ex_sp_cont_decomp :
-  ex_sp_cont d =
+  ex_sp_cont f =
   ne_let "_" sp_score sp_body.
 Proof. by []. Qed.
 
 Lemma ex_score_posterior_decomp :
-  ex_score_posterior pm d =
-  ne_let "m" (ne_sample mu Hmu) (ex_sp_cont d).
+  ex_score_posterior pm f =
+  ne_let "m" (ne_sample mu Hmu) (ex_sp_cont f).
 Proof. by []. Qed.
 
 (** *** The continuation at the Dirac environment
@@ -403,7 +402,7 @@ by rewrite (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
 Lemma sp_cont_at_dirac (r : ar_carrier Ar R_obj) :
-  Lfun (eD_cbv' (ex_sp_cont d))
+  Lfun (eD_cbv' (ex_sp_cont f))
        (one1 ⊗p dirac_fmeas r) =
   precone_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r).
 Proof.
@@ -443,12 +442,12 @@ Local Open Scope ereal_scope.
 Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
-    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm d) one1) U =
+    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm f) one1) U =
   \int[fmeas_mu mu]_(r in U) (f (cR r))%:E.
 Proof.
 rewrite /ex_score_posterior_cbv ex_score_posterior_decomp.
 rewrite (eD_let_sample_mu_E R_carrier_meas R_to_carrier_meas Hmu
-           (ex_sp_cont d) one1 mU).
+           (ex_sp_cont f) one1 mU).
 under eq_integral => r _.
   rewrite sp_cont_at_dirac.
   rewrite fmeas_scaleE (dirac_fmeas_E r mU) diracE -EFinM /=.
@@ -461,7 +460,7 @@ Qed.
 (** Mass corollary: the total evidence [∫ f dµ]. *)
 Theorem ex_score_posterior_cbv_mass :
   fmeas_mu
-    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm d) one1)
+    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm f) one1)
     [set: ar_carrier Ar R_obj] =
   \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
 Proof. by apply: ex_score_posterior_cbv_E. Qed.
@@ -474,12 +473,12 @@ Theorem ex_reject_normalises_score
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E) *
   fmeas_mu
-    (linhom_fun (ex_reject_cbv P R_to_carrier_meas pm d) one1) U =
+    (linhom_fun (ex_reject_cbv P R_to_carrier_meas pm f) one1) U =
   fmeas_mu
-    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm d) one1) U.
+    (linhom_fun (ex_score_posterior_cbv P R_to_carrier_meas pm f) one1) U.
 Proof.
 rewrite (ex_score_posterior_cbv_E mU).
-exact: (ex_reject_master R_to_carrier_meas Hmu1 d mU).
+exact: (ex_reject_master R_to_carrier_meas Hmu1 f mU).
 Qed.
 
 End ScorePosterior.
