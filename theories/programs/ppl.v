@@ -1271,8 +1271,8 @@ Arguments dirac_fmeas_norm_le1 {R Ar X} r.
       test on point masses).
 
     There is NO probability clamp: the value-dependent surface
-    [Bernoulli]/[Score] forms take a BUNDLED [[0,1]]-density record
-    ([udensity], below) and the constant coin takes a bundled [[0,1]]
+    [Bernoulli]/[Score] forms take a BUNDLED [[0,1]] test-function record
+    ([testfn], below) and the constant coin takes a bundled [[0,1]]
     scalar ([prob], below), so no user-supplied value is ever silently
     saturated. *)
 
@@ -1408,39 +1408,41 @@ rewrite ler_pdivrMr ?mul1r; first exact: normal_pdf_ub.
 exact: normal_peak_gt0.
 Qed.
 
-(** *** Bundled [[0,1]]-valued density — [udensity]
+(** *** Bundled [[0,1]]-valued test function — [testfn]
 
-    A value-dependent density [f : R -> R] together with its three
+    A value-dependent test function [f : R -> R] together with its three
     surface witnesses: measurability, non-negativity and the unit
     bound.  The bundle is the single argument carried by the
-    value-dependent surface forms [Bernoulli d e] / [Score d e] and by
-    [observe] (via [gauss_udensity]); there are NO loose proof-witnesses
-    on the surface.  All projections are primitive, hence
-    [ud_f (mk_udensity f _ _ _) = f] holds DEFINITIONALLY — load-bearing
-    for [erefl] elaboration pins and the downstream [bern_lift]/
-    [score_lift] computations. *)
-Record udensity := MkUdensity {
-  ud_f : R -> R ;
-  ud_meas : measurable_fun [set: R] ud_f ;
-  ud_ge0 : forall r : R, (0 <= ud_f r)%R ;
-  ud_le1 : forall r : R, (ud_f r <= 1)%R
+    value-dependent surface forms [Bernoulli f e] / [Score f e]; there
+    are NO loose proof-witnesses on the surface.  All projections are
+    primitive, hence [test_fun (mk_testfn f _ _ _) = f] holds
+    DEFINITIONALLY — load-bearing for [erefl] elaboration pins and the
+    downstream [bern_lift]/[score_lift] computations. *)
+Record testfn := MkTestfn {
+  test_fun : R -> R ;
+  test_meas : measurable_fun [set: R] test_fun ;
+  test_ge0 : forall r : R, (0 <= test_fun r)%R ;
+  test_le1 : forall r : R, (test_fun r <= 1)%R
 }.
+
+(** A test function is applied as a plain function via its carrier map. *)
+Coercion test_fun : testfn >-> Funclass.
 
 (** Smart constructor from loose witnesses (alias of the record
     constructor, for readability at example sites). *)
-Definition mk_udensity (f : R -> R)
+Definition mk_testfn (f : R -> R)
     (Hm : measurable_fun [set: R] f)
     (Hg : forall r : R, (0 <= f r)%R)
-    (Hl : forall r : R, (f r <= 1)%R) : udensity :=
-  MkUdensity Hm Hg Hl.
+    (Hl : forall r : R, (f r <= 1)%R) : testfn :=
+  MkTestfn Hm Hg Hl.
 
 (** RETIRED (tProb migration): the [gauss_udensity] / [gt0_udensity]
-    [udensity] instances fed only the now-removed [observe Gaussian{·}]
+    [testfn] instances fed only the now-removed [observe Gaussian{·}]
     / [M > N] meta-density notations.  Their clean replacements push the
     underlying [gauss_obs_density] / [gt0_ind] maps through the bundle
     factoring [po_into] (the [Gausslik {s, y}] / [Gt0] wrappers).  The
-    [udensity] record itself is RETAINED: it remains the density-data
-    bundle carried by the examples' [Variable d : udensity R]. *)
+    [testfn] record itself is RETAINED: it remains the test-function-data
+    bundle carried by the examples' [Variable f : testfn R]. *)
 
 (** *** Bundled [[0,1]]-valued scalar — [prob]
 
@@ -1459,12 +1461,12 @@ Definition mk_prob (p : R) (Hg : (0 <= p)%R) (Hl : (p <= 1)%R) : prob :=
 
 End RealFunKit.
 
-Arguments MkUdensity {R}.
-Arguments ud_f {R}.
-Arguments ud_meas {R}.
-Arguments ud_ge0 {R}.
-Arguments ud_le1 {R}.
-Arguments mk_udensity {R} f Hm Hg Hl.
+Arguments MkTestfn {R}.
+Arguments test_fun {R}.
+Arguments test_meas {R}.
+Arguments test_ge0 {R}.
+Arguments test_le1 {R}.
+Arguments mk_testfn {R} f Hm Hg Hl.
 Arguments MkProb {R}.
 Arguments pr_val {R}.
 Arguments pr_ge0 {R}.
@@ -2612,13 +2614,13 @@ Notation "'if' e 'then' M 'else' N" :=
     semantics is introduced.
 
       Meas { f , Hf } e        measurable function application (ne_meas)
-      Bernoulli d e            value-dependent coin: flip with success
-                               probability [ud_f d r] at the runtime
+      Bernoulli f e            value-dependent coin: flip with success
+                               probability [test_fun f r] at the runtime
                                value [r] of [e], for a BUNDLED [[0,1]]
-                               density [d : udensity] (= ne_bernoulli_f);
+                               test function [f : testfn] (= ne_bernoulli_f);
                                NO clamp, NO loose witnesses
-      Score d e                score by the bundled [[0,1]] density
-                               [d : udensity] at the runtime value of
+      Score f e                score by the bundled [[0,1]] test function
+                               [f : testfn] at the runtime value of
                                [e] (= ne_score)
       sample m                 sample from a bundled sub-probability
                                [m : pmeas Ar R_obj] (= ne_sample)
@@ -2756,14 +2758,14 @@ Definition pconst (pr : prob R) (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
   ne_to_prob (po_into P (cst (pr_val pr)) (measurable_cst (pr_val pr))
                 (fun=> pr_ge0 pr) (fun=> pr_le1 pr)) e.
 
-(** Score by a user-supplied density bundle [d : udensity R]: push a real
-    value through the bundle's factoring of [d]'s carrier map [ud_f d].  The
-    [udensity]-parameterised sibling of [psigmoid] / [pgausslik]; it is the
-    object-language density-coin behind the conditioning/rejection examples,
-    so a use site reads [Bernoulli (Density d #"x")] (cf. [Sigmoid #"x"])
+(** Score by a user-supplied test-function bundle [f : testfn R]: push a real
+    value through the bundle's factoring of [f]'s carrier map [test_fun f].  The
+    [testfn]-parameterised sibling of [psigmoid] / [pgausslik]; it is the
+    object-language test-function coin behind the conditioning/rejection
+    examples, so a use site reads [Bernoulli (test f #"x")] (cf. [Sigmoid #"x"])
     with no [po_into] / [ToProb] plumbing exposed. *)
-Definition pdensity (d : udensity R) (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
-  ne_to_prob (po_into P (ud_f d) (ud_meas d) (ud_ge0 d) (ud_le1 d)) e.
+Definition ptest (d : testfn R) (e : nexpr (tProb_robj P)) : nexpr (tProb P) :=
+  ne_to_prob (po_into P (test_fun d) (test_meas d) (test_ge0 d) (test_le1 d)) e.
 
 End ProbSurfaceWrappers.
 
@@ -2775,7 +2777,7 @@ Arguments psigmoid {R Ar P G} & e.
 Arguments pgausslik {R Ar P G} & s y e.
 Arguments pgt0 {R Ar P G} & e.
 Arguments pconst {R Ar P G} & pr e.
-Arguments pdensity {R Ar P G} & d e.
+Arguments ptest {R Ar P G} & d e.
 
 (** ** The general [observe] operator over a distribution-with-density
 
@@ -2910,12 +2912,12 @@ Notation "'Const' pr e" :=
   (in custom ppl_named at level 60, pr constr at level 0,
    e custom ppl_named at level 60, right associativity).
 
-(** [Density d e] — the user-density coin: score the real value [e] by the
-    bundled density [d : udensity R], [P] inferred.  Reads like [Sigmoid e],
-    replacing the explicit [ToProb { po_into (ud_f d) … } e] at every use. *)
-Notation "'Density' d e" :=
-  (pdensity d e)
-  (in custom ppl_named at level 60, d constr at level 0,
+(** [test f e] — the user-test-function coin: score the real value [e] by the
+    bundled test function [f : testfn R], [P] inferred.  Reads like [Sigmoid e],
+    replacing the explicit [ToProb { po_into (test_fun f) … } e] at every use. *)
+Notation "'test' f e" :=
+  (ptest f e)
+  (in custom ppl_named at level 60, f constr at level 0,
    e custom ppl_named at level 60, right associativity).
 
 Notation "'InclP' e" :=
