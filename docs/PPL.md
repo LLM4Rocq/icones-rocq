@@ -49,8 +49,8 @@ and the derived readable forms on top of it.
 | Variable lookup via canonical structures | `tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'` — same file |
 | Surface notation `[ … ]` and the `ppl_named` custom entry | `ppl_named` (custom entry) — same file |
 | The probability type and its bundle (`tProb`, `probObj`, `tProb_robj`) | `probObj`, `po_obj`, `po_incl`, `po_into`, `tProb`, `po_density` — same file |
-| Probability surface forms (`Bernoulli`, `Bernoulli [\|p\|]`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `Density`, `Const`, `InclP`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `pbern`, `pscore`, `psigmoid`, `pgausslik`, `pgt0`, `pdensity`, `pconst`, `pincl`, `bern_lift_P`, `score_lift_P`, `sigmoid`, `gauss_obs_density`, `gt0_ind`, `negr`, `prob`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
-| The `observe` operator and its distribution bundle | `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `pobserve_obsGaussian`, `Density`, `pdensity` — same file |
+| Probability surface forms (`Bernoulli`, `Bernoulli [\|p\|]`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `test`, `Const`, `InclP`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `pbern`, `pscore`, `psigmoid`, `pgausslik`, `pgt0`, `ptest`, `testfn`, `test_fun`, `pconst`, `pincl`, `bern_lift_P`, `score_lift_P`, `sigmoid`, `gauss_obs_density`, `gt0_ind`, `negr`, `prob`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
+| The `observe` operator and its distribution bundle | `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `pobserve_obsGaussian`, `test`, `ptest` — same file |
 
 ### Types and contexts (`ppl_type`, `named_ctx`)
 
@@ -205,10 +205,11 @@ value-dependent coin `Bernoulli e` and the score `Score e` read their
 success probability / weight off the `tProb`-typed value `e` through
 the bundle density `po_density P`; the `tProb`-producing primitives
 `Sigmoid e` / `Gausslik e { s , y }` / `Gt0 e` push a real value
-through a named `R → [0,1]` map into `tProb`, and the user-density
-coin `Density d e` (`pdensity`) pushes through the bundled density
-`d : udensity` — folding the universal factoring `po_into (ud_f d)`
-into a single witness-free wrapper. The comparison coin
+through a named `R → [0,1]` map into `tProb`, and the abstract
+test-function coin `test f e` (`ptest`) pushes through the bundled test
+function `f : testfn` — folding the universal factoring
+`po_into (test_fun f)` into a single witness-free wrapper. The
+comparison coin
 `e1 > e2` desugars to `Bernoulli (Gt0 (e1 + Meas{negr} e2))` at the
 strict-positivity indicator `gt0_ind`. The Bayesian-conditioning
 operator `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`
@@ -462,7 +463,7 @@ Direct-style: no `Ret` notation; `let "x" := M in N` desugars to
 `ne_let` (not `ne_bind`). Brackets `[ … ]` enter the entry; curly
 braces `{ x }` escape back to plain Rocq.
 
-### The probability type and the `tProb` surface (`probObj`, `tProb`, `po_into`, `po_density`, `Bernoulli`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `Density`, `pdensity`, `Const`, `InclP`, `observe`, `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `observe_gauss_E`)
+### The probability type and the `tProb` surface (`probObj`, `tProb`, `po_into`, `po_density`, `Bernoulli`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `test`, `testfn`, `test_fun`, `ptest`, `Const`, `InclP`, `observe`, `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `observe_gauss_E`)
 
 The `[0,1]` discipline of coins and scores is carried by a **type**.
 A single bundle `probObj` packages the `[0,1]` sub-object the surface
@@ -500,7 +501,7 @@ Notation "'Score' e"     := (pscore e)  (* … *).
 Notation "'Sigmoid' e" := (psigmoid e) (* … *).
 Notation "'Gausslik' e '{' s ',' y '}'" := (pgausslik s y e) (* mean-first *).
 Notation "'Gt0' e"    := (pgt0 e)    (* … *).
-Notation "'Density' d e" := (pdensity d e) (* user-density coin *).
+Notation "'test' f e" := (ptest f e) (* abstract test-function coin *).
 Notation "'Const' pr e" := (pconst pr e) (* … *).
 Notation "'InclP' e"  := (pincl e)   (* … *).
 Notation "'observe' 'Gaussian' e '{' s '}' y" :=
@@ -539,12 +540,24 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
   `tProb P` and is built once, in `ppl.v`, by feeding the underlying
   `[0,1]` map (whose measurability and bounds already exist) into the
   bundle factoring `po_into` — the use site never sees `po_into`.
-  `Density d e` (`pdensity`) is the user-density coin: push the value
-  through the bundled density `d : udensity` (its `ud_f`/`ud_meas`/
-  `ud_ge0`/`ud_le1` fields supplying map and proofs), again folding
-  `po_into (ud_f d)` into one witness-free wrapper — so a use site reads
-  `Bernoulli (Density d #"x")` / `Score (Density d #"m")`, the
-  `udensity`-parameterised sibling of `Sigmoid` / `Gausslik`. `Const pr
+  `test f e` (`ptest`) is the abstract test-function coin: `f : testfn`
+  is a measurable `[0,1]`-valued **test function** — a map you integrate
+  measures *against*, with `∫ f dµ` the test pairing that is literally
+  the content of the conditioning/rejection headline theorems
+  (`∫ f dµ · ν(U) = ∫_U f dµ`). The `testfn` record bundles the carrier
+  map `test_fun` with its measurability and `0 ≤ f ≤ 1` witnesses
+  (`test_meas`/`test_ge0`/`test_le1`) and **coerces to its function**
+  (`Coercion test_fun : testfn >-> Funclass`), so `f r` and `∫ f dµ`
+  read directly. `test f e` evaluates the test `f` at the runtime value
+  `e`, landing in `tProb` — the object-language counterpart of the
+  integration pairing, the way an *abstract* test enters a program (it
+  folds `po_into (test_fun f)` into one witness-free wrapper). A use
+  site reads `Bernoulli (test f #"x")` / `Score (test f #"m")`, the
+  `testfn`-parameterised sibling of `Sigmoid` / `Gausslik`. Contrast
+  `observe Dist y`, the special case where the test comes from a
+  concrete distribution's peak-normalised density; the general
+  conditioning/rejection theorems quantify over an *arbitrary* test `f`,
+  which is exactly why the abstract `test f` form exists. `Const pr
   e` is the constant-literal `tProb`-map at the bundled probability
   `pr : prob` (used by the parameterised `ex_almost_loop`). `InclP e` is
   the forgetful read of a `tProb P` value back to `tR` along the
@@ -584,9 +597,9 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
   binding, `ne_let f (ne_fix f (ne_lam x M)) K`; an annotated form
   `let rec f x ::: T1 ==> T2 := M in K` covers bodies that leave the
   binder type undetermined.
-- **`Condition { d } M`** — the Pyro-style soft conditioning operator
-  for a bundled density `d : udensity` applied to a closed model `M`
-  (`examples.v::ex_condition_comb`, internally `Score (Density d #"x")`;
+- **`Condition { f } M`** — the Pyro-style soft conditioning operator
+  for a bundled test function `f : testfn` applied to a closed model `M`
+  (`examples.v::ex_condition_comb`, internally `Score (test f #"x")`;
   see the [Examples tab](../examples/) for the conditioning law
   and the rejection-sampling equivalence).
 
@@ -2158,17 +2171,16 @@ the [Examples tab](../../examples/index.html).
 
 The score-posterior identity, promoted to an operator: the Pyro-style
 soft conditioning combinator `condition`
-(`examples.v::ex_condition_comb`, surface form `Condition { d } M`)
-takes a bundled likelihood `d : udensity` and a model `m : ta → tR`,
+(`examples.v::ex_condition_comb`, surface form `Condition { f } M`)
+takes a bundled test function `f : testfn` and a model `m : ta → tR`,
 and returns the conditioned model
-`λa. let x = m a in let _ = Score (Density d x) in x`
-(writing `f := ud_f d`, the `[0,1]` likelihood the `Density d` coin
-folds into `tProb`).
+`λa. let x = m a in let _ = Score (test f x) in x`
+(the `[0,1]` test function `f` the `test f` coin folds into `tProb`).
 The conditioning law (Section ConditionModel of
 `theories/programs/ex_reject_model.v`) states that at a unit-ball
 model value `g!` and a setlike unit-ball input `a₀`, writing
 `ν_M := g(a₀)` for the model's output sub-distribution, the
-conditioned model's output is the likelihood-reweighted measure —
+conditioned model's output is the test-function-reweighted measure —
 `ex_score_posterior_cbv_E` with an arbitrary model in place of
 `sample µ`. The proof engine is this chapter's general let-law
 `eD_let_mu_E` at `ν_M`, with the score clause computing on Diracs
