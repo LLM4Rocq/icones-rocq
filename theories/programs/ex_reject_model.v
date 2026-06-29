@@ -901,7 +901,7 @@ have Hsum : If + \int[fmeas_mu reject_model_dist]_
     over.
   by rewrite integral_cst// mul1e.
 have := congr1 (fun z => z - If) Hsum.
-rewrite addeC addeK ?rm_If_fin// => ->.
+rewrite (addeC If) addeK ?rm_If_fin// => ->.
 rewrite -{1}(fineK (fmeas_setT_fin
                (reject_model_dist : fmeas R (ar_carrier Ar R_obj)))).
 by rewrite -{1}(fineK rm_If_fin) -EFinB.

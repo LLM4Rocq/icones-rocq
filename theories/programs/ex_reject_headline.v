@@ -907,7 +907,7 @@ have Hsum : If + \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
     over.
   by rewrite integral_cst// mul1e Hmu1.
 have := congr1 (fun z => z - If) Hsum.
-rewrite addeC addeK ?reject_If_fin// => ->.
+rewrite (addeC If) addeK ?reject_If_fin// => ->.
 by rewrite -{1}(fineK reject_If_fin) -EFinB.
 Qed.
 

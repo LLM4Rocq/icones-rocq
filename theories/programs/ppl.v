@@ -512,6 +512,22 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G t ->
       named_expr G t ->
       named_expr G t
+  (* [ne_test f Hf e] : DETERMINISTIC boolean test — evaluate the
+     measurable predicate [f : carrier B → bool] on the VALUE of the
+     [tbase B]-valued sub-expression [e], producing a [tbool].  Unlike
+     [ne_bernoulli_f] (a RANDOM coin at success probability [f r]),
+     [ne_test] is DETERMINISTIC: its denotation is the Dirac-on-bool
+     [δ_{f v}] — total mass exactly [1], concentrated on a single atom,
+     NO split.  This is the clean replacement for overloading the
+     Bernoulli coin at a [{0,1}] density to encode a boolean predicate.
+     The witness layout mirrors [ne_bernoulli_p] but needs ONLY the
+     measurability of [f] (no [[0,1]] bounds — a Dirac is norm-1
+     automatically).  The CBV denotation post-composes [eD e] with the
+     deterministic test lift [test_lift] (Section [TestTmLiftG]). *)
+  | ne_test (G : named_ctx Ar) (B : ar_obj Ar)
+            (f : ar_carrier Ar B -> bool)
+            (Hf : measurable_fun [set: ar_carrier Ar B] f)
+            (e : named_expr G (tbase B)) : named_expr G tbool
   (* ===================================================================
      [tProb]-typed surface (STAGE T1, ADDITIVE) — a probability type
      [tProb := tbase I_obj] for an ABSTRACT [[0,1]] object [I_obj].
@@ -603,6 +619,11 @@ Arguments ne_bernoulli_f {R Ar R_obj G} & f Hf_meas Hf_ge0 Hf_le1 e.
     scrutinee and the branches' types), then propagate into the
     sub-expressions.  Same pattern as [ne_let] / [ne_app]. *)
 Arguments ne_if {R Ar R_obj G} & t e M N.
+(** Bidirectionality on [ne_test]: resolve [G] (and let [B] come from
+    the sub-expression's [tbase B] type) FIRST, so the [find_nv] lookup
+    at [#"x"] sites inside [e] fires with a closed context.  Same
+    pattern as [ne_bernoulli_f]. *)
+Arguments ne_test {R Ar R_obj G B} & f Hf e.
 Arguments ne_bernoulli_p {R Ar R_obj G I_obj} g Hg_meas Hg_ge0 Hg_le1 e.
 Arguments ne_score_p {R Ar R_obj G I_obj} g Hg_meas Hg_ge0 Hg_le1 e.
 Arguments ne_to_prob {R Ar R_obj G X I_obj} phi e.
@@ -1999,6 +2020,130 @@ Arguments bern_lift_g_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 Arguments bern_lift_g_t_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 Arguments bern_lift_g_mass {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 
+(** ** [test_lift] — the value-dependent DETERMINISTIC boolean-test lift
+
+    The semantic engine of [ne_test]: an [icones_hom (FMeas X)
+    (bool_cone_car Ar)] sending a measure [µ] on [X] to the pushforward
+    of [µ] through the boolean predicate [f], read into [bool_cone].
+    Unlike [bern_lift_g] (a COIN: the path value is [(g x, 1 - g x)]),
+    the path value here is a DIRAC on bool — [δ_true] when [f x], else
+    [δ_false]: total mass exactly [1], concentrated on ONE atom, no
+    split.  Construction is the PATH route, the deterministic analogue of
+    [Section BernTmLiftG]: package [x ↦ if f x then δ_true else δ_false]
+    as a measurable path into [bool_cone_car Ar] (the three tests of the
+    bool cone evaluate along the path to the indicator [1_f], its
+    complement and the constant [1]), then promote with [int_to_linhom].
+    This is the clean replacement for overloading the Bernoulli coin at a
+    [{0,1}] density to express a boolean test. *)
+
+Section TestTmLiftG.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (X : ar_obj Ar).
+Variable (f : ar_carrier Ar X -> bool).
+Hypothesis Hf_meas : measurable_fun [set: ar_carrier Ar X] f.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The path value at [x] : the DETERMINISTIC Dirac on bool. *)
+Definition test_path_fun (x : ar_carrier Ar X) : bool_cone_car Ar :=
+  if f x then bool_dirac_true else bool_dirac_false.
+
+(** Pointwise the path is NORM-1 exactly (a Dirac always lands). *)
+Lemma test_path_fun_norm (x : ar_carrier Ar X) :
+  cone_norm (test_path_fun x) = 1%R.
+Proof.
+rewrite /test_path_fun; case: (f x);
+  [exact: bool_dirac_true_norm | exact: bool_dirac_false_norm].
+Qed.
+
+(** [test_path_fun] is a measurable path.  Along the path the three
+    tests of [bool_cone_car] ([π_t] / [π_f] / norm) evaluate to the
+    indicator [1_f], its complement [1_{¬f}] and the constant [1] — all
+    measurable since [f] is. *)
+Lemma test_path_is_path :
+  is_measurable_path (Ar := Ar) (C := bool_cone_car Ar) (X := X)
+    test_path_fun.
+Proof.
+split.
+  by exists 1%R => x; rewrite test_path_fun_norm.
+move=> Y m [o _ <-].
+have meas_t :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar X)%type]
+      (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+         (bc_t (test_path_fun p.2))%:num).
+  have -> : (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+               (bc_t (test_path_fun p.2))%:num)
+          = (fun p => if f p.2 then (1 : R) else 0).
+    by apply/funext => p; rewrite /test_path_fun; case: (f p.2).
+  apply: measurable_fun_ifT.
+  - exact: (measurableT_comp Hf_meas measurable_snd).
+  - exact: measurable_cst.
+  - exact: measurable_cst.
+have meas_f :
+    measurable_fun
+      [set: (ar_carrier Ar Y * ar_carrier Ar X)%type]
+      (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+         (bc_f (test_path_fun p.2))%:num).
+  have -> : (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+               (bc_f (test_path_fun p.2))%:num)
+          = (fun p => if f p.2 then (0 : R) else 1).
+    by apply/funext => p; rewrite /test_path_fun; case: (f p.2).
+  apply: measurable_fun_ifT.
+  - exact: (measurableT_comp Hf_meas measurable_snd).
+  - exact: measurable_cst.
+  - exact: measurable_cst.
+rewrite /BoolConeMConeAux.bool_test/= /BoolConeMConeAux.bool_test_fun
+        /BoolConeMConeAux.bc_test_val.
+case: o => [[]|]/=.
+- exact: meas_t.
+- exact: meas_f.
+- exact: measurable_funD meas_t meas_f.
+Qed.
+
+Definition test_path : path_car Ar X (bool_cone_car Ar) :=
+  MkPath test_path_is_path.
+
+Lemma test_path_norm_le1 : (path_norm test_path <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [x ->] /=; rewrite test_path_fun_norm.
+Qed.
+
+Lemma test_int_norm_le1 :
+  (cone_norm (int_to_linhom test_path) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le test_path) _.
+exact: test_path_norm_le1.
+Qed.
+
+(** The lift as an [icones_hom]. *)
+Definition test_lift :
+    icones_hom Ar (FMeas X) (bool_cone_car Ar) :=
+  linhom_icones (int_to_linhom test_path) test_int_norm_le1.
+
+(** Load-bearing Dirac identity: on [δ_x] the lift is the DETERMINISTIC
+    Dirac on bool [δ_{f x}] — NOT a coin. *)
+Lemma test_lift_dirac (x : ar_carrier Ar X) :
+  Lfun test_lift (dirac_fmeas x) =
+  (if f x then bool_dirac_true else bool_dirac_false).
+Proof.
+rewrite /test_lift.
+rewrite (linhom_iconesE _ test_int_norm_le1 (dirac_fmeas x)).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun test_path (dirac_fmeas x)).
+rewrite (int_to_linhom_fun_dirac test_path x).
+by rewrite -[path_fun _ _]/(test_path_fun x).
+Qed.
+
+End TestTmLiftG.
+
+Arguments test_path_fun {R Ar X} f x.
+Arguments test_path {R Ar X f} Hf_meas.
+Arguments test_path_is_path {R Ar X f} Hf_meas.
+Arguments test_lift {R Ar X f} Hf_meas.
+Arguments test_lift_dirac {R Ar X f} Hf_meas x.
+
 (** ** The bundled [[0,1]] object [probObj] and [tProb] (STAGE T1)
 
     A single CANONICAL structure [probObj] packages the whole [[0,1]]
@@ -2641,6 +2786,18 @@ Notation "'if' e 'then' M 'else' N" :=
     witnesses in braces, surface scrutinee outside). *)
 Notation "'Meas' '{' f ',' Hf '}' e" :=
   (ne_meas f Hf e)
+  (in custom ppl_named at level 60, e custom ppl_named at level 60,
+   f constr, Hf constr, right associativity).
+
+(** Deterministic boolean test — [Test { f , Hf } e]: evaluate the
+    measurable predicate [f : carrier B → bool] on the value of
+    [e : tbase B], yielding a [tbool].  Coq-level witnesses in braces
+    (same shape as [Meas { f , Hf } e]); surface scrutinee [e] outside.
+    DETERMINISTIC: the denotation is the Dirac [δ_{f v}], NOT a coin —
+    the clean primitive behind hard (boolean) rejection / conditioning
+    ([hard_reject.v]). *)
+Notation "'Test' '{' f ',' Hf '}' e" :=
+  (ne_test f Hf e)
   (in custom ppl_named at level 60, e custom ppl_named at level 60,
    f constr, Hf constr, right associativity).
 
