@@ -3086,6 +3086,12 @@ the classical normaliser $\int f\,d\nu_M$
 $f \equiv 0$ gives $\nu = 0$ --- certain rejection diverges, whatever
 the model does
 (\rocq{Icones.programs.ex_reject_model.reject_model_zero}).
+The same identities hold for a model returning values in an \emph{arbitrary}
+measurable object $B$ (not just $\mathbb{R}$): the acceptance scalar is read off
+a measurement morphism \texttt{phi : B -> po\_obj P} as
+\texttt{po\_density P (phi x)}, and the statements above are the
+\texttt{B := R\_obj} instance, recovered definitionally
+(\rocq{Icones.programs.ex_reject_model.reject_model_master_obj}).
 \end{theorem}
 
 \begin{proof}

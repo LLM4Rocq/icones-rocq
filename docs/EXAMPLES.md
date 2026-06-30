@@ -1034,6 +1034,18 @@ Theorem reject_prog_master U (mU : measurable U) :
   = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
 ```
 
+**Arbitrary return type.** Everything above is the real-valued case of a more
+general result: the master identity holds for a model returning values in
+*any* measurable object `B`, not just the reals. `reject_model_master_obj`
+— and the rest of the `_obj` family (normalisation, mass, mass-one, zero) plus
+`condition_model_E_obj` — state it over `ar_carrier Ar B`, with the acceptance
+scalar read off a measurement morphism `φ : B → po_obj P` as `po_density P (φ x)`
+in place of `f (cR x)`. The named theorems of this chapter are exactly the
+`B := R_obj`, `φ := the measurement behind test f` instance, recovered
+definitionally via `po_into_E` (`theories/programs/ex_reject_model.v`, Section
+`RejectModelCompat`). Only the *return* object generalises; the coin/probability
+object stays `R_obj`.
+
 ### The equivalence theorem (`reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob`)
 
 The two operators compute the same distribution, up to the
