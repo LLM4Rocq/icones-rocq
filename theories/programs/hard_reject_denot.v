@@ -518,7 +518,7 @@ Local Notation tmod := (tfun tunit tR').
 Local Notation Bmod := (Lty tunit tR').
 Local Notation mlin := (model_lin (P:=P) R_to_carrier_meas Mbody).
 Local Notation nu0 :=
-  (reject_model_dist (P:=P) (ta:=tunit) mlin one1).
+  (reject_model_dist (B := po_robj P) (ta:=tunit) mlin one1).
 
 (** The clean combinator and its context tower. *)
 Local Notation COMB := (ne_condition (R_obj := po_robj P) tunit f0b Hf0b).

@@ -269,16 +269,14 @@ Hypothesis R_to_carrier_meas :
 (** The model's input type: an ARBITRARY PPL type. *)
 Variable (ta : ppl_type Ar).
 
-(** The soft acceptance predicate: a BUNDLED [[0,1]]-valued test function;
-    its projections are exposed under their historical names. *)
-Variable (f : testfn R).
-Local Notation Hf_meas := (test_meas f).
-Local Notation Hf_ge0 := (test_ge0 f).
-Local Notation Hf_le1 := (test_le1 f).
-
-(** The bundle factoring of [f] into the probability object, the clean
-    [tProb]-coin map behind [Bernoulli (ToProb f #"x")]. *)
-Local Notation rm_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
+(** The model's RETURN object [B] and the measurement morphism
+    [phi : B → po_obj P] factoring the produced value into the
+    probability sub-object; the soft acceptance scalar at a returned
+    value [r : B] is [po_density P (phi r)] (replacing the old
+    [po_density P (phi r)]).  [R_obj := po_robj P] stays the COIN / probability-real
+    object that indexes the interpreter. *)
+Variable (B : ar_obj Ar).
+Variable (phi : ar_hom Ar B (po_obj P)).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -291,14 +289,16 @@ Local Notation eD' :=
   (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
 Local Notation cR := (carrier_to_R R_carrier_eq).
 Local Notation tR' := (tR R_obj).
+(** The model's RETURN type — the base type of the arbitrary object [B]. *)
+Local Notation tB := (tbase B).
 Local Notation Lty t1 t2 :=
   (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
 
 (** Abbreviations: the model type, the recursion type, and their
     underlying linhom cones. *)
-Local Notation tmod := (tfun ta tR').
+Local Notation tmod := (tfun ta tB).
 Local Notation trec := (tfun tmod tmod).
-Local Notation Bmod := (Lty ta tR').
+Local Notation Bmod := (Lty ta tB).
 Local Notation Lrec := (Lty tmod tmod).
 
 (** *** The semantic arguments: the model value [g!] and the input [a₀]
@@ -317,7 +317,10 @@ Variable (a0 : coalg_obj (tyD_cbv ta)).
 Hypothesis Ha_ball : cone_norm a0 <= 1.
 Hypothesis Ha_setlike : Lfun (coalg_str (tyD_cbv ta)) a0 = a0!.
 
-(** *** Syntactic decomposition of [ex_reject_comb] — all definitional *)
+(** *** Syntactic decomposition of [ex_reject_comb_obj] — all
+    definitional.  The [_body] / [_fun] / [_inner] sub-programs are the
+    [B]-generic analogues of the [examples.v] pieces; spelled out here
+    since [examples.v] only exports the closed [ex_reject_comb_obj]. *)
 
 Local Notation ctx_rs :=
   (("rs"%string, trec) :: nil).
@@ -326,17 +329,40 @@ Local Notation ctx_m :=
 Local Notation ctx_a :=
   (("a"%string, ta) :: ("m"%string, tmod) :: ("rs"%string, trec) :: nil).
 Local Notation ctx_x :=
-  (("x"%string, tR') :: ("a"%string, ta) :: ("m"%string, tmod) ::
+  (("x"%string, tB) :: ("a"%string, ta) :: ("m"%string, tmod) ::
    ("rs"%string, trec) :: nil).
 
+(** The body of the fixpoint lambda, the partially-applied stage, and the
+    run-test-recurse inner expression. *)
+Definition rm_body : @named_expr R Ar R_obj ctx_rs trec :=
+  [ \ "m" ::: tmod =>
+      \ "a" ::: ta =>
+        (let "x" := # "m" @ # "a" in
+         if Bernoulli (ToProb {phi} # "x")
+         then # "x"
+         else # "rs" @ # "m" @ # "a") ].
+
+Definition rm_fun : @named_expr R Ar R_obj ctx_m tmod :=
+  [ \ "a" ::: ta =>
+      (let "x" := # "m" @ # "a" in
+       if Bernoulli (ToProb {phi} # "x")
+       then # "x"
+       else # "rs" @ # "m" @ # "a") ].
+
+Definition rm_inner : @named_expr R Ar R_obj ctx_a tB :=
+  [ let "x" := # "m" @ # "a" in
+    if Bernoulli (ToProb {phi} # "x")
+    then # "x"
+    else # "rs" @ # "m" @ # "a" ].
+
 (** The test-and-dispatch body under the sample binder. *)
-Definition rm_if : @named_expr R Ar R_obj ctx_x tR' :=
-  [ if Bernoulli (ToProb {rm_phi} # "x")
+Definition rm_if : @named_expr R Ar R_obj ctx_x tB :=
+  [ if Bernoulli (ToProb {phi} # "x")
     then # "x"
     else # "rs" @ # "m" @ # "a" ].
 
 (** The five variables, as standalone terms. *)
-Definition rm_var_x : @named_expr R Ar R_obj ctx_x tR' := [ # "x" ].
+Definition rm_var_x : @named_expr R Ar R_obj ctx_x tB := [ # "x" ].
 Definition rm_var_a4 : @named_expr R Ar R_obj ctx_x ta := [ # "a" ].
 Definition rm_var_m4 : @named_expr R Ar R_obj ctx_x tmod := [ # "m" ].
 Definition rm_var_rs4 : @named_expr R Ar R_obj ctx_x trec := [ # "rs" ].
@@ -344,33 +370,31 @@ Definition rm_var_a3 : @named_expr R Ar R_obj ctx_a ta := [ # "a" ].
 Definition rm_var_m3 : @named_expr R Ar R_obj ctx_a tmod := [ # "m" ].
 
 Lemma ex_reject_comb_decomp :
-  ex_reject_comb (P := P) ta f =
-  ne_fix "rs" (ex_reject_comb_body ta f).
+  ex_reject_comb_obj (P := P) ta B phi =
+  ne_fix "rs" rm_body.
 Proof. by []. Qed.
 
 Lemma ex_reject_comb_body_decomp :
-  ex_reject_comb_body (P := P) ta f =
-  ne_lam "m" (ex_reject_comb_fun ta f).
+  rm_body = ne_lam "m" rm_fun.
 Proof. by []. Qed.
 
 Lemma ex_reject_comb_fun_decomp :
-  ex_reject_comb_fun (P := P) ta f =
-  ne_lam "a" (ex_reject_comb_inner ta f).
+  rm_fun = ne_lam "a" rm_inner.
 Proof. by []. Qed.
 
 Lemma ex_reject_comb_inner_decomp :
-  ex_reject_comb_inner (P := P) ta f =
+  rm_inner =
   ne_let "x" (ne_app rm_var_m3 rm_var_a3) rm_if.
 Proof. by []. Qed.
 
-(** The clean coin's underlying [tProb] argument: the acceptance
-    test function [f] pushed through the bundle factoring [po_into] at the
-    produced value [#"x"]. *)
-Local Notation rm_coin_arg := (ne_to_prob rm_phi rm_var_x).
+(** The clean coin's underlying [tProb] argument: the produced value
+    [#"x"] pushed through the measurement morphism [phi] at the
+    produced value. *)
+Local Notation rm_coin_arg := (ne_to_prob phi rm_var_x).
 
 Lemma rm_if_decomp :
   rm_if =
-  ne_if tR' (ne_bernoulli_p (po_density P) (po_density_meas P)
+  ne_if tB (ne_bernoulli_p (po_density P) (po_density_meas P)
                (po_ge0 P) (po_le1 P) rm_coin_arg)
         rm_var_x
         (ne_app (ne_app rm_var_rs4 rm_var_m4) rm_var_a4).
@@ -382,13 +406,13 @@ Let Hone : cone_norm (one1 : cone_one_car Ar) <= 1.
 Proof. by rewrite one1_norm. Qed.
 
 (** The model's output distribution at the input. *)
-Definition reject_model_dist : coalg_obj (tyD_cbv tR') := linhom_fun g a0.
+Definition reject_model_dist : coalg_obj (tyD_cbv tB) := linhom_fun g a0.
 
 (** [W₀ := curry ⟦body⟧ (one1) : !Lrec ⊸ !Lrec] — the recursion body's
     endo-function at the closed environment. *)
 Definition rm_W0 : linhom_car Ar (Bang Ar Lrec) (Bang Ar Lrec) :=
   Lfun (tensor_curry
-         (eD_cbv' (ex_reject_comb_body ta f)))
+         (eD_cbv' rm_body))
        one1.
 
 Lemma rm_W0_ball : cone_norm rm_W0 <= 1.
@@ -414,7 +438,7 @@ Qed.
     promotion by [der ∘ prom = id] BEFORE any continuity argument. *)
 
 Definition reject_comb_val : coalg_obj (tyD_cbv trec) :=
-  Lfun (eD_cbv' (ex_reject_comb ta f)) one1.
+  Lfun (eD_cbv' (ex_reject_comb_obj ta B phi)) one1.
 
 Lemma reject_comb_val_E :
   reject_comb_val = (sc_fun (fix_value Lrec) rm_W0)!.
@@ -424,14 +448,14 @@ have HoneG : cone_norm
   by rewrite one1_norm.
 rewrite /reject_comb_val ex_reject_comb_decomp.
 exact: (eD_fix_at_setlike "rs"
-          (ex_reject_comb_body ta f)
+          rm_body
           HoneG coalg_str_one1).
 Qed.
 
 (** [ν] — the denotation of [(reject_comb m) a] at the model value
     [m = g!] and the input [a = a₀] (CBV application of the program
     value, twice). *)
-Definition reject_model_denot : coalg_obj (tyD_cbv tR') :=
+Definition reject_model_denot : coalg_obj (tyD_cbv tB) :=
   linhom_fun
     (Lfun (der Bmod)
        (linhom_fun (Lfun (der Lrec) reject_comb_val) (g!)))
@@ -476,7 +500,7 @@ Proof. exact: (Lfun_le (der Bmod) (rm_chain_chain n)). Qed.
 Lemma rm_der_ball n : cone_norm (rm_der n) <= 1.
 Proof. exact: le_trans (cones_hom_norm_le1 _ _) (rm_chain_ball n). Qed.
 
-Definition reject_model_iter (n : nat) : coalg_obj (tyD_cbv tR') :=
+Definition reject_model_iter (n : nat) : coalg_obj (tyD_cbv tB) :=
   linhom_fun (rm_der n) a0.
 
 Lemma rm_iter_chain n :
@@ -533,7 +557,7 @@ Definition rm_env3 (n : nat) :
     coalg_obj (ctxD_cbv (drop_names ctx_a)) :=
   rm_env2 n ⊗p a0.
 
-Definition rm_env4 (n : nat) (r : ar_carrier Ar R_obj) :
+Definition rm_env4 (n : nat) (r : ar_carrier Ar B) :
     coalg_obj (ctxD_cbv (drop_names ctx_x)) :=
   rm_env3 n ⊗p dirac_fmeas r.
 
@@ -592,9 +616,9 @@ Lemma rm_env4_setlike n r :
   (rm_env4 n r)!.
 Proof.
 exact: (coalg_str_tensor_setlike
-          (P:=ctxD_cbv (drop_names ctx_a)) (Q:=FMeas_coalgebra R_obj)
+          (P:=ctxD_cbv (drop_names ctx_a)) (Q:=FMeas_coalgebra B)
           (rm_env3_ball n) (dirac_fmeas_norm_le1 r)
-          (rm_env3_setlike n) (Coalg_dirac R_obj r)).
+          (rm_env3_setlike n) (Coalg_dirac B r)).
 Qed.
 
 (** The recursion body at the promoted iterate: the [λm]-packaging
@@ -602,7 +626,7 @@ Qed.
 Lemma rm_W0_at_prom n :
   linhom_fun rm_W0 ((fix_chain rm_W0 n)!) =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_comb_fun ta f)))
+          (eD_cbv' (rm_fun)))
      (rm_env1 n))!.
 Proof.
 rewrite {1}/rm_W0 tensor_curryE ex_reject_comb_body_decomp eD_lam_E.
@@ -614,7 +638,7 @@ Qed.
     — and the [λa]-packaging promotes the curried inner body in turn. *)
 Lemma rm_chain_S n :
   rm_chain n.+1 =
-  Lfun (eD_cbv' (ex_reject_comb_fun ta f))
+  Lfun (eD_cbv' (rm_fun))
        (rm_env2 n).
 Proof.
 rewrite /rm_chain fix_chain_S rm_W0_at_prom.
@@ -625,7 +649,7 @@ Qed.
 Lemma rm_chain_S_prom n :
   rm_chain n.+1 =
   (Lfun (tensor_curry
-          (eD_cbv' (ex_reject_comb_inner ta f)))
+          (eD_cbv' (rm_inner)))
      (rm_env2 n))!.
 Proof.
 rewrite rm_chain_S ex_reject_comb_fun_decomp eD_lam_E.
@@ -635,7 +659,7 @@ Qed.
 
 Lemma reject_model_iter_S n :
   reject_model_iter n.+1 =
-  Lfun (eD_cbv' (ex_reject_comb_inner ta f))
+  Lfun (eD_cbv' (rm_inner))
        (rm_env3 n).
 Proof.
 rewrite /reject_model_iter /rm_der rm_chain_S_prom.
@@ -688,7 +712,7 @@ Lemma rm_var_x_E n r :
   Lfun (eD_cbv' rm_var_x) (rm_env4 n r) = dirac_fmeas r.
 Proof.
 apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R)
-  (ctxD_cbv (drop_names ctx_a)) (FMeas_coalgebra R_obj)) (rm_env4 n r))).
+  (ctxD_cbv (drop_names ctx_a)) (FMeas_coalgebra B)) (rm_env4 n r))).
   by [].
 exact: (em_proj2_morE (rm_env3_ball n) (rm_env3_setlike n)).
 Qed.
@@ -699,11 +723,11 @@ Proof.
 apply: (eq_trans (y := Lfun (icones_comp
   (em_proj2_mor (R:=R) (ctxD_cbv (drop_names ctx_m)) (tyD_cbv ta))
   (em_proj1_mor (R:=R) (ctxD_cbv (drop_names ctx_a))
-     (FMeas_coalgebra R_obj))) (rm_env4 n r))).
+     (FMeas_coalgebra B))) (rm_env4 n r))).
   by [].
 rewrite Lfun_comp.
-rewrite (em_proj1_morE (Q:=FMeas_coalgebra R_obj)
-           (dirac_fmeas_norm_le1 r) (Coalg_dirac R_obj r)).
+rewrite (em_proj1_morE (Q:=FMeas_coalgebra B)
+           (dirac_fmeas_norm_le1 r) (Coalg_dirac B r)).
 exact: (em_proj2_morE (P:=ctxD_cbv (drop_names ctx_m))
           (rm_env2_ball n) (rm_env2_setlike n)).
 Qed.
@@ -716,11 +740,11 @@ apply: (eq_trans (y := Lfun (icones_comp
     (em_proj2_mor (R:=R) (ctxD_cbv (drop_names ctx_rs)) (tyD_cbv tmod))
     (em_proj1_mor (R:=R) (ctxD_cbv (drop_names ctx_m)) (tyD_cbv ta)))
   (em_proj1_mor (R:=R) (ctxD_cbv (drop_names ctx_a))
-     (FMeas_coalgebra R_obj))) (rm_env4 n r))).
+     (FMeas_coalgebra B))) (rm_env4 n r))).
   by [].
 rewrite Lfun_comp Lfun_comp.
-rewrite (em_proj1_morE (Q:=FMeas_coalgebra R_obj)
-           (dirac_fmeas_norm_le1 r) (Coalg_dirac R_obj r)).
+rewrite (em_proj1_morE (Q:=FMeas_coalgebra B)
+           (dirac_fmeas_norm_le1 r) (Coalg_dirac B r)).
 rewrite (em_proj1_morE (Q:=tyD_cbv ta) Ha_ball Ha_setlike).
 exact: (em_proj2_morE (P:=ctxD_cbv (drop_names ctx_rs))
           (rm_env1_ball n) (rm_env1_setlike n)).
@@ -737,32 +761,30 @@ apply: (eq_trans (y := Lfun (icones_comp
          (tyD_cbv tmod)))
     (em_proj1_mor (R:=R) (ctxD_cbv (drop_names ctx_m)) (tyD_cbv ta)))
   (em_proj1_mor (R:=R) (ctxD_cbv (drop_names ctx_a))
-     (FMeas_coalgebra R_obj))) (rm_env4 n r))).
+     (FMeas_coalgebra B))) (rm_env4 n r))).
   by [].
 rewrite Lfun_comp Lfun_comp Lfun_comp.
-rewrite (em_proj1_morE (Q:=FMeas_coalgebra R_obj)
-           (dirac_fmeas_norm_le1 r) (Coalg_dirac R_obj r)).
+rewrite (em_proj1_morE (Q:=FMeas_coalgebra B)
+           (dirac_fmeas_norm_le1 r) (Coalg_dirac B r)).
 rewrite (em_proj1_morE (Q:=tyD_cbv ta) Ha_ball Ha_setlike).
 rewrite (em_proj1_morE (Q:=tyD_cbv tmod) rm_g_ball rm_g_setlike).
 exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
 Qed.
 
-(** The scrutinee at [δ_r] is the [f r]-coin (the bundled
-    [ne_bernoulli_f] node desugared directly — no clamp transport). *)
+(** The scrutinee at [δ_r] is the [po_density P (phi r)]-coin: push the
+    bound value [#"x"] through the measurement morphism [phi] and read off
+    the coin with [bern_lift_P] — no [po_into_E] step, the density IS the
+    success probability. *)
 Lemma rm_scrut_E n r :
   Lfun (eD_cbv' (ne_bernoulli_p (po_density P) (po_density_meas P)
                    (po_ge0 P) (po_le1 P) rm_coin_arg))
        (rm_env4 n r) =
-  bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
+  bernoulli (po_density P (phi r)) (po_ge0 P (phi r)) (po_le1 P (phi r)).
 Proof.
-(* Clean-surface coin leaf: push [#"x"] through the bundle factoring
-   [po_into f] and read off the [f r]-coin with [bern_lift_P];
-   [po_into_E] recovers [f r]. *)
 rewrite eD_bernoulli_p_E Lfun_comp.
 rewrite -[bern_lift_g _ _ _]/(bern_lift_P P).
 rewrite eD_to_prob_E Lfun_comp.
-rewrite rm_var_x_E FMeas_fmap_dirac bern_lift_P_dirac.
-apply: bool_cone_eq; apply: val_inj => /=; by rewrite /po_density po_into_E.
+by rewrite rm_var_x_E FMeas_fmap_dirac bern_lift_P_dirac.
 Qed.
 
 (** ELSE: the recursive call AT THE SAME MODEL AND INPUT is exactly the
@@ -782,7 +804,7 @@ Qed.
 
 Lemma reject_model_if_at_dirac n r :
   Lfun (eD_cbv' rm_if) (rm_env4 n r) =
-  bool_case (bernoulli (Ar:=Ar) (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)))
+  bool_case (bernoulli (Ar:=Ar) (po_density P (phi r)) (po_ge0 P (phi r)) (po_le1 P (phi r)))
             (dirac_fmeas r) (reject_model_iter n).
 Proof.
 rewrite rm_if_decomp eD_if_E.
@@ -809,16 +831,16 @@ Local Open Scope ereal_scope.
     integrals out explicitly so the reader sees the real measure
     [fmeas_mu reject_model_dist] and integrand [(f (cR ·))%:E]. *)
 Local Notation If :=
-  (\int[fmeas_mu reject_model_dist]_(r in [set: ar_carrier Ar R_obj])
-     (f (cR r))%:E) (only parsing).
+  (\int[fmeas_mu reject_model_dist]_(r in [set: ar_carrier Ar B])
+     (po_density P (phi r))%:E) (only parsing).
 Local Notation IUf U :=
-  (\int[fmeas_mu reject_model_dist]_(r in U) (f (cR r))%:E) (only parsing).
+  (\int[fmeas_mu reject_model_dist]_(r in U) (po_density P (phi r))%:E) (only parsing).
 Local Notation m0 :=
-  (fine (fmeas_mu reject_model_dist [set: ar_carrier Ar R_obj])).
+  (fine (fmeas_mu reject_model_dist [set: ar_carrier Ar B])).
 
-Let f_cR_meas : measurable_fun [set: ar_carrier Ar R_obj]
-    (fun r => f (cR r)).
-Proof. exact: (bern_f_cR_meas R_carrier_meas Hf_meas). Qed.
+Let f_cR_meas : measurable_fun [set: ar_carrier Ar B]
+    (fun r => po_density P (phi r)).
+Proof. exact: (measurableT_comp (po_density_meas P) (measurable_funPT phi)). Qed.
 
 (** [ν_M] is a sub-probability: total mass [m₀ ≤ 1]. *)
 Lemma rm_dist_ball : (cone_norm reject_model_dist <= 1)%R.
@@ -831,19 +853,19 @@ Lemma rm_m0_le1 : (m0 <= 1)%R.
 Proof. exact: rm_dist_ball. Qed.
 
 Lemma rm_If_ge0 : 0 <= If.
-Proof. by apply: integral_ge0 => r _; rewrite lee_fin Hf_ge0. Qed.
+Proof. by apply: integral_ge0 => r _; rewrite lee_fin (po_ge0 P). Qed.
 
 (** [∫ f dν_M ≤ ν_M(setT) = m₀]: acceptance cannot outweigh the
     model's own termination mass. *)
 Lemma rm_If_le_mass :
-  If <= fmeas_mu reject_model_dist [set: ar_carrier Ar R_obj].
+  If <= fmeas_mu reject_model_dist [set: ar_carrier Ar B].
 Proof.
 apply: (le_trans (y := \int[fmeas_mu reject_model_dist]_
-                        (r in [set: ar_carrier Ar R_obj]) (cst 1%:E) r)).
+                        (r in [set: ar_carrier Ar B]) (cst 1%:E) r)).
   apply: ge0_le_integral => //.
-  - by move=> r _; rewrite lee_fin Hf_ge0.
+  - by move=> r _; rewrite lee_fin (po_ge0 P).
   - by apply/measurable_EFinP; exact: f_cR_meas.
-  - by move=> r _; rewrite lee_fin Hf_le1.
+  - by move=> r _; rewrite lee_fin (po_le1 P).
 by rewrite integral_cst// mul1e.
 Qed.
 
@@ -861,13 +883,13 @@ exact: fmeas_setT_fin.
 Qed.
 
 Lemma rm_IUf_ge0 U : measurable U -> 0 <= IUf U.
-Proof. by move=> mU; apply: integral_ge0 => r _; rewrite lee_fin Hf_ge0. Qed.
+Proof. by move=> mU; apply: integral_ge0 => r _; rewrite lee_fin (po_ge0 P). Qed.
 
 Lemma rm_IUf_le_If U : measurable U -> IUf U <= If.
 Proof.
 move=> mU; apply: ge0_subset_integral => //.
 - by apply/measurable_EFinP; exact: f_cR_meas.
-- by move=> r _; rewrite lee_fin Hf_ge0.
+- by move=> r _; rewrite lee_fin (po_ge0 P).
 Qed.
 
 Lemma rm_IUf_fin U : measurable U -> IUf U \is a fin_num.
@@ -881,21 +903,21 @@ Qed.
 (** The rejected-AND-terminated weight:
     [∫ (1 - f) dν_M = m₀ - ∫ f dν_M]. *)
 Lemma rm_int_onem :
-  \int[fmeas_mu reject_model_dist]_(r in [set: ar_carrier Ar R_obj])
-     ((1 - f (cR r))%R)%:E = ((m0 - fine If)%R)%:E.
+  \int[fmeas_mu reject_model_dist]_(r in [set: ar_carrier Ar B])
+     ((1 - po_density P (phi r))%R)%:E = ((m0 - fine If)%R)%:E.
 Proof.
-have Honem_meas : measurable_fun [set: ar_carrier Ar R_obj]
-    (fun r => ((1 - f (cR r))%R)%:E).
+have Honem_meas : measurable_fun [set: ar_carrier Ar B]
+    (fun r => ((1 - po_density P (phi r))%R)%:E).
   apply/measurable_EFinP.
   by apply: measurable_funB => //; exact: f_cR_meas.
 have Hsum : If + \int[fmeas_mu reject_model_dist]_
-                  (r in [set: ar_carrier Ar R_obj])
-                   ((1 - f (cR r))%R)%:E =
-            fmeas_mu reject_model_dist [set: ar_carrier Ar R_obj].
+                  (r in [set: ar_carrier Ar B])
+                   ((1 - po_density P (phi r))%R)%:E =
+            fmeas_mu reject_model_dist [set: ar_carrier Ar B].
   rewrite -ge0_integralD//; first last.
-  - by move=> r _; rewrite lee_fin subr_ge0 Hf_le1.
+  - by move=> r _; rewrite lee_fin subr_ge0 (po_le1 P).
   - by apply/measurable_EFinP; exact: f_cR_meas.
-  - by move=> r _; rewrite lee_fin Hf_ge0.
+  - by move=> r _; rewrite lee_fin (po_ge0 P).
   under eq_integral => r _.
     rewrite -EFinD addrCA subrr addr0.
     over.
@@ -903,24 +925,24 @@ have Hsum : If + \int[fmeas_mu reject_model_dist]_
 have := congr1 (fun z => z - If) Hsum.
 rewrite (addeC If) addeK ?rm_If_fin// => ->.
 rewrite -{1}(fineK (fmeas_setT_fin
-               (reject_model_dist : fmeas R (ar_carrier Ar R_obj)))).
+               (reject_model_dist : fmeas R (ar_carrier Ar B)))).
 by rewrite -{1}(fineK rm_If_fin) -EFinB.
 Qed.
 
 (** The mass of one branch dispatch. *)
 Lemma rm_case_mass n r U (mU : measurable U) :
   fmeas_mu (bool_case
-    (bernoulli (Ar:=Ar) (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)))
+    (bernoulli (Ar:=Ar) (po_density P (phi r)) (po_ge0 P (phi r)) (po_le1 P (phi r)))
     (dirac_fmeas r) (reject_model_iter n)) U =
-  ((f (cR r) * \1_U r + (1 - f (cR r)) *
+  ((po_density P (phi r) * \1_U r + (1 - po_density P (phi r)) *
       fine (fmeas_mu (reject_model_iter n) U))%R)%:E.
 Proof.
 have -> : (bool_case
-    (bernoulli (Ar:=Ar) (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)))
-    (dirac_fmeas r) (reject_model_iter n) : fmeas R (ar_carrier Ar R_obj)) =
+    (bernoulli (Ar:=Ar) (po_density P (phi r)) (po_ge0 P (phi r)) (po_le1 P (phi r)))
+    (dirac_fmeas r) (reject_model_iter n) : fmeas R (ar_carrier Ar B)) =
   fmeas_add
-    (fmeas_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r))
-    (fmeas_scale (NngNum (subr_ge0_le1 (f (cR r)) (Hf_le1 (cR r))))
+    (fmeas_scale (NngNum (po_ge0 P (phi r))) (dirac_fmeas r))
+    (fmeas_scale (NngNum (subr_ge0_le1 (po_density P (phi r)) (po_le1 P (phi r))))
        (reject_model_iter n)).
   by [].
 rewrite fmeas_addE 2!fmeas_scaleE (dirac_fmeas_E r mU) diracE/=.
@@ -938,26 +960,27 @@ have Hiter : reject_model_iter n.+1 =
   rewrite reject_model_iter_S ex_reject_comb_inner_decomp.
   by rewrite /eD icones_to_linhomE.
 rewrite Hiter.
-rewrite (eD_let_mu_E R_carrier_meas R_to_carrier_meas
+rewrite (eD_let_int_obj R_carrier_meas R_to_carrier_meas
            (ne_app rm_var_m3 rm_var_a3) rm_if
-           (rm_env3_ball n) (rm_env3_setlike n) mU).
+           (rm_env3_ball n) (rm_env3_setlike n)).
+rewrite (distributions.icone_integral_fmeas_E _ _ mU).
 rewrite rm_model_app_E.
 set c := fine (fmeas_mu (reject_model_iter n) U).
 under eq_integral => r _.
   rewrite reject_model_if_at_dirac (rm_case_mass n r mU)/= EFinD.
   over.
 have Hc0 : (0 <= c)%R by rewrite /c fine_ge0// measure_ge0.
-have m1 : measurable_fun [set: ar_carrier Ar R_obj]
-    (fun r => ((f (cR r) * \1_U r)%R)%:E).
+have m1 : measurable_fun [set: ar_carrier Ar B]
+    (fun r => ((po_density P (phi r) * \1_U r)%R)%:E).
   apply/measurable_EFinP; apply: measurable_funM => //.
-have m2 : measurable_fun [set: ar_carrier Ar R_obj]
-    (fun r => (((1 - f (cR r)) *
+have m2 : measurable_fun [set: ar_carrier Ar B]
+    (fun r => (((1 - po_density P (phi r)) *
                 fine (fmeas_mu (reject_model_iter n) U))%R)%:E).
   apply/measurable_EFinP; apply: measurable_funM => //.
   by apply: measurable_funB => //; exact: f_cR_meas.
 rewrite ge0_integralD//; first last.
-- by move=> r _; rewrite lee_fin mulr_ge0// ?subr_ge0 ?Hf_le1.
-- by move=> r _; rewrite lee_fin mulr_ge0// Hf_ge0.
+- by move=> r _; rewrite lee_fin mulr_ge0// ?subr_ge0 ?(po_le1 P).
+- by move=> r _; rewrite lee_fin mulr_ge0// (po_ge0 P).
 congr (_ + _).
 - rewrite [RHS](integral_mkcond U) epatch_indic.
   apply: eq_integral => r _.
@@ -966,7 +989,7 @@ congr (_ + _).
     rewrite EFinM.
     over.
   rewrite ge0_integralZr//; first last.
-  - by move=> x _; rewrite lee_fin subr_ge0 Hf_le1.
+  - by move=> x _; rewrite lee_fin subr_ge0 (po_le1 P).
   - by apply/measurable_EFinP; apply: measurable_funB => //;
        exact: f_cR_meas.
   rewrite rm_int_onem.
@@ -985,7 +1008,7 @@ Qed.
 
 Lemma rm_iter_0_mass U : fmeas_mu (reject_model_iter 0) U = 0.
 Proof.
-have -> : (reject_model_iter 0 : fmeas R (ar_carrier Ar R_obj)) =
+have -> : (reject_model_iter 0 : fmeas R (ar_carrier Ar B)) =
           fmeas_zero.
   by rewrite rm_iter_0.
 exact: fmeas_zeroE.
@@ -997,12 +1020,12 @@ Qed.
     run is rejected exactly when the model terminates AND the coin
     rejects); the degenerate corner [q = 1] (a probability model with
     [f ≡ 0] [ν_M]-a.e.) has both sides [0]. *)
-Theorem reject_model_master U (mU : measurable U) :
+Theorem reject_model_master_obj U (mU : measurable U) :
   ((1 - m0
-      + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
-                ((f (cR x))%:E)))%R)%:E
+      + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar B])
+                ((po_density P (phi x))%:E)))%R)%:E
     * fmeas_mu reject_model_denot U
-  = \int[fmeas_mu reject_model_dist]_(x in U) ((f (cR x))%:E).
+  = \int[fmeas_mu reject_model_dist]_(x in U) ((po_density P (phi x))%:E).
 Proof.
 have HnormE : (1 - m0 + fine If)%R = (1 - (m0 - fine If))%R.
   by rewrite opprB addrA addrAC.
@@ -1056,21 +1079,21 @@ Qed.
     combinator denotes the NORMALISED distribution
     [ν(U) = (∫_U f dν_M) / (1 - m₀ + ∫f dν_M)].  At [m₀ = 1] the
     normaliser is the classical [∫ f dν_M]. *)
-Theorem reject_model_is_normalised :
+Theorem reject_model_is_normalised_obj :
   (0 < 1 - m0
-     + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
-               ((f (cR x))%:E)))%R ->
+     + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar B])
+               ((po_density P (phi x))%:E)))%R ->
   forall U, measurable U ->
   fmeas_mu reject_model_denot U =
-  ((fine (\int[fmeas_mu reject_model_dist]_(x in U) ((f (cR x))%:E))
+  ((fine (\int[fmeas_mu reject_model_dist]_(x in U) ((po_density P (phi x))%:E))
     / (1 - m0
          + fine (\int[fmeas_mu reject_model_dist]_
-                   (x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E))))%R)%:E.
+                   (x in [set: ar_carrier Ar B]) ((po_density P (phi x))%:E))))%R)%:E.
 Proof.
 move=> Hpos U mU.
 have HmF : ((1 - m0 + fine If) *
             fine (fmeas_mu reject_model_denot U))%R = fine (IUf U).
-  have := congr1 fine (reject_model_master mU).
+  have := congr1 fine (reject_model_master_obj mU).
   by rewrite fineM// (fmeas_fin reject_model_denot U mU).
 rewrite -(fineK (fmeas_fin reject_model_denot U mU)); congr (_%:E).
 by rewrite -HmF mulrAC divff ?mul1r// gt_eqF.
@@ -1078,56 +1101,56 @@ Qed.
 
 (** The total-mass identity: [ν(setT) = ∫f dν_M / (1 - m₀ + ∫f dν_M)]
     — the probability that SOME trial eventually accepts. *)
-Theorem reject_model_mass :
+Theorem reject_model_mass_obj :
   (0 < 1 - m0
-     + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
-               ((f (cR x))%:E)))%R ->
-  fmeas_mu reject_model_denot [set: ar_carrier Ar R_obj] =
-  ((fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
-            ((f (cR x))%:E))
+     + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar B])
+               ((po_density P (phi x))%:E)))%R ->
+  fmeas_mu reject_model_denot [set: ar_carrier Ar B] =
+  ((fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar B])
+            ((po_density P (phi x))%:E))
     / (1 - m0
          + fine (\int[fmeas_mu reject_model_dist]_
-                   (x in [set: ar_carrier Ar R_obj]) ((f (cR x))%:E))))%R)%:E.
+                   (x in [set: ar_carrier Ar B]) ((po_density P (phi x))%:E))))%R)%:E.
 Proof.
-move=> Hpos; exact: (reject_model_is_normalised Hpos measurableT).
+move=> Hpos; exact: (reject_model_is_normalised_obj Hpos measurableT).
 Qed.
 
 (** Almost-sure termination for PROBABILITY models: at [m₀ = 1] with
     positive acceptance mass the combinator denotes a probability
     distribution. *)
-Theorem reject_model_mass_one :
+Theorem reject_model_mass_one_obj :
   m0 = 1%R ->
-  0 < \int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar R_obj])
-        ((f (cR x))%:E) ->
-  fmeas_mu reject_model_denot [set: ar_carrier Ar R_obj] = 1.
+  0 < \int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar B])
+        ((po_density P (phi x))%:E) ->
+  fmeas_mu reject_model_denot [set: ar_carrier Ar B] = 1.
 Proof.
 move=> Hm01 HIf.
 have HfIf : (0 < fine If)%R.
   rewrite fine_gt0// HIf/= (le_lt_trans rm_If_le_mass)//.
   by rewrite ltey_eq fmeas_setT_fin.
 have Hpos : (0 < 1 - m0 + fine If)%R by rewrite Hm01 subrr add0r.
-rewrite (reject_model_mass Hpos) Hm01 subrr add0r divff// gt_eqF//.
+rewrite (reject_model_mass_obj Hpos) Hm01 subrr add0r divff// gt_eqF//.
 Qed.
 
 (** Certain rejection diverges — whatever the model does: at [f ≡ 0]
     the combinator denotes the zero measure (each iterate's mass is
     [0 + q·0 = 0], for ANY rejected-mass [q]). *)
-Theorem reject_model_zero :
-  (forall r : R, f r = 0%R) -> reject_model_denot = precone_zero.
+Theorem reject_model_zero_obj :
+  (forall r : ar_carrier Ar B, po_density P (phi r) = 0%R) -> reject_model_denot = precone_zero.
 Proof.
 move=> Hf0.
-have HIUf0 : forall U : set (ar_carrier Ar R_obj), IUf U = 0.
+have HIUf0 : forall U : set (ar_carrier Ar B), IUf U = 0.
   move=> U.
   under eq_integral => r _ do rewrite Hf0.
   exact: integral0.
-have Hmass : forall n (U : set (ar_carrier Ar R_obj)),
+have Hmass : forall n (U : set (ar_carrier Ar B)),
     measurable U -> fmeas_mu (reject_model_iter n) U = 0.
   elim=> [ | n IH] U mU; first exact: rm_iter_0_mass.
   by rewrite (reject_model_iter_mass n mU) IH// mule0 adde0 HIUf0.
 apply: fmeas_eq => U mU.
 rewrite reject_model_sup_E.
 rewrite (fmeas_kleene_sup_U_E rm_iter_chain rm_iter_ball mU (l := 0)).
-  by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
+  by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar B))
        fmeas_zeroE.
 have HE : (fun n => fmeas_mu (reject_model_iter n) U) =
           (fun n => (0 : \bar R)).
@@ -1186,6 +1209,21 @@ Local Notation Lty t1 t2 :=
 Let Hone : cone_norm (one1 : cone_one_car Ar) <= 1.
 Proof. by rewrite one1_norm. Qed.
 
+(** The canonical real measurement: the bundle factoring of the test
+    function [f].  Pinning [B := po_robj P] and [phi := rphi] recovers
+    the soft real-reject behaviour: [po_density P (rphi r) = f (cR r)].
+    [SamplerInstance] is NOT generalized over [B] (the sampler returns
+    reals). *)
+Local Notation rphi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
+
+Let rphiE (r : ar_carrier Ar R_obj) : po_density P (rphi r) = f (cR r).
+Proof. by rewrite /po_density po_into_E. Qed.
+
+Let rphi_intE (V : set (ar_carrier Ar R_obj)) :
+  (\int[fmeas_mu mu]_(r in V) (po_density P (rphi r))%:E =
+   \int[fmeas_mu mu]_(r in V) (f (cR r))%:E)%E.
+Proof. by apply: eq_integral => r _; rewrite rphiE. Qed.
+
 (** *** The sampler model's underlying linear map [g_µ]
 
     The lambda-clause of [eD] packages the model as the PROMOTION of
@@ -1237,15 +1275,15 @@ Qed.
 (** The combinator applied to the sampler model at the unit input. *)
 Local Notation inst_denot :=
   (reject_model_denot R_to_carrier_meas
-     f sampler_lin one1).
+     rphi sampler_lin one1).
 
 Local Notation inst_iter :=
   (reject_model_iter R_to_carrier_meas
-     f sampler_lin one1).
+     rphi sampler_lin one1).
 
 (** The instance's model-output distribution is the prior. *)
 Lemma inst_dist_E :
-  reject_model_dist (ta := tunit) (P := P) sampler_lin one1 = mu.
+  reject_model_dist (ta := tunit) sampler_lin one1 = mu.
 Proof. exact: sampler_out_E. Qed.
 
 (** Per-iterate masses agree with the [ex_reject] headline's: both
@@ -1263,7 +1301,7 @@ rewrite (reject_model_iter_mass _ _ sampler_lin_ball Hone
            coalg_str_one1 n mU).
 rewrite (ex_reject_iter_mass R_to_carrier_meas
            Hmu1 f n mU).
-by rewrite inst_dist_E Hmu1 IH.
+rewrite inst_dist_E. rewrite !rphi_intE. by rewrite Hmu1 IH.
 Qed.
 
 (** The bridge: the combinator at the sampler model denotes the same
@@ -1344,13 +1382,11 @@ Hypothesis R_to_carrier_meas :
 (** The model's input type: an ARBITRARY PPL type. *)
 Variable (ta : ppl_type Ar).
 
-(** The soft observation test function (the likelihood) as a BUNDLED
-    [[0,1]] record; its projections are exposed under their historical
-    names. *)
-Variable (f : testfn R).
-Local Notation Hf_meas := (test_meas f).
-Local Notation Hf_ge0 := (test_ge0 f).
-Local Notation Hf_le1 := (test_le1 f).
+(** The model's RETURN object [B] and the measurement morphism
+    [phi : B → po_obj P]; the soft observation likelihood at a returned
+    value [r : B] is [po_density P (phi r)]. *)
+Variable (B : ar_obj Ar).
+Variable (phi : ar_hom Ar B (po_obj P)).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
@@ -1363,12 +1399,13 @@ Local Notation eD' :=
   (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
 Local Notation cR := (carrier_to_R R_carrier_eq).
 Local Notation tR' := (tR R_obj).
+Local Notation tB := (tbase B).
 Local Notation Lty t1 t2 :=
   (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
 
 (** Abbreviations: the model type and its underlying linhom cone. *)
-Local Notation tmod := (tfun ta tR').
-Local Notation Bmod := (Lty ta tR').
+Local Notation tmod := (tfun ta tB).
+Local Notation Bmod := (Lty ta tB).
 
 (** *** The semantic arguments: the model value [g!] and the input
     [a₀] — the §2 set-up verbatim. *)
@@ -1388,42 +1425,50 @@ Local Notation cctx_m :=
 Local Notation cctx_a :=
   (("a"%string, ta) :: ("m"%string, tmod) :: nil).
 Local Notation cctx_x :=
-  (("x"%string, tR') :: ("a"%string, ta) :: ("m"%string, tmod) :: nil).
+  (("x"%string, tB) :: ("a"%string, ta) :: ("m"%string, tmod) :: nil).
 Local Notation cctx_u :=
-  (("_"%string, tunit) :: ("x"%string, tR') :: ("a"%string, ta) ::
+  (("_"%string, tunit) :: ("x"%string, tB) :: ("a"%string, ta) ::
    ("m"%string, tmod) :: nil).
 
 (** The variables, as standalone terms. *)
 Definition cm_var_m : @named_expr R Ar R_obj cctx_a tmod := [ # "m" ].
 Definition cm_var_a : @named_expr R Ar R_obj cctx_a ta := [ # "a" ].
-Definition cm_var_x : @named_expr R Ar R_obj cctx_x tR' := [ # "x" ].
-Definition cm_ret : @named_expr R Ar R_obj cctx_u tR' := [ # "x" ].
+Definition cm_var_x : @named_expr R Ar R_obj cctx_x tB := [ # "x" ].
+Definition cm_ret : @named_expr R Ar R_obj cctx_u tB := [ # "x" ].
 
-(** The bundle factoring of the likelihood [f] into the probability
-    object, the clean [tProb]-score map behind [Score (ToProb f #"x")]. *)
-Local Notation cm_phi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
-
-(** The clean [tProb]-score node. *)
+(** The clean [tProb]-score node: the produced value [#"x"] pushed
+    through the measurement morphism [phi] and scored by the density. *)
 Local Notation cm_score :=
   (ne_score_p (po_density P) (po_density_meas P) (po_ge0 P) (po_le1 P)
-     (ne_to_prob cm_phi cm_var_x)).
+     (ne_to_prob phi cm_var_x)).
 
 (** The score-and-return continuation under the value binder. *)
-Definition cm_K : @named_expr R Ar R_obj cctx_x tR' :=
+Definition cm_K : @named_expr R Ar R_obj cctx_x tB :=
   ne_let "_" cm_score cm_ret.
 
+(** The [B]-generic analogues of the [examples.v] sub-programs. *)
+Definition cc_fun : @named_expr R Ar R_obj cctx_m tmod :=
+  [ \ "a" ::: ta =>
+      (let "x" := # "m" @ # "a" in
+       let "_" := Score (ToProb {phi} # "x") in
+       # "x") ].
+
+Definition cc_inner : @named_expr R Ar R_obj cctx_a tB :=
+  [ let "x" := # "m" @ # "a" in
+    let "_" := Score (ToProb {phi} # "x") in
+    # "x" ].
+
 Lemma ex_condition_comb_decomp :
-  ex_condition_comb (P := P) ta f =
-  ne_lam "m" (ex_condition_fun ta f).
+  ex_condition_comb_obj (P := P) ta B phi =
+  ne_lam "m" cc_fun.
 Proof. by []. Qed.
 
 Lemma ex_condition_fun_decomp :
-  ex_condition_fun (P := P) ta f =
-  ne_lam "a" (ex_condition_inner ta f).
+  cc_fun = ne_lam "a" cc_inner.
 Proof. by []. Qed.
 
 Lemma ex_condition_inner_decomp :
-  ex_condition_inner (P := P) ta f =
+  cc_inner =
   ne_let "x" (ne_app cm_var_m cm_var_a) cm_K.
 Proof. by []. Qed.
 
@@ -1451,7 +1496,7 @@ Qed.
 (** The combinator's underlying linear map (the [λa]-stage curried at
     the closed environment). *)
 Definition cond_fun_lin : Lty tmod tmod :=
-  Lfun (tensor_curry (eD_cbv' (ex_condition_fun ta f)))
+  Lfun (tensor_curry (eD_cbv' (cc_fun)))
        one1.
 
 Lemma cond_fun_lin_ball : cone_norm cond_fun_lin <= 1.
@@ -1459,20 +1504,20 @@ Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone. Qed.
 
 (** The combinator program's value. *)
 Definition cond_comb_val : coalg_obj (tyD_cbv (tfun tmod tmod)) :=
-  Lfun (eD_cbv' (ex_condition_comb ta f)) one1.
+  Lfun (eD_cbv' (ex_condition_comb_obj ta B phi)) one1.
 
 Lemma cond_comb_val_E : cond_comb_val = cond_fun_lin!.
 Proof.
 rewrite /cond_comb_val ex_condition_comb_decomp eD_lam_E.
 by rewrite (adj_psi_at_setlike
               (tensor_curry
-                 (eD_cbv' (ex_condition_fun ta f)))
+                 (eD_cbv' (cc_fun)))
               Hone coalg_str_one1).
 Qed.
 
 (** [ν_cond] — the denotation of [(condition_comb m) a] at the model
     value [m = g!] and the input [a = a₀]. *)
-Definition cond_model_denot : coalg_obj (tyD_cbv tR') :=
+Definition cond_model_denot : coalg_obj (tyD_cbv tB) :=
   linhom_fun
     (Lfun (der Bmod)
        (linhom_fun (Lfun (der (Lty tmod tmod)) cond_comb_val) (g!)))
@@ -1489,7 +1534,7 @@ Definition cond_env1 : coalg_obj (ctxD_cbv (drop_names cctx_m)) :=
 Definition cond_env2 : coalg_obj (ctxD_cbv (drop_names cctx_a)) :=
   cond_env1 ⊗p a0.
 
-Definition cond_env3 (r : ar_carrier Ar R_obj) :
+Definition cond_env3 (r : ar_carrier Ar B) :
     coalg_obj (ctxD_cbv (drop_names cctx_x)) :=
   cond_env2 ⊗p dirac_fmeas r.
 
@@ -1530,9 +1575,9 @@ Lemma cond_env3_setlike r :
   (cond_env3 r)!.
 Proof.
 exact: (coalg_str_tensor_setlike
-          (P:=ctxD_cbv (drop_names cctx_a)) (Q:=FMeas_coalgebra R_obj)
+          (P:=ctxD_cbv (drop_names cctx_a)) (Q:=FMeas_coalgebra B)
           cond_env2_ball (dirac_fmeas_norm_le1 r)
-          cond_env2_setlike (Coalg_dirac R_obj r)).
+          cond_env2_setlike (Coalg_dirac B r)).
 Qed.
 
 (** The [λa]-stage at the model value promotes the curried inner
@@ -1540,7 +1585,7 @@ Qed.
 Lemma cond_fun_at_g :
   linhom_fun cond_fun_lin (g!) =
   (Lfun (tensor_curry
-           (eD_cbv' (ex_condition_inner ta f)))
+           (eD_cbv' (cc_inner)))
      cond_env1)!.
 Proof.
 rewrite /cond_fun_lin tensor_curryE ex_condition_fun_decomp eD_lam_E.
@@ -1551,7 +1596,7 @@ Qed.
 (** The full collapse: [ν_cond = ⟦inner⟧((1 ⊗ g!) ⊗ a₀)]. *)
 Lemma cond_model_denot_E :
   cond_model_denot =
-  Lfun (eD_cbv' (ex_condition_inner ta f))
+  Lfun (eD_cbv' (cc_inner))
        cond_env2.
 Proof.
 rewrite /cond_model_denot cond_comb_val_E.
@@ -1604,31 +1649,26 @@ Lemma cm_var_x_E r :
   Lfun (eD_cbv' cm_var_x) (cond_env3 r) = dirac_fmeas r.
 Proof.
 apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R)
-  (ctxD_cbv (drop_names cctx_a)) (FMeas_coalgebra R_obj)) (cond_env3 r))).
+  (ctxD_cbv (drop_names cctx_a)) (FMeas_coalgebra B)) (cond_env3 r))).
   by [].
 exact: (em_proj2_morE cond_env2_ball cond_env2_setlike).
 Qed.
 
-(** The score value at [δ_r] is the scalar [f r] (the bundled
-    [ne_score] node desugared directly — no clamp transport — then
-    [score_lift_dirac]). *)
+(** The score value at [δ_r] is the density scalar [po_density P (phi r)]:
+    push [#"x"] through the measurement morphism [phi] and read off the
+    score with [score_lift_P] — no [po_into_E] step. *)
 Lemma cm_score_E r :
   Lfun (eD_cbv' cm_score)
        (cond_env3 r) =
-  MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
+  MkConeOne Ar (NngNum (po_ge0 P (phi r))).
 Proof.
-(* Clean-surface score leaf: push [#"x"] through the bundle factoring
-   [po_into f] and read off the score scalar with [score_lift_P];
-   [po_into_E] recovers [f r]. *)
 rewrite eD_score_p_E.
 rewrite -[score_lift_g _ _ _]/(score_lift_P P).
-rewrite (Lfun_comp (score_lift_P P) (eD_cbv' (ne_to_prob cm_phi cm_var_x))
+rewrite (Lfun_comp (score_lift_P P) (eD_cbv' (ne_to_prob phi cm_var_x))
   (cond_env3 r)).
 rewrite eD_to_prob_E.
-rewrite (Lfun_comp (FMeas_fmap cm_phi) (eD_cbv' cm_var_x) (cond_env3 r)).
-rewrite cm_var_x_E FMeas_fmap_dirac score_lift_P_dirac.
-apply: cone_one_eq; apply: val_inj => /=.
-by rewrite /po_density po_into_E.
+rewrite (Lfun_comp (FMeas_fmap phi) (eD_cbv' cm_var_x) (cond_env3 r)).
+by rewrite cm_var_x_E FMeas_fmap_dirac score_lift_P_dirac.
 Qed.
 
 (** The returned variable under the score binder: the [tunit]-typed
@@ -1640,7 +1680,7 @@ Lemma cm_ret_at r (s : cone_one_car Ar) :
 Proof.
 apply: (eq_trans (y := Lfun (icones_comp
   (em_proj2_mor (R:=R) (ctxD_cbv (drop_names cctx_a))
-     (FMeas_coalgebra R_obj))
+     (FMeas_coalgebra B))
   (em_proj1_mor (R:=R) (ctxD_cbv (drop_names cctx_x)) EM_term))
   ((cond_env3 r) ⊗p s))).
   by [].
@@ -1649,7 +1689,7 @@ rewrite (em_proj1_mor_unitE
   (P:=ctxD_cbv (drop_names cctx_x)) (cond_env3 r) s).
 rewrite (Lfun_scaleE
   (em_proj2_mor (R:=R) (ctxD_cbv (drop_names cctx_a))
-     (FMeas_coalgebra R_obj))
+     (FMeas_coalgebra B))
   (c1_val s) (cond_env3 r)).
 by rewrite (em_proj2_morE (P:=ctxD_cbv (drop_names cctx_a))
               cond_env2_ball cond_env2_setlike).
@@ -1659,7 +1699,7 @@ Qed.
     density: [⟦let _ = score f x in x⟧(γ ⊗ δ_r) = (f r)·δ_r]. *)
 Lemma cm_K_at_dirac r :
   Lfun (eD_cbv' cm_K) (cond_env3 r) =
-  precone_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r).
+  precone_scale (NngNum (po_ge0 P (phi r))) (dirac_fmeas r).
 Proof.
 rewrite /cm_K eD_let_E.
 rewrite (Lfun_comp (eD_cbv' cm_ret)
@@ -1689,10 +1729,10 @@ Local Open Scope ereal_scope.
 
 (** [ν_cond(U) = ∫_U f dν_M] — the conditioned model's output is the
     model's output reweighted by the likelihood (unnormalised). *)
-Theorem condition_model_E (U : set (ar_carrier Ar R_obj))
+Theorem condition_model_E_obj (U : set (ar_carrier Ar B))
     (mU : measurable U) :
   fmeas_mu cond_model_denot U =
-  \int[fmeas_mu (reject_model_dist g a0)]_(r in U) (f (cR r))%:E.
+  \int[fmeas_mu (reject_model_dist g a0)]_(r in U) (po_density P (phi r))%:E.
 Proof.
 have Hinner : cond_model_denot =
     linhom_fun (eD' (ne_let "x"%string (ne_app cm_var_m cm_var_a) cm_K))
@@ -1700,9 +1740,10 @@ have Hinner : cond_model_denot =
   rewrite cond_model_denot_E ex_condition_inner_decomp.
   by rewrite /eD icones_to_linhomE.
 rewrite Hinner.
-rewrite (eD_let_mu_E R_carrier_meas R_to_carrier_meas
+rewrite (eD_let_int_obj R_carrier_meas R_to_carrier_meas
            (ne_app cm_var_m cm_var_a) cm_K
-           cond_env2_ball cond_env2_setlike mU).
+           cond_env2_ball cond_env2_setlike).
+rewrite (distributions.icone_integral_fmeas_E _ _ mU).
 rewrite cond_app_E.
 under eq_integral => r _.
   rewrite cm_K_at_dirac fmeas_scaleE (dirac_fmeas_E r mU) diracE -EFinM /=.
@@ -1714,11 +1755,11 @@ Qed.
 
 (** Mass corollary — the model evidence: the conditioned model's total
     mass is [∫ f dν_M]. *)
-Theorem condition_model_mass :
-  fmeas_mu cond_model_denot [set: ar_carrier Ar R_obj] =
+Theorem condition_model_mass_obj :
+  fmeas_mu cond_model_denot [set: ar_carrier Ar B] =
   \int[fmeas_mu (reject_model_dist g a0)]_
-     (r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
-Proof. exact: (condition_model_E measurableT). Qed.
+     (r in [set: ar_carrier Ar B]) (po_density P (phi r))%:E.
+Proof. exact: (condition_model_E_obj measurableT). Qed.
 
 End ConditionModel.
 
@@ -1777,6 +1818,16 @@ Local Notation cR := (carrier_to_R R_carrier_eq).
 Local Notation tR' := (tR R_obj).
 Local Notation Lty t1 t2 :=
   (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
+
+(** The canonical measurement morphism: the bundle factoring of the
+    acceptance test [f].  This file keeps the soft real-reject public
+    surface ([f (cR x)] integrands); the [B]-generic results live at the
+    [reject_model_*_obj] / [condition_model_*_obj] level.  [po_into_E]
+    bridges [po_density P (lphi x) = f (cR x)]. *)
+Local Notation lphi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
+
+Let phiE (x : ar_carrier Ar R_obj) : po_density P (lphi x) = f (cR x).
+Proof. by rewrite /po_density po_into_E. Qed.
 
 (** The semantic brackets: the measure denoted by a closed [tR]-typed
     program. *)
@@ -1839,7 +1890,7 @@ Qed.
     distribution. *)
 Lemma model_run_val_E :
   Lfun (eD_cbv' model_run) one1 =
-  reject_model_dist (ta := tunit) (P := P) model_lin one1.
+  reject_model_dist (ta := tunit) model_lin one1.
 Proof.
 rewrite -[model_run]/(ne_app model_prog (@ne_tt R Ar R_obj nil)).
 rewrite (eD_app_at_setlike R_carrier_eq R_carrier_meas R_to_carrier_meas
@@ -1853,7 +1904,7 @@ Qed.
 Lemma reject_prog_val_E :
   Lfun (eD_cbv' reject_prog) one1 =
   reject_model_denot R_to_carrier_meas
-    f model_lin one1.
+    lphi model_lin one1.
 Proof.
 rewrite -[reject_prog]/(ne_app
   (ne_app (ex_reject_comb tunit f) model_prog)
@@ -1869,16 +1920,25 @@ Qed.
     [⟦·⟧], which is phrased on the public [eD]). *)
 Let model_run_lin_E :
   linhom_fun (eD' model_run) one1 =
-  reject_model_dist (ta := tunit) (P := P) model_lin one1.
+  reject_model_dist (ta := tunit) model_lin one1.
 Proof. by rewrite /eD icones_to_linhomE model_run_val_E. Qed.
 
 Let reject_prog_lin_E :
   linhom_fun (eD' reject_prog) one1 =
   reject_model_denot R_to_carrier_meas
-    f model_lin one1.
+    lphi model_lin one1.
 Proof. by rewrite /eD icones_to_linhomE reject_prog_val_E. Qed.
 
 Local Open Scope ereal_scope.
+
+(** The integrand bridge: against the model-output measure, the
+    density reading [po_density P (lphi x)] IS the test value [f (cR x)]. *)
+Let phi_intE (V : set (ar_carrier Ar R_obj)) :
+  \int[fmeas_mu (reject_model_dist (ta := tunit) model_lin one1)]_(x in V)
+     (po_density P (lphi x))%:E =
+  \int[fmeas_mu (reject_model_dist (ta := tunit) model_lin one1)]_(x in V)
+     (f (cR x))%:E.
+Proof. by apply: eq_integral => x _; rewrite phiE. Qed.
 
 (** *** The restated headlines *)
 
@@ -1894,8 +1954,8 @@ Theorem reject_prog_master U (mU : measurable U) :
     * ⟦ reject_prog ⟧ U
   = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
 Proof.
-rewrite model_run_lin_E reject_prog_lin_E.
-exact: (reject_model_master _ _ model_lin_ball Hone
+rewrite model_run_lin_E reject_prog_lin_E -!phi_intE.
+exact: (reject_model_master_obj _ _ model_lin_ball Hone
           coalg_str_one1 mU).
 Qed.
 
@@ -1916,7 +1976,8 @@ Theorem reject_prog_is_normalised :
                    (f (cR x))%:E)))%R)%:E.
 Proof.
 rewrite model_run_lin_E reject_prog_lin_E => Hpos U mU.
-exact: (reject_model_is_normalised _ model_lin_ball Hone
+rewrite -!phi_intE in Hpos *.
+exact: (reject_model_is_normalised_obj _ model_lin_ball Hone
           coalg_str_one1 Hpos mU).
 Qed.
 
@@ -1932,8 +1993,8 @@ Theorem reject_prog_mass_one :
         (f (cR x))%:E ->
   ⟦ reject_prog ⟧ [set: ar_carrier Ar R_obj] = 1.
 Proof.
-rewrite model_run_lin_E reject_prog_lin_E => Hm1 HIf.
-apply: (reject_model_mass_one _ model_lin_ball Hone
+rewrite model_run_lin_E reject_prog_lin_E -!phi_intE => Hm1 HIf.
+apply: (reject_model_mass_one_obj _ model_lin_ball Hone
           coalg_str_one1 _ HIf).
 by rewrite -[1%R]/(fine (1 : \bar R)) Hm1.
 Qed.
@@ -1947,8 +2008,8 @@ Theorem reject_prog_zero U :
   (forall r : R, f r = 0%R) -> ⟦ reject_prog ⟧ U = 0.
 Proof.
 rewrite reject_prog_lin_E => Hf0.
-rewrite (reject_model_zero _ model_lin_ball Hone
-           coalg_str_one1 Hf0).
+rewrite (reject_model_zero_obj _ model_lin_ball Hone
+           coalg_str_one1 (fun r => eq_trans (phiE r) (Hf0 (cR r)))).
 by rewrite -[precone_zero]/(fmeas_zero : fmeas R (ar_carrier Ar R_obj))
            fmeas_zeroE.
 Qed.
@@ -1971,7 +2032,7 @@ Definition condition_prog : @named_expr R Ar R_obj nil tR' :=
 Lemma condition_prog_val_E :
   Lfun (eD_cbv' condition_prog) one1 =
   cond_model_denot R_to_carrier_meas
-    f model_lin one1.
+    lphi model_lin one1.
 Proof.
 rewrite -[condition_prog]/(ne_app
   (ne_app (ex_condition_comb tunit f) model_prog)
@@ -1986,7 +2047,7 @@ Qed.
 Let condition_prog_lin_E :
   linhom_fun (eD' condition_prog) one1 =
   cond_model_denot R_to_carrier_meas
-    f model_lin one1.
+    lphi model_lin one1.
 Proof. by rewrite /eD icones_to_linhomE condition_prog_val_E. Qed.
 
 (** The conditioning law, in math form: the conditioned model denotes
@@ -1997,8 +2058,8 @@ Proof. by rewrite /eD icones_to_linhomE condition_prog_val_E. Qed.
 Theorem condition_E U (mU : measurable U) :
   ⟦ condition_prog ⟧ U = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
 Proof.
-rewrite condition_prog_lin_E model_run_lin_E.
-exact: (condition_model_E _ _ model_lin_ball Hone
+rewrite condition_prog_lin_E model_run_lin_E -!phi_intE.
+exact: (condition_model_E_obj _ _ model_lin_ball Hone
           coalg_str_one1 mU).
 Qed.
 
@@ -2063,9 +2124,156 @@ rewrite condition_prog_evidence Hm1.
 have HIf_fin :
     (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
        (f (cR x))%:E) \is a fin_num.
-  rewrite model_run_lin_E.
-  exact: (rm_If_fin f model_lin one1).
+  rewrite model_run_lin_E -!phi_intE.
+  exact: (rm_If_fin lphi model_lin one1).
 by rewrite -[in LHS](fineK HIf_fin)/= subrr add0r.
 Qed.
 
 End ReadableHeadlines.
+
+(** ** §7 — PHASE C: compatibility — the real-object [B := po_robj P]
+    instances
+
+    Re-derives the original public §2/§4 theorem names with their
+    historical f-integrand statements (domain [ar_carrier Ar (po_robj P)],
+    integrand [f (cR x)]) as the [B := po_robj P],
+    [phi := po_into P f …] special case of the [_obj] theorems, bridged
+    by [po_into_E].  (The §5 readable headlines [reject_prog_*] /
+    [condition_E] already carry their f-statements directly.) *)
+
+Section RejectModelCompat.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (P : probObj Ar).
+Local Notation R_obj := (po_robj P).
+Local Notation R_carrier_eq := (po_robj_eq P).
+Local Notation R_carrier_meas := (po_robj_meas P).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Variable (ta : ppl_type Ar).
+Variable (f : testfn R).
+Local Notation Hf_meas := (test_meas f).
+Local Notation Hf_ge0 := (test_ge0 f).
+Local Notation Hf_le1 := (test_le1 f).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation tR' := (tR R_obj).
+Local Notation Lty t1 t2 :=
+  (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
+
+(** The measurement morphism of the real special case: the bundle
+    factoring of the acceptance test [f].  [po_into_E] makes
+    [po_density P (lphi x) = f (cR x)]. *)
+Local Notation lphi := (po_into P f Hf_meas Hf_ge0 Hf_le1).
+
+Variable (g : Lty ta tR').
+Hypothesis Hg_ball : cone_norm g <= 1.
+Variable (a0 : coalg_obj (tyD_cbv ta)).
+Hypothesis Ha_ball : cone_norm a0 <= 1.
+Hypothesis Ha_setlike : Lfun (coalg_str (tyD_cbv ta)) a0 = prom a0.
+
+Local Open Scope ereal_scope.
+
+Let phiE (x : ar_carrier Ar R_obj) : po_density P (lphi x) = f (cR x).
+Proof. by rewrite /po_density po_into_E. Qed.
+
+Let phi_intE (V : set (ar_carrier Ar R_obj)) :
+  \int[fmeas_mu (reject_model_dist g a0)]_(x in V) (po_density P (lphi x))%:E =
+  \int[fmeas_mu (reject_model_dist g a0)]_(x in V) (f (cR x))%:E.
+Proof. by apply: eq_integral => x _; rewrite phiE. Qed.
+
+(** The master identity (the [B := po_robj P] instance of
+    [reject_model_master_obj]). *)
+Theorem reject_model_master U (mU : measurable U) :
+  ((1 - fine (fmeas_mu (reject_model_dist g a0) [set: ar_carrier Ar R_obj])
+      + fine (\int[fmeas_mu (reject_model_dist g a0)]_
+                (x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E))%R)%:E
+    * fmeas_mu (reject_model_denot R_to_carrier_meas lphi g a0) U
+  = \int[fmeas_mu (reject_model_dist g a0)]_(x in U) (f (cR x))%:E.
+Proof.
+rewrite -!phi_intE.
+exact: (reject_model_master_obj R_to_carrier_meas lphi
+          Hg_ball Ha_ball Ha_setlike mU).
+Qed.
+
+(** The normalised distribution. *)
+Theorem reject_model_is_normalised :
+  (0 < 1 - fine (fmeas_mu (reject_model_dist g a0) [set: ar_carrier Ar R_obj])
+     + fine (\int[fmeas_mu (reject_model_dist g a0)]_
+               (x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E))%R ->
+  forall U, measurable U ->
+  fmeas_mu (reject_model_denot R_to_carrier_meas lphi g a0) U =
+  ((fine (\int[fmeas_mu (reject_model_dist g a0)]_(x in U) (f (cR x))%:E)
+    / (1 - fine (fmeas_mu (reject_model_dist g a0) [set: ar_carrier Ar R_obj])
+         + fine (\int[fmeas_mu (reject_model_dist g a0)]_
+                   (x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E)))%R)%:E.
+Proof.
+move=> Hpos U mU.
+rewrite -!phi_intE in Hpos *.
+exact: (reject_model_is_normalised_obj R_to_carrier_meas
+          Hg_ball Ha_ball Ha_setlike Hpos mU).
+Qed.
+
+(** The total-mass identity. *)
+Theorem reject_model_mass :
+  (0 < 1 - fine (fmeas_mu (reject_model_dist g a0) [set: ar_carrier Ar R_obj])
+     + fine (\int[fmeas_mu (reject_model_dist g a0)]_
+               (x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E))%R ->
+  fmeas_mu (reject_model_denot R_to_carrier_meas lphi g a0)
+    [set: ar_carrier Ar R_obj] =
+  ((fine (\int[fmeas_mu (reject_model_dist g a0)]_
+            (x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E)
+    / (1 - fine (fmeas_mu (reject_model_dist g a0) [set: ar_carrier Ar R_obj])
+         + fine (\int[fmeas_mu (reject_model_dist g a0)]_
+                   (x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E)))%R)%:E.
+Proof.
+move=> Hpos; exact: (reject_model_is_normalised Hpos measurableT).
+Qed.
+
+(** Almost-sure termination for probability models. *)
+Theorem reject_model_mass_one :
+  fine (fmeas_mu (reject_model_dist g a0) [set: ar_carrier Ar R_obj]) = 1%R ->
+  0 < \int[fmeas_mu (reject_model_dist g a0)]_
+        (x in [set: ar_carrier Ar R_obj]) (f (cR x))%:E ->
+  fmeas_mu (reject_model_denot R_to_carrier_meas lphi g a0)
+    [set: ar_carrier Ar R_obj] = 1.
+Proof.
+move=> Hm0 HIf.
+rewrite -phi_intE in HIf.
+exact: (reject_model_mass_one_obj R_to_carrier_meas
+          Hg_ball Ha_ball Ha_setlike Hm0 HIf).
+Qed.
+
+(** Certain rejection diverges. *)
+Theorem reject_model_zero :
+  (forall r : R, f r = 0%R) ->
+  reject_model_denot R_to_carrier_meas lphi g a0 = precone_zero.
+Proof.
+move=> Hf0.
+exact: (reject_model_zero_obj R_to_carrier_meas
+          Hg_ball Ha_ball Ha_setlike (fun r => eq_trans (phiE r) (Hf0 (cR r)))).
+Qed.
+
+(** The conditioning law (the [B := po_robj P] instance of
+    [condition_model_E_obj]). *)
+Theorem condition_model_E (U : set (ar_carrier Ar R_obj))
+    (mU : measurable U) :
+  fmeas_mu (cond_model_denot R_to_carrier_meas lphi g a0) U =
+  \int[fmeas_mu (reject_model_dist g a0)]_(r in U) (f (cR r))%:E.
+Proof.
+rewrite -phi_intE.
+exact: (condition_model_E_obj R_to_carrier_meas lphi
+          Hg_ball Ha_ball Ha_setlike mU).
+Qed.
+
+(** The model evidence. *)
+Theorem condition_model_mass :
+  fmeas_mu (cond_model_denot R_to_carrier_meas lphi g a0)
+    [set: ar_carrier Ar R_obj] =
+  \int[fmeas_mu (reject_model_dist g a0)]_
+     (r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E.
+Proof. exact: (condition_model_E measurableT). Qed.
+
+End RejectModelCompat.
