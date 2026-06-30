@@ -50,6 +50,7 @@ From mathcomp.analysis Require Import measure dirac_measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition numfun.
 From Stdlib Require Import Strings.String.
 
+Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
@@ -61,6 +62,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.icones.examples_icone.
+Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_construct.
 Require Import Icones.homs.smcc.
@@ -79,6 +81,8 @@ Require Import Icones.programs.ppl.
 Require Import Icones.programs.infra.cbv_anchors.
 Require Import Icones.programs.infra.em_fix_value.
 Require Import Icones.programs.infra.cbv_fix_unfold.
+Require Import Icones.programs.infra.cbv_marginals.
+Require Import Icones.programs.infra.let_sample_law.
 Require Import Icones.programs.ppl_cbv.
 Require Import Icones.programs.examples.
 Require Import Icones.programs.hard_reject.
@@ -449,3 +453,446 @@ Qed.
 End FailZero.
 
 Arguments ne_fail_zero {R Ar P} R_to_carrier_meas {G t gam}.
+
+(** ** §7 — The condition/assert denotation bridge
+
+    BEYOND THE PAPER.  The CLEAN [ne_condition] ([hard_reject.v]) denotes
+    the conditioning measure.  Unlike the reject bridge, the clean
+    [ne_condition] continuation [let _ = (if Test{f} x then () else fail)
+    in x] is STRUCTURALLY DIFFERENT from the soft condition's
+    [let _ = Score (test f x) in x], so the scrutinee-congruence shortcut
+    does NOT apply.  We compute [⟦ne_condition⟧] DIRECTLY, mirroring the
+    SOFT condition proof ([ex_reject_model.v::Section ConditionModel]):
+    the combinator has NO recursion, so [eD] reduces via [eD_let_mu_E]
+    to a Lebesgue integral over [ν_M]; at each Dirac [δ_r] the clean
+    continuation computes — through [if_icones_at], [test_lift_dirac],
+    [bool_case_true]/[bool_case_false] and [ne_fail_zero] — to the {0,1}
+    point mass [if f0_bool r then δ_r else 0], i.e. the {0,1}
+    specialisation of [cm_K_at_dirac].  Integrating gives
+    [cond'(U) = ν_M (A `&` U)] and the boolean condition headlines
+    transfer to the clean combinator. *)
+
+Section ConditionDenotBridge.
+Variables (R : realType) (Ar : MeasSubcat R) (P : probObj Ar).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier (po_robj_eq P)).
+Variable (P_acc : set R).
+Hypothesis mPacc : measurable P_acc.
+Variable (Mbody :
+  @named_expr R Ar (po_robj P) (("_"%string, tunit) :: nil) (tR (po_robj P))).
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+Local Notation cR := (carrier_to_R (po_robj_eq P)).
+Local Notation tR' := (tR (po_robj P)).
+Local Notation eD_cbv' :=
+  (@eD_cbv R Ar (po_robj P) (po_robj_eq P) (po_robj_meas P)
+           R_to_carrier_meas _ _).
+Local Notation eD' :=
+  (@eD R Ar (po_robj P) (po_robj_eq P) (po_robj_meas P)
+       R_to_carrier_meas _ _).
+
+(** The meta boolean test (same object as the reject bridge). *)
+Definition f0b : ar_carrier Ar (po_robj P) -> bool :=
+  fun r => cR r \in P_acc.
+
+Lemma Hf0b : measurable_fun [set: ar_carrier Ar (po_robj P)] f0b.
+Proof.
+apply: (measurable_fun_bool true); rewrite setTI.
+have -> : f0b @^-1` [set true] = cR @^-1` P_acc.
+  rewrite predeqE => r; rewrite /f0b /preimage/=; split => H.
+  - exact: set_mem H.
+  - exact: mem_set H.
+have H := (po_robj_meas P) measurableT P_acc mPacc; rewrite setTI in H.
+exact: H.
+Qed.
+
+(** Abbreviations matching the soft [ConditionModel] set-up at
+    [ta := tunit], [g := model_lin], [a₀ := one1]. *)
+Local Notation Lty t1 t2 :=
+  (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
+Local Notation tmod := (tfun tunit tR').
+Local Notation Bmod := (Lty tunit tR').
+Local Notation mlin := (model_lin (P:=P) R_to_carrier_meas Mbody).
+Local Notation nu0 :=
+  (reject_model_dist (P:=P) (ta:=tunit) mlin one1).
+
+(** The clean combinator and its context tower. *)
+Local Notation COMB := (ne_condition (R_obj := po_robj P) tunit f0b Hf0b).
+Local Notation cctx_m := (("m"%string, tmod) :: nil).
+Local Notation cctx_a := (("a"%string, tunit) :: ("m"%string, tmod) :: nil).
+Local Notation cctx_x :=
+  (("x"%string, tR') :: ("a"%string, tunit) :: ("m"%string, tmod) :: nil).
+Local Notation cctx_u :=
+  (("_"%string, tunit) :: ("x"%string, tR') :: ("a"%string, tunit) ::
+   ("m"%string, tmod) :: nil).
+
+Definition cc_var_m : @named_expr R Ar (po_robj P) cctx_a tmod := [ # "m" ].
+Definition cc_var_a : @named_expr R Ar (po_robj P) cctx_a tunit := [ # "a" ].
+Definition cc_var_x : @named_expr R Ar (po_robj P) cctx_x tR' := [ # "x" ].
+Definition cc_ret   : @named_expr R Ar (po_robj P) cctx_u tR' := [ # "x" ].
+
+(** The clean scrutinee [if Test{f} x then () else fail] and the
+    score-free continuation. *)
+Definition cleanScrut : @named_expr R Ar (po_robj P) cctx_x tunit :=
+  ne_if tunit (ne_test f0b Hf0b cc_var_x) ne_tt ne_fail.
+Definition cc_K : @named_expr R Ar (po_robj P) cctx_x tR' :=
+  ne_let "_" cleanScrut cc_ret.
+Definition cc_inner : @named_expr R Ar (po_robj P) cctx_a tR' :=
+  ne_let "x" (ne_app cc_var_m cc_var_a) cc_K.
+
+Local Notation cc_fun := (ne_lam "a"%string cc_inner).
+
+Definition condition_prog' : @named_expr R Ar (po_robj P) nil tR' :=
+  [ {COMB} @ {model_prog (P:=P) Mbody} @ () ].
+
+(** *** Semantic plumbing *)
+
+Let Hone1 : cone_norm (one1 : cone_one_car Ar) <= 1.
+Proof. by rewrite one1_norm. Qed.
+
+Let HoneG : cone_norm
+    (one1 : coalg_obj (ctxD_cbv (drop_names (nil : named_ctx Ar)))) <= 1.
+Proof. by rewrite one1_norm. Qed.
+
+Let Hmlin_ball : cone_norm mlin <= 1.
+Proof. exact: (model_lin_ball (P:=P) R_to_carrier_meas Mbody). Qed.
+
+Lemma cc_g_ball : cone_norm (mlin!) <= 1.
+Proof. exact: prom_ball Hmlin_ball. Qed.
+
+Lemma cc_g_setlike :
+  Lfun (coalg_str (tyD_cbv tmod)) (mlin!) = (mlin!)!.
+Proof.
+rewrite -[tyD_cbv tmod]/(bang_cofree (Lty tunit tR')) bang_cofree_str.
+exact: (dig_prom _ Hmlin_ball).
+Qed.
+
+Definition cc_env1 : coalg_obj (ctxD_cbv (drop_names cctx_m)) :=
+  one1 ⊗p (mlin!).
+Definition cc_env2 : coalg_obj (ctxD_cbv (drop_names cctx_a)) :=
+  cc_env1 ⊗p one1.
+Definition cc_env3 (r : ar_carrier Ar (po_robj P)) :
+    coalg_obj (ctxD_cbv (drop_names cctx_x)) :=
+  cc_env2 ⊗p dirac_fmeas r.
+
+Lemma cc_env1_ball : cone_norm cc_env1 <= 1.
+Proof. by rewrite /cc_env1 tensor_normME one1_norm mul1r cc_g_ball. Qed.
+
+Lemma cc_env1_setlike :
+  Lfun (coalg_str (ctxD_cbv (drop_names cctx_m))) cc_env1 = cc_env1!.
+Proof.
+exact: (coalg_str_tensor_setlike (P:=EM_term) (Q:=tyD_cbv tmod)
+          Hone1 cc_g_ball coalg_str_one1 cc_g_setlike).
+Qed.
+
+Lemma cc_env2_ball : cone_norm cc_env2 <= 1.
+Proof.
+rewrite /cc_env2 tensor_normME.
+by rewrite mulr_ile1 ?cone_norm_ge0 ?cc_env1_ball ?Hone1.
+Qed.
+
+Lemma cc_env2_setlike :
+  Lfun (coalg_str (ctxD_cbv (drop_names cctx_a))) cc_env2 = cc_env2!.
+Proof.
+exact: (coalg_str_tensor_setlike (P:=ctxD_cbv (drop_names cctx_m))
+          (Q:=tyD_cbv tunit) cc_env1_ball Hone1 cc_env1_setlike coalg_str_one1).
+Qed.
+
+Lemma cc_env3_ball r : cone_norm (cc_env3 r) <= 1.
+Proof.
+rewrite /cc_env3 tensor_normME.
+by rewrite mulr_ile1 ?cone_norm_ge0 ?cc_env2_ball ?dirac_fmeas_norm_le1.
+Qed.
+
+Lemma cc_env3_setlike r :
+  Lfun (coalg_str (ctxD_cbv (drop_names cctx_x))) (cc_env3 r) = (cc_env3 r)!.
+Proof.
+exact: (coalg_str_tensor_setlike (P:=ctxD_cbv (drop_names cctx_a))
+          (Q:=FMeas_coalgebra (po_robj P)) cc_env2_ball (dirac_fmeas_norm_le1 r)
+          cc_env2_setlike (Coalg_dirac (po_robj P) r)).
+Qed.
+
+(** *** The combinator value and the application collapses *)
+
+Definition cc_comb_val : coalg_obj (tyD_cbv (tfun tmod tmod)) :=
+  Lfun (eD_cbv' COMB) one1.
+
+Definition cc_fun_lin : Lty tmod tmod :=
+  Lfun (tensor_curry (eD_cbv' cc_fun)) one1.
+
+Definition cc_model_denot : coalg_obj (tyD_cbv tR') :=
+  linhom_fun
+    (Lfun (der Bmod)
+       (linhom_fun (Lfun (der (Lty tmod tmod)) cc_comb_val) (mlin!)))
+    one1.
+
+Lemma cc_comb_decomp : COMB = ne_lam "m"%string cc_fun.
+Proof. by []. Qed.
+
+Lemma cc_comb_val_E : cc_comb_val = cc_fun_lin!.
+Proof.
+rewrite /cc_comb_val cc_comb_decomp eD_lam_E.
+by rewrite (adj_psi_at_setlike (tensor_curry (eD_cbv' cc_fun))
+              Hone1 coalg_str_one1).
+Qed.
+
+Lemma cc_fun_lin_ball : cone_norm cc_fun_lin <= 1.
+Proof. exact: le_trans (cones_hom_norm_le1 _ _) Hone1. Qed.
+
+Lemma cc_fun_at_g :
+  linhom_fun cc_fun_lin (mlin!) =
+  (Lfun (tensor_curry (eD_cbv' cc_inner)) cc_env1)!.
+Proof.
+rewrite /cc_fun_lin tensor_curryE eD_lam_E.
+exact: (adj_psi_at_setlike (P:=ctxD_cbv (drop_names cctx_m))
+          _ cc_env1_ball cc_env1_setlike).
+Qed.
+
+Lemma cc_model_denot_E :
+  cc_model_denot = Lfun (eD_cbv' cc_inner) cc_env2.
+Proof.
+rewrite /cc_model_denot cc_comb_val_E.
+rewrite (der_prom _ cc_fun_lin_ball) cc_fun_at_g.
+rewrite (der_prom _ (le_trans (cones_hom_norm_le1 _ _) cc_env1_ball)).
+exact: tensor_curryE.
+Qed.
+
+Lemma cc_prog_val : Lfun (eD_cbv' condition_prog') one1 = cc_model_denot.
+Proof.
+rewrite -[condition_prog']/(ne_app (ne_app COMB (model_prog (P:=P) Mbody))
+  (@ne_tt R Ar (po_robj P) nil)).
+rewrite (eD_app_at_setlike (po_robj_eq P) (po_robj_meas P) R_to_carrier_meas
+           HoneG coalg_str_one1).
+rewrite (eD_app_at_setlike (po_robj_eq P) (po_robj_meas P) R_to_carrier_meas
+           HoneG coalg_str_one1).
+by rewrite (model_prog_val_E (P:=P) R_to_carrier_meas Mbody)
+           (tt_val_E (P:=P) R_to_carrier_meas).
+Qed.
+
+(** *** Variable projections and the model application *)
+
+Lemma cc_var_a_E : Lfun (eD_cbv' cc_var_a) cc_env2 = one1.
+Proof.
+apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R)
+  (ctxD_cbv (drop_names cctx_m)) (tyD_cbv tunit)) cc_env2)).
+  by [].
+exact: (em_proj2_morE cc_env1_ball cc_env1_setlike).
+Qed.
+
+Lemma cc_var_m_E : Lfun (eD_cbv' cc_var_m) cc_env2 = (mlin!).
+Proof.
+apply: (eq_trans (y := Lfun (icones_comp
+  (em_proj2_mor (R:=R) EM_term (tyD_cbv tmod))
+  (em_proj1_mor (R:=R) (ctxD_cbv (drop_names cctx_m)) (tyD_cbv tunit)))
+  cc_env2)).
+  by [].
+rewrite Lfun_comp.
+rewrite (em_proj1_morE (Q:=tyD_cbv tunit) Hone1 coalg_str_one1).
+exact: (em_proj2_morE (P:=EM_term) Hone1 coalg_str_one1).
+Qed.
+
+Lemma cc_app_E :
+  Lfun (eD_cbv' (ne_app cc_var_m cc_var_a)) cc_env2 = nu0.
+Proof.
+rewrite (eD_app_at_setlike (po_robj_eq P) (po_robj_meas P) R_to_carrier_meas
+           cc_env2_ball cc_env2_setlike).
+rewrite cc_var_m_E cc_var_a_E.
+by rewrite (der_prom _ Hmlin_ball).
+Qed.
+
+(** *** The clean continuation at a Dirac — the {0,1} [cm_K_at_dirac] *)
+
+Lemma cc_var_x_E r : Lfun (eD_cbv' cc_var_x) (cc_env3 r) = dirac_fmeas r.
+Proof.
+apply: (eq_trans (y := Lfun (em_proj2_mor (R:=R)
+  (ctxD_cbv (drop_names cctx_a)) (FMeas_coalgebra (po_robj P))) (cc_env3 r))).
+  by [].
+exact: (em_proj2_morE cc_env2_ball cc_env2_setlike).
+Qed.
+
+(** The clean scrutinee at [δ_r]: the {0,1} weight — [1] (the unit value
+    [()]) when [f0_bool r], else [0] (the diverging [fail], by
+    [ne_fail_zero]). *)
+Lemma cleanScrut_E r :
+  Lfun (eD_cbv' cleanScrut) (cc_env3 r) =
+  ((if f0b r then one1 else precone_zero) : cone_one_car Ar).
+Proof.
+rewrite /cleanScrut eD_if_E.
+rewrite (if_icones_at _ _ _ (cc_env3_ball r) (cc_env3_setlike r)).
+rewrite eD_test_E.
+rewrite (Lfun_comp (test_lift Hf0b) (eD_cbv' cc_var_x) (cc_env3 r)).
+rewrite cc_var_x_E (test_lift_dirac Hf0b r).
+rewrite (eD_tt_at_setlike (cc_env3_ball r) (cc_env3_setlike r)).
+rewrite (ne_fail_zero R_to_carrier_meas (cc_env3_ball r) (cc_env3_setlike r)).
+by case: (f0b r); [exact: bool_case_true | exact: bool_case_false].
+Qed.
+
+Lemma cc_ret_at r (s : cone_one_car Ar) :
+  Lfun (eD_cbv' cc_ret) ((cc_env3 r) ⊗p s) =
+  precone_scale (c1_val s) (dirac_fmeas r).
+Proof.
+apply: (eq_trans (y := Lfun (icones_comp
+  (em_proj2_mor (R:=R) (ctxD_cbv (drop_names cctx_a)) (FMeas_coalgebra (po_robj P)))
+  (em_proj1_mor (R:=R) (ctxD_cbv (drop_names cctx_x)) EM_term))
+  ((cc_env3 r) ⊗p s))).
+  by [].
+rewrite Lfun_comp.
+rewrite (em_proj1_mor_unitE (P:=ctxD_cbv (drop_names cctx_x)) (cc_env3 r) s).
+rewrite (Lfun_scaleE
+  (em_proj2_mor (R:=R) (ctxD_cbv (drop_names cctx_a)) (FMeas_coalgebra (po_robj P)))
+  (c1_val s) (cc_env3 r)).
+by rewrite (em_proj2_morE (P:=ctxD_cbv (drop_names cctx_a))
+              cc_env2_ball cc_env2_setlike).
+Qed.
+
+Lemma cm_K_clean_raw r :
+  Lfun (eD_cbv' cc_K) (cc_env3 r) =
+  precone_scale (c1_val ((if f0b r then one1 else precone_zero) : cone_one_car Ar))
+                (dirac_fmeas r).
+Proof.
+rewrite /cc_K eD_let_E.
+rewrite (Lfun_comp (eD_cbv' cc_ret)
+  (em_pair_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names cctx_x))))
+     (eD_cbv' cleanScrut))
+  (cc_env3 r)).
+rewrite /em_pair_mor.
+rewrite (Lfun_comp
+  (tensor_mor (icones_id Ar (coalg_obj (ctxD_cbv (drop_names cctx_x))))
+     (eD_cbv' cleanScrut))
+  (coalg_d (ctxD_cbv (drop_names cctx_x)))
+  (cc_env3 r)).
+rewrite (coalg_d_setlike (P:=ctxD_cbv (drop_names cctx_x))
+  (cc_env3_ball r) (cc_env3_setlike r)).
+rewrite (tensor_morE
+  (icones_id Ar (coalg_obj (ctxD_cbv (drop_names cctx_x))))
+  (eD_cbv' cleanScrut)
+  (cc_env3 r) (cc_env3 r)).
+by rewrite icones_idE cleanScrut_E cc_ret_at.
+Qed.
+
+(** The {0,1} weight, as a real, is the indicator [f0 (cR r)] — exactly
+    the soft likelihood specialised to the indicator bundle. *)
+Lemma c1_sval_num r :
+  (c1_val ((if f0b r then one1 else precone_zero) : cone_one_car Ar))%:num =
+  test_fun (ind_testfn P_acc mPacc) (cR r).
+Proof.
+rewrite -[test_fun (ind_testfn P_acc mPacc) (cR r)]/(\1_P_acc (cR r)).
+rewrite /f0b indicE.
+by case: (cR r \in P_acc) => /=; rewrite ?mulr1n ?mulr0n.
+Qed.
+
+(** The {0,1} specialisation of [cm_K_at_dirac]: the clean continuation
+    at [δ_r] weighs the returned point mass by the indicator. *)
+Lemma cm_K_clean_at_dirac r :
+  Lfun (eD_cbv' cc_K) (cc_env3 r) =
+  precone_scale (NngNum (test_ge0 (ind_testfn P_acc mPacc) (cR r)))
+                (dirac_fmeas r).
+Proof.
+rewrite cm_K_clean_raw; congr precone_scale.
+apply: nngnum_inj; exact: c1_sval_num.
+Qed.
+
+(** *** The clean conditioning law (no recursion: [eD_let_mu_E]) *)
+
+Local Open Scope ereal_scope.
+
+Theorem condition_model_E' (U : set (ar_carrier Ar (po_robj P)))
+    (mU : measurable U) :
+  fmeas_mu (Lfun (eD_cbv' cc_inner) cc_env2) U =
+  \int[fmeas_mu nu0]_(r in U) (test_fun (ind_testfn P_acc mPacc) (cR r))%:E.
+Proof.
+have Hinner : Lfun (eD_cbv' cc_inner) cc_env2 =
+    linhom_fun (eD' (ne_let "x"%string (ne_app cc_var_m cc_var_a) cc_K)) cc_env2.
+  by rewrite /eD icones_to_linhomE.
+rewrite Hinner.
+rewrite (eD_let_mu_E (po_robj_meas P) R_to_carrier_meas
+           (ne_app cc_var_m cc_var_a) cc_K cc_env2_ball cc_env2_setlike mU).
+rewrite cc_app_E.
+under eq_integral => r _.
+  rewrite cm_K_clean_at_dirac fmeas_scaleE (dirac_fmeas_E r mU) diracE -EFinM /=.
+  over.
+rewrite [RHS](integral_mkcond U) epatch_indic.
+apply: eq_integral => r _.
+by rewrite /= EFinM.
+Qed.
+
+(** *** The transferred boolean condition headlines *)
+
+Local Notation Aacc := (@A R Ar P P_acc).
+Local Notation nu_M :=
+  (fmeas_mu (linhom_fun (eD (R_carrier_meas := po_robj_meas P)
+     (R_to_carrier_meas := R_to_carrier_meas) (model_run (P:=P) Mbody)) one1)).
+Local Notation cond' :=
+  (fmeas_mu (linhom_fun (eD (R_carrier_meas := po_robj_meas P)
+     (R_to_carrier_meas := R_to_carrier_meas) condition_prog') one1)).
+Local Notation reject' :=
+  (fmeas_mu (linhom_fun (eD (R_carrier_meas := po_robj_meas P)
+     (R_to_carrier_meas := R_to_carrier_meas)
+     (@reject_prog' R Ar P P_acc mPacc Mbody)) one1)).
+
+(** [ν_M] is the model-run distribution — the §4/§6 object. *)
+Lemma nu_M_E : nu_M = fmeas_mu nu0.
+Proof.
+congr fmeas_mu.
+rewrite /eD icones_to_linhomE.
+exact: (model_run_val_E (P:=P) R_to_carrier_meas Mbody).
+Qed.
+
+(** The conditioning law, boolean form: [cond'(U) = ν_M (A `&` U)]. *)
+Theorem condition_bool_E' U (mU : measurable U) :
+  cond' U = nu_M (Aacc `&` U).
+Proof.
+have Hred : linhom_fun (eD' condition_prog') one1 = Lfun (eD_cbv' cc_inner) cc_env2.
+  by rewrite /eD icones_to_linhomE cc_prog_val cc_model_denot_E.
+rewrite Hred (condition_model_E' mU).
+rewrite (@If_bool R Ar P P_acc mPacc (fmeas_mu nu0) U mU).
+by rewrite nu_M_E.
+Qed.
+
+(** The model EVIDENCE: the conditioned model's total mass is [ν_M(A)]. *)
+Theorem condition_bool_evidence' : cond' setT = nu_M Aacc.
+Proof.
+have H := condition_bool_E' (U := setT) measurableT; rewrite setIT in H; exact: H.
+Qed.
+
+(** The equivalence — rejection sampling computes the conditioned model's
+    normalised distribution (division-free):
+    [(1 - ν_M(setT) + ν_M(A)) · reject'(U) = cond'(U)]. *)
+Theorem reject_normalises_condition_bool' U (mU : measurable U) :
+  ((1 - fine (nu_M setT) + fine (nu_M Aacc))%R)%:E * reject' U = cond' U.
+Proof.
+rewrite (condition_bool_E' mU).
+exact: (@reject_bool_master' R Ar P R_to_carrier_meas P_acc mPacc Mbody U mU).
+Qed.
+
+(** The DIVISION form against the conditioned model. *)
+Theorem reject_computes_condition_bool' :
+  (0 < 1 - fine (nu_M setT) + fine (nu_M Aacc))%R ->
+  forall U, measurable U ->
+  reject' U =
+  ((fine (cond' U) / (1 - fine (nu_M setT) + fine (nu_M Aacc)))%R)%:E.
+Proof.
+move=> Hpos U mU; rewrite (condition_bool_E' mU).
+exact: (@reject_bool_is_normalised' R Ar P R_to_carrier_meas P_acc mPacc
+          Mbody Hpos U mU).
+Qed.
+
+(** The PROBABILITY-MODEL form: for a unit-mass model the normaliser is
+    the conditioned model's total mass, so [cond'(setT) · reject'(U) =
+    cond'(U)]. *)
+Theorem reject_normalises_condition_prob_bool' U (mU : measurable U) :
+  nu_M setT = 1 -> cond' setT * reject' U = cond' U.
+Proof.
+move=> Hm1.
+rewrite -(reject_normalises_condition_bool' mU); congr (_ * _).
+rewrite condition_bool_evidence' Hm1.
+have HAfin : nu_M Aacc \is a fin_num.
+  by rewrite nu_M_E; apply: fmeas_fin; exact: (@mA R Ar P P_acc mPacc).
+by rewrite -[in LHS](fineK HAfin)/= subrr add0r.
+Qed.
+
+End ConditionDenotBridge.
