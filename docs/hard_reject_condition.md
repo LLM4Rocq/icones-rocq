@@ -1,286 +1,192 @@
-# Design note — hard (boolean) rejection sampling & conditioning
+# Design — rejection sampling & conditioning via a program predicate
 
-**Status:** design discussion, *not yet implemented*. This note records the
-reasoning behind a proposed reformulation of the rejection-sampling /
-conditioning combinators. The current code (soft, `Bernoulli`/`Score`-based)
-remains as-is; nothing here has been built.
+**Status: FINAL (decided). This document is the reference for the refactor.**
+If the implementation and this document disagree, this document wins.
 
-**Files referenced:**
-`theories/programs/ex_reject_model.v`,
-`theories/programs/examples.v`,
-`theories/programs/ppl.v`,
-`theories/homs/bilin.v`, `theories/homs/coalgebra.v`.
+The goal is one clean `reject` and one clean `condition` combinator, with the
+acceptance test a **program** (exactly like the model), a single master theorem
+that covers both hard and soft conditioning, and **no `ne_test`/`Test`, no
+`test`/`Score` plumbing, and no `Bernoulli` inside the combinators**. Legacy
+machinery (the soft `testfn`-based combinators, `ne_test`, the intermediate
+bridge files) is removed — not kept around.
 
 ---
 
-## 1. Starting point — what exists today
+## 1. The core idea
 
-The current combinators are **soft**: acceptance/observation is a density
-`f : R → [0,1]` (a `testfn R`), fed through a `Bernoulli` coin (rejection) or a
-`Score` node (conditioning).
+A model is a program `m : a → b` (effectful: it may sample, score, recurse,
+diverge). The acceptance test is **also a program**, a predicate on the model's
+output value:
+
+> `f : b → tbool`  — supplied as an argument, exactly parallel to `m`.
+
+`f x` is then ordinary object-language application (`# "f" @ # "x"`); nothing
+special is needed to "apply the test".
+
+The one fact that makes everything work: **`tbool` is not `bool`.** It denotes a
+point of the 2-point sub-probability cone (`tyD_cbv tbool = bool_cone_coalg`) —
+a sub-distribution over `{true,false}`. So `f x` is the *acceptance
+distribution* at `x`, and its true-mass
+
+> `t(x) := true-mass ⟦f x⟧ ∈ [0,1]`  — the **acceptance probability** at `x`
+
+is the only thing the combinators care about. Two regimes, one mechanism:
+
+- `f` **deterministic** (`⟦f x⟧` a Dirac) ⇒ `t = 1_A`, the indicator of the
+  accept set `A := { x | f x = true }` — **hard** conditioning.
+- `f` a **coin** (`⟦f x⟧` a non-Dirac) ⇒ `t` is a density — **soft**
+  conditioning.
+
+---
+
+## 2. The combinators (final)
 
 ```
-(* examples.v:777 — ex_reject_comb : (ta → tR) → (ta → tR) *)
-reject_comb = fix rs. λ m. λ a.
-  let x = m a in
-  if Bernoulli (test f x) then x else rs m a
+fail      = (fix fail ::: tunit → t in λ(). fail ()) ()   -- diverges; denotes the zero measure
+assert b  = if b then () else fail                        -- assert : tbool → tunit
 
-(* examples.v:874 — ex_condition_comb : (ta → tR) → (ta → tR) *)
-condition_comb = λ m. λ a.
-  let x = m a in
-  let _ = Score (test f x) in
-  x
+reject    = λ f. fix rx. λ m. λ a. let x = m a in if (f x) then x else rx m a
+condition = λ f.         λ m. λ a. let x = m a in let _ = assert (f x) in x
 ```
 
-with `f : testfn R` a bundled record (`ppl.v:1421`):
+with `f : b → tbool` and `m : a → b` both **program arguments**. Built entirely
+from `fix`, `λ`, `@`, `if`, `()`, `let`. The two combinators are the same
+program modulo the else-branch:
 
-```coq
-Record testfn := MkTestfn {
-  test_fun : R -> R ;                         (* domain hardwired to R *)
-  test_meas : measurable_fun [set: R] test_fun ;
-  test_ge0  : forall r, 0 <= test_fun r ;
-  test_le1  : forall r, test_fun r <= 1 }.
+```
+reject:     if (f x) then x else rx m a     (* failure → retry      *)
+condition:  if (f x) then x else fail        (* failure → give up = 0 *)
 ```
 
-The model is, semantically, the promotion `g!` of a unit-ball linear map
-`g : U⟦ta⟧ ⊸ FMeas`, the **only** hypothesis being
-`Hg_ball : cone_norm g <= 1` (`ex_reject_model.v:314`) — i.e. the model is a
-*sub-probability-honest* measure-valued map (it may sample, score, recurse, or
-diverge). Its output sub-distribution at the input is
-`ν_M := g(a₀) = linhom_fun g a0` (`ex_reject_model.v:385`).
+(`let _ = assert (f x) in x` is `if (f x) then x else fail`, since a failed
+`assert` zeroes the mass whatever value follows.)
 
-Key proved results (all in `ex_reject_model.v`):
+### `fail` = divergence = the zero measure
 
-| Lemma | Statement |
+`fail` is a guarded diverging fixpoint. The λ-guard is mandatory in CBV (`fix
+fail. fail` would loop at definition time; recursion must pass through a value).
+Its Kleene chain from `⊥` is constant, so `⟦fail⟧ = ⊥ = precone_zero` — the zero
+sub-distribution. This is the same "divergence = zero measure" already used by
+the fixpoint semantics.
+
+### No `Test`, no `test`, no `Bernoulli`, no `Score` in the combinators
+
+- **`Test`/`ne_test` is deleted.** It only ever existed to apply a *meta-level*
+  Coq predicate `carrier b → bool` to a runtime value. With `f` a **program**
+  `b → tbool`, `f x` is ordinary application — no lift node is needed, so
+  `ne_test` has no role and is removed (constructor, `eD_cbv` clause,
+  `TestTmLiftG` section, `Test{…}` notation).
+- **No `test` / `Score` plumbing.** `assert (f x)` already covers conditioning:
+  it reweights by `t(x)` (see §3). When `f x` is a coin `bernoulli(s)`,
+  `assert (f x); x` is definitionally `Score s; x` — so soft conditioning is the
+  coin-valued case of the *same* combinator, not a separate `Score`-based one.
+- **`Bernoulli`/`Score` remain as primitives** for *building* models and
+  predicates (e.g. a soft predicate `f := λx. Bernoulli (density x)`), and for
+  other examples — there `Bernoulli` names a genuine distribution, which is its
+  only legitimate use (see §6). They are simply not part of `reject`/`condition`.
+
+---
+
+## 3. Semantics
+
+Fix an input `a`; write `ν_M := ⟦m a⟧` (the model's output sub-distribution) and
+`m₀ := ν_M(setT)` (its total mass; `m₀ < 1` ⇔ the model can diverge). Recall
+`t(x) = true-mass ⟦f x⟧`.
+
+One trial of `reject`/`condition` splits the unit mass three ways:
+
+```
+1  =   ∫ t dν_M    +   (m₀ − ∫ t dν_M)   +   (1 − m₀)
+       └ accept ┘      └ reject / retry ┘     └ diverge ┘
+```
+
+- `condition` keeps the accepted part: `⟦condition f m⟧(a)(U) = ∫_U t dν_M`.
+- `reject` retries the rejected part; summing the geometric series gives the
+  normaliser `Z := 1 − m₀ + ∫ t dν_M = 1 − (retry mass)`, and
+  `⟦reject f m⟧(a)(U) = (∫_U t dν_M) / Z`.
+
+At each Dirac `δ_r` the continuation reduces by `bool_case` on `⟦f r⟧`: accept
+weight `t(r) → δ_r`, reject weight `→ retry` (for `reject`) or `→ fail = 0` (for
+`condition`); `fail` contributes the zero measure. This is the existing
+reduction (object-generic let-law + affine cascade + `bool_case`), now with the
+predicate value `f` quantified over alongside the model value `m`.
+
+---
+
+## 4. The master theorem (unified — one statement covers hard and soft)
+
+For program values `m`, `f` (both unit-ball), input `a`, and `ν_M := ⟦m a⟧`,
+`Z := 1 − m₀ + ∫ t dν_M`:
+
+| name | statement |
 |---|---|
-| `reject_model_master` (:1000) | `(1 − m₀ + ∫f dν_M) · ν(U) = ∫_U f dν_M` (unconditional) |
-| `reject_model_is_normalised` (:1059) | if `0 < Z` then `ν(U) = (∫_U f dν_M)/Z` |
-| `reject_model_mass` (:1081) | `ν(setT) = ∫f dν_M / Z` |
-| `reject_model_mass_one` (:1098) | probability model (`m₀=1`) + `0<∫f` ⟹ `ν(setT)=1` |
-| `reject_model_zero` (:1115) | `f ≡ 0 ⟹ ν = precone_zero` |
-| `condition_model_E` (:1692) | `⟦condition M f⟧(a)(U) = ∫_U f dν_M` |
-| `reject_normalises_condition` (:2020) | `Z · ⟦reject⟧(U) = ⟦condition⟧(U)` |
+| **master** | `Z · ⟦reject f m⟧(a)(U) = ∫_U t dν_M` (division-free, unconditional) |
+| **normalised** | `Z > 0 ⟹ ⟦reject f m⟧(a)(U) = (∫_U t dν_M) / Z` |
+| **mass** | `⟦reject f m⟧(a)(setT) = (∫ t dν_M) / Z` |
+| **mass-one** | `m₀ = 1 ∧ 0 < ∫ t dν_M ⟹ ⟦reject f m⟧(a)(setT) = 1` (a.s. termination) |
+| **condition** | `⟦condition f m⟧(a)(U) = ∫_U t dν_M` |
+| **equivalence** | `Z · ⟦reject f m⟧(a)(U) = ⟦condition f m⟧(a)(U)` |
 
-with normaliser `Z := 1 − ν_M(setT) + ∫ f dν_M`.
+**Hard case** (`f` deterministic, `t = 1_A`): `⟦condition⟧(U) = ν_M(U ∩ A)` and
+`⟦reject⟧(U) = ν_M(U ∩ A) / Z` — conditioning on the accept set `A`, with
+`Z = 1 − m₀ + ν_M(A)`; for a probability model (`m₀ = 1`) this is the conditional
+`ν_M(· | A)`. The set form needs the side fact "`f` is deterministic"
+(`⟦f x⟧` a Dirac), which holds for any genuine boolean predicate.
 
----
-
-## 2. Observation 1 — the return type is *not* a hypothesis
-
-There is no `Hypothesis` that the model returns a real. The constraint is
-enforced one level lower, in the **type** of the combinator. In
-`ex_reject_comb` (`examples.v:780`) the model binder is `\ "m" ::: tfun ta tR'`,
-so the combinator has type `(ta → tR) → (ta → tR)`, and the body only
-typechecks with `x : tR` because:
-
-- `test f # "x"` (the coin/score density) needs `# "x" : tR` (since
-  `test_fun : R → R`);
-- the `if` forces both branches (`# "x"` and the recursive call) to the common
-  result type `tR`.
-
-So "the model returns a real" is a **well-typedness** constraint, strictly
-stronger than a logical hypothesis — a non-`tR` model cannot even be applied to
-the combinator. This is why no hypothesis appears (and none could).
+**Soft case** (`f` a coin, `t` a density): the same identities with `t` the
+density — soft conditioning / weighted rejection, no separate machinery.
 
 ---
 
-## 3. Observation 2 — the theorem holds for an arbitrary return type
+## 5. Generality
 
-Mathematically, rejection sampling is space-agnostic. For a measurable space
-`B`, a sub-probability `ν_M` on `B`, and a measurable `f : B → [0,1]`:
-
-```
-(1 − ν_M(B) + ∫_B f dν_M) · ν(U) = ∫_U f dν_M,   for measurable U ⊆ B.
-```
-
-Reals appear only as the codomain `[0,1] ⊂ R` of `f` and as the scalar field of
-the measures — never as the type of the produced values. The only requirements
-on `B` are: it is a measurable space, and Diracs `δ_x` exist (to "return x").
-
-The formalization is already mostly set up for this:
-
-- The measure backbone treats the produced value abstractly — in
-  `rm_case_mass` (:911), `reject_model_iter_mass` (:931), `rm_int_onem` (:883)
-  the value `r` is only ever fed to `dirac_fmeas r`, `\1_U r`, and `f (cR r)`.
-  No arithmetic/order/ring structure on `r` is used.
-- The FMeas monad (Dirac unit + coalgebra) is **already object-generic**:
-  - `dirac_fmeas (r : ar_carrier Ar X) : fmeas R (ar_carrier Ar X)` (`bilin.v:263`)
-  - `Coalg_dirac (X : ar_obj Ar) r` (`coalgebra.v:141`)
-  - `FMeas_coalgebra (X : ar_obj Ar)` (`coalgebra.v:317`)
-
-The **only** `R`-specific ingredient is the test function: `testfn` is
-`R → R`, and the proof applies it via the real-cast `cR := carrier_to_R`
-as `f (cR r)` — `cR` exists only because the return object is *the real object*
-(with its `R ≃ carrier` equation). Generalizing `testfn` to a `[0,1]`-valued
-measurable map on `ar_carrier Ar B` and dropping `cR` lifts everything to an
-arbitrary return type.
-
-Note: `probObj P` stays, but only for the **coin's** `[0,1]` parameter, which is
-orthogonal to the return type. A fully general version would carry two
-independent parameters: the coin's real object `P` and the return object `B`.
+- **Input `a` and return `b` are arbitrary** (`a → b`): `m : a → b`,
+  `f : b → tbool`, `reject f m : a → b`.
+- `m` and `f` are arbitrary unit-ball program values; the measure backbone
+  (`dirac_fmeas`, `Coalg_dirac`, `FMeas_coalgebra`, the affine cascade, the
+  object-generic let-law `eD_let_mu_E_obj`) is already object-generic, so the
+  proof reuses it.
 
 ---
 
-## 4. Observation 3 — drop the coin/score: go boolean
+## 6. Terminology rule (firm)
 
-For *hard* constraints we don't need the soft `[0,1]` machinery at all. Replace
-the density `f : B → [0,1]` with a predicate `f : B → Bool`. A boolean predicate
-is the indicator `f = 1_A` of the accept set `A := f⁻¹(true) ⊆ B`. This is the
-`{0,1}` specialization of the existing soft theorem — `rm_case_mass` already
-covers `f r ∈ {0,1}` (it returns `δ_r` on accept, the recursion/zero on reject).
-
-- **Rejection** becomes a direct boolean `if` (no `Bernoulli`):
-  the scrutinee `f x` is a deterministic `tBool`, dispatched by `bool_case` on a
-  Dirac-on-bool.
-- **Conditioning** becomes a hard `assert` (no `Score`/`testfn`):
-  scoring by the `{0,1}` indicator.
+"Bernoulli" names the genuine **Bernoulli distribution / coin** only — real
+`[0,1]` randomness. A deterministic boolean test of a value is **never** a
+Bernoulli; it is just a `tbool`-valued program (a `bool`-Dirac). `Bernoulli`
+appears only where a genuine distribution is meant (building a soft predicate or
+a model), never in `reject`/`condition`.
 
 ---
 
-## 5. The final combinators
+## 7. Refactor / cleanup plan
 
-```
-fail      = (fix fail ::: tunit → t in λ(). fail ()) ()
-assert b  = if b then () else fail            (* assert : tBool → tunit, t := tunit *)
+Build a clean end state; remove legacy.
 
-reject    = fix rx. λ m. λ a. let x = m a in if f x then x else rx m a
-condition =          λ m. λ a. let x = m a in let _ = assert (f x) in x
-```
+**Delete**
+- `ne_test` constructor + its `eD_cbv` clause + the `TestTmLiftG`/`test_lift`
+  section + the `Test{…}` notation (`ppl.v`, `ppl_cbv.v`).
+- The soft `testfn`-based combinators `ex_reject_comb` / `ex_condition_comb` and
+  their `cbv` forms (`examples.v`), superseded by the program-predicate ones.
+- The intermediate bridge files `hard_reject.v`, `hard_reject_denot.v`,
+  `ex_reject_bool.v` — their content is subsumed by the clean combinators + the
+  unified master theorem.
 
-with `f : B → Bool`. Built entirely from `fix`, `λ`, `@`, `if`, `()`, `let` —
-**no `Bernoulli`, `Score`, `testfn`, or `probObj` density anywhere.**
+**Add / rewrite**
+- The clean `reject` / `condition` / `assert` / `fail` combinators (§2), with the
+  predicate a program `f : b → tbool`.
+- The unified master theorem (§4) over the accept-probability
+  `t(x) = true-mass ⟦f x⟧`, quantified over the program values `m`, `f`. Re-prove
+  by reusing the object-generic let-law + affine cascade + `bool_case` reduction
+  (the same skeleton as the current proof, with `f` an extra abstract value
+  instead of a baked-in `testfn`).
 
-### `fail` is divergence = the zero measure
+**Keep**
+- `Bernoulli`, `Score`, `sample` and the rest of the surface as primitives for
+  building models/predicates and for the other examples.
+- The measure backbone (object-generic) and the affine-cascade infrastructure.
 
-`fail` is a guarded diverging fixpoint. Why this exact shape:
-
-- **The λ-guard is required in CBV.** `fix fail. fail` would loop at definition
-  time; recursion must pass through a *value* (the lambda `λ(). fail ()`), and
-  the trailing `()` triggers the unbounded unfolding `fail () → fail () → …`.
-  (Same pattern as `ex_reject_comb`'s `fix "rs"`, whose body is a lambda.)
-- **Denotation `⟦fail⟧ = ⊥ = precone_zero`.** The Kleene chain of
-  `W = λfail. λ(). fail ()` from bottom is constant (`g₀ = ⊥`, `gₙ = ⊥`), so the
-  fixpoint is `⊥`, and `⊥ () = 0` (the zero sub-distribution). This is exactly
-  the `n = 0` base of the fix-sup machinery `reject` already uses
-  (`fix_chain_0` / `rm_iter_0 = precone_zero`, `ex_reject_model.v:978`).
-
-So `assert (f x); x` denotes, via the `let`-law (bind against `⟦assert (f x)⟧`):
-
-```
-bool_case (f x) δ_x 0 = [f x = true] · δ_x
-```
-
-and integrating over `ν_M` gives `ν_M(· ∩ A)`.
-
-The `if`/`True`/`False` constructs are already in the surface
-(`ppl.v:2532–2535`); `assert`/`fail` need no genuinely new primitive — only
-`bool_case` + the zero measure, both already generic. (Whether `assert` is a
-standalone primitive `ne_assert : tBool-expr → tunit` or pure sugar is an
-ergonomics choice; semantically identical.)
-
----
-
-## 6. The unifying picture
-
-The two combinators are **the same program modulo the else-branch**:
-
-```
-reject:     if f x then x else rx m a     (* failure → retry      *)
-condition:  if f x then x else fail        (* failure → give up = 0 *)
-```
-
-(`let _ = assert (f x) in x` is `if f x then x else fail`, since `assert false`
-zeroes the mass regardless of the returned value.) The master identity is
-precisely the bookkeeping that recursing renormalises the give-up version.
-
-Degenerate check (always reject, `f ≡ false`): both collapse to the zero
-measure — `condition = fail = 0`, `reject = retry forever = 0`. This is
-`reject_model_zero` (:1115) read through the boolean lens; `fail` is not bolted
-on, it is the same "divergence = zero measure" that underlies the whole story.
-
----
-
-## 7. Semantics — everything is indexed by the input `a`
-
-The denotational shorthand must carry the model input `a` (the §5 readable
-statements use `M()` only because they hardwire `a := ()`/`one1`; the §2 lemmas
-already quantify over an arbitrary setlike unit-ball `a₀ : U⟦ta⟧`).
-
-For a fixed input `a`, write `ν_M^a := ⟦m⟧(a) = g(a) = linhom_fun g a` and let
-`f(m a)` be the `Bool`-valued program `let x = m a in f x`. With
-`A := f⁻¹(true) ⊆ B`:
-
-```
-⟦f(m a)⟧_true  = ν_M^a(A)               (model returns, test accepts)
-⟦f(m a)⟧_false = ν_M^a(B ∖ A)  = q(a)   (model returns, test rejects)
-m₀(a)          = ν_M^a(setT)            (model terminates at all)
-
-Z(a)           = 1 − m₀(a) + ν_M^a(A) = 1 − ⟦f(m a)⟧_false
-
-⟦condition m f⟧(a)(U) = ν_M^a(U ∩ A)
-⟦reject    m f⟧(a)(U) = ν_M^a(U ∩ A) / Z(a)
-master:  Z(a) · ⟦reject m f⟧(a)(U) = ⟦condition m f⟧(a)(U)
-```
-
-Per-trial mass decomposition (one execution of the loop body at input `a`):
-
-```
-1 = ⟦f(m a)⟧_true  +  ⟦f(m a)⟧_false  +  (1 − m₀(a))
-    └ accept ──┘      └ reject/retry ┘   └ diverge ──┘
-Z(a) = 1 − ⟦f(m a)⟧_false = ⟦f(m a)⟧_true + (1 − m₀(a))
-```
-
-`Z(a) = 1 − ⟦f(m a)⟧_false` is the robust form: it folds the divergence mass in
-correctly (a diverging run produces *no* boolean, so it counts as neither true
-nor false, hence is not subtracted).
-
-### Evidence vs. normaliser
-
-- **Evidence** (marginal likelihood) `= ν_M^a(A) = ⟦f(m a)⟧_true`.
-- **Normaliser** `Z(a) = 1 − ⟦f(m a)⟧_false = ⟦f(m a)⟧_true + (1 − m₀(a))`.
-
-They differ by the divergence mass `1 − m₀(a)`, and **coincide for a
-probability model** (`m₀ = 1`): then `⟦f(m a)⟧_true + ⟦f(m a)⟧_false = 1`, so
-`Z = ⟦f(m a)⟧_true = ν_M^a(A) =` evidence, and `reject` returns the conditional
-`ν_M^a(· | A)`. This matches `reject_normalises_condition_prob` (:2055).
-
----
-
-## 8. What this buys / what it costs
-
-**Buys (relative to the soft combinators):**
-
-- No `Bernoulli` coin in `reject`; no `Score`/`testfn` density in `condition`.
-- The test no longer drags in the real object — the `po_into` / `ToProb` /
-  `po_density` / `R_to_carrier_meas` plumbing drops out.
-- The return type becomes free: `(ta → tb) → (ta → tb)` for arbitrary `tb`
-  (nothing constrains `x`'s type but `f : tb → Bool`).
-- Correctness proofs shed the density hypotheses; `rm_case_mass` etc. specialize
-  to `f x ∈ {0,1}` and `rm_int_onem` becomes `ν_M(B ∖ A)` directly.
-- `probObj P` is needed only if the *model* `m` samples/scores internally; the
-  reject/condition *layer* is otherwise P-free.
-
-**Costs:**
-
-- Loses **soft** conditioning — genuine densities `f x ∈ (0,1)` (e.g. a Gaussian
-  likelihood) need the `[0,1]` score, not a boolean. The boolean `assert` is the
-  *hard* fragment (constraints like `x > 0`, `x = obs`).
-- If both are wanted: keep `Score : tProb → tunit` as the soft core and *define*
-  `assert : tBool → tunit := λ b. Score [b]` (or via `if … else fail`) on top —
-  then the boolean forms are derived and the soft theorems stay intact.
-
----
-
-## 9. Implementation checklist (when we build it)
-
-1. Decide `assert` as standalone primitive (`ne_assert`) vs. sugar for
-   `if b then () else fail`; either way provide `fail = (fix fail. λ(). fail ()) ()`.
-2. Generalize `testfn` (or add a sibling) from `R → R` to a predicate /
-   `[0,1]`-map on `ar_carrier Ar B`; drop the `carrier_to_R` cast at use sites.
-3. Separate the coin/score real object (`probObj P`) from the return object `B`
-   in the combinator and the §2 section variables.
-4. Re-state `reject_model_master` & friends at arbitrary `B` with `f = 1_A`;
-   the measure backbone and Dirac monad are already object-generic, so the
-   reuse should be largely mechanical.
-5. State the boolean headline: `Z(a) = 1 − ⟦f(m a)⟧_false`, evidence
-   `= ⟦f(m a)⟧_true`, `⟦condition⟧(a)(U) = ν_M^a(U ∩ A)`.
+**End state:** one `reject`, one `condition`, one master theorem, `a → b`, no
+`ne_test`/`Test`, no legacy. Whole project builds; no admits; axiom budget = the
+3 `boolp` classical axioms; auditor `--strict`, the auditor tests, and the
+blueprint PDF all green.
