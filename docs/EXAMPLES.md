@@ -1164,6 +1164,108 @@ Theorem ex_reject_normalises_score
                    pm Hf_meas) one1) U.
 ```
 
+### The hard (boolean) variant (`ne_reject`, `ne_condition`, `ne_fail`, `ne_fail_zero`, `reject_bool_master'`, `condition_bool_E'`, `reject_normalises_condition_bool'`, `condition_bool_evidence'`, `reject_bool_mass_one'`, `reject_bool_zero'`)
+
+The hard variant replaces the `[0,1]` test function with a
+**deterministic boolean test** of the produced value, conditioning on a
+boolean **accept set** `A := f⁻¹(true)`. The scrutinee is
+`Test{ f , Hf } x` — the `ne_test` primitive (Section `TestTmLiftG`,
+`theories/programs/ppl.v`), whose denotation is the Dirac-on-bool
+`δ_{f x}`, *not* a coin: `f` is a measurable `carrier B → bool`, queried
+once, deterministically.
+
+Run the model once and exactly one of three things happens: it returns a
+value the test **accepts** (mass `ν_M(A)`), it returns one the test
+**rejects** (mass `ν_M(setT) − ν_M(A)`), or it **diverges** (mass
+`1 − ν_M(setT)`). `condition` keeps the accepted part —
+`cond'(U) = ν_M(A & U)`, unnormalised — while `reject` retries the
+rejected part, normalised by `Z := 1 − ν_M(setT) + ν_M(A)`, so
+`Z · reject'(U) = cond'(U)` and `reject' = ν_M(· & A) / Z`. The two
+programs are the *same program modulo the else-branch*: `reject` retries
+failures, `condition` discards them.
+
+The clean combinators live in `theories/programs/hard_reject.v`, generic
+in the model's return base `B`. `ne_reject` is
+`fix rx. λm. λa. let x = m a in if Test{f} x then x else rx m a`;
+`ne_condition` is
+`λm. λa. let x = m a in let _ = (if Test{f} x then () else fail) in x`.
+The give-up term `ne_fail = (fix fail. λ(). fail ()) ()` is divergence:
+it denotes the zero sub-distribution `precone_zero` (`ne_fail_zero`,
+`theories/programs/hard_reject_denot.v`), and it is exactly the
+`else`-branch that `condition` runs on a rejected value.
+
+The headlines are proved as `{0,1}`-indicator **instances** of the soft
+master theorem: specialising the soft `reject_prog` / `condition_prog`
+at the indicator `\1_A` turns every `∫ f dν_M` into `ν_M(A)` and every
+`∫_U f dν_M` into `ν_M(A & U)` (`reject_bool_master`, `condition_bool_E`,
+… in `theories/programs/ex_reject_bool.v`). The **denotation bridge**
+`theories/programs/hard_reject_denot.v` then shows the clean `ne_reject`
+/ `ne_condition` denote the *same* measures as those soft programs (the
+deterministic `ne_test` and the soft `{0,1}`-coin share one scrutinee
+leaf, `scrut_leaf_E`), so each boolean headline transfers verbatim to
+the clean combinators — the primed forms below.
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def (`ne_reject` / `ne_condition`) | The clean combinators over the boolean test `Test{f}`: `reject` retries the rejected part, `condition` discards it via `fail` — the same program modulo the `else`-branch. Both are generic in the return base `B`. | `ne_reject`, `ne_condition`, `ne_assert` — `theories/programs/hard_reject.v` |
+| Thm (`ne_fail_zero`) | The give-up term `ne_fail` denotes the zero sub-distribution `precone_zero` — divergence — at every setlike unit-ball environment. | `ne_fail_zero` — `theories/programs/hard_reject_denot.v` |
+| Thm (`reject_bool_master'`) | `Z · reject'(U) = ν_M(A & U)` for every measurable `U`, division-free, with accept set `A := f⁻¹(true)` and `Z := 1 − ν_M(setT) + ν_M(A)`. | `reject_bool_master'` — `theories/programs/hard_reject_denot.v` |
+| Thm (`condition_bool_E'`) | `cond'(U) = ν_M(A & U)`: the conditioned model keeps the accepted part, unnormalised. | `condition_bool_E'` — `theories/programs/hard_reject_denot.v` |
+| Thm (`reject_normalises_condition_bool'`) | `Z · reject'(U) = cond'(U)`: rejection sampling normalises the conditioned model, division-free. | `reject_normalises_condition_bool'` — `theories/programs/hard_reject_denot.v` |
+| Cor (`condition_bool_evidence'`) | `cond'(setT) = ν_M(A)`: the conditioned model's total mass is the evidence — the model's accept mass. | `condition_bool_evidence'` — `theories/programs/hard_reject_denot.v` |
+| Cor (`reject_bool_mass_one'`) | Probability model (`ν_M(setT) = 1`) with `0 < ν_M(A)` ⟹ `reject'(setT) = 1`: accepts almost surely. | `reject_bool_mass_one'` — `theories/programs/hard_reject_denot.v` |
+| Thm (`reject_bool_zero'`) | Empty accept set (`P_acc = set0`, i.e. `A = ∅`) ⟹ `reject'(U) = 0`: certain rejection diverges. | `reject_bool_zero'` — `theories/programs/hard_reject_denot.v` |
+
+```coq
+(* theories/programs/hard_reject.v — Section HardRejectSurface *)
+Definition ne_reject :
+    nexpr nil (tfun (tfun ta (tbase B)) (tfun ta (tbase B))) :=
+  [ (fix "rx" ::: tfun (tfun ta (tbase B)) (tfun ta (tbase B)) in
+      \ "m" ::: (tfun ta (tbase B)) =>
+        \ "a" ::: ta =>
+          (let "x" := # "m" @ # "a" in
+           if Test { f , Hf } # "x" then # "x" else # "rx" @ # "m" @ # "a")) ].
+
+Definition ne_condition :
+    nexpr nil (tfun (tfun ta (tbase B)) (tfun ta (tbase B))) :=
+  [ \ "m" ::: (tfun ta (tbase B)) =>
+      \ "a" ::: ta =>
+        (let "x" := # "m" @ # "a" in
+         let "_" := (if Test { f , Hf } # "x" then () else { ne_fail }) in
+         # "x") ].
+```
+
+```coq
+(* theories/programs/hard_reject.v — Section HardRejectSurface
+   ne_fail : the give-up term, divergence (denotes precone_zero) *)
+Definition ne_fail {G : named_ctx Ar} {t : ppl_type Ar} : nexpr G t :=
+  [ (fix "fail" ::: tfun tunit t in \ "_" ::: tunit => # "fail" @ ()) @ () ].
+```
+
+```coq
+(* theories/programs/hard_reject_denot.v — Section RejectDenotBridge *)
+Theorem reject_bool_master' U (mU : measurable U) :
+  ((1 - fine (nu_M setT) + fine (nu_M Aacc))%R)%:E * reject' U
+  = nu_M (Aacc `&` U).
+```
+
+```coq
+(* theories/programs/hard_reject_denot.v — Section ConditionDenotBridge *)
+Theorem condition_bool_E' U (mU : measurable U) :
+  cond' U = nu_M (Aacc `&` U).
+
+Theorem reject_normalises_condition_bool' U (mU : measurable U) :
+  ((1 - fine (nu_M setT) + fine (nu_M Aacc))%R)%:E * reject' U = cond' U.
+```
+
+The `{0,1}`-instance lemmas (the unprimed `reject_bool_master`,
+`condition_bool_E`, … against the soft `reject_prog` / `condition_prog`
+at the indicator bundle `ind_testfn P_acc`) live in
+`theories/programs/ex_reject_bool.v`; the surface terms `ne_reject` /
+`ne_condition` / `ne_fail` / `ne_assert` live in
+`theories/programs/hard_reject.v`; the primed bridged forms above and
+`ne_fail_zero` live in `theories/programs/hard_reject_denot.v`.
+
 ---
 
 ## What is **not** formalised

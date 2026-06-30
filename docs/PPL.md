@@ -52,6 +52,7 @@ and the derived readable forms on top of it.
 | The probability type and its bundle (`tProb`, `probObj`, `tProb_robj`) | `probObj`, `po_obj`, `po_incl`, `po_into`, `tProb`, `po_density` — same file |
 | Probability surface forms (`Bernoulli`, `Bernoulli [\|p\|]`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `test`, `Const`, `InclP`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `pbern`, `pscore`, `psigmoid`, `pgausslik`, `pgt0`, `ptest`, `testfn`, `test_fun`, `pconst`, `pincl`, `bern_lift_P`, `score_lift_P`, `sigmoid`, `gauss_obs_density`, `gt0_ind`, `negr`, `prob`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
 | The `observe` operator and its distribution bundle | `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `pobserve_obsGaussian`, `test`, `ptest` — same file |
+| Deterministic boolean test and the hard reject/condition combinators (`Test{ f , Hf } e`) | `ne_test`, `test_lift`, `test_lift_dirac` — `theories/programs/ppl.v` (Section TestTmLiftG); `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition` — `theories/programs/hard_reject.v` |
 
 ### Types and contexts (`ppl_type`, `named_ctx`)
 
@@ -600,6 +601,68 @@ The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
 (annotation-free `let rec`, the `Bernoulli`/`Score` forms),
 both with elaboration pins (`ex_surface_demo_decomp`) and compile-time
 CBV denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
+
+### Deterministic boolean test and the hard reject/condition combinators (`ne_test`, `test_lift`, `test_lift_dirac`, `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition`)
+
+A value can be subjected to a **deterministic** boolean test, the surface
+form `Test { f , Hf } e`: it evaluates the measurable predicate
+`f : carrier B → bool` on the value of the `tbase B`-valued sub-expression
+`e` and lands in `tbool`. Its denotation is a **Dirac on bool**, `δ_{f v}` —
+total mass exactly `1`, concentrated on a single atom, no split. This is
+**not a coin**: `Test{f}` is a deterministic test of a value, the clean
+primitive that replaces overloading the Bernoulli coin at a `{0,1}` density
+to encode a boolean predicate.
+
+The rule, restated: **`Bernoulli` names the distribution / coin** — genuine
+`[0,1]` randomness, the `(p, 1 − p)` split of `ne_bernoulli` /
+`ne_bernoulli_f`. A deterministic boolean test of a value is `ne_test` /
+`Test{f}`, **never** a Bernoulli. In particular, do not confuse
+`Test { f , Hf } e` (capital `T`, `ne_test`) with the lowercase abstract
+test-function coin `test f e` (`ptest`) above, which *is* a genuine Bernoulli
+coin at a `[0,1]` test function `f : testfn`.
+
+```coq
+(* theories/programs/ppl.v *)
+| ne_test (G : named_ctx Ar) (B : ar_obj Ar)
+          (f : ar_carrier Ar B -> bool)
+          (Hf : measurable_fun [set: ar_carrier Ar B] f)
+          (e : named_expr G (tbase B)) : named_expr G tbool.
+
+Notation "'Test' '{' f ',' Hf '}' e" := (ne_test f Hf e) (* … *).
+```
+
+The CBV engine is `test_lift` (`theories/programs/ppl.v`, Section
+`TestTmLiftG`), an `icones_hom (FMeas X) (bool_cone_car Ar)` built the
+path route — package `x ↦ if f x then δ_true else δ_false` as a measurable
+norm-1 path into the 2-point cone, then promote with `int_to_linhom`. The
+load-bearing identity is `test_lift_dirac`: on `δ_x` the lift is exactly
+`δ_{f x}` (a Dirac, not the `(g x, 1 − g x)` split of `bern_lift`). The
+denotation post-composes `⟦e⟧` with `test_lift`.
+
+`Test{f}` is the clean primitive behind **hard (boolean)
+rejection / conditioning** (`theories/programs/hard_reject.v`), built
+entirely from `Test{f}` / `if` / `fail` — no coin. `ne_fail` is the
+diverging give-up term `(fix fail. λ(). fail ()) ()`, denoting the zero
+sub-distribution; `ne_assert b = if b then () else fail`. `ne_reject`
+retries a rejected draw —
+`fix rx. λm. λa. let x = m a in if Test{f} x then x else rx m a` — and
+`ne_condition` keeps the accepted part, diverging on the rest —
+`λm. λa. let x = m a in let _ = (if Test{f} x then () else fail) in x`. Same
+program modulo the else-branch: retry vs fail. The boolean headlines over
+the accept set `A := f⁻¹(true)` (`condition(U) = ν_M(A ∩ U)`,
+`Z · reject(U) = condition(U)`) are the soft conditioning / rejection master
+identity at a `{0,1}` test — see the [Examples tab](../examples/).
+
+```coq
+(* theories/programs/hard_reject.v *)
+Definition ne_reject :
+    nexpr nil (tfun (tfun ta (tbase B)) (tfun ta (tbase B))) :=
+  [ (fix "rx" ::: tfun (tfun ta (tbase B)) (tfun ta (tbase B)) in
+      \ "m" ::: (tfun ta (tbase B)) =>
+        \ "a" ::: ta =>
+          (let "x" := # "m" @ # "a" in
+           if Test { f , Hf } # "x" then # "x" else # "rx" @ # "m" @ # "a")) ].
+```
 
 ### Scores, densities, and the sub-probability boundary (`ne_score`, `cones_hom_norm_le1`, `score_lift`)
 
