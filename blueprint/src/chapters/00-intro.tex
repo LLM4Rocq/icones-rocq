@@ -57,8 +57,8 @@ root of the repository), plus a beyond-the-paper call-by-value model
     $\langle \pi_1, \pi_2 \rangle = \mathrm{id}$ on EM(!) (Fox 1976 /
     Melli\`es Prop 28, to our knowledge a first Coq / Rocq
     formalisation), the LNL monoidal adjunction
-    $U \dashv \widetilde{\mathord{!}}$ to $\ICones$, a CBV
-    value-fixpoint at function types (\texttt{Yfix\_fun\_T},
+    $U \dashv \widetilde{\mathord{!}}$ to $\ICones$, the seeded CBV
+    value-fixpoint combinator (\texttt{fix\_comb},
     folklore per P.-A.~Melli\`es 2026-05-31, also a first Coq / Rocq
     formalisation), and a higher-order \emph{direct-style}
     (Plotkin/Girard CBV), \emph{multi-variable named-variable}
@@ -77,7 +77,8 @@ root of the repository), plus a beyond-the-paper call-by-value model
     (\texttt{ne\_fix}) and the boolean cascade
     (\texttt{tbool} / \texttt{ne\_true} / \texttt{ne\_false} /
     \texttt{ne\_bernoulli} / \texttt{ne\_if}, the last dispatched via
-    the EM-Kleisli \texttt{case\_em} on the 2-point cone of paper \S4.4
+    \texttt{if\_icones} over the \S9.7-style bool coalgebra
+    \texttt{bool\_cone\_coalg} on the 2-point cone of paper \S4.4
     / Theorem 4.24). The end-to-end examples in
     \texttt{theories/programs/examples.v}: the basic sampling/scoring
     headlines
@@ -118,18 +119,19 @@ coalgebra pair (Fox 1976 / Melli\`es Prop 28 at the icones level, a
 first Coq / Rocq formalisation),
 $U \dashv \widetilde{\mathord{!}}$ is a genuine LNL
 adjunction with \emph{the} category of $\mathord{!}$-coalgebras, a small
-first-order CBV calculus is interpreted soundly, a CBV
-value-fixpoint at function types (\texttt{Yfix\_fun\_T}, folklore per
+first-order CBV calculus is interpreted soundly, the seeded CBV
+value-fixpoint combinator (\texttt{fix\_comb}, folklore per
 P.-A.~Melli\`es 2026-05-31, also a first Coq / Rocq formalisation)
 supports OCaml-style $\mathtt{let\,rec}$, and a higher-order
 \emph{direct-style, multi-variable, named-variable PPL with
 implicit effects} (\texttt{theories/programs/ppl.v}; the
 surface-calculus shape mirrors the canonical higher-order
 probabilistic calculus of Heunen--Kammar--Staton--Yang --- only the
-calculus shape is borrowed) using the EM(!)
-\emph{Kleisli exponentials}
-$\widetilde{\mathord{!}}(U A \multimap U(T\,B))$ for the
-CBV monad $T = \widetilde{\mathord{!}} \circ U$ interprets the
+calculus shape is borrowed). The interpreter is comonoid-primitive: the
+function type $\mathtt{tfun}\,A\,B$ denotes the cofree coalgebra
+$\widetilde{\mathord{!}}(U A \multimap U B)$ on the clean linear hom
+$U A \multimap U B$ (no $\mathtt{Tobj}$ / $T\,B$ wrap, no Moggi monad).
+It interprets the
 end-to-end examples (collected in
 \texttt{theories/programs/examples.v}): the basic sampling/scoring
 headlines
@@ -154,8 +156,8 @@ continuation probability $1 - p$, total mass $p$). The named surface is
 the \emph{only} syntax of \texttt{theories/programs/ppl.v}: variable
 lookup \texttt{\#~"x"} is canonical-structure-driven and a custom-entry
 notation supports
-\texttt{let "x" := M in N} (the direct-style CBV sequencer, semantically
-$\mathtt{kbind\_ext}$)
+\texttt{let "x" := M in N} (the direct-style let $\mathtt{ne\_let}$,
+a comonoid copy of the context --- no $\mathtt{kbind\_ext}$)
 / \texttt{\textbackslash "x" ::: A => M}
 / \texttt{fix "f" ::: tfun A B in M} (OCaml-style $\mathtt{let\,rec}$)
 / \texttt{Sample} / \texttt{Score e} / \texttt{Meas \{ f, Hf \} e}
@@ -165,21 +167,24 @@ $\mathtt{kbind\_ext}$)
 \emph{no} \texttt{Ret} surface form --- the direct-style move is what
 the cones model makes possible: where older LL/comonad models forced a
 monadic-style source with $T$-marked function types and explicit
-\texttt{return}/\texttt{bind}, the value-CCC structure on EM(!) (via
-Cor 20) allows the source type $\mathtt{tfun}\,A\,B$ to interpret
-directly as the Kleisli exponential
-$\widetilde{\mathord{!}}(U A \multimap U(T B))$, with the monad moved
-out of the source type and into the interpretation $\mathtt{eD}$.
+\texttt{return}/\texttt{bind}, the cartesian EM(!) structure (via
+Cor 20) lets the source type $\mathtt{tfun}\,A\,B$ interpret directly as
+the cofree coalgebra $\widetilde{\mathord{!}}(U A \multimap U B)$ on the
+clean linear hom --- the codomain $U B$ is bare, with no Moggi monad
+$T = \widetilde{\mathord{!}} \circ U$ and no $\mathtt{Tobj}$ wrap
+anywhere in the interpretation $\mathtt{eD}$.
 The arithmetic primitives \texttt{ne\_add} / \texttt{ne\_mul} are
-interpreted via the FMeas lax symmetric monoidal map
+interpreted by tensoring the two argument denotations and composing
+with the FMeas lax symmetric monoidal map
 (\texttt{theories/homs/fmeas\_lax.v}, built on the discharged
 \texttt{int\_to\_linhom\_pres\_path\_in\_cone} follow-up to paper
-Theorem 6.1) and the Moggi-Kleisli Dirac/integration view of
-\texttt{bind}; the term-level Bayesian-score constructor reuses
+Theorem 6.1); the term-level Bayesian-score constructor reuses
 the same paper-\S6 follow-up to package its density as a path into
 the unit cone. $\mathrm{EM}(\mathord{!})$ is not (and is not expected
-to be) cartesian closed; what direct-style CBV actually needs are
-Kleisli exponentials, and those it does have. What remains open is
+to be) cartesian closed; direct-style CBV does not need it --- function
+values are duplicated by the single outer cofree
+$\widetilde{\mathord{!}}$ and the comonoid pair, not by a closed
+structure. What remains open is
 genuinely beyond \S9: paper
 \S8 (analytic functions, the category $\mathrm{ACONES}$), the \S9
 Eilenberg–Moore full-subcategory theorem ($\mathrm{ARCAT}$ on Polish /
@@ -208,7 +213,7 @@ section for the precise per-chapter axiom budget.
 
 \paragraph{Alternative entry point: the auditor dashboard.}
 A complementary, interactive way to browse the formalisation is the
-\textbf{auditor dashboard}, with two tabs:
+\textbf{auditor dashboard}, with three tabs:
 \begin{itemize}
     \item the \textbf{Paper tab}
     (\url{https://llm4rocq.github.io/icones-rocq/auditor/paper/}) gives
@@ -218,15 +223,16 @@ A complementary, interactive way to browse the formalisation is the
     \item the \textbf{PPL tab}
     (\url{https://llm4rocq.github.io/icones-rocq/auditor/ppl/}) is a
     top-down narrative of the probabilistic programming language
-    developed on top of the paper's model --- both the call-by-value
-    interpretation via $\mathrm{EM}(\mathord{!})$ (the principal
-    interpretation of the example programs) and the
-    call-by-name interpretation via $\mathrm{SCones}$ (which obtains
-    free recursion at every function type via the paper \S9.2 fixpoint
-    operator). Each entry on either tab links to the Rocq source on
-    GitHub and to the rendered coqdoc page, and exposes
-    \texttt{Print Assumptions} for spot-checking.
+    developed on top of the paper's model --- the call-by-value
+    interpretation via $\mathrm{EM}(\mathord{!})$, the fixpoint
+    machinery and the semantic laws (the call-by-name interpretation via
+    $\mathrm{SCones}$ is preserved on the \texttt{cbn-track} branch);
+    \item the \textbf{Examples tab}
+    (\url{https://llm4rocq.github.io/icones-rocq/auditor/examples/})
+    collects the worked surface programs and their CBV headline lemmas.
 \end{itemize}
+Each entry links to the Rocq source on GitHub and to the rendered
+coqdoc page, and exposes \texttt{Print Assumptions} for spot-checking.
 The blueprint and the dashboard are independent renderings of the
 formalisation: the blueprint is paper-shaped (paper sections, English
 proofs, dependency graph), the dashboard is reference-shaped

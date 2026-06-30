@@ -6,9 +6,12 @@ definition / lemma / theorem of the paper to its Rocq counterpart, so you can
 verify *what is formalised* without having to read the proof scripts
 themselves.
 
-A separate section — the [PPL tab](../ppl/) — covers the **probabilistic
-programming language** developed on top of the paper's categorical model
-(CBV via EM(!), CBN via SCones, recursive examples). This document covers
+Two companion tabs cover the **probabilistic programming language**
+developed on top of the paper's categorical model: the [PPL tab](../ppl/)
+gives the top-down narrative (the CBV interpretation via EM(!), the
+fixpoint machinery, the semantic laws), and the
+[Examples tab](../examples/) collects the worked surface programs and
+their CBV headline lemmas. This document covers
 the **paper** itself, plus the paper-cited meta-theorems we had to mechanize
 to remove their black-box status (SAFT, EM(!) Cor 20, LNL adjunction).
 

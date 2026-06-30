@@ -32,24 +32,27 @@ iterated conditioning (`ex_bayes_linear_is_iter_condition`,
 same surface programs is preserved on the `cbn-track` branch; main is
 CBV-only.
 
-The surface layer the programs are written in — the constant coin
-`Bernoulli [| p |]` over a real literal, the value coin `Bernoulli e`
-and the score `Score e` over the probability type `tProb`, the
-`tProb`-producing primitives `Sigmoid e` / `Gausslik e { s , y }` /
-`Gt0 e` / `test f e` / `Const pr e`, the Bayesian-conditioning
-operator `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`,
-measurable function application `Meas { f , Hf } e`, bundled
-distributions `sample m`, the runtime-parameter forms
-`Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )`, the comparison coin
-`e1 > e2`, OCaml-style `let rec`, and the `Condition { f } M` form —
-where `Sigmoid`, `Gausslik`, `Gt0`, `test` (the abstract test-function
-coin, folding the `po_into` factoring of a bundled test function
-`f : testfn` into `ptest`) and `Const` push a real value into the probability type
-`tProb` (and `InclP` reads it back) —
-is documented in
+The surface layer the programs are written in is documented in full in
 [the surface-language chapter](../../ppl/chapters/ppl-ch-the-surface-language.html)
 and demoed end to end by `ex_surface_demo` / `ex_surface_walk`
-(`theories/programs/examples.v`).
+(`theories/programs/examples.v`). Its forms group as:
+
+- **Coins and scores:** the constant coin `Bernoulli [| p |]` over a
+  real literal, the value coin `Bernoulli e`, and the score `Score e`
+  over the probability type `tProb`.
+- **`tProb`-producing primitives:** `Sigmoid e`, `Gausslik e { s , y }`,
+  `Gt0 e`, `test f e`, and `Const pr e` — each pushes a real value into
+  `tProb`, and `InclP` reads it back. (`test f e` is the abstract
+  test-function coin, folding the `po_into` factoring of a bundled
+  `f : testfn` into `ptest`.)
+- **Conditioning:** the Bayesian-conditioning operator
+  `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })` and the
+  `Condition { f } M` form.
+- **Application and distributions:** measurable function application
+  `Meas { f , Hf } e`, bundled distributions `sample m`, the
+  runtime-parameter forms `Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )`,
+  and the comparison coin `e1 > e2`.
+- **Binders:** OCaml-style `let rec`.
 
 The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
 [Paper tab](../paper/); the PPL infrastructure (the surface
@@ -383,18 +386,19 @@ Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
           obs_d o2 (cR m * obs_x o2 + cR b))%R)%:E))%:E).
 ```
 
-Call-by-value matters here. The sampled function is bound once and
-shared across every observation and the return: each access to
-`#"f"` goes through the comonoid duplication `coalg_d` of the
-let-clause diagonal at the function-type cone `!(U⟦tR⟧ ⊸ U⟦tR⟧)`.
-That duplication is what makes all observations score the *same*
-sampled function (and the returned posterior be over that same
-function), rather than each score drawing a fresh model. In the
-proof, the per-`(m,b)` weights factor out of the fold one
-observation at a time (`obs_fold_at`: the fold at the depth-`n`
-environment is the promoted closure scaled by
-`∏_{o∈l} obs_d o (m·x_o + b)`), and two applications of the
-let-at-sample law integrate the weights against the priors.
+Call-by-value matters here.
+
+- **Sharing:** the sampled function is bound once and shared across
+  every observation and the return — each access to `#"f"` goes through
+  the comonoid duplication `coalg_d` of the let-clause diagonal at the
+  function-type cone `!(U⟦tR⟧ ⊸ U⟦tR⟧)`. That duplication makes all
+  observations score the *same* sampled function (and the returned
+  posterior be over that same function), not a fresh model per score.
+- **Proof:** the per-`(m,b)` weights factor out of the fold one
+  observation at a time (`obs_fold_at`: the fold at the depth-`n`
+  environment is the promoted closure scaled by
+  `∏_{o∈l} obs_d o (m·x_o + b)`), and two applications of the
+  let-at-sample law integrate the weights against the priors.
 
 Cross-links: the model's own marginal identity is
 `ex_random_linear_cbv_marginal` above; the one-parameter score
@@ -550,23 +554,24 @@ Theorem ex_geom_cbv_pmf (k : nat) :
 the CBV denotation of the closed program at the unit context point.)
 Proof idea: the rejection-sampling reduction chain on a simpler
 program. The outer application collapses by `der ∘ prom` cancellation
-(`ex_geom_app_E`); the denotation is the `cone_sup_ball` of the
-per-iterate measures (`ex_geom_sup_E`); one Kleene step computes to
-the boolean dispatch `ν_{n+1} = ½·δ_0 + ½·(add_lift (δ_1 ⊗ ν_n))`
-(`g_step`); the translation-mass invariance `add_lift_mass` reduces
-the mass cascade to `x_{n+1} = ½ + ½·x_n` (`g_val_S`); the affine
-cascade and the sup-mass bridge of
-`theories/programs/infra/affine_cascade.v` close the limit at `1`.
-The distribution refinement runs the same induction per set: the
-per-`U` step recurrence `g_iter_U_S` splits the THEN branch into
-`(1/2) δ_0` and the ELSE branch into the previous iterate pushed
-forward by `+1` (`g_shift_atom`), so the `n`-th iterate is the
-truncated geometric law `Σ_{k<n} (1/2)^(k+1) δ_{gpt k}`
-(`g_iter_closed`); the partial sums converge to the full ereal
-series (`g_iter_series_cvg`) through the same `cone_sup_ball`
-limit, giving `ex_geom_cbv_distribution`, and evaluating it at the
-singleton `[set gpt k]` isolates the single surviving atom for
-`ex_geom_cbv_pmf`.
+(`ex_geom_app_E`), and the denotation is the `cone_sup_ball` of the
+per-iterate measures (`ex_geom_sup_E`). One Kleene step computes to the
+boolean dispatch `ν_{n+1} = ½·δ_0 + ½·(add_lift (δ_1 ⊗ ν_n))`
+(`g_step`).
+
+- **Mass:** the translation-mass invariance `add_lift_mass` reduces the
+  mass cascade to `x_{n+1} = ½ + ½·x_n` (`g_val_S`); the affine cascade
+  and the sup-mass bridge of
+  `theories/programs/infra/affine_cascade.v` close the limit at `1`.
+- **Distribution:** the same induction runs per set. The per-`U` step
+  recurrence `g_iter_U_S` splits the THEN branch into `(1/2) δ_0` and
+  the ELSE branch into the previous iterate pushed forward by `+1`
+  (`g_shift_atom`), so the `n`-th iterate is the truncated geometric law
+  `Σ_{k<n} (1/2)^(k+1) δ_{gpt k}` (`g_iter_closed`). The partial sums
+  converge to the full ereal series (`g_iter_series_cvg`) through the
+  same `cone_sup_ball` limit, giving `ex_geom_cbv_distribution`;
+  evaluating at the singleton `[set gpt k]` isolates the single
+  surviving atom for `ex_geom_cbv_pmf`.
 
 ### ex_almost_loop (`ex_almost_loop`, `ex_almost_loop_cbv_mass_one`, `ex_almost_loop_cbv_dirac`, `ex_almost_loop_cbv_zero`)
 
@@ -716,17 +721,20 @@ Lemma ex_even_odd_pair_cbv_value :
 `Lfun h` abbreviates the underlying cones-hom function and `_!` is
 `prom`, `_ ⊗p _` the `ptensor` of the promoted unit-cone homset `L`.)
 
-**Proof idea.** The recursion is seeded at the cone-zero, and the
-zero-seeded interleaved-Kleene chain stays there: `even_odd_iter_zero`
-shows every iterate `fix_chain eo_W0 n = precone_zero` by induction
-(each step is `der 0! = 0`). Hence the value-fixpoint at the base cone
-is the sup of zero iterates, `ex_even_odd_fix_value_zero`. Feeding
-this through the semantic computation law `eD_fix_mr_prod_at_setlike`
-gives the pair value `0! ⊗p 0!`. Each projection-then-apply then uses
-the homogeneity helper `linhom_cone_one_zero` (with
-`cone_one_scale_rep`): a linhom out of the one-dimensional unit cone
-that vanishes at `one1` is the zero linhom, so the derelicted
-promoted-zero function evaluated at the unit point is `precone_zero`.
+**Proof idea.**
+
+- **Chain stays zero:** the recursion is seeded at the cone-zero, and
+  the zero-seeded interleaved-Kleene chain stays there — `even_odd_iter_zero`
+  shows every iterate `fix_chain eo_W0 n = precone_zero` by induction
+  (each step is `der 0! = 0`). Hence the value-fixpoint at the base cone
+  is the sup of zero iterates, `ex_even_odd_fix_value_zero`.
+- **Pair value:** feeding this through the semantic computation law
+  `eD_fix_mr_prod_at_setlike` gives the pair value `0! ⊗p 0!`.
+- **Projections:** each projection-then-apply uses the homogeneity
+  helper `linhom_cone_one_zero` (with `cone_one_scale_rep`) — a linhom
+  out of the one-dimensional unit cone that vanishes at `one1` is the
+  zero linhom, so the derelicted promoted-zero function evaluated at the
+  unit point is `precone_zero`.
 
 ---
 
@@ -742,35 +750,34 @@ rejection throws the candidate away and retries with a fresh run — a
 loop that may in principle run forever, so termination is itself a
 theorem, not an assumption.
 
-Here `f : testfn` is not a density or a likelihood but a **test
-function**: a measurable `[0,1]`-valued map that you integrate measures
-*against*. The pairing `∫ f dµ` is the whole content of the headline
-theorems — `∫ f dµ · ν(U) = ∫_U f dµ` is literally the test `f` paired
-against the prior over `U`. The `testfn` record carries the map plus
-its measurability and `0 ≤ f ≤ 1` witnesses (`test_meas`, `test_ge0`,
-`test_le1`) and coerces to its function (`Coercion test_fun : testfn >->
-Funclass`), so `f r` and `∫ f dµ` read directly. In the object
-language the abstract test enters a program through the `test f e` coin
-— evaluate `f` at the runtime value `e`, landing in `tProb` — the
-object-language counterpart of the integration pairing. (The
-`observe Dist y` form is the special case where the test comes from a
-concrete distribution's peak-normalised density.) Crucially the
-conditioning and rejection theorems quantify over an *arbitrary* test
-`f`: that generality is exactly why the abstract `test f` form exists,
-where a concrete distribution would only specialise it.
+Here `f : testfn` is a **test function**, not a density or a
+likelihood: a measurable `[0,1]`-valued map that you integrate measures
+*against*. The `testfn` record carries the map plus its measurability
+and `0 ≤ f ≤ 1` witnesses (`test_meas`, `test_ge0`, `test_le1`) and
+coerces to its function (`Coercion test_fun : testfn >-> Funclass`), so
+`f r` and `∫ f dµ` read directly. The pairing `∫ f dµ` is the whole
+content of the headline theorems: `∫ f dµ · ν(U) = ∫_U f dµ` is the
+test `f` paired against the prior over `U`.
+
+The test enters a program through the `test f e` coin: evaluate `f` at
+the runtime value `e`, landing in `tProb` — the object-language
+counterpart of that pairing. (The `observe Dist y` form is the special
+case where the test comes from a concrete distribution's
+peak-normalised density.)
+
+Keeping `f` abstract is the point: a concrete distribution's density is
+just one test, so an opaque `f` is what lets the conditioning and
+rejection theorems hold for every test at once.
 
 The chapter proves that the two sides agree. The theorem
 `reject_normalises_condition` states, division-free and
 unconditionally, that *Z · ⟦reject M f⟧ U = ⟦condition M f⟧ U* with
 *Z := 1 − ν_M(setT) + ∫ f dν_M*, where `ν_M` is the model's output
-sub-distribution. Both combinators take an arbitrary probabilistic
-model — any function value `m : ta → tR`, itself free to contain
-samples, scores and recursion — and the statements are
-sub-probability honest: the model may itself diverge, and its
-missing mass `1 − m₀` shows up in the normaliser. The formal content
-lives in `theories/programs/ex_reject_model.v`, with the standalone
-sampler instance in `theories/programs/ex_reject_headline.v` and the
-score pairing in `theories/programs/infra/cbv_marginals.v`.
+sub-distribution. The model may diverge: then `ν_M(setT) < 1`, and the
+`1 − ν_M(setT)` term in `Z` carries that missing mass. The formal
+content lives in `theories/programs/ex_reject_model.v`, with the
+standalone sampler instance in `theories/programs/ex_reject_headline.v`
+and the score pairing in `theories/programs/infra/cbv_marginals.v`.
 
 ### The condition and reject combinators (`ex_condition_comb`, `ex_condition`, `ex_condition_comb_cbv`, `ex_condition_cbv`, `ex_reject_comb`, `ex_reject_comb_cbv`)
 
@@ -836,16 +843,15 @@ Definition ex_condition (M : @named_expr R Ar (po_robj P) nil (tfun ta tR')) :
 | Def (`ex_condition`) | The applied form `condition M f` and its surface notation `Condition { f } M`. | `ex_condition`, `ex_condition_cbv` — same file |
 | Def (`ex_reject_comb`) | `fix rs = λm. λa. let x = m a in if Bernoulli (test f x) then x else rs m a` of the same type — run the model at the input, accept with probability `f x`, recurse on rejection at the same model and input. | `ex_reject_comb`, `ex_reject_comb_cbv` — `theories/programs/examples.v` |
 
-The theorems below quantify over the model value and the input
-value: the model argument is the promoted point `g!` of an arbitrary
-unit-ball linear map `g : U⟦ta⟧ ⊸ FMeas` — every lambda-written
-model denotes such a point (the `ne_lam` clause promotes the curried
-body at setlike environments, `adj_psi_at_setlike`), so no
-generality is lost — and the input is an arbitrary setlike unit-ball
-point `a₀ : U⟦ta⟧` (at `ta = tR` these are exactly the Diracs; at
-`ta = tunit` the unit point). Throughout, write `ν_M := g(a₀)` for
-the model's output sub-distribution, `m₀ := ν_M(setT)` for its total
-mass, `If := ∫ f dν_M` and `IUf U := ∫_U f dν_M`.
+The theorems below quantify over the model value and the input value.
+The model argument is the promoted point `g!` of an arbitrary unit-ball
+linear map `g : U⟦ta⟧ ⊸ FMeas`; every lambda-written model denotes such
+a point, so no generality is lost (the `ne_lam` clause promotes the
+curried body at setlike environments, `adj_psi_at_setlike`). The input
+is an arbitrary setlike unit-ball point `a₀ : U⟦ta⟧` — at `ta = tR`
+exactly the Diracs, at `ta = tunit` the unit point. Throughout, write
+`ν_M := g(a₀)` for the model's output sub-distribution and
+`m₀ := ν_M(setT)` for its total mass.
 
 ### The conditioning law (`condition_model_E`, `condition_model_mass`, `condition_E`, `condition_prog_evidence`)
 
@@ -911,28 +917,31 @@ reduction chain is the rejection chain minus the fixpoint.
 
 ### The rejection master identity (`reject_model_master`, `reject_model_is_normalised`, `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero`, `reject_prog_master`, `reject_prog_is_normalised`, `reject_prog_mass_one`, `reject_prog_zero`)
 
-The semantic content of `reject`, in division-free form: writing `ν`
-for the denotation of `(reject_comb m) a`,
-*(1 − m₀ + If) · ν(U) = IUf U* for every measurable `U`,
-unconditionally. A single trial is rejected with probability
-`m₀ − If` (the model terminated and the coin said no), so the
-success-per-trial mass is `1 − (m₀ − If) = 1 − m₀ + If`; the output
-mass on `U` is the geometric-series sum `IUf U · Σ_n (m₀ − If)^n`,
-which the master identity states without division. The degenerate
-corner `1 − m₀ + If = 0` (a probability model whose output `f`-mass
-is zero, so the loop never terminates) is graceful: both sides
-vanish. When the loop makes progress the division form gives the
-normalised distribution, and at `m₀ = 1` the normaliser is the
-classical evidence `∫ f dν_M`.
+Run the model once and exactly one of three things happens: it returns
+a value the coin **accepts** (probability `∫ f dν_M`), it returns a
+value the coin **rejects**, so we retry (probability `m₀ − ∫ f dν_M`),
+or it **diverges** (probability `1 − m₀`). Only the rejecting case
+loops, so each trial *settles* — accepts or diverges — with probability
+`1 − (m₀ − ∫ f dν_M) = Z`, the chapter's normaliser. Summing the
+geometric series over retries gives the output measure `ν` of
+`(reject m) a`, and the master identity states it without division:
+
+*Z · ν(U) = ∫_U f dν_M*  for every measurable `U`.
+
+Divide by `Z` for the normalised distribution when `Z > 0`. Two corners
+close the picture: a probability model (`m₀ = 1`) has normaliser the
+classical evidence `∫ f dν_M` and accepts almost surely; if nothing is
+ever accepted (`Z = 0`, e.g. `f ≡ 0`) both sides vanish — certain
+rejection diverges.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Thm (`reject_model_master`) | `(1 − m₀ + If) · ν(U) = IUf U` for every measurable `U`, unconditionally — division-free and sub-probability honest. | `reject_model_master` — `theories/programs/ex_reject_model.v` |
-| Thm (`reject_model_is_normalised`) | If `0 < 1 − m₀ + If` (loop progress, automatic as soon as `0 < If`), then `ν(U) = IUf U / (1 − m₀ + If)` — the normalised distribution. | `reject_model_is_normalised` — same file |
-| Cor (`reject_model_mass`) | `ν(setT) = If / (1 − m₀ + If)` — the probability that some trial eventually accepts. | `reject_model_mass` — same file |
-| Cor (`reject_model_mass_one`) | For a probability model (`m₀ = 1`) with positive acceptance (`0 < If`), `ν(setT) = 1`: the sampler terminates almost surely. | `reject_model_mass_one` — same file |
-| Thm (`reject_model_zero`) | If `f ≡ 0` then `ν = 0` — certain rejection diverges, whatever the model does. | `reject_model_zero` — same file |
-| Thm (`reject_prog_master`) | The readable form of the master identity, against `⟦·⟧` over an arbitrary thunked model program. | `reject_prog_master`, `reject_prog_is_normalised`, `reject_prog_mass_one`, `reject_prog_zero` — same file (Section ReadableHeadlines) |
+| Thm (`reject_model_master`) | `Z · ν(U) = ∫_U f dν_M` for every measurable `U`, unconditionally — division-free, sub-probability honest (`Z = 1 − m₀ + ∫ f dν_M`). | `reject_model_master` — `theories/programs/ex_reject_model.v` |
+| Thm (`reject_model_is_normalised`) | `Z > 0` (automatic once `0 < ∫ f dν_M`) ⟹ `ν(U) = ∫_U f dν_M / Z` — the normalised distribution. | `reject_model_is_normalised` — same file |
+| Cor (`reject_model_mass`) | `ν(setT) = ∫ f dν_M / Z` — the probability that some trial eventually accepts. | `reject_model_mass` — same file |
+| Cor (`reject_model_mass_one`) | Probability model (`m₀ = 1`) with `0 < ∫ f dν_M` ⟹ `ν(setT) = 1`: accepts almost surely. | `reject_model_mass_one` — same file |
+| Thm (`reject_model_zero`) | `f ≡ 0` ⟹ `ν = 0` — certain rejection diverges, whatever the model does. | `reject_model_zero` — same file |
+| Thm (`reject_prog_master`) | The readable form, against `⟦·⟧` over an arbitrary thunked model program. | `reject_prog_master`, `reject_prog_is_normalised`, `reject_prog_mass_one`, `reject_prog_zero` — same file (Section ReadableHeadlines) |
 
 ```coq
 (* theories/programs/ex_reject_model.v — Section RejectModel *)
@@ -997,15 +1006,16 @@ Proof idea, in six steps (`theories/programs/ex_reject_model.v`):
 5. `reject_model_iter_mass` — the general let-law `eD_let_mu_E`
    turns the iterate into a Lebesgue integral over `ν_M`, giving the
    affine mass recurrence
-   `ν_{n+1}(U) = IUf U + (m₀ − If) · ν_n(U)`; the rejection weight is
-   `∫(1−f) dν_M = m₀ − If`, so the model's own divergence mass never
-   re-enters the loop.
+   `ν_{n+1}(U) = ∫_U f dν_M + (m₀ − ∫ f dν_M) · ν_n(U)` (the source
+   abbreviates `∫ f dν_M` as `If` and `∫_U f dν_M` as `IUf U`); the
+   retry mass `∫(1−f) dν_M = m₀ − ∫ f dν_M` keeps the model's own
+   divergence mass out of the loop.
 6. The affine cascade (`affine_iter_cvg`,
-   `theories/programs/infra/affine_cascade.v`) with `a := IUf U` and
-   `q := m₀ − If` computes the limit `IUf U / (1 − q)`, and the
-   sup-mass bridge `fmeas_kleene_sup_U_E` identifies it with `ν(U)`;
-   the degenerate corner `q = 1` is covered by the constantly-zero
-   chain.
+   `theories/programs/infra/affine_cascade.v`) — written `xₙ₊₁ = a + q·xₙ`
+   with `a := ∫_U f dν_M` and `q := m₀ − ∫ f dν_M` — converges to
+   `a / (1 − q)`, and the sup-mass bridge `fmeas_kleene_sup_U_E`
+   identifies that limit with `ν(U)`; the degenerate corner `q = 1` is
+   covered by the constantly-zero chain.
 
 ```coq
 (* theories/programs/ex_reject_model.v *)
@@ -1098,7 +1108,7 @@ normalises exactly the score program's unnormalised posterior.
 |---|---|---|
 | Def (`ex_reject`) | `let rec rs accept = let x = sample µ in if Bernoulli (test f x) then accept x else rs accept in rs (λy. y)` of type `tR` — the standalone sampler at the bundled test function `f : testfn`, accepting through the `test f` coin, abstracted over an acceptance continuation. | `ex_reject`, `ex_reject_cbv`, `ex_sampler` — `theories/programs/examples.v` |
 | Thm (`ex_reject_master`) | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`). | `ex_reject_master` — `theories/programs/ex_reject_headline.v` |
-| Thm (`ex_reject_is_normalised_posterior`) | If `0 < ∫f dµ` then `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the normalised posterior of the prior `µ` given the test function `f`; `ν(setT) = 1` (`ex_reject_mass_one`); at `∫f dµ = 1` no normalisation is needed (`ex_reject_posterior_simple`); at `f ≡ 0` the denotation is the zero measure (`ex_reject_zero`). | `ex_reject_is_normalised_posterior`, `ex_reject_posterior_simple`, `ex_reject_mass_one`, `ex_reject_zero` — same file |
+| Thm (`ex_reject_is_normalised_posterior`) | If `0 < ∫f dµ` then `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the normalised posterior of the prior `µ` given the test function `f`. | `ex_reject_is_normalised_posterior`, `ex_reject_posterior_simple`, `ex_reject_mass_one`, `ex_reject_zero` — same file |
 | Thm (`ex_reject_comb_sampler_E`) | The combinator applied to the sampler model `λ_. sample µ` at the unit input denotes the same measure as `ex_reject`; the master identity re-derived through the bridge is `ex_reject_comb_sampler_master`. | `ex_reject_comb_sampler_E`, `ex_reject_comb_sampler_master` — `theories/programs/ex_reject_model.v` |
 | Thm (`ex_reject_normalises_score`) | `(∫ f dµ) · ν_reject(U) = ν_score(U)` at `µ(setT) = 1`: the equivalence theorem at the sampler instance, connecting `ex_reject` with `ex_score_posterior`. | `ex_reject_normalises_score` — `theories/programs/infra/cbv_marginals.v` |
 

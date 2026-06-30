@@ -6,6 +6,7 @@
 [![Blueprint PDF](https://img.shields.io/badge/blueprint-PDF-red?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)
 [![Auditor — Paper](https://img.shields.io/badge/auditor-paper-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/paper/)
 [![Auditor — PPL](https://img.shields.io/badge/auditor-PPL-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/ppl/)
+[![Auditor — Examples](https://img.shields.io/badge/auditor-examples-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/examples/)
 [![Rocq 9.1.1](https://img.shields.io/badge/rocq-9.1.1-orange?style=for-the-badge)](https://rocq-prover.org/)
 [![License](https://img.shields.io/badge/license-CC--BY--4.0-blue.svg?style=for-the-badge)](https://creativecommons.org/licenses/by/4.0/)
 
@@ -281,21 +282,24 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
   shared-sample diagonal semantics.
 - **The readable surface layer** (`theories/programs/ppl.v` /
-  `theories/programs/examples.v`): the constant coin `Bernoulli [| p |]`
-  over a real literal (its `[0,1]` bounds discharged by `lra`), the
-  value coin `Bern e` and the score `Sc e` over the probability type
-  `tProb` (the `[0,1]` object of a `probObj` bundle, so the bound is
-  carried by the type), the `tProb`-producing primitives `Sigmoid e` /
-  `Gausslik { s , y } e` / `Gt0 e` / `ToProb { φ } e` / `Const pr e`,
-  the Bayesian-conditioning operator
-  `observe Gaussian { s , y } e ≡ Sc (Gausslik { s , y } e)` (scoring
-  by the envelope-normalised Gaussian likelihood `gauss_obs_density s y`),
-  measurable function application `Meas { f , Hf } e` (the `ne_meas`
-  pushforward constructor), bundled distributions `sample m` over `pmeas`
-  with named `gaussian` / `uniform` transported from mathcomp-analysis,
-  the comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
-  sugar, and the `Condition { d } M` form — demoed end to end by
-  `ex_surface_demo` / `ex_surface_walk`.
+  `theories/programs/examples.v`). The `[0,1]` bound lives in the
+  probability type `tProb` (the `[0,1]` object of a `probObj` bundle), so a
+  use site never writes a bound proof:
+  - coins and scores: the constant coin `Bernoulli [| p |]` over a real
+    literal (its `[0,1]` bounds discharged by `lra`), the value coin
+    `Bernoulli e` and the score `Score e` over `tProb`;
+  - the `tProb`-producing primitives `Sigmoid e` / `Gausslik e { s , y }`
+    (mean-first) / `Gt0 e` / `test f e` / `Const pr e`;
+  - the Bayesian-conditioning operator
+    `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`, scoring by
+    the envelope-normalised Gaussian likelihood `gauss_obs_density s y`;
+  - measurable function application `Meas { f , Hf } e` (the `ne_meas`
+    pushforward constructor), bundled distributions `sample m` over `pmeas`
+    with named `gaussian` / `uniform` transported from mathcomp-analysis,
+    the comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
+    sugar, and the `Condition { d } M` form.
+
+  Demoed end to end by `ex_surface_demo` / `ex_surface_walk`.
 - **The CBV marginals** (`theories/programs/infra/cbv_marginals.v`,
   axiom-free): the non-recursive basic sampling/scoring examples carry
   closed-form CBV identities — `ex_score_posterior_cbv_E` (the denotation of
@@ -457,13 +461,16 @@ sources:
   **[online](https://llm4rocq.github.io/icones-rocq/blueprint/)** ·
   **[PDF](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)** · sources in
   [`blueprint/src/`](./blueprint/src/).
-- An interactive **auditor dashboard** with two tabs:
+- An interactive **auditor dashboard** with three tabs:
   the **[Paper tab](https://llm4rocq.github.io/icones-rocq/auditor/paper/)**
   (paper-to-Rocq correspondence for §§ 2–9, plus the paper-cited meta-theorems we
-  mechanised) and the **[PPL tab](https://llm4rocq.github.io/icones-rocq/auditor/ppl/)**
-  (top-down description of the PPL: what works, what is missing, why). Searchable,
+  mechanised), the **[PPL tab](https://llm4rocq.github.io/icones-rocq/auditor/ppl/)**
+  (top-down description of the PPL: what works, what is missing, why), and the
+  **[Examples tab](https://llm4rocq.github.io/icones-rocq/auditor/examples/)**
+  (worked surface programs and their CBV headline lemmas). Searchable,
   deep-linkable per entry, with per-entry links to coqdoc and GitHub. Sources in
-  [`docs/PAPER.md`](./docs/PAPER.md) + [`docs/PPL.md`](./docs/PPL.md).
+  [`docs/PAPER.md`](./docs/PAPER.md) + [`docs/PPL.md`](./docs/PPL.md) +
+  [`docs/EXAMPLES.md`](./docs/EXAMPLES.md).
 
 ## Building
 

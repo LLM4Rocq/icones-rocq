@@ -1,320 +1,16 @@
 % Chapter 9 --- Beyond the paper: a call-by-value model (Melliès §7.4).
+% CBV is the Ehrhard–Geoffroy paper's stated future work, built here on the
+% axiom-free Seely category via the Eilenberg–Moore / coalgebra route of
+% Melliès, Categorical Semantics of Linear Logic, §7.4 (EM = CBV, co-Kleisli = CBN).
 %
-% This chapter documents the call-by-value (CBV) development, which goes
-% BEYOND the Ehrhard–Geoffroy paper: their §9 is the LNL/Seely model, and
-% CBV is the paper's STATED FUTURE WORK (conclusion: "In future work we
-% will explain how this model can be used for interpreting call-by-value
-% or even call-by-push-value … languages …").  The formalisation pushes in
-% that direction along the Eilenberg–Moore / coalgebra route of
-% Melliès, *Categorical Semantics of Linear Logic*, §7.4 (EM/coalgebra =
-% CBV; co-Kleisli = CBN).
-%
-% Mirrors:
-%   theories/homs/em_cat.v             EM(!) (ICones_EM), the cofree functor
-%                                      !̃ = bang_cofree, the forgetful U, and
-%                                      the adjunction U ⊣ !̃ (adj_phi/adj_psi,
-%                                      round-trips, naturality, triangles)
-%   theories/homs/em_seely_comonoid.v  the Seely comonoid d_bang/e_bang on !A,
-%                                      LC2 (comonoid laws), LC3 (coalgebra-
-%                                      morphism), LC4 (dig a comonoid morphism);
-%                                      tens_cofree / unit_cofree
-%   theories/homs/em_cartesian.v       the FULL EM(!) is cartesian with product
-%                                      carried by the LINEAR ⊗ (not &);
-%                                      EMComon_all unconditional via the
-%                                      Melliès Prop 26-28 / Cor 17/20
-%                                      retraction-and-lifting argument
-%                                      (diagram81, coalg_mor_lift,
-%                                      coalg_d_is_mor_gen);
-%                                      ICones_EM_cartesian, EM_prod/EM_term,
-%                                      m_bang; em_pair_mor / em_proj1_mor /
-%                                      em_proj2_mor / em_term_mor; the
-%                                      transported commutative-comonoid pair
-%                                      (coalg_d, coalg_e) carried by every
-%                                      !-coalgebra (Melliès Prop 28 / Cor 20).
-%   theories/programs/infra/cbv_adjunction.v   the (lax symmetric) monoidal
-%                                      adjunction U ⊣ !̃ between ICones (linear)
-%                                      and the FULL category EM(!) of
-%                                      !-coalgebras (Melliès Prop 29);
-%                                      em_pair_mor_proj_id (cartesian η at
-%                                      the icones level, Fox 1976 / Prop 28);
-%                                      bang_m / bang_e0 / lax coherence /
-%                                      monoidal counit laws; the CBV_Model
-%                                      record + the witness ICones_CBV.
-%   theories/homs/fmeas_lax.v          the FMeas lax symmetric monoidal map
-%                                      fmeas_lax X Y : FMeas X ⊗ FMeas Y →
-%                                      FMeas (X × Y) bundled as an icones_hom
-%                                      via tensor_uncurry of the bilinear lift;
-%                                      Dirac identity fmeas_lax_dirac; uses
-%                                      bilin.v's int_to_linhom_pres_path_in_cone
-%                                      (the now-discharged path-preservation
-%                                      follow-up to paper Thm 6.1)
-%   theories/programs/infra/bool_cone.v   the 2-point sub-probability cone
-%                                      (paper §4.4 / Thm 4.24 coproduct
-%                                      cone_one ⊕ cone_one), bool_case
-%                                      universal co-pairing; the boolean
-%                                      cascade infrastructure used by ne_if.
-%   theories/programs/infra/bool_case_hom.v   bool_case at the linhom level
-%                                      (bool_case_linhom), unit-ball-free
-%                                      variant, alpha/beta decomposition.
-%   theories/programs/ppl.v            a higher-order, DIRECT-STYLE
-%                                      (Plotkin/Girard CBV), SINGLE-SORT,
-%                                      MULTI-VARIABLE, NAMED-VARIABLE
-%                                      PPL (the surface-calculus shape
-%                                      mirrors the Heunen-Kammar-Staton-
-%                                      Yang higher-order probabilistic
-%                                      calculus): one inductive
-%                                      [named_expr Γ τ] with constructors
-%                                      ne_var / ne_tt / ne_pair / ne_fst /
-%                                      ne_snd / ne_lam / ne_app / ne_let /
-%                                      ne_real / ne_add / ne_mul /
-%                                      ne_sample / ne_score / ne_true /
-%                                      ne_false / ne_bernoulli /
-%                                      ne_bernoulli_f / ne_if /
-%                                      ne_fix / ne_fix_mr.  Types
-%                                      tunit / tbase X / tprod / tfun /
-%                                      tbool; no tprob marker, no Ret, no
-%                                      ne_bind in the source.  This file
-%                                      now hosts ONLY the shared surface
-%                                      syntax + cross-cutting helpers
-%                                      (add_meas, mul_meas, add_lift,
-%                                      mul_lift, score_lift, const_icones,
-%                                      bernoulli, etc.) used by the CBV
-%                                      interpreter of ppl_cbv.v (the
-%                                      call-by-name interpreter consuming
-%                                      the same syntax is preserved on
-%                                      branch cbn-track).
-%   theories/programs/ppl_cbv.v        the CLEAN CBV interpreter — the
-%                                      linhom-valued, comonoid-primitive
-%                                      interpretation of named_expr.  Every
-%                                      expression denotes a linear morphism
-%                                      [eD M : linhom_car Γ̂ τ̂] in ICones,
-%                                      NOT a coalgebra morphism.  The
-%                                      coalgebra structure of the context
-%                                      is used only through the transported
-%                                      commutative-comonoid pair
-%                                      (coalg_d, coalg_e) carried by every
-%                                      !-coalgebra (Melliès Prop 28 /
-%                                      Cor 20).  No Moggi monad in the
-%                                      interpretation: no Tobj, no
-%                                      tunit_eta, no kbind / kcomp.
-%                                      tyD (tfun A B) = !̃(U⟦A⟧ ⊸ U⟦B⟧),
-%                                      a SINGLE !̃ on the function type
-%                                      (NO Tobj wrap on the codomain).
-%                                      The two boundaries with !̃ are ne_lam
-%                                      (adj_psi of tensor_curry, i.e. the
-%                                      coalg_str of the context's coalgebra)
-%                                      and ne_app (der to extract the
-%                                      function value out of its !̃-wrap).
-%                                      ne_fix (and ne_fix_mr at EVERY
-%                                      free body type) routes through
-%                                      fix_comb of em_fix_value.v — the
-%                                      seeded CBV value-fixpoint
-%                                      combinator, an EM-morphism by
-%                                      construction:
-%                                      ⟦fix s.M⟧ = fix_comb ∘ ⟦λs.M⟧;
-%                                      at products of free types via the
-%                                      Seely-transported fix_mr_comb
-%                                      (free_base / free_decomp +
-%                                      em_fix_mr.v::fix_comb_iso).
-%   theories/programs/infra/em_fix.v   the linear Kleene step Phi_fun
-%                                      on the linhom cone + the linhom
-%                                      LFP core (kleene_lin /
-%                                      linhom_lfp) and their ball /
-%                                      monot. / ω-continuity laws.  The
-%                                      zero-seeded operator it used to
-%                                      define is provably degenerate
-%                                      (em_fix_value.v::Phi_fun_lfp_eq0,
-%                                      the zero linhom on every input)
-%                                      and has been removed.
-%   theories/programs/infra/em_fix_value.v   the repaired seeded CBV
-%                                      value-fixpoint: the degeneracy
-%                                      record Phi_fun_lfp_eq0; the
-%                                      seeded Kleene core kleene_from /
-%                                      lfp_from; the interleaved chain
-%                                      fix_chain (x_{n+1} = der(F(x_n!)));
-%                                      the stable map fix_value (sup of
-%                                      the chain, assembled from SCones
-%                                      morphisms: §9.2 Yfix, the CCC,
-%                                      linhom_to_stablehom); fix_lin =
-%                                      lin fix_value and fix_comb =
-%                                      adj_psi fix_lin (an EM-morphism by
-%                                      construction); the computation law
-%                                      fix_prom_E; the coalgebraic-case
-%                                      simplification fix_coalg_simpl /
-%                                      fix_unfold_coalg; the identity
-%                                      witness fix_id_E /
-%                                      fix_id_nontrivial.
-%   theories/programs/infra/em_fix_mr.v   the Seely-transported value-
-%                                      fixpoint for mutual recursion:
-%                                      coalg_iso (isos of !-coalgebras,
-%                                      with id/sym/trans and the EM_prod
-%                                      congruence coalg_iso_prod);
-%                                      seely2_em_iso (the EM-level
-%                                      Seely-2 iso EM_prod (!̃X) (!̃Y) ≅
-%                                      !̃(X & Y) — the cone product &,
-%                                      not the tensor); fix_comb_iso
-%                                      (fix_comb conjugated by a coalg
-%                                      iso) with its computation law
-%                                      fix_comb_iso_prom_E and norm
-%                                      bound fix_comb_iso_norm.
-%   theories/programs/infra/cbv_fix_unfold.v   the semantic unfolding
-%                                      laws of the ne_fix clause:
-%                                      eD_fix_at_setlike (the prom-point
-%                                      computation), eD_fix_unfold (the
-%                                      recursion equation), the ne_fix_mr
-%                                      twins at tfun AND tprod
-%                                      (eD_fix_mr_prod_at_setlike /
-%                                      _neq0), and the closed-program
-%                                      corollaries.
-%   theories/programs/infra/let_sample_law.v   the let-at-sample Pettis
-%                                      integral law eD_let_sample_int
-%                                      (⟦let x = sample µ in K⟧(γ) =
-%                                      ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr), at arbitrary
-%                                      γ), the per-U evaluation
-%                                      icone_integral_fmeas_E, and the
-%                                      fused measure-on-U corollary
-%                                      eD_let_sample_mu_E.
-%   theories/programs/infra/affine_cascade.v   the scalar affine Kleene
-%                                      cascade (closed form, geometric
-%                                      form, limit) and the sup-mass
-%                                      bridge fmeas_kleene_sup_U_E for
-%                                      unit-ball FMeas chains.
-%   theories/programs/infra/cbv_anchors.v   semantic regression anchors:
-%                                      the shared-sample diagonal
-%                                      (let_bernoulli_pair_diag /
-%                                      let_sample_pair_diag) vs the
-%                                      independent tensor
-%                                      (pair_bernoulli_indep /
-%                                      pair_sample_indep), the β-rule
-%                                      eD_beta, the if-orientation pins,
-%                                      and the setlike-point kit.
-%   theories/programs/ex_reject_headline.v   the rejection-sampling
-%                                      headline: ex_reject_master /
-%                                      ex_reject_is_normalised_posterior /
-%                                      ex_reject_posterior_simple /
-%                                      ex_reject_mass_one /
-%                                      ex_reject_zero, plus the riders
-%                                      ex_geom_cbv_mass_one and
-%                                      ex_almost_loop_cbv_mass_one /
-%                                      ex_almost_loop_cbv_zero.
-%   theories/programs/ex_reject_model.v   the rejection-sampling
-%                                      COMBINATOR over any model:
-%                                      reject_model_master /
-%                                      reject_model_is_normalised /
-%                                      reject_model_mass(_one) /
-%                                      reject_model_zero (the
-%                                      sub-probability-honest
-%                                      normaliser 1 - m0 + If), plus
-%                                      the instance bridge
-%                                      ex_reject_comb_sampler_E /
-%                                      ex_reject_comb_sampler_master
-%                                      (the combinator at the sampler
-%                                      model λ_. sample µ denotes the
-%                                      SAME measure as ex_reject);
-%                                      the CONDITION combinator's law
-%                                      condition_model_E(_mass) and
-%                                      the readable ⟦·⟧ restatements
-%                                      (reject_prog_master,
-%                                      condition_E,
-%                                      condition_prog_evidence) with
-%                                      the equivalence
-%                                      reject_normalises_condition /
-%                                      reject_prog_computes_condition /
-%                                      reject_normalises_condition_prob
-%                                      (rejection sampling computes
-%                                      the conditioned model's
-%                                      normalised distribution).
-%   theories/programs/infra/cbv_marginals.v   the CBV marginal headlines
-%                                      of the basic sampling/scoring
-%                                      examples:
-%                                      ex_score_posterior_cbv_E (the
-%                                      unnormalised posterior),
-%                                      ex_reject_normalises_score
-%                                      (the score/rejection pairing),
-%                                      ex_random_constant_cbv_marginal
-%                                      (+ _dirac/_mass),
-%                                      ex_random_linear_cbv_marginal
-%                                      (+ rl_inner_marginal), and the
-%                                      Bayesian-regression model
-%                                      evidence
-%                                      ex_bayes_linear_cbv_evidence
-%                                      (+ _evidence2), with the
-%                                      probability-counit kit
-%                                      coalg_e_FMeas_prob /
-%                                      em_proj1_mor_unitE /
-%                                      em_proj1_mor_probE.
-%   theories/programs/infra/bool_cone_coalg.v   the §9.7-style 2-point
-%                                      !-coalgebra on bool_cone_car (a hand
-%                                      built specialisation of FMeas_
-%                                      coalgebra to the boolean carrier,
-%                                      without exposing a measurableType R
-%                                      on Ar): bool_coalg_str, the two
-%                                      coalgebra laws (counit / coassoc),
-%                                      and the universal-property dispatch
-%                                      lemma bool_cone_dispatch.
-%   theories/programs/examples.v       the surface PPL program pool (no
-%                                      denotation reduction lemmas;
-%                                      consumed by the CBV interpreter):
-%                                      sampling/scoring headlines
-%                                      ex_random_constant,
-%                                      ex_random_linear,
-%                                      ex_score_posterior, and the
-%                                      higher-order Bayesian linear
-%                                      regression ex_bayes_linear (obs
-%                                      record + obs_fold + the
-%                                      3-observation ex_bayes_linear3);
-%                                      recursive examples ex_loop, ex_geom,
-%                                      ex_almost_loop; the mutual-
-%                                      recursion witness ex_even_odd_pair
-%                                      (+ ex_even / ex_odd); boolean
-%                                      sanity checks ex_true, ex_false,
-%                                      ex_fair_coin, ex_if_demo; the
-%                                      rejection-sampling headline
-%                                      program ex_reject, the
-%                                      rejection-sampling COMBINATOR
-%                                      ex_reject_comb (over any model
-%                                      m : ta -> tR), the sampler
-%                                      model ex_sampler, the soft
-%                                      conditioning combinator
-%                                      ex_condition_comb /
-%                                      ex_condition (+ the Condition
-%                                      surface form), the iterated-
-%                                      conditioning reading of the
-%                                      regression (condition_at /
-%                                      iter_condition /
-%                                      ex_bayes_linear_is_iter_condition),
-%                                      the named distributions
-%                                      gaussian / uniform (pmeas), and
-%                                      the surface demos
-%                                      ex_surface_demo /
-%                                      ex_surface_walk.
-%
-% Status note (post-cleanup): every section of this chapter is AXIOM-FREE
-% (only the three classical boolp axioms): the Eilenberg–Moore category
-% and cofree adjunction; the Seely comonoid LC2–LC4; the FULL cartesian
-% EM(!) carried by the linear ⊗ (EMComon_all unconditional, Cor 20); the
-% cartesian η-rule em_pair_mor_proj_id (Fox 1976 / Prop 28 at the icones
-% level); the (lax symmetric) monoidal adjunction ICones_CBV; the FMeas
-% lax monoidal map and its Dirac identity; the boolean cascade
-% (bool_cone_car / bool_case / bool_case_linhom).  The interpreter
-% itself, ppl_cbv.v, defines eD as a LINHOM-VALUED, comonoid-primitive
-% recursion on named_expr; it is axiom-free, with ne_fix (and ne_fix_mr
-% at EVERY free body type) routed through fix_comb of em_fix_value.v
-% (the seeded CBV value-fixpoint combinator; at products of free types
-% via the Seely transport of em_fix_mr.v; the old zero-seeded iteration
-% of em_fix.v's linear step is provably degenerate —
-% em_fix_value.v::Phi_fun_lfp_eq0 — and the operator it defined has
-% been removed) and
-% tbool routed through bool_cone_coalg of
-% bool_cone_coalg.v (the §9.7-style 2-point !-coalgebra).  The previous
-% Moggi-monad presentation in the now-deleted cbv.v / earlier em_fix.v /
-% em_fix_arr.v / case_em_red.v / curry_kbind.v / cbv_outer_pt.v /
-% em_continuity.v / ex_geom_step.v / ex_loop_arr.v / ex_almost_loop_arr.v /
-% ex_almost_loop_step.v / ex_headlines.v / ex_random_dist.v /
-% ppl_cbv_geom_dist.v / ex_even_odd.v has been retired; the linhom-valued
-% reading on the comonoid-primitive recursion is lighter to formalise and
-% equivalent at the level of denotation (the cofree !̃ only surfaces at
-% function arrows, exactly per the linear-map view of programs).
+% .v index (all axiom-free bar the three classical boolp axioms):
+%   homs/em_cat.v, em_seely_comonoid.v, em_cartesian.v  EM(!), cofree adjunction, Seely comonoid, full cartesian EM(!)
+%   programs/infra/cbv_adjunction.v                     LNL monoidal adjunction U ⊣ !̃ (ICones_CBV)
+%   homs/fmeas_lax.v, programs/infra/bool_cone*.v       FMeas lax monoidal map; 2-point boolean cone/coalgebra
+%   programs/ppl.v, ppl_cbv.v                           shared surface syntax (named_expr) + linhom-valued CBV interpreter (eD)
+%   programs/infra/em_fix*.v, cbv_fix_unfold.v          seeded CBV value-fixpoint fix_comb + unfolding laws
+%   programs/infra/let_sample_law.v, affine_cascade.v, cbv_anchors.v, cbv_marginals.v  let-at-sample law, affine cascade, anchors, marginals
+%   programs/examples.v, ex_reject_headline.v, ex_reject_model.v  surface programs + rejection/conditioning headlines
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Beyond the paper: a call-by-value model (Melli\`es \S7.4)}%
@@ -385,7 +81,8 @@ its source coalgebra. The canonical witness is the let-then-pair
 fragment $\,\mathtt{let}\,x \,{=}\, \mathtt{sample}\,\mu\,\mathtt{in}\,(x, x)\,$: the
 share-then-measure denotation is a pushforward along the diagonal,
 whereas the measure-then-pair denotation is the cartesian product
-measure; the two distributions agree iff $\mu$ is a Dirac. Programs are
+measure; the two distributions agree iff $\mu$ is a Dirac (pinned as
+checked equations in \autoref{lem:cbv-anchor-shared}). Programs are
 therefore modelled as linear maps and never asked to be coalgebra
 morphisms; what every context coalgebra \emph{does} supply uniformly,
 through Melli\`es' Proposition 28 / Corollary 20
@@ -1242,26 +939,18 @@ $\mathrm{dig} \circ \mathrm{prom} = \mathrm{prom} \circ \mathrm{prom}$
 \end{lemma}
 
 \paragraph{Shared-sample semantics for boolean draws.}
-The transported commutative comonoid
+The transported comonoid
 $(\delta_{\mathtt{tbool}}, \varepsilon_{\mathtt{tbool}})$ that
-\autoref{lem:cbv-emcomon-all} carries on the
-$\mathord{!}$-coalgebra
+\autoref{lem:cbv-emcomon-all} carries on
 \rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg} is the
-\emph{diagonal pushforward}: under the CBV reading of
-\autoref{sec:cbv-ppl}, the share-then-measure denotation of
-\[
-  \mathtt{let}\,x = \mathtt{Bernoulli}(p)\,\mathtt{in}\,(x, x)
-\]
-is $p \cdot (T, T) + (1 - p) \cdot (F, F)$, whereas the
-independent-product denotation that the cofree fallback
-$\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$ would induce is the
-product measure
-$p^2 \cdot (T, T) + p(1 - p) \cdot (T, F) +
-(1 - p)p \cdot (F, T) + (1 - p)^2 \cdot (F, F)$. The diagonal-pushforward
-rule is the one a CBV-style let on a freshly sampled boolean variable
-should give, and is the boolean counterpart of the
-$\mathtt{tbase}\,X$ shared-sample story carried by the
-\rocq{Icones.homs.coalgebra.FMeas_coalgebra} of paper Theorem~9.7.
+diagonal pushforward: $\mathtt{let}\,x = \mathtt{Bernoulli}(p)\,
+\mathtt{in}\,(x, x)$ denotes $p \cdot (T, T) + (1 - p) \cdot (F, F)$,
+the boolean instance of the sharing semantics of
+\autoref{lem:cbv-anchor-shared} (not the independent square the cofree
+fallback $\widetilde{\mathord{!}}\,\mathtt{bool\_cone\_car}$ would
+induce), and the counterpart of the $\mathtt{tbase}\,X$ story carried
+by the \rocq{Icones.homs.coalgebra.FMeas_coalgebra} of paper
+Theorem~9.7.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The CBV value-fixpoint: degeneracy of the zero-seeded
@@ -1317,8 +1006,7 @@ free body type.
 \label{ssec:cbv-phifun}
 
 We first record the step whose zero-seeded iteration is the degeneracy
-contrast (the operator that iteration used to define has been removed
-from \texttt{em\_fix.v}; its last consumer, the
+contrast of \autoref{thm:cbv-yfix-degenerate} (its last consumer, the
 $\mathtt{ne\_fix\_mr}$-at-$\mathtt{tprod}$ clause, now goes through
 the genuine Seely transport of \autoref{ssec:cbv-fix-mr}). The step
 operator works at the linhom
@@ -1924,8 +1612,8 @@ Seely-transported combinator $\mathtt{fix\_mr\_comb}$ of
 \autoref{def:cbv-fix-mr-comb}
 (\rocq{Icones.programs.ppl_cbv.eD_fix_mr_prod_E}) --- the
 mutual-recursion fixpoint is genuine at every free body type
-(formerly the honest-scope placeholder was the degenerate zero-seeded
-iteration of \autoref{thm:cbv-yfix-degenerate}).
+(formerly the degenerate zero-seeded iteration of
+\autoref{thm:cbv-yfix-degenerate}).
 \end{definition}
 
 \begin{theorem}[Semantic unfolding of $\mathtt{ne\_fix}$]%
@@ -1983,7 +1671,7 @@ $\gamma$:
     retired zero-seeded placeholder
     (\autoref{thm:cbv-yfix-degenerate}).
 \end{itemize}
-The honest caveat: the unfolding is stated \emph{pointwise at setlike
+Scope: the unfolding is stated \emph{pointwise at setlike
 points}, not as a morphism equation --- the $\mathtt{adj\_psi}$
 packaging computes through $\mathtt{coalg\_str}$, which is only
 promoted-point-shaped on setlike inputs.
@@ -2033,25 +1721,13 @@ function type: $\mathtt{ne\_lam}$ wraps via $\mathtt{adj\_psi}$, and
 $\mathtt{ne\_app}$ unwraps via $\mathrm{der}$.
 
 \paragraph{Why linhom-valued and not coalgebra-morphism-valued.}
-Probabilistic programs do not in general commute with the
-$\widetilde{\mathord{!}}$-coalgebra duplicability structure carried by
-their source contexts; a probabilistic sample-then-pair has a different
-denotation than a pair-then-sample. The minimal witness is the
-let-then-pair fragment
-\[
-  \mathtt{let}\,x = \mathtt{sample}\,\mu\,\mathtt{in}\,(x, x)
-  \;:\;
-  \mathtt{tprod}\,\mathtt{tR}\,\mathtt{tR},
-\]
-whose share-then-measure denotation pushes $\mu$ along the diagonal
-$r \mapsto (r, r)$ and whose measure-then-pair denotation is the
-cartesian product measure $\mu \times \mu$; the two coincide iff $\mu$
-is a Dirac. The Theorem-9.7 coalgebra structure on $\FMeas$ encodes
-exactly the duplicability of shared samples, so a denotation that
-\emph{is} a coalgebra morphism would force the share-then-measure
-behaviour. The linhom-valued reading leaves the choice open: the
-interpreter places no duplicability requirement on the denotation, and
-the share-then-measure rule is the one a CBV-style let in fact gives.
+A coalgebra-morphism denotation would force every program to respect
+duplicability, hence to give the share-then-measure reading of
+$\mathtt{let}\,x = \mathtt{sample}\,\mu\,\mathtt{in}\,(x, x)$ --- the
+diagonal pushforward, distinct from the product $\mu \times \mu$ unless
+$\mu$ is a Dirac (\autoref{lem:cbv-anchor-shared}). The linhom-valued
+reading places no such requirement, leaving sampling and pairing free
+to disagree.
 
 \paragraph{Types and contexts.}
 The type interpretation
@@ -2294,12 +1970,12 @@ $\sem{\tau}$'s carrier.
 \end{itemize}
 
 \paragraph{The two $\widetilde{\mathord{!}}$ boundaries.}
-The CBV interpreter never mentions
-$\widetilde{\mathord{!}} \circ U$ in the codomain of any type, nor any
-$\mathtt{Tobj}$ / $\mathtt{tunit\_eta}$ / Kleisli bind. The cofree
-$\widetilde{\mathord{!}}$ appears in $\sem{\mathtt{tfun}\,A\,B}$ on the
-outside, and the interpreter touches it exactly twice: $\mathtt{adj\_psi}$
-at $\mathtt{ne\_lam}$ and $\mathrm{der}$ at $\mathtt{ne\_app}$. All
+The cofree $\widetilde{\mathord{!}}$ appears in
+$\sem{\mathtt{tfun}\,A\,B}$ on the outside, and the interpreter
+touches it exactly twice: $\mathtt{adj\_psi}$ at $\mathtt{ne\_lam}$ and
+$\mathrm{der}$ at $\mathtt{ne\_app}$ (no $\widetilde{\mathord{!}}\circ
+U$ in any codomain, no $\mathtt{Tobj}$ / $\mathtt{tunit\_eta}$ /
+Kleisli bind). All
 other compositional clauses ($\mathtt{ne\_let}$, $\mathtt{ne\_pair}$,
 $\mathtt{ne\_fst}$ / $\mathtt{ne\_snd}$, $\mathtt{ne\_if}$,
 $\mathtt{ne\_add}$ / $\mathtt{ne\_mul}$, $\mathtt{ne\_score}$) use only
@@ -2541,51 +2217,64 @@ measurable $[0,1]$ map through $\iota$ --- and the probability type
 \rocq{Icones.programs.ppl.tProb} is the \texttt{tbase} over that
 object. A value of type $\mathtt{tProb}\,P$ is a $[0,1]$-supported
 measure; a coin or score over it integrates the inclusion. On top of
-the kernel notations sits a witness-free readable layer: measurable
-function application \texttt{Meas \{ f, Hf \} e} (desugaring to
-\rocq{Icones.programs.ppl.ne_meas}); the value coin \texttt{Bern e}
-(\rocq{Icones.programs.ppl.pbern}) and the score \texttt{Sc e}
-(\rocq{Icones.programs.ppl.pscore}) over a $\mathtt{tProb}\,P$ value,
-reading the success probability / weight off the bundle density
-\rocq{Icones.programs.ppl.po_density}, with the engines
-\rocq{Icones.programs.ppl.bern_lift_P} /
-\rocq{Icones.programs.ppl.score_lift_P}; the constant-literal coin
-\texttt{Bernoulli [| p |]} over a bare real $p$, its $[0,1]$ bounds
-discharged by \texttt{lra}; the \texttt{tProb}-producing primitives
-\texttt{Sigmoid e} (\rocq{Icones.programs.ppl.psigmoid}, the logistic
-map \rocq{Icones.programs.ppl.sigmoid}),
-\texttt{Gausslik \{ s, y \} e} (\rocq{Icones.programs.ppl.pgausslik},
-the envelope-normalised Gaussian likelihood
-\rocq{Icones.programs.ppl.gauss_obs_density}) and \texttt{Gt0 e}
-(\rocq{Icones.programs.ppl.pgt0}, the strict-positivity indicator
-\rocq{Icones.programs.ppl.gt0_ind}), each pushing a real value through
-the bundle factoring \rocq{Icones.programs.ppl.po_into}, plus the
-general \texttt{ToProb \{ phi \} e} and the constant
-\texttt{Const pr e}; the Bayesian-conditioning operator
-\texttt{observe Gaussian \{ s, y \} e}, equal to
-\texttt{Sc (Gausslik \{ s, y \} e)}, scoring by
-\rocq{Icones.programs.ppl.gauss_obs_density} --- the deviation $s$ and
-datum $y$ are parameters, the predicted mean is the surface
-sub-expression $e$, and the normaliser is the distribution's intrinsic
-peak \rocq{Icones.programs.ppl.normal_peak} (no user-supplied
-envelope), with the denotation law
-\rocq{Icones.programs.ppl_cbv.observe_gauss_E};
-bundled sampling \texttt{sample m} for a sub-probability packaged
-with its unit-ball witness as a \rocq{Icones.programs.ppl.pmeas},
-with the named distributions
-\rocq{Icones.programs.examples.gaussian} /
-\rocq{Icones.programs.examples.uniform} transported from
-\mathcompA{}-analysis probabilities by
-\rocq{Icones.programs.ppl.prob_pmeas}; the comparison coin
-\texttt{e1 > e2} (the value coin at the strict-positivity indicator
-\rocq{Icones.programs.ppl.gt0_ind} of the difference ---
-deterministic on point masses); OCaml-style
-\texttt{let rec f x := M in K} (desugaring to
-$\mathtt{ne\_let}$-of-$\mathtt{ne\_fix}$-of-$\mathtt{ne\_lam}$, with
-an annotated variant for bodies that leave the binder type
-undetermined); and the soft conditioning form
-\texttt{Condition \{ d \} M} of
-\autoref{def:cbv-ex-condition}. The end-to-end demos are
+the kernel notations sits a witness-free readable layer, one surface
+form per constructor:
+\begin{itemize}
+  \item \texttt{Meas \{ f, Hf \} e} --- measurable function
+    application (\rocq{Icones.programs.ppl.ne_meas}).
+  \item \texttt{Bernoulli e} --- the value coin over a
+    $\mathtt{tProb}\,P$ value (\rocq{Icones.programs.ppl.pbern}),
+    success probability read off the bundle density
+    \rocq{Icones.programs.ppl.po_density} by the engine
+    \rocq{Icones.programs.ppl.bern_lift_P}.
+  \item \texttt{Score e} --- the score over a $\mathtt{tProb}\,P$
+    value (\rocq{Icones.programs.ppl.pscore}), weight read off the
+    same density by \rocq{Icones.programs.ppl.score_lift_P}.
+  \item \texttt{Bernoulli [| p |]} --- the constant-literal coin over
+    a bare real $p$, its $[0,1]$ bounds discharged by \texttt{lra}.
+  \item \texttt{Sigmoid e} --- a $\mathtt{tProb}$-producing primitive
+    (\rocq{Icones.programs.ppl.psigmoid}, the logistic map
+    \rocq{Icones.programs.ppl.sigmoid}).
+  \item \texttt{Gausslik e \{ s, y \}} --- mean-first Gaussian
+    likelihood (\rocq{Icones.programs.ppl.pgausslik}, the
+    envelope-normalised density
+    \rocq{Icones.programs.ppl.gauss_obs_density}): predicted mean $e$,
+    deviation $s$, datum $y$.
+  \item \texttt{Gt0 e} --- the strict-positivity coin
+    (\rocq{Icones.programs.ppl.pgt0}, the indicator
+    \rocq{Icones.programs.ppl.gt0_ind}). Each of these three pushes a
+    real value through the bundle factoring
+    \rocq{Icones.programs.ppl.po_into}.
+  \item \texttt{test f e} --- the user-test-function coin, the clean
+    form; its low-level workhorse is \texttt{ToProb \{ phi \} e}, with
+    the constant \texttt{Const pr e}.
+  \item \texttt{observe Gaussian e \{ s \} y} --- Bayesian
+    conditioning, denotationally \texttt{Score (Gausslik e \{ s, y
+    \})}: predicted mean $e$, deviation $s$, datum $y$, scoring by
+    \rocq{Icones.programs.ppl.gauss_obs_density} against the
+    distribution's intrinsic peak
+    \rocq{Icones.programs.ppl.normal_peak} (no user-supplied
+    envelope), with the denotation law
+    \rocq{Icones.programs.ppl_cbv.observe_gauss_E}.
+  \item \texttt{sample m} --- bundled sampling for a sub-probability
+    packaged with its unit-ball witness as a
+    \rocq{Icones.programs.ppl.pmeas}; the named distributions
+    \rocq{Icones.programs.examples.gaussian} /
+    \rocq{Icones.programs.examples.uniform} are transported from
+    \mathcompA{}-analysis probabilities by
+    \rocq{Icones.programs.ppl.prob_pmeas}.
+  \item \texttt{e1 > e2} --- the comparison coin at the indicator
+    \rocq{Icones.programs.ppl.gt0_ind} of the difference,
+    deterministic on point masses.
+  \item \texttt{let rec f x := M in K} --- OCaml-style recursion,
+    desugaring to
+    $\mathtt{ne\_let}$-of-$\mathtt{ne\_fix}$-of-$\mathtt{ne\_lam}$
+    (with an annotated variant for bodies that leave the binder type
+    undetermined).
+  \item \texttt{Condition \{ d \} M} --- the soft conditioning form of
+    \autoref{def:cbv-ex-condition}.
+\end{itemize}
+The end-to-end demos are
 \rocq{Icones.programs.examples.ex_surface_demo} and
 \rocq{Icones.programs.examples.ex_surface_walk}, with the elaboration
 pin \rocq{Icones.programs.examples.ex_surface_demo_decomp}.
@@ -2970,11 +2659,12 @@ observation, whose observation density is the envelope-normalised
 Gaussian likelihood
 $\mathtt{obs\_d}\,o := \mathtt{gauss\_obs\_density}\,(1/2)\,
 (\mathtt{obs\_y}\,o) : \mathbb{R} \to [0,1]$) contributes one clause
-$\mathtt{let\,\_ = Sc\,(Gausslik}\,\{1/2,
-\mathtt{obs\_y}\,o\}\,
-(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!]))
-\,\mathtt{in}\,\cdots$, the $\mathtt{observe\,Gaussian}\,\{1/2,
-\mathtt{obs\_y}\,o\}$ surface form scoring the model's value at the
+$\mathtt{let\,\_ = Score\,(Gausslik}\,
+(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!])\,
+\{1/2, \mathtt{obs\_y}\,o\})
+\,\mathtt{in}\,\cdots$, the $\mathtt{observe\,Gaussian}\,
+(\#\mathtt{"f"} \mathbin{@} [\![\mathtt{obs\_x}\,o]\!])\,\{1/2\}\,
+(\mathtt{obs\_y}\,o)$ surface form scoring the model's value at the
 known input;
 the program returns $\#\mathtt{"f"}$ --- the posterior over
 \emph{functions}. The fold over a meta-level observation list is the
@@ -3076,8 +2766,7 @@ bundled sub-probability prior $m$), with the recursive sampler
 applied to the identity acceptance continuation in the
 \texttt{let rec} continuation. Write
 $\nu = \sem{\mathtt{ex\_reject}}(1) \in \FMeas(R_\mathrm{obj})$ for
-its closed CBV denotation, $\mu$ for the measure carried by $m$,
-$I_f = \int f\,d\mu$ and $I_f^U = \int_U f\,d\mu$.
+its closed CBV denotation, and $\mu$ for the measure carried by $m$.
 \end{definition}
 
 \subsection{The scalar affine cascade and the sup-mass bridge}%
@@ -3177,7 +2866,7 @@ For every measurable $U$,
   \;=\;
   \int_U f\,d\mu
   \;+\;
-  \bigl(1 - I_f\bigr)\cdot \nu_n(U).
+  \Bigl(1 - \int f\,d\mu\Bigr)\cdot \nu_n(U).
 \]
 \end{lemma}
 
@@ -3189,7 +2878,7 @@ $r \sim \mu$ of the dispatched branch mass of step 4, which is
 $f(r)\cdot\mathbf{1}_U(r) + (1 - f(r))\cdot\nu_n(U)$
 (\rocq{Icones.programs.ex_reject_headline.reject_case_mass});
 splitting the integral and using the unit mass of the prior
-($\int (1 - f)\,d\mu = 1 - I_f$,
+($\int (1 - f)\,d\mu = 1 - \int f\,d\mu$,
 \rocq{Icones.programs.ex_reject_headline.reject_int_onem}) gives the
 affine recurrence.
 \end{proof}
@@ -3201,7 +2890,7 @@ posterior]\label{thm:cbv-reject-posterior}
 \rocq{Icones.programs.ex_reject_headline.ex_reject_is_normalised_posterior}\rocqok
 \uses{lem:cbv-reject-recurrence, lem:cbv-affine-cascade,
 lem:cbv-sup-mass}
-If $0 < I_f$ then for every measurable $U$,
+If $0 < \int f\,d\mu$ then for every measurable $U$,
 \[
   \nu(U) \;=\; \frac{\int_U f\,d\mu}{\int f\,d\mu}
 \]
@@ -3212,9 +2901,9 @@ acceptance predicate $f$.
 \begin{proof}
 The per-iterate masses $x_n = \nu_n(U)$ satisfy $x_0 = 0$ and the
 affine recurrence of \autoref{lem:cbv-reject-recurrence} with
-$a = I_f^U$ and $q = 1 - I_f < 1$; by
+$a = \int_U f\,d\mu$ and $q = 1 - \int f\,d\mu < 1$; by
 \autoref{lem:cbv-affine-cascade} they converge to
-$I_f^U / I_f$, and the sup-mass bridge
+$\int_U f\,d\mu \,/\, \int f\,d\mu$, and the sup-mass bridge
 (\autoref{lem:cbv-sup-mass}) identifies that limit with the mass of
 the supremum $\nu$ at $U$.
 \end{proof}
@@ -3226,15 +2915,15 @@ corollaries]\label{thm:cbv-reject-master}
 \rocq{Icones.programs.ex_reject_headline.ex_reject_mass_one}\rocqok
 \rocq{Icones.programs.ex_reject_headline.ex_reject_zero}\rocqok
 \uses{thm:cbv-reject-posterior}
-Unconditionally --- graceful at $I_f = 0$ --- for every measurable
-$U$:
+Unconditionally --- needing no division, so it holds even at
+$\int f\,d\mu = 0$ --- for every measurable $U$:
 \[
-  I_f \cdot \nu(U) \;=\; I_f^U.
+  \Bigl(\int f\,d\mu\Bigr) \cdot \nu(U) \;=\; \int_U f\,d\mu.
 \]
-Corollaries: if $I_f = 1$ then $\nu(U) = I_f^U$, the reweighted prior
+Corollaries: if $\int f\,d\mu = 1$ then $\nu(U) = \int_U f\,d\mu$, the reweighted prior
 itself
 (\rocq{Icones.programs.ex_reject_headline.ex_reject_posterior_simple});
-if $0 < I_f$ then $\nu(\mathbb{R}) = 1$ --- the sampler terminates
+if $0 < \int f\,d\mu$ then $\nu(\mathbb{R}) = 1$ --- the sampler terminates
 almost surely whenever acceptance has positive mass
 (\rocq{Icones.programs.ex_reject_headline.ex_reject_mass_one}); and if
 $f \equiv 0$ then $\nu = 0$ --- certain rejection diverges
@@ -3250,9 +2939,9 @@ higher-order \emph{combinator} over an arbitrary probabilistic model
 function value $m : t_a \to \mathtt{tR}$ --- itself a lambda-written
 program, free to contain samples, scores and recursion --- and the
 combinator takes the model and an input and computes the
-corresponding normalised distribution. The theorems are
-\emph{sub-probability honest}: the model may itself diverge, and its
-missing mass enters the normaliser.
+corresponding normalised distribution. The theorems hold even when the
+model is a strict sub-probability: a model that itself diverges puts
+its missing mass into the normaliser.
 
 \begin{definition}[The surface combinator
 $\mathtt{ex\_reject\_comb}$]\label{def:cbv-ex-reject-comb}
@@ -3290,8 +2979,7 @@ instance) --- and the input is an arbitrary setlike unit-ball point
 $a_0 : U\sem{t_a}$. Write
 $\nu_M = g(a_0)$ for the model's output \emph{sub}-distribution at
 the input (\rocq{Icones.programs.ex_reject_model.reject_model_dist}),
-$m_0 = \nu_M(\mathbb{R})$ for its total mass,
-$I_f = \int f\,d\nu_M$, $I_f^U = \int_U f\,d\nu_M$, and $\nu$ for the
+$m_0 = \nu_M(\mathbb{R})$ for its total mass, and $\nu$ for the
 CBV denotation of $(\mathtt{ex\_reject\_comb}\;m)\;a$
 (\rocq{Icones.programs.ex_reject_model.reject_model_denot}).
 \end{definition}
@@ -3349,7 +3037,7 @@ For every measurable $U$,
   \;=\;
   \int_U f\,d\nu_M
   \;+\;
-  \bigl(m_0 - I_f\bigr)\cdot \nu_n(U).
+  \Bigl(m_0 - \int f\,d\nu_M\Bigr)\cdot \nu_n(U).
 \]
 \end{lemma}
 
@@ -3360,7 +3048,7 @@ $r \sim \nu_M$ of the dispatched branch mass
 $f(r)\cdot\mathbf{1}_U(r) + (1 - f(r))\cdot\nu_n(U)$
 (\rocq{Icones.programs.ex_reject_model.rm_case_mass}); splitting the
 integral, the rejected-AND-model-terminated weight is
-$\int (1 - f)\,d\nu_M = m_0 - I_f$
+$\int (1 - f)\,d\nu_M = m_0 - \int f\,d\nu_M$
 (\rocq{Icones.programs.ex_reject_model.rm_int_onem}) --- the model's
 own divergence mass $1 - m_0$ never re-enters the loop.
 \end{proof}
@@ -3374,27 +3062,26 @@ normalised distribution]\label{thm:cbv-reject-model}
 \rocq{Icones.programs.ex_reject_model.reject_model_zero}\rocqok
 \uses{lem:cbv-reject-model-recurrence, lem:cbv-affine-cascade,
 lem:cbv-sup-mass}
-Unconditionally, for every measurable $U$, the
-\emph{sub-probability-honest} master identity
+Unconditionally, for every measurable $U$, the master identity
 \[
-  \bigl(1 - m_0 + I_f\bigr) \cdot \nu(U) \;=\; I_f^U
+  \Bigl(1 - m_0 + \int f\,d\nu_M\Bigr) \cdot \nu(U) \;=\; \int_U f\,d\nu_M
 \]
 (\rocq{Icones.programs.ex_reject_model.reject_model_master}): a
-single trial is rejected-and-retried with probability $m_0 - I_f$
+single trial is rejected-and-retried with probability $m_0 - \int f\,d\nu_M$
 (the model terminated AND the coin rejected), so the
-success-per-trial mass is $1 - (m_0 - I_f)$. Corollaries: under loop
-progress $0 < 1 - m_0 + I_f$ (automatic as soon as $0 < I_f$, and
+success-per-trial mass is $1 - (m_0 - \int f\,d\nu_M)$. Corollaries: under loop
+progress $0 < 1 - m_0 + \int f\,d\nu_M$ (automatic as soon as $0 < \int f\,d\nu_M$, and
 also whenever the model is a strict sub-probability),
 \[
-  \nu(U) \;=\; \frac{I_f^U}{1 - m_0 + I_f},
+  \nu(U) \;=\; \frac{\int_U f\,d\nu_M}{1 - m_0 + \int f\,d\nu_M},
   \qquad
-  \nu(\mathbb{R}) \;=\; \frac{I_f}{1 - m_0 + I_f}
+  \nu(\mathbb{R}) \;=\; \frac{\int f\,d\nu_M}{1 - m_0 + \int f\,d\nu_M}
 \]
 (\rocq{Icones.programs.ex_reject_model.reject_model_is_normalised},
 \rocq{Icones.programs.ex_reject_model.reject_model_mass}); for a
 \emph{probability} model ($m_0 = 1$) with positive acceptance
-($0 < I_f$), $\nu(\mathbb{R}) = 1$ --- almost-sure termination, with
-the classical normaliser $I_f$
+($0 < \int f\,d\nu_M$), $\nu(\mathbb{R}) = 1$ --- almost-sure termination, with
+the classical normaliser $\int f\,d\nu_M$
 (\rocq{Icones.programs.ex_reject_model.reject_model_mass_one}); and
 $f \equiv 0$ gives $\nu = 0$ --- certain rejection diverges, whatever
 the model does
@@ -3403,13 +3090,13 @@ the model does
 
 \begin{proof}
 The per-iterate masses satisfy the affine cascade of
-\autoref{lem:cbv-reject-model-recurrence} with $a = I_f^U$ and
-$q = m_0 - I_f$; here $0 \le q \le 1$ ($I_f \le m_0$ since
+\autoref{lem:cbv-reject-model-recurrence} with $a = \int_U f\,d\nu_M$ and
+$q = m_0 - \int f\,d\nu_M$; here $0 \le q \le 1$ ($\int f\,d\nu_M \le m_0$ since
 $f \le 1$, and $m_0 \le 1$ since the model value and the input are
 unit-ball). When $q < 1$ the cascade converges to $a / (1 - q)$
 (\autoref{lem:cbv-affine-cascade}) and the sup-mass bridge
 (\autoref{lem:cbv-sup-mass}) closes the identity; the degenerate
-corner $q = 1$ forces $m_0 = 1$ and $I_f = 0$ --- the loop never
+corner $q = 1$ forces $m_0 = 1$ and $\int f\,d\nu_M = 0$ --- the loop never
 terminates --- and both sides vanish (the chain is constantly zero).
 \end{proof}
 
@@ -3432,7 +3119,7 @@ acceptance continuation, the other over a model), but their Kleene
 chains satisfy the same per-iterate mass cascade from $0$
 (\rocq{Icones.programs.ex_reject_model.inst_iter_massE}), so the
 suprema coincide by uniqueness of limits. The classical master
-identity $I_f \cdot \nu(U) = I_f^U$ is re-derived through the bridge
+identity $\bigl(\int f\,d\mu\bigr)\cdot \nu(U) = \int_U f\,d\mu$ is re-derived through the bridge
 (\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_master}).
 \end{theorem}
 
@@ -3494,7 +3181,7 @@ measurable $U$,
 \]
 (\rocq{Icones.programs.ex_reject_model.condition_model_E}); at
 $U = \mathbb{R}$ the total mass is the \emph{model evidence}
-$I_f = \int f\,d\nu_M$
+$\int f\,d\nu_M$
 (\rocq{Icones.programs.ex_reject_model.condition_model_mass}). This
 generalises the unnormalised score posterior of
 \autoref{thm:cbv-score-posterior} from the hard-coded
@@ -3528,8 +3215,9 @@ normalised distribution]\label{thm:cbv-condition-reject}
 \rocq{Icones.programs.ex_reject_model.reject_normalises_condition_prob}\rocqok
 \uses{lem:cbv-condition-law, thm:cbv-reject-model}
 Over the same arbitrary model program and the same input, write
-$Z = 1 - \nu_M(\mathbb{R}) + \int f\,d\nu_M$ for the
-sub-probability-honest normaliser. Then, unconditionally, for every
+$Z = 1 - \nu_M(\mathbb{R}) + \int f\,d\nu_M$ for the normaliser (it
+absorbs the model's missing mass, \autoref{ssec:cbv-reject-model}).
+Then, unconditionally, for every
 measurable $U$,
 \[
   Z \cdot \sem{\mathtt{reject}\;M\;f}(U)
@@ -3646,109 +3334,102 @@ $\mathtt{one1}$.
 
 \paragraph{Delivered and axiom-free.}
 The CBV \emph{model} and its supporting infrastructure are axiom-clean
-(only the three classical \texttt{boolp} axioms): the Eilenberg--Moore
-category and cofree adjunction (\autoref{sec:cbv-em},
-\rocq{Icones.homs.em_cat.ICones_EM}); the Seely comonoid with LC2--LC4
-(\autoref{sec:cbv-comonoid}); the \emph{full} cartesian
-$\mathrm{EM}(\mathord{!})$ carried by the linear $\otimes$
-(\autoref{thm:cbv-cartesian},
-\rocq{Icones.homs.em_cartesian.ICones_EM_cartesian}) with the
-unconditional comonoidality witness
-\rocq{Icones.homs.em_cartesian.EMComon_all}
-(\autoref{lem:cbv-emcomon-all}); the cartesian $\eta$-rule
-\rocq{Icones.programs.infra.cbv_adjunction.em_pair_mor_proj_id}
-(\autoref{thm:cbv-cart-eta}, Fox 1976 / Melli\`es Prop 28 at the
-icones level); the LNL monoidal adjunction bundled as
-\rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV}
-(\autoref{thm:cbv-model}); the FMeas lax symmetric monoidal map
-\rocq{Icones.homs.fmeas_lax.fmeas_lax} at the $\ICones$ level together
-with its Dirac identity \rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac}
-and the discharged paper-\S6 follow-up
-\rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}
-(\autoref{thm:cbv-fmeas-lax}); the term-level score lift
-\rocq{Icones.programs.ppl.score_lift} and its Dirac identity
-\rocq{Icones.programs.ppl.score_lift_dirac}
-(\autoref{lem:ppl-score-tm-lift}); the boolean cascade
-(\autoref{sec:cbv-bool}) ---
-\rocq{Icones.programs.infra.bool_cone.bool_cone_car} as the paper
-\S4.4 / Thm 4.24 coproduct
-$\mathtt{cone\_one}\oplus\mathtt{cone\_one}$, the icones-hom packaging
-\rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom} (with
-unit-ball-free variant
-\rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}), the
-linhom-level if-then-else combinator
-\rocq{Icones.programs.ppl_cbv.if_icones} used by $\mathtt{ne\_if}$
-(\autoref{def:cbv-case-em}), and the \S9.7-style 2-point
-$\mathord{!}$-coalgebra
-\rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}
-(\autoref{def:cbv-bool-cone-coalg}) used as the carrier of
-$\sem{\mathtt{tbool}}$; the value-dependent Bernoulli lift
-\rocq{Icones.programs.ppl.bern_lift} with its Dirac, integral and
-total-mass identities (\autoref{lem:ppl-bern-lift}), serving the new
-$\mathtt{ne\_bernoulli\_f}$ constructor; the seeded CBV
-value-fixpoint of \autoref{sec:cbv-yfix-fun} --- the degeneracy record
-\rocq{Icones.programs.infra.em_fix_value.Phi_fun_lfp_eq0}
-(\autoref{thm:cbv-yfix-degenerate}), the interleaved chain
-\rocq{Icones.programs.infra.em_fix_value.fix_chain}, the stable value
-map \rocq{Icones.programs.infra.em_fix_value.fix_value}
-(\autoref{thm:cbv-fix-value}), the EM-morphism
-\rocq{Icones.programs.infra.em_fix_value.fix_comb} with its
-computation law
-\rocq{Icones.programs.infra.em_fix_value.fix_prom_E}
-(\autoref{thm:cbv-fix-comb}), the coalgebraic-case simplification
-\rocq{Icones.programs.infra.em_fix_value.fix_coalg_simpl}
-(\autoref{thm:cbv-fix-coalg}), and the interpreter-level unfolding
-laws \rocq{Icones.programs.infra.cbv_fix_unfold.eD_fix_unfold}
-(\autoref{thm:cbv-fix-unfold}); the let-at-sample Pettis integral law
-\rocq{Icones.programs.infra.let_sample_law.eD_let_sample_int} with its
-measure-on-$U$ corollary and the semantic anchors of
-\autoref{sec:cbv-laws}; the linhom-valued, comonoid-primitive
-CBV interpreter \rocq{Icones.programs.ppl_cbv.eD} of
-\autoref{sec:cbv-ppl}, with its type interpretation
-\rocq{Icones.programs.ppl_cbv.tyD_cbv}, context interpretation
-\rocq{Icones.programs.ppl_cbv.ctxD_cbv}, and variable lookup
-\rocq{Icones.programs.ppl_cbv.var_lookup_cbv}; the surface
-syntax of \texttt{theories/programs/ppl.v} consumed by this CBV
-interpreter, with the
-surface program pool of \texttt{theories/programs/examples.v}
-(\rocq{Icones.programs.examples.ex_random_constant},
-\rocq{Icones.programs.examples.ex_random_linear},
-\rocq{Icones.programs.examples.ex_score_posterior},
-\rocq{Icones.programs.examples.ex_bayes_linear},
-\rocq{Icones.programs.examples.ex_loop},
-\rocq{Icones.programs.examples.ex_geom},
-\rocq{Icones.programs.examples.ex_almost_loop},
-\rocq{Icones.programs.examples.ex_even_odd_pair},
-\rocq{Icones.programs.examples.ex_reject}, plus the four boolean
-sanity checks); and the rejection-sampling headline of
-\autoref{sec:cbv-geom-mass} ---
-\rocq{Icones.programs.ex_reject_headline.ex_reject_master},
-\rocq{Icones.programs.ex_reject_headline.ex_reject_is_normalised_posterior},
-\rocq{Icones.programs.ex_reject_headline.ex_reject_mass_one},
-\rocq{Icones.programs.ex_reject_headline.ex_reject_zero} --- with the
-riders
-\rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_mass_one} and
-\rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_mass_one}
-/ \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_zero};
-the CBV marginals of \autoref{ssec:cbv-marginals} ---
-\rocq{Icones.programs.infra.cbv_marginals.ex_score_posterior_cbv_E},
-\rocq{Icones.programs.infra.cbv_marginals.ex_reject_normalises_score},
-\rocq{Icones.programs.infra.cbv_marginals.ex_random_constant_cbv_marginal},
-\rocq{Icones.programs.infra.cbv_marginals.ex_random_linear_cbv_marginal},
-\rocq{Icones.programs.infra.cbv_marginals.ex_bayes_linear_cbv_evidence};
-and the soft conditioning capstone of \autoref{ssec:cbv-condition}
---- the combinator
-\rocq{Icones.programs.examples.ex_condition_comb}, the conditioning
-law \rocq{Icones.programs.ex_reject_model.condition_model_E} with its
-readable form \rocq{Icones.programs.ex_reject_model.condition_E}, THE
-EQUIVALENCE
-\rocq{Icones.programs.ex_reject_model.reject_normalises_condition}
-(with the division and probability-model forms
-\rocq{Icones.programs.ex_reject_model.reject_prog_computes_condition}
-/
-\rocq{Icones.programs.ex_reject_model.reject_normalises_condition_prob}),
-and the iterated-conditioning reading of the regression
-\rocq{Icones.programs.examples.ex_bayes_linear_is_iter_condition}.
+(only the three classical \texttt{boolp} axioms), one entry per section:
+\begin{itemize}
+  \item EM category and cofree adjunction (\autoref{sec:cbv-em}):
+    \rocq{Icones.homs.em_cat.ICones_EM}.
+  \item Seely comonoid LC2--LC4 (\autoref{sec:cbv-comonoid}).
+  \item Full cartesian $\mathrm{EM}(\mathord{!})$ on the linear
+    $\otimes$ (\autoref{thm:cbv-cartesian}):
+    \rocq{Icones.homs.em_cartesian.ICones_EM_cartesian}, with the
+    unconditional witness \rocq{Icones.homs.em_cartesian.EMComon_all}
+    (\autoref{lem:cbv-emcomon-all}).
+  \item Cartesian $\eta$-rule (\autoref{thm:cbv-cart-eta}, Fox 1976 /
+    Prop 28):
+    \rocq{Icones.programs.infra.cbv_adjunction.em_pair_mor_proj_id}.
+  \item LNL monoidal adjunction (\autoref{thm:cbv-model}):
+    \rocq{Icones.programs.infra.cbv_adjunction.ICones_CBV}.
+  \item FMeas lax monoidal map (\autoref{thm:cbv-fmeas-lax}):
+    \rocq{Icones.homs.fmeas_lax.fmeas_lax}, its Dirac identity
+    \rocq{Icones.homs.fmeas_lax.fmeas_lax_dirac}, and the discharged
+    paper-\S6 follow-up
+    \rocq{Icones.homs.bilin.int_to_linhom_pres_path_in_cone}.
+  \item Term-level score lift (\autoref{lem:ppl-score-tm-lift}):
+    \rocq{Icones.programs.ppl.score_lift},
+    \rocq{Icones.programs.ppl.score_lift_dirac}.
+  \item Boolean cascade (\autoref{sec:cbv-bool}): the paper \S4.4 /
+    Thm 4.24 coproduct
+    \rocq{Icones.programs.infra.bool_cone.bool_cone_car}, the packaging
+    \rocq{Icones.programs.infra.bool_case_hom.bool_case_icones_hom}
+    (unit-ball-free variant
+    \rocq{Icones.programs.infra.bool_case_hom.bool_case_linhom_gen}),
+    the if-then-else combinator
+    \rocq{Icones.programs.ppl_cbv.if_icones} (\autoref{def:cbv-case-em}),
+    and the \S9.7-style 2-point coalgebra
+    \rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}
+    (\autoref{def:cbv-bool-cone-coalg}).
+  \item Value-dependent Bernoulli lift (\autoref{lem:ppl-bern-lift}):
+    \rocq{Icones.programs.ppl.bern_lift}.
+  \item Seeded CBV value-fixpoint (\autoref{sec:cbv-yfix-fun}): the
+    degeneracy record
+    \rocq{Icones.programs.infra.em_fix_value.Phi_fun_lfp_eq0}
+    (\autoref{thm:cbv-yfix-degenerate}), the chain
+    \rocq{Icones.programs.infra.em_fix_value.fix_chain}, the stable map
+    \rocq{Icones.programs.infra.em_fix_value.fix_value}
+    (\autoref{thm:cbv-fix-value}), the EM-morphism
+    \rocq{Icones.programs.infra.em_fix_value.fix_comb} with computation
+    law \rocq{Icones.programs.infra.em_fix_value.fix_prom_E}
+    (\autoref{thm:cbv-fix-comb}), the coalgebraic simplification
+    \rocq{Icones.programs.infra.em_fix_value.fix_coalg_simpl}
+    (\autoref{thm:cbv-fix-coalg}), and the unfolding law
+    \rocq{Icones.programs.infra.cbv_fix_unfold.eD_fix_unfold}
+    (\autoref{thm:cbv-fix-unfold}).
+  \item Let-at-sample Pettis integral law (\autoref{sec:cbv-laws}):
+    \rocq{Icones.programs.infra.let_sample_law.eD_let_sample_int}.
+  \item Linhom-valued, comonoid-primitive CBV interpreter
+    (\autoref{sec:cbv-ppl}): \rocq{Icones.programs.ppl_cbv.eD}, with
+    type interpretation \rocq{Icones.programs.ppl_cbv.tyD_cbv}, context
+    interpretation \rocq{Icones.programs.ppl_cbv.ctxD_cbv}, and
+    variable lookup \rocq{Icones.programs.ppl_cbv.var_lookup_cbv}, over
+    the surface syntax of \texttt{theories/programs/ppl.v} and the
+    program pool of \texttt{theories/programs/examples.v}
+    (\rocq{Icones.programs.examples.ex_random_constant},
+    \rocq{Icones.programs.examples.ex_random_linear},
+    \rocq{Icones.programs.examples.ex_score_posterior},
+    \rocq{Icones.programs.examples.ex_bayes_linear},
+    \rocq{Icones.programs.examples.ex_loop},
+    \rocq{Icones.programs.examples.ex_geom},
+    \rocq{Icones.programs.examples.ex_almost_loop},
+    \rocq{Icones.programs.examples.ex_even_odd_pair},
+    \rocq{Icones.programs.examples.ex_reject}, plus four boolean sanity
+    checks).
+  \item Rejection-sampling headline (\autoref{sec:cbv-geom-mass}):
+    \rocq{Icones.programs.ex_reject_headline.ex_reject_master},
+    \rocq{Icones.programs.ex_reject_headline.ex_reject_is_normalised_posterior},
+    \rocq{Icones.programs.ex_reject_headline.ex_reject_mass_one},
+    \rocq{Icones.programs.ex_reject_headline.ex_reject_zero}, with
+    riders
+    \rocq{Icones.programs.ex_reject_headline.ex_geom_cbv_mass_one},
+    \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_mass_one}
+    / \rocq{Icones.programs.ex_reject_headline.ex_almost_loop_cbv_zero}.
+  \item CBV marginals (\autoref{ssec:cbv-marginals}):
+    \rocq{Icones.programs.infra.cbv_marginals.ex_score_posterior_cbv_E},
+    \rocq{Icones.programs.infra.cbv_marginals.ex_reject_normalises_score},
+    \rocq{Icones.programs.infra.cbv_marginals.ex_random_constant_cbv_marginal},
+    \rocq{Icones.programs.infra.cbv_marginals.ex_random_linear_cbv_marginal},
+    \rocq{Icones.programs.infra.cbv_marginals.ex_bayes_linear_cbv_evidence}.
+  \item Soft conditioning capstone (\autoref{ssec:cbv-condition}): the
+    combinator \rocq{Icones.programs.examples.ex_condition_comb}, the
+    law \rocq{Icones.programs.ex_reject_model.condition_model_E} with
+    readable form \rocq{Icones.programs.ex_reject_model.condition_E},
+    the equivalence
+    \rocq{Icones.programs.ex_reject_model.reject_normalises_condition}
+    (division and probability-model forms
+    \rocq{Icones.programs.ex_reject_model.reject_prog_computes_condition}
+    / \rocq{Icones.programs.ex_reject_model.reject_normalises_condition_prob}),
+    and the iterated-conditioning reading
+    \rocq{Icones.programs.examples.ex_bayes_linear_is_iter_condition}.
+\end{itemize}
 
 \paragraph{Follow-ups.}
 The CBV-side residues listed in earlier drafts of this status section
@@ -3758,7 +3439,8 @@ value-fixpoint combinator
 (\autoref{def:cbv-fix-clause}); $\mathtt{ne\_fix\_mr}$ is genuine at
 \emph{every} free body type through the Seely transport of
 \autoref{ssec:cbv-fix-mr} (formerly the last consumer of the
-degenerate zero-seeded operator, since removed); $\mathtt{tbool}$ is the
+degenerate zero-seeded operator, \autoref{thm:cbv-yfix-degenerate});
+$\mathtt{tbool}$ is the
 \S9.7-style
 \rocq{Icones.programs.infra.bool_cone_coalg.bool_cone_coalg}; the
 CBV-side mass identities are proved in \autoref{sec:cbv-geom-mass};

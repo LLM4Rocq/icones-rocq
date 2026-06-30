@@ -1,20 +1,21 @@
 # A direct-style PPL on top of the integrable-cones model
 
 A typed probabilistic functional language sits on top of the paper's
-categorical model. Each type denotes a `!`-coalgebra, each program a
-*linear* morphism in `ICone` between the underlying carriers of the
-context and result coalgebras, and recursion at function type is
+categorical model. Each type denotes a `!`-coalgebra. Each program
+denotes a *linear* morphism in `ICone`, between the underlying carriers
+of the context and result coalgebras. Recursion at function type is
 realised by a value-fixpoint *combinator* in the Eilenberg–Moore
-category of `!` — the supremum of an interleaved Kleene chain seeded
-at the diverging function value, computed pointwise through a
-`der`/`prom` sandwich. The language is direct-style
-(Plotkin / Girard), named-variable (Saito–Affeldt APLAS 2023), and
-probabilistic effects live entirely in the interpretation — there is
-no `tprob` type marker, no syntactic `return`, no `bind`. Examples
-are listed in the [Examples tab](../examples/). A call-by-name
-interpretation of the same surface syntax (through the cartesian
-closed `SCones` of paper §7) is preserved on the `cbn-track` branch;
-main is CBV-only.
+category of `!`: the supremum of an interleaved Kleene chain, seeded at
+the diverging function value and computed pointwise through a
+`der`/`prom` sandwich.
+
+The language is direct-style (Plotkin / Girard) and named-variable
+(Saito–Affeldt APLAS 2023). Probabilistic effects live entirely in the
+interpretation: there is no `tprob` type marker, no syntactic `return`,
+no `bind`. A call-by-name interpretation of the same surface syntax
+(through the cartesian closed `SCones` of paper §7) is preserved on the
+`cbn-track` branch; main is CBV-only. Examples are listed in the
+[Examples tab](../examples/).
 
 The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
 [Paper tab](../paper/). This document covers what sits *above* the
@@ -193,33 +194,15 @@ boolean twin of `score_lift`; see [the value-dependent Bernoulli
 section](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html)).
 
 The `[0,1]` discipline is carried by a **type**, not by loose
-witnesses. The probability type `tProb P` (a `tbase` over the `[0,1]`
-object of a bundle `P : probObj`) is the surface home of every coin
-and score: a value of type `tProb P` is a `[0,1]`-supported measure,
-and a coin or score over it integrates the bundle's inclusion `ι`.
-The readable surface (the [probability surface
-section](../../ppl/sections/ppl-sec-the-probability-type-and-the-tprob-surface.html))
-is then witness-free: the constant coin `Bernoulli [| p |]` takes a
-bare real literal `p : R`, its `[0,1]` bounds discharged by `lra`; the
-value-dependent coin `Bernoulli e` and the score `Score e` read their
-success probability / weight off the `tProb`-typed value `e` through
-the bundle density `po_density P`; the `tProb`-producing primitives
-`Sigmoid e` / `Gausslik e { s , y }` / `Gt0 e` push a real value
-through a named `R → [0,1]` map into `tProb`, and the abstract
-test-function coin `test f e` (`ptest`) pushes through the bundled test
-function `f : testfn` — folding the universal factoring
-`po_into (test_fun f)` into a single witness-free wrapper. The
-comparison coin
-`e1 > e2` desugars to `Bernoulli (Gt0 (e1 + Meas{negr} e2))` at the
-strict-positivity indicator `gt0_ind`. The Bayesian-conditioning
-operator `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`
-(= `pobserve (obsGaussian e s) y`) scores by the envelope-normalised
-Gaussian likelihood `gauss_obs_density s y` (denotation
-`observe_gauss_E`). See [the
-probability type and the `tProb`
+witnesses: the probability type `tProb P` (a `tbase` over the `[0,1]`
+object of a bundle `P : probObj`) is the surface home of every coin and
+score — a value of type `tProb P` is a `[0,1]`-supported measure, and a
+coin or score over it integrates the bundle's inclusion `ι`. The
+witness-free surface forms (`Bernoulli`, `Score`, `Sigmoid`, `Gausslik`,
+`Gt0`, `test`, `observe`, the comparison coin `>`) are covered in full
+by [the probability type and the `tProb`
 surface](../../ppl/sections/ppl-sec-the-probability-type-and-the-tprob-surface.html)
-for the bundle and the surface forms. The same value coin `Bernoulli`
-is the accept/reject test of `examples.v::ex_reject`.
+below.
 
 ### Measurable function application (`ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass`)
 
@@ -267,29 +250,33 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G tR' -> named_expr G tR' -> named_expr G tR'.
 ```
 
-**The kernel layer** (`theories/programs/distributions.v`). A
-`pkernel X Y` bundles a family of sub-probability measures
-`pk_ker : X → FMeas Y` with the mathcomp-analysis kernel condition
-(`pk_meas`: `x ↦ k(x)(U)` measurable for every measurable `U`) and
-the unit-ball bound (`pk_ball`). Such a family *is* a measurable path
-(`pkernel_is_path`, paper Def 3.7), so the Thm 6.1 machinery promotes
-it to the semantic lift `kernel_lift k : FMeas X ⊸ FMeas Y`,
-`ν ↦ ∫ k(x) ν(dx)` (Pettis integral), with the computation laws
-`kernel_lift_E` (`(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)`),
-`kernel_lift_mass` (pointwise-mass-1 kernels preserve total mass) and
-`kernel_lift_dirac` (`kernel_lift k δ_x = k(x)`). Two-argument
-kernels go through `kernel_lift2 k := kernel_lift k ∘ fmeas_lax` —
-the tensored argument pair becomes a joint measure on the product
-object, exactly the `add_lift` / `mul_lift` route — with
-`kernel_lift2_dirac` and the product-mass law `kernel_lift2_mass`.
+**The kernel layer** (`theories/programs/distributions.v`) turns a
+measurable family of sub-probability measures into a linear lift on
+measures, in four beats.
 
-Instances: `dirac_kernel` (`kernel_lift dirac_kernel = id`,
-`dirac_kernel_lift_id`), `bernoulli_kernel` (the bundled `[0,1]`
-value-dependent coin as a two-point measure on `R_obj`, agreeing with
-`bern_lift` coordinatewise: `bernoulli_kernel_bern_lift_t` /
-`bernoulli_kernel_bern_lift_f`), `gaussian_kernel`
-(`(m,s) ↦ normal_prob m s` transported along the carrier cast) and
-`uniform_kernel` (`(a,b) ↦ uniform_prob` for `a < b`, else `δ_a`).
+- *Bundle.* A `pkernel X Y` packages a family `pk_ker : X → FMeas Y`
+  with the mathcomp-analysis kernel condition (`pk_meas`: `x ↦ k(x)(U)`
+  measurable for every measurable `U`) and the unit-ball bound
+  (`pk_ball`). Such a family *is* a measurable path (`pkernel_is_path`,
+  paper Def 3.7).
+- *Lift.* The Thm 6.1 machinery promotes that path to the semantic lift
+  `kernel_lift k : FMeas X ⊸ FMeas Y`, `ν ↦ ∫ k(x) ν(dx)` (Pettis
+  integral), with computation laws `kernel_lift_E`
+  (`(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)`), `kernel_lift_mass`
+  (pointwise-mass-1 kernels preserve total mass) and `kernel_lift_dirac`
+  (`kernel_lift k δ_x = k(x)`).
+- *Two arguments.* `kernel_lift2 k := kernel_lift k ∘ fmeas_lax` makes
+  the tensored argument pair a joint measure on the product object —
+  exactly the `add_lift` / `mul_lift` route — with `kernel_lift2_dirac`
+  and the product-mass law `kernel_lift2_mass`.
+- *Instances.* `dirac_kernel` (`kernel_lift dirac_kernel = id`,
+  `dirac_kernel_lift_id`); `bernoulli_kernel` (the bundled `[0,1]`
+  value-dependent coin as a two-point measure on `R_obj`, agreeing with
+  `bern_lift` coordinatewise: `bernoulli_kernel_bern_lift_t` /
+  `bernoulli_kernel_bern_lift_f`); `gaussian_kernel`
+  (`(m,s) ↦ normal_prob m s` transported along the carrier cast); and
+  `uniform_kernel` (`(a,b) ↦ uniform_prob` for `a < b`, else `δ_a`).
+
 **The `s = 0` convention**: `gaussian_kernel` overrides the `s = 0`
 fibre to the Dirac `δ_m` — the degenerate weak limit of
 `N(m, s) as s → 0` — because mathcomp-analysis' own `normal_prob m 0`
@@ -300,24 +287,26 @@ deviation `|s|`. Family measurability *in the parameters*
 (`measurable_normal_prob_pair`, `measurable_uniform_int_pair`) is
 proved by Fubini–Tonelli against Lebesgue measure.
 
-The CBV clauses (`eD_gaussian_E` / `eD_uniform_E`,
-`theories/programs/ppl_cbv.v`) are the `ne_add` shape with the kernel
+The CBV clause (`eD_gaussian_E` / `eD_uniform_E`,
+`theories/programs/ppl_cbv.v`) is the `ne_add` shape with the kernel
 lift in place of the pushforward:
 `⟦Gaussian(e1,e2)⟧ = δ_Γ ; (⟦e1⟧ ⊗ ⟦e2⟧) ; kernel_lift2
-gaussian_kernel`. The anchors
-(`theories/programs/infra/kernel_anchors.v`): `eD_gaussian_at` /
-`eD_gaussian_dirac_E` (on point-mass arguments the draw *is* the
-transported `normal_prob`, with the `s = 0` Dirac fibre),
-`eD_gaussian_mass` (the result's mass is the product of the argument
-masses — the kernel is a pointwise probability,
-`gaussian_kernel_norm1`), and the constant-parameter agreement
-`eD_gaussian_sample_agree`:
-`⟦Gaussian([|m|],[|s|])⟧γ = ⟦sample (gaussian m s)⟧γ` for `s ≠ 0` —
-the old bundled-`sample` surface is the kernel surface at real
-literals (the two transports are identified by
-`pmeas_of_prob_fmeas`). The `Uniform` mirror is
-`eD_uniform_at` / `eD_uniform_dirac_E` / `eD_uniform_mass` /
-`eD_uniform_sample_agree`.
+gaussian_kernel`. Three anchors pin it
+(`theories/programs/infra/kernel_anchors.v`):
+
+- *Point masses.* `eD_gaussian_at` / `eD_gaussian_dirac_E` — on
+  point-mass arguments the draw *is* the transported `normal_prob`, with
+  the `s = 0` Dirac fibre.
+- *Mass.* `eD_gaussian_mass` — the result's mass is the product of the
+  argument masses, the kernel being a pointwise probability
+  (`gaussian_kernel_norm1`).
+- *Constant-parameter agreement.* `eD_gaussian_sample_agree` —
+  `⟦Gaussian([|m|],[|s|])⟧γ = ⟦sample (gaussian m s)⟧γ` for `s ≠ 0`: the
+  old bundled-`sample` surface is the kernel surface at real literals
+  (the two transports are identified by `pmeas_of_prob_fmeas`).
+
+The `Uniform` mirror is `eD_uniform_at` / `eD_uniform_dirac_E` /
+`eD_uniform_mass` / `eD_uniform_sample_agree`.
 
 ### Recursion at function type (`ne_fix`)
 
@@ -512,15 +501,21 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
   (ne_let f%string (ne_fix f%string (ne_lam x%string M)) K) (* … *).
 ```
 
+A coin or score gets its `[0,1]` number three ways: as a bare literal
+(`Bernoulli [| p |]`), read off a `tProb`-typed value (`Bernoulli e`,
+`Score e`), or produced by pushing a real through a named `[0,1]` map
+(`Sigmoid e`, `Gausslik e { s , y }`, `Gt0 e`, `test f e`). Every form
+is witness-free; the bounds travel with the type, never as proof
+obligations. The bullets below detail each.
+
 - **The bundle `probObj` and the type `tProb`.** `probObj` is the
   canonical `[0,1]` sub-object interface; `tProb P := tbase (po_obj P)`
-  folds it into a surface type, so a constructor wrapper meeting an
-  `e : tProb P` recovers `P` by plain unification of `tProb ?P` against
-  the folded type. The bundle exposes the carrier density
-  `po_density P : po_obj P → R` (the inclusion read into `R`, the
-  success-probability / weight a coin or score over `tProb P` uses) and
-  the two lifts `bern_lift_P` / `score_lift_P` at the base object
-  `po_obj` (see [the lifts at an arbitrary base
+  folds it into a surface type, so a wrapper meeting `e : tProb P`
+  recovers `P` by unifying `tProb ?P` against the folded type. The
+  bundle exposes the carrier density `po_density P : po_obj P → R` (the
+  inclusion read into `R`, the success-probability / weight a coin or
+  score reads) and the two lifts `bern_lift_P` / `score_lift_P` at the
+  base object `po_obj` (see [the lifts at an arbitrary base
   object](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html)).
 - **The value coin `Bernoulli e` and the score `Score e`** read their
   success probability / weight off the `tProb P`-typed sub-expression
@@ -531,59 +526,56 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
 - **The constant coin `Bernoulli [| p |]`** takes a bare real literal
   `p : R`; its `[0,1]` bounds are discharged automatically by `lra`. No
   bundle, no loose witness — the fair coin is `Bernoulli [| (1/2 : R) |]`.
-- **The `tProb`-producing primitives.** `Sigmoid e` pushes a real value
-  through the logistic map `sigmoid : R → [0,1]`; `Gausslik e { s , y }`
-  through the envelope-normalised Gaussian likelihood
-  `gauss_obs_density s y` (mean expression `e` first, then the
-  meta-level `{ stddev , datum }` braces); `Gt0 e` through the
-  strict-positivity indicator `gt0_ind = \1_(0,∞)`. Each returns
-  `tProb P` and is built once, in `ppl.v`, by feeding the underlying
-  `[0,1]` map (whose measurability and bounds already exist) into the
-  bundle factoring `po_into` — the use site never sees `po_into`.
-  `test f e` (`ptest`) is the abstract test-function coin: `f : testfn`
-  is a measurable `[0,1]`-valued **test function** — a map you integrate
-  measures *against*, with `∫ f dµ` the test pairing that is literally
-  the content of the conditioning/rejection headline theorems
+- **The `tProb`-producing primitives** `Sigmoid e` / `Gausslik e { s , y }`
+  / `Gt0 e`. Each pushes a real value through a named `R → [0,1]` map and
+  returns `tProb P`:
+  - `Sigmoid e` through the logistic map `sigmoid : R → [0,1]`;
+  - `Gausslik e { s , y }` through the envelope-normalised Gaussian
+    likelihood `gauss_obs_density s y` (mean expression `e` first, then
+    the meta-level `{ stddev , datum }` braces);
+  - `Gt0 e` through the strict-positivity indicator `gt0_ind = \1_(0,∞)`.
+
+  Each is built once, in `ppl.v`, by feeding its `[0,1]` map (whose
+  measurability and bounds already exist) into the bundle factoring
+  `po_into`; the use site never sees `po_into`.
+- **The abstract test-function coin `test f e` (`ptest`).** A *test
+  function* `f : testfn` is a measurable `[0,1]`-valued map you integrate
+  measures *against*: `∫ f dµ` is the test pairing that is literally the
+  content of the conditioning/rejection headline theorems
   (`∫ f dµ · ν(U) = ∫_U f dµ`). The `testfn` record bundles the carrier
   map `test_fun` with its measurability and `0 ≤ f ≤ 1` witnesses
-  (`test_meas`/`test_ge0`/`test_le1`) and **coerces to its function**
-  (`Coercion test_fun : testfn >-> Funclass`), so `f r` and `∫ f dµ`
-  read directly. `test f e` evaluates the test `f` at the runtime value
-  `e`, landing in `tProb` — the object-language counterpart of the
-  integration pairing, the way an *abstract* test enters a program (it
-  folds `po_into (test_fun f)` into one witness-free wrapper). A use
-  site reads `Bernoulli (test f #"x")` / `Score (test f #"m")`, the
-  `testfn`-parameterised sibling of `Sigmoid` / `Gausslik`. Contrast
-  `observe Dist y`, the special case where the test comes from a
-  concrete distribution's peak-normalised density; the general
-  conditioning/rejection theorems quantify over an *arbitrary* test `f`,
-  which is exactly why the abstract `test f` form exists. `Const pr
-  e` is the constant-literal `tProb`-map at the bundled probability
-  `pr : prob` (used by the parameterised `ex_almost_loop`). `InclP e` is
-  the forgetful read of a `tProb P` value back to `tR` along the
-  inclusion `ι`.
+  (`test_meas` / `test_ge0` / `test_le1`) and coerces to its function
+  (`Coercion test_fun : testfn >-> Funclass`), so `f r` and `∫ f dµ` read
+  directly. `test f e` evaluates `f` at the runtime value `e`, landing in
+  `tProb` — the `testfn`-parameterised sibling of `Sigmoid` / `Gausslik`,
+  folding `po_into (test_fun f)` into one witness-free wrapper. A use site
+  reads `Bernoulli (test f #"x")` / `Score (test f #"m")`. Contrast
+  `observe Dist y`, the special case where the test is a concrete
+  distribution's peak-normalised density; the general theorems quantify
+  over an *arbitrary* test `f`, which is why the abstract form exists.
+- **`Const pr e` and `InclP e`.** `Const pr e` is the constant-literal
+  `tProb`-map at the bundled probability `pr : prob` (used by the
+  parameterised `ex_almost_loop`). `InclP e` is the forgetful read of a
+  `tProb P` value back to `tR` along the inclusion `ι`.
 - **The `observe` operator — `observe Gaussian e { s } y ≡
   Score (Gausslik e { s , y })` (= `pobserve (obsGaussian e s) y`).**
-  `observe` is a general conditioning OPERATOR, not a Gaussian-specific
-  notation. It is `pobserve (D : obsDist) (y : R)` over a
-  distribution-with-density record `obsDist { od_arg ; od_dens ; od_meas
-  ; od_ge0 ; od_le1 }` — `od_arg` is the runtime parameter (the
-  predicted mean), `od_dens point param` the family of `[0,1]`-valued
-  densities; `pobserve D y` scores `od_arg D` by `od_dens D y` through
-  the bundle factoring `po_into`, reusing `pscore`. `obsGaussian e s :
-  obsDist` is the first instance — `od_arg := e`, `od_dens := gauss_obs_density
-  s` — so `pobserve (obsGaussian e s) y = pscore (pgausslik s y e)`
-  definitionally (`pobserve_obsGaussian`). The surface reads mean
-  expression `e` first, then `{ stddev }`, then the trailing observed
-  point `y`. Adding another observable distribution is a new `obsDist`
-  instance plus a one-line sugar; `pobserve` stays fixed. Bayesian
-  conditioning: score the trace by the likelihood of `y` under
-  `N(value(e), s)`, normalised by the distribution's intrinsic peak so
-  the weight is a legal `[0,1]` density — no user-supplied envelope, the
-  peak `normal_peak s` is intrinsic. The denotation lemma is
-  `observe_gauss_E` (`theories/programs/ppl_cbv.v`): at a setlike Dirac
-  environment the trace is weighted by `normal_pdf μ s y / normal_peak
-  s` at the runtime mean `μ`.
+  `observe` is a general conditioning operator, not Gaussian-specific. It
+  is `pobserve (D : obsDist) (y : R)` over a distribution-with-density
+  record `obsDist { od_arg ; od_dens ; od_meas ; od_ge0 ; od_le1 }`:
+  `od_arg` is the runtime parameter (the predicted mean), `od_dens point
+  param` the family of `[0,1]`-valued densities. `pobserve D y` scores
+  `od_arg D` by `od_dens D y` through `po_into`, reusing `pscore`.
+  `obsGaussian e s : obsDist` is the first instance (`od_arg := e`,
+  `od_dens := gauss_obs_density s`), so
+  `pobserve (obsGaussian e s) y = pscore (pgausslik s y e)` definitionally
+  (`pobserve_obsGaussian`). Adding another observable distribution is a
+  new `obsDist` instance plus a one-line sugar; `pobserve` stays fixed.
+  The denotation lemma `observe_gauss_E` (`theories/programs/ppl_cbv.v`)
+  weighs the trace, at a setlike Dirac environment, by
+  `normal_pdf μ s y / normal_peak s` at the runtime mean `μ` — the
+  Gaussian likelihood normalised by the intrinsic peak `normal_peak s`
+  (see [Scores, densities, and the sub-probability
+  boundary](../../ppl/sections/ppl-sec-scores-densities-and-the-sub-probability-boundary.html)).
 - **Bundled sampling `sample m`** — `pmeas` packages a sub-probability
   with its unit-ball witness; `prob_pmeas` transports any
   mathcomp-analysis probability on `R` to a `pmeas`, giving the named
@@ -605,7 +597,7 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
 
 The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
 `sample gaussian01`, the `>` coin) and `ex_surface_walk`
-(annotation-free `let rec`, the `Bern`/`Sc` forms),
+(annotation-free `let rec`, the `Bernoulli`/`Score` forms),
 both with elaboration pins (`ex_surface_demo_decomp`) and compile-time
 CBV denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
 
@@ -1228,29 +1220,29 @@ lives in `theories/programs/infra/em_fix_value.v` and is what the
 types, and through the Seely transport of
 `theories/programs/infra/em_fix_mr.v` at products of free types.
 
-The chapter tells the story in order. First the *degeneracy
-theorem*: the naive zero-seeded iteration — the Kleene iteration of
-`theories/programs/infra/em_fix.v`'s linear step
-`prev ↦ M ∘ (id ⊗ prev) ∘ δ` from the linhom cone-zero, which used
-to be `em_fix.v`'s CBV value-fixpoint operator before its removal —
-is *provably the zero linhom*, always (`Phi_fun_lfp_eq0`): a linear
-step preserves the zero seed, and the bottom of a CBV function-value
-type is not the cone-zero of `!L` but the promoted zero `(0)!`, the
-diverging-function value of `e_bang`-mass one. Then the repair: seed
-the iteration at the genuine bottom `0 : A` *under* the promotion,
-interleaving `der` and `prom` so that each iterate re-enters the
-body as a promoted value — the `prom ∘ der` sandwich is what makes
-the chain productive for *any* unit-ball body, linear or not (the
-step `x ↦ der (F (x!))` is monotone because `prom` is totally
-monotone and `F`, `der` are linear). Coalgebra-morphism-ness of the
-combinator comes for free: the value map `F ↦ sup_n x_n` is built
-from existing `SCones` morphisms, converted to a linear map
-`!(!A ⊸ !A) ⊸ A` by the SAFT hom-bijection `lin`, and packaged by
-`adj_psi` of the `U ⊣ !̃` adjunction. Finally the *mutual-recursion
-transport*: a product of free types is not literally cofree, but it
-is *isomorphic* to a cofree coalgebra through the EM-level Seely-2
-iso, and conjugating `fix_comb` by that iso makes `ne_fix_mr`
-genuine at every free body type.
+The chapter tells the story in three beats.
+
+- *Degeneracy.* The zero-seeded iteration — the Kleene iteration of
+  `theories/programs/infra/em_fix.v`'s linear step
+  `prev ↦ M ∘ (id ⊗ prev) ∘ δ` from the linhom cone-zero, which used to
+  be `em_fix.v`'s CBV value-fixpoint operator before its removal — is
+  *provably the zero linhom*, always (`Phi_fun_lfp_eq0`): a linear step
+  preserves the zero seed, and the bottom of a CBV function-value type is
+  not the cone-zero of `!L` but the promoted zero `(0)!`, the
+  diverging-function value of `e_bang`-mass one.
+- *Repair.* Seed the iteration at the genuine bottom `0 : A` *under* the
+  promotion, interleaving `der` and `prom` so each iterate re-enters the
+  body as a promoted value. The `prom ∘ der` sandwich makes the chain
+  productive for *any* unit-ball body, linear or not (the step
+  `x ↦ der (F (x!))` is monotone because `prom` is totally monotone and
+  `F`, `der` are linear). Coalgebra-morphism-ness comes for free: the
+  value map `F ↦ sup_n x_n` is built from existing `SCones` morphisms,
+  converted to a linear map `!(!A ⊸ !A) ⊸ A` by the SAFT hom-bijection
+  `lin`, and packaged by `adj_psi` of the `U ⊣ !̃` adjunction.
+- *Transport.* A product of free types is not literally cofree, but it is
+  *isomorphic* to a cofree coalgebra through the EM-level Seely-2 iso;
+  conjugating `fix_comb` by that iso makes `ne_fix_mr` genuine at every
+  free body type.
 
 | Construction | Rocq |
 |---|---|
@@ -1372,8 +1364,8 @@ Lemma lfp_from_fixpoint : f lfp_from = lfp_from.
 
 ### The interleaved chain and the value map (`fix_chain`, `fix_value`)
 
-Fix `A` and write `!A := Bang Ar A`, `LL := !A ⊸ !A`. The
-interleaved chain of a body `F : LL` is `x_0 = 0 : A`,
+Fix `A` and write `!A := Bang Ar A`. The interleaved chain of a body
+`F : !A ⊸ !A` (abbreviated `LL` in the snippets below) is `x_0 = 0 : A`,
 `x_{n+1} = der (F (x_n !))`: each iterate is *re-promoted* before it
 re-enters the body and *dereferenced* after — so the body always
 sees a legitimate (promoted) function value, and the chain lives in
@@ -1771,20 +1763,22 @@ The law ties the CBV interpretation of `let x = sample µ in K` to
 the Pettis integral of `K`'s denotation over the Diracs of `µ`:
 *⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)*, pointwise at
 arbitrary `γ`. No unit-ball and no setlike hypothesis is needed
-anywhere, because every step is driven by a genuine
-`linhom_car` / `icones_hom` field, all of which hold on the whole
-cone. The proof is a four-step composition: (1) the sample-let
-*collapse* `⟦let x = sample µ in K⟧(γ) = ⟦K⟧(γ ⊗ µ)` — the inner
-`em_pair_mor id (const µ)` erases the context copy through the
-comonoid counit law `emc_counitR` (`em_pair_mor_const_E`, stated for
-an arbitrary constant); (2) the Dirac approximation `µ = ∫ δ_r µ(dr)`
-re-spelled with the bare `dirac_fmeas` integrand
-(`icone_integral_dirac_fmeas`, from `bilin.v`'s Thm 6.1 Dirac
-approximation); (3) tensoring with a fixed point preserves Pettis
-integrals, `γ ⊗ (∫ β dµ) = ∫ (γ ⊗ β r) µ(dr)` — the
-`linhom_pres_int` field of `τ(γ)` (`ptensor_icone_integral`); and
-(4) the `icones_hom_pres_int` field of `⟦K⟧` pushes the denotation
-under the integral.
+anywhere: every step is driven by a genuine `linhom_car` / `icones_hom`
+field, all of which hold on the whole cone. The proof is a four-step
+composition:
+
+1. *Collapse.* `⟦let x = sample µ in K⟧(γ) = ⟦K⟧(γ ⊗ µ)` — the inner
+   `em_pair_mor id (const µ)` erases the context copy through the
+   comonoid counit law `emc_counitR` (`em_pair_mor_const_E`, stated for
+   an arbitrary constant).
+2. *Dirac approximation.* `µ = ∫ δ_r µ(dr)`, re-spelled with the bare
+   `dirac_fmeas` integrand (`icone_integral_dirac_fmeas`, from
+   `bilin.v`'s Thm 6.1 Dirac approximation).
+3. *Tensor.* Tensoring with a fixed point preserves Pettis integrals,
+   `γ ⊗ (∫ β dµ) = ∫ (γ ⊗ β r) µ(dr)` — the `linhom_pres_int` field of
+   `τ(γ)` (`ptensor_icone_integral`).
+4. *Push.* The `icones_hom_pres_int` field of `⟦K⟧` pushes the
+   denotation under the integral.
 
 ```coq
 (* theories/programs/infra/let_sample_law.v *)
