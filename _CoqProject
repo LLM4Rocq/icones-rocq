@@ -82,3 +82,6 @@ theories/programs/infra/kernel_anchors.v
 theories/programs/ex_reject_headline.v
 theories/programs/infra/cbv_marginals.v
 theories/programs/ex_reject_model.v
+theories/programs/hard_reject.v
+theories/programs/ex_reject_bool.v
+theories/programs/hard_reject_denot.v
