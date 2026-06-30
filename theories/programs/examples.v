@@ -828,6 +828,61 @@ Arguments ex_reject_comb_body {R Ar P} ta f.
 Arguments ex_reject_comb_fun {R Ar P} ta f.
 Arguments ex_reject_comb_inner {R Ar P} ta f.
 
+(** ** Example — [ex_reject_comb_obj] — SOFT reject over an ARBITRARY
+    return object [B]
+
+    The arbitrary-return-object-[B] generalization (PHASE A2, ADDITIVE)
+    of [ex_reject_comb]: the model now returns values of an arbitrary
+    [tbase B], and the [[0,1]] acceptance scalar is read off the produced
+    value [x] by a measurement morphism [phi : B → po_obj P] (the
+    factoring into the probability sub-object).  The scrutinee
+    [Bernoulli (ToProb { phi } #"x")] names a genuine Bernoulli draw whose
+    success probability is [phi]'s [[0,1]] reading of [x].  Specialising
+    [B := po_robj P] and [phi := po_into P (test_fun f) …] recovers the
+    bundled [test f] combinator exactly (lemma [ex_reject_comb_obj_R]). *)
+
+Section RejectCombinatorObj.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (P : probObj Ar).
+
+(** The model's INPUT type is an arbitrary PPL type. *)
+Variable (ta : ppl_type Ar).
+
+(** The model's RETURN object and the measurement morphism factoring its
+    value into the probability sub-object [po_obj P]. *)
+Variable (B : ar_obj Ar).
+Variable (phi : ar_hom Ar B (po_obj P)).
+
+Local Notation tB := (tbase B).
+
+(** The combinator itself: a closed program of type
+    [(ta → tB) → (ta → tB)]. *)
+Definition ex_reject_comb_obj :
+    @named_expr R Ar (po_robj P) nil (tfun (tfun ta tB) (tfun ta tB)) :=
+  [ fix "rs" ::: tfun (tfun ta tB) (tfun ta tB) in
+      \ "m" ::: (tfun ta tB) =>
+        \ "a" ::: ta =>
+          (let "x" := # "m" @ # "a" in
+           if Bernoulli (ToProb { phi } # "x")
+           then # "x"
+           else # "rs" @ # "m" @ # "a") ].
+
+End RejectCombinatorObj.
+
+Arguments ex_reject_comb_obj {R Ar P} ta B phi.
+
+(** Compatibility — the existing [ex_reject_comb] is the [B := po_robj P]
+    instance of [ex_reject_comb_obj], with the measurement morphism the
+    bundle factoring of the test function [f].  Definitional: both bodies
+    unfold to the same [pbern (ne_to_prob (po_into P (test_fun f) …) #"x")]
+    scrutinee at the same return type [tbase (po_robj P)]. *)
+Lemma ex_reject_comb_obj_R (R : realType) (Ar : MeasSubcat R)
+    (P : probObj Ar) (ta : ppl_type Ar) (f : testfn R) :
+  ex_reject_comb (P:=P) ta f
+  = ex_reject_comb_obj (P:=P) ta (po_robj P)
+      (po_into P (test_fun f) (test_meas f) (test_ge0 f) (test_le1 f)).
+Proof. by []. Qed.
+
 (** ** Example — [ex_condition_comb] — Pyro-style soft conditioning
 
     The [condition] operator of Pyro-style probabilistic programming:
@@ -921,6 +976,59 @@ Notation "'Condition' '{' d '}' M" :=
   (in custom ppl_named at level 20,
    M custom ppl_named at level 19,
    d constr).
+
+(** ** Example — [ex_condition_comb_obj] — SOFT conditioning over an
+    ARBITRARY return object [B]
+
+    The arbitrary-return-object-[B] generalization (PHASE A2, ADDITIVE)
+    of [ex_condition_comb]: the model returns values of an arbitrary
+    [tbase B]; the produced value [x] is SCORED by the soft observation
+    likelihood read off [x] through the measurement morphism
+    [phi : B → po_obj P] (the factoring into the probability sub-object),
+    then returned.  Specialising [B := po_robj P] and
+    [phi := po_into P (test_fun f) …] recovers the bundled [test f]
+    combinator exactly (lemma [ex_condition_comb_obj_R]). *)
+
+Section ConditionCombinatorObj.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (P : probObj Ar).
+
+(** The model's INPUT type is an arbitrary PPL type. *)
+Variable (ta : ppl_type Ar).
+
+(** The model's RETURN object and the measurement morphism factoring its
+    value into the probability sub-object [po_obj P]. *)
+Variable (B : ar_obj Ar).
+Variable (phi : ar_hom Ar B (po_obj P)).
+
+Local Notation tB := (tbase B).
+
+(** The combinator itself: a closed program of type
+    [(ta → tB) → (ta → tB)]. *)
+Definition ex_condition_comb_obj :
+    @named_expr R Ar (po_robj P) nil (tfun (tfun ta tB) (tfun ta tB)) :=
+  [ \ "m" ::: (tfun ta tB) =>
+      \ "a" ::: ta =>
+        (let "x" := # "m" @ # "a" in
+         let "_" := Score (ToProb { phi } # "x") in
+         # "x") ].
+
+End ConditionCombinatorObj.
+
+Arguments ex_condition_comb_obj {R Ar P} ta B phi.
+
+(** Compatibility — the existing [ex_condition_comb] is the
+    [B := po_robj P] instance of [ex_condition_comb_obj], with the
+    measurement morphism the bundle factoring of the test function [f].
+    Definitional: both bodies unfold to the same
+    [pscore (ne_to_prob (po_into P (test_fun f) …) #"x")] score at the
+    same return type [tbase (po_robj P)]. *)
+Lemma ex_condition_comb_obj_R (R : realType) (Ar : MeasSubcat R)
+    (P : probObj Ar) (ta : ppl_type Ar) (f : testfn R) :
+  ex_condition_comb (P:=P) ta f
+  = ex_condition_comb_obj (P:=P) ta (po_robj P)
+      (po_into P (test_fun f) (test_meas f) (test_ge0 f) (test_le1 f)).
+Proof. by []. Qed.
 
 (** ** Example — [ex_sampler] — the simplest model for the combinator
 
