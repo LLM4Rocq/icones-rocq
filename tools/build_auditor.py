@@ -29,7 +29,7 @@ if __package__ in {None, ""}:
 from tools.auditor.coqdoc import CoqdocResolver, parse_coqproject  # noqa: E402
 from tools.auditor.parser import parse_three_tabs  # noqa: E402
 from tools.auditor.render import render  # noqa: E402
-from tools.auditor.xref import linkify_all  # noqa: E402
+from tools.auditor.xref import attach_entry_relations, linkify_all  # noqa: E402
 
 
 def _build_argparser() -> argparse.ArgumentParser:
@@ -169,6 +169,12 @@ def main(argv: list[str] | None = None) -> int:
         theories_root=project_root / "theories",
         repo_root=project_root,
     )
+    # Structured relation panel: derive per-entry "uses" / "used-by"
+    # cross-refs from the same Rocq-identifier overlap the linkifier used
+    # inline, so each entry card can show which other entries it draws on
+    # and which build on it (across tabs).  Runs after linkify so the edge
+    # extraction sees the fully-assembled idents.
+    attach_entry_relations(three)
     # Provenance — shared between tabs at the top-level.
     built_at = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
     three.build_meta.commit = args.commit

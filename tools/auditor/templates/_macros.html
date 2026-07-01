@@ -153,12 +153,35 @@
   {% endif %}
 
   {% if entry.cross_refs %}
-  <p class="xrefs">
-    <span class="label">See also:</span>
-    {% for x in entry.cross_refs -%}
-    <a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>{% if not loop.last %}, {% endif %}
-    {%- endfor %}
-  </p>
+  {% set uses_refs = entry.cross_refs | selectattr('kind', 'equalto', 'uses') | list %}
+  {% set usedby_refs = entry.cross_refs | selectattr('kind', 'equalto', 'used-by') | list %}
+  {% set other_refs = entry.cross_refs | rejectattr('kind', 'equalto', 'uses') | rejectattr('kind', 'equalto', 'used-by') | list %}
+  <div class="xref-panel">
+    {% if uses_refs %}
+    <p class="xrefs xref-uses">
+      <span class="label">Uses:</span>
+      {% for x in uses_refs -%}
+      <a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>{% if not loop.last %}, {% endif %}
+      {%- endfor %}
+    </p>
+    {% endif %}
+    {% if usedby_refs %}
+    <p class="xrefs xref-used-by">
+      <span class="label">Used by:</span>
+      {% for x in usedby_refs -%}
+      <a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>{% if not loop.last %}, {% endif %}
+      {%- endfor %}
+    </p>
+    {% endif %}
+    {% if other_refs %}
+    <p class="xrefs xref-see-also">
+      <span class="label">See also:</span>
+      {% for x in other_refs -%}
+      <a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>{% if not loop.last %}, {% endif %}
+      {%- endfor %}
+    </p>
+    {% endif %}
+  </div>
   {% endif %}
 
   {% if entry.detail %}

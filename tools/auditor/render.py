@@ -42,6 +42,7 @@ from pygments.formatters import HtmlFormatter
 
 from .graph import build_graph
 from .toc import build_toc
+from .xref import canonical_section_ids
 from .schema import (
     TAB_EXAMPLES,
     TAB_PAPER,
@@ -57,17 +58,44 @@ BUNDLED_STATIC_DIR = Path(__file__).parent / "static"
 PLACEHOLDER_NAME = "__placeholder.html"
 
 
-def _xref_href(prefix: str):
+def _xref_href(
+    prefix: str,
+    tab: str = "",
+    canonical_by_tab: dict[str, set[str]] | None = None,
+):
     """Build a `cross_refs` URL resolver bound to the given URL prefix.
 
     The prefix already points at the current tab's root (e.g. ``"../"`` from
     a Paper section page back to ``out/paper/``); the resolver appends the
     sub-route. ``blueprint`` cross-refs go up one more level to ``out/``.
+
+    ``uses`` / ``used-by`` relation refs are tab- and canonical-aware: a
+    same-tab target routes to ``{prefix}<suffix>`` and a cross-tab one to
+    ``{prefix}../<target-tab>/<suffix>``, where ``<suffix>`` is
+    ``sections/<id>.html`` when the target is a collapsed canonical section
+    (its entry page was suppressed) and ``entries/<id>.html`` otherwise.
     """
+    canon = canonical_by_tab or {}
+
+    def _get(xref: Any, attr: str, default: str = "") -> str:
+        if isinstance(xref, dict):
+            return xref.get(attr, default)
+        return getattr(xref, attr, default) or default
+
+    def _suffix(target_tab: str, tgt: str) -> str:
+        if tgt in canon.get(target_tab, set()):
+            return f"sections/{tgt}.html"
+        return f"entries/{tgt}.html"
+
     def _h(xref: Any) -> str:
         # xref may be a dataclass or a dict; tolerate both.
         kind = getattr(xref, "kind", None) or xref.get("kind", "")
         tgt = getattr(xref, "target", None) or xref.get("target", "")
+        if kind in ("uses", "used-by"):
+            xtab = _get(xref, "tab", "")
+            if xtab and xtab != tab:
+                return f"{prefix}../{xtab}/{_suffix(xtab, tgt)}"
+            return f"{prefix}{_suffix(xtab or tab, tgt)}"
         if kind == "section":
             return f"{prefix}sections/{tgt}.html"
         if kind == "entry":
@@ -184,16 +212,18 @@ def _emit(
     - ``tab_prefix`` resolves to ``out/`` (i.e. the site root) — used by
       the tab nav to link between Paper and PPL tabs.
     """
+    canonical_by_tab = env.globals.get("canonical_by_tab", {})
+    resolver = _xref_href(root_prefix, ctx.get("tab") or "", canonical_by_tab)
     env.globals["root_prefix"] = root_prefix
     env.globals["static_prefix"] = static_prefix
     env.globals["tab_prefix"] = tab_prefix
-    env.globals["xref_href"] = _xref_href(root_prefix)
+    env.globals["xref_href"] = resolver
     ctx = {
         **ctx,
         "root_prefix": root_prefix,
         "static_prefix": static_prefix,
         "tab_prefix": tab_prefix,
-        "xref_href": _xref_href(root_prefix),
+        "xref_href": resolver,
         # Sidebar TOC: the same global tree on every page (set as an env
         # global in ``render``); only the active node differs, which we
         # derive from the per-page ctx so the template can highlight it and
@@ -457,6 +487,15 @@ def render(
     # site-root-relative URLs; the template prepends ``tab_prefix`` (which
     # resolves to the site root from any page depth).
     env.globals["toc"] = build_toc(doc)
+    # Per-tab set of collapsed canonical section ids (a single synthetic
+    # entry whose id == section.id, whose entry page is suppressed).  The
+    # xref resolver routes a ``uses``/``used-by`` ref to such a target to
+    # ``sections/<id>.html`` instead of the missing ``entries/<id>.html``.
+    env.globals["canonical_by_tab"] = {
+        TAB_PAPER: canonical_section_ids(doc.paper),
+        TAB_PPL: canonical_section_ids(doc.ppl),
+        TAB_EXAMPLES: canonical_section_ids(doc.examples),
+    }
     totals = {
         "index": 0, "sections": 0, "entries": 0, "beyond": 0,
         "gaps": 0, "json": 0, "tabs": 0, "chapters": 0,

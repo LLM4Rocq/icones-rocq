@@ -629,6 +629,18 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 .xrefs .label { font-weight: 500; }
 .xref { color: var(--link); }
 
+/* Grouped Uses / Used-by relation panel (derived from Rocq-ident overlap). */
+.xref-panel {
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--border, #d0d0d0);
+  background: var(--bg-soft, rgba(0, 0, 0, 0.02));
+  border-radius: 0 4px 4px 0;
+}
+.xref-panel .xrefs { margin: 0.2rem 0; }
+.xref-panel .xref-uses .label { color: var(--accent, #2a6); }
+.xref-panel .xref-used-by .label { color: var(--link, #26a); }
+
 .entry-actions { margin: 0.75rem 0 0; font-size: 0.88rem; }
 .more {
   color: var(--accent);
