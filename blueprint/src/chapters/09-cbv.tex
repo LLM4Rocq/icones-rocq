@@ -10,6 +10,7 @@
 %   programs/ppl.v, ppl_cbv.v                           shared surface syntax (named_expr) + linhom-valued CBV interpreter (eD)
 %   programs/infra/em_fix*.v, cbv_fix_unfold.v          seeded CBV value-fixpoint fix_comb + unfolding laws
 %   programs/infra/let_sample_law.v, affine_cascade.v, cbv_anchors.v, cbv_marginals.v  let-at-sample law, affine cascade, anchors, marginals
+%   programs/reject_condition.v                        clean reject/condition combinators (ne_fail/ne_assert/ne_reject/ne_condition)
 %   programs/examples.v, ex_reject_headline.v, ex_reject_model.v  surface programs + rejection/conditioning headlines
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,9 +53,13 @@ $\mathord{!}$-coalgebras as the cartesian non-linear / value side. The
 denotation on the shared surface inductive \texttt{named\_expr} of
 \texttt{theories/programs/ppl.v}. The chapter culminates in the
 conditioning / rejection equivalence
-(\autoref{thm:cbv-condition-reject}): the Pyro-style soft
-conditioning operator denotes the likelihood-reweighted model output
-(\autoref{lem:cbv-condition-law}), and the CBV denotation of a
+(\autoref{thm:cbv-condition-reject}): the conditioning operator
+denotes the accept-probability-reweighted model output
+(the integral $\int_U t\,d\nu_M$ of the acceptance probability
+$t(x) = \mathrm{true\text{-}mass}\,\sem{f\,x}$,
+\autoref{lem:cbv-condition-law}) --- hard conditioning on the accept
+set when the program predicate is deterministic, soft reweighting when
+it is a coin --- and the CBV denotation of a
 higher-order, probabilistic, possibly non-terminating rejection
 sampler over the \emph{same} arbitrary model is identified in closed
 form as its normalisation
@@ -192,9 +197,16 @@ and the unfolding laws,
 integral law, the semantic anchors, and the affine cascade,
 \autoref{sec:cbv-laws}),
 \texttt{theories/programs/examples.v} (the twelve shared surface PPL
-programs consumed by both interpreters), and
+programs consumed by both interpreters),
+\texttt{theories/programs/reject\_condition.v} (the clean
+reject/condition combinators $\mathtt{ne\_fail}$ / $\mathtt{ne\_assert}$
+/ $\mathtt{ne\_reject}$ / $\mathtt{ne\_condition}$),
 \texttt{theories/programs/ex\_reject\_headline.v} (the
-rejection-sampling headline, \autoref{sec:cbv-geom-mass}).
+rejection-sampling headline, \autoref{sec:cbv-geom-mass}), and
+\texttt{theories/programs/ex\_reject\_model.v} (the unified
+reject/condition master theorem over the accept-probability
+$t = \mathrm{true\text{-}mass}\,\sem{f\,x}$,
+\autoref{ssec:cbv-reject-model} / \autoref{ssec:cbv-condition}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{The Eilenberg--Moore category and the cofree adjunction}%
@@ -2271,8 +2283,6 @@ form per constructor:
     $\mathtt{ne\_let}$-of-$\mathtt{ne\_fix}$-of-$\mathtt{ne\_lam}$
     (with an annotated variant for bodies that leave the binder type
     undetermined).
-  \item \texttt{Condition \{ d \} M} --- the soft conditioning form of
-    \autoref{def:cbv-ex-condition}.
 \end{itemize}
 The end-to-end demos are
 \rocq{Icones.programs.examples.ex_surface_demo} and
@@ -3139,9 +3149,13 @@ probability.
 sampling}\label{ssec:cbv-condition}
 
 The declarative counterpart of the rejection combinator: the
-Pyro-style \emph{soft conditioning} operator takes a model and
-returns the conditioned model --- run the model, \emph{score} the
-produced value by the likelihood, return it. The capstone theorem of
+conditioning operator takes a model and a program predicate
+$f : t_b \to \mathtt{tbool}$ and returns the conditioned model ---
+run the model, \emph{assert} the acceptance predicate $f$ on the
+produced value, return it --- reweighting by the acceptance
+probability $t(x) = \mathrm{true\text{-}mass}\,\sem{f\,x}$ (no
+$\mathtt{Score}$ node is used; a failed $\mathtt{assert}$ zeroes the
+mass via $\mathtt{ne\_fail}$). The capstone theorem of
 this section identifies the two combinators' semantics: rejection
 sampling computes the conditioned model's \emph{normalised}
 distribution.
@@ -3190,7 +3204,7 @@ $\mathtt{condition}$ is entirely $\mathtt{Score}$-free.
 In the set-up of \autoref{def:cbv-ex-reject-comb} --- a unit-ball
 model value $g^!$, a setlike unit-ball input $a_0$, and the model's
 output sub-distribution $\nu_M = g(a_0)$ --- the conditioned model's
-output at the input is the likelihood-reweighted measure: for every
+output at the input is the accept-probability-reweighted measure: for every
 measurable $U$,
 \[
   \sem{(\mathtt{condition}\;m)\;a}(U)

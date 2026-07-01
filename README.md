@@ -136,13 +136,16 @@ syntax, via the cartesian closed `SCones` — including its
 `ex_geom_CBN_mass_one` headline — is preserved on the
 [`cbn-track`](../../tree/cbn-track) branch; `main` is CBV-only).
 The headline result of the PPL layer: **rejection sampling computes
-the conditioned model's normalised distribution** — `condition M f`
-(`ex_condition_comb`) is the Pyro-style soft conditioning operator
-and `reject M f` (`ex_reject_comb`) the executable sampler, both
-higher-order combinators of type `(ta → tR) → (ta → tR)` over an
-arbitrary probabilistic model `m : ta → tR` (a function value, itself
-free to contain samples, scores and recursion); writing `ν_M` for the
-model's output sub-distribution, the conditioning law gives
+the conditioned model's normalised distribution** — `ne_condition f m`
+is the Pyro-style conditioning operator and `ne_reject f m` the
+executable sampler (both in `theories/programs/reject_condition.v`),
+higher-order model transformers of type `(ta → tb) → (ta → tb)`
+parameterised by a **program predicate** `f : tfun tb tbool` — an
+ordinary term applied by ordinary application (`# "f" @ # "x"`), with
+no lift node — over an arbitrary probabilistic model `m : ta → tb`
+(a function value, itself free to contain samples, scores and
+recursion); writing `ν_M` for the model's output sub-distribution, the
+conditioning law gives
 `⟦condition m a⟧(U) = ∫_U f dν_M` (`condition_model_E` /
 `condition_E`) and the equivalence
 `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U` with
@@ -163,11 +166,13 @@ linear regression below is *defined as* iterated conditioning
 (the named anchor `ex_bayes_linear_is_iter_condition` is now
 definitional). The original
 hard-coded sampler is the simplest instance: at the model
-`λ_. sample µ`, the combinator denotes **the same measure** as
-`ex_reject` (`ex_reject_comb_sampler_E`), whose direct theorems
-(`ex_reject_master`, `ex_reject_is_normalised_posterior`,
-`ex_reject_mass_one`, `ex_reject_zero`) remain in
-`theories/programs/ex_reject_headline.v`, axiom-free. The same file proves the **CBV distribution identities** for the
+`λ_. sample µ` the combinator reproduces the classical rejection
+identity `∫ t dµ · ν(U) = ∫_U t dµ` (at `m₀ = 1`, for an arbitrary
+total program predicate) — `ex_reject_comb_sampler_master`. The
+hard-coded sampler's direct theorems (`ex_reject_master`,
+`ex_reject_is_normalised_posterior`, `ex_reject_mass_one`,
+`ex_reject_zero`) remain in `theories/programs/ex_reject_headline.v`,
+axiom-free. The same file proves the **CBV distribution identities** for the
 geometric and almost-loop programs: the geometric counter denotes the
 geometric law — the geometric PMF `(1/2)^(k+1)` at every embedded
 natural `k` (`ex_geom_cbv_distribution`, `ex_geom_cbv_pmf`), with the
@@ -269,8 +274,8 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   top of `reject_model_master` / `reject_model_is_normalised`, all in
   `theories/programs/ex_reject_model.v`; hard-coded instance
   `ex_reject_master` / `ex_reject_is_normalised_posterior` in
-  `theories/programs/ex_reject_headline.v` and the instance bridge
-  `ex_reject_comb_sampler_E`), via the let-at-sample Pettis
+  `theories/programs/ex_reject_headline.v` and the sampler-instance
+  master identity `ex_reject_comb_sampler_master`), via the let-at-sample Pettis
   integral law `eD_let_sample_int` and its arbitrary-bound-computation
   generalisation `eD_let_int` (`theories/programs/infra/let_sample_law.v`),
   the affine-cascade closed form + sup-mass bridge
@@ -296,8 +301,8 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   - measurable function application `Meas { f , Hf } e` (the `ne_meas`
     pushforward constructor), bundled distributions `sample m` over `pmeas`
     with named `gaussian` / `uniform` transported from mathcomp-analysis,
-    the comparison coin `e1 > e2`, OCaml-style `let rec f x := M in K`
-    sugar, and the `Condition { d } M` form.
+    the comparison coin `e1 > e2`, and the OCaml-style
+    `let rec f x := M in K` sugar.
 
   Demoed end to end by `ex_surface_demo` / `ex_surface_walk`.
 - **The CBV marginals** (`theories/programs/infra/cbv_marginals.v`,
@@ -369,13 +374,17 @@ theories/
                                      ex_score_posterior, ex_bayes_linear,
                                      ex_loop, ex_geom, ex_almost_loop,
                                      ex_even_odd_pair, ex_reject,
-                                     ex_reject_comb, ex_condition_comb +
-                                     Condition surface form, condition_at /
-                                     iter_condition — ex_bayes_linear IS
-                                     the iterated conditioning,
+                                     condition_at / iter_condition —
+                                     ex_bayes_linear IS the iterated
+                                     conditioning,
                                      gaussian / uniform, ex_surface_demo) —
                                      pure syntax + the eD-applied CBV
                                      denotations (ex_*_cbv)
+                 reject_condition.v  the CLEAN reject / condition
+                                     combinators (ne_fail, ne_assert,
+                                     ne_reject, ne_condition) — a program
+                                     predicate f : tfun tb tbool applied by
+                                     ordinary application, no lift node
                  ex_reject_headline.v
                                      the original CBV headline: rejection
                                      sampling denotes the normalised

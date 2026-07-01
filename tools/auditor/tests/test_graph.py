@@ -351,7 +351,7 @@ def test_real_sampler_master_depends_edge_from_glob():
     dep = set(dep)
     ment = set(build_entry_edges(three))
 
-    src = ("examples", "thm-ex-reject-comb-sampler-e")
+    src = ("examples", "thm-ex-reject-comb-sampler-master")
     tgt = ("examples", "thm-ex-reject-master")
     # The dependency is REAL (.glob) and NEW (not a doc co-reference).
     assert (src, tgt) in dep, "expected a .glob depends edge sampler→master"
