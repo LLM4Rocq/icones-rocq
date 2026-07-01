@@ -271,12 +271,13 @@ measures, in four beats.
   exactly the `add_lift` / `mul_lift` route — with `kernel_lift2_dirac`
   and the product-mass law `kernel_lift2_mass`.
 - *Instances.* `dirac_kernel` (`kernel_lift dirac_kernel = id`,
-  `dirac_kernel_lift_id`); `bernoulli_kernel` (the bundled `[0,1]`
-  value-dependent coin as a two-point measure on `R_obj`, agreeing with
-  `bern_lift` coordinatewise: `bernoulli_kernel_bern_lift_t` /
-  `bernoulli_kernel_bern_lift_f`); `gaussian_kernel`
+  `dirac_kernel_lift_id`); `gaussian_kernel`
   (`(m,s) ↦ normal_prob m s` transported along the carrier cast); and
   `uniform_kernel` (`(a,b) ↦ uniform_prob` for `a < b`, else `δ_a`).
+  (The value-dependent `[0,1]` coin is *not* a `pkernel` instance: it
+  is realised by `bern_lift`, a linhom in
+  `theories/programs/ppl.v`, with the branch-mass laws `bern_lift_t_E`
+  / `bern_lift_f_E`.)
 
 **The `s = 0` convention**: `gaussian_kernel` overrides the `s = 0`
 fibre to the Dirac `δ_m` — the degenerate weak limit of
@@ -2224,7 +2225,7 @@ and returns the conditioned model
 zeroes the trace. Writing `s_r := ⟦f x⟧` for the acceptance
 distribution at a returned value `r` and `t(r) := (bc_t s_r)%:num` for
 its acceptance probability, the conditioning law (Section
-ConditionModel of `theories/programs/ex_reject_model.v`) states that at
+RejectModelCompat of `theories/programs/ex_reject_model.v`) states that at
 a unit-ball model value `g!` and a setlike unit-ball input `a₀`,
 writing `ν_M := g(a₀)` for the model's output sub-distribution, the
 conditioned model's output is the model's output reweighted by `t`. The
@@ -2234,7 +2235,7 @@ proof engine is this chapter's general let-law `eD_let_int_obj` at
 `em_proj1_mor_unitE` / `Lfun_scaleE`.
 
 ```coq
-(* theories/programs/ex_reject_model.v (Section ConditionModel) *)
+(* theories/programs/ex_reject_model.v (Section RejectModelCompat) *)
 Theorem condition_model_E (U : set (ar_carrier Ar B))
     (mU : measurable U) :
   fmeas_mu (cond_model_denot R_to_carrier_meas fpred g a0) U =
@@ -2244,7 +2245,7 @@ Theorem condition_model_E (U : set (ar_carrier Ar B))
 In the readable `⟦·⟧` brackets (Section ReadableHeadlines, over an
 arbitrary thunked model `model_prog := λ_. Mbody` with
 `model_run := model_prog ()` and
-`condition_prog := (condition model_prog f) ()`), the law is
+`condition_prog := condition pred_prog model_prog ()`), the law is
 `condition_E`, and combining it with the rejection master identity
 `reject_prog_master` gives the equivalence — rejection sampling
 computes the conditioned model's normalised distribution:
