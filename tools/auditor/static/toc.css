@@ -72,6 +72,33 @@
   font-weight: 600;
 }
 
+/* Type-to-filter input (toc.js enhances; inert without JS) --------------- */
+
+.toc-filter {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 0.6rem;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.toc-filter::placeholder {
+  color: var(--fg-faint);
+}
+.toc-filter:focus-visible {
+  outline: none;
+  border-color: var(--toc-paper);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+/* toc.js hides non-matching nodes via the `hidden` attribute; make sure the
+   flex summary layout doesn't override it. */
+.toc-node[hidden] { display: none; }
+
 /* Lists ------------------------------------------------------------------- */
 
 .toc-root,

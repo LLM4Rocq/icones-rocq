@@ -72,6 +72,10 @@
     <summary class="toc-mobile-toggle">Contents</summary>
     <div class="toc-scroll">
       <p class="toc-heading">Contents</p>
+      {# Progressive-enhancement type-to-filter (toc.js). No-JS: inert input,
+         every link stays visible. #}
+      <input type="text" class="toc-filter" placeholder="Filter contents…"
+             aria-label="Filter contents" autocomplete="off" spellcheck="false">
       <ul class="toc-root">
         {%- for tabnode in toc -%}
         {%- set tab_active = (toc_active and toc_active.tab == tabnode.id) -%}

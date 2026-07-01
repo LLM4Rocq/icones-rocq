@@ -1,40 +1,10 @@
 /* Icones auditor — progressive enhancement.
- * Lives in one file: tab filter, copy-to-clipboard, sticky header shadow,
- * smooth scroll, Pagefind UI loader. Pages remain functional without JS. */
+ * Lives in one file: copy-to-clipboard, sticky header shadow, smooth scroll,
+ * Pagefind UI loader. Pages remain functional without JS.
+ * (Sidebar type-to-filter lives in toc.js.) */
 (() => {
   'use strict';
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-  // --- Tab filter (no-JS fallback: all entries stay visible) ----------------
-  const tabs = $$('.tabs .tab');
-  if (tabs.length) {
-    const body = document.body;
-    const STATUSES = ['axiom-free', 'regression-anchor', 'beyond-paper',
-                      'discharged-deferred', 'gap'];
-    const clearFilters = () =>
-      STATUSES.forEach(s => body.classList.remove('filter-' + s));
-    tabs.forEach(btn => btn.addEventListener('click', () => {
-      tabs.forEach(b => {
-        b.classList.remove('is-active');
-        b.setAttribute('aria-selected', 'false');
-      });
-      btn.classList.add('is-active');
-      btn.setAttribute('aria-selected', 'true');
-      clearFilters();
-      const f = btn.dataset.filter;
-      if (f) body.classList.add('filter-' + f);
-      // Sync hash for shareable filtered views.
-      const url = new URL(location.href);
-      if (f) url.searchParams.set('filter', f); else url.searchParams.delete('filter');
-      history.replaceState(null, '', url.toString());
-    }));
-    // Apply initial filter from URL.
-    const init = new URL(location.href).searchParams.get('filter');
-    if (init) {
-      const btn = tabs.find(b => b.dataset.filter === init);
-      if (btn) btn.click();
-    }
-  }
 
   // --- Copy Rocq identifier to clipboard ------------------------------------
   $$('.ident.copy').forEach(el => el.addEventListener('click', async () => {
