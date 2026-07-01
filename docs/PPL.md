@@ -25,7 +25,18 @@ statements one can make at the categorical level.
 
 ---
 
+**Chapter map.** This tab has six chapters:
+
+- [The surface language](../../ppl/chapters/ppl-ch-the-surface-language.html) — the intrinsically-typed syntax, the `tProb` probability type, and the witness-free surface forms.
+- [Call-by-value interpretation](../../ppl/chapters/ppl-ch-call-by-value-interpretation-linhom-comonoid.html) — `eD`, the linhom + comonoid interpreter, clause by clause.
+- [The SCones↔ICones-tensor bilinear stability bridge](../../ppl/chapters/ppl-ch-the-sconesicones-tensor-bilinear-stability-bridge.html) — the `stable/` infrastructure the value-fixpoint consumes.
+- [The CBV value-fixpoint at function types](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html) — `fix_comb`, its seeded Kleene core, and the mutual-recursion transport.
+- [CBV semantic laws and regression anchors](../../ppl/chapters/ppl-ch-cbv-semantic-laws-and-regression-anchors.html) — the equational layer and the marginal / conditioning results.
+- [The boolean cascade](../../ppl/chapters/ppl-ch-the-boolean-cascade.html) — the 2-point cone and its §9.7 coalgebra.
+
 ## The surface language
+
+**In this chapter:** [Def 1.1](../../ppl/sections/ppl-sec-def-1-1-types-and-contexts.html) · [Def 1.2](../../ppl/sections/ppl-sec-def-1-2-free-coalgebra-types.html) · [Def 1.3](../../ppl/sections/ppl-sec-def-1-3-pure-term-constructors.html) · [Def 1.4](../../ppl/sections/ppl-sec-def-1-4-effectful-term-constructors.html) · [Def 1.5](../../ppl/sections/ppl-sec-def-1-5-measurable-function-application.html) · [Def 1.6](../../ppl/sections/ppl-sec-def-1-6-runtime-parameter-distributions.html) · [Def 1.7](../../ppl/sections/ppl-sec-def-1-7-recursion-at-function-type.html) · [Def 1.8](../../ppl/sections/ppl-sec-def-1-8-mutual-recursion-at-free-coalgebra-types.html) · [Def 1.9](../../ppl/sections/ppl-sec-def-1-9-variable-lookup-by-canonical-structures.html) · [Def 1.10](../../ppl/sections/ppl-sec-def-1-10-surface-notation.html) · [Def 1.11](../../ppl/sections/ppl-sec-def-1-11-probability-type-and-bundle.html) · [Def 1.12](../../ppl/sections/ppl-sec-def-1-12-bernoulli-coins.html) · [Def 1.13](../../ppl/sections/ppl-sec-def-1-13-score-reweighting.html) · [Def 1.14](../../ppl/sections/ppl-sec-def-1-14-sigmoid-gausslik-and-gt0-primitives.html) · [Def 1.15](../../ppl/sections/ppl-sec-def-1-15-the-test-function-coin.html) · [Def 1.16](../../ppl/sections/ppl-sec-def-1-16-const-and-inclp.html) · [Def 1.17](../../ppl/sections/ppl-sec-def-1-17-the-observe-operator.html) · [Def 1.18](../../ppl/sections/ppl-sec-def-1-18-sampling-the-comparison-coin-and-let-rec.html) · [Def 1.19](../../ppl/sections/ppl-sec-def-1-19-reject-condition-combinators.html) · [Law 1.20](../../ppl/sections/ppl-sec-law-1-20-scores-densities-and-the-sub-probability-boundary.html).
 
 The source language is a simply-typed lambda calculus with sampling,
 scoring, recursion at function type, a two-point boolean type, and
@@ -54,7 +65,7 @@ and the derived readable forms on top of it.
 | The `observe` operator and its distribution bundle | `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `pobserve_obsGaussian`, `test`, `ptest` — same file |
 | The reject/condition combinators over a program predicate `f : b → tbool` (`ne_reject`, `ne_condition`) | `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition` — `theories/programs/reject_condition.v` |
 
-### Types and contexts (`ppl_type`, `named_ctx`)
+### Def 1.1 — Types and contexts (`ppl_type`, `named_ctx`)
 
 The surface types are a five-constructor grammar — unit, an arbitrary
 measurable base object `tbase X`, binary products, function types,
@@ -78,7 +89,7 @@ Definition drop_names (G : named_ctx) : ppl_ctx Ar := map snd G.
 interpretation lives on `drop_names G`, the named layer is only for
 canonical-structure-driven variable lookup at `#"x"` sites.
 
-### Free-coalgebra types (`is_free_coalg_type`)
+### Def 1.2 — Free-coalgebra types (`is_free_coalg_type`)
 
 The predicate characterises the surface types whose CBV
 interpretation is a *free* `!`-coalgebra — function types and
@@ -95,7 +106,7 @@ Fixpoint is_free_coalg_type (t : ppl_type Ar) : bool :=
   end.
 ```
 
-### Pure term constructors (`ne_var`, `ne_tt`, `ne_pair`, `ne_fst`, `ne_snd`, `ne_lam`, `ne_app`, `ne_let`, `ne_real`, `ne_add`, `ne_mul`, `ne_true`, `ne_false`)
+### Def 1.3 — Pure term constructors (`ne_var`, `ne_lam`, `ne_app`, `ne_let`)
 
 The pure fragment of `named_expr` is a standard intrinsically-typed
 simply-typed lambda calculus with products, let, real constants,
@@ -137,7 +148,7 @@ constructor (e.g. `Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M`) are
 crucial for canonical-structure resolution at `#"x"` sites — exactly
 the Saito–Affeldt APLAS 2023 §5.1 pattern.
 
-### Effectful term constructors (`ne_sample`, `ne_score`, `ne_bernoulli`, `ne_bernoulli_f`, `ne_if`)
+### Def 1.4 — Effectful term constructors (`ne_sample`, `ne_score`, `ne_bernoulli`, `ne_if`)
 
 The effectful constructors are direct-style — the probability monad
 lives in the interpretation `eD`, not in the source types — and they
@@ -184,7 +195,7 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 `ne_score` carries a density `f : R → R` valued in `[0,1]`; the
 bound is the unit-ball discipline of `linhom_icones` (see [Scores,
 densities, and the sub-probability
-boundary](../../ppl/sections/ppl-sec-scores-densities-and-the-sub-probability-boundary.html)
+boundary](../../ppl/sections/ppl-sec-law-1-20-scores-densities-and-the-sub-probability-boundary.html)
 for what it rules out — genuinely unbounded densities — and how a
 bounded density is conditioned via its intrinsic peak). The boolean
 coin shares that discipline: `ne_bernoulli p` is the constant coin
@@ -192,7 +203,7 @@ coin shares that discipline: `ne_bernoulli p` is the constant coin
 `(f r, 1 − f r)` at the value `r` of the `tR'`-valued
 sub-expression `e` — its CBV engine the path lift `bern_lift` (the
 boolean twin of `score_lift`; see [the value-dependent Bernoulli
-section](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html)).
+section](../../ppl/sections/ppl-sec-law-2-6-the-value-dependent-bernoulli-lift.html)).
 
 The `[0,1]` discipline is carried by a **type**, not by loose
 witnesses: the probability type `tProb P` (a `tbase` over the `[0,1]`
@@ -202,10 +213,10 @@ coin or score over it integrates the bundle's inclusion `ι`. The
 witness-free surface forms (`Bernoulli`, `Score`, `Sigmoid`, `Gausslik`,
 `Gt0`, `test`, `observe`, the comparison coin `>`) are covered in full
 by [the probability type and the `tProb`
-surface](../../ppl/sections/ppl-sec-the-probability-type-and-the-tprob-surface.html)
+surface](../../ppl/sections/ppl-sec-def-1-11-probability-type-and-bundle.html)
 below.
 
-### Measurable function application (`ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass`)
+### Def 1.5 — Measurable function application (`ne_meas`)
 
 `ne_meas f Hf e` pushes the value of the `tR'`-valued sub-expression
 `e` through a measurable meta-level function `f : R → R` — surface
@@ -232,7 +243,7 @@ total mass). The CBV clause is `eD_meas_E`
 (`theories/programs/ppl_cbv.v`): `⟦Meas f e⟧ = meas_lift ∘ ⟦e⟧` —
 the `FMeas`-functorial mirror of the `ne_score` clause.
 
-### Runtime-parameter distributions (`ne_gaussian`, `ne_uniform`, `pkernel`, `kernel_lift`, `kernel_lift2`)
+### Def 1.6 — Runtime-parameter distributions (`ne_gaussian`, `ne_uniform`)
 
 `Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )` draw from the
 normal/uniform family whose parameters are the **values** of the two
@@ -310,7 +321,7 @@ gaussian_kernel`. Three anchors pin it
 The `Uniform` mirror is `eD_uniform_at` / `eD_uniform_dirac_E` /
 `eD_uniform_mass` / `eD_uniform_sample_agree`.
 
-### Recursion at function type (`ne_fix`)
+### Def 1.7 — Recursion at function type (`ne_fix`)
 
 OCaml-style `let rec`, restricted to function types: the body has
 access to the recursive function via a fresh name `s : tfun t1 t2`
@@ -333,7 +344,7 @@ combinator of `theories/programs/infra/em_fix_value.v` — see
 [the CBV value-fixpoint
 chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 
-### Mutual recursion at free-coalgebra types (`ne_fix_mr`)
+### Def 1.8 — Mutual recursion at free-coalgebra types (`ne_fix_mr`)
 
 `ne_fix_mr` generalises `ne_fix` to any body type `t` with
 `is_free_coalg_type t = true` — in particular `t = tprod (tfun A1
@@ -362,7 +373,7 @@ conjugated by the coalgebra iso `free_decomp : tyD_cbv t ≅
 is genuine at *every* free body type; the surface witness is
 `ex_even_odd_pair` (see the [Examples tab](../examples/)).
 
-### Variable lookup by canonical structures (`tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'`)
+### Def 1.9 — Variable lookup by canonical structures (`find_nv`, `ne_var'`)
 
 Writing `#"x"` makes Rocq's canonical-structure search find the
 named context, the type, and the `named_var` witness of the binding
@@ -414,7 +425,7 @@ Definition ne_var' (R : realType) (Ar : MeasSubcat R) (R_obj : ar_obj Ar)
   ne_var (fn_proof g).
 ```
 
-### Surface notation (the `ppl_named` custom entry)
+### Def 1.10 — Surface notation (the `ppl_named` custom entry)
 
 A custom grammar entry `ppl_named` (opened by `Declare Custom Entry
 ppl_named` in the source) gives the examples an OCaml-flavoured
@@ -454,20 +465,25 @@ Direct-style: no `Ret` notation; `let "x" := M in N` desugars to
 `ne_let` (not `ne_bind`). Brackets `[ … ]` enter the entry; curly
 braces `{ x }` escape back to plain Rocq.
 
-### The probability type and the `tProb` surface (`probObj`, `tProb`, `po_into`, `po_density`, `Bernoulli`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `test`, `testfn`, `test_fun`, `ptest`, `Const`, `InclP`, `observe`, `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `observe_gauss_E`)
+### Def 1.11 — Probability type and bundle (`probObj`, `tProb`)
 
-The `[0,1]` discipline of coins and scores is carried by a **type**.
-A single bundle `probObj` packages the `[0,1]` sub-object the surface
-needs: a distinguished object `po_obj` together with its inclusion
-`po_incl : po_obj → R_obj`, the two `[0,1]` bounds on the inclusion,
-and the universal factoring `po_into` of any measurable `[0,1]` map
-`h : R → R` through the inclusion (`h = ι ∘ po_into h`, the
-computation law `po_into_E`). The probability type is
-`tProb P := tbase (po_obj P)`: a value of type `tProb P` is a
-`[0,1]`-supported measure, and a coin or score over it integrates the
-inclusion `ι` — the mean of the supported measure. The surface forms
-are witness-free; the bounds travel with the type, never as loose
-proof obligations.
+The `[0,1]` discipline of coins and scores is carried by a **type**, not
+by loose witnesses. A single bundle `probObj` packages the `[0,1]`
+sub-object the surface needs — a distinguished object `po_obj` with its
+inclusion `po_incl : po_obj → R_obj`, the two `[0,1]` bounds, and the
+universal factoring `po_into` of any measurable `[0,1]` map through the
+inclusion (`h = ι ∘ po_into h`, the computation law `po_into_E`). The
+probability type is `tProb P := tbase (po_obj P)`: a value of type
+`tProb P` is a `[0,1]`-supported measure, and a coin or score over it
+integrates the inclusion `ι` — the mean of the supported measure. The
+bundle also exposes the carrier density `po_density P` (the inclusion
+read into `R`). Every surface form below is witness-free; the bounds
+travel with the type, never as proof obligations.
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.11a — the `probObj` bundle | the canonical `[0,1]` sub-object interface: object, inclusion `ι`, the two bounds, and the factoring `po_into` | `probObj`, `po_incl`, `po_into`, `po_into_E` — `theories/programs/ppl.v` |
+| Def 1.11b — the `tProb P` type | a value is a `[0,1]`-supported measure a coin or score integrates via `po_density` | `tProb`, `po_density` — `theories/programs/ppl.v` |
 
 ```coq
 (* theories/programs/ppl.v — the [[0,1]] bundle and the probability type *)
@@ -482,130 +498,171 @@ Record probObj (R : realType) (Ar : MeasSubcat R) := MkProbObj {
               ar_hom Ar po_robj po_obj ;
   (* … the computation law [po_into_E] … *) }.
 Definition tProb (P : probObj Ar) : ppl_type Ar := tbase (po_obj P).
+```
 
-(* theories/programs/ppl.v — the witness-free surface (over a bundle [P]) *)
-Notation "'Meas' '{' f ',' Hf '}' e" := (ne_meas f Hf e) (* … *).
+A coin or score gets its `[0,1]` number three ways: as a bare literal
+(`Bernoulli [| p |]`), read off a `tProb`-typed value (`Bernoulli e`,
+`Score e`), or produced by pushing a real through a named `[0,1]` map
+(`Sigmoid e`, `Gausslik e { s , y }`, `Gt0 e`, `test f e`). Each is
+built once, in `ppl.v`, by feeding its `[0,1]` map into `po_into`; the
+use site never sees `po_into`.
+
+### Def 1.12 — Bernoulli coins (`pbern`, `bern_lift_P`)
+
+> **Prerequisite:** the two lifts `bern_lift_P` / `score_lift_P` at an
+> arbitrary base object, from
+> [Law 2.6 — the value-dependent Bernoulli lift](../../ppl/sections/ppl-sec-law-2-6-the-value-dependent-bernoulli-lift.html).
+
+The value coin `Bernoulli e` reads its success probability off the
+`tProb P`-typed sub-expression `e` through `po_density P` and flips with
+that probability; the bundle `P` is inferred from `e`'s type
+(e.g. `Bernoulli (Sigmoid #"x")`). The constant coin `Bernoulli [| p |]`
+takes a bare real literal — the fair coin is `Bernoulli [| (1/2 : R) |]` —
+with its `[0,1]` bounds discharged automatically by `lra`.
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.12a — value coin `Bernoulli e` | flips with the probability read off a `tProb P`-typed `e` via `po_density P` | `pbern`, `bern_lift_P` — `theories/programs/ppl.v` |
+| Def 1.12b — literal coin `Bernoulli [\| p \|]` | fair/biased coin from a bare `[0,1]` literal, bounds discharged by `lra` | `ne_bernoulli` — `theories/programs/ppl.v` |
+
+```coq
+(* theories/programs/ppl.v — the two Bernoulli surface forms *)
 Notation "'Bernoulli' '[|' p '|]'" :=
   (ne_bernoulli p (* [0 <= p] and [p <= 1] discharged by lra *)) (* … *).
 Notation "'Bernoulli' e" := (pbern e)   (* … value-dependent coin *).
-Notation "'Score' e"     := (pscore e)  (* … *).
+```
+
+### Def 1.13 — Score reweighting (`pscore`, `score_lift_P`)
+
+The score `Score e` weighs the current trace by the weight read off the
+`tProb P`-typed sub-expression `e` through `po_density P`, e.g.
+`Score (Gausslik e { 1 / 2 , y })`. Its engine at an arbitrary base
+object is `score_lift_P` (the score twin of `bern_lift_P`).
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.13a — the score `Score e` | weighs the trace by the weight read off a `tProb P`-typed `e` | `pscore`, `score_lift_P` — `theories/programs/ppl.v` |
+
+```coq
+(* theories/programs/ppl.v — the score surface form *)
+Notation "'Score' e" := (pscore e)  (* … *).
+```
+
+### Def 1.14 — Sigmoid, Gausslik, and Gt0 primitives (`psigmoid`, `pgausslik`, `pgt0`)
+
+Each of `Sigmoid e` / `Gausslik e { s , y }` / `Gt0 e` pushes a real
+value through a named `R → [0,1]` map and returns `tProb P` — the logistic
+map, the peak-normalised Gaussian likelihood (mean expression first, then
+the meta-level `{ stddev , datum }` braces), and the strict-positivity
+indicator, respectively. Each is built by feeding its `[0,1]` map into the
+bundle factoring `po_into`.
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.14a — `Sigmoid e` | pushes a real through the logistic map `sigmoid : R → [0,1]` into `tProb` | `psigmoid`, `sigmoid` — `theories/programs/ppl.v` |
+| Def 1.14b — `Gausslik e { s , y }` | pushes the mean `e` through the peak-normalised Gaussian likelihood | `pgausslik`, `gauss_obs_density` — `theories/programs/ppl.v` |
+| Def 1.14c — `Gt0 e` | pushes a real through the strict-positivity indicator `gt0_ind = \1_(0,∞)` | `pgt0`, `gt0_ind` — `theories/programs/ppl.v` |
+
+```coq
+(* theories/programs/ppl.v — the tProb-producing primitives *)
 Notation "'Sigmoid' e" := (psigmoid e) (* … *).
 Notation "'Gausslik' e '{' s ',' y '}'" := (pgausslik s y e) (* mean-first *).
 Notation "'Gt0' e"    := (pgt0 e)    (* … *).
+```
+
+### Def 1.15 — The test-function coin (`ptest`, `testfn`)
+
+A *test function* `f : testfn` is a measurable `[0,1]`-valued map you
+integrate measures *against*: `∫ f dµ` is the test pairing at the heart
+of the conditioning/rejection headline theorems. The `testfn` record
+bundles the carrier map `test_fun` with its measurability and
+`0 ≤ f ≤ 1` witnesses and coerces to its function, so `f r` and `∫ f dµ`
+read directly. `test f e` evaluates `f` at the runtime value `e`, landing
+in `tProb` — the `testfn`-parameterised sibling of `Sigmoid` / `Gausslik`
+— so a use site reads `Bernoulli (test f #"x")` / `Score (test f #"m")`.
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.15a — the test coin `test f e` | evaluates a test function `f : testfn` (`0 ≤ f ≤ 1`) at the runtime value `e`, landing in `tProb` | `ptest`, `testfn`, `test_fun` — `theories/programs/ppl.v` |
+
+```coq
+(* theories/programs/ppl.v — the abstract test-function coin *)
 Notation "'test' f e" := (ptest f e) (* abstract test-function coin *).
+```
+
+### Def 1.16 — Const and InclP (`pconst`, `pincl`)
+
+`Const pr e` is the constant-literal `tProb`-map at the bundled
+probability `pr : prob` (used by the parameterised `ex_almost_loop`).
+`InclP e` is the forgetful read of a `tProb P` value back to `tR` along
+the inclusion `ι`.
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.16a — `Const pr e` | the constant-literal `tProb` map at a bundled probability `pr : prob` | `pconst`, `prob` — `theories/programs/ppl.v` |
+| Def 1.16b — `InclP e` | forgetful read of a `tProb P` value back to `tR` along the inclusion `ι` | `pincl` — `theories/programs/ppl.v` |
+
+```coq
+(* theories/programs/ppl.v — constant map and inclusion read *)
 Notation "'Const' pr e" := (pconst pr e) (* … *).
 Notation "'InclP' e"  := (pincl e)   (* … *).
+```
+
+### Def 1.17 — The observe operator (`pobserve`, `obsGaussian`)
+
+`observe` is a general conditioning operator, not Gaussian-specific:
+`observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`. It is
+`pobserve (D : obsDist) (y : R)` over a distribution-with-density record
+`obsDist { od_arg ; od_dens ; … }`, where `od_arg` is the runtime
+parameter (the predicted mean) and `od_dens` the family of `[0,1]`-valued
+densities. `obsGaussian e s` is the first instance, so
+`pobserve (obsGaussian e s) y = pscore (pgausslik s y e)` definitionally
+(`pobserve_obsGaussian`); adding another observable distribution is a new
+`obsDist` instance plus a one-line sugar. The denotation lemma
+`observe_gauss_E` (`theories/programs/ppl_cbv.v`) weighs the trace by
+`normal_pdf μ s y / normal_peak s` — the Gaussian likelihood normalised by
+the intrinsic peak (see
+[Law 1.20 — scores, densities, and the sub-probability boundary](../../ppl/sections/ppl-sec-law-1-20-scores-densities-and-the-sub-probability-boundary.html)).
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.17a — `observe Gaussian e { s } y` | `≡ Score (Gausslik e { s , y })` — condition the mean `e` on datum `y` | `pobserve`, `obsGaussian`, `pobserve_obsGaussian` — `theories/programs/ppl.v` |
+| Def 1.17b — the `obsDist` record | distribution-with-density interface; a new observable is a new instance | `obsDist`, `od_arg`, `od_dens` — `theories/programs/ppl.v` |
+
+```coq
+(* theories/programs/ppl.v — the observe operator *)
 Notation "'observe' 'Gaussian' e '{' s '}' y" :=
   (pobserve (obsGaussian e s) y) (* … *).
+```
+
+### Def 1.18 — Sampling, the comparison coin, and let rec (`ne_sample`, `pmeas`)
+
+Bundled sampling: `pmeas` packages a sub-probability with its unit-ball
+witness, and `prob_pmeas` transports any mathcomp-analysis probability on
+`R` to a `pmeas`, giving the named distributions `gaussian m s` /
+`uniform a b` (`theories/programs/examples.v`). The comparison coin
+`e1 > e2` is `Bernoulli (Gt0 (e1 + Meas{negr} e2))` at the
+strict-positivity indicator of the difference — the deterministic test
+`a > b` on point masses. And `let rec f x := M in K` is OCaml-style
+recursive binding, `ne_let f (ne_fix f (ne_lam x M)) K`. The end-to-end
+demos are `ex_surface_demo` and `ex_surface_walk` (see the
+[Examples tab](../examples/)).
+
+| Result | Statement | Rocq |
+|---|---|---|
+| Def 1.18a — bundled draw `sample m` | `pmeas` packages a sub-probability with its unit-ball witness; `prob_pmeas` transports a probability | `sample`, `pmeas`, `prob_pmeas` — `theories/programs/ppl.v` |
+| Def 1.18b — comparison coin `e1 > e2` | `Bernoulli (Gt0 (e1 + Meas{negr} e2))` — deterministic `a > b` on point masses | `negr` — `theories/programs/ppl.v` |
+| Def 1.18c — `let rec f x := M in K` | OCaml-style recursive binding `ne_let f (ne_fix f (ne_lam x M)) K` | `ne_fix`, `ne_let` — `theories/programs/ppl.v` |
+
+```coq
+(* theories/programs/ppl.v — bundled sampling, the comparison coin, let rec *)
 Notation "'sample' m" := (ne_sample (pm_meas m) (pm_ball m)) (* … *).
 Notation "M > N"      := (Bernoulli (Gt0 (ne_add M (ne_meas negr negr_meas N)))) (* … *).
 Notation "'let' 'rec' f x ':=' M 'in' K" :=
   (ne_let f%string (ne_fix f%string (ne_lam x%string M)) K) (* … *).
 ```
 
-A coin or score gets its `[0,1]` number three ways: as a bare literal
-(`Bernoulli [| p |]`), read off a `tProb`-typed value (`Bernoulli e`,
-`Score e`), or produced by pushing a real through a named `[0,1]` map
-(`Sigmoid e`, `Gausslik e { s , y }`, `Gt0 e`, `test f e`). Every form
-is witness-free; the bounds travel with the type, never as proof
-obligations. The bullets below detail each.
-
-- **The bundle `probObj` and the type `tProb`.** `probObj` is the
-  canonical `[0,1]` sub-object interface; `tProb P := tbase (po_obj P)`
-  folds it into a surface type, so a wrapper meeting `e : tProb P`
-  recovers `P` by unifying `tProb ?P` against the folded type. The
-  bundle exposes the carrier density `po_density P : po_obj P → R` (the
-  inclusion read into `R`, the success-probability / weight a coin or
-  score reads) and the two lifts `bern_lift_P` / `score_lift_P` at the
-  base object `po_obj` (see [the lifts at an arbitrary base
-  object](../../ppl/sections/ppl-sec-the-value-dependent-bernoulli-lift.html)).
-- **The value coin `Bernoulli e` and the score `Score e`** read their
-  success probability / weight off the `tProb P`-typed sub-expression
-  `e` through `po_density P`: `Bernoulli e` flips with that probability,
-  `Score e` weighs the trace by it. The bundle `P` is inferred from
-  `e`'s type — e.g. `Bernoulli (Sigmoid #"x")`,
-  `Score (Gausslik e { 1 / 2 , y })`.
-- **The constant coin `Bernoulli [| p |]`** takes a bare real literal
-  `p : R`; its `[0,1]` bounds are discharged automatically by `lra`. No
-  bundle, no loose witness — the fair coin is `Bernoulli [| (1/2 : R) |]`.
-- **The `tProb`-producing primitives** `Sigmoid e` / `Gausslik e { s , y }`
-  / `Gt0 e`. Each pushes a real value through a named `R → [0,1]` map and
-  returns `tProb P`:
-  - `Sigmoid e` through the logistic map `sigmoid : R → [0,1]`;
-  - `Gausslik e { s , y }` through the envelope-normalised Gaussian
-    likelihood `gauss_obs_density s y` (mean expression `e` first, then
-    the meta-level `{ stddev , datum }` braces);
-  - `Gt0 e` through the strict-positivity indicator `gt0_ind = \1_(0,∞)`.
-
-  Each is built once, in `ppl.v`, by feeding its `[0,1]` map (whose
-  measurability and bounds already exist) into the bundle factoring
-  `po_into`; the use site never sees `po_into`.
-- **The abstract test-function coin `test f e` (`ptest`).** A *test
-  function* `f : testfn` is a measurable `[0,1]`-valued map you integrate
-  measures *against*: `∫ f dµ` is the test pairing that is literally the
-  content of the conditioning/rejection headline theorems
-  (`∫ f dµ · ν(U) = ∫_U f dµ`). The `testfn` record bundles the carrier
-  map `test_fun` with its measurability and `0 ≤ f ≤ 1` witnesses
-  (`test_meas` / `test_ge0` / `test_le1`) and coerces to its function
-  (`Coercion test_fun : testfn >-> Funclass`), so `f r` and `∫ f dµ` read
-  directly. `test f e` evaluates `f` at the runtime value `e`, landing in
-  `tProb` — the `testfn`-parameterised sibling of `Sigmoid` / `Gausslik`,
-  folding `po_into (test_fun f)` into one witness-free wrapper. A use site
-  reads `Bernoulli (test f #"x")` / `Score (test f #"m")`. Contrast
-  `observe Dist y`, the special case where the test is a concrete
-  distribution's peak-normalised density; the general theorems quantify
-  over an *arbitrary* test `f`, which is why the abstract form exists.
-- **`Const pr e` and `InclP e`.** `Const pr e` is the constant-literal
-  `tProb`-map at the bundled probability `pr : prob` (used by the
-  parameterised `ex_almost_loop`). `InclP e` is the forgetful read of a
-  `tProb P` value back to `tR` along the inclusion `ι`.
-- **The `observe` operator — `observe Gaussian e { s } y ≡
-  Score (Gausslik e { s , y })` (= `pobserve (obsGaussian e s) y`).**
-  `observe` is a general conditioning operator, not Gaussian-specific. It
-  is `pobserve (D : obsDist) (y : R)` over a distribution-with-density
-  record `obsDist { od_arg ; od_dens ; od_meas ; od_ge0 ; od_le1 }`:
-  `od_arg` is the runtime parameter (the predicted mean), `od_dens point
-  param` the family of `[0,1]`-valued densities. `pobserve D y` scores
-  `od_arg D` by `od_dens D y` through `po_into`, reusing `pscore`.
-  `obsGaussian e s : obsDist` is the first instance (`od_arg := e`,
-  `od_dens := gauss_obs_density s`), so
-  `pobserve (obsGaussian e s) y = pscore (pgausslik s y e)` definitionally
-  (`pobserve_obsGaussian`). Adding another observable distribution is a
-  new `obsDist` instance plus a one-line sugar; `pobserve` stays fixed.
-  The denotation lemma `observe_gauss_E` (`theories/programs/ppl_cbv.v`)
-  weighs the trace, at a setlike Dirac environment, by
-  `normal_pdf μ s y / normal_peak s` at the runtime mean `μ` — the
-  Gaussian likelihood normalised by the intrinsic peak `normal_peak s`
-  (see [Scores, densities, and the sub-probability
-  boundary](../../ppl/sections/ppl-sec-scores-densities-and-the-sub-probability-boundary.html)).
-- **Bundled sampling `sample m`** — `pmeas` packages a sub-probability
-  with its unit-ball witness; `prob_pmeas` transports any
-  mathcomp-analysis probability on `R` to a `pmeas`, giving the named
-  distributions `gaussian m s` / `uniform a b`
-  (`theories/programs/examples.v`): `let "m" := sample gaussian01 in …`.
-- **The comparison coin `e1 > e2`** — `Bernoulli (Gt0 (e1 + Meas{negr} e2))`
-  at the strict-positivity indicator `gt0_ind` of the difference: on
-  point masses the deterministic test `a > b`; on diffuse arguments the
-  probability that an independent draw of `e1` exceeds one of `e2`.
-- **`let rec f x := M in K`** — OCaml-style recursive function
-  binding, `ne_let f (ne_fix f (ne_lam x M)) K`; an annotated form
-  `let rec f x ::: T1 ==> T2 := M in K` covers bodies that leave the
-  binder type undetermined.
-- **The reject/condition combinators (`ne_reject`, `ne_condition`)** —
-  the generic `reject f m` / `condition f m` operators over a **program
-  predicate** `f : b → tbool` and a model `m : a → b`, built from
-  `fix` / `\` / `@` / `if` / `()` / `let` alone — no coin and no `Score`
-  inside the combinators (`theories/programs/reject_condition.v`); see
-  the [Examples tab](../examples/) for the unified master theorem, the
-  conditioning law, and the rejection-sampling equivalence.
-
-The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
-`sample gaussian01`, the `>` coin) and `ex_surface_walk`
-(annotation-free `let rec`, the `Bernoulli`/`Score` forms),
-both with elaboration pins (`ex_surface_demo_decomp`) and compile-time
-CBV denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
-
-### The reject/condition combinators over a program predicate (`ne_fail`, `ne_assert`, `ne_reject`, `ne_condition`)
+### Def 1.19 — Reject/condition combinators (`ne_reject`, `ne_condition`)
 
 Rejection sampling and conditioning are two closed combinators whose
 **acceptance test is itself a program** — a predicate `f : b → tbool`
@@ -656,7 +713,7 @@ Definition ne_condition :
            # "x") ].
 ```
 
-### Scores, densities, and the sub-probability boundary (`ne_score`, `cones_hom_norm_le1`, `score_lift`)
+### Law 1.20 — Scores, densities, and the sub-probability boundary (`ne_score`, `score_lift`)
 
 This is a sub-probability model, and that fixes exactly which scores
 it can express. Every morphism of `ICone` is non-expansive: the
@@ -727,6 +784,8 @@ Eilenberg–Moore development) that the kernel model does not. An
 
 ## Call-by-value interpretation (linhom + comonoid)
 
+**In this chapter:** [Def 2.1](../../ppl/sections/ppl-sec-def-2-1-type-translation.html) · [Def 2.2](../../ppl/sections/ppl-sec-def-2-2-context-translation.html) · [Def 2.3](../../ppl/sections/ppl-sec-def-2-3-em-cartesian-primitives.html) · [Def 2.4](../../ppl/sections/ppl-sec-def-2-4-term-interpretation.html) · [Def 2.5](../../ppl/sections/ppl-sec-def-2-5-constant-icones-helpers.html) · [Law 2.6](../../ppl/sections/ppl-sec-law-2-6-the-value-dependent-bernoulli-lift.html) · [Def 2.7](../../ppl/sections/ppl-sec-def-2-7-if-then-else-at-the-icones-level.html) · [Law 2.8](../../ppl/sections/ppl-sec-law-2-8-the-definitional-unfolding-pack.html).
+
 **Definition (CBV interpretation).** *Each type `τ` denotes a
 `!`-coalgebra `⟦τ⟧ ∈ EM(!)`; each well-typed program `Γ ⊢ M : τ`
 denotes a linear morphism `⟦M⟧ : U⟦Γ⟧ ⊸ U⟦τ⟧` in `ICone` — an
@@ -775,7 +834,9 @@ and
 | Definitional-unfolding pack (one lemma per clause) | `eD_var_E` … `eD_fix_mr_prod_E` (25 lemmas) — `theories/programs/ppl_cbv.v` (Section EDUnfold) |
 | Recursion-unfolding equations (semantic; setlike points) | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_unfold_closed` — `theories/programs/infra/cbv_fix_unfold.v` |
 
-### Type translation (`tyD_cbv`)
+### Def 2.1 — Type translation (`tyD_cbv`)
+
+> **Key result:** each surface type denotes a `!`-coalgebra — the whole interpretation runs in `EM(!)`.
 
 Each surface type is sent to a `!`-coalgebra: `tunit` to the
 terminal coalgebra, `tbase X` to the Theorem 9.7 coalgebra on `FMeas
@@ -802,14 +863,16 @@ The `tbase` clause is the
 `theories/homs/coalgebra.v`; the `tbool` clause uses
 `bool_cone_coalg` of `theories/programs/infra/bool_cone_coalg.v` —
 see [the §9.7 coalgebra on the 2-point
-cone](../../ppl/sections/ppl-sec-the-sec-9-7-coalgebra-on-the-2-point-cone.html).
+cone](../../ppl/sections/ppl-sec-def-6-4-the-sec-9-7-coalgebra-on-the-2-point-cone.html).
 Both choices give the *shared-sample* semantics expected of a PPL:
 `let x = Bernoulli(p) in (x, x)` denotes the diagonal pushforward
 `p·(T, T) + (1-p)·(F, F)`, not the independent product `µ ⊗ µ` that
 a cofree `bang_cofree (bool_cone_car Ar)` would give. There is no
 `Tobj` wrap anywhere: function values are clean linear maps.
 
-### Context translation (`ctxD_cbv`)
+### Def 2.2 — Context translation (`ctxD_cbv`)
+
+> **Prerequisite:** the type translation [Def 2.1](../../ppl/sections/ppl-sec-def-2-1-type-translation.html); variable lookup uses only the comonoid counits.
 
 A context denotes the right-nested iterated EM product of its types'
 coalgebras, with the terminal coalgebra `EM_term` at the nil case;
@@ -835,7 +898,7 @@ Fixpoint var_lookup_cbv (G : ppl_ctx Ar) (t : ppl_type Ar)
   end.
 ```
 
-### EM cartesian primitives (`coalg_d`, `coalg_e`, `em_pair_mor`, `em_proj1_mor`, `em_proj2_mor`, `em_term_mor`)
+### Def 2.3 — EM cartesian primitives (`coalg_d`, `coalg_e`, `em_pair_mor`)
 
 Every `!`-coalgebra carries a commutative comonoid `(δ, ε) =
 (coalg_d, coalg_e)` transported from the Seely comonoid on its
@@ -894,7 +957,7 @@ Lemma em_pair_mor_proj_id (P Q : Coalgebra Ar) :
   = icones_id Ar (coalg_obj (EM_prod P Q)).
 ```
 
-### Term interpretation (`eD_cbv`, `eD`)
+### Def 2.4 — Term interpretation (`eD_cbv`, `eD`)
 
 The interpreter is uniformly comonoid-primitive: every branching
 node (let, pair, app, if, arithmetic, boolean) uses the `δ_Γ`
@@ -977,7 +1040,7 @@ other clause is built from the SMC primitives (`linhom_comp`,
 `tensor_mor`, `tensor_braid`, `tensor_curry` / `tensor_uncurry`) and
 the coalgebra-comonoid pair (`coalg_d`, `coalg_e`) only.
 
-### Constant icones helpers (`sample_icones`, `real_icones`, `bernoulli_icones`)
+### Def 2.5 — Constant icones helpers (`sample_icones`, `real_icones`, `bernoulli_icones`)
 
 Each effect / value constructor (`ne_sample`, `ne_real`,
 `ne_bernoulli`, `ne_true`, `ne_false`) denotes a *constant*
@@ -1003,7 +1066,9 @@ With `tyD_cbv tbool = bool_cone_coalg`, the carrier of `⟦tbool⟧` is
 `bool_cone_car Ar` directly (not `Bang _`), so the value is the basis
 point `bool_dirac_true` itself — no `prom` wrap is needed.
 
-### The value-dependent Bernoulli lift (`bern_lift`, `bern_lift_dirac`, `bern_lift_mass`, `bern_lift_P`, `score_lift_P`)
+### Law 2.6 — The value-dependent Bernoulli lift (`bern_lift`, `bern_lift_P`, `score_lift_P`)
+
+> **Key result:** the total-mass law `bern_lift_mass` is what makes the rejection-sampling per-iterate mass recurrence affine.
 
 The semantic engine of `ne_bernoulli_f`: an
 `icones_hom (FMeas R_obj) (bool_cone_car Ar)` sending a measure `µ`
@@ -1078,7 +1143,7 @@ Definition score_lift_P (P : probObj Ar) :
     icones_hom Ar (FMeas (po_obj P)) (cone_one_car Ar) := (* … *).
 ```
 
-### If-then-else at the icones level (`if_icones`, `if_under`)
+### Def 2.7 — If-then-else at the icones level (`if_icones`, `if_under`)
 
 The CBV value-level if-then-else takes two branches `m, n :
 icones_hom G → A` and a scrutinee `b : G → bool_cone` and returns a
@@ -1111,7 +1176,7 @@ Ar`. The building blocks (`bool_case_linhom`, the 2-point cone, the
 §9.7 coalgebra) are documented in [the boolean-cascade
 chapter](../../ppl/chapters/ppl-ch-the-boolean-cascade.html).
 
-### The definitional-unfolding pack (`eD_var_E` … `eD_fix_mr_prod_E`)
+### Law 2.8 — The definitional-unfolding pack (`eD_var_E`, `eD_fix_mr_prod_E`)
 
 One lemma per `eD_cbv` clause — 25 in total: one for each of the 23
 `named_expr` constructors, plus the two per-body-type refinements
@@ -1178,6 +1243,8 @@ chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html
 
 ## The SCones↔ICones-tensor bilinear stability bridge
 
+**In this chapter:** [Law 3.1](../../ppl/sections/ppl-sec-law-3-1-lift-linhom-stablehom.html) · [Law 3.2](../../ppl/sections/ppl-sec-law-3-2-the-diagonal-bilinear-stability-bridge.html).
+
 This chapter records the `stable/`-side infrastructure (paper-§7
 material) consumed by the CBV value-fixpoint. The lift
 `linhom_to_stablehom` is what lets the fixpoint chapter's
@@ -1198,7 +1265,7 @@ required.
 | The diagonal stable pairing | `id_spair_meas_stable`, `spair_meas_stable` — same file |
 | **The deliverable** — diagonal bilinear stability bridge | `meas_stable_diag_bilinear_tensor` — same file |
 
-### Lift `linhom → stablehom` (`linhom_to_stablehom`)
+### Law 3.1 — Lift `linhom → stablehom` (`linhom_to_stablehom`)
 
 Every inhabitant of the internal hom `linhom_car Ar B C` is a stable
 and measurable map of cones, and the packaging function
@@ -1225,7 +1292,7 @@ Lemma linhom_to_stablehom_meas_stable :
 
 The 0-extension off the unit ball is the standard `sc_clamp`.
 
-### The deliverable (`meas_stable_diag_bilinear_tensor`)
+### Law 3.2 — The diagonal bilinear stability bridge (`meas_stable_diag_bilinear_tensor`)
 
 For any measurable-stable `K : G → EA` and any bilinear
 `Φ : G ⊗ EA → EB` (an `icones_hom` out of the tensor), the diagonal
@@ -1261,6 +1328,8 @@ Lemma meas_stable_diag_bilinear_tensor
 ---
 
 ## The CBV value-fixpoint at function types
+
+**In this chapter:** [Thm 4.1](../../ppl/sections/ppl-sec-thm-4-1-the-degeneracy-theorem.html) · [Def 4.2](../../ppl/sections/ppl-sec-def-4-2-the-naive-linear-kleene-step.html) · [Def 4.3](../../ppl/sections/ppl-sec-def-4-3-the-seeded-kleene-core.html) · [Def 4.4](../../ppl/sections/ppl-sec-def-4-4-the-interleaved-chain-and-the-value-map.html) · [Def 4.5](../../ppl/sections/ppl-sec-def-4-5-the-combinator.html) · [Law 4.6](../../ppl/sections/ppl-sec-law-4-6-coalgebraic-bodies-the-literal-chain.html) · [Law 4.7](../../ppl/sections/ppl-sec-law-4-7-non-degeneracy.html) · [Def 4.8](../../ppl/sections/ppl-sec-def-4-8-the-mutual-recursion-transport.html) · [Law 4.9](../../ppl/sections/ppl-sec-law-4-9-the-interpreter-wiring.html) · [Law 4.10](../../ppl/sections/ppl-sec-law-4-10-the-recursion-unfolding-equations.html) · [Def 4.11](../../ppl/sections/ppl-sec-def-4-11-the-scones-fixpoint-core.html).
 
 The CBV-side `let rec` is the value-fixpoint *combinator*
 `fix_comb : EM( !̃(!A ⊸ !A), !̃A )` — a morphism of `!`-coalgebras
@@ -1316,7 +1385,9 @@ The chapter tells the story in three beats.
 | The interpreter wiring `⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧` | `eD_fix_E`, `eD_fix_mr_fun_E`, `eD_fix_mr_prod_E`, `fix_mr_clause` — `theories/programs/ppl_cbv.v` |
 | The recursion-unfolding equations at setlike points | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_at_one1`, `eD_fix_unfold_closed`, `eD_fix_mr_prod_at_setlike`, `eD_fix_mr_prod_at_setlike_neq0` — `theories/programs/infra/cbv_fix_unfold.v` |
 
-### The degeneracy theorem (`Phi_fun_lfp_eq0`)
+### Thm 4.1 — The degeneracy theorem (`Phi_fun_lfp_eq0`)
+
+> **Key result:** the naive zero-seeded value-fixpoint is *provably the zero linhom* — the reason the seeded combinator exists.
 
 For *every* diagonal `diag` and every body `M`, the zero-seeded
 Kleene iteration `linhom_lfp (Phi_fun diag M) …` — the construction
@@ -1360,7 +1431,7 @@ and is therefore not even close to `precone_zero` in the cone order.
 A least fixpoint computed from the wrong bottom is the wrong least
 fixpoint.
 
-### The naive linear Kleene step (`Phi_fun`)
+### Def 4.2 — The naive linear Kleene step (`Phi_fun`)
 
 The step that the degeneracy theorem is about: `Phi_fun` sends a
 candidate denotation `prev : Γ ⊸ B` to `M ∘ (id_Γ ⊗ prev) ∘ diag` —
@@ -1395,7 +1466,7 @@ interpreter never routes through the zero-seeded iteration — the
 removed operator, goes through the genuine Seely-transported
 combinator (see the mutual-recursion transport section below).
 
-### The seeded Kleene core (`kleene_from`, `lfp_from`)
+### Def 4.3 — The seeded Kleene core (`kleene_from`, `lfp_from`)
 
 The generic Kleene chain `n ↦ fⁿ(b0)` for an *arbitrary* seed `b0`
 with `b0 ≤ f b0` replacing the `precone_le0` base of the zero-seeded
@@ -1417,7 +1488,7 @@ Definition lfp_from : B :=
 Lemma lfp_from_fixpoint : f lfp_from = lfp_from.
 ```
 
-### The interleaved chain and the value map (`fix_chain`, `fix_value`)
+### Def 4.4 — The interleaved chain and the value map (`fix_chain`, `fix_value`)
 
 Fix `A` and write `!A := Bang Ar A`. The interleaved chain of a body
 `F : !A ⊸ !A` (abbreviated `LL` in the snippets below) is `x_0 = 0 : A`,
@@ -1468,7 +1539,7 @@ Lemma fix_value_unfold (F : LL) (HF : cone_norm F <= 1) :
   sc_fun fix_value F.
 ```
 
-### The combinator (`fix_comb`, `fix_prom_E`)
+### Def 4.5 — The combinator (`fix_comb`, `fix_prom_E`)
 
 A stable map `(!A ⊸ !A) → A` *is* a linear map `!(!A ⊸ !A) ⊸ A`
 via the SAFT hom-bijection `lin`/`Theta` of `theories/homs/bang.v`
@@ -1496,7 +1567,7 @@ supremum. Its proof composes `dig_prom` (the cofree structure map
 promotes promoted points), `bang_fmap_prom` (the functorial action
 computes on promoted points) and `fix_lin_promE`.
 
-### Coalgebraic bodies: the literal chain (`fix_coalg_simpl`)
+### Law 4.6 — Coalgebraic bodies: the literal chain (`fix_coalg_simpl`)
 
 Obligation (b): when the body `F` is itself a morphism of
 `!`-coalgebras `!A → !A`, the interleaved chain coincides with the
@@ -1531,7 +1602,7 @@ Note the seed-order obligation `0! ≤ F(0!)` (`fix_seed_le`) — the
 base case the zero-seeded `linhom_lfp` could never provide, and the
 reason the seeded Kleene core of this file exists.
 
-### Non-degeneracy (`fix_prom_neq0`, `fix_id_E`)
+### Law 4.7 — Non-degeneracy (`fix_prom_neq0`, `fix_id_E`)
 
 On *every* promoted body the combinator returns a promoted point of
 `!A`, and a promoted point is never the cone-zero (its `e_bang`-mass
@@ -1554,7 +1625,7 @@ Lemma fix_id_nontrivial :
   Lfun (ch_mor (fix_comb A)) (prom fix_idF) <> precone_zero.
 ```
 
-### The mutual-recursion transport (`coalg_iso`, `seely2_em_iso`, `fix_comb_iso`, `free_decomp`, `fix_mr_comb`)
+### Def 4.8 — The mutual-recursion transport (`seely2_em_iso`, `fix_comb_iso`, `fix_mr_comb`)
 
 The layer that makes `ne_fix_mr` genuine at *products* of free
 types, in `theories/programs/infra/em_fix_mr.v` plus the
@@ -1640,7 +1711,7 @@ while the pair value itself is `0! ⊗p 0!`
 (`ex_even_odd_pair_cbv_value`), never the cone-zero — see
 the [Examples tab](../examples/).
 
-### The interpreter wiring (`eD_fix_E`, `fix_mr_clause`)
+### Law 4.9 — The interpreter wiring (`eD_fix_E`, `fix_mr_clause`)
 
 The `ne_fix` clause of `eD_cbv` is the composite
 `fix_comb ∘ ⟦λs.body⟧`: the self-abstraction is interpreted as an
@@ -1691,7 +1762,7 @@ Lemma eD_fix_mr_prod_E (G : named_ctx Ar) (s : string)
 Proof. by []. Qed.
 ```
 
-### The recursion-unfolding equations (`eD_fix_at_setlike`, `eD_fix_unfold`)
+### Law 4.10 — The recursion-unfolding equations (`eD_fix_at_setlike`, `eD_fix_unfold`)
 
 The semantic laws of the wired `ne_fix` clause, stated at *setlike*
 unit-ball context points (`coalg_str Γ γ = γ!` — the §9.7 "γ is a
@@ -1749,7 +1820,7 @@ equations live in their own file because the setlike-point kit they
 consume (`infra/cbv_anchors.v`) imports `ppl_cbv.v` — an import
 cycle would result if they sat next to the definitional clause pins.
 
-### The SCones fixpoint core (`Yfix`)
+### Def 4.11 — The SCones fixpoint core (`Yfix`)
 
 The stable-fixpoint core is `Yfix : scones_hom BB B` of
 `theories/stable/fixpoint.v` — [paper
@@ -1775,6 +1846,8 @@ Definition Yfix : scones_hom BB B :=
 ---
 
 ## CBV semantic laws and regression anchors
+
+**In this chapter:** [Law 5.1](../../ppl/sections/ppl-sec-law-5-1-the-let-at-sample-integral-law.html) · [Law 5.2](../../ppl/sections/ppl-sec-law-5-2-the-affine-cascade-and-the-sup-mass-bridge.html) · [Def 5.3](../../ppl/sections/ppl-sec-def-5-3-the-setlike-point-kit.html) · [Law 5.4](../../ppl/sections/ppl-sec-law-5-4-the-sharing-semantics-anchors.html) · [Law 5.5](../../ppl/sections/ppl-sec-law-5-5-the-rule-and-the-if-pins.html) · [Law 5.6](../../ppl/sections/ppl-sec-law-5-6-the-cbv-marginals.html) · [Law 5.7](../../ppl/sections/ppl-sec-law-5-7-the-conditioning-law-and-the-equivalence.html).
 
 The equational layer between the interpreter and the example
 results: pointwise laws *about* `eD` that the rejection-sampling and
@@ -1812,7 +1885,9 @@ rejection/conditioning equivalence of
 | The Bayesian-linear-regression model evidence (general observation list) | `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`, `obs_fold_at` — same file |
 | Marginal kit: the `FMeas` counit on probabilities; projections at non-setlike points | `coalg_e_FMeas_prob`, `em_proj1_mor_unitE`, `em_proj1_mor_probE`, `Lfun_scaleE`, `one_dirac_ball`, `one_dirac_setlike` — same file |
 
-### The let-at-sample integral law (`eD_let_sample_int`, `eD_let_sample_mu_E`, `eD_let_int`)
+### Law 5.1 — The let-at-sample integral law (`eD_let_sample_int`, `eD_let_int`)
+
+> **Key result:** `⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)` — the Pettis integral law the marginal proofs consume.
 
 The law ties the CBV interpretation of `let x = sample µ in K` to
 the Pettis integral of `K`'s denotation over the Diracs of `µ`:
@@ -1897,7 +1972,7 @@ Lemma eD_let_int (γ : Gamo) :
     (Lfun (eD_cbv' M) γ).
 ```
 
-### The affine cascade and the sup-mass bridge (`affine_iter_closed`, `fmeas_kleene_sup_U_E`)
+### Law 5.2 — The affine cascade and the sup-mass bridge (`affine_iter_closed`, `fmeas_kleene_sup_U_E`)
 
 The scalar core of every CBV mass headline. Given reals
 `a, q ≥ 0` and a real sequence with `x 0 = 0` and
@@ -1945,7 +2020,7 @@ the boolean dispatch), close the recurrence with
 `affine_iter_closed` / `affine_iter_cvg`, and land with
 `fmeas_kleene_sup_U_E`.
 
-### The setlike-point kit (`coalg_d_setlike`, `coalg_str_tensor_setlike`)
+### Def 5.3 — The setlike-point kit (`coalg_d_setlike`, `coalg_str_tensor_setlike`)
 
 A point `x` of a coalgebra `(P, str)` is *setlike* when
 `str x = x!` — the §9.7 reading "`x` is a (sub-)Dirac". On setlike
@@ -2000,7 +2075,7 @@ Lemma coalg_d_FMeas_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
   dirac_fmeas r ⊗p dirac_fmeas r.
 ```
 
-### The sharing-semantics anchors (`let_bernoulli_pair_diag`, `pair_bernoulli_indep`)
+### Law 5.4 — The sharing-semantics anchors (`let_bernoulli_pair_diag`, `pair_bernoulli_indep`)
 
 The load-bearing program-level pin: `let x = Bernoulli(p) in (x, x)`
 denotes the *diagonal* pushforward
@@ -2041,7 +2116,7 @@ Dirac special case is the anchor.) All anchors are stated against
 the public interpreter `eD` through the definitional clause pins of
 `ppl_cbv.v` — never re-derived.
 
-### The β-rule and the if-pins (`eD_beta`, `eD_if_true`, `eD_if_false`)
+### Law 5.5 — The β-rule and the if-pins (`eD_beta`, `eD_if_true`, `eD_if_false`)
 
 Two more morphism-level anchors. The β-rule
 `(λx.M) V = let x := V in M` holds as an equality of `icones_hom`s:
@@ -2068,7 +2143,7 @@ Lemma eD_if_false (G : named_ctx Ar) (t : ppl_type Ar)
   eD_cbv' (ne_if t ne_false M N) = eD_cbv' N.
 ```
 
-### The CBV marginals (`ex_score_posterior_cbv_E`, `ex_reject_normalises_score`, `ex_random_constant_cbv_marginal`, `ex_random_linear_cbv_marginal`, `ex_bayes_linear_cbv_evidence`)
+### Law 5.6 — The CBV marginals (`ex_score_posterior_cbv_E`, `ex_bayes_linear_cbv_evidence`)
 
 The headline semantic identities of the non-recursive basic
 sampling/scoring examples of `theories/programs/examples.v`, proved
@@ -2216,7 +2291,7 @@ scalar when discarding a `tunit`-typed score result
 per-program proofs are worked example-by-example in
 the [Examples tab](../../examples/index.html).
 
-### The conditioning law and the equivalence (`condition_model_E`, `condition_E`, `reject_normalises_condition`)
+### Law 5.7 — The conditioning law and the equivalence (`condition_model_E`, `reject_normalises_condition`)
 
 The conditioning combinator promoted to an operator: `condition f m`
 takes a **program predicate** `f : b → tbool` and a model `m : a → b`,
@@ -2278,6 +2353,8 @@ anchor `ex_bayes_linear_is_iter_condition` now definitional,
 
 ## The boolean cascade
 
+**In this chapter:** [Def 6.1](../../ppl/sections/ppl-sec-def-6-1-the-2-point-cone.html) · [Def 6.2](../../ppl/sections/ppl-sec-def-6-2-the-universal-co-pairing.html) · [Def 6.3](../../ppl/sections/ppl-sec-def-6-3-icones-hom-packaging.html) · [Def 6.4](../../ppl/sections/ppl-sec-def-6-4-the-sec-9-7-coalgebra-on-the-2-point-cone.html).
+
 The 2-point cone of [paper §4.4 / Theorem
 4.24](../../paper/sections/sec-4.html) — the coproduct `1 ⊕ 1` — is
 built concretely as `bool_cone_car Ar : {nonneg R} × {nonneg R}`
@@ -2297,7 +2374,9 @@ structure that gives `tbool` the shared-sample semantics.
 | The §9.7 coalgebra on `bool_cone_car` | `bool_coalg_str`, `bool_cone_coalg`, `bool_cone_dispatch` — `theories/programs/infra/bool_cone_coalg.v` |
 | CBV `if_icones` consumer (from the interpreter) | `if_icones`, `if_under` — `theories/programs/ppl_cbv.v` |
 
-### The 2-point cone (`bool_cone_car`)
+### Def 6.1 — The 2-point cone (`bool_cone_car`)
+
+> **Prerequisite:** the 2-point cone realises the [paper §4.4 / Thm 4.24](../../paper/sections/sec-4.html) coproduct `1 ⊕ 1`.
 
 The boolean value cone is the pair `(p, q)` of non-negative weights
 on true and false, with norm `‖(p, q)‖ = p + q` — concretely the
@@ -2313,7 +2392,7 @@ Definition bool_dirac_true  : bool_cone_car Ar := MkBoolCone Ar 1%:nng 0%:nng.
 Definition bool_dirac_false : bool_cone_car Ar := MkBoolCone Ar 0%:nng 1%:nng.
 ```
 
-### The universal co-pairing (`bool_case`)
+### Def 6.2 — The universal co-pairing (`bool_case`)
 
 The co-pairing `[a, b](x) = bc_t(x)·a + bc_f(x)·b` realises the
 coproduct universal property of [paper §4.4 / Thm
@@ -2345,7 +2424,7 @@ measurability `test_meas_gen` of `theories/mcones/mcone.v` is what
 lets the path-preservation proofs drop the unit ball on test
 scrutinees.
 
-### Icones-hom packaging (`bool_case_linhom`, `bool_case_icones_hom`, `alpha_linhom`, `beta_linhom`)
+### Def 6.3 — Icones-hom packaging (`bool_case_linhom`, `alpha_linhom`, `beta_linhom`)
 
 The co-pairing is packaged once at each categorical level in
 `theories/programs/infra/bool_case_hom.v`: as a linhom
@@ -2374,9 +2453,9 @@ same file) — the α/β decomposition that reduces its integral- and
 path-preservation obligations to the two scaled-projection linhoms
 `alpha_linhom` / `beta_linhom`. The CBV consumer of this packaging
 is `if_icones` — see [if-then-else at the icones
-level](../../ppl/sections/ppl-sec-if-then-else-at-the-icones-level.html).
+level](../../ppl/sections/ppl-sec-def-2-7-if-then-else-at-the-icones-level.html).
 
-### The §9.7 coalgebra on the 2-point cone (`bool_coalg_str`, `bool_cone_coalg`, `bool_cone_dispatch`)
+### Def 6.4 — The §9.7 coalgebra on the 2-point cone (`bool_coalg_str`, `bool_cone_coalg`)
 
 The 2-point cone carries a hand-rolled `!`-coalgebra structure
 `bool_coalg_str : bool_cone ⊸ !bool_cone` mirroring [Theorem
