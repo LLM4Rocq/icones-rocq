@@ -81,4 +81,5 @@ theories/programs/infra/let_sample_law.v
 theories/programs/infra/kernel_anchors.v
 theories/programs/ex_reject_headline.v
 theories/programs/infra/cbv_marginals.v
+theories/programs/reject_condition.v
 theories/programs/ex_reject_model.v
