@@ -639,15 +639,6 @@ refine (
      lives in [bool_cone_car] directly.  See [if_icones] above. *)
   | ne_if G0 ty e M0 N0 =>
       if_icones (eD_cbv G0 ty M0) (eD_cbv G0 ty N0) (eD_cbv G0 _ e)
-  (* [ne_test f e]: post-compose [eD e] (a [tbase B] value, i.e. an
-     [FMeas B] point) with the DETERMINISTIC test lift [test_lift]
-     ([ppl.v::Section TestTmLiftG]).  Unlike the [ne_bernoulli_p] coin
-     lift [bern_lift_g], [test_lift] is a Dirac-on-bool dispatch: the
-     denotation is [δ_{f v}], not a sub-probability split. *)
-  | ne_test G0 _ f Hf e0 =>
-      icones_comp
-        (@test_lift R Ar _ f Hf)
-        (eD_cbv G0 _ e0)
   (* [ne_fix s M]: the OCaml-style value-fixpoint at function types —
        ⟦fix s. body⟧ = fix_comb ∘ ⟦λ s. body⟧.
      The self-abstraction is interpreted as an ORDINARY lambda (the
@@ -956,16 +947,6 @@ Lemma eD_bernoulli_p_E (G : named_ctx Ar) (I_obj : ar_obj Ar)
     (e : @named_expr R Ar R_obj G (tbase I_obj)) :
   eD_cbv' (ne_bernoulli_p g Hg_meas Hg_ge0 Hg_le1 e) =
   icones_comp (@bern_lift_g R Ar I_obj g Hg_meas Hg_ge0 Hg_le1) (eD_cbv' e).
-Proof. by []. Qed.
-
-(** [ne_test]: post-compose with the DETERMINISTIC test lift
-    [test_lift] — the Dirac-on-bool dispatch (NOT a coin). *)
-Lemma eD_test_E (G : named_ctx Ar) (B : ar_obj Ar)
-    (f : ar_carrier Ar B -> bool)
-    (Hf : measurable_fun [set: ar_carrier Ar B] f)
-    (e : @named_expr R Ar R_obj G (tbase B)) :
-  eD_cbv' (ne_test f Hf e) =
-  icones_comp (@test_lift R Ar B f Hf) (eD_cbv' e).
 Proof. by []. Qed.
 
 (** [ne_score_p]: post-compose with [score_lift_g]. *)
