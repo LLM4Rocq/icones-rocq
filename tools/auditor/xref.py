@@ -277,6 +277,38 @@ def build_global_entry_map(three: ThreeTabDocument) -> dict[str, tuple[str, str]
     return mapping
 
 
+def canonical_section_ids(doc: Document) -> set[str]:
+    """Section ids whose lone synthetic entry has ``id == section.id``.
+
+    A PPL/Examples H3 with no overview table becomes a Section wrapping ONE
+    Entry whose id equals the section id (see
+    :func:`tools.auditor.parser`).  For such sections the standalone
+    ``entries/<id>.html`` page is suppressed — the section page is
+    canonical and inlines the entry — so cross-references targeting that
+    entry must route to ``sections/<id>.html`` instead.  This returns the
+    set of those section ids for one tab document.
+    """
+    ids: set[str] = set()
+    for chapter in doc.chapters:
+        for section in chapter.sections:
+            entries = section.entries
+            if len(entries) == 1 and entries[0].id == section.id:
+                ids.add(section.id)
+    return ids
+
+
+def page_suffix(entry_id: str, canonical: set[str]) -> str:
+    """Route suffix for an entry link: section page if canonical else entry.
+
+    ``canonical`` is a set of section ids (see :func:`canonical_section_ids`)
+    whose entry page was suppressed; a target in that set routes to
+    ``sections/<id>.html``, everything else to ``entries/<id>.html``.
+    """
+    if entry_id in canonical:
+        return f"sections/{entry_id}.html"
+    return f"entries/{entry_id}.html"
+
+
 def _scan_vfile(lines: list[str]) -> "Iterator[tuple[str, int, int]]":
     """Yield ``(name, lineno, priority)`` for every indexable ident.
 
@@ -840,13 +872,14 @@ def linkify_document(doc: Document) -> Document:
     mapping = build_ident_map(doc)
     if not mapping:
         return doc
+    canonical = canonical_section_ids(doc)
 
     def resolve_for(owner: str | None) -> Resolver:
         def resolve(ident: str) -> LinkTarget | None:
             target = mapping.get(ident)
             if target is None or target == owner:
                 return None
-            return LinkTarget(f"{_HREF_PREFIX}entries/{target}.html")
+            return LinkTarget(f"{_HREF_PREFIX}{page_suffix(target, canonical)}")
 
         return resolve
 
@@ -895,6 +928,10 @@ def linkify_all(
     source_index = build_source_index(theories_root, repo_root=repo_root)
     mc_root = mathcomp_root if mathcomp_root is not None else find_mathcomp_root()
     mathcomp_index = build_mathcomp_index(mc_root) if mc_root is not None else {}
+    # Per-tab set of collapsed section ids (single synthetic entry with
+    # id == section.id): those entry pages are suppressed, so a link to
+    # them must route to sections/<id>.html — see :func:`page_suffix`.
+    canonical_by_tab = {t: canonical_section_ids(three.tab(t)) for t in ALL_TABS}
 
     def fallback_target(ident: str) -> LinkTarget | None:
         """Local source link (preferred) else mathcomp-external link."""
@@ -922,9 +959,15 @@ def linkify_all(
                     if target_tab == _tab and target_id == owner:
                         return None  # self-link on its own page
                     if target_tab == _tab:
-                        href = f"{_HREF_PREFIX}entries/{target_id}.html"
+                        href = (
+                            f"{_HREF_PREFIX}"
+                            f"{page_suffix(target_id, canonical_by_tab[_tab])}"
+                        )
                     else:
-                        href = f"../../{target_tab}/entries/{target_id}.html"
+                        href = (
+                            f"../../{target_tab}/"
+                            f"{page_suffix(target_id, canonical_by_tab[target_tab])}"
+                        )
                     return LinkTarget(href)
                 return fallback_target(ident)
 
@@ -941,9 +984,12 @@ def linkify_all(
             if hit is not None:
                 target_tab, target_id = hit
                 if target_tab == _tab:
-                    href = f"entries/{target_id}.html"
+                    href = page_suffix(target_id, canonical_by_tab[_tab])
                 else:
-                    href = f"../{target_tab}/entries/{target_id}.html"
+                    href = (
+                        f"../{target_tab}/"
+                        f"{page_suffix(target_id, canonical_by_tab[target_tab])}"
+                    )
                 return LinkTarget(href)
             return fallback_target(ident)
 
@@ -959,7 +1005,9 @@ __all__ = [
     "build_ident_map",
     "build_mathcomp_index",
     "build_source_index",
+    "canonical_section_ids",
     "find_mathcomp_root",
     "linkify_all",
     "linkify_document",
+    "page_suffix",
 ]
