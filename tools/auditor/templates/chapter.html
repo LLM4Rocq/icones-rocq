@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge, stats_line with context %}
+{% from "_macros.html" import status_badge, stats_line, overview_table with context %}
 
 {% block title %}{{ chapter.title }} — {{ tab|upper }} chapter{% endblock %}
 {% block body_class_extra %} page-chapter{% endblock %}
@@ -22,6 +22,13 @@
   {% endif %}
   {{ stats_line(chapter.stats) }}
 </header>
+
+{% if chapter.overview %}
+<section class="overview-block">
+  <h2>Overview</h2>
+  {{ overview_table(chapter.overview) }}
+</section>
+{% endif %}
 
 <section class="section-block">
   <header class="section-block-head">

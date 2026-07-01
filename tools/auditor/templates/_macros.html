@@ -18,6 +18,30 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro overview_table(rows) -%}
+{# Compact statement<->Rocq overview.  2 cols (Item | Rocq) when every
+   row has an empty statement, else 3 cols (Item | Statement | Rocq). #}
+{% set has_statement = (rows|selectattr('statement_html')|list|length) > 0 %}
+<table class="overview">
+  <thead>
+    <tr>
+      <th>Item</th>
+      {% if has_statement %}<th>Statement</th>{% endif %}
+      <th>Rocq</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td class="ov-item">{{ r.label|safe }}</td>
+      {% if has_statement %}<td class="ov-statement">{{ r.statement_html|safe }}</td>{% endif %}
+      <td class="ov-rocq mono">{{ r.rocq_html|safe }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{%- endmacro %}
+
 {% macro stats_line(stats) -%}
 <dl class="stats-line">
   <div><strong>{{ stats.n_sections }}</strong><span class="label">sections</span></div>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import entry_card, section_snippets with context %}
+{% from "_macros.html" import entry_card, section_snippets, overview_table with context %}
 
 {% block title %}{% if section.paper_section_number %}§ {{ section.paper_section_number }} {% endif %}{{ section.title }} — Icones auditor{% endblock %}
 {% block body_class_extra %} page-section{% endblock %}
@@ -28,6 +28,13 @@
   <div class="prose intro">{{ section.intro_html|safe }}</div>
   {% endif %}
 </header>
+
+{% if section.overview %}
+<section class="overview-block">
+  <h2>Overview</h2>
+  {{ overview_table(section.overview) }}
+</section>
+{% endif %}
 
 {# H3-level code blocks (only present on PPL/Examples sections). #}
 {{ section_snippets(section.snippets) }}

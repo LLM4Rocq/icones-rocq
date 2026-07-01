@@ -59,6 +59,21 @@ class NoteBlock:
 
 
 @dataclass
+class OverviewRow:
+    """One row of a chapter/section overview table.
+
+    ``label`` is the leftmost "Item" cell (already HTML, or a plain paper
+    label); ``statement_html`` is the optional middle column (empty when
+    the source table has only 2 columns); ``rocq_html`` is the trailing
+    Rocq column (comma-joined ``<code>`` identifiers or a file path).
+    """
+
+    label: str
+    statement_html: str = ""
+    rocq_html: str = ""
+
+
+@dataclass
 class EntryDetail:
     """The H3-level detail block backing an entry."""
 
@@ -107,6 +122,10 @@ class Section:
     # PPL/Examples additive: H3-level code blocks shown above the
     # per-entry detail.  Empty on Paper sections.
     snippets: list[CoqSnippet] = field(default_factory=list)
+    # PPL/Examples additive: a compact statement<->Rocq overview table
+    # rendered atop the section page (one row per entry).  Empty on
+    # Paper sections.
+    overview: list[OverviewRow] = field(default_factory=list)
 
 
 @dataclass
@@ -142,6 +161,10 @@ class Chapter:
     sections: list[Section] = field(default_factory=list)
     notes_html: str = ""
     stats: ChapterStats = field(default_factory=ChapterStats)
+    # A compact overview table rendered atop the chapter page: for PPL
+    # chapters, the H2-level "Construction | Rocq" rows; for Examples
+    # chapters (no H2 table), one synthesised row per section.
+    overview: list[OverviewRow] = field(default_factory=list)
 
 
 @dataclass
@@ -295,6 +318,13 @@ def from_dict(payload: dict[str, Any]) -> Document:
     def _note(n: dict[str, Any]) -> NoteBlock:
         return NoteBlock(**n)
 
+    def _orow(r: dict[str, Any]) -> OverviewRow:
+        return OverviewRow(
+            label=r["label"],
+            statement_html=r.get("statement_html", ""),
+            rocq_html=r.get("rocq_html", ""),
+        )
+
     def _detail(d: dict[str, Any] | None) -> EntryDetail | None:
         if d is None:
             return None
@@ -330,6 +360,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
             notes_html=s.get("notes_html", ""),
             chapter_id=s.get("chapter_id", ""),
             snippets=[_snip(sn) for sn in s.get("snippets", [])],
+            overview=[_orow(r) for r in s.get("overview", [])],
         )
 
     sections = [_section(s) for s in payload.get("sections", [])]
@@ -341,6 +372,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
             sections=[_section(s) for s in c.get("sections", [])],
             notes_html=c.get("notes_html", ""),
             stats=ChapterStats(**(c.get("stats") or {})),
+            overview=[_orow(r) for r in c.get("overview", [])],
         )
         for c in payload.get("chapters", [])
     ]

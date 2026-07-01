@@ -46,6 +46,7 @@ from .schema import (
     EntryDetail,
     GapEntry,
     NoteBlock,
+    OverviewRow,
     RocqFile,
     Section,
     TAB_EXAMPLES,
@@ -1170,6 +1171,29 @@ def normalise(
                     # entry no longer duplicates the same code.
                     section_snippets = []
 
+                # Section-level overview: one row per entry (label ->
+                # statement -> comma-joined Rocq idents, or the file path
+                # when a row carries no backticked idents).
+                sec_overview: list[OverviewRow] = []
+                for e in sec_entries:
+                    if e.rocq_idents:
+                        rocq_html = ", ".join(
+                            f"<code>{html_mod.escape(i)}</code>"
+                            for i in e.rocq_idents
+                        )
+                    else:
+                        rocq_html = ", ".join(
+                            f"<code>{html_mod.escape(rf.path)}</code>"
+                            for rf in e.rocq_files
+                        )
+                    sec_overview.append(
+                        OverviewRow(
+                            label=e.paper_label,
+                            statement_html=e.statement_html,
+                            rocq_html=rocq_html,
+                        )
+                    )
+
                 sec = Section(
                     id=sec_id,
                     paper_section="",
@@ -1180,6 +1204,7 @@ def normalise(
                     notes_html="\n".join(n.html for n in h3.notes),
                     chapter_id=chapter_id,
                     snippets=section_snippets,
+                    overview=sec_overview,
                 )
                 ch_sections.append(sec)
 
@@ -1206,6 +1231,53 @@ def normalise(
                 n_snippets=ch_snippets_total,
                 loc=ch_snippets_loc,
             )
+
+            # Chapter-level overview.  PPL chapters carry an H2-level
+            # "Construction | Rocq" table in ``blk.tables``: reuse its
+            # rows verbatim (cell0 -> item, 3-col -> +statement, trailing
+            # cell -> Rocq).  Examples chapters have no H2 table (the
+            # tables live under each H3), so synthesise one row per
+            # section: title -> comma-joined idents of its entries.
+            chapter_overview: list[OverviewRow] = []
+            if blk.tables:
+                for tbl in blk.tables:
+                    for row in tbl.rows:
+                        if not row.cells:
+                            continue
+                        if len(row.cells) == 3:
+                            chapter_overview.append(
+                                OverviewRow(
+                                    label=_inline_to_html(md, row.cells[0]),
+                                    statement_html=_inline_to_html(md, row.cells[1]),
+                                    rocq_html=_inline_to_html(md, row.cells[2]),
+                                )
+                            )
+                        elif len(row.cells) == 2:
+                            chapter_overview.append(
+                                OverviewRow(
+                                    label=_inline_to_html(md, row.cells[0]),
+                                    statement_html="",
+                                    rocq_html=_inline_to_html(md, row.cells[1]),
+                                )
+                            )
+            else:
+                for sec in ch_sections:
+                    sec_idents: list[str] = []
+                    for e in sec.entries:
+                        for ident in e.rocq_idents:
+                            if ident not in sec_idents:
+                                sec_idents.append(ident)
+                    chapter_overview.append(
+                        OverviewRow(
+                            label=sec.title,
+                            statement_html="",
+                            rocq_html=", ".join(
+                                f"<code>{html_mod.escape(i)}</code>"
+                                for i in sec_idents
+                            ),
+                        )
+                    )
+
             chapters.append(
                 Chapter(
                     id=chapter_id,
@@ -1214,6 +1286,7 @@ def normalise(
                     sections=ch_sections,
                     notes_html=blk.notes_html,
                     stats=stats,
+                    overview=chapter_overview,
                 )
             )
 
