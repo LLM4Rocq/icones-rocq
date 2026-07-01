@@ -643,6 +643,93 @@ def test_xref_global_idempotent():
     assert once == twice
 
 
+def test_xref_first_occurrence_only():
+    """Repeated idents in one snippet yield a single code-xref anchor."""
+    from tools.auditor.xref import linkify_all
+
+    paper = _entry(eid="thm-9-7", idents=["EM_term"], snippet_html="")
+    ppl = _entry(
+        eid="ppl-x",
+        idents=["tyD_cbv"],
+        # The same cross-tab ident mentioned three times in one snippet.
+        snippet_html=_name_span("EM_term") * 3,
+    )
+    three = _three_tabs(paper_entries=[paper], ppl_entries=[ppl])
+    linkify_all(three, resolver=_resolver(), theories_root="/nonexistent")
+
+    html = three.ppl.sections[0].entries[0].detail.snippets[0].highlighted_html
+    # Only the FIRST occurrence is wrapped; the other two stay plain tokens.
+    assert html.count("code-xref") == 1
+    assert html.count(_name_span("EM_term")) == 2
+
+
+def test_attach_entry_relations_uses_used_by():
+    """Ident overlap yields reciprocal 'uses' / 'used-by' cross-refs.
+
+    An Examples entry whose snippet mentions an identifier owned by a Paper
+    entry gains a ``uses`` cross-ref (tab-tagged ``paper``); the Paper entry
+    gains the reciprocal ``used-by`` cross-ref (tab-tagged ``examples``).
+    """
+    from tools.auditor.xref import attach_entry_relations
+
+    paper = _entry(
+        eid="def-1",
+        idents=["shared_widget"],
+        snippet_html=_name_span("shared_widget"),
+    )
+    ex = _entry(
+        eid="ex-geom",
+        idents=["ex_geom"],
+        snippet_html=_name_span("shared_widget"),
+    )
+    three = _three_tabs(paper_entries=[paper], examples_entries=[ex])
+    attach_entry_relations(three)
+
+    ex_refs = three.examples.sections[0].entries[0].cross_refs
+    uses = [x for x in ex_refs if x.kind == "uses"]
+    assert uses, "examples entry got no 'uses' cross_ref"
+    assert uses[0].target == "def-1"
+    assert uses[0].tab == "paper"
+    # The label is the target entry's paper_label (== eid in the helper).
+    assert uses[0].label == "def-1"
+
+    paper_refs = three.paper.sections[0].entries[0].cross_refs
+    used_by = [x for x in paper_refs if x.kind == "used-by"]
+    assert used_by, "paper entry got no 'used-by' cross_ref"
+    assert used_by[0].target == "ex-geom"
+    assert used_by[0].tab == "examples"
+
+
+def test_attach_entry_relations_preserves_beyond_and_dedups():
+    """Existing cross-refs survive; a second attach adds no duplicates."""
+    from tools.auditor.schema import CrossRef
+    from tools.auditor.xref import attach_entry_relations
+
+    paper = _entry(
+        eid="def-1",
+        idents=["shared_widget"],
+        snippet_html=_name_span("shared_widget"),
+    )
+    ex = _entry(
+        eid="ex-geom",
+        idents=["ex_geom"],
+        snippet_html=_name_span("shared_widget"),
+    )
+    # Seed a pre-existing synthetic 'beyond' ref on the Examples entry.
+    ex.cross_refs.append(
+        CrossRef(kind="beyond", target="beyond", label="Beyond the paper")
+    )
+    three = _three_tabs(paper_entries=[paper], examples_entries=[ex])
+    attach_entry_relations(three)
+    attach_entry_relations(three)  # idempotent w.r.t. duplicate refs
+
+    ex_refs = three.examples.sections[0].entries[0].cross_refs
+    # The pre-existing 'beyond' ref is kept exactly once.
+    assert sum(1 for x in ex_refs if x.kind == "beyond") == 1
+    # The derived 'uses' ref appears exactly once (no duplicate on re-run).
+    assert sum(1 for x in ex_refs if x.kind == "uses") == 1
+
+
 # -- constructor / projection source-index tests ----------------------------
 
 

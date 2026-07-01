@@ -84,6 +84,7 @@ from .coqdoc import CoqdocResolver
 from .schema import (
     ALL_TABS,
     CoqSnippet,
+    CrossRef,
     Document,
     Entry,
     ThreeTabDocument,
@@ -109,6 +110,14 @@ _HREF_PREFIX = "../"
 #: ``<a>`` from a previous pass) can never match, keeping the pass
 #: idempotent.
 _CODE_SPAN_RE = re.compile(r"<code>([^<]+)</code>")
+
+#: A ``code-xref`` anchor already emitted by a previous linkify pass.  The
+#: captured body is the (escaped) identifier that anchor links.  Used to
+#: pre-seed the per-block "already linked" set so the first-occurrence-only
+#: policy stays stable when the per-tab and global passes run in sequence:
+#: an ident wrapped by the first pass is recognised as already-linked by
+#: the second, whose later plain occurrences are then left untouched.
+_LINKED_XREF_RE = re.compile(r'<a class="code-xref[^"]*"[^>]*>([^<]+)</a>')
 
 #: Top-level Rocq declaration keywords whose first ``\w+`` token names a
 #: definition.  ``Notation`` is handled by the same pattern but only its
@@ -679,15 +688,39 @@ def _anchor(escaped_tok: str, target: "LinkTarget") -> str:
     )
 
 
+def _already_linked(html: str) -> set[str]:
+    """Idents already wrapped in a ``code-xref`` anchor within ``html``.
+
+    Pre-seeds the first-occurrence-only set so a token linked by an earlier
+    pass is not re-linked (at a *later* occurrence) by a subsequent one,
+    keeping the composed passes idempotent.
+    """
+    return {
+        html_mod.unescape(m.group(1)) for m in _LINKED_XREF_RE.finditer(html)
+    }
+
+
 def _linkify_html(highlighted_html: str, resolve: Resolver) -> str:
-    """Wrap resolvable name tokens of one snippet's HTML in anchors."""
+    """Wrap the FIRST resolvable occurrence of each name token in an anchor.
+
+    Only the first occurrence of a given identifier within this one snippet
+    is linked; later occurrences of the same ident are left as plain name
+    tokens so a snippet mentioning ``foo`` a dozen times yields a single
+    ``code-xref`` rather than a wall of links.  Idents already wrapped by a
+    previous pass are pre-seeded so the policy is stable across the per-tab
+    and global passes.
+    """
+    linked: set[str] = _already_linked(highlighted_html)
 
     def repl(m: re.Match[str]) -> str:
         cls, escaped_tok = m.group(1), m.group(2)
         ident = html_mod.unescape(escaped_tok)
+        if ident in linked:
+            return m.group(0)
         target = resolve(ident)
         if target is None:
             return m.group(0)
+        linked.add(ident)
         return f'<span class="{cls}">{_anchor(escaped_tok, target)}</span>'
 
     return _NAME_SPAN_RE.sub(repl, highlighted_html)
@@ -705,14 +738,19 @@ def _linkify_prose(prose_html: str, resolve: Resolver) -> str:
     if not prose_html or "<code>" not in prose_html:
         return prose_html
 
+    linked: set[str] = _already_linked(prose_html)
+
     def repl(m: re.Match[str]) -> str:
         escaped_tok = m.group(1)
         ident = html_mod.unescape(escaped_tok)
         if len(ident) < MIN_IDENT_LEN or not _IDENT_RE.fullmatch(ident):
             return m.group(0)
+        if ident in linked:
+            return m.group(0)
         target = resolve(ident)
         if target is None:
             return m.group(0)
+        linked.add(ident)
         return f"<code>{_anchor(escaped_tok, target)}</code>"
 
     return _CODE_SPAN_RE.sub(repl, prose_html)
@@ -855,6 +893,72 @@ def build_entry_edges(
                 continue
             edges.add((src, tgt))
     return sorted(edges)
+
+
+def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
+    """Populate each entry's ``uses`` / ``used-by`` cross-refs; returns ``three``.
+
+    Reuses :func:`build_entry_edges` — the same Rocq-identifier overlap the
+    linkifier turns into inline links — to derive, per entry:
+
+    * **uses** — the entries this entry's code/prose mentions (edge
+      *targets*);
+    * **used-by** — the entries that mention this one (edge *sources*).
+
+    Each becomes a :class:`~tools.auditor.schema.CrossRef` with
+    ``kind='uses'|'used-by'``, ``target`` the other entry id, ``tab`` its
+    owning tab (so the renderer can build a cross-tab href) and ``label``
+    the other entry's ``paper_label``.  Refs are appended to the entry's
+    existing ``cross_refs`` (the synthetic ``beyond`` ref is preserved) and
+    deduplicated by ``(kind, target, tab)``.  Entry objects shared across
+    the beyond compat shim are updated exactly once (dedup by object id).
+    """
+    edges = build_entry_edges(three)
+
+    # (tab, id) -> the owning Entry object (first sighting wins; aliased
+    # shim objects share the same key so this is a genuine 1:1).
+    entry_by_key: dict[tuple[str, str], Entry] = {}
+    for tab in ALL_TABS:
+        doc = three.tab(tab)
+        for entry in _iter_entries(doc):
+            entry_by_key.setdefault((tab, entry.id), entry)
+
+    uses: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    used_by: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for src, tgt in edges:
+        uses.setdefault(src, set()).add(tgt)
+        used_by.setdefault(tgt, set()).add(src)
+
+    def label_for(key: tuple[str, str]) -> str:
+        target = entry_by_key.get(key)
+        return target.paper_label if target is not None else key[1]
+
+    def append_refs(
+        entry: Entry, kind: str, targets: set[tuple[str, str]]
+    ) -> None:
+        existing = {(x.kind, x.target, x.tab) for x in entry.cross_refs}
+        for t_tab, t_id in sorted(targets):
+            triple = (kind, t_id, t_tab)
+            if triple in existing:
+                continue
+            existing.add(triple)
+            entry.cross_refs.append(
+                CrossRef(
+                    kind=kind,
+                    target=t_id,
+                    label=label_for((t_tab, t_id)),
+                    tab=t_tab,
+                )
+            )
+
+    seen: set[int] = set()
+    for key, entry in entry_by_key.items():
+        if id(entry) in seen:
+            continue
+        seen.add(id(entry))
+        append_refs(entry, "uses", uses.get(key, set()))
+        append_refs(entry, "used-by", used_by.get(key, set()))
+    return three
 
 
 # -- per-tab pass (legacy / single-tab) -------------------------------------
@@ -1000,6 +1104,7 @@ def linkify_all(
 __all__ = [
     "MIN_IDENT_LEN",
     "LinkTarget",
+    "attach_entry_relations",
     "build_entry_edges",
     "build_global_entry_map",
     "build_ident_map",

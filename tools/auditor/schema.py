@@ -29,11 +29,20 @@ class RocqFile:
 
 @dataclass
 class CrossRef:
-    """A reference from one entry / section to another piece of content."""
+    """A reference from one entry / section to another piece of content.
 
-    kind: str  # "section" | "entry" | "beyond" | "blueprint"
+    ``tab`` names the tab that owns ``target`` (``"paper"`` | ``"ppl"`` |
+    ``"examples"``).  It is empty for same-tab / tab-agnostic refs (the
+    synthetic ``beyond`` ref, section refs); the ``uses`` / ``used-by``
+    relation refs derived from Rocq-identifier overlap set it so the
+    renderer can build a cross-tab href when it differs from the current
+    tab.
+    """
+
+    kind: str  # "section" | "entry" | "beyond" | "blueprint" | "uses" | "used-by"
     target: str
     label: str
+    tab: str = ""
 
 
 @dataclass
@@ -310,7 +319,12 @@ def from_dict(payload: dict[str, Any]) -> Document:
         return RocqFile(**rf)
 
     def _xref(xr: dict[str, Any]) -> CrossRef:
-        return CrossRef(**xr)
+        return CrossRef(
+            kind=xr["kind"],
+            target=xr["target"],
+            label=xr["label"],
+            tab=xr.get("tab", ""),
+        )
 
     def _snip(s: dict[str, Any]) -> CoqSnippet:
         return CoqSnippet(**s)
