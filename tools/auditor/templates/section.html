@@ -36,6 +36,21 @@
 </section>
 {% endif %}
 
+{# In-page sub-TOC: jump links to each entry card on multi-entry section
+   pages (chiefly the long Examples/PPL pages). Suppressed for the
+   single-entry shape below (length == 1). Each anchor targets the
+   id="{{ entry.id }}" set by entry_card. #}
+{% if section.entries|length > 1 %}
+<nav class="onpage-toc" aria-label="On this page">
+  <p class="onpage-toc-heading">On this page</p>
+  <ul>
+    {% for entry in section.entries %}
+    <li><a href="#{{ entry.id }}">{{ entry.paper_label }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}
+
 {# H3-level code blocks (only present on PPL/Examples sections). #}
 {{ section_snippets(section.snippets) }}
 

@@ -924,6 +924,42 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 }
 .construction-table th { background: var(--bg-soft); font-weight: 600; }
 
+/* ============================================================ In-page sub-TOC
+
+ * Jump links to each entry card, shown atop multi-entry section pages so a
+ * long Examples/PPL page (3-6 cards) is scannable without scrolling. */
+
+.onpage-toc {
+  margin: 1.2rem 0 1.6rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+}
+.onpage-toc-heading {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-faint);
+  font-weight: 600;
+}
+.onpage-toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+}
+.onpage-toc li { margin: 0; }
+.onpage-toc a {
+  display: inline-block;
+  padding: 0.1rem 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
 /* ============================================================ Overview tables */
 
 .overview-block { margin: 1.4rem 0 1.8rem; }
