@@ -52,7 +52,7 @@ and the derived readable forms on top of it.
 | The probability type and its bundle (`tProb`, `probObj`, `tProb_robj`) | `probObj`, `po_obj`, `po_incl`, `po_into`, `tProb`, `po_density` — same file |
 | Probability surface forms (`Bernoulli`, `Bernoulli [\|p\|]`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `test`, `Const`, `InclP`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `pbern`, `pscore`, `psigmoid`, `pgausslik`, `pgt0`, `ptest`, `testfn`, `test_fun`, `pconst`, `pincl`, `bern_lift_P`, `score_lift_P`, `sigmoid`, `gauss_obs_density`, `gt0_ind`, `negr`, `prob`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
 | The `observe` operator and its distribution bundle | `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `pobserve_obsGaussian`, `test`, `ptest` — same file |
-| Deterministic boolean test and the hard reject/condition combinators (`Test{ f , Hf } e`) | `ne_test`, `test_lift`, `test_lift_dirac` — `theories/programs/ppl.v` (Section TestTmLiftG); `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition` — `theories/programs/hard_reject.v` |
+| The reject/condition combinators over a program predicate `f : b → tbool` (`ne_reject`, `ne_condition`) | `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition` — `theories/programs/reject_condition.v` |
 
 ### Types and contexts (`ppl_type`, `named_ctx`)
 
@@ -590,11 +590,13 @@ obligations. The bullets below detail each.
   binding, `ne_let f (ne_fix f (ne_lam x M)) K`; an annotated form
   `let rec f x ::: T1 ==> T2 := M in K` covers bodies that leave the
   binder type undetermined.
-- **`Condition { f } M`** — the Pyro-style soft conditioning operator
-  for a bundled test function `f : testfn` applied to a closed model `M`
-  (`examples.v::ex_condition_comb`, internally `Score (test f #"x")`;
-  see the [Examples tab](../examples/) for the conditioning law
-  and the rejection-sampling equivalence).
+- **The reject/condition combinators (`ne_reject`, `ne_condition`)** —
+  the generic `reject f m` / `condition f m` operators over a **program
+  predicate** `f : b → tbool` and a model `m : a → b`, built from
+  `fix` / `\` / `@` / `if` / `()` / `let` alone — no coin and no `Score`
+  inside the combinators (`theories/programs/reject_condition.v`); see
+  the [Examples tab](../examples/) for the unified master theorem, the
+  conditioning law, and the rejection-sampling equivalence.
 
 The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
 `sample gaussian01`, the `>` coin) and `ex_surface_walk`
@@ -602,66 +604,55 @@ The end-to-end demos are `ex_surface_demo` (annotated `let rec`,
 both with elaboration pins (`ex_surface_demo_decomp`) and compile-time
 CBV denotations (`ex_surface_demo_cbv` / `ex_surface_walk_cbv`).
 
-### Deterministic boolean test and the hard reject/condition combinators (`ne_test`, `test_lift`, `test_lift_dirac`, `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition`)
+### The reject/condition combinators over a program predicate (`ne_fail`, `ne_assert`, `ne_reject`, `ne_condition`)
 
-A value can be subjected to a **deterministic** boolean test, the surface
-form `Test { f , Hf } e`: it evaluates the measurable predicate
-`f : carrier B → bool` on the value of the `tbase B`-valued sub-expression
-`e` and lands in `tbool`. Its denotation is a **Dirac on bool**, `δ_{f v}` —
-total mass exactly `1`, concentrated on a single atom, no split. This is
-**not a coin**: `Test{f}` is a deterministic test of a value, the clean
-primitive that replaces overloading the Bernoulli coin at a `{0,1}` density
-to encode a boolean predicate.
+Rejection sampling and conditioning are two closed combinators whose
+**acceptance test is itself a program** — a predicate `f : b → tbool`
+on the model's output value, supplied as an argument exactly like the
+model `m : a → b`. Applying the test is then ordinary object-language
+application `# "f" @ # "x"`: there is no lift node and no `ne_test`
+(both deleted — the constructor, its `eD_cbv` clause, the `TestTmLiftG`
+section, and the `Test{…}` notation are all gone).
 
-The rule, restated: **`Bernoulli` names the distribution / coin** — genuine
-`[0,1]` randomness, the `(p, 1 − p)` split of `ne_bernoulli` /
-`ne_bernoulli_f`. A deterministic boolean test of a value is `ne_test` /
-`Test{f}`, **never** a Bernoulli. In particular, do not confuse
-`Test { f , Hf } e` (capital `T`, `ne_test`) with the lowercase abstract
-test-function coin `test f e` (`ptest`) above, which *is* a genuine Bernoulli
-coin at a `[0,1]` test function `f : testfn`.
+The one fact that makes this work is that **`tbool` is not `bool`**: it
+denotes a point of the 2-point sub-probability cone
+(`tyD_cbv tbool = bool_cone_car`), a sub-distribution over
+`{true, false}`. So `⟦f x⟧` is the *acceptance distribution* at `x`,
+and its true-mass `t(x) := (bc_t ⟦f x⟧)%:num ∈ [0,1]` is the acceptance
+probability — the only quantity the combinators read. Two regimes, one
+mechanism: when `f` is **deterministic** (`⟦f x⟧` a Dirac) `t = 1_A` is
+the indicator of the accept set `A := { x | f x = true }` (hard
+conditioning); when `f` is a **coin** (`⟦f x⟧` non-Dirac) `t` is a
+density (soft conditioning).
 
-```coq
-(* theories/programs/ppl.v *)
-| ne_test (G : named_ctx Ar) (B : ar_obj Ar)
-          (f : ar_carrier Ar B -> bool)
-          (Hf : measurable_fun [set: ar_carrier Ar B] f)
-          (e : named_expr G (tbase B)) : named_expr G tbool.
-
-Notation "'Test' '{' f ',' Hf '}' e" := (ne_test f Hf e) (* … *).
-```
-
-The CBV engine is `test_lift` (`theories/programs/ppl.v`, Section
-`TestTmLiftG`), an `icones_hom (FMeas X) (bool_cone_car Ar)` built the
-path route — package `x ↦ if f x then δ_true else δ_false` as a measurable
-norm-1 path into the 2-point cone, then promote with `int_to_linhom`. The
-load-bearing identity is `test_lift_dirac`: on `δ_x` the lift is exactly
-`δ_{f x}` (a Dirac, not the `(g x, 1 − g x)` split of `bern_lift`). The
-denotation post-composes `⟦e⟧` with `test_lift`.
-
-`Test{f}` is the clean primitive behind **hard (boolean)
-rejection / conditioning** (`theories/programs/hard_reject.v`), built
-entirely from `Test{f}` / `if` / `fail` — no coin. `ne_fail` is the
-diverging give-up term `(fix fail. λ(). fail ()) ()`, denoting the zero
-sub-distribution; `ne_assert b = if b then () else fail`. `ne_reject`
-retries a rejected draw —
-`fix rx. λm. λa. let x = m a in if Test{f} x then x else rx m a` — and
-`ne_condition` keeps the accepted part, diverging on the rest —
-`λm. λa. let x = m a in let _ = (if Test{f} x then () else fail) in x`. Same
-program modulo the else-branch: retry vs fail. The boolean headlines over
-the accept set `A := f⁻¹(true)` (`condition(U) = ν_M(A ∩ U)`,
-`Z · reject(U) = condition(U)`) are the soft conditioning / rejection master
-identity at a `{0,1}` test — see the [Examples tab](../examples/).
+`Bernoulli` still names a genuine coin and `Score` a genuine density
+reweight — both remain primitives for *building* models and predicates
+(a soft predicate is `f := λx. Bernoulli (density x)`) — but neither
+appears inside `reject` / `condition`. `reject` retries a rejected
+draw; `condition` gives up on it — the same program modulo the
+else-branch. `ne_fail` is the diverging give-up term
+`(fix fail. λ(). fail ()) ()`, denoting the zero sub-distribution, and
+`ne_assert b = if b then () else fail`.
 
 ```coq
-(* theories/programs/hard_reject.v *)
+(* theories/programs/reject_condition.v *)
 Definition ne_reject :
-    nexpr nil (tfun (tfun ta (tbase B)) (tfun ta (tbase B))) :=
-  [ (fix "rx" ::: tfun (tfun ta (tbase B)) (tfun ta (tbase B)) in
-      \ "m" ::: (tfun ta (tbase B)) =>
+    nexpr nil (tfun (tfun tb tbool) (tfun (tfun ta tb) (tfun ta tb))) :=
+  [ \ "f" ::: tfun tb tbool =>
+      ( fix "rx" ::: tfun (tfun ta tb) (tfun ta tb) in
+          \ "m" ::: (tfun ta tb) =>
+            \ "a" ::: ta =>
+              (let "x" := # "m" @ # "a" in
+               if (# "f" @ # "x") then # "x" else # "rx" @ # "m" @ # "a") ) ].
+
+Definition ne_condition :
+    nexpr nil (tfun (tfun tb tbool) (tfun (tfun ta tb) (tfun ta tb))) :=
+  [ \ "f" ::: tfun tb tbool =>
+      \ "m" ::: (tfun ta tb) =>
         \ "a" ::: ta =>
           (let "x" := # "m" @ # "a" in
-           if Test { f , Hf } # "x" then # "x" else # "rx" @ # "m" @ # "a")) ].
+           let "_" := (if (# "f" @ # "x") then () else { ne_fail }) in
+           # "x") ].
 ```
 
 ### Scores, densities, and the sub-probability boundary (`ne_score`, `cones_hom_norm_le1`, `score_lift`)
@@ -2226,30 +2217,28 @@ the [Examples tab](../../examples/index.html).
 
 ### The conditioning law and the equivalence (`condition_model_E`, `condition_E`, `reject_normalises_condition`)
 
-The score-posterior identity, promoted to an operator: the Pyro-style
-soft conditioning combinator `condition`
-(`examples.v::ex_condition_comb`, surface form `Condition { f } M`)
-takes a bundled test function `f : testfn` and a model `m : ta → tR`,
+The conditioning combinator promoted to an operator: `condition f m`
+takes a **program predicate** `f : b → tbool` and a model `m : a → b`,
 and returns the conditioned model
-`λa. let x = m a in let _ = Score (test f x) in x`
-(the `[0,1]` test function `f` the `test f` coin folds into `tProb`).
-The conditioning law (Section ConditionModel of
-`theories/programs/ex_reject_model.v`) states that at a unit-ball
-model value `g!` and a setlike unit-ball input `a₀`, writing
-`ν_M := g(a₀)` for the model's output sub-distribution, the
-conditioned model's output is the test-function-reweighted measure —
-`ex_score_posterior_cbv_E` with an arbitrary model in place of
-`sample µ`. The proof engine is this chapter's general let-law
-`eD_let_mu_E` at `ν_M`, with the score clause computing on Diracs
-(`eD_score_E` + `score_lift_dirac`) and the returned variable
-projected through `em_proj1_mor_unitE` / `Lfun_scaleE`.
+`λa. let x = m a in let _ = assert (f x) in x`, where a failed `assert`
+zeroes the trace. Writing `s_r := ⟦f x⟧` for the acceptance
+distribution at a returned value `r` and `t(r) := (bc_t s_r)%:num` for
+its acceptance probability, the conditioning law (Section
+ConditionModel of `theories/programs/ex_reject_model.v`) states that at
+a unit-ball model value `g!` and a setlike unit-ball input `a₀`,
+writing `ν_M := g(a₀)` for the model's output sub-distribution, the
+conditioned model's output is the model's output reweighted by `t`. The
+proof engine is this chapter's general let-law `eD_let_int_obj` at
+`ν_M`, with the assert clause computing on Diracs to
+`bool_case s_r (δ_r) 0` and the returned variable projected through
+`em_proj1_mor_unitE` / `Lfun_scaleE`.
 
 ```coq
 (* theories/programs/ex_reject_model.v (Section ConditionModel) *)
-Theorem condition_model_E (U : set (ar_carrier Ar R_obj))
+Theorem condition_model_E (U : set (ar_carrier Ar B))
     (mU : measurable U) :
-  fmeas_mu cond_model_denot U =
-  \int[fmeas_mu (reject_model_dist g a0)]_(r in U) (f (cR r))%:E.
+  fmeas_mu (cond_model_denot R_to_carrier_meas fpred g a0) U =
+  \int[fmeas_mu (reject_model_dist g a0)]_(r in U) ((bc_t (sdist r))%:num)%:E.
 ```
 
 In the readable `⟦·⟧` brackets (Section ReadableHeadlines, over an
@@ -2263,12 +2252,12 @@ computes the conditioned model's normalised distribution:
 ```coq
 (* theories/programs/ex_reject_model.v (Section ReadableHeadlines) *)
 Theorem condition_E U (mU : measurable U) :
-  ⟦ condition_prog ⟧ U = \int[⟦ model_run ⟧]_(x in U) (f (cR x))%:E.
+  ⟦ condition_prog ⟧ U = \int[⟦ model_run ⟧]_(x in U) ((bc_t (sdist x))%:num)%:E.
 
 Theorem reject_normalises_condition U (mU : measurable U) :
   ((1 - fine (⟦ model_run ⟧ [set: ar_carrier Ar R_obj])
       + fine (\int[⟦ model_run ⟧]_(x in [set: ar_carrier Ar R_obj])
-                (f (cR x))%:E))%R)%:E
+                ((bc_t (sdist x))%:num)%:E))%R)%:E
     * ⟦ reject_prog ⟧ U
   = ⟦ condition_prog ⟧ U.
 ```
