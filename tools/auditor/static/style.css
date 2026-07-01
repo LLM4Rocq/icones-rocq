@@ -912,6 +912,42 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 }
 .construction-table th { background: var(--bg-soft); font-weight: 600; }
 
+/* ============================================================ Overview tables */
+
+.overview-block { margin: 1.4rem 0 1.8rem; }
+.overview-block > h2 { font-size: 1.1rem; margin: 0 0 0.6rem; }
+
+table.overview {
+  border-collapse: collapse;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+table.overview th,
+table.overview td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+table.overview thead th {
+  background: var(--bg-soft);
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--fg-mute);
+}
+table.overview tbody tr:last-child td { border-bottom: none; }
+table.overview .ov-item { font-weight: 500; }
+table.overview .ov-rocq {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.82rem;
+  color: var(--fg-mute);
+}
+table.overview .ov-rocq code { white-space: nowrap; }
+
 /* ============================================================ Footer */
 
 .site-footer {
