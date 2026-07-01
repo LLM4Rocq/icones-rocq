@@ -16,11 +16,15 @@
     <li><a href="{{ root_prefix }}beyond/{{ contrib.id }}.html">{{ contrib.title }}</a></li>
     {% endif %}
     {% if section %}
-    <li><a href="{{ root_prefix }}sections/{{ section.id }}.html">
+    <li{% if section.title == entry.paper_label %} aria-current="page"{% endif %}><a href="{{ root_prefix }}sections/{{ section.id }}.html">
       {% if section.paper_section_number %}§ {{ section.paper_section_number }} {{ section.title }}{% else %}{{ section.title }}{% endif %}
     </a></li>
     {% endif %}
+    {# Guard the doubled tail: a collapsed single-entry section's title
+       equals the entry label, so skip the redundant final crumb. #}
+    {% if not (section and section.title == entry.paper_label) %}
     <li aria-current="page">{{ entry.paper_label }}</li>
+    {% endif %}
   </ol>
 </nav>
 {% endblock %}

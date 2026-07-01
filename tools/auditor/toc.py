@@ -67,12 +67,20 @@ def _section_node(tab: str, section: Any) -> dict[str, Any]:
     label = section.title or section.id
     if getattr(section, "paper_section_number", ""):
         label = f"§ {section.paper_section_number} — {label}"
+    # A PPL/Examples H3 becomes a Section wrapping ONE synthetic entry whose
+    # id == section.id.  That entry has no standalone page (the section page
+    # is canonical and inlines it), so we drop the identical entry child:
+    # one node, no duplicate link in the sidebar.  Multi-entry sections keep
+    # their entry children.
+    entries = section.entries
+    canonical = len(entries) == 1 and entries[0].id == section.id
+    children = [] if canonical else [_entry_node(tab, e) for e in entries]
     return {
         "kind": "section",
         "id": section.id,
         "title": label,
         "url": f"{tab}/sections/{section.id}.html",
-        "children": [_entry_node(tab, e) for e in section.entries],
+        "children": children,
     }
 
 

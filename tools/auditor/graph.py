@@ -129,12 +129,22 @@ def _collect_nodes(
             )
         return nid
 
-    def add_entry(tab: str, entry: Entry, group_nid: str) -> None:
+    def add_entry(
+        tab: str, entry: Entry, group_nid: str, *, canonical: bool = False
+    ) -> None:
         nid = _entry_node_id(tab, entry.id)
         if nid in seen_entries:
             return
         seen_entries.add(nid)
         entry_keys.add((tab, entry.id))
+        # A collapsed single-entry section (id == section.id) has no
+        # standalone entry page; its node links to the canonical section
+        # page instead (mirrors xref.page_suffix / render's page skip).
+        url = (
+            f"{tab}/sections/{entry.id}.html"
+            if canonical
+            else _entry_url(tab, entry.id)
+        )
         nodes.append(
             {
                 "data": {
@@ -143,7 +153,7 @@ def _collect_nodes(
                     "ntype": "entry",
                     "tab": tab,
                     "parent": group_nid,
-                    "url": _entry_url(tab, entry.id),
+                    "url": url,
                     "kind": entry.paper_kind,
                     "status": list(entry.status),
                 }
@@ -158,8 +168,12 @@ def _collect_nodes(
                 tab, section.id, section.paper_section or section.title,
                 kind="section",
             )
+            canonical = (
+                len(section.entries) == 1
+                and section.entries[0].id == section.id
+            )
             for entry in section.entries:
-                add_entry(tab, entry, gid)
+                add_entry(tab, entry, gid, canonical=canonical)
         # PPL/Examples chapter -> section tree.  We nest under the *section*
         # group (one hierarchy level the client can collapse); chapters are
         # carried as the section's chapter title for optional grouping but
@@ -171,8 +185,12 @@ def _collect_nodes(
                     tab, section.id, section.title or section.id,
                     kind="section",
                 )
+                canonical = (
+                    len(section.entries) == 1
+                    and section.entries[0].id == section.id
+                )
                 for entry in section.entries:
-                    add_entry(tab, entry, gid)
+                    add_entry(tab, entry, gid, canonical=canonical)
         # Paper Beyond contributions (entries not reachable via sections).
         # On PPL/Examples ``beyond`` aliases the chapter-tree entries, which
         # are already added above (dedup by node id makes this a no-op).

@@ -305,7 +305,18 @@ def _emit_tab(
                 )
                 counts["sections"] += 1
 
+                # A single synthetic entry whose id == section.id has no
+                # standalone page: the section page (section.html, expanded)
+                # is canonical and already inlines it.  Skip emitting the
+                # redundant entries/<id>.html; xref/graph links redirect to
+                # sections/<id>.html (see xref.canonical_section_ids).
+                canonical = (
+                    len(section.entries) == 1
+                    and section.entries[0].id == section.id
+                )
                 for entry in section.entries:
+                    if canonical:
+                        continue
                     rel_e = Path("entries") / f"{entry.id}.html"
                     root_p, static_p, tab_p = _prefixes(rel_e)
                     _emit(

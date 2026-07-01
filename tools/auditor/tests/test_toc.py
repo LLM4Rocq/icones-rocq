@@ -129,7 +129,52 @@ def test_build_toc_chapter_nesting():
     assert ch["url"] == "ppl/chapters/ppl-ch-1.html"
     sec = ch["children"][0]
     assert sec["kind"] == "section" and sec["url"] == "ppl/sections/ppl-sec-1.html"
+    # ppl-sec-1's lone entry has a DISTINCT id (ppl-e-1), so it is NOT
+    # collapsed: the entry child is kept.
     assert sec["children"][0]["url"] == "ppl/entries/ppl-e-1.html"
+
+
+def _canonical_three() -> ThreeTabDocument:
+    """A triple-tab doc whose PPL section wraps ONE entry with id==section.id.
+
+    This is the synthetic single-entry shape the parser emits for a
+    table-less PPL/Examples H3: the section page is canonical and inlines
+    the entry, so the standalone entry page/node/link is suppressed.
+    """
+    paper = Document(preamble_html="")
+    ppl = Document(preamble_html="")
+    ppl.chapters = [
+        _chapter(
+            "ppl-ch-1",
+            [
+                _section(
+                    "ppl-sec-solo",
+                    [_entry("ppl-sec-solo")],  # id == section.id
+                    chapter_id="ppl-ch-1",
+                ),
+            ],
+        ),
+    ]
+    examples = Document(preamble_html="")
+    return ThreeTabDocument(paper=paper, ppl=ppl, examples=examples)
+
+
+def test_canonical_single_entry_section_has_no_entry_child():
+    """A section whose lone entry has id==section.id drops the entry child."""
+    toc = build_toc(_canonical_three())
+    ppl = toc[1]
+    sec = ppl["children"][0]["children"][0]
+    assert sec["kind"] == "section"
+    assert sec["id"] == "ppl-sec-solo"
+    assert sec["children"] == []
+
+
+def test_canonical_single_entry_section_page_is_canonical(tmp_path):
+    """The section page exists; the redundant entry page is NOT emitted."""
+    three = _canonical_three()
+    render(three, tmp_path)
+    assert (tmp_path / "ppl/sections/ppl-sec-solo.html").exists()
+    assert not (tmp_path / "ppl/entries/ppl-sec-solo.html").exists()
 
 
 def _walk_urls(nodes):
