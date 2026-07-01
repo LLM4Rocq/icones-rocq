@@ -99,24 +99,15 @@ jobs:
       - name: Run parser tests
         run: pytest tools/auditor/tests/ -v
 
-      - name: Cache pagefind binary
-        id: cache-pagefind
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/bin/pagefind
-          key: pagefind-1.0.4-x86_64-unknown-linux-musl
-
-      - name: Install pagefind
-        if: steps.cache-pagefind.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/.local/bin
-          curl -sSL https://github.com/CloudCannon/pagefind/releases/download/v1.0.4/pagefind-v1.0.4-x86_64-unknown-linux-musl.tar.gz \
-            | tar xz -C ~/.local/bin
-          chmod +x ~/.local/bin/pagefind
-
       - name: Build auditor dashboard
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
+          # The Pagefind search index is built in-process by
+          # build_auditor.py via the `pagefind[extended]` Python package
+          # (pinned in tools/auditor/requirements.txt and installed in the
+          # "Install Python dependencies" step above), so no standalone
+          # pagefind binary or separate `pagefind --site` step is needed —
+          # this also avoids version drift between the pinned pip package
+          # and a curled release binary.
           # --strict aborts on the first warning, which today includes
           # auto-resolved duplicate-slug warnings — those are
           # informational, not errors. Run without --strict and treat
@@ -129,11 +120,6 @@ jobs:
             --coqproject _CoqProject \
             --github-repo "$GITHUB_REPOSITORY" \
             --commit "$GITHUB_SHA"
-
-      - name: Build Pagefind index
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          pagefind --site site/auditor
 
       - name: Upload auditor artifact
         uses: actions/upload-artifact@v4
