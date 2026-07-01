@@ -240,6 +240,50 @@ def test_active_branch_auto_expanded_on_section_page(tmp_path):
     assert 'aria-current="true"' in html
 
 
+def test_sidebar_scoped_to_active_tab(tmp_path):
+    """On a /ppl page only the ppl tab expands; the other two collapse to a
+    single link each, so the toc-link count is far below a fully-expanded
+    tree (which would carry every paper section/entry too)."""
+    # A paper tab big enough that a fully-expanded tree exceeds 80 toc-links.
+    paper = Document(preamble_html="")
+    paper.sections = [
+        _section(f"sec-{i}", [_entry(f"def-{i}-{j}") for j in range(6)], num=str(i))
+        for i in range(12)
+    ]
+    ppl = Document(preamble_html="")
+    ppl.chapters = [
+        _chapter(
+            "ppl-ch-1",
+            [_section("ppl-sec-1", [_entry("ppl-e-1")], chapter_id="ppl-ch-1")],
+        ),
+    ]
+    examples = Document(preamble_html="")
+    examples.chapters = [
+        _chapter(
+            f"ex-ch-{i}",
+            [_section(f"ex-sec-{i}", [_entry(f"ex-e-{i}")], chapter_id=f"ex-ch-{i}")],
+        )
+        for i in range(6)
+    ]
+    three = ThreeTabDocument(paper=paper, ppl=ppl, examples=examples)
+    render(three, tmp_path)
+
+    html = (tmp_path / "ppl/sections/ppl-sec-1.html").read_text(encoding="utf-8")
+    n_links = html.count('class="toc-link')
+    # paper (72 entries) + examples (6 chapters) are collapsed to one link
+    # each; only the small ppl subtree is expanded.
+    assert n_links < 80, f"expected scoped sidebar, got {n_links} toc-links"
+    # the inactive tabs collapse: none of their child pages are listed.
+    assert "paper/sections/sec-0.html" not in html
+    assert "examples/chapters/ex-ch-0.html" not in html
+    # ...but their top-level tab links (labels) are still present + resolvable.
+    for t in ("toc-tab-paper", "toc-tab-ppl", "toc-tab-examples"):
+        assert t in html
+    # the active ppl subtree is expanded.
+    assert "ppl/chapters/ppl-ch-1.html" in html
+    assert "ppl/sections/ppl-sec-1.html" in html
+
+
 def test_toc_links_resolve_from_deep_page(tmp_path):
     """Every sidebar link on a depth-2 entry page resolves to a real file."""
     three = _sample_three()

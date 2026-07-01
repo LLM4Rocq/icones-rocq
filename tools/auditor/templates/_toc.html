@@ -75,8 +75,15 @@
       <ul class="toc-root">
         {%- for tabnode in toc -%}
         {%- set tab_active = (toc_active and toc_active.tab == tabnode.id) -%}
+        {#- Scope the sidebar to the current tab: only the active tab's
+            subtree is expanded.  The other two tabs collapse to a single
+            top-level link each (keeping their labels), so a deep page ships
+            one tab's tree instead of all three.  Root/graph pages have no
+            active tab (`toc_active.tab` empty) — default Paper open there. -#}
+        {%- set tab_expanded = tab_active or ((not toc_active or not toc_active.tab) and tabnode.id == 'paper') -%}
         <li class="toc-node toc-tab toc-tab-{{ tabnode.id }}{% if tab_active %} is-active-branch{% endif %}">
-          <details class="toc-fold toc-tab-fold"{% if tab_active %} open{% endif %}>
+          {%- if tab_expanded -%}
+          <details class="toc-fold toc-tab-fold" open>
             <summary class="toc-summary toc-tab-summary">
               <a class="toc-link toc-tab-link" href="{{ tab_prefix }}{{ tabnode.url }}"{% if tab_active and toc_active.kind == 'tab' %} aria-current="true"{% endif %}>{{ tabnode.title }}</a>
             </summary>
@@ -86,6 +93,9 @@
               {%- endfor -%}
             </ul>
           </details>
+          {%- else -%}
+          <a class="toc-link toc-tab-link toc-tab-collapsed" href="{{ tab_prefix }}{{ tabnode.url }}">{{ tabnode.title }}</a>
+          {%- endif -%}
         </li>
         {%- endfor -%}
       </ul>

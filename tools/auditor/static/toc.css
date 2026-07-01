@@ -146,10 +146,16 @@
 
 /* Tab groups: colour-coded, slightly larger -----------------------------*/
 
-.toc-tab-summary > .toc-tab-link {
+.toc-tab-summary > .toc-tab-link,
+.toc-tab-link.toc-tab-collapsed {
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--fg);
+}
+/* A collapsed (inactive) tab has no <summary>/disclosure triangle; pad it in
+   by the triangle's width so its label lines up with the expanded tabs. */
+.toc-tab-link.toc-tab-collapsed {
+  padding-left: 0.55rem;
 }
 .toc-tab {
   margin-top: 0.5rem;
