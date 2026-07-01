@@ -2943,44 +2943,52 @@ corresponding normalised distribution. The theorems hold even when the
 model is a strict sub-probability: a model that itself diverges puts
 its missing mass into the normaliser.
 
-\begin{definition}[The surface combinator
-$\mathtt{ex\_reject\_comb}$]\label{def:cbv-ex-reject-comb}
-\rocq{Icones.programs.examples.ex_reject_comb}\rocqok
+\begin{definition}[The reject combinator
+$\mathtt{ne\_reject}$]\label{def:cbv-ex-reject-comb}
+\rocq{Icones.programs.reject_condition.ne_reject}\rocqok
 \rocq{Icones.programs.examples.ex_sampler}\rocqok
-\uses{def:cbv-fix-clause, lem:ppl-bern-lift, def:cbv-ex-reject}
-For an \emph{arbitrary} PPL input type $t_a$ and a bundled acceptance
-density $d : \mathtt{udensity}$ (write $f := \mathtt{ud\_f}\,d :
-\mathbb{R} \to [0,1]$), the combinator is the
-closed program of type
-$(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
+\uses{def:cbv-fix-clause, def:cbv-case-em}
+For \emph{arbitrary} PPL input and return types $t_a$, $t_b$ and an
+acceptance predicate supplied as a \emph{program} value
+$f : t_b \to \mathtt{tbool}$ --- exactly parallel to the model --- the
+reject combinator is the closed program of type
+$(t_b \to \mathtt{tbool}) \to (t_a \to t_b) \to (t_a \to t_b)$
 \[
-  \mathtt{ex\_reject\_comb}
+  \mathtt{ne\_reject}
   \;=\;
-  \mathtt{fix}\;\textit{rs}.\;\lambda m.\;\lambda a.\;
+  \lambda f.\;\mathtt{fix}\;\textit{rx}.\;\lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{if}\;\mathtt{Bernoulli}\,d\,x\;
+    \mathtt{if}\;(f\;x)\;
     \mathtt{then}\;x\;
-    \mathtt{else}\;\textit{rs}\;m\;a
+    \mathtt{else}\;\textit{rx}\;m\;a
 \]
---- run the model at the input, accept the produced value with
-probability $f(x)$, recurse at the \emph{same} model and input on
-rejection. The simplest model is the lambda-written sampler
+--- run the model at the input, accept the produced value $x$ with the
+acceptance probability $t(x) := \mathrm{true\text{-}mass}\,\sem{f\,x}$,
+recurse at the \emph{same} model and input on rejection. Because $f$ is a
+program, $f\,x$ is ordinary object-language application ($\#f\,@\,\#x$):
+there is no lift node and no $\mathtt{ne\_test}$. The two design regimes
+--- $f$ deterministic $\Rightarrow t = \mathbf 1_A$, the accept-set
+indicator (hard conditioning); $f$ a coin $\Rightarrow t$ a density
+(soft conditioning) --- are the single mechanism $t(x)$. The simplest
+model is the lambda-written sampler
 $\mathtt{ex\_sampler} = \lambda\_.\,\mathtt{sample}\,\mu$
 (\rocq{Icones.programs.examples.ex_sampler}), of type
 $\mathtt{tunit} \to \mathtt{tR}$.
 
-The theorems quantify over the model VALUE and the input VALUE: the
-model argument is the promoted point $g^!$ of an arbitrary unit-ball
-linear map $g : U\sem{t_a} \multimap \FMeas$ --- every lambda-written
-model denotes such a point, since the $\lambda$-clause promotes the
-curried body at setlike environments
+The theorems quantify over the model VALUE, the predicate VALUE and the
+input VALUE: the model argument is the promoted point $g^!$ of an
+arbitrary unit-ball linear map $g : U\sem{t_a} \multimap U\sem{t_b}$ ---
+every lambda-written model denotes such a point, since the
+$\lambda$-clause promotes the curried body at setlike environments
 (\rocq{Icones.programs.ex_reject_model.sampler_val_E} is the worked
-instance) --- and the input is an arbitrary setlike unit-ball point
+instance) --- the predicate argument is the promoted point of an
+arbitrary unit-ball $f : U\sem{t_b} \multimap \mathtt{bool\_cone}$, and
+the input is an arbitrary setlike unit-ball point
 $a_0 : U\sem{t_a}$. Write
 $\nu_M = g(a_0)$ for the model's output \emph{sub}-distribution at
 the input (\rocq{Icones.programs.ex_reject_model.reject_model_dist}),
-$m_0 = \nu_M(\mathbb{R})$ for its total mass, and $\nu$ for the
-CBV denotation of $(\mathtt{ex\_reject\_comb}\;m)\;a$
+$m_0 = \nu_M(t_b)$ for its total mass, and $\nu$ for the
+CBV denotation of $(\mathtt{ne\_reject}\;f)\;m\;a$
 (\rocq{Icones.programs.ex_reject_model.reject_model_denot}).
 \end{definition}
 
@@ -3087,9 +3095,9 @@ $f \equiv 0$ gives $\nu = 0$ --- certain rejection diverges, whatever
 the model does
 (\rocq{Icones.programs.ex_reject_model.reject_model_zero}).
 The same identities hold for a model returning values in an \emph{arbitrary}
-measurable object $B$ (not just $\mathbb{R}$): the acceptance scalar is read off
-a measurement morphism \texttt{phi : B -> po\_obj P} as
-\texttt{po\_density P (phi x)}, and the statements above are the
+measurable object $t_b$ (not just $\mathbb{R}$): the acceptance scalar is the
+true-mass $t(x) = \mathtt{bc\_t}\,\sem{f\,x}$ of the program predicate at
+the Dirac $\delta_x$, and the statements above are the
 \texttt{B := R\_obj} instance, recovered definitionally
 (\rocq{Icones.programs.ex_reject_model.reject_model_master_obj}).
 \end{theorem}
@@ -3106,27 +3114,25 @@ corner $q = 1$ forces $m_0 = 1$ and $\int f\,d\nu_M = 0$ --- the loop never
 terminates --- and both sides vanish (the chain is constantly zero).
 \end{proof}
 
-\begin{theorem}[The instance bridge: the hard-coded sampler is the
+\begin{theorem}[The sampler instance: the hard-coded sampler is the
 simplest model]\label{thm:cbv-reject-model-instance}
-\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.sampler_val_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.sampler_out_E}\rocqok
 \rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_master}\rocqok
-\uses{thm:cbv-reject-model, thm:cbv-reject-master,
-def:cbv-ex-reject-comb}
+\uses{thm:cbv-reject-model, def:cbv-ex-reject-comb}
 At $t_a = \mathtt{tunit}$ and the sampler model
 $\mathtt{ex\_sampler} = \lambda\_.\,\mathtt{sample}\,\mu$ with a
-unit-mass prior, $\nu_M = \mu$
-(\rocq{Icones.programs.ex_reject_model.sampler_out_E}) and
-$m_0 = 1$: the combinator applied to the sampler model and the unit
-input denotes \emph{the same measure} as the original
-$\mathtt{ex\_reject}$ of \autoref{def:cbv-ex-reject}
-(\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_E}) ---
-the two programs have different surface shapes (one abstracts over an
-acceptance continuation, the other over a model), but their Kleene
-chains satisfy the same per-iterate mass cascade from $0$
-(\rocq{Icones.programs.ex_reject_model.inst_iter_massE}), so the
-suprema coincide by uniqueness of limits. The classical master
-identity $\bigl(\int f\,d\mu\bigr)\cdot \nu(U) = \int_U f\,d\mu$ is re-derived through the bridge
-(\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_master}).
+unit-mass prior, the closed sampler denotes the promoted linear map
+$g_\mu^!$ (\rocq{Icones.programs.ex_reject_model.sampler_val_E}), its
+output distribution is the prior, $\nu_M = g_\mu(1) = \mu$
+(\rocq{Icones.programs.ex_reject_model.sampler_out_E}), and $m_0 = 1$.
+The unified master identity of \autoref{thm:cbv-reject-model} then
+specialises to the classical rejection identity
+$\bigl(\int t\,d\mu\bigr)\cdot \nu(U) = \int_U t\,d\mu$ at the sampler
+model and the unit input
+(\rocq{Icones.programs.ex_reject_model.ex_reject_comb_sampler_master}),
+with $t(r) = \mathrm{true\text{-}mass}\,\sem{f\,r}$ the acceptance
+probability.
 \end{theorem}
 
 \subsection{Soft conditioning, and the equivalence with rejection
@@ -3141,31 +3147,38 @@ sampling computes the conditioned model's \emph{normalised}
 distribution.
 
 \begin{definition}[The condition combinator
-$\mathtt{ex\_condition\_comb}$]\label{def:cbv-ex-condition}
-\rocq{Icones.programs.examples.ex_condition_comb}\rocqok
-\rocq{Icones.programs.examples.ex_condition}\rocqok
-\uses{def:cbv-ex-reject-comb, lem:ppl-score-tm-lift}
-For an arbitrary PPL input type $t_a$ and a bundled likelihood
-density $d : \mathtt{udensity}$ (write $f := \mathtt{ud\_f}\,d :
-\mathbb{R} \to [0,1]$), the soft conditioning operator is
+$\mathtt{ne\_condition}$]\label{def:cbv-ex-condition}
+\rocq{Icones.programs.reject_condition.ne_condition}\rocqok
+\rocq{Icones.programs.reject_condition.ne_assert}\rocqok
+\rocq{Icones.programs.reject_condition.ne_fail}\rocqok
+\uses{def:cbv-ex-reject-comb, def:cbv-case-em}
+For arbitrary PPL input and return types $t_a$, $t_b$ and a predicate
+program $f : t_b \to \mathtt{tbool}$, the condition combinator is
 the closed program of type
-$(t_a \to \mathtt{tR}) \to (t_a \to \mathtt{tR})$
+$(t_b \to \mathtt{tbool}) \to (t_a \to t_b) \to (t_a \to t_b)$
 \[
-  \mathtt{condition}
+  \mathtt{ne\_condition}
   \;=\;
-  \lambda m.\;\lambda a.\;
+  \lambda f.\;\lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{let}\;\_ = \mathtt{Score}\,d\,x\;\mathtt{in}\;
+    \mathtt{let}\;\_ = \mathtt{assert}\,(f\,x)\;\mathtt{in}\;
     x
 \]
---- run the model at the input, weigh the trace by the likelihood of
-the produced value, return the value
-(\rocq{Icones.programs.examples.ex_condition_comb}). The applied form
-$\mathtt{condition}\;M$ --- the conditioned MODEL, again of type
-$t_a \to \mathtt{tR}$ --- is
-\rocq{Icones.programs.examples.ex_condition}, with the surface
-notation \texttt{Condition \{ d \} M}. No recursion is
-involved: the combinator is a plain double lambda.
+--- run the model at the input, \emph{assert} the acceptance predicate
+on the produced value, return the value
+(\rocq{Icones.programs.reject_condition.ne_condition}). It is the
+\emph{same} term as $\mathtt{ne\_reject}$
+(\autoref{def:cbv-ex-reject-comb}) modulo the else-branch: rejection
+retries ($\textit{rx}\;m\;a$), conditioning gives up
+($\mathtt{ne\_fail}$, \rocq{Icones.programs.reject_condition.ne_fail}),
+since a failed $\mathtt{assert}$
+(\rocq{Icones.programs.reject_condition.ne_assert},
+$\mathtt{assert}\;b = \mathtt{if}\;b\;\mathtt{then}\;()\;\mathtt{else}\;\mathtt{ne\_fail}$)
+zeroes the mass whatever value follows ---
+$\mathtt{let}\;\_ = \mathtt{assert}\,(f\,x)\;\mathtt{in}\;x$ is
+$\mathtt{if}\,(f\,x)\;\mathtt{then}\;x\;\mathtt{else}\;\mathtt{ne\_fail}$.
+No recursion is involved: the combinator is a plain triple lambda, so
+$\mathtt{condition}$ is entirely $\mathtt{Score}$-free.
 \end{definition}
 
 \begin{lemma}[The conditioning law]\label{lem:cbv-condition-law}
@@ -3173,8 +3186,7 @@ involved: the combinator is a plain double lambda.
 \rocq{Icones.programs.ex_reject_model.condition_model_mass}\rocqok
 \rocq{Icones.programs.ex_reject_model.condition_E}\rocqok
 \rocq{Icones.programs.ex_reject_model.condition_prog_evidence}\rocqok
-\uses{def:cbv-ex-condition, lem:cbv-let-general,
-lem:ppl-score-tm-lift}
+\uses{def:cbv-ex-condition, lem:cbv-let-general, def:cbv-case-em}
 In the set-up of \autoref{def:cbv-ex-reject-comb} --- a unit-ball
 model value $g^!$, a setlike unit-ball input $a_0$, and the model's
 output sub-distribution $\nu_M = g(a_0)$ --- the conditioned model's
@@ -3206,9 +3218,10 @@ and the two applications strip promotions by
 $\mathrm{der} \circ \mathrm{prom} = \mathrm{id}$; the general let-law
 (\autoref{lem:cbv-let-general}, bound computation $M = m\,@\,a$)
 turns the body into an integral over $r \sim \nu_M$; and at each
-Dirac $\delta_r$ the score-and-return continuation computes to the
-weighted point mass $f(r)\cdot\delta_r$ (the score scalar via the
-Dirac identity of \autoref{lem:ppl-score-tm-lift}, discharged into a
+Dirac $\delta_r$ the assert-and-return continuation computes to the
+weighted point mass $t(r)\cdot\delta_r$, the acceptance scalar
+$t(r) = \mathtt{bc\_t}\,\sem{f\,r}$ read off the $\mathtt{bool\_case}$
+dispatch of \autoref{def:cbv-case-em}, discharged into a
 $\mathrm{precone\_scale}$ weight through the non-setlike
 $\mathtt{tunit}$ projection
 \rocq{Icones.programs.infra.cbv_marginals.em_proj1_mor_unitE}).
@@ -3285,153 +3298,132 @@ derived reading
 one-observation case is definitional.
 \end{lemma}
 
-\subsection{The clean hard / boolean reject and condition}%
-\label{ssec:cbv-hard-reject}
+\subsection{The two regimes: hard (deterministic predicate) and soft
+(coin)}\label{ssec:cbv-hard-reject}
 
-The soft combinators above accept a value $x$ with \emph{probability}
-$f(x) \in [0, 1]$ through a genuine Bernoulli coin. The \emph{hard}
-combinators instead test $x$ against a \emph{deterministic} boolean
-predicate $f$ on the model's return space and the accept set
-$A := f^{-1}(\mathtt{true})$. The picture is a single run of the model
-with three outcomes: it returns a value the test \textbf{accepts} (mass
-$\nu_M(A)$), returns one it \textbf{rejects} (mass
-$\nu_M(\mathbb{R}) - \nu_M(A)$), or \textbf{diverges} (mass
-$1 - \nu_M(\mathbb{R})$, the model's own missing mass). The
-\emph{condition} combinator keeps the accepted part and discards the
-rest --- $\mathtt{cond}(U) = \nu_M(A \cap U)$, unnormalised; the
-\emph{reject} combinator retries the rejected part, normalised by
-$Z := 1 - \nu_M(\mathbb{R}) + \nu_M(A)$ (the divergence mass plus the
-accept mass), so that $Z \cdot \mathtt{reject}(U) = \mathtt{cond}(U)$
-and $\mathtt{reject} = \nu_M(\,\cdot \cap A)/Z$. The two programs are the
-\emph{same} term modulo the else-branch --- rejection retries
-($\textit{rx}\;m\;a$), conditioning fails ($\mathtt{fail}$). These are
-the $\{0,1\}$-indicator specialisation of the soft master theorem of
-\autoref{thm:cbv-reject-model} / \autoref{thm:cbv-condition-reject},
-told through a deterministic boolean \emph{test} rather than a coin.
+The reject and condition combinators (\autoref{def:cbv-ex-reject-comb},
+\autoref{def:cbv-ex-condition}) take the acceptance test as a
+\emph{program} $f : t_b \to \mathtt{tbool}$, and everything downstream
+depends only on the acceptance probability
+$t(x) := \mathrm{true\text{-}mass}\,\sem{f\,x} \in [0, 1]$. The one fact
+that makes this work is that $\mathtt{tbool}$ is \emph{not}
+$\mathtt{bool}$: it denotes the 2-point sub-probability cone
+(\autoref{def:cbv-bool-cone-coalg}), so $\sem{f\,x}$ is a
+\emph{sub-distribution over} $\{\mathtt{true}, \mathtt{false}\}$ and its
+true-mass is a genuine $[0,1]$ scalar. Two regimes fall out of the one
+mechanism $t(x)$:
+\begin{itemize}
+  \item $f$ \textbf{deterministic} ($\sem{f\,x}$ a bool-Dirac
+    $\delta_{f(x)}$) $\Rightarrow t = \mathbf 1_A$, the indicator of the
+    accept set $A := \{\,x \mid f\,x = \mathtt{true}\,\}$ ---
+    \textbf{hard} conditioning;
+  \item $f$ a \textbf{coin} ($\sem{f\,x}$ a non-Dirac, e.g.\
+    $\mathtt{Bernoulli}\,s$) $\Rightarrow t$ a density ---
+    \textbf{soft} conditioning.
+\end{itemize}
+Because $f$ is a program, $f\,x$ is ordinary application: there is no
+lift node and no $\mathtt{ne\_test}$ primitive. A deterministic boolean
+test of a value is never a Bernoulli coin --- it is just a
+$\mathtt{tbool}$-valued program (a $\mathtt{bool}$-Dirac); $\mathtt{Bernoulli}$
+names a genuine $[0,1]$ coin, and appears nowhere inside
+$\mathtt{ne\_reject}$ / $\mathtt{ne\_condition}$. The single run of the
+model still splits three ways --- \textbf{accept} (mass
+$\int t\,d\nu_M$), \textbf{reject / retry} (mass
+$m_0 - \int t\,d\nu_M$), \textbf{diverge} (mass $1 - m_0$, the model's
+own missing mass) --- and the hard case is the $\{0,1\}$-indicator
+specialisation of the unified master theorem of
+\autoref{thm:cbv-reject-model} / \autoref{thm:cbv-condition-reject}.
 
-\begin{definition}[The deterministic boolean-test primitive
-$\mathtt{ne\_test}$]\label{def:cbv-ne-test}
-\rocq{Icones.programs.ppl.ne_test}\rocqok
-\rocq{Icones.programs.ppl.test_lift}\rocqok
-\rocq{Icones.programs.ppl.test_lift_dirac}\rocqok
-\uses{def:cbv-bool-cone}
-The surface form $\mathtt{Test}\,\{f, Hf\}\;e$
-(\rocq{Icones.programs.ppl.ne_test}) is a \emph{deterministic} boolean
-test of the value of $e$ by a meta-level measurable predicate $f$ ---
-\textbf{not} a Bernoulli coin. Its semantic engine is the lift
-$\mathtt{test\_lift} : \FMeas(X) \lin \mathtt{bool\_cone}$
-(\rocq{Icones.programs.ppl.test_lift}, the 2-point cone of
-\autoref{def:cbv-bool-cone}), the pushforward of a measure through $f$.
-On a Dirac it is the \emph{Dirac on bool} $\delta_{f(x)}$ --- total mass
-$1$ on the single atom $f(x)$, no split
-(\rocq{Icones.programs.ppl.test_lift_dirac}) --- in contrast to the
-$\mathtt{bern\_lift}$ coin (\autoref{lem:ppl-bern-lift}), whose path
-value is the genuine split $(g(x),\, 1 - g(x))$.
-\end{definition}
-
-\begin{definition}[The clean hard combinators $\mathtt{ne\_fail}$,
+\begin{definition}[The clean combinators $\mathtt{ne\_fail}$,
 $\mathtt{ne\_assert}$, $\mathtt{ne\_reject}$,
 $\mathtt{ne\_condition}$]\label{def:cbv-hard-combinators}
-\rocq{Icones.programs.hard_reject.ne_fail}\rocqok
-\rocq{Icones.programs.hard_reject.ne_assert}\rocqok
-\rocq{Icones.programs.hard_reject.ne_reject}\rocqok
-\rocq{Icones.programs.hard_reject.ne_condition}\rocqok
-\uses{def:cbv-ne-test, def:cbv-ex-reject-comb, def:cbv-ex-condition}
-Built over $\mathtt{ne\_test}$, all $B$-generic. The give-up term
+\rocq{Icones.programs.reject_condition.ne_fail}\rocqok
+\rocq{Icones.programs.reject_condition.ne_assert}\rocqok
+\rocq{Icones.programs.reject_condition.ne_reject}\rocqok
+\rocq{Icones.programs.reject_condition.ne_condition}\rocqok
+\uses{def:cbv-ex-reject-comb, def:cbv-ex-condition, def:cbv-case-em}
+All four are $t_a \to t_b$-generic and built entirely from
+$\mathtt{fix}$, $\lambda$, $@$, $\mathtt{if}$, $()$ and $\mathtt{let}$
+--- no $\mathtt{Test}$, no $\mathtt{Score}$, no $\mathtt{Bernoulli}$. The
+give-up term
 $\mathtt{ne\_fail} = (\mathtt{fix}\;\textit{fail}.\;\lambda().\;
-\textit{fail}\;())\;()$ is a guarded diverging fixpoint;
+\textit{fail}\;())\;()$ is a guarded diverging fixpoint whose Kleene
+chain from $\bot$ is constant, so it denotes the zero measure
+$\mathtt{precone\_zero}$ (divergence $=$ the missing mass); the
+$\lambda$-guard is mandatory in CBV. Then
 $\mathtt{ne\_assert}\;b =
-\mathtt{if}\;b\;\mathtt{then}\;()\;\mathtt{else}\;\mathtt{fail}$. The
-reject and condition combinators are
+\mathtt{if}\;b\;\mathtt{then}\;()\;\mathtt{else}\;\mathtt{ne\_fail}$, and
 \[
   \mathtt{ne\_reject}
   \;=\;
-  \mathtt{fix}\;\textit{rx}.\;\lambda m.\;\lambda a.\;
+  \lambda f.\;\mathtt{fix}\;\textit{rx}.\;\lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{if}\;\mathtt{Test}\{f\}\,x\;
+    \mathtt{if}\;(f\;x)\;
     \mathtt{then}\;x\;
     \mathtt{else}\;\textit{rx}\;m\;a,
 \]
 \[
   \mathtt{ne\_condition}
   \;=\;
-  \lambda m.\;\lambda a.\;
+  \lambda f.\;\lambda m.\;\lambda a.\;
     \mathtt{let}\;x = m\;a\;\mathtt{in}\;
-    \mathtt{let}\;\_ = (\mathtt{if}\;\mathtt{Test}\{f\}\,x\;
-      \mathtt{then}\;()\;\mathtt{else}\;\mathtt{fail})\;\mathtt{in}\;x.
+    \mathtt{let}\;\_ = \mathtt{ne\_assert}\,(f\,x)\;\mathtt{in}\;x.
 \]
-These are the clean boolean-test analogues of the soft
-$\mathtt{ex\_reject\_comb}$ (\autoref{def:cbv-ex-reject-comb}) and
-$\mathtt{ex\_condition\_comb}$ (\autoref{def:cbv-ex-condition}): the same
-term shape, with the Bernoulli scrutinee replaced by
-$\mathtt{Test}\{f\}$ and the else-branch retrying ($\textit{rx}\;m\;a$)
-for reject, failing ($\mathtt{fail}$) for condition.
+These are the two combinators of \autoref{def:cbv-ex-reject-comb} /
+\autoref{def:cbv-ex-condition} --- the acceptance test the
+\emph{program} $f$, applied by ordinary application --- the \emph{same}
+term modulo the else-branch: rejection retries ($\textit{rx}\;m\;a$),
+conditioning gives up ($\mathtt{ne\_fail}$).
 \end{definition}
 
-\begin{theorem}[The denotation bridge and the bridged boolean
-headlines]\label{thm:cbv-hard-reject-bridge}
-\rocq{Icones.programs.hard_reject_denot.ne_fail_zero}\rocqok
-\rocq{Icones.programs.hard_reject_denot.scrut_leaf_E}\rocqok
-\rocq{Icones.programs.hard_reject_denot.reject_bool_master'}\rocqok
-\rocq{Icones.programs.hard_reject_denot.condition_bool_E'}\rocqok
-\rocq{Icones.programs.hard_reject_denot.condition_bool_evidence'}\rocqok
-\rocq{Icones.programs.hard_reject_denot.reject_normalises_condition_bool'}\rocqok
+\begin{theorem}[The hard case is the deterministic specialisation]%
+\label{thm:cbv-hard-reject-bridge}
+\rocq{Icones.programs.reject_condition.ne_fail}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_model_master}\rocqok
+\rocq{Icones.programs.ex_reject_model.condition_model_E}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_normalises_condition}\rocqok
+\rocq{Icones.programs.ex_reject_model.reject_prog_master}\rocqok
+\rocq{Icones.programs.ex_reject_model.condition_E}\rocqok
 \uses{def:cbv-hard-combinators, thm:cbv-reject-model,
 thm:cbv-condition-reject}
 The give-up term denotes the zero measure,
-$\sem{\mathtt{ne\_fail}} = \mathtt{precone\_zero}$ at every setlike
-unit-ball environment
-(\rocq{Icones.programs.hard_reject_denot.ne_fail_zero}): divergence is
-exactly the missing mass. The clean $\mathtt{ne\_reject}$ /
-$\mathtt{ne\_condition}$ provably \emph{denote the same measures} as the
-soft combinators at the indicator $f := \mathbf{1}_A$ --- the
-deterministic test leaf equals the coin scrutinee at the indicator
-density
-(\rocq{Icones.programs.hard_reject_denot.scrut_leaf_E}) --- so the
-boolean headlines transfer verbatim. For every measurable $U$, the
-master identity
+$\sem{\mathtt{ne\_fail}} = \mathtt{precone\_zero}$
+(\rocq{Icones.programs.reject_condition.ne_fail}): divergence is exactly
+the missing mass. When $f$ is a genuine boolean predicate ---
+$\sem{f\,x}$ a bool-Dirac, so $t = \mathbf 1_A$ --- the unified master
+theorem (\autoref{thm:cbv-reject-model}) and the conditioning law
+(\autoref{lem:cbv-condition-law}) read, for every measurable $U$ and
+$Z := 1 - m_0 + \nu_M(A)$,
 \[
-  \bigl(1 - \nu_M(\mathbb{R}) + \nu_M(A)\bigr) \cdot \mathtt{reject}(U)
-  \;=\; \nu_M(A \cap U)
+  \sem{\mathtt{ne\_condition}\;f\;m\;a}(U) = \nu_M(A \cap U),
+  \qquad
+  Z \cdot \sem{\mathtt{ne\_reject}\;f\;m\;a}(U) = \nu_M(A \cap U),
 \]
-(\rocq{Icones.programs.hard_reject_denot.reject_bool_master'}); the
-conditioning law $\mathtt{cond}(U) = \nu_M(A \cap U)$
-(\rocq{Icones.programs.hard_reject_denot.condition_bool_E'}) with model
-evidence $\mathtt{cond}(\mathbb{R}) = \nu_M(A)$
-(\rocq{Icones.programs.hard_reject_denot.condition_bool_evidence'}); and
-the equivalence
-$\bigl(1 - \nu_M(\mathbb{R}) + \nu_M(A)\bigr) \cdot \mathtt{reject}(U) =
-\mathtt{cond}(U)$
-(\rocq{Icones.programs.hard_reject_denot.reject_normalises_condition_bool'},
-with division and probability-model forms
-\rocq{Icones.programs.hard_reject_denot.reject_computes_condition_bool'}
-/ \rocq{Icones.programs.hard_reject_denot.reject_normalises_condition_prob_bool'}).
-The same headlines as $\{0,1\}$-indicator \emph{instances} of the soft
-master theorem --- phrased directly on the soft combinator at the
-indicator test, before the clean bridge --- are
-\rocq{Icones.programs.ex_reject_bool.reject_bool_master},
-\rocq{Icones.programs.ex_reject_bool.condition_bool_E},
-\rocq{Icones.programs.ex_reject_bool.condition_bool_evidence},
-\rocq{Icones.programs.ex_reject_bool.reject_normalises_condition_bool},
-with corollaries
-\rocq{Icones.programs.ex_reject_bool.reject_bool_is_normalised},
-\rocq{Icones.programs.ex_reject_bool.reject_bool_mass},
-\rocq{Icones.programs.ex_reject_bool.reject_bool_mass_one},
-\rocq{Icones.programs.ex_reject_bool.reject_bool_zero}.
+so $\mathtt{reject} = \nu_M(\,\cdot \cap A)/Z$ --- conditioning on the
+accept set $A$, and rejection its normalisation; for a probability model
+($m_0 = 1$) this is the conditional $\nu_M(\cdot \mid A)$, with model
+evidence $\sem{\mathtt{ne\_condition}}(t_b) = \nu_M(A)$. These are the
+$\{0,1\}$-indicator instances of
+$\int_U t\,d\nu_M = \nu_M(U \cap A)$ in the very same
+\rocq{Icones.programs.ex_reject_model.reject_model_master} /
+\rocq{Icones.programs.ex_reject_model.condition_model_E} /
+\rocq{Icones.programs.ex_reject_model.reject_normalises_condition} ---
+there is \emph{no separate hard-case machinery}. The soft case ($f$ a
+coin, $t$ a density) is the identical statement with $t$ the density;
+the program-level readings over an arbitrary thunked model are
+\rocq{Icones.programs.ex_reject_model.reject_prog_master} and
+\rocq{Icones.programs.ex_reject_model.condition_E}.
 \end{theorem}
 
 \begin{proof}
-The bridge lemma
-\rocq{Icones.programs.hard_reject_denot.scrut_leaf_E} identifies the
-$\mathtt{test\_lift}$ scrutinee with the $\{0,1\}$-coin scrutinee on
-every Dirac (both denote $\delta_{f(x)}$, so $\mathtt{dirac\_dense}$
-closes it); folding it through the $\mathtt{eD\_cbv}$ structure of the
-two fixpoints (whose binder names are erased by $\mathtt{drop\_names}$)
-gives equality of the denotations, after which each boolean headline is
-the matching $\{0,1\}$-instance of the soft master theorem
-(\autoref{thm:cbv-reject-model}) and the soft conditioning equivalence
-(\autoref{thm:cbv-condition-reject}), with $\int f\,d\nu_M = \nu_M(A)$
-and $\int_U f\,d\nu_M = \nu_M(A \cap U)$ by the indicator integral.
+Both statements are the master identity of \autoref{thm:cbv-reject-model}
+and the conditioning law of \autoref{lem:cbv-condition-law} instantiated
+at a deterministic predicate value: $\sem{f\,x}$ is then the bool-Dirac
+$\delta_{f(x)}$, whose true-mass is $\mathbf 1_A(x)$, so
+$\int_U t\,d\nu_M = \nu_M(U \cap A)$ and $\int t\,d\nu_M = \nu_M(A)$ by
+the indicator integral; the equivalence and the almost-sure-termination
+corner are the corresponding corollaries of
+\autoref{thm:cbv-condition-reject}.
 \end{proof}
 
 \subsection{Riders: the CBV mass identities for
@@ -3574,7 +3566,9 @@ The CBV \emph{model} and its supporting infrastructure are axiom-clean
     \rocq{Icones.programs.infra.cbv_marginals.ex_random_linear_cbv_marginal},
     \rocq{Icones.programs.infra.cbv_marginals.ex_bayes_linear_cbv_evidence}.
   \item Soft conditioning capstone (\autoref{ssec:cbv-condition}): the
-    combinator \rocq{Icones.programs.examples.ex_condition_comb}, the
+    clean combinators
+    \rocq{Icones.programs.reject_condition.ne_reject} /
+    \rocq{Icones.programs.reject_condition.ne_condition}, the
     law \rocq{Icones.programs.ex_reject_model.condition_model_E} with
     readable form \rocq{Icones.programs.ex_reject_model.condition_E},
     the equivalence
