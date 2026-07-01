@@ -62,9 +62,40 @@ inductive, the CBV interpretation, the fixpoint machinery, the
 semantic laws) lives on the [PPL tab](../ppl/). This document covers
 the examples themselves.
 
+**Chapter map.** This tab has three chapters:
+
+- [Basic sampling and scoring examples](../../examples/chapters/examples-ch-basic-sampling-and-scoring-examples.html) — five non-recursive programs: two random functions, a one-parameter score posterior, the higher-order Bayesian linear regression, and a two-level Gaussian hierarchy, each with a closed-form CBV marginal.
+- [Recursive probabilistic examples](../../examples/chapters/examples-ch-recursive-probabilistic-examples.html) — `ne_fix` with the boolean cascade: bare divergence, the geometric counter, almost-sure termination, and even/odd mutual recursion.
+- [Conditioning and rejection sampling](../../examples/chapters/examples-ch-conditioning-and-rejection-sampling.html) — the `reject` / `condition` combinators over a program predicate, the conditioning law, the master identity, the equivalence theorem, and the classical-sampler instance.
+
+**Example catalogue.** Each row is one worked program (or headline law) and the one idea it demonstrates.
+
+<table class="catalogue">
+<thead><tr><th>Label</th><th>Program</th><th>Demonstrates</th></tr></thead>
+<tbody>
+<tr><td>Ex 1.1</td><td><code>ex_random_constant</code></td><td>a distribution over constant-output functions; the marginal recovers the prior</td></tr>
+<tr><td>Ex 1.2</td><td><code>ex_random_linear</code></td><td>a random affine function — also the model of the Bayesian regression</td></tr>
+<tr><td>Ex 1.3</td><td><code>ex_score_posterior</code></td><td>prior / score / return — the one-parameter unnormalised posterior</td></tr>
+<tr><td>Ex 1.4</td><td><code>ex_bayes_linear</code></td><td>higher-order Bayesian linear regression, read as iterated conditioning</td></tr>
+<tr><td>Ex 1.5</td><td><code>ex_gaussian_walk</code></td><td>a two-level Gaussian hierarchy via the runtime-parameter <code>Gaussian(e1,e2)</code></td></tr>
+<tr><td>Ex 2.1</td><td><code>ex_loop</code></td><td>bare divergence — total mass 0</td></tr>
+<tr><td>Ex 2.2</td><td><code>ex_geom</code></td><td>the geometric law from a fair-coin recursion</td></tr>
+<tr><td>Ex 2.3</td><td><code>ex_almost_loop</code></td><td>almost-sure termination vs. divergence, keyed by the coin parameter</td></tr>
+<tr><td>Ex 2.4</td><td><code>ex_even_odd_pair</code></td><td>mutual recursion at a product of function types</td></tr>
+<tr><td>Def 3.1</td><td><code>ne_reject</code> / <code>ne_condition</code></td><td>the two combinators over a program predicate</td></tr>
+<tr><td>Thm 3.2</td><td><code>condition_model_E</code></td><td>conditioning reweights the model by the acceptance probability</td></tr>
+<tr><td>Thm 3.3</td><td><code>reject_model_master</code></td><td>the division-free rejection master identity</td></tr>
+<tr><td>Thm 3.4</td><td><code>reject_normalises_condition</code></td><td>rejection sampling normalises the conditioned model</td></tr>
+<tr><td>Ex 3.5</td><td><code>ex_reject</code></td><td>the classical rejection sampler as the sampler instance</td></tr>
+<tr><td>Thm 3.6</td><td><code>ne_fail_zero</code></td><td>hard conditioning as the deterministic-predicate instance</td></tr>
+</tbody>
+</table>
+
 ---
 
 ## Basic sampling and scoring examples
+
+**In this chapter:** [Ex 1.1](../../examples/sections/examples-sec-ex-1-1-constant-random-function.html) · [Ex 1.2](../../examples/sections/examples-sec-ex-1-2-random-linear-function.html) · [Ex 1.3](../../examples/sections/examples-sec-ex-1-3-scored-posterior.html) · [Ex 1.4](../../examples/sections/examples-sec-ex-1-4-bayesian-linear-regression.html) · [Ex 1.5](../../examples/sections/examples-sec-ex-1-5-gaussian-random-walk.html).
 
 Five end-to-end probabilistic programs without recursion: two
 random-function programs, a one-parameter score program, the
@@ -85,7 +116,7 @@ the prior, dereliction and evaluation at setlike test points push
 inside the integral, and the integrand computes pointwise down to a
 Dirac integral.
 
-### ex_random_constant (`ex_random_constant`, `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass`)
+### Ex 1.1 — Constant random function (`ex_random_constant`)
 
 The constant-output random function. After sampling a single random
 constant `c ~ µ`, the program returns the function `λx. c`: every
@@ -153,7 +184,7 @@ which on `FMeas` weighs the kept output by the argument's total mass
 (`coalg_e_FMeas_prob`); at `x = 0` the marginal is `0`, not `µ`.
 Only mass-1 test points are discarded silently.
 
-### ex_random_linear (`ex_random_linear`, `ex_random_linear_cbv_marginal`, `rl_inner_marginal`)
+### Ex 1.2 — Random linear function (`ex_random_linear`)
 
 A random-coefficients linear regression: sample slope `m` and
 intercept `b` from `µ`, return the function `λx. m·x + b`. The
@@ -221,7 +252,7 @@ through the Dirac rules of `mul_lift` and `add_lift` to `δ_{m·r0+b}`
 Pettis integral (`icone_integral_fmeas_E`) lands the iterated
 Lebesgue integral.
 
-### ex_score_posterior (`ex_score_posterior`, `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass`)
+### Ex 1.3 — Scored posterior (`ex_score_posterior`)
 
 Scoring a sampled parameter — the one-dimensional unnormalised
 posterior, in the textbook prior / score / return shape: sample a
@@ -283,7 +314,9 @@ weight, turning the score into the `precone_scale` factor `f(r)` on
 the returned `δ_r` (`sp_cont_at_dirac`). The Dirac's measure of `U`
 is the indicator, and the integral collapses to `∫_U f dµ`.
 
-### ex_bayes_linear (`ex_bayes_linear`, `ex_bayes_linear3`, `observe`, `gauss_obs_density`, `obs_d`, `condition_at`, `iter_condition`, `obs_fold`, `ex_bayes_linear_is_iter_condition`, `ex_bayes_linear_obs_fold`, `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`)
+### Ex 1.4 — Bayesian linear regression (`ex_bayes_linear`)
+
+> **Key result:** the regression *is* iterated conditioning by definition (`ex_bayes_linear_is_iter_condition`, by `erefl`); its evidence is the double integral `∫∫ ∏ obs_d dµ dµ`.
 
 The Bayesian linear regression of Staton–Yang–Heunen–Kammar–Wood
 (arXiv 1701.02547 §2.1), in three steps.
@@ -326,7 +359,7 @@ raw score-fold shape is the derived reading
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_bayes_linear`) | Bind the random affine model to `"f"`, condition it on each observation of the list `l` in turn (`condition_at` / `iter_condition`), return `#"f"`. | `ex_bayes_linear`, `condition_at`, `iter_condition`, `obs_fold`, `ex_bayes_linear3` — `theories/programs/examples.v` |
+| Def (`ex_bayes_linear`) | Bind the random affine model to `"f"`, condition it on each observation of the list `l` in turn (`condition_at` / `iter_condition`) via the `observe` operator and its density `obs_d` / `gauss_obs_density`, return `#"f"`. | `ex_bayes_linear`, `condition_at`, `iter_condition`, `obs_fold`, `obs_d`, `ex_bayes_linear3` — `theories/programs/examples.v` |
 | Prop (`ex_bayes_linear_is_iter_condition`) | The regression equals the model bound once followed by the iterated-conditioning fold — definitionally. | `ex_bayes_linear_is_iter_condition`, derived reading `ex_bayes_linear_obs_fold` — same file |
 | Thm (`ex_bayes_linear_cbv_evidence`) | For a general observation list `l`, the counit ("total mass") of the function-space denotation is the model evidence `∫∫ ∏_{o∈l} obs_d o (m·obs_x o + b) dµ(b) dµ(m)`. | `ex_bayes_linear_cbv_evidence` — `theories/programs/infra/cbv_marginals.v` |
 | Cor (`ex_bayes_linear_cbv_evidence2`) | The literal 2-observation instance: the counit mass at `[:: o1; o2]` is `∫∫ obs_d o1 (m·x₁+b) · obs_d o2 (m·x₂+b) dµ dµ`. | `ex_bayes_linear_cbv_evidence2` — same file |
@@ -406,7 +439,7 @@ Cross-links: the model's own marginal identity is
 `ex_random_linear_cbv_marginal` above; the one-parameter score
 program is `ex_score_posterior` above.
 
-### ex_gaussian_walk (`ex_gaussian_walk`, `ex_gaussian_walk_E`, `ex_gaussian_walk_mass`)
+### Ex 1.5 — Gaussian random walk (`ex_gaussian_walk`)
 
 A two-level Gaussian hierarchy, written with the runtime-parameter
 `Gaussian(e1,e2)` constructor (`ne_gaussian`,
@@ -460,6 +493,8 @@ pointwise probability, `gaussian_kernel_norm1`) and
 
 ## Recursive probabilistic examples
 
+**In this chapter:** [Ex 2.1](../../examples/sections/examples-sec-ex-2-1-bare-divergence.html) · [Ex 2.2](../../examples/sections/examples-sec-ex-2-2-geometric-distribution.html) · [Ex 2.3](../../examples/sections/examples-sec-ex-2-3-almost-sure-termination.html) · [Ex 2.4](../../examples/sections/examples-sec-ex-2-4-even-odd-mutual-recursion.html).
+
 Recursive probabilistic programs combining `ne_fix` with the boolean
 cascade, exhibiting productive partial termination. The CBV mass
 identities — and, for the two halting samplers, the full
@@ -470,15 +505,13 @@ against the seeded value-fixpoint interpreter (`fix_comb`,
 by the same reduction-chain-plus-affine-cascade recipe as the
 rejection sampler of the next chapter.
 
-### ex_loop (`ex_loop`)
+### Ex 2.1 — Bare divergence (`ex_loop`)
 
-Bare divergence: `let rec l _ = l () in l ()`. No sampling, no
-scoring — an infinite chain of unit-typed recursive calls, of total
-mass `0`.
+> **Key result:** no sampling, no scoring — an infinite chain of unit-typed recursive calls of total mass `0`.
 
-| Result | Statement | Rocq |
-|---|---|---|
-| Def (`ex_loop`) | `let rec l _ = l () in l ()` of type `tunit` — the recursion never terminates; total mass `0`. | `ex_loop` — `theories/programs/examples.v` |
+Bare divergence: `let rec l _ = l () in l ()` of type `tunit`. No
+sampling, no scoring — the recursion never terminates, so the program
+denotes the zero sub-distribution: total mass `0`.
 
 ```coq
 (* theories/programs/examples.v *)
@@ -495,7 +528,9 @@ pins the denotation of the Bernoulli-guarded loop with a
 never-succeeding coin to `precone_zero`, and `ex_loop` is the same
 loop with the coin erased.
 
-### ex_geom (`ex_geom`, `ex_geom_cbv_mass_one`, `ex_geom_cbv_distribution`, `ex_geom_cbv_pmf`)
+### Ex 2.2 — Geometric distribution (`ex_geom`)
+
+> **Key result:** the fair-coin counter halts almost surely (total mass `1`) and its law is exactly the geometric series `Σ_k (1/2)^(k+1) δ_k` (`ex_geom_cbv_distribution`).
 
 A geometric counter built from a fair-coin Bernoulli recursion (the
 constant-literal coin `Bernoulli [| (1/2 : R) |]`): each
@@ -575,7 +610,7 @@ boolean dispatch `ν_{n+1} = ½·δ_0 + ½·(add_lift (δ_1 ⊗ ν_n))`
   evaluating at the singleton `[set gpt k]` isolates the single
   surviving atom for `ex_geom_cbv_pmf`.
 
-### ex_almost_loop (`ex_almost_loop`, `ex_almost_loop_cbv_mass_one`, `ex_almost_loop_cbv_dirac`, `ex_almost_loop_cbv_zero`)
+### Ex 2.3 — Almost-sure termination (`ex_almost_loop`)
 
 A parameterised Bernoulli cascade: with probability `p` the recursion
 halts (returning `()`), and with probability `1 − p` it recurses.
@@ -634,7 +669,7 @@ for `p > 0`, the constantly-zero chain at `p = 0`. The element
 identity is then immediate: the unit cone is one-dimensional, so
 `cone_one_norm_eq1` upgrades the norm-one fact to `al_denot = one1`.
 
-### ex_even_odd_pair (`ex_even_odd_pair`, `ex_even`, `ex_odd`, `ex_even_cbv_diverges`, `ex_odd_cbv_diverges`, `ex_even_odd_pair_cbv_value`)
+### Ex 2.4 — Even/odd mutual recursion (`ex_even_odd_pair`)
 
 The mutual-recursion witness. `ne_fix_mr` binds one recursive name
 `p` at the free-coalgebra type
@@ -742,6 +777,8 @@ Lemma ex_even_odd_pair_cbv_value :
 
 ## Conditioning and rejection sampling
 
+**In this chapter:** [Def 3.1](../../examples/sections/examples-sec-def-3-1-the-reject-and-condition-combinators.html) · [Thm 3.2](../../examples/sections/examples-sec-thm-3-2-the-conditioning-law.html) · [Thm 3.3](../../examples/sections/examples-sec-thm-3-3-the-rejection-master-identity.html) · [Thm 3.4](../../examples/sections/examples-sec-thm-3-4-the-equivalence-theorem.html) · [Ex 3.5](../../examples/sections/examples-sec-ex-3-5-specialising-to-a-sampler.html) · [Thm 3.6](../../examples/sections/examples-sec-thm-3-6-hard-conditioning-as-the-deterministic-instance.html).
+
 Conditioning is the declarative side of Bayesian inference:
 `condition f m` runs the model `m`, keeps the produced value with the
 acceptance probability of a **program predicate** `f`, and returns it —
@@ -790,7 +827,9 @@ carries that missing mass. The formal content lives in
 regression anchor in `theories/programs/ex_reject_headline.v` and the
 score pairing in `theories/programs/infra/cbv_marginals.v`.
 
-### The reject and condition combinators (`ne_reject`, `ne_condition`, `ne_fail`, `ne_assert`)
+### Def 3.1 — The reject and condition combinators (`ne_reject`, `ne_condition`)
+
+> **Key result:** `reject` and `condition` are the *same program modulo the else-branch* — `reject` retries a rejected draw, `condition` gives up (runs `ne_fail`, which zeroes the mass). Both are built from `fix` / `\` / `@` / `if` / `()` / `let` alone.
 
 Both combinators are closed programs of type
 `(b → tbool) → (a → b) → (a → b)`, for arbitrary PPL input and return
@@ -838,11 +877,12 @@ Definition ne_assert {G : named_ctx Ar} : nexpr G (tfun tbool tunit) :=
   [ \ "b" ::: tbool => (if # "b" then () else { ne_fail }) ].
 ```
 
-| Result | Statement | Rocq |
-|---|---|---|
-| Def (`ne_reject`) | `reject = λf. fix rx. λm. λa. let x = m a in if (f x) then x else rx m a` of type `(b → tbool) → (a → b) → (a → b)` — run the model at the input, accept the candidate `x` when the program predicate `f x` returns `true`, recurse on rejection at the same model and input. | `ne_reject` — `theories/programs/reject_condition.v` |
-| Def (`ne_condition`) | `condition = λf. λm. λa. let x = m a in let _ = assert (f x) in x` of the same type — run the model at the input, keep the value with the acceptance probability of `f x`, give up (mass `0`) otherwise. | `ne_condition` — same file |
-| Def (`ne_fail` / `ne_assert`) | `fail = (fix fail. λ(). fail ()) ()` denotes the zero sub-distribution `precone_zero`; `assert b = if b then () else fail`. | `ne_fail`, `ne_assert` — same file |
+In surface form: `reject = λf. fix rx. λm. λa. let x = m a in if (f x)
+then x else rx m a`, and `condition = λf. λm. λa. let x = m a in let _ =
+assert (f x) in x`, both of type `(b → tbool) → (a → b) → (a → b)`. The
+give-up term `fail = (fix fail. λ(). fail ()) ()` denotes the zero
+sub-distribution `precone_zero`, and `assert b = if b then () else fail`
+(`ne_fail`, `ne_assert`).
 
 The theorems below quantify over the model value and the input value.
 The model argument is the promoted point `g!` of an arbitrary unit-ball
@@ -854,7 +894,7 @@ exactly the Diracs, at `ta = tunit` the unit point. Throughout, write
 `ν_M := g(a₀)` for the model's output sub-distribution and
 `m₀ := ν_M(setT)` for its total mass.
 
-### The conditioning law (`condition_model_E`, `condition_model_mass`, `condition_E`, `condition_prog_evidence`)
+### Thm 3.2 — The conditioning law (`condition_model_E`)
 
 The semantic content of `condition`: the conditioned model's output
 is the model's output reweighted by the acceptance probability `t`,
@@ -920,7 +960,9 @@ the assert-and-return continuation computes to the weighted point mass
 `em_proj1_mor_unitE`). No recursion is involved: the combinator's
 reduction chain is the rejection chain minus the fixpoint.
 
-### The rejection master identity (`reject_model_master`, `reject_model_is_normalised`, `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero`, `reject_prog_master`, `reject_prog_is_normalised`, `reject_prog_mass_one`, `reject_prog_zero`)
+### Thm 3.3 — The rejection master identity (`reject_model_master`)
+
+> **Key result:** division-free and unconditional — `Z · ν(U) = ∫_U t dν_M` with `Z := 1 − m₀ + ∫ t dν_M`; the sub-probability `1 − m₀` term carries the model's own divergence mass.
 
 Run the model once and exactly one of three things happens: it returns
 a value the predicate **accepts** (probability `∫ t dν_M`), it returns
@@ -1061,7 +1103,9 @@ the object-generic let-law `eD_let_int_obj`) is already object-generic,
 so the proof reuses it unchanged. Only the model value `g!`, the
 predicate value `fpred!`, and the input `a₀` are quantified over.
 
-### The equivalence theorem (`reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob`)
+### Thm 3.4 — The equivalence theorem (`reject_normalises_condition`)
+
+> **Key result:** rejection sampling computes the conditioned model's normalised distribution — `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U`, division-free and unconditional.
 
 The two operators compute the same distribution, up to the
 normaliser: *Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U* with
@@ -1113,7 +1157,7 @@ identity `reject_prog_master` — both sides equal
 identifies the normaliser with the evidence
 (`1 − 1 + ∫t dν_M = ∫t dν_M = ⟦condition_prog⟧(setT)`).
 
-### Specialising to a sampler (`ex_sampler`, `ex_reject`, `ex_reject_cbv`, `ex_reject_master`, `ex_reject_is_normalised_posterior`, `ex_reject_posterior_simple`, `ex_reject_mass_one`, `ex_reject_zero`, `ex_reject_comb_sampler_master`, `ex_reject_normalises_score`)
+### Ex 3.5 — Specialising to a sampler (`ex_reject`)
 
 Instantiating the model to `λ_. sample µ` (`ex_sampler`) with a
 unit-mass prior recovers textbook rejection sampling against a prior:
@@ -1194,7 +1238,9 @@ Theorem ex_reject_normalises_score
                    pm Hf_meas) one1) U.
 ```
 
-### Hard conditioning as the deterministic instance (`ne_fail_zero`)
+### Thm 3.6 — Hard conditioning as the deterministic instance (`ne_fail_zero`)
+
+> **Key result:** one statement covers both regimes — a deterministic predicate gives the indicator `1_A` (hard conditioning), a coin predicate gives a density `t` (soft conditioning). No indicator bridge, no `ne_test`, no primed forms.
 
 There is no separate hard-reject machinery: the hard (boolean) regime
 is the *deterministic-predicate instance* of the unified master theorem
@@ -1209,15 +1255,11 @@ conditional `ν_M(· | A)`. The soft (coin) regime is the same identities
 with `t` a density. No indicator bridge, no `ne_test`, no primed forms
 — one statement covers both (design doc `docs/hard_reject_condition.md`).
 
-The one dedicated fact is that the give-up term denotes the zero
-measure: `ne_fail`'s Kleene chain from `⊥` is constant, so
+The one dedicated fact is `ne_fail_zero`: the give-up term denotes the
+zero measure. `ne_fail`'s Kleene chain from `⊥` is constant, so
 `⟦ne_fail⟧ = precone_zero` at every setlike unit-ball environment — the
 same "divergence = zero measure" used by the fixpoint semantics, and
 exactly the `else`-branch that `condition` runs on a rejected value.
-
-| Result | Statement | Rocq |
-|---|---|---|
-| Thm (`ne_fail_zero`) | The give-up term `ne_fail` denotes the zero sub-distribution `precone_zero` — divergence — at every setlike unit-ball environment. | `ne_fail_zero` — `theories/programs/ex_reject_model.v` |
 
 ```coq
 (* theories/programs/ex_reject_model.v — Section FailZero *)
