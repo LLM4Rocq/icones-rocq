@@ -815,9 +815,9 @@ Definition ICones_smcc (R : realType) (Ar : MeasSubcat R) :
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| Cat 6 | The category `Skern` of substochastic kernels: objects in `ARCAT`, morphisms `κ : X ⇝ FMeas(Y)`. | `Skern_hom`, `Skern_id`, `Skern_comp`, `Skern` — `theories/kernels/skern.v` |
-| Thm 6.1 | Bijection `Path(X, B) ≃ FMeas(X) ⊸ B` (cone iso) given by the integration map `I^B_X`. | `int_to_linhom`, `int_to_linhom_iso` — `theories/homs/bilin.v` |
-| Thm 6.5 | The functor `Klin : Skern → ICones`, sending `X ↦ FMeas(X)` and a kernel to its integration map, is **fully faithful**. | `Skern_to_ICones_fully_faithful` (= the *regression anchor*) — `theories/kernels/kernel_embedding.v` |
+| Cat 6 | The category $\mathbf{Skern}$ of substochastic kernels: objects in $\mathbf{Ar}$, morphisms $\kappa : X \leadsto \mathsf{FMeas}(Y)$. | `Skern_hom`, `Skern_id`, `Skern_comp`, `Skern` — `theories/kernels/skern.v` |
+| Thm 6.1 | Bijection $\mathsf{Path}(X, B) \simeq \mathsf{FMeas}(X) \multimap B$ (cone iso) given by the integration map $\mathcal{I}^{B}_X$. | `int_to_linhom`, `int_to_linhom_iso` — `theories/homs/bilin.v` |
+| Thm 6.5 | The functor $\mathsf{Klin} : \mathbf{Skern} \to \mathbf{ICones}$, sending $X \mapsto \mathsf{FMeas}(X)$ and a kernel to its integration map, is **fully faithful**. | `Skern_to_ICones_fully_faithful` (= the *regression anchor*) — `theories/kernels/kernel_embedding.v` |
 
 `Skern_to_ICones_fully_faithful` is the lemma checked by `./verify.sh` and is
 load-bearing for the whole development's axiom budget. It depends only on the
@@ -825,21 +825,20 @@ load-bearing for the whole development's axiom budget. It depends only on the
 
 ### Cat 6 (`Skern_hom`, `Skern_id`, `Skern_comp`)
 
+The category $\mathbf{Skern}$ of substochastic kernels has the objects of $\mathbf{Ar}$; a kernel $X\to Y$ is an element of $\mathbf{Skern}(X,Y)=\mathcal{B}(\underline{\mathsf{Path}(X,\mathsf{FMeas}(Y))})$, i.e. a measurable path of unit-ball norm. The identity at $X$ is the Dirac path $\boldsymbol\delta^{X}$, and composition is Kleisli composition $\kappa=\kappa_2\,\kappa_1$ with $\kappa(r_1)=\mathcal{I}^{\mathsf{FMeas}(X_3)}_{X_2}(\kappa_2)(\kappa_1(r_1))$, the continuous generalisation of the product of substochastic matrices.
+
+> **Paper — §6.1 "The category of substochastic kernels as a full subcategory of $\mathbf{ICones}$"** (arXiv 2212.02371, `content.tex:4574`). If $X,Y\in\mathbf{Ar}$, a substochastic kernel from $X$ to $Y$ is an element of $\mathbf{Skern}(X,Y)=\mathcal{B}(\underline{\mathsf{Path}(X,\mathsf{FMeas}(Y))})$. Then $\mathbf{Skern}$ is the category whose objects are those of $\mathbf{Ar}$ and: the identity at $X$ is $\boldsymbol\delta^{X}\in\mathbf{Skern}(X,X)$; and given $\kappa_1\in\mathbf{Skern}(X_1,X_2)$ and $\kappa_2\in\mathbf{Skern}(X_2,X_3)$, their composite $\kappa=\kappa_2\,\kappa_1$ is given by $\kappa(r_1)(U_3)=\int^{1}_{r_2\in X_2}\kappa_2(r_2,U_3)\kappa_1(r_1,dr_2)$ for $U_3\in\sigma_{X_3}$, that is $\kappa(r_1)=\mathcal{I}^{\mathsf{FMeas}(X_3)}_{X_2}(\kappa_2)(\kappa_1(r_1))$.
+
 ```coq
 (* theories/kernels/skern.v — Section SkernHom, Variables R Ar *)
-
-(** Paper §6.1: [Skern(X, Y) = B_{Path(X, FMeas(Y))}], i.e.
-    measurable paths of unit-ball norm. *)
 Record Skern_hom (X Y : ar_obj Ar) : Type := MkSkernHom {
   skern_path     : path_car Ar X (fmeas R (ar_carrier Ar Y));
   skern_norm_le1 : path_norm skern_path <= 1;
 }.
 
-(** Identity in [Skern] is the Dirac path. *)
 Definition Skern_id : Skern_hom Ar X X :=
   MkSkernHom (dirac_path Ar X) dirac_path_norm_le1.
 
-(** Kleisli composition: [(κ ∘ λ)(r) := int_to_linhom_fun κ (λ r)]. *)
 Definition Skern_comp_path (λ : Skern_hom Ar X Y) (κ : Skern_hom Ar Y Z) :
     path_car Ar X (fmeas R (ar_carrier Ar Z)) :=
   MkPath (int_to_linhom_fun_pres_path (skern_path κ)
@@ -852,21 +851,23 @@ Definition Skern_comp (λ : Skern_hom Ar X Y) (κ : Skern_hom Ar Y Z) :
 
 ### Thm 6.1 (`int_to_linhom`, `int_to_linhom_iso`)
 
+For each $X\in\mathbf{Ar}$ and integrable cone $B$, the integration operator $\mathcal{I}^{B}_X$ realises a natural isomorphism between the path cone $\mathsf{Path}(X,B)$ and the linear-hom cone $\mathsf{FMeas}(X)\multimap B$, with inverse $f\mapsto f\circ\boldsymbol\delta^{X}$. The formalization packages the underlying map $\mu\mapsto\int\beta(r)\mu(dr)$ as a `linhom_car` and exhibits the bijection as a `cones_iso`.
+
+> **Paper — Theorem 6.1** (arXiv 2212.02371, `th:meas-path-equiv`). For each $X\in\mathbf{Ar}$ and integrable cone $B$, one has $\mathcal{I}^{B}_X\in\mathbf{ICones}(\mathsf{Path}(X,B),\mathsf{FMeas}(X)\multimap B)$ and $\mathcal{I}^{B}_X$ (this notation is introduced in Definition~\ref{def:integral-in-cone}) is an isomorphism which is natural in $X$ and in $B$ (between functors $\mathbf{Ar}^{\mathsf{op}}\times\mathbf{ICones}\to\mathbf{ICones}$).
+
+> **Difference.** The paper states the isomorphism in $\mathbf{ICones}$ (both $\mathcal{I}^{B}_X$ and its inverse preserve integrals), whereas `int_to_linhom_iso` mechanises it as a `cones_iso` — an iso of the underlying cones. *Why:* the load-bearing content for the embedding theorem is the underlying bijection $\mathsf{Path}(X,B)\simeq\mathsf{FMeas}(X)\multimap B$; the extra $\mathbf{ICones}$-naturality is not needed downstream and is not carried by this definition.
+
 ```coq
 (* theories/homs/bilin.v *)
-
-(** The underlying function: [µ ↦ icone_integral β Hβ µ]. *)
 Definition int_to_linhom_fun :
     fmeas R (ar_carrier Ar X) -> B :=
   fun µ => icone_integral βf Hβ µ.
 
-(** Packaged as a [linhom_car]. *)
 Definition int_to_linhom :
     linhom_car Ar (fmeas R (ar_carrier Ar X)) B :=
   MkLinhom int_to_linhom_pre
     (fun Y β' Hβ' µ' => int_to_linhom_fun_pres_int β Hβ' µ').
 
-(** Paper Thm 6.1: [Path(X, B) ≃ FMeas(X) ⊸ B] as an iso in [Cones]. *)
 Definition int_to_linhom_iso : cones_iso P L :=
   MkConesIso int_to_linhom_cones linhom_to_int_cones
     int_to_linhom_conesK int_to_linhom_conesK'.
@@ -874,10 +875,12 @@ Definition int_to_linhom_iso : cones_iso P L :=
 
 ### Thm 6.5 (`Skern_to_ICones_fully_faithful`)
 
+The functor $\mathsf{Klin}:\mathbf{Skern}\to\mathbf{ICones}$, sending $X\mapsto\mathsf{FMeas}(X)$ and a kernel $\kappa$ to $\mathcal{I}^{\mathsf{FMeas}(Y)}_X(\kappa)$, embeds substochastic kernels as a full subcategory of $\mathbf{ICones}$. The regression anchor `Skern_to_ICones_fully_faithful` mechanises full-and-faithfulness as the conjunction of injectivity (faithful) and surjectivity-on-hom-sets (full) of the map $\kappa\mapsto\mathsf{Klin}(\kappa)$ on morphisms $\mathsf{FMeas}(X)\to\mathsf{FMeas}(Y)$.
+
+> **Paper — Theorem 6.5** (arXiv 2212.02371). The functor $\mathsf{Klin}:\mathbf{Skern}\to\mathbf{ICones}$ is full and faithful.
+
 ```coq
 (* theories/kernels/kernel_embedding.v *)
-
-(** Paper Theorem 6.5 — the regression anchor. *)
 Theorem Skern_to_ICones_fully_faithful (X Y : ar_obj Ar) :
   (forall κ1 κ2 : Skern_hom Ar X Y,
      Skern_to_ICones_mor κ1 = Skern_to_ICones_mor κ2 -> κ1 = κ2) /\
