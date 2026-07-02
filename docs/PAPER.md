@@ -898,43 +898,41 @@ Qed.
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| Def 7.5 | A function is *totally monotonic* if its iterated finite differences over the inclusion lattice are positive. | `is_totmono`, `Pneg`/`Ppos`, `\sumP` — `theories/stable/totmono.v` |
-| Def 7.7 | A function is *stable* if it is totally monotonic, bounded, and ω-continuous on the unit ball. | `is_stable` (uses `is_scott_continuous_unit`) — `theories/stable/totmono.v` |
-| Def 7.10 | A *measurable stable* function additionally preserves measurable paths. | `is_meas_stable` — `theories/stable/totmono.v` |
-| Lem 7.11 | The class of stable functions is closed under zero, addition, and non-negative scaling. | `stable_zero`, `stable_add`, `stable_scale` — `theories/stable/totmono.v` |
-| Lem 7.12 | Pointwise order on stable maps = the alternating-sum order. | `sh_le_of_alt` — `theories/stable/stablehom.v` |
-| Thm 7.19 | A function is totally monotonic iff it is *n-increasing* (for all `n ≥ 1`). | `totmono_is_n_increasing` (forward), `is_n_increasing_totmono` (converse) — `theories/stable/findiff.v` |
-| Lem 7.20–7.25 | The finite-difference / sign-split machinery `Δε`, `Δ`, `SD` used to prove Thm 7.19 and §7.3 closure properties. | `totmono_Delta_pos/_neg`, `SD`, `SD_cons`, `SnB`, `SnB_increasing`, etc. — `theories/stable/findiff.v` + `theories/stable/compose.v` |
-| Lem 7.27 | If `f` is linear in arg 1 and totally monotonic in arg 2, it is totally monotonic. | `ev_totmono` (delivered in the form actually needed by the CCC) — `theories/stable/scones_ccc.v` |
-| Thm 7.30 | Stable functions are closed under composition. | `stable_comp`, `meas_stable_comp` — `theories/stable/compose.v` |
-| Thm 7.32 | The category `SCones` of stable functions is cartesian closed. | `SCones_ccc`, `SCones_CCC` (record + witness) — `theories/stable/scones_ccc.v` |
-| Thm 7.34 | The forgetful functor `Der : ICones → SCones` preserves all limits. | `der_preserves_prod_proj`, `der_preserves_limits` — `theories/stable/der_continuous.v` |
-| (also) | Stable functions admit a least-fixpoint via the cone unit-ball ω-cpo (paper §9.2). | `lfp_fixpoint`, `sfix_fixpoint`, `Yfix`, `Yfix_fix` — `theories/stable/fixpoint.v` |
+| Def 7.5 | A function $f:\mathcal{B}P\to Q$ is *totally monotonic* if its iterated finite differences over the parity lattice satisfy $\sum_{I\in\mathcal{P}^-(n)}f(x+\sum_{i\in I}u_i)\le\sum_{I\in\mathcal{P}^+(n)}f(x+\sum_{i\in I}u_i)$. | `is_totmono`, `Pneg`/`Ppos` — `theories/stable/totmono.v` |
+| Def 7.7 | A function is *stable* if it is totally monotonic, bounded, and $\omega$-continuous on the unit ball. | `is_stable` (uses `is_scott_continuous_unit`) — `theories/stable/totmono.v` |
+| Def 7.10 | A *measurable stable* function additionally sends measurable paths $X\to C$ to measurable paths $X\to D$. | `is_meas_stable` — `theories/stable/totmono.v` |
+| Lem 7.11 | The stable and measurable functions $C\to D$ form a precone under pointwise operations (closed under $0$, addition, and non-negative scaling). | `stable_zero`, `stable_add`, `stable_scale` — `theories/stable/totmono.v` |
+| Lem 7.12 | The stable (cone) order coincides with the alternating finite-difference inequality: $f\le g$ iff a sign-split difference test holds. | `sh_le_of_alt` — `theories/stable/stablehom.v` |
+| Thm 7.19 | $f$ is totally monotonic iff it is *$n$-increasing* for every $n\in\mathbb{N}$. | `totmono_is_n_increasing` (forward), `is_n_increasing_totmono` (converse) — `theories/stable/findiff.v` |
+| Lem 7.20–7.25 | The finite-difference / sign-split machinery $\Delta^{\epsilon}$, $\Delta$, $\mathsf{S}^n B$ used to prove Thm 7.19 and the §7.3 closure properties. | `totmono_Delta_pos`/`_neg`, `SD`, `SD_cons`, `SnB`, `SnB_increasing`, etc. — `theories/stable/findiff.v` + `theories/stable/compose.v` |
+| Lem 7.27 | If $f$ is linear in its first argument and totally monotonic in its second, it is totally monotonic on the product of unit balls. | `ev_totmono` (delivered in the form actually needed by the CCC) — `theories/stable/scones_ccc.v` |
+| Thm 7.30 | Stable (and measurable) functions of norm $\le 1$ are closed under composition. | `stable_comp`, `meas_stable_comp` — `theories/stable/compose.v` |
+| Thm 7.32 | The category $\mathbf{SCones}$ of stable functions has all products and is cartesian closed. | `SCones_ccc`, `SCones_CCC` (record + witness) — `theories/stable/scones_ccc.v` |
+| Thm 7.34 | The forgetful functor $\mathsf{Der}:\mathbf{ICones}\to\mathbf{SCones}$ preserves all limits. | `der_preserves_prod_proj`, `der_preserves_limits` — `theories/stable/der_continuous.v` |
+| (also) | Stable functions admit a least fixpoint via the cone unit-ball $\omega$-cpo (paper §9.2). | `lfp_fixpoint`, `sfix_fixpoint`, `Yfix`, `Yfix_fix` — `theories/stable/fixpoint.v` |
 
 The `is_stable` predicate uses `is_scott_continuous_unit` (unit-ball input,
 any-radius output sup) because the strictly-linear `is_omega_continuous`
-(both ω-chains in the unit ball) is **not preserved under non-negative
+(both $\omega$-chains in the unit ball) is **not preserved under non-negative
 scaling for non-linear maps** — a faithful reading of the paper's setting,
 not a weakening.
 
-### Def 7.5 (`is_totmono`, `Pneg`, `Ppos`, `\sumP`)
+### Def 7.5 (`is_totmono`, `Pneg`, `Ppos`)
+
+Total monotonicity is an inclusion-exclusion inequality over the odd- and even-parity subsets $\mathcal{P}^-(n)$, $\mathcal{P}^+(n)$ of $\{1,\dots,n\}$, generalizing absolute monotonicity to cones. `Pneg`/`Ppos` partition the powerset of $\{1,\dots,n\}$ by the parity of $n-\lvert I\rvert$.
+
+> **Paper — Definition 7.5** (arXiv 2212.02371, `def:totally-monotonic`). Let $P$ and $Q$ be cones, a function $f:\mathcal{B}P\to Q$ is *totally monotonic* if for each $n\in\mathbb{N}$ and each $x,u_1,\dots,u_n\in P$ such that $x+\sum_{i=1}^n u_i\in\mathcal{B}P$ one has $$\sum_{I\in\mathcal{P}^-(n)}f\Big(x+\sum_{i\in I}u_i\Big)\leq\sum_{I\in\mathcal{P}^+(n)}f\Big(x+\sum_{i\in I}u_i\Big)\,.$$
 
 ```coq
-(* theories/stable/totmono.v *)
-
-(** [Pneg n] / [Ppos n] partition the subsets of {1,…,n} by parity. *)
+(* theories/stable/totmono.v — Section variables: R : realType, P Q : coneType R *)
 Definition Pneg (n : nat) : {set {set 'I_n}} :=
   [set I in powerset [set: 'I_n] | odd (n - #|I|)].
 Definition Ppos (n : nat) : {set {set 'I_n}} :=
   [set I in powerset [set: 'I_n] | ~~ odd (n - #|I|)].
 
-(* [\sumP_(i in A) F] is a precone-valued indexed sum, notation. *)
-
-(** Section variables: R : realType, P Q : coneType R. *)
 Definition tm_arg (n : nat) (x : P) (u : 'I_n -> P) (I : {set 'I_n}) : P :=
   x + \big[precone_add/precone_zero]_(i in I) u i.
 
-(** Paper Def 7.5, Condition (7.1). *)
 Definition is_totmono (f : P -> Q) : Prop :=
   forall (n : nat) (x : P) (u : 'I_n -> P),
     cone_norm (x + \big[precone_add/precone_zero]_(i : 'I_n) u i) <= 1 ->
@@ -945,6 +943,12 @@ Definition is_totmono (f : P -> Q) : Prop :=
 
 ### Def 7.7 (`is_stable`)
 
+A *stable* function is a totally monotonic, bounded, $\omega$-continuous map on the unit ball.
+
+> **Paper — Definition 7.7** (arXiv 2212.02371). Let $P$ and $Q$ be cones. A function $f:\mathcal{B}P\to Q$ is *stable* if $f$ is totally monotonic, bounded and $\omega$-continuous (see Definition 2.2).
+
+> **Difference.** `is_stable` uses `is_scott_continuous_unit` (unit-ball input, any-radius output sup) rather than the strictly-linear `is_omega_continuous`. *Why:* the latter (both $\omega$-chains constrained to the unit ball) is not preserved under non-negative scaling for non-linear maps; the unit-ball form is a faithful reading of the paper's setting, not a weakening.
+
 ```coq
 (* theories/stable/totmono.v *)
 Definition is_stable (f : P -> Q) : Prop :=
@@ -954,6 +958,10 @@ Definition is_stable (f : P -> Q) : Prop :=
 ```
 
 ### Def 7.10 (`is_meas_stable`)
+
+A stable function $f:\mathcal{B}\underline{C}\to\underline{D}$ is *measurable* when post-composition sends every measurable path into $C$ to a measurable path into $D$.
+
+> **Paper — Definition 7.10** (arXiv 2212.02371). Let $C,D$ be measurable cones. A stable function $f:\mathcal{B}\underline{C}\to\underline{D}$ is measurable if for each $X\in\mathbf{Ar}$ and $\gamma\in\mathcal{B}\underline{\mathsf{Path}(X,C)}$ one has $f\mathrel{\circ}\gamma\in\underline{\mathsf{Path}(X,D)}$.
 
 ```coq
 (* theories/stable/totmono.v — Variables R Ar (C D : MCone.type Ar) *)
@@ -966,6 +974,10 @@ Definition is_meas_stable (f : C -> D) : Prop :=
 ```
 
 ### Lem 7.11 (`stable_zero`, `stable_add`, `stable_scale`)
+
+The stable (and measurable) functions $C\to D$, equipped with pointwise algebraic operations, form a precone; the three lemmas record closure under $0$, addition, and non-negative scaling.
+
+> **Paper — Lemma 7.11** (arXiv 2212.02371). The set of stable and measurable functions $C\to D$, equipped with algebraic operations defined pointwise, is a precone.
 
 ```coq
 (* theories/stable/totmono.v *)
@@ -980,56 +992,76 @@ Lemma stable_scale (r : {nonneg R}) (f : P -> Q) :
 
 ### Lem 7.12 (`sh_le_of_alt`)
 
+The cone (stable) order on the precone of stable functions is characterized by a finite-difference inequality between $f$ and $g$; `sh_le_of_alt` is the backward direction — the alternating-sum inequality implies the pointwise stable (precone) order.
+
+> **Paper — Lemma 7.12** (arXiv 2212.02371, `lemma:stable-order-charact`). Let $f,g\in P$. One has $f\leq g$ iff for each $n\in\mathbb{N}$ and each $x,u_1,\dots,u_n\in\mathcal{B}\underline{C}$ such that $x+\sum_{i=1}^n u_i\in\mathcal{B}\underline{C}$ one has $$\sum_{I\in\mathcal{P}^-(n)}g\Big(x+\sum_{i\in I}u_i\Big)+\sum_{I\in\mathcal{P}^+(n)}f\Big(x+\sum_{i\in I}u_i\Big)\leq\sum_{I\in\mathcal{P}^+(n)}g\Big(x+\sum_{i\in I}u_i\Big)+\sum_{I\in\mathcal{P}^-(n)}f\Big(x+\sum_{i\in I}u_i\Big)\,.$$
+
 ```coq
 (* theories/stable/stablehom.v *)
-(** Lemma 7.12 backward: the alternating-sum order implies the pointwise
-    stable (precone) order. *)
 Lemma sh_le_of_alt : precone_le f g.
 Proof. by exists sh_diff; rewrite -sh_add_diff. Qed.
 ```
 
 ### Thm 7.19 (`totmono_is_n_increasing`, `is_n_increasing_totmono`)
 
+Total monotonicity is equivalent to being $n$-increasing for every $n$ (the inductive characterization via iterated first differences over local cones). The two lemmas give the forward and converse directions.
+
+> **Paper — Theorem 7.19** (arXiv 2212.02371, `th:induct-total-nonotone`). A function $f\in\mathcal{B}\underline{B}\to\underline{C}$ is totally monotonic iff it is $n$-increasing for all $n\in\mathbb{N}$.
+
+> **Difference.** The converse `is_n_increasing_totmono` carries an extra `is_scott_continuous_unit` hypothesis, and is proved on the closed unit ball. *Why:* the finite-difference recovery of the parity inequality is established $\omega$-continuously on the ball.
+
 ```coq
 (* theories/stable/findiff.v *)
-
-(** Thm 7.19 forward: totally monotonic ⇒ n-increasing for all n. *)
 Lemma totmono_is_n_increasing (n : nat) (R : realType) (B C : coneType R)
     (f : B -> C) : is_totmono f -> is_n_increasing n f.
 
-(** Thm 7.19 converse, on the closed unit ball.  Variables: R B C f. *)
+(* Variables: R B C f. *)
 Lemma is_n_increasing_totmono :
   (forall k, is_n_increasing k f) -> is_scott_continuous_unit f ->
   is_totmono f.
 ```
 
-### Lem 7.20–7.25 (finite-difference Δε / Δ / SD / SnB machinery)
+### Lem 7.20–7.25 (finite-difference $\Delta^{\epsilon}$ / $\Delta$ / SD / SnB machinery)
+
+The signed finite-difference machinery driving Thm 7.19 and the §7.3 closure properties. `totmono_Delta` packages Lemma 7.20 — for totally monotonic $f$, the positive, negative, and full iterated differences $\Delta^+f(\overrightarrow{u})$, $\Delta^-f(\overrightarrow{u})$, $\Delta f(\overrightarrow{u})$ are totally monotonic on the residual ball — while `SnB_increasing` packages Lemma 7.25, that the global iterated-difference map $(x,\overrightarrow{u})\mapsto\Delta f(\overrightarrow{u})(x)$ is increasing on the auxiliary cone $\mathsf{S}^n B$.
+
+> **Paper — Lemma 7.20** (arXiv 2212.02371, `lemma:fdiff-tot-mon`). Let $f:\mathcal{B}\underline{B}\to\underline{C}$ be totally monotonic and $\overrightarrow{u}\in\underline{B}^n$ be such that $\sum_{i=1}^n u_i\in\mathcal{B}\underline{B}$. Then the functions $\Delta^+ f(\overrightarrow{u}),\Delta^- f(\overrightarrow{u}),\Delta f(\overrightarrow{u}):\mathcal{B}\underline{B_{\overrightarrow{u}}}\to\underline{C}$ are totally monotonic.
+
+> **Paper — Lemma 7.25** (arXiv 2212.02371, `lemma:fdiff-glob-increasing`). If $f:\mathcal{B}\underline{B}\to\underline{C}$ is totally monotonic, the map $(x,\overrightarrow{u})\to\Delta f(\overrightarrow{u})(x)$ is increasing $\mathcal{B}\mathsf{S}^n B\to\underline{C}$.
 
 ```coq
 (* theories/stable/findiff.v + theories/stable/compose.v *)
 
-(** [totmono_Delta]: the finite-difference [Δf(u⃗) := SDpos f − SDneg f]
-    on the unit ball, packaging Δε / Δ for ε ∈ {+, −}. *)
+(* [totmono_Delta]: the finite-difference [Δf(u⃗) := SDpos f − SDneg f]
+   on the unit ball, packaging Δε / Δ for ε ∈ {+, −}. *)
 Lemma totmono_Delta (n : nat) (u : 'I_n -> B)
     (Hs : (* sum bound on u *)) :
   (* totmono of f gives totmono of Δf(u⃗) on the residual ball *).
 
-(** [SnB]: the "[(x, u⃗) ∈ B_n]" predicate; Lemma 7.25 says
-    [(x,u⃗) ↦ Δf(u⃗)(x)] is increasing on it. *)
+(* [SnB]: the "[(x, u⃗) ∈ B_n]" predicate; Lemma 7.25 says
+   [(x,u⃗) ↦ Δf(u⃗)(x)] is increasing on it. *)
 Definition SnB_diff (g : SnB B n) : C := (* Δf(u⃗)(x) for g = (x, u⃗) *).
 Lemma SnB_increasing : is_increasing SnB_diff.
 ```
 
 ### Lem 7.27 (`ev_totmono`)
 
+A function linear in one argument and totally monotonic in the other is totally monotonic on the product of the unit balls; `ev_totmono` delivers this in the form the CCC needs — evaluation is totally monotonic on the $\mathbf{SCones}$ product $\mathbf{SCones}(B,C)\times B$.
+
+> **Paper — Lemma 7.27** (arXiv 2212.02371, `lemma:lin-tot-mon-is-tot-mon`). Let $f:\underline{B}\times\mathcal{B}\underline{C}\to\underline{D}$ be linear in its first argument and totally monotonic in its second argument. Then, when restricted to $\mathcal{B}\underline{B}\times\mathcal{B}\underline{C}$, the function $f$ is totally monotonic.
+
+> **Difference.** The paper states 7.27 for a general two-argument $f$; the formalization instantiates it directly at the evaluation map `ev_fun` on the $\mathbf{SCones}$ product — the only instance the cartesian-closed structure requires.
+
 ```coq
 (* theories/stable/scones_ccc.v *)
-(** Lemma 7.27: evaluation is totally monotonic on the SCones product
-    [stablehom B C × B]. *)
 Lemma ev_totmono : is_totmono ev_fun.
 ```
 
 ### Thm 7.30 (`stable_comp`, `meas_stable_comp`)
+
+Stable and measurable functions of norm $\le 1$ are closed under composition (the well-definedness of the category $\mathbf{SCones}$). `stable_comp` handles the stable part and `meas_stable_comp` the measurable-path-preservation part.
+
+> **Paper — Theorem 7.30** (arXiv 2212.02371). If $f\in\mathbf{SCones}(B,C)$ and $g\in\mathbf{SCones}(C,D)$ then $g\mathrel{\circ}f\in\mathbf{SCones}(B,D)$.
 
 ```coq
 (* theories/stable/compose.v *)
@@ -1046,6 +1078,10 @@ Lemma meas_stable_comp (R : realType) (Ar : MeasSubcat R)
 ```
 
 ### Thm 7.32 (`SCones_CCC`, `SCones_ccc`)
+
+The category $\mathbf{SCones}$ of integrable cones and stable/measurable functions has all products and is cartesian closed, with internal hom the cone $\mathbf{SCones}(B,C)$ and evaluation morphism $\mathsf{Ev}(f,x)=f(x)$. `SCones_CCC` is the record packaging the product and exponential data with their $\beta$/$\eta$ laws; `SCones_ccc` is the witness assembled from `sprod`, `Ev`, `curry`, etc.
+
+> **Paper — Theorem 7.32** (arXiv 2212.02371). The category $\mathbf{SCones}$ has all products and is cartesian closed.
 
 ```coq
 (* theories/stable/scones_ccc.v *)
@@ -1067,7 +1103,6 @@ Record SCones_CCC (R : realType) (Ar : MeasSubcat R) : Type := {
   ccc_eta   : (* η law of the exponential *) _;
 }.
 
-(** Paper Theorem 7.32: [SCones] is cartesian closed. *)
 Definition SCones_ccc : SCones_CCC Ar :=
   {| ccc_prod  := @sprod R Ar;
      ccc_fst   := @sfst;
@@ -1084,16 +1119,18 @@ Definition SCones_ccc : SCones_CCC Ar :=
 
 ### Thm 7.34 (`der_preserves_prod_proj`, `der_preserves_limits`)
 
+The forgetful (dereliction) functor $\mathsf{Der}:\mathbf{ICones}\to\mathbf{SCones}$ preserves all limits — both products and equalizers. `der_preserves_prod_proj` records the (definitional) product case and `der_preserves_limits` bundles the equalizer case.
+
+> **Paper — Theorem 7.34** (arXiv 2212.02371, `th:derfuns-preserves-limits`). The functor $\mathsf{Der}:\mathbf{ICones}\to\mathbf{SCones}$ preserves all limits.
+
 ```coq
 (* theories/stable/der_continuous.v *)
 
-(** Paper Thm 7.34 (products): [Der] sends the [i]-th ICones projection
-    to the [i]-th SCones projection (definitional). *)
+(* [Der] sends the [i]-th ICones projection to the [i]-th SCones projection. *)
 Lemma der_preserves_prod_proj (i : I) :
   ders (icones_proj i) = scones_proj D i.
 Proof. by []. Qed.
 
-(** Paper Thm 7.34 (equalisers): [Der] preserves equalisers; bundled. *)
 Record der_continuous : Prop := MkDerContinuous {
   dc_eq_equ : (* equaliser identity *) _;
   dc_eq_med : (* mediator with factor + uniqueness *) _;
@@ -1104,21 +1141,23 @@ Theorem der_preserves_limits : der_continuous.
 
 ### §9.2 (`lfp_fixpoint`, `sfix_fixpoint`, `Yfix`, `Yfix_fix`)
 
+Stable functions admit a least fixpoint via the cone unit-ball $\omega$-cpo: the Kleene chain $u_n=f^n(0)$ has a supremum $\mathsf{lfp}(f)=\sup_n u_n$ which is a fixpoint, packaged as the least-fixpoint combinator $\mathsf{Y}$ realized as an $\mathbf{SCones}$ morphism. This supports the fixpoint semantics of paper §9.2; it corresponds to no single numbered statement in §7, so no paper statement is quoted here.
+
 ```coq
 (* theories/stable/fixpoint.v *)
 
-(** [lfp f = sup uₙ] for the Kleene chain [uₙ = fⁿ 0] is a fixpoint. *)
+(* [lfp f = sup uₙ] for the Kleene chain [uₙ = fⁿ 0] is a fixpoint. *)
 Lemma lfp_fixpoint : f (lfp f f_incr f_ball) = lfp f f_incr f_ball.
 
-(** [sfix f := lfp (sc_fun f) ...] is a fixpoint of the stable f. *)
+(* [sfix f := lfp (sc_fun f) ...] is a fixpoint of the stable f. *)
 Lemma sfix_fixpoint (f : scones_hom B B) : sc_fun f (sfix f) = sfix f.
 
-(** Paper §9.2: the least-fixpoint combinator [Y] as an SCones morphism. *)
+(* The least-fixpoint combinator [Y] as an SCones morphism. *)
 Definition Yfix : scones_hom BB B :=
   MkSconesHom (sh_fun Yfix_elt) (sh_meas_stable Yfix_elt) Yfix_norm_le1
     (sh_offball Yfix_elt).
 
-(** Paper §9.2: the fixpoint equation [Yfix f = f (Yfix f)] on the unit ball. *)
+(* The fixpoint equation [Yfix f = f (Yfix f)] on the unit ball. *)
 Lemma Yfix_fix (f : BB) :
   cone_norm f <= 1 -> sh_fun f (sc_fun Yfix f) = sc_fun Yfix f.
 ```
