@@ -221,6 +221,41 @@ def test_beyond_cross_ref(parse_md):
     assert any(x.kind == "beyond" for x in e.cross_refs)
 
 
+def test_beyond_source_note_grounded(parse_md):
+    """The 'Beyond the paper' chapter grounded per entry: an H3 detail block
+    (no own table) matched to the H2 overview row attaches its
+    ``**Source — …**`` (blue) and ``**Difference.**`` (amber) blockquotes to
+    the entry — the same anatomy as a Paper §-section entry.  Regression for
+    grounding the Beyond chapter against external references."""
+    doc, _ = parse_md("13_beyond_source_note.md")
+    # No spurious empty per-H3 contribs: the two detail-block H3s flow into a
+    # single synthetic chapter-overview contrib.
+    assert len(doc.beyond) == 1
+    contrib = doc.beyond[0]
+    labels = {e.paper_label for e in contrib.entries}
+    assert labels == {"SAFT engine", "Melliès Prop 26"}
+    by_label = {e.paper_label: e for e in contrib.entries}
+
+    saft = by_label["SAFT engine"]
+    assert saft.detail is not None
+    # Description prose lifted out of the H3 body.
+    assert "wide intersection" in saft.detail.prose_html
+    # The Rocq code fence is attached as the entry's foldable snippet.
+    assert saft.detail.snippets and saft.detail.snippets[0].source_file == (
+        "theories/icones/representable.v"
+    )
+    kinds = [n.kind for n in saft.detail.notes]
+    # A "Source — …" blockquote is highlighted as "paper" (blue), even with
+    # an italicised book title (<em>) inside the bold label; the "Difference."
+    # note stays "difference" (amber).
+    assert kinds == ["paper", "difference"]
+    assert "Riehl" in saft.detail.notes[0].html
+
+    prop26 = by_label["Melliès Prop 26"]
+    assert prop26.detail is not None
+    assert [n.kind for n in prop26.detail.notes] == ["paper", "difference"]
+
+
 def test_gap_section(parse_md):
     doc, _ = parse_md("06_gap_section.md")
     # Gap rows go into doc.gaps, NOT into sections.
