@@ -1391,79 +1391,67 @@ Definition FMeas_fmap (X Y : ar_obj Ar) (φ : ar_hom Ar X Y) :
 ## Beyond the paper — paper-cited meta-theorems we mechanised in full
 
 The paper *cites* a number of categorical / linear-logic results as black
-boxes (SAFT, Lack's lifting, Mellies §7.4 Prop 28 / Cor 20 / Prop 29) which
-a textbook reader can take on trust. A machine-checked development cannot
-cite a black box; the following constructions are real mathematical content
-the formalisation adds *to discharge the paper's citations*. Each is
-justified by an external reference (Riehl, Mellies).
+boxes (SAFT, Fox's theorem, Lack's lifting, Melliès §7.4 Prop 28 / Prop 20 /
+Prop 29) which a textbook reader can take on trust. A machine-checked
+development cannot cite a black box; the following constructions are real
+mathematical content the formalisation adds *to discharge the paper's
+citations*. Each is grounded against its **external** reference — Riehl's
+*Category Theory in Context*, Fox's *Coalgebras and cartesian categories*,
+and Melliès' *Categorical Semantics of Linear Logic* — rather than against
+arXiv 2212.02371.
 
 The PPL-side beyond-the-paper content (Boolean cascade, CBV value-fixpoint,
 the surface language and its examples) is in the [PPL tab](../ppl/).
 
-### Mechanisation of the Special Adjoint Functor Theorem (paper §4.3, §5, §7, §9)
+| Item | English statement | Rocq |
+|---|---|---|
+| SAFT engine | Freyd's special adjoint functor theorem, mechanised concretely: a complete, well-powered, locally small category with a small coseparator has a left adjoint to every continuous functor, built as a wide intersection of subobjects of a power of the coseparator. | `SubobjClassifier`, `wi_obj`, `wi_med`, `is_icones_left_adjoint` — `theories/icones/representable.v` |
+| Tensor as SAFT left adjoint | $-\otimes C$ is constructed as the SAFT left adjoint of $(C\multimap -)$, using the concrete SAFT engine, so the tree carries no `Parameter`/`Axiom`. | `tensor`, `tensor_incl` — `theories/homs/tensor_construct.v` |
+| Exponential as SAFT left adjoint | $\;! = E$ is constructed as the SAFT left adjoint of $\mathsf{Der}$, again via the concrete SAFT engine. | `Bang`, `Bang_incl`, `nl`, `lin` — `theories/homs/bang_construct.v` |
+| Melliès Prop 26 | Every $!$-coalgebra $(A,h_A)$ is a retract of its cofree coalgebra $(!A,\delta_A)$ in $\mathrm{EM}(!)$. | `diagram81` — `theories/homs/em_cartesian.v` |
+| Melliès Prop 20 | Retraction lifting: if $i$ is a coalgebra morphism with carrier retraction $r\circ i = \mathrm{id}$ and $i\circ f$ is a coalgebra morphism, then $f$ is a coalgebra morphism. | `coalg_mor_lift` — `theories/homs/em_cartesian.v` |
+| Melliès Prop 27 | A retract of a commutative comonoid lifts to a commutative comonoid; the four transported comonoid laws. | `transp_counitL`, `transp_counitR`, `transp_cocomm`, `transp_coassoc` — `theories/homs/em_cartesian.v` |
+| Melliès Prop 28 | The monoidal structure of a linear category is cartesian in $\mathrm{EM}(!)$; the comonoid predicate holds on **every** coalgebra. | `EMComon_all` — `theories/homs/em_cartesian.v` |
+| Melliès Cor 17 | A symmetric monoidal category in which every object carries a monoidal-natural comonoid is cartesian, with product the tensor and terminal object the unit. | `ICones_EM_cartesian`, `EM_Cartesian` — `theories/homs/em_cartesian.v` |
+| Fox η-law cofree | The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ on cofree coalgebra pairs. | `em_pair_mor_proj_id_cofree` — `theories/programs/infra/cbv_adjunction.v` |
+| Fox η-law general | The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ for the $\mathrm{EM}(!)$ binary product on **every** pair of coalgebras. | `em_pair_mor_proj_id` — `theories/programs/infra/cbv_adjunction.v` |
+| Melliès Prop 29 | The cofree-coalgebra adjunction $U\dashv\tilde{!} : \mathbf{ICones}\rightleftarrows\mathrm{EM}(!)$ is a linear/non-linear (lax symmetric monoidal) adjunction. | `CBV_Model`, `ICones_CBV` — `theories/programs/infra/cbv_adjunction.v` |
 
-The paper builds `⊗`, `!`, and the Seely isos via Freyd's SAFT (Riehl,
-*Category Theory in Context* Thm 4.6.10 / Cor 4.6.14) — a complete,
-well-powered category with a coseparator has a left adjoint to every
-continuous functor. Rather than postulate SAFT, we **mechanise the SAFT
-argument concretely**: the left adjoint of `F` at `c` is the (wide)
-intersection of the subobjects of a power of the coseparator `1` over which
-`c → F-` factors.
+### SAFT engine (`SubobjClassifier`, `wi_obj`, `wi_med`, `is_icones_left_adjoint`)
 
-| Construction | Rocq |
-|---|---|
-| Subobject classifier on `ICones` (Thm 4.18 fully proved, not stubbed) | `SubobjClassifier`, `icones_subobject_classP`, `icones_well_powered` — `theories/icones/representable.v` |
-| Binary intersection (pullback) of subobjects + UMP | `pb_med`, `pb_med_proj1/2`, `pb_med_unique` — same file |
-| Wide intersection of a small family of subobjects + cone UMP | `wi_obj`, `wi_med`, `wi_med_proj`, `wi_med_unique` — same file |
-| Initiality engine (intersection embeds in each member; mono if members are) | `wi_factors_each`, `wi_incl_inj` — same file |
-| Export contract: hom-bijection a left-adjoint candidate must satisfy | `is_icones_left_adjoint` — same file |
+The paper builds $\otimes$, $!$, and the Seely isos via Freyd's Special Adjoint Functor Theorem (SAFT), invoked as a black box. Rather than postulate it, we mechanise the SAFT argument concretely: the left adjoint of a continuous functor $F$ at $c$ is the *wide intersection* of the subobjects of a power of the coseparator $1$ over which $c\to F-$ factors. The engine is a subobject classifier (well-poweredness), binary and wide intersections of subobjects with their universal properties, an initiality argument, and the hom-bijection export contract a left-adjoint candidate must satisfy.
 
-#### Code
+> **Source — Riehl, *Category Theory in Context*, Theorem 4.6.10 (Special Adjoint Functor Theorem)** (Dover/Cambridge, 2016; Theorem 4.7.10 in the online edition). Let $U : A \to S$ be a continuous functor whose domain is complete and whose domain and codomain are locally small. Furthermore, if $A$ has a small coseparating set and every collection of subobjects of a fixed object in $A$ admits an intersection, then $U$ admits a left adjoint.
+
+> **Source — Riehl, *ibid.*, Lemma 4.6.11** (Lemma 4.7.11 online). Suppose $C$ is locally small, complete, has a small coseparating set $\Phi$, and has the property that every collection of subobjects has an intersection. Then $C$ has an initial object. (Proof: form the product $p = \prod_{k\in\Phi} k$ and the intersection $i \hookrightarrow p$ of all subobjects of $p$; then $i$ is initial.)
+
+> **Source — Riehl, *ibid.*, Corollary 4.6.14** (Corollary 4.7.14 online). Suppose $C$ is locally small, complete, has a small coseparating set, and has the property that every collection of subobjects of a fixed object has an intersection. Then any continuous functor $F : C \to \mathbf{Set}$ is representable.
+
+> **Difference.** SAFT is a *meta-theorem* about the existence of an adjoint; the mechanisation replaces the abstract statement with the concrete construction its proof supplies. `SubobjClassifier` / `icones_well_powered` discharge well-poweredness (Riehl's "each object admits only a set's worth of subobjects"); `pb_med` and `wi_obj`/`wi_med` build the binary and wide intersections of Lemma 4.6.11; and `is_icones_left_adjoint` records the hom-bijection contract a candidate left adjoint must satisfy. The coseparator is the unit cone $1$ (paper Thm 4.18), not the interval $I$ of Riehl's Stone–Čech example.
 
 ```coq
 (* theories/icones/representable.v *)
+Record SubobjClassifier : Type := MkClassifier {
+  cls_S : set B; cls_add : B -> B -> B; cls_scl : {nonneg R} -> B -> B;
+  cls_zer : B; cls_nrm : B -> R;
+  cls_M : forall X : ar_obj Ar, set (ar_carrier Ar X -> B -> R);
+}.
 
-(** Binary intersection of two subobjects (pullback) and its UMP. *)
-Definition pb_med : icones_hom Ar Z pb_obj :=
-  icones_eq_med pb_left pb_right pb_tuple pb_tuple_equ.
+Theorem icones_well_powered :
+  exists cls : icones_subobject B -> SubobjClassifier B,
+    forall D1 D2 : icones_subobject B,
+      cls D1 = cls D2 -> subobject_equiv D1 D2.
 
-Lemma pb_med_proj1 : icones_comp pb_proj1 pb_med = f.
-Lemma pb_med_proj2 : icones_comp pb_proj2 pb_med = g.
-
-Lemma pb_med_unique (k : icones_hom Ar Z pb_obj) :
-  icones_comp pb_proj1 k = f ->
-  icones_comp pb_proj2 k = g ->
-  k = pb_med.
-
-(** Wide intersection of a small family of subobjects: object, embedding,
-    projections, and the mediator + factor + uniqueness for any cone. *)
 Definition wi_obj  : ICone.type Ar := icones_eq wi_u wi_v.
-Definition wi_incl : icones_hom Ar wi_obj p :=
-  icones_comp (icones_comp (hh k0) (wi_pi k0)) (icones_eq_incl wi_u wi_v).
-Definition wi_proj (k : K) : icones_hom Ar wi_obj (Adom k) :=
-  icones_comp (wi_pi k) (icones_eq_incl wi_u wi_v).
-
 Definition wi_med : icones_hom Ar Z wi_obj :=
   icones_eq_med wi_u wi_v wi_tuple wi_tuple_equ.
-
 Lemma wi_med_proj (k : K) : icones_comp (wi_proj k) wi_med = ff k.
 Lemma wi_med_unique (kk : icones_hom Ar Z wi_obj) :
   (forall k, icones_comp (wi_proj k) kk = ff k) -> kk = wi_med.
 
-(** Initiality: the intersection factors each member, and the embedding
-    is a mono if the basepoint member and own projection are monos. *)
-Lemma wi_factors_each (k : K) :
-  icones_comp (hh k) (wi_proj Adom hh k0 k) = wi_incl Adom hh k0.
-Lemma wi_incl_inj :
-  is_icones_inj (hh k0) ->
-  is_icones_inj (wi_proj Adom hh k0 k0) ->
-  is_icones_inj (wi_incl Adom hh k0).
-
-(** The SAFT export contract — a left-adjoint candidate is a hom-bijection. *)
 Definition is_icones_left_adjoint
     (Cobj : Type) (Homc : Cobj -> Cobj -> Type)
-    (Robj : ICone.type Ar -> Cobj)
-    (Fobj : Cobj -> ICone.type Ar)
+    (Robj : ICone.type Ar -> Cobj) (Fobj : Cobj -> ICone.type Ar)
     (Phi : forall (c : Cobj) (x : ICone.type Ar),
              icones_hom Ar (Fobj c) x -> Homc c (Robj x))
     (Psi : forall (c : Cobj) (x : ICone.type Ar),
@@ -1472,91 +1460,68 @@ Definition is_icones_left_adjoint
   (forall c x (g : Homc c (Robj x)), Phi c x (Psi c x g) = g).
 ```
 
-The tensor `⊗` and the exponential `!` are then **discharged** against this
-SAFT engine:
+### Tensor as SAFT left adjoint (`tensor`, `tensor_incl`)
 
-| What | Rocq |
-|---|---|
-| `−⊗C` is the SAFT left adjoint of `(C⊸−)` (Thm 5.9 + the SAFT engine) | `tensor_construct.v` (the tensor itself + curry/uncurry + naturality) — `theories/homs/tensor_construct.v` |
-| The Thm 5.12 measurability core (the analytic crux) | `tensor_hom_iso.v` + `tensor_iso.v` (the `path_tens_to_X` / `lfun_path_swap` / `swap_lin_lin_hom` chain) |
-| `E` is the SAFT left adjoint of `Der` (Thm 7.34 feeding the SAFT engine) | `der_continuous.v` (Thm 7.34) + `bang_construct.v` (Bang/nl/lin discharged) |
-| The Seely isos (Thm 9.5) are discharged via Lem 9.4 + tensor-hom-iso | `theories/stable/stab_lin_swap.v` + the construction in `seely.v` |
+The tensor $-\otimes C$ is discharged as the SAFT left adjoint of the internal-hom functor $(C\multimap -)$: the tensor object $B\otimes C$ is the wide intersection of the family of factoring subobjects of the product $\prod (C\multimap -)$, indexed by the well-powered classifier, with curry/uncurry and naturality built on top.
 
-#### Code: tensor and exponential as SAFT left adjoints
+> **Source — Riehl, *Category Theory in Context*, Theorem 4.6.10** (as above). A continuous functor out of a complete, locally small, well-powered category with a small coseparator admits a left adjoint; concretely the left adjoint at $c$ is the wide intersection of the subobjects of a power of the coseparator through which $c\to F-$ factors.
+
+> **Difference.** The paper (Thm 5.9) shows $C\multimap -$ preserves all limits and then *invokes* SAFT to produce the tensor; the mechanisation runs the concrete intersection construction of the previous entry, so `tensor` and `tensor_incl` are honest definitions rather than a `Parameter` interface. The limit-preservation hypothesis is discharged in `theories/homs/limpl_continuous.v`; the measurability crux of the currying iso lives in `tensor_hom_iso.v` / `tensor_iso.v`.
 
 ```coq
 (* theories/homs/tensor_construct.v *)
 Module Icones_tensor_construct.
-(* ... family of factoring subobjects of the product p = (C ⊸ −),
-   indexed by the well-powered classifier ... *)
-
-(** The tensor object [B ⊗ C] as the wide intersection of the family. *)
+(* family of factoring subobjects of the product p = (C ⊸ −),
+   indexed by the well-powered classifier *)
 Definition tensor : ICone.type Ar := wi_obj fhh fk0.
-
-(** The intersection embedding [B ⊗ C ↪ p]. *)
 Definition tensor_incl : icones_hom Ar tensor p := wi_incl fAdom fhh fk0.
-
-(* ... + curry / uncurry / naturality, the SAFT discharge ... *)
+(* + curry / uncurry / naturality, the SAFT discharge *)
 End Icones_tensor_construct.
 ```
+
+### Exponential as SAFT left adjoint (`Bang`, `Bang_incl`, `nl`, `lin`)
+
+The exponential $! = E$ is discharged as the SAFT left adjoint of the dereliction functor $\mathsf{Der}$: the object $\mathrm{Bang}\,B = E\,B$ is the wide intersection of the factoring subobjects of $B\multimap 1^{\mathbf{Ar}}$, with the universal nonlinear map `nl` and the linear factoriser `lin`.
+
+> **Source — Riehl, *Category Theory in Context*, Theorem 4.6.10** (as above). A continuous functor out of a complete, locally small, well-powered category with a small coseparator admits a left adjoint, given concretely by the wide intersection of the factoring subobjects of a power of the coseparator.
+
+> **Difference.** The paper's §7 (Thm 7.34) supplies the limit-preservation of $\mathsf{Der}$ and then invokes SAFT for $!$; the mechanisation runs the concrete engine, so `Bang`, `nl`, `lin` are proved definitions with no axiom interface. Continuity of $\mathsf{Der}$ (Thm 7.34) is in `theories/stable/der_continuous.v`.
 
 ```coq
 (* theories/homs/bang_construct.v *)
 Module Icones_bang_construct.
-
-(** The exponential object [Bang B = E B] as the wide intersection of
-    the family of factoring subobjects of [B ⊸ 1ᴬ]. *)
 Definition Bang : ICone.type Ar := wi_obj fhh fk0.
 Definition Bang_incl : icones_hom Ar Bang p := wi_incl fAdom fhh fk0.
-
-(** The universal nonlinear map [nl_B]. *)
-Definition nl : scones_hom B (Bang B) := (* ... *).
-
-(** The linear factoriser [lin f]. *)
-Definition lin : icones_hom Ar (Bang B) C := (* ... *).
-
+Definition nl  : scones_hom B (Bang B) := (* the universal nonlinear map *) _.
+Definition lin : icones_hom Ar (Bang B) C := (* the linear factoriser *) _.
 End Icones_bang_construct.
 ```
 
-The strategy is the paper's (§4.3 explicitly invokes SAFT); the formalisation
-adds the *concrete* SAFT construction so the tree carries no `Parameter` /
-`Axiom` interfaces and the whole development is axiom-free.
+### Melliès Prop 26 (`diagram81`)
 
-### EM(!) is fully cartesian — Mellies §7.4 Prop 28 / Cor 20
+Every $!$-coalgebra $(A,h_A)$ is a retract of its cofree coalgebra $(!A,\delta_A)$, via $A\xrightarrow{h_A}!A\xrightarrow{\varepsilon_A}A$. The formalisation records the key retraction square (Melliès' Eq (81)/(88)) as `diagram81`.
 
-Beyond §9, the formalisation also delivers Mellies' result that the
-Eilenberg–Moore category of `!` (the value category of a linear-logic CBV
-interpretation) is cartesian, with product carried by the linear `⊗`
-(not the cartesian `&`). The non-trivial part is **Cor 20**, the step
-Mellies himself flags as *"does not seem to follow from general abstract
-properties"*: the transported comonoid diagonal must be shown to be a
-coalgebra morphism, on *every* coalgebra.
+> **Source — Melliès, *Categorical Semantics of Linear Logic* (Panoramas et Synthèses 27, SMF 2009), Proposition 26.** In a linear category $L$, every coalgebra $(A, h_A)$ induces a retraction $A\xrightarrow{h_A}!A\xrightarrow{\varepsilon_A}A$ making the diagram $$\begin{array}{ccc} A & \xrightarrow{\;h_A\;} & !A\\[2pt] {\scriptstyle d_A}\downarrow & & \downarrow{\scriptstyle d_A}\\[2pt] A\otimes A & \xrightarrow{\;h_A\otimes h_A\;} & !A\otimes\,!A \end{array}$$ commute (with $\varepsilon_A\otimes\varepsilon_A$ the retraction of $h_A\otimes h_A$).
 
-| Lemma | English statement | Rocq |
-|---|---|---|
-| Mellies Prop 26 | Every coalgebra `(A,a)` is a retract of its cofree `(!A, dig)` in `EM(!)`. | `diagram81` (records the key Eq 88 retraction-square) — `theories/homs/em_cartesian.v` |
-| Mellies §6.11 Prop 20 / Cor 20 | If `i` is a coalgebra morphism with a carrier retraction `r∘i = id` and `i∘f` is a coalgebra morphism, then `f` is. | `coalg_mor_lift` (the diagram (66)/(67) chase Mellies flags as *"not so immediate"*) — same file |
-| Mellies Prop 27 (transport) | A retract of a commutative comonoid is a commutative comonoid. | The four transported laws (`transp_counitL/_R/_cocomm/_coassoc`) — same file |
-| Mellies Prop 28 | `EM(!)` is cartesian on **every** coalgebra (`EMComon` holds unconditionally). | `EMComon_all : forall P : Coalgebra Ar, EMComon P` — same file |
-| Mellies Cor 17 | A symmetric monoidal category in which every object has a natural commutative comonoid is cartesian. | The headline `ICones_EM_cartesian` (with `cart_prod`, `cart_term`, the projections, pairing, β-laws) — same file |
-
-The naïve approach — reducing to *promoted points* `x!` via `d_bang_prom`
-— cannot work for a general carrier (an arbitrary `a x` is not promoted).
-The structural retraction proof is what Mellies' §7.4 actually requires;
-it is mechanised here.
-
-#### Code
+> **Difference.** Melliès states the square in a generic linear category; the mechanisation instantiates it at the icones comonad $!$ and records the concrete morphism equality `diagram81` (the transported diagonal via the structure map `coalg_str`), which the Cor-20 lift then consumes.
 
 ```coq
 (* theories/homs/em_cartesian.v *)
-
-(** Eq (88) of Mellies: the retraction square for an arbitrary coalgebra. *)
 Lemma diagram81 (P : Coalgebra Ar) :
   icones_comp (tensor_mor (coalg_str P) (coalg_str P)) (coalg_d P) =
   icones_comp (d_bang (coalg_obj P)) (coalg_str P).
+```
 
-(** Mellies §6.11 Prop 20 / Cor 20 — the (66)/(67) diagram chase that
-    Mellies flags as "not so immediate". *)
+### Melliès Prop 20 (`coalg_mor_lift`)
+
+The retraction-lifting property Melliès flags as *"less obvious"*: given a carrier retraction $r\circ i = \mathrm{id}$ with $i$ a coalgebra morphism, a map $f$ is a coalgebra morphism iff $i\circ f$ is. The formalisation mechanises the (66)/(67) diagram chase as `coalg_mor_lift`.
+
+> **Source — Melliès, *ibid.*, §6.11 Proposition 20.** Suppose given a comonad $(K,\mu,\eta)$, two coalgebras $(A,h_A)$, $(B,h_B)$, and a retraction $A\xrightarrow{i}B\xrightarrow{r}A = \mathrm{id}_A$ between the underlying objects, with $i : (A,h_A)\to(B,h_B)$ a coalgebra morphism. Then, for every coalgebra $(X,h_X)$ and morphism $f : X\to A$, the following are equivalent: (i) $f$ is a coalgebra morphism $(X,h_X)\to(A,h_A)$; (ii) the composite $i\circ f$ is a coalgebra morphism $(X,h_X)\to(B,h_B)$.
+
+> **Difference.** The REFERENCE MAP cites this as "Cor 20 / Prop 20"; in Melliès it is Proposition 20 of §6.11 (a lifting property of the coalgebra morphism $i$). The mechanisation gives the $(\Leftarrow)$ direction directly as `coalg_mor_lift` and applies it at the retraction $(h_A\otimes h_A)/(\varepsilon_A\otimes\varepsilon_A)$ to show the transported diagonal $d_A$ is a coalgebra morphism.
+
+```coq
+(* theories/homs/em_cartesian.v *)
 Lemma coalg_mor_lift (X PA QB : Coalgebra Ar)
     (i : icones_hom Ar (coalg_obj PA) (coalg_obj QB))
     (r : icones_hom Ar (coalg_obj QB) (coalg_obj PA))
@@ -1565,160 +1530,149 @@ Lemma coalg_mor_lift (X PA QB : Coalgebra Ar)
   icones_comp r i = icones_id Ar (coalg_obj PA) ->
   is_coalg_mor X QB (icones_comp i f) ->
   is_coalg_mor X PA f.
+```
 
-(** Mellies Prop 27 (transported comonoid laws on a retract).  Section
-    variables fix the [(i, r, dB, eB)] retraction setup and an Eq-(85)
-    hypothesis. *)
+### Melliès Prop 27 (`transp_counitL`, `transp_counitR`, `transp_cocomm`, `transp_coassoc`)
+
+A retract of a commutative comonoid inherits a commutative comonoid structure. The four transported laws (counit-left, counit-right, cocommutativity, coassociativity) are proved on a retract by a generic split-mono-cancellation transport plus associator/braiding/unitor naturality.
+
+> **Source — Melliès, *ibid.*, Proposition 27.** Suppose that in a monoidal category $(C,\otimes,1)$ there is a retraction $A\xrightarrow{i}B\xrightarrow{r}A = \mathrm{id}_A$ between an object $A$ and a comonoid $(B, d_B, e_B)$. Then the following are equivalent: (i) $A$ lifts as a comonoid $(A, d_A, e_A)$ in such a way that $i : (A,d_A,e_A)\to(B,d_B,e_B)$ is a comonoid morphism; (ii) the diagram relating $d_B\circ i$ and $(i\otimes i)\circ (r\otimes r)\circ d_B\circ i$ (Melliès Eq (85)) commutes. When they hold, $(A, d_A, e_A)$ is uniquely determined.
+
+> **Difference.** Melliès packages the transport as a single equivalence; the mechanisation unbundles it into the four comonoid-law equations (`transp_counitL/_R/_cocomm/_coassoc`) proved by a generic SMC transport under an Eq-(85) hypothesis fixing the $(i,r,d_B,e_B)$ retraction setup — the concrete content of "the comonoid $(A,d_A,e_A)$ is uniquely defined".
+
+```coq
+(* theories/homs/em_cartesian.v *)
 Lemma transp_counitL :
   icones_comp (iso_fwd (tensor_lunit A))
     (icones_comp (tensor_mor eA (icones_id Ar A)) dA) = icones_id Ar A.
-
 Lemma transp_counitR :
   icones_comp (iso_fwd (tensor_runit A))
     (icones_comp (tensor_mor (icones_id Ar A) eA) dA) = icones_id Ar A.
-
 Lemma transp_cocomm :
   icones_comp (iso_fwd (tensor_braid A A)) dA = dA.
-
 Lemma transp_coassoc :
   icones_comp (iso_fwd (tensor_assoc A A A))
     (icones_comp (tensor_mor dA (icones_id Ar A)) dA) =
   icones_comp (tensor_mor (icones_id Ar A) dA) dA.
+```
 
-(** Mellies Prop 28 unconditionally on every coalgebra. *)
+### Melliès Prop 28 (`EMComon_all`)
+
+The analytic core: the comonoid predicate `EMComon` holds *unconditionally* on every coalgebra, discharging Melliès' flagged step that the transported diagonal and augmentation are coalgebra morphisms on an arbitrary carrier (not merely on promoted points).
+
+> **Source — Melliès, *ibid.*, Proposition 28.** The monoidal structure inherited from a linear category $(L,\otimes,1)$ is cartesian in its category $L^{!}$ of Eilenberg–Moore coalgebras. (Proof: by Corollary 17, via Propositions 26 and 27, every coalgebra $(A,h_A)$ induces a comonoid $(A,d_A,e_A)$ with $d_A = (\varepsilon_A\otimes\varepsilon_A)\circ d_A^{!A}\circ h_A$ and $e_A = e_A^{!A}\circ h_A$ (Eq (88)); one checks $d_A$ and $e_A$ are coalgebra morphisms and monoidal natural.)
+
+> **Difference.** The naïve route — reducing to *promoted points* $x^{!}$ — fails for a general carrier, since an arbitrary $a\,x$ is not promoted; the structural retraction proof (Prop 26 + Prop 27 + the Prop-20 lift) is what §7.4 actually requires. The headline is the single Prop `EMComon_all` asserting the comonoid predicate for *every* coalgebra $P$.
+
+```coq
+(* theories/homs/em_cartesian.v *)
 Lemma EMComon_all (P : Coalgebra Ar) : EMComon P.
+```
 
-(** Cor 17: the full EM(!) is cartesian, with product carried by ⊗. *)
+### Melliès Cor 17 (`ICones_EM_cartesian`, `EM_Cartesian`)
+
+The bridge from comonoids to a cartesian structure: a symmetric monoidal category in which every object carries a monoidal-natural comonoid is cartesian, with product carried by the tensor and terminal object the unit. The headline `ICones_EM_cartesian` bundles the full cartesian structure of $\mathrm{EM}(!)$ (product, terminal, projections, pairing, β-laws, terminal UP), the product being the linear $\otimes$.
+
+> **Source — Melliès, *ibid.*, Corollary 17.** Let $(C,\otimes,1)$ be a symmetric monoidal category. The tensor product is a cartesian product and the tensor unit is a terminal object if and only if there exists a pair of monoidal natural transformations $d$ and $e$ with components $d_A : A\to A\otimes A$ and $e_A : A\to 1$ defining a comonoid $(A, d_A, e_A)$ for every object $A$.
+
+> **Difference.** Melliès' Corollary 17 does *not* require the comonoids to be commutative; the underlying classical result is Fox's theorem (T. Fox, *Coalgebras and cartesian categories*, Comm. Algebra 4, 1976). The mechanisation records the cartesian package as the record `EM_Cartesian` and populates every field in `ICones_EM_cartesian`, with the binary product carried by the linear tensor $\otimes$ — not the cartesian $\&$.
+
+```coq
+(* theories/homs/em_cartesian.v *)
 Record EM_Cartesian (R : realType) (Ar : MeasSubcat R) : Type :=
   MkEMCartesian {
   cart_prod : Coalgebra Ar -> Coalgebra Ar -> Coalgebra Ar;
   cart_term : Coalgebra Ar;
   cart_prod_obj : forall P Q,
     coalg_obj (cart_prod P Q) = tensor Ar (coalg_obj P) (coalg_obj Q);
-  cart_proj1 : forall P Q,
-    icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj P);
-  cart_proj2 : forall P Q,
-    icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj Q);
+  cart_proj1 : forall P Q, icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj P);
+  cart_proj2 : forall P Q, icones_hom Ar (coalg_obj (cart_prod P Q)) (coalg_obj Q);
   cart_pair : forall (Z P Q : Coalgebra Ar),
     coalg_hom Z P -> coalg_hom Z Q -> coalg_hom Z (cart_prod P Q);
-  cart_beta1 : (* β law on proj1 *) _;
-  cart_beta2 : (* β law on proj2 *) _;
-  cart_term_mor    : forall P, coalg_hom P cart_term;
-  cart_term_unique : (* terminal UP *) _;
+  cart_beta1 : _; cart_beta2 : _;
+  cart_term_mor : forall P, coalg_hom P cart_term;
+  cart_term_unique : _;
 }.
 
-(** The canonical cartesian structure of EM(!), every field populated. *)
 Definition ICones_EM_cartesian (R : realType) (Ar : MeasSubcat R) :
     EM_Cartesian Ar :=
-  {| cart_prod := @EM_prod R Ar;
-     cart_term := @EM_term R Ar;
+  {| cart_prod := @EM_prod R Ar; cart_term := @EM_term R Ar;
      cart_prod_obj := @EM_prod_obj R Ar;
-     cart_proj1 := @em_proj1_mor R Ar;
-     cart_proj2 := @em_proj2_mor R Ar;
+     cart_proj1 := @em_proj1_mor R Ar; cart_proj2 := @em_proj2_mor R Ar;
      cart_pair := fun Z P Q f g => @em_pair R Ar Z P Q f g;
      (* ... β-laws and terminal UP witnesses ... *) |}.
 ```
 
-### Cartesian-η of EM(!)
+### Fox η-law cofree (`em_pair_mor_proj_id_cofree`)
 
-The β-laws `em_proj1_pair` / `em_proj2_pair` of the previous section establish
-the universal property of the EM(!) binary product *out of* a coalgebra `Z`;
-they do not by themselves say `⟨π₁, π₂⟩ = id`. The η-law is genuinely
-additional content — it is **Fox's 1976 theorem** specialised to EM(!) of a
-linear-exponential comonad (Melliès Proposition 28 at the icones level).
-It is proved here in the same style as Cor 20: by Melliès's
-retract-and-lift technique, *not* by promoted-point reduction.
+The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ on the cofree pair $(\tilde{!}A, \tilde{!}B)$: it reduces, via `tens_excl_charact`, to a computation on the promoted tensor $x^{!}\otimes y^{!}$. This is genuinely additional content beyond the β-laws.
 
-| Lemma | English statement | Rocq |
-|---|---|---|
-| Cofree case | On the cofree pair `(!̃A, !̃B)` the η-law `em_pair_mor π₁ π₂ = id` reduces, via `tens_excl_charact`, to a computation on the promoted tensor `x! ⊗ y!`. | `em_pair_mor_proj_id_cofree` — `theories/programs/infra/cbv_adjunction.v` |
-| Full η-law | For every pair `(P, Q)` of coalgebras, `em_pair_mor π₁ π₂ = id_{cP⊗cQ}` on the underlying carriers. Proved by the split-mono retraction `coalg_str P ⊗ coalg_str Q ⊣ der_cP ⊗ der_cQ` reducing the equation to the cofree case. | `em_pair_mor_proj_id` — same file |
+> **Source — Fox, *Coalgebras and cartesian categories*, Comm. Algebra 4(7):665–667, 1976 (Fox's theorem).** *(Faithful paraphrase.)* A symmetric monoidal category is cartesian iff every object carries a (uniform, natural) cocommutative comonoid structure for which every morphism is a comonoid homomorphism; equivalently the category of cocommutative comonoids is the cartesian coreflection, with the tensor of comonoids serving as their categorical product. In particular the product's η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ holds, uniquely determined by the comonoid structure.
 
-#### Code
+> **Difference.** The β-laws only give the universal property *out of* a coalgebra; the η-law is Fox's theorem specialised to $\mathrm{EM}(!)$ of a linear-exponential comonad (Melliès Prop 28 at the icones level). The cofree case `em_pair_mor_proj_id_cofree` establishes η on promoted tensors by Melliès' retract-and-lift technique, *not* by promoted-point reduction.
 
 ```coq
 (* theories/programs/infra/cbv_adjunction.v *)
-
-(** The cofree case: η reduces on promoted tensors. *)
 Lemma em_pair_mor_proj_id_cofree (A B : ICone.type Ar) :
   @em_pair_mor R Ar (EM_prod (bang_cofree A) (bang_cofree B))
     (bang_cofree A) (bang_cofree B)
     (em_proj1_mor (bang_cofree A) (bang_cofree B))
     (em_proj2_mor (bang_cofree A) (bang_cofree B))
   = icones_id Ar (coalg_obj (EM_prod (bang_cofree A) (bang_cofree B))).
+```
 
-(** The full cartesian η-rule on every coalgebra. *)
+### Fox η-law general (`em_pair_mor_proj_id`)
+
+The full cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ for the $\mathrm{EM}(!)$ binary product on **every** pair of coalgebras, proved by the split-mono retraction $\mathrm{coalg\_str}\,P \otimes \mathrm{coalg\_str}\,Q \dashv \mathrm{der}_{cP}\otimes\mathrm{der}_{cQ}$ reducing the equation to the cofree case.
+
+> **Source — Fox, *Coalgebras and cartesian categories*, Comm. Algebra 4(7):665–667, 1976.** *(Faithful paraphrase, as above.)* In a symmetric monoidal category whose objects all carry a uniform cocommutative comonoid, the tensor is the categorical product; hence for every pair the pairing $\langle\pi_1,\pi_2\rangle$ of the two projections equals the identity on the product object.
+
+> **Difference.** Fox's theorem is stated for the whole comonoid category; the mechanisation specialises it to $\mathrm{EM}(!)$ and proves the η-law `em_pair_mor_proj_id` for every $(P,Q)$ by a split-mono retraction reducing to the cofree case above — Melliès' retract-and-lift, again avoiding promoted-point reduction.
+
+```coq
+(* theories/programs/infra/cbv_adjunction.v *)
 Lemma em_pair_mor_proj_id (P Q : Coalgebra Ar) :
   @em_pair_mor R Ar (EM_prod P Q) P Q
     (em_proj1_mor P Q) (em_proj2_mor P Q)
   = icones_id Ar (tensor Ar (coalg_obj P) (coalg_obj Q)).
 ```
 
-### Linear/non-linear monoidal adjunction `U ⊣ !̃` (Mellies §7.4 Prop 29)
+### Melliès Prop 29 (`CBV_Model`, `ICones_CBV`)
 
-| Result | English statement | Rocq |
-|---|---|---|
-| LNL adjunction | The cofree-coalgebra adjunction `U ⊣ !̃ : ICones ⇄ EM(!)` is a lax symmetric monoidal adjunction (Lack's lifting). With Cor 20 in hand, this is a genuine *linear/non-linear* adjunction with the **full** category of `!`-coalgebras as the cartesian non-linear / value side. | `CBV_Model` record + `ICones_CBV` witness — `theories/programs/infra/cbv_adjunction.v` |
+The cofree-coalgebra adjunction $U\dashv\tilde{!} : \mathbf{ICones}\rightleftarrows\mathrm{EM}(!)$ is a lax symmetric monoidal (linear/non-linear) adjunction. With Cor 20 in hand it is a genuine LNL adjunction with the **full** category of $!$-coalgebras as the cartesian value side. The `CBV_Model` record bundles every ingredient (the SMCC, the EM category, the cartesian value category, the $U/\tilde{!}$ actions, unit/counit/$\Phi$/$\Psi$/triangles, strict-monoidal $U$, lax symmetric monoidal $\tilde{!}$), all populated by `ICones_CBV`.
 
-#### Code
+> **Source — Melliès, *Categorical Semantics of Linear Logic* (Panoramas et Synthèses 27, SMF 2009), Proposition 29.** Every linear category defines a linear-non-linear adjunction, and thus a model of intuitionistic linear logic. (The adjunction $L\dashv M$ between the symmetric monoidal category $L$ and its cartesian category $M \cong L^{!}$ of Eilenberg–Moore coalgebras is symmetric lax monoidal, and $! = L\circ M$ is the induced linear-exponential comonad.)
+
+> **Difference.** Melliès obtains the monoidal adjunction via Lack's lifting theorem (S. Lack, *Composing PROPs*, Theory Appl. Categ. 13, 2004); the mechanisation packages the LNL structure as the record `CBV_Model` and discharges every field in `ICones_CBV`, taking the value side to be the *full* $\mathrm{EM}(!)$ (using Cor 20 / `em_pair_mor_proj_id`) rather than a chosen subcategory.
 
 ```coq
 (* theories/programs/infra/cbv_adjunction.v *)
-
-(** The Melliès §7.4 Prop 29 monoidal adjunction U ⊣ !̃ bundled.
-    Fields cover: the (Thm 5.15) SMCC of ICones, the EM(!) category,
-    the (full) cartesian value category EM_Cartesian, the U / !̃
-    object and morphism actions, the unit / counit / Φ / Ψ / triangle
-    identities, the U strict-monoidal compatibility, and the !̃ lax
-    symmetric monoidal comparison + lax coherence + (co)unit
-    monoidality. *)
 Record CBV_Model (R : realType) (Ar : MeasSubcat R) : Type := MkCBVModel {
   cbv_smcc : ICones_SMCC Ar;
   cbv_em   : EM_Cat Ar;
   cbv_cart : EM_Cartesian Ar;
-
   cbv_U_obj    : Coalgebra Ar -> ICone.type Ar;
-  cbv_U_mor    : forall P Q, coalg_hom P Q ->
-                             icones_hom Ar (cbv_U_obj P) (cbv_U_obj Q);
+  cbv_U_mor    : forall P Q, coalg_hom P Q -> icones_hom Ar (cbv_U_obj P) (cbv_U_obj Q);
   cbv_bang_obj : ICone.type Ar -> Coalgebra Ar;
-  cbv_bang_mor : forall B C, icones_hom Ar B C ->
-                             coalg_hom (cbv_bang_obj B) (cbv_bang_obj C);
+  cbv_bang_mor : forall B C, icones_hom Ar B C -> coalg_hom (cbv_bang_obj B) (cbv_bang_obj C);
   cbv_unit     : forall P, coalg_hom P (cbv_bang_obj (cbv_U_obj P));
   cbv_counit   : forall B, icones_hom Ar (cbv_U_obj (cbv_bang_obj B)) B;
-  cbv_phi      : forall P B,
-    coalg_hom P (cbv_bang_obj B) -> icones_hom Ar (cbv_U_obj P) B;
-  cbv_psi      : forall P B,
-    icones_hom Ar (cbv_U_obj P) B -> coalg_hom P (cbv_bang_obj B);
-  cbv_phiK : (* Φ ∘ Ψ = id *) _;
-  cbv_psiK : (* Ψ ∘ Φ = id *) _;
-  cbv_triangleL : (* triangle on the unit *) _;
-  cbv_triangleR : (* triangle on the counit *) _;
-
-  (* U strict / strong monoidal *)
+  cbv_phi : forall P B, coalg_hom P (cbv_bang_obj B) -> icones_hom Ar (cbv_U_obj P) B;
+  cbv_psi : forall P B, icones_hom Ar (cbv_U_obj P) B -> coalg_hom P (cbv_bang_obj B);
+  cbv_phiK : _; cbv_psiK : _; cbv_triangleL : _; cbv_triangleR : _;
   cbv_U_prod : forall P Q, cbv_U_obj (cart_prod cbv_cart P Q) =
                             tensor Ar (cbv_U_obj P) (cbv_U_obj Q);
   cbv_U_term : cbv_U_obj (cart_term cbv_cart) = cone_one_car Ar;
-
-  (* !̃ lax symmetric monoidal: m2 / m0 comparisons (as ICones maps and
-     as EM(!) morphisms), the lax coherence (assoc, braid), and the
-     counit-monoidality laws. *)
-  cbv_m2 : forall A B, icones_hom Ar _ (cbv_U_obj (cbv_bang_obj (tensor Ar A B)));
-  cbv_m0 : icones_hom Ar (cone_one_car Ar) (cbv_U_obj (cbv_bang_obj (cone_one_car Ar)));
-  cbv_bang_m  : forall A B,
-    coalg_hom (cart_prod cbv_cart (cbv_bang_obj A) (cbv_bang_obj B))
-              (cbv_bang_obj (tensor Ar A B));
-  cbv_bang_e0 : coalg_hom (cart_term cbv_cart) (cbv_bang_obj (cone_one_car Ar));
+  (* !̃ lax symmetric monoidal: m2 / m0 comparisons, lax coherence,
+     counit-monoidality *)
   cbv_lax_assoc : _; cbv_lax_braid : _;
   cbv_counit_monoidal2 : _; cbv_counit_monoidal0 : _;
 }.
 
-(** Paper-style headline: every field populated by a proved lemma. *)
 Definition ICones_CBV (R : realType) (Ar : MeasSubcat R) : CBV_Model Ar :=
-  {| cbv_smcc := ICones_smcc Ar;
-     cbv_em   := ICones_EM Ar;
+  {| cbv_smcc := ICones_smcc Ar; cbv_em := ICones_EM Ar;
      cbv_cart := ICones_EM_cartesian Ar;
-     cbv_U_obj := @U_obj R Ar;
-     cbv_U_mor := @U_mor R Ar;
+     cbv_U_obj := @U_obj R Ar; cbv_U_mor := @U_mor R Ar;
      (* ... !̃ / unit / counit / triangle / lax-monoidal witnesses ... *) |}.
 ```
 

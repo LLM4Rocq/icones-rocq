@@ -349,14 +349,22 @@ def group(tokens: list[Token], source: str) -> list[_H2Block]:
         html = html.strip()
         if not html:
             return
-        # Kind from the blockquote's leading bold label, so the paper's
-        # original statement and the difference note are highlighted apart:
-        # "**Paper ...**" -> paper, "**Difference ...**" -> difference.
+        # Kind from the blockquote's leading bold label, so the exact
+        # statement and the difference note are highlighted apart:
+        # "**Paper ...**" / "**Source ...**" -> paper (blue, "the source"),
+        # "**Difference ...**" -> difference (amber).  In the paper §-sections
+        # the exact statement is the paper's, labelled "Paper — Type X.Y"; in
+        # the "Beyond the paper" chapter it is the *external* reference's, so
+        # labelled "Source — <ref>" — both are the same blue "here is the
+        # authoritative statement" highlight.
         kind = "note"
-        _lead = re.search(r"<strong>\s*([^<]+?)\s*</strong>", html)
+        # Capture the whole bold span (it may contain nested inline tags,
+        # e.g. an italicised book title after "Source — Riehl, <em>…</em>"),
+        # then strip tags so the leading word is compared cleanly.
+        _lead = re.search(r"<strong>(.*?)</strong>", html, re.DOTALL)
         if _lead:
-            _label = _lead.group(1).lower()
-            if _label.startswith("paper"):
+            _label = re.sub(r"<[^>]+>", "", _lead.group(1)).strip().lower()
+            if _label.startswith("paper") or _label.startswith("source"):
                 kind = "paper"
             elif _label.startswith("difference"):
                 kind = "difference"
@@ -1376,6 +1384,15 @@ def normalise(
                     parent_chapter = parent_chapter[len(prefix):]
                     break
             for h3 in blk.h3_blocks:
+                # An H3 WITHOUT its own table is a Paper §-style detail block:
+                # it was already consumed by the first pass (its blockquotes
+                # became the matched entry's per-entry Source/Difference notes,
+                # its prose the description, its code fence the foldable
+                # snippet), and its entry now lives in the synthetic
+                # chapter-overview contrib below.  Emitting an empty per-H3
+                # contrib for it would be spurious, so skip it here.
+                if not h3.tables:
+                    continue
                 contrib_id = claim_slug("beyond-" + slugify_label(h3.paper_label), h3.heading)
                 contrib_entries: list[Entry] = []
                 # Match each overview-table row's identifiers against the
