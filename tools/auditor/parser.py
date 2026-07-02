@@ -139,9 +139,11 @@ def _new_md() -> MarkdownIt:
         MarkdownIt("commonmark", {"html": True})
         .enable("table")
         .enable("strikethrough")
-        .use(dollarmath_plugin)
+        .use(dollarmath_plugin, double_inline=True)
     )
     md.add_render_rule("math_inline", _render_math_inline)
+    # Inline $$..$$ (display math mid-paragraph) -> MathJax display \[..\].
+    md.add_render_rule("math_inline_double", _render_math_block)
     md.add_render_rule("math_block", _render_math_block)
     return md
 
