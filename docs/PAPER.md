@@ -1168,39 +1168,36 @@ Lemma Yfix_fix (f : BB) :
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| LL `!` | The linear-exponential comonad `! : ICones → ICones`, obtained as the right adjoint of `Der` via SAFT. | `Bang`, `nl`, `lin`, `lin_beta`, `lin_unique` (the adjunction data) — `theories/homs/exp_adjunction.v`; `Bang_comonad` — `theories/homs/bang.v` |
-| Comonad | `(!, der, dig)` is a comonad with the standard counit / coassociativity. | `der`, `dig`, `der_prom`, `dig_prom`, the comonad laws — `theories/homs/bang.v` |
-| Lem 9.4 | The natural iso `(B ⇒ₛ (C ⊸ D)) ≃ (C ⊸ (B ⇒ₛ D))` ("swap a stable outer and a linear inner"). | `stab_lin_swap` (a fully spelled-out `icones_iso`; paper gives the map + "pattern seen many times", no proof) — `theories/stable/stab_lin_swap.v` |
-| Thm 9.5 | `(ICones, ⊗, 1, !)` is a **Seely category** (i.e. has the Seely isos `Seely2 : !A ⊗ !B ≃ !(A & B)` and `Seely0 : 1 ≃ !⊤`, and the comonad / SMC coherence). | `Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`, the full `SeelyCategory` record + the witness `ICones_Seely` — `theories/homs/seely.v` |
-| Thm 9.7 | For each `X ∈ ARCAT`, `FMeas(X)` is a `!`-coalgebra (with structure map `Coalg_X(µ) = ∫_r (δ_r)! dµ`); the assignment `X ↦ FMeas(X)` is a functor into `EM(!)`. | `Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap` — `theories/homs/coalgebra.v` |
-| Sect 9.2 | Fixpoint combinator `Y` on the cartesian closed `SCones`. | `Yfix`, `Yfix_fix` (the paper's CCC construction) — `theories/stable/fixpoint.v` |
+| LL $!$ | The linear-exponential comonad $! : \mathbf{ICones} \to \mathbf{ICones}$, obtained as $! = \mathsf{E}\circ\mathsf{Der}$ where $\mathsf{E}$ is the left adjoint of $\mathsf{Der}$ (existing by the special adjoint functor theorem). | `Bang`, `nl`, `lin`, `lin_beta`, `lin_unique` (the adjunction data) — `theories/homs/exp_adjunction.v`; `Bang_comonad` — `theories/homs/bang.v` |
+| Comonad | $(!, \mathsf{der}, \mathsf{dig})$ is a comonad with the standard counit / coassociativity, satisfying $\mathsf{der}_B(x^!)=x$ and $\mathsf{dig}_B(x^!)=x^{!!}$. | `der`, `dig`, `der_prom`, `dig_prom`, the comonad laws — `theories/homs/bang.v` |
+| Lem 9.4 | The natural iso $(B \Rightarrow (C \multimap D)) \simeq (C \multimap (B \Rightarrow D))$ ("swap a stable outer and a linear inner"). | `stab_lin_swap` (a fully spelled-out `icones_iso`; paper gives the map + "pattern seen many times", no proof) — `theories/stable/stab_lin_swap.v` |
+| Thm 9.5 | $(\mathbf{ICones}, \otimes, 1, !)$ is a **Seely category** (i.e. has the Seely isos $\mathsf{m}^2 : {!B_1} \otimes {!B_2} \simeq {!(B_1 \mathrel{\&} B_2)}$ and $\mathsf{m}^0 : 1 \simeq {!\top}$, and the comonad / SMC coherence). | `Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`, the full `SeelyCategory` record + the witness `ICones_Seely` — `theories/homs/seely.v` |
+| Thm 9.7 | For each $X \in \mathbf{Ar}$, $\mathsf{FMeas}(X)$ is a $!$-coalgebra (with structure map $\mathsf{h}_X(\mu) = \int_{r\in X} (\boldsymbol\delta^X(r))^! \,\mu(dr)$); the assignment $X \mapsto \mathsf{FMeas}(X)$ is a functor into $\mathbf{ICones}^!$. | `Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap` — `theories/homs/coalgebra.v` |
+| Sect 9.2 | Fixpoint combinator $\mathcal{Y}$ on the cartesian closed $\mathbf{SCones}$. | `Yfix`, `Yfix_fix` (the paper's CCC construction) — `theories/stable/fixpoint.v` |
 
 ### Linear exponential `!` (`Bang`, `nl`, `lin`, `lin_beta`, `lin_unique`)
+
+The linear exponential ${!B} = \mathsf{E}(B)$ is the object part of the left adjoint $\mathsf{E}$ of $\mathsf{Der} : \mathbf{ICones}\to\mathbf{SCones}$. Its universal property is the *universal nonlinear map* $\mathsf{nl}_B \in \mathbf{SCones}(B, {!B})$ (the unit of the adjunction): every stable map $f\in\mathbf{SCones}(B,C)$ factors as $f = \mathsf{der}(\phi)\circ\mathsf{nl}_B$ for a *unique* linear $\phi\in\mathbf{ICones}({!B},C)$, written $\mathsf{lin}\,f = \Theta^{-1}_{B,C}(f)$. Writing $x^! = \mathsf{nl}_B(x)$ for $x$ in the unit ball, this gives $f(x) = (\mathsf{lin}\,f)(x^!)$.
+
+> **Paper — §9** (arXiv 2212.02371, `sec:lin-nonlin-adj`). Let $\mathsf{E} : \mathbf{SCones}\to\mathbf{ICones}$ be the left adjoint of $\mathsf{Der}$, which exists by Theorem 4.19, and $\Theta_{B,C} : \mathbf{ICones}(\mathsf{E}B,C)\to\mathbf{SCones}(B,\mathsf{Der}\,C)=\mathbf{SCones}(B,C)$ the associated natural bijection (remember $\mathsf{Der}\,C=C$). Let $\mathsf{nl}_B=\Theta_{B,\mathsf{E}B}(\mathsf{Id}_{\mathsf{E}B})\in\mathbf{SCones}(B,{!B})$ be the unit of the adjunction, which is the "universal nonlinear map" on $B$ in the sense that for each integrable cone $C$ and each $f\in\mathbf{SCones}(B,C)$ one has $f=\phi\circ\mathsf{nl}_B$ for a unique $\phi\in\mathbf{ICones}({!B},C)$, namely $\phi=\Theta^{-1}_{B,C}(f)$. So that for $h\in\mathbf{ICones}({!B},C)$ one has $\Theta_{B,C}(h)=h\circ\mathsf{nl}_B$. For each $x\in\mathcal{B}\underline{B}$ we set $x^!=\mathsf{nl}_B(x)\in\mathcal{B}\underline{{!B}}$ so that, for $f\in\mathbf{SCones}(B,C)$, we have $f(x)=\Theta^{-1}_{B,C}(f)(x^!)$.
 
 ```coq
 (* theories/homs/exp_adjunction.v — Section ExpInterface,
    Variables (R : realType) (Ar : MeasSubcat R) *)
 
-(** [Bang B = E B = !B], the SAFT construction of [bang_construct.v]. *)
 Definition Bang (B : ICone.type Ar) : ICone.type Ar :=
   Icones_bang_construct.Bang B.
 
-(** Paper §9: [\Unistab_B], the unit / universal nonlinear map. *)
 Definition nl (B : ICone.type Ar) : scones_hom B (Bang B) :=
   Icones_bang_construct.nl B.
 
-(** Paper §9: [\Theta⁻¹ f], the unique linear factorisation of an
-    [f : scones_hom B C] through [nl B]. *)
 Definition lin (B C : ICone.type Ar) (f : scones_hom B C) :
     icones_hom Ar (Bang B) C :=
   Icones_bang_construct.lin f.
 
-(** β law: [ders (lin f) ∘ nl B = f] in [SCones]. *)
 Lemma lin_beta (B C : ICone.type Ar) (f : scones_hom B C) :
   scones_comp (ders (lin f)) (nl B) = f.
 
-(** Uniqueness: any linear [h : !B → C] factoring [f] through the unit
-    equals [lin f]. *)
 Lemma lin_unique (B C : ICone.type Ar) (f : scones_hom B C)
     (h : icones_hom Ar (Bang B) C) :
   scones_comp (ders h) (nl B) = f -> h = lin f.
@@ -1208,10 +1205,15 @@ Lemma lin_unique (B C : ICone.type Ar) (f : scones_hom B C)
 
 ### Comonad (`der`, `dig`, `Comonad`, `Bang_comonad`)
 
+The comonad induced on $\mathbf{ICones}$ by the linear-non-linear adjunction has counit $\mathsf{der}_B \in \mathbf{ICones}({!B}, B)$ (dereliction, characterised by $\mathsf{der}_B(x^!) = x$) and comultiplication $\mathsf{dig}_B = \mathsf{E}(\mathsf{nl}_B) \in \mathbf{ICones}({!B}, {!!B})$ (digging, characterised by $\mathsf{dig}_B(x^!) = x^{!!}$). The `Comonad` record bundles the endofunctor $!$ together with `der`, `dig` and the functor / comonad laws; `Bang_comonad` is the canonical, axiom-free witness on $\mathbf{ICones}$.
+
+> **Paper — §9** (arXiv 2212.02371, `sec:lin-nonlin-adj`). We use $(!, \mathsf{der}, \mathsf{dig})$ for the induced comonad on $\mathbf{ICones}$ whose Kleisli category is (equivalent to) $\mathbf{SCones}$. The counit $\mathsf{der}_B\in\mathbf{ICones}({!B},B)$ of the comonad ${!}\_$ is also the counit of the adjunction; it satisfies $\forall x\in\mathcal{B}\underline{B}\ \ \mathsf{der}_B(x^!)=x$. The comultiplication $\mathsf{dig}_B\in\mathbf{ICones}({!B},{!!B})$ is defined by $\mathsf{dig}_B=\mathsf{E}(\mathsf{nl}_B)$ so that $\forall x\in\mathcal{B}\underline{B}\ \ \mathsf{dig}_B(x^!)=x^{!!}$.
+
+> **Difference.** The paper obtains $!$, $\mathsf{der}$, $\mathsf{dig}$ from the abstract left adjoint $\mathsf{E}$; the formalization takes the same route but bundles the comonad as an explicit record `Comonad` (endofunctor + counit + comultiplication + laws) so that the Seely and coalgebra layers can quantify over it. The Kleisli-equivalence discussion is kept informal in the paper and is not part of the mechanised bundle.
+
 ```coq
 (* theories/homs/bang.v *)
 
-(** Counit [der] / dereliction.  [der B = lin id]. *)
 Definition der (B : ICone.type Ar) : icones_hom Ar (Bang Ar B) B :=
   lin (scones_id B).
 
@@ -1220,7 +1222,6 @@ Lemma der_prom (B : ICone.type Ar) (x : B) :
 Lemma der_nat (B C : ICone.type Ar) (f : icones_hom Ar B C) :
   icones_comp f (der B) = icones_comp (der C) (bang_fmap f).
 
-(** Comultiplication [dig].  [dig B = lin (nl_{!B} ∘ nl_B)]. *)
 Definition dig (B : ICone.type Ar) :
     icones_hom Ar (Bang Ar B) (Bang Ar (Bang Ar B)) :=
   lin (scones_comp (nl (Bang Ar B)) (nl B)).
@@ -1231,7 +1232,6 @@ Lemma dig_nat (B C : ICone.type Ar) (f : icones_hom Ar B C) :
   icones_comp (bang_fmap (bang_fmap f)) (dig B) =
   icones_comp (dig C) (bang_fmap f).
 
-(** Comonad record: object map, fmap, der, dig + functor / comonad laws. *)
 Record Comonad (R : realType) (Ar : MeasSubcat R) : Type :=
   MkComonad {
   cm_obj  : ICone.type Ar -> ICone.type Ar;
@@ -1250,7 +1250,6 @@ Record Comonad (R : realType) (Ar : MeasSubcat R) : Type :=
     icones_comp (cm_fmap (cm_dig B)) (cm_dig B);
 }.
 
-(** Paper §9: the canonical comonad on [ICones], axiom-free. *)
 Definition Bang_comonad (R : realType) (Ar : MeasSubcat R) : Comonad Ar :=
   {| cm_obj := @Bang R Ar;
      cm_fmap := @bang_fmap R Ar;
@@ -1261,10 +1260,13 @@ Definition Bang_comonad (R : realType) (Ar : MeasSubcat R) : Comonad Ar :=
 
 ### Lem 9.4 (`stab_lin_swap`)
 
+The *stable/linear swap* isomorphism exchanges a stable outer argument and a linear inner one: $(B \Rightarrow (C \multimap D)) \simeq (C \multimap (B \Rightarrow D))$, natural in $B$, $C$, $D$, sending $f$ to $\boldsymbol\lambda y\in\underline{C}\cdot\boldsymbol\lambda x\in\mathcal{B}\underline{B}\cdot f(x,y)$. It is the key ingredient in deriving the binary Seely iso. The paper gives only the map and calls the verification "a pattern seen many times"; the formalization spells out both directions and the cancellation proofs as a full `icones_iso`.
+
+> **Paper — Lemma 9.4** (arXiv 2212.02371, `lemma:stab-lin-swap`). Let $B,C,D$ be integrable cones. There is an isomorphism in $\mathbf{ICones}$ from $L(B,C,D)=(B\Rightarrow(C\multimap D))$ to $R(B,C,D)=(C\multimap(B\Rightarrow D))$ which is natural in $B$, $C$ and $D$. The natural isomorphism maps $f\in\underline{B\Rightarrow(C\multimap D)}$ to $\boldsymbol\lambda y\in\underline{C}\cdot\boldsymbol\lambda x\in\mathcal{B}\underline{B}\cdot f(x,y)$.
+
 ```coq
 (* theories/stable/stab_lin_swap.v — Section variables B C D : ICone.type Ar *)
 
-(** Paper Lemma 9.4 — the [stab/lin] swap iso. *)
 Definition stab_lin_swap :
     icones_iso Ar (stablehom B (linhom_car Ar C D))
                   (linhom_car Ar C (stablehom B D)) :=
@@ -1283,10 +1285,15 @@ Lemma stab_lin_swap_bwdE (g : linhom_car Ar C (stablehom B D))
 
 ### Thm 9.5 (`Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`, `SeelyCategory`, `ICones_Seely`)
 
+Equipped with the strong monoidal comonad $!$, the SMCC $\mathbf{ICones}$ is a **Seely category**. Concretely, there are natural isos $\mathsf{m}^2_{B_1,B_2} : {!B_1}\otimes{!B_2}\simeq{!(B_1\mathrel{\&}B_2)}$ characterised by $\mathsf{m}^2_{B_1,B_2}(x_1^!\otimes x_2^!)=\langle x_1,x_2\rangle^!$, and $\mathsf{m}^0 : 1\simeq{!\top}$ characterised by $\mathsf{m}^0(t)=t\cdot 0^!$, together with the required comonad / SMC coherence diagrams. The `SeelyCategory` record bundles the SMCC, the comonad, the two Seely isos with their characterisations and naturality, and the coherence witnesses; `ICones_Seely` is the canonical, axiom-free instance.
+
+> **Paper — Theorem 9.5** (arXiv 2212.02371). Equipped with the strong monoidal comonad $!$, the category $\mathbf{ICones}$ is a Seely category in the sense of Melliès.
+
+> **Paper — §9** (arXiv 2212.02371, `sec:lin-nonlin-adj`). There is a natural isomorphism $\mathsf{m}^2_{B_1,B_2}$ in $\mathbf{ICones}({!B_1}\otimes{!B_2},{!(B_1\mathrel{\&}B_2)})$ which satisfies $\mathsf{m}^2_{B_1,B_2}(x_1^!\otimes x_2^!)=\langle x_1,x_2\rangle^!$ (this equation fully characterizes $\mathsf{m}^2_{B_1,B_2}$ by Lemma 9.2). Similarly we define an iso $\mathsf{m}^0\in\mathbf{ICones}(1,{!\top})$ such that $\mathsf{m}^0(t)=t\,0^!$ for all $t\in\mathbb{R}_{\geq 0}$.
+
 ```coq
 (* theories/homs/seely.v *)
 
-(** Paper §9: the binary Seely iso [!B1 ⊗ !B2 ≅ !(B1 & B2)]. *)
 Definition Seely2 : icones_iso Ar (tensor Ar (Bang Ar B1) (Bang Ar B2))
                                    (Bang Ar (sprod B1 B2)) :=
   icones_isoP S2fwd S2bwd S2_fwdK S2_bwdK.
@@ -1301,7 +1308,6 @@ Lemma Seely2_natural (B1 B2 B1' B2' : ICone.type Ar)
   icones_comp (iso_fwd (Seely2 B1' B2'))
               (tensor_mor (bang_fmap f1) (bang_fmap f2)).
 
-(** The unit Seely iso [1 ≃ !⊤]. *)
 Definition Seely0 : icones_iso Ar (cone_one_car Ar) (Bang Ar (Stop Ar)) :=
   co_yoneda_iso psi0 psiV0 psi0K psiV0K psi0_nat psiV0_nat.
 
@@ -1309,7 +1315,6 @@ Lemma Seely0E (t : cone_one_car Ar) :
   iso_fwd Seely0 t =
   precone_scale (c1_val t) (prom (precone_zero : Stop Ar)).
 
-(** Paper Thm 9.5: the Seely-category bundle (record fields elided). *)
 Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
   MkSeelyCategory {
   sc_smcc       : ICones_SMCC Ar;
@@ -1326,7 +1331,6 @@ Record SeelyCategory (R : realType) (Ar : MeasSubcat R) : Type :=
   sc_der_unit sc_der1 sc_der2 : (* counit compatibility *) _;
 }.
 
-(** Paper §9: the canonical Seely structure on [ICones], axiom-free. *)
 Definition ICones_Seely (R : realType) (Ar : MeasSubcat R) :
     SeelyCategory Ar :=
   {| sc_smcc       := ICones_smcc Ar;
@@ -1343,10 +1347,15 @@ Definition ICones_Seely (R : realType) (Ar : MeasSubcat R) :
 
 ### Thm 9.7 (`Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap`)
 
+For each $X\in\mathbf{Ar}$, the finite-measure cone $\mathsf{FMeas}(X)$ carries a $!$-coalgebra structure $\mathsf{h}_X\in\mathbf{ICones}(\mathsf{FMeas}(X),{!\mathsf{FMeas}(X)})$, defined via Theorem 6.1 as the integral of the Dirac path composed with the universal nonlinear map, so $\mathsf{h}_X(\mu)=\int_{r\in X}(\boldsymbol\delta^X(r))^!\,\mu(dr)$ and $\mathsf{h}_X(\boldsymbol\delta^X(r))=(\boldsymbol\delta^X(r))^!$. The coalgebra laws follow because the two sides agree on all Dirac measures (`dirac_dense`, paper Theorem 6.2), which are norm-dense. The assignment $X\mapsto\mathsf{FMeas}(X)$ then extends to a functor $\mathbf{Ar}\to\mathbf{ICones}^!$ acting on morphisms by pushforward $\mathsf{FMeas}(\phi)=\phi_\ast$.
+
+> **Paper — Theorem 9.7** (arXiv 2212.02371, `th:meas-cone-coalgebra-stab`). Equipped with $\mathsf{h}_X$, the object $\mathsf{FMeas}(X)$ of $\mathbf{ICones}$ is a coalgebra of the comonad ${!}\_$. Moreover for each $\phi\in\mathbf{Ar}(X,Y)$, we have $\mathsf{FMeas}(\phi)=\phi_\ast\in\mathbf{ICones}^!(\mathsf{FMeas}(X),\mathsf{FMeas}(Y))$ so that $\mathsf{FMeas}$ is a functor $\mathbf{Ar}\to\mathbf{ICones}^!$.
+
+> **Paper — §9** (arXiv 2212.02371, `sec:stable-exp-meas-coalg`). We define $\mathsf{h}_X=\mathcal{I}^{{!\mathsf{FMeas}(X)}}_X(\mathsf{nl}_{\mathsf{FMeas}(X)}\circ\boldsymbol\delta^X)\in\mathbf{ICones}(\mathsf{FMeas}(X),{!\mathsf{FMeas}(X)})$ using Theorem 6.1. In other words $\mathsf{h}_X(\mu)=\int_{r\in X}(\boldsymbol\delta^X(r))^!\,\mu(dr)$ and it satisfies $\mathsf{h}_X(\boldsymbol\delta^X(r))=(\boldsymbol\delta^X(r))^!$.
+
 ```coq
 (* theories/homs/coalgebra.v *)
 
-(** A [!]-coalgebra. *)
 Record Coalgebra : Type := MkCoalgebra {
   coalg_obj    : ICone.type Ar;
   coalg_str    : icones_hom Ar coalg_obj (Bg coalg_obj);
@@ -1357,27 +1366,21 @@ Record Coalgebra : Type := MkCoalgebra {
     icones_comp (bang_fmap coalg_str) coalg_str;
 }.
 
-(** The structure map [Coalg_X(µ) = ∫_r (δ_r)! dµ] as an [icones_hom]. *)
 Definition Coalg (X : ar_obj Ar) :
     icones_hom Ar (FMeas X) (Bang Ar (FMeas X)) :=
   linhom_icones (int_to_linhom (bang_dirac_path X)) (Coalg_norm_le1 X).
 
-(** Computation law: [Coalg_X(δ_X r) = (δ_X r)!]. *)
 Lemma Coalg_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
   Lfun (Coalg X) (dirac_fmeas r) = prom (dirac_fmeas r).
 
-(** Two [icones_hom] out of [FMeas X] agreeing on every Dirac are equal. *)
 Lemma dirac_dense (X : ar_obj Ar) (B : ICone.type Ar)
     (f g : icones_hom Ar (FMeas X) B) :
   (forall r, Lfun f (dirac_fmeas r) = Lfun g (dirac_fmeas r)) ->
   f = g.
 
-(** The [!]-coalgebra carried by [FMeas X] — paper Theorem 9.7. *)
 Definition FMeas_coalgebra (X : ar_obj Ar) : Coalgebra Ar :=
   MkCoalgebra (Coalg_counit X) (Coalg_coassoc X).
 
-(** The functorial action [FMeas(φ)] on [ar_hom] — the pushforward,
-    realised via Theorem 6.1. *)
 Definition FMeas_fmap (X Y : ar_obj Ar) (φ : ar_hom Ar X Y) :
     icones_hom Ar (FMeas X) (FMeas Y) :=
   linhom_icones (int_to_linhom (push_dirac_path φ)) (FMeas_fmap_norm_le1 φ).
