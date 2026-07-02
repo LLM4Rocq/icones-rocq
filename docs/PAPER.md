@@ -1721,7 +1721,7 @@ results:
    `theories/kernels/kernel_embedding.v`) — the embedding theorem; the
    regression anchor of the whole tree.
 2. **Theorem 5.15** (`ICones_smcc` in `theories/homs/smcc.v`) — the linear
-   logic core: `(ICones, ⊗, 1)` is a SMCC.
+   logic core: $(\mathbf{ICones}, \otimes, \mathbf{1})$ is a SMCC.
 3. **Theorem 7.32** (`SCones_ccc` in `theories/stable/scones_ccc.v`) — the
    cartesian closed `SCones`.
 4. **Theorem 9.5** (`ICones_Seely` in `theories/homs/seely.v`) — the Seely
