@@ -770,6 +770,26 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 .note-info    { border-left-color: var(--status-beyond-paper-bg); }
 .note-success { border-left-color: var(--status-axiom-free-bg); }
 
+/* Grounding notes highlighted apart (kind set by parser push_note):
+   the paper's exact statement (blue, "the source") vs. the difference note
+   (amber, "how the formalization diverges"). */
+.note-paper {
+  border-left-width: 4px;
+  border-left-color: var(--status-beyond-paper-bg);
+  background: color-mix(in srgb, var(--status-beyond-paper-bg) 10%, var(--bg-soft));
+}
+.note-paper .note-body > p:first-child > strong:first-child {
+  color: var(--status-beyond-paper-bg);
+}
+.note-difference {
+  border-left-width: 4px;
+  border-left-color: var(--status-gap-bg);
+  background: color-mix(in srgb, var(--status-gap-bg) 12%, var(--bg-soft));
+}
+.note-difference .note-body > p:first-child > strong:first-child {
+  color: var(--status-gap-bg);
+}
+
 /* ============================================================ Status badges */
 
 .badges { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }

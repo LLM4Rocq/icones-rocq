@@ -349,7 +349,18 @@ def group(tokens: list[Token], source: str) -> list[_H2Block]:
         html = html.strip()
         if not html:
             return
-        nb = NoteBlock(kind="note", html=html)
+        # Kind from the blockquote's leading bold label, so the paper's
+        # original statement and the difference note are highlighted apart:
+        # "**Paper ...**" -> paper, "**Difference ...**" -> difference.
+        kind = "note"
+        _lead = re.search(r"<strong>\s*([^<]+?)\s*</strong>", html)
+        if _lead:
+            _label = _lead.group(1).lower()
+            if _label.startswith("paper"):
+                kind = "paper"
+            elif _label.startswith("difference"):
+                kind = "difference"
+        nb = NoteBlock(kind=kind, html=html)
         if current_h3 is not None:
             current_h3.notes.append(nb)
         else:
