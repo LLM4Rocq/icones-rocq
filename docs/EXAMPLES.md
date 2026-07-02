@@ -1,26 +1,26 @@
 # End-to-end PPL example programs
 
 Each surface program of `theories/programs/examples.v` is reproduced
-here together with its correctness identities, all proved against the
+here with its correctness identities, all proved against the
 call-by-value interpreter `eD` of `theories/programs/ppl_cbv.v`. The
 programs are written in the direct-style `ppl_named` custom entry of
 `theories/programs/ppl.v` (brackets `[ … ]` enter the entry; curly
-braces `{ x }` escape back to plain Rocq), and together they exercise
+braces `{ x }` escape back to plain Rocq), and together exercise
 every constructor of the language.
 
 The centrepiece is the conditioning/rejection pair. `condition f m`
 (`ne_condition`) is the Pyro-style soft conditioning operator: run the
 model, keep the output with the acceptance probability of a program
 predicate `f`, return it. `reject f m` (`ne_reject`) is the executable
-sampler for the same target: run the model, accept the output with that
+sampler for the same target: run the model, accept with that
 probability, retry on rejection. Both live in
 `theories/programs/reject_condition.v`, built from `fix` / `\` / `@` /
 `if` / `()` / `let` alone. The theorem `reject_normalises_condition`
 (`theories/programs/ex_reject_model.v`) states that rejection sampling
 computes the conditioned model's normalised distribution:
-*Z · ⟦reject f m⟧ U = ⟦condition f m⟧ U* with
-*Z := 1 − ν_M(setT) + ∫ t dν_M*, for an arbitrary probabilistic model —
-a function value that is itself free to contain samples, scores and
+$Z \cdot \llbracket \mathtt{reject}\,f\,m \rrbracket\,U = \llbracket \mathtt{condition}\,f\,m \rrbracket\,U$
+with $Z := 1 - \nu_M(\mathtt{setT}) + \int t\,d\nu_M$, for an arbitrary
+probabilistic model — a function value that is itself free to contain samples, scores and
 recursion. Its sampler instance recovers textbook rejection sampling
 (`ex_reject_comb_sampler_master`).
 
@@ -47,7 +47,7 @@ and demoed end to end by `ex_surface_demo` / `ex_surface_walk`
   test-function coin, folding the `po_into` factoring of a bundled
   `f : testfn` into `ptest`.)
 - **Conditioning:** the Bayesian-conditioning operator
-  `observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`, and the
+  `observe Gaussian e { s } y` $\equiv$ `Score (Gausslik e { s , y })`, and the
   `reject` / `condition` combinators over a program predicate
   (`theories/programs/reject_condition.v`).
 - **Application and distributions:** measurable function application
@@ -56,7 +56,7 @@ and demoed end to end by `ex_surface_demo` / `ex_surface_walk`
   and the comparison coin `e1 > e2`.
 - **Binders:** OCaml-style `let rec`.
 
-The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
+The paper-side correspondence (§§ 2–9 $\leftrightarrow$ Rocq) lives on the
 [Paper tab](../paper/); the PPL infrastructure (the surface
 inductive, the CBV interpretation, the fixpoint machinery, the
 semantic laws) lives on the [PPL tab](../ppl/). This document covers
@@ -111,7 +111,7 @@ the matching distribution, proved in
 `theories/programs/infra/kernel_anchors.v`). Every proof takes the
 same route: the let-at-sample integral law `eD_let_sample_int`
 (`theories/programs/infra/let_sample_law.v`) turns each
-`let x = sample µ in …` prefix into a Pettis integral over Diracs of
+$\mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ \dots$ prefix into a Pettis integral over Diracs of
 the prior; dereliction and evaluation at setlike test points push
 inside the integral; the integrand computes pointwise down to a
 Dirac integral.
@@ -127,7 +127,7 @@ the prior $\mu$.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_random_constant`) | `let c := sample µ in λx. c` of type `tfun tR tR`: a distribution over a constant-output function space. | `ex_random_constant` — `theories/programs/examples.v` |
+| Def (`ex_random_constant`) | $\mathtt{let}\ c := \mathtt{sample}\ \mu\ \mathtt{in}\ \lambda x.\, c$ of type `tfun tR tR`: a distribution over a constant-output function space. | `ex_random_constant` — `theories/programs/examples.v` |
 | Thm (`ex_random_constant_cbv_marginal`) | Derelicting the denotation and evaluating at any *probability* test point $x$ ($\mathtt{fmeas\_mu}\ x\ \mathtt{setT} = 1$) recovers the prior $\mu$, uniformly in the test point. | `ex_random_constant_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
 | Cor (`ex_random_constant_cbv_marginal_dirac`) | At a Dirac test point $\delta_{r_0}$ the marginal is the prior — Diracs are probabilities. | `ex_random_constant_cbv_marginal_dirac` — same file |
 | Cor (`ex_random_constant_cbv_marginal_mass`) | The marginal's measure of every measurable $U$ equals $\mu(U)$. | `ex_random_constant_cbv_marginal_mass` — same file |
@@ -197,7 +197,7 @@ that program is literally `let "f" := ex_random_linear in …`.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_random_linear`) | `let m := sample µ in let b := sample µ in λx. m·x + b` of type `tfun tR tR`: a random affine function, slope and intercept drawn independently from the prior. | `ex_random_linear` — `theories/programs/examples.v` |
+| Def (`ex_random_linear`) | $\mathtt{let}\ m := \mathtt{sample}\ \mu\ \mathtt{in}\ \mathtt{let}\ b := \mathtt{sample}\ \mu\ \mathtt{in}\ \lambda x.\, m\cdot x + b$ of type `tfun tR tR`: a random affine function, slope and intercept drawn independently from the prior. | `ex_random_linear` — `theories/programs/examples.v` |
 | Thm (`ex_random_linear_cbv_marginal`) | Derelicted and evaluated at a Dirac test point $\delta_{r_0}$, the denotation's measure of every measurable $U$ is the iterated integral $\int\!\!\int \delta_{m\cdot r_0+b}(U)\, \mu(db)\, \mu(dm)$. | `ex_random_linear_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
 | Lem (`rl_inner_marginal`) | The inner continuation (one sample left) marginalises to a single integral over the intercept. | `rl_inner_marginal` — same file |
 
@@ -269,7 +269,7 @@ closing section) connects the two exactly.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_score_posterior`) | `let m := sample µ in let _ := Score (test f #"m") in #"m"` of type `tR`: sample, score the parameter by the abstract test-function coin `test f` of the bundled `f : testfn`, return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
+| Def (`ex_score_posterior`) | $\mathtt{let}\ m := \mathtt{sample}\ \mu\ \mathtt{in}\ \mathtt{let}\ \_ := \mathtt{Score}\ (\mathtt{test}\ f\ \#\mathtt{"m"})\ \mathtt{in}\ \#\mathtt{"m"}$ of type `tR`: sample, score the parameter by the abstract test-function coin `test f` of the bundled `f : testfn`, return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
 | Thm (`ex_score_posterior_cbv_E`) | The denotation's measure of every measurable $U$ is $\int_U f\, d\mu$ — the prior reweighted by the density, unnormalised. | `ex_score_posterior_cbv_E` — `theories/programs/infra/cbv_marginals.v` |
 | Cor (`ex_score_posterior_cbv_mass`) | The total mass of the denotation is the evidence $\int f\, d\mu$. | `ex_score_posterior_cbv_mass` — same file |
 
@@ -332,7 +332,7 @@ envelope-normalised Gaussian likelihood
 `obs_d o := gauss_obs_density (1/2) (obs_y o)`, i.e.
 $\mathtt{obs\_d}\ o\ r = \mathtt{normal\_pdf}\ r\ (1/2)\ (\mathtt{obs\_y}\ o) / \mathtt{normal\_peak}\ (1/2) \in [0,1]$
 (`theories/programs/ppl.v`) — surface form
-`observe Gaussian (#"f" @ [|obs_x o|]) { 1/2 } (obs_y o) ≡ Score (Gausslik (#"f" @ [|obs_x o|]) { 1/2 , obs_y o })`
+`observe Gaussian (#"f" @ [|obs_x o|]) { 1/2 } (obs_y o)` $\equiv$ `Score (Gausslik (#"f" @ [|obs_x o|]) { 1/2 , obs_y o })`
 (mean expression first, then `{ stddev }`, then the observed datum).
 The peak is intrinsic to the distribution, so the observation carries
 no user-supplied envelope. Conditioning is a score: the model's value
@@ -690,7 +690,7 @@ where `ex_even_run := ne_app ex_even ne_tt` — certain divergence, since
 
 The accuracy point: the **pair** denotation is *not* the cone-zero.
 `ex_even_odd_pair_cbv_value` shows the pair value is
-`(precone_zero : L)! ⊗p (precone_zero : L)!` — a pair of
+$(\mathtt{precone\_zero} : L)! \otimes_{\mathrm p} (\mathtt{precone\_zero} : L)!$ — a pair of
 *promoted-zero functions* $0!\otimes_{\mathrm p}0!$, the backward Seely
 transport of the promoted base-cone zero, which is provably never the
 cone-zero (`eD_fix_mr_prod_at_setlike_neq0`,
@@ -789,8 +789,8 @@ retries with a fresh run — a loop that may run forever, so termination is
 a theorem, not an assumption.
 
 The acceptance test is **itself a program**, a predicate
-`f : b → tbool` on the output value, passed as an argument like the model
-`m : a → b`. Applying it is ordinary application `# "f" @ # "x"` — no
+$f : b \to \mathtt{tbool}$ on the output value, passed as an argument like the model
+$m : a \to b$. Applying it is ordinary application `# "f" @ # "x"` — no
 lift node, no `ne_test`. Since `tbool` is not `bool` but a point of the
 2-point sub-probability cone `bool_cone_car`, $\llbracket f\,x\rrbracket$
 is the *acceptance distribution* at $x$, and its true-mass
@@ -830,9 +830,9 @@ standalone sampler regression anchor in
 > **Key result:** `reject` and `condition` are the *same program modulo the else-branch* — `reject` retries a rejected draw, `condition` gives up (runs `ne_fail`, which zeroes the mass). Both are built from `fix` / `\` / `@` / `if` / `()` / `let` alone.
 
 Both combinators are closed programs of type
-`(b → tbool) → (a → b) → (a → b)`, for arbitrary PPL input and return
-objects `a`, `b`. They take a **program predicate** `f : b → tbool` and a
-model `m : a → b`, both as program arguments, and use only
+$(b \to \mathtt{tbool}) \to (a \to b) \to (a \to b)$, for arbitrary PPL input and return
+objects `a`, `b`. They take a **program predicate** $f : b \to \mathtt{tbool}$ and a
+model $m : a \to b$, both as program arguments, and use only
 `fix` / `\` / `@` / `if` / `()` / `let` — no `ne_test`, no coin, no
 `Score`. They differ only in the else-branch: `reject` retries a rejected
 draw, `condition` gives up (runs `fail`, which zeroes the mass).
@@ -874,7 +874,7 @@ Definition ne_assert {G : named_ctx Ar} : nexpr G (tfun tbool tunit) :=
   [ \ "b" ::: tbool => (if # "b" then () else { ne_fail }) ].
 ```
 
-In surface form, both of type `(b → tbool) → (a → b) → (a → b)`:
+In surface form, both of type $(b \to \mathtt{tbool}) \to (a \to b) \to (a \to b)$:
 $$\texttt{reject} = \lambda f.\ \texttt{fix}\ rx.\ \lambda m.\ \lambda a.\ \texttt{let}\ x = m\,a\ \texttt{in}\ \texttt{if}\ (f\,x)\ \texttt{then}\ x\ \texttt{else}\ rx\,m\,a$$
 $$\texttt{condition} = \lambda f.\ \lambda m.\ \lambda a.\ \texttt{let}\ x = m\,a\ \texttt{in}\ \texttt{let}\ \_ = \texttt{assert}\,(f\,x)\ \texttt{in}\ x$$
 The give-up term $\texttt{fail} = (\texttt{fix}\ \texttt{fail}.\ \lambda().\ \texttt{fail}\,())\,()$
@@ -1040,7 +1040,7 @@ over the carrier and $\int_U t\,d\nu_M$ over $U$.)
 Proof idea, in six steps (`theories/programs/ex_reject_model.v`):
 
 1. `reject_comb_val_E` / `reject_after_f_val_E` / `reject_model_app_E`
-   — the closed program denotes the promoted `λf`-then-`fix "rx"` value,
+   — the closed program denotes the promoted $\lambda f$-then-`fix "rx"` value,
    read at setlike base environment $1 \otimes \texttt{fpred!}$; the three
    CBV applications (predicate `fpred!`, model `g!`, input $a_0$) strip
    promotions by $\texttt{der} \circ \texttt{prom}$ cancellation before
@@ -1097,7 +1097,7 @@ Theorem reject_prog_master U (mU : measurable U) :
 ```
 
 **Object-generic core.** The theorems above are stated over an
-*arbitrary* return object `B` — a model `m : a → b` for any PPL types
+*arbitrary* return object `B` — a model $m : a \to b$ for any PPL types
 `a`, `b` — with acceptance scalar
 $t(x) = (\texttt{bc\_t}\,(\texttt{sdist}\,x))\%{:}\texttt{num}$ read off
 the program predicate. The `RejectModelCompat` anchors of this chapter
@@ -1370,4 +1370,4 @@ name, file, and a GitHub link to the Rocq source.
 
 For the underlying surface inductive and the CBV interpretation, see
 the [PPL tab](../ppl/). For the paper-side
-correspondence (§§ 2–9 ↔ Rocq), see the [Paper tab](../paper/).
+correspondence (§§ 2–9 $\leftrightarrow$ Rocq), see the [Paper tab](../paper/).

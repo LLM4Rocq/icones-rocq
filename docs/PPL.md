@@ -17,11 +17,11 @@ no `bind`. A call-by-name interpretation of the same surface syntax
 `cbn-track` branch; main is CBV-only. Examples are listed in the
 [Examples tab](../examples/).
 
-The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
+The paper-side correspondence (§§ 2–9 $\leftrightarrow$ Rocq) lives on the
 [Paper tab](../paper/). This document covers what sits *above* the
 paper: the surface language, its CBV interpretation, the fixpoint
-and integral-law infrastructure, and the semantic correctness
-statements one can make at the categorical level.
+and integral-law infrastructure, and the categorical-level correctness
+statements.
 
 ---
 
@@ -29,7 +29,7 @@ statements one can make at the categorical level.
 
 - [The surface language](../../ppl/chapters/ppl-ch-the-surface-language.html) — the intrinsically-typed syntax, the `tProb` probability type, and the witness-free surface forms.
 - [Call-by-value interpretation](../../ppl/chapters/ppl-ch-call-by-value-interpretation-linhom-comonoid.html) — `eD`, the linhom + comonoid interpreter, clause by clause.
-- [The SCones↔ICones-tensor bilinear stability bridge](../../ppl/chapters/ppl-ch-the-sconesicones-tensor-bilinear-stability-bridge.html) — the `stable/` infrastructure the value-fixpoint consumes.
+- [The SCones $\leftrightarrow$ ICones-tensor bilinear stability bridge](../../ppl/chapters/ppl-ch-the-scones-leftrightarrow-icones-tensor-bilinear-stability-bridge.html) — the `stable/` infrastructure the value-fixpoint consumes.
 - [The CBV value-fixpoint at function types](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html) — `fix_comb`, its seeded Kleene core, and the mutual-recursion transport.
 - [CBV semantic laws and regression anchors](../../ppl/chapters/ppl-ch-cbv-semantic-laws-and-regression-anchors.html) — the equational layer and the marginal / conditioning results.
 - [The boolean cascade](../../ppl/chapters/ppl-ch-the-boolean-cascade.html) — the 2-point cone and its §9.7 coalgebra.
@@ -43,7 +43,7 @@ scoring, recursion at function type, a two-point boolean type, and
 mutual recursion at any free-coalgebra type. Its syntax is one
 intrinsically-typed inductive `named_expr` $\Gamma\ \tau$ in
 named-variable style, indexed by a *named* context
-`named_ctx` $=$ `seq (string × ppl_type)`, and consumed by the CBV
+`named_ctx` $=$ `seq (string * ppl_type)`, and consumed by the CBV
 interpretation `eD` of the next chapter. This chapter covers the
 constructor groups of the inductive, the canonical-structure machinery
 behind variable lookup, and the two notation layers: the kernel
@@ -279,7 +279,7 @@ measures, in four beats.
   k(x)(U)\,\nu(dx)$), `kernel_lift_mass` (pointwise-mass-1 kernels
   preserve total mass) and `kernel_lift_dirac`
   ($\mathtt{kernel\_lift}\ k\ \delta_x = k(x)$).
-- *Two arguments.* `kernel_lift2 k := kernel_lift k ∘ fmeas_lax` makes
+- *Two arguments.* $\mathtt{kernel\_lift2}\ k := \mathtt{kernel\_lift}\ k \circ \mathtt{fmeas\_lax}$ makes
   the tensored argument pair a joint measure on the product object —
   exactly the `add_lift` / `mul_lift` route — with `kernel_lift2_dirac`
   and the product-mass law `kernel_lift2_mass`.
@@ -669,25 +669,25 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
 ### Def 1.19 — Reject/condition combinators (`ne_reject`, `ne_condition`)
 
 Rejection sampling and conditioning are two closed combinators whose
-**acceptance test is itself a program** — a predicate `f :` `b` $\to$
-`tbool` on the model's output value, supplied as an argument exactly
-like the model `m :` `a` $\to$ `b`. Applying the test is then ordinary
-object-language application `# "f" @ # "x"`: no lift node and no
-`ne_test` (both deleted — the constructor, its `eD_cbv` clause, the
-`TestTmLiftG` section, and the `Test{…}` notation are all gone).
+**acceptance test is itself a program** — a predicate $f : b \to
+\mathtt{tbool}$ on the model's output value, supplied as an argument like
+the model $m : a \to b$. Applying the test is ordinary object-language
+application `# "f" @ # "x"`: no lift node, no `ne_test` (both deleted —
+the constructor, its `eD_cbv` clause, the `TestTmLiftG` section, and the
+`Test{…}` notation are all gone).
 
-The one fact that makes this work is that **`tbool` is not `bool`**: it
-denotes a point of the 2-point sub-probability cone
-(`tyD_cbv tbool = bool_cone_car`), a sub-distribution over $\{\mathtt{true},
-\mathtt{false}\}$. So $\llbracket f\,x \rrbracket$ is the *acceptance
-distribution* at $x$, and its true-mass $t(x) := (\mathtt{bc\_t}\
-\llbracket f\,x \rrbracket)\%\mathtt{:num} \in [0,1]$ is the acceptance
-probability — the only quantity the combinators read. Two regimes, one
-mechanism: when `f` is **deterministic** ($\llbracket f\,x \rrbracket$
-a Dirac) $t = \mathbf{1}_A$ is the indicator of the accept set $A := \{
-x \mid f\,x = \mathtt{true} \}$ (hard conditioning); when `f` is a
-**coin** ($\llbracket f\,x \rrbracket$ non-Dirac) $t$ is a density (soft
-conditioning).
+What makes this work is that **`tbool` is not `bool`**: it denotes a
+point of the 2-point sub-probability cone
+(`tyD_cbv tbool = bool_cone_car`), a sub-distribution over
+$\{\mathtt{true}, \mathtt{false}\}$. So $\llbracket f\,x \rrbracket$ is
+the *acceptance distribution* at $x$, and its true-mass $t(x) :=
+(\mathtt{bc\_t}\ \llbracket f\,x \rrbracket)\%\mathtt{:num} \in [0,1]$ is
+the acceptance probability — the only quantity the combinators read. Two
+regimes, one mechanism: a **deterministic** `f` ($\llbracket f\,x
+\rrbracket$ a Dirac) gives $t = \mathbf{1}_A$, the indicator of the
+accept set $A := \{ x \mid f\,x = \mathtt{true} \}$ (hard conditioning);
+a **coin** `f` ($\llbracket f\,x \rrbracket$ non-Dirac) gives a density
+$t$ (soft conditioning).
 
 `Bernoulli` still names a genuine coin and `Score` a genuine density
 reweight — both remain primitives for *building* models and predicates
@@ -722,10 +722,9 @@ Definition ne_condition :
 
 ### Law 1.20 — Scores, densities, and the sub-probability boundary (`ne_score`, `score_lift`)
 
-This is a sub-probability model, and that fixes exactly which scores it
-can express. Every morphism of $\mathbf{ICone}$ is non-expansive: the
-`cones_hom` record carries a norm-bound field, so a map never increases
-mass.
+This sub-probability model fixes exactly which scores it can express.
+Every morphism of $\mathbf{ICone}$ is non-expansive — the `cones_hom`
+record carries a norm-bound field, so a map never increases mass.
 
 ```coq
 (* theories/cones/cone_cat.v *)
@@ -746,13 +745,12 @@ That is the source of the `forall r, f r <= 1` witness on `ne_score` and
 `ne_bernoulli_f`: not a modelling convenience but the condition for the
 score to be a morphism at all.
 
-The distinction that matters in practice is between *sampling* and
-*observing*. Sampling is always fine: `sample (gaussian m s)` denotes a
-probability measure of mass $1$, a good morphism for every $m$ and $s$.
-Observing — scoring by a density, `observe Gaussian e {s} y` weighing
-the trace by the Gaussian likelihood of `y` — is the constrained
-operation, a morphism only while the weight stays in $[0,1]$. The line
-that matters is **bounded vs unbounded**.
+The practical distinction is *sampling* vs *observing*. Sampling is
+always fine: `sample (gaussian m s)` denotes a probability measure of
+mass $1$, a morphism for every $m$ and $s$. Observing — scoring by a
+density, `observe Gaussian e {s} y` weighing the trace by the Gaussian
+likelihood of `y` — is a morphism only while the weight stays in
+$[0,1]$. The line that matters is **bounded vs unbounded**.
 
 A **bounded** likelihood is always conditionable, and `observe` does
 exactly this. $N(\mu, \sigma)$ peaks at its intrinsic peak
@@ -763,7 +761,7 @@ a finite bound, and dividing by it gives the legal weight
 $\mathtt{gauss\_obs\_density}\ \sigma\ y = \mathtt{normal\_pdf}\ \mu\
 \sigma\ y\,/\,\mathtt{normal\_peak}\ \sigma \in [0,1]$ — a map into the
 $[0,1]$ object `po_obj P`, factored through the bundle inclusion by
-`po_into`. This is exactly what `Gausslik e { σ , y }` (hence `observe`)
+`po_into`. This is exactly what `Gausslik e {` $\sigma$ `, y }` (hence `observe`)
 scores by — no user-supplied envelope, the peak is intrinsic to the
 distribution. The normaliser cancels in the posterior: the conditioned
 distribution $\int_U f\,d\nu \,/ \int f\,d\nu$ is independent of any
@@ -772,22 +770,21 @@ changes the total evidence but never the posterior. The same holds for
 the conditioning/rejection pair, where dividing by the peak is classical
 rejection sampling with that envelope.
 
-Only a **genuinely unbounded** family is out of scope. When a density
-has no finite peak — a Gaussian with $\sigma$ free to approach $0$, a
-likelihood that can be arbitrarily sharp — no normalisation brings it
-inside the unit ball, so the observation is not a morphism of
-$\mathbf{ICone}$ and has no denotation here. This is a property of every
-sub-probability model, integrable cones and probabilistic coherence
-spaces alike, not of the encoding.
+Only a **genuinely unbounded** family is out of scope. With no finite
+peak — a Gaussian with $\sigma$ free to approach $0$, an arbitrarily
+sharp likelihood — no normalisation brings the density inside the unit
+ball, so the observation is not a morphism of $\mathbf{ICone}$ and has
+no denotation here. This holds of every sub-probability model, integrable
+cones and probabilistic coherence spaces alike, not of the encoding.
 
-The semantics designed to score by arbitrary unbounded weights is the
+The model designed to score by arbitrary unbounded weights is the
 *s-finite kernel* model (Staton and collaborators): it drops the norm
 bound and lets $\mathtt{score}\ w$ denote a measure of any finite mass.
-The cone model makes the opposite trade — it keeps the sub-probability
-discipline and, in return, carries the higher-order and analytic
-structure (the $!$ comonad, the Seely and Eilenberg–Moore development)
-that the kernel model does not. An `observe` with an unbounded density
-is the price of that structure.
+The cone model makes the opposite trade — keeping the sub-probability
+discipline, it carries the higher-order and analytic structure (the $!$
+comonad, the Seely and Eilenberg–Moore development) the kernel model
+lacks. An `observe` with an unbounded density is the price of that
+structure.
 
 ---
 
@@ -800,7 +797,7 @@ $!$-coalgebra $\llbracket\tau\rrbracket \in \mathrm{EM}(!)$; each
 well-typed program $\Gamma \vdash M : \tau$ denotes a linear morphism
 $\llbracket M\rrbracket : U\llbracket\Gamma\rrbracket \multimap
 U\llbracket\tau\rrbracket$ in $\mathbf{ICone}$ — an element of
-`linhom_car Ar (coalg_obj (ctxD_cbv (drop_names Γ))) (coalg_obj (tyD_cbv τ))`.
+`linhom_car Ar (coalg_obj (ctxD_cbv (drop_names G))) (coalg_obj (tyD_cbv t))`.
 Programs are not coalgebra morphisms (the sampling clause does not commute with the §9.7
 duplicability structure on `FMeas`); the context's coalgebra structure
 is used only through the comonoid pair $(\delta, \varepsilon) =
@@ -808,8 +805,8 @@ is used only through the comonoid pair $(\delta, \varepsilon) =
 object carries by Melliès' Proposition 28.*
 
 In Rocq this is `eD` (`theories/programs/ppl_cbv.v`), sending a term
-`M : named_expr Γ τ` to an element of `linhom_car Ar (coalg_obj (ctxD_cbv
-(drop_names Γ))) (coalg_obj (tyD_cbv τ))` by structural recursion on
+`M : named_expr G t` to an element of `linhom_car Ar (coalg_obj (ctxD_cbv
+(drop_names G))) (coalg_obj (tyD_cbv t))` by structural recursion on
 `named_expr`. It is built from an `icones_hom`-valued helper `eD_cbv` (in
 the unit ball of the same `linhom`) and forwarded by `icones_to_linhom`;
 the two views are interchangeable. Nothing wraps the codomain of `tfun`:
@@ -1250,9 +1247,9 @@ chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html
 
 ---
 
-## The SCones↔ICones-tensor bilinear stability bridge
+## The SCones $\leftrightarrow$ ICones-tensor bilinear stability bridge
 
-**In this chapter:** [Law 3.1](../../ppl/sections/ppl-sec-law-3-1-lift-linhom-stablehom.html) · [Law 3.2](../../ppl/sections/ppl-sec-law-3-2-the-diagonal-bilinear-stability-bridge.html).
+**In this chapter:** [Law 3.1](../../ppl/sections/ppl-sec-law-3-1-lift-linhom-to-stablehom.html) · [Law 3.2](../../ppl/sections/ppl-sec-law-3-2-the-diagonal-bilinear-stability-bridge.html).
 
 This chapter records the `stable/`-side infrastructure (paper §7)
 consumed by the CBV value-fixpoint. The lift
@@ -1274,11 +1271,11 @@ finite-difference replay is needed.
 | The diagonal stable pairing | `id_spair_meas_stable`, `spair_meas_stable` — same file |
 | **The deliverable** — diagonal bilinear stability bridge | `meas_stable_diag_bilinear_tensor` — same file |
 
-### Law 3.1 — Lift `linhom → stablehom` (`linhom_to_stablehom`)
+### Law 3.1 — Lift `linhom` $\to$ `stablehom` (`linhom_to_stablehom`)
 
 Every inhabitant of the internal hom `linhom_car Ar B C` is a stable
 measurable map of cones, and the packaging function
-`linhom_to_stablehom : linhom_car Ar B C → stablehom B C` is *itself*
+$\mathtt{linhom\_to\_stablehom} : \mathtt{linhom\_car}\ \mathtt{Ar}\ B\ C \to \mathtt{stablehom}\ B\ C$ is *itself*
 measurable-stable — the internal-hom version of paper Lemma 7.31.
 The CBV value-fixpoint consumes this lift: `fix_lts` in
 `theories/programs/infra/em_fix_value.v` applies it to the
@@ -1447,7 +1444,7 @@ candidate denotation $\mathtt{prev}:\Gamma\multimap B$ to
 $M\circ(\mathrm{id}_\Gamma\otimes\mathtt{prev})\circ\mathtt{diag}$
 — "run the body with `prev` bound to the recursive variable" —
 extended trivially off the unit ball. Its zero-seeded Kleene
-supremum on the unit-ball $\omega$-CPO of `linhom_car Ar Γ B` (via
+supremum on the unit-ball $\omega$-CPO of $\mathtt{linhom\_car}\ \mathtt{Ar}\ \Gamma\ B$ (via
 `em_fix.v`'s linhom LFP core `linhom_lfp`, with the ball bound and
 the fixpoint equation `linhom_lfp_fixpoint`) was once `em_fix.v`'s
 CBV value-fixpoint operator.
@@ -1731,7 +1728,7 @@ while the pair value itself is $0!\otimes_{\mathrm p}0!$
 The `ne_fix` clause of `eD_cbv` is the composite
 $\mathtt{fix\_comb}\circ\llbracket\lambda s.\mathtt{body}\rrbracket$:
 the self-abstraction is interpreted as an ordinary lambda
-(`adj_psi (tensor_curry ⟦body⟧)`, the `ne_lam` clause inlined), then
+($\mathtt{adj\_psi}\ (\mathtt{tensor\_curry}\ \llbracket\mathtt{body}\rrbracket)$, the `ne_lam` clause inlined), then
 post-composed with `fix_comb` at
 $L:=U\llbracket t_1\rrbracket\multimap U\llbracket t_2\rrbracket$.
 The clause pins are definitional (`by []`).
@@ -1864,7 +1861,7 @@ Definition Yfix : scones_hom BB B :=
 
 ## CBV semantic laws and regression anchors
 
-**In this chapter:** [Law 5.1](../../ppl/sections/ppl-sec-law-5-1-the-let-at-sample-integral-law.html) · [Law 5.2](../../ppl/sections/ppl-sec-law-5-2-the-affine-cascade-and-the-sup-mass-bridge.html) · [Def 5.3](../../ppl/sections/ppl-sec-def-5-3-the-setlike-point-kit.html) · [Law 5.4](../../ppl/sections/ppl-sec-law-5-4-the-sharing-semantics-anchors.html) · [Law 5.5](../../ppl/sections/ppl-sec-law-5-5-the-rule-and-the-if-pins.html) · [Law 5.6](../../ppl/sections/ppl-sec-law-5-6-the-cbv-marginals.html) · [Law 5.7](../../ppl/sections/ppl-sec-law-5-7-the-conditioning-law-and-the-equivalence.html).
+**In this chapter:** [Law 5.1](../../ppl/sections/ppl-sec-law-5-1-the-let-at-sample-integral-law.html) · [Law 5.2](../../ppl/sections/ppl-sec-law-5-2-the-affine-cascade-and-the-sup-mass-bridge.html) · [Def 5.3](../../ppl/sections/ppl-sec-def-5-3-the-setlike-point-kit.html) · [Law 5.4](../../ppl/sections/ppl-sec-law-5-4-the-sharing-semantics-anchors.html) · [Law 5.5](../../ppl/sections/ppl-sec-law-5-5-the-beta-rule-and-the-if-pins.html) · [Law 5.6](../../ppl/sections/ppl-sec-law-5-6-the-cbv-marginals.html) · [Law 5.7](../../ppl/sections/ppl-sec-law-5-7-the-conditioning-law-and-the-equivalence.html).
 
 The equational layer between the interpreter and the example
 results: pointwise laws *about* `eD` consumed by the
@@ -1905,7 +1902,7 @@ rejection/conditioning equivalence of
 
 > **Key result:** $\llbracket \mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r)\,\mu(dr)$ — the Pettis integral law the marginal proofs consume.
 
-The law ties the CBV interpretation of `let x = sample µ in K` to the
+The law ties the CBV interpretation of $\mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K$ to the
 Pettis integral of `K`'s denotation over the Diracs of $\mu$:
 $$\llbracket \mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r)\,\mu(dr)$$
 pointwise at arbitrary $\gamma$. No unit-ball or setlike hypothesis is
@@ -1913,7 +1910,7 @@ needed: every step is driven by a genuine `linhom_car` / `icones_hom`
 field, all holding on the whole cone. The proof composes four steps:
 
 1. *Collapse.* $\llbracket \mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K \rrbracket(\gamma) = \llbracket K \rrbracket(\gamma \otimes \mu)$ — the inner
-   `em_pair_mor id (const µ)` erases the context copy through the
+   $\mathtt{em\_pair\_mor}\ \mathrm{id}\ (\mathtt{const}\ \mu)$ erases the context copy through the
    comonoid counit law `emc_counitR` (`em_pair_mor_const_E`, stated for
    an arbitrary constant).
 2. *Dirac approximation.* $\mu = \int \delta_r\,\mu(dr)$, re-spelled
@@ -1960,13 +1957,13 @@ Lemma let_sample_var_E : linhom_fun (eD' ex_let_sample_var) one1 = mu.
 ```
 
 **The general let-law.** The sample case is the special case
-`M = sample µ` of the general CBV sequencing law for an *arbitrary*
+$M = \mathtt{sample}\ \mu$ of the general CBV sequencing law for an *arbitrary*
 bound computation `M : tR`:
 $$\llbracket \mathtt{let}\ x = M\ \mathtt{in}\ K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r)\,(\llbracket M \rrbracket\gamma)(dr)$$
 the bound sub-distribution $\llbracket M \rrbracket\gamma$ replaces the
 constant prior. Unlike the sample case, the step-1 collapse now
 genuinely consumes the comonoid copy of the context
-(`em_pair_mor id ⟦M⟧` feeds $\gamma$ to *both* legs), so the law holds
+($\mathtt{em\_pair\_mor}\ \mathrm{id}\ \llbracket M\rrbracket$ feeds $\gamma$ to *both* legs), so the law holds
 at setlike unit-ball context points (`eD_let_collapse_setlike`) — which
 is harmless: in every consumer the let sits under binders whose
 environments are setlike by construction. Steps 2–4 are reused
@@ -2014,8 +2011,8 @@ Lemma affine_iter_cvg :
 
 The sup-mass bridge then converts a *limit of per-iterate masses* into
 the *mass of the Kleene supremum*: for a unit-ball $\omega$-chain
-`ν : nat → fmeas R X` and a measurable `U`, the masses
-`fmeas_mu (ν n) U` converge to the mass of `cone_sup_ball ν` at `U`
+$\nu : \mathtt{nat} \to \mathtt{fmeas}\ R\ X$ and a measurable `U`, the masses
+$\mathtt{fmeas\_mu}\ (\nu\ n)\ U$ converge to the mass of $\mathtt{cone\_sup\_ball}\ \nu$ at `U`
 (definitionally `fmeas_sup_ball`, the HB `isCone` instance of
 `fmeas.v`), so any limit *is* that mass by Hausdorff uniqueness.
 
@@ -2095,7 +2092,7 @@ denotes the *diagonal* pushforward
 $p \cdot (\delta_T \otimes \delta_T) + (1-p) \cdot (\delta_F \otimes \delta_F)$ — a shared sample, not the
 independent square. The contrast anchors pin the same semantics from
 the other side: two *separate* samples, `(Bernoulli(p), Bernoulli(p))`
-and `(sample µ, sample µ)`, denote the independent products
+and $(\mathtt{sample}\ \mu, \mathtt{sample}\ \mu)$, denote the independent products
 $\mathtt{bern} \otimes \mathtt{bern}$ and $\mu \otimes \mu$. Together
 the two pairs make the sharing semantics of the CBV `let` a regression
 property rather than a folklore expectation.
@@ -2129,12 +2126,12 @@ let-at-sample law above; the Dirac special case is the anchor.) All
 anchors are stated against the public interpreter `eD` through the
 definitional clause pins of `ppl_cbv.v` — never re-derived.
 
-### Law 5.5 — The β-rule and the if-pins (`eD_beta`, `eD_if_true`, `eD_if_false`)
+### Law 5.5 — The $\beta$-rule and the if-pins (`eD_beta`, `eD_if_true`, `eD_if_false`)
 
 Two more morphism-level anchors. The $\beta$-rule
 $(\lambda x.M)\, V = \mathtt{let}\ x := V\ \mathtt{in}\ M$ holds as an
 equality of `icones_hom`s: the $\tilde{!}$ round trip
-`der ∘ !(curry M) ∘ str` collapses by `adj_phiK` (the adjunction
+$\mathtt{der} \circ {!}(\mathtt{curry}\ M) \circ \mathtt{str}$ collapses by `adj_phiK` (the adjunction
 triangle), and the curry/uncurry round trip by `tensor_uncurry_natL` +
 `tensor_curryK`. The if-pins orient the boolean dispatch — a braid
 slipped into `if_under` would flip the branches and break exactly
@@ -2164,7 +2161,7 @@ sampling/scoring examples of `theories/programs/examples.v`, proved
 against the CBV interpreter `eD` in
 `theories/programs/infra/cbv_marginals.v` — the consumers this
 chapter's machinery was built for. The common route: the
-let-at-sample law turns each `let x = sample µ in …` prefix into a
+let-at-sample law turns each $\mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ \dots$ prefix into a
 Pettis integral over Diracs of the prior; dereliction / evaluation at
 setlike test points pushes inside the integral
 (`icones_hom_pres_int` / `linhom_int_eval`); and the integrand computes
@@ -2172,7 +2169,7 @@ pointwise through the setlike-point kit, closing with a Dirac integral
 (`icone_integral_dirac_fmeas` or `icone_integral_fmeas_E`).
 
 **The unnormalised posterior.** The denotation of `ex_score_posterior`
-(`let m = sample µ in let _ = score f m in m`) at the unit context
+($\mathtt{let}\ m = \mathtt{sample}\ \mu\ \mathtt{in}\ \mathtt{let}\ \_ = \mathtt{score}\ f\ m\ \mathtt{in}\ m$) at the unit context
 point is, on every measurable `U`, the prior reweighted by the
 evidence density — *not* normalised; the mass corollary
 `ex_score_posterior_cbv_mass` gives the total evidence $\int f\,d\mu$.
@@ -2211,7 +2208,7 @@ Theorem ex_reject_normalises_score
 
 **The sampled-constant marginal, and the probability-test-point
 subtlety.** The denotation of `ex_random_constant`
-(`let c = sample µ in λx. c`) is a promoted function value;
+($\mathtt{let}\ c = \mathtt{sample}\ \mu\ \mathtt{in}\ \lambda x.\, c$) is a promoted function value;
 derelicting it and evaluating at a test point `x` recovers the prior
 $\mu$ — *provided `x` is a probability* (`fmeas_mu x setT = 1`). The
 hypothesis is honest, not an artifact: the closure discards its
@@ -2234,7 +2231,7 @@ Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
 ```
 
 **The random-affine marginal.** The denotation of `ex_random_linear`
-(`let m = sample µ in let b = sample µ in λx. m·x + b`), derelicted and
+($\mathtt{let}\ m = \mathtt{sample}\ \mu\ \mathtt{in}\ \mathtt{let}\ b = \mathtt{sample}\ \mu\ \mathtt{in}\ \lambda x.\, m\cdot x + b$), derelicted and
 evaluated at a Dirac test point $\delta_{r_0}$, is on every measurable
 `U` the iterated-integral measure
 $\int\int \delta_{m \cdot r_0 + b}(U)\,\mu(db)\,\mu(dm)$ — the joint
@@ -2305,9 +2302,9 @@ proof). The per-program proofs are worked example-by-example in the
 ### Law 5.7 — The conditioning law and the equivalence (`condition_model_E`, `reject_normalises_condition`)
 
 The conditioning combinator promoted to an operator: `condition f m`
-takes a **program predicate** `f : b → tbool` and a model `m : a → b`,
+takes a **program predicate** $f : b \to \mathtt{tbool}$ and a model $m : a \to b$,
 returning the conditioned model
-`λa. let x = m a in let _ = assert (f x) in x`, where a failed `assert`
+$\lambda a.\, \mathtt{let}\ x = m\,a\ \mathtt{in}\ \mathtt{let}\ \_ = \mathtt{assert}\ (f\,x)\ \mathtt{in}\ x$, where a failed `assert`
 zeroes the trace. Write $s_r := \llbracket f\, x \rrbracket$ for the
 acceptance distribution at a returned value $r$ and
 $t(r) := (\mathtt{bc\_t}\ s_r)$ for its acceptance probability. The
@@ -2318,7 +2315,7 @@ $\nu_M := g(a_0)$ for the model's output sub-distribution, the
 conditioned model's output is the model's output reweighted by $t$. The
 proof engine is this chapter's general let-law `eD_let_int_obj` at
 $\nu_M$, with the assert clause computing on Diracs to
-`bool_case s_r (δ_r) 0` and the returned variable projected through
+$\mathtt{bool\_case}\ s_r\ (\delta_r)\ 0$ and the returned variable projected through
 `em_proj1_mor_unitE` / `Lfun_scaleE`.
 
 ```coq
@@ -2331,7 +2328,7 @@ Theorem condition_model_E (U : set (ar_carrier Ar B))
 
 In the readable $\llbracket \cdot \rrbracket$ brackets (Section
 ReadableHeadlines, over an arbitrary thunked model
-`model_prog := λ_. Mbody` with `model_run := model_prog ()` and
+$\mathtt{model\_prog} := \lambda\_.\, \mathtt{Mbody}$ with `model_run := model_prog ()` and
 `condition_prog := condition pred_prog model_prog ()`), the law is
 `condition_E`; combining it with the rejection master identity
 `reject_prog_master` gives the equivalence — rejection sampling
@@ -2370,7 +2367,7 @@ The historical special case at the sampler model is
 
 The 2-point cone of [paper §4.4 / Theorem
 4.24](../../paper/sections/sec-4.html) — the coproduct $1 \oplus 1$ —
-is `bool_cone_car Ar : {nonneg R} × {nonneg R}` with norm
+is $\mathtt{bool\_cone\_car}\ \mathtt{Ar} : \{\mathtt{nonneg}\ R\} \times \{\mathtt{nonneg}\ R\}$ with norm
 $\lVert (p, q)\rVert = p + q$. This chapter builds its full HB tower,
 the universal co-pairing `bool_case` with its linhom and icones
 packagings, and a hand-rolled §9.7-style $!$-coalgebra giving `tbool`
@@ -2539,7 +2536,7 @@ unconditionally. At the interpreter level, `eD_fix_unfold`
 equation at every setlike unit-ball context point — which is every
 point a program evaluation reaches: a closed term denotes
 `linhom_fun (eD M) one1` with `one1` setlike (`coalg_str_one1`), and
-every binding, `let` and `λ` computes through setlike environments.
+every binding, `let` and $\lambda$ computes through setlike environments.
 The unfolding as a *morphism* equation at the remaining,
 *non-setlike* context points is intentionally out of scope: such
 points never arise from program execution, no result in this
