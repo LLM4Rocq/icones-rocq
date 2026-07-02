@@ -780,52 +780,50 @@ homset `L`.)
 **In this chapter:** [Def 3.1](../../examples/sections/examples-sec-def-3-1-the-reject-and-condition-combinators.html) · [Thm 3.2](../../examples/sections/examples-sec-thm-3-2-the-conditioning-law.html) · [Thm 3.3](../../examples/sections/examples-sec-thm-3-3-the-rejection-master-identity.html) · [Thm 3.4](../../examples/sections/examples-sec-thm-3-4-the-equivalence-theorem.html) · [Ex 3.5](../../examples/sections/examples-sec-ex-3-5-specialising-to-a-sampler.html) · [Thm 3.6](../../examples/sections/examples-sec-thm-3-6-hard-conditioning-as-the-deterministic-instance.html).
 
 Conditioning is the declarative side of Bayesian inference:
-`condition f m` runs the model `m`, keeps the produced value with the
-acceptance probability of a **program predicate** `f`, and returns it —
-"what my model outputs, reweighted by the acceptance probability", as
-an unnormalised measure. Rejection sampling is the executable side:
-`reject f m` runs the model to propose a candidate `x`, accepts it with
-that same probability, and on rejection throws the candidate away and
-retries with a fresh run — a loop that may in principle run forever, so
-termination is itself a theorem, not an assumption.
+`condition f m` runs the model `m`, keeps the value with the acceptance
+probability of a **program predicate** `f`, and returns it — the model's
+output reweighted by acceptance, as an unnormalised measure. Rejection
+sampling is the executable side: `reject f m` runs the model to propose a
+candidate `x`, accepts it with that same probability, and on rejection
+retries with a fresh run — a loop that may run forever, so termination is
+a theorem, not an assumption.
 
-Here the acceptance test is **itself a program**, a predicate
-`f : b → tbool` on the model's output value, supplied as an argument
-exactly like the model `m : a → b`. Applying it is ordinary
-application `# "f" @ # "x"` — no lift node, no `ne_test`. Because
-`tbool` is not `bool` — it denotes a point of the 2-point
-sub-probability cone `bool_cone_car` — `⟦f x⟧` is the *acceptance
-distribution* at `x`, and its true-mass
-`t(x) := (bc_t ⟦f x⟧)%:num ∈ [0,1]` is the acceptance probability, the
-only quantity the combinators read. Two regimes, one mechanism: a
-**deterministic** predicate (`⟦f x⟧` a Dirac) gives `t = 1_A`, the
-indicator of the accept set `A := { x | f x = true }` — hard
-conditioning; a **coin** predicate (`⟦f x⟧` non-Dirac) gives a density
-`t` — soft conditioning. The pairing `∫ t dν_M` is the whole content of
-the headline theorems: `∫ t dν_M · ν(U) = ∫_U t dν_M`, the acceptance
-probability paired against the model's output measure over `U`.
+The acceptance test is **itself a program**, a predicate
+`f : b → tbool` on the output value, passed as an argument like the model
+`m : a → b`. Applying it is ordinary application `# "f" @ # "x"` — no
+lift node, no `ne_test`. Since `tbool` is not `bool` but a point of the
+2-point sub-probability cone `bool_cone_car`, $\llbracket f\,x\rrbracket$
+is the *acceptance distribution* at $x$, and its true-mass
+$t(x) := (\texttt{bc\_t}\,\llbracket f\,x\rrbracket)\%{:}\texttt{num} \in [0,1]$
+is the acceptance probability — the only quantity the combinators read.
+Two regimes, one mechanism: a **deterministic** predicate
+($\llbracket f\,x\rrbracket$ a Dirac) gives $t = 1_A$, the indicator of
+the accept set $A := \{\, x \mid f\,x = \texttt{true}\,\}$ (hard
+conditioning); a **coin** predicate ($\llbracket f\,x\rrbracket$
+non-Dirac) gives a density $t$ (soft conditioning). The pairing
+$\int t\,d\nu_M$ is the whole content of the headline theorems:
+$\int t\,d\nu_M \cdot \nu(U) = \int_U t\,d\nu_M$, acceptance probability
+paired against the model's output measure over $U$.
 
 The test enters a program through the `test f e` coin: evaluate `f` at
-the runtime value `e`, landing in `tProb` — the object-language
-counterpart of that pairing. (The `observe Dist y` form is the special
-case where the test comes from a concrete distribution's
-peak-normalised density.)
+runtime value `e`, landing in `tProb` — the object-language counterpart
+of that pairing. (The `observe Dist y` form is the special case where the
+test is a concrete distribution's peak-normalised density.)
 
-Keeping `f` abstract is the point: a concrete distribution's density is
-just one test, so an opaque `f` is what lets the conditioning and
-rejection theorems hold for every test at once.
+Keeping `f` abstract is the point: a concrete density is just one test,
+so an opaque `f` makes the theorems hold for every test at once.
 
-The chapter proves that the two sides agree. The theorem
-`reject_normalises_condition` states, division-free and
-unconditionally, that *Z · ⟦reject f m⟧ U = ⟦condition f m⟧ U* with
-*Z := 1 − ν_M(setT) + ∫ t dν_M*, where `ν_M` is the model's output
-sub-distribution and `t` the acceptance probability. The model may
-diverge: then `ν_M(setT) < 1`, and the `1 − ν_M(setT)` term in `Z`
-carries that missing mass. The formal content lives in
-`theories/programs/ex_reject_model.v` (the clean combinators in
-`theories/programs/reject_condition.v`), with the standalone sampler
-regression anchor in `theories/programs/ex_reject_headline.v` and the
-score pairing in `theories/programs/infra/cbv_marginals.v`.
+The chapter proves the two sides agree. `reject_normalises_condition`
+states, division-free and unconditionally, that
+$$Z \cdot \llbracket \texttt{reject}\,f\,m\rrbracket\,U = \llbracket \texttt{condition}\,f\,m\rrbracket\,U, \qquad Z := 1 - \nu_M(\texttt{setT}) + \int t\,d\nu_M,$$
+where $\nu_M$ is the model's output sub-distribution and $t$ the
+acceptance probability. If the model diverges, $\nu_M(\texttt{setT}) < 1$
+and the $1 - \nu_M(\texttt{setT})$ term carries the missing mass. The
+formal content lives in `theories/programs/ex_reject_model.v` (clean
+combinators in `theories/programs/reject_condition.v`), with the
+standalone sampler regression anchor in
+`theories/programs/ex_reject_headline.v` and the score pairing in
+`theories/programs/infra/cbv_marginals.v`.
 
 ### Def 3.1 — The reject and condition combinators (`ne_reject`, `ne_condition`)
 
@@ -833,12 +831,11 @@ score pairing in `theories/programs/infra/cbv_marginals.v`.
 
 Both combinators are closed programs of type
 `(b → tbool) → (a → b) → (a → b)`, for arbitrary PPL input and return
-objects `a`, `b`. They take a **program predicate** `f : b → tbool` and
-a model `m : a → b`, both as program arguments, and are built entirely
-from `fix` / `\` / `@` / `if` / `()` / `let` — no `ne_test`, no coin,
-no `Score`. They are the *same program modulo the else-branch*: `reject`
-retries a rejected draw, `condition` gives up on it (runs `fail`, which
-zeroes the mass).
+objects `a`, `b`. They take a **program predicate** `f : b → tbool` and a
+model `m : a → b`, both as program arguments, and use only
+`fix` / `\` / `@` / `if` / `()` / `let` — no `ne_test`, no coin, no
+`Score`. They differ only in the else-branch: `reject` retries a rejected
+draw, `condition` gives up (runs `fail`, which zeroes the mass).
 
 ```coq
 (* theories/programs/reject_condition.v *)
@@ -862,11 +859,11 @@ Definition ne_condition :
 ```
 
 The give-up term `ne_fail` is a guarded diverging fixpoint (the CBV
-λ-guard is mandatory: recursion must pass through a value), whose Kleene
-chain from `⊥` is constant, so it denotes the zero sub-distribution
-`precone_zero`; `ne_assert b = if b then () else fail` reweights by the
-acceptance probability, since a failed `assert` zeroes the trace
-whatever value follows.
+$\lambda$-guard is mandatory: recursion must pass through a value), whose
+Kleene chain from $\bot$ is constant, so it denotes the zero
+sub-distribution `precone_zero`; `ne_assert b = if b then () else fail`
+reweights by the acceptance probability, since a failed `assert` zeroes
+the trace whatever value follows.
 
 ```coq
 (* theories/programs/reject_condition.v *)
@@ -877,41 +874,44 @@ Definition ne_assert {G : named_ctx Ar} : nexpr G (tfun tbool tunit) :=
   [ \ "b" ::: tbool => (if # "b" then () else { ne_fail }) ].
 ```
 
-In surface form: `reject = λf. fix rx. λm. λa. let x = m a in if (f x)
-then x else rx m a`, and `condition = λf. λm. λa. let x = m a in let _ =
-assert (f x) in x`, both of type `(b → tbool) → (a → b) → (a → b)`. The
-give-up term `fail = (fix fail. λ(). fail ()) ()` denotes the zero
-sub-distribution `precone_zero`, and `assert b = if b then () else fail`
+In surface form, both of type `(b → tbool) → (a → b) → (a → b)`:
+$$\texttt{reject} = \lambda f.\ \texttt{fix}\ rx.\ \lambda m.\ \lambda a.\ \texttt{let}\ x = m\,a\ \texttt{in}\ \texttt{if}\ (f\,x)\ \texttt{then}\ x\ \texttt{else}\ rx\,m\,a$$
+$$\texttt{condition} = \lambda f.\ \lambda m.\ \lambda a.\ \texttt{let}\ x = m\,a\ \texttt{in}\ \texttt{let}\ \_ = \texttt{assert}\,(f\,x)\ \texttt{in}\ x$$
+The give-up term $\texttt{fail} = (\texttt{fix}\ \texttt{fail}.\ \lambda().\ \texttt{fail}\,())\,()$
+denotes the zero sub-distribution `precone_zero`, and
+$\texttt{assert}\,b = \texttt{if}\ b\ \texttt{then}\ ()\ \texttt{else}\ \texttt{fail}$
 (`ne_fail`, `ne_assert`).
 
-The theorems below quantify over the model value and the input value.
-The model argument is the promoted point `g!` of an arbitrary unit-ball
-linear map `g : U⟦ta⟧ ⊸ FMeas`; every lambda-written model denotes such
-a point, so no generality is lost (the `ne_lam` clause promotes the
-curried body at setlike environments, `adj_psi_at_setlike`). The input
-is an arbitrary setlike unit-ball point `a₀ : U⟦ta⟧` — at `ta = tR`
-exactly the Diracs, at `ta = tunit` the unit point. Throughout, write
-`ν_M := g(a₀)` for the model's output sub-distribution and
-`m₀ := ν_M(setT)` for its total mass.
+The theorems below quantify over the model value and the input value. The
+model argument is the promoted point `g!` of an arbitrary unit-ball
+linear map $g : U\llbracket ta\rrbracket \multimap \mathsf{FMeas}$; every
+lambda-written model denotes such a point, so no generality is lost (the
+`ne_lam` clause promotes the curried body at setlike environments,
+`adj_psi_at_setlike`). The input is an arbitrary setlike unit-ball point
+$a_0 : U\llbracket ta\rrbracket$ — at `ta = tR` exactly the Diracs, at
+`ta = tunit` the unit point. Throughout write $\nu_M := g(a_0)$ for the
+model's output sub-distribution and $m_0 := \nu_M(\texttt{setT})$ for its
+total mass.
 
 ### Thm 3.2 — The conditioning law (`condition_model_E`)
 
-The semantic content of `condition`: the conditioned model's output
-is the model's output reweighted by the acceptance probability `t`,
-`⟦condition f m⟧(U) = ∫_U t dν_M` for every measurable `U` —
-unnormalised, with the model evidence `∫ t dν_M` at `U = setT`. This
-generalises the unnormalised-posterior identity
-`ex_score_posterior_cbv_E` from the sampler `m = λ_. sample µ` to an
-arbitrary model and an arbitrary program predicate. Writing
-`sdist r := fpred(δ_r)` for the acceptance distribution at a returned
-value `r`, the reweighting scalar is its true-mass `(bc_t (sdist r))%:num`.
+The semantic content of `condition`: the conditioned output is the
+model's output reweighted by the acceptance probability $t$, namely
+$\llbracket \texttt{condition}\,f\,m\rrbracket(U) = \int_U t\,d\nu_M$ for
+every measurable $U$ — unnormalised, with the model evidence
+$\int t\,d\nu_M$ at $U = \texttt{setT}$. This generalises the
+unnormalised-posterior identity `ex_score_posterior_cbv_E` from the
+sampler $m = \lambda\_.\ \texttt{sample}\ \mu$ to an arbitrary model and
+program predicate. Writing $\texttt{sdist}\,r := \texttt{fpred}(\delta_r)$
+for the acceptance distribution at a returned value $r$, the reweighting
+scalar is its true-mass $(\texttt{bc\_t}\,(\texttt{sdist}\,r))\%{:}\texttt{num}$.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Thm (`condition_model_E`) | `⟦condition f m⟧(U) = ∫_U t dν_M` for every measurable `U`, at a unit-ball model value `g!` and a setlike unit-ball input `a₀`. | `condition_model_E` — `theories/programs/ex_reject_model.v` |
-| Cor (`condition_model_mass`) | The conditioned model's total mass is the model evidence `∫ t dν_M`. | `condition_model_mass` — same file |
-| Thm (`condition_E`) | The readable form: `⟦condition_prog⟧ U = ∫_U t d⟦model_run⟧` for an arbitrary thunked model program and program predicate. | `condition_E` — same file (Section ReadableHeadlines) |
-| Cor (`condition_prog_evidence`) | `⟦condition_prog⟧(setT) = ∫ t d⟦model_run⟧` — the evidence, in the readable form. | `condition_prog_evidence` — same file |
+| Thm (`condition_model_E`) | $\llbracket \texttt{condition}\,f\,m\rrbracket(U) = \int_U t\,d\nu_M$ for every measurable $U$, at unit-ball model value `g!` and setlike unit-ball input $a_0$. | `condition_model_E` — `theories/programs/ex_reject_model.v` |
+| Cor (`condition_model_mass`) | The conditioned model's total mass is the model evidence $\int t\,d\nu_M$. | `condition_model_mass` — same file |
+| Thm (`condition_E`) | Readable form: $\llbracket \texttt{condition\_prog}\rrbracket\,U = \int_U t\,d\llbracket \texttt{model\_run}\rrbracket$ for an arbitrary thunked model program and program predicate. | `condition_E` — same file (Section ReadableHeadlines) |
+| Cor (`condition_prog_evidence`) | $\llbracket \texttt{condition\_prog}\rrbracket(\texttt{setT}) = \int t\,d\llbracket \texttt{model\_run}\rrbracket$ — the evidence, readable form. | `condition_prog_evidence` — same file |
 
 ```coq
 (* theories/programs/ex_reject_model.v — Section RejectModelCompat *)
@@ -944,54 +944,53 @@ Theorem condition_prog_evidence :
 Proof. exact: (condition_E measurableT). Qed.
 ```
 
-(`cond_model_denot` is the CBV application of the combinator value to
-the predicate `fpred!`, the model `g!`, and then `a₀`;
-`reject_model_dist g a0` is `ν_M`, and `sdist r := fpred(δ_r)` is the
-acceptance distribution at `r`. In the readable form,
-`model_prog := λ_. Mbody` is an arbitrary thunked model,
-`pred_prog := λx. Fbody` an arbitrary program predicate,
-`model_run := model_prog ()`, and
+(`cond_model_denot` is the CBV application of the combinator value to the
+predicate `fpred!`, model `g!`, then $a_0$; `reject_model_dist g a0` is
+$\nu_M$, and $\texttt{sdist}\,r := \texttt{fpred}(\delta_r)$ the acceptance
+distribution at $r$. In the readable form,
+$\texttt{model\_prog} := \lambda\_.\ \texttt{Mbody}$ is an arbitrary
+thunked model, $\texttt{pred\_prog} := \lambda x.\ \texttt{Fbody}$ an
+arbitrary program predicate, `model_run := model_prog ()`, and
 `condition_prog := condition pred_prog model_prog ()`.) Proof idea: the
 object-generic let-law `eD_let_int_obj`
 (`theories/programs/infra/let_sample_law.v`) turns the bound model
-application into a Lebesgue integral over `ν_M`, and at each Dirac `δ_r`
-the assert-and-return continuation computes to the weighted point mass
-`t(r)·δ_r` via `bool_case` on `sdist r` (with the score-discard kit
-`em_proj1_mor_unitE`). No recursion is involved: the combinator's
+application into a Lebesgue integral over $\nu_M$, and at each Dirac
+$\delta_r$ the assert-and-return continuation computes to the weighted
+point mass $t(r)\cdot\delta_r$ via `bool_case` on `sdist r` (with the
+score-discard kit `em_proj1_mor_unitE`). No recursion: the combinator's
 reduction chain is the rejection chain minus the fixpoint.
 
 ### Thm 3.3 — The rejection master identity (`reject_model_master`)
 
-> **Key result:** division-free and unconditional — `Z · ν(U) = ∫_U t dν_M` with `Z := 1 − m₀ + ∫ t dν_M`; the sub-probability `1 − m₀` term carries the model's own divergence mass.
+> **Key result:** division-free and unconditional — $Z \cdot \nu(U) = \int_U t\,d\nu_M$ with $Z := 1 - m_0 + \int t\,d\nu_M$; the sub-probability $1 - m_0$ term carries the model's own divergence mass.
 
-Run the model once and exactly one of three things happens: it returns
-a value the predicate **accepts** (probability `∫ t dν_M`), it returns
-a value the predicate **rejects**, so we retry (probability
-`m₀ − ∫ t dν_M`), or it **diverges** (probability `1 − m₀`). Only the
-rejecting case loops, so each trial *settles* — accepts or diverges —
-with probability `1 − (m₀ − ∫ t dν_M) = Z`, the chapter's normaliser.
-Summing the geometric series over retries gives the output measure `ν`
-of `(reject f m) a`, and the master identity states it without division:
-
-*Z · ν(U) = ∫_U t dν_M*  for every measurable `U`.
-
-Divide by `Z` for the normalised distribution when `Z > 0`. Two corners
-close the picture: a probability model (`m₀ = 1`) has normaliser the
-classical evidence `∫ t dν_M` and accepts almost surely; if nothing is
-ever accepted (`Z = 0`, e.g. `t ≡ 0`) both sides vanish — certain
-rejection diverges. Totality of the predicate (`∀ r, cone_norm (sdist
-r) = 1`, i.e. `bc_t s_r + bc_f s_r = 1`) is what lets the else-weight
-`bc_f s_r` land the sub-probability normaliser; both doc regimes — a
-deterministic bool-Dirac and a bernoulli coin — are total.
+Run the model once: exactly one of three things happens. It returns a
+value the predicate **accepts** (probability $\int t\,d\nu_M$),
+**rejects**, so we retry (probability $m_0 - \int t\,d\nu_M$), or it
+**diverges** (probability $1 - m_0$). Only rejection loops, so each trial
+*settles* — accepts or diverges — with probability
+$1 - (m_0 - \int t\,d\nu_M) = Z$, the chapter's normaliser. Summing the
+geometric series over retries gives the output measure $\nu$ of
+`(reject f m) a`, and the master identity states it without division:
+$$Z \cdot \nu(U) = \int_U t\,d\nu_M \qquad \text{for every measurable } U.$$
+Divide by $Z$ for the normalised distribution when $Z > 0$. Two corners
+close the picture: a probability model ($m_0 = 1$) has normaliser the
+classical evidence $\int t\,d\nu_M$ and accepts almost surely; if nothing
+is ever accepted ($Z = 0$, e.g. $t \equiv 0$) both sides vanish — certain
+rejection diverges. Totality of the predicate
+($\forall r,\ \texttt{cone\_norm}\,(\texttt{sdist}\,r) = 1$, i.e.
+$\texttt{bc\_t}\,s_r + \texttt{bc\_f}\,s_r = 1$) lets the else-weight
+$\texttt{bc\_f}\,s_r$ land the sub-probability normaliser; both doc
+regimes — a deterministic bool-Dirac and a bernoulli coin — are total.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Thm (`reject_model_master`) | `Z · ν(U) = ∫_U t dν_M` for every measurable `U`, unconditionally — division-free, sub-probability honest (`Z = 1 − m₀ + ∫ t dν_M`). | `reject_model_master` — `theories/programs/ex_reject_model.v` |
-| Thm (`reject_model_is_normalised`) | `Z > 0` (automatic once `0 < ∫ t dν_M`) ⟹ `ν(U) = ∫_U t dν_M / Z` — the normalised distribution. | `reject_model_is_normalised` — same file |
-| Cor (`reject_model_mass`) | `ν(setT) = ∫ t dν_M / Z` — the probability that some trial eventually accepts. | `reject_model_mass` — same file |
-| Cor (`reject_model_mass_one`) | Probability model (`m₀ = 1`) with `0 < ∫ t dν_M` ⟹ `ν(setT) = 1`: accepts almost surely. | `reject_model_mass_one` — same file |
-| Thm (`reject_model_zero`) | `t ≡ 0` ⟹ `ν = 0` — certain rejection diverges, whatever the model does. | `reject_model_zero` — same file |
-| Thm (`reject_prog_master`) | The readable form, against `⟦·⟧` over an arbitrary thunked model program and program predicate. | `reject_prog_master`, `reject_prog_is_normalised`, `reject_prog_mass_one`, `reject_prog_zero` — same file (Section ReadableHeadlines) |
+| Thm (`reject_model_master`) | $Z \cdot \nu(U) = \int_U t\,d\nu_M$ for every measurable $U$, unconditionally — division-free, sub-probability honest ($Z = 1 - m_0 + \int t\,d\nu_M$). | `reject_model_master` — `theories/programs/ex_reject_model.v` |
+| Thm (`reject_model_is_normalised`) | $Z > 0$ (automatic once $0 < \int t\,d\nu_M$) $\Rightarrow \nu(U) = \int_U t\,d\nu_M / Z$ — the normalised distribution. | `reject_model_is_normalised` — same file |
+| Cor (`reject_model_mass`) | $\nu(\texttt{setT}) = \int t\,d\nu_M / Z$ — probability that some trial eventually accepts. | `reject_model_mass` — same file |
+| Cor (`reject_model_mass_one`) | Probability model ($m_0 = 1$) with $0 < \int t\,d\nu_M$ $\Rightarrow \nu(\texttt{setT}) = 1$: accepts almost surely. | `reject_model_mass_one` — same file |
+| Thm (`reject_model_zero`) | $t \equiv 0$ $\Rightarrow \nu = 0$ — certain rejection diverges, whatever the model does. | `reject_model_zero` — same file |
+| Thm (`reject_prog_master`) | Readable form, against $\llbracket\cdot\rrbracket$ over an arbitrary thunked model program and program predicate. | `reject_prog_master`, `reject_prog_is_normalised`, `reject_prog_mass_one`, `reject_prog_zero` — same file (Section ReadableHeadlines) |
 
 ```coq
 (* theories/programs/ex_reject_model.v — Section RejectModelCompat *)
@@ -1028,50 +1027,57 @@ Theorem reject_model_zero :
   reject_model_denot R_to_carrier_meas fpred g a0 = precone_zero.
 ```
 
-(`reject_model_denot` is the CBV application of the program value to
-the predicate `fpred!`, the model value `g!`, and then the input `a₀`;
-`reject_model_dist g a0` is the model's output sub-distribution `ν_M`,
-`m0 := fine (ν_M(setT))`, `sdist r := fpred(δ_r)` the acceptance
-distribution at `r`, `t(r) := (bc_t (sdist r))%:num` its acceptance
-probability, and the spelled-out integrals are `∫ t dν_M` over the
-carrier and `∫_U t dν_M` over `U`.)
+(`reject_model_denot` is the CBV application of the program value to the
+predicate `fpred!`, model value `g!`, then input $a_0$;
+`reject_model_dist g a0` is the model's output sub-distribution $\nu_M$,
+$m_0 := \texttt{fine}\,(\nu_M(\texttt{setT}))$,
+$\texttt{sdist}\,r := \texttt{fpred}(\delta_r)$ the acceptance
+distribution at $r$,
+$t(r) := (\texttt{bc\_t}\,(\texttt{sdist}\,r))\%{:}\texttt{num}$ its
+acceptance probability, and the spelled-out integrals are $\int t\,d\nu_M$
+over the carrier and $\int_U t\,d\nu_M$ over $U$.)
 
 Proof idea, in six steps (`theories/programs/ex_reject_model.v`):
 
 1. `reject_comb_val_E` / `reject_after_f_val_E` / `reject_model_app_E`
-   — the closed program denotes the promoted `λf`-then-`fix "rx"`
-   value, read at the setlike base environment `1 ⊗ fpred!`; the three
-   CBV applications (to the predicate `fpred!`, the model `g!`, then the
-   input `a₀`) strip promotions by `der ∘ prom` cancellation before any
-   continuity argument.
-2. `reject_model_sup_E` — the denotation is the `cone_sup_ball` of
-   the per-iterate measures
-   `ν_n := der(fix_chain W₀ n (g!))(a₀)`: evaluation at `g!`, the
-   counit `der`, and evaluation at `a₀` all commute with the Kleene
-   supremum (`linhom_fun_sup_ball` twice, plus `Lfun_sup_ball`).
-3. `reject_model_iter_S` — one Kleene step is the inner let-if body
-   at the extended setlike environment `(((1 ⊗ fpred!) ⊗ rs_n!) ⊗ g!) ⊗ a₀`.
+   — the closed program denotes the promoted `λf`-then-`fix "rx"` value,
+   read at setlike base environment $1 \otimes \texttt{fpred!}$; the three
+   CBV applications (predicate `fpred!`, model `g!`, input $a_0$) strip
+   promotions by $\texttt{der} \circ \texttt{prom}$ cancellation before
+   any continuity argument.
+2. `reject_model_sup_E` — the denotation is the `cone_sup_ball` of the
+   per-iterate measures
+   $\nu_n := \texttt{der}(\texttt{fix\_chain}\ W_0\ n\ (\texttt{g!}))(a_0)$:
+   evaluation at `g!`, the counit `der`, and evaluation at $a_0$ all
+   commute with the Kleene supremum (`linhom_fun_sup_ball` twice, plus
+   `Lfun_sup_ball`).
+3. `reject_model_iter_S` — one Kleene step is the inner let-if body at
+   the extended setlike environment
+   $(((1 \otimes \texttt{fpred!}) \otimes \texttt{rs\_n!}) \otimes \texttt{g!}) \otimes a_0$.
 4. `reject_model_if_at_dirac` — at the Dirac extension the dispatch
-   computes to `bool_case s_r (δ_r) (ν_n)` (via `if_icones_at`), where
-   `s_r := ⟦f x⟧ = fpred(δ_r)` is the applied predicate value
-   (`rm_scrut_E` through `eD_app_at_setlike`): accept-weight `t(r)`
-   keeps the candidate `δ_r`, reject-weight `bc_f s_r` takes the
-   else-branch — the recursive call at the same model and input, the
-   previous iterate `ν_n`. The let-bound model application itself
-   computes to `ν_M` (`rm_model_app_E`).
-5. `reject_model_iter_mass` — the object-generic let-law
-   `eD_let_int_obj` turns the iterate into a Lebesgue integral over
-   `ν_M`, giving the affine mass recurrence
-   `ν_{n+1}(U) = ∫_U t dν_M + (m₀ − ∫ t dν_M) · ν_n(U)` (the source
-   abbreviates `∫ t dν_M` as `If` and `∫_U t dν_M` as `IUf U`); the
-   retry mass `∫ bc_f s dν_M = m₀ − ∫ t dν_M` keeps the model's own
-   divergence mass out of the loop.
+   computes to $\texttt{bool\_case}\ s_r\ (\delta_r)\ (\nu_n)$ (via
+   `if_icones_at`), where
+   $s_r := \llbracket f\,x\rrbracket = \texttt{fpred}(\delta_r)$ is the
+   applied predicate value (`rm_scrut_E` through `eD_app_at_setlike`):
+   accept-weight $t(r)$ keeps the candidate $\delta_r$, reject-weight
+   $\texttt{bc\_f}\,s_r$ takes the else-branch — the recursive call at the
+   same model and input, the previous iterate $\nu_n$. The let-bound model
+   application computes to $\nu_M$ (`rm_model_app_E`).
+5. `reject_model_iter_mass` — the object-generic let-law `eD_let_int_obj`
+   turns the iterate into a Lebesgue integral over $\nu_M$, giving the
+   affine mass recurrence
+   $\nu_{n+1}(U) = \int_U t\,d\nu_M + (m_0 - \int t\,d\nu_M) \cdot \nu_n(U)$
+   (the source abbreviates $\int t\,d\nu_M$ as `If` and $\int_U t\,d\nu_M$
+   as `IUf U`); the retry mass
+   $\int \texttt{bc\_f}\,s\,d\nu_M = m_0 - \int t\,d\nu_M$ keeps the
+   model's own divergence mass out of the loop.
 6. The affine cascade (`affine_iter_cvg`,
-   `theories/programs/infra/affine_cascade.v`) — written `xₙ₊₁ = a + q·xₙ`
-   with `a := ∫_U t dν_M` and `q := m₀ − ∫ t dν_M` — converges to
-   `a / (1 − q)`, and the sup-mass bridge `fmeas_kleene_sup_U_E`
-   identifies that limit with `ν(U)`; the degenerate corner `q = 1` is
-   covered by the constantly-zero chain.
+   `theories/programs/infra/affine_cascade.v`) — written
+   $x_{n+1} = a + q\cdot x_n$ with $a := \int_U t\,d\nu_M$ and
+   $q := m_0 - \int t\,d\nu_M$ — converges to $a / (1 - q)$, and the
+   sup-mass bridge `fmeas_kleene_sup_U_E` identifies that limit with
+   $\nu(U)$; the degenerate corner $q = 1$ is covered by the
+   constantly-zero chain.
 
 ```coq
 (* theories/programs/ex_reject_model.v *)
@@ -1090,36 +1096,36 @@ Theorem reject_prog_master U (mU : measurable U) :
   = \int[⟦ model_run ⟧]_(x in U) ((bc_t (sdist x))%:num)%:E.
 ```
 
-**Object-generic core.** The theorems above are already stated over an
+**Object-generic core.** The theorems above are stated over an
 *arbitrary* return object `B` — a model `m : a → b` for any PPL types
-`a`, `b` — with the acceptance scalar read off the program predicate as
-`t(x) = (bc_t (sdist x))%:num`. The `RejectModelCompat` anchors of this
-chapter (`reject_model_master`, `reject_model_is_normalised`,
+`a`, `b` — with acceptance scalar
+$t(x) = (\texttt{bc\_t}\,(\texttt{sdist}\,x))\%{:}\texttt{num}$ read off
+the program predicate. The `RejectModelCompat` anchors of this chapter
+(`reject_model_master`, `reject_model_is_normalised`,
 `reject_model_mass`, `reject_model_mass_one`, `reject_model_zero`,
 `condition_model_E`, `condition_model_mass`) are thin wrappers over the
-object-generic core proved in the same file. The measure backbone
-(`dirac_fmeas`, `Coalg_dirac`, `FMeas_coalgebra`, the affine cascade,
-the object-generic let-law `eD_let_int_obj`) is already object-generic,
-so the proof reuses it unchanged. Only the model value `g!`, the
-predicate value `fpred!`, and the input `a₀` are quantified over.
+object-generic core in the same file. The measure backbone
+(`dirac_fmeas`, `Coalg_dirac`, `FMeas_coalgebra`, the affine cascade, the
+object-generic let-law `eD_let_int_obj`) is already object-generic, so
+the proof reuses it unchanged. Only the model value `g!`, predicate value
+`fpred!`, and input $a_0$ are quantified over.
 
 ### Thm 3.4 — The equivalence theorem (`reject_normalises_condition`)
 
-> **Key result:** rejection sampling computes the conditioned model's normalised distribution — `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U`, division-free and unconditional.
+> **Key result:** rejection sampling computes the conditioned model's normalised distribution — $Z \cdot \llbracket \texttt{reject\_prog}\rrbracket\,U = \llbracket \texttt{condition\_prog}\rrbracket\,U$, division-free and unconditional.
 
-The two operators compute the same distribution, up to the
-normaliser: *Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U* with
-*Z := 1 − ⟦model_run⟧(setT) + ∫ t d⟦model_run⟧*, division-free and
-unconditional. Both statements live in the same `⟦·⟧` framework
-(Section ReadableHeadlines of `theories/programs/ex_reject_model.v`),
-over the same arbitrary model program, the same program predicate, and
-the same unit input, so they compose literally.
+The two operators compute the same distribution up to the normaliser:
+$$Z \cdot \llbracket \texttt{reject\_prog}\rrbracket\,U = \llbracket \texttt{condition\_prog}\rrbracket\,U, \qquad Z := 1 - \llbracket \texttt{model\_run}\rrbracket(\texttt{setT}) + \int t\,d\llbracket \texttt{model\_run}\rrbracket,$$
+division-free and unconditional. Both statements live in the same
+$\llbracket\cdot\rrbracket$ framework (Section ReadableHeadlines of
+`theories/programs/ex_reject_model.v`), over the same arbitrary model
+program, program predicate, and unit input, so they compose literally.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Thm (`reject_normalises_condition`) | Rejection sampling computes the conditioned model's normalised distribution: `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U` with `Z := 1 − ⟦model_run⟧(setT) + ∫ t d⟦model_run⟧`, unconditionally. | `reject_normalises_condition` — `theories/programs/ex_reject_model.v` |
-| Cor (`reject_prog_computes_condition`) | The division form: if `0 < Z` then `⟦reject_prog⟧ U = ⟦condition_prog⟧ U / Z`. | `reject_prog_computes_condition` — same file |
-| Cor (`reject_normalises_condition_prob`) | For probability models the normaliser is the conditioned model's total mass (the evidence): `⟦condition_prog⟧(setT) · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U`. | `reject_normalises_condition_prob` — same file |
+| Thm (`reject_normalises_condition`) | Rejection computes the conditioned model's normalised distribution: $Z \cdot \llbracket \texttt{reject\_prog}\rrbracket\,U = \llbracket \texttt{condition\_prog}\rrbracket\,U$ with $Z := 1 - \llbracket \texttt{model\_run}\rrbracket(\texttt{setT}) + \int t\,d\llbracket \texttt{model\_run}\rrbracket$, unconditionally. | `reject_normalises_condition` — `theories/programs/ex_reject_model.v` |
+| Cor (`reject_prog_computes_condition`) | Division form: if $0 < Z$ then $\llbracket \texttt{reject\_prog}\rrbracket\,U = \llbracket \texttt{condition\_prog}\rrbracket\,U / Z$. | `reject_prog_computes_condition` — same file |
+| Cor (`reject_normalises_condition_prob`) | For probability models the normaliser is the conditioned model's total mass (the evidence): $\llbracket \texttt{condition\_prog}\rrbracket(\texttt{setT}) \cdot \llbracket \texttt{reject\_prog}\rrbracket\,U = \llbracket \texttt{condition\_prog}\rrbracket\,U$. | `reject_normalises_condition_prob` — same file |
 
 ```coq
 (* theories/programs/ex_reject_model.v — Section ReadableHeadlines *)
@@ -1150,41 +1156,41 @@ Theorem reject_prog_computes_condition :
                    ((bc_t (sdist x))%:num)%:E)))%R)%:E.
 ```
 
-The proof is two lines: rewrite the right-hand side by the
-conditioning law `condition_E` and apply the rejection master
-identity `reject_prog_master` — both sides equal
-`∫_U t d⟦model_run⟧`. The probability-model form additionally
-identifies the normaliser with the evidence
-(`1 − 1 + ∫t dν_M = ∫t dν_M = ⟦condition_prog⟧(setT)`).
+The proof is two lines: rewrite the right-hand side by the conditioning
+law `condition_E` and apply the rejection master identity
+`reject_prog_master` — both sides equal $\int_U t\,d\llbracket \texttt{model\_run}\rrbracket$.
+The probability-model form additionally identifies the normaliser with
+the evidence
+($1 - 1 + \int t\,d\nu_M = \int t\,d\nu_M = \llbracket \texttt{condition\_prog}\rrbracket(\texttt{setT})$).
 
 ### Ex 3.5 — Specialising to a sampler (`ex_reject`)
 
-Instantiating the model to `λ_. sample µ` (`ex_sampler`) with a
-unit-mass prior recovers textbook rejection sampling against a prior:
-`ν_M = µ`, `m₀ = 1`, and the master identity specialises to the
-classical `∫ t dµ · ν(U) = ∫_U t dµ`. Two programs realise this. The
-standalone program `ex_reject` — sample from the prior, accept with
-probability `f(x)` (the value coin `Bernoulli (test f #"x")` over a
+Instantiating the model to $\lambda\_.\ \texttt{sample}\ \mu$
+(`ex_sampler`) with a unit-mass prior recovers textbook rejection
+sampling against a prior: $\nu_M = \mu$, $m_0 = 1$, and the master
+identity specialises to the classical
+$\int t\,d\mu \cdot \nu(U) = \int_U t\,d\mu$. Two programs realise this.
+The standalone program `ex_reject` — sample from the prior, accept with
+probability $f(x)$ (the value coin `Bernoulli (test f #"x")` over a
 bundled test function `f : testfn`), recurse on rejection through an
-explicit acceptance continuation — was proved first and is kept as a
+explicit acceptance continuation — was proved first and kept as a
 regression anchor; its theorems (`ex_reject_master`,
 `ex_reject_is_normalised_posterior`, …) are proved directly in
 `theories/programs/ex_reject_headline.v`. The clean combinator's sampler
 instance (Section SamplerInstance of
 `theories/programs/ex_reject_model.v`) is the program-predicate version:
-the combinator `reject` applied to the sampler model at an arbitrary
-total predicate value, re-derived through the object-generic master.
-Finally `ex_reject_normalises_score` is the equivalence at this
-instance: rejection sampling normalises exactly the score program's
-unnormalised posterior.
+`reject` applied to the sampler model at an arbitrary total predicate
+value, re-derived through the object-generic master. Finally
+`ex_reject_normalises_score` is the equivalence at this instance:
+rejection normalises exactly the score program's unnormalised posterior.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_reject`) | `let rec rs accept = let x = sample µ in if Bernoulli (test f x) then accept x else rs accept in rs (λy. y)` of type `tR` — the standalone regression sampler at a bundled test function `f : testfn`, accepting through the `test f` coin, abstracted over an acceptance continuation. | `ex_reject`, `ex_reject_cbv`, `ex_sampler` — `theories/programs/examples.v` |
-| Thm (`ex_reject_master`) | `∫f dµ · ν(U) = ∫_U f dµ` for every measurable `U`, unconditionally (graceful at `∫f dµ = 0`) — the standalone sampler; the clean combinator's sampler instance re-derives the same identity through the object-generic core `reject_model_master_obj`. | `ex_reject_master` — `theories/programs/ex_reject_headline.v`; `reject_model_master_obj` — `theories/programs/ex_reject_model.v` |
-| Thm (`ex_reject_is_normalised_posterior`) | If `0 < ∫f dµ` then `ν(U) = (∫_U f dµ) / (∫ f dµ)` — the normalised posterior of the prior `µ` given the test function `f`. | `ex_reject_is_normalised_posterior`, `ex_reject_posterior_simple`, `ex_reject_mass_one`, `ex_reject_zero` — same file |
-| Thm (`ex_reject_comb_sampler_master`) | The clean combinator applied to the sampler model `ex_sampler` at the unit input reproduces the classical rejection identity `∫ t dµ · ν(U) = ∫_U t dµ` at `m₀ = 1`, for an arbitrary total program predicate. | `ex_reject_comb_sampler_master` — `theories/programs/ex_reject_model.v` |
-| Thm (`ex_reject_normalises_score`) | `(∫ f dµ) · ν_reject(U) = ν_score(U)` at `µ(setT) = 1`: the equivalence theorem at the sampler instance, connecting `ex_reject` with `ex_score_posterior`. | `ex_reject_normalises_score` — `theories/programs/infra/cbv_marginals.v` |
+| Def (`ex_reject`) | $\texttt{let rec}\ rs\ accept = \texttt{let}\ x = \texttt{sample}\ \mu\ \texttt{in}\ \texttt{if}\ \texttt{Bernoulli}\,(\texttt{test}\ f\ x)\ \texttt{then}\ accept\ x\ \texttt{else}\ rs\ accept\ \texttt{in}\ rs\,(\lambda y. y)$ of type `tR` — the standalone regression sampler at a bundled test function `f : testfn`, accepting through the `test f` coin, abstracted over an acceptance continuation. | `ex_reject`, `ex_reject_cbv`, `ex_sampler` — `theories/programs/examples.v` |
+| Thm (`ex_reject_master`) | $\int f\,d\mu \cdot \nu(U) = \int_U f\,d\mu$ for every measurable $U$, unconditionally (graceful at $\int f\,d\mu = 0$) — the standalone sampler; the combinator's sampler instance re-derives the same identity through the object-generic core `reject_model_master_obj`. | `ex_reject_master` — `theories/programs/ex_reject_headline.v`; `reject_model_master_obj` — `theories/programs/ex_reject_model.v` |
+| Thm (`ex_reject_is_normalised_posterior`) | If $0 < \int f\,d\mu$ then $\nu(U) = (\int_U f\,d\mu) / (\int f\,d\mu)$ — the normalised posterior of the prior $\mu$ given the test function $f$. | `ex_reject_is_normalised_posterior`, `ex_reject_posterior_simple`, `ex_reject_mass_one`, `ex_reject_zero` — same file |
+| Thm (`ex_reject_comb_sampler_master`) | The combinator applied to sampler model `ex_sampler` at the unit input reproduces the classical rejection identity $\int t\,d\mu \cdot \nu(U) = \int_U t\,d\mu$ at $m_0 = 1$, for an arbitrary total program predicate. | `ex_reject_comb_sampler_master` — `theories/programs/ex_reject_model.v` |
+| Thm (`ex_reject_normalises_score`) | $(\int f\,d\mu) \cdot \nu_{\texttt{reject}}(U) = \nu_{\texttt{score}}(U)$ at $\mu(\texttt{setT}) = 1$: the equivalence theorem at the sampler instance, connecting `ex_reject` with `ex_score_posterior`. | `ex_reject_normalises_score` — `theories/programs/infra/cbv_marginals.v` |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -1240,26 +1246,29 @@ Theorem ex_reject_normalises_score
 
 ### Thm 3.6 — Hard conditioning as the deterministic instance (`ne_fail_zero`)
 
-> **Key result:** one statement covers both regimes — a deterministic predicate gives the indicator `1_A` (hard conditioning), a coin predicate gives a density `t` (soft conditioning). No indicator bridge, no `ne_test`, no primed forms.
+> **Key result:** one statement covers both regimes — a deterministic predicate gives the indicator $1_A$ (hard conditioning), a coin predicate a density $t$ (soft conditioning). No indicator bridge, no `ne_test`, no primed forms.
 
-There is no separate hard-reject machinery: the hard (boolean) regime
-is the *deterministic-predicate instance* of the unified master theorem
-above. When the program predicate `f` is a genuine boolean predicate —
-`⟦f x⟧` a Dirac — the acceptance probability `t` is the indicator `1_A`
-of the accept set `A := { x | f x = true }`, so every `∫ t dν_M`
-becomes `ν_M(A)` and every `∫_U t dν_M` becomes `ν_M(A ∩ U)`. The
-master identity reads `Z · ⟦reject f m⟧(U) = ν_M(A ∩ U)` with
-`Z = 1 − m₀ + ν_M(A)`, and the conditioning law reads
-`⟦condition f m⟧(U) = ν_M(A ∩ U)`; for a probability model this is the
-conditional `ν_M(· | A)`. The soft (coin) regime is the same identities
-with `t` a density. No indicator bridge, no `ne_test`, no primed forms
-— one statement covers both (design doc `docs/hard_reject_condition.md`).
+There is no separate hard-reject machinery: the hard (boolean) regime is
+the *deterministic-predicate instance* of the unified master theorem
+above. When `f` is a genuine boolean predicate ($\llbracket f\,x\rrbracket$
+a Dirac), the acceptance probability $t$ is the indicator $1_A$ of the
+accept set $A := \{\, x \mid f\,x = \texttt{true}\,\}$, so every
+$\int t\,d\nu_M$ becomes $\nu_M(A)$ and every $\int_U t\,d\nu_M$ becomes
+$\nu_M(A \cap U)$. The master identity reads
+$Z \cdot \llbracket \texttt{reject}\,f\,m\rrbracket(U) = \nu_M(A \cap U)$
+with $Z = 1 - m_0 + \nu_M(A)$, and the conditioning law reads
+$\llbracket \texttt{condition}\,f\,m\rrbracket(U) = \nu_M(A \cap U)$; for
+a probability model this is the conditional $\nu_M(\cdot \mid A)$. The
+soft (coin) regime is the same identities with $t$ a density. No
+indicator bridge, no `ne_test`, no primed forms — one statement covers
+both (design doc `docs/hard_reject_condition.md`).
 
 The one dedicated fact is `ne_fail_zero`: the give-up term denotes the
-zero measure. `ne_fail`'s Kleene chain from `⊥` is constant, so
-`⟦ne_fail⟧ = precone_zero` at every setlike unit-ball environment — the
-same "divergence = zero measure" used by the fixpoint semantics, and
-exactly the `else`-branch that `condition` runs on a rejected value.
+zero measure. `ne_fail`'s Kleene chain from $\bot$ is constant, so
+$\llbracket \texttt{ne\_fail}\rrbracket = \texttt{precone\_zero}$ at every
+setlike unit-ball environment — the same "divergence = zero measure" used
+by the fixpoint semantics, and exactly the `else`-branch that `condition`
+runs on a rejected value.
 
 ```coq
 (* theories/programs/ex_reject_model.v — Section FailZero *)
