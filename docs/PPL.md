@@ -1254,22 +1254,22 @@ chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html
 
 **In this chapter:** [Law 3.1](../../ppl/sections/ppl-sec-law-3-1-lift-linhom-stablehom.html) · [Law 3.2](../../ppl/sections/ppl-sec-law-3-2-the-diagonal-bilinear-stability-bridge.html).
 
-This chapter records the `stable/`-side infrastructure (paper-§7
-material) consumed by the CBV value-fixpoint. The lift
-`linhom_to_stablehom` is what lets the fixpoint chapter's
-`fix_value` assemble a *stable* map out of linear data; it is the
-first ingredient of `fix_lts` in
-`theories/programs/infra/em_fix_value.v`. The main statement is the
-diagonal bridge: given a measurable-stable `K : G → A` and a
-bilinear `Φ : G ⊗ A → B` in `ICones`, the diagonal evaluation
-`g ↦ Φ(g ⊗ K(g)) : G → B` is measurable-stable. The proof is pure
-structural composition through paper Theorem 5.12's
-tensor↔internal-hom adjunction; no §7.3 finite-difference replay is
-required.
+This chapter records the `stable/`-side infrastructure (paper §7)
+consumed by the CBV value-fixpoint. The lift
+`linhom_to_stablehom` lets the fixpoint chapter's `fix_value`
+build a *stable* map from linear data; it is the first ingredient
+of `fix_lts` in `theories/programs/infra/em_fix_value.v`. The main
+statement is the diagonal bridge: given a measurable-stable
+$K : G \to A$ and a bilinear $\Phi : G \otimes A \to B$ in
+$\mathbf{ICones}$, the diagonal evaluation
+$g \mapsto \Phi(g \otimes K(g)) : G \to B$ is measurable-stable.
+The proof is pure structural composition through paper Theorem
+5.12's tensor$\leftrightarrow$internal-hom adjunction; no §7.3
+finite-difference replay is needed.
 
 | Construction | Rocq |
 |---|---|
-| Lifting `linhom → stablehom` is meas-stable (Lem 7.31 at internal-hom) | `linhom_to_stablehom`, `linhom_to_stablehom_meas_stable` — `theories/stable/diag_bilinear_tensor.v` |
+| Lift $\mathrm{linhom} \to \mathrm{stablehom}$ is meas-stable (Lem 7.31 at internal-hom) | `linhom_to_stablehom`, `linhom_to_stablehom_meas_stable` — `theories/stable/diag_bilinear_tensor.v` |
 | Composition with an `icones_hom` preserves meas-stability | `meas_stable_comp_post`, `meas_stable_comp_pre` — same file |
 | The diagonal stable pairing | `id_spair_meas_stable`, `spair_meas_stable` — same file |
 | **The deliverable** — diagonal bilinear stability bridge | `meas_stable_diag_bilinear_tensor` — same file |
@@ -1277,13 +1277,13 @@ required.
 ### Law 3.1 — Lift `linhom → stablehom` (`linhom_to_stablehom`)
 
 Every inhabitant of the internal hom `linhom_car Ar B C` is a stable
-and measurable map of cones, and the packaging function
+measurable map of cones, and the packaging function
 `linhom_to_stablehom : linhom_car Ar B C → stablehom B C` is *itself*
 measurable-stable — the internal-hom version of paper Lemma 7.31.
-This is the lift the CBV value-fixpoint consumes: `fix_lts` of
+The CBV value-fixpoint consumes this lift: `fix_lts` in
 `theories/programs/infra/em_fix_value.v` applies it to the
-post-action `F ↦ der ∘ F`, feeding `fix_value` — see
-[the CBV value-fixpoint
+post-action $F \mapsto \mathrm{der} \circ F$, feeding `fix_value`
+— see [the CBV value-fixpoint
 chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 
 ```coq
@@ -1303,17 +1303,18 @@ The 0-extension off the unit ball is the standard `sc_clamp`.
 
 ### Law 3.2 — The diagonal bilinear stability bridge (`meas_stable_diag_bilinear_tensor`)
 
-For any measurable-stable `K : G → EA` and any bilinear
-`Φ : G ⊗ EA → EB` (an `icones_hom` out of the tensor), the diagonal
-evaluation `g ↦ Φ(g ⊗ K g)` is measurable-stable — the bridge that
-lets a bilinear ICones map be applied along a stable argument
-without leaving `SCones`.
+For any measurable-stable $K : G \to EA$ and any bilinear
+$\Phi : G \otimes EA \to EB$ (an `icones_hom` out of the tensor),
+the diagonal evaluation $g \mapsto \Phi(g \otimes K\,g)$ is
+measurable-stable — the bridge that applies a bilinear
+$\mathbf{ICones}$ map along a stable argument without leaving
+$\mathbf{SCones}$.
 
 The proof is pure structural composition through [paper Thm
-5.12](../../paper/entries/thm-5-12.html): it rewrites the diagonal
-through the tensor↔internal-hom adjunction, then assembles the lift
-(the inner `linhom_to_stablehom` is meas-stable by Lemma 7.31
-above), the post-composition with `tensor_curry Φ`
+5.12](../../paper/entries/thm-5-12.html): rewrite the diagonal
+through the tensor$\leftrightarrow$internal-hom adjunction, then
+assemble the lift (the inner `linhom_to_stablehom` is meas-stable
+by Lemma 7.31 above), the post-composition with `tensor_curry Phi`
 (`meas_stable_comp_post`), the diagonal pair
 (`id_spair_meas_stable`), and paper Lemma 7.27 (`ev` is
 meas-stable) — finally rescaling by linearity of `ev_fun` in its
