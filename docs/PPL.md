@@ -1342,39 +1342,40 @@ Lemma meas_stable_diag_bilinear_tensor
 **In this chapter:** [Thm 4.1](../../ppl/sections/ppl-sec-thm-4-1-the-degeneracy-theorem.html) · [Def 4.2](../../ppl/sections/ppl-sec-def-4-2-the-naive-linear-kleene-step.html) · [Def 4.3](../../ppl/sections/ppl-sec-def-4-3-the-seeded-kleene-core.html) · [Def 4.4](../../ppl/sections/ppl-sec-def-4-4-the-interleaved-chain-and-the-value-map.html) · [Def 4.5](../../ppl/sections/ppl-sec-def-4-5-the-combinator.html) · [Law 4.6](../../ppl/sections/ppl-sec-law-4-6-coalgebraic-bodies-the-literal-chain.html) · [Law 4.7](../../ppl/sections/ppl-sec-law-4-7-non-degeneracy.html) · [Def 4.8](../../ppl/sections/ppl-sec-def-4-8-the-mutual-recursion-transport.html) · [Law 4.9](../../ppl/sections/ppl-sec-law-4-9-the-interpreter-wiring.html) · [Law 4.10](../../ppl/sections/ppl-sec-law-4-10-the-recursion-unfolding-equations.html) · [Def 4.11](../../ppl/sections/ppl-sec-def-4-11-the-scones-fixpoint-core.html).
 
 The CBV-side `let rec` is the value-fixpoint *combinator*
-`fix_comb : EM( !̃(!A ⊸ !A), !̃A )` — a morphism of `!`-coalgebras
-between the cofree coalgebras, determined on promoted bodies `F!`
-(for `F` in the unit ball of `!A ⊸ !A`) by
-`fix_comb (F!) = (sup_n x_n)!`, where `x_0 = 0 : A` and
-`x_{n+1} = der (F (x_n !))` is the *interleaved* Kleene chain. It
-lives in `theories/programs/infra/em_fix_value.v` and is what the
-`ne_fix` clause (and `ne_fix_mr` at every free body type) of
-`ppl_cbv.v` post-composes onto the body's lambda packaging:
-`⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧` — directly at function body
-types, and through the Seely transport of
+`fix_comb`, a morphism $\mathrm{EM}(\tilde{!}(!A\multimap{!A}),\tilde{!}A)$
+of `!`-coalgebras between cofree coalgebras. On a promoted body $F!$
+(for $F$ in the unit ball of $!A\multimap{!A}$) it computes
+$\mathtt{fix\_comb}(F!)=(\sup_n x_n)!$, where the *interleaved* Kleene
+chain is $x_0=0:A$ and $x_{n+1}=\mathtt{der}(F(x_n!))$. It lives in
+`theories/programs/infra/em_fix_value.v`, and both the `ne_fix` clause
+and `ne_fix_mr` (at every free body type) of `ppl_cbv.v` post-compose
+it onto the body's lambda packaging:
+$\llbracket\mathtt{fix}\ s.\mathtt{body}\rrbracket = \mathtt{fix\_comb}\circ\llbracket\lambda s.\mathtt{body}\rrbracket$
+— directly at function body types, and through the Seely transport of
 `theories/programs/infra/em_fix_mr.v` at products of free types.
 
-The chapter tells the story in three beats.
+Three beats.
 
 - *Degeneracy.* The zero-seeded iteration — the Kleene iteration of
   `theories/programs/infra/em_fix.v`'s linear step
-  `prev ↦ M ∘ (id ⊗ prev) ∘ δ` from the linhom cone-zero, which used to
-  be `em_fix.v`'s CBV value-fixpoint operator before its removal — is
-  *provably the zero linhom*, always (`Phi_fun_lfp_eq0`): a linear step
-  preserves the zero seed, and the bottom of a CBV function-value type is
-  not the cone-zero of `!L` but the promoted zero `(0)!`, the
+  $\mathtt{prev}\mapsto M\circ(\mathrm{id}\otimes\mathtt{prev})\circ\delta$
+  from the linhom cone-zero, once `em_fix.v`'s CBV value-fixpoint
+  operator — is *always the zero linhom* (`Phi_fun_lfp_eq0`): a linear
+  step preserves the zero seed, and the bottom of a CBV function-value
+  type is not the cone-zero of $!L$ but the promoted zero $(0)!$, the
   diverging-function value of `e_bang`-mass one.
-- *Repair.* Seed the iteration at the genuine bottom `0 : A` *under* the
-  promotion, interleaving `der` and `prom` so each iterate re-enters the
-  body as a promoted value. The `prom ∘ der` sandwich makes the chain
-  productive for *any* unit-ball body, linear or not (the step
-  `x ↦ der (F (x!))` is monotone because `prom` is totally monotone and
-  `F`, `der` are linear). Coalgebra-morphism-ness comes for free: the
-  value map `F ↦ sup_n x_n` is built from existing `SCones` morphisms,
-  converted to a linear map `!(!A ⊸ !A) ⊸ A` by the SAFT hom-bijection
-  `lin`, and packaged by `adj_psi` of the `U ⊣ !̃` adjunction.
-- *Transport.* A product of free types is not literally cofree, but it is
-  *isomorphic* to a cofree coalgebra through the EM-level Seely-2 iso;
+- *Repair.* Seed at the genuine bottom $0:A$ *under* the promotion,
+  interleaving `der` and `prom` so each iterate re-enters the body as a
+  promoted value. The `prom`-`der` sandwich keeps the chain productive
+  for *any* unit-ball body, linear or not: the step
+  $x\mapsto\mathtt{der}(F(x!))$ is monotone since `prom` is totally
+  monotone and $F$, `der` are linear. Coalgebra-morphism-ness is free —
+  the value map $F\mapsto\sup_n x_n$ is built from existing `SCones`
+  morphisms, turned into a linear map $!(!A\multimap{!A})\multimap A$ by
+  the SAFT hom-bijection `lin`, and packaged by `adj_psi` of the
+  $U\dashv\tilde{!}$ adjunction.
+- *Transport.* A product of free types is not literally cofree but is
+  *isomorphic* to a cofree coalgebra via the EM-level Seely-2 iso;
   conjugating `fix_comb` by that iso makes `ne_fix_mr` genuine at every
   free body type.
 
@@ -1382,36 +1383,35 @@ The chapter tells the story in three beats.
 |---|---|
 | The degeneracy theorem: the naive zero-seeded iteration is the zero linhom | `Phi_fun_lfp_eq0`, `Phi_fun_zero`, `kleene_lin_Phi_fun_eq0` — `theories/programs/infra/em_fix_value.v`; the generic collapse `lfp_eq0` — `theories/stable/fixpoint.v` |
 | The naive linear Kleene step and the linhom LFP core (the operator itself was removed after the degeneracy proof) | `Phi_fun`, `kleene_lin`, `linhom_lfp`, `linhom_lfp_fixpoint` — `theories/programs/infra/em_fix.v` |
-| Seeded Kleene core on any cone (`b0 ≤ f b0` replaces the zero seed) | `kleene_from`, `lfp_from`, `lfp_from_fixpoint` — `theories/programs/infra/em_fix_value.v` |
-| The interleaved chain `x_{n+1} = der (F (x_n!))` | `fix_chain`, `fix_chain_S`, `fix_chain_ball`, `fix_chain_chain` — same file |
-| The stable value map `F ↦ sup_n x_n` in `SCones` | `fix_value`, `fix_value_E`, `fix_value_unfold` — same file |
+| Seeded Kleene core on any cone ($b_0\leq f\,b_0$ replaces the zero seed) | `kleene_from`, `lfp_from`, `lfp_from_fixpoint` — `theories/programs/infra/em_fix_value.v` |
+| The interleaved chain $x_{n+1}=\mathtt{der}(F(x_n!))$ | `fix_chain`, `fix_chain_S`, `fix_chain_ball`, `fix_chain_chain` — same file |
+| The stable value map $F\mapsto\sup_n x_n$ in `SCones` | `fix_value`, `fix_value_E`, `fix_value_unfold` — same file |
 | The combinator as an EM morphism, and its computation law | `fix_comb`, `fix_comb_mor`, `fix_prom_E` — same file |
 | Obligation (b): coalgebraic bodies give the literal chain | `fix_setlike_prom`, `fix_coalg_simpl`, `fix_unfold_coalg` — same file |
 | Non-degeneracy witnesses | `fix_prom_neq0`, `fix_id_E`, `fix_id_nontrivial` — same file |
 | Isomorphisms of `!`-coalgebras (id / sym / trans / `EM_prod` congruence) | `coalg_iso`, `coalg_iso_id`, `coalg_iso_sym`, `coalg_iso_trans`, `coalg_iso_prod`, `coalg_hom_prod` — `theories/programs/infra/em_fix_mr.v` |
-| The EM-level Seely-2 iso `EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)` | `seely2_em_iso`, `EM_prod_str_cofree2`, `seely2_fwd_is_coalg_mor`, `seely2_bwd_is_coalg_mor` — same file |
+| The EM-level Seely-2 iso $\mathrm{EM\_prod}(\tilde{!}X)(\tilde{!}Y)\cong\tilde{!}(X\mathbin{\&}Y)$ | `seely2_em_iso`, `EM_prod_str_cofree2`, `seely2_fwd_is_coalg_mor`, `seely2_bwd_is_coalg_mor` — same file |
 | The transported combinator, its computation law and norm bound | `fix_comb_iso`, `fix_iso_body_conj`, `fix_comb_iso_prom_E`, `fix_comb_iso_norm` — same file |
-| The free-type decomposition `tyD_cbv t ≅ !̃(free_base t)` | `free_base`, `free_decomp`, `is_free_prodl`, `is_free_prodr`, `fix_mr_comb` — `theories/programs/ppl_cbv.v` |
-| The interpreter wiring `⟦fix s.body⟧ = fix_comb ∘ ⟦λs.body⟧` | `eD_fix_E`, `eD_fix_mr_fun_E`, `eD_fix_mr_prod_E`, `fix_mr_clause` — `theories/programs/ppl_cbv.v` |
+| The free-type decomposition $\mathtt{tyD\_cbv}\ t\cong\tilde{!}(\mathtt{free\_base}\ t)$ | `free_base`, `free_decomp`, `is_free_prodl`, `is_free_prodr`, `fix_mr_comb` — `theories/programs/ppl_cbv.v` |
+| The interpreter wiring $\llbracket\mathtt{fix}\ s.\mathtt{body}\rrbracket=\mathtt{fix\_comb}\circ\llbracket\lambda s.\mathtt{body}\rrbracket$ | `eD_fix_E`, `eD_fix_mr_fun_E`, `eD_fix_mr_prod_E`, `fix_mr_clause` — `theories/programs/ppl_cbv.v` |
 | The recursion-unfolding equations at setlike points | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_at_one1`, `eD_fix_unfold_closed`, `eD_fix_mr_prod_at_setlike`, `eD_fix_mr_prod_at_setlike_neq0` — `theories/programs/infra/cbv_fix_unfold.v` |
 
 ### Thm 4.1 — The degeneracy theorem (`Phi_fun_lfp_eq0`)
 
 > **Key result:** the naive zero-seeded value-fixpoint is *provably the zero linhom* — the reason the seeded combinator exists.
 
-For *every* diagonal `diag` and every body `M`, the zero-seeded
-Kleene iteration `linhom_lfp (Phi_fun diag M) …` — the construction
-that used to be `em_fix.v`'s CBV value-fixpoint operator — equals
-the zero linhom. The structural reason: the Kleene step `Phi_fun` is
-*linear* in the previous iterate, so it maps the linhom cone-zero
-seed to the cone-zero (`Phi_fun_zero` — the `id_Γ ⊗ 0` tensor
-vanishes by bilinearity, then post-composition by the linear `M`
-preserves zero); by induction every Kleene iterate is zero
-(`kleene_lin_Phi_fun_eq0`), and so is the supremum. The collapse
-itself is generic — `lfp_eq0` of `theories/stable/fixpoint.v`: any
-Kleene step that preserves the zero seed has zero least fixpoint —
-so the degeneracy record is exactly `Phi_fun_zero` (the linearity
-content) plus the generic lemma.
+For *every* diagonal `diag` and body `M`, the zero-seeded Kleene
+iteration `linhom_lfp (Phi_fun diag M) …` — once `em_fix.v`'s CBV
+value-fixpoint operator — equals the zero linhom. The reason is
+linearity: `Phi_fun` is linear in the previous iterate, so it maps
+the linhom cone-zero seed to the cone-zero (`Phi_fun_zero` — the
+$\mathrm{id}_\Gamma\otimes 0$ tensor vanishes by bilinearity, then
+the linear `M` preserves zero on post-composition). By induction
+every iterate is zero (`kleene_lin_Phi_fun_eq0`), hence so is the
+supremum. The collapse is generic — `lfp_eq0` of
+`theories/stable/fixpoint.v`: any Kleene step preserving the zero
+seed has zero least fixpoint. So the degeneracy record is exactly
+`Phi_fun_zero` (the linearity content) plus that generic lemma.
 
 ```coq
 (* theories/stable/fixpoint.v (Section KleeneCore) *)
@@ -1435,21 +1435,21 @@ Lemma Phi_fun_lfp_eq0 :
 ```
 
 The diagnosis behind the repair: the bottom of a CBV function
-*value* type is not the cone-zero of `!L` — it is the promoted zero
-`(0)!`, the diverging-function value, which has `e_bang`-mass one
-and is therefore not even close to `precone_zero` in the cone order.
-A least fixpoint computed from the wrong bottom is the wrong least
-fixpoint.
+*value* type is not the cone-zero of $!L$ but the promoted zero
+$(0)!$, the diverging-function value, whose `e_bang`-mass is one —
+nowhere near `precone_zero` in the cone order. A least fixpoint from
+the wrong bottom is the wrong least fixpoint.
 
 ### Def 4.2 — The naive linear Kleene step (`Phi_fun`)
 
-The step that the degeneracy theorem is about: `Phi_fun` sends a
-candidate denotation `prev : Γ ⊸ B` to `M ∘ (id_Γ ⊗ prev) ∘ diag` —
-"run the body with `prev` bound to the recursive variable" —
+The step the degeneracy theorem is about: `Phi_fun` sends a
+candidate denotation $\mathtt{prev}:\Gamma\multimap B$ to
+$M\circ(\mathrm{id}_\Gamma\otimes\mathtt{prev})\circ\mathtt{diag}$
+— "run the body with `prev` bound to the recursive variable" —
 extended trivially off the unit ball. Its zero-seeded Kleene
-supremum on the unit-ball ω-CPO of `linhom_car Ar Γ B` (via
+supremum on the unit-ball $\omega$-CPO of `linhom_car Ar Γ B` (via
 `em_fix.v`'s linhom LFP core `linhom_lfp`, with the ball bound and
-the fixpoint equation `linhom_lfp_fixpoint`) used to be `em_fix.v`'s
+the fixpoint equation `linhom_lfp_fixpoint`) was once `em_fix.v`'s
 CBV value-fixpoint operator.
 
 ```coq
@@ -1464,26 +1464,26 @@ Definition Phi_fun_safe
       (tensor_mor_R_lin Gamma (linhom_icones prev Hprev))).
 ```
 
-The construction, the ball bound and the fixpoint equation are all
-true — and all satisfied by the zero linhom, which is exactly what
-`Phi_fun_lfp_eq0` shows the iteration is. The operator itself was
-removed from `em_fix.v` after the degeneracy proof; the record
-survives as `Phi_fun_zero` plus the generic `lfp_eq0`. The step
-`Phi_fun`, its three unit-ball laws and the linhom LFP core stay:
-they are the scaffolding of the genuine seeded combinator below. The
-interpreter never routes through the zero-seeded iteration — the
-`ne_fix_mr` *product* case, formerly the last consumer of the
-removed operator, goes through the genuine Seely-transported
-combinator (see the mutual-recursion transport section below).
+Construction, ball bound and fixpoint equation are all true — and
+all satisfied by the zero linhom, which is exactly what
+`Phi_fun_lfp_eq0` shows the iteration to be. The operator was removed
+from `em_fix.v` after the degeneracy proof; the record survives as
+`Phi_fun_zero` plus the generic `lfp_eq0`. The step `Phi_fun`, its
+three unit-ball laws and the linhom LFP core stay as scaffolding for
+the genuine seeded combinator below. The interpreter never routes
+through the zero-seeded iteration: the `ne_fix_mr` *product* case,
+formerly the last consumer of the removed operator, now goes through
+the genuine Seely-transported combinator (see the mutual-recursion
+transport section below).
 
 ### Def 4.3 — The seeded Kleene core (`kleene_from`, `lfp_from`)
 
-The generic Kleene chain `n ↦ fⁿ(b0)` for an *arbitrary* seed `b0`
-with `b0 ≤ f b0` replacing the `precone_le0` base of the zero-seeded
-chains, stated on a bare `coneType` so that it covers both
-cone-point chains (the literal chain `Fⁿ(0!)` of obligation (b)
+The generic Kleene chain $n\mapsto f^n(b_0)$ for an *arbitrary* seed
+$b_0$ with $b_0\leq f\,b_0$ replacing the `precone_le0` base of the
+zero-seeded chains, stated on a bare `coneType` so it covers both
+cone-point chains (the literal chain $F^n(0!)$ of obligation (b)
 below) and linhom-level chains. The fixpoint equation holds under
-ω-continuity of the step on the ball.
+$\omega$-continuity of the step on the ball.
 
 ```coq
 (* theories/programs/infra/em_fix_value.v (Section SeededKleene) *)
@@ -1500,14 +1500,14 @@ Lemma lfp_from_fixpoint : f lfp_from = lfp_from.
 
 ### Def 4.4 — The interleaved chain and the value map (`fix_chain`, `fix_value`)
 
-Fix `A` and write `!A := Bang Ar A`. The interleaved chain of a body
-`F : !A ⊸ !A` (abbreviated `LL` in the snippets below) is `x_0 = 0 : A`,
-`x_{n+1} = der (F (x_n !))`: each iterate is *re-promoted* before it
-re-enters the body and *dereferenced* after — so the body always
-sees a legitimate (promoted) function value, and the chain lives in
-`A` where the genuine bottom is `0`. Monotonicity needs no linearity
-of the assignment `F ↦ x_n`: `prom` is totally monotone (it is the
-underlying map of the stable `nl`), and `F` and `der` are linear
+Fix `A` and write $!A:=\mathtt{Bang}\ \mathtt{Ar}\ A$. The
+interleaved chain of a body $F:!A\multimap{!A}$ (abbreviated `LL`
+below) is $x_0=0:A$, $x_{n+1}=\mathtt{der}(F(x_n!))$: each iterate is
+*re-promoted* before re-entering the body and *dereferenced* after,
+so the body always sees a legitimate (promoted) function value and
+the chain lives in $A$, where the genuine bottom is $0$. Monotonicity
+needs no linearity of $F\mapsto x_n$: `prom` is totally monotone (the
+underlying map of the stable `nl`) and $F$, `der` are linear
 (`fix_step_incr`).
 
 ```coq
@@ -1521,16 +1521,15 @@ Lemma fix_chain_S (F : LL) (n : nat) :
   fix_chain F n.+1 = Lfun (der A) (linhom_fun F (prom (fix_chain F n))).
 ```
 
-The assignment `F ↦ sup_n x_n` is then packaged as a *stable* map —
-obligation (a) of the construction. It is the composite of existing
-`SCones` morphisms (so total monotonicity, ω-continuity and
-path-measurability come for free): the linear-to-stable lift
-`linhom_to_stablehom` of the post-action `F ↦ der ∘ F`, curried
-through the CCC of `stable/scones_ccc.v` against the `nl`-promotion
-of the argument, and closed by the §9.2 fixpoint combinator `Yfix`
-of `stable/fixpoint.v` — whose value at a unit-ball `f` is
-identified with the plain Kleene supremum `sup_n fⁿ(0)`
-(`Yfix_kleeneE`, same file).
+The assignment $F\mapsto\sup_n x_n$ is packaged as a *stable* map —
+obligation (a). It composes existing `SCones` morphisms (so total
+monotonicity, $\omega$-continuity and path-measurability are free):
+the linear-to-stable lift `linhom_to_stablehom` of the post-action
+$F\mapsto\mathtt{der}\circ F$, curried through the CCC of
+`stable/scones_ccc.v` against the `nl`-promotion of the argument, and
+closed by the §9.2 fixpoint combinator `Yfix` of
+`stable/fixpoint.v` — whose value at a unit-ball `f` is the plain
+Kleene supremum $\sup_n f^n(0)$ (`Yfix_kleeneE`, same file).
 
 ```coq
 (* theories/programs/infra/em_fix_value.v *)
@@ -1551,13 +1550,14 @@ Lemma fix_value_unfold (F : LL) (HF : cone_norm F <= 1) :
 
 ### Def 4.5 — The combinator (`fix_comb`, `fix_prom_E`)
 
-A stable map `(!A ⊸ !A) → A` *is* a linear map `!(!A ⊸ !A) ⊸ A`
-via the SAFT hom-bijection `lin`/`Theta` of `theories/homs/bang.v`
-(`fix_lin := lin fix_value`, with the promoted-point computation
-`fix_lin_promE`); `adj_psi` of the `U ⊣ !̃` adjunction then packages
-the linear map as a morphism into the cofree coalgebra — so
-`fix_comb` is a coalgebra morphism *by construction*, with no fresh
-order analysis of the SAFT `Bang`.
+A stable map $(!A\multimap{!A})\to A$ *is* a linear map
+$!(!A\multimap{!A})\multimap A$ via the SAFT hom-bijection
+`lin`/`Theta` of `theories/homs/bang.v` (`fix_lin := lin fix_value`,
+with the promoted-point computation `fix_lin_promE`); `adj_psi` of
+the $U\dashv\tilde{!}$ adjunction then packages the linear map as a
+morphism into the cofree coalgebra. So `fix_comb` is a coalgebra
+morphism *by construction*, with no fresh order analysis of the SAFT
+`Bang`.
 
 ```coq
 (* theories/programs/infra/em_fix_value.v *)
@@ -1575,17 +1575,17 @@ Lemma fix_prom_E (F : LL) (HF : cone_norm F <= 1) :
 body the combinator returns the *promoted* interleaved-Kleene
 supremum. Its proof composes `dig_prom` (the cofree structure map
 promotes promoted points), `bang_fmap_prom` (the functorial action
-computes on promoted points) and `fix_lin_promE`.
+computes on promoted points), and `fix_lin_promE`.
 
 ### Law 4.6 — Coalgebraic bodies: the literal chain (`fix_coalg_simpl`)
 
 Obligation (b): when the body `F` is itself a morphism of
-`!`-coalgebras `!A → !A`, the interleaved chain coincides with the
-*literal* Kleene chain `n ↦ Fⁿ(0!)` in `!A`, seeded at the diverging
-value `0!` — the naive iteration one would have written by hand. The
-bridge is `fix_setlike_prom`: a coalgebraic body sends promoted
-points to promoted points (`F(y!) = (der (F (y!)))!`, read off the
-coalgebra-morphism square at `y!` plus the right counit law), so
+`!`-coalgebras $!A\to{!A}$, the interleaved chain coincides with the
+*literal* Kleene chain $n\mapsto F^n(0!)$ in $!A$, seeded at the
+diverging value $0!$ — the naive iteration one would write by hand.
+The bridge is `fix_setlike_prom`: a coalgebraic body sends promoted
+points to promoted points ($F(y!)=(\mathtt{der}(F(y!)))!$, from the
+coalgebra-morphism square at $y!$ plus the right counit law), so
 promotion intertwines the two chains (`fix_iter_promE`).
 
 ```coq
@@ -1608,18 +1608,19 @@ Lemma fix_unfold_coalg :
   Lfun (ch_mor (fix_comb A)) (prom F).
 ```
 
-Note the seed-order obligation `0! ≤ F(0!)` (`fix_seed_le`) — the
+Note the seed-order obligation $0!\leq F(0!)$ (`fix_seed_le`) — the
 base case the zero-seeded `linhom_lfp` could never provide, and the
 reason the seeded Kleene core of this file exists.
 
 ### Law 4.7 — Non-degeneracy (`fix_prom_neq0`, `fix_id_E`)
 
 On *every* promoted body the combinator returns a promoted point of
-`!A`, and a promoted point is never the cone-zero (its `e_bang`-mass
-is `one1`) — the direct contrast with `Phi_fun_lfp_eq0`. The
-simplest honest instance is the identity body: its interleaved chain
-is constantly `0` (since `der (0!) = 0`), so `fix_comb (id!) = 0!` —
-the *diverging value*, which is provably nonzero.
+$!A$, and a promoted point is never the cone-zero (its `e_bang`-mass
+is `one1`) — the direct contrast with `Phi_fun_lfp_eq0`. The simplest
+honest instance is the identity body: its interleaved chain is
+constantly $0$ (since $\mathtt{der}(0!)=0$), so
+$\mathtt{fix\_comb}(\mathrm{id}!)=0!$ — the *diverging value*,
+provably nonzero.
 
 ```coq
 (* theories/programs/infra/em_fix_value.v *)
@@ -1641,8 +1642,8 @@ The layer that makes `ne_fix_mr` genuine at *products* of free
 types, in `theories/programs/infra/em_fix_mr.v` plus the
 decomposition layer of `theories/programs/ppl_cbv.v`. The problem:
 `fix_comb` lives on *cofree* coalgebras, but the CBV interpretation
-of a product is `tyD_cbv (tprod s t) = EM_prod (tyD s) (tyD t)` —
-not literally cofree. The solution, in three moves.
+of a product, `tyD_cbv (tprod s t) = EM_prod (tyD s) (tyD t)`, is not
+literally cofree. Three moves.
 
 **Isomorphisms of `!`-coalgebras.** `coalg_iso P Q` bundles both
 directions as `coalg_hom`s plus the two round-trips at the
@@ -1651,8 +1652,8 @@ transitivity and the `EM_prod` congruence `coalg_iso_prod` (the
 tensor of two coalg isos, via `EM_prod_mor`).
 
 **The Seely-2 iso at the EM level.** For cofree coalgebras the
-product *is* cofree on the `&`-product (`sprod`, the cone product —
-note: `&`, not the tensor) of the base cones:
+product *is* cofree on the $\&$-product (`sprod`, the cone product —
+$\&$, not the tensor) of the base cones:
 
 ```coq
 (* theories/programs/infra/em_fix_mr.v (Section Seely2EM) *)
@@ -1664,21 +1665,23 @@ Definition seely2_em_iso (X Y : ICone.type Ar) :
     (iso_fwdK (Seely2 X Y)) (iso_bwdK (Seely2 X Y)).
 ```
 
-The carrier of `EM_prod (!̃X) (!̃Y)` is `!X ⊗ !Y` and its structure
-map is the `Seely2`-transported `tens_cofree_str`
+The carrier of `EM_prod (!̃X) (!̃Y)` is $!X\otimes{!Y}$ and its
+structure map is the `Seely2`-transported `tens_cofree_str`
 (`EM_prod_str_cofree2`), so the coalgebra-morphism squares for the
-two directions of `Seely2 : !X ⊗ !Y ≅ !(X & Y)` are pure transport
-algebra (`seely2_fwd_is_coalg_mor` / `seely2_bwd_is_coalg_mor` —
-no point computation).
+two directions of
+$\mathtt{Seely2}:!X\otimes{!Y}\cong{!}(X\mathbin{\&}Y)$ are pure
+transport algebra (`seely2_fwd_is_coalg_mor` /
+`seely2_bwd_is_coalg_mor` — no point computation).
 
 **The transported combinator.** For any coalgebra `P` with
 `iso : coalg_iso P (!̃Z)`, conjugating `fix_comb Z` by the iso gives
-`fix_comb_iso iso : EM( !̃(U P ⊸ U P), P )`: bodies `F : U P ⊸ U P`
-transport to `!Z ⊸ !Z` by pre/post-composition with the iso's
-underlying linear maps (`fix_iso_body_conj`, the hom-functor action
-`linhom_map_icones`), the genuine fixpoint runs at `Z`, and the
-result is carried back by the iso's backward map. The computation
-law is the analogue of `fix_prom_E`:
+`fix_comb_iso iso`, of type $\mathrm{EM}(\tilde{!}(UP\multimap UP),P)$:
+bodies $F:UP\multimap UP$ transport to $!Z\multimap{!Z}$ by
+pre/post-composition with the iso's underlying linear maps
+(`fix_iso_body_conj`, the hom-functor action `linhom_map_icones`),
+the genuine fixpoint runs at $Z$, and the result is carried back by
+the iso's backward map. The computation law is the analogue of
+`fix_prom_E`:
 
 ```coq
 (* theories/programs/infra/em_fix_mr.v (Section FixCombIso) *)
@@ -1690,16 +1693,18 @@ Lemma fix_comb_iso_prom_E (F : linhom_car Ar UP UP)
        (linhom_map_fun (ch_mor (ci_bwd iso)) (ch_mor (ci_fwd iso)) F))).
 ```
 
-with the norm bound `fix_comb_iso_norm`. On the `ppl_cbv.v` side,
-`free_base t` computes the base cone of a free type (`tfun t1 t2 ↦
-U⟦t1⟧ ⊸ U⟦t2⟧`; `tprod t1 t2 ↦ sprod (free_base t1) (free_base
-t2)`) and `free_decomp t Hfree : coalg_iso (tyD_cbv t) (!̃(free_base
-t))` builds the decomposition by structural induction on the
-`is_free_coalg_type` witness — the `tfun` case is the identity iso
+with norm bound `fix_comb_iso_norm`. On the `ppl_cbv.v` side,
+`free_base t` computes the base cone of a free type
+($\mathtt{tfun}\ t_1\ t_2\mapsto U\llbracket t_1\rrbracket\multimap U\llbracket t_2\rrbracket$;
+$\mathtt{tprod}\ t_1\ t_2\mapsto\mathtt{sprod}\ (\mathtt{free\_base}\ t_1)\ (\mathtt{free\_base}\ t_2)$),
+and `free_decomp t Hfree`, of type
+$\mathtt{coalg\_iso}\ (\mathtt{tyD\_cbv}\ t)\ (\tilde{!}(\mathtt{free\_base}\ t))$,
+builds the decomposition by structural induction on the
+`is_free_coalg_type` witness: the `tfun` case is the identity iso
 (the interpretation *is* `bang_cofree`), the `tprod` case composes
-the children's isos (`coalg_iso_prod`) with `seely2_em_iso`.
-`fix_mr_comb t Hfree := fix_comb_iso (free_decomp t Hfree)` is then
-the genuine value-fixpoint combinator at every free type.
+the children's isos (`coalg_iso_prod`) with `seely2_em_iso`. Then
+`fix_mr_comb t Hfree := fix_comb_iso (free_decomp t Hfree)` is the
+genuine value-fixpoint combinator at every free type.
 
 ```coq
 (* theories/programs/ppl_cbv.v (Section FreeDecomp) *)
@@ -1712,22 +1717,24 @@ Definition fix_mr_comb (t : ppl_type Ar) (Hfree : is_free_coalg_type t) :
 
 The surface witness is the mutual-recursion pair `ex_even_odd_pair`
 of `theories/programs/examples.v` (one recursive name at
-`tprod (tfun tunit tunit) (tfun tunit tunit)`, each component
-calling the other through `fst`/`snd`). Its operational identity is
-honest divergence: each component delegates to the other with no base
-case, so `ex_even_cbv_diverges` / `ex_odd_cbv_diverges` pin the closed
-runs `ex_even @ ()` / `ex_odd @ ()` to the unit-cone zero (mass `0`),
-while the pair value itself is `0! ⊗p 0!`
-(`ex_even_odd_pair_cbv_value`), never the cone-zero — see
-the [Examples tab](../examples/).
+`tprod (tfun tunit tunit) (tfun tunit tunit)`, each component calling
+the other through `fst`/`snd`). Its operational identity is honest
+divergence: each component delegates to the other with no base case,
+so `ex_even_cbv_diverges` / `ex_odd_cbv_diverges` pin the closed runs
+`ex_even @ ()` / `ex_odd @ ()` to the unit-cone zero (mass $0$),
+while the pair value itself is $0!\otimes_{\mathrm p}0!$
+(`ex_even_odd_pair_cbv_value`), never the cone-zero — see the
+[Examples tab](../examples/).
 
 ### Law 4.9 — The interpreter wiring (`eD_fix_E`, `fix_mr_clause`)
 
 The `ne_fix` clause of `eD_cbv` is the composite
-`fix_comb ∘ ⟦λs.body⟧`: the self-abstraction is interpreted as an
-ordinary lambda (`adj_psi (tensor_curry ⟦body⟧)`, the `ne_lam`
-clause inlined), then post-composed with `fix_comb` at
-`L := U⟦t1⟧ ⊸ U⟦t2⟧`. The clause pins are definitional (`by []`).
+$\mathtt{fix\_comb}\circ\llbracket\lambda s.\mathtt{body}\rrbracket$:
+the self-abstraction is interpreted as an ordinary lambda
+(`adj_psi (tensor_curry ⟦body⟧)`, the `ne_lam` clause inlined), then
+post-composed with `fix_comb` at
+$L:=U\llbracket t_1\rrbracket\multimap U\llbracket t_2\rrbracket$.
+The clause pins are definitional (`by []`).
 
 ```coq
 (* theories/programs/ppl_cbv.v (Section EDUnfold) *)
@@ -1746,10 +1753,10 @@ Proof. by []. Qed.
 ```
 
 `ne_fix_mr` dispatches on the (free) body type through
-`fix_mr_clause`: at `tfun t1 t2` the same genuine composite
-(`eD_fix_mr_fun_E`); at `tprod`-of-frees the same composite with the
+`fix_mr_clause`: at `tfun t1 t2`, the same genuine composite
+(`eD_fix_mr_fun_E`); at `tprod`-of-frees, the same composite with the
 Seely-transported combinator `fix_mr_comb` of the previous section
-(`eD_fix_mr_prod_E`) — the mutual-recursion fixpoint is genuine at
+(`eD_fix_mr_prod_E`). The mutual-recursion fixpoint is genuine at
 every free body type.
 
 ```coq
@@ -1775,16 +1782,17 @@ Proof. by []. Qed.
 ### Law 4.10 — The recursion-unfolding equations (`eD_fix_at_setlike`, `eD_fix_unfold`)
 
 The semantic laws of the wired `ne_fix` clause, stated at *setlike*
-unit-ball context points (`coalg_str Γ γ = γ!` — the §9.7 "γ is a
-sub-Dirac" reading) in
+unit-ball context points ($\mathtt{coalg\_str}\ \Gamma\ \gamma=\gamma!$
+— the §9.7 "$\gamma$ is a sub-Dirac" reading) in
 `theories/programs/infra/cbv_fix_unfold.v`. Writing
-`F_γ := curry ⟦body⟧ γ : !L ⊸ !L` for the body's endo-function at
-`γ`:
+$F_\gamma:=\mathtt{curry}\ \llbracket\mathtt{body}\rrbracket\ \gamma:!L\multimap{!L}$
+for the body's endo-function at $\gamma$:
 
 - `eD_fix_at_setlike` — the prom-point *computation* law:
-  `⟦fix s.body⟧ γ = (fix_value F_γ)!`, i.e. the denotation is the
-  promoted supremum of the interleaved Kleene chain. In particular
-  it is never the cone-zero (`eD_fix_at_setlike_neq0`).
+  $\llbracket\mathtt{fix}\ s.\mathtt{body}\rrbracket\ \gamma=(\mathtt{fix\_value}\ F_\gamma)!$,
+  i.e. the denotation is the promoted supremum of the interleaved
+  Kleene chain, in particular never the cone-zero
+  (`eD_fix_at_setlike_neq0`).
 - `eD_fix_unfold` — the honest *recursion equation*: one more body
   unfolding at the fixpoint value, re-promoted, is the fixpoint
   value.
@@ -1816,33 +1824,32 @@ Lemma eD_fix_unfold (G : named_ctx Ar) (s : string)
 ```
 
 The closed-program corollaries `eD_fix_at_one1` /
-`eD_fix_unfold_closed` (same file) state both laws against the
-public linhom interpreter `eD` at the unit context point `one1`
-(which is setlike, `coalg_str_one1`). The same two laws also hold
-verbatim for `ne_fix_mr` at function body types
-(`eD_fix_mr_fun_at_setlike` / `eD_fix_mr_fun_unfold`); at *product*
-body types the computation law is the Seely-transported analogue
-`eD_fix_mr_prod_at_setlike` — the denotation at a setlike `γ` is the
-backward transport along `free_decomp` of the promoted fixpoint
-value of the conjugated body (`fix_comb_iso_prom_E`), never the
-cone-zero (`eD_fix_mr_prod_at_setlike_neq0`). These
-equations live in their own file because the setlike-point kit they
-consume (`infra/cbv_anchors.v`) imports `ppl_cbv.v` — an import
-cycle would result if they sat next to the definitional clause pins.
+`eD_fix_unfold_closed` (same file) state both laws against the public
+linhom interpreter `eD` at the unit context point `one1` (setlike by
+`coalg_str_one1`). Both laws also hold verbatim for `ne_fix_mr` at
+function body types (`eD_fix_mr_fun_at_setlike` /
+`eD_fix_mr_fun_unfold`); at *product* body types the computation law
+is the Seely-transported analogue `eD_fix_mr_prod_at_setlike` — the
+denotation at a setlike $\gamma$ is the backward transport along
+`free_decomp` of the promoted fixpoint value of the conjugated body
+(`fix_comb_iso_prom_E`), never the cone-zero
+(`eD_fix_mr_prod_at_setlike_neq0`). These equations live in their own
+file because the setlike-point kit they consume
+(`infra/cbv_anchors.v`) imports `ppl_cbv.v` — sitting next to the
+definitional clause pins would create an import cycle.
 
 ### Def 4.11 — The SCones fixpoint core (`Yfix`)
 
 The stable-fixpoint core is `Yfix : scones_hom BB B` of
 `theories/stable/fixpoint.v` — [paper
 §9.2](../../paper/entries/sect-9-2.html): the Kleene fixpoint at the
-`SCones` internal hom, a unit-ball chain from `precone_zero` taken
-as a supremum. At a bare `SCones` function space the zero seed *is*
-the right bottom, and `Yfix` serves recursion directly; at a CBV
-function-*value* type the bottom is the promoted zero `0!` instead,
-so `Yfix` appears one level down, *inside* the construction of
-`fix_value` (`Yfix_kleeneE` identifies its value with the plain
-Kleene supremum), with the seeding repaired by the `der`/`prom`
-interleaving above.
+`SCones` internal hom, the supremum of a unit-ball chain from
+`precone_zero`. At a bare `SCones` function space the zero seed *is*
+the right bottom, so `Yfix` serves recursion directly; at a CBV
+function-*value* type the bottom is instead the promoted zero $0!$,
+so `Yfix` appears one level down, *inside* `fix_value` (`Yfix_kleeneE`
+identifies its value with the plain Kleene supremum), with the
+seeding repaired by the `der`/`prom` interleaving above.
 
 ```coq
 (* theories/stable/fixpoint.v *)
