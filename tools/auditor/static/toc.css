@@ -51,13 +51,17 @@
 
 .toc-sidebar {
   position: sticky;
-  /* Clear the sticky 3-row header (external-resources pills + tab-nav +
-     search ≈ 7rem) so the pinned sidebar sits below it rather than under it.
-     Tunable via --toc-sticky-top if the header height changes. */
-  top: var(--toc-sticky-top, 7rem);
-  max-height: calc(100vh - var(--toc-sticky-top, 7rem) - 1rem);
+  /* Clear the sticky header so the pinned sidebar sits BELOW it, not under it.
+     The header stacks brand + tabs + search + breadcrumbs (~9-10rem, and it
+     wraps), so toc.js measures the real height into --toc-sticky-top; the
+     fallback here is a safe no-JS value. Both `top` and `max-height` read the
+     same var, so one value fixes both occlusion and the scroll range. */
+  top: var(--toc-sticky-top, 9.5rem);
+  max-height: calc(100vh - var(--toc-sticky-top, 9.5rem) - 1rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  scroll-padding-top: 0.5rem;
+  z-index: 10; /* below the header (z-index 20), so the header always wins */
   font-size: 0.85rem;
   line-height: 1.4;
   padding-right: 0.25rem;
