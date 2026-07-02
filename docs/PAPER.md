@@ -56,12 +56,12 @@ follows the same definitional path, packaged as a Hierarchy Builder tower.
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| Def 2.1 | A *precone* is an additive commutative monoid with a non-negative real scalar action satisfying distributivity and bilinearity. | `precone`, `PreCone.type` — `theories/cones/precone.v` |
-| Def 2.2 | A *cone* is a precone with a partial order ≤ (Selinger's), the supremum of every increasing norm-bounded ω-chain, and the norm acting as a continuous semi-norm. | `Cone.type` — `theories/cones/cone.v` |
-| Cat 2 | The category **Cones** has cones as objects and norm-≤ 1 continuous linear maps as morphisms. | `cones_hom`, `cones_comp`, `Cones` (the category) — `theories/cones/cone_cat.v` |
-| Lem 2.8 / 2.10 | ω-continuity of inverse / of the difference operator on the unit ball. | `invf_omega_continuous`, `diff_omega_continuous` — `theories/cones/basic_lemmas.v` |
+| Def 2.1 | A *precone* is an $\mathbb{R}_{\geq 0}$-semimodule with cancellative, positive addition; the *cone order* $x_1 \leq x_2$ holds iff $x_2 = x_1 + x$ for some $x$. | `precone`, `PreCone.type` — `theories/cones/precone.v` |
+| Def 2.2 | A *cone* is a precone equipped with a norm $\lVert\cdot\rVert : P \to \mathbb{R}_{\geq 0}$ that is homogeneous, separating, sub-additive, order-monotone, and $\omega$-complete on norm-bounded increasing chains. | `Cone.type` — `theories/cones/cone.v` |
+| Cat 2 | The category $\mathbf{Cones}$ has cones as objects and linear continuous maps $f$ with $\lVert f\rVert \leq 1$ as morphisms. | `cones_hom`, `cones_comp`, `Cones` (the category) — `theories/cones/cone_cat.v` |
+| Lem 2.8 / 2.10 | $\omega$-continuity of the inverse of a bijective linear continuous map / of the difference $g - f$ of an increasing $f$ below an $\omega$-continuous $g$. | `invf_omega_continuous`, `diff_omega_continuous` — `theories/cones/basic_lemmas.v` |
 
-Notable design choice: ω-continuity comes in two flavours — `is_omega_continuous`
+Notable design choice: $\omega$-continuity comes in two flavours — `is_omega_continuous`
 (input and output chains live in the unit ball; linear-tailored) and
 `is_scott_continuous_unit` (input chain in the ball, output at any radius;
 the *general* notion needed for non-linear stable maps in §7). Both are
@@ -69,13 +69,18 @@ proved equivalent for linear maps.
 
 ### Def 2.1 (`isPrecone` / `Precone`)
 
+A *precone* is an $\mathbb{R}_{\geq 0}$-semimodule $P$ whose addition is cancellative and positive; these two conditions let one define the *cone order* $x_1 \leq x_2 \iff \exists x\, .\, x_2 = x_1 + x$, a partial order with a partial subtraction $x_2 - x_1$.
+
+> **Paper — §2 "Basic definitions"** (arXiv 2212.02371, `content.tex:200`). A *precone* is an $\mathbb{R}_{\geq 0}$-semimodule $P$ which satisfies $$\forall x_1,x_2,x\in P\quad x_1+x=x_2+x\Rightarrow x_1=x_2$$ (cancellation) and $$\forall x_1,x_2\in P\quad x_1+x_2=0\Rightarrow x_1=0$$ (positivity). Given $x_1,x_2\in P$, one stipulates $x_1\leq x_2$ if $\exists x\in P\, .\, x_2=x_1+x$; this is a partial order, the *cone order* of $P$, and when $x_1\leq x_2$ there is exactly one $x$ with $x_2=x_1+x$, denoted $x_2-x_1$.
+
+> **Difference.** The paper defines a precone as an $\mathbb{R}_{\geq 0}$-semimodule (the semimodule laws are left implicit); the formalization spells the semimodule structure out as explicit mixin fields (associativity, commutativity, unit, the two distributivities, scalar associativity, and the $0$/$1$ scalar laws) alongside the two paper axioms (cancellation) and (positivity). The cone order and subtraction are derived, not primitive.
+
 ```coq
 (* theories/cones/precone.v *)
 HB.mixin Record isPrecone (R : realType) (P : Type) := {
   precone_zero  : P;
   precone_add   : P -> P -> P;
   precone_scale : {nonneg R} -> P -> P;
-  (* Algebraic axioms — Paper §2.1 (R≥0-semimodule structure) *)
   precone_addA : associative precone_add;
   precone_addC : commutative precone_add;
   precone_add0 : left_id precone_zero precone_add;
@@ -93,10 +98,8 @@ HB.mixin Record isPrecone (R : realType) (P : Type) := {
   precone_scale_1  : forall x, precone_scale 1%:nng x = x;
   precone_scale_0r : forall r, precone_scale r precone_zero = precone_zero;
   precone_scale_0l : forall x, precone_scale 0%:nng x = precone_zero;
-  (* (Cancel) — Paper §2.1 *)
   precone_cancel :
     forall x y z, precone_add x y = precone_add x z -> y = z;
-  (* (Pos) — Paper §2.1 *)
   precone_pos :
     forall x y, precone_add x y = precone_zero ->
                 x = precone_zero /\ y = precone_zero;
@@ -108,22 +111,23 @@ HB.structure Definition Precone (R : realType) := { P of isPrecone R P }.
 
 ### Def 2.2 (`isCone` / `Cone`)
 
+A *cone* is a precone $P$ equipped with a norm $\lVert\cdot\rVert : P \to \mathbb{R}_{\geq 0}$ subject to homogeneity (Normh), separation (Normz), sub-additivity (Normt), order-monotonicity (Normp), and $\omega$-completeness (Normc): every norm-bounded increasing $\omega$-chain has a least upper bound whose norm is again $\leq 1$.
+
+> **Paper — §2 "Basic definitions"** (arXiv 2212.02371, `content.tex:221`). A *cone* is a precone $P$ equipped with a function $\lVert\cdot\rVert_P : P\to\mathbb{R}_{\geq 0}$, called the *norm of $P$*, satisfying: $$\text{(Normh)}\quad \forall \lambda\in\mathbb{R}_{\geq 0}\ \forall x\in P\quad \lVert\lambda x\rVert=\lambda\lVert x\rVert$$ $$\text{(Normz)}\quad \forall x\in P\quad \lVert x\rVert=0\Rightarrow x=0$$ $$\text{(Normt)}\quad \forall x_1,x_2\in P\quad \lVert x_1+x_2\rVert\leq\lVert x_1\rVert+\lVert x_2\rVert$$ $$\text{(Normp)}\quad \forall x_1,x_2\in P\quad \lVert x_1\rVert\leq\lVert x_1+x_2\rVert\quad(\text{equivalently } x_1\leq x_2\Rightarrow\lVert x_1\rVert\leq\lVert x_2\rVert)$$ $$\text{(Normc)}\quad \text{each increasing } (x_n)_{n\in\mathbb{N}} \text{ with } \forall n\ \lVert x_n\rVert\leq 1 \text{ has a lub } x=\sup_{n\in\mathbb{N}}x_n \text{ with } \lVert x\rVert\leq 1.$$
+
+> **Difference.** The paper's completeness axiom (Normc) is a pure existence statement (the norm-bounded increasing chain *has* a lub of norm $\leq 1$). The formalization makes the least upper bound an explicit operator `cone_sup_ball` on the mixin, with its defining universal properties (`cone_sup_ball_ub` upper-bound, `cone_sup_ball_lub` least, `cone_sup_ball_norm` norm $\leq 1$) as separate fields — the constructive counterpart of "has a lub".
+
 ```coq
 (* theories/cones/cone.v *)
 HB.mixin Record isCone (R : realType) P of Precone R P := {
   cone_norm : P -> R;
-  (* (Normh) ‖λ·x‖ = λ·‖x‖ *)
   cone_normh : forall (r : {nonneg R}) (x : P),
     cone_norm (precone_scale r x) = r%:num * cone_norm x;
-  (* (Normz) ‖x‖ = 0 ⇒ x = 0 *)
   cone_normz : forall x : P, cone_norm x = 0 -> x = precone_zero;
-  (* (Normt) sub-additivity *)
   cone_normt : forall x y : P,
     cone_norm (precone_add x y) <= cone_norm x + cone_norm y;
-  (* (Normp) order-monotonicity *)
   cone_normp : forall x y : P,
     precone_le x y -> cone_norm x <= cone_norm y;
-  (* (Normc) ω-completeness of the unit ball, packaged as an operator *)
   cone_sup_ball :
     forall u : nat -> P,
       (forall n, precone_le (u n) (u n.+1)) ->
@@ -148,10 +152,14 @@ HB.structure Definition Cone (R : realType) :=
 
 ### Cat 2 (`cones_hom`, `cones_comp`, `Cones`)
 
+The category $\mathbf{Cones}$ has cones as objects; a morphism $P \to Q$ is a linear, $\omega$-continuous map with operator norm $\leq 1$. The norm-nonexpansiveness is encoded pointwise as $\lVert f(x)\rVert \leq \lVert x\rVert$, which is equivalent to $\lVert f\rVert\leq 1$.
+
+> **Paper — Definition 2.17** (arXiv 2212.02371). The category $\mathbf{Cones}$ has the cones as objects, and $\mathbf{Cones}(P,Q)$ is the set of all linear and continuous $f:P\to Q$ such that $\lVert f\rVert\leq 1$.
+
+> **Difference.** The paper's morphism condition $\lVert f\rVert\leq 1$ is the operator norm $\sup_{x\in\mathbf{B}P}\lVert f(x)\rVert\leq 1$; the formalization records the pointwise inequality `cones_hom_norm_le1` : $\forall x\, .\, \lVert f(x)\rVert\leq\lVert x\rVert$, which is equivalent but avoids materialising the supremum.
+
 ```coq
 (* theories/cones/cone_cat.v — Section ConesHom, Variables R Q P *)
-
-(** Paper Definition 2.17: a morphism in [Cones]. *)
 Record cones_hom (P Q : coneType R) : Type := ConesHom {
   cones_hom_fun :> P -> Q;
   cones_hom_linear : is_linear cones_hom_fun;
@@ -160,7 +168,6 @@ Record cones_hom (P Q : coneType R) : Type := ConesHom {
     forall x : P, cone_norm (cones_hom_fun x) <= cone_norm x;
 }.
 
-(** Paper Definition 2.17: composition in [Cones]. *)
 Definition cones_comp (g : cones_hom Q S) (f : cones_hom P Q) :
   cones_hom P S.
 Proof. (* refine (ConesHom (g \o f) ...) ; proof omitted *) Defined.
@@ -173,10 +180,18 @@ named record here (the project follows PLAN Strategy C: no abstract
 
 ### Lem 2.8 / 2.10 (`invf_omega_continuous`, `diff_omega_continuous`)
 
+Two $\omega$-continuity lemmas: `invf_omega_continuous` shows the inverse of a bijective linear continuous map is $\omega$-continuous (paper Lemma 2.8), and `diff_omega_continuous` shows the difference $g - f$ of an increasing $f$ dominated by an $\omega$-continuous $g$, with $g - f$ increasing, is itself $\omega$-continuous (paper Lemma 2.10).
+
+> **Paper — Lemma 2.8** (arXiv 2212.02371, `lemma:linear-inverse`). Let $P$ and $Q$ be cones and let $f:P\to Q$ be linear and continuous. If $f$ is bijective then $f^{-1}$ is linear and continuous.
+
+> **Paper — Lemma 2.10** (arXiv 2212.02371, `lemma:fun-diff-Scott`). Let $P$ and $Q$ be cones, let $A\subseteq P$ be $\omega$-closed and let $f,g:A\to Q$ be functions such that $f$ is increasing, $g$ is $\omega$-continuous, $\forall x\in P\ f(x)\leq g(x)$ and the function $g-f=\boldsymbol\lambda x\in P\cdot (g(x)-f(x))$ is increasing. Then $g-f$ is $\omega$-continuous.
+
+> **Difference.** The paper's Lemma 2.8 states that $f^{-1}$ is *linear and continuous*; the Rocq lemma `invf_omega_continuous` isolates the $\omega$-continuity component (linearity of the inverse is a separate result in the same section). Lemma 2.10 uses the general $\omega$-closed subdomain $A$; the formalization specialises the difference $g-f$ (there written `gmf`) to the ambient cone and expresses $\omega$-continuity via the explicit `cone_sup_ball` least-upper-bound operator, with the hypothesis $g = f + (g-f)$ recorded as `Hsplit`.
+
 ```coq
 (* theories/cones/basic_lemmas.v *)
 (* Section variables: R : realType, P Q : coneType R,
-   f : P -> Q linear, ω-continuous, injective, surjective ;
+   f : P -> Q linear, omega-continuous, injective, surjective ;
    invf : Q -> P the section provided by surjectivity. *)
 Lemma invf_omega_continuous : is_omega_continuous invf.
 
