@@ -185,31 +185,35 @@
   {% endif %}
 
   {% if entry.detail %}
-  <details class="detail" {% if expanded %}open{% endif %}>
-    <summary>Show Rocq snippet{% if entry.detail.snippets %}
-      <span class="snippet-count">({{ entry.detail.snippets|length }})</span>
-    {% endif %}</summary>
-    <div class="detail-body">
-      {% if entry.detail.prose_html %}
-      <div class="prose">{{ entry.detail.prose_html|safe }}</div>
-      {% endif %}
-      {% for note in entry.detail.notes %}
-      <aside class="note note-{{ note.kind|default('note') }}">
-        {% if note.title %}<strong class="note-title">{{ note.title }}</strong>{% endif %}
-        <div class="note-body">{{ note.html|safe }}</div>
-      </aside>
-      {% endfor %}
-      {% for snip in entry.detail.snippets %}
-      <figure class="snippet">
-        <figcaption>
-          <code class="mono">{{ snip.source_file }}</code>
-          {% if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
-        </figcaption>
-        <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
-      </figure>
-      {% endfor %}
-    </div>
-  </details>
+    {# Description + paper statement + difference notes render DIRECTLY
+       (readable prose/math). Only the Rocq snippet(s) are foldable. #}
+    {% if entry.detail.prose_html %}
+    <div class="prose entry-description">{{ entry.detail.prose_html|safe }}</div>
+    {% endif %}
+    {% for note in entry.detail.notes %}
+    <aside class="note note-{{ note.kind|default('note') }}">
+      {% if note.title %}<strong class="note-title">{{ note.title }}</strong>{% endif %}
+      <div class="note-body">{{ note.html|safe }}</div>
+    </aside>
+    {% endfor %}
+    {% if entry.detail.snippets %}
+    <details class="detail" {% if expanded %}open{% endif %}>
+      <summary>Show Rocq snippet
+        <span class="snippet-count">({{ entry.detail.snippets|length }})</span>
+      </summary>
+      <div class="detail-body">
+        {% for snip in entry.detail.snippets %}
+        <figure class="snippet">
+          <figcaption>
+            <code class="mono">{{ snip.source_file }}</code>
+            {% if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
+          </figcaption>
+          <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
+        </figure>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
   {% endif %}
 
   {% if not expanded %}
