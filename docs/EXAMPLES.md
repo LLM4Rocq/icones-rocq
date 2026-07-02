@@ -498,21 +498,21 @@ $\int 1\, d\mathcal{N}(0,1) = 1$ (`fmeas_of_prob_setT`).
 
 Recursive probabilistic programs combining `ne_fix` with the boolean
 cascade, exhibiting productive partial termination. The CBV mass
-identities — and, for the two halting samplers, the full
-distribution refinements that pin the denotations as *measures* —
-are proved in `theories/programs/ex_reject_headline.v`
-against the seeded value-fixpoint interpreter (`fix_comb`,
+identities — plus, for the two halting samplers, full distribution
+refinements pinning the denotations as *measures* — are proved in
+`theories/programs/ex_reject_headline.v` against the seeded
+value-fixpoint interpreter (`fix_comb`,
 [the CBV value-fixpoint chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html)),
-by the same reduction-chain-plus-affine-cascade recipe as the
-rejection sampler of the next chapter.
+by the same reduction-chain-plus-affine-cascade recipe as the next
+chapter's rejection sampler.
 
 ### Ex 2.1 — Bare divergence (`ex_loop`)
 
-> **Key result:** no sampling, no scoring — an infinite chain of unit-typed recursive calls of total mass `0`.
+> **Key result:** no sampling, no scoring — an infinite chain of unit-typed recursive calls of total mass $0$.
 
-Bare divergence: `let rec l _ = l () in l ()` of type `tunit`. No
-sampling, no scoring — the recursion never terminates, so the program
-denotes the zero sub-distribution: total mass `0`.
+Bare divergence: `let rec l _ = l () in l ()` of type `tunit`. With no
+sampling or scoring and no termination, the program denotes the zero
+sub-distribution: total mass $0$.
 
 ```coq
 (* theories/programs/examples.v *)
@@ -523,37 +523,36 @@ Definition ex_loop :
 ```
 
 No standalone CBV identity is recorded for the bare loop: the
-certain-divergence statement for this recursion shape is carried by
-the parameterised twin at `p = 0` — `ex_almost_loop_cbv_zero` below
-pins the denotation of the Bernoulli-guarded loop with a
-never-succeeding coin to `precone_zero`, and `ex_loop` is the same
-loop with the coin erased.
+certain-divergence statement for this shape is carried by the
+parameterised twin at $p = 0$. `ex_almost_loop_cbv_zero` below pins
+the Bernoulli-guarded loop with a never-succeeding coin to
+`precone_zero`, and `ex_loop` is that loop with the coin erased.
 
 ### Ex 2.2 — Geometric distribution (`ex_geom`)
 
-> **Key result:** the fair-coin counter halts almost surely (total mass `1`) and its law is exactly the geometric series `Σ_k (1/2)^(k+1) δ_k` (`ex_geom_cbv_distribution`).
+> **Key result:** the fair-coin counter halts almost surely (total mass $1$) and its law is exactly the geometric series $\sum_k (1/2)^{k+1}\delta_k$ (`ex_geom_cbv_distribution`).
 
-A geometric counter built from a fair-coin Bernoulli recursion (the
-constant-literal coin `Bernoulli [| (1/2 : R) |]`): each
-call halts with probability `½` (returning `0`) and otherwise
-recurses, adding `1` to the returned real. The program denotes a
-measure of total mass `1` — the sampler halts almost surely — and
-that measure is the geometric law: on every measurable `U` the
-denotation evaluates as the series `Σ_k (1/2)^(k+1) δ_k(U)`
-(`ex_geom_cbv_distribution`), and the atom at the embedded natural
-`k` carries mass exactly `(1/2)^(k+1)` (`ex_geom_cbv_pmf`). The
-embedded point `gpt k := R_to_carrier R_carrier_eq (k%:R)` places the
-natural `k` in the real carrier; the points are distinct
-(`gpt_inj`) and each singleton is measurable (`measurable_gpt`). The
-mass identity `ex_geom_cbv_mass_one` is the `U = setT` specialisation
-where the geometric weights sum to `1`.
+A geometric counter from a fair-coin Bernoulli recursion (the
+constant-literal coin `Bernoulli [| (1/2 : R) |]`): each call halts
+with probability $\tfrac12$ (returning $0$), else recurses, adding $1$
+to the returned real. The program denotes a measure of total mass $1$
+— the sampler halts almost surely — and that measure is the geometric
+law: on every measurable $U$ the denotation is the series
+$\sum_k (1/2)^{k+1}\delta_k(U)$ (`ex_geom_cbv_distribution`), with the
+atom at the embedded natural $k$ carrying mass exactly $(1/2)^{k+1}$
+(`ex_geom_cbv_pmf`). The embedded point
+`gpt k := R_to_carrier R_carrier_eq (k%:R)` places $k$ in the real
+carrier; the points are distinct (`gpt_inj`) and each singleton is
+measurable (`measurable_gpt`). The mass identity
+`ex_geom_cbv_mass_one` is the $U = \mathtt{setT}$ specialisation, where
+the geometric weights sum to $1$.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_geom`) | `let rec g _ = if Bernoulli [| (1/2:R) |] then 0 else 1 + g () in g ()` of type `tR` — the fair coin is the constant-literal form `Bernoulli [| (1/2:R) |]`, its `[0,1]` bounds discharged by `lra`. | `ex_geom` — `theories/programs/examples.v` |
-| Thm (`ex_geom_cbv_mass_one`) | The denotation has total mass one on the whole carrier: the sampler halts almost surely. | `ex_geom_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
-| Thm (`ex_geom_cbv_distribution`) | On every measurable `U` the denotation is the geometric series `Σ_k (1/2)^(k+1) δ_{gpt k}(U)`. | `ex_geom_cbv_distribution` — same file |
-| Thm (`ex_geom_cbv_pmf`) | The atom at the embedded natural `gpt k` carries mass exactly `(1/2)^(k+1)`: the geometric PMF. | `ex_geom_cbv_pmf` — same file |
+| Def (`ex_geom`) | `let rec g _ = if Bernoulli [| (1/2:R) |] then 0 else 1 + g () in g ()` of type `tR` — the fair coin is the constant-literal `Bernoulli [| (1/2:R) |]`, its $[0,1]$ bounds discharged by `lra`. | `ex_geom` — `theories/programs/examples.v` |
+| Thm (`ex_geom_cbv_mass_one`) | Total mass one on the whole carrier: the sampler halts almost surely. | `ex_geom_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
+| Thm (`ex_geom_cbv_distribution`) | On every measurable $U$ the denotation is the geometric series $\sum_k (1/2)^{k+1}\delta_{\mathtt{gpt}\,k}(U)$. | `ex_geom_cbv_distribution` — same file |
+| Thm (`ex_geom_cbv_pmf`) | The atom at the embedded natural $\mathtt{gpt}\,k$ carries mass exactly $(1/2)^{k+1}$: the geometric PMF. | `ex_geom_cbv_pmf` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -591,47 +590,47 @@ Theorem ex_geom_cbv_pmf (k : nat) :
 `linhom_fun (ex_geom_cbv R_carrier_meas R_to_carrier_meas) one1`,
 the CBV denotation of the closed program at the unit context point.)
 Proof idea: the rejection-sampling reduction chain on a simpler
-program. The outer application collapses by `der ∘ prom` cancellation
-(`ex_geom_app_E`), and the denotation is the `cone_sup_ball` of the
-per-iterate measures (`ex_geom_sup_E`). One Kleene step computes to the
-boolean dispatch `ν_{n+1} = ½·δ_0 + ½·(add_lift (δ_1 ⊗ ν_n))`
+program. The outer application collapses by `der`$\circ$`prom`
+cancellation (`ex_geom_app_E`), and the denotation is the
+`cone_sup_ball` of the per-iterate measures (`ex_geom_sup_E`). One
+Kleene step gives the boolean dispatch
+$\nu_{n+1} = \tfrac12\delta_0 + \tfrac12\,(\mathtt{add\_lift}\,(\delta_1 \otimes \nu_n))$
 (`g_step`).
 
-- **Mass:** the translation-mass invariance `add_lift_mass` reduces the
-  mass cascade to `x_{n+1} = ½ + ½·x_n` (`g_val_S`); the affine cascade
-  and the sup-mass bridge of
-  `theories/programs/infra/affine_cascade.v` close the limit at `1`.
-- **Distribution:** the same induction runs per set. The per-`U` step
-  recurrence `g_iter_U_S` splits the THEN branch into `(1/2) δ_0` and
-  the ELSE branch into the previous iterate pushed forward by `+1`
-  (`g_shift_atom`), so the `n`-th iterate is the truncated geometric law
-  `Σ_{k<n} (1/2)^(k+1) δ_{gpt k}` (`g_iter_closed`). The partial sums
-  converge to the full ereal series (`g_iter_series_cvg`) through the
-  same `cone_sup_ball` limit, giving `ex_geom_cbv_distribution`;
-  evaluating at the singleton `[set gpt k]` isolates the single
-  surviving atom for `ex_geom_cbv_pmf`.
+- **Mass:** translation-mass invariance `add_lift_mass` reduces the
+  mass cascade to $x_{n+1} = \tfrac12 + \tfrac12 x_n$ (`g_val_S`); the
+  affine cascade and sup-mass bridge of
+  `theories/programs/infra/affine_cascade.v` close the limit at $1$.
+- **Distribution:** the same induction runs per set. The per-$U$ step
+  recurrence `g_iter_U_S` splits the THEN branch into $\tfrac12\delta_0$
+  and the ELSE branch into the previous iterate pushed forward by $+1$
+  (`g_shift_atom`), so the $n$-th iterate is the truncated geometric law
+  $\sum_{k<n} (1/2)^{k+1}\delta_{\mathtt{gpt}\,k}$ (`g_iter_closed`). The
+  partial sums converge to the full ereal series (`g_iter_series_cvg`)
+  through the same `cone_sup_ball` limit, giving
+  `ex_geom_cbv_distribution`; evaluating at the singleton `[set gpt k]`
+  isolates the single surviving atom for `ex_geom_cbv_pmf`.
 
 ### Ex 2.3 — Almost-sure termination (`ex_almost_loop`)
 
-A parameterised Bernoulli cascade: with probability `p` the recursion
-halts (returning `()`), and with probability `1 − p` it recurses.
-When `p > 0` the program terminates almost surely (total mass `1`);
-when `p = 0` it diverges (total mass `0`). The dichotomy is an honest
+A parameterised Bernoulli cascade: with probability $p$ the recursion
+halts (returning `()`), with probability $1 - p$ it recurses. For
+$p > 0$ the program terminates almost surely (total mass $1$); at
+$p = 0$ it diverges (total mass $0$). The dichotomy is an honest
 theorem pair: the denotation at `tunit` is a point of the unit cone
 (the CBV `tunit` is the terminal coalgebra on `cone_one_car`), so the
-termination probability is visible as the point's norm. At `p > 0`
-the denotation is moreover pinned as the *element* `one1` — the unit
-point, the Dirac on the one-point space — strengthening the norm
-identity to the point itself (`ex_almost_loop_cbv_dirac`), since a
-norm-one element of the one-dimensional unit cone is `one1`
-(`cone_one_norm_eq1`).
+termination probability is the point's norm. For $p > 0$ the denotation
+is moreover pinned as the *element* `one1` — the unit point, the Dirac
+on the one-point space — strengthening the norm identity to the point
+itself (`ex_almost_loop_cbv_dirac`), since a norm-one element of the
+one-dimensional unit cone is `one1` (`cone_one_norm_eq1`).
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_almost_loop`) | `let rec l _ = if Bernoulli (Const pr [|0|]) then () else l () in l ()` of type `tunit`. The parameter is a bundled probability `pr : prob`; `Const pr` is the constant `tProb`-value coin carrying its `[0,1]` bounds, so the program needs no loose witnesses. | `ex_almost_loop` — `theories/programs/examples.v` |
-| Thm (`ex_almost_loop_cbv_mass_one`) | For every `p > 0` the denotation has norm one: almost-sure termination. | `ex_almost_loop_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
-| Thm (`ex_almost_loop_cbv_dirac`) | For every `p > 0` the denotation IS the unit point `one1` (the Dirac on the one-point space), strengthening the norm identity to the element. | `ex_almost_loop_cbv_dirac` — same file |
-| Thm (`ex_almost_loop_cbv_zero`) | At `p = 0` the denotation is the zero point of the unit cone: the loop diverges with probability one. | `ex_almost_loop_cbv_zero` — same file |
+| Def (`ex_almost_loop`) | `let rec l _ = if Bernoulli (Const pr [|0|]) then () else l () in l ()` of type `tunit`. The parameter is a bundled probability `pr : prob`; `Const pr` is the constant `tProb`-value coin carrying its $[0,1]$ bounds, so the program needs no loose witnesses. | `ex_almost_loop` — `theories/programs/examples.v` |
+| Thm (`ex_almost_loop_cbv_mass_one`) | For every $p > 0$ the denotation has norm one: almost-sure termination. | `ex_almost_loop_cbv_mass_one` — `theories/programs/ex_reject_headline.v` |
+| Thm (`ex_almost_loop_cbv_dirac`) | For every $p > 0$ the denotation IS the unit point `one1` (the Dirac on the one-point space), strengthening the norm identity to the element. | `ex_almost_loop_cbv_dirac` — same file |
+| Thm (`ex_almost_loop_cbv_zero`) | At $p = 0$ the denotation is the zero point of the unit cone: the loop diverges with probability one. | `ex_almost_loop_cbv_zero` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -659,44 +658,43 @@ Theorem ex_almost_loop_cbv_dirac : (0 < p)%R -> al_denot = one1.
 
 (`al_denot` abbreviates
 `linhom_fun (ex_almost_loop_cbv R_carrier_meas R_to_carrier_meas pr) one1`,
-and `p := pr_val pr`; the `0 ≤ p ≤ 1` bounds travel inside the bundled
-`pr : prob`, so the program carries no loose witnesses.)
+and `p := pr_val pr`; the $0 \leq p \leq 1$ bounds travel inside the
+bundled `pr : prob`, so the program carries no loose witnesses.)
 Proof idea: as for the geometric counter — reduce to the
 `cone_sup_ball` of the iterate points (`ex_almost_loop_sup_E`),
 compute one Kleene step to the scalar recurrence
-`al_val (n+1) = p + (1−p)·al_val n` (`al_step` / `al_val_S`), and
-close with `affine_iter_cvg_real`: the limit `p / (1 − (1−p)) = 1`
-for `p > 0`, the constantly-zero chain at `p = 0`. The element
-identity is then immediate: the unit cone is one-dimensional, so
-`cone_one_norm_eq1` upgrades the norm-one fact to `al_denot = one1`.
+$\mathtt{al\_val}\,(n{+}1) = p + (1-p)\,\mathtt{al\_val}\,n$
+(`al_step` / `al_val_S`), and close with `affine_iter_cvg_real`: the
+limit $p / (1 - (1-p)) = 1$ for $p > 0$, the constantly-zero chain at
+$p = 0$. The element identity is then immediate: the unit cone is
+one-dimensional, so `cone_one_norm_eq1` upgrades the norm-one fact to
+`al_denot = one1`.
 
 ### Ex 2.4 — Even/odd mutual recursion (`ex_even_odd_pair`)
 
 The mutual-recursion witness. `ne_fix_mr` binds one recursive name
 `p` at the free-coalgebra type
-`tprod (tfun tunit tunit) (tfun tunit tunit)` — a pair of
-functions — and each component calls the other via the `fst` / `snd`
-projections of the rec-bound product. This is the classic even/odd
-mutual-recursion shape: `ex_even` is `λn. snd p @ n`, `ex_odd` is
-`λn. fst p @ n`, so each component immediately delegates to the
-*other* with **no base case**. The closed runs
-`ex_even @ ()` and `ex_odd @ ()` therefore never terminate, and the
-operational identity is honest divergence — mass `0`.
+`tprod (tfun tunit tunit) (tfun tunit tunit)` — a pair of functions —
+and each component calls the other via the `fst` / `snd` projections of
+the rec-bound product. This is the classic even/odd shape: `ex_even` is
+$\lambda n.\, \mathtt{snd}\ p\ n$, `ex_odd` is
+$\lambda n.\, \mathtt{fst}\ p\ n$, so each component delegates to the
+*other* with **no base case**. The closed runs `ex_even @ ()` and
+`ex_odd @ ()` never terminate: honest divergence, mass $0$.
 
-Both projection runs land in the **unit cone** as its zero element:
-`ex_even_cbv_diverges` and `ex_odd_cbv_diverges` state that
+Both projection runs land in the **unit cone** as its zero element.
+`ex_even_cbv_diverges` and `ex_odd_cbv_diverges` state
 `Lfun (eD_cbv' ex_even_run) one1 = precone_zero` (resp. `ex_odd_run`),
-where `ex_even_run := ne_app ex_even ne_tt`. That is the certain
-divergence — `precone_zero` in the one-dimensional unit cone is mass
-`0`.
+where `ex_even_run := ne_app ex_even ne_tt` — certain divergence, since
+`precone_zero` in the one-dimensional unit cone is mass $0$.
 
-The honest accuracy point: the **pair** denotation is *not* the
-cone-zero. `ex_even_odd_pair_cbv_value` shows the pair value is
+The accuracy point: the **pair** denotation is *not* the cone-zero.
+`ex_even_odd_pair_cbv_value` shows the pair value is
 `(precone_zero : L)! ⊗p (precone_zero : L)!` — a pair of
-*promoted-zero functions* `0! ⊗p 0!`, the backward Seely transport of
-the promoted base-cone zero. That element is provably never the
+*promoted-zero functions* $0!\otimes_{\mathrm p}0!$, the backward Seely
+transport of the promoted base-cone zero, which is provably never the
 cone-zero (`eD_fix_mr_prod_at_setlike_neq0`,
-`theories/programs/infra/cbv_fix_unfold.v`). The mass-`0` content
+`theories/programs/infra/cbv_fix_unfold.v`). The mass-$0$ content
 appears **only** after projecting (`fst` / `snd`) *and* applying to
 `()`, landing in the unit cone. The CBV denotation elaborates through
 the genuine Seely-transported fixpoint path `fix_mr_comb` of
@@ -706,11 +704,11 @@ value-fixpoint chapter.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_even_odd_pair`) | `fix_mr p : (1→1) × (1→1). (λn. snd p n, λn. fst p n)` — one recursive name bound at a pair of function types, each component calling the other. | `ex_even_odd_pair`, `ex_even_odd_pair_cbv` — `theories/programs/examples.v` |
+| Def (`ex_even_odd_pair`) | $\mathtt{fix\_mr}\ p : (1\to 1) \times (1\to 1).\ (\lambda n.\, \mathtt{snd}\ p\ n,\ \lambda n.\, \mathtt{fst}\ p\ n)$ — one recursive name bound at a pair of function types, each component calling the other. | `ex_even_odd_pair`, `ex_even_odd_pair_cbv` — `theories/programs/examples.v` |
 | Def (`ex_even` / `ex_odd`) | The two projections of the recursive pair. | `ex_even`, `ex_odd` — same file |
-| Thm (`ex_even_cbv_diverges`) | The closed run `ex_even @ ()` lands in the unit cone as the zero element — mass `0`, certain divergence. | `ex_even_cbv_diverges` — `theories/programs/ex_reject_headline.v` |
-| Thm (`ex_odd_cbv_diverges`) | The closed run `ex_odd @ ()` likewise denotes the unit-cone zero — mass `0`. | `ex_odd_cbv_diverges` — same file |
-| Lem (`ex_even_odd_pair_cbv_value`) | The pair denotation is `0! ⊗p 0!`, the pair of promoted-zero functions — *not* the cone-zero. Divergence is the statement about the projections applied to `()`. | `ex_even_odd_pair_cbv_value` — same file |
+| Thm (`ex_even_cbv_diverges`) | The closed run `ex_even @ ()` lands in the unit cone as the zero element — mass $0$, certain divergence. | `ex_even_cbv_diverges` — `theories/programs/ex_reject_headline.v` |
+| Thm (`ex_odd_cbv_diverges`) | The closed run `ex_odd @ ()` likewise denotes the unit-cone zero — mass $0$. | `ex_odd_cbv_diverges` — same file |
+| Lem (`ex_even_odd_pair_cbv_value`) | The pair denotation is $0!\otimes_{\mathrm p}0!$, the pair of promoted-zero functions — *not* the cone-zero. Divergence is the statement about the projections applied to `()`. | `ex_even_odd_pair_cbv_value` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -732,8 +730,8 @@ Definition ex_odd :
 ```
 
 (`pair_ty` abbreviates `tprod (tfun tunit tunit) (tfun tunit tunit)`;
-the two spliced lambdas are `λn. snd #"p" @ #"n"` and
-`λn. fst #"p" @ #"n"`.)
+the two spliced lambdas are $\lambda n.\, \mathtt{snd}\ \#\mathtt{"p"}\ @\ \#\mathtt{"n"}$
+and $\lambda n.\, \mathtt{fst}\ \#\mathtt{"p"}\ @\ \#\mathtt{"n"}$.)
 
 ```coq
 (* theories/programs/ex_reject_headline.v — Section ExEvenOddRider *)
@@ -756,23 +754,24 @@ Lemma ex_even_odd_pair_cbv_value :
 ```
 
 (`ex_even_run := ne_app ex_even ne_tt`, `ex_odd_run` likewise;
-`Lfun h` abbreviates the underlying cones-hom function and `_!` is
-`prom`, `_ ⊗p _` the `ptensor` of the promoted unit-cone homset `L`.)
+`Lfun h` abbreviates the underlying cones-hom function, `_!` is `prom`,
+and $\_\otimes_{\mathrm p}\_$ the `ptensor` of the promoted unit-cone
+homset `L`.)
 
 **Proof idea.**
 
-- **Chain stays zero:** the recursion is seeded at the cone-zero, and
-  the zero-seeded interleaved-Kleene chain stays there — `even_odd_iter_zero`
-  shows every iterate `fix_chain eo_W0 n = precone_zero` by induction
-  (each step is `der 0! = 0`). Hence the value-fixpoint at the base cone
-  is the sup of zero iterates, `ex_even_odd_fix_value_zero`.
+- **Chain stays zero:** seeded at the cone-zero, the zero-seeded
+  interleaved-Kleene chain stays there — `even_odd_iter_zero` shows
+  every iterate `fix_chain eo_W0 n = precone_zero` by induction (each
+  step is $\mathtt{der}\ 0! = 0$). Hence the value-fixpoint at the base
+  cone is the sup of zero iterates, `ex_even_odd_fix_value_zero`.
 - **Pair value:** feeding this through the semantic computation law
-  `eD_fix_mr_prod_at_setlike` gives the pair value `0! ⊗p 0!`.
+  `eD_fix_mr_prod_at_setlike` gives the pair value $0!\otimes_{\mathrm p}0!$.
 - **Projections:** each projection-then-apply uses the homogeneity
   helper `linhom_cone_one_zero` (with `cone_one_scale_rep`) — a linhom
   out of the one-dimensional unit cone that vanishes at `one1` is the
-  zero linhom, so the derelicted promoted-zero function evaluated at the
-  unit point is `precone_zero`.
+  zero linhom, so the derelicted promoted-zero function at the unit
+  point is `precone_zero`.
 
 ---
 
