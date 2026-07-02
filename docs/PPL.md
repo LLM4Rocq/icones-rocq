@@ -1867,36 +1867,35 @@ Definition Yfix : scones_hom BB B :=
 **In this chapter:** [Law 5.1](../../ppl/sections/ppl-sec-law-5-1-the-let-at-sample-integral-law.html) · [Law 5.2](../../ppl/sections/ppl-sec-law-5-2-the-affine-cascade-and-the-sup-mass-bridge.html) · [Def 5.3](../../ppl/sections/ppl-sec-def-5-3-the-setlike-point-kit.html) · [Law 5.4](../../ppl/sections/ppl-sec-law-5-4-the-sharing-semantics-anchors.html) · [Law 5.5](../../ppl/sections/ppl-sec-law-5-5-the-rule-and-the-if-pins.html) · [Law 5.6](../../ppl/sections/ppl-sec-law-5-6-the-cbv-marginals.html) · [Law 5.7](../../ppl/sections/ppl-sec-law-5-7-the-conditioning-law-and-the-equivalence.html).
 
 The equational layer between the interpreter and the example
-results: pointwise laws *about* `eD` that the rejection-sampling and
-mass-identity proofs consume, plus the regression anchors that pin
-the operational reading of the CBV interpreter. The anchors exist so
-that a refactor of the §7/§9 cartesian machinery that silently
-flipped the shared-sample semantics to an independent-product
-semantics would break in a named lemma instead of compiling quietly.
-The chapter closes with the marginal identities these laws were
-built for, and with the conditioning law and the
+results: pointwise laws *about* `eD` consumed by the
+rejection-sampling and mass-identity proofs, plus regression anchors
+pinning the operational reading of the CBV interpreter. The anchors
+exist so that a §7/§9 refactor silently flipping the shared-sample
+semantics to an independent-product one breaks in a named lemma
+rather than compiling quietly. The chapter closes with the marginal
+identities these laws serve, and with the conditioning law and the
 rejection/conditioning equivalence of
 `theories/programs/ex_reject_model.v`.
 
 | Construction | Rocq |
 |---|---|
-| The sample-let collapse `⟦let x = sample µ in K⟧(γ) = ⟦K⟧(γ ⊗ µ)` | `eD_let_sample_collapse`, `em_pair_mor_const_E` — `theories/programs/infra/let_sample_law.v` |
-| The let-at-sample Pettis integral law (arbitrary `γ`) | `eD_let_sample_int`, `ptensor_icone_integral`, `icone_integral_dirac_fmeas` — same file |
+| The sample-let collapse $\llbracket \mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K \rrbracket(\gamma) = \llbracket K \rrbracket(\gamma \otimes \mu)$ | `eD_let_sample_collapse`, `em_pair_mor_const_E` — `theories/programs/infra/let_sample_law.v` |
+| The let-at-sample Pettis integral law (arbitrary $\gamma$) | `eD_let_sample_int`, `ptensor_icone_integral`, `icone_integral_dirac_fmeas` — same file |
 | Per-`U` evaluation of an `FMeas`-valued Pettis integral | `icone_integral_fmeas_E` — same file |
 | The fused measure-on-`U` form at result type `tR` | `eD_let_sample_mu_E`, sanity `let_sample_var_E` — same file |
-| The general let-law — arbitrary bound computation `M : tR`, setlike `γ`: `⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)` | `eD_let_collapse_setlike`, `eD_let_int`, `eD_let_mu_E` — same file |
+| The general let-law — arbitrary bound computation `M : tR`, setlike $\gamma$: $\llbracket \mathtt{let}\ x = M\ \mathtt{in}\ K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r)\,(\llbracket M \rrbracket\gamma)(dr)$ | `eD_let_collapse_setlike`, `eD_let_int`, `eD_let_mu_E` — same file |
 | Affine Kleene cascade: closed form, geometric form, limit | `affine_iter_closed`, `affine_iter_geom`, `affine_iter_cvg`, `affine_iter_deg_eq0` — `theories/programs/infra/affine_cascade.v` |
-| The sup-mass bridge for unit-ball ω-chains in `FMeas` | `fmeas_kleene_sup_U_cvg`, `fmeas_kleene_sup_U_E` — same file |
+| The sup-mass bridge for unit-ball $\omega$-chains in `FMeas` | `fmeas_kleene_sup_U_cvg`, `fmeas_kleene_sup_U_E` — same file |
 | The setlike-point kit (Eq-88 comonoid at sub-Dirac points) | `coalg_d_setlike`, `coalg_e_setlike`, `coalg_str_one1`, `coalg_str_tensor_setlike`, `em_pair_mor_constE` — `theories/programs/infra/cbv_anchors.v` |
 | The comonoid diagonals are genuinely diagonal (boolean and `FMeas`) | `bool_coalg_d_E`, `coalg_d_FMeas_dirac` — same file |
 | The shared-sample witnesses | `let_bernoulli_pair_diag`, `let_sample_pair_diag` — same file |
 | The independence contrast | `pair_bernoulli_indep`, `pair_sample_indep` — same file |
-| The β-rule at the morphism level | `eD_beta` — same file |
+| The $\beta$-rule at the morphism level | `eD_beta` — same file |
 | The if-orientation pins | `eD_if_true`, `eD_if_false` — same file |
 | The unnormalised score posterior, against `eD` | `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass` — `theories/programs/infra/cbv_marginals.v` |
 | Rejection sampling normalises the score posterior | `ex_reject_normalises_score` — same file |
-| The conditioning law — `⟦condition m a⟧(U) = ∫_U f dν_M` for an *arbitrary* model (the score posterior generalised from `sample µ`) | `condition_model_E`, `condition_model_mass`, readable `condition_E`, `condition_prog_evidence` — `theories/programs/ex_reject_model.v` |
-| The equivalence — rejection sampling computes the conditioned model's normalised distribution: `Z · ⟦reject_prog⟧ U = ⟦condition_prog⟧ U` | `reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob` — same file |
+| The conditioning law — $\llbracket \mathtt{condition}\ m\ a \rrbracket(U) = \int_U f\,d\nu_M$ for an *arbitrary* model (the score posterior generalised from $\mathtt{sample}\ \mu$) | `condition_model_E`, `condition_model_mass`, readable `condition_E`, `condition_prog_evidence` — `theories/programs/ex_reject_model.v` |
+| The equivalence — rejection sampling computes the conditioned model's normalised distribution: $Z \cdot \llbracket \mathtt{reject\_prog} \rrbracket\, U = \llbracket \mathtt{condition\_prog} \rrbracket\, U$ | `reject_normalises_condition`, `reject_prog_computes_condition`, `reject_normalises_condition_prob` — same file |
 | The sampled-constant marginal at probability test points | `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass` — same file |
 | The random-affine marginal at Dirac test points | `ex_random_linear_cbv_marginal`, `rl_inner_marginal` — same file |
 | The Bayesian-linear-regression model evidence (general observation list) | `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`, `obs_fold_at` — same file |
@@ -1904,28 +1903,27 @@ rejection/conditioning equivalence of
 
 ### Law 5.1 — The let-at-sample integral law (`eD_let_sample_int`, `eD_let_int`)
 
-> **Key result:** `⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)` — the Pettis integral law the marginal proofs consume.
+> **Key result:** $\llbracket \mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r)\,\mu(dr)$ — the Pettis integral law the marginal proofs consume.
 
-The law ties the CBV interpretation of `let x = sample µ in K` to
-the Pettis integral of `K`'s denotation over the Diracs of `µ`:
-*⟦let x = sample µ in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) µ(dr)*, pointwise at
-arbitrary `γ`. No unit-ball and no setlike hypothesis is needed
-anywhere: every step is driven by a genuine `linhom_car` / `icones_hom`
-field, all of which hold on the whole cone. The proof is a four-step
-composition:
+The law ties the CBV interpretation of `let x = sample µ in K` to the
+Pettis integral of `K`'s denotation over the Diracs of $\mu$:
+$$\llbracket \mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r)\,\mu(dr)$$
+pointwise at arbitrary $\gamma$. No unit-ball or setlike hypothesis is
+needed: every step is driven by a genuine `linhom_car` / `icones_hom`
+field, all holding on the whole cone. The proof composes four steps:
 
-1. *Collapse.* `⟦let x = sample µ in K⟧(γ) = ⟦K⟧(γ ⊗ µ)` — the inner
+1. *Collapse.* $\llbracket \mathtt{let}\ x = \mathtt{sample}\ \mu\ \mathtt{in}\ K \rrbracket(\gamma) = \llbracket K \rrbracket(\gamma \otimes \mu)$ — the inner
    `em_pair_mor id (const µ)` erases the context copy through the
    comonoid counit law `emc_counitR` (`em_pair_mor_const_E`, stated for
    an arbitrary constant).
-2. *Dirac approximation.* `µ = ∫ δ_r µ(dr)`, re-spelled with the bare
-   `dirac_fmeas` integrand (`icone_integral_dirac_fmeas`, from
-   `bilin.v`'s Thm 6.1 Dirac approximation).
+2. *Dirac approximation.* $\mu = \int \delta_r\,\mu(dr)$, re-spelled
+   with the bare `dirac_fmeas` integrand (`icone_integral_dirac_fmeas`,
+   from `bilin.v`'s Thm 6.1 Dirac approximation).
 3. *Tensor.* Tensoring with a fixed point preserves Pettis integrals,
-   `γ ⊗ (∫ β dµ) = ∫ (γ ⊗ β r) µ(dr)` — the `linhom_pres_int` field of
-   `τ(γ)` (`ptensor_icone_integral`).
-4. *Push.* The `icones_hom_pres_int` field of `⟦K⟧` pushes the
-   denotation under the integral.
+   $\gamma \otimes \left(\int \beta\,d\mu\right) = \int (\gamma \otimes \beta\, r)\,\mu(dr)$ — the `linhom_pres_int`
+   field of $\tau(\gamma)$ (`ptensor_icone_integral`).
+4. *Push.* The `icones_hom_pres_int` field of $\llbracket K \rrbracket$
+   pushes the denotation under the integral.
 
 ```coq
 (* theories/programs/infra/let_sample_law.v *)
@@ -1941,14 +1939,13 @@ Lemma eD_let_sample_int (γ : Gamo) :
     (let_sample_path γ) mu.
 ```
 
-For headline consumption the law is fused with the per-`U`
-evaluation of an `FMeas`-valued Pettis integral
-(`icone_integral_fmeas_E`, the generalisation of
-`FMeas_fmap_setT_E` from `setT` to an arbitrary measurable `U`, read
-off the Pettis equation against the test `fmeas_eU U`): when the let
-body has type `tR` the denotation is a measure, and its mass on `U`
-is an ordinary Lebesgue integral — the exact shape of the
-rejection-sampling mass recurrence.
+For headline consumption the law is fused with the per-`U` evaluation
+of an `FMeas`-valued Pettis integral (`icone_integral_fmeas_E`, the
+generalisation of `FMeas_fmap_setT_E` from `setT` to an arbitrary
+measurable `U`, read off the Pettis equation against the test
+`fmeas_eU U`): when the let body has type `tR` the denotation is a
+measure, and its mass on `U` is an ordinary Lebesgue integral — the
+exact shape of the rejection-sampling mass recurrence.
 
 ```coq
 (* theories/programs/infra/let_sample_law.v *)
@@ -1965,18 +1962,19 @@ Lemma let_sample_var_E : linhom_fun (eD' ex_let_sample_var) one1 = mu.
 **The general let-law.** The sample case is the special case
 `M = sample µ` of the general CBV sequencing law for an *arbitrary*
 bound computation `M : tR`:
-*⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)* — the bound
-sub-distribution `⟦M⟧γ` replaces the constant prior.
-Unlike the sample case, the step-1 collapse now genuinely consumes
-the comonoid copy of the context (`em_pair_mor id ⟦M⟧` feeds `γ` to
-*both* legs), so the law holds at setlike unit-ball context points
-(`eD_let_collapse_setlike`) — which is harmless: in every consumer
-the let sits under binders whose environments are setlike by
-construction. Steps 2–4 are reused verbatim — none of them mention
-the bound measure. The fused measure-on-`U` form `eD_let_mu_E` is the
-exact shape the rejection-sampling *combinator* mass recurrence
-consumes (`theories/programs/ex_reject_model.v`, with `M = m @ a` the
-model applied to the input).
+$$\llbracket \mathtt{let}\ x = M\ \mathtt{in}\ K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r)\,(\llbracket M \rrbracket\gamma)(dr)$$
+the bound sub-distribution $\llbracket M \rrbracket\gamma$ replaces the
+constant prior. Unlike the sample case, the step-1 collapse now
+genuinely consumes the comonoid copy of the context
+(`em_pair_mor id ⟦M⟧` feeds $\gamma$ to *both* legs), so the law holds
+at setlike unit-ball context points (`eD_let_collapse_setlike`) — which
+is harmless: in every consumer the let sits under binders whose
+environments are setlike by construction. Steps 2–4 are reused
+verbatim, none mentioning the bound measure. The fused measure-on-`U`
+form `eD_let_mu_E` is the exact shape the rejection-sampling
+*combinator* mass recurrence consumes
+(`theories/programs/ex_reject_model.v`, with `M = m @ a` the model
+applied to the input).
 
 ```coq
 (* theories/programs/infra/let_sample_law.v *)
@@ -1992,11 +1990,11 @@ Lemma eD_let_int (γ : Gamo) :
 ### Law 5.2 — The affine cascade and the sup-mass bridge (`affine_iter_closed`, `fmeas_kleene_sup_U_E`)
 
 The scalar core of every CBV mass headline. Given reals
-`a, q ≥ 0` and a real sequence with `x 0 = 0` and
-`x (n+1) = a + q · x n` — the per-iterate mass of an affine Kleene
+$a, q \geq 0$ and a real sequence with $x_0 = 0$ and
+$x_{n+1} = a + q \cdot x_n$ — the per-iterate mass of an affine Kleene
 chain — the closed form is the partial geometric series, with the
-geometric form away from `q = 1` and the limit `a / (1 − q)` when
-`q < 1`.
+geometric form away from $q = 1$ and the limit $a / (1 - q)$ when
+$q < 1$.
 
 ```coq
 (* theories/programs/infra/affine_cascade.v *)
@@ -2014,8 +2012,8 @@ Lemma affine_iter_cvg :
   (x n)%:E @[n --> \oo] --> ((a / (1 - q))%R%:E : \bar R).
 ```
 
-The sup-mass bridge then converts a *limit of per-iterate masses*
-into the *mass of the Kleene supremum*: for a unit-ball ω-chain
+The sup-mass bridge then converts a *limit of per-iterate masses* into
+the *mass of the Kleene supremum*: for a unit-ball $\omega$-chain
 `ν : nat → fmeas R X` and a measurable `U`, the masses
 `fmeas_mu (ν n) U` converge to the mass of `cone_sup_ball ν` at `U`
 (definitionally `fmeas_sup_ball`, the HB `isCone` instance of
@@ -2029,25 +2027,23 @@ Lemma fmeas_kleene_sup_U_E (U : set X) (l : \bar R) :
   fmeas_mu (cone_sup_ball nu nuch nub1 : fmeas R X) U = l.
 ```
 
-Together with the interleaved-chain laws of the fixpoint chapter,
-this is the complete recipe behind every CBV mass identity: reduce
-the denotation to a `cone_sup_ball` of per-iterate measures, derive
-the affine mass recurrence per iterate (via the let-at-sample law or
-the boolean dispatch), close the recurrence with
-`affine_iter_closed` / `affine_iter_cvg`, and land with
-`fmeas_kleene_sup_U_E`.
+With the interleaved-chain laws of the fixpoint chapter, this is the
+complete recipe behind every CBV mass identity: reduce the denotation
+to a `cone_sup_ball` of per-iterate measures, derive the affine mass
+recurrence per iterate (via the let-at-sample law or the boolean
+dispatch), close it with `affine_iter_closed` / `affine_iter_cvg`, and
+land with `fmeas_kleene_sup_U_E`.
 
 ### Def 5.3 — The setlike-point kit (`coalg_d_setlike`, `coalg_str_tensor_setlike`)
 
-A point `x` of a coalgebra `(P, str)` is *setlike* when
-`str x = x!` — the §9.7 reading "`x` is a (sub-)Dirac". On setlike
-unit-ball points the Eq-88 comonoid computes: the diagonal is the
-pure tensor square and the counit is the unit point. The setlike
-points are closed under the `EM_prod` tensor, and the unit point
-`one1`, every Dirac of `FMeas X`, and both boolean Diracs are
-setlike — which is what lets every program-level computation below
-proceed by evaluating morphism composites at concrete environment
-points.
+A point `x` of a coalgebra `(P, str)` is *setlike* when `str x = x!` —
+the §9.7 reading "`x` is a (sub-)Dirac". On setlike unit-ball points
+the Eq-88 comonoid computes: the diagonal is the pure tensor square,
+the counit the unit point. The setlike points are closed under the
+`EM_prod` tensor, and the unit point `one1`, every Dirac of `FMeas X`,
+and both boolean Diracs are setlike — which is what lets every
+program-level computation below proceed by evaluating morphism
+composites at concrete environment points.
 
 ```coq
 (* theories/programs/infra/cbv_anchors.v (Section AnchorKit) *)
@@ -2071,12 +2067,12 @@ Lemma em_pair_mor_constE (Z Q : Coalgebra Ar) (c : coalg_obj Q)
   g ⊗p c.
 ```
 
-The kit also pins the comonoid diagonals themselves: the §9.7
-boolean coalgebra's diagonal is the convex combination of the
-*diagonal* basis tensors (`bool_coalg_d_E` — the independent-product
-reading would produce cross terms instead), and the `FMeas` diagonal
-sends a Dirac to its diagonal tensor (`coalg_d_FMeas_dirac`): the
-§9.7 coalgebra duplicates a *sample*, not the measure.
+The kit also pins the comonoid diagonals themselves: the §9.7 boolean
+coalgebra's diagonal is the convex combination of the *diagonal* basis
+tensors (`bool_coalg_d_E` — the independent-product reading would
+produce cross terms), and the `FMeas` diagonal sends a Dirac to its
+diagonal tensor (`coalg_d_FMeas_dirac`): the §9.7 coalgebra duplicates
+a *sample*, not the measure.
 
 ```coq
 (* theories/programs/infra/cbv_anchors.v *)
@@ -2096,12 +2092,12 @@ Lemma coalg_d_FMeas_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
 
 The load-bearing program-level pin: `let x = Bernoulli(p) in (x, x)`
 denotes the *diagonal* pushforward
-`p · (δ_T ⊗ δ_T) + (1−p) · (δ_F ⊗ δ_F)` — a shared sample, not the
+$p \cdot (\delta_T \otimes \delta_T) + (1-p) \cdot (\delta_F \otimes \delta_F)$ — a shared sample, not the
 independent square. The contrast anchors pin the same semantics from
-the other side: two *separate* samples,
-`(Bernoulli(p), Bernoulli(p))` and `(sample µ, sample µ)`, denote
-the independent products `bern ⊗ bern` and `µ ⊗ µ`. Together the two
-pairs make the sharing semantics of the CBV `let` a regression
+the other side: two *separate* samples, `(Bernoulli(p), Bernoulli(p))`
+and `(sample µ, sample µ)`, denote the independent products
+$\mathtt{bern} \otimes \mathtt{bern}$ and $\mu \otimes \mu$. Together
+the two pairs make the sharing semantics of the CBV `let` a regression
 property rather than a folklore expectation.
 
 ```coq
@@ -2127,21 +2123,22 @@ Lemma pair_sample_indep (mu : fmeas R (ar_carrier Ar R_obj))
   mu ⊗p mu.
 ```
 
-(For a general prior `µ`, the shared-`let` pair is the Pettis
-integral `∫ (δ_r ⊗ δ_r) dµ(r)` by the let-at-sample law above; the
-Dirac special case is the anchor.) All anchors are stated against
-the public interpreter `eD` through the definitional clause pins of
-`ppl_cbv.v` — never re-derived.
+(For a general prior $\mu$, the shared-`let` pair is the Pettis
+integral $\int (\delta_r \otimes \delta_r)\,d\mu(r)$ by the
+let-at-sample law above; the Dirac special case is the anchor.) All
+anchors are stated against the public interpreter `eD` through the
+definitional clause pins of `ppl_cbv.v` — never re-derived.
 
 ### Law 5.5 — The β-rule and the if-pins (`eD_beta`, `eD_if_true`, `eD_if_false`)
 
-Two more morphism-level anchors. The β-rule
-`(λx.M) V = let x := V in M` holds as an equality of `icones_hom`s:
-the `!̃` round trip `der ∘ !(curry M) ∘ str` collapses by `adj_phiK`
-(the adjunction triangle), and the curry/uncurry round trip by
-`tensor_uncurry_natL` + `tensor_curryK`. The if-pins orient the
-boolean dispatch — a braid slipped into `if_under` would flip the
-branches and break exactly here.
+Two more morphism-level anchors. The $\beta$-rule
+$(\lambda x.M)\, V = \mathtt{let}\ x := V\ \mathtt{in}\ M$ holds as an
+equality of `icones_hom`s: the $\tilde{!}$ round trip
+`der ∘ !(curry M) ∘ str` collapses by `adj_phiK` (the adjunction
+triangle), and the curry/uncurry round trip by `tensor_uncurry_natL` +
+`tensor_curryK`. The if-pins orient the boolean dispatch — a braid
+slipped into `if_under` would flip the branches and break exactly
+here.
 
 ```coq
 (* theories/programs/infra/cbv_anchors.v (Section ProgramAnchors) *)
@@ -2170,17 +2167,15 @@ chapter's machinery was built for. The common route: the
 let-at-sample law turns each `let x = sample µ in …` prefix into a
 Pettis integral over Diracs of the prior; dereliction / evaluation at
 setlike test points pushes inside the integral
-(`icones_hom_pres_int` / `linhom_int_eval`); and the integrand
-computes pointwise through the setlike-point kit, closing with a
-Dirac integral (`icone_integral_dirac_fmeas` or
-`icone_integral_fmeas_E`).
+(`icones_hom_pres_int` / `linhom_int_eval`); and the integrand computes
+pointwise through the setlike-point kit, closing with a Dirac integral
+(`icone_integral_dirac_fmeas` or `icone_integral_fmeas_E`).
 
-**The unnormalised posterior.** The denotation of
-`ex_score_posterior` (`let m = sample µ in let _ = score f m in m`)
-at the unit context point is, on every measurable `U`, the prior
-reweighted by the evidence density — *not* normalised; the mass
-corollary `ex_score_posterior_cbv_mass` gives the total evidence
-`∫ f dµ`.
+**The unnormalised posterior.** The denotation of `ex_score_posterior`
+(`let m = sample µ in let _ = score f m in m`) at the unit context
+point is, on every measurable `U`, the prior reweighted by the
+evidence density — *not* normalised; the mass corollary
+`ex_score_posterior_cbv_mass` gives the total evidence $\int f\,d\mu$.
 
 ```coq
 (* theories/programs/infra/cbv_marginals.v (Section ScorePosterior) *)
@@ -2195,10 +2190,10 @@ Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
 **The normalisation pairing.** Combining the posterior identity with
 the rejection-sampling master identity of
 `theories/programs/ex_reject_headline.v`: at a probability prior
-(`µ(setT) = 1`), the rejection-sampling denotation times the total
-evidence *is* the score denotation — `score` produces the
-unnormalised posterior, rejection sampling produces the normalised
-one, and the theorem connects the two programs exactly.
+($\mu(\mathtt{setT}) = 1$), the rejection-sampling denotation times the
+total evidence *is* the score denotation — `score` produces the
+unnormalised posterior, rejection sampling the normalised one, and the
+theorem connects the two programs exactly.
 
 ```coq
 (* theories/programs/infra/cbv_marginals.v (Section ScorePosterior) *)
@@ -2218,12 +2213,12 @@ Theorem ex_reject_normalises_score
 subtlety.** The denotation of `ex_random_constant`
 (`let c = sample µ in λx. c`) is a promoted function value;
 derelicting it and evaluating at a test point `x` recovers the prior
-`µ` — *provided `x` is a probability* (`fmeas_mu x setT = 1`). The
+$\mu$ — *provided `x` is a probability* (`fmeas_mu x setT = 1`). The
 hypothesis is honest, not an artifact: the closure discards its
 argument, and discarding in `EM(!)` is the comonoid counit, which on
 `FMeas` weighs the kept output by the argument's *total mass*
-(`coalg_e_FMeas_prob` / `em_proj1_mor_probE`) — so at `x = 0` the
-marginal is `0`, not `µ`, and only mass-1 test points are silently
+(`coalg_e_FMeas_prob` / `em_proj1_mor_probE`) — so at $x = 0$ the
+marginal is $0$, not $\mu$, and only mass-1 test points are silently
 discarded. Dirac test points are probabilities, giving the corollary
 `ex_random_constant_cbv_marginal_dirac`; the per-`U` reading is
 `ex_random_constant_cbv_marginal_mass`.
@@ -2239,11 +2234,12 @@ Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
 ```
 
 **The random-affine marginal.** The denotation of `ex_random_linear`
-(`let m = sample µ in let b = sample µ in λx. m·x + b`), derelicted
-and evaluated at a Dirac test point `δ_{r0}`, is on every measurable
-`U` the iterated-integral measure `∫∫ δ_{m·r0+b}(U) µ(db) µ(dm)` —
-the joint pushforward of two independent prior draws along
-`(m, b) ↦ m·r0 + b`. The inner one-sample layer is
+(`let m = sample µ in let b = sample µ in λx. m·x + b`), derelicted and
+evaluated at a Dirac test point $\delta_{r_0}$, is on every measurable
+`U` the iterated-integral measure
+$\int\int \delta_{m \cdot r_0 + b}(U)\,\mu(db)\,\mu(dm)$ — the joint
+pushforward of two independent prior draws along
+$(m, b) \mapsto m \cdot r_0 + b$. The inner one-sample layer is
 `rl_inner_marginal`; the arithmetic computes on Diracs through the
 `add_lift` / `mul_lift` Dirac rules.
 
@@ -2264,15 +2260,15 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
           U))%:E))%:E.
 ```
 
-**The Bayesian-linear-regression model evidence.** The headline of
-the file: `ex_bayes_linear l` samples the random affine model *once*
-(it is literally `ex_random_linear`), binds it to `"f"`, conditions
-it on each element of the meta-level list `l : seq (obs R)` in turn
-(`iter_condition`: each observation `o` scores the model's value at
-the known input `obs_x o` by the density `obs_d o`), and returns
-`#"f"` — the posterior over functions. The theorem, for a *general* `l`: the
-comonoid counit ("total mass") of the function-space denotation is
-the **model evidence**.
+**The Bayesian-linear-regression model evidence.** The headline of the
+file: `ex_bayes_linear l` samples the random affine model *once* (it is
+literally `ex_random_linear`), binds it to `"f"`, conditions it on each
+element of the meta-level list `l : seq (obs R)` in turn
+(`iter_condition`: each observation `o` scores the model's value at the
+known input `obs_x o` by the density `obs_d o`), and returns `#"f"` —
+the posterior over functions. The theorem, for a *general* `l`: the
+comonoid counit ("total mass") of the function-space denotation is the
+**model evidence**.
 
 ```coq
 (* theories/programs/infra/cbv_marginals.v (Section BayesLinearEvidence) *)
@@ -2286,43 +2282,42 @@ Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
         ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E))%:E).
 ```
 
-The 2-observation corollary `ex_bayes_linear_cbv_evidence2` writes
-the product literally. The CBV content: the let-bound *function
-value* is shared — duplicated by the comonoid `coalg_d` at a
-prom-point of the function cone — across all observations and the
-return, so every score weighs the *same* sampled function; the
-workhorse `obs_fold_at` factors the per-observation scalar weights
-out of the fold one at a time, and two let-at-sample integrations
-close the evidence.
+The 2-observation corollary `ex_bayes_linear_cbv_evidence2` writes the
+product literally. The CBV content: the let-bound *function value* is
+shared — duplicated by the comonoid `coalg_d` at a prom-point of the
+function cone — across all observations and the return, so every score
+weighs the *same* sampled function; the workhorse `obs_fold_at` factors
+the per-observation scalar weights out of the fold one at a time, and
+two let-at-sample integrations close the evidence.
 
 The supporting kit of the file (its §1) extends the setlike-point kit
-to *non-setlike* discarded components: the comonoid counit of the
-§9.7 coalgebra `FMeas X` sends every probability measure to `one1`
+to *non-setlike* discarded components: the comonoid counit of the §9.7
+coalgebra `FMeas X` sends every probability measure to `one1`
 (`coalg_e_FMeas_prob` — Diracs are setlike, and the Dirac-to-integral
-lift plus the Pettis equation on `cone_one` reads off the total
-mass), so the first cartesian projection silently discards an
-`FMeas`-typed probability (`em_proj1_mor_probE`) and weighs by the
-scalar when discarding a `tunit`-typed score result
-(`em_proj1_mor_unitE` — how the score weight becomes a
-`precone_scale` factor in the score-posterior proof). The
-per-program proofs are worked example-by-example in
-the [Examples tab](../../examples/index.html).
+lift plus the Pettis equation on `cone_one` reads off the total mass),
+so the first cartesian projection silently discards an `FMeas`-typed
+probability (`em_proj1_mor_probE`) and weighs by the scalar when
+discarding a `tunit`-typed score result (`em_proj1_mor_unitE` — how the
+score weight becomes a `precone_scale` factor in the score-posterior
+proof). The per-program proofs are worked example-by-example in the
+[Examples tab](../../examples/index.html).
 
 ### Law 5.7 — The conditioning law and the equivalence (`condition_model_E`, `reject_normalises_condition`)
 
 The conditioning combinator promoted to an operator: `condition f m`
 takes a **program predicate** `f : b → tbool` and a model `m : a → b`,
-and returns the conditioned model
+returning the conditioned model
 `λa. let x = m a in let _ = assert (f x) in x`, where a failed `assert`
-zeroes the trace. Writing `s_r := ⟦f x⟧` for the acceptance
-distribution at a returned value `r` and `t(r) := (bc_t s_r)%:num` for
-its acceptance probability, the conditioning law (Section
-RejectModelCompat of `theories/programs/ex_reject_model.v`) states that at
-a unit-ball model value `g!` and a setlike unit-ball input `a₀`,
-writing `ν_M := g(a₀)` for the model's output sub-distribution, the
-conditioned model's output is the model's output reweighted by `t`. The
+zeroes the trace. Write $s_r := \llbracket f\, x \rrbracket$ for the
+acceptance distribution at a returned value $r$ and
+$t(r) := (\mathtt{bc\_t}\ s_r)$ for its acceptance probability. The
+conditioning law (Section RejectModelCompat of
+`theories/programs/ex_reject_model.v`) states that at a unit-ball model
+value `g!` and a setlike unit-ball input $a_0$, writing
+$\nu_M := g(a_0)$ for the model's output sub-distribution, the
+conditioned model's output is the model's output reweighted by $t$. The
 proof engine is this chapter's general let-law `eD_let_int_obj` at
-`ν_M`, with the assert clause computing on Diracs to
+$\nu_M$, with the assert clause computing on Diracs to
 `bool_case s_r (δ_r) 0` and the returned variable projected through
 `em_proj1_mor_unitE` / `Lfun_scaleE`.
 
@@ -2334,11 +2329,11 @@ Theorem condition_model_E (U : set (ar_carrier Ar B))
   \int[fmeas_mu (reject_model_dist g a0)]_(r in U) ((bc_t (sdist r))%:num)%:E.
 ```
 
-In the readable `⟦·⟧` brackets (Section ReadableHeadlines, over an
-arbitrary thunked model `model_prog := λ_. Mbody` with
-`model_run := model_prog ()` and
+In the readable $\llbracket \cdot \rrbracket$ brackets (Section
+ReadableHeadlines, over an arbitrary thunked model
+`model_prog := λ_. Mbody` with `model_run := model_prog ()` and
 `condition_prog := condition pred_prog model_prog ()`), the law is
-`condition_E`, and combining it with the rejection master identity
+`condition_E`; combining it with the rejection master identity
 `reject_prog_master` gives the equivalence — rejection sampling
 computes the conditioned model's normalised distribution:
 
@@ -2356,13 +2351,14 @@ Theorem reject_normalises_condition U (mU : measurable U) :
 ```
 
 The division form `reject_prog_computes_condition` divides through at
-`0 < Z`, and the probability-model form
+$0 < Z$, and the probability-model form
 `reject_normalises_condition_prob` identifies the normaliser with the
-model evidence `⟦condition_prog⟧(setT)`. The historical special case
-at the sampler model is `ex_reject_normalises_score` above; the
-regression side — `ex_bayes_linear` is *defined* as iterated
-conditioning (`condition_at` / `iter_condition`, with the named
-anchor `ex_bayes_linear_is_iter_condition` now definitional,
+model evidence $\llbracket \mathtt{condition\_prog} \rrbracket(\mathtt{setT})$.
+The historical special case at the sampler model is
+`ex_reject_normalises_score` above; the regression side —
+`ex_bayes_linear` is *defined* as iterated conditioning
+(`condition_at` / `iter_condition`, with the named anchor
+`ex_bayes_linear_is_iter_condition` now definitional,
 `theories/programs/examples.v`) — and the full narrative live on the
 [Examples tab](../../examples/index.html).
 
