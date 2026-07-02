@@ -1,6 +1,10 @@
 # Runtime + test dependencies for the Icones auditor dashboard build.
 jinja2>=3.1
 markdown-it-py>=3.0
+# Math: the dollarmath plugin tokenises $..$ / $$..$$ so LaTeX survives to the
+# HTML (commonmark would eat \( and mangle $..$); the parser emits MathJax
+# \(..\) / \[..\] delimiters, rendered client-side by the vendored MathJax.
+mdit-py-plugins>=0.4
 mistune>=3.0
 pygments>=2.18
 pytest>=8.0

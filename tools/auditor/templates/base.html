@@ -12,6 +12,16 @@
   {# Pagefind UI is loaded lazily by app.js (it's an ESM that ships its own CSS too). #}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   {% block head_extra %}{% endblock %}
+  {# MathJax renders LaTeX: $..$ inline, $$..$$ display (the parser emits
+     \(..\)/\[..\] delimiters). Self-hosted SVG build; code/pre are skipped. #}
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="{{ static_prefix }}static/vendor/mathjax-tex-svg-full.js" defer></script>
 </head>
 <body class="theme-auto{% block body_class_extra %}{% endblock %}">
 

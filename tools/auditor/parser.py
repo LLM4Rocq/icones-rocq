@@ -25,6 +25,7 @@ from pathlib import Path
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
+from mdit_py_plugins.dollarmath import dollarmath_plugin
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name as _get_lexer_by_name
@@ -117,6 +118,34 @@ def slugify_label(label: str, max_len: int = _MAX_SLUG_LEN) -> str:
 # -- stage 1: lex -----------------------------------------------------------
 
 
+def _render_math_inline(self, tokens, idx, options, env):  # noqa: ANN001
+    """Inline ``$..$`` -> MathJax ``\\(..\\)`` (content HTML-escaped)."""
+    return "\\(" + html_mod.escape(tokens[idx].content) + "\\)"
+
+
+def _render_math_block(self, tokens, idx, options, env):  # noqa: ANN001
+    """Display ``$$..$$`` -> MathJax ``\\[..\\]`` (content HTML-escaped)."""
+    return "\\[" + html_mod.escape(tokens[idx].content) + "\\]\n"
+
+
+def _new_md() -> MarkdownIt:
+    """MarkdownIt configured identically everywhere: commonmark + tables +
+    strikethrough + ``$..$`` / ``$$..$$`` math (dollarmath), the math emitted
+    as MathJax ``\\(..\\)`` / ``\\[..\\]`` delimiters for the client-side
+    renderer loaded in base.html.  Commonmark itself would eat ``\\(`` as an
+    escape and mangle ``$..$`` internals, so the plugin is required for LaTeX
+    to survive to the HTML."""
+    md = (
+        MarkdownIt("commonmark", {"html": True})
+        .enable("table")
+        .enable("strikethrough")
+        .use(dollarmath_plugin)
+    )
+    md.add_render_rule("math_inline", _render_math_inline)
+    md.add_render_rule("math_block", _render_math_block)
+    return md
+
+
 def lex(source: str) -> list[Token]:
     """Run ``markdown-it-py`` with the GFM-table plugin and return tokens.
 
@@ -124,7 +153,7 @@ def lex(source: str) -> list[Token]:
     code blocks; we only need to enable strikethrough / autolink-ish
     extensions if the document uses them (it does not).
     """
-    md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
+    md = _new_md()
     return md.parse(source)
 
 
@@ -287,7 +316,7 @@ def group(tokens: list[Token], source: str) -> list[_H2Block]:
         - all overview-tables (we accept tables anywhere in the H2),
         - all H3 detail blocks with paragraphs / notes / snippets.
     """
-    md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
+    md = _new_md()
     src_lines = source.splitlines()
 
     blocks: list[_H2Block] = []
@@ -681,7 +710,7 @@ def normalise(
     feeds the new dashboard.  A compatibility shim re-projects the
     chapter tree onto ``doc.beyond`` so legacy callers keep working.
     """
-    md = MarkdownIt("commonmark", {"html": True}).enable("table").enable("strikethrough")
+    md = _new_md()
     chapter_mode = tab in {TAB_PPL, TAB_EXAMPLES}
 
     # -- preamble + section bodies ---------------------------------------
