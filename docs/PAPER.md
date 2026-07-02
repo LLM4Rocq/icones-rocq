@@ -220,13 +220,13 @@ formalisation packages `ARCAT` as a record so the entire §3+ tower is
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| `ARCAT` | A small full subcategory of `MEAS` whose objects have a 1-element and whose binary products live in the subcategory. | `MeasSubcat`, `ar_obj`, `ar_carrier`, `ar_point`, `ar_zero`, `ar_prod` — `theories/mcones/ar.v` |
-| Def 3.5 | A *measurable cone* is a cone equipped with a family of measurable tests (continuous, ≤ 1, separating). | `MCone.type` (via `isMCone` mixin) — `theories/mcones/mcone.v` |
-| Def 3.13 | An *mcones morphism* is a `Cones`-morphism preserving the test family. | `mcones_hom`, `mcones_comp`, `MCones` — `theories/mcones/mcone_cat.v` |
-| Prop 3.11 | Dual norm separation: $\lVert x\rVert \le \sup_{t \in M_{\mathrm{test}}} \langle t,x\rangle$, with the supremum attained as an adherent point. | `mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent` — `theories/mcones/mcone_cat.v` (`Section Proposition311`) |
-| Def 3.16 | The *measure cone* `FMeas(X)` of finite measures on `X ∈ ARCAT`, with test `t ↦ ∫ t dµ`. | `fmeas`, the `FMeas` HB instance — `theories/mcones/fmeas.v` |
-| Def 3.20 | A *path* is a measurable map `r ↦ η(r) : X → C` whose pointwise test pairings are measurable. | `path_car` — `theories/mcones/path.v`; `path_int_exists` lives in `theories/icones/examples_icone.v` (see § 4 below) |
-| Cat 3 | `MCones` is a category. | `MCones` (above) — `theories/mcones/mcone_cat.v` |
+| `ARCAT` | A small full subcategory $\mathbf{Ar}$ of $\mathbf{Meas}$ closed under cartesian products and containing the one-point terminal object $0$, all of whose objects are non-empty. | `MeasSubcat`, `ar_obj`, `ar_carrier`, `ar_point`, `ar_zero`, `ar_prod` — `theories/mcones/ar.v` |
+| Def 3.2 / 3.6 | A *measurable cone* is a cone $\underline{C}$ equipped with a *measurability structure* $\mathcal{M}=(\mathcal{M}_X)_{X\in\mathbf{Ar}}$ of test families satisfying (Msmeas), (Mscomp), (Mssep) and (Msnorm). | `MCone.type` (via `isMCone` mixin) — `theories/mcones/mcone.v` |
+| Def 3.13 | An *mcones morphism* is a $\mathbf{Cones}$-morphism $f$ that sends measurable paths to measurable paths. | `mcones_hom`, `mcones_comp`, `MCones` — `theories/mcones/mcone_cat.v` |
+| Prop 3.11 | Dual norm separation: $\lVert x\rVert = \sup_{x' \in \mathcal{B}(\underline{B}')} \langle x, x'\rangle$, with the supremum attained as an adherent point. | `mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent` — `theories/mcones/mcone_cat.v` (`Section Proposition311`) |
+| Def 3.16 (§3.4.1) | The *measure cone* $\mathsf{FMeas}(X)$ of finite measures on $X$, with tests $\widetilde{U} : \mu \mapsto \mu(U)$ for $U \in \sigma_X$. | `fmeas`, the `FMeas` HB instance — `theories/mcones/fmeas.v` |
+| Def 3.7 | A *path* of arity $X$ is a bounded map $\gamma : X \to \underline{C}$ whose pointwise test pairings are jointly measurable. | `path_car` — `theories/mcones/path.v`; `path_int_exists` lives in `theories/icones/examples_icone.v` (see § 4 below) |
+| Cat 3 | $\mathbf{MCones}$ is a category. | `MCones` (above) — `theories/mcones/mcone_cat.v` |
 
 The Rocq encoding faithfully treats `ARCAT` as a parameter (`MeasSubcat R`)
 just as the paper does (paper §3, around `content.tex:1029`).
@@ -240,21 +240,20 @@ just as the paper does (paper §3, around `content.tex:1029`).
 
 ### `ARCAT` (`MeasSubcat`)
 
+The arity category $\mathbf{Ar}$ is a small full subcategory of $\mathbf{Meas}$ (measurable spaces and measurable functions) closed under cartesian products, containing the one-point terminal object $0$, and all of whose objects are non-empty. Packaging it as a record `MeasSubcat R` makes the whole §3+ tower parametric in the chosen subcategory.
+
+> **Paper — §3** (arXiv 2212.02371, `content.tex:1029`). Let $\mathbf{Ar}$ be a *small* full subcategory of $\mathbf{Meas}$ (the category of measurable spaces and measurable functions) which is closed under cartesian products and contains the terminal object $0$ which is the one point measurable space. We also assume all the objects of $\mathbf{Ar}$ to be non-empty measurable spaces.
+
 ```coq
 (* theories/mcones/ar.v *)
 Record MeasSubcat (R : realType) : Type := MkMeasSubcat {
   ar_obj     : Type;
   ar_disp    : ar_obj -> measure_display;
   ar_carrier : forall X : ar_obj, measurableType (ar_disp X);
-  (* Paper §3: all objects of [Ar] are non-empty. *)
   ar_point   : forall X : ar_obj, ar_carrier X;
-  (* Paper §3: [Ar] contains the terminal object [0]. *)
   ar_zero    : ar_obj;
   ar_zero_singleton :
     forall x y : ar_carrier ar_zero, x = y;
-  (* Paper §3: [Ar] is closed under cartesian products,
-     and the carrier of the product is *definitionally* the
-     [measurableType] product. *)
   ar_prod         : ar_obj -> ar_obj -> ar_obj;
   ar_prod_disp_eq : forall X Y, ar_disp (ar_prod X Y) =
                     measure_prod_display (ar_disp X, ar_disp Y);
@@ -272,25 +271,29 @@ Record MeasSubcat (R : realType) : Type := MkMeasSubcat {
 }.
 ```
 
-### Def 3.5 (`isMCone` / `MCone`)
+### Def 3.2 / 3.6 (`isMCone` / `MCone`)
+
+A *measurable cone* is a cone $\underline{C}$ equipped with a *measurability structure* $\mathcal{M}=(\mathcal{M}_X)_{X\in\mathbf{Ar}}$: an $\mathbf{Ar}$-indexed family of test sets $\mathcal{M}_X\subseteq(\underline{C}')^X$ satisfying measurability (Msmeas), compatibility with reindexing (Mscomp), separation (Mssep) and the norm formula (Msnorm). The `isMCone` mixin bundles this structure onto a `Cone`.
+
+> **Paper — Definition 3.2** (arXiv 2212.02371, `def:meas-structure`). A *measurability structure* on a cone $P$ is a family $\mathcal{M}=(\mathcal{M}_X)_{X\in\mathbf{Ar}}$ with $\mathcal{M}_X\subseteq(P')^{X}$ (where $P'=(P\multimap\perp)$ is the dual of the cone $P$) satisfying the four next conditions (Msmeas), (Mscomp), (Mssep) and (Msnorm). When $X=0$ we consider $m\in\mathcal{M}_X$ as an element of $P'$. $$\text{(Msmeas)}\quad \text{for each } m\in\mathcal{M}_X,\ x\in\mathcal{B}P,\quad \boldsymbol\lambda r\in X\cdot m(r,x)\in\mathbf{Meas}(X,[0,1]).$$ $$\text{(Mscomp)}\quad \text{for each } m\in\mathcal{M}_X,\ \phi\in\mathbf{Ar}(Y,X),\quad \boldsymbol\lambda (s,x)\in(Y\times P)\cdot m(\phi(s),x)=m\mathrel{\circ}(\phi\times P)\in\mathcal{M}_Y.$$ $$\text{(Mssep)}\quad \text{if } x_1,x_2\in P \text{ satisfy } \forall m\in\mathcal{M}_0\ m(x_1)=m(x_2)\ \text{then}\ x_1=x_2.$$ $$\text{(Msnorm)}\quad \forall x\in P\quad \lVert x\rVert=\sup\Big\{\tfrac{m(x)}{\lVert m\rVert}\mid m\in\mathcal{M}_0\text{ and }m\neq 0\Big\}.$$
+
+> **Paper — Definition 3.6** (arXiv 2212.02371). A *measurable cone* is a pair $C=(\underline{C},\mathcal{M}^{C})$ where $\underline{C}$ is a cone and $\mathcal{M}^{C}$ is a measurability structure on $\underline{C}$.
+
+> **Difference.** The paper's norm axiom (Msnorm) is an *attained* supremum over all non-zero tests at arity $0$; the formalization records instead the equivalent $\varepsilon$-approximation form of Remark 3.3 (`mcone_M_norm`): for every $x\neq 0$ and $\varepsilon>0$ some test $m$ satisfies $\lVert x\rVert\le m(x)+\varepsilon$. *Why:* the supremum need not be attained, so it is expressed as adherence rather than a maximum. The measurability axiom (Msmeas) is carried by the `test_of` type of tests, not spelled as a separate mixin field.
 
 ```coq
 (* theories/mcones/mcone.v *)
 HB.mixin Record isMCone (R : realType) (Ar : MeasSubcat R) C of Cone R C := {
-  (** Paper Def 3.2: the family [M = (M_X)_{X ∈ Ar}]. *)
   mcone_M : forall X : ar_obj Ar, set (test_of Ar X C);
-  (** (Mscomp): closure under reindexing by [ar_hom]. *)
   mcone_M_comp :
     forall (Y X : ar_obj Ar) (φ : ar_hom Ar Y X) (m : test_of Ar X C),
       mcone_M X m -> mcone_M Y (test_reindex φ m);
-  (** (Mssep): tests at arity 0 separate points. *)
   mcone_M_sep :
     forall x1 x2 : C,
       (forall m : test_of Ar (ar_zero Ar) C,
         mcone_M (ar_zero Ar) m ->
         test_fun m (ar_zero_pt Ar) x1 = test_fun m (ar_zero_pt Ar) x2) ->
       x1 = x2;
-  (** (Msnorm) Remark 3.3 form: norm is ε-approximated by a test pairing. *)
   mcone_M_norm :
     forall (x : C) (eps : R),
       x <> precone_zero -> 0 < eps ->
@@ -304,6 +307,10 @@ HB.structure Definition MCone (R : realType) (Ar : MeasSubcat R) :=
 ```
 
 ### Def 3.13 (`mcones_hom`, `mcones_comp`, `MCones`)
+
+The category $\mathbf{MCones}$ has measurable cones as objects; a morphism $B\to C$ is a $\mathbf{Cones}$-morphism $f$ that maps every measurable path in $B$ to a measurable path in $C$. The `mcones_hom` record pairs a `cones_hom` with the path-preservation witness `mcones_hom_pres_path`.
+
+> **Paper — Definition 3.13** (arXiv 2212.02371). The category $\mathbf{MCones}$ has measurable cones as objects and an element of $\mathbf{MCones}(B,C)$ is an $f\in\mathbf{Cones}(\underline{B},\underline{C})$ such that for each $X\in\mathbf{Ar}$ and each measurable path $\beta:X\to\underline{B}$ the function $f\mathrel{\circ}\beta$ is a measurable path. Equivalently $$\forall Y\in\mathbf{Ar}\ \forall m\in\mathcal{M}^{C}_Y\quad\boldsymbol\lambda (s,r)\in{X\times Y}\cdot m(s,f(\beta(r)))\text{ is measurable.}$$
 
 ```coq
 (* theories/mcones/mcone_cat.v — Section MConesHom,
@@ -345,7 +352,13 @@ Lemma mcone_norm_le_pairing_ub (x : B) (M : R) :
   ubound (mcone_test_pairing_set x) M -> cone_norm x <= M.
 ```
 
-### Def 3.16 (`fmeas`, `FMeas`)
+### Def 3.16 / §3.4.1 (`fmeas`, `FMeas`)
+
+The measure cone $\mathsf{FMeas}(X)$ of finite measures on a measurable space $X$ carries, for each $Y\in\mathbf{Ar}$, the measurability structure $\mathcal{M}_Y=\{\widetilde{U}\mid U\in\sigma_X\}$ where $\widetilde{U}(s,\mu)=\mu(U)$. The `fmeas` record is the carrier (a finite, canonical measure); the `isMCone` instance installs the test family.
+
+> **Paper — §3.4.1 "The measurable cone of measures"** (arXiv 2212.02371, `content.tex:1340`). For all $Y\in\mathbf{Ar}$ and all $U\in\sigma_X$ define $\widetilde{U}:Y\times\underline{\mathsf{FMeas}(X)}\to\mathbb{R}_{\geq 0}$ by $\widetilde{U}(s,\mu)=\mu(U)$. Then $\mathcal{M}_Y=\{\widetilde{U}\mid U\in\sigma_X\}$, and $\mathsf{FMeas}(X)=(\underline{\mathsf{FMeas}(X)},(\mathcal{M}_Y)_{Y\in\mathbf{Ar}})$ is a measurable cone.
+
+> **Difference.** Remark 3.16 (`rk:measure-cone-two-ms`) offers a second, coarser test family $\mathcal{M}_Y=\{\widetilde{W}\mid W\in\sigma_{Y\times X}\}$ inducing the *same* measurable paths; the formalization commits to the point-tested family $\widetilde{U}$ of §3.4.1 above.
 
 ```coq
 (* theories/mcones/fmeas.v — Variables R X *)
@@ -355,7 +368,6 @@ Record fmeas : Type := MkFmeas {
   fmeas_canonical : fmeas_canon fmeas_mu;
 }.
 
-(** Paper §3.2.1: register the [isMCone] instance on [fmeas R X]. *)
 HB.instance Definition _ :=
   @isMCone.Build R Ar (fmeas R X)
     fmeas_mcone_M
@@ -364,7 +376,11 @@ HB.instance Definition _ :=
     fmeas_mcone_M_norm.
 ```
 
-### Def 3.20 (`path_car`)
+### Def 3.7 (`path_car`)
+
+A *measurable path* of arity $X$ is a bounded function $\gamma:X\to\underline{C}$ whose composition with every test $m\in\mathcal{M}^{C}_Y$ is jointly measurable on $Y\times X$. The `path_car` record pairs the underlying map with the `is_measurable_path` witness.
+
+> **Paper — Definition 3.7** (arXiv 2212.02371). Let $X\in\mathbf{Ar}$ and let $C$ be a measurable cone. A *(measurable) path* of arity $X$ is a function $\gamma:X\to\underline{C}$ which is bounded and such that, for each $Y\in\mathbf{Ar}$ and $m\in\mathcal{M}^{C}_{Y}$, the function $\boldsymbol\lambda (s,r)\in{Y\times X}\cdot m(s,\gamma(r)): {Y\times X}\to\mathbb{R}_{\geq 0}$ is measurable. We use $\underline{\mathsf{Path}(X,C)}$ for the set of measurable paths of arity $X$ of the measurable cone $C$.
 
 ```coq
 (* theories/mcones/path.v — Section PathCarrier,
