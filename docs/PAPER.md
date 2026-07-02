@@ -208,7 +208,7 @@ formalisation packages `ARCAT` as a record so the entire §3+ tower is
 | `ARCAT` | A small full subcategory of `MEAS` whose objects have a 1-element and whose binary products live in the subcategory. | `MeasSubcat`, `ar_obj`, `ar_carrier`, `ar_point`, `ar_zero`, `ar_prod` — `theories/mcones/ar.v` |
 | Def 3.5 | A *measurable cone* is a cone equipped with a family of measurable tests (continuous, ≤ 1, separating). | `MCone.type` (via `isMCone` mixin) — `theories/mcones/mcone.v` |
 | Def 3.13 | An *mcones morphism* is a `Cones`-morphism preserving the test family. | `mcones_hom`, `mcones_comp`, `MCones` — `theories/mcones/mcone_cat.v` |
-| Prop 3.11 | Dual norm separation: `‖x‖ ≤ sup_{t∈Mtest} ⟨t,x⟩`, with the supremum attained as an adherent point. | `mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent` — `theories/mcones/mcone_cat.v` (`Section Proposition311`) |
+| Prop 3.11 | Dual norm separation: $\lVert x\rVert \le \sup_{t \in M_{\mathrm{test}}} \langle t,x\rangle$, with the supremum attained as an adherent point. | `mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent` — `theories/mcones/mcone_cat.v` (`Section Proposition311`) |
 | Def 3.16 | The *measure cone* `FMeas(X)` of finite measures on `X ∈ ARCAT`, with test `t ↦ ∫ t dµ`. | `fmeas`, the `FMeas` HB instance — `theories/mcones/fmeas.v` |
 | Def 3.20 | A *path* is a measurable map `r ↦ η(r) : X → C` whose pointwise test pairings are measurable. | `path_car` — `theories/mcones/path.v`; `path_int_exists` lives in `theories/icones/examples_icone.v` (see § 4 below) |
 | Cat 3 | `MCones` is a category. | `MCones` (above) — `theories/mcones/mcone_cat.v` |
