@@ -25,11 +25,11 @@
 
 {% if chapter.overview %}
 <section class="overview-block">
-  <h2>Overview</h2>
+  <h2>Constructions</h2>
+  <p class="section-block-sub">One row per construction — the Item column links to its section.</p>
   {{ overview_table(chapter.overview) }}
 </section>
-{% endif %}
-
+{% else %}
 <section class="section-block">
   <header class="section-block-head">
     <h2>Sections</h2>
@@ -37,8 +37,6 @@
   </header>
   <div class="card-grid coverage-grid">
     {% for section in chapter.sections %}
-    {% set n_def = section.entries|selectattr('paper_kind', 'equalto', 'Def')|list|length %}
-    {% set n_thm = section.entries|rejectattr('paper_kind', 'equalto', 'Def')|list|length %}
     <a class="card section-card" href="{{ root_prefix }}sections/{{ section.id }}.html">
       <div class="card-top">
         <span class="card-eyebrow mono">Section</span>
@@ -53,6 +51,7 @@
     {% endfor %}
   </div>
 </section>
+{% endif %}
 
 {% if chapter.notes_html %}
 <aside class="section-notes prose">

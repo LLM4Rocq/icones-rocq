@@ -1239,6 +1239,30 @@ def normalise(
             # tables live under each H3), so synthesise one row per
             # section: title -> comma-joined idents of its entries.
             chapter_overview: list[OverviewRow] = []
+            # Map each Rocq identifier to the section(s) defining it, so an
+            # authored overview row can be linked back to its section — this
+            # turns the overview table into the chapter's navigable index and
+            # lets the redundant one-card-per-section grid be dropped.
+            _ident_secs: dict[str, set[str]] = {}
+            for sec in ch_sections:
+                for e in sec.entries:
+                    for ident in e.rocq_idents:
+                        _ident_secs.setdefault(ident, set()).add(sec.id)
+
+            def _match_section(*cells: str) -> str:
+                """The section sharing the most Rocq idents (backticked) with
+                these raw cells — unique winner only, else ''."""
+                counts: dict[str, int] = {}
+                for cell in cells:
+                    for ident in re.findall(r"`([^`]+)`", cell):
+                        for sid in _ident_secs.get(ident, ()):
+                            counts[sid] = counts.get(sid, 0) + 1
+                if not counts:
+                    return ""
+                top = max(counts.values())
+                winners = [sid for sid, n in counts.items() if n == top]
+                return winners[0] if len(winners) == 1 else ""
+
             if blk.tables:
                 for tbl in blk.tables:
                     for row in tbl.rows:
@@ -1250,6 +1274,9 @@ def normalise(
                                     label=_inline_to_html(md, row.cells[0]),
                                     statement_html=_inline_to_html(md, row.cells[1]),
                                     rocq_html=_inline_to_html(md, row.cells[2]),
+                                    section_id=_match_section(
+                                        row.cells[0], row.cells[2]
+                                    ),
                                 )
                             )
                         elif len(row.cells) == 2:
@@ -1258,6 +1285,9 @@ def normalise(
                                     label=_inline_to_html(md, row.cells[0]),
                                     statement_html="",
                                     rocq_html=_inline_to_html(md, row.cells[1]),
+                                    section_id=_match_section(
+                                        row.cells[0], row.cells[1]
+                                    ),
                                 )
                             )
             else:
@@ -1275,6 +1305,7 @@ def normalise(
                                 f"<code>{html_mod.escape(i)}</code>"
                                 for i in sec_idents
                             ),
+                            section_id=sec.id,
                         )
                     )
 

@@ -33,7 +33,7 @@
   <tbody>
     {% for r in rows %}
     <tr>
-      <td class="ov-item">{{ r.label|safe }}</td>
+      <td class="ov-item">{% if r.section_id %}<a href="{{ root_prefix }}sections/{{ r.section_id }}.html">{{ r.label|safe }}</a>{% else %}{{ r.label|safe }}{% endif %}</td>
       {% if has_statement %}<td class="ov-statement">{{ r.statement_html|safe }}</td>{% endif %}
       <td class="ov-rocq mono">{{ r.rocq_html|safe }}</td>
     </tr>
