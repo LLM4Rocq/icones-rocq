@@ -16,7 +16,15 @@
      \(..\)/\[..\] delimiters). Self-hosted SVG build; code/pre are skipped. #}
   <script>
     window.MathJax = {
-      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+      tex: {
+        inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']],
+        // stmaryrd double brackets aren't in MathJax — define them (used for
+        // denotation semantics \llbracket e \rrbracket throughout the docs).
+        macros: {
+          llbracket: '\\mathopen{[\\mkern-3mu[}',
+          rrbracket: '\\mathclose{]\\mkern-3mu]}'
+        }
+      },
       options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
       svg: { fontCache: 'global' }
     };
