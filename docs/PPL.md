@@ -795,34 +795,33 @@ is the price of that structure.
 
 **In this chapter:** [Def 2.1](../../ppl/sections/ppl-sec-def-2-1-type-translation.html) · [Def 2.2](../../ppl/sections/ppl-sec-def-2-2-context-translation.html) · [Def 2.3](../../ppl/sections/ppl-sec-def-2-3-em-cartesian-primitives.html) · [Def 2.4](../../ppl/sections/ppl-sec-def-2-4-term-interpretation.html) · [Def 2.5](../../ppl/sections/ppl-sec-def-2-5-constant-icones-helpers.html) · [Law 2.6](../../ppl/sections/ppl-sec-law-2-6-the-value-dependent-bernoulli-lift.html) · [Def 2.7](../../ppl/sections/ppl-sec-def-2-7-if-then-else-at-the-icones-level.html) · [Law 2.8](../../ppl/sections/ppl-sec-law-2-8-the-definitional-unfolding-pack.html).
 
-**Definition (CBV interpretation).** *Each type `τ` denotes a
-`!`-coalgebra `⟦τ⟧ ∈ EM(!)`; each well-typed program `Γ ⊢ M : τ`
-denotes a linear morphism `⟦M⟧ : U⟦Γ⟧ ⊸ U⟦τ⟧` in `ICone` — an
-element of `linhom_car Ar (coalg_obj ⟦Γ⟧) (coalg_obj ⟦τ⟧)`. Programs
-are not coalgebra morphisms (the sampling clause does not commute
-with the §9.7 duplicability structure on `FMeas`); the coalgebra
-structure of the context is used only through the comonoid pair
-`(δ, ε) = (coalg_d, coalg_e)` that every EM(!) object carries by
-Melliès' Proposition 28.*
+**Definition (CBV interpretation).** *Each type $\tau$ denotes a
+$!$-coalgebra $\llbracket\tau\rrbracket \in \mathrm{EM}(!)$; each
+well-typed program $\Gamma \vdash M : \tau$ denotes a linear morphism
+$\llbracket M\rrbracket : U\llbracket\Gamma\rrbracket \multimap
+U\llbracket\tau\rrbracket$ in $\mathbf{ICone}$ — an element of
+`linhom_car Ar (coalg_obj (ctxD_cbv (drop_names Γ))) (coalg_obj (tyD_cbv τ))`.
+Programs are not coalgebra morphisms (the sampling clause does not commute with the §9.7
+duplicability structure on `FMeas`); the context's coalgebra structure
+is used only through the comonoid pair $(\delta, \varepsilon) =
+(\mathtt{coalg\_d}, \mathtt{coalg\_e})$ that every $\mathrm{EM}(!)$
+object carries by Melliès' Proposition 28.*
 
-In Rocq this is the function `eD` of `theories/programs/ppl_cbv.v`,
-sending a term `M : named_expr Γ τ` to an element of
-`linhom_car Ar (coalg_obj (ctxD_cbv (drop_names Γ)))
-(coalg_obj (tyD_cbv τ))`, defined by structural recursion on
-`named_expr`. Internally it is built from an `icones_hom`-valued
-helper `eD_cbv` (an inhabitant of the unit ball of the same
-`linhom`) and forwarded to a linhom by `icones_to_linhom`; the two
-views are interchangeable. There is no Kleisli wrapping on the
-codomain of `tfun`: function *values* are linear maps
-`U⟦t1⟧ ⊸ U⟦t2⟧`, and duplicability comes from the outer cofree `!̃`
-only.
+In Rocq this is `eD` (`theories/programs/ppl_cbv.v`), sending a term
+`M : named_expr Γ τ` to an element of `linhom_car Ar (coalg_obj (ctxD_cbv
+(drop_names Γ))) (coalg_obj (tyD_cbv τ))` by structural recursion on
+`named_expr`. It is built from an `icones_hom`-valued helper `eD_cbv` (in
+the unit ball of the same `linhom`) and forwarded by `icones_to_linhom`;
+the two views are interchangeable. Nothing wraps the codomain of `tfun`:
+function *values* are linear maps $U\llbracket t_1\rrbracket \multimap
+U\llbracket t_2\rrbracket$, and duplicability comes from the outer cofree
+$\widetilde{!}$ only.
 
-This chapter presents the type and context translations, the EM
-cartesian primitives the interpreter is assembled from, the
-interpreter itself clause by clause, and the regression pack that
-pins each clause. The semantic laws *about* the interpreter — the
-recursion-unfolding equations, the let-at-sample integral law, and
-the sharing-semantics anchors — live in
+This chapter covers the type and context translations, the EM cartesian
+primitives the interpreter is assembled from, the interpreter clause by
+clause, and the regression pack pinning each clause. The semantic laws
+*about* the interpreter — recursion-unfolding, the let-at-sample integral
+law, the sharing anchors — live in
 [the CBV value-fixpoint
 chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html)
 and
@@ -839,19 +838,20 @@ and
 | If-then-else combinator at the icones level | `if_icones`, `if_under` — `theories/programs/ppl_cbv.v` |
 | Internal icones-valued term interpretation | `eD_cbv`, `fix_mr_clause` — same file |
 | Public linhom-valued term interpretation | `eD` — same file |
-| EM cartesian primitives (`δ`, `ε`, projections, pairing) | `coalg_d`, `coalg_e`, `em_proj1_mor`, `em_proj2_mor`, `em_pair_mor`, `em_term_mor` — `theories/homs/em_cartesian.v`; cartesian-η `em_pair_mor_proj_id` — `theories/programs/infra/cbv_adjunction.v` |
+| EM cartesian primitives ($\delta$, $\varepsilon$, projections, pairing) | `coalg_d`, `coalg_e`, `em_proj1_mor`, `em_proj2_mor`, `em_pair_mor`, `em_term_mor` — `theories/homs/em_cartesian.v`; cartesian-η `em_pair_mor_proj_id` — `theories/programs/infra/cbv_adjunction.v` |
 | Definitional-unfolding pack (one lemma per clause) | `eD_var_E` … `eD_fix_mr_prod_E` (25 lemmas) — `theories/programs/ppl_cbv.v` (Section EDUnfold) |
 | Recursion-unfolding equations (semantic; setlike points) | `eD_fix_at_setlike`, `eD_fix_unfold`, `eD_fix_unfold_closed` — `theories/programs/infra/cbv_fix_unfold.v` |
 
 ### Def 2.1 — Type translation (`tyD_cbv`)
 
-> **Key result:** each surface type denotes a `!`-coalgebra — the whole interpretation runs in `EM(!)`.
+> **Key result:** each surface type denotes a $!$-coalgebra — the whole interpretation runs in $\mathrm{EM}(!)$.
 
-Each surface type is sent to a `!`-coalgebra: `tunit` to the
-terminal coalgebra, `tbase X` to the Theorem 9.7 coalgebra on `FMeas
-X`, `tbool` to the §9.7-style coalgebra on the 2-point cone, `tprod`
-to the EM cartesian product, and `tfun t1 t2` to the cofree
-coalgebra on the *clean* internal hom `U⟦t1⟧ ⊸ U⟦t2⟧`.
+Each surface type maps to a $!$-coalgebra: `tunit` to the terminal
+coalgebra, `tbase X` to the Theorem 9.7 coalgebra on `FMeas X`, `tbool`
+to the §9.7-style coalgebra on the 2-point cone, `tprod` to the EM
+cartesian product, and `tfun t1 t2` to the cofree
+coalgebra on the *clean* internal hom $U\llbracket t_1\rrbracket
+\multimap U\llbracket t_2\rrbracket$.
 
 ```coq
 (* theories/programs/ppl_cbv.v *)
@@ -869,25 +869,24 @@ Fixpoint tyD_cbv (t : ppl_type Ar) : Coalgebra Ar :=
 
 The `tbase` clause is the
 [Thm 9.7 coalgebra](../../paper/entries/thm-9-7.html) of
-`theories/homs/coalgebra.v`; the `tbool` clause uses
-`bool_cone_coalg` of `theories/programs/infra/bool_cone_coalg.v` —
-see [the §9.7 coalgebra on the 2-point
+`theories/homs/coalgebra.v`; the `tbool` clause uses `bool_cone_coalg` of
+`theories/programs/infra/bool_cone_coalg.v` — see [the §9.7 coalgebra on
+the 2-point
 cone](../../ppl/sections/ppl-sec-def-6-4-the-sec-9-7-coalgebra-on-the-2-point-cone.html).
-Both choices give the *shared-sample* semantics expected of a PPL:
-`let x = Bernoulli(p) in (x, x)` denotes the diagonal pushforward
-`p·(T, T) + (1-p)·(F, F)`, not the independent product `µ ⊗ µ` that
-a cofree `bang_cofree (bool_cone_car Ar)` would give. There is no
-`Tobj` wrap anywhere: function values are clean linear maps.
+Both give the *shared-sample* semantics expected of a PPL: `let x =
+Bernoulli(p) in (x, x)` denotes the diagonal pushforward $p\cdot(T, T) +
+(1-p)\cdot(F, F)$, not the independent product $\mu \otimes \mu$ a cofree
+`bang_cofree (bool_cone_car Ar)` would give. No `Tobj` wrap anywhere:
+function values are clean linear maps.
 
 ### Def 2.2 — Context translation (`ctxD_cbv`)
 
 > **Prerequisite:** the type translation [Def 2.1](../../ppl/sections/ppl-sec-def-2-1-type-translation.html); variable lookup uses only the comonoid counits.
 
 A context denotes the right-nested iterated EM product of its types'
-coalgebras, with the terminal coalgebra `EM_term` at the nil case;
-variable lookup is then the evident chain of `em_proj1` /
-`em_proj2` projections (`var_lookup_cbv`, same file), using only the
-comonoid counits — no diagonal, no strength.
+coalgebras, with `EM_term` at nil; variable lookup is then the evident
+chain of `em_proj1` / `em_proj2` projections (`var_lookup_cbv`, same
+file), using only the comonoid counits — no diagonal, no strength.
 
 ```coq
 (* theories/programs/ppl_cbv.v *)
@@ -909,21 +908,21 @@ Fixpoint var_lookup_cbv (G : ppl_ctx Ar) (t : ppl_type Ar)
 
 ### Def 2.3 — EM cartesian primitives (`coalg_d`, `coalg_e`, `em_pair_mor`)
 
-Every `!`-coalgebra carries a commutative comonoid `(δ, ε) =
-(coalg_d, coalg_e)` transported from the Seely comonoid on its
-cofree resolution, and these comonoids make `(EM(!), ⊗, 1)`
-cartesian — pairing, projections and the terminal morphism are all
-definable from `(δ, ε)` alone. This is the entire toolbox the CBV
-interpreter branches on.
+Every $!$-coalgebra carries a commutative comonoid $(\delta,
+\varepsilon) = (\mathtt{coalg\_d}, \mathtt{coalg\_e})$ transported from
+the Seely comonoid on its cofree resolution, and these comonoids make
+$(\mathrm{EM}(!), \otimes, 1)$ cartesian — pairing, projections and the
+terminal morphism are all definable from $(\delta, \varepsilon)$ alone.
+This is the whole toolbox the CBV interpreter branches on.
 
-The constructions live in `theories/homs/em_cartesian.v` (Melliès
-§7.4 Prop 28 / Cor 20 — see the Paper-tab pages [EM(!) is fully
+The constructions live in `theories/homs/em_cartesian.v` (Melliès §7.4
+Prop 28 / Cor 20 — see the Paper-tab pages [EM(!) is fully
 cartesian](../../paper/beyond/beyond-em.html) and [Cartesian-η of
-EM(!)](../../paper/beyond/beyond-cartesian-of-em.html)); the
-unbundled cartesian-η identity `em_pair_mor_proj_id` is exposed in
-`theories/programs/infra/cbv_adjunction.v` (Section EmPairProjId)
-and proved by promoted-point extensionality on the cofree pair, then
-transported along the `coalg_str` retract.
+EM(!)](../../paper/beyond/beyond-cartesian-of-em.html)). The unbundled
+cartesian-η identity `em_pair_mor_proj_id` is exposed in
+`theories/programs/infra/cbv_adjunction.v` (Section EmPairProjId), proved
+by promoted-point extensionality on the cofree pair then transported
+along the `coalg_str` retract.
 
 ```coq
 (* theories/homs/em_cartesian.v *)
@@ -968,14 +967,14 @@ Lemma em_pair_mor_proj_id (P Q : Coalgebra Ar) :
 
 ### Def 2.4 — Term interpretation (`eD_cbv`, `eD`)
 
-The interpreter is uniformly comonoid-primitive: every branching
-node (let, pair, app, if, arithmetic, boolean) uses the `δ_Γ`
-diagonal of the context to give each sub-term its own copy of `Γ`;
-multi-use of a free variable is then free in the cone. The cofree
-exponential `!̃` appears only at two boundaries — `ne_lam`, where the
-body is curried and promoted via `adj_psi` of the `U⊣!̃` adjunction,
-and `ne_app`, where the function value is dereferenced via `der`
-before evaluation.
+The interpreter is uniformly comonoid-primitive: every branching node
+(let, pair, app, if, arithmetic, boolean) uses the context diagonal
+$\delta_\Gamma$ to give each sub-term its own copy of $\Gamma$, so
+multi-use of a free variable is free in the cone. The cofree exponential
+$\widetilde{!}$ appears only at two boundaries — `ne_lam`, where the body
+is curried and promoted via `adj_psi` of the $U \dashv \widetilde{!}$
+adjunction, and `ne_app`, where the function value is dereferenced via
+`der` before evaluation.
 
 ```coq
 (* theories/programs/ppl_cbv.v *)
@@ -1033,30 +1032,30 @@ Definition eD M : linhom_car Ar (coalg_obj (ctxD_cbv (drop_names G)))
   icones_to_linhom (eD_cbv M).
 ```
 
-The `ne_fix` clause is the composite `fix_comb ∘ ⟦λs.body⟧`: the
-self-abstraction is interpreted as an *ordinary* lambda (the
-`ne_lam` clause, inlined because `ne_lam s body` is not a subterm of
-`ne_fix s body`), then post-composed with the seeded value-fixpoint
-combinator `fix_comb : EM(!̃(!L ⊸ !L), !̃L)` of
-`theories/programs/infra/em_fix_value.v`, at `L := U⟦t1⟧ ⊸ U⟦t2⟧` —
-see
+The `ne_fix` clause is the composite $\mathtt{fix\_comb} \circ
+\llbracket\lambda s.\mathrm{body}\rrbracket$: the self-abstraction is
+interpreted as an *ordinary* lambda (the `ne_lam` clause, inlined because
+`ne_lam s body` is not a subterm of `ne_fix s body`), then post-composed
+with the seeded value-fixpoint combinator $\mathtt{fix\_comb} :
+\mathrm{EM}(\widetilde{!}(!L \multimap {!L}), \widetilde{!}L)$ of
+`theories/programs/infra/em_fix_value.v`, at $L := U\llbracket
+t_1\rrbracket \multimap U\llbracket t_2\rrbracket$ — see
 [the CBV value-fixpoint
 chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
-The `ne_fix_mr` clause dispatches on the body type
-(`fix_mr_clause`): the same `fix_comb` composite at `tfun`, the
-Seely-transported `fix_mr_comb` at products of frees. Every
-other clause is built from the SMC primitives (`linhom_comp`,
-`tensor_mor`, `tensor_braid`, `tensor_curry` / `tensor_uncurry`) and
-the coalgebra-comonoid pair (`coalg_d`, `coalg_e`) only.
+The `ne_fix_mr` clause dispatches on the body type (`fix_mr_clause`): the
+same `fix_comb` composite at `tfun`, the Seely-transported `fix_mr_comb`
+at products of frees. Every other clause is built only from the SMC
+primitives (`linhom_comp`, `tensor_mor`, `tensor_braid`, `tensor_curry` /
+`tensor_uncurry`) and the coalgebra-comonoid pair (`coalg_d`,
+`coalg_e`).
 
 ### Def 2.5 — Constant icones helpers (`sample_icones`, `real_icones`, `bernoulli_icones`)
 
-Each effect / value constructor (`ne_sample`, `ne_real`,
-`ne_bernoulli`, `ne_true`, `ne_false`) denotes a *constant*
-`icones_hom` out of the context: the context's `ε_Γ` discards the
-context, then the constant value (a unit-ball measure, Dirac, or
-two-point distribution) is injected through `const_icones` of
-`theories/programs/ppl.v`.
+Each effect / value constructor (`ne_sample`, `ne_real`, `ne_bernoulli`,
+`ne_true`, `ne_false`) denotes a *constant* `icones_hom` out of the
+context: the counit $\varepsilon_\Gamma$ discards the context, then the
+constant value (a unit-ball measure, Dirac, or two-point distribution) is
+injected through `const_icones` of `theories/programs/ppl.v`.
 
 ```coq
 (* theories/programs/ppl_cbv.v *)
@@ -1071,29 +1070,30 @@ Definition true_icones (G : Coalgebra Ar) :
                  bool_dirac_true_norm_le1.
 ```
 
-With `tyD_cbv tbool = bool_cone_coalg`, the carrier of `⟦tbool⟧` is
-`bool_cone_car Ar` directly (not `Bang _`), so the value is the basis
-point `bool_dirac_true` itself — no `prom` wrap is needed.
+With `tyD_cbv tbool = bool_cone_coalg`, the carrier of
+$\llbracket\mathtt{tbool}\rrbracket$ is `bool_cone_car Ar` directly (not
+`Bang _`), so the value is the basis point `bool_dirac_true` itself — no
+`prom` wrap needed.
 
 ### Law 2.6 — The value-dependent Bernoulli lift (`bern_lift`, `bern_lift_P`, `score_lift_P`)
 
 > **Key result:** the total-mass law `bern_lift_mass` is what makes the rejection-sampling per-iterate mass recurrence affine.
 
-The semantic engine of `ne_bernoulli_f`: an
-`icones_hom (FMeas R_obj) (bool_cone_car Ar)` sending a measure `µ`
-on the reals to the 2-point sub-probability
-`(∫ f dµ, ∫ (1 − f) dµ)` — sample `r ~ µ`, then flip a coin with
-success probability `f r`. It lives in `theories/programs/ppl.v`
-(Section BernTmLift), and the `ne_bernoulli_f` clause of `eD_cbv`
-post-composes it with the scrutinee's denotation, exactly as
-`ne_score` post-composes `score_lift`.
+The semantic engine of `ne_bernoulli_f`: an `icones_hom (FMeas R_obj)
+(bool_cone_car Ar)` sending a measure $\mu$ on the reals to the 2-point
+sub-probability $(\int f\,d\mu,\ \int (1 - f)\,d\mu)$ — sample $r \sim
+\mu$, then flip a coin with success probability $f\,r$. It lives in
+`theories/programs/ppl.v` (Section BernTmLift), and the `ne_bernoulli_f`
+clause of `eD_cbv` post-composes it with the scrutinee's denotation,
+exactly as `ne_score` post-composes `score_lift`.
 
-The construction is the *path route*, a verbatim clone of the score
-lift: package `r ↦ bernoulli (f (cR r))` as a measurable path into
-`bool_cone_car Ar` (the three tests of the bool cone evaluate along
-the path to `f∘cR`, `1 − f∘cR` and the constant `1`), then promote
-with `int_to_linhom`. The integral semantics is then automatic by
-Pettis uniqueness against the componentwise integral `bool_int` of
+The construction is the *path route*, a verbatim clone of the score lift:
+package $r \mapsto \mathtt{bernoulli}\,(f\,(\mathtt{cR}\,r))$ as a
+measurable path into `bool_cone_car Ar` (the three bool-cone tests
+evaluate along the path to $f \circ \mathtt{cR}$, $1 - f \circ
+\mathtt{cR}$ and the constant $1$), then promote with `int_to_linhom`.
+The integral semantics follows automatically by Pettis uniqueness against
+the componentwise integral `bool_int` of
 `theories/programs/infra/bool_cone.v`.
 
 ```coq
@@ -1123,9 +1123,9 @@ Lemma bern_lift_f_E (mu : fmeas R (ar_carrier Ar R_obj)) :
 ```
 
 The load-bearing law for the rejection-sampling headline is the
-total-mass identity: the coin is norm-1 *pointwise* (it always
-lands), so the lift preserves total mass — with `‖µ‖ = 1` the reject
-weight is exactly `1 − ∫ f dµ`, which is what makes the headline's
+total-mass identity: the coin is norm-1 *pointwise* (it always lands), so
+the lift preserves total mass — with $\lVert\mu\rVert = 1$ the reject
+weight is exactly $1 - \int f\,d\mu$, which makes the headline's
 per-iterate mass recurrence affine.
 
 ```coq
@@ -1136,13 +1136,13 @@ Lemma bern_lift_mass (mu : fmeas R (ar_carrier Ar R_obj)) :
 ```
 
 The `tProb` surface needs the same two lifts at an *arbitrary* base
-object — the `[0,1]` object `po_obj P` of a bundle `P : probObj` — not
+object — the $[0,1]$ object `po_obj P` of a bundle `P : probObj` — not
 just at `R_obj`. `bern_lift_P P` and `score_lift_P P` instantiate the
-path route at `X := po_obj P` with the carrier density `po_density P`
-and the bundle's `[0,1]` witnesses (`po_ge0` / `po_le1`), with no
-`R_to_carrier` round trip: `bern_lift_P` is the engine behind `Bernoulli e`,
-`score_lift_P` behind `Score e`. The Dirac and mass laws transport
-verbatim (`bern_lift_P_dirac`, `score_lift_P_dirac`).
+path route at $X := \mathtt{po\_obj}\ P$ with the carrier density
+`po_density P` and the bundle's $[0,1]$ witnesses (`po_ge0` / `po_le1`),
+with no `R_to_carrier` round trip: `bern_lift_P` is the engine behind
+`Bernoulli e`, `score_lift_P` behind `Score e`. The Dirac and mass laws
+transport verbatim (`bern_lift_P_dirac`, `score_lift_P_dirac`).
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -1154,13 +1154,14 @@ Definition score_lift_P (P : probObj Ar) :
 
 ### Def 2.7 — If-then-else at the icones level (`if_icones`, `if_under`)
 
-The CBV value-level if-then-else takes two branches `m, n :
-icones_hom G → A` and a scrutinee `b : G → bool_cone` and returns a
-clean `icones_hom G → A`, with no Kleisli wrapping at any step. It
-is the *single* consumer-side packaging of the boolean cascade: the
-branches are co-paired by `bool_case_linhom`, SMCC-uncurried over
-`bool_cone ⊗ G`, braided, and finally pre-composed with the EM
-pairing `⟨id_G, b⟩`.
+The CBV value-level if-then-else takes two branches $m, n :
+\mathtt{icones\_hom}\ G \to A$ and a scrutinee $b : G \to
+\mathtt{bool\_cone}$ and returns a clean $\mathtt{icones\_hom}\ G \to A$,
+with no Kleisli wrapping at any step. It is the *single* consumer-side
+packaging of the boolean cascade: the branches are co-paired by
+`bool_case_linhom`, SMCC-uncurried over $\mathtt{bool\_cone} \otimes G$,
+braided, and finally pre-composed with the EM pairing $\langle
+\mathrm{id}_G, b\rangle$.
 
 ```coq
 (* theories/programs/ppl_cbv.v (Section IfICones) *)
@@ -1179,10 +1180,10 @@ Definition if_icones (b : icones_hom Ar (coalg_obj G)
        (icones_id Ar (coalg_obj G)) b).
 ```
 
-With the §9.7 `bool_cone_coalg` on the scrutinee side, no `der`
-dance is needed — the scrutinee directly produces `bool_cone_car
-Ar`. The building blocks (`bool_case_linhom`, the 2-point cone, the
-§9.7 coalgebra) are documented in [the boolean-cascade
+With the §9.7 `bool_cone_coalg` on the scrutinee side, no `der` dance is
+needed — the scrutinee directly produces `bool_cone_car Ar`. The building
+blocks (`bool_case_linhom`, the 2-point cone, the §9.7 coalgebra) are
+documented in [the boolean-cascade
 chapter](../../ppl/chapters/ppl-ch-the-boolean-cascade.html).
 
 ### Law 2.8 — The definitional-unfolding pack (`eD_var_E`, `eD_fix_mr_prod_E`)
@@ -1190,14 +1191,14 @@ chapter](../../ppl/chapters/ppl-ch-the-boolean-cascade.html).
 One lemma per `eD_cbv` clause — 25 in total: one for each of the 23
 `named_expr` constructors, plus the two per-body-type refinements
 `eD_fix_mr_fun_E` / `eD_fix_mr_prod_E` of the dispatched `ne_fix_mr`
-clause — pins the exact clause body of the interpreter, so any
-refactor of `eD_cbv` (or of the combinators it is built from) breaks
-loudly in a named lemma instead of silently changing the semantics.
+clause. Each pins the exact clause body, so any refactor of `eD_cbv` (or
+its combinators) breaks loudly in a named lemma instead of silently
+changing the semantics.
 
 Because `eD_cbv` is a structural `Fixpoint`, every clause reduces
-definitionally on its constructor and every proof is `by []`. The
-pack lives at the end of `theories/programs/ppl_cbv.v` (Section
-EDUnfold); three representative members:
+definitionally on its constructor and every proof is `by []`. The pack
+lives at the end of `theories/programs/ppl_cbv.v` (Section EDUnfold);
+three representative members:
 
 ```coq
 (* theories/programs/ppl_cbv.v (Section EDUnfold) *)
@@ -1240,12 +1241,11 @@ Proof. by []. Qed.
 ```
 
 The *semantic* recursion-unfolding equations — the prom-point
-computation law `eD_fix_at_setlike` and the honest recursion
-equation `eD_fix_unfold` — live in
-`theories/programs/infra/cbv_fix_unfold.v` (they need the
-setlike-point kit of `infra/cbv_anchors.v`, which imports this
-file); they are documented with the fixpoint combinator itself in
-[the CBV value-fixpoint
+computation law `eD_fix_at_setlike` and the honest recursion equation
+`eD_fix_unfold` — live in `theories/programs/infra/cbv_fix_unfold.v`
+(they need the setlike-point kit of `infra/cbv_anchors.v`, which imports
+this file); they are documented with the fixpoint combinator in [the CBV
+value-fixpoint
 chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 
 ---
