@@ -20,12 +20,39 @@
 
   var KEY = "icones-toc-open-tabs";
 
+  // -- 0. Keep the sticky sidebar clear of the ACTUAL header height --------
+  // The header stacks brand + tabs + search + per-page breadcrumbs and can
+  // wrap, so its height varies (~9-10rem, not the hardcoded 7rem). Measure it
+  // and publish it as --toc-sticky-top, which toc.css `top` + `max-height`
+  // consume — so the top of the rail is never hidden behind the header and the
+  // internal scroll range is correct.
+  try {
+    var header = document.querySelector(".site-header");
+    if (header) {
+      var syncTop = function () {
+        var h = header.offsetHeight;
+        if (h > 0) {
+          document.documentElement.style.setProperty(
+            "--toc-sticky-top", (h + 8) + "px");
+        }
+      };
+      syncTop();
+      window.addEventListener("resize", syncTop, { passive: true });
+      if (typeof ResizeObserver === "function") {
+        new ResizeObserver(syncTop).observe(header);
+      }
+    }
+  } catch (e) {
+    /* non-fatal */
+  }
+
   // -- 1. Scroll the active node into view ---------------------------------
   try {
     var active = nav.querySelector('.toc-link[aria-current="true"]');
     if (active && typeof active.scrollIntoView === "function") {
-      // Center it within the rail without jumping the whole page.
-      active.scrollIntoView({ block: "center", inline: "nearest" });
+      // Bring it into view within the rail (nearest, not centre, so it is
+      // never forced into the zone the sticky header could occlude).
+      active.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   } catch (e) {
     /* non-fatal */

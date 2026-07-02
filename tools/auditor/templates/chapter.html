@@ -25,15 +25,17 @@
 
 {% if chapter.overview %}
 <section class="overview-block">
-  <h2>Constructions</h2>
+  <h2>Overview</h2>
   <p class="section-block-sub">One row per construction — the Item column links to its section.</p>
   {{ overview_table(chapter.overview) }}
 </section>
-{% else %}
+{% endif %}
+
+{% if chapter.sections %}
 <section class="section-block">
   <header class="section-block-head">
-    <h2>Sections</h2>
-    <p class="section-block-sub">One card per construction in this chapter.</p>
+    <h2>Definitions</h2>
+    <p class="section-block-sub">One card per construction — open it for the statement and Rocq.</p>
   </header>
   <div class="card-grid coverage-grid">
     {% for section in chapter.sections %}
