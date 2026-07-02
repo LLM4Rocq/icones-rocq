@@ -403,23 +403,25 @@ builds the full HB tower `Precone → Cone → MCone → ICone`.
 | Paper | English statement | Rocq |
 |---|---|---|
 | Def 4.1 | An *integrable cone* (`ICone`) is a measurable cone in which every path admits a Pettis integral with respect to every (sub-)probability measure. | `ICone.type` (via `isICone` mixin) — `theories/icones/icone.v` |
-| Def 4.2 | The Pettis integral `∫_µ η : C` is the unique element pairing with every test `t` as `∫ ⟨t, η(r)⟩ dµ`. | `icone_integral`, `icone_integral_eqP` (uniqueness) — `theories/icones/icone.v` |
-| Lem 4.7 | The Pettis integral satisfies the natural change-of-variable / Fubini-type identities (the conversion lemma threading all integrability arguments). | `icone_integral_*` family + `bilin.v` — `theories/icones/pettis.v`, `theories/homs/bilin.v` |
-| Thm 4.5 | The set of paths into a cone is itself an `ICone`. | the anonymous `isICone` instance built from `path_int_exists` — `theories/icones/examples_icone.v` |
-| Thm 4.12 | `FMeas(X)` and the dual cone `⊥` are integrable. | `FMeas` is an `ICone`; the `isICone` instance on `cone_one_car Ar` — `theories/icones/examples_icone.v` |
-| Cat 4 | The category `ICones` has integrable cones and `MCones`-morphisms preserving the integral. | `icones_hom`, `icones_comp`, `ICones` — `theories/icones/icone_cat.v` |
-| Fubini (§4) | The Fubini / iterated-integral identity for paths over a product space. | `fubini_iter_fun_X` — `theories/icones/fubini.v` |
-| Thm 4.18 | `ICones` is well-powered. | `icones_well_powered` (full proof, no stub) — `theories/icones/representable.v` |
-| Thm 4.19 | `ICones` is complete with `1` a coseparator; therefore every limit-preserving functor `ICones → C` has a left adjoint (by SAFT). | The completeness data (products, equalisers, the coseparator) is in `icone_cat.v`; the bespoke **SAFT engine** is `representable.v` (`wi_obj`, `wi_med`, `is_icones_left_adjoint`) — see *Beyond the paper* below |
+| Def 4.2 | The Pettis integral $\int_\mu \eta \in C$ is the unique element pairing with every test $t$ as $\int \langle t, \eta(r)\rangle\,d\mu$. | `icone_integral`, `icone_integral_eqP` (uniqueness) — `theories/icones/icone.v` |
+| Lem 4.7 | The integration operator $\mathcal{I}^{B}_X$ is bilinear (separately linear in the path and the measure), continuous and measurable. | `icone_integral_*` family + `bilin.v` — `theories/icones/icone_integral.v`, `theories/homs/bilin.v` |
+| Thm 4.12 | The cone of paths $\mathsf{Path}(X,B)$ into an integrable cone is itself an `ICone`. | the anonymous `isICone` instance built from `path_int_exists` — `theories/icones/examples_icone.v` |
+| Thm 4.5 | $\mathsf{FMeas}(X)$ is integrable; the unit cone $1=\perp$ likewise. | `FMeas` is an `ICone`; the `isICone` instance on `cone_one_car Ar` — `theories/icones/examples_icone.v` |
+| Cat 4 | The category $\mathbf{ICones}$ has integrable cones and $\mathbf{MCones}$-morphisms preserving the integral. | `icones_hom`, `icones_comp`, `ICones` — `theories/icones/icone_cat.v` |
+| Thm 4.15 (Fubini) | The Fubini / iterated-integral identity for paths over a product space. | `fubini_iter_fun_X` — `theories/icones/fubini.v` |
+| Thm 4.18 | $\mathbf{ICones}$ is well-powered (and $1$ is a separator and coseparator). | `icones_well_powered` (full proof, no stub) — `theories/icones/representable.v` |
+| Thm 4.19 | $\mathbf{ICones}$ is complete with $1$ a coseparator; therefore every limit-preserving functor $\mathbf{ICones}\to\mathcal{C}$ has a left adjoint (by SAFT). | The completeness data (products, equalisers, the coseparator) is in `icone_cat.v`; the bespoke **SAFT engine** is `representable.v` (`wi_obj`, `wi_med`, `is_icones_left_adjoint`) — see *Beyond the paper* below |
 
-### Def 4.1 / 4.3 (`isICone`, `ICone`)
+### Def 4.3 (`isICone`, `ICone`)
+
+A measurable cone is *integrable* when, for every arity $X\in\mathbf{Ar}$, every measurable path $\beta:X\to\underline{B}$ admits an integral over every finite measure $\mu\in\underline{\mathsf{FMeas}(X)}$. The `isICone` mixin bundles this existence witness onto an `MCone`.
+
+> **Paper — Definition 4.3** (arXiv 2212.02371, `def:integral-in-cone`). A measurable cone is *integrable* if, for all $X\in\mathbf{Ar}$, each $\beta\in\underline{\mathsf{Path}(X,B)}$ has an integral in $\underline{B}$ over each measure $\mu\in\underline{\mathsf{FMeas}(X)}$. When this is the case we use $\mathcal{I}^{B}_X$ for the uniquely defined function $\underline{\mathsf{Path}(X,B)}\times\underline{\mathsf{FMeas}(X)}\to\underline{B}$ such that $\mathcal{I}^{B}_X(\beta,\mu)=\int\beta(r)\mu(dr)$.
 
 ```coq
 (* theories/icones/icone.v *)
 HB.mixin Record isICone (R : realType) (Ar : MeasSubcat R) B
   of MCone R Ar B := {
-  (** Paper Def 4.3: every measurable path admits a Pettis integral
-      with respect to every finite measure. *)
   icone_exists :
     forall (X : ar_obj Ar)
            (β : ar_carrier Ar X -> B),
@@ -432,31 +434,36 @@ HB.structure Definition ICone (R : realType) (Ar : MeasSubcat R) :=
   { B of isICone R Ar B & MCone R Ar B }.
 ```
 
-### Def 4.2 (`icone_integral`, `icone_integral_eqP`)
+### Def 4.1 (`icone_integral`, `icone_integral_eqP`)
+
+The integral $\mathcal{I}^{B}_X(\beta,\mu)\in\underline{B}$ of a measurable path $\beta$ over a finite measure $\mu$ is the element $x$ pairing correctly with every arity-$0$ test $m$, i.e. $m(x)=\int m(\beta(r))\,\mu(dr)$; by separation it is unique. In Rocq, `icone_integral` names the value, `icone_integralP` its defining equation, and `icone_integral_eqP` its uniqueness.
+
+> **Paper — Definition 4.1** (arXiv 2212.02371). Let $B$ be a measurable cone, $X\in\mathbf{Ar}$, $\beta\in\underline{\mathsf{Path}(X,B)}$ and $\mu\in\underline{\mathsf{FMeas}(X)}$. An *integral of $\beta$ over $\mu$* is an element $x$ of $\underline{B}$ such that, for all $m\in\mathcal{M}^{B}_0$, one has $$m(x)=\int m(\beta(r))\mu(dr)\,.$$
 
 ```coq
 (* theories/icones/icone.v — Section ICOneIntegral,
    Variables R Ar B X β Hβ µ *)
 
-(** The value [I^B_X(β, µ)]. *)
 Definition icone_integral : B :=
   path_integral (icone_exists X β Hβ µ).
 
-(** Specification: it satisfies [path_integral_eq]. *)
 Lemma icone_integralP : path_integral_eq β µ icone_integral.
 
-(** Uniqueness: any candidate satisfying the defining equation
-    equals [icone_integral]. *)
 Lemma icone_integral_eqP (x : B) :
   path_integral_eq β µ x -> x = icone_integral.
 ```
 
 ### Lem 4.7 (`icone_integral_*` family + `bilin.v`)
 
+The integration operator $\mathcal{I}^{B}_X$ is bilinear, continuous and measurable. Bilinearity is captured by four equations — additivity and scalar homogeneity separately in the path $\beta$ and in the measure $\mu$ — while continuity/measurability are the chain-monotonicity and joint-measurability companions consumed downstream.
+
+> **Paper — Lemma 4.7** (arXiv 2212.02371, `lemma:int-mesurable`). For each $X\in\mathbf{Ar}$, the map $\mathcal{I}^{B}_X$ is bilinear, continuous and measurable. This means that $\mathcal{I}^{B}_X:\underline{\mathsf{Path}(X,B)}\mathrel{\&}\underline{\mathsf{FMeas}(X)}\to\underline{B}$ is continuous, separately linear in each of its two arguments and that for each $Y\in\mathbf{Ar}$, $\eta\in\underline{\mathsf{Path}(Y,\mathsf{Path}(X,B))}$ and $\kappa\in\underline{\mathsf{Path}(Y,\mathsf{FMeas}(X))}$, the function $\beta=\mathcal{I}^{B}_X\mathrel{\circ}\langle \eta,\kappa\rangle:Y\to\underline{B}$ is a measurable path.
+
+> **Difference.** The single paper lemma is unbundled into named equations: separate linearity is the four `icone_integral_addB` / `icone_integral_scaleB` (in $\beta$) and `icone_integral_addmu` / `icone_integral_scalemu` (in $\mu$), while continuity and measurability are the `icone_integral_chain_le` and `icone_integral_joint_measurable` companions. *Why:* each fact is consumed independently downstream (and the bilinear packaging lives in `theories/homs/bilin.v`), so it is more convenient to state them one at a time than as one conjunction.
+
 ```coq
 (* theories/icones/icone_integral.v — Section variables R Ar B X β Hβ µ *)
 
-(** Lemma 4.7: additivity in [β]. *)
 Lemma icone_integral_addB
   (β1 β2 : ar_carrier Ar X -> B)
   (Hβ1 : is_measurable_path β1) (Hβ2 : is_measurable_path β2)
@@ -464,7 +471,6 @@ Lemma icone_integral_addB
   icone_integral (fun r => precone_add (β1 r) (β2 r)) Hβ12 µ =
   precone_add (icone_integral β1 Hβ1 µ) (icone_integral β2 Hβ2 µ).
 
-(** Lemma 4.7: scalar in [β]. *)
 Lemma icone_integral_scaleB
   (r : {nonneg R}) (β : ar_carrier Ar X -> B)
   (Hβ : is_measurable_path β)
@@ -472,30 +478,31 @@ Lemma icone_integral_scaleB
   icone_integral (fun u => precone_scale r (β u)) Hrβ µ =
   precone_scale r (icone_integral β Hβ µ).
 
-(** Lemma 4.7: additivity in [µ]. *)
 Lemma icone_integral_addmu (µ1 µ2 : fmeas R (ar_carrier Ar X)) :
   icone_integral β Hβ (fmeas_add µ1 µ2) =
   precone_add (icone_integral β Hβ µ1) (icone_integral β Hβ µ2).
 
-(** Lemma 4.7: scalar in [µ]. *)
 Lemma icone_integral_scalemu
   (r : {nonneg R}) (µ : fmeas R (ar_carrier Ar X)) :
   icone_integral β Hβ (fmeas_scale r µ) =
   precone_scale r (icone_integral β Hβ µ).
 
-(** Companions used as Lemma 4.7 instances downstream. *)
 Lemma icone_integral_test_pettis (Z : ar_obj Ar) (* ... *).
 Lemma icone_integral_chain_le : (* ... *).
 Lemma icone_integral_joint_measurable : (* ... *).
 ```
 
-### Thm 4.12 (`path_int_exists`, `FMeas`/`⊥` `isICone` instances)
+### Thm 4.5 / 4.12 (`path_int_exists`, `FMeas`/unit `isICone` instances)
+
+The two archetypal integrable cones are exhibited: the cone of finite measures $\mathsf{FMeas}(X)$ (Thm 4.5) and, for any integrable $B$, the cone of measurable paths $\mathsf{Path}(X,B)$ (Thm 4.12), whose integral is computed pointwise. The same file also installs the `isICone` instance on the unit cone $1=\perp$.
+
+> **Paper — Theorem 4.5** (arXiv 2212.02371). For each measurable space $X$, the measurable cone $\mathsf{FMeas}(X)$ is integrable.
+
+> **Paper — Theorem 4.12** (arXiv 2212.02371). For each $X\in\mathbf{Ar}$ and each integrable cone $B$, the measurable cone $\mathsf{Path}(X,B)$ is integrable.
 
 ```coq
 (* theories/icones/examples_icone.v *)
 
-(** Paper Thm 4.12 (full): unconditional path-integrability for
-    [path_car Ar X B], given the cast-measurability hypotheses. *)
 Lemma path_int_exists
     (Y' : ar_obj Ar)
     (η : ar_carrier Ar Y' -> P)
@@ -503,20 +510,21 @@ Lemma path_int_exists
     (ν : fmeas R (ar_carrier Ar Y')) :
   is_path_integrable η ν.
 
-(** Register the [isICone] instance on [path_car Ar X B]. *)
 HB.instance Definition _ : isICone R Ar P :=
   isICone.Build R Ar P (@path_int_exists).
 
-(** Paper §4: the [isICone] instance on [cone_one_car Ar] (= the unit). *)
 HB.instance Definition _ :=
   @isICone.Build R Ar (cone_one_car Ar) (* ... witness ... *).
 
-(** Paper Thm 4.5: the [isICone] instance on [fmeas R (ar_carrier Ar X)]. *)
 HB.instance Definition _ :=
   @isICone.Build R Ar (fmeas R (ar_carrier Ar X)) (* ... witness ... *).
 ```
 
 ### Def 4.10 (`icones_hom`, `icones_comp`, `ICones`)
+
+The category $\mathbf{ICones}$ has integrable cones as objects; a morphism $B\to C$ is an $\mathbf{MCones}$-morphism $f$ that *preserves integrals*: $f(\int\beta(r)\mu(dr))=\int f(\beta(r))\mu(dr)$. The `icones_hom` record pairs an `mcones_hom` with the integral-preservation witness `icones_hom_pres_int`.
+
+> **Paper — Definition 4.10** (arXiv 2212.02371, `def:icones-category`). The category $\mathbf{ICones}$ has integrable cones as objects and an element of $\mathbf{ICones}(B,C)$ is an $f\in\mathbf{MCones}(B,C)$ such that, for all $X\in\mathbf{Ar}$ and all $\beta\in\underline{\mathsf{Path}(X,B)}$ and $\mu\in\underline{\mathsf{FMeas}(X)}$ one has $$f\Big(\int\beta(r)\mu(dr)\Big)=\int f(\beta(r))\mu(dr)\,.$$ This property of $f$ will be called *integral preservation* and when it holds we often simply say that $f$ is *integrable*.
 
 ```coq
 (* theories/icones/icone_cat.v — Section IConesHom,
@@ -535,11 +543,9 @@ Record icones_hom : Type := MkIConesHom {
         (mcones_hom_pres_path icones_hom_mcones X β Hβ) µ;
 }.
 
-(** Identity in [ICones]. *)
 Definition icones_id : icones_hom Ar B B :=
   MkIConesHom (mcones_id Ar B) icones_id_pres_int.
 
-(** Composition in [ICones]. *)
 Definition icones_comp
     (g : icones_hom Ar B C) (f : icones_hom Ar A B) : icones_hom Ar A C :=
   MkIConesHom
@@ -547,7 +553,13 @@ Definition icones_comp
     (icones_comp_pres_int g f).
 ```
 
-### Fubini (`fubini_iter_fun_X`)
+### Thm 4.15 Fubini (`fubini_iter_fun_X`)
+
+The Fubini theorem for cones: iterated integration of a path of paths equals integration of the flattened path against the product measure. The Rocq development builds the inner-integral function $x\mapsto\int_y\beta(x,y)\,d\nu$, bounds its norm, and shows it is itself a measurable path — the ingredients of the iterated-integral identity.
+
+> **Paper — Theorem 4.15** (arXiv 2212.02371, `th:paths-Fubini`). Let $X,Y\in\mathbf{Ar}$, $\eta\in\underline{\mathsf{Path}(X,\mathsf{Path}(Y,B))}$, $\mu\in\underline{\mathsf{FMeas}(X)}$ and $\nu\in\underline{\mathsf{FMeas}(Y)}$. We have $$\int_Y\Big(\int_X\eta(r)\mu(dr)\Big)(s)\nu(ds) =\int_{X\times Y}\mathsf{fl}(\eta)(t)\,(\mu\times\nu)(dt)$$
+
+> **Difference.** The excerpt shown is the supporting apparatus rather than the final identity: `fubini_iter_fun_X` is the inner integral $x\mapsto\int_y\beta(x,y)\,d\nu$, with `fubini_iter_fun_X_norm_le` bounding its norm and `fubini_iter_fun_X_is_path` proving it is a measurable path. These are the lemmas the iterated-integral equation of Theorem 4.15 is assembled from in `fubini.v`.
 
 ```coq
 (* theories/icones/fubini.v — Variables
@@ -555,7 +567,6 @@ Definition icones_comp
    (β : ar_carrier Ar X * ar_carrier Ar Y -> B)
    (ν : fmeas R (ar_carrier Ar Y)) *)
 
-(** The pointwise [x ↦ ∫_y β(x,y) dν] function. *)
 Definition fubini_iter_fun_X (x : ar_carrier Ar X) : B :=
   icone_integral (fun y => β (x, y)) (Hβ x) ν.
 
@@ -571,12 +582,16 @@ Lemma fubini_iter_fun_X_is_path (Mβ : R)
 
 ### Thm 4.18 (`icones_well_powered`, `SubobjClassifier`, `icones_subobject_classP`)
 
+In $\mathbf{ICones}$ the unit cone $1$ is both a separator and a coseparator, and the category is well-powered. The formalization discharges well-poweredness by exhibiting a small classifying `Type` (`SubobjClassifier`) into which subobjects inject up to iso (`icones_subobject_classP`) — the property the special adjoint functor theorem then consumes.
+
+> **Paper — Theorem 4.18** (arXiv 2212.02371, `th:icones-conditions-saft`). In the category $\mathbf{ICones}$ the object $1$ is a coseparator and a separator and $\mathbf{ICones}$ is well-powered.
+
+> **Difference.** This entry mechanises only the *well-powered* conjunct — recast as the existence of a small classifying `Type` `SubobjClassifier` that identifies subobjects up to iso (`icones_subobject_classP`). This is the exact input the special adjoint functor theorem needs; the separator/coseparator role of $1$ is handled where SAFT is applied (see *Beyond the paper* below).
+
 ```coq
 (* theories/icones/representable.v — Section Classifier,
    Variables (R : realType) (Ar : MeasSubcat R), B : ICone.type Ar *)
 
-(** The classifier type: a fixed small [Type], independent of the
-    subobject's domain. *)
 Record SubobjClassifier : Type := MkClassifier {
   cls_S    : set B;
   cls_add  : B -> B -> B;
@@ -587,12 +602,10 @@ Record SubobjClassifier : Type := MkClassifier {
                set (ar_carrier Ar X -> B -> R);
 }.
 
-(** Injectivity up to iso: subobjects with equal classifier are iso over [B]. *)
 Lemma icones_subobject_classP (D1 D2 : icones_subobject B) :
   icones_subobject_class D1 = icones_subobject_class D2 ->
   subobject_equiv D1 D2.
 
-(** Paper Thm 4.18 — the well-poweredness statement, the property SAFT consumes. *)
 Theorem icones_well_powered :
   exists cls : icones_subobject B -> SubobjClassifier B,
     forall D1 D2 : icones_subobject B,
