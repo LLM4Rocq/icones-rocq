@@ -2369,12 +2369,12 @@ The historical special case at the sampler model is
 **In this chapter:** [Def 6.1](../../ppl/sections/ppl-sec-def-6-1-the-2-point-cone.html) · [Def 6.2](../../ppl/sections/ppl-sec-def-6-2-the-universal-co-pairing.html) · [Def 6.3](../../ppl/sections/ppl-sec-def-6-3-icones-hom-packaging.html) · [Def 6.4](../../ppl/sections/ppl-sec-def-6-4-the-sec-9-7-coalgebra-on-the-2-point-cone.html).
 
 The 2-point cone of [paper §4.4 / Theorem
-4.24](../../paper/sections/sec-4.html) — the coproduct `1 ⊕ 1` — is
-built concretely as `bool_cone_car Ar : {nonneg R} × {nonneg R}`
-with norm `‖(p, q)‖ = p + q`. The chapter assembles its full HB
-tower, the universal co-pairing `bool_case` with its linhom and
-icones packagings, and a hand-rolled §9.7-style `!`-coalgebra
-structure that gives `tbool` the shared-sample semantics.
+4.24](../../paper/sections/sec-4.html) — the coproduct $1 \oplus 1$ —
+is `bool_cone_car Ar : {nonneg R} × {nonneg R}` with norm
+$\lVert (p, q)\rVert = p + q$. This chapter builds its full HB tower,
+the universal co-pairing `bool_case` with its linhom and icones
+packagings, and a hand-rolled §9.7-style $!$-coalgebra giving `tbool`
+its shared-sample semantics.
 
 | Construction | Rocq |
 |---|---|
@@ -2383,18 +2383,18 @@ structure that gives `tbool` the shared-sample semantics.
 | Unit-ball-free variants | `bool_case_omega_continuous_gen`, `bool_case_norm_le_max`, `bool_case_pres_path_gen`, `bool_case_pres_int_gen` — same file |
 | Test measurability, generalised | `test_meas_gen` — `theories/mcones/mcone.v` |
 | Icones-hom packaging | `bool_case_linhom`, `bool_case_linhom_gen`, `bool_case_icones_hom` — `theories/programs/infra/bool_case_hom.v` |
-| α / β decomposition | `alpha_linhom`, `beta_linhom`, `bool_case_linhom_gen_alpha_beta` — same file |
+| $\alpha$ / $\beta$ decomposition | `alpha_linhom`, `beta_linhom`, `bool_case_linhom_gen_alpha_beta` — same file |
 | The §9.7 coalgebra on `bool_cone_car` | `bool_coalg_str`, `bool_cone_coalg`, `bool_cone_dispatch` — `theories/programs/infra/bool_cone_coalg.v` |
 | CBV `if_icones` consumer (from the interpreter) | `if_icones`, `if_under` — `theories/programs/ppl_cbv.v` |
 
 ### Def 6.1 — The 2-point cone (`bool_cone_car`)
 
-> **Prerequisite:** the 2-point cone realises the [paper §4.4 / Thm 4.24](../../paper/sections/sec-4.html) coproduct `1 ⊕ 1`.
+> **Prerequisite:** the 2-point cone realises the [paper §4.4 / Thm 4.24](../../paper/sections/sec-4.html) coproduct $1 \oplus 1$.
 
-The boolean value cone is the pair `(p, q)` of non-negative weights
-on true and false, with norm `‖(p, q)‖ = p + q` — concretely the
-paper §4.4 / Thm 4.24 coproduct `cone_one_car ⊕ cone_one_car`, with
-the two Dirac basis points as the boolean values.
+The boolean value cone is a pair $(p, q)$ of non-negative weights on
+true and false, with norm $\lVert (p, q)\rVert = p + q$ — the paper
+§4.4 / Thm 4.24 coproduct `cone_one_car` $\oplus$ `cone_one_car`, its
+two Dirac basis points being the boolean values.
 
 ```coq
 (* theories/programs/infra/bool_cone.v *)
@@ -2407,11 +2407,11 @@ Definition bool_dirac_false : bool_cone_car Ar := MkBoolCone Ar 0%:nng 1%:nng.
 
 ### Def 6.2 — The universal co-pairing (`bool_case`)
 
-The co-pairing `[a, b](x) = bc_t(x)·a + bc_f(x)·b` realises the
-coproduct universal property of [paper §4.4 / Thm
-4.24](../../paper/sections/sec-4.html): it restores the branch
-values on the two basis points, is linear in `x`, ω-continuous on
-the unit ball, norm-bounded, and preserves measurable paths and
+The co-pairing $[a, b](x) = \mathtt{bc\_t}(x)\cdot a + \mathtt{bc\_f}(x)\cdot b$
+realises the coproduct universal property of [paper §4.4 / Thm
+4.24](../../paper/sections/sec-4.html): it restores the branch values
+on the two basis points, is linear in $x$, $\omega$-continuous on the
+unit ball, norm-bounded, and preserves measurable paths and
 integrals.
 
 ```coq
@@ -2431,18 +2431,17 @@ Lemma bool_case_norm_le1
   cone_norm (bool_case x a b) <= cone_norm x.
 ```
 
-The `_gen` variants drop the unit-ball hypotheses (with
-`bool_case_norm_le_max` as the norm bound); the generalised test
-measurability `test_meas_gen` of `theories/mcones/mcone.v` is what
-lets the path-preservation proofs drop the unit ball on test
-scrutinees.
+The `_gen` variants drop the unit-ball hypotheses, with
+`bool_case_norm_le_max` as the norm bound. The generalised test
+measurability `test_meas_gen` (`theories/mcones/mcone.v`) is what lets
+path-preservation drop the unit ball on test scrutinees.
 
 ### Def 6.3 — Icones-hom packaging (`bool_case_linhom`, `alpha_linhom`, `beta_linhom`)
 
 The co-pairing is packaged once at each categorical level in
 `theories/programs/infra/bool_case_hom.v`: as a linhom
-`bool_case_linhom : bool_cone ⊸ A` (with the unit-ball-free
-`bool_case_linhom_gen`) and as an icones_hom
+`bool_case_linhom` $: \mathtt{bool\_cone} \multimap A$ (with the
+unit-ball-free `bool_case_linhom_gen`) and as an icones_hom
 `bool_case_icones_hom`.
 
 ```coq
@@ -2460,33 +2459,35 @@ Definition bool_case_linhom_gen (a b : A) :
     linhom_car Ar (bool_cone_car Ar) A.
 ```
 
-The general variant decomposes as `bool_case_linhom_gen a b =
-alpha_linhom a + beta_linhom b` (`bool_case_linhom_gen_alpha_beta`,
-same file) — the α/β decomposition that reduces its integral- and
-path-preservation obligations to the two scaled-projection linhoms
-`alpha_linhom` / `beta_linhom`. The CBV consumer of this packaging
-is `if_icones` — see [if-then-else at the icones
+The general variant decomposes as
+$\mathtt{bool\_case\_linhom\_gen}\ a\ b = \mathtt{alpha\_linhom}\ a + \mathtt{beta\_linhom}\ b$
+(`bool_case_linhom_gen_alpha_beta`, same file) — this $\alpha$/$\beta$
+decomposition reduces its integral- and path-preservation obligations
+to the two scaled-projection linhoms `alpha_linhom` / `beta_linhom`.
+Its CBV consumer is `if_icones` — see [if-then-else at the icones
 level](../../ppl/sections/ppl-sec-def-2-7-if-then-else-at-the-icones-level.html).
 
 ### Def 6.4 — The §9.7 coalgebra on the 2-point cone (`bool_coalg_str`, `bool_cone_coalg`)
 
-The 2-point cone carries a hand-rolled `!`-coalgebra structure
-`bool_coalg_str : bool_cone ⊸ !bool_cone` mirroring [Theorem
-9.7](../../paper/entries/thm-9-7.html)'s `FMeas_coalgebra`: the §9.7
-integral `Coalg_X(µ) = ∫ prom(δ_x) dµ(x)` degenerates on the
-two-point carrier to the finite sum `p·δ_T + q·δ_F ↦ p·prom(δ_T) +
-q·prom(δ_F)`.
+The 2-point cone carries a hand-rolled $!$-coalgebra
+`bool_coalg_str` $: \mathtt{bool\_cone} \multimap {!}\mathtt{bool\_cone}$
+mirroring [Theorem 9.7](../../paper/entries/thm-9-7.html)'s
+`FMeas_coalgebra`: the §9.7 integral
+$\mathrm{Coalg}_X(\mu) = \int \mathtt{prom}(\delta_x)\, d\mu(x)$
+degenerates on the two-point carrier to the finite sum
+$p\cdot\delta_T + q\cdot\delta_F \mapsto p\cdot\mathtt{prom}(\delta_T) + q\cdot\mathtt{prom}(\delta_F)$.
 
-This is the structure that makes `tyD_cbv tbool` give *shared-sample*
-semantics: the comonoid induced on `⟦tbool⟧` is the diagonal
-pushforward, so `let x = Bernoulli(p) in (x, x)` denotes `p·(T,T) +
-(1−p)·(F,F)` rather than the four-point independent product. The
-two coalgebra laws (`bool_coalg_counit`, `bool_coalg_coassoc`)
-reduce on the basis points to the comonad identities `der ∘ prom =
-id` and `dig ∘ prom = prom ∘ prom`, dispatched by the
-universal-property extensionality lemma `bool_cone_dispatch` (any
-two linear morphisms out of the 2-point cone agreeing on `δ_T` and
-`δ_F` are equal).
+This gives `tyD_cbv tbool` its *shared-sample* semantics: the comonoid
+induced on $\llbracket\mathtt{tbool}\rrbracket$ is the diagonal
+pushforward, so `let x = Bernoulli(p) in (x, x)` denotes
+$p\cdot(T, T) + (1-p)\cdot(F, F)$, not the four-point independent
+product. The two coalgebra laws (`bool_coalg_counit`,
+`bool_coalg_coassoc`) reduce on the basis points to the comonad
+identities $\mathtt{der} \circ \mathtt{prom} = \mathrm{id}$ and
+$\mathtt{dig} \circ \mathtt{prom} = \mathtt{prom} \circ \mathtt{prom}$,
+dispatched by the universal-property extensionality lemma
+`bool_cone_dispatch` (any two linear morphisms out of the 2-point cone
+agreeing on $\delta_T$ and $\delta_F$ are equal).
 
 ```coq
 (* theories/programs/infra/bool_cone_coalg.v (Section BoolConeCoalg) *)
