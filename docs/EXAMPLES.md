@@ -97,40 +97,40 @@ the examples themselves.
 
 **In this chapter:** [Ex 1.1](../../examples/sections/examples-sec-ex-1-1-constant-random-function.html) · [Ex 1.2](../../examples/sections/examples-sec-ex-1-2-random-linear-function.html) · [Ex 1.3](../../examples/sections/examples-sec-ex-1-3-scored-posterior.html) · [Ex 1.4](../../examples/sections/examples-sec-ex-1-4-bayesian-linear-regression.html) · [Ex 1.5](../../examples/sections/examples-sec-ex-1-5-gaussian-random-walk.html).
 
-Five end-to-end probabilistic programs without recursion: two
+Five non-recursive end-to-end probabilistic programs: two
 random-function programs, a one-parameter score program, the
-higher-order Bayesian linear regression built out of them, and a
+higher-order Bayesian linear regression built from them, and a
 two-level Gaussian hierarchy. The calculus shape mirrors the
 higher-order probabilistic calculus of Heunen–Kammar–Staton–Yang
 (*A Convenient Category for Higher-Order Probability Theory*); the
-semantics here is the integrable-cones model, not quasi-Borel spaces.
+semantics is the integrable-cones model, not quasi-Borel spaces.
 
 Each program ships a closed-form CBV identity tying its denotation to
-the corresponding distribution, proved in
+the matching distribution, proved in
 `theories/programs/infra/cbv_marginals.v` (the Gaussian hierarchy in
-`theories/programs/infra/kernel_anchors.v`). Every proof follows the
+`theories/programs/infra/kernel_anchors.v`). Every proof takes the
 same route: the let-at-sample integral law `eD_let_sample_int`
 (`theories/programs/infra/let_sample_law.v`) turns each
 `let x = sample µ in …` prefix into a Pettis integral over Diracs of
-the prior, dereliction and evaluation at setlike test points push
-inside the integral, and the integrand computes pointwise down to a
+the prior; dereliction and evaluation at setlike test points push
+inside the integral; the integrand computes pointwise down to a
 Dirac integral.
 
 ### Ex 1.1 — Constant random function (`ex_random_constant`)
 
-The constant-output random function. After sampling a single random
-constant `c ~ µ`, the program returns the function `λx. c`: every
+The constant-output random function. After sampling one random
+constant $c \sim \mu$, the program returns $\lambda x.\, c$: every
 call returns the same value, but the function itself was sampled from
-`µ`. The main identity is the marginal at a test point: derelicting
-the (promoted) function value and evaluating it at a test point
-recovers the prior `µ`.
+$\mu$. The main identity is the marginal at a test point — derelicting
+the promoted function value and evaluating at a test point recovers
+the prior $\mu$.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_random_constant`) | `let c := sample µ in λx. c` of type `tfun tR tR` — a distribution over a (constant-output) function space. | `ex_random_constant` — `theories/programs/examples.v` |
-| Thm (`ex_random_constant_cbv_marginal`) | Derelicting the denotation and evaluating at any *probability* test point `x` (`fmeas_mu x setT = 1`) recovers the prior `µ`, uniformly in the test point. | `ex_random_constant_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
-| Cor (`ex_random_constant_cbv_marginal_dirac`) | At a Dirac test point `δ_{r0}` the marginal is the prior — Diracs are probabilities. | `ex_random_constant_cbv_marginal_dirac` — same file |
-| Cor (`ex_random_constant_cbv_marginal_mass`) | The marginal's measure of every measurable `U` equals `µ(U)`. | `ex_random_constant_cbv_marginal_mass` — same file |
+| Def (`ex_random_constant`) | `let c := sample µ in λx. c` of type `tfun tR tR`: a distribution over a constant-output function space. | `ex_random_constant` — `theories/programs/examples.v` |
+| Thm (`ex_random_constant_cbv_marginal`) | Derelicting the denotation and evaluating at any *probability* test point $x$ ($\mathtt{fmeas\_mu}\ x\ \mathtt{setT} = 1$) recovers the prior $\mu$, uniformly in the test point. | `ex_random_constant_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
+| Cor (`ex_random_constant_cbv_marginal_dirac`) | At a Dirac test point $\delta_{r_0}$ the marginal is the prior — Diracs are probabilities. | `ex_random_constant_cbv_marginal_dirac` — same file |
+| Cor (`ex_random_constant_cbv_marginal_mass`) | The marginal's measure of every measurable $U$ equals $\mu(U)$. | `ex_random_constant_cbv_marginal_mass` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -169,36 +169,36 @@ Theorem ex_random_constant_cbv_marginal_mass (x : FMeas R_obj)
 ```
 
 Proof idea: the let-at-sample law turns the denotation into the
-Pettis integral `∫ (ℓ_c)! µ(dc)` of the promoted closures
-`ℓ_c := ⟦λx. c⟧(1 ⊗ δ_c)` (the lambda clause promotes at the setlike
-one-Dirac environment, `adj_psi_at_setlike`). Dereliction and
-evaluation at `x` push inside the integral (`icones_hom_pres_int` /
-`linhom_int_eval`); the integrand computes to `δ_c` — the unused
-argument `x` is discarded silently because it is a probability
-(`em_proj1_mor_probE`) and the closure returns the captured
-constant; finally `∫ δ_c µ(dc) = µ` (`icone_integral_dirac_fmeas`).
+Pettis integral $\int (\ell_c)!\, \mu(dc)$ of the promoted closures
+$\ell_c := \llbracket \lambda x.\, c \rrbracket(1 \otimes \delta_c)$
+(the lambda clause promotes at the setlike one-Dirac environment,
+`adj_psi_at_setlike`). Dereliction and evaluation at $x$ push inside
+the integral (`icones_hom_pres_int` / `linhom_int_eval`); the
+integrand computes to $\delta_c$ — the unused argument $x$ is
+discarded silently, being a probability (`em_proj1_mor_probE`), and
+the closure returns the captured constant; finally
+$\int \delta_c\, \mu(dc) = \mu$ (`icone_integral_dirac_fmeas`).
 
 The probability hypothesis on the test point is honest, not an
 artifact. Discarding an argument in `EM(!)` is the comonoid counit,
 which on `FMeas` weighs the kept output by the argument's total mass
-(`coalg_e_FMeas_prob`); at `x = 0` the marginal is `0`, not `µ`.
-Only mass-1 test points are discarded silently.
+(`coalg_e_FMeas_prob`); at $x = 0$ the marginal is $0$, not $\mu$.
+Only mass-$1$ test points are discarded silently.
 
 ### Ex 1.2 — Random linear function (`ex_random_linear`)
 
-A random-coefficients linear regression: sample slope `m` and
-intercept `b` from `µ`, return the function `λx. m·x + b`. The
-program exercises `ne_add` and `ne_mul` via the arithmetic lifts of
+A random-coefficients linear regression: sample slope $m$ and
+intercept $b$ from $\mu$, return $\lambda x.\, m\cdot x + b$. It
+exercises `ne_add` and `ne_mul` via the arithmetic lifts of
 `theories/programs/ppl.v`; on Dirac inputs the lifts reduce to scalar
-arithmetic (`add_lift_dirac` / `mul_lift_dirac`). This program is
-also the *model* of the Bayesian linear regression `ex_bayes_linear`
-below — the regression program is literally
-`let "f" := ex_random_linear in …`.
+arithmetic (`add_lift_dirac` / `mul_lift_dirac`). This is also the
+*model* of the Bayesian linear regression `ex_bayes_linear` below —
+that program is literally `let "f" := ex_random_linear in …`.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_random_linear`) | `let m := sample µ in let b := sample µ in λx. m·x + b` of type `tfun tR tR` — a random affine function with independent prior draws for slope and intercept. | `ex_random_linear` — `theories/programs/examples.v` |
-| Thm (`ex_random_linear_cbv_marginal`) | Derelicted and evaluated at a Dirac test point `δ_{r0}`, the denotation's measure of every measurable `U` is the iterated integral `∫∫ δ_{m·r0+b}(U) µ(db) µ(dm)`. | `ex_random_linear_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
+| Def (`ex_random_linear`) | `let m := sample µ in let b := sample µ in λx. m·x + b` of type `tfun tR tR`: a random affine function, slope and intercept drawn independently from the prior. | `ex_random_linear` — `theories/programs/examples.v` |
+| Thm (`ex_random_linear_cbv_marginal`) | Derelicted and evaluated at a Dirac test point $\delta_{r_0}$, the denotation's measure of every measurable $U$ is the iterated integral $\int\!\!\int \delta_{m\cdot r_0+b}(U)\, \mu(db)\, \mu(dm)$. | `ex_random_linear_cbv_marginal` — `theories/programs/infra/cbv_marginals.v` |
 | Lem (`rl_inner_marginal`) | The inner continuation (one sample left) marginalises to a single integral over the intercept. | `rl_inner_marginal` — same file |
 
 ```coq
@@ -244,11 +244,12 @@ Lemma rl_inner_marginal (m r0 : ar_carrier Ar R_obj)
 
 Proof idea: two applications of the let-at-sample law peel the two
 sample binders into nested Pettis integrals; dereliction and
-evaluation at `δ_{r0}` push inside both layers. At the three-Dirac
-environment `(1 ⊗ δ_m ⊗ δ_b) ⊗ δ_{r0}` (a setlike unit-ball point)
-the variable projections return the three Diracs, the body computes
-through the Dirac rules of `mul_lift` and `add_lift` to `δ_{m·r0+b}`
-(`rl_body_at`), and the per-`U` evaluation of an `FMeas`-valued
+evaluation at $\delta_{r_0}$ push inside both layers. At the
+three-Dirac environment $(1 \otimes \delta_m \otimes \delta_b)
+\otimes \delta_{r_0}$ (a setlike unit-ball point) the variable
+projections return the three Diracs, the body computes through the
+Dirac rules of `mul_lift` and `add_lift` to $\delta_{m\cdot r_0+b}$
+(`rl_body_at`), and the per-$U$ evaluation of an `FMeas`-valued
 Pettis integral (`icone_integral_fmeas_E`) lands the iterated
 Lebesgue integral.
 
@@ -256,23 +257,21 @@ Lebesgue integral.
 
 Scoring a sampled parameter — the one-dimensional unnormalised
 posterior, in the textbook prior / score / return shape: sample a
-parameter `m` from the prior `µ`, score by a bundled `[0,1]` test
-function `f : testfn`, return `m`. The denotation's
-measure of every
-measurable `U` is `∫_U f dµ` — the prior reweighted by the test
-pairing, with total mass `∫ f dµ`.
+parameter $m$ from the prior $\mu$, score by a bundled $[0,1]$ test
+function `f : testfn`, return $m$. The denotation's measure of every
+measurable $U$ is $\int_U f\, d\mu$ — the prior reweighted by the
+test pairing, with total mass $\int f\, d\mu$.
 
 This program pairs with the conditioning/rejection chapter below:
-`score` produces the unnormalised posterior, rejection sampling
-produces the normalised one, and `ex_reject_normalises_score`
-(stated in the closing section of that chapter) connects the two
-programs exactly.
+`score` produces the unnormalised posterior, rejection sampling the
+normalised one, and `ex_reject_normalises_score` (in that chapter's
+closing section) connects the two exactly.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_score_posterior`) | `let m := sample µ in let _ := Score (test f #"m") in #"m"` of type `tR` — sample, score the parameter by the abstract test-function coin `test f` of the bundled test function `f : testfn`, return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
-| Thm (`ex_score_posterior_cbv_E`) | The denotation's measure of every measurable `U` is `∫_U f dµ` — the prior reweighted by the density, not normalised. | `ex_score_posterior_cbv_E` — `theories/programs/infra/cbv_marginals.v` |
-| Cor (`ex_score_posterior_cbv_mass`) | The total mass of the denotation is the evidence `∫ f dµ`. | `ex_score_posterior_cbv_mass` — same file |
+| Def (`ex_score_posterior`) | `let m := sample µ in let _ := Score (test f #"m") in #"m"` of type `tR`: sample, score the parameter by the abstract test-function coin `test f` of the bundled `f : testfn`, return the parameter. | `ex_score_posterior` — `theories/programs/examples.v` |
+| Thm (`ex_score_posterior_cbv_E`) | The denotation's measure of every measurable $U$ is $\int_U f\, d\mu$ — the prior reweighted by the density, unnormalised. | `ex_score_posterior_cbv_E` — `theories/programs/infra/cbv_marginals.v` |
+| Cor (`ex_score_posterior_cbv_mass`) | The total mass of the denotation is the evidence $\int f\, d\mu$. | `ex_score_posterior_cbv_mass` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -304,19 +303,19 @@ Theorem ex_score_posterior_cbv_mass :
 ```
 
 Proof idea: the let-at-sample mass law `eD_let_sample_mu_E` turns the
-denotation's measure of `U` into an integral over `r ~ µ` of the
-continuation's mass at the one-Dirac environment `1 ⊗ δ_r`. There the
-score clause evaluates to the scalar `f(r)` (`eD_score_E` +
+denotation's measure of $U$ into an integral over $r \sim \mu$ of the
+continuation's mass at the one-Dirac environment $1 \otimes \delta_r$.
+There the score clause evaluates to the scalar $f(r)$ (`eD_score_E` +
 `score_lift_dirac`), and the returned variable under the score binder
 is computed by `em_proj1_mor_unitE`: a `tunit`-typed score result is
 not setlike, so the first projection discards it as its scalar
-weight, turning the score into the `precone_scale` factor `f(r)` on
-the returned `δ_r` (`sp_cont_at_dirac`). The Dirac's measure of `U`
-is the indicator, and the integral collapses to `∫_U f dµ`.
+weight, turning the score into the `precone_scale` factor $f(r)$ on
+the returned $\delta_r$ (`sp_cont_at_dirac`). The Dirac's measure of
+$U$ is the indicator, and the integral collapses to $\int_U f\, d\mu$.
 
 ### Ex 1.4 — Bayesian linear regression (`ex_bayes_linear`)
 
-> **Key result:** the regression *is* iterated conditioning by definition (`ex_bayes_linear_is_iter_condition`, by `erefl`); its evidence is the double integral `∫∫ ∏ obs_d dµ dµ`.
+> **Key result:** the regression *is* iterated conditioning by definition (`ex_bayes_linear_is_iter_condition`, by `erefl`); its evidence is the double integral $\int\!\!\int \prod \mathtt{obs\_d}\, d\mu\, d\mu$.
 
 The Bayesian linear regression of Staton–Yang–Heunen–Kammar–Wood
 (arXiv 1701.02547 §2.1), in three steps.
@@ -327,42 +326,40 @@ drawn from the prior.
 
 Second, inference conditions the model on data. Each observation is a
 `Record obs = MkObs { obs_x ; obs_y }` packaging a known input point
-`obs_x` and the observed datum `obs_y`. The likelihood deviation is a
-single fixed noise `σ = 1/2` for every observation. Its observation
-density is the envelope-normalised Gaussian likelihood
+`obs_x` and observed datum `obs_y`. The likelihood noise is a single
+fixed $\sigma = 1/2$ for every observation. Its density is the
+envelope-normalised Gaussian likelihood
 `obs_d o := gauss_obs_density (1/2) (obs_y o)`, i.e.
-`obs_d o r = normal_pdf r (1/2) (obs_y o) / normal_peak (1/2) ∈ [0,1]`
-(`theories/programs/ppl.v`) — the surface form is the
+$\mathtt{obs\_d}\ o\ r = \mathtt{normal\_pdf}\ r\ (1/2)\ (\mathtt{obs\_y}\ o) / \mathtt{normal\_peak}\ (1/2) \in [0,1]$
+(`theories/programs/ppl.v`) — surface form
 `observe Gaussian (#"f" @ [|obs_x o|]) { 1/2 } (obs_y o) ≡ Score (Gausslik (#"f" @ [|obs_x o|]) { 1/2 , obs_y o })`
-operator (mean expression first, then `{ stddev }`, then the observed
-datum). The peak is intrinsic to the distribution, so the
-observation carries no user-supplied envelope.
-Conditioning is a score: the model's value `#"f" @ [|obs_x o|]` at the
-known input is scored by `obs_d o`. The program samples the model
-once, binds it to `"f"`, folds the observation list into a series of
-`observe` steps, and returns `#"f"` — the posterior over functions.
+(mean expression first, then `{ stddev }`, then the observed datum).
+The peak is intrinsic to the distribution, so the observation carries
+no user-supplied envelope. Conditioning is a score: the model's value
+`#"f" @ [|obs_x o|]` at the known input is scored by `obs_d o`. The
+program samples the model once, binds it to `"f"`, folds the
+observation list into `observe` steps, and returns `#"f"` — the
+posterior over functions.
 
 Third, the regression *is* iterated conditioning, by definition.
 Scoring `#"f" @ [|obs_x o|]` by `obs_d o` is the score clause of the
-`condition` operator of the next chapter, at the model `#"f"` and
-the input `obs_x o`; the only difference is A-normal form
-(`condition` binds the model's value and returns it, while the
-regression scores the application directly and returns the function
-at the end). `condition_at o` packages one such step,
-`iter_condition` is its fold over a meta-level list
-`l : seq (obs R)`, and `ex_bayes_linear l` is defined as the model
-bound once followed by `iter_condition` — the agreement anchor
-`ex_bayes_linear_is_iter_condition` holds by `erefl`. The historical
-raw score-fold shape is the derived reading
-`ex_bayes_linear_obs_fold`, and `ex_bayes_linear3` is the concrete
-3-observation instance.
+next chapter's `condition` operator, at model `#"f"` and input
+`obs_x o`; the only difference is A-normal form (`condition` binds
+the model's value and returns it, while the regression scores the
+application directly and returns the function at the end).
+`condition_at o` packages one step, `iter_condition` folds it over a
+meta-level list `l : seq (obs R)`, and `ex_bayes_linear l` is the
+model bound once followed by `iter_condition` — agreement anchor
+`ex_bayes_linear_is_iter_condition` holds by `erefl`. The raw
+score-fold shape is the derived reading `ex_bayes_linear_obs_fold`,
+and `ex_bayes_linear3` is the concrete 3-observation instance.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_bayes_linear`) | Bind the random affine model to `"f"`, condition it on each observation of the list `l` in turn (`condition_at` / `iter_condition`) via the `observe` operator and its density `obs_d` / `gauss_obs_density`, return `#"f"`. | `ex_bayes_linear`, `condition_at`, `iter_condition`, `obs_fold`, `obs_d`, `ex_bayes_linear3` — `theories/programs/examples.v` |
+| Def (`ex_bayes_linear`) | Bind the random affine model to `"f"`, condition it on each observation of `l` in turn (`condition_at` / `iter_condition`) via `observe` and its density `obs_d` / `gauss_obs_density`, return `#"f"`. | `ex_bayes_linear`, `condition_at`, `iter_condition`, `obs_fold`, `obs_d`, `ex_bayes_linear3` — `theories/programs/examples.v` |
 | Prop (`ex_bayes_linear_is_iter_condition`) | The regression equals the model bound once followed by the iterated-conditioning fold — definitionally. | `ex_bayes_linear_is_iter_condition`, derived reading `ex_bayes_linear_obs_fold` — same file |
-| Thm (`ex_bayes_linear_cbv_evidence`) | For a general observation list `l`, the counit ("total mass") of the function-space denotation is the model evidence `∫∫ ∏_{o∈l} obs_d o (m·obs_x o + b) dµ(b) dµ(m)`. | `ex_bayes_linear_cbv_evidence` — `theories/programs/infra/cbv_marginals.v` |
-| Cor (`ex_bayes_linear_cbv_evidence2`) | The literal 2-observation instance: the counit mass at `[:: o1; o2]` is `∫∫ obs_d o1 (m·x₁+b) · obs_d o2 (m·x₂+b) dµ dµ`. | `ex_bayes_linear_cbv_evidence2` — same file |
+| Thm (`ex_bayes_linear_cbv_evidence`) | For a general list $l$, the counit (total mass) of the function-space denotation is the evidence $\int\!\!\int \prod_{o\in l} \mathtt{obs\_d}\ o\ (m\cdot \mathtt{obs\_x}\ o + b)\, d\mu(b)\, d\mu(m)$. | `ex_bayes_linear_cbv_evidence` — `theories/programs/infra/cbv_marginals.v` |
+| Cor (`ex_bayes_linear_cbv_evidence2`) | The literal 2-observation instance: the counit mass at `[:: o1; o2]` is $\int\!\!\int \mathtt{obs\_d}\ o_1\ (m\cdot x_1+b) \cdot \mathtt{obs\_d}\ o_2\ (m\cdot x_2+b)\, d\mu\, d\mu$. | `ex_bayes_linear_cbv_evidence2` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -424,16 +421,19 @@ Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
 Call-by-value matters here.
 
 - **Sharing:** the sampled function is bound once and shared across
-  every observation and the return — each access to `#"f"` goes through
-  the comonoid duplication `coalg_d` of the let-clause diagonal at the
-  function-type cone `!(U⟦tR⟧ ⊸ U⟦tR⟧)`. That duplication makes all
-  observations score the *same* sampled function (and the returned
-  posterior be over that same function), not a fresh model per score.
-- **Proof:** the per-`(m,b)` weights factor out of the fold one
-  observation at a time (`obs_fold_at`: the fold at the depth-`n`
+  every observation and the return — each access to `#"f"` goes
+  through the comonoid duplication `coalg_d` of the let-clause
+  diagonal at the function-type cone
+  $!(U\llbracket \mathtt{tR} \rrbracket \multimap U\llbracket \mathtt{tR} \rrbracket)$.
+  That duplication makes all observations score the *same* sampled
+  function (and the posterior be over that function), not a fresh
+  model per score.
+- **Proof:** the per-$(m,b)$ weights factor out of the fold one
+  observation at a time (`obs_fold_at`: the fold at the depth-$n$
   environment is the promoted closure scaled by
-  `∏_{o∈l} obs_d o (m·x_o + b)`), and two applications of the
-  let-at-sample law integrate the weights against the priors.
+  $\prod_{o\in l} \mathtt{obs\_d}\ o\ (m\cdot x_o + b)$), and two
+  applications of the let-at-sample law integrate the weights against
+  the priors.
 
 Cross-links: the model's own marginal identity is
 `ex_random_linear_cbv_marginal` above; the one-parameter score
@@ -445,16 +445,16 @@ A two-level Gaussian hierarchy, written with the runtime-parameter
 `Gaussian(e1,e2)` constructor (`ne_gaussian`,
 [the runtime-parameter section of the surface
 chapter](../../ppl/sections/ppl-sec-runtime-parameter-distributions.html)):
-the parameter of the second draw is the *sampled value* of the
-first. The constant-parameter first stage is the kernel surface at
-real literals (`eD_gaussian_sample_agree` pins it to the bundled
+the second draw's parameter is the *sampled value* of the first. The
+constant-parameter first stage is the kernel surface at real literals
+(`eD_gaussian_sample_agree` pins it to the bundled
 `sample (gaussian 0 1)` form).
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def (`ex_gaussian_walk`) | `let s := Gaussian(0,1) in Gaussian(s,1)` of type `tR` — the sampled value of the first draw parameterises the second. | `ex_gaussian_walk` — `theories/programs/examples.v` |
-| Thm (`ex_gaussian_walk_E`) | The denotation's measure of every measurable `U` is the hierarchy integral `∫ N(cR r, 1)(toC⁻¹ U) dN(0,1)(r)`. | `ex_gaussian_walk_E` — `theories/programs/infra/kernel_anchors.v` |
-| Cor (`ex_gaussian_walk_mass`) | The program is a probability: total mass exactly `1`. | `ex_gaussian_walk_mass` — same file |
+| Def (`ex_gaussian_walk`) | `let s := Gaussian(0,1) in Gaussian(s,1)` of type `tR`: the first draw's sampled value parameterises the second. | `ex_gaussian_walk` — `theories/programs/examples.v` |
+| Thm (`ex_gaussian_walk_E`) | The denotation's measure of every measurable $U$ is the hierarchy integral $\int \mathcal{N}(\mathtt{cR}\ r, 1)(\mathtt{toC}^{-1}\, U)\, d\mathcal{N}(0,1)(r)$. | `ex_gaussian_walk_E` — `theories/programs/infra/kernel_anchors.v` |
+| Cor (`ex_gaussian_walk_mass`) | The program is a probability: total mass exactly $1$. | `ex_gaussian_walk_mass` — same file |
 
 ```coq
 (* theories/programs/examples.v *)
@@ -478,16 +478,17 @@ Lemma ex_gaussian_walk_mass :
 
 Proof idea: the general let-law `eD_let_mu_E`
 (`theories/programs/infra/let_sample_law.v`) turns the denotation's
-measure of `U` into an integral of the body's mass at the one-Dirac
-environment `1 ⊗ δ_r` against the bound sub-distribution — here the
-first stage, which the setlike/Dirac anchor `eD_gaussian_at` computes
-to the transported prior `N(0,1)`. Under the binder, `#"s"` projects
-to `δ_r` and the literal `[|1|]` to `δ_{toC 1}`, so the same anchor
-computes the body to the gaussian kernel at `(r, 1)`, whose per-`U`
-reading (`gaussian_ker_cast_E`) is `N(cR r, 1)(toC⁻¹ U)`. For the
-mass corollary the integrand is identically `1` (the kernel is a
-pointwise probability, `gaussian_kernel_norm1`) and
-`∫ 1 dN(0,1) = 1` (`fmeas_of_prob_setT`).
+measure of $U$ into an integral of the body's mass at the one-Dirac
+environment $1 \otimes \delta_r$ against the bound sub-distribution —
+here the first stage, which the setlike/Dirac anchor `eD_gaussian_at`
+computes to the transported prior $\mathcal{N}(0,1)$. Under the
+binder, `#"s"` projects to $\delta_r$ and the literal `[|1|]` to
+$\delta_{\mathtt{toC}\, 1}$, so the same anchor computes the body to
+the gaussian kernel at $(r, 1)$, whose per-$U$ reading
+(`gaussian_ker_cast_E`) is $\mathcal{N}(\mathtt{cR}\ r, 1)(\mathtt{toC}^{-1}\, U)$.
+For the mass corollary the integrand is identically $1$ (the kernel
+is a pointwise probability, `gaussian_kernel_norm1`) and
+$\int 1\, d\mathcal{N}(0,1) = 1$ (`fmeas_of_prob_setT`).
 
 ---
 
