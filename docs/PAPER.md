@@ -623,24 +623,26 @@ Proof. by exists icones_subobject_class; exact: icones_subobject_classP. Qed.
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| Def 5.1 / 5.7 | The internal hom `C ⊸ D` carrier (the cone of `Cones`-morphisms `C → D`); its action `(h ⊸ g) : (C₁ ⊸ D₁) → (C₂ ⊸ D₂)`. | `linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun` — `theories/homs/linhom.v` |
-| Prop 5.8 | The internal-hom action lifts to an `icones` morphism. | `linhom_map_icones` — `theories/homs/linhom_functor.v` |
-| Thm 5.9 | The functor `(C ⊸ −)` preserves all limits. | `limpl_preserves_prod`, `limpl_preserves_limits` — `theories/homs/limpl_continuous.v` |
-| Thm 5.12 | The currying isomorphism `(B ⊗ C) ⊸ D ≃ B ⊸ (C ⊸ D)`. | `tensor_hom_iso` — `theories/homs/tensor_iso.v` |
-| Thm 5.13 | Norm identity: `‖m‖ = ‖curry m‖` for `m : B ⊗ C → D`. | `tensor_norm_le` (≤) + the ≥ direction via Prop 3.11 — `theories/homs/tensor.v` / `tensor_iso.v` |
-| Prop 5.14 | The tensor is determined on pure tensors `x ⊗ y`. | `tensor_ext`, `tensor_ext3`, `tensor_ext4` — `theories/homs/tensor.v`, `theories/homs/smcc.v` |
-| Thm 5.15 | `(ICones, ⊗, 1)` is a symmetric monoidal closed category. | `ICones_SMCC`, `ICones_smcc` — `theories/homs/smcc.v` |
+| Lem 5.4 / Def 5.7 | The internal hom $C\multimap D$ carrier (the integrable cone of $\mathbf{ICones}$-morphisms $C\to D$); its action $(h\multimap g):(C_1\multimap D_1)\to(C_2\multimap D_2)$ by $(h\multimap g)(f)=g\circ f\circ h$. | `linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun` — `theories/homs/linhom.v` |
+| Prop 5.8 | The internal-hom action $h\multimap g$ lifts to an $\mathbf{ICones}$ morphism. | `linhom_map_icones` — `theories/homs/linhom_functor.v` |
+| Thm 5.9 | The functor $C\multimap{-}$ preserves all limits (hence has a left adjoint). | `limpl_preserves_prod`, `limpl_preserves_limits` — `theories/homs/limpl_continuous.v` |
+| Thm 5.12 | The currying isomorphism $(B\otimes C)\multimap D\;\simeq\;B\multimap(C\multimap D)$. | `tensor_hom_iso` — `theories/homs/tensor_iso.v` |
+| Thm 5.13 | Norm identity for pure tensors: $\lVert x\otimes y\rVert=\lVert x\rVert\,\lVert y\rVert$. | `tensor_norm_le` ($\le$) + the $\ge$ direction via Prop 3.11 — `theories/homs/tensor.v` / `tensor_iso.v` |
+| Prop 5.14 | A morphism out of an iterated tensor is determined on pure tensors $x\otimes y$. | `tensor_ext`, `tensor_ext3`, `tensor_ext4` — `theories/homs/tensor.v`, `theories/homs/smcc.v` |
+| Thm 5.15 | $(\mathbf{ICones},\otimes,1)$ is a symmetric monoidal closed category. | `ICones_SMCC`, `ICones_smcc` — `theories/homs/smcc.v` |
 | Rem 5.1 | The tensor object is given by SAFT, without an explicit carrier. | The paper's invocation of SAFT is *mechanised* concretely in `representable.v` + `tensor_construct.v` — see *Beyond the paper* below |
 
-### Def 5.1 / 5.7 (`linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun`)
+### Lem 5.4 / Def 5.7 (`linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun`)
+
+The internal hom $C\multimap D$ is the measurable cone of linear, continuous, measurable, integral-preserving morphisms $C\to D$; the paper shows it is itself integrable (Lem 5.4). Its bifunctorial action on morphisms $h\in\mathbf{ICones}(C_2,C_1)$ and $g\in\mathbf{ICones}(D_1,D_2)$ sends $f\mapsto g\circ f\circ h$ (Def 5.7), contravariant in the domain and covariant in the codomain.
+
+> **Paper — Lemma 5.4** (arXiv 2212.02371). The measurable cone $C\multimap D$ is integrable.
+
+> **Paper — Definition 5.7** (arXiv 2212.02371). Let $g\in\mathbf{ICones}(D_1,D_2)$ and $h\in\mathbf{ICones}(C_2,C_1)$. The function $h\multimap g:\underline{C_1\multimap D_1}\to\underline{C_2\multimap D_2}$ is defined by $(h\multimap g)(f)=g\,f\,h$.
 
 ```coq
 (* theories/homs/linhom.v — Section LinhomCar,
    Variables (R : realType) (Ar : MeasSubcat R), C D : ICone.type Ar *)
-
-(** Paper §5.1: the integrable-linear-map carrier — a [linhom_pre]
-    (linear, ω-continuous, norm-bounded, path-preserving) plus
-    integral-preservation. *)
 Record linhom_car : Type := MkLinhom {
   linhom_pre_of :> linhom_pre Ar C D;
   linhom_pres_int :
@@ -668,9 +670,12 @@ Definition linhom_map_fun
 
 ### Prop 5.8 (`linhom_map_icones`)
 
+The bifunctorial action $h\multimap g$ is not merely a function on carriers: it is a genuine $\mathbf{ICones}$ morphism, which makes $\multimap$ a functor $\mathbf{ICones}^{\mathrm{op}}\times\mathbf{ICones}\to\mathbf{ICones}$.
+
+> **Paper — Proposition 5.8** (arXiv 2212.02371). If $g\in\mathbf{ICones}(D_1,D_2)$ and $h\in\mathbf{ICones}(C_2,C_1)$ then $h\multimap g\in\mathbf{ICones}(C_1\multimap D_1,C_2\multimap D_2)$.
+
 ```coq
 (* theories/homs/linhom_functor.v *)
-(** Paper Prop 5.8: the action of [⊸] on morphisms as an [icones_hom]. *)
 Definition linhom_map_icones : icones_hom Ar (linhom_car Ar C1 D1)
                                             (linhom_car Ar C2 D2) :=
   MkIConesHom linhom_map_mcones linhom_map_pres_int.
@@ -678,11 +683,14 @@ Definition linhom_map_icones : icones_hom Ar (linhom_car Ar C1 D1)
 
 ### Thm 5.9 (`limpl_preserves_prod`, `limpl_preserves_limits`)
 
+For each integrable cone $C$, the internal-hom functor $C\multimap{-}$ preserves all limits: it turns the product $\mathbin{\&}_i D_i$ into $\mathbin{\&}_i(C\multimap D_i)$ and respects equalisers. By the adjoint functor theorem for $\mathbf{ICones}$ this yields the paper's left adjoint (the tensor $-\otimes C$).
+
+> **Paper — Theorem 5.9** (arXiv 2212.02371, `th:limpl-has-left-adj`). For each integrable cone $C$, the functor $C\multimap{-}$ has a left adjoint.
+
+> **Difference.** The paper concludes existence of a left adjoint from the special adjoint functor theorem (Thm 4.19), whose hypothesis is that $C\multimap{-}$ *preserves all limits*. The formalization mechanises exactly that limit-preservation hypothesis — `limpl_preserves_limits`, decomposed into products (`limpl_preserves_prod`) and equalisers — as the load-bearing content; the tensor left adjoint itself is then built concretely in *Beyond the paper*.
+
 ```coq
 (* theories/homs/limpl_continuous.v *)
-
-(** Paper Thm 5.9 (products): [⟨ C ⊸ π_i ⟩_i] is an iso, so [C ⊸ −]
-    preserves the product [&_i D_i]. *)
 Definition limpl_preserves_prod :
   icones_iso Ar (linhom_car Ar C Dprod) Lprod :=
   icones_iso_of_cancel limpl_prod_fwd limpl_prod_inv_icones
@@ -698,12 +706,14 @@ Record limpl_continuous : Prop := MkLimplContinuous {
   lc_eq_med : (* mediator with factor + uniqueness *) _;
 }.
 
-(** Paper Thm 5.9 (packaged): [C ⊸ −] preserves products and
-    equalisers, hence all limits. *)
 Theorem limpl_preserves_limits : limpl_continuous.
 ```
 
 ### Thm 5.12 (`tensor_hom_iso`)
+
+The adjunction bijection $\Phi_{B,C,D}:\mathbf{ICones}(B\otimes C,D)\to\mathbf{ICones}(B,C\multimap D)$ upgrades to a full isomorphism of integrable cones $(B\otimes C)\multimap D\;\simeq\;B\multimap(C\multimap D)$: this is the closedness of the monoidal structure.
+
+> **Paper — Theorem 5.12** (arXiv 2212.02371, `th:icones-tens-limpl-isom`). For each integrable cones $B,C,D$, the function $\Phi_{B,C,D}$ is an isomorphism of integrable cones from $(B\otimes C)\multimap D$ to $B\multimap(C\multimap D)=(B,C\multimap D)$.
 
 ```coq
 (* theories/homs/tensor.v — Section Tensor *)
@@ -714,19 +724,26 @@ Definition tensor_hom_Phi (B C D : ICone.type Ar) :
 
 ### Thm 5.13 (`tensor_norm_le`, `tensor_normME`)
 
+The norm of a pure tensor $x\otimes y$ is exactly the product of the two norms $\lVert x\rVert\,\lVert y\rVert$.
+
+> **Paper — Theorem 5.13** (arXiv 2212.02371). For each $x\in\underline{B}$ and $y\in\underline{C}$ we have $\lVert x\otimes y\rVert=\lVert x\rVert\,\lVert y\rVert$.
+
+> **Difference.** The paper states the equality directly; the formalization splits it into `tensor_norm_le` (the $\le$ direction, from $\tau_{B,C}\in\mathbf{ICones}(B,C\multimap(B\otimes C))$) and `tensor_normME` (the full equality). *Why:* the $\ge$ direction relies on the dual-norm characterisation of Prop 3.11, so it is factored out as a separate step.
+
 ```coq
 (* theories/homs/tensor.v *)
-
-(** Thm 5.13 (≤ direction). *)
 Lemma tensor_norm_le (B C : ICone.type Ar) (x : B) (y : C) :
   cone_norm (x ⊗p y) <= cone_norm x * cone_norm y.
 
-(** Thm 5.13 (full equality). *)
 Lemma tensor_normME (B C : ICone.type Ar) (x : B) (y : C) :
   cone_norm (x ⊗p y) = cone_norm x * cone_norm y.
 ```
 
 ### Prop 5.14 (`tensor_ext`, `tensor_ext3`, `tensor_ext4`)
+
+A morphism out of an iterated tensor $t^{\otimes}(\vec B)$ — shaped by a binary tree $t$ with $n$ leaves — is determined by its values on pure iterated tensors $t^{\otimes}(\vec x)$. This extensionality principle is the tool used to check the SMCC coherence diagrams; the formalization spells out the cases $n=2,3,4$ (`tensor_ext`, `tensor_ext3`, `tensor_ext4`) needed for the triangle, pentagon and hexagon.
+
+> **Paper — Proposition 5.14** (arXiv 2212.02371, `prop:fun-ttree-charact`). Let $n\in\mathbb{N}^{+}$, $B_1,\dots,B_n,C$ be integrable cones and $t\in\mathcal{T}_{n}$. Let $f,g\in\mathbf{ICones}(t^{\otimes}(\overrightarrow{B}),C)$. If, for all $(x_i\in\underline{B_i})_{i=1}^n$ one has $f(t^{\otimes}(\overrightarrow{x}))=g(t^{\otimes}(\overrightarrow{x}))$, then $f=g$.
 
 ```coq
 (* theories/homs/tensor.v *)
@@ -747,6 +764,10 @@ Lemma tensor_ext4 (A B C D E : ICone.type Ar)
 ```
 
 ### Thm 5.15 (`ICones_SMCC`, `ICones_smcc`)
+
+The category $\mathbf{ICones}$, with tensor product $\otimes$ and unit $1$, is a symmetric monoidal closed category: the internal hom is $\multimap$ and the closure iso is Thm 5.12. The `ICones_SMCC` record bundles the bifunctor, unit, structural isos (associator, unitors, braiding) with the triangle, pentagon and hexagon coherences; `ICones_smcc` is the canonical instance.
+
+> **Paper — Theorem 5.15** (arXiv 2212.02371, `th:icones-smcc`). The category $\mathbf{ICones}$, equipped with the bifunctor $\otimes$ and unit $1$ has a structure of symmetric monoidal category, and this SMC is closed.
 
 ```coq
 (* theories/homs/smcc.v *)
@@ -774,7 +795,6 @@ Record ICones_SMCC (R : realType) (Ar : MeasSubcat R) : Type :=
                   (smcc_hom B (smcc_hom C D));
 }.
 
-(** Paper Thm 5.15: the canonical SMCC structure on [ICones]. *)
 Definition ICones_smcc (R : realType) (Ar : MeasSubcat R) :
     ICones_SMCC Ar :=
   {| smcc_tensor := @tensor R Ar;
