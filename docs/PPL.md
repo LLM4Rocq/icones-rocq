@@ -40,14 +40,14 @@ statements one can make at the categorical level.
 
 The source language is a simply-typed lambda calculus with sampling,
 scoring, recursion at function type, a two-point boolean type, and
-mutual recursion at any free-coalgebra type. The syntax is a single
-intrinsically-typed inductive `named_expr Γ τ` in named-variable
-style, indexed by a *named* context `named_ctx = seq (string ×
-ppl_type)`, and is consumed by the CBV interpretation `eD` of the
-next chapter. This chapter walks through the constructor groups of
-the inductive, the canonical-structure machinery behind variable
-lookup, and the two notation layers: the kernel `ppl_named` grammar
-and the derived readable forms on top of it.
+mutual recursion at any free-coalgebra type. Its syntax is one
+intrinsically-typed inductive `named_expr` $\Gamma\ \tau$ in
+named-variable style, indexed by a *named* context
+`named_ctx` $=$ `seq (string × ppl_type)`, and consumed by the CBV
+interpretation `eD` of the next chapter. This chapter covers the
+constructor groups of the inductive, the canonical-structure machinery
+behind variable lookup, and the two notation layers: the kernel
+`ppl_named` grammar and the readable forms derived on top of it.
 
 | Construction | Rocq |
 |---|---|
@@ -57,20 +57,20 @@ and the derived readable forms on top of it.
 | Term constructors | `named_expr` (the 23 constructors below) — same file |
 | Free-coalgebra type predicate (gating `ne_fix_mr`) | `is_free_coalg_type` — same file |
 | Measurable function application (pushforward) | `ne_meas`, `meas_lift`, `meas_lift_dirac`, `meas_lift_mass` — same file |
-| Runtime-parameter distributions `Gaussian(e1,e2)` / `Uniform(e1,e2)` | `ne_gaussian`, `ne_uniform` — same file; `pkernel`, `kernel_lift`, `kernel_lift2`, `gaussian_kernel`, `uniform_kernel` — `theories/programs/distributions.v` |
+| Runtime-parameter distributions $\mathrm{Gaussian}(e_1,e_2)$ / $\mathrm{Uniform}(e_1,e_2)$ | `ne_gaussian`, `ne_uniform` — same file; `pkernel`, `kernel_lift`, `kernel_lift2`, `gaussian_kernel`, `uniform_kernel` — `theories/programs/distributions.v` |
 | Variable lookup via canonical structures | `tagged_nctx`, `find_nv`, `found_nv`, `recurse_nv`, `ne_var'` — same file |
 | Surface notation `[ … ]` and the `ppl_named` custom entry | `ppl_named` (custom entry) — same file |
 | The probability type and its bundle (`tProb`, `probObj`, `tProb_robj`) | `probObj`, `po_obj`, `po_incl`, `po_into`, `tProb`, `po_density` — same file |
 | Probability surface forms (`Bernoulli`, `Bernoulli [\|p\|]`, `Score`, `Sigmoid`, `Gausslik`, `Gt0`, `test`, `Const`, `InclP`, `observe`, `Meas`, `sample`, `>`, `let rec`) | `pbern`, `pscore`, `psigmoid`, `pgausslik`, `pgt0`, `ptest`, `testfn`, `test_fun`, `pconst`, `pincl`, `bern_lift_P`, `score_lift_P`, `sigmoid`, `gauss_obs_density`, `gt0_ind`, `negr`, `prob`, `pmeas`, `prob_pmeas` — same file; `gaussian`, `uniform`, `ex_surface_demo`, `ex_surface_walk` — `theories/programs/examples.v` |
 | The `observe` operator and its distribution bundle | `pobserve`, `obsDist`, `obsGaussian`, `od_arg`, `od_dens`, `pobserve_obsGaussian`, `test`, `ptest` — same file |
-| The reject/condition combinators over a program predicate `f : b → tbool` (`ne_reject`, `ne_condition`) | `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition` — `theories/programs/reject_condition.v` |
+| The reject/condition combinators over a program predicate `f :` `b` $\to$ `tbool` (`ne_reject`, `ne_condition`) | `ne_fail`, `ne_assert`, `ne_reject`, `ne_condition` — `theories/programs/reject_condition.v` |
 
 ### Def 1.1 — Types and contexts (`ppl_type`, `named_ctx`)
 
 The surface types are a five-constructor grammar — unit, an arbitrary
-measurable base object `tbase X`, binary products, function types,
-and a two-point boolean type — and a context is a list of
-string-named typed bindings, defined in `theories/programs/ppl.v`.
+measurable base object `tbase X`, binary products, function types, and
+a two-point boolean type — and a context is a list of string-named
+typed bindings (`theories/programs/ppl.v`).
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -85,16 +85,15 @@ Definition named_ctx : Type := list (string * ppl_type Ar).
 Definition drop_names (G : named_ctx) : ppl_ctx Ar := map snd G.
 ```
 
-`drop_names` forgets the string identifiers; the categorical
-interpretation lives on `drop_names G`, the named layer is only for
+`drop_names` forgets the string identifiers: the categorical
+interpretation lives on `drop_names G`, and the named layer serves only
 canonical-structure-driven variable lookup at `#"x"` sites.
 
 ### Def 1.2 — Free-coalgebra types (`is_free_coalg_type`)
 
-The predicate characterises the surface types whose CBV
-interpretation is a *free* `!`-coalgebra — function types and
-products thereof. It is the gating predicate of the mutual-recursion
-constructor `ne_fix_mr` below.
+This predicate characterises the surface types whose CBV
+interpretation is a *free* $!$-coalgebra — function types and products
+thereof. It gates the mutual-recursion constructor `ne_fix_mr` below.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -110,8 +109,8 @@ Fixpoint is_free_coalg_type (t : ppl_type Ar) : bool :=
 
 The pure fragment of `named_expr` is a standard intrinsically-typed
 simply-typed lambda calculus with products, let, real constants,
-arithmetic, and the two boolean values — thirteen constructors of
-the single inductive in `theories/programs/ppl.v` (Section Syntax).
+arithmetic, and the two boolean values — thirteen constructors of the
+single inductive in `theories/programs/ppl.v` (Section Syntax).
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -145,24 +144,24 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 
 Bidirectionality hints `&` on every binding / context-shared
 constructor (e.g. `Arguments ne_lam {R Ar R_obj G} x & {t1 t2} M`) are
-crucial for canonical-structure resolution at `#"x"` sites — exactly
-the Saito–Affeldt APLAS 2023 §5.1 pattern.
+crucial for canonical-structure resolution at `#"x"` sites — the
+Saito–Affeldt APLAS 2023 §5.1 pattern.
 
 ### Def 1.4 — Effectful term constructors (`ne_sample`, `ne_score`, `ne_bernoulli`, `ne_if`)
 
 The effectful constructors are direct-style — the probability monad
-lives in the interpretation `eD`, not in the source types — and they
-divide by what they produce. `ne_sample` is one real draw from a
-fixed sub-probability measure (`→ tR'`). `ne_bernoulli` /
-`ne_bernoulli_f` are the **boolean coin** (`→ tbool`), the sole
+lives in the interpretation `eD`, not in the source types — and divide
+by what they produce. `ne_sample` is one real draw from a fixed
+sub-probability measure ($\to$ `tR'`). `ne_bernoulli` /
+`ne_bernoulli_f` are the **boolean coin** ($\to$ `tbool`), the sole
 source of boolean randomness, consumed by `ne_if` for probabilistic
-branching. `ne_score` is soft conditioning (`→ tunit`). The
-real-valued *named* and *runtime-parameter* distributions
-(`gaussian` / `uniform`, and `Gaussian` / `Uniform`) are not
-primitives: they are built on `ne_sample` and the probability-kernel
-layer (the [Runtime-parameter distributions](#) section below). So
-the only randomness baked into the syntax is one fixed-measure
-sample, one boolean coin, and one score; everything else is derived.
+branching. `ne_score` is soft conditioning ($\to$ `tunit`). The
+real-valued *named* and *runtime-parameter* distributions (`gaussian` /
+`uniform`, `Gaussian` / `Uniform`) are not primitives: they build on
+`ne_sample` and the probability-kernel layer (the
+[Runtime-parameter distributions](#) section below). So the only
+randomness baked into the syntax is one fixed-measure sample, one
+boolean coin, and one score; everything else is derived.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -192,37 +191,38 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G t -> named_expr G t -> named_expr G t.
 ```
 
-`ne_score` carries a density `f : R → R` valued in `[0,1]`; the
-bound is the unit-ball discipline of `linhom_icones` (see [Scores,
-densities, and the sub-probability
+`ne_score` carries a density $f : \mathbb{R} \to \mathbb{R}$ valued in
+$[0,1]$; the bound is the unit-ball discipline of `linhom_icones` (see
+[Scores, densities, and the sub-probability
 boundary](../../ppl/sections/ppl-sec-law-1-20-scores-densities-and-the-sub-probability-boundary.html)
 for what it rules out — genuinely unbounded densities — and how a
 bounded density is conditioned via its intrinsic peak). The boolean
 coin shares that discipline: `ne_bernoulli p` is the constant coin
-`(p, 1 − p)`, and `ne_bernoulli_f f e` is value-dependent — the coin
-`(f r, 1 − f r)` at the value `r` of the `tR'`-valued
-sub-expression `e` — its CBV engine the path lift `bern_lift` (the
-boolean twin of `score_lift`; see [the value-dependent Bernoulli
+$(p, 1 - p)$, and `ne_bernoulli_f f e` is value-dependent — the coin
+$(f\,r,\ 1 - f\,r)$ at the value $r$ of the `tR'`-valued sub-expression
+`e` — with CBV engine the path lift `bern_lift` (the boolean twin of
+`score_lift`; see [the value-dependent Bernoulli
 section](../../ppl/sections/ppl-sec-law-2-6-the-value-dependent-bernoulli-lift.html)).
 
-The `[0,1]` discipline is carried by a **type**, not by loose
-witnesses: the probability type `tProb P` (a `tbase` over the `[0,1]`
+The $[0,1]$ discipline is carried by a **type**, not by loose
+witnesses: the probability type `tProb P` (a `tbase` over the $[0,1]$
 object of a bundle `P : probObj`) is the surface home of every coin and
-score — a value of type `tProb P` is a `[0,1]`-supported measure, and a
-coin or score over it integrates the bundle's inclusion `ι`. The
-witness-free surface forms (`Bernoulli`, `Score`, `Sigmoid`, `Gausslik`,
-`Gt0`, `test`, `observe`, the comparison coin `>`) are covered in full
-by [the probability type and the `tProb`
+score — a value of type `tProb P` is a $[0,1]$-supported measure, and a
+coin or score over it integrates the bundle's inclusion $\iota$. The
+witness-free surface forms (`Bernoulli`, `Score`, `Sigmoid`,
+`Gausslik`, `Gt0`, `test`, `observe`, the comparison coin `>`) are
+covered in full by [the probability type and the `tProb`
 surface](../../ppl/sections/ppl-sec-def-1-11-probability-type-and-bundle.html)
 below.
 
 ### Def 1.5 — Measurable function application (`ne_meas`)
 
 `ne_meas f Hf e` pushes the value of the `tR'`-valued sub-expression
-`e` through a measurable meta-level function `f : R → R` — surface
-form `Meas { f , Hf } e`. Unlike `ne_score` / `ne_bernoulli_f`, no
-`[0,1]` bounds are needed: the semantics is the `FMeas` functorial
-action (pushforward), whose operator norm is already `≤ 1`.
+`e` through a measurable meta-level function $f : \mathbb{R} \to
+\mathbb{R}$ — surface form `Meas { f , Hf } e`. Unlike `ne_score` /
+`ne_bernoulli_f`, no $[0,1]$ bounds are needed: the semantics is the
+`FMeas` functorial action (pushforward), whose operator norm is already
+$\leq 1$.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -235,22 +235,23 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 ```
 
 The semantic engine is `meas_lift := FMeas_fmap meas_hom` (the
-Dirac-path pushforward at the carrier transport
-`f̂ = R_to_carrier ∘ f ∘ carrier_to_R`), with the two load-bearing
-laws `meas_lift_dirac` (`Meas f` on a point mass is application:
-`δ_r ↦ δ_{f r}`) and `meas_lift_mass` (the pushforward preserves
-total mass). The CBV clause is `eD_meas_E`
-(`theories/programs/ppl_cbv.v`): `⟦Meas f e⟧ = meas_lift ∘ ⟦e⟧` —
-the `FMeas`-functorial mirror of the `ne_score` clause.
+Dirac-path pushforward at the carrier transport $\hat f =
+\mathtt{R\_to\_carrier} \circ f \circ \mathtt{carrier\_to\_R}$), with
+two load-bearing laws: `meas_lift_dirac` (`Meas f` on a point mass is
+application, $\delta_r \mapsto \delta_{f\,r}$) and `meas_lift_mass`
+(pushforward preserves total mass). The CBV clause is `eD_meas_E`
+(`theories/programs/ppl_cbv.v`): $\llbracket \mathtt{Meas}\ f\ e
+\rrbracket = \mathtt{meas\_lift} \circ \llbracket e \rrbracket$ — the
+`FMeas`-functorial mirror of the `ne_score` clause.
 
 ### Def 1.6 — Runtime-parameter distributions (`ne_gaussian`, `ne_uniform`)
 
-`Gaussian( e1 , e2 )` / `Uniform( e1 , e2 )` draw from the
-normal/uniform family whose parameters are the **values** of the two
-`tR'`-valued sub-expressions — so a sampled value can itself
+$\mathrm{Gaussian}(e_1, e_2)$ / $\mathrm{Uniform}(e_1, e_2)$ draw from
+the normal/uniform family whose parameters are the **values** of the
+two `tR'`-valued sub-expressions — so a sampled value can itself
 parameterise the next draw (hierarchical models, e.g.
-`examples.v::ex_gaussian_walk`). No witness braces: the kernel
-families are *total*.
+`examples.v::ex_gaussian_walk`). No witness braces: the kernel families
+are *total*.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -266,67 +267,67 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
 measurable family of sub-probability measures into a linear lift on
 measures, in four beats.
 
-- *Bundle.* A `pkernel X Y` packages a family `pk_ker : X → FMeas Y`
-  with the mathcomp-analysis kernel condition (`pk_meas`: `x ↦ k(x)(U)`
-  measurable for every measurable `U`) and the unit-ball bound
+- *Bundle.* A `pkernel X Y` packages a family `pk_ker` $: X \to$ `FMeas`
+  $Y$ with the mathcomp-analysis kernel condition (`pk_meas`: $x \mapsto
+  k(x)(U)$ measurable for every measurable $U$) and the unit-ball bound
   (`pk_ball`). Such a family *is* a measurable path (`pkernel_is_path`,
   paper Def 3.7).
 - *Lift.* The Thm 6.1 machinery promotes that path to the semantic lift
-  `kernel_lift k : FMeas X ⊸ FMeas Y`, `ν ↦ ∫ k(x) ν(dx)` (Pettis
-  integral), with computation laws `kernel_lift_E`
-  (`(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)`), `kernel_lift_mass`
-  (pointwise-mass-1 kernels preserve total mass) and `kernel_lift_dirac`
-  (`kernel_lift k δ_x = k(x)`).
+  `kernel_lift k` $:$ `FMeas` $X \multimap$ `FMeas` $Y$, $\nu \mapsto
+  \int k(x)\,\nu(dx)$ (Pettis integral), with computation laws
+  `kernel_lift_E` ($(\mathtt{kernel\_lift}\ k\ \nu)(U) = \int
+  k(x)(U)\,\nu(dx)$), `kernel_lift_mass` (pointwise-mass-1 kernels
+  preserve total mass) and `kernel_lift_dirac`
+  ($\mathtt{kernel\_lift}\ k\ \delta_x = k(x)$).
 - *Two arguments.* `kernel_lift2 k := kernel_lift k ∘ fmeas_lax` makes
   the tensored argument pair a joint measure on the product object —
   exactly the `add_lift` / `mul_lift` route — with `kernel_lift2_dirac`
   and the product-mass law `kernel_lift2_mass`.
 - *Instances.* `dirac_kernel` (`kernel_lift dirac_kernel = id`,
-  `dirac_kernel_lift_id`); `gaussian_kernel`
-  (`(m,s) ↦ normal_prob m s` transported along the carrier cast); and
-  `uniform_kernel` (`(a,b) ↦ uniform_prob` for `a < b`, else `δ_a`).
-  (The value-dependent `[0,1]` coin is *not* a `pkernel` instance: it
-  is realised by `bern_lift`, a linhom in
+  `dirac_kernel_lift_id`); `gaussian_kernel` ($(m,s) \mapsto$
+  `normal_prob m s` transported along the carrier cast); and
+  `uniform_kernel` ($(a,b) \mapsto$ `uniform_prob` for $a < b$, else
+  $\delta_a$). (The value-dependent $[0,1]$ coin is *not* a `pkernel`
+  instance: it is realised by `bern_lift`, a linhom in
   `theories/programs/ppl.v`, with the branch-mass laws `bern_lift_t_E`
   / `bern_lift_f_E`.)
 
-**The `s = 0` convention**: `gaussian_kernel` overrides the `s = 0`
-fibre to the Dirac `δ_m` — the degenerate weak limit of
-`N(m, s) as s → 0` — because mathcomp-analysis' own `normal_prob m 0`
-is a junk uniform-`[0,1]` *placeholder* (its `normal_pdf` falls back
-to `uniform_pdf 0 1` at `s = 0`), not a meaningful distribution;
-`s ≠ 0` (including `s < 0`) keeps mathcomp's genuine normal with
-deviation `|s|`. Family measurability *in the parameters*
-(`measurable_normal_prob_pair`, `measurable_uniform_int_pair`) is
-proved by Fubini–Tonelli against Lebesgue measure.
+**The $s = 0$ convention**: `gaussian_kernel` overrides the $s = 0$
+fibre to the Dirac $\delta_m$ — the degenerate weak limit of $N(m,s)$
+as $s \to 0$ — because mathcomp-analysis' own `normal_prob m 0` is a
+junk uniform-$[0,1]$ *placeholder* (its `normal_pdf` falls back to
+`uniform_pdf 0 1` at $s = 0$), not a meaningful distribution; $s \neq
+0$ (including $s < 0$) keeps mathcomp's genuine normal with deviation
+$\lvert s \rvert$. Family measurability *in the parameters*
+(`measurable_normal_prob_pair`, `measurable_uniform_int_pair`) is proved
+by Fubini–Tonelli against Lebesgue measure.
 
 The CBV clause (`eD_gaussian_E` / `eD_uniform_E`,
 `theories/programs/ppl_cbv.v`) is the `ne_add` shape with the kernel
 lift in place of the pushforward:
-`⟦Gaussian(e1,e2)⟧ = δ_Γ ; (⟦e1⟧ ⊗ ⟦e2⟧) ; kernel_lift2
-gaussian_kernel`. Three anchors pin it
-(`theories/programs/infra/kernel_anchors.v`):
+$$\llbracket \mathrm{Gaussian}(e_1,e_2) \rrbracket = \delta_\Gamma \mathbin{;} (\llbracket e_1 \rrbracket \otimes \llbracket e_2 \rrbracket) \mathbin{;} \mathtt{kernel\_lift2}\ \mathtt{gaussian\_kernel}.$$
+Three anchors pin it (`theories/programs/infra/kernel_anchors.v`):
 
 - *Point masses.* `eD_gaussian_at` / `eD_gaussian_dirac_E` — on
   point-mass arguments the draw *is* the transported `normal_prob`, with
-  the `s = 0` Dirac fibre.
+  the $s = 0$ Dirac fibre.
 - *Mass.* `eD_gaussian_mass` — the result's mass is the product of the
   argument masses, the kernel being a pointwise probability
   (`gaussian_kernel_norm1`).
 - *Constant-parameter agreement.* `eD_gaussian_sample_agree` —
-  `⟦Gaussian([|m|],[|s|])⟧γ = ⟦sample (gaussian m s)⟧γ` for `s ≠ 0`: the
-  old bundled-`sample` surface is the kernel surface at real literals
-  (the two transports are identified by `pmeas_of_prob_fmeas`).
+  $\llbracket \mathrm{Gaussian}([\lvert m \rvert],[\lvert s \rvert]) \rrbracket\gamma = \llbracket \mathtt{sample}\ (\mathtt{gaussian}\ m\ s) \rrbracket\gamma$
+  for $s \neq 0$: the old bundled-`sample` surface is the kernel surface
+  at real literals (the two transports are identified by
+  `pmeas_of_prob_fmeas`).
 
 The `Uniform` mirror is `eD_uniform_at` / `eD_uniform_dirac_E` /
 `eD_uniform_mass` / `eD_uniform_sample_agree`.
 
 ### Def 1.7 — Recursion at function type (`ne_fix`)
 
-OCaml-style `let rec`, restricted to function types: the body has
-access to the recursive function via a fresh name `s : tfun t1 t2`
-pushed onto the context, and the whole construct is again a value of
-type `tfun t1 t2`.
+OCaml-style `let rec`, restricted to function types: the body accesses
+the recursive function via a fresh name `s : tfun t1 t2` pushed onto the
+context, and the whole construct is again a value of type `tfun t1 t2`.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -337,19 +338,19 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr G (tfun t1 t2)
 ```
 
-The CBV interpretation in `theories/programs/ppl_cbv.v` resolves `ne_fix`
-(and `ne_fix_mr` at function body types) to the composite
-`fix_comb ∘ ⟦λs.body⟧`, where `fix_comb` is the seeded value-fixpoint
-combinator of `theories/programs/infra/em_fix_value.v` — see
-[the CBV value-fixpoint
+The CBV interpretation in `theories/programs/ppl_cbv.v` resolves
+`ne_fix` (and `ne_fix_mr` at function body types) to the composite
+$\mathtt{fix\_comb} \circ \llbracket \lambda s.\,\mathrm{body}
+\rrbracket$, where `fix_comb` is the seeded value-fixpoint combinator of
+`theories/programs/infra/em_fix_value.v` — see [the CBV value-fixpoint
 chapter](../../ppl/chapters/ppl-ch-the-cbv-value-fixpoint-at-function-types.html).
 
 ### Def 1.8 — Mutual recursion at free-coalgebra types (`ne_fix_mr`)
 
 `ne_fix_mr` generalises `ne_fix` to any body type `t` with
-`is_free_coalg_type t = true` — in particular `t = tprod (tfun A1
-B1) (tfun A2 B2)`, the mutual-recursion shape, where the two
-components call each other via `fst #"s"` / `snd #"s"`.
+`is_free_coalg_type t = true` — in particular `t = tprod (tfun A1 B1)
+(tfun A2 B2)`, the mutual-recursion shape, where the two components call
+each other via `fst #"s"` / `snd #"s"`.
 
 ```coq
 (* theories/programs/ppl.v *)
@@ -360,31 +361,31 @@ Inductive named_expr : named_ctx Ar -> T -> Type :=
       named_expr ((s, t) :: G) t -> named_expr G t.
 ```
 
-The CBV interpretation in
-`theories/programs/ppl_cbv.v` dispatches `ne_fix_mr` on the body
-type (`fix_mr_clause`): at `tfun t1 t2` it is the *same* genuine
-seeded combinator `fix_comb` as `ne_fix`; at products of free types
-it is the *same combinator transported along the Seely
-decomposition* — `fix_mr_comb`, i.e. `fix_comb (free_base t)`
-conjugated by the coalgebra iso `free_decomp : tyD_cbv t ≅
-!̃(free_base t)`, whose `tprod` step is the EM-level Seely-2 iso
-`EM_prod (!̃X) (!̃Y) ≅ !̃(X & Y)` of
-`theories/programs/infra/em_fix_mr.v`. The mutual-recursion fixpoint
-is genuine at *every* free body type; the surface witness is
+The CBV interpretation in `theories/programs/ppl_cbv.v` dispatches
+`ne_fix_mr` on the body type (`fix_mr_clause`): at `tfun t1 t2` it is
+the *same* genuine seeded combinator `fix_comb` as `ne_fix`; at products
+of free types it is the *same combinator transported along the Seely
+decomposition* — `fix_mr_comb`, i.e. `fix_comb (free_base t)` conjugated
+by the coalgebra iso `free_decomp` $: \mathtt{tyD\_cbv}\ t \cong
+\widetilde{!}(\mathtt{free\_base}\ t)$, whose `tprod` step is the
+EM-level Seely-2 iso $\mathtt{EM\_prod}\ (\widetilde{!}X)\
+(\widetilde{!}Y) \cong \widetilde{!}(X \mathbin{\&} Y)$ of
+`theories/programs/infra/em_fix_mr.v`. The mutual-recursion fixpoint is
+genuine at *every* free body type; the surface witness is
 `ex_even_odd_pair` (see the [Examples tab](../examples/)).
 
 ### Def 1.9 — Variable lookup by canonical structures (`find_nv`, `ne_var'`)
 
-Writing `#"x"` makes Rocq's canonical-structure search find the
-named context, the type, and the `named_var` witness of the binding
-`"x"` all at once — the Saito–Affeldt APLAS 2023 §5.2 `find`
-structure, transplanted to `named_ctx` in `theories/programs/ppl.v`.
+Writing `#"x"` makes Rocq's canonical-structure search find the named
+context, the type, and the `named_var` witness of the binding `"x"` all
+at once — the Saito–Affeldt APLAS 2023 §5.2 `find` structure,
+transplanted to `named_ctx` in `theories/programs/ppl.v`.
 
-The search is driven by two canonical instances over a tagged
-context: `found_nv` (head case — the sought string is the head
-binding) is tried first; otherwise the tag unfolds to `recurse_nctx`
-and `recurse_nv` recurses on the tail, with the "different string"
-side-condition discharged by `infer (String.eqb s y = false)` — a
+Two canonical instances over a tagged context drive the search:
+`found_nv` (head case — the sought string is the head binding) is tried
+first; otherwise the tag unfolds to `recurse_nctx` and `recurse_nv`
+recurses on the tail, with the "different string" side-condition
+discharged by `infer (String.eqb s y = false)` — a
 `vm_compute`-reducible boolean disequality witness for the concrete
 strings occurring in programs.
 
@@ -428,10 +429,10 @@ Definition ne_var' (R : realType) (Ar : MeasSubcat R) (R_obj : ar_obj Ar)
 ### Def 1.10 — Surface notation (the `ppl_named` custom entry)
 
 A custom grammar entry `ppl_named` (opened by `Declare Custom Entry
-ppl_named` in the source) gives the examples an OCaml-flavoured
-direct-style surface syntax: `[ … ]` enters the entry, `# x` is
-variable lookup, and `Sample` / `Sc` / `Bernoulli` / `if` / `\` /
-`let` / `fix` / `fix_mr` map one-to-one onto the constructors.
+ppl_named`) gives the examples an OCaml-flavoured direct-style surface
+syntax: `[ … ]` enters the entry, `# x` is variable lookup, and
+`Sample` / `Sc` / `Bernoulli` / `if` / `\` / `let` / `fix` / `fix_mr`
+map one-to-one onto the constructors.
 
 ```coq
 (* theories/programs/ppl.v — after [Declare Custom Entry ppl_named] *)
@@ -461,29 +462,30 @@ Notation "'fix_mr' s 'as' T 'by' Hfree 'in' M" :=
   (in custom ppl_named at level 80).
 ```
 
-Direct-style: no `Ret` notation; `let "x" := M in N` desugars to
-`ne_let` (not `ne_bind`). Brackets `[ … ]` enter the entry; curly
-braces `{ x }` escape back to plain Rocq.
+Direct-style: no `Ret` notation, and `let "x" := M in N` desugars to
+`ne_let` (not `ne_bind`). Brackets `[ … ]` enter the entry; curly braces
+`{ x }` escape back to plain Rocq.
 
 ### Def 1.11 — Probability type and bundle (`probObj`, `tProb`)
 
-The `[0,1]` discipline of coins and scores is carried by a **type**, not
-by loose witnesses. A single bundle `probObj` packages the `[0,1]`
+The $[0,1]$ discipline of coins and scores is carried by a **type**, not
+by loose witnesses. A single bundle `probObj` packages the $[0,1]$
 sub-object the surface needs — a distinguished object `po_obj` with its
-inclusion `po_incl : po_obj → R_obj`, the two `[0,1]` bounds, and the
-universal factoring `po_into` of any measurable `[0,1]` map through the
-inclusion (`h = ι ∘ po_into h`, the computation law `po_into_E`). The
-probability type is `tProb P := tbase (po_obj P)`: a value of type
-`tProb P` is a `[0,1]`-supported measure, and a coin or score over it
-integrates the inclusion `ι` — the mean of the supported measure. The
-bundle also exposes the carrier density `po_density P` (the inclusion
-read into `R`). Every surface form below is witness-free; the bounds
-travel with the type, never as proof obligations.
+inclusion `po_incl` $:$ `po_obj` $\to$ `R_obj`, the two $[0,1]$ bounds,
+and the universal factoring `po_into` of any measurable $[0,1]$ map
+through the inclusion ($h = \iota \circ \mathtt{po\_into}\ h$, the
+computation law `po_into_E`). The probability type is `tProb P := tbase
+(po_obj P)`: a value of type `tProb P` is a $[0,1]$-supported measure,
+and a coin or score over it integrates the inclusion $\iota$ — the mean
+of the supported measure. The bundle also exposes the carrier density
+`po_density P` (the inclusion read into $\mathbb{R}$). Every surface form
+below is witness-free; the bounds travel with the type, never as proof
+obligations.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def 1.11a — the `probObj` bundle | the canonical `[0,1]` sub-object interface: object, inclusion `ι`, the two bounds, and the factoring `po_into` | `probObj`, `po_incl`, `po_into`, `po_into_E` — `theories/programs/ppl.v` |
-| Def 1.11b — the `tProb P` type | a value is a `[0,1]`-supported measure a coin or score integrates via `po_density` | `tProb`, `po_density` — `theories/programs/ppl.v` |
+| Def 1.11a — the `probObj` bundle | the canonical $[0,1]$ sub-object interface: object, inclusion $\iota$, the two bounds, and the factoring `po_into` | `probObj`, `po_incl`, `po_into`, `po_into_E` — `theories/programs/ppl.v` |
+| Def 1.11b — the `tProb P` type | a value is a $[0,1]$-supported measure a coin or score integrates via `po_density` | `tProb`, `po_density` — `theories/programs/ppl.v` |
 
 ```coq
 (* theories/programs/ppl.v — the [[0,1]] bundle and the probability type *)
@@ -500,11 +502,11 @@ Record probObj (R : realType) (Ar : MeasSubcat R) := MkProbObj {
 Definition tProb (P : probObj Ar) : ppl_type Ar := tbase (po_obj P).
 ```
 
-A coin or score gets its `[0,1]` number three ways: as a bare literal
+A coin or score gets its $[0,1]$ number three ways: as a bare literal
 (`Bernoulli [| p |]`), read off a `tProb`-typed value (`Bernoulli e`,
-`Score e`), or produced by pushing a real through a named `[0,1]` map
+`Score e`), or produced by pushing a real through a named $[0,1]$ map
 (`Sigmoid e`, `Gausslik e { s , y }`, `Gt0 e`, `test f e`). Each is
-built once, in `ppl.v`, by feeding its `[0,1]` map into `po_into`; the
+built once, in `ppl.v`, by feeding its $[0,1]$ map into `po_into`; the
 use site never sees `po_into`.
 
 ### Def 1.12 — Bernoulli coins (`pbern`, `bern_lift_P`)
@@ -517,13 +519,13 @@ The value coin `Bernoulli e` reads its success probability off the
 `tProb P`-typed sub-expression `e` through `po_density P` and flips with
 that probability; the bundle `P` is inferred from `e`'s type
 (e.g. `Bernoulli (Sigmoid #"x")`). The constant coin `Bernoulli [| p |]`
-takes a bare real literal — the fair coin is `Bernoulli [| (1/2 : R) |]` —
-with its `[0,1]` bounds discharged automatically by `lra`.
+takes a bare real literal — the fair coin is `Bernoulli [| (1/2 : R) |]`
+— with its $[0,1]$ bounds discharged automatically by `lra`.
 
 | Result | Statement | Rocq |
 |---|---|---|
 | Def 1.12a — value coin `Bernoulli e` | flips with the probability read off a `tProb P`-typed `e` via `po_density P` | `pbern`, `bern_lift_P` — `theories/programs/ppl.v` |
-| Def 1.12b — literal coin `Bernoulli [\| p \|]` | fair/biased coin from a bare `[0,1]` literal, bounds discharged by `lra` | `ne_bernoulli` — `theories/programs/ppl.v` |
+| Def 1.12b — literal coin `Bernoulli [\| p \|]` | fair/biased coin from a bare $[0,1]$ literal, bounds discharged by `lra` | `ne_bernoulli` — `theories/programs/ppl.v` |
 
 ```coq
 (* theories/programs/ppl.v — the two Bernoulli surface forms *)
@@ -537,7 +539,7 @@ Notation "'Bernoulli' e" := (pbern e)   (* … value-dependent coin *).
 The score `Score e` weighs the current trace by the weight read off the
 `tProb P`-typed sub-expression `e` through `po_density P`, e.g.
 `Score (Gausslik e { 1 / 2 , y })`. Its engine at an arbitrary base
-object is `score_lift_P` (the score twin of `bern_lift_P`).
+object is `score_lift_P`, the score twin of `bern_lift_P`.
 
 | Result | Statement | Rocq |
 |---|---|---|
@@ -551,17 +553,17 @@ Notation "'Score' e" := (pscore e)  (* … *).
 ### Def 1.14 — Sigmoid, Gausslik, and Gt0 primitives (`psigmoid`, `pgausslik`, `pgt0`)
 
 Each of `Sigmoid e` / `Gausslik e { s , y }` / `Gt0 e` pushes a real
-value through a named `R → [0,1]` map and returns `tProb P` — the logistic
-map, the peak-normalised Gaussian likelihood (mean expression first, then
-the meta-level `{ stddev , datum }` braces), and the strict-positivity
-indicator, respectively. Each is built by feeding its `[0,1]` map into the
-bundle factoring `po_into`.
+value through a named $\mathbb{R} \to [0,1]$ map and returns `tProb P` —
+the logistic map, the peak-normalised Gaussian likelihood (mean
+expression first, then the meta-level `{ stddev , datum }` braces), and
+the strict-positivity indicator, respectively. Each is built by feeding
+its $[0,1]$ map into the bundle factoring `po_into`.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def 1.14a — `Sigmoid e` | pushes a real through the logistic map `sigmoid : R → [0,1]` into `tProb` | `psigmoid`, `sigmoid` — `theories/programs/ppl.v` |
+| Def 1.14a — `Sigmoid e` | pushes a real through the logistic map `sigmoid` $: \mathbb{R} \to [0,1]$ into `tProb` | `psigmoid`, `sigmoid` — `theories/programs/ppl.v` |
 | Def 1.14b — `Gausslik e { s , y }` | pushes the mean `e` through the peak-normalised Gaussian likelihood | `pgausslik`, `gauss_obs_density` — `theories/programs/ppl.v` |
-| Def 1.14c — `Gt0 e` | pushes a real through the strict-positivity indicator `gt0_ind = \1_(0,∞)` | `pgt0`, `gt0_ind` — `theories/programs/ppl.v` |
+| Def 1.14c — `Gt0 e` | pushes a real through the strict-positivity indicator $\mathtt{gt0\_ind} = \mathbf{1}_{(0,\infty)}$ | `pgt0`, `gt0_ind` — `theories/programs/ppl.v` |
 
 ```coq
 (* theories/programs/ppl.v — the tProb-producing primitives *)
@@ -572,18 +574,19 @@ Notation "'Gt0' e"    := (pgt0 e)    (* … *).
 
 ### Def 1.15 — The test-function coin (`ptest`, `testfn`)
 
-A *test function* `f : testfn` is a measurable `[0,1]`-valued map you
-integrate measures *against*: `∫ f dµ` is the test pairing at the heart
-of the conditioning/rejection headline theorems. The `testfn` record
-bundles the carrier map `test_fun` with its measurability and
-`0 ≤ f ≤ 1` witnesses and coerces to its function, so `f r` and `∫ f dµ`
-read directly. `test f e` evaluates `f` at the runtime value `e`, landing
-in `tProb` — the `testfn`-parameterised sibling of `Sigmoid` / `Gausslik`
-— so a use site reads `Bernoulli (test f #"x")` / `Score (test f #"m")`.
+A *test function* `f : testfn` is a measurable $[0,1]$-valued map you
+integrate measures *against*: $\int f\,d\mu$ is the test pairing at the
+heart of the conditioning/rejection headline theorems. The `testfn`
+record bundles the carrier map `test_fun` with its measurability and
+$0 \leq f \leq 1$ witnesses and coerces to its function, so `f r` and
+$\int f\,d\mu$ read directly. `test f e` evaluates `f` at the runtime
+value `e`, landing in `tProb` — the `testfn`-parameterised sibling of
+`Sigmoid` / `Gausslik` — so a use site reads `Bernoulli (test f #"x")`
+/ `Score (test f #"m")`.
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def 1.15a — the test coin `test f e` | evaluates a test function `f : testfn` (`0 ≤ f ≤ 1`) at the runtime value `e`, landing in `tProb` | `ptest`, `testfn`, `test_fun` — `theories/programs/ppl.v` |
+| Def 1.15a — the test coin `test f e` | evaluates a test function `f : testfn` ($0 \leq f \leq 1$) at the runtime value `e`, landing in `tProb` | `ptest`, `testfn`, `test_fun` — `theories/programs/ppl.v` |
 
 ```coq
 (* theories/programs/ppl.v — the abstract test-function coin *)
@@ -595,12 +598,12 @@ Notation "'test' f e" := (ptest f e) (* abstract test-function coin *).
 `Const pr e` is the constant-literal `tProb`-map at the bundled
 probability `pr : prob` (used by the parameterised `ex_almost_loop`).
 `InclP e` is the forgetful read of a `tProb P` value back to `tR` along
-the inclusion `ι`.
+the inclusion $\iota$.
 
 | Result | Statement | Rocq |
 |---|---|---|
 | Def 1.16a — `Const pr e` | the constant-literal `tProb` map at a bundled probability `pr : prob` | `pconst`, `prob` — `theories/programs/ppl.v` |
-| Def 1.16b — `InclP e` | forgetful read of a `tProb P` value back to `tR` along the inclusion `ι` | `pincl` — `theories/programs/ppl.v` |
+| Def 1.16b — `InclP e` | forgetful read of a `tProb P` value back to `tR` along the inclusion $\iota$ | `pincl` — `theories/programs/ppl.v` |
 
 ```coq
 (* theories/programs/ppl.v — constant map and inclusion read *)
@@ -611,22 +614,23 @@ Notation "'InclP' e"  := (pincl e)   (* … *).
 ### Def 1.17 — The observe operator (`pobserve`, `obsGaussian`)
 
 `observe` is a general conditioning operator, not Gaussian-specific:
-`observe Gaussian e { s } y ≡ Score (Gausslik e { s , y })`. It is
-`pobserve (D : obsDist) (y : R)` over a distribution-with-density record
-`obsDist { od_arg ; od_dens ; … }`, where `od_arg` is the runtime
-parameter (the predicted mean) and `od_dens` the family of `[0,1]`-valued
-densities. `obsGaussian e s` is the first instance, so
+`observe Gaussian e { s } y` $\equiv$ `Score (Gausslik e { s , y })`. It
+is `pobserve (D : obsDist) (y : R)` over a distribution-with-density
+record `obsDist { od_arg ; od_dens ; … }`, where `od_arg` is the runtime
+parameter (the predicted mean) and `od_dens` the family of
+$[0,1]$-valued densities. `obsGaussian e s` is the first instance, so
 `pobserve (obsGaussian e s) y = pscore (pgausslik s y e)` definitionally
 (`pobserve_obsGaussian`); adding another observable distribution is a new
 `obsDist` instance plus a one-line sugar. The denotation lemma
 `observe_gauss_E` (`theories/programs/ppl_cbv.v`) weighs the trace by
-`normal_pdf μ s y / normal_peak s` — the Gaussian likelihood normalised by
-the intrinsic peak (see
-[Law 1.20 — scores, densities, and the sub-probability boundary](../../ppl/sections/ppl-sec-law-1-20-scores-densities-and-the-sub-probability-boundary.html)).
+$\mathtt{normal\_pdf}\ \mu\ s\ y\,/\,\mathtt{normal\_peak}\ s$ — the
+Gaussian likelihood normalised by the intrinsic peak (see [Law 1.20 —
+scores, densities, and the sub-probability
+boundary](../../ppl/sections/ppl-sec-law-1-20-scores-densities-and-the-sub-probability-boundary.html)).
 
 | Result | Statement | Rocq |
 |---|---|---|
-| Def 1.17a — `observe Gaussian e { s } y` | `≡ Score (Gausslik e { s , y })` — condition the mean `e` on datum `y` | `pobserve`, `obsGaussian`, `pobserve_obsGaussian` — `theories/programs/ppl.v` |
+| Def 1.17a — `observe Gaussian e { s } y` | $\equiv$ `Score (Gausslik e { s , y })` — condition the mean `e` on datum `y` | `pobserve`, `obsGaussian`, `pobserve_obsGaussian` — `theories/programs/ppl.v` |
 | Def 1.17b — the `obsDist` record | distribution-with-density interface; a new observable is a new instance | `obsDist`, `od_arg`, `od_dens` — `theories/programs/ppl.v` |
 
 ```coq
@@ -639,11 +643,11 @@ Notation "'observe' 'Gaussian' e '{' s '}' y" :=
 
 Bundled sampling: `pmeas` packages a sub-probability with its unit-ball
 witness, and `prob_pmeas` transports any mathcomp-analysis probability on
-`R` to a `pmeas`, giving the named distributions `gaussian m s` /
-`uniform a b` (`theories/programs/examples.v`). The comparison coin
+$\mathbb{R}$ to a `pmeas`, giving the named distributions `gaussian m s`
+/ `uniform a b` (`theories/programs/examples.v`). The comparison coin
 `e1 > e2` is `Bernoulli (Gt0 (e1 + Meas{negr} e2))` at the
 strict-positivity indicator of the difference — the deterministic test
-`a > b` on point masses. And `let rec f x := M in K` is OCaml-style
+$a > b$ on point masses. And `let rec f x := M in K` is OCaml-style
 recursive binding, `ne_let f (ne_fix f (ne_lam x M)) K`. The end-to-end
 demos are `ex_surface_demo` and `ex_surface_walk` (see the
 [Examples tab](../examples/)).
@@ -651,7 +655,7 @@ demos are `ex_surface_demo` and `ex_surface_walk` (see the
 | Result | Statement | Rocq |
 |---|---|---|
 | Def 1.18a — bundled draw `sample m` | `pmeas` packages a sub-probability with its unit-ball witness; `prob_pmeas` transports a probability | `sample`, `pmeas`, `prob_pmeas` — `theories/programs/ppl.v` |
-| Def 1.18b — comparison coin `e1 > e2` | `Bernoulli (Gt0 (e1 + Meas{negr} e2))` — deterministic `a > b` on point masses | `negr` — `theories/programs/ppl.v` |
+| Def 1.18b — comparison coin `e1 > e2` | `Bernoulli (Gt0 (e1 + Meas{negr} e2))` — deterministic $a > b$ on point masses | `negr` — `theories/programs/ppl.v` |
 | Def 1.18c — `let rec f x := M in K` | OCaml-style recursive binding `ne_let f (ne_fix f (ne_lam x M)) K` | `ne_fix`, `ne_let` — `theories/programs/ppl.v` |
 
 ```coq
@@ -665,32 +669,35 @@ Notation "'let' 'rec' f x ':=' M 'in' K" :=
 ### Def 1.19 — Reject/condition combinators (`ne_reject`, `ne_condition`)
 
 Rejection sampling and conditioning are two closed combinators whose
-**acceptance test is itself a program** — a predicate `f : b → tbool`
-on the model's output value, supplied as an argument exactly like the
-model `m : a → b`. Applying the test is then ordinary object-language
-application `# "f" @ # "x"`: there is no lift node and no `ne_test`
-(both deleted — the constructor, its `eD_cbv` clause, the `TestTmLiftG`
-section, and the `Test{…}` notation are all gone).
+**acceptance test is itself a program** — a predicate `f :` `b` $\to$
+`tbool` on the model's output value, supplied as an argument exactly
+like the model `m :` `a` $\to$ `b`. Applying the test is then ordinary
+object-language application `# "f" @ # "x"`: no lift node and no
+`ne_test` (both deleted — the constructor, its `eD_cbv` clause, the
+`TestTmLiftG` section, and the `Test{…}` notation are all gone).
 
 The one fact that makes this work is that **`tbool` is not `bool`**: it
 denotes a point of the 2-point sub-probability cone
-(`tyD_cbv tbool = bool_cone_car`), a sub-distribution over
-`{true, false}`. So `⟦f x⟧` is the *acceptance distribution* at `x`,
-and its true-mass `t(x) := (bc_t ⟦f x⟧)%:num ∈ [0,1]` is the acceptance
+(`tyD_cbv tbool = bool_cone_car`), a sub-distribution over $\{\mathtt{true},
+\mathtt{false}\}$. So $\llbracket f\,x \rrbracket$ is the *acceptance
+distribution* at $x$, and its true-mass $t(x) := (\mathtt{bc\_t}\
+\llbracket f\,x \rrbracket)\%\mathtt{:num} \in [0,1]$ is the acceptance
 probability — the only quantity the combinators read. Two regimes, one
-mechanism: when `f` is **deterministic** (`⟦f x⟧` a Dirac) `t = 1_A` is
-the indicator of the accept set `A := { x | f x = true }` (hard
-conditioning); when `f` is a **coin** (`⟦f x⟧` non-Dirac) `t` is a
-density (soft conditioning).
+mechanism: when `f` is **deterministic** ($\llbracket f\,x \rrbracket$
+a Dirac) $t = \mathbf{1}_A$ is the indicator of the accept set $A := \{
+x \mid f\,x = \mathtt{true} \}$ (hard conditioning); when `f` is a
+**coin** ($\llbracket f\,x \rrbracket$ non-Dirac) $t$ is a density (soft
+conditioning).
 
 `Bernoulli` still names a genuine coin and `Score` a genuine density
 reweight — both remain primitives for *building* models and predicates
-(a soft predicate is `f := λx. Bernoulli (density x)`) — but neither
-appears inside `reject` / `condition`. `reject` retries a rejected
-draw; `condition` gives up on it — the same program modulo the
-else-branch. `ne_fail` is the diverging give-up term
-`(fix fail. λ(). fail ()) ()`, denoting the zero sub-distribution, and
-`ne_assert b = if b then () else fail`.
+(a soft predicate is $f := \lambda x.\,\mathtt{Bernoulli}\
+(\mathtt{density}\ x)$) — but neither appears inside `reject` /
+`condition`. `reject` retries a rejected draw; `condition` gives up on
+it — the same program modulo the else-branch. `ne_fail` is the diverging
+give-up term $(\mathtt{fix}\ \mathit{fail}.\,\lambda().\,\mathit{fail}\
+())\,()$, denoting the zero sub-distribution, and `ne_assert b = if b
+then () else fail`.
 
 ```coq
 (* theories/programs/reject_condition.v *)
@@ -715,10 +722,10 @@ Definition ne_condition :
 
 ### Law 1.20 — Scores, densities, and the sub-probability boundary (`ne_score`, `score_lift`)
 
-This is a sub-probability model, and that fixes exactly which scores
-it can express. Every morphism of `ICone` is non-expansive: the
-`cones_hom` record carries a norm-bound field, so a map never
-increases mass.
+This is a sub-probability model, and that fixes exactly which scores it
+can express. Every morphism of $\mathbf{ICone}$ is non-expansive: the
+`cones_hom` record carries a norm-bound field, so a map never increases
+mass.
 
 ```coq
 (* theories/cones/cone_cat.v *)
@@ -731,54 +738,56 @@ Record cones_hom (P Q : coneType R) : Type := ConesHom {
 }.
 ```
 
-Scoring weights a measure by a density: `score_lift f` sends a
-measure `µ` to `f · µ`, of mass `∫ f dµ`. As a morphism its operator
-norm is `sup f`, so `score_lift f` is a map of the category — and
-`ne_score f` is well-typed — exactly when `f` is bounded by `1`.
-That is the source of the `forall r, f r <= 1` witness on `ne_score`
-and `ne_bernoulli_f`: not a modelling convenience but the condition
-for the score to be a morphism at all.
+Scoring weights a measure by a density: `score_lift f` sends a measure
+$\mu$ to $f \cdot \mu$, of mass $\int f\,d\mu$. As a morphism its
+operator norm is $\sup f$, so `score_lift f` is a map of the category —
+and `ne_score f` is well-typed — exactly when $f$ is bounded by $1$.
+That is the source of the `forall r, f r <= 1` witness on `ne_score` and
+`ne_bernoulli_f`: not a modelling convenience but the condition for the
+score to be a morphism at all.
 
 The distinction that matters in practice is between *sampling* and
-*observing*. Sampling is always fine: `sample (gaussian m s)`
-denotes a probability measure of mass `1`, a good morphism for every
-`m` and `s`. Observing — scoring by a density, `observe Gaussian e {s}
-y` weighing the trace by the Gaussian likelihood of `y` — is the
-constrained operation, a morphism only while the weight stays in
-`[0,1]`. The line that matters is **bounded vs unbounded**.
+*observing*. Sampling is always fine: `sample (gaussian m s)` denotes a
+probability measure of mass $1$, a good morphism for every $m$ and $s$.
+Observing — scoring by a density, `observe Gaussian e {s} y` weighing
+the trace by the Gaussian likelihood of `y` — is the constrained
+operation, a morphism only while the weight stays in $[0,1]$. The line
+that matters is **bounded vs unbounded**.
 
 A **bounded** likelihood is always conditionable, and `observe` does
-exactly this. `N(μ, σ)` peaks at its intrinsic peak `normal_peak σ =
-1/(σ√(2π))`; the *unnormalised* pdf crosses `1` as soon as
-`σ < 1/√(2π) ≈ 0.399`, so it is not directly a `[0,1]` weight. But the
-peak is a finite bound, and dividing by it gives the legal weight
-`gauss_obs_density σ y = normal_pdf μ σ y / normal_peak σ ∈ [0,1]` —
-a map into the `[0,1]` object `po_obj P`, factored through the bundle
-inclusion by `po_into`. This is exactly what `Gausslik e { σ , y }`
-(hence `observe`) scores by — no user-supplied envelope, the peak is
-intrinsic to the distribution. The normaliser cancels in the posterior: the
-conditioned distribution `∫_U f dν / ∫ f dν` is independent of any
-positive scaling of `f`, so dividing by `normal_peak σ` changes the
-total evidence but never the posterior. The same holds for the
-conditioning/rejection pair, where dividing by the peak is classical
+exactly this. $N(\mu, \sigma)$ peaks at its intrinsic peak
+$\mathtt{normal\_peak}\ \sigma = 1/(\sigma\sqrt{2\pi})$; the
+*unnormalised* pdf crosses $1$ as soon as $\sigma < 1/\sqrt{2\pi}
+\approx 0.399$, so it is not directly a $[0,1]$ weight. But the peak is
+a finite bound, and dividing by it gives the legal weight
+$\mathtt{gauss\_obs\_density}\ \sigma\ y = \mathtt{normal\_pdf}\ \mu\
+\sigma\ y\,/\,\mathtt{normal\_peak}\ \sigma \in [0,1]$ — a map into the
+$[0,1]$ object `po_obj P`, factored through the bundle inclusion by
+`po_into`. This is exactly what `Gausslik e { σ , y }` (hence `observe`)
+scores by — no user-supplied envelope, the peak is intrinsic to the
+distribution. The normaliser cancels in the posterior: the conditioned
+distribution $\int_U f\,d\nu \,/ \int f\,d\nu$ is independent of any
+positive scaling of $f$, so dividing by $\mathtt{normal\_peak}\ \sigma$
+changes the total evidence but never the posterior. The same holds for
+the conditioning/rejection pair, where dividing by the peak is classical
 rejection sampling with that envelope.
 
 Only a **genuinely unbounded** family is out of scope. When a density
-has no finite peak — a Gaussian with `σ` free to approach `0`, a
+has no finite peak — a Gaussian with $\sigma$ free to approach $0$, a
 likelihood that can be arbitrarily sharp — no normalisation brings it
-inside the unit ball, and the observation is not a morphism of `ICone`
-and has no denotation here. This is a property of every
+inside the unit ball, so the observation is not a morphism of
+$\mathbf{ICone}$ and has no denotation here. This is a property of every
 sub-probability model, integrable cones and probabilistic coherence
 spaces alike, not of the encoding.
 
-The semantics designed to score by arbitrary unbounded weights is
-the *s-finite kernel* model (Staton and collaborators): it drops the
-norm bound and lets `score w` denote a measure of any finite mass.
-The cone model makes the opposite trade — it keeps the
-sub-probability discipline and, in return, carries the higher-order
-and analytic structure (the `!` comonad, the Seely and
-Eilenberg–Moore development) that the kernel model does not. An
-`observe` with an unbounded density is the price of that structure.
+The semantics designed to score by arbitrary unbounded weights is the
+*s-finite kernel* model (Staton and collaborators): it drops the norm
+bound and lets $\mathtt{score}\ w$ denote a measure of any finite mass.
+The cone model makes the opposite trade — it keeps the sub-probability
+discipline and, in return, carries the higher-order and analytic
+structure (the $!$ comonad, the Seely and Eilenberg–Moore development)
+that the kernel model does not. An `observe` with an unbounded density
+is the price of that structure.
 
 ---
 
