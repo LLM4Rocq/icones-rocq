@@ -80,6 +80,10 @@ class OverviewRow:
     label: str
     statement_html: str = ""
     rocq_html: str = ""
+    # When this row maps 1:1 to a section, its id: the overview table then
+    # renders the label as a link to that section, making the table the
+    # chapter's navigable index (so the redundant section-card grid is dropped).
+    section_id: str = ""
 
 
 @dataclass
@@ -337,6 +341,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
             label=r["label"],
             statement_html=r.get("statement_html", ""),
             rocq_html=r.get("rocq_html", ""),
+            section_id=r.get("section_id", ""),
         )
 
     def _detail(d: dict[str, Any] | None) -> EntryDetail | None:
