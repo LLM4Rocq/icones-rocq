@@ -23,7 +23,10 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  # Supersede a queued/stuck run instead of piling up behind it: overlapping
+  # pushes under cancel-in-progress:false serialized their Pages deployments,
+  # and one hung in "deployment_queued" until the deploy-pages timeout.
+  cancel-in-progress: true
 
 jobs:
   build-docs:
@@ -232,3 +235,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # 20 min (default 10): the grounded site + vendored MathJax is ~19 MB
+          # and the Pages backend can sit in "deployment_queued" under load.
+          timeout: 1200000
