@@ -312,26 +312,23 @@ Definition mcones_comp
 
 ### Prop 3.11 (`mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent`)
 
+The dual-norm characterisation, mechanised in two constructive directions: `mcone_test_pairing_adherent` gives the $\le$ direction — for $x \ne 0$ and $\varepsilon > 0$, a test pairing lies within $\varepsilon$ of $\lVert x\rVert$ — and `mcone_norm_le_pairing_ub` gives that any upper bound $M$ of the pairing set dominates $\lVert x\rVert$.
+
+> **Paper — Proposition 3.11** (arXiv 2212.02371, `th:norm-dual`). Let $B$ be a measurable cone and let $x \in \lvert B\rvert$. Then $\lVert x\rVert = \sup_{x' \in \mathbf{B}(\lvert B\rvert^{*})} \langle x, x'\rangle$, the supremum ranging over the closed unit ball $\mathbf{B}(\lvert B\rvert^{*})$ of the dual measurable cone $\lvert B\rvert^{*}$.
+
+> **Difference.** The paper states the norm as an *attained* supremum; the formalization splits it into the two constructive lemmas below — `mcone_norm_le_pairing_ub` (any upper bound $M$ of the pairing set dominates $\lVert x\rVert$) and `mcone_test_pairing_adherent` (for $\varepsilon > 0$, a pairing lies within $\varepsilon$ of $\lVert x\rVert$). *Why:* the supremum need not be attained, so the $\le$ direction is expressed as adherence — an $\varepsilon$-approximation — rather than a maximum.
+
 ```coq
 (* theories/mcones/mcone_cat.v — Section Proposition311,
    Variables (R : realType) (Ar : MeasSubcat R) (B : MCone.type Ar) *)
-
-(** Paper Prop 3.11 (≤ direction): for non-zero [x] and ε > 0,
-    there is a pairing within ε of [‖x‖]. *)
 Lemma mcone_test_pairing_adherent (x : B) (eps : R) :
   x <> precone_zero -> 0 < eps ->
   exists2 y, mcone_test_pairing_set x y & cone_norm x <= y + eps.
 
-(** Paper Prop 3.11: any [M] upper-bounding the pairing set
-    dominates [‖x‖]. *)
 Lemma mcone_norm_le_pairing_ub (x : B) (M : R) :
   x <> precone_zero ->
   ubound (mcone_test_pairing_set x) M -> cone_norm x <= M.
 ```
-
-> **Paper — Proposition 3.11** (arXiv 2212.02371, `th:norm-dual`). Let $B$ be a measurable cone and let $x \in \lvert B\rvert$. Then $\lVert x\rVert = \sup_{x' \in \mathbf{B}(\lvert B\rvert^{*})} \langle x, x'\rangle$, the supremum ranging over the closed unit ball of the dual measurable cone $\lvert B\rvert^{*}$.
-
-> **Difference.** The paper states the norm as an *attained* supremum; the formalization splits it into two constructive lemmas — `mcone_norm_le_pairing_ub` (any upper bound $M$ of the pairing set dominates $\lVert x\rVert$) and `mcone_test_pairing_adherent` (for $\varepsilon > 0$, a pairing lies within $\varepsilon$ of $\lVert x\rVert$). *Why:* the supremum need not be attained, so the $\le$ direction is expressed as adherence — an $\varepsilon$-approximation — rather than a maximum.
 
 ### Def 3.16 (`fmeas`, `FMeas`)
 
