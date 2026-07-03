@@ -1338,6 +1338,7 @@ Definition ICones_smcc (R : realType) (Ar : MeasSubcat R) :
 |---|---|---|
 | Cat 6 | The category $\mathbf{Skern}$ of substochastic kernels: objects in $\mathbf{Ar}$, morphisms $\kappa : X \leadsto \mathsf{FMeas}(Y)$. | `Skern_hom`, `Skern_id`, `Skern_comp`, `Skern` — `theories/kernels/skern.v` |
 | Thm 6.1 | Bijection $\mathsf{Path}(X, B) \simeq \mathsf{FMeas}(X) \multimap B$ (cone iso) given by the integration map $\mathcal{I}^{B}_X$. | `int_to_linhom`, `int_to_linhom_iso` — `theories/homs/bilin.v` |
+| Thm 6.2 | *Dirac density*: two $\mathbf{ICones}$ morphisms $\mathsf{FMeas}(X) \to B$ that agree on every Dirac mass $\boldsymbol\delta^{X}(r)$ are equal. | `dirac_dense` — `theories/homs/coalgebra.v` |
 | Thm 6.5 | The functor $\mathsf{Klin} : \mathbf{Skern} \to \mathbf{ICones}$, sending $X \mapsto \mathsf{FMeas}(X)$ and a kernel to its integration map, is **fully faithful**. | `Skern_to_ICones_fully_faithful` (= the *regression anchor*) — `theories/kernels/kernel_embedding.v` |
 
 `Skern_to_ICones_fully_faithful` is the lemma checked by `./verify.sh` and is
@@ -1392,6 +1393,20 @@ Definition int_to_linhom :
 Definition int_to_linhom_iso : cones_iso P L :=
   MkConesIso int_to_linhom_cones linhom_to_int_cones
     int_to_linhom_conesK int_to_linhom_conesK'.
+```
+
+### Thm 6.2 (`dirac_dense`)
+
+The Dirac masses $\boldsymbol\delta^{X}(r)$ are *dense* in the integrable cone $\mathsf{FMeas}(X)$: any two $\mathbf{ICones}$ morphisms out of $\mathsf{FMeas}(X)$ that agree on every $\boldsymbol\delta^{X}(r)$ coincide. This is the proof engine behind the coalgebra structure of $\mathsf{FMeas}(X)$ and the embedding of $\mathbf{Skern}$; it is a consequence of the path–hom bijection $\mathcal{I}^{B}_X$ of Thm 6.1. Here `Lfun h` is the underlying linear function $\mathsf{cones\_hom\_fun}(\mathsf{mcones\_hom\_cones}(\mathsf{icones\_hom\_mcones}\,h))$ of an `icones_hom`, `dirac_fmeas r` is the Dirac measure $\boldsymbol\delta^{X}(r)\in\mathsf{FMeas}(X)$, and `FMeas X` is $\mathsf{fmeas}\,R\,(\mathsf{ar\_carrier}\,\mathrm{Ar}\,X)$.
+
+> **Paper — Theorem 6.2** (arXiv 2212.02371, `th:dirac-dense`). Let $X\in\mathbf{Ar}$, $B$ be an object of $\mathbf{ICones}$ and $f_1,f_2\in\mathbf{ICones}(\mathsf{FMeas}(X),B)$. If, for all $r\in X$, one has $f_1(\boldsymbol\delta^{X}(r))=f_2(\boldsymbol\delta^{X}(r))$ then $f_1=f_2$.
+
+```coq
+(* theories/homs/coalgebra.v — Section Coalgebra, Variables R Ar *)
+Lemma dirac_dense (X : ar_obj Ar) (B : ICone.type Ar)
+    (f g : icones_hom Ar (FMeas X) B) :
+  (forall r : ar_carrier Ar X, Lfun f (dirac_fmeas r) = Lfun g (dirac_fmeas r)) ->
+  f = g.
 ```
 
 ### Thm 6.5 (`Skern_to_ICones_fully_faithful`)
