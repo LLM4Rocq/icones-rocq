@@ -46,11 +46,17 @@
 </section>
 {% endif %}
 
-{% if tab == 'paper' and document.sections %}
+{% if tab in ('paper', 'ppl', 'examples') and document.sections %}
 <section class="section-block">
   <header class="section-block-head">
+    {% if tab == 'ppl' %}
+    <h2>PPL chapters</h2>
+    {% elif tab == 'examples' %}
+    <h2>Example program chapters</h2>
+    {% else %}
     <h2>Paper coverage</h2>
-    <p class="section-block-sub">One card per chapter.</p>
+    {% endif %}
+    <p class="section-block-sub">One card per {{ 'section' if tab == 'paper' else 'chapter' }}.</p>
   </header>
   <div class="card-grid coverage-grid">
     {% for section in document.sections %}
@@ -61,7 +67,11 @@
     {% set n_thm = total - n_def %}
     <a class="card section-card" href="{{ root_prefix }}sections/{{ section.id }}.html">
       <div class="card-top">
+        {% if tab == 'paper' %}
         <span class="card-eyebrow mono">§ {{ section.paper_section_number }}</span>
+        {% else %}
+        <span class="card-eyebrow mono">Chapter</span>
+        {% endif %}
         <h3 class="card-title">{{ section.title }}</h3>
       </div>
       <p class="card-stats">
@@ -73,37 +83,6 @@
         {% if n_def %}{{ n_def }} def{{ 's' if n_def != 1 else '' }}{% endif %}
         {% if n_def and n_thm %} · {% endif %}
         {% if n_thm %}{{ n_thm }} thm{{ 's' if n_thm != 1 else '' }}{% endif %}
-      </p>
-      <p class="card-cta">Open →</p>
-    </a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
-{% if tab in ('ppl', 'examples') and document.chapters %}
-<section class="section-block">
-  <header class="section-block-head">
-    <h2>{% if tab == 'ppl' %}PPL chapters{% else %}Example program chapters{% endif %}</h2>
-    <p class="section-block-sub">One card per chapter.</p>
-  </header>
-  <div class="card-grid coverage-grid">
-    {% for chapter in document.chapters %}
-    {% set s = chapter.stats %}
-    <a class="card section-card" href="{{ root_prefix }}chapters/{{ chapter.id }}.html">
-      <div class="card-top">
-        <span class="card-eyebrow mono">Chapter</span>
-        <h3 class="card-title">{{ chapter.title }}</h3>
-      </div>
-      <p class="card-stats">
-        <strong>{{ s.n_sections }}</strong> sections ·
-        <strong>{{ s.n_entries }}</strong> entries
-      </p>
-      <p class="card-meta">
-        {% if s.n_defs %}{{ s.n_defs }} def{{ 's' if s.n_defs != 1 else '' }} · {% endif %}
-        {% if s.n_thms %}{{ s.n_thms }} thm{{ 's' if s.n_thms != 1 else '' }} · {% endif %}
-        {{ s.n_snippets }} snippet{{ 's' if s.n_snippets != 1 else '' }} ·
-        {{ s.loc }} LoC
       </p>
       <p class="card-cta">Open →</p>
     </a>
