@@ -1434,15 +1434,24 @@ Qed.
 
 | Paper | English statement | Rocq |
 |---|---|---|
+| Lem 7.1 | The gauge $N$ is a norm on the local cone $P=B_x$, and $P$ is a cone whose $0$, operations and order are those of $\mathcal{M}B$. | `local_cone` (`isCone.Build`), `lc_normh`, `lc_normt` — `theories/stable/local_cone.v` |
+| Lem 7.2 | For $u\in\mathcal{M}B_x\setminus\{0\}$: $x+\lVert u\rVert^{-1}u$ stays in the unit ball, and $x+\lambda u$ leaves it for $\lambda>\lVert u\rVert^{-1}$. | `gauge_sup_reach`, `gauge_sup_gt_out` — `theories/stable/local_cone.v` |
+| Lem 7.4 | The reindexing $\mathrm{in}_j$ is a parity-preserving bijection between $\mathcal{P}^{\epsilon}(n)$ and $\{J\in\mathcal{P}^{\epsilon}(n+1)\mid j\in J\}$. | `Ppos_split_in`, `Pneg_split_in`, `Ppos_split_out`, `Pneg_split_out` — `theories/stable/findiff.v` |
 | Def 7.5 | A function $f:\mathcal{B}P\to Q$ is *totally monotonic* if its iterated finite differences over the parity lattice satisfy $\sum_{I\in\mathcal{P}^-(n)}f(x+\sum_{i\in I}u_i)\le\sum_{I\in\mathcal{P}^+(n)}f(x+\sum_{i\in I}u_i)$. | `is_totmono`, `Pneg`/`Ppos` — `theories/stable/totmono.v` |
 | Def 7.7 | A function is *stable* if it is totally monotonic, bounded, and $\omega$-continuous on the unit ball. | `is_stable` (uses `is_scott_continuous_unit`) — `theories/stable/totmono.v` |
 | Def 7.10 | A *measurable stable* function additionally sends measurable paths $X\to C$ to measurable paths $X\to D$. | `is_meas_stable` — `theories/stable/totmono.v` |
 | Lem 7.11 | The stable and measurable functions $C\to D$ form a precone under pointwise operations (closed under $0$, addition, and non-negative scaling). | `stable_zero`, `stable_add`, `stable_scale` — `theories/stable/totmono.v` |
 | Lem 7.12 | The stable (cone) order coincides with the alternating finite-difference inequality: $f\le g$ iff a sign-split difference test holds. | `sh_le_of_alt` — `theories/stable/stablehom.v` |
+| Def 7.15 | $f$ is *$n$-increasing* if it is increasing and each single-step difference $\Delta f(u)$ over the local cone $B_u$ is $(n-1)$-increasing. | `is_n_increasing` (Fixpoint on $n$) — `theories/stable/findiff.v` |
+| Lem 7.16 | If $f$ is $n$-increasing for all $n$, then so is each single-step difference $\Delta f(u):\mathcal{B}\mathcal{M}B_u\to\mathcal{M}C$. | `is_n_increasing_Delta` — `theories/stable/findiff.v` |
+| Lem 7.18 | If $f$ is totally monotonic, then so is each single-step difference $\Delta f(u):\mathcal{B}\mathcal{M}B_u\to\mathcal{M}C$. | `totmono_Delta1` — `theories/stable/findiff.v` |
 | Thm 7.19 | $f$ is totally monotonic iff it is *$n$-increasing* for every $n\in\mathbb{N}$. | `totmono_is_n_increasing` (forward), `is_n_increasing_totmono` (converse) — `theories/stable/findiff.v` |
 | Lem 7.20–7.25 | The finite-difference / sign-split machinery $\Delta^{\epsilon}$, $\Delta$, $\mathsf{S}^n B$ used to prove Thm 7.19 and the §7.3 closure properties. | `totmono_Delta_pos`/`_neg`, `SD`, `SD_cons`, `SnB`, `SnB_increasing`, etc. — `theories/stable/findiff.v` + `theories/stable/compose.v` |
+| Lem 7.21 | For totally monotonic $f$, the iterated difference is bounded above by $f$ at the summed point: $\Delta f(\overrightarrow{u})(x)\le f(x+\sum_i u_i)$. | `Delta_le`, `SD_le` — `theories/stable/findiff.v` |
+| Lem 7.26 | Faà-di-Bruno composition: $k(x)=\Delta g(h_1 x,\dots,h_n x)(f x)$ is totally monotonic when $g,f,h_i$ are and $f+\sum_i h_i$ stays in the unit ball. | `ninc_kfun`, `totmono_comp` — `theories/stable/compose.v` |
 | Lem 7.27 | If $f$ is linear in its first argument and totally monotonic in its second, it is totally monotonic on the product of unit balls. | `ev_totmono` (delivered in the form actually needed by the CCC) — `theories/stable/scones_ccc.v` |
 | Thm 7.30 | Stable (and measurable) functions of norm $\le 1$ are closed under composition. | `stable_comp`, `meas_stable_comp` — `theories/stable/compose.v` |
+| Lem 7.31 | $\mathbf{ICones}(B,C)\subseteq\mathbf{SCones}(B,C)$: every linear morphism is stable, giving the forgetful functor $\mathsf{Der}$. | `linear_totmono`, `linear_stable`, `ders` — `theories/stable/scones_cat.v` |
 | Thm 7.32 | The category $\mathbf{SCones}$ of stable functions has all products and is cartesian closed. | `SCones_ccc`, `SCones_CCC` (record + witness) — `theories/stable/scones_ccc.v` |
 | Thm 7.34 | The forgetful functor $\mathsf{Der}:\mathbf{ICones}\to\mathbf{SCones}$ preserves all limits. | `der_preserves_prod_proj`, `der_preserves_limits` — `theories/stable/der_continuous.v` |
 | (also) | Stable functions admit a least fixpoint via the cone unit-ball $\omega$-cpo (paper §9.2). | `lfp_fixpoint`, `sfix_fixpoint`, `Yfix`, `Yfix_fix` — `theories/stable/fixpoint.v` |
@@ -1452,6 +1461,84 @@ any-radius output sup) because the strictly-linear `is_omega_continuous`
 (both $\omega$-chains in the unit ball) is **not preserved under non-negative
 scaling for non-linear maps** — a faithful reading of the paper's setting,
 not a weakening.
+
+### Lem 7.1 (`local_cone`, `lc_normh`, `lc_normt`)
+
+The local cone $B_x$ of $B$ at $x\in\mathcal{B}\mathcal{M}B$ is the set of directions $u$ with $x+\lambda u\in\mathcal{B}\mathcal{M}B$ for some $\lambda>0$; equipped with the gauge norm $N(u)=(\sup\{\lambda>0\mid x+\lambda u\in\mathcal{B}\mathcal{M}B\})^{-1}$ it is a cone whose $0$, algebraic operations and order are inherited from $\mathcal{M}B$. The algebraic half is the `isPrecone` instance, the norm laws are `lc_normh` (homogeneity) and `lc_normt` (sub-additivity), and the whole is assembled into the `isCone` HB instance on `local_cone x`.
+
+> **Paper — Lemma 7.1** (arXiv 2212.02371, `lemma:local-cone-is-a-subcone`). The function $N$ is a norm on $P$ and, equipped with this norm, $P$ is a cone whose $0$ element and algebraic operations are those of $\mathcal{M}B$.
+
+```coq
+(* theories/stable/local_cone.v — Variables: R : realType, B : coneType R, x : B *)
+Definition local_cone : Type := { u : B | localP u }.
+
+(* Paper Lemma 7.1 (algebraic half): B_x is a precone whose 0 and
+   operations are inherited from B. *)
+HB.instance Definition _ := @isPrecone.Build R local_cone
+  lc_zero lc_add lc_scale lc_addA lc_addC lc_add0
+  lc_scale_DAr lc_scale_DAl lc_scale_A lc_scale_1
+  lc_scale_0r lc_scale_0l lc_cancel lc_pos.
+
+Lemma lc_normh (r : {nonneg R}) (u : P) :
+  lc_norm (lc_scale Hx r u) = r%:num * lc_norm u.
+
+Lemma lc_normt (u1 u2 : P) :
+  lc_norm (lc_add u1 u2) <= lc_norm u1 + lc_norm u2.
+
+(* Paper Lemma 7.1: B_x is a cone, norm the gauge lc_norm. *)
+HB.instance Definition _ := @isCone.Build R (local_cone x)
+  lc_norm
+  lc_normh
+  (fun (u : P) (H : lc_norm u = 0) => @lc_eq R B x u (lc_zero Hx) (lc_normz H))
+  lc_normt
+  (* (Normp) + (Normc) via lc_normp / lc_sup_ball, transported through lc_leE *)
+  _ _ _ _ _.
+```
+
+### Lem 7.2 (`gauge_sup_reach`, `gauge_sup_gt_out`)
+
+The gauge norm on the local cone measures how far the direction $u$ can be scaled before leaving the unit ball: the reach $x+\lVert u\rVert_{B_x}^{-1}u$ still lies in $\mathcal{B}\mathcal{M}B$ (`gauge_sup_reach`), and any strictly larger scale leaves it (`gauge_sup_gt_out`).
+
+> **Paper — Lemma 7.2** (arXiv 2212.02371, `lemma:cloc-norm-charact`). Let $x\in\mathcal{B}\mathcal{M}B$ and $u\in\mathcal{M}B_x\setminus\{0\}$. Then we have $x+\lVert u\rVert_{B_x}^{-1}\,u\in\mathcal{B}\mathcal{M}B$ and $x+\lambda u\notin\mathcal{B}\mathcal{M}B$ for all $\lambda>\lVert u\rVert_{\mathcal{M}B_x}^{-1}$.
+
+> **Difference.** The mechanisation phrases the reach through $\mathsf{gauge\_sup}\,u=\lVert u\rVert_{B_x}^{-1}$ (the supremum of admissible scales) rather than the norm $\lVert u\rVert_{B_x}$ directly; the reach point is $x+(\mathsf{gauge\_sup}\,u)\cdot u$ and the "out" half is stated for any $\mathsf{gauge\_sup}\,u<s$.
+
+```coq
+(* theories/stable/local_cone.v — Variables: R B x; P := local_cone x *)
+Definition gauge_sup (u : P) : R := sup (gauge_set u).
+
+Lemma gauge_sup_reach (u : P) (Hu0 : lc_val u <> precone_zero) :
+  cone_norm (precone_add x
+     (precone_scale (NngNum (gauge_sup_ge0 u)) (lc_val u))) <= 1.
+
+Lemma gauge_sup_gt_out (u : P) (s : {nonneg R}) :
+  lc_val u <> precone_zero ->
+  gauge_sup u < s%:num ->
+  ~ cone_norm (precone_add x (precone_scale s (lc_val u))) <= 1.
+```
+
+### Lem 7.4 (`Ppos_split_in`, `Pneg_split_in`, `Ppos_split_out`, `Pneg_split_out`)
+
+The reindexing $\mathrm{in}_j$ inserts the element $j$ into a parity set while shifting the elements above $j$, and gives a parity-preserving bijection between $\mathcal{P}^{\epsilon}(n)$ and the sets of $\mathcal{P}^{\epsilon}(n+1)$ containing $j$. In the mechanisation this is packaged (at $j=$ `ord0`) as four `finset` image equalities: the $j\in J$ halves (`Ppos_split_in`, `Pneg_split_in`) and the $j\notin J$ halves (`Ppos_split_out`, `Pneg_split_out`).
+
+> **Paper — Lemma 7.4** (arXiv 2212.02371, `lemma:inset-corresp`). Let $n\in\mathbb{N}$, $j\in\{1,\dots,n+1\}$ and $\epsilon\in\{-,+\}$. Given $I\in\mathcal{P}^{\epsilon}(n)$, the set $\mathrm{in}_j(I)=\{i\in I\mid i<j\}\cup\{j\}\cup\{i+1\mid i\in I\text{ and }i\geq j\}$ belongs to $\mathcal{P}^{\epsilon}(n+1)$ and $\mathrm{in}_j$ defines a bijection between $\mathcal{P}^{\epsilon}(n)$ and $\{J\subseteq\{1,\dots,n+1\}\mid J\in\mathcal{P}^{\epsilon}(n+1)\text{ and }j\in J\}$.
+
+> **Difference.** The paper states the bijection for an arbitrary $j$; the mechanisation specialises to $j=$ `ord0` (the only instance the finite-difference recurrences use) and records the correspondence as image (`imset`) equalities of finsets, discharged by `big_imset` in the difference recurrences.
+
+```coq
+(* theories/stable/findiff.v *)
+Lemma Ppos_split_in :
+  [set I in Ppos n.+1 | ord0 \in I] = [set injI0 J | J in Ppos n].
+
+Lemma Pneg_split_in :
+  [set I in Pneg n.+1 | ord0 \in I] = [set injI0 J | J in Pneg n].
+
+Lemma Ppos_split_out :
+  [set I in Ppos n.+1 | ord0 \notin I] = [set injI J | J in Pneg n].
+
+Lemma Pneg_split_out :
+  [set I in Pneg n.+1 | ord0 \notin I] = [set injI J | J in Ppos n].
+```
 
 ### Def 7.5 (`is_totmono`, `Pneg`, `Ppos`)
 
@@ -1538,6 +1625,51 @@ Lemma sh_le_of_alt : precone_le f g.
 Proof. by exists sh_diff; rewrite -sh_add_diff. Qed.
 ```
 
+### Def 7.15 (`is_n_increasing`)
+
+A function is *$n$-increasing* by induction on $n$: for $n=0$ it is simply increasing; for $n>0$ it is increasing and, for every direction $u\in\mathcal{B}\mathcal{M}B$, the single-step difference $\Delta f(u):\mathcal{B}\mathcal{M}B_u\to\mathcal{M}C$ (mapping $x$ to $f(x+u)-f(x)$) is $(n-1)$-increasing from the local cone $B_u$ to $C$. This inductive definition — a `Fixpoint` on $n$ whose recursive call changes the source cone from $B$ to the local cone of $u$ — is the backbone of the whole finite-difference development.
+
+> **Paper — Definition 7.15** (arXiv 2212.02371). Let $f:\mathcal{B}\mathcal{M}B\to\mathcal{M}C$ be a function and $n\in\mathbb{N}$. $f$ is *$n$-increasing from $B$ to $C$* if either $n=0$ and $f$ is increasing, or $n>0$, $f$ is increasing and, for all $u\in\mathcal{B}\mathcal{M}B$, the function $\Delta f(u):\mathcal{B}\mathcal{M}B_u\to\mathcal{M}C$ (which maps $x$ to $f(x+u)-f(x)$) is $(n-1)$-increasing from $B_u$ to $C$.
+
+```coq
+(* theories/stable/findiff.v *)
+Fixpoint is_n_increasing (n : nat) (R : realType) (B C : coneType R)
+    (f : B -> C) {struct n} : Prop :=
+  match n with
+  | 0 => is_increasing f
+  | n'.+1 => is_increasing f /\
+      forall (u : B) (Hu : cone_norm
+        (\big[precone_add/precone_zero]_(i : 'I_1) (fun=> u) i) < 1),
+        @is_n_increasing n' R (lc_coneType Hu) C (Delta f (fun=> u))
+  end.
+```
+
+### Lem 7.16 (`is_n_increasing_Delta`)
+
+If $f$ is $n$-increasing for every $n$, then so is each single-step difference $\Delta f(u)$: this is exactly the second conjunct of `is_n_increasing` at arity $n+1$, read off directly.
+
+> **Paper — Lemma 7.16** (arXiv 2212.02371, `lemma:fdiff-inf-increasing`). Let $f\in\mathcal{B}\mathcal{M}B\to\mathcal{M}C$ be a function which is $n$-increasing for all $n\in\mathbb{N}$. Then for all $u\in\mathcal{B}\mathcal{M}B$, the function $\Delta f(u):\mathcal{B}\mathcal{M}B_u\to\mathcal{M}C$ is $n$-increasing for all $n\in\mathbb{N}$.
+
+```coq
+(* theories/stable/findiff.v *)
+Lemma is_n_increasing_Delta (R : realType) (B C : coneType R) (f : B -> C) :
+  (forall n, is_n_increasing n f) ->
+  forall (u : B) (Hu : cone_norm
+     (\big[precone_add/precone_zero]_(i : 'I_1) (fun=> u) i) < 1) (n : nat),
+    @is_n_increasing n R (lc_coneType Hu) C (Delta f (fun=> u)).
+```
+
+### Lem 7.18 (`totmono_Delta1`)
+
+The single-step difference $\Delta f(u)$ of a totally monotonic $f$ is again totally monotonic on the local cone $B_u$; this is the key inductive step feeding Theorem 7.19 (distinct from the multi-direction `totmono_Delta` of the 7.20–7.25 machinery).
+
+> **Paper — Lemma 7.18** (arXiv 2212.02371, `lemma:fdiff-tot-mono`). If a function $f\in\mathcal{B}\mathcal{M}B\to\mathcal{M}C$ is totally monotonic, then for each $u\in\mathcal{B}\mathcal{M}B$, the function $\Delta f(u):\mathcal{B}\mathcal{M}B_u\to\mathcal{M}C$ is totally monotonic.
+
+```coq
+(* theories/stable/findiff.v — Section Lemma718: R, B C, f, u, Hsu : ‖su‖ < 1, Bu := lc_coneType Hsu, oneu := fun _ : 'I_1 => u *)
+Lemma totmono_Delta1 (Hf : is_totmono f) : @is_totmono R Bu C (Delta f oneu).
+```
+
 ### Thm 7.19 (`totmono_is_n_increasing`, `is_n_increasing_totmono`)
 
 Total monotonicity is equivalent to being $n$-increasing for every $n$ (the inductive characterization via iterated first differences over local cones). The two lemmas give the forward and converse directions.
@@ -1580,6 +1712,52 @@ Definition SnB_diff (g : SnB B n) : C := (* Δf(u⃗)(x) for g = (x, u⃗) *).
 Lemma SnB_increasing : is_increasing SnB_diff.
 ```
 
+### Lem 7.21 (`Delta_le`, `SD_le`)
+
+For totally monotonic $f$, the iterated finite difference $\Delta f(\overrightarrow{u})(x)$ is bounded above by the value of $f$ at the summed point $x+\sum_i u_i$. `Delta_le` is the operator form on the local-cone unit ball; it is read off from the B-side bound `SD_le` (the same inequality stated for the raw signed-difference operator $\mathsf{SD}$) via `SD_Delta`.
+
+> **Paper — Lemma 7.21** (arXiv 2212.02371, `lemma:fdiff-upper`). Let $f:\mathcal{B}\mathcal{M}B\to\mathcal{M}C$ be totally monotonic. Then for each $\overrightarrow{u}\in\mathcal{M}B^n$ such that $\sum_{i=1}^n u_i\in\mathcal{B}\mathcal{M}B$ and $x\in\mathcal{M}B_{\overrightarrow{u}}$ we have $\Delta f(\overrightarrow{u})(x)\leq f\big(x+\sum_{i=1}^n u_i\big)$.
+
+```coq
+(* theories/stable/findiff.v — B-side form *)
+Lemma SD_le (Hf : is_totmono f) (n : nat) (u : 'I_n -> B) (xb : B) :
+  cone_norm (xb + \big[precone_add/precone_zero]_(i : 'I_n) u i) <= 1 ->
+  SD u xb <=p f (xb + \big[precone_add/precone_zero]_(i : 'I_n) u i).
+
+(* Section Lemma721: R, B C, f, Hf : is_totmono f — operator form *)
+Lemma Delta_le (n : nat) (u : 'I_n -> B)
+    (Hs : cone_norm (\big[precone_add/precone_zero]_(i : 'I_n) u i) < 1)
+    (x : local_cone (\big[precone_add/precone_zero]_(i : 'I_n) u i))
+    (Hx : lc_norm x <= 1) :
+  Delta f u x <=p
+  f (lc_val x + \big[precone_add/precone_zero]_(i : 'I_n) u i).
+```
+
+### Lem 7.26 (`ninc_kfun`, `totmono_comp`)
+
+The Faà-di-Bruno-style composition lemma — the deepest result of §7.3. Given totally monotonic $f,h_1,\dots,h_n:\mathcal{B}\mathcal{M}B\to\mathcal{M}C$ and $g:\mathcal{B}\mathcal{M}C\to\mathcal{M}D$ with $f+\sum_i h_i$ staying in the unit ball, the composite $k(x)=\Delta g(h_1 x,\dots,h_n x)(f x)$ is totally monotonic. The main statement `ninc_kfun` establishes, by a generic $p$-induction, that the B-side composite `kfun g f h⃗` is $p$-increasing for every source cone, arity and admissible data (which with `is_n_increasing_totmono` yields total monotonicity of $k$); its $n=0$ corollary `totmono_comp` — $g\circ f=\mathsf{kfun}\,g\,f\,()$ — drives Theorem 7.30.
+
+> **Paper — Lemma 7.26** (arXiv 2212.02371, `lemma:fdiff-comp`). Let $n\in\mathbb{N}$, $f,h_1,\dots,h_n:\mathcal{B}\mathcal{M}B\to\mathcal{M}C$ and $g:\mathcal{B}\mathcal{M}C\to\mathcal{M}D$ be totally monotonic functions such that $\forall x\in\mathcal{B}\mathcal{M}B\ f(x)+\sum_{i=1}^n h_i(x)\in\mathcal{B}\mathcal{M}C$. Then the function $k:\mathcal{B}\mathcal{M}B\to\mathcal{M}D$ defined by $k(x)=\Delta g(h_1(x),\dots,h_n(x))(f(x))$ is totally monotonic.
+
+```coq
+(* theories/stable/compose.v — Section vars: R, B C D, g : C -> D, Hg : is_totmono g *)
+Definition kfun (n : nat) (f : B -> C) (h : 'I_n -> (B -> C)) : B -> D :=
+  fun x => SD g (fun i => h i x) (f x).
+
+Lemma ninc_kfun (p : nat) :
+  forall (B : coneType R) (n : nat) (f : B -> C) (h : 'I_n -> (B -> C)),
+  is_totmono f -> (forall i, is_totmono (h i)) ->
+  (forall y : B, cone_norm y <= 1 ->
+     cone_norm (f y + \big[precone_add/precone_zero]_(i : 'I_n) h i y) <= 1) ->
+  is_n_increasing p (kfun g f h).
+
+(* n = 0 corollary: g ∘ f is totally monotonic. *)
+Lemma totmono_comp (f : B -> C) (g : C -> D)
+    (Hf : is_stable f) (Hg : is_stable g)
+    (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1) :
+  is_totmono (fun x => g (f x)).
+```
+
 ### Lem 7.27 (`ev_totmono`)
 
 A function linear in one argument and totally monotonic in the other is totally monotonic on the product of the unit balls; `ev_totmono` delivers this in the form the CCC needs — evaluation is totally monotonic on the $\mathbf{SCones}$ product $\mathbf{SCones}(B,C)\times B$.
@@ -1611,6 +1789,26 @@ Lemma meas_stable_comp (R : realType) (Ar : MeasSubcat R)
     (Hf : is_meas_stable f) (Hg : is_meas_stable g)
     (Hfb : forall x, cone_norm x <= 1 -> cone_norm (f x) <= 1) :
   is_meas_stable (fun x => g (f x)).
+```
+
+### Lem 7.31 (`linear_totmono`, `linear_stable`, `ders`)
+
+Every linear (integrable-cone) morphism is stable, so the integrable-cone morphisms embed into the stable/measurable ones — this is the forgetful (dereliction) functor $\mathsf{Der}:\mathbf{ICones}\to\mathbf{SCones}$, acting as the identity on objects and morphisms. The core is `linear_totmono` (linearity implies total monotonicity), packaged with boundedness and $\omega$-continuity into `linear_stable`, and realized as the inclusion map `ders` on `icones_hom` (the underlying linear function $0$-extended off the unit ball).
+
+> **Paper — Lemma 7.31** (arXiv 2212.02371). $\mathbf{ICones}(B,C)\subseteq\mathbf{SCones}(B,C)$.
+
+```coq
+(* theories/stable/scones_cat.v — Section LinearTotmonoMain: R, B C, f : B -> C, Hf : is_linear f *)
+Lemma linear_totmono : is_totmono f.
+
+(* Section LinearStable: adds Hcont : is_omega_continuous f and the norm bound. *)
+Lemma linear_stable : is_stable f.
+
+(* Paper Lemma 7.31: the inclusion ICones(B,C) → SCones(B,C). *)
+Definition ders (B C : ICone.type Ar) (h : icones_hom Ar B C) :
+    scones_hom B C :=
+  MkSconesHom (sc_clamp (Lfun h)) (ders_meas_stable h) (ders_norm_le1 h)
+    (sc_clamp_offball_field _).
 ```
 
 ### Thm 7.32 (`SCones_CCC`, `SCones_ccc`)
