@@ -1008,11 +1008,11 @@ def test_parse_two_tabs_basic(tmp_path):
     # Paper tab carries a §2 section with two entries.
     assert len(two.paper.sections) == 1
     assert len(two.paper.sections[0].entries) == 2
-    # PPL tab carries no §-sections; the new chapter-tree path materialises
-    # at least one Chapter on PPL/Examples, and the compat shim mirrors
-    # ``chapters[*].sections[*]`` into ``doc.beyond``.
-    assert two.ppl.sections == []
-    assert len(two.ppl.beyond) >= 1 and len(two.ppl.chapters) >= 1
+    # PPL tab: flat-section path (one Section per H2, its H3s as entries),
+    # rendered exactly like the Paper tab.  No chapters, no beyond tree.
+    assert len(two.ppl.sections) >= 1
+    assert two.ppl.chapters == []
+    assert any(len(sec.entries) >= 1 for sec in two.ppl.sections)
     # Examples tab is the empty default when the legacy 2-arg shim is used.
     assert two.examples.sections == []
     assert two.examples.beyond == []
@@ -1060,13 +1060,12 @@ def test_parse_two_tabs_independent_status(tmp_path):
         s for sec in two.paper.sections for e in sec.entries for s in e.status
     ]
     assert "regression-anchor" in p_statuses
-    # PPL contains only beyond-paper rows.  Iterate the chapter tree:
-    # the chapter-mode build is the authoritative source on PPL/Examples.
-    assert len(two.ppl.chapters) >= 1
+    # PPL contains only beyond-paper rows.  Iterate the flat sections:
+    # the flat-section build is the authoritative source on PPL/Examples.
+    assert len(two.ppl.sections) >= 1
     l_statuses = [
         s
-        for c in two.ppl.chapters
-        for sec in c.sections
+        for sec in two.ppl.sections
         for e in sec.entries
         for s in e.status
     ]
@@ -1093,11 +1092,10 @@ def test_parse_three_tabs_basic(tmp_path):
     # Paper tab: §2 with two entries.
     assert len(three.paper.sections) == 1
     assert len(three.paper.sections[0].entries) == 2
-    # PPL tab: chapter-tree path active.  Compat shim mirrors the chapter
-    # tree onto ``doc.beyond`` so the legacy ``len(beyond) >= 1`` check
-    # still holds.
-    assert three.ppl.sections == []
-    assert len(three.ppl.beyond) >= 1 and len(three.ppl.chapters) >= 1
+    # PPL tab: flat-section path (one Section per H2), rendered like the
+    # Paper tab.  No chapters, no beyond tree.
+    assert len(three.ppl.sections) >= 1
+    assert three.ppl.chapters == []
     # Examples tab: regression-anchor fixture has a paper section.
     assert len(three.examples.sections) == 1
     # tab() round-trips for all three names.
@@ -1136,7 +1134,12 @@ def test_parse_three_tabs_prefixes_warnings(tmp_path):
 
 
 def test_ppl_chapter_section_shape_b(tmp_path):
-    """PPL-shape fixture: H3 with prose + snippets and no headline table."""
+    """PPL-shape fixture: H3 with prose + snippets and no headline table.
+
+    The H2 becomes ONE flat Section (like a Paper-tab section) whose H3s
+    are its entries — rendered inline as cards, not fragmented into a
+    one-entry-per-H3 chapter tree.
+    """
     path = GOLDEN / "10_ppl_chapter_section.md"
     doc, _ = parse(
         path.read_text(encoding="utf-8"),
@@ -1145,24 +1148,23 @@ def test_ppl_chapter_section_shape_b(tmp_path):
         strict=False,
         tab=TAB_PPL,
     )
-    assert len(doc.chapters) == 1
-    ch = doc.chapters[0]
-    assert ch.id.startswith("ppl-ch-")
-    # Two H3s in the fixture → two sections.
-    assert len(ch.sections) == 2
-    # Shape (b): single-Entry section with id == section.id.
-    for sec in ch.sections:
-        assert len(sec.entries) == 1
-        assert sec.entries[0].id == sec.id
-        assert sec.entries[0].detail is not None
+    # Flat-section shape: no chapters, no beyond tree.
+    assert doc.chapters == []
+    assert doc.beyond == []
+    # One flat Section for the H2.
+    assert len(doc.sections) == 1
+    sec = doc.sections[0]
+    assert sec.id.startswith("ppl-sec-")
+    assert sec.chapter_id == ""
+    # Two H3s in the fixture → two entries in the single flat Section.
+    assert len(sec.entries) == 2
+    for e in sec.entries:
+        # Shape (b) entries are normal cards: their id is derived from the
+        # H3 and is NOT collapsed onto the section id.
+        assert e.id != sec.id
+        assert e.detail is not None
         # Each H3 fixture carries one Coq snippet inlined into the entry detail.
-        assert len(sec.entries[0].detail.snippets) >= 1
-    # Chapter stats roll up sensibly.
-    assert ch.stats.n_sections == 2
-    assert ch.stats.n_entries == 2
-    assert ch.stats.loc > 0
-    # Compat shim populates ``doc.beyond``.
-    assert len(doc.beyond) >= 1
+        assert len(e.detail.snippets) >= 1
 
 
 def test_examples_overview_table_shape_c(tmp_path):
@@ -1183,11 +1185,13 @@ def test_examples_overview_table_shape_c(tmp_path):
         strict=False,
         tab=TAB_EXAMPLES,
     )
-    assert len(doc.chapters) == 1
-    ch = doc.chapters[0]
-    assert ch.id.startswith("examples-ch-")
-    assert len(ch.sections) == 1
-    sec = ch.sections[0]
+    # Flat-section shape: the H2 becomes ONE Section, its H3 headline-table
+    # rows are its entries.
+    assert doc.chapters == []
+    assert doc.beyond == []
+    assert len(doc.sections) == 1
+    sec = doc.sections[0]
+    assert sec.id.startswith("examples-sec-")
     # 3 overview-table rows → 3 entries.
     assert len(sec.entries) == 3
     # Position 0 = the program entry (Definition ex_geom).
@@ -1215,11 +1219,10 @@ def test_examples_overview_table_shape_c(tmp_path):
     )
     # Position 2 = the structural lemma.
     assert sec.entries[2].paper_kind == "Lem"
-    # Stats roll up.
-    assert ch.stats.n_entries == 3
-    assert ch.stats.n_defs == 1
-    assert ch.stats.n_thms == 2
-    assert ch.stats.loc > 0
+    # Entry kinds roll up as expected: 1 Def + 2 Thm/Lem.
+    kinds = [e.paper_kind for e in sec.entries]
+    assert kinds.count("Def") == 1
+    assert kinds.count("Thm") + kinds.count("Lem") == 2
     # Section-level snippets list is empty — every H3 snippet got
     # hoisted into an entry's detail.  This is what lets the section
     # template skip the standalone ``<section class="snippets">``

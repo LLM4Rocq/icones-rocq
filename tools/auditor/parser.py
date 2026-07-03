@@ -796,32 +796,44 @@ def normalise(
                     )
             continue
 
-        # paper or beyond — extract entries from tables + detail blocks
+        # paper or beyond — extract entries from tables + detail blocks.
+        #
+        # The chapter_mode ``beyond`` branch (PPL / Examples) builds its
+        # own flat Section + entries further down; it does NOT consume the
+        # shared first-pass ``entries``.  Skip the first pass entirely for
+        # those blocks — running it would (a) treat the H2 index table as
+        # an entry source and (b) claim H3 slugs a second time, colliding
+        # with the flat-section entry ids built below.
+        chapter_beyond = chapter_mode and blk.kind == "beyond"
         h3_by_label: dict[str, _H3Block] = {}
         h3_by_ident: dict[str, _H3Block] = {}
-        for h3 in blk.h3_blocks:
-            # Only register H3 blocks WITHOUT their own tables as detail
-            # blocks of overview-table rows.  An H3 with its own table is
-            # a structural sub-section (the "Beyond the paper" convention).
-            if not h3.tables:
-                h3_by_label[h3.label] = h3
-                # Index by every backticked identifier in the H3 heading —
-                # the convention is to list the lemma/definition names in
-                # parens.  Lets us match e.g. table row "LL `!`" with idents
-                # {Bang, nl, lin, lin_beta, lin_unique} against H3
-                # "Linear exponential `!` (`Bang`, `nl`, ...)".
-                for ident in _BACKTICK_RE.findall(h3.heading):
-                    if ident and not ident.startswith("theories/"):
-                        h3_by_ident.setdefault(ident, h3)
-
         section_id: str | None = None
-        if blk.kind == "paper" and blk.paper_section_number:
-            section_id = "sec-" + slugify_label(blk.paper_section_number)
-            section_id = claim_slug(section_id, blk.heading)
-
         entries: list[Entry] = []
 
-        for tbl in blk.tables:
+        if not chapter_beyond:
+            for h3 in blk.h3_blocks:
+                # Only register H3 blocks WITHOUT their own tables as detail
+                # blocks of overview-table rows.  An H3 with its own table is
+                # a structural sub-section (the "Beyond the paper" convention).
+                if not h3.tables:
+                    h3_by_label[h3.label] = h3
+                    # Index by every backticked identifier in the H3 heading —
+                    # the convention is to list the lemma/definition names in
+                    # parens.  Lets us match e.g. table row "LL `!`" with idents
+                    # {Bang, nl, lin, lin_beta, lin_unique} against H3
+                    # "Linear exponential `!` (`Bang`, `nl`, ...)".
+                    for ident in _BACKTICK_RE.findall(h3.heading):
+                        if ident and not ident.startswith("theories/"):
+                            h3_by_ident.setdefault(ident, h3)
+
+            if blk.kind == "paper" and blk.paper_section_number:
+                section_id = "sec-" + slugify_label(blk.paper_section_number)
+                section_id = claim_slug(section_id, blk.heading)
+
+        # First-pass entry extraction (H2 table rows matched to H3 detail
+        # blocks) runs only for non-chapter blocks; ``chapter_beyond``
+        # blocks build their own flat Section + entries further down.
+        for tbl in (blk.tables if not chapter_beyond else []):
             for row in tbl.rows:
                 if not row.cells:
                     continue
@@ -1002,94 +1014,85 @@ def normalise(
                 )
             )
         elif blk.kind == "beyond" and chapter_mode:
-            # Chapter-tree path (PPL / Examples).  Build a single Chapter
-            # per H2 with one Section per H3; entries come from per-H3
-            # tables (or a synthetic single Entry when there's just
-            # prose + snippets).  The legacy "beyond" branch below is
-            # bypassed for PPL/Examples — a compat shim re-projects the
-            # chapter tree onto ``doc.beyond`` after the loop.
+            # Flat-section path (PPL / Examples).  Each H2 becomes ONE
+            # flat Section — exactly like a Paper-tab section — whose H3
+            # definitions are its entries.  This mirrors paper-mode
+            # (section with a flat ``entries`` list rendered inline as
+            # cards), instead of the older Chapter(one Section per H3)
+            # tree that fragmented every H3 into its own one-entry
+            # section.  ``doc.chapters`` stays empty for PPL/Examples, so
+            # render.py / toc.py route these tabs through the same section
+            # path as paper.
             chapter_title = blk.heading
             for prefix in ("Beyond the paper — ", "Beyond the paper -- "):
                 if chapter_title.startswith(prefix):
                     chapter_title = chapter_title[len(prefix):]
                     break
-            chapter_id = claim_slug(
-                f"{tab}-ch-" + slugify_label(chapter_title), blk.heading
+            section_id = claim_slug(
+                f"{tab}-sec-" + slugify_label(chapter_title), blk.heading
             )
-            ch_sections: list[Section] = []
-            ch_snippets_total = 0
-            ch_snippets_loc = 0
-            ch_n_entries = 0
-            ch_n_defs = 0
-            ch_n_thms = 0
-            thm_kinds = {"Thm", "Lem", "Prop", "Cor", "Cat", "Fubini"}
+
+            # Materialise every H3 raw snippet to a CoqSnippet with
+            # line_count populated (shared by Shape-(c) detail matching
+            # and Shape-(b) synthetic-entry detail).
+            def _h3_coq(raw_snippets: list[_RawSnippet]) -> list[CoqSnippet]:
+                out: list[CoqSnippet] = []
+                for s in raw_snippets:
+                    lc = s.raw.count("\n") + (
+                        0 if s.raw.endswith("\n") else 1
+                    )
+                    out.append(
+                        CoqSnippet(
+                            source_file=s.source_file or "",
+                            source_section=s.source_section,
+                            highlighted_html=_highlight_coq(s.raw),
+                            line_count=lc,
+                        )
+                    )
+                return out
+
+            def _to_rocq_files(paths: list[str], label: str) -> list[RocqFile]:
+                rfs: list[RocqFile] = []
+                for vfile in paths:
+                    if strict and not (project_root / vfile).is_file():
+                        warnings_out.append(
+                            f"file '{vfile}' referenced in '{label}' "
+                            f"but not on disk"
+                        )
+                    rfs.append(
+                        RocqFile(
+                            path=vfile,
+                            section=None,
+                            github_url=resolver.github_url(vfile),
+                            coqdoc_url=resolver.coqdoc_url(vfile),
+                            coqdoc_anchor=None,
+                        )
+                    )
+                return rfs
+
+            # The flat section's entries: iterate every H3 and append its
+            # entries (one per table row when the H3 carries a headline
+            # table; one synthetic prose+snippet entry otherwise).
+            entries = []
+            # H3-level stray snippets that belong to no table row roll up
+            # into the section-level ``snippets`` block.
+            section_snippets: list[CoqSnippet] = []
 
             for h3 in blk.h3_blocks:
-                sec_id = claim_slug(
-                    f"{tab}-sec-" + slugify_label(h3.paper_label), h3.heading
-                )
-                # Section-level file list: scrape the (* theories/foo.v *)
+                # Per-H3 file list: scrape the (* theories/foo.v *)
                 # comments out of each snippet.
-                section_files: list[str] = []
+                h3_files: list[str] = []
                 for s in h3.snippets:
-                    if s.source_file and s.source_file not in section_files:
-                        section_files.append(s.source_file)
-
-                def _to_rocq_files(paths: list[str], label: str) -> list[RocqFile]:
-                    rfs: list[RocqFile] = []
-                    for vfile in paths:
-                        if strict and not (project_root / vfile).is_file():
-                            warnings_out.append(
-                                f"file '{vfile}' referenced in '{label}' "
-                                f"but not on disk"
-                            )
-                        rfs.append(
-                            RocqFile(
-                                path=vfile,
-                                section=None,
-                                github_url=resolver.github_url(vfile),
-                                coqdoc_url=resolver.coqdoc_url(vfile),
-                                coqdoc_anchor=None,
-                            )
-                        )
-                    return rfs
-
-                # Materialise every H3 raw snippet to a CoqSnippet with
-                # line_count populated; this is what the section-level
-                # ``snippets`` list carries (and what Shape-(b) detail
-                # reuses verbatim).
-                def _h3_coq(raw_snippets: list[_RawSnippet]) -> list[CoqSnippet]:
-                    out: list[CoqSnippet] = []
-                    for s in raw_snippets:
-                        lc = s.raw.count("\n") + (
-                            0 if s.raw.endswith("\n") else 1
-                        )
-                        out.append(
-                            CoqSnippet(
-                                source_file=s.source_file or "",
-                                source_section=s.source_section,
-                                highlighted_html=_highlight_coq(s.raw),
-                                line_count=lc,
-                            )
-                        )
-                    return out
-
-                section_snippets = _h3_coq(h3.snippets)
-
-                sec_entries: list[Entry] = []
+                    if s.source_file and s.source_file not in h3_files:
+                        h3_files.append(s.source_file)
 
                 if h3.tables:
-                    # Shape (c): Paper-style overview tables — one Entry
-                    # per row.  The leftmost cell carries the kind label
-                    # ("Def (`ex_geom`)" / "Thm (`ex_geom_cbv_mass_one`)",
-                    # the paper number being optional), the middle cell
-                    # the English statement, the right cell the Rocq
-                    # identifiers and source file.  Each row's identifiers
-                    # are matched against the section's fenced snippets;
-                    # the first hit becomes the entry's foldable detail —
-                    # the Paper-tab entry anatomy.  Matched snippets are
-                    # dropped from the section-level list so the
-                    # standalone snippets block renders no duplicates.
+                    # Shape (c): Paper-style headline table — one Entry
+                    # per row.  Each row's identifiers are matched against
+                    # the H3's fenced snippets; the first hit becomes the
+                    # entry's foldable detail.  Any snippet not consumed
+                    # by a row rolls up into the section-level snippets.
+                    h3_snippets = _h3_coq(h3.snippets)
                     consumed_snippet_idxs: set[int] = set()
                     for tbl in h3.tables:
                         for row in tbl.rows:
@@ -1144,13 +1147,13 @@ def normalise(
                                         if s is m:
                                             consumed_snippet_idxs.add(i)
                                             break
-                            sec_entries.append(
+                            entries.append(
                                 Entry(
                                     id=slug,
                                     paper_label=paper_label,
                                     paper_kind=kind,
                                     paper_number=number,
-                                    paper_section_id=sec_id,
+                                    paper_section_id=section_id,
                                     statement_html=statement_html,
                                     rocq_idents=idents,
                                     rocq_files=rocq_files,
@@ -1159,16 +1162,21 @@ def normalise(
                                     cross_refs=[],
                                 )
                             )
-                    section_snippets = [
+                    section_snippets.extend(
                         s
-                        for i, s in enumerate(section_snippets)
+                        for i, s in enumerate(h3_snippets)
                         if i not in consumed_snippet_idxs
-                    ]
+                    )
                 else:
-                    # Shape (b): no table — prose + snippets only.
-                    # Build a SINGLE Entry whose id == section.id so the
-                    # template can render it inline without a duplicate
-                    # card grid.
+                    # Shape (b): no table — prose + snippets only.  Build
+                    # a SINGLE Entry whose id is derived from the H3 (NOT
+                    # equal to the section id — that canonical-collapse
+                    # trick was for the one-H3-per-section shape; in a
+                    # flat multi-entry section every entry is a normal
+                    # card).  The entry carries its own snippets in detail.
+                    entry_id = claim_slug(
+                        slugify_label(h3.paper_label), h3.heading
+                    )
                     h_idents = [
                         ident
                         for ident in _BACKTICK_RE.findall(h3.heading)
@@ -1193,39 +1201,80 @@ def normalise(
                     )
                     # Derive kind from the snippet content (Thm/Lem/Def/...).
                     derived_kind, _ = _derive_kind_from_snippets(h3.snippets)
-                    sec_entries.append(
+                    entries.append(
                         Entry(
-                            id=sec_id,
+                            id=entry_id,
                             paper_label=h3.paper_label,
                             paper_kind=derived_kind,
                             paper_number=None,
-                            paper_section_id=sec_id,
+                            paper_section_id=section_id,
                             statement_html=first_para_html,
                             rocq_idents=h_idents,
-                            rocq_files=_to_rocq_files(
-                                section_files, h3.paper_label
-                            ),
+                            rocq_files=_to_rocq_files(h3_files, h3.paper_label),
                             status=status,
                             detail=EntryDetail(
                                 prose_html=detail_prose_html,
                                 notes=list(h3.notes),
-                                snippets=list(section_snippets),
+                                snippets=_h3_coq(h3.snippets),
                             ),
                             cross_refs=[],
                         )
                     )
-                    # The lone entry's foldable detail already carries
-                    # the section's snippets; clear the section-level
-                    # snippets list so the standalone
-                    # ``<section class="snippets">`` block above the
-                    # entry no longer duplicates the same code.
-                    section_snippets = []
 
-                # Section-level overview: one row per entry (label ->
-                # statement -> comma-joined Rocq idents, or the file path
-                # when a row carries no backticked idents).
-                sec_overview: list[OverviewRow] = []
-                for e in sec_entries:
+            # Section-level overview: PPL H2s carry a
+            # "Construction | Rocq" table in ``blk.tables``; reuse its
+            # rows verbatim (linking each back to the matching entry via
+            # its shared Rocq idents).  Examples H2s have no table (the
+            # tables live under each H3), so synthesise one row per entry.
+            section_overview: list[OverviewRow] = []
+            _ident_entries: dict[str, set[str]] = {}
+            for e in entries:
+                for ident in e.rocq_idents:
+                    _ident_entries.setdefault(ident, set()).add(e.id)
+
+            def _match_entry(*cells: str) -> str:
+                """The entry sharing the most Rocq idents (backticked) with
+                these raw cells — unique winner only, else ''."""
+                counts: dict[str, int] = {}
+                for cell in cells:
+                    for ident in re.findall(r"`([^`]+)`", cell):
+                        for eid in _ident_entries.get(ident, ()):
+                            counts[eid] = counts.get(eid, 0) + 1
+                if not counts:
+                    return ""
+                top = max(counts.values())
+                winners = [eid for eid, n in counts.items() if n == top]
+                return winners[0] if len(winners) == 1 else ""
+
+            if blk.tables:
+                for tbl in blk.tables:
+                    for row in tbl.rows:
+                        if not row.cells:
+                            continue
+                        if len(row.cells) == 3:
+                            section_overview.append(
+                                OverviewRow(
+                                    label=_inline_to_html(md, row.cells[0]),
+                                    statement_html=_inline_to_html(md, row.cells[1]),
+                                    rocq_html=_inline_to_html(md, row.cells[2]),
+                                    section_id=_match_entry(
+                                        row.cells[0], row.cells[2]
+                                    ),
+                                )
+                            )
+                        elif len(row.cells) == 2:
+                            section_overview.append(
+                                OverviewRow(
+                                    label=_inline_to_html(md, row.cells[0]),
+                                    statement_html="",
+                                    rocq_html=_inline_to_html(md, row.cells[1]),
+                                    section_id=_match_entry(
+                                        row.cells[0], row.cells[1]
+                                    ),
+                                )
+                            )
+            else:
+                for e in entries:
                     if e.rocq_idents:
                         rocq_html = ", ".join(
                             f"<code>{html_mod.escape(i)}</code>"
@@ -1236,138 +1285,27 @@ def normalise(
                             f"<code>{html_mod.escape(rf.path)}</code>"
                             for rf in e.rocq_files
                         )
-                    sec_overview.append(
+                    section_overview.append(
                         OverviewRow(
                             label=e.paper_label,
                             statement_html=e.statement_html,
                             rocq_html=rocq_html,
+                            section_id=e.id,
                         )
                     )
 
-                sec = Section(
-                    id=sec_id,
+            sections.append(
+                Section(
+                    id=section_id,
                     paper_section="",
                     paper_section_number="",
-                    title=h3.paper_label,
-                    intro_html="\n".join(h3.paragraphs),
-                    entries=sec_entries,
-                    notes_html="\n".join(n.html for n in h3.notes),
-                    chapter_id=chapter_id,
-                    snippets=section_snippets,
-                    overview=sec_overview,
-                )
-                ch_sections.append(sec)
-
-                # Roll up stats.
-                ch_snippets_total += len(section_snippets)
-                ch_snippets_loc += sum(s.line_count for s in section_snippets)
-                for e in sec_entries:
-                    ch_n_entries += 1
-                    if e.paper_kind == "Def":
-                        ch_n_defs += 1
-                    elif e.paper_kind in thm_kinds:
-                        ch_n_thms += 1
-                    if e.detail is not None:
-                        ch_snippets_total += len(e.detail.snippets)
-                        ch_snippets_loc += sum(
-                            s.line_count for s in e.detail.snippets
-                        )
-
-            stats = ChapterStats(
-                n_sections=len(ch_sections),
-                n_entries=ch_n_entries,
-                n_defs=ch_n_defs,
-                n_thms=ch_n_thms,
-                n_snippets=ch_snippets_total,
-                loc=ch_snippets_loc,
-            )
-
-            # Chapter-level overview.  PPL chapters carry an H2-level
-            # "Construction | Rocq" table in ``blk.tables``: reuse its
-            # rows verbatim (cell0 -> item, 3-col -> +statement, trailing
-            # cell -> Rocq).  Examples chapters have no H2 table (the
-            # tables live under each H3), so synthesise one row per
-            # section: title -> comma-joined idents of its entries.
-            chapter_overview: list[OverviewRow] = []
-            # Map each Rocq identifier to the section(s) defining it, so an
-            # authored overview row can be linked back to its section — this
-            # turns the overview table into the chapter's navigable index and
-            # lets the redundant one-card-per-section grid be dropped.
-            _ident_secs: dict[str, set[str]] = {}
-            for sec in ch_sections:
-                for e in sec.entries:
-                    for ident in e.rocq_idents:
-                        _ident_secs.setdefault(ident, set()).add(sec.id)
-
-            def _match_section(*cells: str) -> str:
-                """The section sharing the most Rocq idents (backticked) with
-                these raw cells — unique winner only, else ''."""
-                counts: dict[str, int] = {}
-                for cell in cells:
-                    for ident in re.findall(r"`([^`]+)`", cell):
-                        for sid in _ident_secs.get(ident, ()):
-                            counts[sid] = counts.get(sid, 0) + 1
-                if not counts:
-                    return ""
-                top = max(counts.values())
-                winners = [sid for sid, n in counts.items() if n == top]
-                return winners[0] if len(winners) == 1 else ""
-
-            if blk.tables:
-                for tbl in blk.tables:
-                    for row in tbl.rows:
-                        if not row.cells:
-                            continue
-                        if len(row.cells) == 3:
-                            chapter_overview.append(
-                                OverviewRow(
-                                    label=_inline_to_html(md, row.cells[0]),
-                                    statement_html=_inline_to_html(md, row.cells[1]),
-                                    rocq_html=_inline_to_html(md, row.cells[2]),
-                                    section_id=_match_section(
-                                        row.cells[0], row.cells[2]
-                                    ),
-                                )
-                            )
-                        elif len(row.cells) == 2:
-                            chapter_overview.append(
-                                OverviewRow(
-                                    label=_inline_to_html(md, row.cells[0]),
-                                    statement_html="",
-                                    rocq_html=_inline_to_html(md, row.cells[1]),
-                                    section_id=_match_section(
-                                        row.cells[0], row.cells[1]
-                                    ),
-                                )
-                            )
-            else:
-                for sec in ch_sections:
-                    sec_idents: list[str] = []
-                    for e in sec.entries:
-                        for ident in e.rocq_idents:
-                            if ident not in sec_idents:
-                                sec_idents.append(ident)
-                    chapter_overview.append(
-                        OverviewRow(
-                            label=sec.title,
-                            statement_html="",
-                            rocq_html=", ".join(
-                                f"<code>{html_mod.escape(i)}</code>"
-                                for i in sec_idents
-                            ),
-                            section_id=sec.id,
-                        )
-                    )
-
-            chapters.append(
-                Chapter(
-                    id=chapter_id,
                     title=chapter_title,
                     intro_html=blk.intro_html,
-                    sections=ch_sections,
+                    entries=entries,
                     notes_html=blk.notes_html,
-                    stats=stats,
-                    overview=chapter_overview,
+                    chapter_id="",
+                    snippets=section_snippets,
+                    overview=section_overview,
                 )
             )
 
@@ -1525,24 +1463,6 @@ def normalise(
                         snippets=[],
                         notes_html=blk.notes_html,
                     ),
-                )
-
-    # Compat shim: project the chapter tree onto ``doc.beyond`` so
-    # legacy callers (test_two_col_beyond, parse_two_tabs assertions,
-    # gh-blueprint export) keep their ``len(doc.beyond) >= 1`` check.
-    if chapter_mode and chapters:
-        for ch in chapters:
-            for sec in ch.sections:
-                beyond.append(
-                    BeyondContrib(
-                        id=sec.id,
-                        title=sec.title,
-                        intro_html=sec.intro_html,
-                        entries=sec.entries,
-                        snippets=sec.snippets,
-                        notes_html=sec.notes_html,
-                        chapter=ch.title,
-                    )
                 )
 
     return Document(
