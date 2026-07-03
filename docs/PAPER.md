@@ -1904,6 +1904,8 @@ Lemma Yfix_fix (f : BB) :
 |---|---|---|
 | LL $!$ | The linear-exponential comonad $! : \mathbf{ICones} \to \mathbf{ICones}$, obtained as $! = \mathsf{E}\circ\mathsf{Der}$ where $\mathsf{E}$ is the left adjoint of $\mathsf{Der}$ (existing by the special adjoint functor theorem). | `Bang`, `nl`, `lin`, `lin_beta`, `lin_unique` (the adjunction data) — `theories/homs/exp_adjunction.v`; `Bang_comonad` — `theories/homs/bang.v` |
 | Comonad | $(!, \mathsf{der}, \mathsf{dig})$ is a comonad with the standard counit / coassociativity, satisfying $\mathsf{der}_B(x^!)=x$ and $\mathsf{dig}_B(x^!)=x^{!!}$. | `der`, `dig`, `der_prom`, `dig_prom`, the comonad laws — `theories/homs/bang.v` |
+| Lem 9.2 | Two linear maps ${!B_1}\otimes\cdots\otimes{!B_n}\to C$ agreeing on every promoted pure tensor $x_1^!\otimes\cdots\otimes x_n^!$ (for $x_i\in\mathcal{B}\underline{B_i}$) are equal. | `tens_excl_charact` (the $n=2$ case characterising the binary Seely iso), with `tens_excl_charact3` / `tens_excl_charact3l` the $n=3$ coherence instances — `theories/homs/seely.v` |
+| Lem 9.3 | The exponential functor on a promoted point: $({!f})(x^!)=f(x)^!$. | `bang_fmap_prom` (the computation behind `bang_fmap_id` / `bang_fmap_comp` functoriality and `Coalg_coassoc`) — `theories/homs/bang.v` |
 | Lem 9.4 | The natural iso $(B \Rightarrow (C \multimap D)) \simeq (C \multimap (B \Rightarrow D))$ ("swap a stable outer and a linear inner"). | `stab_lin_swap` (a fully spelled-out `icones_iso`; paper gives the map + "pattern seen many times", no proof) — `theories/stable/stab_lin_swap.v` |
 | Thm 9.5 | $(\mathbf{ICones}, \otimes, 1, !)$ is a **Seely category** (i.e. has the Seely isos $\mathsf{m}^2 : {!B_1} \otimes {!B_2} \simeq {!(B_1 \mathrel{\&} B_2)}$ and $\mathsf{m}^0 : 1 \simeq {!\top}$, and the comonad / SMC coherence). | `Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`, the full `SeelyCategory` record + the witness `ICones_Seely` — `theories/homs/seely.v` |
 | Thm 9.7 | For each $X \in \mathbf{Ar}$, $\mathsf{FMeas}(X)$ is a $!$-coalgebra (with structure map $\mathsf{h}_X(\mu) = \int_{r\in X} (\boldsymbol\delta^X(r))^! \,\mu(dr)$); the assignment $X \mapsto \mathsf{FMeas}(X)$ is a functor into $\mathbf{ICones}^!$. | `Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap` — `theories/homs/coalgebra.v` |
@@ -1990,6 +1992,52 @@ Definition Bang_comonad (R : realType) (Ar : MeasSubcat R) : Comonad Ar :=
      cm_der  := @der R Ar;
      cm_dig  := @dig R Ar;
      (* ... functor and comonad-law witnesses ... *) |}.
+```
+
+### Lem 9.2 (`tens_excl_charact`)
+
+Promoted pure tensors are *jointly separating* for linear maps out of a tensor of exponentials: two maps $f,g\in\mathbf{ICones}({!B_1}\otimes\cdots\otimes{!B_n},C)$ that agree on every $x_1^!\otimes\cdots\otimes x_n^!$ (with each $x_i$ in the unit ball) are equal. This is what pins down the Seely isos: an equation on promoted pure tensors fully characterises a map. The formalization provides the $n=2$ case `tens_excl_charact` (used for the binary Seely iso $\mathsf{m}^2$) together with the two $n=3$ instances `tens_excl_charact3` (right-associated $!A\otimes(!B\otimes!C)$) and `tens_excl_charact3l` (left-associated $(!A\otimes!B)\otimes!C$) needed by the monoidal-coherence proofs.
+
+> **Paper — Lemma 9.2** (arXiv 2212.02371, `lemma:tens-excl-equal-charact`). Let $n\geq 1$, let $B_1,\dots,B_n,C$ be objects of $\mathbf{ICones}$ and $f$ and $g$ be elements of $\mathbf{ICones}({!B_1}\otimes\cdots\otimes{!B_n},C)$ such that $f(x_1^!\otimes\cdots\otimes x_n^!)=g(x_1^!\otimes\cdots\otimes x_n^!)$ for all $(x_i\in\mathcal{B}\underline{B_i})_{i=1}^n$. Then $f=g$.
+
+> **Difference.** The paper states the lemma for general $n$ (by induction). The mechanisation instantiates the $n=2$ case actually used to characterise the binary Seely iso, and the two $n=3$ cases (right- and left-associated) needed by the monoidal-functor associativity coherence; the $n=3$ proofs are the paper's induction step unfolded once, reducing to the $n=2$ case.
+
+```coq
+(* theories/homs/seely.v *)
+
+Lemma tens_excl_charact (B1 B2 C : ICone.type Ar)
+    (f g : icones_hom Ar (Bang Ar B1 ⊗ Bang Ar B2) C) :
+  (forall (x1 : B1) (x2 : B2),
+     cone_norm x1 <= 1 -> cone_norm x2 <= 1 ->
+     Lfun f (x1! ⊗p x2!) = Lfun g (x1! ⊗p x2!)) ->
+  f = g.
+
+Lemma tens_excl_charact3 (A B C C0 : ICone.type Ar)
+    (f g : icones_hom Ar (Bang Ar A ⊗ (Bang Ar B ⊗ Bang Ar C)) C0) :
+  (forall (x : A) (y : B) (z : C),
+     cone_norm x <= 1 -> cone_norm y <= 1 -> cone_norm z <= 1 ->
+     Lfun f (x! ⊗p (y! ⊗p z!)) = Lfun g (x! ⊗p (y! ⊗p z!))) ->
+  f = g.
+
+Lemma tens_excl_charact3l (A B C C0 : ICone.type Ar)
+    (f g : icones_hom Ar ((Bang Ar A ⊗ Bang Ar B) ⊗ Bang Ar C) C0) :
+  (forall (x : A) (y : B) (z : C),
+     cone_norm x <= 1 -> cone_norm y <= 1 -> cone_norm z <= 1 ->
+     Lfun f ((x! ⊗p y!) ⊗p z!) = Lfun g ((x! ⊗p y!) ⊗p z!)) ->
+  f = g.
+```
+
+### Lem 9.3 (`bang_fmap_prom`)
+
+The exponential functor $!$ commutes with promotion on unit-ball points: for a linear map $f\in\mathbf{ICones}(B,C)$ and $x\in\mathcal{B}\underline{B}$, we have $({!f})(x^!)=f(x)^!$. This single computation is the engine behind functoriality of $!$ (`bang_fmap_id`, `bang_fmap_comp`), the naturality squares `der_nat` / `dig_nat`, the Seely naturality `Seely2_natural`, and the coalgebra coassociativity `Coalg_coassoc`.
+
+> **Paper — Lemma 9.3** (arXiv 2212.02371, `lemma:excl-fun-prom`). Let $f\in\mathbf{ICones}(B,C)$ and $x\in\mathcal{B}\underline{B}$. We have $({!f})(x^!)=f(x)^!$.
+
+```coq
+(* theories/homs/bang.v *)
+
+Lemma bang_fmap_prom (B C : ICone.type Ar) (f : icones_hom Ar B C) (x : B) :
+  cone_norm x <= 1 -> Lfun (bang_fmap f) x! = prom (Lfun f x).
 ```
 
 ### Lem 9.4 (`stab_lin_swap`)
