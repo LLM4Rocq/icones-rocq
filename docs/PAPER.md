@@ -2486,8 +2486,8 @@ make -j
 echo 'From Icones.homs Require Import seely. Print Assumptions Icones.homs.seely.ICones_Seely.' \
   | rocq top -Q theories Icones
 
-# Or for the higher-order PPL example:
-echo 'From Icones.programs Require Import ppl. Print Assumptions Icones.programs.ppl.ex_random_linear_denot_E.' \
+# Or for the rejection-sampling master theorem:
+echo 'From Icones.programs Require Import ex_reject_model. Print Assumptions Icones.programs.ex_reject_model.reject_model_master.' \
   | rocq top -Q theories Icones
 ```
 
