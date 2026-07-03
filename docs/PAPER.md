@@ -59,7 +59,14 @@ follows the same definitional path, packaged as a Hierarchy Builder tower.
 | Def 2.1 | A *precone* is an $\mathbb{R}_{\geq 0}$-semimodule with cancellative, positive addition; the *cone order* $x_1 \leq x_2$ holds iff $x_2 = x_1 + x$ for some $x$. | `precone`, `PreCone.type` — `theories/cones/precone.v` |
 | Def 2.2 | A *cone* is a precone equipped with a norm $\lVert\cdot\rVert : P \to \mathbb{R}_{\geq 0}$ that is homogeneous, separating, sub-additive, order-monotone, and $\omega$-complete on norm-bounded increasing chains. | `Cone.type` — `theories/cones/cone.v` |
 | Cat 2 | The category $\mathbf{Cones}$ has cones as objects and linear continuous maps $f$ with $\lVert f\rVert \leq 1$ as morphisms. | `cones_hom`, `cones_comp`, `Cones` (the category) — `theories/cones/cone_cat.v` |
+| Lem 2.9 | Addition and scalar multiplication on a cone are increasing and $\omega$-continuous. | `addr_omega_continuous`, `addl_omega_continuous`, `scaler_omega_continuous` — `theories/cones/basic_lemmas.v` |
 | Lem 2.8 / 2.10 | $\omega$-continuity of the inverse of a bijective linear continuous map / of the difference $g - f$ of an increasing $f$ below an $\omega$-continuous $g$. | `invf_omega_continuous`, `diff_omega_continuous` — `theories/cones/basic_lemmas.v` |
+| Lem 2.11 | A linear map is bounded on the unit ball; the operator norm $\lVert f\rVert$. | `linmap_bounded`, `linmap_norm` — `theories/cones/basic_lemmas.v` |
+| Thm 2.18 | $\mathbf{Cones}$ has all small products $\mathop{\&}_{i\in I}P_i$ (terminal object $\top$ at $I=\emptyset$). | `cones_prod`, `cones_proj`, `cones_tuple` — `theories/cones/cone_cat.v` |
+| Lem 2.19 | Separate $\omega$-continuity implies joint $\omega$-continuity (diagonal-collapse form). | `diagonal_collapse` — `theories/cones/cone_cat.v` |
+| Thm 2.20 | $\mathbf{Cones}$ has all binary equalisers, hence is complete; the inclusion reflects the order. | `cones_eq`, `cones_eq_incl`, `cones_eq_med` — `theories/cones/cone_cat.v` |
+| Lem 2.21 / Prop 2.22 | An iso in $\mathbf{Cones}$ preserves the norm exactly (constructive form of $\lVert f\rVert=1$). | `cones_iso_preserves_norm` — `theories/cones/cone_cat.v` |
+| Lem 2.23 | Transport of a cone structure along a bijection. | `transport_isPrecone` — `theories/cones/cone_cat.v` |
 
 Notable design choice: $\omega$-continuity comes in two flavours — `is_omega_continuous`
 (input and output chains live in the unit ball; linear-tailored) and
@@ -178,6 +185,32 @@ The category `Cones` is the locally-small category whose hom-type is
 named record here (the project follows PLAN Strategy C: no abstract
 `Category` typeclass).
 
+### Lemma 2.9 (`addr_omega_continuous`, `addl_omega_continuous`, `scaler_omega_continuous`)
+
+On any cone, both structural operations — addition $P\times P\to P$ and scalar multiplication $\mathbb{R}_{\geq 0}\times P\to P$ — are increasing and $\omega$-continuous. The $\omega$-continuity trio (`addr_omega_continuous`, `addl_omega_continuous`, `scaler_omega_continuous`) is the headline; the increasing halves are `addr_increasing`, `addl_increasing`, `scaler_increasing`.
+
+> **Paper — Lemma 2.9** (arXiv 2212.02371, `content.tex:622`). Let $P$ be a cone. Addition $P\times P\to P$ and scalar multiplication $\mathbb{R}_{\geq 0}\times P\to P$ are increasing and $\omega$-continuous.
+
+> **Difference.** The paper bundles addition and scalar multiplication into one lemma, each treated as a two-argument map. The mechanisation unbundles by argument — addition in the first argument (`addr_*`), addition in the second argument (`addl_*`), and scalar multiplication in the vector argument (`scaler_*`) — and separates the *increasing* halves (`*_increasing`) from the *$\omega$-continuous* halves (`*_omega_continuous`). The $\omega$-continuity is stated via the explicit `cone_sup_ball` least-upper-bound operator: e.g. $\sup_n(u_n+y)=(\sup_n u_n)+y$.
+
+```coq
+(* theories/cones/basic_lemmas.v — Section Lemma29,
+   Variables R : realType, P : coneType R *)
+
+Lemma addr_increasing y : is_increasing (fun x : P => precone_add x y).
+Lemma addl_increasing x : is_increasing (fun y : P => precone_add x y).
+Lemma scaler_increasing r : is_increasing (fun x : P => precone_scale r x).
+
+Lemma addr_omega_continuous y :
+  is_omega_continuous (fun x : P => precone_add x y).
+
+Lemma addl_omega_continuous x :
+  is_omega_continuous (fun y : P => precone_add x y).
+
+Lemma scaler_omega_continuous (r : {nonneg R}) :
+  is_omega_continuous (fun x : P => precone_scale r x).
+```
+
 ### Lem 2.8 / 2.10 (`invf_omega_continuous`, `diff_omega_continuous`)
 
 Two $\omega$-continuity lemmas: `invf_omega_continuous` shows the inverse of a bijective linear continuous map is $\omega$-continuous (paper Lemma 2.8), and `diff_omega_continuous` shows the difference $g - f$ of an increasing $f$ dominated by an $\omega$-continuous $g$, with $g - f$ increasing, is itself $\omega$-continuous (paper Lemma 2.10).
@@ -207,6 +240,169 @@ Lemma diff_omega_continuous
   (fxgmfuch : _) (fxgmfub1 : _) :
   gmf (cone_sup_ball u uch ub1) =
     cone_sup_ball (gmf \o u) gmfuch gmfub1.
+```
+
+### Lemma 2.11 (`linmap_bounded`, `linmap_norm`)
+
+A linear map $f:P\to Q$ is bounded on the unit ball $\mathbf{B}P$, and the operator norm is $\lVert f\rVert=\sup_{x\in\mathbf{B}P}\lVert f(x)\rVert\in\mathbb{R}_{\geq 0}$. In Rocq, `linmap_bounded` produces a bound $M\geq 0$ dominating $\lVert f(x)\rVert$ on the ball; `linmap_norm` picks such an $M$ (via classical choice), with `linmap_norm_ge0` and `linmap_norm_ub` its defining properties.
+
+> **Paper — Lemma 2.11** (arXiv 2212.02371, `content.tex:676`). If $f:P\to Q$ is linear then $f(\mathbf{B}P)$ is bounded. We set $\lVert f\rVert=\sup_{x\in\mathbf{B}P}\lVert f(x)\rVert\in\mathbb{R}_{\geq 0}$.
+
+> **Difference.** The paper takes the *exact supremum* $\lVert f\rVert=\sup_{x\in\mathbf{B}P}\lVert f(x)\rVert$. The mechanisation records only that `linmap_norm` is *an* upper bound of $\{\lVert f(x)\rVert\mid x\in\mathbf{B}P\}$ (obtained by classical choice `cid` on `linmap_bounded`), not that it is the *least* upper bound — downstream cone-of-linear-maps clients (the precone $P\multimap Q$ in `cone_cat.v`) need only the bound to package their norm.
+
+```coq
+(* theories/cones/basic_lemmas.v — Section Lemma211,
+   Variables R : realType, P Q : coneType R *)
+
+Lemma linmap_bounded (f : P -> Q) :
+  is_linear f ->
+  exists M : R, 0 <= M /\
+    forall x, cone_norm x <= 1 -> cone_norm (f x) <= M.
+
+Definition linmap_norm (f : P -> Q) (Hf : is_linear f) : R :=
+  projT1 (cid (linmap_bounded Hf)).
+
+Lemma linmap_norm_ge0 (f : P -> Q) (Hf : is_linear f) :
+  0 <= linmap_norm Hf.
+
+Lemma linmap_norm_ub (f : P -> Q) (Hf : is_linear f) :
+  forall x, cone_norm x <= 1 -> cone_norm (f x) <= linmap_norm Hf.
+```
+
+### Thm 2.18 (`cones_prod`, `cones_proj`, `cones_tuple`)
+
+The category $\mathbf{Cones}$ has all small products. Given a family $(P_i)_{i\in I}$ of cones with no cardinality restriction on $I$, the product cone `cones_prod` consists of the bounded-norm families with componentwise operations and $\lVert\vec x\rVert=\sup_{i\in I}\lVert x_i\rVert$; `cones_proj` are the projections, `cones_tuple` the mediating tuple, with universal property `cones_tuple_proj` and uniqueness `cones_tuple_unique`.
+
+> **Paper — Theorem 2.18** (arXiv 2212.02371, `content.tex:820`). The category $\mathbf{Cones}$ has all small products. Given a family $(P_i)_{i\in I}$ of cones (no cardinality restriction on $I$), their categorical product $(\mathop{\&}_{i\in I}P_i,(\mathsf{pr}_i)_{i\in I})$ is: $\mathop{\&}_{i\in I}P_i$ is the set of $\vec x=(x_i)_{i\in I}\in\prod_{i\in I}P_i$ with $(\lVert x_i\rVert)_{i\in I}$ bounded, componentwise operations, and $\lVert\vec x\rVert=\sup_{i\in I}\lVert x_i\rVert$; the projections are the set-theoretic projections; given $(f_i\in\mathbf{Cones}(Q,P_i))_{i\in I}$ the mediating morphism $\langle f_i\rangle_{i\in I}$ is characterised by $f(y)=(f_i(y))_{i\in I}$. In particular the terminal object ($I=\emptyset$) is $\top$.
+
+> **Difference.** The paper's index $I$ is an arbitrary set; the Rocq family is indexed by an arbitrary `Type I`, matching "no cardinality restriction". The bounded-norm carrier is packaged as a record with a `cones_prod_bd` field carrying the boundedness witness, and the product norm is realised as the mathcomp-analysis `sup` of the componentwise norm set.
+
+```coq
+(* theories/cones/cone_cat.v — Section ProductsUniversal,
+   Variables R : realType, I : Type, P : I -> coneType R,
+             Q : coneType R, f : forall i, cones_hom Q (P i) *)
+
+Definition cones_prod (R : realType) (I : Type) (P : I -> coneType R) :
+  coneType R := cones_prod_car I P.
+
+Definition cones_proj (i : I) : cones_hom (cones_prod P) (P i).
+
+Definition cones_tuple : cones_hom Q (cones_prod P) :=
+  ConesHom cones_tuple_fun
+    cones_tuple_linear cones_tuple_continuous cones_tuple_norm_le1.
+
+Lemma cones_tuple_proj (i : I) :
+  cones_comp (cones_proj i) cones_tuple = f i.
+
+Lemma cones_tuple_unique (h : cones_hom Q (cones_prod P)) :
+  (forall i, cones_comp (cones_proj i) h = f i) -> h = cones_tuple.
+```
+
+### Lemma 2.19 (`diagonal_collapse`)
+
+Separate $\omega$-continuity of a two-argument map on $\omega$-closed subsets implies joint $\omega$-continuity. In the pointwise sup encoding, the load-bearing step is `diagonal_collapse`: a doubly-indexed, jointly monotone family collapses along the diagonal, so the row-sups are dominated by the diagonal sup.
+
+> **Paper — Lemma 2.19** (arXiv 2212.02371, `content.tex:854`). Let $P$, $Q$, $R$ be cones, $A\subseteq P$ and $B\subseteq Q$ be $\omega$-closed (so $A\times B$ is $\omega$-closed in $P\mathbin{\&}Q$), and let $f:A\times B\to R$ be separately $\omega$-continuous. Then $f$ is $\omega$-continuous.
+
+> **Difference.** The `is_omega_continuous` interface threads chain / unit-ball witnesses explicitly, so a fully-quantified two-argument statement would carry roughly a dozen proof-irrelevance hypotheses (documented at `cone_cat.v:846-880`). `diagonal_collapse` is the load-bearing pointwise form actually consumed downstream: given a jointly monotone doubly-indexed family $a$, the row-sup $\sup_k a(n,k)$ is $\leq$ the diagonal sup $\sup_k a(k,k)$. The double-sup expansion ($f(\sup u)(\sup v)=\sup_n\sup_k f(u_n)(v_k)$) then follows mechanically from separate continuity.
+
+```coq
+(* theories/cones/cone_cat.v — Section Lemma219,
+   Variables R : realType, P Q S : coneType R *)
+
+Lemma diagonal_collapse
+  (a : nat -> nat -> S)
+  (mono : forall n m k l,
+      (n <= k)%N -> (m <= l)%N -> precone_le (a n m) (a k l))
+  (diagch : forall n, precone_le (a n n) (a n.+1 n.+1))
+  (diagub1 : forall n, cone_norm (a n n) <= 1)
+  (rowch : forall n k, precone_le (a n k) (a n k.+1))
+  (rowub1 : forall n k, cone_norm (a n k) <= 1) :
+  forall n,
+    precone_le (cone_sup_ball (fun k => a n k) (rowch n) (rowub1 n))
+               (cone_sup_ball (fun k => a k k) diagch diagub1).
+```
+
+### Thm 2.20 (`cones_eq`, `cones_eq_incl`, `cones_eq_med`)
+
+The category $\mathbf{Cones}$ has all binary equalisers and therefore is complete. The equaliser cone `cones_eq` of $f,g:P\to Q$ is the sub-cone $\{x\in P\mid f(x)=g(x)\}$; `cones_eq_incl` is the equalising inclusion (`cones_eq_incl_equ`), `cones_eq_med` the mediator (`cones_eq_med_factor`, `cones_eq_med_unique`), and `cones_eq_le_underlying` records that the inclusion reflects the order.
+
+> **Paper — Theorem 2.20** (arXiv 2212.02371, `content.tex:884`). The category $\mathbf{Cones}$ has all binary equalisers and therefore is complete. Moreover, if $(E,e\in\mathbf{Cones}(E,P))$ is the equaliser of $f,g\in\mathbf{Cones}(P,Q)$ then $e$ reflects the order relation: if $x,y\in E$ satisfy $e(x)\leq_P e(y)$ then $x\leq_E y$.
+
+> **Difference.** The paper reads "$\mathbf{Cones}$ is complete" as a corollary of having products (Thm 2.18) plus binary equalisers; the mechanisation provides exactly those data. The equaliser carrier `cones_eq_car` is a subtype record $\{$`cones_eq_val : P`; `cones_eq_eq : f(val) = g(val)`$\}$, with subtype extensionality supplied by `cones_eq_extensional`; the order-reflection direction ($e(x)\leq_P e(y)\Rightarrow x\leq_E y$) is `cones_eq_le_underlying`'s converse witnessed inside the same section.
+
+```coq
+(* theories/cones/cone_cat.v — Section EqualiserUniversal,
+   Variables R : realType, P Q : coneType R,
+             f g : cones_hom P Q, T : coneType R,
+             h : cones_hom T P, Hh : cones_comp f h = cones_comp g h *)
+
+Definition cones_eq (R : realType) (P Q : coneType R)
+  (f g : cones_hom P Q) : coneType R := cones_eq_car f g.
+
+Definition cones_eq_incl : cones_hom (cones_eq f g) P.
+
+Lemma cones_eq_incl_equ :
+  cones_comp f cones_eq_incl = cones_comp g cones_eq_incl.
+
+Definition cones_eq_med : cones_hom T (cones_eq f g).
+
+Lemma cones_eq_med_factor : cones_comp cones_eq_incl cones_eq_med = h.
+
+Lemma cones_eq_med_unique (h' : cones_hom T (cones_eq f g)) :
+  cones_comp cones_eq_incl h' = h -> h' = cones_eq_med.
+
+Lemma cones_eq_le_underlying (x y : cones_eq f g) :
+  precone_le x y -> precone_le (cones_eq_val x) (cones_eq_val y).
+```
+
+### Lemma 2.21 / Prop 2.22 (`cones_iso_preserves_norm`)
+
+An isomorphism in $\mathbf{Cones}$ preserves the norm exactly. The paper proves this in two steps — Lemma 2.21 bounds $\lVert f^{-1}\rVert$ below and Proposition 2.22 concludes $\lVert f\rVert=1$; the constructive mechanisation states the endpoint directly as pointwise norm preservation.
+
+> **Paper — Lemma 2.21** (arXiv 2212.02371, `content.tex:959`). Let $P,Q$ be cones with $P\neq 0$ and $f:P\to Q$ linear, continuous and bijective. Then $\lVert f\rVert\neq 0$ and $\lVert f^{-1}\rVert\geq \lVert f\rVert^{-1}$.
+
+> **Paper — Proposition 2.22** (arXiv 2212.02371, `content.tex:985`). If $f\in\mathbf{Cones}(P,Q)$ is an iso and $P\neq 0$, then $\lVert f\rVert=1$.
+
+> **Difference.** Because the operator-norm value $\lVert f\rVert$ is not materialised in the `cones_hom_norm_le1` encoding (it is only introduced as *a* bound in Lemma 2.11), the paper's chain 2.21 $\to$ 2.22 is restated as exact pointwise norm preservation for a two-sided-invertible morphism: if $f$ has an inverse $g$ in $\mathbf{Cones}$ (with $g\circ f=\mathrm{id}$ and $f\circ g=\mathrm{id}$) then $\lVert f(x)\rVert=\lVert x\rVert$ for all $x$. This is the constructively usable content of $\lVert f\rVert=1$ (see `cone_cat.v:1349-1357`); it drops the $P\neq 0$ hypothesis, which is needed only to name the numeric value.
+
+```coq
+(* theories/cones/cone_cat.v — Section ConesIso,
+   Variables R : realType, P Q : coneType R *)
+
+Lemma cones_iso_preserves_norm
+  (f : cones_hom P Q) (g : cones_hom Q P)
+  (Hgf : cones_comp g f = cones_id P)
+  (Hfg : cones_comp f g = cones_id Q) :
+  forall x : P, cone_norm (cones_hom_fun f x) = cone_norm x.
+```
+
+### Lemma 2.23 (`transport_isPrecone`)
+
+Given a cone $P$ and a bijection $f:P\to S$ onto a set $S$, there is exactly one cone structure on $S$ making $f$ an iso in $\mathbf{Cones}$. The transported operations are $s+t:=f(f^{-1}s+f^{-1}t)$, $r\cdot s:=f(r\cdot f^{-1}s)$, $\lVert s\rVert:=\lVert f^{-1}s\rVert$; `transport_isPrecone` assembles the transported *precone* structure from the `trans_*` axiom lemmas.
+
+> **Paper — Lemma 2.23** (arXiv 2212.02371, `content.tex:1003`). Let $P$ be a cone, $S$ a set and $f:P\to S$ a bijective function. There is exactly one cone structure on $S$ for which $f$ becomes an iso in $\mathbf{Cones}$.
+
+> **Difference.** The mechanisation establishes *existence* of the transported **precone** structure only — `transport_isPrecone : isPrecone R S`, built from `trans_add`/`trans_scale`/`trans_norm` and the twelve `trans_*` axiom lemmas. Packaging the full `HB.instance` of the cone (with the norm axioms) is deferred as a downstream task and re-stated per target file when needed concretely (see the note at `cone_cat.v:1473-1478`); uniqueness is exactly the observation that every transported axiom is determined by $f$.
+
+```coq
+(* theories/cones/cone_cat.v — Section ConesTransport,
+   Variables R : realType, P : coneType R, S : Type,
+             f : P -> S, finv : S -> P,
+             finvK : forall s, f (finv s) = s,
+             fK : forall x, finv (f x) = x *)
+
+Definition trans_add (s t : S) : S := f (precone_add (finv s) (finv t)).
+Definition trans_scale (r : {nonneg R}) (s : S) : S :=
+  f (precone_scale r (finv s)).
+Definition trans_norm (s : S) : R := cone_norm (finv s).
+
+Definition transport_isPrecone : isPrecone R S :=
+  isPrecone.Build R S
+    trans_addA trans_addC trans_add0
+    trans_scale_DAr trans_scale_DAl trans_scale_A
+    trans_scale_1 trans_scale_0r trans_scale_0l
+    trans_cancel trans_pos.
 ```
 
 ---
