@@ -1023,14 +1023,36 @@ Proof. by exists icones_subobject_class; exact: icones_subobject_classP. Qed.
 
 | Paper | English statement | Rocq |
 |---|---|---|
+| Lem 5.3 | Argument-swapping iso $\mathsf{sw}$ across a path: $f\mapsto\lambda r.\lambda x.\,f(x)(r)$ (the path-preservation core is packaged). | `swap_lin_path` — `theories/homs/tensor_hom_iso.v` |
 | Lem 5.4 / Def 5.7 | The internal hom $C\multimap D$ carrier (the integrable cone of $\mathbf{ICones}$-morphisms $C\to D$); its action $(h\multimap g):(C_1\multimap D_1)\to(C_2\multimap D_2)$ by $(h\multimap g)(f)=g\circ f\circ h$. | `linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun` — `theories/homs/linhom.v` |
+| Lem 5.5 | Argument-swapping natural iso $\mathsf{sw}':B_1\multimap(B_2\multimap C)\to B_2\multimap(B_1\multimap C)$, $f\mapsto\lambda x_1.\lambda x_2.\,f(x_1)(x_2)$. | `swap_lin_lin_hom` — `theories/homs/tensor_iso.v` |
+| Def 5.6 | The cone of integrable bilinear maps $(C_1,C_2)\multimap D=C_1\multimap(C_2\multimap D)$. | `bilin_data`, `bilin_to_curried`, `curried_to_bilin` — `theories/homs/linhom.v` |
 | Prop 5.8 | The internal-hom action $h\multimap g$ lifts to an $\mathbf{ICones}$ morphism. | `linhom_map_icones` — `theories/homs/linhom_functor.v` |
 | Thm 5.9 | The functor $C\multimap{-}$ preserves all limits (hence has a left adjoint). | `limpl_preserves_prod`, `limpl_preserves_limits` — `theories/homs/limpl_continuous.v` |
+| Lem 5.10 | Swap of the two hom-arguments across a path: $f\mapsto\lambda(y,r,x).\,f(x,r,y)$. | `lfun_path_swap` — `theories/homs/tensor_iso.v` |
+| Lem 5.11 | A bounded $\eta:X\to(B\otimes C)\multimap 1$ is a path once its pure-tensor evaluations are measurable. | `path_tens_to_one`, `path_tens_to_one_unit` — `theories/homs/tensor_iso.v` |
 | Thm 5.12 | The currying isomorphism $(B\otimes C)\multimap D\;\simeq\;B\multimap(C\multimap D)$. | `tensor_hom_iso` — `theories/homs/tensor_iso.v` |
 | Thm 5.13 | Norm identity for pure tensors: $\lVert x\otimes y\rVert=\lVert x\rVert\,\lVert y\rVert$. | `tensor_norm_le` ($\le$) + the $\ge$ direction via Prop 3.11 — `theories/homs/tensor.v` / `tensor_iso.v` |
 | Prop 5.14 | A morphism out of an iterated tensor is determined on pure tensors $x\otimes y$. | `tensor_ext`, `tensor_ext3`, `tensor_ext4` — `theories/homs/tensor.v`, `theories/homs/smcc.v` |
 | Thm 5.15 | $(\mathbf{ICones},\otimes,1)$ is a symmetric monoidal closed category. | `ICones_SMCC`, `ICones_smcc` — `theories/homs/smcc.v` |
 | Rem 5.1 | The tensor object is given by SAFT, without an explicit carrier. | The paper's invocation of SAFT is *mechanised* concretely in `representable.v` + `tensor_construct.v` — see *Beyond the paper* below |
+
+### Lem 5.3 (`swap_lin_path`)
+
+The argument-swapping isomorphism $\mathsf{sw}$ carries a morphism $f\in\mathbf{MCones}\big(C\multimap\mathrm{Path}(X,D)\big)$ to $\lambda r.\lambda x.\,f(x)(r)\in\mathrm{Path}(X,C\multimap D)$; the load-bearing content is that the *diagonal evaluation* along a unit-ball path stays a measurable path.
+
+> **Paper — Lemma 5.3** (arXiv 2212.02371, `lemma:swap-lin-path`). There is an argument swapping isomorphism $\mathsf{sw}\in\mathbf{MCones}\big((C\multimap\mathrm{Path}(X,D)),\ \mathrm{Path}(X,C\multimap D)\big)$ which maps $f$ to $\lambda r.\lambda x.\,f(x)(r)$.
+
+> **Difference.** Only the measurability core of the swap is packaged: given a measurable path $\Phi:X\to(C\multimap E)$ and a $C$-path $\gamma$ with $\lVert\gamma\rVert\le 1$, the diagonal evaluation $r\mapsto\Phi(r)(\gamma(r))$ is a measurable path in $E$ (`swap_lin_path`). The full bidirectional $\mathbf{MCones}$ iso record is not separately packaged; this measurability lemma is exactly the path-preservation half that the rest of § 5 consumes (e.g. `swap_lin_pres_path`, `lfun_path_swap`).
+
+```coq
+(* theories/homs/tensor_hom_iso.v — Section SwapLinPath,
+   Variables (R : realType) (Ar : MeasSubcat R), C E : ICone.type Ar,
+   X : ar_obj Ar, Φ : ar_carrier Ar X -> linhom_car Ar C E,
+   γ : path_car Ar X C, HΦ : is_measurable_path Φ, γub : cone_norm γ <= 1 *)
+Lemma swap_lin_path :
+  is_measurable_path (fun r => linhom_fun (Φ r) (path_fun γ r)).
+```
 
 ### Lem 5.4 / Def 5.7 (`linhom_car`, `linhom_postc`, `linhom_prec`, `linhom_map_fun`)
 
@@ -1066,6 +1088,64 @@ Definition linhom_map_fun
     (h : icones_hom Ar C2 C1) (g : icones_hom Ar D1 D2)
     (f : linhom_car Ar C1 D1) : linhom_car Ar C2 D2 :=
   linhom_prec h (linhom_postc g f).
+```
+
+### Lem 5.5 (`swap_lin_lin_hom`)
+
+The argument-swapping natural isomorphism $\mathsf{sw}'$ transposes an iterated hom, carrying $f\in\mathbf{ICones}\big(B_1\multimap(B_2\multimap C)\big)$ to $\lambda x_1.\lambda x_2.\,f(x_1)(x_2)\in B_2\multimap(B_1\multimap C)$. It is what builds the braiding $\sigma$ of the tensor.
+
+> **Paper — Lemma 5.5** (arXiv 2212.02371, `lemma:swap-lin-lin`). There is an argument swapping natural isomorphism $\mathsf{sw}'\in\mathbf{ICones}\big(B_1\multimap(B_2\multimap C),\ B_2\multimap(B_1\multimap C)\big)$ which maps $f$ to $\lambda x_1.\lambda x_2.\,f(x_1)(x_2)$.
+
+> **Difference.** The mechanisation packages the transpose *morphism* `swap_lin_lin_hom` together with its computation law `swap_lin_lin_homE` — both directions of the paper iso are the same construction, being involutive — rather than a bidirectional `icones_iso` record. This is exactly the ingredient used to define the braiding: `braid_g := swap_lin_lin_hom (tauL B A)`.
+
+```coq
+(* theories/homs/tensor_iso.v — Section SwapLinLin2,
+   Variables (R : realType) (Ar : MeasSubcat R), (B1 B2 C : ICone.type Ar),
+   f : icones_hom Ar B1 (linhom_car Ar B2 C) *)
+Definition swap_lin_lin_hom : icones_hom Ar B2 (linhom_car Ar B1 C) :=
+  MkIConesHom swap_lin_mcones swap_lin_pres_int.
+
+Lemma swap_lin_lin_homE (b2 : B2) (b1 : B1) :
+  linhom_fun (swap_lin_lin_hom b2) b1 = linhom_fun (f b1) b2.
+```
+
+### Def 5.6 (`bilin_data`, `bilin_to_curried`, `curried_to_bilin`)
+
+The cone of integrable bilinear and continuous maps $C_1,C_2\to D$ is defined as the iterated hom $(C_1,C_2)\multimap D=C_1\multimap(C_2\multimap D)$.
+
+> **Paper — Definition 5.6** (arXiv 2212.02371, `def:bilinear`). Let $C_1,C_2,D$ be integrable cones. We define $(C_1,C_2)\multimap D=C_1\multimap(C_2\multimap D)$ and call this integrable cone the cone of integrable bilinear and continuous maps $C_1,C_2\to D$.
+
+> **Difference.** The paper defines the object as the literal iterated hom $C_1\multimap(C_2\multimap D)$. The mechanisation packages the *separately-linear* presentation `bilin_data` — the underlying $C_1\to C_2\to D$ function bundled with its left section (`bilin_left`, a $C_2\multimap D$ for each $x_1$) and right section (`bilin_right`, a $C_1\multimap D$ for each $x_2$), both agreeing with `bilin_fun` — plus the curry/uncurry round-trips `bilin_to_curried` / `curried_to_bilin` realising the identity $(C_1,C_2)\multimap D=C_1\multimap(C_2\multimap D)$.
+
+```coq
+(* theories/homs/linhom.v — Section Bilin,
+   Variables (R : realType) (Ar : MeasSubcat R), C1 C2 D : ICone.type Ar *)
+Record bilin_data : Type := MkBilin {
+  bilin_fun :> C1 -> C2 -> D;
+  bilin_left : forall x1 : C1, linhom_car Ar C2 D;
+  bilin_left_eq :
+    forall (x1 : C1) (x2 : C2),
+      linhom_fun (bilin_left x1) x2 = bilin_fun x1 x2;
+  bilin_right : forall x2 : C2, linhom_car Ar C1 D;
+  bilin_right_eq :
+    forall (x1 : C1) (x2 : C2),
+      linhom_fun (bilin_right x2) x1 = bilin_fun x1 x2;
+}.
+
+(* curry / uncurry round-trips (Section CurriedBilin) *)
+Definition bilin_to_curried (f : bilin_data Ar C1 C2 D) :
+    C1 -> linhom_car Ar C2 D :=
+  fun x1 => bilin_left f x1.
+
+Definition curried_to_bilin
+  (F : C1 -> linhom_car Ar C2 D)
+  (Hright : forall x2 : C2, linhom_car Ar C1 D)
+  (Hright_eq :
+    forall (x1 : C1) (x2 : C2),
+      linhom_fun (Hright x2) x1 = linhom_fun (F x1) x2) :
+  bilin_data Ar C1 C2 D :=
+  MkBilin (fun x1 x2 => linhom_fun (F x1) x2)
+          F (fun x1 x2 => erefl _) Hright Hright_eq.
 ```
 
 ### Prop 5.8 (`linhom_map_icones`)
@@ -1107,6 +1187,47 @@ Record limpl_continuous : Prop := MkLimplContinuous {
 }.
 
 Theorem limpl_preserves_limits : limpl_continuous.
+```
+
+### Lem 5.10 (`lfun_path_swap`)
+
+Swapping the two hom-arguments across a path: from $f\in\mathbf{ICones}(B,\mathrm{Path}(X,C\multimap D))$ one obtains $f'=\lambda(y,r,x).\,f(x,r,y)\in\mathbf{ICones}(C,\mathrm{Path}(X,B\multimap D))$. This is the key ingredient of the tensor–hom iso (used by `path_tens_to_one`).
+
+> **Paper — Lemma 5.10** (arXiv 2212.02371, `lemma:lfun-path-swap`). Let $X\in\mathbf{AR}$ and let $B,C,D$ be measurable cones. Let $f$ be an element of $\mathbf{ICones}(B,\mathrm{Path}(X,C\multimap D))$. Then $f'=\lambda(y,r,x).\,f(x,r,y)$ belongs to $\mathbf{ICones}(C,\mathrm{Path}(X,B\multimap D))$.
+
+```coq
+(* theories/homs/tensor_iso.v — Section LfunPathSwap,
+   Variables (R : realType) (Ar : MeasSubcat R), (X : ar_obj Ar),
+   (B C D : ICone.type Ar),
+   f : icones_hom Ar B (path_car Ar X (linhom_car Ar C D)),
+   Local Notation PBD := (path_car Ar X (linhom_car Ar B D)) *)
+Definition lfun_path_swap : icones_hom Ar C PBD :=
+  MkIConesHom lfps_mcones lfps_mcones_pres_int.
+
+Lemma lfun_path_swapE (y : C) (r : ar_carrier Ar X) (x : B) :
+  linhom_fun (path_fun (lfun_path_swap y) r) x =
+  linhom_fun (path_fun (f x) r) y.
+```
+
+### Lem 5.11 (`path_tens_to_one`, `path_tens_to_one_unit`)
+
+A candidate path $\eta:X\to(B\otimes C)\multimap 1$ is genuinely a measurable path as soon as it is bounded and its pure-tensor evaluations are jointly measurable. This is the key observation behind the measurability of the tensor–hom iso $\Psi$ (Thm 5.12).
+
+> **Paper — Lemma 5.11** (arXiv 2212.02371, `lemma:path-tens-to-one`). Let $X\in\mathbf{AR}$ and $B,C$ be integrable cones. Let $\eta:X\to\underline{(B\otimes C)\multimap 1}$ be a function. One has $\eta\in\underline{\mathrm{Path}(X,(B\otimes C)\multimap 1)}$ as soon as (i) $\eta(X)\subseteq\underline{(B\otimes C)\multimap 1}$ is bounded, and (ii) for all $Y\in\mathbf{AR}$, $\beta\in\underline{\mathrm{Path}(Y,B)}$ and $\gamma\in\underline{\mathrm{Path}(Y,C)}$, the function $\lambda(s,r)\in Y\times X.\ \eta(r)(\beta(s)\otimes\gamma(s)):Y\times X\to\mathbb{R}_{\geq 0}$ is measurable.
+
+> **Difference.** The two hypotheses `ηbound` ($\eta$ is bounded) and `ηpt` (the pure-tensor evaluation $\lambda s.\,\eta(\varphi\,s)(\beta\,s\otimes\gamma\,s)$ is measurable) match the paper's two bullet conditions. The mechanisation factors the norm-$\le 1$ case as `path_tens_to_one_unit`; the general bounded case (`path_tens_to_one`) rescales $\eta$ into the unit ball and applies it.
+
+```coq
+(* theories/homs/tensor_iso.v — Section PathTensToOneGen,
+   Variables (R : realType) (Ar : MeasSubcat R), (B C : ICone.type Ar),
+   (X : ar_obj Ar), Local Notation BC := (tensor B C),
+   η : ar_carrier Ar X -> linhom_car Ar BC (cone_one_car Ar),
+   ηbound : exists M : R, forall r, cone_norm (η r) <= M,
+   ηpt : (* pure-tensor evaluations are measurable *) _ *)
+Lemma path_tens_to_one : is_measurable_path η.
+
+(* norm-≤1 case (Section PathTensToOne, hypothesis Hη1 : cone_norm (η r) <= 1) *)
+Lemma path_tens_to_one_unit : is_measurable_path η.
 ```
 
 ### Thm 5.12 (`tensor_hom_iso`)
