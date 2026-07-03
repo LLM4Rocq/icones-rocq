@@ -419,9 +419,14 @@ formalisation packages `ARCAT` as a record so the entire §3+ tower is
 | `ARCAT` | A small full subcategory $\mathbf{Ar}$ of $\mathbf{Meas}$ closed under cartesian products and containing the one-point terminal object $0$, all of whose objects are non-empty. | `MeasSubcat`, `ar_obj`, `ar_carrier`, `ar_point`, `ar_zero`, `ar_prod` — `theories/mcones/ar.v` |
 | Def 3.2 / 3.6 | A *measurable cone* is a cone $\underline{C}$ equipped with a *measurability structure* $\mathcal{M}=(\mathcal{M}_X)_{X\in\mathbf{Ar}}$ of test families satisfying (Msmeas), (Mscomp), (Mssep) and (Msnorm). | `MCone.type` (via `isMCone` mixin) — `theories/mcones/mcone.v` |
 | Def 3.13 | An *mcones morphism* is a $\mathbf{Cones}$-morphism $f$ that sends measurable paths to measurable paths. | `mcones_hom`, `mcones_comp`, `MCones` — `theories/mcones/mcone_cat.v` |
+| Def 3.15 | The rescaled measurable cone $\alpha B$ ($\alpha>0$): same carrier as $B$, norm $\lVert x\rVert_{\underline{\alpha B}}=\alpha^{-1}\lVert x\rVert_{\underline{B}}$. | `alpha_rescale_car`, `αB_norm`, `isMCone` instance — `theories/mcones/mcone_cat.v` |
 | Prop 3.11 | Dual norm separation: $\lVert x\rVert = \sup_{x' \in \mathcal{B}(\underline{B}')} \langle x, x'\rangle$, with the supremum attained as an adherent point. | `mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent` — `theories/mcones/mcone_cat.v` (`Section Proposition311`) |
 | Def 3.16 (§3.4.1) | The *measure cone* $\mathsf{FMeas}(X)$ of finite measures on $X$, with tests $\widetilde{U} : \mu \mapsto \mu(U)$ for $U \in \sigma_X$. | `fmeas`, the `FMeas` HB instance — `theories/mcones/fmeas.v` |
+| Lem 3.17 | Measure push-forward $\phi_*$ is an $\mathbf{MCones}$-morphism, and $\mathsf{FMeas} : \mathbf{Ar}\to\mathbf{MCones}$ is functorial. | `fmeas_push`, `fmeas_push_id`, `fmeas_push_comp` — `theories/mcones/fmeas.v` |
 | Def 3.7 | A *path* of arity $X$ is a bounded map $\gamma : X \to \underline{C}$ whose pointwise test pairings are jointly measurable. | `path_car` — `theories/mcones/path.v`; `path_int_exists` lives in `theories/icones/examples_icone.v` (see § 4 below) |
+| Lem 3.9 | The constant function $\gamma = \boldsymbol\lambda r\in X\cdot x$ is a measurable path. | `const_path_measurable` — `theories/mcones/mcone.v` |
+| Lem 3.10 | If $\gamma : X\to\underline{C}$ is a measurable path and $\phi\in\mathbf{Ar}(Y,X)$, then $\gamma\mathrel{\circ}\phi$ is a measurable path. | `reindex_path_measurable` — `theories/mcones/mcone.v` |
+| Lem 3.19 | The path-flattening iso $\mathrm{fl}_{X,Y}(\eta)=\boldsymbol\lambda(r,s)\cdot\eta(r)(s)$ and its inverse (bivariate-function level). | `path_fl_fun`, `path_fl_inv_fun`, `path_fl_fun_inv` — `theories/mcones/path.v` |
 | Cat 3 | $\mathbf{MCones}$ is a category. | `MCones` (above) — `theories/mcones/mcone_cat.v` |
 
 The Rocq encoding faithfully treats `ARCAT` as a parameter (`MeasSubcat R`)
@@ -528,6 +533,30 @@ Definition mcones_comp
     (mcones_comp_pres_path g f).
 ```
 
+### Def 3.15 (`alpha_rescale_car`)
+
+For a measurable cone $B$ and a scalar $\alpha>0$, the *rescaled* measurable cone $\alpha B$ has the same carrier and precone operations as $B$, but its norm is $\lVert x\rVert_{\underline{\alpha B}}=\alpha^{-1}\lVert x\rVert_{\underline{B}}$; the test family is obtained by scaling every test of $B$ by $\alpha^{-1}$. The `alpha_rescale_car` record is a thin wrapper giving $\alpha B$ a distinct carrier identity for HB inference, over which a full `isMCone` instance is installed.
+
+> **Paper — Definition 3.15** (arXiv 2212.02371, `def:mes-cone-homothetie`). Let $B$ be a measurable cone and $\alpha\in\mathbb{R}$ with $\alpha>0$. Then $\alpha B$ is the measurable cone which is defined exactly as $B$ apart for the norm which is given by $\lVert x\rVert_{\underline{\alpha B}}=\alpha^{-1}\lVert x\rVert_{\underline{B}}$. (Notice $\mathcal{B}(\underline{\alpha B})=\alpha\,\mathcal{B}(\underline{B})=\{x\in\underline{B}\mid\lVert x\rVert_{\underline{B}}\le\alpha\}$.)
+
+```coq
+(* theories/mcones/mcone_cat.v — Section AlphaRescaleDef,
+   Variables (R : realType) (Ar : MeasSubcat R) (α : pos_real R) (B : MCone.type Ar) *)
+Record alpha_rescale_car (α : pos_real) (B : MCone.type Ar) : Type :=
+  MkAlphaRescale { alpha_rescale_val : B }.
+
+Definition αB_norm (x : alpha_rescale_car α B) : R :=
+  (α : R)^-1 * cone_norm (alpha_rescale_val x).
+
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (α : pos_real R) (B : MCone.type Ar) :=
+  @isMCone.Build R Ar (alpha_rescale_car α B)
+    (@αB_mcone_M R Ar α B)
+    (@αB_mcone_M_comp R Ar α B)
+    (@αB_mcone_M_sep R Ar α B)
+    (@αB_mcone_M_norm R Ar α B).
+```
+
 ### Prop 3.11 (`mcone_norm_le_pairing_ub`, `mcone_test_pairing_adherent`)
 
 The dual-norm characterisation, mechanised in two constructive directions: `mcone_test_pairing_adherent` gives the $\le$ direction — for $x \ne 0$ and $\varepsilon > 0$, a test pairing lies within $\varepsilon$ of $\lVert x\rVert$ — and `mcone_norm_le_pairing_ub` gives that any upper bound $M$ of the pairing set dominates $\lVert x\rVert$.
@@ -572,6 +601,33 @@ HB.instance Definition _ :=
     fmeas_mcone_M_norm.
 ```
 
+### Lem 3.17 (`fmeas_push`)
+
+Push-forward of measures along $\phi\in\mathbf{Ar}(X,Y)$ is a $\mathbf{Cones}$-morphism $\mathsf{FMeas}(X)\to\mathsf{FMeas}(Y)$, and the operation $\mathsf{FMeas}$ extends to a functor $\mathbf{Ar}\to\mathbf{MCones}$ acting on morphisms by push-forward, $\mathsf{FMeas}(\phi)=\phi_*$. The packaged morphism is `fmeas_push`; functoriality is witnessed by `fmeas_push_id` and `fmeas_push_comp`.
+
+> **Paper — Lemma 3.17** (arXiv 2212.02371, `lemma:pushf-measurable`). We have $\phi_*\in\mathbf{MCones}(\mathsf{FMeas}(X),\mathsf{FMeas}(Y))$. The operation $\mathsf{FMeas}$ on measurable cones extends to a functor $\mathsf{FMeas}:\mathbf{Ar}\to\mathbf{MCones}$, acting on morphisms by measure push-forward: $\mathsf{FMeas}(\phi)=\phi_*$.
+
+> **Difference.** The mechanisation packages $\phi_*$ as a `cones_hom` (a linear, $\omega$-continuous map of norm $\le 1$) rather than as a full `mcones_hom` record: path-preservation is not bundled at this point. The packaged mcones/icones-morphism version, `FMeas_fmap`, lives later in `theories/homs/coalgebra.v` for the ICones/coalgebra layer. Functoriality is stated on the underlying functions ($=1$) — `fmeas_push_id` and `fmeas_push_comp` — rather than as categorical equalities.
+
+```coq
+(* theories/mcones/fmeas.v — Section FMeasPushforward,
+   Variables (R : realType) (Ar : MeasSubcat R) (X Y : ar_obj Ar) (φ : ar_hom Ar X Y) *)
+Definition fmeas_push :
+  cones_hom (fmeas R (ar_carrier Ar X)) (fmeas R (ar_carrier Ar Y)) :=
+  ConesHom fmeas_push_fun fmeas_push_is_linear fmeas_push_omega_continuous
+           fmeas_push_norm_le.
+
+Lemma fmeas_push_id (X : ar_obj Ar) (φid : ar_hom Ar X X) :
+  φid =1 idfun ->
+  cones_hom_fun (fmeas_push φid) =1 @idfun (fmeas R (ar_carrier Ar X)).
+
+Lemma fmeas_push_comp (X Y Z : ar_obj Ar)
+    (f : ar_hom Ar X Y) (g : ar_hom Ar Y Z) (gf : ar_hom Ar X Z) :
+  gf =1 g \o f ->
+  cones_hom_fun (fmeas_push gf) =1
+  (cones_hom_fun (fmeas_push g)) \o (cones_hom_fun (fmeas_push f)).
+```
+
 ### Def 3.7 (`path_car`)
 
 A *measurable path* of arity $X$ is a bounded function $\gamma:X\to\underline{C}$ whose composition with every test $m\in\mathcal{M}^{C}_Y$ is jointly measurable on $Y\times X$. The `path_car` record pairs the underlying map with the `is_measurable_path` witness.
@@ -586,6 +642,59 @@ Record path_car : Type := MkPath {
   path_fun     :> ar_carrier Ar X -> B;
   path_is_path : is_measurable_path (Ar:=Ar) (C:=B) (X:=X) path_fun;
 }.
+```
+
+### Lem 3.9 (`const_path_measurable`)
+
+Constant functions into a measurable cone are measurable paths — the base case underlying the (Msnorm) argument for the path cone.
+
+> **Paper — Lemma 3.9** (arXiv 2212.02371, `lemma:cst-path`). Let $x\in\underline{C}$ and $\gamma=\boldsymbol\lambda r\in X\cdot x:X\to\underline{C}$ be the constant function. Then $\gamma$ is a measurable path.
+
+```coq
+(* theories/mcones/mcone.v — Section Lemma39,
+   Variables (R : realType) (Ar : MeasSubcat R) (C : MCone.type Ar) (X : ar_obj Ar) *)
+Lemma const_path_measurable (x : C) :
+  is_measurable_path (fun _ : ar_carrier Ar X => x).
+```
+
+### Lem 3.10 (`reindex_path_measurable`)
+
+Measurable paths are stable under reindexing along an $\mathbf{Ar}$-morphism: precomposing a measurable path with $\phi\in\mathbf{Ar}(Y,X)$ yields a measurable path of arity $Y$.
+
+> **Paper — Lemma 3.10** (arXiv 2212.02371, `lemma:precomp-path`). Let $\gamma:X\to\underline{C}$ be a measurable path and let $\phi\in\mathbf{Ar}(Y,X)$ for some $Y\in\mathbf{Ar}$. Then $\gamma\mathrel{\circ}\phi:Y\to\underline{C}$ is also a measurable path.
+
+```coq
+(* theories/mcones/mcone.v — Section Lemma310,
+   Variables (R : realType) (Ar : MeasSubcat R) (C : MCone.type Ar)
+             (Y X : ar_obj Ar) (γ : ar_carrier Ar X -> C) (φ : ar_hom Ar Y X) *)
+Lemma reindex_path_measurable :
+  is_measurable_path γ -> is_measurable_path (γ \o φ).
+```
+
+### Lem 3.19 (`path_fl_fun`)
+
+Path-flattening: a path of paths $\eta\in\underline{\mathsf{Path}(X,\mathsf{Path}(Y,B))}$ is turned into a bivariate path $\mathrm{fl}_{X,Y}(\eta)=\boldsymbol\lambda(r,s)\cdot\eta(r)(s)$, with `path_fl_inv_fun` the inverse and `path_fl_fun_inv` the bijection identity.
+
+> **Paper — Lemma 3.19** (arXiv 2212.02371, `lemma:meas-path-flat`). There is an iso $\mathrm{fl}_{X,Y}\in\mathbf{MCones}(\mathsf{Path}(X,\mathsf{Path}(Y,B)),\mathsf{Path}(X\times Y,B))$ which flattens $\eta\in\underline{\mathsf{Path}(X,\mathsf{Path}(Y,B))}$ into $\mathrm{fl}_{X,Y}(\eta)=\boldsymbol\lambda (r,s)\in X\times Y\cdot \eta(r)(s)$. As a consequence $\mathrm{fl}_{Y,X}^{-1}\mathrel{\circ}\mathrm{fl}_{X,Y}\in\mathbf{MCones}(\mathsf{Path}(X,\mathsf{Path}(Y,B)),\mathsf{Path}(Y,\mathsf{Path}(X,B)))$, the parameter-swap of a path of paths, is an iso in $\mathbf{MCones}$.
+
+> **Difference.** Only the bivariate function-level content of the iso is proved: the flattening bijection `path_fl_fun` / `path_fl_inv_fun` and the pointwise identity `path_fl_fun_inv`. The full packaging as a `cones_hom` / `mcones_hom` iso — carrying the `ar_prod_carrier_eq` carrier cast, linearity, $\omega$-continuity and the norm equality $\lVert\mathrm{fl}(\eta)\rVert=\lVert\eta\rVert$ — is explicitly deferred (see the notes in `theories/mcones/path.v`). The bivariate form is what the downstream Fubini development (`theories/icones/fubini.v`) actually consumes.
+
+```coq
+(* theories/mcones/path.v — Section PathFlatten,
+   Variables (R : realType) (Ar : MeasSubcat R)
+             (X Y : ar_obj Ar) (B : MCone.type Ar) *)
+Definition path_fl_fun (η : path_car Ar X (path_car Ar Y B)) :
+    (ar_carrier Ar X * ar_carrier Ar Y)%type -> B :=
+  fun p => path_fun (path_fun η p.1) p.2.
+
+Definition path_fl_inv_fun
+    (η : (ar_carrier Ar X * ar_carrier Ar Y)%type -> B) :
+    ar_carrier Ar X -> ar_carrier Ar Y -> B :=
+  fun r s => η (r, s).
+
+Lemma path_fl_fun_inv (η : path_car Ar X (path_car Ar Y B))
+  (r : ar_carrier Ar X) (s : ar_carrier Ar Y) :
+  path_fl_inv_fun (path_fl_fun η) r s = path_fun (path_fun η r) s.
 ```
 
 ---
