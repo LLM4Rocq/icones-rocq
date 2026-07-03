@@ -709,12 +709,14 @@ builds the full HB tower `Precone → Cone → MCone → ICone`.
 |---|---|---|
 | Def 4.1 | An *integrable cone* (`ICone`) is a measurable cone in which every path admits a Pettis integral with respect to every (sub-)probability measure. | `ICone.type` (via `isICone` mixin) — `theories/icones/icone.v` |
 | Def 4.2 | The Pettis integral $\int_\mu \eta \in C$ is the unique element pairing with every test $t$ as $\int \langle t, \eta(r)\rangle\,d\mu$. | `icone_integral`, `icone_integral_eqP` (uniqueness) — `theories/icones/icone.v` |
+| Lem 4.2 | The integral is norm-bounded: $\lVert\int_X\beta\,d\mu\rVert\leq\lVert\beta\rVert\,\lVert\mu\rVert$ (uniform-bound form). | `path_integral_norm_le` — `theories/icones/icone_integral.v` |
 | Lem 4.7 | The integration operator $\mathcal{I}^{B}_X$ is bilinear (separately linear in the path and the measure), continuous and measurable. | `icone_integral_*` family + `bilin.v` — `theories/icones/icone_integral.v`, `theories/homs/bilin.v` |
 | Thm 4.12 | The cone of paths $\mathsf{Path}(X,B)$ into an integrable cone is itself an `ICone`. | the anonymous `isICone` instance built from `path_int_exists` — `theories/icones/examples_icone.v` |
 | Thm 4.5 | $\mathsf{FMeas}(X)$ is integrable; the unit cone $1=\perp$ likewise. | `FMeas` is an `ICone`; the `isICone` instance on `cone_one_car Ar` — `theories/icones/examples_icone.v` |
 | Cat 4 | The category $\mathbf{ICones}$ has integrable cones and $\mathbf{MCones}$-morphisms preserving the integral. | `icones_hom`, `icones_comp`, `ICones` — `theories/icones/icone_cat.v` |
-| Thm 4.15 (Fubini) | The Fubini / iterated-integral identity for paths over a product space. | `fubini_iter_fun_X` — `theories/icones/fubini.v` |
-| Thm 4.18 | $\mathbf{ICones}$ is well-powered (and $1$ is a separator and coseparator). | `icones_well_powered` (full proof, no stub) — `theories/icones/representable.v` |
+| Thm 4.15 (Fubini) | The two iterated integrals of a path of paths coincide: $\int_X(\int_Y\dots)\,d\mu = \int_Y(\int_X\dots)\,d\nu$. | `fubini_cone_eq` (paper-form wrapper `fubini_cone_eq_arprod`); supporting `fubini_path_X`/`fubini_path_Y`, `fubini_iter_fun_X` — `theories/icones/fubini.v` |
+| Thm 4.16 (ICones complete) | $\mathbf{ICones}$ is complete: it has all small products and all binary equalisers, each with its universal property. | `icones_tuple_unique`, `icones_eq_med_unique` (with `icones_prod`/`icones_eq`, `icones_proj`, `icones_tuple`, `icones_eq_incl`, `icones_eq_med`) — `theories/icones/icone_cat.v` |
+| Thm 4.18 | $\mathbf{ICones}$ is well-powered and $1$ is both a separator and a coseparator. | `icones_coseparator`, `icones_separator` — `theories/icones/icone_cat.v`; `icones_well_powered`, `icones_subobject_classP` — `theories/icones/representable.v` |
 | Thm 4.19 | $\mathbf{ICones}$ is complete with $1$ a coseparator; therefore every limit-preserving functor $\mathbf{ICones}\to\mathcal{C}$ has a left adjoint (by SAFT). | The completeness data (products, equalisers, the coseparator) is in `icone_cat.v`; the bespoke **SAFT engine** is `representable.v` (`wi_obj`, `wi_med`, `is_icones_left_adjoint`) — see *Beyond the paper* below |
 
 ### Def 4.3 (`isICone`, `ICone`)
@@ -756,6 +758,28 @@ Lemma icone_integralP : path_integral_eq β µ icone_integral.
 
 Lemma icone_integral_eqP (x : B) :
   path_integral_eq β µ x -> x = icone_integral.
+```
+
+### Lem 4.2 (`path_integral_norm_le`)
+
+The integral of a path is bounded in cone-norm: if $\beta$ is integrable over the finite measure $\mu$, then $\lVert\int_X\beta(r)\,\mu(dr)\rVert_B\leq\lVert\beta\rVert_{\mathsf{Path}(X,B)}\,\lVert\mu\rVert_{\mathsf{FMeas}(X)}$. This is the operator-norm bound that underlies boundedness of path-of-paths integrals and the $\omega$-continuity step.
+
+> **Paper — Lemma 4.2** (arXiv 2212.02371, `lemma:integral-bounded`). If $\beta\in\underline{\mathsf{Path}(X,B)}$ is integrable over $\mu\in\mathsf{FMeas}(X)$ then $$\Big\lVert\int_X\beta(r)\mu(dr)\Big\rVert_B\leq\lVert\beta\rVert_{\mathsf{Path}(X,B)}\,\lVert\mu\rVert_{\mathsf{FMeas}(X)}.$$
+
+> **Difference.** The paper phrases the right-hand side with the path-norm $\lVert\beta\rVert_{\mathsf{Path}(X,B)}$ (the sup of $\lVert\beta(r)\rVert$ over the unit ball). The formalization instead takes an *explicit* uniform bound $M_\beta$ with $\forall r\, .\, \lVert\beta(r)\rVert\leq M_\beta$ as a hypothesis and concludes $\lVert x\rVert\leq M_\beta\cdot\lVert\mu\rVert$ for any $x$ that is an integral of $\beta$ over $\mu$ (`path_integral_eq β µ x`). This avoids materialising the path-norm supremum while giving the same bound at every uniform bound $M_\beta$. The proof uses (Msnorm) together with the pointwise `test_norm_le` bound.
+
+```coq
+(* theories/icones/icone_integral.v — Section Lemma42,
+   Variables (R : realType) (Ar : MeasSubcat R)
+             (B : MCone.type Ar) (X : ar_obj Ar)
+             (β : ar_carrier Ar X -> B) (µ : fmeas R (ar_carrier Ar X))
+             (Mβ : R),
+   Hypotheses (Hβ_bound : forall r, cone_norm (β r) <= Mβ)
+              (Hβ_meas : is_measurable_path β) *)
+
+Lemma path_integral_norm_le (x : B) :
+  path_integral_eq β µ x ->
+  (cone_norm x <= Mβ * fmeas_norm µ)%R.
 ```
 
 ### Lem 4.7 (`icone_integral_*` family + `bilin.v`)
@@ -858,42 +882,113 @@ Definition icones_comp
     (icones_comp_pres_int g f).
 ```
 
-### Thm 4.15 Fubini (`fubini_iter_fun_X`)
+### Thm 4.15 Fubini (`fubini_cone_eq`)
 
-The Fubini theorem for cones: iterated integration of a path of paths equals integration of the flattened path against the product measure. The Rocq development builds the inner-integral function $x\mapsto\int_y\beta(x,y)\,d\nu$, bounds its norm, and shows it is itself a measurable path — the ingredients of the iterated-integral identity.
+The Fubini theorem for cones: the two iterated integrals of a path of paths coincide in $B$. Integrating $\beta$ first over $X$ against $\mu$ and then over $Y$ against $\nu$ yields the same element of $B$ as integrating first over $Y$ against $\nu$ and then over $X$ against $\mu$. The headline identity is `fubini_cone_eq`; the paper-form wrapper `fubini_cone_eq_arprod` takes a genuine measurable path $\beta$ on the product arity $X\times Y$.
 
-> **Paper — Theorem 4.15** (arXiv 2212.02371, `th:paths-Fubini`). Let $X,Y\in\mathbf{Ar}$, $\eta\in\underline{\mathsf{Path}(X,\mathsf{Path}(Y,B))}$, $\mu\in\underline{\mathsf{FMeas}(X)}$ and $\nu\in\underline{\mathsf{FMeas}(Y)}$. We have $$\int_Y\Big(\int_X\eta(r)\mu(dr)\Big)(s)\nu(ds) =\int_{X\times Y}\mathsf{fl}(\eta)(t)\,(\mu\times\nu)(dt)$$
+> **Paper — Theorem 4.15** (arXiv 2212.02371, `th:paths-Fubini`). Let $X,Y\in\mathbf{Ar}$, $\eta\in\underline{\mathsf{Path}(X,\mathsf{Path}(Y,B))}$, $\mu\in\underline{\mathsf{FMeas}(X)}$ and $\nu\in\underline{\mathsf{FMeas}(Y)}$. We have $$\int_Y\Big(\int_X\eta(r)\mu(dr)\Big)(s)\,\nu(ds)=\int_{X\times Y}\mathsf{fl}(\eta)(t)\,(\mu\times\nu)(dt).$$
 
-> **Difference.** The excerpt shown is the supporting apparatus rather than the final identity: `fubini_iter_fun_X` is the inner integral $x\mapsto\int_y\beta(x,y)\,d\nu$, with `fubini_iter_fun_X_norm_le` bounding its norm and `fubini_iter_fun_X_is_path` proving it is a measurable path. These are the lemmas the iterated-integral equation of Theorem 4.15 is assembled from in `fubini.v`.
+> **Difference.** Because the `ar_prod_carrier_eq` cast into the product arity is not transparent in the formalization, `fubini_cone_eq` states the equation cast-free, directly between the two iterations for $\beta : X\times Y\to B$ (via the iterated paths `fubini_path_X`/`fubini_path_Y`), rather than routing through the bridging product integral $\int_{X\times Y}\mathsf{fl}(\eta)\,d(\mu\times\nu)$. The proof goes through the scalar Tonelli lemmas (`fubini_tonelli1`/`fubini_tonelli2`) on each arity-$0$ test and promotes to $B$ by separation (`mcone_M_sep`). The paper-form statement, for a measurable path $\beta$ on the product arity, is the wrapper `fubini_cone_eq_arprod`, which discharges the five hypotheses of `fubini_cone_eq` from `is_measurable_path β` via the cast-measurability helpers. The inner-integral apparatus `fubini_iter_fun_X` (with `fubini_iter_fun_X_norm_le` bounding its norm by Lemma 4.2 and `fubini_iter_fun_X_is_path` proving it is a measurable path) supports `fubini_path_X`.
 
 ```coq
-(* theories/icones/fubini.v — Variables
-   R Ar B (X Y : ar_obj Ar)
-   (β : ar_carrier Ar X * ar_carrier Ar Y -> B)
-   (ν : fmeas R (ar_carrier Ar Y)) *)
+(* theories/icones/fubini.v — Section Fubini415, Variables
+   (R : realType) (Ar : MeasSubcat R)
+   (B : ICone.type Ar) (X Y : ar_obj Ar)
+   (β : (ar_carrier Ar X * ar_carrier Ar Y)%type -> B) (Mβ : R),
+   Hypotheses HMβ : forall p, cone_norm (β p) <= Mβ;
+   Hβx : forall x, is_measurable_path (fun y => β (x, y));
+   Hβy : forall y, is_measurable_path (fun x => β (x, y));
+   Variables (µ : fmeas R (ar_carrier Ar X)) (ν : fmeas R (ar_carrier Ar Y)) *)
 
-Definition fubini_iter_fun_X (x : ar_carrier Ar X) : B :=
-  icone_integral (fun y => β (x, y)) (Hβ x) ν.
+Definition fubini_path_X : ar_carrier Ar X -> B :=
+  fubini_iter_fun_X β Hβx ν.
+Definition fubini_path_Y : ar_carrier Ar Y -> B :=
+  fubini_iter_fun_Y β Hβy µ.
 
-Lemma fubini_iter_fun_X_norm_le (Mβ : R) :
-  (forall p, cone_norm (β p) <= Mβ) ->
-  forall x, cone_norm (fubini_iter_fun_X x) <= Mβ * fmeas_norm ν.
+Lemma fubini_cone_eq :
+  icone_integral fubini_path_X fubini_path_X_meas µ =
+  icone_integral fubini_path_Y fubini_path_Y_meas ν.
 
-Lemma fubini_iter_fun_X_is_path (Mβ : R)
-  (HMβ : forall p, cone_norm (β p) <= Mβ)
-  (Hjoint : (* joint test-measurability of β *)) :
-  is_measurable_path fubini_iter_fun_X.
+(* Section Fubini415Arprod, β : ar_carrier Ar (ar_prod Ar X Y) -> B,
+   Hβ : is_measurable_path β *)
+Lemma fubini_cone_eq_arprod
+    (Mβ : R)
+    (HMβ : forall p : ar_carrier Ar (ar_prod Ar X Y),
+             (cone_norm (β p) <= Mβ)%R) :
+  icone_integral (fubini_path_X beta_uncast ν) _ µ =
+  icone_integral (fubini_path_Y beta_uncast µ) _ ν.
 ```
 
-### Thm 4.18 (`icones_well_powered`, `SubobjClassifier`, `icones_subobject_classP`)
+### Thm 4.16 ICones complete (`icones_tuple_unique`, `icones_eq_med_unique`)
 
-In $\mathbf{ICones}$ the unit cone $1$ is both a separator and a coseparator, and the category is well-powered. The formalization discharges well-poweredness by exhibiting a small classifying `Type` (`SubobjClassifier`) into which subobjects inject up to iso (`icones_subobject_classP`) — the property the special adjoint functor theorem then consumes.
+The category $\mathbf{ICones}$ is complete. Completeness is mechanised through the two universal properties it reduces to: all small products and all binary equalisers, each supplied with its full universal property. The product of a family $(B_i)_{i\in I}$ is `icones_prod` with projections `icones_proj`, tupling `icones_tuple`, factorization `icones_tuple_proj` and uniqueness `icones_tuple_unique`; the equaliser of $f,g:B\to C$ is `icones_eq` with inclusion `icones_eq_incl`, mediating map `icones_eq_med`, factorization `icones_eq_med_factor` and uniqueness `icones_eq_med_unique`. The two uniqueness lemmas are the concrete witnesses of the limit universal properties.
+
+> **Paper — Theorem 4.16** (arXiv 2212.02371, `th:mcones-complete`). The category $\mathbf{ICones}$ is complete.
+
+> **Difference.** The paper reads "$\mathbf{ICones}$ is complete" as having all small products together with all binary equalisers; the mechanisation provides exactly those data as two universal-property packages, each with existence, factorization and uniqueness. The completeness statement is thus mechanised piecewise (products + equalisers) rather than as a single "has all small limits" object.
+
+```coq
+(* theories/icones/icone_cat.v *)
+
+Definition icones_prod (R : realType) (Ar : MeasSubcat R)
+  (I : Type) (B : I -> ICone.type Ar) : ICone.type Ar := (* ... *).
+
+(* Section IConesProductsUniversal, Variables I B (Q : ICone.type Ar)
+   (f : forall i, icones_hom Ar Q (icones_prod B)) *)
+Definition icones_proj (i : I) : icones_hom Ar (icones_prod B) (B i).
+Definition icones_tuple : icones_hom Ar Q (icones_prod B).
+
+Lemma icones_tuple_proj (i : I) :
+  icones_comp (icones_proj i) icones_tuple = f i.
+
+Lemma icones_tuple_unique (h : icones_hom Ar Q (icones_prod B)) :
+  (forall i, icones_comp (icones_proj i) h = f i) ->
+  h = icones_tuple.
+
+Definition icones_eq (R : realType) (Ar : MeasSubcat R)
+  (B C : ICone.type Ar) (f g : icones_hom Ar B C) : ICone.type Ar := (* ... *).
+
+(* Section IConesEqualisersUniversal, Variables B C f g (T : ICone.type Ar)
+   (h : icones_hom Ar T B) (Hh : icones_comp f h = icones_comp g h) *)
+Definition icones_eq_incl : icones_hom Ar (icones_eq f g) B.
+Definition icones_eq_med : icones_hom Ar T (icones_eq f g).
+
+Lemma icones_eq_med_factor :
+  icones_comp icones_eq_incl icones_eq_med = h.
+
+Lemma icones_eq_med_unique (h' : icones_hom Ar T (icones_eq f g)) :
+  icones_comp icones_eq_incl h' = h ->
+  h' = icones_eq_med.
+```
+
+### Thm 4.18 (`icones_coseparator`, `icones_separator`, `icones_well_powered`)
+
+In $\mathbf{ICones}$ the unit cone $1$ is both a separator and a coseparator, and the category is well-powered. All three conjuncts are formalized: `icones_coseparator` records that $1$ is a coseparator (two morphisms agree iff every arity-$0$ test of the codomain agrees on their images at every point), `icones_separator` records that $1$ is a separator (two morphisms agree iff they agree at every point), and `icones_well_powered` discharges well-poweredness by exhibiting a small classifying `Type` (`SubobjClassifier`) into which subobjects inject up to iso (`icones_subobject_classP`).
 
 > **Paper — Theorem 4.18** (arXiv 2212.02371, `th:icones-conditions-saft`). In the category $\mathbf{ICones}$ the object $1$ is a coseparator and a separator and $\mathbf{ICones}$ is well-powered.
 
-> **Difference.** This entry mechanises only the *well-powered* conjunct — recast as the existence of a small classifying `Type` `SubobjClassifier` that identifies subobjects up to iso (`icones_subobject_classP`). This is the exact input the special adjoint functor theorem needs; the separator/coseparator role of $1$ is handled where SAFT is applied (see *Beyond the paper* below).
+> **Difference.** The paper's separator/coseparator phrasings are given in the practical test-family form: tests at arity $0$ *are* the elements of $\mathbf{ICones}(C,1)$ in this encoding, so "$1$ is a coseparator" becomes `icones_coseparator` ($f=g$ iff every arity-$0$ test of $C$ agrees on $f\,x$, $g\,x$ for all $x$) and "$1$ is a separator" becomes `icones_separator` ($f=g$ iff $f\,x=g\,x$ for all $x$). Well-poweredness is recast as the existence of a small classifying `Type` `SubobjClassifier` that identifies subobjects up to iso (`icones_subobject_classP`) — the exact input the special adjoint functor theorem then consumes (see *Beyond the paper* below).
 
 ```coq
+(* theories/icones/icone_cat.v — Sections IConesCoseparator / IConesSeparator,
+   Variables (R : realType) (Ar : MeasSubcat R), B C : ICone.type Ar *)
+
+Lemma icones_coseparator (f g : icones_hom Ar B C) :
+  (forall x : B,
+    forall m : test_of Ar (ar_zero Ar) C,
+      mcone_M (ar_zero Ar) m ->
+      test_fun m (ar_zero_pt Ar)
+        (cones_hom_fun (mcones_hom_cones (icones_hom_mcones f)) x) =
+      test_fun m (ar_zero_pt Ar)
+        (cones_hom_fun (mcones_hom_cones (icones_hom_mcones g)) x)) ->
+  f = g.
+
+Lemma icones_separator (f g : icones_hom Ar B C) :
+  (forall x : B,
+    cones_hom_fun (mcones_hom_cones (icones_hom_mcones f)) x =
+    cones_hom_fun (mcones_hom_cones (icones_hom_mcones g)) x) ->
+  f = g.
+
 (* theories/icones/representable.v — Section Classifier,
    Variables (R : realType) (Ar : MeasSubcat R), B : ICone.type Ar *)
 
