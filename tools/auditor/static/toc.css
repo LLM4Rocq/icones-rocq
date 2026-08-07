@@ -34,9 +34,11 @@
 
 /* Neutralise the standalone <main> centring/max-width when it lives inside
    the flex shell: the shell now owns horizontal layout. */
-.layout-shell > main {
+.layout-shell > .content-pane {
   flex: 1 1 auto;
   min-width: 0;          /* allow the content column to shrink (no overflow) */
+}
+.content-pane > main {
   max-width: none;
   margin: 0;
   padding: 2rem 0 4rem;
@@ -47,24 +49,51 @@
   width: var(--toc-width);
 }
 
-/* Sticky + independently scrollable nav ---------------------------------- */
-
 .toc-sidebar {
-  position: sticky;
-  /* Clear the sticky header so the pinned sidebar sits BELOW it, not under it.
-     The header stacks brand + tabs + search + breadcrumbs (~9-10rem, and it
-     wraps), so toc.js measures the real height into --toc-sticky-top; the
-     fallback here is a safe no-JS value. Both `top` and `max-height` read the
-     same var, so one value fixes both occlusion and the scroll range. */
-  top: var(--toc-sticky-top, 9.5rem);
-  max-height: calc(100vh - var(--toc-sticky-top, 9.5rem) - 1rem);
-  overflow-y: auto;
   overscroll-behavior: contain;
   scroll-padding-top: 0.5rem;
-  z-index: 10; /* below the header (z-index 20), so the header always wins */
   font-size: 0.85rem;
   line-height: 1.4;
   padding-right: 0.25rem;
+}
+
+/* Desktop app shell ------------------------------------------------------ */
+/* Static header on top; below it the nav rail and the content pane are two
+   INDEPENDENT scroll containers.  No position:sticky involved, so no header
+   geometry (brand + tabs + search + breadcrumbs, wrapping at will) can ever
+   cover the nav, and each pane scrolls alone by construction.  Screen-only:
+   printing keeps normal document flow. */
+
+@media screen and (min-width: 60.01rem) {
+  html, body { height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .site-header { position: static; flex: none; }
+  .layout-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .toc-rail {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .toc-sidebar {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+  .content-pane {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 
 .toc-heading {

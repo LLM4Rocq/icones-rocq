@@ -888,6 +888,8 @@ def normalise(
                             source_file=s.source_file or "",
                             source_section=s.source_section,
                             highlighted_html=_highlight_coq(s.raw),
+                            line_count=s.raw.count("\n")
+                            + (0 if s.raw.endswith("\n") else 1),
                         )
                         for s in h3.snippets
                     ]
@@ -971,6 +973,8 @@ def normalise(
                     source_file=s.source_file or "",
                     source_section=s.source_section,
                     highlighted_html=_highlight_coq(s.raw),
+                    line_count=s.raw.count("\n")
+                    + (0 if s.raw.endswith("\n") else 1),
                 )
                 for s in h3.snippets
             ]
@@ -1395,6 +1399,8 @@ def normalise(
                                         source_file=s.source_file or "",
                                         source_section=s.source_section,
                                         highlighted_html=_highlight_coq(s.raw),
+                                        line_count=s.raw.count("\n")
+                                        + (0 if s.raw.endswith("\n") else 1),
                                     )
                                     for s in matched_raw
                                 ],
@@ -1424,6 +1430,8 @@ def normalise(
                         source_file=s.source_file or "",
                         source_section=s.source_section,
                         highlighted_html=_highlight_coq(s.raw),
+                        line_count=s.raw.count("\n")
+                        + (0 if s.raw.endswith("\n") else 1),
                     )
                     for snip_i, s in enumerate(h3.snippets)
                     if snip_i not in consumed_snippet_idxs
@@ -1464,6 +1472,71 @@ def normalise(
                         notes_html=blk.notes_html,
                     ),
                 )
+
+    # Per-section / per-contrib stats rollup: entries by kind, displayed
+    # code-block count, and LoC.  ``loc`` counts the on-disk lines of the
+    # DISTINCT theories/*.v files the entries reference — the size of the
+    # Rocq source backing the card, not the displayed excerpts.  Falls
+    # back to excerpt line counts only when nothing resolves on disk
+    # (test fixtures / out-of-tree builds); a strict build never hits it.
+    _thm_kinds = {"Thm", "Lem", "Prop", "Cor", "Cat", "Fubini"}
+    _loc_cache: dict[str, int] = {}
+
+    def _file_loc(relpath: str) -> int:
+        if relpath not in _loc_cache:
+            try:
+                with (project_root / relpath).open(
+                    encoding="utf-8", errors="replace"
+                ) as fh:
+                    _loc_cache[relpath] = sum(1 for _ in fh)
+            except OSError:
+                _loc_cache[relpath] = 0
+        return _loc_cache[relpath]
+
+    def _ref_files(entries: list[Entry], own_snips: list[CoqSnippet]) -> set[str]:
+        files: set[str] = set()
+        for s in own_snips:
+            if s.source_file:
+                files.add(s.source_file)
+        for e in entries:
+            for rf in e.rocq_files:
+                files.add(rf.path)
+            if e.detail is not None:
+                for s in e.detail.snippets:
+                    if s.source_file:
+                        files.add(s.source_file)
+        return files
+
+    def _rollup(stats: ChapterStats, entries: list[Entry], own_snips: list[CoqSnippet]) -> None:
+        stats.n_entries = len(entries)
+        stats.n_defs = sum(1 for e in entries if e.paper_kind == "Def")
+        stats.n_thms = sum(1 for e in entries if e.paper_kind in _thm_kinds)
+        stats.n_snippets = len(own_snips) + sum(
+            len(e.detail.snippets) for e in entries if e.detail is not None
+        )
+        floc = sum(_file_loc(f) for f in sorted(_ref_files(entries, own_snips)))
+        if not floc:
+            floc = sum(s.line_count for s in own_snips) + sum(
+                s.line_count
+                for e in entries
+                if e.detail is not None
+                for s in e.detail.snippets
+            )
+        stats.loc = floc
+
+    for _sec in sections:
+        _rollup(_sec.stats, _sec.entries, _sec.snippets)
+    for _b in beyond:
+        _rollup(_b.stats, _b.entries, _b.snippets)
+    # Chapters keep their parse-time counts; recompute only ``loc`` on the
+    # distinct-file basis when anything resolves.
+    for _ch in chapters:
+        _files: set[str] = set()
+        for _sec in _ch.sections:
+            _files |= _ref_files(_sec.entries, _sec.snippets)
+        _ch_floc = sum(_file_loc(f) for f in sorted(_files))
+        if _ch_floc:
+            _ch.stats.loc = _ch_floc
 
     return Document(
         preamble_html=preamble_html,

@@ -83,6 +83,9 @@
         {% if n_def %}{{ n_def }} def{{ 's' if n_def != 1 else '' }}{% endif %}
         {% if n_def and n_thm %} · {% endif %}
         {% if n_thm %}{{ n_thm }} thm{{ 's' if n_thm != 1 else '' }}{% endif %}
+        {% if section.stats.n_snippets %} ·
+        {{ section.stats.n_snippets }} snippet{{ 's' if section.stats.n_snippets != 1 else '' }} ·
+        {{ section.stats.loc }} LoC{% endif %}
       </p>
       <p class="card-cta">Open →</p>
     </a>
@@ -125,18 +128,17 @@
     </header>
     <div class="card-grid beyond-grid">
       {% for b in chapter_map[key] %}
-      {% set n_entries = b.entries|length %}
-      {% set n_snippets = b.snippets|length %}
+      {% set s = b.stats %}
       <a class="card beyond-card" href="{{ root_prefix }}beyond/{{ b.id }}.html">
         <h3 class="card-title">{{ b.title }}</h3>
         <p class="card-stats">
-          {% if n_entries %}
-          <strong>{{ n_entries }}</strong> {{ 'entry' if n_entries == 1 else 'entries' }}
-          {% endif %}
-          {% if n_snippets %}
-          {% if n_entries %} · {% endif %}<strong>{{ n_snippets }}</strong>
-          snippet{{ 's' if n_snippets != 1 else '' }}
-          {% endif %}
+          <strong>{{ s.n_entries }}</strong> {{ 'entry' if s.n_entries == 1 else 'entries' }}
+        </p>
+        <p class="card-meta">
+          {% if s.n_defs %}{{ s.n_defs }} def{{ 's' if s.n_defs != 1 else '' }} · {% endif %}
+          {% if s.n_thms %}{{ s.n_thms }} thm{{ 's' if s.n_thms != 1 else '' }} · {% endif %}
+          {{ s.n_snippets }} snippet{{ 's' if s.n_snippets != 1 else '' }} ·
+          {{ s.loc }} LoC
         </p>
         {{ status_badge('beyond-paper') }}
         <p class="card-cta">Open →</p>

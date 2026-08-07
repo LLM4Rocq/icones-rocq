@@ -44,7 +44,8 @@
 
 {% macro stats_line(stats) -%}
 <dl class="stats-line">
-  <div><strong>{{ stats.n_sections }}</strong><span class="label">sections</span></div>
+  {# n_sections is meaningless for per-section/per-contrib rollups and
+     redundant on chapter cards — entries is the count that matters. #}
   <div><strong>{{ stats.n_entries }}</strong><span class="label">entries</span></div>
   {% if stats.n_defs %}<div><strong>{{ stats.n_defs }}</strong><span class="label">definitions</span></div>{% endif %}
   {% if stats.n_thms %}<div><strong>{{ stats.n_thms }}</strong><span class="label">theorems</span></div>{% endif %}

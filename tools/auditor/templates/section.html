@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import entry_card, section_snippets, overview_table with context %}
+{% from "_macros.html" import entry_card, section_snippets, overview_table, stats_line with context %}
 
 {% block title %}{% if section.paper_section_number %}§ {{ section.paper_section_number }} {% endif %}{{ section.title }} — Icones auditor{% endblock %}
 {% block body_class_extra %} page-section{% endblock %}
@@ -27,29 +27,15 @@
   {% if section.intro_html %}
   <div class="prose intro">{{ section.intro_html|safe }}</div>
   {% endif %}
+  {% if section.stats.n_entries %}
+  {{ stats_line(section.stats) }}
+  {% endif %}
 </header>
 
-{% if section.overview %}
-<section class="overview-block">
-  <h2>Overview</h2>
-  {{ overview_table(section.overview) }}
-</section>
-{% endif %}
-
-{# In-page sub-TOC: jump links to each entry card on multi-entry section
-   pages (chiefly the long Examples/PPL pages). Suppressed for the
-   single-entry shape below (length == 1). Each anchor targets the
-   id="{{ entry.id }}" set by entry_card. #}
-{% if section.entries|length > 1 %}
-<nav class="onpage-toc" aria-label="On this page">
-  <p class="onpage-toc-heading">On this page</p>
-  <ul>
-    {% for entry in section.entries %}
-    <li><a href="#{{ entry.id }}">{{ entry.paper_label }}</a></li>
-    {% endfor %}
-  </ul>
-</nav>
-{% endif %}
+{# The Overview table and the "On this page" jump list are dropped: the
+   sidebar TOC already lists every entry of the section, and the entry
+   cards below carry the same statement text — both blocks only pushed
+   the actual content below the fold. #}
 
 {# H3-level code blocks (only present on PPL/Examples sections). #}
 {{ section_snippets(section.snippets) }}
