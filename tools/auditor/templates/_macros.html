@@ -20,7 +20,8 @@
 
 {% macro stats_line(stats) -%}
 <dl class="stats-line">
-  <div><strong>{{ stats.n_sections }}</strong><span class="label">sections</span></div>
+  {# n_sections is an implementation detail on chapter tabs (lone-entry
+     sections make it == n_entries) — entries is the meaningful count. #}
   <div><strong>{{ stats.n_entries }}</strong><span class="label">entries</span></div>
   {% if stats.n_defs %}<div><strong>{{ stats.n_defs }}</strong><span class="label">definitions</span></div>{% endif %}
   {% if stats.n_thms %}<div><strong>{{ stats.n_thms }}</strong><span class="label">theorems</span></div>{% endif %}
@@ -37,8 +38,7 @@
     <h3 class="card-title">{{ chapter.title }}</h3>
   </div>
   <p class="card-stats">
-    <strong>{{ s.n_sections }}</strong> sections ·
-    <strong>{{ s.n_entries }}</strong> entries
+    <strong>{{ s.n_entries }}</strong> {{ 'entry' if s.n_entries == 1 else 'entries' }}
   </p>
   <p class="card-meta">
     {% if s.n_defs %}{{ s.n_defs }} def{{ 's' if s.n_defs != 1 else '' }} · {% endif %}

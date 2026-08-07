@@ -17,9 +17,17 @@
    page depth — so a link from a depth-2 entry page to another tab's entry
    becomes "../../<tab>/entries/<id>.html", matching the page tree. #}
 
+{%- macro _kinds_eq(a, b) -%}
+{#- Kind equivalence: a lone-entry PPL/Examples H3 is one TOC leaf of kind
+    "section", but its standalone page activates kind "entry" with the SAME
+    id — treat section/entry as interchangeable (ids are unique per tab, so
+    no false positives). -#}
+{{- 'true' if a == b or (a in ('section', 'entry') and b in ('section', 'entry')) else '' -}}
+{%- endmacro -%}
+
 {%- macro _active(node, tab) -%}
 {#- True iff `node` is the page's active node. -#}
-{{- toc_active and toc_active.tab == tab and toc_active.kind == node.kind and toc_active.id == node.id -}}
+{{- toc_active and toc_active.tab == tab and _kinds_eq(toc_active.kind, node.kind)|trim == 'true' and toc_active.id == node.id -}}
 {%- endmacro -%}
 
 {%- macro _contains_active(node, tab) -%}
@@ -28,11 +36,11 @@
     check (group → entries); chapters check their sections' entries too. -#}
 {%- set ns = namespace(hit=false) -%}
 {%- for child in node.children -%}
-  {%- if toc_active and toc_active.tab == tab and toc_active.kind == child.kind and toc_active.id == child.id -%}
+  {%- if toc_active and toc_active.tab == tab and _kinds_eq(toc_active.kind, child.kind)|trim == 'true' and toc_active.id == child.id -%}
     {%- set ns.hit = true -%}
   {%- endif -%}
   {%- for gchild in child.children -%}
-    {%- if toc_active and toc_active.tab == tab and toc_active.kind == gchild.kind and toc_active.id == gchild.id -%}
+    {%- if toc_active and toc_active.tab == tab and _kinds_eq(toc_active.kind, gchild.kind)|trim == 'true' and toc_active.id == gchild.id -%}
       {%- set ns.hit = true -%}
     {%- endif -%}
   {%- endfor -%}
@@ -41,7 +49,7 @@
 {%- endmacro -%}
 
 {%- macro toc_group(node, tab) -%}
-{%- set is_active = (toc_active and toc_active.tab == tab and toc_active.kind == node.kind and toc_active.id == node.id) -%}
+{%- set is_active = (toc_active and toc_active.tab == tab and _kinds_eq(toc_active.kind, node.kind)|trim == 'true' and toc_active.id == node.id) -%}
 {%- set has_active = _contains_active(node, tab)|trim == 'true' -%}
 <li class="toc-node toc-{{ node.kind }}{% if is_active %} is-active{% endif %}">
   {%- if node.children -%}

@@ -825,6 +825,8 @@ def normalise(
                             source_file=s.source_file or "",
                             source_section=s.source_section,
                             highlighted_html=_highlight_coq(s.raw),
+                            line_count=s.raw.count("\n")
+                            + (0 if s.raw.endswith("\n") else 1),
                         )
                         for s in h3.snippets
                     ]
@@ -908,6 +910,8 @@ def normalise(
                     source_file=s.source_file or "",
                     source_section=s.source_section,
                     highlighted_html=_highlight_coq(s.raw),
+                    line_count=s.raw.count("\n")
+                    + (0 if s.raw.endswith("\n") else 1),
                 )
                 for s in h3.snippets
             ]
@@ -1024,6 +1028,7 @@ def normalise(
                     return out
 
                 section_snippets = _h3_coq(h3.snippets)
+                sec_notes_html = "\n".join(n.html for n in h3.notes)
 
                 sec_entries: list[Entry] = []
 
@@ -1169,6 +1174,12 @@ def normalise(
                     # ``<section class="snippets">`` block above the
                     # entry no longer duplicates the same code.
                     section_snippets = []
+                    # Same for the H3 blockquotes: the lone entry's
+                    # ``detail.notes`` renders them as note asides inside
+                    # the (always-expanded) entry card, so blank the
+                    # section-level ``notes_html`` that section.html
+                    # would render a second time at the page bottom.
+                    sec_notes_html = ""
 
                 sec = Section(
                     id=sec_id,
@@ -1177,7 +1188,7 @@ def normalise(
                     title=h3.paper_label,
                     intro_html="\n".join(h3.paragraphs),
                     entries=sec_entries,
-                    notes_html="\n".join(n.html for n in h3.notes),
+                    notes_html=sec_notes_html,
                     chapter_id=chapter_id,
                     snippets=section_snippets,
                 )
@@ -1294,6 +1305,8 @@ def normalise(
                                         source_file=s.source_file or "",
                                         source_section=s.source_section,
                                         highlighted_html=_highlight_coq(s.raw),
+                                        line_count=s.raw.count("\n")
+                                        + (0 if s.raw.endswith("\n") else 1),
                                     )
                                     for s in matched_raw
                                 ],
@@ -1323,6 +1336,8 @@ def normalise(
                         source_file=s.source_file or "",
                         source_section=s.source_section,
                         highlighted_html=_highlight_coq(s.raw),
+                        line_count=s.raw.count("\n")
+                        + (0 if s.raw.endswith("\n") else 1),
                     )
                     for snip_i, s in enumerate(h3.snippets)
                     if snip_i not in consumed_snippet_idxs
@@ -1381,6 +1396,79 @@ def normalise(
                         chapter=ch.title,
                     )
                 )
+
+    # Per-section / per-contrib stats rollup (mirrors the Chapter rollup):
+    # entries by kind, snippet (code-block) count, and LoC.  ``loc`` counts
+    # the on-disk lines of the DISTINCT theories/*.v files the entries
+    # reference — the size of the Rocq source backing the card, not the
+    # lines of the displayed excerpts.  Shown in the section hero, the
+    # landing "Beyond the paper" cards, and the contrib hero.
+    _thm_kinds = {"Thm", "Lem", "Prop", "Cor", "Cat", "Fubini"}
+    _loc_cache: dict[str, int] = {}
+
+    def _file_loc(relpath: str) -> int:
+        if relpath not in _loc_cache:
+            try:
+                with (project_root / relpath).open(
+                    encoding="utf-8", errors="replace"
+                ) as fh:
+                    _loc_cache[relpath] = sum(1 for _ in fh)
+            except OSError:
+                _loc_cache[relpath] = 0
+        return _loc_cache[relpath]
+
+    def _ref_files(entries: list[Entry], own_snips: list[CoqSnippet]) -> set[str]:
+        files: set[str] = set()
+        for s in own_snips:
+            if s.source_file:
+                files.add(s.source_file)
+        for e in entries:
+            for rf in e.rocq_files:
+                files.add(rf.path)
+            if e.detail is not None:
+                for s in e.detail.snippets:
+                    if s.source_file:
+                        files.add(s.source_file)
+        return files
+
+    def _rollup(stats: ChapterStats, entries: list[Entry], own_snips: list[CoqSnippet]) -> None:
+        n_blocks = len(own_snips) + sum(
+            len(e.detail.snippets) for e in entries if e.detail is not None
+        )
+        stats.n_entries = len(entries)
+        stats.n_defs = sum(1 for e in entries if e.paper_kind == "Def")
+        stats.n_thms = sum(1 for e in entries if e.paper_kind in _thm_kinds)
+        stats.n_snippets = n_blocks
+        floc = sum(
+            _file_loc(f) for f in sorted(_ref_files(entries, own_snips))
+        )
+        if not floc:
+            # None of the referenced files resolve on disk (out-of-tree
+            # build, test fixtures): fall back to excerpt line counts
+            # rather than reporting 0.  A strict build never hits this.
+            floc = sum(s.line_count for s in own_snips) + sum(
+                s.line_count
+                for e in entries
+                if e.detail is not None
+                for s in e.detail.snippets
+            )
+        stats.loc = floc
+
+    for _sec in sections:
+        _rollup(_sec.stats, _sec.entries, _sec.snippets)
+    for _b in beyond:
+        _rollup(_b.stats, _b.entries, _b.snippets)
+    # Chapters (PPL/Examples): keep the parse-time entry/def/thm/snippet
+    # counts, but recompute ``loc`` on the same distinct-file basis,
+    # aggregated across the chapter's sections.  When nothing resolves
+    # on disk, keep the parse-time excerpt-line total instead.
+    for _ch in chapters:
+        _files: set[str] = set()
+        for _sec in _ch.sections:
+            _files |= _ref_files(_sec.entries, _sec.snippets)
+        _ch_floc = sum(_file_loc(f) for f in sorted(_files))
+        if _ch_floc:
+            _ch.stats.loc = _ch_floc
 
     return Document(
         preamble_html=preamble_html,

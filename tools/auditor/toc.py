@@ -87,12 +87,22 @@ def _beyond_node(tab: str, contrib: Any) -> dict[str, Any]:
 
 
 def _chapter_node(tab: str, chapter: Any) -> dict[str, Any]:
+    children = []
+    for s in chapter.sections:
+        node = _section_node(tab, s)
+        # Lone-entry shape (the standard PPL/Examples H3: entry.id ==
+        # section.id): the H3 *is* the entry, so drop the redundant fold
+        # level — the sidebar then lists entries flat under the chapter,
+        # mirroring the Paper tab's section → entries hierarchy.
+        if len(s.entries) == 1 and s.entries[0].id == s.id:
+            node["children"] = []
+        children.append(node)
     return {
         "kind": "chapter",
         "id": chapter.id,
         "title": chapter.title or chapter.id,
         "url": f"{tab}/chapters/{chapter.id}.html",
-        "children": [_section_node(tab, s) for s in chapter.sections],
+        "children": children,
     }
 
 

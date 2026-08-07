@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge, rocq_file, entry_card, section_snippets with context %}
+{% from "_macros.html" import status_badge, rocq_file, entry_card, section_snippets, stats_line with context %}
 
 {% block title %}{{ beyond.title }} — Beyond the paper{% endblock %}
 {% block body_class_extra %} page-beyond{% endblock %}
@@ -24,6 +24,9 @@
     <h1>{{ beyond.title }}</h1>
     {% if beyond.subtitle %}<p class="lede">{{ beyond.subtitle }}</p>{% endif %}
     {{ status_badge('beyond-paper') }}
+    {% if beyond.stats.n_entries or beyond.stats.n_snippets %}
+    {{ stats_line(beyond.stats) }}
+    {% endif %}
   </header>
 
   {% if beyond.intro_html %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge, stats_line with context %}
+{% from "_macros.html" import status_badge, stats_line, entry_card with context %}
 
 {% block title %}{{ chapter.title }} — {{ tab|upper }} chapter{% endblock %}
 {% block body_class_extra %} page-chapter{% endblock %}
@@ -25,24 +25,31 @@
 
 <section class="section-block">
   <header class="section-block-head">
-    <h2>Sections</h2>
-    <p class="section-block-sub">One card per construction in this chapter.</p>
+    <h2>Entries</h2>
+    <p class="section-block-sub">One entry per construction — statement, Rocq identifiers, snippet.</p>
   </header>
-  <div class="card-grid coverage-grid">
+  {# The same entry text is indexed on the per-entry pages; indexing the
+     inlined cards here too would triple every search hit. #}
+  <div class="entries" data-pagefind-ignore>
     {% for section in chapter.sections %}
-    {% set n_def = section.entries|selectattr('paper_kind', 'equalto', 'Def')|list|length %}
-    {% set n_thm = section.entries|rejectattr('paper_kind', 'equalto', 'Def')|list|length %}
-    <a class="card section-card" href="{{ root_prefix }}sections/{{ section.id }}.html">
-      <div class="card-top">
-        <span class="card-eyebrow mono">Section</span>
-        <h3 class="card-title">{{ section.title }}</h3>
-      </div>
-      <p class="card-stats">
-        <strong>{{ section.entries|length }}</strong> {{ 'entry' if section.entries|length == 1 else 'entries' }}
-        {% if section.snippets %} · <strong>{{ section.snippets|length }}</strong> snippet{{ 's' if section.snippets|length != 1 else '' }}{% endif %}
-      </p>
-      <p class="card-cta">Open →</p>
-    </a>
+    {# Lone-entry shape (b): the H3 IS the entry — render its card inline,
+       exactly like a Paper-tab section page. #}
+    {% set single = (section.entries|length == 1) and (section.entries[0].id == section.id) %}
+    {% if single %}
+    {{ entry_card(section.entries[0], section, tab=tab) }}
+    {% else %}
+    <section class="section-block subsection">
+      <header class="section-block-head">
+        <h3><a href="{{ root_prefix }}sections/{{ section.id }}.html">{{ section.title }}</a></h3>
+      </header>
+      {% if section.intro_html %}
+      <div class="prose intro">{{ section.intro_html|safe }}</div>
+      {% endif %}
+      {% for entry in section.entries %}
+      {{ entry_card(entry, section, tab=tab) }}
+      {% endfor %}
+    </section>
+    {% endif %}
     {% endfor %}
   </div>
 </section>

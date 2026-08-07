@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import entry_card, section_snippets with context %}
+{% from "_macros.html" import entry_card, section_snippets, stats_line with context %}
 
 {% block title %}{% if section.paper_section_number %}§ {{ section.paper_section_number }} {% endif %}{{ section.title }} — Icones auditor{% endblock %}
 {% block body_class_extra %} page-section{% endblock %}
@@ -17,6 +17,9 @@
 {% endblock %}
 
 {% block content %}
+{# Single-entry shape (b): inline the entry, drop the duplicate card grid. #}
+{% set single = (section.entries|length == 1) and (section.entries[0].id == section.id) %}
+
 <header class="section-hero">
   {% if section.paper_section_number %}
   <p class="eyebrow mono">Paper § {{ section.paper_section_number }}</p>
@@ -24,16 +27,21 @@
   <p class="eyebrow mono">{{ tab|upper }} chapter · {{ chapter.title }}</p>
   {% endif %}
   <h1>{{ section.title }}</h1>
-  {% if section.intro_html %}
+  {# For the lone-entry shape the expanded entry card below already renders
+     every paragraph (statement + detail prose) — repeating them here as the
+     hero intro would double the whole page's prose. #}
+  {% if section.intro_html and not single %}
   <div class="prose intro">{{ section.intro_html|safe }}</div>
+  {% endif %}
+  {# Paper-§ sections: same stats line as the PPL/Examples chapter hero.
+     Lone-entry chapter sections skip it — "1 entries" is noise. #}
+  {% if section.paper_section_number and section.stats.n_entries %}
+  {{ stats_line(section.stats) }}
   {% endif %}
 </header>
 
 {# H3-level code blocks (only present on PPL/Examples sections). #}
 {{ section_snippets(section.snippets) }}
-
-{# Single-entry shape (b): inline the entry, drop the duplicate card grid. #}
-{% set single = (section.entries|length == 1) and (section.entries[0].id == section.id) %}
 
 <div class="entries">
   {% if section.entries %}

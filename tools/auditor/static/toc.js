@@ -19,12 +19,43 @@
 
   var KEY = "icones-toc-open-tabs";
 
+  // -- 0. Pin the rail below the REAL header height ------------------------
+  // The CSS fallback (--toc-sticky-top: 7rem) assumes the sticky header's
+  // three rows fit in ~7rem.  On narrower windows / higher zoom the rows
+  // wrap and the header grows, so a 7rem-pinned rail slides UNDER it and
+  // its top becomes unreachable.  Measure the real height instead, and
+  // keep it in sync on resize (the same var also sizes the rail's
+  // max-height, so the internal scrollbar stays correct).
+  var header = document.querySelector(".site-header");
+  function alignRail() {
+    if (!header) return;
+    try {
+      var h = Math.ceil(header.getBoundingClientRect().height) + 12;
+      document.documentElement.style.setProperty("--toc-sticky-top", h + "px");
+    } catch (e) {
+      /* non-fatal */
+    }
+  }
+  alignRail();
+  try {
+    if (typeof ResizeObserver === "function" && header) {
+      new ResizeObserver(alignRail).observe(header);
+    } else {
+      window.addEventListener("resize", alignRail);
+    }
+  } catch (e) {
+    /* non-fatal */
+  }
+
   // -- 1. Scroll the active node into view ---------------------------------
   try {
     var active = nav.querySelector('.toc-link[aria-current="true"]');
-    if (active && typeof active.scrollIntoView === "function") {
-      // Center it within the rail without jumping the whole page.
-      active.scrollIntoView({ block: "center", inline: "nearest" });
+    if (active) {
+      // Scroll WITHIN the rail only.  scrollIntoView() would also scroll
+      // every scrollable ancestor — i.e. jump the page content on load.
+      var navBox = nav.getBoundingClientRect();
+      var actBox = active.getBoundingClientRect();
+      nav.scrollTop += actBox.top - navBox.top - nav.clientHeight / 2;
     }
   } catch (e) {
     /* non-fatal */

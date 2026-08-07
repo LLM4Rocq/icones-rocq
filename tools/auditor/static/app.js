@@ -46,12 +46,17 @@
     } catch { /* clipboard blocked; silently ignore. */ }
   }));
 
-  // --- Sticky header shadow on scroll ---------------------------------------
+  // --- Header shadow on scroll ----------------------------------------------
+  // Desktop app-shell: the content pane is the scroll container; mobile:
+  // the window scrolls. Listen on both, read whichever is scrolled.
   const hdr = document.querySelector('.site-header');
   if (hdr) {
-    const onScroll = () => hdr.classList.toggle('is-scrolled', window.scrollY > 4);
+    const pane = document.querySelector('.content-pane');
+    const onScroll = () => hdr.classList.toggle(
+      'is-scrolled', (window.scrollY || (pane ? pane.scrollTop : 0)) > 4);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
+    if (pane) pane.addEventListener('scroll', onScroll, { passive: true });
   }
 
   // --- Smooth in-page scroll for anchor links -------------------------------

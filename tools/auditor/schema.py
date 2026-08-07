@@ -85,6 +85,23 @@ class Entry:
 
 
 @dataclass
+class ChapterStats:
+    """Pre-computed counts shown on chapter/section cards and hero lines.
+
+    Set once at parse-time so templates don't recompute per-render.  Used
+    by the PPL/Examples chapter cards, the chapter hero stats line, and
+    (same shape) the per-section stats of Paper-tab sections.
+    """
+
+    n_sections: int = 0
+    n_entries: int = 0
+    n_defs: int = 0          # entries with paper_kind == "Def"
+    n_thms: int = 0          # paper_kind in {Thm, Lem, Prop, Cor, Cat, Fubini}
+    n_snippets: int = 0      # displayed code blocks across sections + entries
+    loc: int = 0             # on-disk lines of the DISTINCT theories/*.v files referenced
+
+
+@dataclass
 class Section:
     """A paper-§ H2 section (e.g. "§ 2 — Cones") or a PPL/Examples H3.
 
@@ -107,23 +124,9 @@ class Section:
     # PPL/Examples additive: H3-level code blocks shown above the
     # per-entry detail.  Empty on Paper sections.
     snippets: list[CoqSnippet] = field(default_factory=list)
-
-
-@dataclass
-class ChapterStats:
-    """Pre-computed counts shown on chapter cards and chapter pages.
-
-    Set once at parse-time by ``normalise`` so templates don't recompute
-    per-render.  Used by the new PPL/Examples chapter cards and the
-    stats line on the chapter landing page.
-    """
-
-    n_sections: int = 0
-    n_entries: int = 0
-    n_defs: int = 0          # entries with paper_kind == "Def"
-    n_thms: int = 0          # paper_kind in {Thm, Lem, Prop, Cor, Cat, Fubini}
-    n_snippets: int = 0      # total snippets across all sections + entries
-    loc: int = 0             # sum of snippet line counts
+    # Per-section rollup (entries/defs/thms/snippets/LoC), shown in the
+    # section hero.  ``n_sections`` stays 0 here.
+    stats: ChapterStats = field(default_factory=ChapterStats)
 
 
 @dataclass
@@ -154,6 +157,9 @@ class BeyondContrib:
     entries: list[Entry] = field(default_factory=list)
     snippets: list[CoqSnippet] = field(default_factory=list)
     notes_html: str = ""
+    # Per-contrib rollup (entries/defs/thms/snippets/LoC), shown on the
+    # landing "Beyond the paper" cards and the contrib hero.
+    stats: ChapterStats = field(default_factory=ChapterStats)
     # Parent H2 chapter heading (with the "Beyond the paper — " prefix
     # stripped).  Empty string for the synthetic chapter-overview contrib.
     # Used by the per-tab landing template to group H3 cards under their
@@ -330,6 +336,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
             notes_html=s.get("notes_html", ""),
             chapter_id=s.get("chapter_id", ""),
             snippets=[_snip(sn) for sn in s.get("snippets", [])],
+            stats=ChapterStats(**s.get("stats", {})),
         )
 
     sections = [_section(s) for s in payload.get("sections", [])]
@@ -352,6 +359,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
             entries=[_entry(e) for e in b.get("entries", [])],
             snippets=[_snip(s) for s in b.get("snippets", [])],
             notes_html=b.get("notes_html", ""),
+            stats=ChapterStats(**b.get("stats", {})),
             chapter=b.get("chapter", ""),
         )
         for b in payload.get("beyond", [])

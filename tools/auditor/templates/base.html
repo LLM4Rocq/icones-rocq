@@ -78,12 +78,15 @@
     {{ toc_sidebar() }}
   </div>
 
-  <main id="main" data-pagefind-body>
-    {% block content %}{% endblock %}
-  </main>
-</div>
+  {# The content pane is the desktop scroll container (app-shell layout in
+     toc.css): header static on top, nav and content scroll independently
+     below it — the nav can never be covered or scrolled away. #}
+  <div class="content-pane">
+    <main id="main" data-pagefind-body>
+      {% block content %}{% endblock %}
+    </main>
 
-<footer class="site-footer" role="contentinfo">
+    <footer class="site-footer" role="contentinfo" data-pagefind-ignore>
   <div class="footer-grid">
     <div>
       <strong>Icones</strong> — Paper-to-Rocq correspondence dashboard.
@@ -108,7 +111,9 @@
       {% endif %}
     </div>
   </div>
-</footer>
+    </footer>
+  </div>
+</div>
 
 <script src="{{ static_prefix }}static/app.js" defer></script>
 <script src="{{ static_prefix }}static/toc.js" defer></script>

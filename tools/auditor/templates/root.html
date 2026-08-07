@@ -34,8 +34,8 @@
       <p class="card-stats">
         <strong>{{ paper.sections|length }}</strong> sections ·
         <strong>{{ paper.beyond|length }}</strong> beyond ·
-        <strong>{{ paper.gaps|length }}</strong> gaps ·
-        <strong>{{ p_entries|length }}</strong> entries.
+        <strong>{{ p_entries|length }}</strong> entries ·
+        <strong>{{ paper.gaps|length }}</strong> gap{{ 's' if paper.gaps|length != 1 else '' }}.
       </p>
       <p class="card-cta">Open Paper tab →</p>
     </a>
@@ -50,10 +50,9 @@
         cascade, productive partial termination.
       </p>
       <p class="card-stats">
-        <strong>{{ ppl.sections|length }}</strong> sections ·
-        <strong>{{ ppl.beyond|length }}</strong> beyond ·
-        <strong>{{ ppl.gaps|length }}</strong> gaps ·
-        <strong>{{ l_entries|length }}</strong> entries.
+        <strong>{{ ppl.chapters|length }}</strong> chapters ·
+        <strong>{{ l_entries|length }}</strong> entries ·
+        <strong>{{ ppl.gaps|length }}</strong> gap{{ 's' if ppl.gaps|length != 1 else '' }}.
       </p>
       <p class="card-cta">Open PPL tab →</p>
     </a>
@@ -68,10 +67,9 @@
         boolean cascades.
       </p>
       <p class="card-stats">
-        <strong>{{ examples.sections|length }}</strong> sections ·
-        <strong>{{ examples.beyond|length }}</strong> beyond ·
-        <strong>{{ examples.gaps|length }}</strong> gaps ·
-        <strong>{{ x_entries|length }}</strong> entries.
+        <strong>{{ examples.chapters|length }}</strong> chapters ·
+        <strong>{{ x_entries|length }}</strong> entries ·
+        <strong>{{ examples.gaps|length }}</strong> gap{{ 's' if examples.gaps|length != 1 else '' }}.
       </p>
       <p class="card-cta">Open Examples tab →</p>
     </a>
