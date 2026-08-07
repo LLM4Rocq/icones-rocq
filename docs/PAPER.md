@@ -1017,6 +1017,36 @@ Proof. by exists icones_subobject_class; exact: icones_subobject_classP. Qed.
 `wi_incl_inj`, `is_icones_left_adjoint` — is collected under
 *Beyond the paper* below.)
 
+### Thm 4.19 (`is_icones_left_adjoint`, `wi_obj`, `wi_med`, `wi_med_unique`)
+
+Every limit-preserving functor out of $\mathbf{ICones}$ has a left adjoint, by SAFT with the § 4 inputs: completeness (Thm 4.16) and the coseparator + well-poweredness (Thm 4.18). The formalization records the *conclusion* as the hom-bijection contract `is_icones_left_adjoint` — a candidate left adjoint $F$ to $R$ is one equipped with mutually inverse maps $\Phi : \mathbf{ICones}(F c, x) \simeq \mathcal{C}(c, R\,x) : \Psi$ — and mechanises the SAFT construction that produces it: the wide intersection `wi_obj` of a small family of subobjects, with its mediating morphism `wi_med` and the uniqueness `wi_med_unique` that makes it initial.
+
+> **Paper — Theorem 4.19** (arXiv 2212.02371, `th:Icones-adjoint-functor`). If $\mathcal{C}$ is a locally small category and $R:\mathbf{ICones}\to\mathcal{C}$ is a functor which preserves all limits, then $R$ has a left adjoint. *Proof.* Apply the special adjoint functor theorem.
+
+> **Difference.** The paper's one-line proof invokes SAFT as a black box; the development contains no single theorem quantifying over an arbitrary locally small $\mathcal{C}$. Instead the SAFT *argument* is mechanised as a reusable engine (subobject classifier, wide intersections with their universal property — see *Beyond the paper*), and the two instances the paper actually consumes are built concretely against the `is_icones_left_adjoint` contract: the tensor ${-}\otimes C \dashv C \multimap {-}$ (`tensor_curry` / `tensor_uncurry` with proved round-trips, `tensor_construct.v`) and the exponential $\mathsf{E} \dashv \mathsf{Der}$ (`Bang`, `nl` / `lin`, `bang_construct.v`). The remark's third instance (integral completion of a measurable cone along $\mathbf{ICones}\to\mathbf{MCones}$) is not used by §§ 5–9 and is not constructed.
+
+```coq
+(* theories/icones/representable.v — Section SAFTExport *)
+Definition is_icones_left_adjoint
+    (Cobj : Type) (Homc : Cobj -> Cobj -> Type)
+    (Robj : ICone.type Ar -> Cobj)
+    (Fobj : Cobj -> ICone.type Ar)
+    (Phi : forall (c : Cobj) (x : ICone.type Ar),
+             icones_hom Ar (Fobj c) x -> Homc c (Robj x))
+    (Psi : forall (c : Cobj) (x : ICone.type Ar),
+             Homc c (Robj x) -> icones_hom Ar (Fobj c) x) : Prop :=
+  (forall c x (f : icones_hom Ar (Fobj c) x), Psi c x (Phi c x f) = f) /\
+  (forall c x (g : Homc c (Robj x)), Phi c x (Psi c x g) = g).
+
+(* theories/icones/representable.v — Section WideIntersection *)
+Definition wi_med : icones_hom Ar Z wi_obj :=
+  icones_eq_med wi_u wi_v wi_tuple wi_tuple_equ.
+
+Lemma wi_med_unique (kk : icones_hom Ar Z wi_obj) :
+  (forall k, icones_comp (wi_proj k) kk = ff k) ->
+  kk = wi_med.
+```
+
 ---
 
 ## Paper § 5 — Internal hom, tensor, and SMCC
