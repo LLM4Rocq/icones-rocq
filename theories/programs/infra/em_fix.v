@@ -9,9 +9,16 @@
     fixpoint at this clean-cone shape is paper-level folklore not in
     the literature).
 
-    Provides the linhom-level Kleene toolkit consumed by the GENUINE
-    seeded CBV value-fixpoint combinator [fix_comb] of
-    [theories/programs/infra/em_fix_value.v]:
+    This file states the NAIVE linear Kleene step [Phi_fun] and the
+    linhom LFP core it used to be iterated in.  Its remaining job is to
+    supply exactly what §1 of [theories/programs/infra/em_fix_value.v]
+    consumes for the DEGENERACY theorem [Phi_fun_lfp_eq0]; the GENUINE
+    seeded combinator [fix_comb] does NOT route through anything here —
+    it is built on [em_fix_value.v]'s own seeded Kleene core
+    ([kleene_from] / [lfp_from], §2), which replaces the cone-zero seed
+    by an arbitrary [b0] with [b0 <=p f b0].
+
+    Provided:
 
     - the Kleene step on the clean linhom cone (no [Tobj] / [!̃U] /
       Kleisli-exponential wrap on [B])
@@ -20,11 +27,10 @@
 
       where [M : icones_hom Ar (Γ ⊗ B) B] is the body of the recursive
       function (with the self-reference threaded through [B]), together
-      with its three unit-ball laws [Phi_fun_ball] / [Phi_fun_incr] /
-      [Phi_fun_omega_cont];
-    - the ω-continuity workhorses behind them
-      ([tensor_mor_omega_cont_R], [tensor_mor_R_lin_incr],
-      [linhom_pre_icones_sup], [linhom_post_icones_sup]);
+      with its unit-ball laws [Phi_fun_ball] / [Phi_fun_incr];
+    - the linhom shadow [tensor_mor_R_lin] of [tensor_mor (icones_id G) ·]
+      with its computation lemmas and its monotonicity
+      [tensor_mor_R_lin_incr], plus [tensor_ext_linhom];
     - the linhom LFP core [kleene_lin] / [linhom_lfp] /
       [linhom_lfp_fixpoint] — [stable/fixpoint.v]'s generic Kleene
       engine instantiated at the coneType [linhom_car Ar C D].
@@ -35,6 +41,14 @@
     every diagonal and every body; the degeneracy record survives as
     [em_fix_value.v]'s §1 ([Phi_fun_zero] + the generic [lfp_eq0],
     packaged as [Phi_fun_lfp_eq0]).
+
+    The ω-continuity component that existed only to feed that removed
+    operator ([Phi_fun_omega_cont], [tensor_mor_omega_cont_R],
+    [linhom_pre_icones_sup], [linhom_post_icones_sup], and the unit-ball
+    side conditions [kleene_lin_ball] / [kleene_lin_chain] /
+    [linhom_lfp_norm_le1]) was removed together with that operator —
+    it documented properties of a construction the degeneracy theorem
+    retired.
 
     Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
 
@@ -81,76 +95,6 @@ Local Open Scope ring_scope.
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
-(** ** ω-continuity of pre/post composition by an icones_hom
-
-    These are CONSEQUENCES (NOT new theorems) of the fact that
-    [linhom_post_icones g] is an icones_hom, hence its underlying
-    [cones_hom_fun] is ω-continuous on the unit ball.  We expose the
-    equation in the form we need downstream. *)
-
-Section LinhomPostPreSup.
-Variables (R : realType) (Ar : MeasSubcat R).
-
-(** Post-composition by an icones_hom [g] preserves linhom-cone suprema. *)
-Lemma linhom_post_icones_sup (C D1 D2 : ICone.type Ar)
-    (g : icones_hom Ar D1 D2)
-    (u : nat -> linhom_car Ar C D1)
-    (uch : forall n, precone_le (u n) (u n.+1))
-    (ub1 : forall n, cone_norm (u n) <= 1)
-    (gch : forall n, precone_le (linhom_post g (u n)) (linhom_post g (u n.+1)))
-    (gub : forall n, cone_norm (linhom_post g (u n)) <= 1) :
-  linhom_post g (cone_sup_ball u uch ub1) =
-  cone_sup_ball (linhom_post g \o u) gch gub.
-Proof.
-set hh := @linhom_post_icones R Ar C _ _ g.
-have Hcont :
-    is_omega_continuous (cones_hom_fun
-       (mcones_hom_cones (icones_hom_mcones hh))).
-  exact: cones_hom_continuous.
-have HE : Lfun hh (cone_sup_ball u uch ub1) =
-          linhom_post g (cone_sup_ball u uch ub1).
-  exact: linhom_post_iconesE.
-rewrite -HE (Hcont u uch ub1 gch gub).
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub (linhom_post g \o u) gch gub n).
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub _ gch gub n).
-Qed.
-
-(** Pre-composition by an icones_hom [h] preserves linhom-cone suprema. *)
-Lemma linhom_pre_icones_sup (C1 C2 D : ICone.type Ar)
-    (h : icones_hom Ar C2 C1)
-    (u : nat -> linhom_car Ar C1 D)
-    (uch : forall n, precone_le (u n) (u n.+1))
-    (ub1 : forall n, cone_norm (u n) <= 1)
-    (hch : forall n,
-       precone_le (linhom_pre_act h (u n)) (linhom_pre_act h (u n.+1)))
-    (hub : forall n, cone_norm (linhom_pre_act h (u n)) <= 1) :
-  linhom_pre_act h (cone_sup_ball u uch ub1) =
-  cone_sup_ball (linhom_pre_act h \o u) hch hub.
-Proof.
-set hh := @linhom_pre_icones R Ar _ _ D h.
-have Hcont :
-    is_omega_continuous (cones_hom_fun
-       (mcones_hom_cones (icones_hom_mcones hh))).
-  exact: cones_hom_continuous.
-have HE : Lfun hh (cone_sup_ball u uch ub1) =
-          linhom_pre_act h (cone_sup_ball u uch ub1).
-  exact: linhom_pre_iconesE.
-rewrite -HE (Hcont u uch ub1 hch hub).
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub (linhom_pre_act h \o u) hch hub n).
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub _ hch hub n).
-Qed.
-
-End LinhomPostPreSup.
-
-Arguments linhom_post_icones_sup {R Ar C D1 D2}.
-Arguments linhom_pre_icones_sup {R Ar C1 C2 D}.
-
 (** ** Pure-tensor extensionality at the [linhom_car] level
 
     Two norm-[≤1] linear maps [φ, ψ : B ⊗ C ⊸ D] agreeing on every pure
@@ -181,15 +125,15 @@ End TensorExtLinhom.
 
 Arguments tensor_ext_linhom {R Ar B C D} phi psi Hphi Hpsi.
 
-(** ** ω-continuity of [tensor_mor (icones_id G) ·] — the workhorse for Yfix
+(** ** The linhom shadow of [tensor_mor (icones_id G) ·]
 
-    Given a unit-ball ω-chain [u_n : linhom_car C1 C2], the icones_hom
-    [tensor_mor (icones_id G) (linhom_icones (sup u_n) LHS_norm)] equals
-    (at the [icones_to_linhom] level) the linhom-cone supremum of
-    [n ↦ icones_to_linhom
-           (tensor_mor (icones_id G) (linhom_icones u_n (ub1 n)))]. *)
+    The [icones_to_linhom] packaging of [tensor_mor (icones_id G) f] and
+    its two computation lemmas — the layer-1 ingredient of [Phi_fun].
+    (Its ω-continuity [tensor_mor_omega_cont_R] was removed together
+    with the rest of the component that only the retired zero-seeded
+    operator needed.) *)
 
-Section TensorMorIdLinOmegaCont.
+Section TensorMorIdLinShadow.
 Variables (R : realType) (Ar : MeasSubcat R).
 
 (** "Linhom-shadow" of [tensor_mor (icones_id G) f] for [f : C1 → C2]:
@@ -215,133 +159,19 @@ rewrite /tensor_mor_R_lin icones_to_linhomE tensor_morE.
 by rewrite -[Lfun (icones_id Ar G) x]/x.
 Qed.
 
-(** **The headline ω-continuity of [tensor_mor (icones_id G) ·]**
-    at the linhom level. *)
-Lemma tensor_mor_omega_cont_R (G C1 C2 : ICone.type Ar)
-    (u : nat -> linhom_car Ar C1 C2)
-    (uch : forall n, precone_le (u n) (u n.+1))
-    (ub1 : forall n, cone_norm (u n) <= 1)
-    (LHS_norm : cone_norm (linhom_sup_ball u uch ub1) <= 1)
-    (T_n := fun n => tensor_mor_R_lin G (linhom_icones (u n) (ub1 n)))
-    (tch : forall n, precone_le (T_n n) (T_n n.+1))
-    (tub1 : forall n, cone_norm (T_n n) <= 1) :
-  tensor_mor_R_lin G (linhom_icones _ LHS_norm) =
-  linhom_sup_ball T_n tch tub1.
-Proof.
-apply: (tensor_ext_linhom _ _ (tensor_mor_R_lin_norm_le1 _ _)
-                              (linhom_sup_ball_norm T_n tch tub1)).
-move=> x y.
-(* LHS at [x ⊗p y]: [tensor_mor_R_lin G (linhom_icones (sup u_n)) (x ⊗p y) =
-   x ⊗p Lfun (linhom_icones (sup u_n) LHS_norm) y
-   = x ⊗p (linhom_fun (sup u_n) y)]. *)
-rewrite tensor_mor_R_lin_ptensor.
-have LHS_eq : Lfun (linhom_icones _ LHS_norm) y =
-              linhom_fun (linhom_sup_ball u uch ub1) y by [].
-rewrite LHS_eq.
-(* RHS at [x ⊗p y]: unfold the linhom-sup. *)
-rewrite -[linhom_fun (linhom_sup_ball T_n tch tub1) _]
-        /(linhom_sup_fun tch tub1 (ptensor x y)).
-(* Reduce [y] to unit-ball by scaling. *)
-set rinv := cnorm_succ_inv_nng y.
-set r := cnorm_succ_nng y.
-set y' := precone_scale rinv y.
-have y'_ub : cone_norm y' <= 1 by exact: cnorm_inv_unit.
-have y_eq : y = precone_scale r y' by rewrite /y' cnorm_succ_scaleK.
-have LHS_lin : linhom_fun (linhom_sup_ball u uch ub1) y =
-               precone_scale r (linhom_fun (linhom_sup_ball u uch ub1) y').
-  rewrite y_eq /linhom_fun.
-  by have [_ _ HZ] :=
-    linhom_pre_linear (linhom_pre_of (linhom_sup_ball u uch ub1)); rewrite HZ.
-rewrite LHS_lin ptensorZr.
-have RHS_lin : linhom_sup_fun tch tub1 (ptensor x y) =
-               precone_scale r (linhom_sup_fun tch tub1 (ptensor x y')).
-  rewrite {1}y_eq ptensorZr.
-  have [_ _ HZ] := linhom_pre_linear
-                     (linhom_pre_of (linhom_sup_ball T_n tch tub1)).
-  exact: HZ.
-rewrite RHS_lin.
-congr (precone_scale _ _).
-have LHS_at_y' : linhom_fun (linhom_sup_ball u uch ub1) y' =
-                 linhom_sup_unit uch ub1 y'_ub
-  by exact: linhom_sup_fun_unitE.
-rewrite LHS_at_y' linhom_sup_unitE.
-set xinv := cnorm_succ_inv_nng x.
-set xr := cnorm_succ_nng x.
-set x' := precone_scale xinv x.
-have x'_ub : cone_norm x' <= 1 by exact: cnorm_inv_unit.
-have x_eq : x = precone_scale xr x' by rewrite /x' cnorm_succ_scaleK.
-have xy'_norm : cone_norm (ptensor x' y') <= 1.
-  apply: (le_trans (tensor_norm_le _ _)).
-  apply: mulr_ile1 => //; exact: cone_norm_ge0.
-rewrite x_eq ptensorZl.
-have RHS_xrEq : linhom_sup_fun tch tub1 (ptensor (precone_scale xr x') y') =
-                precone_scale xr (linhom_sup_fun tch tub1 (ptensor x' y')).
-  rewrite ptensorZl.
-  have [_ _ HZ] := linhom_pre_linear
-                     (linhom_pre_of (linhom_sup_ball T_n tch tub1)).
-  exact: HZ.
-rewrite RHS_xrEq.
-have RHS_at_xy' : linhom_sup_fun tch tub1 (ptensor x' y') =
-                  linhom_sup_unit tch tub1 xy'_norm
-  by exact: linhom_sup_fun_unitE.
-rewrite RHS_at_xy' linhom_sup_unitE.
-congr (precone_scale _ _).
-(* Both sides are [cone_sup_ball] over [tensor Ar G C2]. *)
-pose w (n : nat) : C2 := linhom_fun (u n) y'.
-have wch : forall n, precone_le (w n) (w n.+1)
-  by move=> n; rewrite /w; exact: linhom_sup_pw_chain uch y' n.
-have wub1 : forall n, cone_norm (w n) <= 1
-  by move=> n; rewrite /w; apply: linhom_sup_pw_ub1 => //.
-have ptensor_x'_cont : is_omega_continuous (fun v : C2 => ptensor x' v).
-  by exact: (linhom_pre_continuous (linhom_pre_of (tau G C2 x'))).
-have pch : forall n, precone_le (ptensor x' (w n)) (ptensor x' (w n.+1)).
-  move=> n; rewrite /w.
-  apply: (linear_increasing (f := ptensor x'));
-    last by exact: wch.
-  exact: (linhom_pre_linear (linhom_pre_of (tau G C2 x'))).
-have pub1 : forall n, cone_norm (ptensor x' (w n)) <= 1.
-  move=> n; apply: (le_trans (tensor_norm_le _ _)).
-  apply: mulr_ile1; first exact: cone_norm_ge0.
-  - exact: cone_norm_ge0.
-  - exact: x'_ub.
-  - exact: wub1.
-have heq : cone_sup_ball (fun n => linhom_fun (u n) y')
-             [eta linhom_sup_pw_chain uch y'] (linhom_sup_pw_ub1 ub1 y'_ub) =
-           cone_sup_ball w wch wub1.
-  apply: precone_le_anti.
-    by apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
-  by apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
-rewrite heq.
-rewrite (ptensor_x'_cont w wch wub1 pch pub1).
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n /=.
-  have HE : ptensor x' (linhom_fun (u n) y') =
-            linhom_fun (T_n n) (ptensor x' y').
-    rewrite /T_n /=.
-    by rewrite (tensor_mor_R_lin_ptensor (linhom_icones (u n) (ub1 n)) x' y').
-  rewrite HE.
-  exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n.
-  have HE : linhom_fun (T_n n) (ptensor x' y') =
-            ptensor x' (linhom_fun (u n) y').
-    rewrite /T_n.
-    by rewrite (tensor_mor_R_lin_ptensor (linhom_icones (u n) (ub1 n)) x' y').
-  rewrite HE.
-  exact: (cone_sup_ball_ub _ pch pub1 n).
-Qed.
-
-End TensorMorIdLinOmegaCont.
+End TensorMorIdLinShadow.
 
 Arguments tensor_mor_R_lin {R Ar} G {C1 C2} f.
 Arguments tensor_mor_R_lin_norm_le1 {R Ar} G {C1 C2} f.
 Arguments tensor_mor_R_lin_ptensor {R Ar} G {C1 C2} f x y.
-Arguments tensor_mor_omega_cont_R {R Ar} G {C1 C2} u uch ub1 LHS_norm.
 
-(** ** Monotonicity of [tensor_mor (icones_id G) ·] — the workhorse for Yfix
+(** ** Monotonicity of [tensor_mor (icones_id G) ·]
 
-    Dual to [tensor_mor_omega_cont_R].  Given a [precone_le prev1 prev2]
+    Dual to the removed [tensor_mor_omega_cont_R].
+    Given a [precone_le prev1 prev2]
     of [linhom_car C1 C2] (with both norms [≤ 1]), the [linhom_car]
-    shadow [tensor_mor_R_lin G ·] is monotone in its argument. *)
+    shadow [tensor_mor_R_lin G ·] is monotone in its argument.  This one
+    is live: it is the monotonicity content of [Phi_fun_incr]. *)
 
 Section TensorMorRLinIncr.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -478,25 +308,13 @@ Definition kleene_lin (n : nat) : linhom_car Ar C D := kleene Phi n.
 Lemma kleene_lin_S n : kleene_lin n.+1 = Phi (kleene_lin n).
 Proof. exact: kleeneS. Qed.
 
-Lemma kleene_lin_ball n : cone_norm (kleene_lin n) <= 1.
-Proof. exact: kleene_ball Phi_ball n. Qed.
-
-Lemma kleene_lin_chain n : precone_le (kleene_lin n) (kleene_lin n.+1).
-Proof. exact: kleene_chain Phi_incr Phi_ball n. Qed.
-
 (** The linhom-level least fixpoint of [Phi]. *)
 Definition linhom_lfp : linhom_car Ar C D := lfp Phi Phi_incr Phi_ball.
-
-Lemma linhom_lfp_norm_le1 : cone_norm linhom_lfp <= 1.
-Proof. exact: lfp_ball. Qed.
 
 End LinhomLFP.
 
 Arguments kleene_lin {R Ar C D} Phi n.
 Arguments linhom_lfp {R Ar C D} Phi Phi_incr Phi_ball.
-Arguments linhom_lfp_norm_le1 {R Ar C D} Phi Phi_incr Phi_ball.
-Arguments kleene_lin_ball {R Ar C D} Phi Phi_ball n.
-Arguments kleene_lin_chain {R Ar C D} Phi Phi_incr Phi_ball n.
 
 (** ** The Kleene fixpoint equation, under linhom-ω-continuity *)
 
@@ -554,8 +372,9 @@ Arguments linhom_lfp_fixpoint {R Ar C D} Phi Phi_incr Phi_ball Phi_cont.
 
     - [tensor_mor_R_lin Γ (linhom_icones prev _)
          : linhom_car (Γ⊗Γ) (Γ ⊗ B)]
-      (ω-continuous in prev via [tensor_mor_omega_cont_R]; monotone via
-      [tensor_mor_R_lin_incr]);
+      (monotone in prev via [tensor_mor_R_lin_incr]; its ω-continuity
+      lemma [tensor_mor_omega_cont_R] was removed with the retired
+      operator);
     - [linhom_pre_act diag] applied to that, landing in
       [linhom_car Γ (Γ ⊗ B)];
     - [linhom_post M] applied to that, landing in [linhom_car Γ B]. *)
@@ -673,92 +492,6 @@ rewrite (Phi_fun_unit Hprev1) (Phi_fun_unit Hprev2).
 exact: Phi_fun_safe_incr.
 Qed.
 
-(** ** ω-continuity of [Phi_fun] *)
-
-Lemma Phi_fun_omega_cont
-    (u : nat -> linhom_car Ar Gamma B)
-    (uch : forall n, precone_le (u n) (u n.+1))
-    (ub1 : forall n, cone_norm (u n) <= 1)
-    (Pch : forall n, precone_le (Phi_fun (u n)) (Phi_fun (u n.+1)))
-    (Pub1 : forall n, cone_norm (Phi_fun (u n)) <= 1) :
-  Phi_fun (cone_sup_ball u uch ub1) =
-  cone_sup_ball (Phi_fun \o u) Pch Pub1.
-Proof.
-have S_ub : cone_norm (cone_sup_ball u uch ub1) <= 1
-  by exact: cone_sup_ball_norm.
-rewrite (Phi_fun_unit S_ub).
-rewrite /Phi_fun_safe.
-(* Layer 1: tensor_mor_R_lin Gamma. *)
-pose T_n (n : nat) := tensor_mor_R_lin Gamma
-  (linhom_icones (u n) (ub1 n)).
-have Tch : forall n, precone_le (T_n n) (T_n n.+1).
-  by move=> n; rewrite /T_n; exact: tensor_mor_R_lin_incr.
-have Tub1 : forall n, cone_norm (T_n n) <= 1.
-  by move=> n; rewrite /T_n; exact: tensor_mor_R_lin_norm_le1.
-have step1 : tensor_mor_R_lin Gamma
-              (linhom_icones (cone_sup_ball u uch ub1) S_ub) =
-             cone_sup_ball T_n Tch Tub1.
-  exact: tensor_mor_omega_cont_R.
-rewrite step1.
-(* Layer 2: linhom_pre_act diag. *)
-pose P_n (n : nat) := linhom_pre_act diag (T_n n).
-have Pch2 : forall n, precone_le (P_n n) (P_n n.+1).
-  move=> n; rewrite /P_n.
-  rewrite -!linhom_pre_iconesE.
-  apply: linear_increasing.
-    exact: cones_hom_linear (mcones_hom_cones
-             (icones_hom_mcones (linhom_pre_icones diag))).
-  exact: Tch.
-have Pub2 : forall n, cone_norm (P_n n) <= 1.
-  move=> n; rewrite /P_n.
-  rewrite -linhom_pre_iconesE.
-  apply: le_trans (cones_hom_norm_le1
-                     (mcones_hom_cones (icones_hom_mcones
-                       (linhom_pre_icones diag))) _) _.
-  exact: Tub1.
-rewrite (linhom_pre_icones_sup diag T_n Tch Tub1 Pch2 Pub2).
-(* Layer 3: linhom_post M. *)
-pose Q_n (n : nat) := linhom_post M (P_n n).
-have Qch : forall n, precone_le (Q_n n) (Q_n n.+1).
-  move=> n; rewrite /Q_n /P_n.
-  rewrite -!linhom_post_iconesE.
-  apply: linear_increasing.
-    exact: cones_hom_linear (mcones_hom_cones
-             (icones_hom_mcones (linhom_post_icones M))).
-  exact: Pch2.
-have Qub : forall n, cone_norm (Q_n n) <= 1.
-  move=> n; rewrite /Q_n.
-  rewrite -linhom_post_iconesE.
-  apply: le_trans (cones_hom_norm_le1
-                     (mcones_hom_cones (icones_hom_mcones
-                       (linhom_post_icones M))) _) _.
-  exact: Pub2.
-rewrite (linhom_post_icones_sup M P_n Pch2 Pub2 Qch Qub).
-(* RHS: the goal sup is over the chain [Phi_fun \o u], which on
-   unit-ball u_n equals [Phi_fun_safe (u n) (ub1 n)]. *)
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  rewrite -[(_ \o _) n]/(linhom_post M (P_n n)).
-  have HE : linhom_post M (P_n n) =
-            Phi_fun (u n).
-    rewrite (Phi_fun_unit (ub1 n)).
-    rewrite /Phi_fun_safe /Q_n /P_n /T_n.
-    by [].
-  rewrite HE.
-  exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n.
-  have HE : (Phi_fun \o u) n =
-            linhom_post M (P_n n).
-    rewrite /=.
-    rewrite (Phi_fun_unit (ub1 n)).
-    rewrite /Phi_fun_safe /Q_n /P_n /T_n.
-    by [].
-  rewrite HE.
-  rewrite -[linhom_post _ (P_n n)]
-          /((fun n0 => linhom_post M (P_n n0)) n).
-  exact: cone_sup_ball_ub.
-Qed.
-
 End PhiFun.
 
 Arguments Phi_fun_safe {R Ar Gamma B} diag M prev Hprev.
@@ -768,4 +501,3 @@ Arguments Phi_fun_safe_ball {R Ar Gamma B} diag M prev Hprev.
 Arguments Phi_fun_ball {R Ar Gamma B} diag M prev.
 Arguments Phi_fun_safe_incr {R Ar Gamma B} diag M prev1 prev2 Hprev1 Hprev2.
 Arguments Phi_fun_incr {R Ar Gamma B} diag M prev1 prev2.
-Arguments Phi_fun_omega_cont {R Ar Gamma B} diag M u uch ub1 Pch Pub1.

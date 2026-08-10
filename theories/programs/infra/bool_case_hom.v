@@ -70,115 +70,19 @@ Import Order.TTheory GRing.Theory Num.Theory.
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
 
-(** ** Step 3c — [bool_case . a b] as a [linhom_car] *)
+(** ** Step 3c — [bool_case . a b] as a [linhom_car]
 
-Section BoolCaseLinhom.
-Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
-Variables (a b : A).
-Hypotheses (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R).
-
-Local Notation T := (bool_cone_car Ar).
-
-(** Linearity of [x ↦ bool_case x a b] is already in [bool_cone.v]
-    as [bool_case_linear], which takes the [a, b] as section
-    arguments and returns an [is_linear]. *)
-Definition bool_case_pre_linear : is_linear (fun x : T => bool_case x a b) :=
-  bool_case_linear Ar a b.
-
-(** ω-continuity — substep 2b in [bool_cone.v]. *)
-Definition bool_case_pre_continuous :
-    is_omega_continuous (fun x : T => bool_case x a b) :=
-  bool_case_omega_continuous Ha Hb.
-
-(** Operator-norm bound at [≤ 1]: from [bool_case_norm_le1]. *)
-Lemma bool_case_pre_bounded :
-  exists M : R,
-    forall x : T, cone_norm x <= 1 -> cone_norm (bool_case x a b) <= M.
-Proof.
-exists 1 => x Hx.
-exact: le_trans (bool_case_norm_le1 Ha Hb x) Hx.
-Qed.
-
-(** Path preservation — substep 3a in [bool_cone.v]. *)
-Definition bool_case_pre_pres_path :
-    forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> T),
-      is_measurable_path γ ->
-      is_measurable_path (fun r => bool_case (γ r) a b) :=
-  fun X γ Hγ => bool_case_pres_path a b Ha Hb γ Hγ.
-
-(** Package: the [linhom_pre Ar (bool_cone_car Ar) A] half. *)
-Definition bool_case_pre : linhom_pre Ar T A :=
-  MkLinhomPre (fun x : T => bool_case x a b)
-              bool_case_pre_linear
-              bool_case_pre_continuous
-              bool_case_pre_bounded
-              bool_case_pre_pres_path.
-
-(** Integral preservation — substep 3b in [bool_cone.v]. *)
-Lemma bool_case_pres_int_packaged
-    (X : ar_obj Ar) (β : ar_carrier Ar X -> T)
-    (Hβ : is_measurable_path β)
-    (µ : fmeas R (ar_carrier Ar X)) :
-  linhom_pre_fun bool_case_pre (icone_integral β Hβ µ) =
-  icone_integral
-    (fun r => linhom_pre_fun bool_case_pre (β r))
-    (linhom_pre_pres_path bool_case_pre X β Hβ) µ.
-Proof.
-rewrite /bool_case_pre /=.
-have H := bool_case_pres_int Ha Hb Hβ µ.
-rewrite H.
-by congr icone_integral; exact: Prop_irrelevance.
-Qed.
-
-(** Step 3c output: the [linhom_car] packaging. *)
-Definition bool_case_linhom : linhom_car Ar T A :=
-  MkLinhom bool_case_pre bool_case_pres_int_packaged.
-
-(** Norm-≤1 of the packaged linhom (needed for the [linhom_icones]
-    bridge in Step 4). The operator norm of a sub-probability-eliminator
-    into the unit ball is bounded by 1. *)
-Lemma bool_case_linhom_norm_le1 :
-  cone_norm bool_case_linhom <= 1.
-Proof.
-apply: (linhom_norm_sup_lub bool_case_linhom 1).
-move=> x Hx.
-rewrite /linhom_fun /= /bool_case_pre /=.
-exact: (le_trans (bool_case_norm_le1 Ha Hb x) Hx).
-Qed.
-
-End BoolCaseLinhom.
-
-Arguments bool_case_linhom {R Ar A} a b Ha Hb.
-Arguments bool_case_linhom_norm_le1 {R Ar A} a b Ha Hb.
-
-(** ** Step 4 — promote to [icones_hom] via [linhom_icones] *)
-
-Section BoolCaseIConesHom.
-Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
-Variables (a b : A).
-Hypotheses (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R).
-
-Definition bool_case_icones_hom :
-    icones_hom Ar (bool_cone_car Ar) A :=
-  linhom_icones (bool_case_linhom a b Ha Hb)
-                (bool_case_linhom_norm_le1 a b Ha Hb).
-
-End BoolCaseIConesHom.
-
-Arguments bool_case_icones_hom {R Ar A} a b Ha Hb.
-
-(** ** [bool_case_linhom_gen] — UNIT-BALL-FREE packaging
-
-    Drop the [‖a‖ ≤ 1], [‖b‖ ≤ 1] hypotheses on the branches.
-    The branches [a, b : A] are arbitrary; only the chain inputs
-    need to live on the unit ball (this is automatic for the chain
-    field of [linhom_pre], so the unit-ball restriction on the
-    branches drops out).
+    The packaging is done ONCE, in the unit-ball-free form
+    ([bool_case_linhom_gen]); the unit-ball [bool_case_linhom] is a
+    derived instance of it under its historical name.  Dropping the
+    [‖a‖ ≤ 1], [‖b‖ ≤ 1] hypotheses on the branches costs nothing:
+    only the chain inputs need to live on the unit ball, and that is
+    already the shape of the [linhom_pre] fields.
 
     Uses the generalized lemmas of [bool_cone.v]:
     - [bool_case_linear] (already general; no unit-ball needed),
     - [bool_case_omega_continuous_gen] (drops unit-ball on a, b),
-    - [bool_case_norm_le_max] for the operator bound (with
+    - [bool_case_norm_le_max0_ball] for the operator bound (at
       [M := max(‖a‖, ‖b‖) ∨ 0]),
     - [bool_case_pres_path_gen],
     - [bool_case_pres_int_gen]. *)
@@ -199,25 +103,15 @@ Definition bool_case_pre_continuous_gen :
     is_omega_continuous (fun x : T => bool_case x a b) :=
   bool_case_omega_continuous_gen (a:=a) (b:=b).
 
-(** Operator-norm bound with the [‖a‖ + ‖b‖] threshold (using
-    [bool_case_norm_le_max] at [M := max(‖a‖, ‖b‖) ∨ 0]).  Note the
-    "≤ 1 → ≤ M" form of [linhom_pre_bounded] only needs a single
-    [M], so we pick [M := max(‖a‖, ‖b‖) ∨ 0]. *)
+(** Operator-norm bound: the "≤ 1 → ≤ M" form of [linhom_pre_bounded]
+    only needs a single [M], and [M := max(‖a‖, ‖b‖) ∨ 0] works for
+    arbitrary branches — this is [bool_case_norm_le_max0_ball]. *)
 Lemma bool_case_pre_bounded_gen :
   exists M : R,
     forall x : T, cone_norm x <= 1 -> cone_norm (bool_case x a b) <= M.
 Proof.
-pose M : R := Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
-exists M => x Hx.
-have HM0 : 0 <= M by rewrite le_max lexx orbT.
-have HMa : cone_norm a <= M
-  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
-     [rewrite le_max lexx|rewrite le_max lexx].
-have HMb : cone_norm b <= M
-  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
-     [rewrite le_max lexx orbT|rewrite le_max lexx].
-apply: le_trans (bool_case_norm_le_max HMa HMb HM0 x) _.
-by rewrite -[X in _ <= X]mul1r; apply: ler_wpM2r => //; rewrite mulrC.
+exists (Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R) => x Hx.
+exact: bool_case_norm_le_max0_ball.
 Qed.
 
 (** Path preservation, no unit-ball assumption. *)
@@ -257,29 +151,72 @@ Definition bool_case_linhom_gen : linhom_car Ar T A :=
 
 (** Operator-norm bound on [bool_case_linhom_gen]:
     [‖bool_case_linhom_gen a b‖ ≤ max(‖a‖, ‖b‖) ∨ 0].  This follows
-    from [bool_case_norm_le_max] via [linhom_norm_sup_lub]. *)
+    from [bool_case_norm_le_max0_ball] via [linhom_norm_sup_lub]. *)
 Lemma bool_case_linhom_gen_norm_le :
   cone_norm bool_case_linhom_gen <= Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
 Proof.
 apply: (linhom_norm_sup_lub bool_case_linhom_gen _).
 move=> x Hx.
 rewrite /linhom_fun /= /bool_case_pre_gen /=.
-pose M : R := Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
-have HM0 : 0 <= M by rewrite le_max lexx orbT.
-have HMa : cone_norm a <= M
-  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
-     [rewrite le_max lexx|rewrite le_max lexx].
-have HMb : cone_norm b <= M
-  by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
-     [rewrite le_max lexx orbT|rewrite le_max lexx].
-apply: le_trans (bool_case_norm_le_max HMa HMb HM0 x) _.
-by rewrite -[X in _ <= X]mul1r; apply: ler_wpM2r => //; rewrite mulrC.
+exact: bool_case_norm_le_max0_ball.
 Qed.
 
 End BoolCaseLinhomGen.
 
 Arguments bool_case_linhom_gen {R Ar A} a b.
 Arguments bool_case_linhom_gen_norm_le {R Ar A} a b.
+
+(** ** The unit-ball packaging — a derived instance of the general one
+
+    [bool_case_linhom a b Ha Hb] is literally [bool_case_linhom_gen a b];
+    the norm hypotheses are kept in the signature because the unit-ball
+    bound [bool_case_linhom_norm_le1] — which is what the
+    [linhom_icones] bridge of Step 4 consumes — does need them. *)
+
+Section BoolCaseLinhom.
+Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
+
+Local Notation T := (bool_cone_car Ar).
+
+(** Step 3c output: the [linhom_car] packaging. *)
+Definition bool_case_linhom (a b : A)
+    (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R) :
+    linhom_car Ar T A :=
+  bool_case_linhom_gen a b.
+
+(** Norm-≤1 of the packaged linhom (needed for the [linhom_icones]
+    bridge in Step 4). The operator norm of a sub-probability-eliminator
+    into the unit ball is bounded by 1. *)
+Lemma bool_case_linhom_norm_le1 (a b : A)
+    (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R) :
+  cone_norm (bool_case_linhom (a:=a) (b:=b) Ha Hb) <= 1.
+Proof.
+apply: (linhom_norm_sup_lub (bool_case_linhom (a:=a) (b:=b) Ha Hb) 1).
+move=> x Hx.
+rewrite /linhom_fun /= /bool_case_linhom /bool_case_pre_gen /=.
+exact: (le_trans (bool_case_norm_le1 Ha Hb x) Hx).
+Qed.
+
+End BoolCaseLinhom.
+
+Arguments bool_case_linhom {R Ar A} a b Ha Hb.
+Arguments bool_case_linhom_norm_le1 {R Ar A} a b Ha Hb.
+
+(** ** Step 4 — promote to [icones_hom] via [linhom_icones] *)
+
+Section BoolCaseIConesHom.
+Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
+Variables (a b : A).
+Hypotheses (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R).
+
+Definition bool_case_icones_hom :
+    icones_hom Ar (bool_cone_car Ar) A :=
+  linhom_icones (bool_case_linhom a b Ha Hb)
+                (bool_case_linhom_norm_le1 a b Ha Hb).
+
+End BoolCaseIConesHom.
+
+Arguments bool_case_icones_hom {R Ar A} a b Ha Hb.
 
 (** ** Step 1 — [alpha_linhom] / [beta_linhom] — the bilinear pieces
 

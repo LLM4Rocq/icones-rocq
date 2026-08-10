@@ -54,7 +54,8 @@
       closed surface PROGRAMS, and [reject_normalises_condition]
       [Z · ⟦reject⟧ U = ⟦condition⟧ U].
 
-    ** Proof skeleton (reuse of [ex_reject_headline.v] §1 kit)
+    ** Proof skeleton (on the setlike-point kit of
+       [theories/programs/infra/cbv_anchors.v])
 
     1. [reject_comb_val_E] / [reject_after_f_val_E] — strip the outer
        [λf] ([der∘prom]) and read the [fix "rx"] value at the setlike
@@ -73,11 +74,13 @@
     6. the affine cascade [a := IUf U], [q := m₀ - If].
 
     See also: [theories/programs/reject_condition.v] (the clean
-    combinators), [theories/programs/ex_reject_headline.v] (the §1
-    setlike/sup kit reused here), [theories/programs/infra/bool_cone.v]
+    combinators), [theories/programs/infra/cbv_anchors.v] (the
+    setlike/sup kit and [bool_case_mass] used here),
+    [theories/programs/infra/bool_cone.v]
     ([bool_case], [bc_t]/[bc_f], [bool_coord_meas]),
     [theories/programs/infra/let_sample_law.v] (the general let-law),
-    [theories/programs/infra/affine_cascade.v].
+    [theories/programs/infra/affine_cascade.v] (the scalar cascade and
+    the mass bookkeeping [fmeas_int_*]).
 
     Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
 
@@ -104,6 +107,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
+Require Import Icones.cones.omega_general.
 Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
@@ -144,7 +148,9 @@ Require Import Icones.programs.infra.cbv_fix_unfold.
 Require Import Icones.programs.infra.let_sample_law.
 Require Import Icones.programs.infra.affine_cascade.
 Require Import Icones.programs.examples.
-Require Import Icones.programs.ex_reject_headline.
+(* The setlike-point kit this rider runs on is [infra/cbv_anchors.v]; no
+   name of [ex_reject_headline.v] is used here, so it is NOT imported —
+   which also keeps this file's [fix_chain_prom_ball] unambiguous. *)
 Require Import Icones.programs.infra.cbv_marginals.
 Require Import Icones.programs.reject_condition.
 
@@ -271,15 +277,12 @@ Definition fenv2 (n : nat) :
   fenv1 n ⊗p one1.
 
 Lemma fix_chain_prom_ball n : cone_norm ((fix_chain F n)!) <= 1.
-Proof. exact: prom_ball (fix_chain_ball HF_ball n). Qed.
+Proof. exact: (kleene_prom_ball HF_ball n). Qed.
 
 Lemma fix_chain_prom_setlike n :
   Lfun (coalg_str (tyD_cbv (tfun tunit t))) ((fix_chain F n)!) =
   ((fix_chain F n)!)!.
-Proof.
-rewrite -[tyD_cbv (tfun tunit t)]/(bang_cofree L) bang_cofree_str.
-exact: (dig_prom _ (fix_chain_ball HF_ball n)).
-Qed.
+Proof. exact: (kleene_prom_setlike HF_ball n). Qed.
 
 Lemma fenv1_ball n : cone_norm (fenv1 n) <= 1.
 Proof.
@@ -668,15 +671,12 @@ Qed.
 (** *** Step 3 — the Kleene step at the extended setlike environment *)
 
 Lemma rm_chain_prom_ball n : cone_norm ((fix_chain rm_W0 n)!) <= 1.
-Proof. exact: prom_ball (fix_chain_ball rm_W0_ball n). Qed.
+Proof. exact: (kleene_prom_ball rm_W0_ball n). Qed.
 
 Lemma rm_chain_prom_setlike n :
   Lfun (coalg_str (tyD_cbv trec))
        ((fix_chain rm_W0 n)!) = ((fix_chain rm_W0 n)!)!.
-Proof.
-rewrite -[tyD_cbv trec]/(bang_cofree Lrec) bang_cofree_str.
-exact: (dig_prom _ (fix_chain_ball rm_W0_ball n)).
-Qed.
+Proof. exact: (kleene_prom_setlike rm_W0_ball n). Qed.
 
 Definition rm_env1 (n : nat) :
     coalg_obj (ctxD_cbv (drop_names ctx_rx)) :=
@@ -1006,29 +1006,27 @@ Qed.
 Lemma rm_m0_le1 : (m0 <= 1)%R.
 Proof. exact: rm_dist_ball. Qed.
 
+(** The acceptance-mass bookkeeping is the generic one of
+    [theories/programs/infra/affine_cascade.v] (Section
+    [MassBookkeeping]) at [ν := ν_M] and [g := bc_t ∘ sdist]; nothing
+    here needs [ν_M] to be a probability, which is why the generic
+    statements are these shapes and the headline rider's unit-mass
+    versions are the specialisations. *)
+
+Let rm_t_ge0 r : (0 <= (bc_t (sdist r))%:num)%R.
+Proof. exact: nngnum_ge0. Qed.
+
 Lemma rm_If_ge0 : 0 <= If.
-Proof. by apply: integral_ge0 => r _; rewrite lee_fin nngnum_ge0. Qed.
+Proof. exact: (fmeas_int_ge0 reject_model_dist rm_t_ge0). Qed.
 
 Lemma rm_If_le_mass :
   If <= fmeas_mu reject_model_dist [set: ar_carrier Ar B].
 Proof.
-apply: (le_trans (y := \int[fmeas_mu reject_model_dist]_
-                        (r in [set: ar_carrier Ar B]) (cst (1%:E : \bar R)) r)).
-  apply: ge0_le_integral.
-  - exact: measurableT.
-  - by move=> r _; exact: nngnum_ge0.
-  - by apply/measurable_EFinP; exact: rm_t_meas.
-  - exact: measurable_cst.
-  - by move=> r _; rewrite lee_fin rm_t_le1.
-by rewrite integral_cst// mul1e.
+exact: (fmeas_int_le_mass reject_model_dist rm_t_ge0 rm_t_le1 rm_t_meas).
 Qed.
 
 Lemma rm_If_fin : If \is a fin_num.
-Proof.
-rewrite ge0_fin_numE ?rm_If_ge0//.
-apply: le_lt_trans rm_If_le_mass _.
-by rewrite ltey_eq fmeas_setT_fin.
-Qed.
+Proof. exact: (fmeas_int_fin reject_model_dist rm_t_ge0 rm_t_le1 rm_t_meas). Qed.
 
 Lemma rm_fine_If_le_m0 : (fine If <= m0)%R.
 Proof.
@@ -1037,71 +1035,37 @@ exact: fmeas_setT_fin.
 Qed.
 
 Lemma rm_IUf_ge0 U : measurable U -> 0 <= IUf U.
-Proof. by move=> mU; apply: integral_ge0 => r _; rewrite lee_fin nngnum_ge0. Qed.
+Proof. exact: (fmeas_intU_ge0 reject_model_dist rm_t_ge0). Qed.
 
 Lemma rm_IUf_le_If U : measurable U -> IUf U <= If.
-Proof.
-move=> mU; apply: ge0_subset_integral => //.
-by apply/measurable_EFinP; exact: rm_t_meas.
-Qed.
+Proof. exact: (fmeas_intU_le reject_model_dist rm_t_ge0 rm_t_meas). Qed.
 
 Lemma rm_IUf_fin U : measurable U -> IUf U \is a fin_num.
 Proof.
-move=> mU; rewrite ge0_fin_numE ?rm_IUf_ge0//.
-apply: le_lt_trans (rm_IUf_le_If mU) _.
-apply: le_lt_trans rm_If_le_mass _.
-by rewrite ltey_eq fmeas_setT_fin.
+exact: (fmeas_intU_fin reject_model_dist rm_t_ge0 rm_t_le1 rm_t_meas).
 Qed.
 
 (** The rejected-AND-terminated weight: [∫ bc_f dν_M = m₀ - ∫ t dν_M]
-    — this is where TOTALITY enters ([bc_t + bc_f = 1]). *)
+    — this is where TOTALITY enters ([bc_t + bc_f = 1]), fed to the
+    generic complementary-weight law [fmeas_int_compl]. *)
 Lemma rm_int_onem :
   \int[fmeas_mu reject_model_dist]_(r in [set: ar_carrier Ar B])
      ((bc_f (sdist r))%:num)%:E = ((m0 - fine If)%R)%:E.
 Proof.
-have ge0_t : forall x, [set: ar_carrier Ar B] x ->
-    (0 <= ((bc_t (sdist x))%:num)%:E).
-  by move=> x _; rewrite lee_fin nngnum_ge0.
-have ge0_f : forall x, [set: ar_carrier Ar B] x ->
-    (0 <= ((bc_f (sdist x))%:num)%:E).
-  by move=> x _; rewrite lee_fin nngnum_ge0.
-have meas_t : measurable_fun [set: ar_carrier Ar B]
-    (fun r => ((bc_t (sdist r))%:num)%:E).
-  by apply/measurable_EFinP; exact: rm_t_meas.
-have meas_f : measurable_fun [set: ar_carrier Ar B]
-    (fun r => ((bc_f (sdist r))%:num)%:E).
-  by apply/measurable_EFinP; exact: rm_bf_meas.
-have Hsum : If + \int[fmeas_mu reject_model_dist]_
-                  (r in [set: ar_carrier Ar B])
-                   ((bc_f (sdist r))%:num)%:E =
-            fmeas_mu reject_model_dist [set: ar_carrier Ar B].
-  rewrite -(ge0_integralD _ measurableT ge0_t meas_t ge0_f meas_f).
-  under eq_integral => r _.
-    rewrite -EFinD (rm_total r).
-    over.
-  by rewrite integral_cst// mul1e.
-have := congr1 (fun z => z - If) Hsum.
-rewrite (addeC If) addeK ?rm_If_fin// => ->.
-rewrite -{1}(fineK (fmeas_setT_fin
-               (reject_model_dist : fmeas R (ar_carrier Ar B)))).
-by rewrite -{1}(fineK rm_If_fin) -EFinB.
+have rm_bf_ge0 r : (0 <= (bc_f (sdist r))%:num)%R by exact: nngnum_ge0.
+exact: (fmeas_int_compl reject_model_dist rm_t_ge0 rm_t_le1 rm_t_meas
+          (fun r => (bc_f (sdist r))%:num) rm_bf_ge0 rm_bf_meas rm_total).
 Qed.
 
+(** The mass of one branch dispatch — the generic [bool_case_mass] of
+    [theories/programs/infra/cbv_anchors.v] at the applied predicate. *)
 Lemma rm_case_mass n r U (mU : measurable U) :
   fmeas_mu (bool_case (sdist r)
     (dirac_fmeas r) (reject_model_iter n)) U =
   ((bc_t (sdist r))%:num * \1_U r + (bc_f (sdist r))%:num *
       fine (fmeas_mu (reject_model_iter n) U))%:E.
 Proof.
-have -> : (bool_case (sdist r)
-    (dirac_fmeas r) (reject_model_iter n) : fmeas R (ar_carrier Ar B)) =
-  fmeas_add
-    (fmeas_scale (bc_t (sdist r)) (dirac_fmeas r))
-    (fmeas_scale (bc_f (sdist r)) (reject_model_iter n)).
-  by [].
-rewrite fmeas_addE 2!fmeas_scaleE (dirac_fmeas_E r mU) diracE/=.
-rewrite -(fineK (fmeas_fin (reject_model_iter n) U mU)).
-by rewrite -2!EFinM -EFinD indicE.
+exact: (bool_case_mass (sdist r) r (reject_model_iter n) mU).
 Qed.
 
 Lemma reject_model_iter_mass n U (mU : measurable U) :

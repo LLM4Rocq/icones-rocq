@@ -1059,6 +1059,38 @@ apply: lerD.
 - by apply: ler_wpM2l => //; exact: nngnum_ge0.
 Qed.
 
+(** The canonical branch bound [M := max(‖a‖, ‖b‖) ∨ 0].  Clamping at
+    [0] makes it non-negative without any assumption on [a, b], which
+    is exactly what [bool_case_norm_le_max] needs.  The next two lemmas
+    package the [M]-preamble that all the unit-ball-free statements
+    (here and in [bool_case_hom.v]) would otherwise repeat verbatim. *)
+Lemma bool_case_max_ge0 (a b : A) :
+  0 <= Num.max (Num.max (cone_norm a) (cone_norm b)) 0.
+Proof. by rewrite le_max lexx orbT. Qed.
+
+(** Unit-ball-free norm bound: [‖bool_case x a b‖ ≤ ‖x‖ · (max(‖a‖, ‖b‖) ∨ 0)]
+    for ARBITRARY branches [a, b].  Instance of [bool_case_norm_le_max]
+    at [M := max(‖a‖, ‖b‖) ∨ 0]. *)
+Lemma bool_case_norm_le_max0 (a b : A) (x : T) :
+  cone_norm (bool_case x a b)
+  <= cone_norm x * Num.max (Num.max (cone_norm a) (cone_norm b)) 0.
+Proof.
+apply: (bool_case_norm_le_max _ _ (bool_case_max_ge0 a b)).
+- by rewrite !le_max lexx.
+- by rewrite !le_max lexx orbT.
+Qed.
+
+(** Its unit-ball corollary, in the "≤ 1 → ≤ M" shape required by
+    [linhom_pre_bounded] / [linhom_norm_sup_lub]. *)
+Lemma bool_case_norm_le_max0_ball (a b : A) (x : T) (Hx : cone_norm x <= 1) :
+  cone_norm (bool_case x a b)
+  <= Num.max (Num.max (cone_norm a) (cone_norm b)) 0.
+Proof.
+apply: le_trans (bool_case_norm_le_max0 a b x) _.
+rewrite -[X in _ <= X]mul1r.
+by apply: ler_wpM2r; [exact: bool_case_max_ge0|exact: Hx].
+Qed.
+
 End BoolCaseCone.
 
 (** ** Scalar sup-distributivity — substep 2a of ω-continuity
@@ -1317,78 +1349,15 @@ rewrite testLHS test_rhs_eq Sc_eq.
 by apply: bool_case_sup_distrib => //; apply: nngnum_ge0.
 Qed.
 
-(** ω-continuity of [x ↦ bool_case x a b] on the unit ball. *)
+(** ω-continuity of [x ↦ bool_case x a b] on the unit ball.  Derived
+    instance of the unit-ball-free [bool_case_omega_continuous_gen]:
+    the hypotheses [Ha], [Hb] are not needed for the conclusion, they
+    are kept so that the statement remains the one consumed by the
+    unit-ball packaging of [bool_case_hom.v]. *)
 Lemma bool_case_omega_continuous
     (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1) :
   is_omega_continuous (fun x : T => bool_case x a b).
-Proof.
-move=> u uch ub1 fuch fub1.
-(* Apply (Mssep) on A. *)
-apply: mcone_M_sep => m mM.
-set lhs := bool_case _ a b.
-set rhs := cone_sup_ball _ fuch fub1.
-(* Abbreviations for the scalar values. *)
-set alpha := test_fun m (ar_zero_pt Ar) a.
-set beta  := test_fun m (ar_zero_pt Ar) b.
-(* Test of LHS: linear in bool_case, distributes over add/scale. *)
-have testLHS :
-    test_fun m (ar_zero_pt Ar) lhs =
-    (bc_t (cone_sup_ball u uch ub1))%:num * alpha
-    + (bc_f (cone_sup_ball u uch ub1))%:num * beta.
-  rewrite /lhs /bool_case test_linD !test_linZ.
-  by rewrite /alpha /beta.
-(* The chain values:
-     test_fun m s0 (bool_case (u n) a b)
-   = bc_t(u_n) * alpha + bc_f(u_n) * beta. *)
-have testNth : forall n,
-    test_fun m (ar_zero_pt Ar) (bool_case (u n) a b) =
-    (bc_t (u n))%:num * alpha + (bc_f (u n))%:num * beta.
-  by move=> n; rewrite /bool_case test_linD !test_linZ /alpha /beta.
-(* The sup-set of test values along the chain. *)
-set Sc := [set test_fun m (ar_zero_pt Ar) (bool_case (u n) a b) | n in [set: nat]].
-have Sc_ne : Sc !=set0
-  by exists (test_fun m (ar_zero_pt Ar) (bool_case (u 0%N) a b)); exists 0%N.
-have Sc_bd : has_ubound Sc.
-  exists 1 => x [n _ <-]; apply: test_le1.
-  exact: bool_case_chain_ub1.
-have has_sup_Sc : has_sup Sc by split.
-(* test_fun is monotone (linear), so test(u_n) ≤ test(sup u_n). *)
-have test_mono : forall x y : A, precone_le x y ->
-    test_fun m (ar_zero_pt Ar) x <= test_fun m (ar_zero_pt Ar) y.
-  move=> x y [z ->].
-  rewrite test_linD lerDl.
-  exact: test_ge0.
-(* test_cont gives upper bound: test(rhs) ≤ sup Sc. *)
-have test_cont_le :
-    test_fun m (ar_zero_pt Ar) rhs <= sup Sc.
-  apply: test_cont => n.
-  exact: (ub_le_sup Sc_bd (ex_intro2 _ _ n I (erefl _))).
-(* Combine: test(rhs) = sup Sc. *)
-have test_rhs_eq : test_fun m (ar_zero_pt Ar) rhs = sup Sc.
-  apply: le_anti; apply/andP; split=> //.
-  apply: ge_sup => //.
-  move=> x [n _ <-].
-  apply: test_mono.
-  exact: cone_sup_ball_ub.
-(* Now apply the scalar lemma: sup Sc = (sup bc_t) * α + (sup bc_f) * β. *)
-have ch_t : forall n, (bc_t (u n))%:num <= (bc_t (u n.+1))%:num.
-  by move=> n; have /bc_leE [Ht _] := uch n.
-have ch_f : forall n, (bc_f (u n))%:num <= (bc_f (u n.+1))%:num.
-  by move=> n; have /bc_leE [_ Hf] := uch n.
-have Hsum : forall n, (bc_t (u n))%:num + (bc_f (u n))%:num <= 1.
-  by move=> n; have := ub1 n; rewrite /cone_norm/= /bc_norm.
-have alpha_ge0 : 0 <= alpha by apply: test_ge0.
-have beta_ge0 : 0 <= beta by apply: test_ge0.
-(* Sc is the image of [bc_t u_n * alpha + bc_f u_n * beta] over n. *)
-have Sc_eq : Sc = [set (bc_t (u n))%:num * alpha
-                    + (bc_f (u n))%:num * beta | n in [set: nat]].
-  apply: funext => x.
-  apply: propext; split=> [[n _ <-]|[n _ <-]].
-  - by exists n => //; rewrite testNth.
-  - by exists n => //; rewrite testNth.
-rewrite testLHS test_rhs_eq Sc_eq.
-by apply: bool_case_sup_distrib => //; apply: nngnum_ge0.
-Qed.
+Proof. exact: bool_case_omega_continuous_gen. Qed.
 
 End BoolCaseOmegaCont.
 
@@ -1409,64 +1378,12 @@ Section BoolCasePresPath.
 Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
 Local Notation T := (bool_cone_car Ar).
 
-(** [bool_case . a b] preserves measurable paths. *)
-Lemma bool_case_pres_path
-    (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1)
-    (X : ar_obj Ar) (γ : ar_carrier Ar X -> T)
-    (Hγ : is_measurable_path γ) :
-  is_measurable_path (fun r : ar_carrier Ar X => bool_case (γ r) a b).
-Proof.
-split.
-- (* Boundedness: ‖bool_case (γ r) a b‖ ≤ ‖γ r‖ ≤ M. *)
-  case: Hγ => [[M HM] _].
-  exists M => r.
-  apply: le_trans (HM r).
-  exact: bool_case_norm_le1.
-- (* Test measurability: (s, r) ↦ test m s (bool_case (γ r) a b) is
-     measurable. *)
-  move=> Y m mM.
-  have HmA : measurable_fun setT (fun s => test_fun m s a).
-    exact: test_meas.
-  have HmB : measurable_fun setT (fun s => test_fun m s b).
-    exact: test_meas.
-  (* α(s) := test m s a, β(s) := test m s b.  Both are measurable in s. *)
-  have meas_t : measurable_fun setT
-      (fun r : ar_carrier Ar X => (bc_t (γ r))%:num).
-    have meas_t_E := bool_coord_meas Hγ true.
-    by have /measurable_EFinP := meas_t_E.
-  have meas_f : measurable_fun setT
-      (fun r : ar_carrier Ar X => (bc_f (γ r))%:num).
-    have meas_f_E := bool_coord_meas Hγ false.
-    by have /measurable_EFinP := meas_f_E.
-  (* Now express [test m s (bool_case (γ r) a b)] as a polynomial. *)
-  have heq : forall p : ar_carrier Ar Y * ar_carrier Ar X,
-      test_fun m p.1 (bool_case (γ p.2) a b)
-      = (bc_t (γ p.2))%:num * test_fun m p.1 a
-      + (bc_f (γ p.2))%:num * test_fun m p.1 b.
-    move=> p; rewrite /bool_case test_linD !test_linZ.
-    by [].
-  have -> : (fun p : ar_carrier Ar Y * ar_carrier Ar X =>
-              test_fun m p.1 (bool_case (γ p.2) a b))
-          = (fun p => (bc_t (γ p.2))%:num * test_fun m p.1 a
-                    + (bc_f (γ p.2))%:num * test_fun m p.1 b).
-    by apply: funext.
-  apply: measurable_funD.
-  + (* (bc_t (γ p.2)) * test m p.1 a *)
-    apply: measurable_funM.
-    * apply: (measurableT_comp meas_t measurable_snd).
-    * exact: (measurableT_comp HmA measurable_fst).
-  + (* (bc_f (γ p.2)) * test m p.1 b *)
-    apply: measurable_funM.
-    * apply: (measurableT_comp meas_f measurable_snd).
-    * exact: (measurableT_comp HmB measurable_fst).
-Qed.
-
-(** Generalized measurable-path preservation: drop the unit-ball
-    assumption on the branches [a, b].  The boundedness uses
-    [bool_case_norm_le_max] with [M := Num.max (cone_norm a) (cone_norm b)];
-    the test-measurability uses [test_meas_gen] instead of [test_meas]
-    so that [λ s. test_fun m s a] (and similarly for [b]) is measurable
-    for ARBITRARY [a, b : A]. *)
+(** Measurable-path preservation, in the general (unit-ball-free) form:
+    the branches [a, b : A] are arbitrary.  Boundedness uses
+    [bool_case_norm_le_max0] at [M := max(‖a‖, ‖b‖) ∨ 0]; the test
+    measurability uses [test_meas_gen] instead of [test_meas] so that
+    [λ s. test_fun m s a] (and similarly for [b]) is measurable for
+    ARBITRARY [a, b : A]. *)
 Lemma bool_case_pres_path_gen
     (a b : A) (X : ar_obj Ar)
     (γ : ar_carrier Ar X -> T)
@@ -1477,23 +1394,13 @@ split.
 - (* Boundedness: ‖bool_case (γ r) a b‖ ≤ ‖γ r‖ · M with
      [M := max (‖a‖, ‖b‖) ∨ 0]. *)
   case: Hγ => [[N HN] _].
-  pose M : R := Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R.
-  have HM0 : 0 <= M by rewrite le_max lexx orbT.
-  have HMa : cone_norm a <= M.
-    by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
-       [rewrite le_max lexx|rewrite le_max lexx].
-  have HMb : cone_norm b <= M.
-    by apply: le_trans (_ : Num.max (cone_norm a) (cone_norm b) <= _);
-       [rewrite le_max lexx orbT|rewrite le_max lexx].
-  exists (N * M) => r.
-  have step1 : cone_norm (bool_case (γ r) a b) <= cone_norm (γ r) * M
-    by exact: (bool_case_norm_le_max HMa HMb HM0).
-  apply: le_trans step1 _.
-  by apply: ler_wpM2r => //; exact: HN.
-- (* Test measurability: same polynomial decomposition as the
-     unit-ball case, but use [test_meas_gen] to get measurability
-     of [λ s. test_fun m s a], [λ s. test_fun m s b] for arbitrary
-     [a, b]. *)
+  exists (N * Num.max (Num.max (cone_norm a) (cone_norm b)) 0%R) => r.
+  apply: le_trans (bool_case_norm_le_max0 a b (γ r)) _.
+  by apply: ler_wpM2r; [exact: bool_case_max_ge0|exact: HN].
+- (* Test measurability: [test m s (bool_case (γ r) a b)] is the
+     polynomial [bc_t(γ r) · α(s) + bc_f(γ r) · β(s)], with
+     [α], [β] measurable by [test_meas_gen] (no unit ball on [a, b])
+     and the coordinates measurable by [bool_coord_meas]. *)
   move=> Y m mM.
   have HmA : measurable_fun setT (fun s => test_fun m s a)
     by exact: test_meas_gen.
@@ -1507,16 +1414,11 @@ split.
       (fun r : ar_carrier Ar X => (bc_f (γ r))%:num).
     have meas_f_E := bool_coord_meas Hγ false.
     by have /measurable_EFinP := meas_f_E.
-  have heq : forall p : ar_carrier Ar Y * ar_carrier Ar X,
-      test_fun m p.1 (bool_case (γ p.2) a b)
-      = (bc_t (γ p.2))%:num * test_fun m p.1 a
-      + (bc_f (γ p.2))%:num * test_fun m p.1 b.
-    by move=> p; rewrite /bool_case test_linD !test_linZ.
   have -> : (fun p : ar_carrier Ar Y * ar_carrier Ar X =>
               test_fun m p.1 (bool_case (γ p.2) a b))
           = (fun p => (bc_t (γ p.2))%:num * test_fun m p.1 a
                     + (bc_f (γ p.2))%:num * test_fun m p.1 b).
-    by apply: funext.
+    by apply: funext => p; rewrite /bool_case test_linD !test_linZ.
   apply: measurable_funD.
   + apply: measurable_funM.
     * apply: (measurableT_comp meas_t measurable_snd).
@@ -1525,6 +1427,17 @@ split.
     * apply: (measurableT_comp meas_f measurable_snd).
     * exact: (measurableT_comp HmB measurable_fst).
 Qed.
+
+(** [bool_case . a b] preserves measurable paths, unit-ball form.
+    Derived instance of [bool_case_pres_path_gen]: the hypotheses
+    [Ha], [Hb] are not needed, they are kept because the unit-ball
+    packaging of [bool_case_hom.v] and [cbv_anchors.v] index on them. *)
+Lemma bool_case_pres_path
+    (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1)
+    (X : ar_obj Ar) (γ : ar_carrier Ar X -> T)
+    (Hγ : is_measurable_path γ) :
+  is_measurable_path (fun r : ar_carrier Ar X => bool_case (γ r) a b).
+Proof. exact: bool_case_pres_path_gen. Qed.
 
 End BoolCasePresPath.
 
@@ -1549,136 +1462,17 @@ Section BoolCasePresInt.
 Variables (R : realType) (Ar : MeasSubcat R) (A : ICone.type Ar).
 Local Notation T := (bool_cone_car Ar).
 
-Lemma bool_case_pres_int
-    (a b : A) (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R)
-    (X : ar_obj Ar) (β : ar_carrier Ar X -> T)
-    (Hβ : is_measurable_path β)
-    (µ : fmeas R (ar_carrier Ar X)) :
-  bool_case (icone_integral β Hβ µ) a b =
-  icone_integral (fun r => bool_case (β r) a b)
-                 (bool_case_pres_path a b Ha Hb β Hβ) µ.
-Proof.
-(* Apply uniqueness of integral on the image path. *)
-apply: icone_integral_eqP.
-move=> m mM s.
-(* Decompose test on LHS via linearity. *)
-set I := icone_integral β Hβ µ.
-rewrite /bool_case test_linD !test_linZ.
-(* Right-hand integrand: test(bool_case (β r) a b) = bc_t(β r)*α + bc_f(β r)*β. *)
-have integrand_eq :
-    forall r, (test_fun m s (bool_case (β r) a b))%:E =
-              ((bc_t (β r))%:num * test_fun m s a)%:E
-              + ((bc_f (β r))%:num * test_fun m s b)%:E.
-  by move=> r; rewrite /bool_case test_linD !test_linZ EFinD.
-have meas_t_E := bool_coord_meas Hβ true.
-have meas_f_E := bool_coord_meas Hβ false.
-have meas_t : measurable_fun setT
-    (fun r : ar_carrier Ar X => (bc_t (β r))%:num)
-  by have /measurable_EFinP := meas_t_E.
-have meas_f : measurable_fun setT
-    (fun r : ar_carrier Ar X => (bc_f (β r))%:num)
-  by have /measurable_EFinP := meas_f_E.
-(* Both sides are finite: cone_norm bounded implies test bounded. *)
-have HmA : measurable_fun setT (fun s' => test_fun m s' a)
-  by exact: test_meas.
-have HmB : measurable_fun setT (fun s' => test_fun m s' b)
-  by exact: test_meas.
-(* The fine of the sum-integral = sum of the fines. *)
-have ge0_t : forall r, (0 <= ((bc_t (β r))%:num)%:E)%E
-  by move=> r; rewrite lee_fin nngnum_ge0.
-have ge0_f : forall r, (0 <= ((bc_f (β r))%:num)%:E)%E
-  by move=> r; rewrite lee_fin nngnum_ge0.
-have alpha_ge0 : 0 <= test_fun m s a by exact: test_ge0.
-have beta_ge0 : 0 <= test_fun m s b by exact: test_ge0.
-(* Step 1: relate icone_integral β to bool_int (both satisfy path_integral_eq). *)
-have I_eq : I = bool_int Hβ µ.
-  rewrite /I.
-  apply/esym/icone_integral_eqP.
-  exact: bool_int_pettis.
-rewrite I_eq /bool_int /=.
-(* Step 2: the two halves of the integral computation. *)
-(* By definition of bool_int, bc_t I = fine ∫ bc_t(β r). *)
-have eq_t : (NngNum (bool_int_ge0 β µ true))%:num =
-            fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
-                    ((bc_t (β r))%:num)%:E).
-  rewrite /=.
-  apply: congr1.
-  by apply: eq_integral.
-have eq_f : (NngNum (bool_int_ge0 β µ false))%:num =
-            fine (\int[fmeas_mu µ]_(r in [set: ar_carrier Ar X])
-                    ((bc_f (β r))%:num)%:E).
-  rewrite /=.
-  apply: congr1.
-  by apply: eq_integral.
-rewrite eq_t eq_f.
-(* Step 3: the RHS integral = sum of the two fine integrals * α, β. *)
-have RHS_eq :
-    (\int[fmeas_mu µ]_r ((test_fun m s (bool_case (β r) a b))%:E)
-    = (test_fun m s a)%:E
-      * (\int[fmeas_mu µ]_r ((bc_t (β r))%:num)%:E)
-    + (test_fun m s b)%:E
-      * (\int[fmeas_mu µ]_r ((bc_f (β r))%:num)%:E))%E.
-  rewrite (eq_integral
-      (fun r => (((bc_t (β r))%:num * test_fun m s a)%:E
-             + ((bc_f (β r))%:num * test_fun m s b)%:E)%E));
-    last by move=> r _; rewrite /=; exact: integrand_eq.
-  have ge0_t_a : forall r : ar_carrier Ar X, True ->
-      (0%R <= ((bc_t (β r))%:num * test_fun m s a)%:E)%E.
-    by move=> r _; rewrite lee_fin mulr_ge0 ?nngnum_ge0.
-  have ge0_f_b : forall r : ar_carrier Ar X, True ->
-      (0%R <= ((bc_f (β r))%:num * test_fun m s b)%:E)%E.
-    by move=> r _; rewrite lee_fin mulr_ge0 ?nngnum_ge0.
-  have meas_t_a : measurable_fun [set: ar_carrier Ar X]
-      (fun r : ar_carrier Ar X => ((bc_t (β r))%:num * test_fun m s a)%:E).
-    apply/measurable_EFinP.
-    by apply: measurable_funM => //; exact: measurable_cst.
-  have meas_f_b : measurable_fun [set: ar_carrier Ar X]
-      (fun r : ar_carrier Ar X => ((bc_f (β r))%:num * test_fun m s b)%:E).
-    apply/measurable_EFinP.
-    by apply: measurable_funM => //; exact: measurable_cst.
-  rewrite (ge0_integralD _ measurableT ge0_t_a meas_t_a ge0_f_b meas_f_b).
-  congr (_ + _)%E.
-  - rewrite (eq_integral
-        (fun r => ((test_fun m s a)%:E * ((bc_t (β r))%:num)%:E)%E));
-      last by move=> r _; rewrite /= -EFinM mulrC.
-    by rewrite ge0_integralZl//; apply/measurable_EFinP.
-  - rewrite (eq_integral
-        (fun r => ((test_fun m s b)%:E * ((bc_f (β r))%:num)%:E)%E));
-      last by move=> r _; rewrite /= -EFinM mulrC.
-    by rewrite ge0_integralZl//; apply/measurable_EFinP.
-rewrite RHS_eq.
-(* Step 4: pull fine through addition + multiplication. *)
-have fin_t : (\int[fmeas_mu µ]_r ((bc_t (β r))%:num)%:E)%E \is a fin_num.
-  have := bool_int_fin Hβ µ true.
-  by rewrite (eq_integral (fun r => ((bc_t (β r))%:num)%:E))//;
-    move=> r _; rewrite /=.
-have fin_f : (\int[fmeas_mu µ]_r ((bc_f (β r))%:num)%:E)%E \is a fin_num.
-  have := bool_int_fin Hβ µ false.
-  by rewrite (eq_integral (fun r => ((bc_f (β r))%:num)%:E))//;
-    move=> r _; rewrite /=.
-have fin_mult_t : ((test_fun m s a)%:E
-    * \int[fmeas_mu µ]_r ((bc_t (β r))%:num)%:E)%E \is a fin_num.
-  by apply: fin_numM.
-have fin_mult_f : ((test_fun m s b)%:E
-    * \int[fmeas_mu µ]_r ((bc_f (β r))%:num)%:E)%E \is a fin_num.
-  by apply: fin_numM.
-have alpha_fin : (test_fun m s a)%:E \is a fin_num by [].
-have beta_fin : (test_fun m s b)%:E \is a fin_num by [].
-rewrite (fineD fin_mult_t fin_mult_f).
-rewrite (fineM alpha_fin fin_t).
-rewrite (fineM beta_fin fin_f).
-by rewrite [(test_fun _ _ a * _)%R]mulrC [(test_fun _ _ b * _)%R]mulrC.
-Qed.
-
-(** Generalized Pettis-integral preservation: drop the unit-ball
-    assumption on the branches [a, b].  Proof structure mirrors the
-    unit-ball [bool_case_pres_int] with two upgrades:
-    - the RHS uses [bool_case_pres_path_gen] for the image path;
-    - measurability of [λ s'. test_fun m s' a] (and similarly for [b])
-      uses [test_meas_gen] instead of [test_meas].
-    All other steps — relating [icone_integral β] to [bool_int] via
-    uniqueness, the [ge0_integralD] + [ge0_integralZl] decomposition,
-    and the [fineD] + [fineM] finalization — are unchanged. *)
+(** Pettis-integral preservation, in the general (unit-ball-free)
+    form: the branches [a, b : A] are arbitrary.  By uniqueness of the
+    integral ([icone_integral_eqP]) it suffices to check the defining
+    equation on every test [m] at every point [s]; there [test_linD] /
+    [test_linZ] turn both sides into the scalar identity
+    [bc_t(I)·α + bc_f(I)·β = ∫ (bc_t(β r)·α + bc_f(β r)·β) dµ],
+    which the coordinate-Pettis identities of [bool_int_pettis] close
+    after a [ge0_integralD] + [ge0_integralZl] split and a [fineD] +
+    [fineM] finalization.  Measurability of [λ s'. test_fun m s' a]
+    (and similarly for [b]) comes from [test_meas_gen], which needs no
+    unit ball on the scrutinee. *)
 Lemma bool_case_pres_int_gen
     (a b : A)
     (X : ar_obj Ar) (β : ar_carrier Ar X -> T)
@@ -1788,6 +1582,24 @@ rewrite (fineD fin_mult_t fin_mult_f).
 rewrite (fineM alpha_fin fin_t).
 rewrite (fineM beta_fin fin_f).
 by rewrite [(test_fun _ _ a * _)%R]mulrC [(test_fun _ _ b * _)%R]mulrC.
+Qed.
+
+(** [bool_case . a b] commutes with the Pettis integral, unit-ball
+    form.  Derived instance of [bool_case_pres_int_gen]: only the
+    measurable-path witness carried by the right-hand side differs
+    ([bool_case_pres_path] vs [bool_case_pres_path_gen]), and the two
+    are equal by proof irrelevance. *)
+Lemma bool_case_pres_int
+    (a b : A) (Ha : (cone_norm a <= 1)%R) (Hb : (cone_norm b <= 1)%R)
+    (X : ar_obj Ar) (β : ar_carrier Ar X -> T)
+    (Hβ : is_measurable_path β)
+    (µ : fmeas R (ar_carrier Ar X)) :
+  bool_case (icone_integral β Hβ µ) a b =
+  icone_integral (fun r => bool_case (β r) a b)
+                 (bool_case_pres_path a b Ha Hb β Hβ) µ.
+Proof.
+rewrite (bool_case_pres_int_gen a b Hβ µ).
+by congr icone_integral; exact: Prop_irrelevance.
 Qed.
 
 End BoolCasePresInt.

@@ -27,8 +27,8 @@
     - [pmeas_of_prob_fmeas] — the transport bridge: [examples.v]'s
       [pmeas_of_prob] (the [sample]-surface transport) and
       [distributions.v]'s [fmeas_of_prob] (the kernel-layer transport)
-      produce THE SAME [fmeas] (they differ only in re-proved measure
-      witnesses; [fmeas_eq] closes the gap).
+      produce THE SAME [fmeas] — since the two transports were merged
+      into [distributions.v], by conversion.
     - [eD_gaussian_sample_agree] / [eD_uniform_sample_agree] — the
       constant-parameter agreement: at real literals the kernel surface
       IS the old bundled-sample surface,
@@ -319,20 +319,17 @@ Qed.
 
     [examples.v::pmeas_of_prob] (the [sample]-surface transport) and
     [distributions.v::fmeas_of_prob] (the kernel-layer transport) are
-    THE SAME [fmeas]: both are [prob_fmeas] at the same measure
-    function, differing only in re-proved [Prop] witnesses —
-    [fmeas_eq] closes the gap on every measurable set. *)
+    THE SAME [fmeas]: since the merge of the two transports, the
+    surface name is an alias of [distributions.v::pmeas_of_prob],
+    which is literally the [pmeas] packaging of [fmeas_of_prob], so
+    the bridge holds by conversion. *)
 Lemma pmeas_of_prob_fmeas
     (P : probability
       (g_sigma_algebraType ((R.-ocitv).-measurable
          : set (set (ocitv_type R)))) R) :
   pm_meas (pmeas_of_prob R_carrier_eq R_to_carrier_meas P) =
   fmeas_of_prob (R_carrier_eq:=R_carrier_eq) R_to_carrier_meas P.
-Proof.
-apply: fmeas_eq => U mU.
-rewrite fmeas_of_probE//.
-exact: prob_fmeasE.
-Qed.
+Proof. by []. Qed.
 
 (** *** Agreement with the constant-parameter surface
 

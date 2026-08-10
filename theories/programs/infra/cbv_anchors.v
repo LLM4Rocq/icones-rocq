@@ -45,7 +45,21 @@
     [coalg_str_tensor_setlike] / [em_proj1_morE] / [const_iconesE] /
     [em_pair_mor_constE], the pointwise SMC laws [tensor_uncurryE] /
     [tensor_runit_bwdE], and the bool-cone distribution laws) is the
-    seed of the M4 setlike-point kit of the rejection-sampling plan.
+    M4 setlike-point kit of the rejection-sampling plan.  It OWNS the
+    four computation laws every CBV rider runs on:
+
+    - [adj_psi_at_setlike] — the [U ⊣ !̃] packaging (the lambda clause)
+      PROMOTES at setlike unit-ball points;
+    - [if_icones_at] — the if-then-else dispatch computes there;
+    - [eD_app_at_setlike] — the application clause computes there
+      (Section [ProgramAnchors], generic over the real object);
+    - [linhom_fun_sup_ball] — linhom-cone suprema are POINTWISE (on
+      [cone_sup_ball_irr] of [theories/cones/omega_general.v]),
+
+    plus the per-branch mass bookkeeping [bool_case_mass].  These used
+    to live in [theories/programs/ex_reject_headline.v] §1, which
+    inverted the layering (an infra file importing an example file for
+    its kit); they are stated here once and instantiated there.
 
     See also: [theories/programs/ppl_cbv.v] (the interpreter + the
     [eD_*_E] definitional-unfolding pack consumed here),
@@ -60,7 +74,7 @@ From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
-From mathcomp.analysis Require Import measure dirac_measure.
+From mathcomp.analysis Require Import measure dirac_measure numfun.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 
@@ -70,6 +84,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
+Require Import Icones.cones.omega_general.
 Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
@@ -102,6 +117,7 @@ Require Import Icones.homs.em_cartesian.
 Require Import Icones.programs.infra.cbv_adjunction.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.infra.em_fix.
+Require Import Icones.programs.infra.em_fix_value.
 Require Import Icones.programs.ppl_cbv.
 
 Set Implicit Arguments.
@@ -319,6 +335,116 @@ rewrite {1}(bool_cone_basis_expand b) /bool_case ptensorDr.
 by rewrite !ptensorZr.
 Qed.
 
+(** *** The mass of a boolean dispatch between a Dirac and a measure
+
+    [bool_case b δ_r ν] is the sub-probability mixture
+    [(bc_t b)·δ_r + (bc_f b)·ν]; its mass at a measurable [U] is the
+    scalar mixture of the indicator [\1_U r] and of [ν U].  Every
+    rejection rider's per-branch mass bookkeeping is an instance
+    ([bc_t]/[bc_f] of a [bernoulli p] read as [p]/[1-p]). *)
+Lemma bool_case_mass (X : ar_obj Ar) (b : bool_cone_car Ar)
+    (r : ar_carrier Ar X) (nu : fmeas R (ar_carrier Ar X))
+    (U : set (ar_carrier Ar X)) :
+  measurable U ->
+  fmeas_mu (bool_case b (dirac_fmeas r) nu : fmeas R (ar_carrier Ar X)) U =
+  (((bc_t b)%:num * \1_U r +
+    (bc_f b)%:num * fine (fmeas_mu nu U))%R)%:E.
+Proof.
+move=> mU.
+have -> : (bool_case b (dirac_fmeas r) nu : fmeas R (ar_carrier Ar X)) =
+  fmeas_add (fmeas_scale (bc_t b) (dirac_fmeas r)) (fmeas_scale (bc_f b) nu).
+  by [].
+rewrite fmeas_addE 2!fmeas_scaleE (dirac_fmeas_E r mU) diracE/=.
+rewrite -(fineK (fmeas_fin nu U mU)).
+by rewrite -2!EFinM -EFinD indicE.
+Qed.
+
+(** *** The [U ⊣ !̃] packaging, the if-dispatch, and pointwise sups
+
+    The three laws every CBV rider runs on: the lambda clause PROMOTES
+    at a setlike environment, the if-clause DISPATCHES there, and the
+    Kleene supremum of a chain of linear maps is read POINTWISE. *)
+
+(** The [U ⊣ !̃] packaging [adj_psi g] PROMOTES at setlike unit-ball
+    points: [adj_psi(g)(γ) = (g γ)!]. *)
+Lemma adj_psi_at_setlike (P : Coalgebra Ar) (B : ICone.type Ar)
+    (g : icones_hom Ar (coalg_obj P) B) (gam : coalg_obj P) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str P) gam = gam! ->
+  Lfun (ch_mor (adj_psi (P := P) g)) gam = (Lfun g gam)!.
+Proof.
+move=> Hg Hs.
+have -> : ch_mor (adj_psi (P := P) g) =
+    icones_comp (bang_fmap g) (coalg_str P) by [].
+rewrite (Lfun_comp (bang_fmap g) (coalg_str P) gam) Hs.
+exact: (bang_fmap_prom g _ Hg).
+Qed.
+
+(** The if-then-else dispatch computes at setlike unit-ball points:
+    [⟦if b then m else n⟧(γ) = bool_case (b γ) (m γ) (n γ)] — the
+    weighted co-pairing of the two branches by the scrutinee's
+    sub-probability. *)
+Lemma if_icones_at (G A : Coalgebra Ar)
+    (m n : icones_hom Ar (coalg_obj G) (coalg_obj A))
+    (b : icones_hom Ar (coalg_obj G) (coalg_obj (@bool_cone_coalg R Ar)))
+    (gam : coalg_obj G) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str G) gam = gam! ->
+  Lfun (if_icones m n b) gam =
+  bool_case (Lfun b gam) (Lfun m gam) (Lfun n gam).
+Proof.
+move=> Hg Hs.
+rewrite /if_icones Lfun_comp.
+rewrite /em_pair_mor (Lfun_comp
+  (tensor_mor (icones_id Ar (coalg_obj G)) b) (coalg_d G) gam).
+rewrite (coalg_d_setlike Hg Hs) tensor_morE icones_idE.
+rewrite /if_under (Lfun_comp (tensor_uncurry _)
+  (iso_fwd (tensor_braid (coalg_obj G) (bool_cone_car Ar)))
+  (gam ⊗p Lfun b gam)).
+rewrite tensor_braidEp tensor_uncurryE.
+by rewrite linhom_iconesE bool_case_linhomE.
+Qed.
+
+(** Every Kleene iterate of a unit-ball body endofunction [F : !L ⊸ !L]
+    promotes to a unit-ball point of the cofree coalgebra [!L], and is
+    setlike there ([dig] computes on promoted points).  Every rider's
+    per-iterate environment tower is built from this pair. *)
+Lemma kleene_prom_ball (L : ICone.type Ar)
+    (F : linhom_car Ar (Bg L) (Bg L)) (HF : cone_norm F <= 1) (n : nat) :
+  cone_norm ((fix_chain F n)!) <= 1.
+Proof. exact: prom_ball (fix_chain_ball HF n). Qed.
+
+Lemma kleene_prom_setlike (L : ICone.type Ar)
+    (F : linhom_car Ar (Bg L) (Bg L)) (HF : cone_norm F <= 1) (n : nat) :
+  Lfun (coalg_str (bang_cofree L)) ((fix_chain F n)!) =
+  ((fix_chain F n)!)!.
+Proof.
+by rewrite bang_cofree_str; exact: (dig_prom _ (fix_chain_ball HF n)).
+Qed.
+
+(** Linhom-cone suprema are POINTWISE: evaluating the ball-sup of a
+    chain of linear maps at a unit-ball point is the ball-sup of the
+    evaluations (for any witnesses of the evaluated chain).  The
+    proof-irrelevance it rests on is [cone_sup_ball_irr] of
+    [theories/cones/omega_general.v]. *)
+Lemma linhom_fun_sup_ball (C D : ICone.type Ar)
+    (u : nat -> linhom_car Ar C D)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (x : C) (Hx : cone_norm x <= 1)
+    (pwch : forall n,
+        precone_le (linhom_fun (u n) x) (linhom_fun (u n.+1) x))
+    (pwub : forall n, cone_norm (linhom_fun (u n) x) <= 1) :
+  linhom_fun (cone_sup_ball u uch ub1) x =
+  cone_sup_ball (fun n => linhom_fun (u n) x) pwch pwub.
+Proof.
+have -> : cone_sup_ball u uch ub1 = linhom_sup_ball u uch ub1 by [].
+have -> : linhom_fun (linhom_sup_ball u uch ub1) x
+          = linhom_sup_fun uch ub1 x by [].
+rewrite (linhom_sup_fun_unitE uch ub1 Hx) (linhom_sup_unitE uch ub1 Hx).
+exact: cone_sup_ball_irr.
+Qed.
+
 (** ** Anchor 1 — the §9.7 boolean comonoid diagonal is DIAGONAL
 
     [coalg_d bool_cone_coalg] sends a sub-probability [x = (p, q)] to
@@ -387,6 +513,12 @@ Arguments em_pair_mor_constE {R Ar Z Q c} Hc g.
 Arguments bool_case_linhomE {R Ar A} a b Ha Hb x.
 Arguments Lfun_bool_case {R Ar B C} h b u v.
 Arguments ptensor_caseR {R Ar B} x b.
+Arguments bool_case_mass {R Ar X} b r nu {U}.
+Arguments adj_psi_at_setlike {R Ar P B} g {gam}.
+Arguments if_icones_at {R Ar G A} m n b {gam}.
+Arguments kleene_prom_ball {R Ar L F} HF n.
+Arguments kleene_prom_setlike {R Ar L F} HF n.
+Arguments linhom_fun_sup_ball {R Ar C D u} uch ub1 {x} Hx pwch pwub.
 Arguments bool_coalg_d_true {R Ar}.
 Arguments bool_coalg_d_false {R Ar}.
 Arguments bool_coalg_d_E {R Ar} x.
@@ -422,6 +554,37 @@ Local Notation eD_cbv' :=
   (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
 Local Notation eD' :=
   (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation Lty t1 t2 :=
+  (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
+
+(** *** The application clause at a setlike point
+
+    Generic over the real object and its carrier casts, so that every
+    example rider — [probObj]-parameterised or not — shares it. *)
+Lemma eD_app_at_setlike (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
+    (F : @named_expr R Ar R_obj G (tfun t1 t2))
+    (X : @named_expr R Ar R_obj G t1)
+    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
+  cone_norm gam <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = gam! ->
+  Lfun (eD_cbv' (ne_app F X)) gam =
+  linhom_fun (Lfun (der (Lty t1 t2)) (Lfun (eD_cbv' F) gam))
+             (Lfun (eD_cbv' X) gam).
+Proof.
+move=> Hg Hs.
+rewrite eD_app_E.
+rewrite (Lfun_comp (tensor_uncurry (icones_id Ar (Lty t1 t2)))
+  (icones_comp
+    (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
+    (em_pair_mor (eD_cbv' F) (eD_cbv' X))) gam).
+rewrite (Lfun_comp
+  (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
+  (em_pair_mor (eD_cbv' F) (eD_cbv' X)) gam).
+rewrite /em_pair_mor (Lfun_comp (tensor_mor (eD_cbv' F) (eD_cbv' X))
+  (coalg_d (ctxD_cbv (drop_names G))) gam).
+rewrite (coalg_d_setlike Hg Hs) tensor_morE tensor_morE icones_idE.
+by rewrite tensor_uncurryE icones_idE.
+Qed.
 
 (** *** The shared-variable pair [(x, x)] in a one-variable context *)
 
@@ -621,6 +784,8 @@ Qed.
 
 End ProgramAnchors.
 
+Arguments eD_app_at_setlike {R Ar R_obj} R_carrier_eq R_carrier_meas
+  R_to_carrier_meas {G t1 t2 F X gam}.
 Arguments anchor_var_pair {R Ar R_obj} x t.
 Arguments var_pair_diag_at
   {R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas} x t {y}.

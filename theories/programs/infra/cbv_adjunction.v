@@ -12,8 +12,9 @@
     - [em_proj1/2_is_mor] : projections are coalg morphisms (uses
       [m_runit/lunit_coalg_mor]).
 
-    Used by [theories/programs/cbv.v] (Moggi-CBV) and
-    [theories/programs/ppl.v] (direct-style CBV PPL).
+    Used by [theories/programs/ppl_cbv.v] (the CBV denotational semantics)
+    and, through it, by the [em_proj1_mor]/[em_proj2_mor] reasoning in the
+    examples ([ex_reject_headline.v], [ex_reject_model.v]).
 
     ---
 
@@ -315,24 +316,8 @@ Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
 Local Notation Bg := (@Bang R Ar).
 
 (** Associator naturality (a pure SMC helper, no [!] content):
-    [α_{A',B',C'} ∘ ((f⊗g)⊗h) = (f⊗(g⊗h)) ∘ α_{A,B,C}].  By [tensor_ext3]. *)
-Lemma tensor_assoc_nat (A A' B B' C C' : ICone.type Ar)
-    (f : icones_hom Ar A A') (g : icones_hom Ar B B') (h : icones_hom Ar C C') :
-  icones_comp (iso_fwd (tensor_assoc A' B' C'))
-    (tensor_mor (tensor_mor f g) h) =
-  icones_comp (tensor_mor f (tensor_mor g h))
-    (iso_fwd (tensor_assoc A B C)).
-Proof.
-apply: tensor_ext3 => x y z.
-rewrite (@Lfun_comp _ _ _ _ _ (iso_fwd (tensor_assoc A' B' C'))
-          (tensor_mor (tensor_mor f g) h) ((x ⊗p y) ⊗p z)).
-rewrite (tensor_morE (tensor_mor f g) h (x ⊗p y) z).
-rewrite (tensor_morE f g x y) tensor_assocEp.
-rewrite (@Lfun_comp _ _ _ _ _ (tensor_mor f (tensor_mor g h))
-          (iso_fwd (tensor_assoc A B C)) ((x ⊗p y) ⊗p z)).
-rewrite tensor_assocEp.
-by rewrite (tensor_morE f (tensor_mor g h) x (y ⊗p z)) (tensor_morE g h y z).
-Qed.
+    [α_{A',B',C'} ∘ ((f⊗g)⊗h) = (f⊗(g⊗h)) ∘ α_{A,B,C}] is
+    [em_cartesian.v]'s [tensor_assoc_nat], used as-is below. *)
 
 (** The associator [α] is a coalgebra morphism
     [EM_prod (EM_prod P Q) S → EM_prod P (EM_prod Q S)].  Requirement
@@ -403,7 +388,6 @@ Qed.
 
 End UStrongMonoidal.
 
-Arguments tensor_assoc_nat {R Ar A A' B B' C C'} f g h.
 Arguments m_assoc_coalg_mor {R Ar} P Q S.
 
 Section UStrongMonoidal2.
@@ -518,9 +502,10 @@ Arguments m_runit_coalg_mor {R Ar} P.
     [EM_prod_mor] on [id] and [coalg_e], using [EMComon_all] to extract
     [emc_e_mor] of the discarded factor.
 
-    These lemmas live here (NOT in [cbv.v]) so that [em_pair_mor_proj_id]
+    These lemmas live here (NOT downstream) so that [em_pair_mor_proj_id]
     below can be stated on coalgebra morphisms while still being part of
-    the cartesian-η machinery that the [cbv.v] / [ppl.v] downstream needs. *)
+    the cartesian-η machinery that [ppl_cbv.v] and its [em_proj1_mor] /
+    [em_proj2_mor] users downstream need. *)
 Section EMProjections.
 Variables (R : realType) (Ar : MeasSubcat R).
 
@@ -664,8 +649,11 @@ by rewrite precone_scale_1.
 Qed.
 
 (** *** Step 2 — helper: naturality of [em_pair_mor] in its output factors
-    (right form, no side condition).  Same statement as [em_pair_mor_natR]
-    in [ppl.v]; inlined here because we need it BEFORE [ppl.v]. *)
+    (right form, no side condition).  This is the canonical statement of
+    right naturality for [em_pair_mor]; it has no counterpart elsewhere.
+    Its natural paper-side home would be [theories/homs/em_cartesian.v]
+    (next to the [em_pair_mor] β-laws); it is stated here for now because
+    the CBV development below is its only consumer. *)
 Lemma em_pair_mor_natR_cbv (Z P Q P' Q' : Coalgebra Ar)
     (a : icones_hom Ar (coalg_obj Z) (coalg_obj P))
     (b : icones_hom Ar (coalg_obj Z) (coalg_obj Q))
@@ -679,8 +667,9 @@ by rewrite (tensor_mor_comp f a g b).
 Qed.
 
 (** *** Step 2 — helper: left naturality of [em_pair_mor] (needs the input
-    morphism to be a coalgebra morphism).  Same as [em_pair_mor_natL] in
-    [ppl.v]; inlined here. *)
+    morphism to be a coalgebra morphism).  Canonical statement, with no
+    counterpart elsewhere; like the right form above its natural paper-side
+    home would be [theories/homs/em_cartesian.v]. *)
 Lemma em_pair_mor_natL_cbv (Z Y P Q : Coalgebra Ar)
     (h : icones_hom Ar (coalg_obj Z) (coalg_obj Y))
     (p : icones_hom Ar (coalg_obj Y) (coalg_obj P))

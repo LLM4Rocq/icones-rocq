@@ -51,12 +51,15 @@
     6. The theorems, via the affine-cascade closed form and the
        sup-mass bridge of [theories/programs/infra/affine_cascade.v].
 
-    Supporting kit (generic, §1): [adj_psi_at_setlike] (the [U ⊣ !̃]
-    packaging promotes at setlike points), [if_icones_at] (the
-    if-then-else dispatch at setlike points), [linhom_fun_sup_ball]
-    (pointwise reading of the linhom-cone supremum),
-    [cone_sup_ball_irr] (the ball-sup does not depend on the chain
-    witnesses).
+    Supporting kit (generic, owned by
+    [theories/programs/infra/cbv_anchors.v]): [adj_psi_at_setlike] (the
+    [U ⊣ !̃] packaging promotes at setlike points), [if_icones_at] (the
+    if-then-else dispatch at setlike points), [eD_app_at_setlike] (the
+    application clause there), [linhom_fun_sup_ball] (pointwise reading
+    of the linhom-cone supremum; the ball-sup proof-irrelevance it
+    rests on is [cone_sup_ball_irr] of
+    [theories/cones/omega_general.v]), and [bool_case_mass] (the
+    per-branch mass bookkeeping).
 
     See also: [theories/programs/infra/em_fix_value.v] (the seeded
     value-fixpoint combinator), [theories/programs/infra/
@@ -90,6 +93,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
+Require Import Icones.cones.omega_general.
 Require Import Icones.programs.infra.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
@@ -147,149 +151,15 @@ Local Opaque dig der prom bang_fmap d_bang e_bang unit_cofree_str Coalg
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
 
-(** ** §1 — Generic kit: setlike computation laws and pointwise sups *)
+(** ** §1 — Generic kit: MOVED
 
-Section HeadlineKit.
-Variables (R : realType) (Ar : MeasSubcat R).
+    The setlike computation laws and the pointwise-sup reading that
+    used to open this file ([adj_psi_at_setlike], [if_icones_at],
+    [linhom_fun_sup_ball], [eD_app_at_setlike]) are generic and are now
+    owned by [theories/programs/infra/cbv_anchors.v] — the infra file
+    both this rider and [theories/programs/ex_reject_model.v] already
+    import.  Names and [Arguments] are unchanged. *)
 
-Local Notation Lfun h :=
-  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-Local Notation "x '⊗p' y" := (ptensor x y)
-  (at level 40, left associativity) : ring_scope.
-Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
-
-(** The [U ⊣ !̃] packaging [adj_psi g] PROMOTES at setlike unit-ball
-    points: [adj_psi(g)(γ) = (g γ)!]. *)
-Lemma adj_psi_at_setlike (P : Coalgebra Ar) (B : ICone.type Ar)
-    (g : icones_hom Ar (coalg_obj P) B) (gam : coalg_obj P) :
-  cone_norm gam <= 1 ->
-  Lfun (coalg_str P) gam = gam! ->
-  Lfun (ch_mor (adj_psi (P := P) g)) gam = (Lfun g gam)!.
-Proof.
-move=> Hg Hs.
-rewrite (adj_psi_morE g) (Lfun_comp (bang_fmap g) (coalg_str P) gam) Hs.
-exact: (bang_fmap_prom g _ Hg).
-Qed.
-
-(** The if-then-else dispatch computes at setlike unit-ball points:
-    [⟦if b then m else n⟧(γ) = bool_case (b γ) (m γ) (n γ)] — the
-    weighted co-pairing of the two branches by the scrutinee's
-    sub-probability. *)
-Lemma if_icones_at (G A : Coalgebra Ar)
-    (m n : icones_hom Ar (coalg_obj G) (coalg_obj A))
-    (b : icones_hom Ar (coalg_obj G) (coalg_obj (@bool_cone_coalg R Ar)))
-    (gam : coalg_obj G) :
-  cone_norm gam <= 1 ->
-  Lfun (coalg_str G) gam = gam! ->
-  Lfun (if_icones m n b) gam =
-  bool_case (Lfun b gam) (Lfun m gam) (Lfun n gam).
-Proof.
-move=> Hg Hs.
-rewrite /if_icones Lfun_comp.
-rewrite /em_pair_mor (Lfun_comp
-  (tensor_mor (icones_id Ar (coalg_obj G)) b) (coalg_d G) gam).
-rewrite (coalg_d_setlike Hg Hs) tensor_morE icones_idE.
-rewrite /if_under (Lfun_comp (tensor_uncurry _)
-  (iso_fwd (tensor_braid (coalg_obj G) (bool_cone_car Ar)))
-  (gam ⊗p Lfun b gam)).
-rewrite tensor_braidEp tensor_uncurryE.
-by rewrite linhom_iconesE bool_case_linhomE.
-Qed.
-
-(** The ball-sup of a chain does not depend on the chain/ball
-    witnesses (it is THE least upper bound). *)
-Lemma cone_sup_ball_irr (B : coneType R) (u : nat -> B)
-    (c1 c2 : forall n, precone_le (u n) (u n.+1))
-    (b1 b2 : forall n, cone_norm (u n) <= 1) :
-  cone_sup_ball u c1 b1 = cone_sup_ball u c2 b2.
-Proof.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
-Qed.
-
-(** Linhom-cone suprema are POINTWISE: evaluating the ball-sup of a
-    chain of linear maps at a unit-ball point is the ball-sup of the
-    evaluations (for any witnesses of the evaluated chain). *)
-Lemma linhom_fun_sup_ball (C D : ICone.type Ar)
-    (u : nat -> linhom_car Ar C D)
-    (uch : forall n, precone_le (u n) (u n.+1))
-    (ub1 : forall n, cone_norm (u n) <= 1)
-    (x : C) (Hx : cone_norm x <= 1)
-    (pwch : forall n,
-        precone_le (linhom_fun (u n) x) (linhom_fun (u n.+1) x))
-    (pwub : forall n, cone_norm (linhom_fun (u n) x) <= 1) :
-  linhom_fun (cone_sup_ball u uch ub1) x =
-  cone_sup_ball (fun n => linhom_fun (u n) x) pwch pwub.
-Proof.
-have -> : cone_sup_ball u uch ub1 = linhom_sup_ball u uch ub1 by [].
-have -> : linhom_fun (linhom_sup_ball u uch ub1) x
-          = linhom_sup_fun uch ub1 x by [].
-rewrite (linhom_sup_fun_unitE uch ub1 Hx) (linhom_sup_unitE uch ub1 Hx).
-exact: cone_sup_ball_irr.
-Qed.
-
-End HeadlineKit.
-
-Arguments adj_psi_at_setlike {R Ar P B} g {gam}.
-Arguments if_icones_at {R Ar G A} m n b {gam}.
-Arguments cone_sup_ball_irr {R B u} c1 c2 b1 b2.
-Arguments linhom_fun_sup_ball {R Ar C D u} uch ub1 {x} Hx pwch pwub.
-
-(** *** The application clause at a setlike point (generic over the real
-    object and its carrier casts; reused by every example rider —
-    [probObj]-parameterised or not — for the THEN/ELSE branches in
-    step 4).  Kept generic over a free [R_obj] so the [probObj]-based
-    riders (where [R_obj := po_robj P]) AND the still-[R_obj]-based
-    even/odd rider share the same lemma. *)
-Section AppAtSetlike.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
-
-Local Notation Lfun h :=
-  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
-Local Notation eD_cbv' :=
-  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
-Local Notation Lty t1 t2 :=
-  (linhom_car Ar (coalg_obj (tyD_cbv t1)) (coalg_obj (tyD_cbv t2))).
-
-Lemma eD_app_at_setlike (G : named_ctx Ar) (t1 t2 : ppl_type Ar)
-    (F : @named_expr R Ar R_obj G (tfun t1 t2))
-    (X : @named_expr R Ar R_obj G t1)
-    (gam : coalg_obj (ctxD_cbv (drop_names G))) :
-  cone_norm gam <= 1 ->
-  Lfun (coalg_str (ctxD_cbv (drop_names G))) gam = gam! ->
-  Lfun (eD_cbv' (ne_app F X)) gam =
-  linhom_fun (Lfun (der (Lty t1 t2)) (Lfun (eD_cbv' F) gam))
-             (Lfun (eD_cbv' X) gam).
-Proof.
-move=> Hg Hs.
-rewrite eD_app_E.
-rewrite (Lfun_comp (tensor_uncurry (icones_id Ar (Lty t1 t2)))
-  (icones_comp
-    (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
-    (em_pair_mor (eD_cbv' F) (eD_cbv' X))) gam).
-rewrite (Lfun_comp
-  (tensor_mor (der (Lty t1 t2)) (icones_id Ar (coalg_obj (tyD_cbv t1))))
-  (em_pair_mor (eD_cbv' F) (eD_cbv' X)) gam).
-rewrite /em_pair_mor (Lfun_comp (tensor_mor (eD_cbv' F) (eD_cbv' X))
-  (coalg_d (ctxD_cbv (drop_names G))) gam).
-rewrite (coalg_d_setlike Hg Hs) tensor_morE tensor_morE icones_idE.
-by rewrite tensor_uncurryE icones_idE.
-Qed.
-
-End AppAtSetlike.
-
-Arguments eD_app_at_setlike {R Ar R_obj} R_carrier_eq R_carrier_meas
-  R_to_carrier_meas {G t1 t2 F X gam}.
 
 (** ** §2 — The rejection-sampling reduction chain *)
 
@@ -558,16 +428,12 @@ Qed.
 
 Lemma fix_chain_prom_ball n :
   cone_norm ((fix_chain reject_W0 n)!) <= 1.
-Proof. exact: prom_ball (fix_chain_ball reject_W0_ball n). Qed.
+Proof. exact: (kleene_prom_ball reject_W0_ball n). Qed.
 
 Lemma fix_chain_prom_setlike n :
   Lfun (coalg_str (tyD_cbv (tfun (tfun tR' tR') tR')))
        ((fix_chain reject_W0 n)!) = ((fix_chain reject_W0 n)!)!.
-Proof.
-rewrite -[tyD_cbv (tfun (tfun tR' tR') tR')]
-        /(bang_cofree (Lty (tfun tR' tR') tR')) bang_cofree_str.
-exact: (dig_prom _ (fix_chain_ball reject_W0_ball n)).
-Qed.
+Proof. exact: (kleene_prom_setlike reject_W0_ball n). Qed.
 
 (** The one-variable environment binding ["rs"] to the n-th promoted
     iterate is a setlike unit-ball point. *)
@@ -850,68 +716,58 @@ Let f_cR_meas : measurable_fun [set: ar_carrier Ar R_obj]
     (fun r => f (cR r)).
 Proof. exact: (bern_f_cR_meas R_carrier_meas Hf_meas). Qed.
 
+(** The acceptance-mass bookkeeping is the generic one of
+    [theories/programs/infra/affine_cascade.v] (Section
+    [MassBookkeeping]) at [ν := µ] and [g := f ∘ cR]; the prior's unit
+    mass [Hmu1] is the only place the headline is more special than the
+    model rider, and it enters exactly by turning the generic [ν(setT)]
+    into [1]. *)
+
+Let f_cR_ge0 r : (0 <= f (cR r))%R.
+Proof. exact: Hf_ge0. Qed.
+
+Let f_cR_le1 r : (f (cR r) <= 1)%R.
+Proof. exact: Hf_le1. Qed.
+
 Lemma reject_If_ge0 : 0 <= If.
-Proof. by apply: integral_ge0 => r _; rewrite lee_fin Hf_ge0. Qed.
+Proof. exact: (fmeas_int_ge0 mu f_cR_ge0). Qed.
 
 Lemma reject_If_le1 : If <= 1.
 Proof.
-apply: (le_trans (y := \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
-                        (cst 1%:E) r)).
-  apply: ge0_le_integral => //.
-  - by move=> r _; rewrite lee_fin Hf_ge0.
-  - by apply/measurable_EFinP; exact: f_cR_meas.
-  - by move=> r _; rewrite lee_fin Hf_le1.
-by rewrite integral_cst// mul1e Hmu1.
+by have := fmeas_int_le_mass mu f_cR_ge0 f_cR_le1 f_cR_meas; rewrite Hmu1.
 Qed.
 
 Lemma reject_If_fin : If \is a fin_num.
-Proof.
-rewrite ge0_fin_numE ?reject_If_ge0//.
-by apply: le_lt_trans reject_If_le1 _; rewrite ltey.
-Qed.
+Proof. exact: (fmeas_int_fin mu f_cR_ge0 f_cR_le1 f_cR_meas). Qed.
 
 Lemma reject_IUf_ge0 U : measurable U -> 0 <= IUf U.
-Proof. by move=> mU; apply: integral_ge0 => r _; rewrite lee_fin Hf_ge0. Qed.
+Proof. exact: (fmeas_intU_ge0 mu f_cR_ge0). Qed.
 
 Lemma reject_IUf_le_If U : measurable U -> IUf U <= If.
-Proof.
-move=> mU; apply: ge0_subset_integral => //.
-- by apply/measurable_EFinP; exact: f_cR_meas.
-- by move=> r _; rewrite lee_fin Hf_ge0.
-Qed.
+Proof. exact: (fmeas_intU_le mu f_cR_ge0 f_cR_meas). Qed.
 
 Lemma reject_IUf_fin U : measurable U -> IUf U \is a fin_num.
-Proof.
-move=> mU; rewrite ge0_fin_numE ?reject_IUf_ge0//.
-apply: le_lt_trans (reject_IUf_le_If mU) _.
-by apply: le_lt_trans reject_If_le1 _; rewrite ltey.
-Qed.
+Proof. exact: (fmeas_intU_fin mu f_cR_ge0 f_cR_le1 f_cR_meas). Qed.
 
 (** The rejection weight: [∫ (1 - f) dµ = 1 - ∫ f dµ] at [µ(setT)=1]. *)
 Lemma reject_int_onem :
   \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
      ((1 - f (cR r))%R)%:E = ((1 - fine If)%R)%:E.
 Proof.
+have Honem_ge0 r : (0 <= 1 - f (cR r))%R by rewrite subr_ge0 Hf_le1.
 have Honem_meas : measurable_fun [set: ar_carrier Ar R_obj]
-    (fun r => ((1 - f (cR r))%R)%:E).
-  apply/measurable_EFinP.
+    (fun r => (1 - f (cR r))%R).
   by apply: measurable_funB => //; exact: f_cR_meas.
-have Hsum : If + \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
-                   ((1 - f (cR r))%R)%:E = 1.
-  rewrite -ge0_integralD//; first last.
-  - by move=> r _; rewrite lee_fin subr_ge0 Hf_le1.
-  - by apply/measurable_EFinP; exact: f_cR_meas.
-  - by move=> r _; rewrite lee_fin Hf_ge0.
-  under eq_integral => r _.
-    rewrite -EFinD addrCA subrr addr0.
-    over.
-  by rewrite integral_cst// mul1e Hmu1.
-have := congr1 (fun z => z - If) Hsum.
-rewrite (addeC If) addeK ?reject_If_fin// => ->.
-by rewrite -{1}(fineK reject_If_fin) -EFinB.
+have Hsum r : (f (cR r) + (1 - f (cR r)))%R = 1%R.
+  by rewrite addrCA subrr addr0.
+rewrite (fmeas_int_compl mu f_cR_ge0 f_cR_le1 f_cR_meas
+           (fun r => (1 - f (cR r))%R) Honem_ge0 Honem_meas Hsum).
+by rewrite Hmu1.
 Qed.
 
-(** The mass of one branch dispatch. *)
+(** The mass of one branch dispatch — the generic [bool_case_mass] of
+    [theories/programs/infra/cbv_anchors.v] at a [bernoulli] scrutinee,
+    whose [bc_t]/[bc_f] read as [f (cR r)] / [1 - f (cR r)]. *)
 Lemma reject_case_mass n r U (mU : measurable U) :
   fmeas_mu (bool_case
     (bernoulli (Ar:=Ar) (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)))
@@ -919,17 +775,9 @@ Lemma reject_case_mass n r U (mU : measurable U) :
   ((f (cR r) * \1_U r + (1 - f (cR r)) *
       fine (fmeas_mu (reject_iter n) U))%R)%:E.
 Proof.
-have -> : (bool_case
-    (bernoulli (Ar:=Ar) (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)))
-    (dirac_fmeas r) (reject_iter n) : fmeas R (ar_carrier Ar R_obj)) =
-  fmeas_add
-    (fmeas_scale (NngNum (Hf_ge0 (cR r))) (dirac_fmeas r))
-    (fmeas_scale (NngNum (subr_ge0_le1 (f (cR r)) (Hf_le1 (cR r))))
-       (reject_iter n)).
-  by [].
-rewrite fmeas_addE 2!fmeas_scaleE (dirac_fmeas_E r mU) diracE/=.
-rewrite -(fineK (fmeas_fin (reject_iter n) U mU)).
-by rewrite -2!EFinM -EFinD indicE.
+exact: (bool_case_mass
+  (bernoulli (Ar:=Ar) (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)))
+  r (reject_iter n) mU).
 Qed.
 
 Lemma ex_reject_iter_mass n U (mU : measurable U) :
@@ -1272,16 +1120,12 @@ by [].
 Qed.
 
 Lemma al_chain_prom_ball n : cone_norm ((fix_chain al_W0 n)!) <= 1.
-Proof. exact: prom_ball (fix_chain_ball al_W0_ball n). Qed.
+Proof. exact: (kleene_prom_ball al_W0_ball n). Qed.
 
 Lemma al_chain_prom_setlike n :
   Lfun (coalg_str (tyD_cbv (tfun tunit tunit)))
        ((fix_chain al_W0 n)!) = ((fix_chain al_W0 n)!)!.
-Proof.
-rewrite -[tyD_cbv (tfun tunit tunit)]
-        /(bang_cofree (Lty tunit tunit)) bang_cofree_str.
-exact: (dig_prom _ (fix_chain_ball al_W0_ball n)).
-Qed.
+Proof. exact: (kleene_prom_setlike al_W0_ball n). Qed.
 
 Lemma al_env_ball n :
   cone_norm (one1 ⊗p (fix_chain al_W0 n)!) <= 1.
@@ -1671,16 +1515,12 @@ by [].
 Qed.
 
 Lemma g_chain_prom_ball n : cone_norm ((fix_chain g_W0 n)!) <= 1.
-Proof. exact: prom_ball (fix_chain_ball g_W0_ball n). Qed.
+Proof. exact: (kleene_prom_ball g_W0_ball n). Qed.
 
 Lemma g_chain_prom_setlike n :
   Lfun (coalg_str (tyD_cbv (tfun tunit tR')))
        ((fix_chain g_W0 n)!) = ((fix_chain g_W0 n)!)!.
-Proof.
-rewrite -[tyD_cbv (tfun tunit tR')]
-        /(bang_cofree (Lty tunit tR')) bang_cofree_str.
-exact: (dig_prom _ (fix_chain_ball g_W0_ball n)).
-Qed.
+Proof. exact: (kleene_prom_setlike g_W0_ball n). Qed.
 
 Lemma g_env_ball n :
   cone_norm (one1 ⊗p (fix_chain g_W0 n)!) <= 1.
@@ -2367,62 +2207,90 @@ Qed.
     looks up the [0!] component of [p], runs [der 0! = 0], the zero
     linhom, on the unit argument. *)
 
+(** The body environment extended with the (unit) argument binder
+    ["n"] — the point at which the lambda body is read. *)
+Local Notation eo_env2 :=
+  ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1)
+  (only parsing).
+
+Lemma eo_env2_ball : cone_norm eo_env2 <= 1.
+Proof. by rewrite tensor_normME one1_norm mulr1 eo_env_ball. Qed.
+
+Lemma eo_env2_setlike :
+  Lfun (coalg_str (ctxD_cbv (drop_names
+          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])))
+       eo_env2 = eo_env2!.
+Proof.
+rewrite -[ctxD_cbv (drop_names
+          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])]
+        /(EM_prod (ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
+                  (tyD_cbv (@tunit R Ar))).
+exact: (coalg_str_tensor_setlike
+          (P:=ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
+          (Q:=tyD_cbv (@tunit R Ar))
+          eo_env_ball Hone eo_env_setlike coalg_str_one1).
+Qed.
+
+(** The rec-bound variable ["p"] projects the pair of promoted zeros. *)
+Lemma eo_var_p_at :
+  Lfun (eD_cbv' ([# "p"] : @named_expr R Ar R_obj
+          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)] pair_ty))
+       eo_env2 =
+  (precone_zero : L)! ⊗p (precone_zero : L)!.
+Proof.
+apply: (eq_trans (y := Lfun (icones_comp
+  (em_proj2_mor (R:=R) EM_term (tyD_cbv pair_ty))
+  (em_proj1_mor (R:=R) (ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
+     (tyD_cbv (@tunit R Ar))))
+  eo_env2)).
+  by [].
+rewrite Lfun_comp.
+rewrite (em_proj1_morE (Q:=tyD_cbv (@tunit R Ar)) Hone coalg_str_one1).
+exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
+Qed.
+
+(** Both components have the SAME shape [λn. q @ n], and the run does
+    not look at [q] beyond its value: the [λn]-packaging promotes at
+    the setlike body environment ([adj_psi_at_setlike]), the
+    application clause computes there ([eD_app_at_setlike]), and
+    [der 0! = 0] annihilates whatever argument follows.  The
+    [fst]/[snd] difference between the twins is confined to the
+    hypothesis [Hq]. *)
+Lemma eo_lam_proj_zero
+    (q : @named_expr R Ar R_obj
+           [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)]
+           (tfun (@tunit R Ar) tunit))
+    (a : @named_expr R Ar R_obj
+           [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)]
+           (@tunit R Ar)) :
+  Lfun (eD_cbv' q) eo_env2 = (precone_zero : L)! ->
+  Lfun (eD_cbv' (ne_lam "n"%string (t1 := @tunit R Ar) (ne_app q a)))
+       (one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) =
+  (precone_zero : L)!.
+Proof.
+move=> Hq.
+rewrite eD_lam_E.
+set g := (tensor_curry _).
+rewrite (adj_psi_at_setlike g eo_env_ball eo_env_setlike).
+congr (prom _); rewrite /g.
+apply: linhom_cone_one_zero; rewrite tensor_curryE.
+rewrite (eD_app_at_setlike
+           (G := [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])
+           (t1 := tunit) (t2 := tunit)
+           R_carrier_eq R_carrier_meas R_to_carrier_meas
+           eo_env2_ball eo_env2_setlike).
+rewrite Hq (der_prom _ Hzero).
+exact: linhom_fun_zero.
+Qed.
+
 Lemma eo_lam_a_zero :
   Lfun (eD_cbv' (ex_even_odd_lam_a : @named_expr R Ar R_obj _ _))
        (one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) =
   (precone_zero : L)!.
 Proof.
-rewrite /ex_even_odd_lam_a eD_lam_E.
-set g := (tensor_curry _).
-rewrite (adj_psi_at_setlike g eo_env_ball eo_env_setlike).
-congr (prom _); rewrite /g.
-apply: linhom_cone_one_zero; rewrite tensor_curryE.
-have Hext_ball :
-  cone_norm ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1)
-    <= 1.
-  by rewrite tensor_normME one1_norm mulr1 eo_env_ball.
-have Hext_s :
-  Lfun (coalg_str (ctxD_cbv (drop_names
-          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])))
-       ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1) =
-  ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1)!.
-  rewrite -[ctxD_cbv (drop_names
-            [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])]
-          /(EM_prod (ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
-                    (tyD_cbv (@tunit R Ar))).
-  exact: (coalg_str_tensor_setlike
-            (P:=ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
-            (Q:=tyD_cbv (@tunit R Ar))
-            eo_env_ball Hone eo_env_setlike coalg_str_one1).
-rewrite (eD_app_at_setlike
-           (G := [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])
-           (t1 := tunit) (t2 := tunit)
-           R_carrier_eq R_carrier_meas R_to_carrier_meas Hext_ball Hext_s).
-have Hp_E :
-  Lfun (eD_cbv' ([# "p"] : @named_expr R Ar R_obj
-          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)] pair_ty))
-       ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1) =
-  (precone_zero : L)! ⊗p (precone_zero : L)!.
-  apply: (eq_trans (y := Lfun (icones_comp
-    (em_proj2_mor (R:=R) EM_term (tyD_cbv pair_ty))
-    (em_proj1_mor (R:=R) (ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
-       (tyD_cbv (@tunit R Ar))))
-    ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1))).
-    by [].
-  rewrite Lfun_comp.
-  rewrite (em_proj1_morE (Q:=tyD_cbv (@tunit R Ar)) Hone coalg_str_one1).
-  exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
-have Hsnd_E :
-  Lfun (eD_cbv' ([snd # "p"] : @named_expr R Ar R_obj
-          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)]
-          (tfun (@tunit R Ar) tunit)))
-       ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1) =
-  (precone_zero : L)!.
-  rewrite eD_snd_E Lfun_comp Hp_E.
-  exact: (em_proj2_morE (P:=tyD_cbv (tfun (@tunit R Ar) tunit))
-            (prom_ball Hzero) eo_comp_setlike).
-rewrite Hsnd_E (der_prom _ Hzero).
-exact: linhom_fun_zero.
+apply: eo_lam_proj_zero; rewrite eD_snd_E Lfun_comp eo_var_p_at.
+exact: (em_proj2_morE (P:=tyD_cbv (tfun (@tunit R Ar) tunit))
+          (prom_ball Hzero) eo_comp_setlike).
 Qed.
 
 Lemma eo_lam_b_zero :
@@ -2430,57 +2298,9 @@ Lemma eo_lam_b_zero :
        (one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) =
   (precone_zero : L)!.
 Proof.
-rewrite /ex_even_odd_lam_b eD_lam_E.
-set g := (tensor_curry _).
-rewrite (adj_psi_at_setlike g eo_env_ball eo_env_setlike).
-congr (prom _); rewrite /g.
-apply: linhom_cone_one_zero; rewrite tensor_curryE.
-have Hext_ball :
-  cone_norm ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1)
-    <= 1.
-  by rewrite tensor_normME one1_norm mulr1 eo_env_ball.
-have Hext_s :
-  Lfun (coalg_str (ctxD_cbv (drop_names
-          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])))
-       ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1) =
-  ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1)!.
-  rewrite -[ctxD_cbv (drop_names
-            [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])]
-          /(EM_prod (ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
-                    (tyD_cbv (@tunit R Ar))).
-  exact: (coalg_str_tensor_setlike
-            (P:=ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
-            (Q:=tyD_cbv (@tunit R Ar))
-            eo_env_ball Hone eo_env_setlike coalg_str_one1).
-rewrite (eD_app_at_setlike
-           (G := [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)])
-           (t1 := tunit) (t2 := tunit)
-           R_carrier_eq R_carrier_meas R_to_carrier_meas Hext_ball Hext_s).
-have Hp_E :
-  Lfun (eD_cbv' ([# "p"] : @named_expr R Ar R_obj
-          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)] pair_ty))
-       ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1) =
-  (precone_zero : L)! ⊗p (precone_zero : L)!.
-  apply: (eq_trans (y := Lfun (icones_comp
-    (em_proj2_mor (R:=R) EM_term (tyD_cbv pair_ty))
-    (em_proj1_mor (R:=R) (ctxD_cbv (drop_names [:: ("p"%string, pair_ty)]))
-       (tyD_cbv (@tunit R Ar))))
-    ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1))).
-    by [].
-  rewrite Lfun_comp.
-  rewrite (em_proj1_morE (Q:=tyD_cbv (@tunit R Ar)) Hone coalg_str_one1).
-  exact: (em_proj2_morE (P:=EM_term) Hone coalg_str_one1).
-have Hfst_E :
-  Lfun (eD_cbv' ([fst # "p"] : @named_expr R Ar R_obj
-          [:: ("n"%string, @tunit R Ar); ("p"%string, pair_ty)]
-          (tfun (@tunit R Ar) tunit)))
-       ((one1 ⊗p ((precone_zero : L)! ⊗p (precone_zero : L)!)) ⊗p one1) =
-  (precone_zero : L)!.
-  rewrite eD_fst_E Lfun_comp Hp_E.
-  exact: (em_proj1_morE (Q:=tyD_cbv (tfun (@tunit R Ar) tunit))
-            (prom_ball Hzero) eo_comp_setlike).
-rewrite Hfst_E (der_prom _ Hzero).
-exact: linhom_fun_zero.
+apply: eo_lam_proj_zero; rewrite eD_fst_E Lfun_comp eo_var_p_at.
+exact: (em_proj1_morE (Q:=tyD_cbv (tfun (@tunit R Ar) tunit))
+          (prom_ball Hzero) eo_comp_setlike).
 Qed.
 
 (** *** The decisive fixpoint step: the conjugated body fixes the

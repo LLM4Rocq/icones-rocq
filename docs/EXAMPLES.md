@@ -165,7 +165,8 @@ Theorem ex_random_constant_cbv_marginal_mass (x : FMeas R_obj)
 Proof idea: the let-at-sample law turns the denotation into the Pettis
 integral $\int (\ell_c)! \mu(dc)$ of the promoted closures
 $\ell_c := \llbracket\lambda x. c\rrbracket(1 \otimes \delta_c)$ (the lambda clause promotes at the setlike
-one-Dirac environment, `adj_psi_at_setlike`). Dereliction and evaluation
+one-Dirac environment, `adj_psi_at_setlike` of
+`theories/programs/infra/cbv_anchors.v`). Dereliction and evaluation
 at `x` push inside the integral (`icones_hom_pres_int` /
 `linhom_int_eval`); the integrand computes to $\delta_c$ — the unused
 argument `x` is discarded silently because it is a probability
@@ -1090,7 +1091,8 @@ map is a linear map of cone-norm at most `1`, and a *setlike* point is one
 fixed by the comonoid structure, `coalg_str x = x!`, hence copied and
 discarded like an ordinary value. Every
 lambda-written model and predicate denotes such a point (`ne_lam`,
-`adj_psi_at_setlike`), so no generality is lost; $\nu_M := g(a_0)$ and
+`adj_psi_at_setlike` of `theories/programs/infra/cbv_anchors.v`), so no
+generality is lost; $\nu_M := g(a_0)$ and
 `sdist r` is the predicate applied to $\delta_r$.
 
 > The design decision worth naming is that the acceptance test is a
@@ -1264,7 +1266,10 @@ Proof idea (`theories/programs/ex_reject_model.v`), in three moves.
   denotation as the `cone_sup_ball` of the iterates
   $\nu_n := \text{der}(\text{fix\_chain}\,\text{rm\_W0}\,n\,(g!))(a_0)$, evaluation and the counit
   `der` commuting with the Kleene supremum (`linhom_fun_sup_ball` twice,
-  `Lfun_sup_ball`).
+  `Lfun_sup_ball`). The three computation laws used throughout
+  (`adj_psi_at_setlike`, `eD_app_at_setlike`, `if_icones_at`) and the
+  pointwise-sup reading `linhom_fun_sup_ball` are the shared setlike-point
+  kit of `theories/programs/infra/cbv_anchors.v`, not local to this file.
 - **One step.** `reject_model_iter_S` unfolds a step to the let-if body
   at the extended setlike environment, and `reject_model_if_at_dirac`
   computes it: the scrutinee is the applied predicate `sdist r`
@@ -1274,7 +1279,8 @@ Proof idea (`theories/programs/ex_reject_model.v`), in three moves.
   $\nu_M$ (`rm_model_app_E`).
 - **Sum.** `eD_let_int_obj` integrates the iterate over $\nu_M$, giving the
   affine recurrence `reject_model_iter_mass`, whose retry mass
-  $\int \text{bc\_f}\,d\nu_M = m_0 - I_f$ (`rm_int_onem`) keeps the model's own
+  $\int \text{bc\_f}\,d\nu_M = m_0 - I_f$ (`rm_int_onem`, the generic
+  `fmeas_int_compl` of `theories/programs/infra/affine_cascade.v`) keeps the model's own
   divergence mass out of the loop; the affine cascade `affine_iter_cvg`
   (`theories/programs/infra/affine_cascade.v`) at $a := I_{Uf} U$,
   $q := m_0 - I_f$ gives the limit $I_{Uf} U / (1 - q)$,

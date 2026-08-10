@@ -51,6 +51,16 @@
     - [ne_pair] / [ne_fst] / [ne_snd] — binary products;
     - [ne_lam x M] / [ne_app] — higher-order lambda (with string
       binder [x]) / direct application;
+    - [ne_fix s M] — OCaml-style [let rec] at a FUNCTION type
+      [tfun t1 t2] (the recursive name [s] is in scope in [M]);
+      interpreted by the seeded value-fixpoint combinator
+      [fix_comb] of [theories/programs/infra/em_fix_value.v];
+    - [ne_fix_mr s Hfree M] — MUTUAL recursion: [ne_fix] generalised
+      to any body type [t] with [is_free_coalg_type t] (notably
+      [tprod (tfun A1 B1) (tfun A2 B2)] — a pair of mutually
+      recursive functions); routed through the Seely-transported
+      combinator [fix_mr_comb] of
+      [theories/programs/infra/em_fix_mr.v];
     - [ne_let x M K] — direct-style CBV sequencer [let x = M in K]
       (carries a string binder);
     - [ne_sample mu Hmu] — sample from a unit-ball
@@ -63,6 +73,11 @@
       direct style it returns a [tunit] expression);
     - [ne_add] / [ne_mul] — pointwise [+]/[×] on two [tR]-valued
       computations.
+    - [ne_meas f Hf_meas e] — MEASURABLE FUNCTION APPLICATION: push
+      the value of a [tR]-valued [e] through a measurable
+      [f : R -> R]; semantically the [FMeas] functorial action
+      (pushforward) at the carrier transport of [f]
+      ([Section MeasTmLift]).  No [[0,1]] bounds are needed.
     - [ne_true] / [ne_false] — boolean constants of type [tbool],
       interpreted as the constant morphisms at the bool-cone
       Diracs [bool_dirac_true] / [bool_dirac_false] of
@@ -77,6 +92,9 @@
       composite of [eD e] with the path lift [bern_lift]
       ([µ ↦ (∫ f dµ, ∫ (1-f) dµ)]).  The accept/reject primitive
       of [examples.v::ex_reject].
+    - [ne_if e M N] — boolean elimination [if e then M else N] at any
+      result type; interpreted by the universal co-pairing
+      [bool_case_linhom] ([ppl_cbv.v::if_icones]).
     - [ne_gaussian e1 e2] / [ne_uniform e1 e2] — RUNTIME-PARAMETER
       named distributions (surface [Gaussian(e1,e2)] /
       [Uniform(e1,e2)]): draw from the normal/uniform family whose
@@ -85,6 +103,26 @@
       [distributions.v::kernel_lift2] at [gaussian_kernel] /
       [uniform_kernel] (the [ne_add]/[ne_mul] clause shape with the
       kernel lift in place of the pushforward).
+
+    The four ADDITIVE [tProb]-typed clauses (STAGE T1) close the list.
+    Each carries its own abstract [[0,1]] object [I_obj] as an explicit
+    field, so the inductive's parameters are unchanged:
+    - [ne_bernoulli_p I_obj g Hg_meas Hg_ge0 Hg_le1 e] — the
+      value-dependent Bernoulli at a [tbase I_obj]-valued [e], with the
+      success probability given DIRECTLY by a carrier density
+      [g : ar_carrier Ar I_obj -> R] (no [R]-cast); CBV engine
+      [bern_lift_g] ([Section BernTmLiftG]).  Mirror of
+      [ne_bernoulli_f];
+    - [ne_score_p I_obj g Hg_meas Hg_ge0 Hg_le1 e] — the term-level
+      score by the same carrier density; CBV engine [score_lift_g].
+      Mirror of [ne_score];
+    - [ne_to_prob phi e] — push a [tbase X]-valued [e] along a
+      morphism [phi : X → I_obj] of [Ar] into [tbase I_obj]; CBV
+      [FMeas_fmap phi]. The workhorse behind every [tR → tProb]
+      primitive ([Sigmoid] / [Gausslik] / [Gt0]);
+    - [ne_incl incl e] — the forgetful read of a [tProb] value back
+      along [incl : I_obj → Y] (at [Y := R_obj], the [[0,1] ↪ R]
+      inclusion); CBV [FMeas_fmap incl].
 
     ** Type, context and term interpretation **
 
@@ -171,9 +209,13 @@ Unset Printing Implicit Defensive.
 
 Import Order.TTheory GRing.Theory Num.Theory.
 
-Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
+(* Kept LOCAL: these opacity settings are a proof-engineering choice of
+   THIS file (they keep the tensor / [!̃] plumbing from being unfolded by
+   [simpl] and friends in the lift proofs below); a global [Opaque] would
+   leak into every importer and silently change their tactic behaviour. *)
+Local Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
        ptensor tau Seely2.
-Opaque dig der prom bang_fmap d_bang e_bang unit_cofree_str Coalg
+Local Opaque dig der prom bang_fmap d_bang e_bang unit_cofree_str Coalg
        tens_cofree_str m_bang.
 
 Local Open Scope classical_set_scope.
@@ -823,10 +865,14 @@ Qed.
        add_lift (x ⊗p 0) = 0  /  add_lift (0 ⊗p y) = 0
        mul_lift (x ⊗p 0) = 0  /  mul_lift (0 ⊗p y) = 0
     ]]
-    These identities are load-bearing for the recursive mass-closure
-    theorems (notably [ex_geom] in [theories/programs/examples.v]):
-    the recursive tail [1 + g()] contributes zero mass when [g] is
-    bound to a diverging value [g() = 0], via bilinear [add_lift]. *)
+    They record the bilinearity of the two arithmetic lifts at the cone
+    zero — the semantic content of "a diverging argument contributes no
+    mass to [e1 + e2] / [e1 * e2]".  They are API facts of this file: no
+    downstream file consumes them today (the [ex_geom] mass-closure
+    argument of [ex_reject_headline.v] runs on the TRANSLATION-mass
+    identity [add_lift_mass] below, not on these four).  Kept because
+    they are three lines each and are the natural companion statement to
+    [add_lift_mass]. *)
 
 (** Shared core: an [icones_hom] out of the tensor (here [add_lift] /
     [mul_lift]) kills an argument equal to the cone zero — its
@@ -1104,6 +1150,126 @@ Arguments meas_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas
 Arguments meas_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas
                              R_to_carrier_meas f} Hf_meas mu.
 
+(** ** Density lifts — the carrier-density PRIMITIVES [score_lift_g] /
+       [bern_lift_g] and their [f ∘ cR] INSTANCES [score_lift] /
+       [bern_lift]
+
+    Two path-route lifts out of [FMeas X], keyed on a density.  The
+    primitive form takes the density DIRECTLY as a carrier-level
+    measurable [[0,1]] map [g : ar_carrier Ar X -> R] at an ARBITRARY
+    base object [X : ar_obj Ar].  This is what the [tProb] machinery
+    needs — e.g. at the abstract [[0,1]] object [I_obj], whose carrier
+    is NOT [R] — and, there being no carrier cast, the Dirac identity
+    reads at an arbitrary carrier point [x].
+
+    The [f]-flavoured lifts [score_lift] / [bern_lift] — the CBV engines
+    of [ne_score] / [ne_bernoulli_f], whose density is a meta-level
+    [f : R -> R] read through the [R_carrier_eq] cast of the
+    distinguished real object [R_obj] — are the primitives INSTANTIATED
+    at [X := R_obj], [g := f ∘ cR]: [Section ScoreTmLift] /
+    [Section BernTmLift] below derive their whole API from the [_g] API,
+    so there is exactly ONE path construction per lift.  ([bern_lift_P]
+    / [score_lift_P] below are the other instance, at [X := po_obj P],
+    [g := po_density P].) *)
+
+Section ScoreTmLiftG.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (X : ar_obj Ar).
+Variable (g : ar_carrier Ar X -> R).
+Hypothesis Hg_meas : measurable_fun [set: ar_carrier Ar X] g.
+Hypothesis Hg_ge0 : forall x : ar_carrier Ar X, (0 <= g x)%R.
+Hypothesis Hg_le1 : forall x : ar_carrier Ar X, (g x <= 1)%R.
+
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** The path value at [x] : [MkConeOne (NngNum (Hg_ge0 x))]. *)
+Definition score_g_path_fun (x : ar_carrier Ar X) : cone_one_car Ar :=
+  MkConeOne Ar (NngNum (Hg_ge0 x)).
+
+Lemma score_g_path_fun_norm (x : ar_carrier Ar X) :
+  (cone_norm (score_g_path_fun x) <= 1)%R.
+Proof.
+by rewrite /cone_norm/= /c1_norm/= /score_g_path_fun/=; exact: Hg_le1.
+Qed.
+
+(** [score_g_path_fun] is a measurable path.  The only test of
+    [cone_one_car] is [id_test]; on it, the per-test map
+    [(z,x) ↦ test_fun m z (score_g_path_fun x)] reduces to
+    [(z,x) ↦ g x], which is measurable. *)
+Lemma score_g_path_is_path :
+  is_measurable_path (Ar := Ar) (C := cone_one_car Ar) (X := X)
+    score_g_path_fun.
+Proof.
+split.
+  exists 1 => x; exact: score_g_path_fun_norm.
+move=> Y m mM.
+have Em : m = ConeOneMConeAux.id_test (R := R) (Ar := Ar) Y := mM.
+rewrite Em /ConeOneMConeAux.id_test /=
+        /ConeOneMConeAux.id_test_fun /score_g_path_fun /=.
+apply: (measurableT_comp (f := g)).
+- exact: Hg_meas.
+- exact: measurable_snd.
+Qed.
+
+Definition score_g_path : path_car Ar X (cone_one_car Ar) :=
+  MkPath score_g_path_is_path.
+
+(** Path-norm bound: the path values are all [≤ 1], so the sup is [≤ 1]. *)
+Lemma score_g_path_norm_le1 : (path_norm score_g_path <= 1)%R.
+Proof.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [x ->] /=; exact: score_g_path_fun_norm.
+Qed.
+
+(** Norm bound for [int_to_linhom score_g_path]. *)
+Lemma score_g_int_norm_le1 :
+  (cone_norm (int_to_linhom score_g_path) <= 1)%R.
+Proof.
+apply: le_trans (int_to_linhom_norm_le score_g_path) _.
+exact: score_g_path_norm_le1.
+Qed.
+
+(** The lift as an [icones_hom]. *)
+Definition score_lift_g :
+    icones_hom Ar (FMeas X) (cone_one_car Ar) :=
+  linhom_icones (int_to_linhom score_g_path) score_g_int_norm_le1.
+
+(** **** Load-bearing Dirac identity, at an arbitrary carrier point [x].
+
+    On [δ_x] in [FMeas X] the score lift evaluates to [g x · one1]
+    (packaged as a [cone_one_car]). *)
+Lemma score_lift_g_dirac (x : ar_carrier Ar X) :
+  Lfun score_lift_g (dirac_fmeas x) = MkConeOne Ar (NngNum (Hg_ge0 x)).
+Proof.
+rewrite /score_lift_g.
+rewrite (linhom_iconesE _ score_g_int_norm_le1 (dirac_fmeas x)).
+rewrite -[linhom_fun _ _]/(int_to_linhom_fun score_g_path (dirac_fmeas x)).
+rewrite (int_to_linhom_fun_dirac score_g_path x).
+by rewrite -[path_fun _ _]/(score_g_path_fun x).
+Qed.
+
+End ScoreTmLiftG.
+
+Arguments score_g_path_fun {R Ar X g} Hg_ge0 x.
+Arguments score_g_path_fun_norm {R Ar X g} Hg_ge0 Hg_le1 x.
+Arguments score_g_path_is_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments score_g_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments score_g_path_norm_le1 {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments score_g_int_norm_le1 {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments score_lift_g {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments score_lift_g_dirac {R Ar X g} Hg_meas Hg_ge0 Hg_le1 x.
+
+(** *** [score_lift] — [Section ScoreTmLiftG] at [X := R_obj],
+    [g := f ∘ cR]
+
+    The CBV engine of [ne_score].  Every name below is the corresponding
+    [_g] name at that instance; the only genuine proof is [f_cR_meas],
+    the measurability of the composite density (reused verbatim by
+    [Section BernTmLift]).  The Dirac identity is the only statement
+    that is not a plain instance: it reads at a REAL point [r], so it
+    pays one [R_to_carrierK] round trip. *)
+
 Section ScoreTmLift.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (R_obj : ar_obj Ar).
@@ -1122,17 +1288,7 @@ Local Notation cR := (carrier_to_R R_carrier_eq).
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
-(** The path value at [r] : [MkConeOne (NngNum (Hf_ge0 (cR r)))]. *)
-Definition score_path_fun (r : ar_carrier Ar R_obj) : cone_one_car Ar :=
-  MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
-
-Lemma score_path_fun_norm (r : ar_carrier Ar R_obj) :
-  (cone_norm (score_path_fun r) <= 1)%R.
-Proof.
-by rewrite /cone_norm/= /c1_norm/= /score_path_fun/=; exact: Hf_le1.
-Qed.
-
-(** Composite [f ∘ cR] is measurable. *)
+(** Composite [f ∘ cR] is measurable — the [Hg_meas] of the instance. *)
 Lemma f_cR_meas :
   measurable_fun [set: ar_carrier Ar R_obj] (fun r => f (cR r)).
 Proof.
@@ -1141,47 +1297,44 @@ apply: (measurableT_comp (f := f)).
 - exact: R_carrier_meas.
 Qed.
 
-(** [score_path_fun] is a measurable path. *)
-Lemma score_path_is_path :
-  is_measurable_path (Ar := Ar) (C := cone_one_car Ar) (X := R_obj)
-    score_path_fun.
-Proof.
-split.
-  exists 1 => r; exact: score_path_fun_norm.
-move=> Y m mM.
-(* The only test of [cone_one_car] is [id_test]; on it, the per-test
-   map [(z,r) ↦ test_fun m z (score_path_fun r)] reduces to
-   [(z,r) ↦ f(cR r)], which is measurable. *)
-have Em : m = ConeOneMConeAux.id_test (R := R) (Ar := Ar) Y := mM.
-rewrite Em /ConeOneMConeAux.id_test /=
-        /ConeOneMConeAux.id_test_fun /score_path_fun /=.
-apply: (measurableT_comp (f := fun r => f (cR r))).
-- exact: f_cR_meas.
-- exact: measurable_snd.
-Qed.
+(** The two pointwise [[0,1]] witnesses of the instance. *)
+Local Notation Hf_cR_ge0 :=
+  (fun r : ar_carrier Ar R_obj => Hf_ge0 (cR r)).
+Local Notation Hf_cR_le1 :=
+  (fun r : ar_carrier Ar R_obj => Hf_le1 (cR r)).
+
+(** The path value at [r] : [MkConeOne (NngNum (Hf_ge0 (cR r)))]. *)
+Definition score_path_fun (r : ar_carrier Ar R_obj) : cone_one_car Ar :=
+  MkConeOne Ar (NngNum (Hf_ge0 (cR r))).
+
+Lemma score_path_fun_norm (r : ar_carrier Ar R_obj) :
+  (cone_norm (score_path_fun r) <= 1)%R.
+Proof. exact: (score_g_path_fun_norm Hf_cR_ge0 Hf_cR_le1 r). Qed.
+
+(** [score_path_fun] is a measurable path.  Kept TRANSPARENT so that
+    [score_path] below is convertible to [score_g_path] at the
+    instance — that is what makes the derivations one-liners. *)
+Definition score_path_is_path :
+    is_measurable_path (Ar := Ar) (C := cone_one_car Ar) (X := R_obj)
+      score_path_fun :=
+  score_g_path_is_path f_cR_meas Hf_cR_ge0 Hf_cR_le1.
 
 Definition score_path : path_car Ar R_obj (cone_one_car Ar) :=
   MkPath score_path_is_path.
 
 (** Path-norm bound: the path values are all [≤ 1], so the sup is [≤ 1]. *)
 Lemma score_path_norm_le1 : (path_norm score_path <= 1)%R.
-Proof.
-apply: ge_sup; first exact: path_normset_nonempty.
-by move=> _ [r ->] /=; exact: score_path_fun_norm.
-Qed.
+Proof. exact: (score_g_path_norm_le1 f_cR_meas Hf_cR_ge0 Hf_cR_le1). Qed.
 
 (** Norm bound for [int_to_linhom score_path]. *)
 Lemma score_int_norm_le1 :
   (cone_norm (int_to_linhom score_path) <= 1)%R.
-Proof.
-apply: le_trans (int_to_linhom_norm_le score_path) _.
-exact: score_path_norm_le1.
-Qed.
+Proof. exact: (score_g_int_norm_le1 f_cR_meas Hf_cR_ge0 Hf_cR_le1). Qed.
 
 (** The lift as an [icones_hom]. *)
 Definition score_lift :
     icones_hom Ar (FMeas R_obj) (cone_one_car Ar) :=
-  linhom_icones (int_to_linhom score_path) score_int_norm_le1.
+  score_lift_g f_cR_meas Hf_cR_ge0 Hf_cR_le1.
 
 (** **** Load-bearing Dirac identity.
 
@@ -1191,22 +1344,16 @@ Lemma score_lift_dirac (r : R) :
   Lfun score_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
   MkConeOne Ar (NngNum (Hf_ge0 r)).
 Proof.
-rewrite /score_lift.
-rewrite (linhom_iconesE _ score_int_norm_le1
-           (dirac_fmeas (R_to_carrier R_carrier_eq r))).
-rewrite -[linhom_fun _ _]/(int_to_linhom_fun score_path
-                            (dirac_fmeas (R_to_carrier R_carrier_eq r))).
-rewrite (int_to_linhom_fun_dirac score_path
-           (R_to_carrier R_carrier_eq r)).
-rewrite -[path_fun _ _]/(score_path_fun (R_to_carrier R_carrier_eq r)).
-rewrite /score_path_fun.
-apply: cone_one_eq; apply: val_inj => /=.
-by rewrite R_to_carrierK.
+rewrite /score_lift score_lift_g_dirac.
+by apply: cone_one_eq; apply: val_inj => /=; rewrite R_to_carrierK.
 Qed.
 
 End ScoreTmLift.
 
+Arguments f_cR_meas {R Ar R_obj R_carrier_eq} R_carrier_meas {f} Hf_meas.
 Arguments score_path_fun {R Ar R_obj} R_carrier_eq f Hf_ge0 r.
+Arguments score_path_is_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                                Hf_meas Hf_ge0 Hf_le1.
 Arguments score_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
                         Hf_meas Hf_ge0 Hf_le1.
 Arguments score_lift {R Ar R_obj R_carrier_eq R_carrier_meas f}
@@ -1263,12 +1410,18 @@ Arguments dirac_fmeas_norm_le1 {R Ar X} r.
 
     Two meta-level functions [R -> R] with their measurability /
     [[0,1]]-bound witnesses, consumed by the derived surface forms:
-    - [negr r = - r] — negation via [ne_meas], used by the comparison
-      sugar [e1 > e2];
+    - [negr r = - r] — negation, spelled at the surface as
+      [Meas {negr, negr_meas} e];
     - [gt0_ind = \1_(0, ∞)] — the strict-positivity indicator, the
-      density of the comparison coin: [e1 > e2] flips a Bernoulli with
-      success probability [gt0_ind (e1 - e2)] (i.e. THE deterministic
-      test on point masses).
+      density behind the [tProb] primitive [Gt0] (i.e. THE
+      deterministic test on point masses).
+
+    NOTE (tProb migration): the infix comparison notation [e1 > e2] is
+    RETIRED — see the RETIRED note next to the surface notations below.
+    A comparison is now written out as the [tProb] coin
+    [Bernoulli (Gt0 (e1 + Meas {negr, negr_meas} e2))], which is where
+    these two functions are consumed
+    ([examples.v::ex_surface_demo]).
 
     There is NO probability clamp: the value-dependent surface
     [Bernoulli]/[Score] forms take a BUNDLED [[0,1]] test-function record
@@ -1536,326 +1689,30 @@ Arguments bernoulli {R Ar} p Hp_ge0 Hp_le1.
 Arguments bernoulli_norm {R Ar} p Hp_ge0 Hp_le1.
 Arguments bernoulli_norm_le1 {R Ar} p Hp_ge0 Hp_le1.
 
-(** ** [bern_lift] — the value-dependent Bernoulli lift
+(** ** [bern_lift_g] / [bern_lift] — the value-dependent Bernoulli lift
 
-    The semantic engine of [ne_bernoulli_f]: an [icones_hom
-    (FMeas R_obj) (bool_cone_car Ar)] sending a measure [µ] on the
-    reals to the 2-point sub-probability
+    The semantic engine of [ne_bernoulli_p] / [ne_bernoulli_f]: an
+    [icones_hom (FMeas X) (bool_cone_car Ar)] sending a measure [µ] on
+    the base object to the 2-point sub-probability
     [[
-        (∫ f dµ, ∫ (1 - f) dµ)
+        (∫ g dµ, ∫ (1 - g) dµ)
     ]]
-    — sample [r ~ µ], then flip a coin with success probability
-    [f r].  Construction is the PATH route, a verbatim clone of
-    [Section ScoreTmLift]: package [r ↦ bernoulli (f (cR r))] as a
+    — sample [x ~ µ], then flip a coin with success probability
+    [g x].  Construction is the PATH route, the [bool_cone] twin of
+    [Section ScoreTmLiftG]: package [x ↦ bernoulli (g x)] as a
     measurable path into [bool_cone_car Ar] (the three tests of the
-    bool cone evaluate along the path to [f∘cR], [1 - f∘cR] and the
+    bool cone evaluate along the path to [g], [1 - g] and the
     constant [1]), then promote with [int_to_linhom].  The integral
     semantics is automatic by Pettis uniqueness against the
     componentwise integral [bool_int] of
-    [theories/programs/infra/bool_cone.v] ([bern_lift_E]); the
-    Dirac identity ([bern_lift_dirac]) and total-mass identity
-    ([bern_lift_mass]: the lift preserves total mass — the coin is
+    [theories/programs/infra/bool_cone.v] ([bern_lift_g_E]); the
+    Dirac identity ([bern_lift_g_dirac]) and total-mass identity
+    ([bern_lift_g_mass]: the lift preserves total mass — the coin is
     NORM-1 pointwise) are the load-bearing laws for the
-    rejection-sampling headline. *)
+    rejection-sampling headline.
 
-Section BernTmLift.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-
-Variable (f : R -> R).
-Hypothesis Hf_meas : measurable_fun [set: R] f.
-Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
-Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
-
-Local Notation cR := (carrier_to_R R_carrier_eq).
-Local Notation Lfun h :=
-  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-
-(** The path value at [r] : the Bernoulli element
-    [(f (cR r), 1 - f (cR r))]. *)
-Definition bern_path_fun (r : ar_carrier Ar R_obj) : bool_cone_car Ar :=
-  bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
-
-(** Pointwise the path is NORM-1 exactly (the coin always lands). *)
-Lemma bern_path_fun_norm (r : ar_carrier Ar R_obj) :
-  cone_norm (bern_path_fun r) = 1%R.
-Proof. exact: bernoulli_norm. Qed.
-
-(** Composite [f ∘ cR] is measurable (clone of [f_cR_meas]). *)
-Lemma bern_f_cR_meas :
-  measurable_fun [set: ar_carrier Ar R_obj] (fun r => f (cR r)).
-Proof.
-apply: (measurableT_comp (f := f)).
-- exact: Hf_meas.
-- exact: R_carrier_meas.
-Qed.
-
-(** [bern_path_fun] is a measurable path.  The tests of
-    [bool_cone_car] are the three tags [π_t] / [π_f] / norm
-    ([bool_cone.v::mcone_M_bool]); along the path they evaluate to
-    [(z,r) ↦ f (cR r)], [(z,r) ↦ 1 - f (cR r)] and
-    [(z,r) ↦ f (cR r) + (1 - f (cR r))], all measurable. *)
-Lemma bern_path_is_path :
-  is_measurable_path (Ar := Ar) (C := bool_cone_car Ar) (X := R_obj)
-    bern_path_fun.
-Proof.
-split.
-  by exists 1%R => r; rewrite bern_path_fun_norm.
-move=> Y m [o _ <-].
-have meas_snd :
-    measurable_fun
-      [set: (ar_carrier Ar Y * ar_carrier Ar R_obj)%type]
-      (fun p : (ar_carrier Ar Y * ar_carrier Ar R_obj)%type =>
-         f (cR p.2)).
-  apply: (measurableT_comp (f := fun r => f (cR r))).
-  - exact: bern_f_cR_meas.
-  - exact: measurable_snd.
-have meas_onem :
-    measurable_fun
-      [set: (ar_carrier Ar Y * ar_carrier Ar R_obj)%type]
-      (fun p : (ar_carrier Ar Y * ar_carrier Ar R_obj)%type =>
-         (1 - f (cR p.2))%R).
-  by apply: measurable_funB; [exact: measurable_cst | exact: meas_snd].
-rewrite /BoolConeMConeAux.bool_test/= /BoolConeMConeAux.bool_test_fun
-        /BoolConeMConeAux.bc_test_val /bern_path_fun /bernoulli/=.
-case: o => [[]|]/=.
-- exact: meas_snd.
-- exact: meas_onem.
-- exact: measurable_funD meas_snd meas_onem.
-Qed.
-
-Definition bern_path : path_car Ar R_obj (bool_cone_car Ar) :=
-  MkPath bern_path_is_path.
-
-(** Path-norm bound: the path values are all of norm [1], so the sup
-    is [≤ 1]. *)
-Lemma bern_path_norm_le1 : (path_norm bern_path <= 1)%R.
-Proof.
-apply: ge_sup; first exact: path_normset_nonempty.
-by move=> _ [r ->] /=; rewrite bern_path_fun_norm.
-Qed.
-
-(** Norm bound for [int_to_linhom bern_path]. *)
-Lemma bern_int_norm_le1 :
-  (cone_norm (int_to_linhom bern_path) <= 1)%R.
-Proof.
-apply: le_trans (int_to_linhom_norm_le bern_path) _.
-exact: bern_path_norm_le1.
-Qed.
-
-(** The lift as an [icones_hom]. *)
-Definition bern_lift :
-    icones_hom Ar (FMeas R_obj) (bool_cone_car Ar) :=
-  linhom_icones (int_to_linhom bern_path) bern_int_norm_le1.
-
-(** **** Load-bearing Dirac identity.
-
-    On a Dirac at [R_to_carrier r] in [FMeas R_obj], the lift
-    evaluates to the Bernoulli element [(f r, 1 - f r)]. *)
-Lemma bern_lift_dirac (r : R) :
-  Lfun bern_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
-  bernoulli (f r) (Hf_ge0 r) (Hf_le1 r).
-Proof.
-rewrite /bern_lift.
-rewrite (linhom_iconesE _ bern_int_norm_le1
-           (dirac_fmeas (R_to_carrier R_carrier_eq r))).
-rewrite -[linhom_fun _ _]/(int_to_linhom_fun bern_path
-                            (dirac_fmeas (R_to_carrier R_carrier_eq r))).
-rewrite (int_to_linhom_fun_dirac bern_path
-           (R_to_carrier R_carrier_eq r)).
-rewrite -[path_fun _ _]/(bern_path_fun (R_to_carrier R_carrier_eq r)).
-rewrite /bern_path_fun /bernoulli.
-by apply: bool_cone_eq; apply: val_inj => /=; rewrite R_to_carrierK.
-Qed.
-
-Local Open Scope ereal_scope.
-
-(** **** The integral identity, via Pettis uniqueness.
-
-    [bern_lift µ] IS the componentwise integral [bool_int] of
-    [bool_cone.v]: both satisfy the Pettis equation
-    [path_integral_eq bern_path_fun µ], which has a unique
-    solution. *)
-Lemma bern_lift_E (mu : fmeas R (ar_carrier Ar R_obj)) :
-  Lfun bern_lift mu = bool_int bern_path_is_path mu.
-Proof.
-rewrite /bern_lift (linhom_iconesE _ bern_int_norm_le1 mu).
-rewrite -[linhom_fun _ _]/(int_to_linhom_fun bern_path mu).
-rewrite /int_to_linhom_fun.
-apply/esym/icone_integral_eqP.
-exact: bool_int_pettis.
-Qed.
-
-(** Coordinate readings: the [true]-coordinate is [∫ f dµ] … *)
-Lemma bern_lift_t_E (mu : fmeas R (ar_carrier Ar R_obj)) :
-  ((bc_t (Lfun bern_lift mu))%:num)%R =
-  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
-          (f (cR r))%:E).
-Proof. by rewrite bern_lift_E. Qed.
-
-(** … and the [false]-coordinate is [∫ (1 - f) dµ]. *)
-Lemma bern_lift_f_E (mu : fmeas R (ar_carrier Ar R_obj)) :
-  ((bc_f (Lfun bern_lift mu))%:num)%R =
-  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
-          ((1 - f (cR r))%R)%:E).
-Proof. by rewrite bern_lift_E. Qed.
-
-(** **** Total-mass identity.
-
-    The lift preserves total mass: the coin is norm-1 pointwise, so
-    [‖bern_lift µ‖ = ∫ (f + (1-f)) dµ = µ(setT)].  (For the
-    rejection-sampling headline: with [‖µ‖ = 1], the reject weight is
-    [1 - ∫ f dµ].) *)
-Lemma bern_lift_mass (mu : fmeas R (ar_carrier Ar R_obj)) :
-  cone_norm (Lfun bern_lift mu) =
-  fine (fmeas_mu mu [set: ar_carrier Ar R_obj]).
-Proof.
-rewrite bern_lift_E.
-have fin_t : \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
-               (f (cR r))%:E \is a fin_num
-  by exact: (bool_int_fin bern_path_is_path mu true).
-have fin_f : \int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
-               ((1 - f (cR r))%R)%:E \is a fin_num
-  by exact: (bool_int_fin bern_path_is_path mu false).
-have meas_t : measurable_fun [set: ar_carrier Ar R_obj]
-                (fun r => (f (cR r))%:E)
-  by exact: (bool_coord_meas bern_path_is_path true).
-have meas_f : measurable_fun [set: ar_carrier Ar R_obj]
-                (fun r => ((1 - f (cR r))%R)%:E)
-  by exact: (bool_coord_meas bern_path_is_path false).
-rewrite -[cone_norm _]/(((bc_t (bool_int bern_path_is_path mu))%:num
-                       + (bc_f (bool_int bern_path_is_path mu))%:num)%R).
-rewrite -[((bc_t (bool_int bern_path_is_path mu))%:num)%R]/(fine
-  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj]) (f (cR r))%:E)).
-rewrite -[((bc_f (bool_int bern_path_is_path mu))%:num)%R]/(fine
-  (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
-      ((1 - f (cR r))%R)%:E)).
-rewrite -fineD//.
-rewrite -ge0_integralD//; first last.
-- by move=> r _; rewrite lee_fin subr_ge0.
-- by move=> r _; rewrite lee_fin.
-under eq_integral => r _.
-  rewrite -EFinD addrCA subrr addr0.
-  over.
-by rewrite integral_cst//= mul1e.
-Qed.
-
-End BernTmLift.
-
-Arguments bern_path_fun {R Ar R_obj} R_carrier_eq f Hf_ge0 Hf_le1 r.
-Arguments bern_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                       Hf_meas Hf_ge0 Hf_le1.
-Arguments bern_path_is_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                               Hf_meas Hf_ge0 Hf_le1.
-Arguments bern_lift {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                       Hf_meas Hf_ge0 Hf_le1.
-Arguments bern_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                             Hf_meas Hf_ge0 Hf_le1 r.
-Arguments bern_lift_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                         Hf_meas Hf_ge0 Hf_le1 mu.
-Arguments bern_lift_t_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                           Hf_meas Hf_ge0 Hf_le1 mu.
-Arguments bern_lift_f_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                           Hf_meas Hf_ge0 Hf_le1 mu.
-Arguments bern_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas f}
-                            Hf_meas Hf_ge0 Hf_le1 mu.
-
-(** ** Carrier-density lifts — [score_lift_g] / [bern_lift_g]
-
-    The [score_lift]/[bern_lift] sections above key the density on a
-    function [f : R -> R] read through the [R_carrier_eq] cast (the
-    distinguished real object [R_obj] whose carrier IS [R]).  The
-    [tProb] machinery needs the SAME lifts at an ARBITRARY base object
-    [X : ar_obj Ar] (e.g. the abstract [[0,1]] object [I_obj], whose
-    carrier is NOT [R]), with the density given DIRECTLY as a
-    carrier-level measurable [[0,1]] map [g : ar_carrier Ar X -> R].
-
-    Both sections are verbatim clones of [Section ScoreTmLift] /
-    [Section BernTmLift] with [f ∘ cR] replaced by [g] — no carrier
-    cast, so the Dirac identity reads at an arbitrary carrier point [x]
-    (no [R_to_carrier] round trip).  The [tProb] instances
-    [score_lift_I] / [bern_lift_I] below are this section at
-    [X := I_obj], [g := cR ∘ incl]. *)
-
-Section ScoreTmLiftG.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (X : ar_obj Ar).
-Variable (g : ar_carrier Ar X -> R).
-Hypothesis Hg_meas : measurable_fun [set: ar_carrier Ar X] g.
-Hypothesis Hg_ge0 : forall x : ar_carrier Ar X, (0 <= g x)%R.
-Hypothesis Hg_le1 : forall x : ar_carrier Ar X, (g x <= 1)%R.
-
-Local Notation Lfun h :=
-  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-
-(** The path value at [x] : [MkConeOne (NngNum (Hg_ge0 x))]. *)
-Definition score_g_path_fun (x : ar_carrier Ar X) : cone_one_car Ar :=
-  MkConeOne Ar (NngNum (Hg_ge0 x)).
-
-Lemma score_g_path_fun_norm (x : ar_carrier Ar X) :
-  (cone_norm (score_g_path_fun x) <= 1)%R.
-Proof.
-by rewrite /cone_norm/= /c1_norm/= /score_g_path_fun/=; exact: Hg_le1.
-Qed.
-
-(** [score_g_path_fun] is a measurable path. *)
-Lemma score_g_path_is_path :
-  is_measurable_path (Ar := Ar) (C := cone_one_car Ar) (X := X)
-    score_g_path_fun.
-Proof.
-split.
-  exists 1 => x; exact: score_g_path_fun_norm.
-move=> Y m mM.
-have Em : m = ConeOneMConeAux.id_test (R := R) (Ar := Ar) Y := mM.
-rewrite Em /ConeOneMConeAux.id_test /=
-        /ConeOneMConeAux.id_test_fun /score_g_path_fun /=.
-apply: (measurableT_comp (f := g)).
-- exact: Hg_meas.
-- exact: measurable_snd.
-Qed.
-
-Definition score_g_path : path_car Ar X (cone_one_car Ar) :=
-  MkPath score_g_path_is_path.
-
-Lemma score_g_path_norm_le1 : (path_norm score_g_path <= 1)%R.
-Proof.
-apply: ge_sup; first exact: path_normset_nonempty.
-by move=> _ [x ->] /=; exact: score_g_path_fun_norm.
-Qed.
-
-Lemma score_g_int_norm_le1 :
-  (cone_norm (int_to_linhom score_g_path) <= 1)%R.
-Proof.
-apply: le_trans (int_to_linhom_norm_le score_g_path) _.
-exact: score_g_path_norm_le1.
-Qed.
-
-Definition score_lift_g :
-    icones_hom Ar (FMeas X) (cone_one_car Ar) :=
-  linhom_icones (int_to_linhom score_g_path) score_g_int_norm_le1.
-
-(** Load-bearing Dirac identity at an arbitrary carrier point [x]. *)
-Lemma score_lift_g_dirac (x : ar_carrier Ar X) :
-  Lfun score_lift_g (dirac_fmeas x) = MkConeOne Ar (NngNum (Hg_ge0 x)).
-Proof.
-rewrite /score_lift_g.
-rewrite (linhom_iconesE _ score_g_int_norm_le1 (dirac_fmeas x)).
-rewrite -[linhom_fun _ _]/(int_to_linhom_fun score_g_path (dirac_fmeas x)).
-rewrite (int_to_linhom_fun_dirac score_g_path x).
-by rewrite -[path_fun _ _]/(score_g_path_fun x).
-Qed.
-
-End ScoreTmLiftG.
-
-Arguments score_g_path_fun {R Ar X g} Hg_ge0 x.
-Arguments score_g_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
-Arguments score_lift_g {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
-Arguments score_lift_g_dirac {R Ar X g} Hg_meas Hg_ge0 Hg_le1 x.
+    [Section BernTmLift] below is this section at [X := R_obj],
+    [g := f ∘ cR] — the [ne_bernoulli_f] engine. *)
 
 Section BernTmLiftG.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -1991,13 +1848,162 @@ Qed.
 End BernTmLiftG.
 
 Arguments bern_g_path_fun {R Ar X g} Hg_ge0 Hg_le1 x.
+Arguments bern_g_path_fun_norm {R Ar X g} Hg_ge0 Hg_le1 x.
 Arguments bern_g_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
 Arguments bern_g_path_is_path {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments bern_g_path_norm_le1 {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
+Arguments bern_g_int_norm_le1 {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
 Arguments bern_lift_g {R Ar X g} Hg_meas Hg_ge0 Hg_le1.
 Arguments bern_lift_g_dirac {R Ar X g} Hg_meas Hg_ge0 Hg_le1 x.
 Arguments bern_lift_g_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 Arguments bern_lift_g_t_E {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
 Arguments bern_lift_g_mass {R Ar X g} Hg_meas Hg_ge0 Hg_le1 mu.
+
+(** *** [bern_lift] — [Section BernTmLiftG] at [X := R_obj],
+    [g := f ∘ cR]
+
+    The CBV engine of [ne_bernoulli_f].  [bern_path_fun] IS
+    [bern_g_path_fun] at that [g] (definitionally), so every law below
+    is the corresponding [_g] law at the instance; only the Dirac
+    identity, which reads at a REAL point [r], pays a
+    [R_to_carrierK] round trip. *)
+
+Section BernTmLift.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+
+Variable (f : R -> R).
+Hypothesis Hf_meas : measurable_fun [set: R] f.
+Hypothesis Hf_ge0 : forall r : R, (0 <= f r)%R.
+Hypothesis Hf_le1 : forall r : R, (f r <= 1)%R.
+
+Local Notation cR := (carrier_to_R R_carrier_eq).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+
+(** Composite [f ∘ cR] is measurable — this IS [f_cR_meas] of
+    [Section ScoreTmLift]; the name is kept for the [ne_bernoulli_f]
+    side of the API. *)
+Lemma bern_f_cR_meas :
+  measurable_fun [set: ar_carrier Ar R_obj] (fun r => f (cR r)).
+Proof. exact: f_cR_meas. Qed.
+
+(** The two pointwise [[0,1]] witnesses of the instance. *)
+Local Notation Hf_cR_ge0 :=
+  (fun r : ar_carrier Ar R_obj => Hf_ge0 (cR r)).
+Local Notation Hf_cR_le1 :=
+  (fun r : ar_carrier Ar R_obj => Hf_le1 (cR r)).
+
+(** The path value at [r] : the Bernoulli element
+    [(f (cR r), 1 - f (cR r))]. *)
+Definition bern_path_fun (r : ar_carrier Ar R_obj) : bool_cone_car Ar :=
+  bernoulli (f (cR r)) (Hf_ge0 (cR r)) (Hf_le1 (cR r)).
+
+(** Pointwise the path is NORM-1 exactly (the coin always lands). *)
+Lemma bern_path_fun_norm (r : ar_carrier Ar R_obj) :
+  cone_norm (bern_path_fun r) = 1%R.
+Proof. exact: (bern_g_path_fun_norm Hf_cR_ge0 Hf_cR_le1 r). Qed.
+
+(** [bern_path_fun] is a measurable path.  Kept TRANSPARENT so that
+    [bern_path] / [bern_lift] below are convertible to [bern_g_path] /
+    [bern_lift_g] at the instance — that is what makes the derivations
+    one-liners (and it is what [bern_lift_E] states). *)
+Definition bern_path_is_path :
+    is_measurable_path (Ar := Ar) (C := bool_cone_car Ar) (X := R_obj)
+      bern_path_fun :=
+  bern_g_path_is_path bern_f_cR_meas Hf_cR_ge0 Hf_cR_le1.
+
+Definition bern_path : path_car Ar R_obj (bool_cone_car Ar) :=
+  MkPath bern_path_is_path.
+
+(** Path-norm bound: the path values are all of norm [1], so the sup
+    is [≤ 1]. *)
+Lemma bern_path_norm_le1 : (path_norm bern_path <= 1)%R.
+Proof. exact: (bern_g_path_norm_le1 bern_f_cR_meas Hf_cR_ge0 Hf_cR_le1). Qed.
+
+(** Norm bound for [int_to_linhom bern_path]. *)
+Lemma bern_int_norm_le1 :
+  (cone_norm (int_to_linhom bern_path) <= 1)%R.
+Proof. exact: (bern_g_int_norm_le1 bern_f_cR_meas Hf_cR_ge0 Hf_cR_le1). Qed.
+
+(** The lift as an [icones_hom]. *)
+Definition bern_lift :
+    icones_hom Ar (FMeas R_obj) (bool_cone_car Ar) :=
+  bern_lift_g bern_f_cR_meas Hf_cR_ge0 Hf_cR_le1.
+
+(** **** Load-bearing Dirac identity.
+
+    On a Dirac at [R_to_carrier r] in [FMeas R_obj], the lift
+    evaluates to the Bernoulli element [(f r, 1 - f r)]. *)
+Lemma bern_lift_dirac (r : R) :
+  Lfun bern_lift (dirac_fmeas (R_to_carrier R_carrier_eq r)) =
+  bernoulli (f r) (Hf_ge0 r) (Hf_le1 r).
+Proof.
+rewrite /bern_lift bern_lift_g_dirac /bernoulli.
+by apply: bool_cone_eq; apply: val_inj => /=; rewrite R_to_carrierK.
+Qed.
+
+Local Open Scope ereal_scope.
+
+(** **** The integral identity, via Pettis uniqueness.
+
+    [bern_lift µ] IS the componentwise integral [bool_int] of
+    [bool_cone.v]: both satisfy the Pettis equation
+    [path_integral_eq bern_path_fun µ], which has a unique
+    solution. *)
+Lemma bern_lift_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  Lfun bern_lift mu = bool_int bern_path_is_path mu.
+Proof. exact: (bern_lift_g_E bern_f_cR_meas Hf_cR_ge0 Hf_cR_le1 mu). Qed.
+
+(** Coordinate readings: the [true]-coordinate is [∫ f dµ] … *)
+Lemma bern_lift_t_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  ((bc_t (Lfun bern_lift mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+          (f (cR r))%:E).
+Proof. by rewrite bern_lift_E. Qed.
+
+(** … and the [false]-coordinate is [∫ (1 - f) dµ]. *)
+Lemma bern_lift_f_E (mu : fmeas R (ar_carrier Ar R_obj)) :
+  ((bc_f (Lfun bern_lift mu))%:num)%R =
+  fine (\int[fmeas_mu mu]_(r in [set: ar_carrier Ar R_obj])
+          ((1 - f (cR r))%R)%:E).
+Proof. by rewrite bern_lift_E. Qed.
+
+(** **** Total-mass identity.
+
+    The lift preserves total mass: the coin is norm-1 pointwise, so
+    [‖bern_lift µ‖ = ∫ (f + (1-f)) dµ = µ(setT)].  (For the
+    rejection-sampling headline: with [‖µ‖ = 1], the reject weight is
+    [1 - ∫ f dµ].) *)
+Lemma bern_lift_mass (mu : fmeas R (ar_carrier Ar R_obj)) :
+  cone_norm (Lfun bern_lift mu) =
+  fine (fmeas_mu mu [set: ar_carrier Ar R_obj]).
+Proof. exact: (bern_lift_g_mass bern_f_cR_meas Hf_cR_ge0 Hf_cR_le1 mu). Qed.
+
+End BernTmLift.
+
+Arguments bern_path_fun {R Ar R_obj} R_carrier_eq f Hf_ge0 Hf_le1 r.
+Arguments bern_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                       Hf_meas Hf_ge0 Hf_le1.
+Arguments bern_path_is_path {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                               Hf_meas Hf_ge0 Hf_le1.
+Arguments bern_lift {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                       Hf_meas Hf_ge0 Hf_le1.
+Arguments bern_lift_dirac {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                             Hf_meas Hf_ge0 Hf_le1 r.
+Arguments bern_lift_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                         Hf_meas Hf_ge0 Hf_le1 mu.
+Arguments bern_lift_t_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                           Hf_meas Hf_ge0 Hf_le1 mu.
+Arguments bern_lift_f_E {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                           Hf_meas Hf_ge0 Hf_le1 mu.
+Arguments bern_lift_mass {R Ar R_obj R_carrier_eq R_carrier_meas f}
+                            Hf_meas Hf_ge0 Hf_le1 mu.
 
 (** ** The bundled [[0,1]] object [probObj] and [tProb] (STAGE T1)
 
@@ -2084,10 +2090,12 @@ Qed.
 
 Arguments po_density_meas {R Ar} P.
 
-(** *** Bundled Bernoulli / score lifts at [P] — clones of [bern_lift_g]
-    / [score_lift_g] at [X := po_obj P], density [po_density P], witnesses
-    [po_ge0 P] / [po_le1 P].  No per-call witness; everything comes from
-    the bundle. *)
+(** *** Bundled Bernoulli / score lifts at [P] — the SECOND instance of
+    the carrier-density primitives: [bern_lift_g] / [score_lift_g] at
+    [X := po_obj P], density [po_density P], witnesses [po_ge0 P] /
+    [po_le1 P].  (The first instance is [bern_lift] / [score_lift], at
+    [X := R_obj], [g := f ∘ cR].)  No per-call witness; everything comes
+    from the bundle. *)
 Section ProbObjLifts.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variable (P : probObj Ar).
@@ -2966,50 +2974,11 @@ Notation "'Incl' '{' incl '}' e" :=
   (in custom ppl_named at level 60, incl constr at level 0,
    e custom ppl_named at level 60, right associativity).
 
-(** *** [tProb]-producing map literals via [into_I]
-
-    [prob_map into_I h Hm Hg Hl] packages the [tR → tProb] morphism
-    [into_I Hm Hg Hl : R_obj → I_obj] built from a measurable [[0,1]]
-    map [h].  The three canonical instances [prob_sigmoid] /
-    [prob_gausslik] / [prob_gt0] feed [sigmoid] / [gauss_obs_density] /
-    [gt0_ind] (whose [[0,1]] witnesses already exist).  A constant
-    probability literal feeds the constant map [fun _ => pr_val pr]. *)
-
-Section ProbPrimitives.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj I_obj : ar_obj Ar).
-Variable (into_I :
-  forall (h : R -> R), measurable_fun [set: R] h ->
-    (forall r : R, (0 <= h r)%R) -> (forall r : R, (h r <= 1)%R) ->
-    ar_hom Ar R_obj I_obj).
-
-(** The sigmoid morphism [R_obj → I_obj]. *)
-Definition prob_sigmoid : ar_hom Ar R_obj I_obj :=
-  into_I measurable_sigmoid sigmoid_ge0 sigmoid_le1.
-
-(** The Gaussian-likelihood morphism [R_obj → I_obj]. *)
-Definition prob_gausslik (s y : R) : ar_hom Ar R_obj I_obj :=
-  into_I (gauss_obs_density_meas s y)
-         (gauss_obs_density_ge0 s y) (gauss_obs_density_le1 s y).
-
-(** The strict-positivity-indicator morphism [R_obj → I_obj]. *)
-Definition prob_gt0 : ar_hom Ar R_obj I_obj :=
-  into_I gt0_ind_meas gt0_ind_ge0 gt0_ind_le1.
-
-(** A constant probability literal [pr : prob R] as a morphism: the
-    constant map [fun _ => pr_val pr], in [[0,1]] by the bundle. *)
-Definition prob_const (pr : prob R) : ar_hom Ar R_obj I_obj :=
-  into_I (measurable_cst (pr_val pr)) (fun=> pr_ge0 pr) (fun=> pr_le1 pr).
-
-End ProbPrimitives.
-
-Arguments prob_sigmoid {R Ar R_obj I_obj} into_I.
-Arguments prob_gausslik {R Ar R_obj I_obj} into_I s y.
-Arguments prob_gt0 {R Ar R_obj I_obj} into_I.
-Arguments prob_const {R Ar R_obj I_obj} into_I pr.
-
 (** NOTE: the legacy witness-carrying [Sigmoid { into_I } e] /
     [Gausslik { into_I , s , y } e] surface notations are SUPERSEDED by
     the bundled, witness-free [Sigmoid e] / [Gausslik { s , y } e] above
-    (which infer the [probObj] bundle [P]); the legacy [prob_sigmoid] /
-    [prob_gausslik] morphism builders are retained for any direct use. *)
+    (which infer the [probObj] bundle [P]).  The matching legacy
+    morphism builders [prob_sigmoid] / [prob_gausslik] / [prob_gt0] /
+    [prob_const] — which took the [[0,1]]-factoring [into_I] as a loose
+    section variable instead of reading it off a bundle as [po_into P] —
+    had no consumer left after the [probObj] migration and was removed. *)

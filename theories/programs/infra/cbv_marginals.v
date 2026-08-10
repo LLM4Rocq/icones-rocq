@@ -49,10 +49,13 @@
     - the one-Dirac environment [one1 ⊗ δ_r] is a setlike unit-ball
       point ([one_dirac_ball] / [one_dirac_setlike]).
 
-    See also: [theories/programs/ex_reject_headline.v] (the template
-    reduction-chain file whose §1 kit is reused), [theories/programs/
-    infra/let_sample_law.v] (the let-at-sample integral law),
-    [theories/programs/infra/cbv_anchors.v] (the setlike kit).
+    See also: [theories/programs/ex_reject_headline.v] — imported for
+    the single theorem [ex_reject_master], which
+    [ex_reject_normalises_score] below combines with the posterior
+    identity; the setlike-point kit itself is NOT taken from there but
+    from [theories/programs/infra/cbv_anchors.v].  Also
+    [theories/programs/infra/let_sample_law.v] (the let-at-sample
+    integral law).
 
     Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
 

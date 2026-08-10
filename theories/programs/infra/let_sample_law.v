@@ -36,14 +36,18 @@
     - [eD_let_sample_mu_E] — the fused 4+5 corollary at result type
       [tR]: the measure-on-[U] reading of the law, the exact shape
       the rejection-sampling mass recurrence (M4) consumes.
+    - [eD_let_collapse_setlike_obj] / [eD_let_int_obj] /
+      [eD_let_mu_E_obj] — the GENERAL let-law for an ARBITRARY bound
+      computation [M : tbase B] over an ARBITRARY bound return object
+      [B]: [⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)] at
+      setlike unit-ball [γ] (the bound SUB-DISTRIBUTION [⟦M⟧γ] replaces
+      the constant prior; the collapse step now consumes the comonoid
+      copy of [γ], hence the setlike hypothesis).
     - [eD_let_collapse_setlike] / [eD_let_int] / [eD_let_mu_E] — the
-      GENERAL let-law for an ARBITRARY bound computation [M : tR]:
-      [⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)] at setlike
-      unit-ball [γ] (the bound SUB-DISTRIBUTION [⟦M⟧γ] replaces the
-      constant prior; the collapse step now consumes the comonoid copy
-      of [γ], hence the setlike hypothesis).  This is the law the
-      rejection-sampling COMBINATOR ([ex_reject_model.v]) consumes,
-      with [M = m @ a] the model applied to the input.
+      same law at a [tR]-bound value, i.e. the [B := R_obj] instances
+      (one-line derivations).  This is the law the rejection-sampling
+      COMBINATOR ([ex_reject_model.v]) consumes, with [M = m @ a] the
+      model applied to the input.
     - [let_sample_var_E] — sanity DoD:
       [⟦let x = sample µ in x⟧(1) = µ].
 
@@ -142,11 +146,12 @@ Local Notation Lfun h :=
 Local Notation "x '⊗p' y" := (ptensor x y)
   (at level 40, left associativity) : ring_scope.
 
-(** Pointwise composition in [ICones]. *)
+(** Pointwise composition in [ICones] — local spelling of
+    [coalgebra.v::Lfun_comp] (imported above). *)
 Lemma icones_compE (B C D : ICone.type Ar)
     (g : icones_hom Ar C D) (f : icones_hom Ar B C) (x : B) :
   Lfun (icones_comp g f) x = Lfun g (Lfun f x).
-Proof. by []. Qed.
+Proof. exact: Lfun_comp. Qed.
 
 (** Pointwise identity in [ICones]: [icones_idE] — the single public
     copy lives in [em_fix_value.v] (imported above). *)
@@ -406,167 +411,40 @@ Qed.
 
 End LetSampleLawFMeas.
 
-(** ** The GENERAL let-law — arbitrary bound computation
+(** ** The GENERAL let-law — arbitrary bound computation, arbitrary
+       bound RETURN OBJECT
 
     The let-at-sample law above is the special case [M = sample µ] of
     the general CBV sequencing law
     [[
        ⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)
     ]]
-    for an ARBITRARY bound computation [M : tR] — the bound
-    SUB-DISTRIBUTION [⟦M⟧γ] replaces the constant prior [µ].  Unlike
-    the sample case, the step-1 collapse here genuinely consumes the
-    comonoid copy of the context ([em_pair_mor id ⟦M⟧] feeds [γ] to
+    for an ARBITRARY bound computation [M], whose value moreover ranges
+    over an ARBITRARY return object [B : ar_obj Ar] (the head
+    [M : tbase B]), so that
+    [[
+       let x = (m a) in K       with  x : B
+    ]]
+    is covered: the bound SUB-DISTRIBUTION [⟦M⟧γ : FMeas B] replaces
+    the constant prior [µ] and is integrated against the Dirac path
+    over [ar_carrier Ar B].
+
+    Unlike the sample case, the step-1 collapse here genuinely consumes
+    the comonoid copy of the context ([em_pair_mor id ⟦M⟧] feeds [γ] to
     BOTH legs), so the context point must be a SETLIKE unit-ball point
     — which is harmless: in every consumer the let sits under binders
     whose environments are setlike by construction.  Steps 2-4 are
     reused verbatim ([icone_integral_dirac_fmeas],
-    [ptensor_icone_integral], [icones_hom_pres_int], and the
-    [let_sample_path] measurability witness, none of which mention the
-    bound measure). *)
-
-Section LetLawGeneral.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
-
-Local Notation eD_cbv' :=
-  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
-Local Notation eD' :=
-  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
-Local Notation Lfun h :=
-  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-Local Notation "x '⊗p' y" := (ptensor x y)
-  (at level 40, left associativity) : ring_scope.
-
-Variables (G : named_ctx Ar) (x : string) (t2 : ppl_type Ar).
-Variable M : @named_expr R Ar R_obj G (tR R_obj).
-Variable K : @named_expr R Ar R_obj ((x, tR R_obj) :: G) t2.
-
-Local Notation Gamo := (coalg_obj (ctxD_cbv (drop_names G))).
-
-(** *** Step 1, generalised: the setlike collapse
-    [⟦let x = M in K⟧(γ) = ⟦K⟧(γ ⊗ ⟦M⟧γ)]. *)
-Lemma eD_let_collapse_setlike (γ : Gamo) :
-  cone_norm γ <= 1 ->
-  Lfun (coalg_str (ctxD_cbv (drop_names G))) γ = prom γ ->
-  Lfun (eD_cbv' (ne_let x M K)) γ =
-  Lfun (eD_cbv' K) (γ ⊗p Lfun (eD_cbv' M) γ).
-Proof.
-move=> Hg Hs.
-rewrite eD_let_E icones_compE.
-rewrite /em_pair_mor (icones_compE
-  (tensor_mor (icones_id Ar Gamo) (eD_cbv' M))
-  (coalg_d (ctxD_cbv (drop_names G))) γ).
-by rewrite (coalg_d_setlike Hg Hs) tensor_morE icones_idE.
-Qed.
-
-(** *** THE GENERAL LAW
-
-    [[
-       ⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)
-    ]]
-    at setlike unit-ball [γ]: the collapse followed by steps 2-3 and
-    the [icones_hom_pres_int] field of [⟦K⟧], with the Pettis integral
-    now taken against the bound sub-distribution [⟦M⟧γ]. *)
-Lemma eD_let_int (γ : Gamo) :
-  cone_norm γ <= 1 ->
-  Lfun (coalg_str (ctxD_cbv (drop_names G))) γ = prom γ ->
-  linhom_fun (eD' (ne_let x M K)) γ =
-  icone_integral (fun r => Lfun (eD_cbv' K) (γ ⊗p dirac_fmeas r))
-    (let_sample_path R_carrier_meas R_to_carrier_meas K γ)
-    (Lfun (eD_cbv' M) γ).
-Proof.
-move=> Hg Hs.
-rewrite -[linhom_fun (eD' _) γ]
-        /(Lfun (eD_cbv' (ne_let x M K)) γ).
-rewrite (eD_let_collapse_setlike Hg Hs).
-rewrite -[X in Lfun _ (γ ⊗p X)]
-        (icone_integral_dirac_fmeas (Lfun (eD_cbv' M) γ)).
-rewrite ptensor_icone_integral.
-rewrite (icones_hom_pres_int (eD_cbv' K) R_obj _ _ (Lfun (eD_cbv' M) γ)).
-by apply: icone_integral_ext.
-Qed.
-
-End LetLawGeneral.
-
-(** ** The fused per-[U] form of the general law at result type [tR]
-
-    [[
-       ⟦let x = M in K⟧(γ)(U) = ∫ ⟦K⟧(γ ⊗ δ_r)(U) (⟦M⟧γ)(dr)
-    ]]
-    — the exact shape the rejection-sampling COMBINATOR mass
-    recurrence ([ex_reject_model.v]) consumes, with [M = m @ a]. *)
-
-Section LetLawGeneralFMeas.
-Local Open Scope ereal_scope.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variable (R_obj : ar_obj Ar).
-Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
-Hypothesis R_carrier_meas :
-  measurable_fun [set: ar_carrier Ar R_obj]
-    (fun c : ar_carrier Ar R_obj =>
-       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
-Hypothesis R_to_carrier_meas :
-  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
-
-Local Notation eD_cbv' :=
-  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
-Local Notation eD' :=
-  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
-Local Notation Lfun h :=
-  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
-Local Notation "x '⊗p' y" := (ptensor x y)
-  (at level 40, left associativity) : ring_scope.
-
-Variables (G : named_ctx Ar) (x : string).
-Variable M : @named_expr R Ar R_obj G (tR R_obj).
-Variable K : @named_expr R Ar R_obj ((x, tR R_obj) :: G) (tR R_obj).
-
-Local Notation Gamo := (coalg_obj (ctxD_cbv (drop_names G))).
-
-Lemma eD_let_mu_E (γ : Gamo)
-    (Hg : (cone_norm γ <= 1)%R)
-    (Hs : Lfun (coalg_str (ctxD_cbv (drop_names G))) γ = prom γ)
-    (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
-  fmeas_mu (linhom_fun (eD' (ne_let x M K)) γ) U =
-  \int[fmeas_mu (Lfun (eD_cbv' M) γ)]_(r in [set: ar_carrier Ar R_obj])
-     (fine (fmeas_mu (Lfun (eD_cbv' K) (γ ⊗p dirac_fmeas r)) U))%:E.
-Proof.
-rewrite (eD_let_int R_carrier_meas R_to_carrier_meas M K Hg Hs).
-exact: (icone_integral_fmeas_E
-          (let_sample_path R_carrier_meas R_to_carrier_meas K γ)
-          (Lfun (eD_cbv' M) γ) mU).
-Qed.
-
-End LetLawGeneralFMeas.
-
-(** ** PHASE A — the GENERAL let-law for an ARBITRARY bound RETURN OBJECT
-
-    The general let-law above pins the LET-BOUND value to the real type
-    [tR R_obj = tbase R_obj].  This block clones it for a let whose
-    bound value ranges over an ARBITRARY return object [B : ar_obj Ar]
-    (the head [M : tbase B]), so a later phase can interpret
-    [[
-       let x = (m a) in K       with  x : B
-    ]]
-    where the bound sub-distribution [⟦M⟧γ : FMeas B] is integrated
-    against the Dirac path over [ar_carrier Ar B].
+    [ptensor_icone_integral], [icones_hom_pres_int]), none of which
+    mentions the bound measure.
 
     The COIN/probability real object stays [R_obj] (it indexes the
     interpreter [eD_cbv'] / the [0,1] scalars via
     [R_carrier_eq]/[R_carrier_meas]/[R_to_carrier_meas]); only the
-    bound value object is generalised to [B].  Every step of the proof
-    is the verbatim [B]-instance of the [tR R_obj] development — at
-    [B := R_obj] (so [tbase B = tR R_obj]) these reduce to
-    [eD_let_int] / [eD_let_mu_E], which is the shape a later phase will
-    line up against. *)
+    bound value object is generalised to [B].  At [B := R_obj] (so
+    [tbase B = tR R_obj]) these specialise to the [tR]-bound forms
+    [eD_let_collapse_setlike] / [eD_let_int] / [eD_let_mu_E], derived
+    below as one-line instances. *)
 
 Section LetLawGeneralObj.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -711,6 +589,104 @@ exact: (icone_integral_fmeas_E
 Qed.
 
 End LetLawGeneralObjFMeas.
+
+(** ** The [tR]-bound instances of the general let-law
+
+    At [B := R_obj] — so [tbase B] is [tR R_obj] by definition — the
+    bound-object-generic law above specialises to the [tR]-bound let,
+    [[
+       ⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)
+    ]]
+    with [M : tR], plus its per-[U] mass form [eD_let_mu_E] — the
+    shapes the rejection-sampling COMBINATOR ([ex_reject_model.v]) and
+    the kernel anchors ([infra/kernel_anchors.v]) consume.  Statements
+    unchanged; the proofs are the [B := R_obj] instantiations (the only
+    friction is the measurability witness in [eD_let_int], repackaged
+    from [let_sample_path_obj] to [let_sample_path] by
+    [icone_integral_ext]). *)
+
+Section LetLawGeneral.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variable (R_obj : ar_obj Ar).
+Hypothesis R_carrier_eq : ar_carrier Ar R_obj = R :> Type.
+Hypothesis R_carrier_meas :
+  measurable_fun [set: ar_carrier Ar R_obj]
+    (fun c : ar_carrier Ar R_obj =>
+       eq_rect _ (fun T : Type => T) c _ R_carrier_eq : R).
+Hypothesis R_to_carrier_meas :
+  measurable_fun [set: R] (R_to_carrier R_carrier_eq).
+
+Local Notation eD_cbv' :=
+  (@eD_cbv R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation eD' :=
+  (@eD R Ar R_obj R_carrier_eq R_carrier_meas R_to_carrier_meas _ _).
+Local Notation Lfun h :=
+  (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
+Local Notation "x '⊗p' y" := (ptensor x y)
+  (at level 40, left associativity) : ring_scope.
+
+Variables (G : named_ctx Ar) (x : string) (t2 : ppl_type Ar).
+Variable M : @named_expr R Ar R_obj G (tR R_obj).
+Variable K : @named_expr R Ar R_obj ((x, tR R_obj) :: G) t2.
+(** The body at result type [tR], for the per-[U] form below. *)
+Variable KR : @named_expr R Ar R_obj ((x, tR R_obj) :: G) (tR R_obj).
+
+Local Notation Gamo := (coalg_obj (ctxD_cbv (drop_names G))).
+
+(** *** Step 1, the setlike collapse
+    [⟦let x = M in K⟧(γ) = ⟦K⟧(γ ⊗ ⟦M⟧γ)] —
+    [eD_let_collapse_setlike_obj] at [B := R_obj]. *)
+Lemma eD_let_collapse_setlike (γ : Gamo) :
+  cone_norm γ <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) γ = prom γ ->
+  Lfun (eD_cbv' (ne_let x M K)) γ =
+  Lfun (eD_cbv' K) (γ ⊗p Lfun (eD_cbv' M) γ).
+Proof.
+exact: (eD_let_collapse_setlike_obj R_carrier_meas R_to_carrier_meas M K).
+Qed.
+
+(** *** THE GENERAL LAW at a [tR]-bound value
+
+    [[
+       ⟦let x = M in K⟧(γ) = ∫ ⟦K⟧(γ ⊗ δ_r) (⟦M⟧γ)(dr)
+    ]]
+    at setlike unit-ball [γ] — [eD_let_int_obj] at [B := R_obj], the
+    integrand re-witnessed by [let_sample_path]. *)
+Lemma eD_let_int (γ : Gamo) :
+  cone_norm γ <= 1 ->
+  Lfun (coalg_str (ctxD_cbv (drop_names G))) γ = prom γ ->
+  linhom_fun (eD' (ne_let x M K)) γ =
+  icone_integral (fun r => Lfun (eD_cbv' K) (γ ⊗p dirac_fmeas r))
+    (let_sample_path R_carrier_meas R_to_carrier_meas K γ)
+    (Lfun (eD_cbv' M) γ).
+Proof.
+move=> Hg Hs.
+rewrite (eD_let_int_obj R_carrier_meas R_to_carrier_meas M K Hg Hs).
+by apply: icone_integral_ext.
+Qed.
+
+(** *** The fused per-[U] form at result type [tR]
+
+    [[
+       ⟦let x = M in K⟧(γ)(U) = ∫ ⟦K⟧(γ ⊗ δ_r)(U) (⟦M⟧γ)(dr)
+    ]]
+    — [eD_let_mu_E_obj] at [B := R_obj]; the exact shape the
+    rejection-sampling COMBINATOR mass recurrence ([ex_reject_model.v])
+    consumes, with [M = m @ a]. *)
+Local Open Scope ereal_scope.
+
+Lemma eD_let_mu_E (γ : Gamo)
+    (Hg : (cone_norm γ <= 1)%R)
+    (Hs : Lfun (coalg_str (ctxD_cbv (drop_names G))) γ = prom γ)
+    (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
+  fmeas_mu (linhom_fun (eD' (ne_let x M KR)) γ) U =
+  \int[fmeas_mu (Lfun (eD_cbv' M) γ)]_(r in [set: ar_carrier Ar R_obj])
+     (fine (fmeas_mu (Lfun (eD_cbv' KR) (γ ⊗p dirac_fmeas r)) U))%:E.
+Proof.
+exact: (eD_let_mu_E_obj R_carrier_meas R_to_carrier_meas M KR Hg Hs mU).
+Qed.
+
+End LetLawGeneral.
 
 (** ** Sanity DoD — [⟦let x = sample µ in x⟧(1) = µ]
 

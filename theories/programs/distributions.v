@@ -14,13 +14,24 @@
     - [pkernel X Y] — the record; [pkernel_is_path] shows the family
       IS a measurable path of [FMeas Y] (paper Def 3.7), so the whole
       [int_to_linhom] machinery of Thm 6.1 applies verbatim.
+    - The bridge to the paper-side [Skern] category (§6.1):
+      [pkernel_to_Skern_hom] / [Skern_hom_to_pkernel], mutually
+      inverse by [pkernel_to_Skern_homK] / [Skern_hom_to_pkernelK] —
+      a [pkernel] and a [Skern_hom] are the same data in two
+      packagings.  This is the only [Require] edge from
+      [theories/programs/] into [Icones.kernels].
     - [kernel_lift k : icones_hom (FMeas X) (FMeas Y)] — the semantic
-      lift [ν ↦ ∫ k(x) ν(dx)] (Pettis integral), built exactly as
-      [ppl.v::bern_lift] (path → [int_to_linhom] → [linhom_icones]).
+      lift [ν ↦ ∫ k(x) ν(dx)] (Pettis integral), DEFINED as the paper's
+      Thm 6.5 embedding functor [Klin]
+      ([kernels/kernel_embedding.v::Skern_to_ICones_mor]) at the
+      bridged kernel, so the [Skern] category laws
+      ([Skern_compIl]/[Skern_compIr]/[Skern_compA]) and [Klin]'s
+      functoriality carry over to the PPL for free.
       Laws: [kernel_lift_E] (per-[U] evaluation
       [(kernel_lift k ν)(U) = ∫ k(x)(U) ν(dx)]), [kernel_lift_mass]
       (mass preservation for pointwise-mass-1 kernels) and
-      [kernel_lift_dirac] ([kernel_lift k δ_x = k(x)]).
+      [kernel_lift_dirac] ([kernel_lift k δ_x = k(x)], a corollary of
+      [Skern_compIr]).
     - Instances: [dirac_kernel] ([x ↦ δ_x], with
       [dirac_kernel_lift_id : kernel_lift dirac_kernel ν = ν]),
       [gaussian_kernel]
@@ -92,6 +103,8 @@ Require Import Icones.homs.smcc.
 Require Import Icones.homs.seely.
 Require Import Icones.homs.coalgebra.
 Require Import Icones.homs.fmeas_lax.
+Require Import Icones.kernels.skern.
+Require Import Icones.kernels.kernel_embedding.
 Require Import Icones.programs.ppl.
 
 Set Implicit Arguments.
@@ -184,37 +197,105 @@ apply: le_trans (int_to_linhom_norm_le (kernel_path k)) _.
 exact: kernel_path_norm_le1.
 Qed.
 
+(** ** Bridge to the paper-side [Skern] category (paper §6.1)
+
+    [pkernel X Y] and [Skern_hom Ar X Y] ([theories/kernels/skern.v])
+    are the SAME data in two packagings: a [pkernel] is a function
+    [X → FMeas Y] with the [e_U]-test measurability field [pk_meas]
+    and the pointwise unit-ball field [pk_ball]; a [Skern_hom] is a
+    [path_car X (FMeas Y)] with [path_norm ≤ 1].  [pkernel_is_path]
+    above is one direction; the converse reads the two [pkernel]
+    fields back off a path — [pk_meas] is
+    [measurable_test_path_section] at the test [fmeas_eU], [pk_ball]
+    is [path_norm_ub] composed with [skern_norm_le1].
+
+    The bridge is what lets the PPL inherit the [Skern] category laws
+    ([Skern_compIl] / [Skern_compIr] / [Skern_compA]) and the Thm 6.5
+    embedding functor [Klin] ([kernel_embedding.v]) instead of
+    re-deriving them. *)
+
+(** A [pkernel] IS a substochastic kernel: package [kernel_path] with
+    its norm bound. *)
+Definition pkernel_to_Skern_hom (k : pkernel) : Skern_hom Ar X Y :=
+  MkSkernHom (kernel_path k) (kernel_path_norm_le1 k).
+
+(** Converse, [pk_meas] field: the [e_U] sections of a measurable path
+    are measurable — this is [measurable_test_path_section] at the
+    test [fmeas_eU], whose value is by [fmeas_eUE] exactly
+    [fine (µ U)]. *)
+Lemma Skern_hom_pk_meas (κ : Skern_hom Ar X Y)
+    (U : set (ar_carrier Ar Y)) (mU : measurable U) :
+  measurable_fun [set: ar_carrier Ar X]
+    (fun x => fine (fmeas_mu (skern_path κ x) U)).
+Proof.
+have HM : mcone_M (ar_zero Ar) (fmeas_eU (ar_zero Ar) mU)
+  by exists U, mU.
+exact: (measurable_test_path_section HM (path_is_path (skern_path κ))
+          (ar_zero_pt Ar)).
+Qed.
+
+(** Converse, [pk_ball] field: each value of a unit-ball path is a
+    sub-probability. *)
+Lemma Skern_hom_pk_ball (κ : Skern_hom Ar X Y) (x : ar_carrier Ar X) :
+  (cone_norm (skern_path κ x) <= 1)%R.
+Proof.
+apply: le_trans (path_norm_ub (skern_path κ) x) _.
+exact: skern_norm_le1.
+Qed.
+
+(** Converse direction of the bridge. *)
+Definition Skern_hom_to_pkernel (κ : Skern_hom Ar X Y) : pkernel :=
+  @MkPkernel (path_fun (skern_path κ))
+    (fun U mU => Skern_hom_pk_meas κ mU) (Skern_hom_pk_ball κ).
+
+(** Extensionality for [pkernel] (both fields are [Prop]s). *)
+Lemma pkernel_eq (k1 k2 : pkernel) : pk_ker k1 = pk_ker k2 -> k1 = k2.
+Proof.
+case: k1 => f1 m1 b1; case: k2 => f2 m2 b2 /= Hf.
+move: m1 b1; rewrite Hf => m1 b1.
+by congr MkPkernel; exact: Prop_irrelevance.
+Qed.
+
+(** The two packagings are inverse: [pkernel ≃ Skern_hom]. *)
+Lemma Skern_hom_to_pkernelK (κ : Skern_hom Ar X Y) :
+  pkernel_to_Skern_hom (Skern_hom_to_pkernel κ) = κ.
+Proof. by apply: Skern_hom_eq; exact: path_eq. Qed.
+
+Lemma pkernel_to_Skern_homK (k : pkernel) :
+  Skern_hom_to_pkernel (pkernel_to_Skern_hom k) = k.
+Proof. exact: pkernel_eq. Qed.
+
 (** ** [kernel_lift] — the lift [ν ↦ ∫ k(x) ν(dx)] as an [icones_hom]
 
-    The Pettis integral of the kernel path against the input measure,
-    promoted by Thm 6.1 ([int_to_linhom]) and packaged through
-    [linhom_icones] — the construction of [ppl.v::bern_lift], with
-    [FMeas Y] in place of the bool cone. *)
+    The Pettis integral of the kernel path against the input measure.
+    This is nothing but the paper's Thm 6.5 embedding functor [Klin]
+    ([kernel_embedding.v::Skern_to_ICones_mor]) evaluated at the
+    bridged kernel, so the PPL gets [Klin]'s functoriality
+    ([Skern_to_ICones_mor_id] / [Skern_to_ICones_mor_comp]) and full
+    faithfulness for free. *)
 Definition kernel_lift (k : pkernel) :
     icones_hom Ar (FMeas X) (FMeas Y) :=
-  linhom_icones (int_to_linhom (kernel_path k)) (kernel_int_norm_le1 k).
+  Skern_to_ICones_mor (pkernel_to_Skern_hom k).
 
 Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
 (** The lift IS the Pettis integral of the kernel (definitional
-    reading of the [linhom_icones]/[int_to_linhom] packaging). *)
+    reading of the [Klin]/[int_to_linhom] packaging —
+    [Skern_to_ICones_mor_E] at the bridged kernel). *)
 Lemma kernel_liftE (k : pkernel) (nu : fmeas R (ar_carrier Ar X)) :
   Lfun (kernel_lift k) nu =
   icone_integral (pk_ker k) (pkernel_is_path k) nu.
-Proof.
-by rewrite /kernel_lift (linhom_iconesE _ (kernel_int_norm_le1 k) nu).
-Qed.
+Proof. exact: (Skern_to_ICones_mor_E (pkernel_to_Skern_hom k) nu). Qed.
 
-(** **** Load-bearing Dirac identity: [kernel_lift k δ_x = k(x)]. *)
+(** **** Load-bearing Dirac identity: [kernel_lift k δ_x = k(x)].
+    Corollary of the [Skern] right-unit law [Skern_compIr], read off
+    at the point [x]. *)
 Lemma kernel_lift_dirac (k : pkernel) (x : ar_carrier Ar X) :
   Lfun (kernel_lift k) (dirac_fmeas x) = pk_ker k x.
 Proof.
-rewrite /kernel_lift
-        (linhom_iconesE _ (kernel_int_norm_le1 k) (dirac_fmeas x)).
-rewrite -[linhom_fun _ _]/(int_to_linhom_fun (kernel_path k)
-                             (dirac_fmeas x)).
-exact: (int_to_linhom_fun_dirac (kernel_path k) x).
+have := Skern_compIr (pkernel_to_Skern_hom k).
+by move/(congr1 (fun κ => skern_path κ x)).
 Qed.
 
 End PKernelDef.
@@ -229,6 +310,13 @@ Arguments pkernel_is_path {R Ar X Y} k.
 Arguments kernel_path {R Ar X Y} k.
 Arguments kernel_path_norm_le1 {R Ar X Y} k.
 Arguments kernel_int_norm_le1 {R Ar X Y} k.
+Arguments pkernel_to_Skern_hom {R Ar X Y} k.
+Arguments Skern_hom_pk_meas {R Ar X Y} κ {U} mU.
+Arguments Skern_hom_pk_ball {R Ar X Y} κ x.
+Arguments Skern_hom_to_pkernel {R Ar X Y} κ.
+Arguments pkernel_eq {R Ar X Y} k1 k2.
+Arguments Skern_hom_to_pkernelK {R Ar X Y} κ.
+Arguments pkernel_to_Skern_homK {R Ar X Y} k.
 Arguments kernel_lift {R Ar X Y} k.
 Arguments kernel_liftE {R Ar X Y} k nu.
 Arguments kernel_lift_dirac {R Ar X Y} k x.
@@ -432,20 +520,27 @@ rewrite icone_integral_dirac_path in HP.
 by apply/esym/icone_integral_eqP.
 Qed.
 
-(** **** [kernel_lift dirac_kernel] is the identity. *)
+(** The Dirac kernel bridges to the [Skern] identity — paper §6.1,
+    line 3042 ([Skern_id] is the Dirac path). *)
+Lemma pkernel_to_Skern_hom_dirac :
+  pkernel_to_Skern_hom dirac_kernel = Skern_id Ar X.
+Proof. by apply: Skern_hom_eq; exact: path_eq. Qed.
+
+(** [kernel_lift dirac_kernel] is the identity — now a corollary of
+    [Klin(δ_X) = id_{FMeas X}] (Thm 6.5 functoriality,
+    [kernel_embedding.v::Skern_to_ICones_mor_id]) transported along
+    the bridge, rather than a local re-derivation. *)
 Lemma dirac_kernel_lift_id (nu : fmeas R (ar_carrier Ar X)) :
   Lfun (kernel_lift dirac_kernel) nu = nu.
 Proof.
-rewrite kernel_liftE.
-rewrite (_ : pkernel_is_path dirac_kernel = dirac_fmeas_is_path X);
-  last exact: Prop_irrelevance.
-exact: icone_integral_dirac_fmeas.
+by rewrite /kernel_lift pkernel_to_Skern_hom_dirac Skern_to_ICones_mor_id.
 Qed.
 
 End DiracKernel.
 
 Arguments dirac_kernel {R Ar} X.
 Arguments dirac_kernel_norm1 {R Ar X} x.
+Arguments pkernel_to_Skern_hom_dirac {R Ar} X.
 Arguments dirac_kernel_lift_id {R Ar X} nu.
 
 (** ** Family measurability for the named distributions
@@ -666,8 +761,12 @@ Local Notation Lfun h :=
   (cones_hom_fun (mcones_hom_cones (icones_hom_mcones h))).
 
 (** *** Transporting a mathcomp-analysis probability on [R] into an
-    [fmeas] — the [fmeas]-level reading of [examples.v]'s
-    [pmeas_of_prob], through [ppl.v::prob_fmeas]. *)
+    [fmeas], through [ppl.v::prob_fmeas].
+
+    This is the SINGLE transport: the kernel layer uses the raw
+    [fmeas_of_prob], and [pmeas_of_prob] below is its [pmeas]
+    packaging, from which [examples.v]'s [sample]-surface transport
+    is a one-line derivation. *)
 Section ProbFmeas.
 Variable P : probability
   (g_sigma_algebraType ((R.-ocitv).-measurable : set (set (ocitv_type R))))
@@ -719,6 +818,14 @@ Lemma fmeas_of_prob_setT :
 Proof.
 by rewrite fmeas_of_probE ?measurableT// preimage_setT probability_setT.
 Qed.
+
+(** The [pmeas] packaging of the same transport, through
+    [ppl.v::prob_pmeas]: [pm_meas] of it IS [fmeas_of_prob], by
+    conversion.  This is the bundled sub-probability consumed by the
+    [sample] surface; [examples.v::pmeas_of_prob] is a one-line
+    derivation of it. *)
+Definition pmeas_of_prob : pmeas Ar R_obj :=
+  prob_pmeas R_carrier_eq R_to_carrier_meas nuP nuP0 nuP_ge0 nuP_sigma nuP_le1.
 
 End ProbFmeas.
 
@@ -928,3 +1035,5 @@ case: pselect => [ab|_].
 Qed.
 
 End NamedKernels.
+
+Arguments pmeas_of_prob {R Ar R_obj} R_carrier_eq R_to_carrier_meas P.

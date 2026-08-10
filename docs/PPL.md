@@ -376,6 +376,25 @@ at most $1$). Such a family *is* a measurable path
 to the semantic lift `kernel_lift k` : $\text{FMeas } X \multimap \text{FMeas } Y$,
 $\nu \mapsto \int k(x) \, \nu(dx)$ (Pettis integral).
 
+`pkernel` and the paper-side substochastic kernel `Skern_hom`
+(theories/kernels/skern.v) are the *same* data in two packagings, and the
+bridge `pkernel_to_Skern_hom` / `Skern_hom_to_pkernel` (mutually inverse by
+`pkernel_to_Skern_homK` / `Skern_hom_to_pkernelK`) makes that official: the
+forward direction is `kernel_path` plus `kernel_path_norm_le1`, the converse
+reads `pk_meas` back off the path as `measurable_test_path_section` at the
+test `fmeas_eU` and `pk_ball` as `path_norm_ub` composed with
+`skern_norm_le1`. `kernel_lift` is then *defined* as the paper's Thm 6.5
+embedding functor $K_{\mathrm{lin}}$
+(theories/kernels/kernel_embedding.v::`Skern_to_ICones_mor`) evaluated at the
+bridged kernel, so the PPL inherits the $\mathbf{Skern}$ category laws
+(`Skern_compIl` / `Skern_compIr` / `Skern_compA`), $K_{\mathrm{lin}}$'s
+functoriality (`Skern_to_ICones_mor_id` / `Skern_to_ICones_mor_comp`) and its
+full faithfulness instead of re-deriving them. This is the only `Require`
+edge from theories/programs/ into `Icones.kernels`. (`kernel_int_norm_le1`,
+the operator-norm bound $\lVert I(k) \rVert \le 1$ on the Thm 6.1 promotion of
+the kernel path, remains available as a standalone fact; the lift no longer
+needs it, since the norm bound now travels inside the `Skern_hom`.)
+
 ```coq
 (* theories/programs/distributions.v *)
 Record pkernel : Type := MkPkernel {
@@ -388,9 +407,17 @@ Record pkernel : Type := MkPkernel {
 }.
 
 (* … *)
+Definition pkernel_to_Skern_hom (k : pkernel) : Skern_hom Ar X Y :=
+  MkSkernHom (kernel_path k) (kernel_path_norm_le1 k).
+
+Definition Skern_hom_to_pkernel (κ : Skern_hom Ar X Y) : pkernel :=
+  @MkPkernel (path_fun (skern_path κ))
+    (fun U mU => Skern_hom_pk_meas κ mU) (Skern_hom_pk_ball κ).
+
+(* … the lift IS the Thm 6.5 embedding functor at the bridged kernel *)
 Definition kernel_lift (k : pkernel) :
     icones_hom Ar (FMeas X) (FMeas Y) :=
-  linhom_icones (int_to_linhom (kernel_path k)) (kernel_int_norm_le1 k).
+  Skern_to_ICones_mor (pkernel_to_Skern_hom k).
 
 (* … *)
 Definition kernel_lift2 :
@@ -407,8 +434,14 @@ pair becomes a joint measure on the product object, exactly the
 `add_lift` / `mul_lift` route — with `kernel_lift2_dirac` and the
 product-mass law `kernel_lift2_mass`.
 
+Both computation laws now come from the paper side: `kernel_liftE` is
+`Skern_to_ICones_mor_E` at the bridged kernel, and `kernel_lift_dirac` is the
+$\mathbf{Skern}$ right-unit law `Skern_compIr` read off at the point $x$.
+
 The instances are `dirac_kernel` (`kernel_lift dirac_kernel = id`, by
-`dirac_kernel_lift_id`), `gaussian_kernel` ($(m,s) \mapsto \text{normal\_prob } m \, s$
+`dirac_kernel_lift_id` — a corollary of $K_{\mathrm{lin}}(\delta_X) = \mathrm{id}$
+via `pkernel_to_Skern_hom_dirac : pkernel_to_Skern_hom dirac_kernel = Skern_id Ar X`),
+`gaussian_kernel` ($(m,s) \mapsto \text{normal\_prob } m \, s$
 transported along the carrier cast) and `uniform_kernel`
 ($(a,b) \mapsto \text{uniform\_prob}$ for $a < b$, else $\delta_a$). Family measurability
 *in the parameters* (`measurable_normal_prob_pair`,
@@ -1535,22 +1568,32 @@ success probability $f r$. It lives in `theories/programs/ppl.v`
 post-composes it with the scrutinee's denotation, exactly as
 `ne_score` post-composes `score_lift`.
 
-The construction is the *path route*, a verbatim clone of the score
-lift: package $r \mapsto \text{bernoulli } (f (\text{cR } r))$ as a measurable path into
+The construction is the *path route*, the `bool_cone` twin of the score
+lift: package $x \mapsto \text{bernoulli } (g\,x)$ as a measurable path into
 `bool_cone_car Ar` (the three tests of the bool cone evaluate along
-the path to $f \circ \text{cR}$, $1 - f \circ \text{cR}$ and the constant $1$), then promote
+the path to $g$, $1 - g$ and the constant $1$), then promote
 with `int_to_linhom`. The integral semantics is then automatic by
 Pettis uniqueness against the componentwise integral `bool_int` of
 `theories/programs/infra/bool_cone.v` — the content of `bern_lift_E`,
 from which the two coordinate readings `bern_lift_t_E` and
 `bern_lift_f_E` follow.
 
+The path is built **once**, in the carrier-density primitive
+`bern_lift_g` (Section BernTmLiftG), which takes the density directly
+as a measurable $[0,1]$ map `g : ar_carrier Ar X -> R` at an arbitrary
+base object `X`. `bern_lift` is that primitive instantiated at
+`X := R_obj`, `g := f ∘ cR`; every law of `bern_lift` is the
+corresponding `bern_lift_g` law at the instance, and the only statement
+that is not a plain instance is the Dirac identity, which reads at a
+*real* point `r` and so pays one `R_to_carrierK` round trip.
+(`score_lift` stands to `score_lift_g` in exactly the same way.)
+
 ```coq
 (* theories/programs/ppl.v (Section BernTmLift) *)
-(** The lift as an [icones_hom]. *)
+(** The lift as an [icones_hom]: [bern_lift_g] at [g := f ∘ cR]. *)
 Definition bern_lift :
     icones_hom Ar (FMeas R_obj) (bool_cone_car Ar) :=
-  linhom_icones (int_to_linhom bern_path) bern_int_norm_le1.
+  bern_lift_g bern_f_cR_meas Hf_cR_ge0 Hf_cR_le1.
 
 (** On a Dirac at [R_to_carrier r], the lift evaluates to the
     Bernoulli element [(f r, 1 - f r)]. *)
@@ -1584,10 +1627,11 @@ Lemma bern_lift_mass (mu : fmeas R (ar_carrier Ar R_obj)) :
   fine (fmeas_mu mu [set: ar_carrier Ar R_obj]).
 ```
 
-The `tProb` surface needs the same two lifts at an *arbitrary* base
-object — the $[0,1]$ object `po_obj P` of a bundle `P : probObj` — not
-just at `R_obj`. `bern_lift_P` and `score_lift_P` instantiate the
-path route at `X := po_obj P` with the carrier density `po_density P`
+The `tProb` surface needs the same two lifts at the $[0,1]$ object
+`po_obj P` of a bundle `P : probObj` rather than at `R_obj` — the
+*other* instance of the same primitives. `bern_lift_P` and
+`score_lift_P` instantiate
+`bern_lift_g` / `score_lift_g` at `X := po_obj P` with the carrier density `po_density P`
 and the bundle's $[0,1]$ witnesses (`po_ge0` / `po_le1`), with no
 `R_to_carrier` round trip: `bern_lift_P` is the engine behind `Bernoulli e`,
 `score_lift_P` behind `Score e`. The Dirac and mass laws transport
@@ -1853,8 +1897,8 @@ denotation $\text{prev} : \Gamma \multimap B$ to $M \circ (\text{id}_\Gamma \oti
 (the elements `x` with `cone_norm x <= 1`).
 Its zero-seeded Kleene supremum on the unit-ball $\omega$-CPO of `linhom_car Ar Γ B`
 (that ball, ordered so that every increasing chain in it has a supremum;
-via `em_fix.v`'s linhom LFP core `kleene_lin` / `linhom_lfp`, with the ball
-bound and the fixpoint equation `linhom_lfp_fixpoint`) used to be `em_fix.v`'s
+via `em_fix.v`'s linhom LFP core `kleene_lin` / `linhom_lfp`, with the
+fixpoint equation `linhom_lfp_fixpoint`) used to be `em_fix.v`'s
 CBV value-fixpoint operator.
 
 ```coq
@@ -1876,11 +1920,24 @@ the iteration is. The operator itself was removed from `em_fix.v` after the
 degeneracy proof; the record survives as `Phi_fun_zero` plus the generic
 `lfp_eq0`.
 
-> The step `Phi_fun`, its three unit-ball laws and the linhom LFP core stay:
-> they are the scaffolding of the genuine seeded combinator `fix_comb`. The
-> interpreter never routes through the zero-seeded iteration — the `ne_fix_mr`
-> *product* case, formerly the last consumer of the removed operator, goes
-> through the genuine Seely-transported combinator `fix_mr_comb`.
+> The step `Phi_fun`, its unit-ball laws `Phi_fun_ball` / `Phi_fun_incr` and the
+> linhom LFP core `kleene_lin` / `linhom_lfp` / `linhom_lfp_fixpoint` stay in
+> `em_fix.v` for one reason: they are what the degeneracy theorem above is
+> *about*. They are **not** scaffolding for the genuine seeded combinator
+> `fix_comb`, which routes through none of them — it is built on
+> `em_fix_value.v`'s own seeded Kleene core `kleene_from` / `lfp_from`, where
+> the cone-zero seed is replaced by an arbitrary $b_0$ with $b_0 \leq f\,b_0$.
+> The interpreter never routes through the zero-seeded iteration — the
+> `ne_fix_mr` *product* case, formerly the last consumer of the removed
+> operator, goes through the genuine Seely-transported combinator
+> `fix_mr_comb`.
+>
+> The $\omega$-continuity component that fed only the removed operator —
+> `Phi_fun_omega_cont`, `tensor_mor_omega_cont_R`, `linhom_pre_icones_sup`,
+> `linhom_post_icones_sup`, and the unit-ball side conditions
+> `kleene_lin_ball` / `kleene_lin_chain` / `linhom_lfp_norm_le1` — was
+> removed together with that operator (it documented properties of a
+> construction the degeneracy theorem retired).
 
 ### Lifting linear morphisms to stable functions (`linhom_to_stablehom`, `linhom_to_stablehom_meas_stable`)
 
@@ -2426,8 +2483,8 @@ rejection/conditioning equivalence of
 |---|---|---|
 | The β-rule and the if-pins | $(\lambda x.M) V = \text{let } x := V \text{ in } M$, and the boolean dispatch is oriented — `if true` selects the left branch, `if false` the right | `eD_beta`, `eD_if_true`, `eD_if_false` — theories/programs/infra/cbv_anchors.v |
 | The let-at-sample integral law | $\llbracket \text{let } x = \text{sample } \mu \text{ in } K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r) \mu(dr)$, and the same law at an arbitrary bound computation | `eD_let_sample_int`, `eD_let_sample_mu_E`, `eD_let_int` — theories/programs/infra/let_sample_law.v |
-| The affine cascade and the sup-mass bridge | The scalar recurrence $x(n+1) = a + q \cdot x_n$ in closed form, and the mass of a Kleene supremum as the limit of the per-iterate masses | `affine_iter_closed`, `fmeas_kleene_sup_U_E` — theories/programs/infra/affine_cascade.v |
-| The setlike-point kit | At setlike unit-ball points the Eq-88 comonoid computes: the diagonal is the pure tensor square $x \otimes x$, the counit is the unit point | `coalg_d_setlike`, `coalg_str_tensor_setlike`, `em_pair_mor_constE` — theories/programs/infra/cbv_anchors.v |
+| The affine cascade, the sup-mass bridge, and the mass bookkeeping | The scalar recurrence $x(n+1) = a + q \cdot x_n$ in closed form; the mass of a Kleene supremum as the limit of the per-iterate masses; and the acceptance-mass integrals of a bounded nonnegative integrand, with the complementary weight $\int h\,d\nu = \nu(\text{setT}) - \int g\,d\nu$ at $g + h \equiv 1$ | `affine_iter_closed`, `fmeas_kleene_sup_U_E`, `fmeas_int_le_mass`, `fmeas_int_compl` — theories/programs/infra/affine_cascade.v |
+| The setlike-point kit | At setlike unit-ball points the Eq-88 comonoid computes: the diagonal is the pure tensor square $x \otimes x$, the counit is the unit point; and the three interpreter clauses every rider runs on — lambda, application, if — compute there | `coalg_d_setlike`, `coalg_str_tensor_setlike`, `em_pair_mor_constE`, `adj_psi_at_setlike`, `eD_app_at_setlike`, `if_icones_at`, `linhom_fun_sup_ball` — theories/programs/infra/cbv_anchors.v |
 | The sharing-semantics anchors | `let x = Bernoulli(p) in (x, x)` denotes the diagonal pushforward; two separate draws denote the independent product $\otimes$ | `let_bernoulli_pair_diag`, `pair_bernoulli_indep` — theories/programs/infra/cbv_anchors.v |
 | The marginal kit at non-setlike points | The `FMeas` counit sends every probability measure to the unit point, so a discarded probability leaves the kept component unchanged | `coalg_e_FMeas_prob`, `em_proj1_mor_probE`, `one_dirac_setlike` — theories/programs/infra/cbv_marginals.v |
 | The score posterior and its normalisation | `score` denotes the prior reweighted by the evidence density; rejection sampling denotes the same measure, normalised | `ex_score_posterior_cbv_E`, `ex_reject_normalises_score` — theories/programs/infra/cbv_marginals.v |
@@ -2541,6 +2598,10 @@ case, the step-1 collapse now genuinely consumes the comonoid copy of
 the context (`em_pair_mor id` $\llbracket M \rrbracket$ feeds `γ` to *both* legs), so the law
 holds at setlike unit-ball context points (`eD_let_collapse_setlike`).
 Steps 2–4 are reused verbatim — none of them mention the bound measure.
+The law is proved once at an *arbitrary* bound return object `B`
+(`eD_let_collapse_setlike_obj` / `eD_let_int_obj` / `eD_let_mu_E_obj`,
+with `M : tbase B` and the Pettis integral over `ar_carrier Ar B`); the
+`tR`-bound forms below are its `B := R_obj` instances.
 
 ```coq
 (* theories/programs/infra/let_sample_law.v *)
@@ -2612,7 +2673,7 @@ Lemma fmeas_kleene_sup_U_E (U : set X) (l : \bar R) :
 > the recurrence with `affine_iter_closed` / `affine_iter_cvg`, and land
 > with `fmeas_kleene_sup_U_E`.
 
-### The setlike-point kit (`coalg_d_setlike`, `coalg_e_setlike`, `coalg_str_one1`, `coalg_str_tensor_setlike`, `em_pair_mor_constE`)
+### The setlike-point kit (`coalg_d_setlike`, `coalg_e_setlike`, `coalg_str_one1`, `coalg_str_tensor_setlike`, `em_pair_mor_constE`, `adj_psi_at_setlike`, `eD_app_at_setlike`, `if_icones_at`, `linhom_fun_sup_ball`)
 
 A point $x$ of a coalgebra $(P, \text{str})$ is *setlike* when $\text{str } x = x!$ —
 the §9.7 reading "$x$ is a (sub-)Dirac". On setlike unit-ball points the
@@ -2668,6 +2729,28 @@ Lemma bool_coalg_d_E (x : bool_cone_car Ar) :
 Lemma coalg_d_FMeas_dirac (X : ar_obj Ar) (r : ar_carrier Ar X) :
   Lfun (coalg_d (FMeas_coalgebra X)) (dirac_fmeas r) =
   dirac_fmeas r ⊗p dirac_fmeas r.
+```
+
+On top of the comonoid facts the same file owns the four *computation
+laws* every CBV rider runs on, so that no example file has to restate
+them: the `U ⊣ !̃` packaging of a lambda promotes at a setlike
+environment (`adj_psi_at_setlike`), the application clause computes
+there (`eD_app_at_setlike`, generic over the real object and its
+carrier casts), the if-clause dispatches into the weighted co-pairing
+`bool_case` (`if_icones_at`), and linhom-cone suprema are read
+pointwise (`linhom_fun_sup_ball`, on `cone_sup_ball_irr` of
+`theories/cones/omega_general.v`). Two per-iterate helpers ride along:
+`kleene_prom_ball` / `kleene_prom_setlike` (every Kleene iterate of a
+unit-ball body promotes to a setlike unit-ball point) and
+`bool_case_mass` (the mass of a dispatch between a Dirac and a measure).
+
+```coq
+(* theories/programs/infra/cbv_anchors.v (Section AnchorKit) *)
+(** The [U ⊣ !̃] packaging PROMOTES at setlike unit-ball points. *)
+Lemma adj_psi_at_setlike (P : Coalgebra Ar) (B : ICone.type Ar)
+    (g : icones_hom Ar (coalg_obj P) B) (gam : coalg_obj P) :
+  cone_norm gam <= 1 -> Lfun (coalg_str P) gam = gam! ->
+  Lfun (ch_mor (adj_psi (P := P) g)) gam = (Lfun g gam)!.
 ```
 
 > This kit is what lets every program-level computation in the chapter
@@ -3118,42 +3201,56 @@ algebraic: `bool_case_pres_path` sends a measurable path into the
 
 The `_gen` variants drop the unit-ball hypotheses on the branches —
 `bool_case_omega_continuous_gen`, `bool_case_pres_path_gen`,
-`bool_case_pres_int_gen`, with `bool_case_norm_le_max` as the norm
-bound; the generalised test measurability `test_meas_gen` of
-`theories/mcones/mcone.v` is what lets the path-preservation proofs drop
-the unit ball on test scrutinees.
+`bool_case_pres_int_gen` — and they are the *primary* proofs: the plain
+`bool_case_omega_continuous`, `bool_case_pres_path`, `bool_case_pres_int`
+are one-line derived instances of them, kept under their own names
+because the unit-ball packaging and the CBV anchors index on those
+signatures. The norm bound is `bool_case_norm_le_max`, used through its
+canonical instance `bool_case_norm_le_max0` at
+$M := \max(\lVert a\rVert, \lVert b\rVert) \vee 0$ (and its unit-ball
+corollary `bool_case_norm_le_max0_ball`, which is the shape
+`linhom_pre_bounded` / `linhom_norm_sup_lub` want); the generalised test
+measurability `test_meas_gen` of `theories/mcones/mcone.v` is what lets
+the path-preservation proofs drop the unit ball on test scrutinees.
 
 > The two Dirac equations are the coproduct universal property in
 > elementary form: a paper would obtain them from the diagram and stop
 > there, whereas here they are the cheap part and the analytic
 > obligations — $\omega$-continuity through the sup on the unit ball, path
 > measurability, Pettis-style integral commutation — are the work. The
-> split between the plain and `_gen` families is deliberate: the plain
-> family is enough whenever the branches are themselves norm-$\leq 1$
-> morphisms, and only the generalised family applies when the branches
-> are arbitrary elements of the target cone.
+> plain and `_gen` families are two signatures over one proof: the plain
+> names are what a norm-$\leq 1$ caller wants to see, the `_gen` names are
+> where the mathematics actually lives, and the unit-ball hypotheses
+> survive in the plain statements only as the interface the unit-ball
+> packaging is written against.
 
 ### Icones-hom packaging (`bool_case_linhom`, `bool_case_icones_hom`, `alpha_linhom`, `beta_linhom`)
 
 The co-pairing is packaged once at each categorical level in
 `theories/programs/infra/bool_case_hom.v`: as a linhom
-`bool_case_linhom : bool_cone` $\multimap$ `A` (with the unit-ball-free
-`bool_case_linhom_gen`) and as an icones_hom `bool_case_icones_hom`.
+`bool_case_linhom : bool_cone` $\multimap$ `A` and as an icones_hom
+`bool_case_icones_hom`. The packaging work is done once, in the
+unit-ball-free `bool_case_linhom_gen`; `bool_case_linhom` *is*
+`bool_case_linhom_gen`, with the norm hypotheses retained in the
+signature because the $\lVert\cdot\rVert \leq 1$ bound
+`bool_case_linhom_norm_le1` — what the `linhom_icones` bridge consumes —
+does need them.
 
 ```coq
 (* theories/programs/infra/bool_case_hom.v *)
 Local Notation T := (bool_cone_car Ar).
 
+(** Unit-ball-free packaging; uses [bool_case_norm_le_max0_ball]. *)
+Definition bool_case_linhom_gen (a b : A) : linhom_car Ar T A.
+
 Definition bool_case_linhom
     (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1) :
-    linhom_car Ar T A.
+    linhom_car Ar T A :=
+  bool_case_linhom_gen a b.
 
 Definition bool_case_icones_hom
     (a b : A) (Ha : cone_norm a <= 1) (Hb : cone_norm b <= 1) :
     icones_hom Ar T A.
-
-(** Unit-ball-free variant; uses [bool_case_norm_le_max]. *)
-Definition bool_case_linhom_gen (a b : A) : linhom_car Ar T A.
 
 Definition alpha_linhom (a : A) : linhom_car Ar T A :=
   bool_case_linhom_gen a precone_zero.
