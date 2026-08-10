@@ -31,6 +31,7 @@ templates' macros resolve correctly regardless of nesting depth.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 from dataclasses import asdict
@@ -40,9 +41,10 @@ from typing import Any
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 from pygments.formatters import HtmlFormatter
 
+from .glob_deps import GlobRelation, build_glob_relation
 from .graph import build_graph
 from .toc import build_toc
-from .xref import canonical_section_ids
+from .xref import attach_glob_relations, canonical_section_ids
 from .schema import (
     TAB_EXAMPLES,
     TAB_PAPER,
@@ -56,6 +58,148 @@ from .schema import (
 BUNDLED_TEMPLATE_DIR = Path(__file__).parent / "templates"
 BUNDLED_STATIC_DIR = Path(__file__).parent / "static"
 PLACEHOLDER_NAME = "__placeholder.html"
+
+#: Env var overriding the strict-``.glob`` policy (see
+#: :func:`require_glob_deps_default`).  Truthy → require real dependency
+#: edges; ``0``/``false``/``no``/``off`` → allow the degraded graph.
+REQUIRE_GLOB_DEPS_ENV = "AUDITOR_REQUIRE_GLOB_DEPS"
+
+_FALSEY = {"", "0", "false", "no", "off"}
+
+
+class GlobDependencyError(RuntimeError):
+    """The graph shipped **zero** real ``.glob`` dependency edges.
+
+    Raised by :func:`render` when ``.glob`` data was expected (a theories
+    root was supplied and the docs reference ``.v`` sources) but the graph
+    came out with no ``depends`` edges, i.e. the deployed graph would
+    silently degrade to doc co-references only.  That degradation used to
+    be invisible — a NOTICE on stderr and a plausible-looking graph — which
+    is exactly how the deployed site ended up shipping a graph with no real
+    dependencies at all.
+    """
+
+
+def require_glob_deps_default() -> bool:
+    """Default strictness for the real-``.glob``-edges guard.
+
+    ``AUDITOR_REQUIRE_GLOB_DEPS`` wins when set (``0``/``false``/``no``/
+    ``off`` disables, anything else enables).  Otherwise the guard is
+    **strict in CI** (``CI`` is set by GitHub Actions and every other
+    mainstream runner) and lenient on a developer machine, where a
+    checkout without a Rocq build legitimately has no ``.glob`` files.
+    """
+    raw = os.environ.get(REQUIRE_GLOB_DEPS_ENV)
+    if raw is not None:
+        return raw.strip().lower() not in _FALSEY
+    return (os.environ.get("CI") or "").strip().lower() not in _FALSEY
+
+
+def _fail_glob_guard(meta: dict[str, Any]) -> None:
+    """Print the diagnosis, then raise :class:`GlobDependencyError`.
+
+    ``meta`` is the graph ``meta`` block (or the same keys derived from a
+    :class:`~tools.auditor.glob_deps.GlobRelation` for the pre-write check).
+    """
+    print(_glob_guard_message(meta), file=sys.stderr)
+    raise GlobDependencyError(
+        "dependency graph has 0 real .glob edges "
+        f"({meta.get('n_glob_files', 0)}/{meta.get('n_vfiles', 0)} .v files "
+        "had a sibling .glob); refusing to publish the degraded graph "
+        f"(set {REQUIRE_GLOB_DEPS_ENV}=0 to allow it)"
+    )
+
+
+def _glob_guard_message(meta: dict[str, Any]) -> str:
+    """The actionable failure text for :class:`GlobDependencyError`."""
+    return "\n".join(
+        [
+            "",
+            "=" * 72,
+            "ERROR: the dependency graph has ZERO real Coq dependency edges.",
+            "=" * 72,
+            f"  .v sources referenced by the docs : {meta.get('n_vfiles', 0)}",
+            f"  of which a sibling .glob was found: {meta.get('n_glob_files', 0)}",
+            f"  Coq objects parsed out of them    : {meta.get('n_glob_objects', 0)}",
+            f"  doc co-reference edges (mentions) : {meta.get('n_mentions', '?')}",
+            "",
+            "The graph would ship with doc co-reference edges ONLY, which is",
+            "not a dependency graph — it is a word-overlap graph.  Refusing to",
+            "publish it.  Fix one of:",
+            "",
+            "  * CI: the `theories-glob` artefact (uploaded by build.yml after",
+            "    a successful `make`) did not land in theories/.  Check the",
+            "    'Fetch Rocq .glob files' step, and that build.yml has",
+            "    succeeded at least once on main since the artefact was added.",
+            "  * Local: compile the theories once (`make`) so coqc emits the",
+            "    sibling theories/**/*.glob files.",
+            "  * Deliberately building without them (a docs-only preview):",
+            f"    set {REQUIRE_GLOB_DEPS_ENV}=0.",
+            "=" * 72,
+        ]
+    )
+
+
+def check_graph_json(path: str | Path) -> int:
+    """Re-run the real-``.glob``-edges guard against an already-built graph.
+
+    Split out of :func:`render` on purpose.  Raising *during* the build is
+    right for a developer (fail fast, write nothing), but in CI it made the
+    whole Pages publish — blueprint and coqdoc included — hostage to another
+    workflow's artefact: a red ``build.yml``, an expired ``theories-glob``,
+    or an Actions-API hiccup skipped the deploy job entirely.
+
+    The CI shape is therefore: build **leniently** (the degraded graph ships
+    behind the explicit "Degraded" banner ``templates/graph.html`` already
+    renders), upload the artefact, then call this to fail the *job status*
+    only.  The signal stays loud and honest; the site keeps deploying.
+
+    Returns 0 (real dependency edges present, or none were expected), 1 (the
+    graph is degraded) or 2 (``graph.json`` unreadable).
+    """
+    p = Path(path)
+    try:
+        meta = json.loads(p.read_text(encoding="utf-8")).get("meta", {})
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: cannot read graph meta from {p}: {exc}", file=sys.stderr)
+        return 2
+    if not meta.get("glob_expected"):
+        print(
+            f"[graph-guard] {p}: no .glob data expected for this build — OK",
+            file=sys.stderr,
+        )
+        return 0
+    if meta.get("n_depends"):
+        print(
+            f"[graph-guard] {p}: {meta['n_depends']} real dependency edge(s) "
+            f"from {meta.get('n_glob_files', 0)}/{meta.get('n_vfiles', 0)} "
+            "compiled .v sources — OK",
+            file=sys.stderr,
+        )
+        return 0
+    print(_glob_guard_message(meta), file=sys.stderr)
+    return 1
+
+
+def _check_main(argv: list[str] | None = None) -> int:
+    """``python -m tools.auditor.render --check-graph <graph.json>``."""
+    import argparse
+
+    p = argparse.ArgumentParser(
+        prog="python -m tools.auditor.render",
+        description=(
+            "Post-build guard: fail when a rendered graph.json shipped ZERO "
+            "real .glob dependency edges although .glob data was expected."
+        ),
+    )
+    p.add_argument(
+        "--check-graph",
+        required=True,
+        metavar="GRAPH_JSON",
+        help="Path to a built site's graph.json (e.g. site/auditor/graph.json)",
+    )
+    args = p.parse_args(argv)
+    return check_graph_json(args.check_graph)
 
 
 def _xref_href(
@@ -468,6 +612,7 @@ def render(
     *,
     template_dir: str | Path | None = None,
     theories_root: str | Path | None = None,
+    require_glob_deps: bool | None = None,
 ) -> dict[str, int]:
     """Emit the triple-tab dashboard under ``out_dir``.
 
@@ -475,6 +620,18 @@ def render(
     ``entries``, ``beyond``, ``gaps``, ``static``, ``json``, ``tabs``).
     The counts aggregate every tab; the root landing and combined
     ``data.json`` are also included.
+
+    ``theories_root`` enables the real Coq dependency relation: the
+    ``.glob`` tree is parsed **once**, here, and feeds both the graph's
+    ``depends`` edges and every entry card's "Uses / Used by" navigation
+    panel (:func:`tools.auditor.xref.attach_glob_relations`).
+
+    ``require_glob_deps`` decides what happens when that relation comes out
+    empty although it was expected: ``True`` raises
+    :class:`GlobDependencyError` rather than publishing a graph whose edges
+    are all doc co-references; ``False`` keeps the old degrade-quietly
+    behaviour; ``None`` (the default) defers to
+    :func:`require_glob_deps_default` — strict in CI, lenient locally.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -501,6 +658,33 @@ def render(
         "gaps": 0, "json": 0, "tabs": 0, "chapters": 0,
         "graph": 0, "graph_nodes": 0, "graph_edges": 0,
     }
+
+    # -- real Coq dependency relation (.glob), parsed ONCE ----------------
+    # It feeds two consumers: the entry cards' Uses / Used-by navigation
+    # (attached below, before any page is emitted) and the graph's
+    # ``depends`` edges (passed to _emit_graph so the .glob tree is not
+    # walked a second time).
+    glob_rel: GlobRelation = build_glob_relation(doc, theories_root)
+    print(f"[build_auditor] {glob_rel.summary()}", file=sys.stderr)
+    attach_glob_relations(doc, glob_rel.edges)
+
+    # Fail fast, before a single page is written: a rejected build must not
+    # leave a degraded site behind for someone to serve by accident.  The
+    # authoritative check runs again on the assembled graph below (an edge
+    # can still be dropped there for pointing outside the node set).
+    strict = (
+        require_glob_deps
+        if require_glob_deps is not None
+        else require_glob_deps_default()
+    )
+    if strict and glob_rel.expected and not glob_rel.edges:
+        _fail_glob_guard(
+            {
+                "n_vfiles": glob_rel.n_vfiles,
+                "n_glob_files": glob_rel.n_glob_found,
+                "n_glob_objects": glob_rel.n_objects,
+            }
+        )
 
     # -- static assets (copied from bundled tree, plus generated pygments.css) -
     static_out = out / "static"
@@ -549,12 +733,21 @@ def render(
             totals[k] += per[k]
 
     # -- dependency graph (graph.json + graph.html, both depth-0) -------
-    graph_meta = _emit_graph(env, out, doc, theories_root=theories_root)
+    graph_meta = _emit_graph(env, out, doc, glob_relation=glob_rel)
     totals["graph"] = 1
     totals["graph_nodes"] = graph_meta["n_nodes"]
     totals["graph_edges"] = graph_meta["n_edges"]
     totals["graph_depends"] = graph_meta.get("n_depends", 0)
     totals["graph_mentions"] = graph_meta.get("n_mentions", 0)
+
+    # -- regression guard: never publish a silently degraded graph ------
+    # The graph page is the site's navigation spine and its whole claim is
+    # that the solid edges are REAL Coq dependencies.  If the .glob data we
+    # expected produced none, that claim is false and the build must fail
+    # loudly here rather than deploy a doc-co-reference graph that looks
+    # right.
+    if strict and graph_meta.get("glob_expected") and not graph_meta.get("n_depends"):
+        _fail_glob_guard(graph_meta)
 
     return totals
 
@@ -565,23 +758,38 @@ def _emit_graph(
     doc: ThreeTabDocument,
     *,
     theories_root: str | Path | None = None,
+    glob_relation: GlobRelation | None = None,
 ) -> dict[str, int]:
     """Emit ``graph.json`` and ``graph.html`` at the site root (depth 0).
 
     The data file is consumed client-side by ``static/graph.js`` (vendored
     Cytoscape.js); both live at the root so every entry ``url`` in the data
     (``<tab>/entries/<id>.html``) and the page's own asset prefixes use the
-    empty depth-0 prefix.  Returns the graph ``meta`` (node/edge counts) for
-    the build log and the artefact totals.
+    empty depth-0 prefix.  Returns the graph ``meta`` (node/edge counts plus
+    the ``.glob`` provenance) for the build log, the artefact totals and the
+    caller's strict guard.
 
-    ``theories_root`` is forwarded to :func:`build_graph` so the real Coq
-    dependency edges can be read from the ``.glob`` files; when it is
-    ``None`` or no ``.glob`` is present the graph degrades to doc
-    co-reference edges only (a NOTICE is surfaced in ``meta["notices"]``).
+    ``glob_relation`` is the already-parsed real dependency relation (the
+    renderer parses the ``.glob`` tree once and shares it with the entry
+    cards); ``theories_root`` is the fallback for direct callers.  With
+    neither, the graph degrades to doc co-reference edges only and a NOTICE
+    is surfaced in ``meta["notices"]`` — deciding whether that is
+    acceptable is the caller's job, not this function's.
     """
-    graph = build_graph(doc, theories_root=theories_root)
+    graph = build_graph(
+        doc, theories_root=theories_root, glob_relation=glob_relation
+    )
     (out / "graph.json").write_text(
-        json.dumps({"nodes": graph["nodes"], "edges": graph["edges"]}, indent=2),
+        json.dumps(
+            {
+                "nodes": graph["nodes"],
+                "edges": graph["edges"],
+                # The client shows the real-vs-mention split in the legend
+                # and warns when the graph is running degraded.
+                "meta": graph["meta"],
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
     _emit(
@@ -744,3 +952,7 @@ def _beyond_body_html(contrib: Any) -> str:
         )
     parts.append("</ul>")
     return "\n".join(parts)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(_check_main())

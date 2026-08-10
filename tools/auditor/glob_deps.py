@@ -36,10 +36,14 @@ body it belongs to.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
 from .schema import ALL_TABS, Entry, ThreeTabDocument
+
+#: An entry-to-entry dependency edge: ``((src_tab, src_id), (tgt_tab, tgt_id))``.
+Edge = tuple[tuple[str, str], tuple[str, str]]
 
 #: ``.glob`` definition line: ``<kind> <bs>:<be> <modpath> <name>``.  The name
 #: may carry trailing tokens for notations; we keep only the first token.
@@ -121,6 +125,13 @@ def load_glob_uses(
     ``(uses, missing)`` where ``missing`` is the list of ``.v`` paths whose
     ``.glob`` was absent or unreadable — the caller turns a non-empty
     ``missing`` into a build NOTICE and degrades gracefully.
+
+    A *single* unreadable file must never sink the build: a concurrent
+    ``make`` truncates and rewrites ``.glob`` files in place, so one can
+    legitimately be empty or half-written (and thus invalid UTF-8) while the
+    other 60 are perfectly good.  Read errors, decode errors and parse
+    errors are therefore all per-file: the offending path joins ``missing``
+    and the walk continues.
     """
     theories_root = Path(theories_root)
     merged: dict[str, set[str]] = {}
@@ -134,10 +145,17 @@ def load_glob_uses(
             continue
         try:
             text = gpath.read_text(encoding="utf-8")
-        except OSError:
+            parsed = parse_glob_uses(text)
+        except (OSError, UnicodeDecodeError, ValueError):
             missing.append(vfile)
             continue
-        for name, used in parse_glob_uses(text).items():
+        if not parsed:
+            # An empty or content-free .glob (a zero-byte file mid-rewrite)
+            # carries no dependency information; count it as missing so the
+            # provenance numbers describe what was actually read.
+            missing.append(vfile)
+            continue
+        for name, used in parsed.items():
             if used:
                 merged.setdefault(name, set()).update(used)
     return merged, missing
@@ -153,10 +171,55 @@ def _entry_owned_names(entry: Entry) -> list[str]:
     return list(entry.rocq_idents)
 
 
-def build_glob_edges(
+@dataclass
+class GlobRelation:
+    """The ``.glob``-derived dependency relation plus its provenance.
+
+    ``edges`` is the payload; every other field exists so the build can tell
+    *silent degradation* apart from *a genuinely edgeless graph* — the
+    distinction the strict guard in :func:`tools.auditor.render.render`
+    turns into a hard failure instead of a quietly shipped, doc-only graph.
+
+    * ``expected``  — glob data was asked for AND there is something to read
+      (a ``theories`` root was supplied and the docs reference ``.v`` files).
+      When ``expected`` holds but ``edges`` is empty, the build is broken,
+      not empty.
+    * ``n_vfiles`` / ``n_glob_found`` / ``n_glob_missing`` — how many of the
+      documented ``.v`` sources had a sibling ``.glob``.
+    * ``n_objects`` — Coq objects whose use-set was recovered from those
+      ``.glob`` files (0 with files present ⇒ a parse-level regression).
+    * ``notices``   — human-readable graceful-degradation lines.  These are
+      NOT parser warnings and must never trip ``--strict``.
+    """
+
+    edges: list[Edge] = field(default_factory=list)
+    notices: list[str] = field(default_factory=list)
+    expected: bool = False
+    n_vfiles: int = 0
+    n_glob_found: int = 0
+    n_glob_missing: int = 0
+    n_objects: int = 0
+
+    @property
+    def available(self) -> bool:
+        """True when at least one ``.glob`` file was actually read."""
+        return self.n_glob_found > 0
+
+    def summary(self) -> str:
+        """One-line build-log summary of the glob resolution."""
+        if not self.expected:
+            return "glob deps: disabled (no theories root / no .v sources)"
+        return (
+            f"glob deps: {self.n_glob_found}/{self.n_vfiles} .v file(s) had a "
+            f".glob · {self.n_objects} object(s) parsed · "
+            f"{len(self.edges)} entry-to-entry dependency edge(s)"
+        )
+
+
+def build_glob_relation(
     three: ThreeTabDocument,
-    theories_root: str | Path,
-) -> tuple[list[tuple[tuple[str, str], tuple[str, str]]], list[str]]:
+    theories_root: str | Path | None,
+) -> GlobRelation:
     """Real Coq dependency edges ``A -> B`` derived from ``.glob`` files.
 
     For each documented entry ``A`` and each Coq object name ``A``
@@ -169,12 +232,17 @@ def build_glob_edges(
     Self-edges and duplicates are dropped; the list is sorted for
     determinism.
 
-    Returns ``(edges, notices)``.  ``notices`` is a list of human-readable
-    strings describing graceful degradation (e.g. ``.glob`` files that were
-    not found, so those files' real dependencies are absent and only
-    doc-co-reference edges cover them).  ``notices`` is *never* a parser
-    warning — a missing ``.glob`` must not trip ``--strict``.
+    ``theories_root=None`` yields an empty, ``expected=False`` relation with
+    a NOTICE — the caller then renders a doc-co-reference-only graph.
     """
+    if theories_root is None:
+        return GlobRelation(
+            notices=[
+                "graph: no theories root provided; real Coq dependency edges "
+                "(.glob) are disabled — doc co-reference edges only."
+            ]
+        )
+
     from .xref import build_global_entry_map
 
     entry_map = build_global_entry_map(three)
@@ -197,6 +265,9 @@ def build_glob_edges(
                     if rf.path:
                         vfiles.add(rf.path)
 
+    # Only ``.v`` paths can have a sibling ``.glob``; anything else is not
+    # part of the expected-vs-missing accounting.
+    v_paths = {p for p in vfiles if p.strip().endswith(".v")}
     uses, missing = load_glob_uses(theories_root, vfiles)
 
     notices: list[str] = []
@@ -214,7 +285,7 @@ def build_glob_edges(
             "Coq dependencies are omitted (doc co-reference still covers them)."
         )
 
-    edges: set[tuple[tuple[str, str], tuple[str, str]]] = set()
+    edges: set[Edge] = set()
     for tab, eid, entry in owners:
         src = (tab, eid)
         used: set[str] = set()
@@ -225,7 +296,30 @@ def build_glob_edges(
             if tgt is None or tgt == src or tgt not in known:
                 continue
             edges.add((src, tgt))
-    return sorted(edges), notices
+
+    return GlobRelation(
+        edges=sorted(edges),
+        notices=notices,
+        expected=bool(v_paths),
+        n_vfiles=len(v_paths),
+        n_glob_found=max(0, len(v_paths) - len(missing)),
+        n_glob_missing=len(missing),
+        n_objects=len(uses),
+    )
+
+
+def build_glob_edges(
+    three: ThreeTabDocument,
+    theories_root: str | Path,
+) -> tuple[list[Edge], list[str]]:
+    """``(edges, notices)`` view of :func:`build_glob_relation`.
+
+    Kept as the stable two-tuple API used by the graph tests and any
+    external caller; new code should prefer :func:`build_glob_relation`,
+    whose result also carries the provenance the strict guard needs.
+    """
+    rel = build_glob_relation(three, theories_root)
+    return rel.edges, rel.notices
 
 
 def _walk_sections(doc) -> Iterable[list[Entry]]:
@@ -239,4 +333,11 @@ def _walk_sections(doc) -> Iterable[list[Entry]]:
         yield contrib.entries
 
 
-__all__ = ["parse_glob_uses", "load_glob_uses", "build_glob_edges"]
+__all__ = [
+    "Edge",
+    "GlobRelation",
+    "parse_glob_uses",
+    "load_glob_uses",
+    "build_glob_relation",
+    "build_glob_edges",
+]

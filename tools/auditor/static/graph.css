@@ -115,3 +115,19 @@
   border-top-color: #c0c7d1;
   border-top-style: dashed;
 }
+.graph-legend-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--fg-mute, #5a5a55);
+}
+
+/* Where the edges came from — the honest provenance line.  A build with no
+ * .glob data says so here in full sentences rather than quietly drawing a
+ * word-overlap graph that looks like a dependency graph. */
+.graph-provenance {
+  margin: 0.6rem 0 0;
+  font-size: 0.88rem;
+  color: var(--fg-mute, #5a5a55);
+  max-width: var(--maxw-prose, 52rem);
+}
+.graph-provenance strong { color: var(--fg, #1d1d1b); }

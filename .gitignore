@@ -56,6 +56,10 @@ paper/
 # Auditor build
 tools/**/__pycache__/
 tools/**/*.pyc
+# Tarball of theories/**/*.glob — CI ships the real dependency-graph data
+# from build.yml to blueprint.yml's build-auditor through it; reproducing
+# that packaging step locally must not leave a tracked artefact behind.
+theories-glob.tar.gz
 
 # Modern Rocq (post 9.0) make scaffolding
 Makefile.conf

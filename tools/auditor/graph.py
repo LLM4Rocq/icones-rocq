@@ -35,7 +35,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .glob_deps import build_glob_edges
+from .glob_deps import GlobRelation, build_glob_relation
 from .schema import ALL_TABS, Document, Entry, ThreeTabDocument
 from .xref import build_entry_edges
 
@@ -206,6 +206,7 @@ def build_graph(
     three: ThreeTabDocument,
     *,
     theories_root: str | Path | None = None,
+    glob_relation: GlobRelation | None = None,
 ) -> dict[str, Any]:
     """Assemble the ``graph.json`` payload (nodes + edges + meta).
 
@@ -229,9 +230,19 @@ def build_graph(
       counts and any graceful-degradation ``notices``).
 
     ``theories_root`` points at the ``theories/`` directory so the ``.glob``
-    files can be located next to the ``.v`` sources.  When ``None`` (or when
-    no ``.glob`` is found) the ``depends`` edges degrade gracefully to empty
-    and a NOTICE is recorded in ``meta["notices"]`` — the build never fails.
+    files can be located next to the ``.v`` sources.  Pass ``glob_relation``
+    instead when the caller already computed it (the renderer does, so the
+    ``.glob`` tree is parsed once for both the graph and the per-entry
+    "Uses / Used by" navigation panels); it takes precedence over
+    ``theories_root``.
+
+    When neither is given (or no ``.glob`` is found) the ``depends`` edges
+    degrade to empty and a NOTICE is recorded in ``meta["notices"]`` —
+    :func:`build_graph` itself never fails.  Whether that degradation is
+    *acceptable* is a build-policy question answered one level up, by the
+    strict guard in :func:`tools.auditor.render.render`, using the
+    ``glob_expected`` / ``n_glob_files`` provenance this function reports in
+    ``meta``.
 
     Edges whose source or target is not a node (defensive; should not
     happen given both derive from the same entry walk) are filtered out so
@@ -240,15 +251,13 @@ def build_graph(
     nodes, entry_keys = _collect_nodes(three)
 
     # Real Coq proof dependencies (.glob) and doc co-references (text).
-    notices: list[str] = []
-    if theories_root is not None:
-        depends_raw, notices = build_glob_edges(three, theories_root)
-    else:
-        depends_raw = []
-        notices = [
-            "graph: no theories root provided; real Coq dependency edges "
-            "(.glob) are disabled — doc co-reference edges only."
-        ]
+    rel = (
+        glob_relation
+        if glob_relation is not None
+        else build_glob_relation(three, theories_root)
+    )
+    depends_raw = rel.edges
+    notices = list(rel.notices)
     mentions_raw = build_entry_edges(three)
 
     edges: list[dict[str, Any]] = []
@@ -288,6 +297,21 @@ def build_graph(
     n_tab = sum(1 for n in nodes if n["data"]["ntype"] == "tab")
     n_depends = sum(1 for e in edges if e["data"]["kind"] == "depends")
     n_mentions = sum(1 for e in edges if e["data"]["kind"] == "mentions")
+    # Per-tab edge accounting (an edge is counted for the tab that OWNS its
+    # source entry; cross-tab edges are also totalled separately).  Cheap to
+    # compute here and the only place that knows both endpoints' tabs.
+    node_tab = {n["data"]["id"]: n["data"].get("tab", "") for n in nodes}
+    by_tab: dict[str, dict[str, int]] = {
+        t: {"depends": 0, "mentions": 0} for t in ALL_TABS
+    }
+    n_cross_tab = 0
+    for e in edges:
+        d = e["data"]
+        s_tab = node_tab.get(d["source"], "")
+        if s_tab in by_tab:
+            by_tab[s_tab][d["kind"]] += 1
+        if s_tab != node_tab.get(d["target"], ""):
+            n_cross_tab += 1
     return {
         "nodes": nodes,
         "edges": edges,
@@ -299,6 +323,15 @@ def build_graph(
             "n_edges": len(edges),
             "n_depends": n_depends,
             "n_mentions": n_mentions,
+            "n_cross_tab": n_cross_tab,
+            "edges_by_tab": by_tab,
+            # -- .glob provenance, consumed by the strict build guard ------
+            "glob_expected": rel.expected,
+            "glob_available": rel.available,
+            "n_vfiles": rel.n_vfiles,
+            "n_glob_files": rel.n_glob_found,
+            "n_glob_missing": rel.n_glob_missing,
+            "n_glob_objects": rel.n_objects,
             "notices": notices,
         },
     }

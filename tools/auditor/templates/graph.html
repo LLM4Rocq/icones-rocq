@@ -36,10 +36,27 @@
   </p>
   <ul class="graph-legend" aria-label="Edge legend">
     <li><span class="graph-legend-edge graph-legend-edge-depends"></span>
-      <strong>depends</strong> — real Coq proof dependency (from <code>.glob</code>)</li>
+      <strong>depends</strong> — real Coq proof dependency (from <code>.glob</code>)
+      {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_depends }} edges</span>{% endif %}</li>
     <li><span class="graph-legend-edge graph-legend-edge-mentions"></span>
-      <strong>mentions</strong> — doc co-reference (statement / prose / snippet text)</li>
+      <strong>mentions</strong> — doc co-reference (statement / prose / snippet text)
+      {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_mentions }} edges</span>{% endif %}</li>
   </ul>
+  {% if graph_meta %}
+  <p class="graph-provenance">
+    {% if graph_meta.n_depends %}
+    Built from <strong>{{ graph_meta.n_glob_files }}</strong>/{{ graph_meta.n_vfiles }}
+    compiled <code>.v</code> sources ({{ graph_meta.n_glob_objects }} Rocq objects),
+    yielding <strong>{{ graph_meta.n_depends }}</strong> real dependency edges
+    across {{ graph_meta.n_entries }} entries.
+    {{ graph_meta.n_cross_tab }} of the {{ graph_meta.n_edges }} edges cross a
+    tab boundary.
+    {% else %}
+    <strong>Degraded:</strong> no <code>.glob</code> data was available for this
+    build, so every edge below is a doc co-reference, not a proof dependency.
+    {% endif %}
+  </p>
+  {% endif %}
 </header>
 
 <div class="graph-toolbar" role="toolbar" aria-label="Graph controls">
@@ -48,6 +65,13 @@
     <label><input type="checkbox" class="cy-tab-filter" value="paper" checked> <span class="cy-swatch cy-swatch-paper"></span>Paper</label>
     <label><input type="checkbox" class="cy-tab-filter" value="ppl" checked> <span class="cy-swatch cy-swatch-ppl"></span>PPL</label>
     <label><input type="checkbox" class="cy-tab-filter" value="examples" checked> <span class="cy-swatch cy-swatch-examples"></span>Examples</label>
+  </div>
+  {# Edge-kind filter: hiding the (numerous, weaker) doc co-references is the
+     single most effective way to read the real proof structure. #}
+  <div class="graph-toolbar-group">
+    <span class="graph-toolbar-label">Edges</span>
+    <label><input type="checkbox" class="cy-edge-filter" value="depends" checked> depends</label>
+    <label><input type="checkbox" class="cy-edge-filter" value="mentions" checked> mentions</label>
   </div>
   <div class="graph-toolbar-group">
     <span class="graph-toolbar-label">Layout</span>

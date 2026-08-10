@@ -27,8 +27,8 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tools.auditor.coqdoc import CoqdocResolver, parse_coqproject  # noqa: E402
-from tools.auditor.parser import parse_three_tabs  # noqa: E402
-from tools.auditor.render import render  # noqa: E402
+from tools.auditor.parser import parse_three_tabs, snippet_stats  # noqa: E402
+from tools.auditor.render import GlobDependencyError, render  # noqa: E402
 from tools.auditor.xref import attach_entry_relations, linkify_all  # noqa: E402
 
 
@@ -57,6 +57,24 @@ def _build_argparser() -> argparse.ArgumentParser:
         "--strict",
         action="store_true",
         help="Treat parser warnings as errors (exit 1 if any).",
+    )
+    p.add_argument(
+        "--check-snippets",
+        action="store_true",
+        help=(
+            "Print the full live-snippet report (unresolved declarations, "
+            "stale pastes, wrong provenance comments) and exit 1 if any "
+            "snippet declaration could not be resolved from theories/."
+        ),
+    )
+    p.add_argument(
+        "--snippet-report-limit",
+        type=int,
+        default=12,
+        help=(
+            "How many entries of each live-snippet report list to print "
+            "without --check-snippets (0 = all).  Default: 12."
+        ),
     )
     return p
 
@@ -195,12 +213,18 @@ def main(argv: list[str] | None = None) -> int:
     # Per-tab build_meta is overridden inside _emit_tab() to match
     # the top-level metadata, so the footer is consistent across pages.
 
-    counts = render(
-        three,
-        out_path,
-        template_dir=args.template_dir,
-        theories_root=project_root / "theories",
-    )
+    try:
+        counts = render(
+            three,
+            out_path,
+            template_dir=args.template_dir,
+            theories_root=project_root / "theories",
+        )
+    except GlobDependencyError as exc:
+        # render() has already printed the full, actionable diagnosis; a raw
+        # traceback on top of it only buries the part a human needs to read.
+        print(f"[build_auditor] ABORTED: {exc}", file=sys.stderr)
+        return 2
 
     # Post-render: build the Pagefind search index over the emitted HTML.
     # This populates ``out/pagefind/`` (index + UI bundle) that the search
@@ -240,6 +264,26 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[build_auditor] paper    status distribution: {p_status}")
     print(f"[build_auditor] ppl      status distribution: {l_status}")
     print(f"[build_auditor] examples status distribution: {x_status}")
+
+    # -- live snippets ---------------------------------------------------
+    # Every fenced coq block is resolved against theories/**/*.v at build
+    # time; this is the staleness dashboard.  Unresolved declarations are
+    # a maintenance signal (the card fell back to the pasted text), stale
+    # pastes mean the Markdown disagrees with what was rendered.
+    snips = snippet_stats(three)
+    print(f"[build_auditor] live snippets: {snips.summary()}")
+    limit = 0 if args.check_snippets else max(0, args.snippet_report_limit)
+    for line in snips.report_lines(limit=limit):
+        print(f"[build_auditor] {line}", file=sys.stderr)
+    if args.check_snippets and snips.units and snips.units_resolved < snips.units:
+        print(
+            "[build_auditor] --check-snippets: "
+            f"{snips.units - snips.units_resolved} snippet declaration(s) "
+            "did not resolve",
+            file=sys.stderr,
+        )
+        return 1
+
     if warns:
         print(f"[build_auditor] {len(warns)} warning(s):", file=sys.stderr)
         for w in warns:

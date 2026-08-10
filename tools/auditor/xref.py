@@ -78,7 +78,7 @@ from __future__ import annotations
 import html as html_mod
 import re
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import Callable, Iterable, Iterator
 
 from .coqdoc import CoqdocResolver
 from .schema import (
@@ -907,9 +907,11 @@ def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
 
     Each becomes a :class:`~tools.auditor.schema.CrossRef` with
     ``kind='uses'|'used-by'``, ``target`` the other entry id, ``tab`` its
-    owning tab (so the renderer can build a cross-tab href) and ``label``
-    the other entry's ``paper_label``.  Refs are appended to the entry's
-    existing ``cross_refs`` (the synthetic ``beyond`` ref is preserved) and
+    owning tab (so the renderer can build a cross-tab href), ``label`` the
+    other entry's ``paper_label`` and ``via='doc'`` (a *doc co-reference*,
+    the weaker of the two relations — see :func:`attach_glob_relations` for
+    the real proof-level one).  Refs are appended to the entry's existing
+    ``cross_refs`` (the synthetic ``beyond`` ref is preserved) and
     deduplicated by ``(kind, target, tab)``.  Entry objects shared across
     the beyond compat shim are updated exactly once (dedup by object id).
     """
@@ -948,6 +950,7 @@ def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
                     target=t_id,
                     label=label_for((t_tab, t_id)),
                     tab=t_tab,
+                    via="doc",
                 )
             )
 
@@ -958,6 +961,97 @@ def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
         seen.add(id(entry))
         append_refs(entry, "uses", uses.get(key, set()))
         append_refs(entry, "used-by", used_by.get(key, set()))
+    return three
+
+
+#: Relation kinds handled by the Uses / Used-by navigation panel.
+_RELATION_KINDS = ("uses", "used-by")
+
+
+def attach_glob_relations(
+    three: ThreeTabDocument,
+    edges: Iterable[tuple[tuple[str, str], tuple[str, str]]],
+) -> ThreeTabDocument:
+    """Upgrade each entry's Uses / Used-by panel with REAL ``.glob`` deps.
+
+    ``edges`` is the proof-level dependency relation
+    (:func:`tools.auditor.glob_deps.build_glob_relation`): ``A -> B`` when a
+    Coq object entry ``A`` documents *uses* an object entry ``B`` documents,
+    as recorded in the ``.glob`` files.  This is the same edge set the
+    dependency graph draws solid — surfaced here as per-card navigation, so
+    an entry page links to exactly what its proof rests on and to what rests
+    on it, without the reader having to open the graph.
+
+    For every entry it:
+
+    * marks an existing ``uses`` / ``used-by`` ref that the ``.glob`` data
+      confirms with ``via='glob'`` (the stronger relation wins, mirroring
+      the graph's ``depends`` > ``mentions`` merge);
+    * appends a ``via='glob'`` ref for a real dependency the prose never
+      named — the case that motivates parsing ``.glob`` at all; and
+    * re-orders the relation refs so proof-backed links come first, then
+      doc co-references, each alphabetically by label.
+
+    Idempotent (dedup by ``(kind, target, tab)``) and a no-op on an empty
+    ``edges``, so a build without ``.glob`` data keeps exactly the
+    doc-co-reference panel it had before.
+    """
+    entry_by_key: dict[tuple[str, str], Entry] = {}
+    for tab in ALL_TABS:
+        doc = three.tab(tab)
+        for entry in _iter_entries(doc):
+            entry_by_key.setdefault((tab, entry.id), entry)
+
+    uses: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    used_by: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for src, tgt in edges:
+        uses.setdefault(src, set()).add(tgt)
+        used_by.setdefault(tgt, set()).add(src)
+
+    def label_for(key: tuple[str, str]) -> str:
+        target = entry_by_key.get(key)
+        return target.paper_label if target is not None else key[1]
+
+    seen: set[int] = set()
+    for key, entry in entry_by_key.items():
+        if id(entry) in seen:
+            continue
+        seen.add(id(entry))
+        real = {"uses": uses.get(key, set()), "used-by": used_by.get(key, set())}
+        if not (real["uses"] or real["used-by"] or entry.cross_refs):
+            continue
+        # 1. Confirm the refs the .glob data backs.
+        present: dict[str, set[tuple[str, str]]] = {k: set() for k in _RELATION_KINDS}
+        for ref in entry.cross_refs:
+            if ref.kind not in _RELATION_KINDS:
+                continue
+            pair = (ref.tab, ref.target)
+            present[ref.kind].add(pair)
+            if pair in real[ref.kind]:
+                ref.via = "glob"
+            elif not ref.via:
+                ref.via = "doc"
+        # 2. Append the real dependencies no prose mentioned.
+        for kind in _RELATION_KINDS:
+            for t_tab, t_id in sorted(real[kind] - present[kind]):
+                entry.cross_refs.append(
+                    CrossRef(
+                        kind=kind,
+                        target=t_id,
+                        label=label_for((t_tab, t_id)),
+                        tab=t_tab,
+                        via="glob",
+                    )
+                )
+        # 3. Proof-backed links first, then doc co-references.
+        others = [x for x in entry.cross_refs if x.kind not in _RELATION_KINDS]
+        ordered = others
+        for kind in _RELATION_KINDS:
+            ordered = ordered + sorted(
+                (x for x in entry.cross_refs if x.kind == kind),
+                key=lambda x: (x.via != "glob", x.label.lower(), x.tab),
+            )
+        entry.cross_refs = ordered
     return three
 
 
@@ -1105,6 +1199,7 @@ __all__ = [
     "MIN_IDENT_LEN",
     "LinkTarget",
     "attach_entry_relations",
+    "attach_glob_relations",
     "build_entry_edges",
     "build_global_entry_map",
     "build_ident_map",

@@ -43,3 +43,41 @@ jobs:
       - name: Revert permissions
         if: ${{ always() }}
         run: sudo chown -R $(id -u):$(id -g) . || true
+
+      # This is the ONLY job in the repo that compiles the formalisation, so
+      # it is also the cheapest place to harvest the `.glob` files `coqc`
+      # emits next to every `.v`. They carry the real proof-level dependency
+      # relation (which lemma's proof uses which), which the auditor's
+      # dependency graph needs to draw REAL `depends` edges instead of
+      # degrading to doc word-overlap — see blueprint.yml's `build-auditor`,
+      # which downloads this artefact rather than paying for a second Rocq
+      # build on the deploy critical path.
+      #
+      # Neither step carries `if: always()`: on a failed/partial `make` the
+      # `.glob` tree is incomplete, and half a dependency graph published as
+      # if it were whole is exactly the silent degradation we are closing.
+      # A single tarball keeps the artefact's internal paths verbatim
+      # (`theories/<dir>/<file>.glob`), independent of upload-artifact's
+      # least-common-ancestor rooting.
+      - name: Package Rocq .glob files
+        run: |
+          count=$(find theories -name '*.glob' | wc -l)
+          echo "found $count .glob file(s)"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::the build succeeded but emitted no .glob files; the auditor dependency graph would have no real edges"
+            exit 1
+          fi
+          find theories -name '*.glob' -print0 \
+            | tar --null -czf theories-glob.tar.gz --files-from -
+
+      - name: Upload Rocq .glob files
+        uses: actions/upload-artifact@v4
+        with:
+          name: theories-glob
+          path: theories-glob.tar.gz
+          if-no-files-found: error
+          # Long retention on purpose: blueprint.yml falls back to the most
+          # recent *successful* main build when this run's artefact is not
+          # ready yet, so an expired artefact would strand the auditor build
+          # during a quiet period on main.
+          retention-days: 90

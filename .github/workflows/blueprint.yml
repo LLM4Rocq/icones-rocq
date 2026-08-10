@@ -20,6 +20,11 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # Required by every `dawidd6/action-download-artifact` step below: reading
+  # another run's (or another workflow's) artefact list goes through the
+  # Actions API. Because this workflow declares an explicit `permissions:`
+  # block, any scope not listed here is `none`.
+  actions: read
 
 concurrency:
   group: pages
@@ -99,10 +104,115 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r tools/auditor/requirements.txt
 
+      # -- real dependency-graph data -----------------------------------
+      # The graph's load-bearing `depends` edges come from the `.glob` files
+      # `coqc` emits, which are .gitignore'd and which this job (a pure
+      # Python build) never produces. `build.yml` compiles the formalisation
+      # anyway and publishes them as `theories-glob`; we reuse that instead
+      # of adding a ~15 min Rocq build to the deploy critical path.
+      #
+      # PINNED TO THIS COMMIT. The `.glob` data is not decoration: it drives
+      # byte-offset-based statement extraction in tools/auditor/snippets.py
+      # as well as the graph edges, so a `.glob` describing a DIFFERENT
+      # revision of theories/ is a wrong input, not merely an old one. The
+      # earlier `branch: main` form never looked at the current run at all —
+      # it always resolved to the newest successful build.yml run on main, so
+      # every push was graded against a stale proof structure and a PR was
+      # graded against main's. `build.yml` runs on both `push` and
+      # `pull_request`, so this SHA does get its own artefact; this step just
+      # has to wait for it (build.yml ~15 min vs this job ~5 min, hence the
+      # explicitly-labelled fallback below).
+      - name: Fetch Rocq .glob files (pinned to this commit)
+        id: glob_pinned
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: theories-glob
+          path: .
+          workflow: build.yml
+          workflow_conclusion: success
+          # `github.sha` on a pull_request event is the ephemeral merge
+          # commit, which build.yml never uploaded an artefact for; the PR
+          # head SHA is the one it actually built.
+          commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          # `fail` (not `warn`) on purpose: it is what lets the fallback step
+          # below detect that nothing was downloaded.
+          if_no_artifact_found: fail
+          search_artifacts: true
+        continue-on-error: true
+
+      # Explicitly separate, explicitly named: if this step runs, the build is
+      # being graded against a DIFFERENT commit's proof structure. That is a
+      # deliberate trade (build.yml is slower than this job, so on a fresh
+      # push the pinned artefact does not exist yet) but it must never be
+      # mistaken for the pinned fetch — hence its own name, its own warning,
+      # and the provenance line recorded for the build log.
+      - name: Fetch Rocq .glob files (FALLBACK — last successful main build, NOT this commit)
+        id: glob_fallback
+        if: steps.glob_pinned.outcome != 'success'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: theories-glob
+          path: .
+          workflow: build.yml
+          workflow_conclusion: success
+          branch: main
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      - name: Unpack Rocq .glob files
+        run: |
+          if [ "${{ steps.glob_pinned.outcome }}" = "success" ]; then
+            echo "glob provenance: this commit (${{ github.event.pull_request.head.sha || github.sha }})"
+          elif [ -f theories-glob.tar.gz ]; then
+            echo "::warning::theories-glob for this commit was not available (build.yml has not finished for it); fell back to the last successful build on main. The dependency graph and the live-snippet extraction describe a DIFFERENT revision of theories/ than this checkout."
+          fi
+          if [ -f theories-glob.tar.gz ]; then
+            tar -xzf theories-glob.tar.gz
+            rm -f theories-glob.tar.gz
+          else
+            echo "::warning::theories-glob artefact not found at all; the dependency graph will have no real .glob edges. The site still builds (behind the graph page's explicit 'Degraded' banner) and still deploys; the guard step below turns this JOB red."
+          fi
+          echo "glob files present: $(find theories -name '*.glob' | wc -l)"
+
       - name: Run parser tests
+        # Runs AFTER the .glob fetch on purpose: the graph tests that assert
+        # a substantial, real dependency relation over the live docs skip
+        # themselves when no .glob is present, so running them earlier would
+        # quietly test nothing.
         run: pytest tools/auditor/tests/ -v
 
+      - name: Check live snippets
+        # Every fenced `coq` block on the dashboard is resolved from
+        # theories/**/*.v at build time (tools/auditor/snippets.py), so the
+        # cards show the sources rather than a hand-maintained paste.  This
+        # step is the maintenance dashboard for that mechanism: it lists
+        # declarations that could not be resolved (a renamed / moved lemma),
+        # pastes that disagree with the source, and wrong provenance
+        # comments.  It runs WITHOUT compiling the theories (a pure text
+        # scan), and is non-blocking: a stale paste must never stop the
+        # Pages deploy — the build falls back to the pasted text for
+        # anything it cannot resolve.  Every held-back splice is additionally
+        # emitted as a `::warning::` annotation, so the signal is visible on
+        # the run summary of a GREEN build rather than buried in a log nobody
+        # opens.
+        continue-on-error: true
+        run: python -m tools.auditor.snippets
+
       - name: Build auditor dashboard
+        env:
+          # LENIENT here, ON PURPOSE — the strict check runs as its own step
+          # after the upload below.  Raising mid-build made the entire Pages
+          # publish (blueprint and coqdoc included, since `combine-and-deploy`
+          # is the only job that downloads them) hostage to another
+          # workflow's artefact: a red `build.yml`, an expired
+          # `theories-glob` or an Actions-API hiccup skipped the deploy
+          # outright.  Instead we build the degraded graph — which
+          # `templates/graph.html` already labels with an explicit
+          # "Degraded: no .glob data was available for this build" banner,
+          # so nothing is claimed that is not true — publish it, and then
+          # fail this JOB's status.
+          AUDITOR_REQUIRE_GLOB_DEPS: '0'
         run: |
           # The Pagefind search index is built in-process by
           # build_auditor.py via the `pagefind[extended]` Python package
@@ -130,6 +240,14 @@ jobs:
           name: auditor-site
           path: site/auditor/
           if-no-files-found: error
+
+      # The strict guard, moved AFTER the upload so that failing it turns
+      # this job (and the workflow badge) red — the honest signal — without
+      # withholding the artefact that `combine-and-deploy` needs.  That job
+      # runs on `always()` and re-checks the artefact itself, so a degraded
+      # graph costs a red badge, not the whole site publish.
+      - name: Guard — the graph must carry real .glob dependency edges
+        run: python -m tools.auditor.render --check-graph site/auditor/graph.json
 
   build-blueprint:
     runs-on: ubuntu-latest
@@ -192,7 +310,20 @@ jobs:
     # `/docs/` don't 404 between deploys.  If the slow builds finish
     # AFTER this deploy, their fresh content lands on the next push
     # that triggers the workflow.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    #
+    # `always()` (plus an explicit cancellation check): a RED `build-auditor`
+    # must not take `/blueprint/` and `/docs/` down with it.  This is the only
+    # job that publishes them, so gating it on another job's success meant a
+    # degraded graph, an expired `theories-glob`, or `actions: read` being
+    # denied on a fork PR unpublished the entire site.  Every artefact below
+    # is fetched defensively and the assembled site is verified before it is
+    # deployed, so a failure upstream degrades to "last known good", never to
+    # a 404.
+    if: >-
+      always()
+      && github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && needs.build-auditor.result != 'cancelled'
     needs: [build-auditor]
     runs-on: ubuntu-latest
     environment:
@@ -222,10 +353,39 @@ jobs:
         continue-on-error: true
 
       - name: Download auditor (fresh, from this run)
+        id: auditor_fresh
         uses: actions/download-artifact@v4
         with:
           name: auditor-site
           path: site/auditor/
+        continue-on-error: true
+
+      - name: Download auditor (FALLBACK — last successful build on main)
+        if: steps.auditor_fresh.outcome != 'success'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: auditor-site
+          path: site/auditor/
+          workflow: blueprint.yml
+          workflow_conclusion: success
+          branch: main
+          if_no_artifact_found: warn
+          search_artifacts: true
+        continue-on-error: true
+
+      # The one hard requirement of this job: never publish a site whose
+      # /auditor/ is missing (that would 404 the dashboard the whole deploy
+      # exists for).  Both downloads above are best-effort; this is where a
+      # genuinely broken build stops.
+      - name: Verify the assembled site
+        run: |
+          if [ "${{ steps.auditor_fresh.outcome }}" != "success" ]; then
+            echo "::warning::this run's auditor artefact was unavailable (build-auditor failed?); deploying the last successful build's dashboard instead."
+          fi
+          test -f site/auditor/index.html \
+            || { echo "::error::no auditor dashboard to deploy (neither this run's artefact nor a previous successful one)"; exit 1; }
+          test -d site/blueprint || echo "::warning::no blueprint/ in the assembled site"
+          echo "site contents:"; ls -la site/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -629,17 +629,92 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 .xrefs .label { font-weight: 500; }
 .xref { color: var(--link); }
 
-/* Grouped Uses / Used-by relation panel (derived from Rocq-ident overlap). */
+/* Uses / Used-by navigation panel.
+ *
+ * Two relations share it, styled exactly like the dependency graph's two
+ * edge kinds so the card and the graph read the same:
+ *   - `.xref-via-glob` — a REAL Coq proof dependency read from the .glob
+ *     files: solid underline, ink colour;
+ *   - `.xref-via-doc`  — a doc co-reference (text names the ident): dashed,
+ *     muted.
+ * The panel is a <details> with a count-badged summary so a densely linked
+ * entry stays compact; it renders open for a handful of links. */
 .xref-panel {
   margin: 0.6rem 0 0;
-  padding: 0.5rem 0.7rem;
+  padding: 0.4rem 0.7rem;
   border-left: 3px solid var(--border, #d0d0d0);
   background: var(--bg-soft, rgba(0, 0, 0, 0.02));
   border-radius: 0 4px 4px 0;
 }
-.xref-panel .xrefs { margin: 0.2rem 0; }
+.xref-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  cursor: pointer;
+  font-size: 0.84rem;
+  color: var(--fg-mute);
+  list-style: none;
+}
+.xref-summary::-webkit-details-marker { display: none; }
+.xref-summary::before {
+  content: "▸";
+  font-size: 0.7rem;
+  color: var(--fg-faint);
+  transition: transform 0.12s ease;
+}
+.xref-panel[open] > .xref-summary::before { content: "▾"; }
+.xref-summary-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--fg-faint);
+}
+.xref-badge {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  padding: 0.02rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.xref-badge b { font-variant-numeric: tabular-nums; color: var(--fg); }
+.xref-badge-uses { color: var(--accent); }
+.xref-badge-used-by { color: var(--link); }
+.xref-badge-proof {
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.xref-body { margin-top: 0.35rem; }
+.xref-panel .xrefs { margin: 0.2rem 0; line-height: 1.7; }
 .xref-panel .xref-uses .label { color: var(--accent, #2a6); }
 .xref-panel .xref-used-by .label { color: var(--link, #26a); }
+.xref-sep { color: var(--fg-faint); margin: 0 0.25rem; }
+/* Solid = real .glob dependency; dashed = doc co-reference. */
+.xref-via-glob {
+  text-decoration: underline solid;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+.xref-via-doc {
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+  color: var(--fg-mute);
+}
+.xref-via-doc:hover { color: var(--link); }
+.xref-legend {
+  margin: 0.4rem 0 0;
+  font-size: 0.76rem;
+  color: var(--fg-faint);
+}
+.xref-legend .xref-via-glob,
+.xref-legend .xref-via-doc { color: inherit; }
 
 .entry-actions { margin: 0.75rem 0 0; font-size: 0.88rem; }
 .more {
@@ -1312,6 +1387,35 @@ table.overview .ov-rocq code { white-space: nowrap; }
   font-size: 0.78rem;
   margin-left: 0.3rem;
 }
+
+/* -- live-snippet provenance ---------------------------------------------
+ * Code blocks are resolved from theories/**\/*.v at build time
+ * (tools/auditor/snippets.py): the header carries the source line range,
+ * a "live" marker and a deep link to the exact lines on GitHub.  Blocks
+ * whose declarations could not be located keep their Markdown paste and
+ * are marked "pasted" so the staleness is visible on the page, not only
+ * in the build log. */
+.snippet-lines {
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+.snippet-live,
+.snippet-pasted {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  margin-left: 0.3rem;
+}
+.snippet-live { color: var(--fg-faint); }
+.snippet-pasted { color: var(--status-gap-bg); }
+.snippet-link {
+  margin-left: 0.45rem;
+  font-size: 0.75rem;
+  color: var(--link);
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+.snippet-link:hover,
+.snippet-link:focus-visible { color: var(--fg); }
 
 /* -- snippet identifier cross-references ---------------------------------
  * Anchors injected by tools/auditor/xref.py around Pygments name tokens.

@@ -32,6 +32,7 @@ from pygments.lexers import get_lexer_by_name as _get_lexer_by_name
 
 from .classifier import DEFAULT_REGRESSION_ANCHORS, classify
 from .coqdoc import CoqdocResolver
+from .snippets import ResolvedBlock, SnippetResolver, SnippetStats
 from .xref import linkify_document
 from .schema import (
     ALL_TABS,
@@ -734,6 +735,57 @@ def normalise(
     md = _new_md()
     chapter_mode = tab in {TAB_PPL, TAB_EXAMPLES}
 
+    # -- live snippets ----------------------------------------------------
+    # Every fenced ``coq`` block is resolved against theories/**/*.v: the
+    # declarations it names are looked up by identifier and the extracted
+    # source statement is spliced in place of the Markdown-pasted text.
+    # Unresolvable blocks keep their paste (and are reported), so a build
+    # against a missing / partial theories/ tree behaves exactly as before.
+    snip_resolver = SnippetResolver(project_root / "theories", repo_root=project_root)
+    resolved_cache: dict[int, ResolvedBlock] = {}
+
+    def mk_snippet(s: _RawSnippet, context: str = "") -> CoqSnippet:
+        """Materialise a raw fenced block into a (resolved) CoqSnippet.
+
+        The resolution of a given ``_RawSnippet`` is memoised: the same raw
+        block is materialised more than once (an entry's detail and the
+        section-level roll-up alias the same object), and it must be
+        counted once in the build's snippet statistics.
+        """
+        block = resolved_cache.get(id(s))
+        if block is None:
+            where = f"{tab or 'doc'}:{context or s.source_file or '?'}"
+            block = snip_resolver.resolve_block(s.raw, s.source_file, context=where)
+            resolved_cache[id(s)] = block
+        text = block.text
+        # Prefer the file the declarations actually live in; fall back to
+        # the block's ``(* theories/…v *)`` provenance comment.
+        src_file = block.source_file or s.source_file or ""
+        line_count = text.count("\n") + (0 if text.endswith("\n") else 1)
+        # Only advertise a line *range* when the extracted text really covers
+        # it.  A block quoting three lemmas scattered over 250 source lines
+        # gets its first line as an anchor, not a range it does not span.
+        span = block.end_line - block.start_line + 1
+        end_line = block.end_line if 0 < span <= line_count else 0
+        gh = (
+            resolver.github_url(src_file, block.start_line or None)
+            if block.source_file
+            else (resolver.github_url(src_file) if src_file else "")
+        )
+        return CoqSnippet(
+            source_file=src_file,
+            source_section=s.source_section,
+            highlighted_html=_highlight_coq(text),
+            line_count=line_count,
+            resolved=block.n_resolved > 0,
+            stale=block.n_stale > 0,
+            source_line=block.start_line,
+            source_end_line=end_line,
+            github_url=gh,
+            coqdoc_url=(resolver.coqdoc_url(src_file) or "") if src_file else "",
+            decls=[u.name for u in block.units if u.resolved],
+        )
+
     # -- preamble + section bodies ---------------------------------------
     preamble_html = ""
     verify_html = ""
@@ -883,16 +935,7 @@ def normalise(
                 if matched_h3_key is not None:
                     h3 = h3_by_label.pop(matched_h3_key)
                     detail_html = "\n".join(h3.paragraphs).strip()
-                    snippets = [
-                        CoqSnippet(
-                            source_file=s.source_file or "",
-                            source_section=s.source_section,
-                            highlighted_html=_highlight_coq(s.raw),
-                            line_count=s.raw.count("\n")
-                            + (0 if s.raw.endswith("\n") else 1),
-                        )
-                        for s in h3.snippets
-                    ]
+                    snippets = [mk_snippet(s, h3.paper_label) for s in h3.snippets]
                     detail = EntryDetail(
                         prose_html=detail_html, notes=h3.notes, snippets=snippets
                     )
@@ -968,16 +1011,7 @@ def normalise(
             kind, number = _classify_paper_label_kind(paper_label)
             slug = claim_slug(slugify_label(paper_label), paper_label)
             detail_html = "\n".join(h3.paragraphs).strip()
-            snippets = [
-                CoqSnippet(
-                    source_file=s.source_file or "",
-                    source_section=s.source_section,
-                    highlighted_html=_highlight_coq(s.raw),
-                    line_count=s.raw.count("\n")
-                    + (0 if s.raw.endswith("\n") else 1),
-                )
-                for s in h3.snippets
-            ]
+            snippets = [mk_snippet(s, paper_label) for s in h3.snippets]
             section_kind = "paper" if blk.kind == "paper" else "beyond"
             status = classify(
                 paper_label=paper_label,
@@ -1039,21 +1073,10 @@ def normalise(
             # Materialise every H3 raw snippet to a CoqSnippet with
             # line_count populated (shared by Shape-(c) detail matching
             # and Shape-(b) synthetic-entry detail).
-            def _h3_coq(raw_snippets: list[_RawSnippet]) -> list[CoqSnippet]:
-                out: list[CoqSnippet] = []
-                for s in raw_snippets:
-                    lc = s.raw.count("\n") + (
-                        0 if s.raw.endswith("\n") else 1
-                    )
-                    out.append(
-                        CoqSnippet(
-                            source_file=s.source_file or "",
-                            source_section=s.source_section,
-                            highlighted_html=_highlight_coq(s.raw),
-                            line_count=lc,
-                        )
-                    )
-                return out
+            def _h3_coq(
+                raw_snippets: list[_RawSnippet], context: str = ""
+            ) -> list[CoqSnippet]:
+                return [mk_snippet(s, context) for s in raw_snippets]
 
             def _to_rocq_files(paths: list[str], label: str) -> list[RocqFile]:
                 rfs: list[RocqFile] = []
@@ -1096,7 +1119,7 @@ def normalise(
                     # the H3's fenced snippets; the first hit becomes the
                     # entry's foldable detail.  Any snippet not consumed
                     # by a row rolls up into the section-level snippets.
-                    h3_snippets = _h3_coq(h3.snippets)
+                    h3_snippets = _h3_coq(h3.snippets, h3.paper_label)
                     consumed_snippet_idxs: set[int] = set()
                     for tbl in h3.tables:
                         for row in tbl.rows:
@@ -1144,7 +1167,7 @@ def normalise(
                                 detail = EntryDetail(
                                     prose_html="",
                                     notes=[],
-                                    snippets=_h3_coq(matched_raw),
+                                    snippets=_h3_coq(matched_raw, paper_label),
                                 )
                                 for m in matched_raw:
                                     for i, s in enumerate(h3.snippets):
@@ -1219,7 +1242,7 @@ def normalise(
                             detail=EntryDetail(
                                 prose_html=detail_prose_html,
                                 notes=list(h3.notes),
-                                snippets=_h3_coq(h3.snippets),
+                                snippets=_h3_coq(h3.snippets, h3.paper_label),
                             ),
                             cross_refs=[],
                         )
@@ -1395,14 +1418,7 @@ def normalise(
                                 prose_html="",
                                 notes=[],
                                 snippets=[
-                                    CoqSnippet(
-                                        source_file=s.source_file or "",
-                                        source_section=s.source_section,
-                                        highlighted_html=_highlight_coq(s.raw),
-                                        line_count=s.raw.count("\n")
-                                        + (0 if s.raw.endswith("\n") else 1),
-                                    )
-                                    for s in matched_raw
+                                    mk_snippet(s, paper_label) for s in matched_raw
                                 ],
                             )
                             for m in matched_raw:
@@ -1426,13 +1442,7 @@ def normalise(
                             )
                         )
                 contrib_snippets = [
-                    CoqSnippet(
-                        source_file=s.source_file or "",
-                        source_section=s.source_section,
-                        highlighted_html=_highlight_coq(s.raw),
-                        line_count=s.raw.count("\n")
-                        + (0 if s.raw.endswith("\n") else 1),
-                    )
+                    mk_snippet(s, h3.paper_label)
                     for snip_i, s in enumerate(h3.snippets)
                     if snip_i not in consumed_snippet_idxs
                 ]
@@ -1538,7 +1548,7 @@ def normalise(
         if _ch_floc:
             _ch.stats.loc = _ch_floc
 
-    return Document(
+    doc = Document(
         preamble_html=preamble_html,
         sections=sections,
         chapters=chapters,
@@ -1550,9 +1560,32 @@ def normalise(
         ),
         build_meta=BuildMeta(commit="", built_at="", auditor_lines=0),
     )
+    # Live-snippet resolution report for this tab.  Stashed as a dynamic
+    # attribute (``dataclasses.asdict`` ignores it, so the JSON contract is
+    # unchanged); ``tools/build_auditor.py`` reads it via
+    # :func:`snippet_stats` to print the build's snippet summary.
+    setattr(doc, "snippet_stats", snip_resolver.stats)
+    return doc
 
 
 # -- top-level driver -------------------------------------------------------
+
+
+def snippet_stats(doc: Document | ThreeTabDocument) -> SnippetStats:
+    """The live-snippet resolution report of a parsed document.
+
+    Works on a single :class:`~tools.auditor.schema.Document` and on a
+    :class:`~tools.auditor.schema.ThreeTabDocument` (whose three per-tab
+    reports are merged).  Returns an empty report for documents that were
+    not produced by this parser.
+    """
+    if isinstance(doc, ThreeTabDocument):
+        merged = SnippetStats()
+        for tab in ALL_TABS:
+            merged.merge(snippet_stats(doc.tab(tab)))
+        return merged
+    stats = getattr(doc, "snippet_stats", None)
+    return stats if isinstance(stats, SnippetStats) else SnippetStats()
 
 
 def parse(

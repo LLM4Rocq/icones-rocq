@@ -37,26 +37,68 @@ class CrossRef:
     relation refs derived from Rocq-identifier overlap set it so the
     renderer can build a cross-tab href when it differs from the current
     tab.
+
+    ``via`` records *how* a ``uses`` / ``used-by`` relation was derived —
+    the same two-tier distinction the dependency graph draws:
+
+    * ``"glob"`` — a **real Coq proof-level dependency** read from the
+      ``.glob`` files (this entry's documented object *uses* an object the
+      target documents).  Load-bearing; rendered solid.
+    * ``"doc"``  — a **doc co-reference**: this entry's statement / prose /
+      snippet text names an identifier the target documents.  Rendered
+      dashed.
+    * ``""``     — not a relation ref (section / beyond / blueprint refs),
+      or a legacy payload written before ``via`` existed.
     """
 
     kind: str  # "section" | "entry" | "beyond" | "blueprint" | "uses" | "used-by"
     target: str
     label: str
     tab: str = ""
+    via: str = ""  # "glob" | "doc" | "" — see the class docstring
 
 
 @dataclass
 class CoqSnippet:
-    """A Pygments-highlighted Coq code block."""
+    """A Pygments-highlighted Coq code block.
+
+    Snippets are *live*: at build time
+    :class:`tools.auditor.snippets.SnippetResolver` looks every declaration
+    the block names up in ``theories/**/*.v`` and splices the extracted
+    source statement in place of the Markdown-pasted text (see
+    ``docs/AUDITOR_FORMAT.md``).  The ``resolved`` / ``source_line`` /
+    ``github_url`` / ``coqdoc_url`` fields describe that resolution and are
+    what the templates use to deep-link the snippet header.  A block whose
+    declarations could not be located keeps its pasted text and leaves
+    ``resolved`` false — the build reports those as maintenance work.
+    """
 
     source_file: str
     source_section: str | None
     highlighted_html: str  # Pygments output, language=coq
-    # Newline-count of the raw source the snippet was extracted from.
-    # Populated by the parser at normalise time; fuels the per-chapter
-    # LoC counter on the new PPL/Examples chapter cards.  Defaults to
-    # 0 for legacy callers that don't set it.
+    # Line count of the code the block *renders* — i.e. of the statements
+    # extracted from the Rocq sources once the snippet is resolved (of the
+    # Markdown paste when it is not).  Populated by the parser at normalise
+    # time; fuels the per-chapter LoC counter on the PPL/Examples chapter
+    # cards.  Defaults to 0 for legacy callers that don't set it.
     line_count: int = 0
+    # -- live-snippet resolution (all default to the legacy "pasted" state)
+    #: True when at least one declaration of the block was resolved from
+    #: the Rocq sources and spliced in.
+    resolved: bool = False
+    #: True when the Markdown-pasted text materially disagreed (modulo
+    #: whitespace and comments) with the source — i.e. the paste was stale.
+    stale: bool = False
+    #: 1-based first / last source line of the resolved statements (0 when
+    #: unresolved), for the "file.v:120" deep link on the snippet header.
+    source_line: int = 0
+    source_end_line: int = 0
+    #: Deep links for the snippet header: GitHub blob at ``source_line``
+    #: and the coqdoc page of ``source_file``.  Empty when unresolved.
+    github_url: str = ""
+    coqdoc_url: str = ""
+    #: The declaration names the block carries, in source order.
+    decls: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -334,6 +376,7 @@ def from_dict(payload: dict[str, Any]) -> Document:
             target=xr["target"],
             label=xr["label"],
             tab=xr.get("tab", ""),
+            via=xr.get("via", ""),
         )
 
     def _snip(s: dict[str, Any]) -> CoqSnippet:

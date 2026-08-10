@@ -247,24 +247,42 @@
         container.style.cursor = "default";
       });
 
-      // -- tab filter -------------------------------------------------
+      // -- tab + edge-kind filters ------------------------------------
+      // Tabs hide nodes; edge kinds hide edges. Hiding the (weaker, more
+      // numerous) `mentions` edges is what turns the hairball into the
+      // real proof-dependency skeleton, so it gets its own control.
       var filters = Array.prototype.slice.call(
         document.querySelectorAll(".cy-tab-filter")
+      );
+      var edgeFilters = Array.prototype.slice.call(
+        document.querySelectorAll(".cy-edge-filter")
       );
       function applyFilter() {
         var active = {};
         filters.forEach(function (cb) { active[cb.value] = cb.checked; });
+        var kinds = {};
+        edgeFilters.forEach(function (cb) { kinds[cb.value] = cb.checked; });
+        var filteringEdges = edgeFilters.length > 0;
         cy.batch(function () {
           cy.nodes().forEach(function (n) {
             var tab = n.data("tab");
             if (active[tab]) n.style("display", "element");
             else n.style("display", "none");
           });
+          if (filteringEdges) {
+            cy.edges().forEach(function (e) {
+              var kind = e.data("kind") === "depends" ? "depends" : "mentions";
+              e.style("display", kinds[kind] ? "element" : "none");
+            });
+          }
         });
         runLayout();
         updateStats();
       }
       filters.forEach(function (cb) {
+        cb.addEventListener("change", applyFilter);
+      });
+      edgeFilters.forEach(function (cb) {
         cb.addEventListener("change", applyFilter);
       });
 
@@ -317,8 +335,11 @@
       function updateStats() {
         if (!statsEl) return;
         var n = cy.nodes(':visible[ntype = "entry"]').length;
-        var e = cy.edges(":visible").length;
-        statsEl.textContent = n + " entries · " + e + " edges shown";
+        var vis = cy.edges(":visible");
+        var dep = vis.filter('[kind = "depends"]').length;
+        statsEl.textContent =
+          n + " entries · " + vis.length + " edges shown (" + dep +
+          " real dependencies)";
       }
 
       // Initial layout + fit.

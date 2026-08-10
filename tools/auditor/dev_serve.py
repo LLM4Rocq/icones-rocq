@@ -33,15 +33,35 @@ TEMPLATES = ROOT / "templates"
 STATIC = ROOT / "static"
 
 
-def xref_href(prefix: str):
+def xref_href(prefix: str, tab: str = ""):
+    """Dev-server mirror of :func:`tools.auditor.render._xref_href`.
+
+    Kept in step with the production resolver for the ``uses`` / ``used-by``
+    relation kinds — the per-card "Uses / Used by" navigation panel — so a
+    dev preview exercises the same links the deployed site serves.  A
+    cross-tab target (``xref['tab']`` differing from the page's tab) climbs
+    out of the current tab; the canonical-section collapsing that the real
+    renderer applies has no equivalent here (dev_serve emits an entry page
+    for every entry), so relation refs always route to ``entries/``.
+    """
+
     def _h(xref):
         kind = xref.get("kind")
         tgt = xref.get("target", "")
+        if kind in ("uses", "used-by"):
+            xtab = xref.get("tab", "")
+            if xtab and tab and xtab != tab:
+                return f"{prefix}../{xtab}/entries/{tgt}.html"
+            return f"{prefix}entries/{tgt}.html"
         if kind == "section":
             return f"{prefix}sections/{tgt}.html"
         if kind == "entry":
             return f"{prefix}entries/{tgt}.html"
+        if kind == "chapter":
+            return f"{prefix}chapters/{tgt}.html"
         if kind == "beyond":
+            if tgt == "beyond":
+                return f"{prefix}index.html#beyond"
             return f"{prefix}beyond/{tgt}.html"
         if kind == "blueprint":
             return f"{prefix}../../blueprint/web/{tgt}"
@@ -79,16 +99,17 @@ def _make_env() -> Environment:
 
 
 def _set_prefixes(env: Environment, root_prefix: str, static_prefix: str,
-                  tab_prefix: str) -> dict:
+                  tab_prefix: str, tab: str = "") -> dict:
+    resolver = xref_href(root_prefix, tab)
     env.globals["root_prefix"] = root_prefix
     env.globals["static_prefix"] = static_prefix
     env.globals["tab_prefix"] = tab_prefix
-    env.globals["xref_href"] = xref_href(root_prefix)
+    env.globals["xref_href"] = resolver
     return {
         "root_prefix": root_prefix,
         "static_prefix": static_prefix,
         "tab_prefix": tab_prefix,
-        "xref_href": xref_href(root_prefix),
+        "xref_href": resolver,
     }
 
 
@@ -109,7 +130,7 @@ def _render_tab(env: Environment, out_dir: Path, tab: str, data: dict,
         root_prefix = "../" * depth_in_tab if depth_in_tab else ""
         static_prefix = "../" * depth_total
         tab_prefix = static_prefix
-        prefixes = _set_prefixes(env, root_prefix, static_prefix, tab_prefix)
+        prefixes = _set_prefixes(env, root_prefix, static_prefix, tab_prefix, tab)
         ctx = {**ctx, **prefixes}
         html = env.get_template(template_name).render(**ctx)
         dest.write_text(html, encoding="utf-8")

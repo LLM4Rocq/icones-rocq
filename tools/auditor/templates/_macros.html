@@ -1,16 +1,33 @@
 {# Reusable rendering bits for entries, status badges, file refs. #}
 
+{% macro snippet_source(snip) -%}
+{# Provenance line of a code block.  Snippets are resolved from the Rocq
+   sources at build time (tools/auditor/snippets.py), so a resolved block
+   can deep-link the exact lines it was extracted from: coqdoc page for
+   reading, GitHub blob #L for the raw source.  Unresolved (legacy pasted)
+   blocks keep the plain file label and are marked as such. #}
+<code class="mono">{{ snip.source_file }}</code>
+{%- if snip.source_line %}<span class="snippet-lines">:{{ snip.source_line }}{% if snip.source_end_line and snip.source_end_line != snip.source_line %}–{{ snip.source_end_line }}{% endif %}</span>{% endif %}
+{%- if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
+{%- if snip.line_count %}<span class="snippet-loc">· {{ snip.line_count }} LoC</span>{% endif %}
+{%- if snip.resolved %}
+<span class="snippet-live" title="Extracted from the Rocq sources at build time — not a hand-maintained paste">· live</span>
+{#- The snippet also carries `coqdoc_url`; the link is suppressed here for
+    the same reason as in `rocq_file` — the coqdoc deployment is
+    best-effort / currently absent. #}
+{%- if snip.github_url %} <a class="snippet-link" href="{{ snip.github_url }}" target="_blank" rel="noopener">source</a>{% endif %}
+{%- else %}
+<span class="snippet-pasted" title="No declaration in this block could be resolved in theories/ — rendered from the Markdown paste">· pasted</span>
+{%- endif %}
+{%- endmacro %}
+
 {% macro section_snippets(snippets) -%}
 {% if snippets %}
 <section class="snippets section-snippets">
   <h2>Code</h2>
   {% for snip in snippets %}
   <details class="snippet-fold" {% if loop.index <= 1 %}open{% endif %}>
-    <summary>
-      <code class="mono">{{ snip.source_file }}</code>
-      {% if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
-      {% if snip.line_count %}<span class="snippet-loc">· {{ snip.line_count }} LoC</span>{% endif %}
-    </summary>
+    <summary>{{ snippet_source(snip) }}</summary>
     <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
   </details>
   {% endfor %}
@@ -111,6 +128,61 @@
 </span>
 {%- endmacro %}
 
+{% macro xref_link(x) -%}
+{#- One relation link.  `via` records HOW the relation was derived (see
+    schema.CrossRef): `glob` = a real Coq proof-level dependency read from
+    the .glob files, `doc` = a doc co-reference (the text names an ident the
+    target documents).  The two are styled solid vs dashed, mirroring the
+    dependency graph's edge kinds, so the card and the graph read the same. -#}
+<a class="xref xref-{{ x.kind }} xref-via-{{ x.via|default('doc', true) }}"
+   href="{{ xref_href(x) }}"
+   title="{% if x.via == 'glob' %}Real Coq dependency (from the .glob files) — {% if x.kind == 'used-by' %}{{ x.label }} is proved through an object this entry documents{% else %}this entry is proved through an object {{ x.label }} documents{% endif %}{% else %}Doc co-reference — {% if x.kind == 'used-by' %}{{ x.label }}'s text names an identifier this entry documents{% else %}this entry's text names an identifier {{ x.label }} documents{% endif %}{% endif %}">{{ x.label }}</a>
+{%- endmacro %}
+
+{% macro xref_row(cls, label, refs) -%}
+{% if refs %}
+<p class="xrefs {{ cls }}">
+  <span class="label">{{ label }}</span>
+  {% for x in refs %}{{ xref_link(x) }}{% if not loop.last %}<span class="xref-sep">·</span>{% endif %}{% endfor %}
+</p>
+{% endif %}
+{%- endmacro %}
+
+{% macro xref_panel(entry) -%}
+{#- Per-card navigation: where this entry's Rocq content comes from and what
+    builds on it, each link resolving to the target entry's page (cross-tab
+    aware via xref_href).  Count-badged summary so a dense entry stays
+    compact; folded shut past a handful of links. -#}
+{% if entry.cross_refs %}
+{% set uses_refs = entry.cross_refs | selectattr('kind', 'equalto', 'uses') | list %}
+{% set usedby_refs = entry.cross_refs | selectattr('kind', 'equalto', 'used-by') | list %}
+{% set other_refs = entry.cross_refs | rejectattr('kind', 'equalto', 'uses') | rejectattr('kind', 'equalto', 'used-by') | list %}
+{% set n_rel = uses_refs|length + usedby_refs|length + other_refs|length %}
+{% set n_proof = (uses_refs + usedby_refs) | selectattr('via', 'equalto', 'glob') | list | length %}
+<details class="xref-panel"{% if n_rel <= 8 %} open{% endif %}>
+  <summary class="xref-summary">
+    <span class="xref-summary-label">Navigate</span>
+    {% if uses_refs %}<span class="xref-badge xref-badge-uses">Uses <b>{{ uses_refs|length }}</b></span>{% endif %}
+    {% if usedby_refs %}<span class="xref-badge xref-badge-used-by">Used by <b>{{ usedby_refs|length }}</b></span>{% endif %}
+    {% if other_refs %}<span class="xref-badge xref-badge-see-also">See also <b>{{ other_refs|length }}</b></span>{% endif %}
+    {% if n_proof %}<span class="xref-badge xref-badge-proof" title="Relations backed by a real Coq dependency read from the .glob files">{{ n_proof }} from proofs</span>{% endif %}
+  </summary>
+  <div class="xref-body">
+    {{ xref_row('xref-uses', 'Uses:', uses_refs) }}
+    {{ xref_row('xref-used-by', 'Used by:', usedby_refs) }}
+    {{ xref_row('xref-see-also', 'See also:', other_refs) }}
+    {% if n_proof %}
+    <p class="xref-legend">
+      <span class="xref-via-glob">solid</span> = real Coq dependency
+      (<code>.glob</code>) · <span class="xref-via-doc">dashed</span> = doc
+      co-reference. <a href="{{ tab_prefix }}graph.html">See the whole graph →</a>
+    </p>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+{%- endmacro %}
+
 {% macro entry_card(entry, section, expanded=False, tab=None) -%}
 {# `tab` is forwarded into the Pagefind filter set so users can scope a
    search to a single tab. Defaults to None for back-compat. #}
@@ -153,37 +225,7 @@
   </ul>
   {% endif %}
 
-  {% if entry.cross_refs %}
-  {% set uses_refs = entry.cross_refs | selectattr('kind', 'equalto', 'uses') | list %}
-  {% set usedby_refs = entry.cross_refs | selectattr('kind', 'equalto', 'used-by') | list %}
-  {% set other_refs = entry.cross_refs | rejectattr('kind', 'equalto', 'uses') | rejectattr('kind', 'equalto', 'used-by') | list %}
-  <div class="xref-panel">
-    {% if uses_refs %}
-    <p class="xrefs xref-uses">
-      <span class="label">Uses:</span>
-      {% for x in uses_refs -%}
-      <a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>{% if not loop.last %}, {% endif %}
-      {%- endfor %}
-    </p>
-    {% endif %}
-    {% if usedby_refs %}
-    <p class="xrefs xref-used-by">
-      <span class="label">Used by:</span>
-      {% for x in usedby_refs -%}
-      <a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>{% if not loop.last %}, {% endif %}
-      {%- endfor %}
-    </p>
-    {% endif %}
-    {% if other_refs %}
-    <p class="xrefs xref-see-also">
-      <span class="label">See also:</span>
-      {% for x in other_refs -%}
-      <a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>{% if not loop.last %}, {% endif %}
-      {%- endfor %}
-    </p>
-    {% endif %}
-  </div>
-  {% endif %}
+  {{ xref_panel(entry) }}
 
   {% if entry.detail %}
     {# Description + paper statement + difference notes render DIRECTLY
@@ -205,10 +247,7 @@
       <div class="detail-body">
         {% for snip in entry.detail.snippets %}
         <figure class="snippet">
-          <figcaption>
-            <code class="mono">{{ snip.source_file }}</code>
-            {% if snip.source_section %}<span class="snippet-section">· {{ snip.source_section }}</span>{% endif %}
-          </figcaption>
+          <figcaption>{{ snippet_source(snip) }}</figcaption>
           <div class="codeblock">{{ snip.highlighted_html|safe }}</div>
         </figure>
         {% endfor %}

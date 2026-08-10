@@ -84,6 +84,12 @@ details:not([open]) > *:not(summary) { display: revert; }
 .snippet {
   border: 1px solid #bbb !important;
 }
+/* Live-snippet header: the source line range is worth printing, the
+   "live" marker and the GitHub link are not (no target on paper). */
+.snippet-live,
+.snippet-link { display: none !important; }
+.snippet-lines { color: #444 !important; }
+.snippet-pasted { color: #444 !important; }
 .codeblock {
   font-size: 11px !important;
   white-space: pre-wrap !important;

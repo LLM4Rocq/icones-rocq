@@ -9,6 +9,7 @@ entry URLs follow the page route, and the hierarchy is carried.
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -331,12 +332,23 @@ def _repo_three():
     return three, repo
 
 
-def test_real_sampler_master_depends_edge_from_glob():
-    """Motivating case: the combinator-master entry gains a .glob ``depends``
-    edge to the master-identity lemma it proves through, which the
-    doc-co-reference relation misses (the prose says "the master identity"
-    without the backticked ident).  Skips if docs/_CoqProject or the .glob
-    files are absent (fresh checkout without -emit-glob)."""
+def test_real_glob_edges_add_dependencies_the_prose_misses():
+    """The motivating property, stated without hard-coding entry ids.
+
+    A proof routinely goes *through* a lemma the surrounding prose never
+    backticks ("…by the master identity"), so the doc-co-reference relation
+    cannot see it.  Parsing ``.glob`` is worth its complexity exactly to the
+    extent that it recovers those: the real dependency relation must be both
+    substantial and *not* a subset of the doc mentions.
+
+    An earlier version of this test asserted one hard-coded id pair and
+    silently rotted when ``docs/EXAMPLES.md`` was reorganised entry-per-
+    concept; the property below survives renames while still failing loudly
+    if the ``.glob`` pipeline stops producing real edges.
+
+    Skips if docs/_CoqProject or the .glob files are absent (fresh checkout
+    without -emit-glob).
+    """
     import pytest
 
     three, repo = _repo_three()
@@ -351,8 +363,197 @@ def test_real_sampler_master_depends_edge_from_glob():
     dep = set(dep)
     ment = set(build_entry_edges(three))
 
-    src = ("examples", "thm-ex-reject-comb-sampler-master")
-    tgt = ("examples", "thm-ex-reject-master")
-    # The dependency is REAL (.glob) and NEW (not a doc co-reference).
-    assert (src, tgt) in dep, "expected a .glob depends edge sampler→master"
-    assert (src, tgt) not in ment, "edge should be glob-only, not a doc mention"
+    assert len(dep) > 50, (
+        f"only {len(dep)} real .glob dependency edges — the graph would be "
+        "carried by doc co-references"
+    )
+    glob_only = dep - ment
+    assert glob_only, (
+        "every .glob dependency is also a doc mention — parsing .glob adds "
+        "nothing, which contradicts its reason to exist"
+    )
+    # Every glob-only edge lands on real graph nodes (the relation is closed
+    # over the node set the graph draws — sections, chapters AND Beyond).
+    graph = build_graph(three, theories_root=theories)
+    node_ids = {n["data"]["id"] for n in graph["nodes"]}
+    for (s_tab, s_id), (t_tab, t_id) in glob_only:
+        assert f"{s_tab}::{s_id}" in node_ids
+        assert f"{t_tab}::{t_id}" in node_ids
+
+
+# -- provenance + the strict guard ------------------------------------------
+
+
+def test_glob_relation_reports_provenance(tmp_path):
+    """``GlobRelation`` counts what was expected vs what was actually read."""
+    from tools.auditor.glob_deps import build_glob_relation
+
+    demo = tmp_path / "theories" / "demo"
+    demo.mkdir(parents=True)
+    (demo / "foo.v").write_text("(* source *)\n", encoding="utf-8")
+    (demo / "foo.glob").write_text(_FIXTURE_GLOB, encoding="utf-8")
+    (demo / "bar.v").write_text("(* no sibling glob *)\n", encoding="utf-8")
+
+    base = _entry("def-base", idents=["base_lem"], vfile="theories/demo/foo.v")
+    other = _entry("def-other", idents=["other_thm"], vfile="theories/demo/bar.v")
+    three = _three(examples=[_section("sec-x", [base, other])])
+
+    rel = build_glob_relation(three, tmp_path / "theories")
+    assert rel.expected is True
+    assert rel.available is True
+    assert rel.n_vfiles == 2
+    assert rel.n_glob_found == 1
+    assert rel.n_glob_missing == 1
+    assert rel.n_objects > 0
+    assert "1/2" in rel.summary()
+
+    # No theories root at all ⇒ nothing was expected, so the guard must not
+    # treat the empty relation as a regression.
+    none_rel = build_glob_relation(three, None)
+    assert none_rel.expected is False
+    assert none_rel.edges == [] and none_rel.notices
+
+
+def test_strict_guard_trips_when_glob_data_is_missing(tmp_path):
+    """Withholding the .glob files must FAIL the build, not degrade quietly."""
+    import pytest
+
+    from tools.auditor.render import GlobDependencyError, render
+
+    demo = tmp_path / "theories" / "demo"
+    demo.mkdir(parents=True)
+    (demo / "foo.v").write_text("(* source, no sibling glob *)\n", encoding="utf-8")
+
+    base = _entry("def-base", idents=["base_lem"], vfile="theories/demo/foo.v")
+    master = _entry(
+        "thm-master",
+        idents=["master_thm"],
+        snippet_html=_name_span("base_lem"),
+        vfile="theories/demo/foo.v",
+    )
+    three = _three(paper=[_section("sec-x", [base, master])])
+
+    with pytest.raises(GlobDependencyError):
+        render(
+            three,
+            tmp_path / "site",
+            theories_root=tmp_path / "theories",
+            require_glob_deps=True,
+        )
+
+    # Same build, guard off ⇒ the degraded graph is still produced (the old
+    # behaviour remains available for docs-only previews).
+    totals = render(
+        three,
+        tmp_path / "site2",
+        theories_root=tmp_path / "theories",
+        require_glob_deps=False,
+    )
+    assert totals["graph_depends"] == 0
+    assert totals["graph_mentions"] > 0
+
+
+def test_strict_guard_passes_with_real_glob_data(tmp_path):
+    """With .glob data present the same strict build succeeds."""
+    from tools.auditor.render import render
+
+    demo = tmp_path / "theories" / "demo"
+    demo.mkdir(parents=True)
+    (demo / "foo.v").write_text("(* source *)\n", encoding="utf-8")
+    (demo / "foo.glob").write_text(_FIXTURE_GLOB, encoding="utf-8")
+
+    base = _entry("def-base", idents=["base_lem"], vfile="theories/demo/foo.v")
+    master = _entry("thm-master", idents=["master_thm"], vfile="theories/demo/foo.v")
+    three = _three(paper=[_section("sec-x", [base, master])])
+
+    totals = render(
+        three,
+        tmp_path / "site",
+        theories_root=tmp_path / "theories",
+        require_glob_deps=True,
+    )
+    assert totals["graph_depends"] >= 1
+    graph = json.loads((tmp_path / "site" / "graph.json").read_text())
+    assert graph["meta"]["glob_expected"] is True
+    assert graph["meta"]["n_glob_files"] == 1
+
+
+def test_guard_is_strict_in_ci_and_lenient_locally(monkeypatch):
+    """Default strictness: on in CI, off on a dev box, env var always wins."""
+    from tools.auditor.render import REQUIRE_GLOB_DEPS_ENV, require_glob_deps_default
+
+    monkeypatch.delenv(REQUIRE_GLOB_DEPS_ENV, raising=False)
+    monkeypatch.delenv("CI", raising=False)
+    assert require_glob_deps_default() is False
+
+    monkeypatch.setenv("CI", "true")
+    assert require_glob_deps_default() is True
+
+    monkeypatch.setenv(REQUIRE_GLOB_DEPS_ENV, "0")
+    assert require_glob_deps_default() is False
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setenv(REQUIRE_GLOB_DEPS_ENV, "1")
+    assert require_glob_deps_default() is True
+
+
+# -- per-entry navigation from the same edge data ---------------------------
+
+
+def test_attach_glob_relations_marks_and_adds_navigation_links(tmp_path):
+    """Uses / Used-by cards carry the REAL dependency, marked ``via='glob'``."""
+    from tools.auditor.xref import attach_entry_relations, attach_glob_relations
+
+    demo = tmp_path / "theories" / "demo"
+    demo.mkdir(parents=True)
+    (demo / "foo.v").write_text("(* source *)\n", encoding="utf-8")
+    (demo / "foo.glob").write_text(_FIXTURE_GLOB, encoding="utf-8")
+
+    base = _entry("def-base", idents=["base_lem"], vfile="theories/demo/foo.v")
+    # The master entry's prose does NOT name base_lem, so the doc pass alone
+    # leaves it with no `uses` link at all.
+    master = _entry(
+        "thm-master",
+        idents=["master_thm"],
+        snippet_html="the combinator and the master identity",
+        vfile="theories/demo/foo.v",
+    )
+    three = _three(paper=[_section("sec-x", [base, master])])
+
+    attach_entry_relations(three)
+    assert not [x for x in master.cross_refs if x.kind == "uses"]
+
+    edges, _ = build_glob_edges(three, tmp_path / "theories")
+    attach_glob_relations(three, edges)
+
+    uses = [x for x in master.cross_refs if x.kind == "uses"]
+    assert [(x.target, x.via) for x in uses] == [("def-base", "glob")]
+    used_by = [x for x in base.cross_refs if x.kind == "used-by"]
+    assert [(x.target, x.via) for x in used_by] == [("thm-master", "glob")]
+    # Idempotent: a second pass must not duplicate the link.
+    attach_glob_relations(three, edges)
+    assert len([x for x in master.cross_refs if x.kind == "uses"]) == 1
+
+
+def test_attach_glob_relations_upgrades_and_orders(tmp_path):
+    """A doc ref the .glob confirms is upgraded; proof-backed links sort first."""
+    from tools.auditor.schema import CrossRef
+    from tools.auditor.xref import attach_glob_relations
+
+    base = _entry("def-base", idents=["base_lem"], vfile="theories/demo/foo.v")
+    master = _entry("thm-master", idents=["master_thm"], vfile="theories/demo/foo.v")
+    zulu = _entry("def-zulu", idents=["zulu_lem"], vfile="theories/demo/foo.v")
+    three = _three(paper=[_section("sec-x", [base, master, zulu])])
+
+    # Two pre-existing doc co-references; only the `def-zulu` one is backed
+    # by a real dependency below.
+    master.cross_refs = [
+        CrossRef(kind="uses", target="def-base", label="alpha", tab="paper", via="doc"),
+        CrossRef(kind="uses", target="def-zulu", label="zulu", tab="paper", via="doc"),
+    ]
+    attach_glob_relations(
+        three, [(("paper", "thm-master"), ("paper", "def-zulu"))]
+    )
+
+    uses = [x for x in master.cross_refs if x.kind == "uses"]
+    assert [x.target for x in uses] == ["def-zulu", "def-base"]  # glob first
+    assert [x.via for x in uses] == ["glob", "doc"]
