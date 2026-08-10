@@ -364,7 +364,7 @@ An isomorphism in $\mathbf{Cones}$ preserves the norm exactly. The paper proves 
 
 > **Paper — Proposition 2.22** (arXiv 2212.02371, `content.tex:985`). If $f\in\mathbf{Cones}(P,Q)$ is an iso and $P\neq 0$, then $\lVert f\rVert=1$.
 
-> **Difference.** Because the operator-norm value $\lVert f\rVert$ is not materialised in the `cones_hom_norm_le1` encoding (it is only introduced as *a* bound in Lemma 2.11), the paper's chain 2.21 $\to$ 2.22 is restated as exact pointwise norm preservation for a two-sided-invertible morphism: if $f$ has an inverse $g$ in $\mathbf{Cones}$ (with $g\circ f=\mathrm{id}$ and $f\circ g=\mathrm{id}$) then $\lVert f(x)\rVert=\lVert x\rVert$ for all $x$. This is the constructively usable content of $\lVert f\rVert=1$ (see `cone_cat.v:1349-1357`); it drops the $P\neq 0$ hypothesis, which is needed only to name the numeric value.
+> **Difference.** Because the operator-norm value $\lVert f\rVert$ is not materialised in the `cones_hom_norm_le1` encoding (it is only introduced as *a* bound in Lemma 2.11), the paper's chain 2.21 $\to$ 2.22 is restated as exact pointwise norm preservation for a two-sided-invertible morphism: if $f$ has an inverse $g$ in $\mathbf{Cones}$ (with $g\circ f=\mathrm{id}$ and $f\circ g=\mathrm{id}$) then $\lVert f(x)\rVert=\lVert x\rVert$ for all $x$. This is the constructively usable content of $\lVert f\rVert=1$ (see `cone_cat.v:1355-1361`); it drops the $P\neq 0$ hypothesis, which is needed only to name the numeric value.
 
 ```coq
 (* theories/cones/cone_cat.v — Section ConesIso,
@@ -383,7 +383,7 @@ Given a cone $P$ and a bijection $f:P\to S$ onto a set $S$, there is exactly one
 
 > **Paper — Lemma 2.23** (arXiv 2212.02371, `content.tex:1003`). Let $P$ be a cone, $S$ a set and $f:P\to S$ a bijective function. There is exactly one cone structure on $S$ for which $f$ becomes an iso in $\mathbf{Cones}$.
 
-> **Difference.** The mechanisation establishes *existence* of the transported **precone** structure only — `transport_isPrecone : isPrecone R S`, built from `trans_add`/`trans_scale`/`trans_norm` and the twelve `trans_*` axiom lemmas. Packaging the full `HB.instance` of the cone (with the norm axioms) is deferred as a downstream task and re-stated per target file when needed concretely (see the note at `cone_cat.v:1473-1478`); uniqueness is exactly the observation that every transported axiom is determined by $f$.
+> **Difference.** The mechanisation establishes *existence* of the transported **precone** structure only — `transport_isPrecone : isPrecone R S`, built from `trans_add`/`trans_scale`/`trans_norm` and the twelve `trans_*` axiom lemmas. Packaging the full `HB.instance` of the cone (with the norm axioms) is deferred as a downstream task and re-stated per target file when needed concretely (see the note at `cone_cat.v:1465-1470`); uniqueness is exactly the observation that every transported axiom is determined by $f$.
 
 ```coq
 (* theories/cones/cone_cat.v — Section ConesTransport,
@@ -1060,7 +1060,7 @@ Lemma wi_med_unique (kk : icones_hom Ar Z wi_obj) :
 | Prop 5.8 | The internal-hom action $h\multimap g$ lifts to an $\mathbf{ICones}$ morphism. | `linhom_map_icones` — `theories/homs/linhom_functor.v` |
 | Thm 5.9 | The functor $C\multimap{-}$ preserves all limits (hence has a left adjoint). | `limpl_preserves_prod`, `limpl_preserves_limits` — `theories/homs/limpl_continuous.v` |
 | Lem 5.10 | Swap of the two hom-arguments across a path: $f\mapsto\lambda(y,r,x).\,f(x,r,y)$. | `lfun_path_swap` — `theories/homs/tensor_iso.v` |
-| Lem 5.11 | A bounded $\eta:X\to(B\otimes C)\multimap 1$ is a path once its pure-tensor evaluations are measurable. | `path_tens_to_one`, `path_tens_to_one_unit` — `theories/homs/tensor_iso.v` |
+| Lem 5.11 | A bounded $\eta:X\to(B\otimes C)\multimap 1$ is a path once its pure-tensor evaluations are measurable. | `path_tens_to_X`, `path_tens_to_X_unit` — `theories/homs/tensor_iso.v` (proved at an arbitrary integrable codomain $D$; the paper's scalar statement is the $D:=1$ instance) |
 | Thm 5.12 | The currying isomorphism $(B\otimes C)\multimap D\;\simeq\;B\multimap(C\multimap D)$. | `tensor_hom_iso` — `theories/homs/tensor_iso.v` |
 | Thm 5.13 | Norm identity for pure tensors: $\lVert x\otimes y\rVert=\lVert x\rVert\,\lVert y\rVert$. | `tensor_norm_le` ($\le$) + the $\ge$ direction via Prop 3.11 — `theories/homs/tensor.v` / `tensor_iso.v` |
 | Prop 5.14 | A morphism out of an iterated tensor is determined on pure tensors $x\otimes y$. | `tensor_ext`, `tensor_ext3`, `tensor_ext4` — `theories/homs/tensor.v`, `theories/homs/smcc.v` |
@@ -1221,7 +1221,7 @@ Theorem limpl_preserves_limits : limpl_continuous.
 
 ### Lem 5.10 (`lfun_path_swap`)
 
-Swapping the two hom-arguments across a path: from $f\in\mathbf{ICones}(B,\mathrm{Path}(X,C\multimap D))$ one obtains $f'=\lambda(y,r,x).\,f(x,r,y)\in\mathbf{ICones}(C,\mathrm{Path}(X,B\multimap D))$. This is the key ingredient of the tensor–hom iso (used by `path_tens_to_one`).
+Swapping the two hom-arguments across a path: from $f\in\mathbf{ICones}(B,\mathrm{Path}(X,C\multimap D))$ one obtains $f'=\lambda(y,r,x).\,f(x,r,y)\in\mathbf{ICones}(C,\mathrm{Path}(X,B\multimap D))$. This is the key ingredient of the tensor–hom iso (used by `path_tens_to_X`).
 
 > **Paper — Lemma 5.10** (arXiv 2212.02371, `lemma:lfun-path-swap`). Let $X\in\mathbf{AR}$ and let $B,C,D$ be measurable cones. Let $f$ be an element of $\mathbf{ICones}(B,\mathrm{Path}(X,C\multimap D))$. Then $f'=\lambda(y,r,x).\,f(x,r,y)$ belongs to $\mathbf{ICones}(C,\mathrm{Path}(X,B\multimap D))$.
 
@@ -1232,32 +1232,30 @@ Swapping the two hom-arguments across a path: from $f\in\mathbf{ICones}(B,\mathr
    f : icones_hom Ar B (path_car Ar X (linhom_car Ar C D)),
    Local Notation PBD := (path_car Ar X (linhom_car Ar B D)) *)
 Definition lfun_path_swap : icones_hom Ar C PBD :=
-  MkIConesHom lfps_mcones lfps_mcones_pres_int.
+  mk_icones_hom lfps lfps_linear lfps_continuous lfps_norm_le
+    (fun W δ Hδ => lfps_pres_path (W:=W) (δ:=δ) Hδ) lfps_pres_int.
 
 Lemma lfun_path_swapE (y : C) (r : ar_carrier Ar X) (x : B) :
   linhom_fun (path_fun (lfun_path_swap y) r) x =
   linhom_fun (path_fun (f x) r) y.
 ```
 
-### Lem 5.11 (`path_tens_to_one`, `path_tens_to_one_unit`)
+### Lem 5.11 (`path_tens_to_X`, `path_tens_to_X_unit`)
+
+> **Where the code lives.** `theories/homs/tensor_iso.v` (Sections `PathTensToX` / `PathTensToXGen`). The mechanisation proves the lemma directly at an arbitrary integrable codomain $D$; the paper's scalar-codomain statement is the $D := 1$ instance. (An earlier scalar-only copy was verbatim-superseded by this general version and has been removed.)
 
 A candidate path $\eta:X\to(B\otimes C)\multimap 1$ is genuinely a measurable path as soon as it is bounded and its pure-tensor evaluations are jointly measurable. This is the key observation behind the measurability of the tensor–hom iso $\Psi$ (Thm 5.12).
 
 > **Paper — Lemma 5.11** (arXiv 2212.02371, `lemma:path-tens-to-one`). Let $X\in\mathbf{AR}$ and $B,C$ be integrable cones. Let $\eta:X\to\underline{(B\otimes C)\multimap 1}$ be a function. One has $\eta\in\underline{\mathrm{Path}(X,(B\otimes C)\multimap 1)}$ as soon as (i) $\eta(X)\subseteq\underline{(B\otimes C)\multimap 1}$ is bounded, and (ii) for all $Y\in\mathbf{AR}$, $\beta\in\underline{\mathrm{Path}(Y,B)}$ and $\gamma\in\underline{\mathrm{Path}(Y,C)}$, the function $\lambda(s,r)\in Y\times X.\ \eta(r)(\beta(s)\otimes\gamma(s)):Y\times X\to\mathbb{R}_{\geq 0}$ is measurable.
 
-> **Difference.** The two hypotheses `ηbound` ($\eta$ is bounded) and `ηpt` (the pure-tensor evaluation $\lambda s.\,\eta(\varphi\,s)(\beta\,s\otimes\gamma\,s)$ is measurable) match the paper's two bullet conditions. The mechanisation factors the norm-$\le 1$ case as `path_tens_to_one_unit`; the general bounded case (`path_tens_to_one`) rescales $\eta$ into the unit ball and applies it.
+> **Difference.** The two hypotheses `ηbound` ($\eta$ is bounded) and `ηpt` (the pure-tensor evaluation $\lambda s.\,\eta(\varphi\,s)(\beta\,s\otimes\gamma\,s)$ is measurable) match the paper's two bullet conditions. The mechanisation factors the norm-$\le 1$ case as `path_tens_to_X_unit`; the general bounded case (`path_tens_to_X`) rescales $\eta$ into the unit ball and applies it. It is stated at an arbitrary integrable codomain $D$ — strictly more general than the paper's $1$.
 
 ```coq
-(* theories/homs/tensor_iso.v — Section PathTensToOneGen,
-   Variables (R : realType) (Ar : MeasSubcat R), (B C : ICone.type Ar),
-   (X : ar_obj Ar), Local Notation BC := (tensor B C),
-   η : ar_carrier Ar X -> linhom_car Ar BC (cone_one_car Ar),
-   ηbound : exists M : R, forall r, cone_norm (η r) <= M,
-   ηpt : (* pure-tensor evaluations are measurable *) _ *)
-Lemma path_tens_to_one : is_measurable_path η.
+(* theories/homs/tensor_iso.v — Section PathTensToXGen *)
+Lemma path_tens_to_X : is_measurable_path η.
 
-(* norm-≤1 case (Section PathTensToOne, hypothesis Hη1 : cone_norm (η r) <= 1) *)
-Lemma path_tens_to_one_unit : is_measurable_path η.
+(* norm-≤1 case (Section PathTensToX) *)
+Lemma path_tens_to_X_unit : is_measurable_path η.
 ```
 
 ### Thm 5.12 (`tensor_hom_iso`)

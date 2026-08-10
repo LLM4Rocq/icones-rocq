@@ -23,6 +23,9 @@
     - [linhom_icones] — package a norm-[≤1] [linhom_car Ar C D] element
       as an [icones_hom Ar C D] (the missing element→morphism bridge for
       the inner [!]-cone), with its computation law [linhom_iconesE].
+      Both are the constructions of [tensor_hom_iso.v] (module
+      [Icones_tensor_hom_iso], which lives below this file in the import
+      DAG); this file re-exports them under the historical names.
     - [bang_ext_linhom] — the [n=1] promotion extensionality at the
       [linhom_car] level: two norm-[≤1] linear maps out of [!B] agreeing
       on all [x!] are equal.
@@ -94,6 +97,7 @@ Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
+Require Import Icones.homs.tensor_hom_iso.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
 Require Import Icones.homs.exp_adjunction.
@@ -119,6 +123,27 @@ Opaque tensor_mor tensor_assoc tensor_lunit tensor_runit tensor_braid
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
 
+(** ** Bridge: a norm-[≤1] [linhom_car] as an [icones_hom] — Paper §5.1
+
+    A [linhom_car Ar C D] element [φ] is an integrable linear map; when
+    its operator norm is [≤ 1] it is exactly the data of an
+    [icones_hom Ar C D].  Linearity/ω-continuity/path-preservation/
+    integral-preservation come verbatim from [φ]'s fields; the only
+    extra requirement of [cones_hom] is the per-point operator bound
+    [‖φ x‖ ≤ ‖x‖], which is [linhom_norm_apply_le] at [K = 1].
+
+    This is the element→morphism bridge the [n=2] extensionality needs:
+    the inner curried image [Φ(f)(x1!) : !B2 ⊸ C] is a [linhom_car], and
+    to apply the [n=1] [bang_ext] to it we view it as an [icones_hom].
+
+    The construction itself lives in [tensor_hom_iso.v] (module
+    [Icones_tensor_hom_iso], already in scope here through [tensor.v]'s
+    [Export]); the abbreviations below keep the historical
+    [Icones.homs.seely] spellings of the bridge and its computation law,
+    which the blueprint and the downstream files cite. *)
+Notation linhom_icones := Icones_tensor_hom_iso.linhom_icones.
+Notation linhom_iconesE := Icones_tensor_hom_iso.linhom_iconesE.
+
 Section Seely.
 Variables (R : realType) (Ar : MeasSubcat R).
 
@@ -134,62 +159,6 @@ Local Notation "x '⊗p' y" := (ptensor x y)
   (at level 40, left associativity) : ring_scope.
 Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
 
-(** ** Bridge: a norm-[≤1] [linhom_car] as an [icones_hom] — Paper §5.1
-
-    A [linhom_car Ar C D] element [φ] is an integrable linear map; when
-    its operator norm is [≤ 1] it is exactly the data of an
-    [icones_hom Ar C D].  Linearity/ω-continuity/path-preservation/
-    integral-preservation come verbatim from [φ]'s fields; the only
-    extra requirement of [cones_hom] is the per-point operator bound
-    [‖φ x‖ ≤ ‖x‖], which is [linhom_norm_apply_le] at [K = 1].
-
-    This is the element→morphism bridge the [n=2] extensionality needs:
-    the inner curried image [Φ(f)(x1!) : !B2 ⊸ C] is a [linhom_car], and
-    to apply the [n=1] [bang_ext] to it we view it as an [icones_hom]. *)
-
-Section LinhomIcones.
-Variables C D : ICone.type Ar.
-Variable phi : linhom_car Ar C D.
-Hypothesis Hphi : cone_norm phi <= 1.
-
-(** The per-point operator bound, from [linhom_norm_apply_le] at [K=1].
-    Note [cone_norm φ] on the hom-cone IS [linhom_norm φ]. *)
-Lemma linhom_icones_norm (x : C) :
-  cone_norm (linhom_fun phi x) <= cone_norm x.
-Proof. by have := linhom_norm_apply_le Hphi x; rewrite mul1r. Qed.
-
-Definition linhom_icones_cones : cones_hom C D :=
-  ConesHom (linhom_fun phi)
-    (linhom_pre_linear (linhom_pre_of phi))
-    (linhom_pre_continuous (linhom_pre_of phi))
-    linhom_icones_norm.
-
-Definition linhom_icones_mcones : mcones_hom Ar C D :=
-  MkMConesHom linhom_icones_cones
-    (fun X g Hg => linhom_pre_pres_path (linhom_pre_of phi) X g Hg).
-
-Lemma linhom_icones_pres_int
-    (X : ar_obj Ar) (β : ar_carrier Ar X -> C)
-    (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X)) :
-  cones_hom_fun (mcones_hom_cones linhom_icones_mcones)
-    (icone_integral β Hβ µ) =
-  icone_integral
-    (fun r => cones_hom_fun (mcones_hom_cones linhom_icones_mcones) (β r))
-    (mcones_hom_pres_path linhom_icones_mcones X β Hβ) µ.
-Proof.
-rewrite /= /linhom_fun (linhom_pres_int phi X β Hβ µ).
-by congr icone_integral; exact: Prop_irrelevance.
-Qed.
-
-Definition linhom_icones : icones_hom Ar C D :=
-  MkIConesHom linhom_icones_mcones linhom_icones_pres_int.
-
-(** [linhom_icones] computes to [φ]'s underlying function. *)
-Lemma linhom_iconesE (x : C) : Lfun linhom_icones x = linhom_fun phi x.
-Proof. by []. Qed.
-
-End LinhomIcones.
-
 (** ** [n=1] promotion extensionality, [linhom_car] level — Paper §9
 
     Two norm-[≤1] linear maps [φ ψ : !B ⊸ C] agreeing on every promoted
@@ -204,11 +173,11 @@ Lemma bang_ext_linhom (B C : ICone.type Ar)
   phi = psi.
 Proof.
 move=> Hpp.
-have Heq : linhom_icones Hphi = linhom_icones Hpsi.
+have Heq : linhom_icones _ Hphi = linhom_icones _ Hpsi.
   apply: bang_ext => x Hx.
   by rewrite !linhom_iconesE; exact: Hpp.
 apply: linhom_eq => z.
-by rewrite -(linhom_iconesE Hphi z) -(linhom_iconesE Hpsi z) Heq.
+by rewrite -(linhom_iconesE _ Hphi z) -(linhom_iconesE _ Hpsi z) Heq.
 Qed.
 
 (** ** Paper Lemma [tens-excl-equal-charact] — the [n=2] case
@@ -276,13 +245,13 @@ have Hnf : cone_norm (Lfun (tensor_curry f) x!) <= 1.
   exact: (le_trans (cones_hom_norm_le1 _ x!) (prom_ball Hx)).
 have Hng : cone_norm (Lfun (tensor_curry g) x!) <= 1.
   exact: (le_trans (cones_hom_norm_le1 _ x!) (prom_ball Hx)).
-have Heq : linhom_icones Hnf = linhom_icones Hng.
+have Heq : linhom_icones _ Hnf = linhom_icones _ Hng.
   apply: tens_excl_charact => y z Hy Hz.
-  rewrite (linhom_iconesE Hnf (y! ⊗p z!)) (linhom_iconesE Hng (y! ⊗p z!)).
+  rewrite (linhom_iconesE _ Hnf (y! ⊗p z!)) (linhom_iconesE _ Hng (y! ⊗p z!)).
   rewrite !tensor_curryE.
   exact: Hfg.
 apply: linhom_eq => w.
-by rewrite -(linhom_iconesE Hnf w) -(linhom_iconesE Hng w) Heq.
+by rewrite -(linhom_iconesE _ Hnf w) -(linhom_iconesE _ Hng w) Heq.
 Qed.
 
 (** The left-associated [n=3] case [(!A ⊗ !B) ⊗ !C → C0], for the
@@ -534,7 +503,7 @@ Qed.
 (* reverse steps 1–4: element [→ ICONES(!B1, B2⇒ₛC)], [Theta], [suncurry], [lin] *)
 Definition pb4 (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C) :
     icones_hom Ar (Bang Ar B1) (stablehom B2 C) :=
-  linhom_icones (phi := pbsw s) (pbsw_norm s).
+  linhom_icones (pbsw s) (pbsw_norm s).
 
 Definition psi (s : icones_hom Ar (tensor Ar (Bang Ar B1) (Bang Ar B2)) C) :
     icones_hom Ar (Bang Ar (sprod B1 B2)) C :=
@@ -556,7 +525,7 @@ rewrite (suncurryE (Theta (pb4 s)) Hx1 Hx2).
 (* [Theta (pb4 s)] on [x1] = [pb4 s] on [x1!] *)
 rewrite (Theta_prom (pb4 s) x1 Hx1).
 (* [pb4 s = linhom_icones (pbsw s)] *)
-rewrite /pb4 (linhom_iconesE (pbsw_norm s)).
+rewrite /pb4 (linhom_iconesE _ (pbsw_norm s)).
 (* the [stab_lin_swap] forward law *)
 rewrite /pbsw (stab_lin_swapE (sc_to_sh (Theta (pb9 s))) x2 x1!) sc_to_shE.
 (* [Theta (pb9 s)] on [x2] = [pb9 s] on [x2!] *)
@@ -769,7 +738,7 @@ Definition psi0 (f : icones_hom Ar (cone_one_car Ar) C) :
     linear-point map at [g(0!)]. *)
 Definition psiV0 (g : icones_hom Ar (Bang Ar (Stop Ar)) C) :
     icones_hom Ar (cone_one_car Ar) C :=
-  linhom_icones (phi := lin_pt (Lfun g (prom (precone_zero : Stop Ar))))
+  linhom_icones (lin_pt (Lfun g (prom (precone_zero : Stop Ar))))
     (le_trans (lo_lift_norm_le1 _) (bangstop_eval_ball g)).
 
 (** [psi0 f] applied to a promoted point [x!] is the constant [f(1)]. *)
@@ -1276,8 +1245,6 @@ Proof. by rewrite icones_compA (der_nat (sproj2 A B)) -icones_compA. Qed.
 
 End Seely.
 
-Arguments linhom_icones {R Ar C D} phi Hphi.
-Arguments linhom_iconesE {R Ar C D} phi Hphi x.
 Arguments lin_natural {R Ar B C D} g f.
 Arguments Theta_comp {R Ar B C D} g h.
 Arguments stab_lin_swap {R Ar} B C D.

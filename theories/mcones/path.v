@@ -384,6 +384,38 @@ apply: le_trans (cone_normp _ _ (path_le_pointwise Hle r)) _.
 exact: path_norm_ub.
 Qed.
 
+(** *** Pointwise differences of measurable paths
+
+    If [f] and [g] are measurable paths and [w] is a pointwise
+    difference witness ([g r = f r + w r] for every [r]), then [w] is
+    itself a measurable path: it is bounded because [w r ≤p g r]
+    (Normp), and for every test [m] the map [(s, r) ↦ m(s, w r)] is
+    the difference of the two measurable maps for [g] and [f] (by
+    [test_linD]). This is the common core of the (Normc) upper-bound
+    and least-upper-bound proofs below. *)
+Lemma path_sub_is_path (f g w : ar_carrier Ar X -> B) :
+  is_measurable_path (Ar:=Ar) (C:=B) (X:=X) f ->
+  is_measurable_path (Ar:=Ar) (C:=B) (X:=X) g ->
+  (forall r, g r = precone_add (f r) (w r)) ->
+  is_measurable_path (Ar:=Ar) (C:=B) (X:=X) w.
+Proof.
+move=> [_ Hfm] [[M HM] Hgm] w_eq; split.
+  exists M => r.
+  have Hle : precone_le (w r) (g r).
+    by exists (f r); rewrite precone_addC; exact: w_eq.
+  by apply: le_trans (cone_normp _ _ Hle) _; exact: HM.
+move=> Y m mM.
+have -> :
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+     test_fun m p.1 (w p.2) : R) =
+  (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
+     test_fun m p.1 (g p.2) - test_fun m p.1 (f p.2)).
+  apply: funext => p.
+  have /(congr1 (test_fun m p.1)) := w_eq p.2.
+  by rewrite test_linD => ->; rewrite addrAC subrr add0r.
+by apply: measurable_funB; [exact: Hgm|exact: Hfm].
+Qed.
+
 End PathConeAxioms.
 
 (** ** (Normc) — the technical core of Paper §3.2.2
@@ -582,44 +614,13 @@ pose w (r : ar_carrier Ar X) : B := projT1 (cid (wsex r)).
 have w_eq : forall r,
     path_sup_ball_fun uch ub1 r = precone_add (path_fun (u n) r) (w r).
   by move=> r; exact: projT2 (cid (wsex r)).
-(* Now [w] is a measurable path: bounded by [‖γ‖ + ‖γ_n‖ ≤ 2], and
-   measurable because for every test [m],
-   [m(s, w(r)) = m(s, γ(r)) - m(s, γ_n(r))] is the difference of two
-   measurable [0,1]-valued functions (after composing with
-   [test_linD]; we use cancellation in [R] which holds without
-   subtraction in the cone). *)
+(* Now [w] is a measurable path, by the generic difference lemma
+   [path_sub_is_path] applied to [f := γ_n] and [g := γ]. *)
 have w_meas : is_measurable_path (Ar:=Ar) (C:=B) (X:=X) w.
-  split.
-    exists 2 => r.
-    (* cone_norm (w r) ≤ 1 + ‖γ_n‖ ≤ 1 + 1 = 2. *)
-    have Hle : precone_le (w r) (path_sup_ball_fun uch ub1 r).
-      by exists (path_fun (u n) r); rewrite precone_addC; exact: w_eq.
-    have hbound := @cone_normp R B _ _ Hle.
-    apply: le_trans hbound _.
-    apply: le_trans (cone_sup_ball_norm _ _ _) _.
-    by rewrite (_ : (2:R) = 1 + 1)%R // lerDl ler01.
-  move=> Y m mM.
-  (* m(s, w(r)) = m(s, γ(r)) - m(s, γ_n(r)) by linearity. *)
-  pose F (p : ar_carrier Ar Y * ar_carrier Ar X) : R :=
-    test_fun m p.1 (path_sup_ball_fun uch ub1 p.2) -
-    test_fun m p.1 (path_fun (u n) p.2).
-  have HF : measurable_fun
-    [set: (ar_carrier Ar Y * ar_carrier Ar X)%type] F.
-    apply: measurable_funB.
-    - exact: (path_sup_ball_meas uch ub1).
-    - by have [_ Hm] := path_is_path (u n); exact: Hm.
-  have -> :
-    (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
-       test_fun m p.1 (w p.2) : R) = F.
-    apply: funext => p; rewrite /F.
-    have := w_eq p.2.
-    move/(congr1 (test_fun m p.1)).
-    rewrite test_linD => H.
-    rewrite H.
-    have addcomm : forall a b : R, (a + b - a = b)%R.
-      by move=> a b; rewrite addrAC subrr add0r.
-    by rewrite addcomm.
-  exact: HF.
+  apply: (path_sub_is_path (f := path_fun (u n))
+                           (g := path_sup_ball_fun uch ub1)) => //.
+    exact: path_is_path.
+  exact: path_sup_ball_is_path.
 exists (MkPath w_meas).
 by apply: path_eq => r /=.
 Qed.
@@ -645,36 +646,13 @@ pose w (r : ar_carrier Ar X) : B := projT1 (cid (wsex r)).
 have w_eq : forall r,
     path_fun y r = precone_add (path_sup_ball_fun uch ub1 r) (w r).
   by move=> r; exact: projT2 (cid (wsex r)).
+(* [w] is a measurable path by the generic difference lemma
+   [path_sub_is_path], applied to [f := γ] and [g := y]. *)
 have w_meas : is_measurable_path (Ar:=Ar) (C:=B) (X:=X) w.
-  split.
-    have [[M HM] _] := path_is_path y.
-    exists M => r.
-    have Hle : precone_le (w r) (path_fun y r).
-      exists (path_sup_ball_fun uch ub1 r).
-      by rewrite precone_addC; exact: w_eq.
-    have hbound := @cone_normp R B _ _ Hle.
-    apply: le_trans hbound _; exact: HM.
-  move=> Y m mM.
-  pose F (p : ar_carrier Ar Y * ar_carrier Ar X) : R :=
-    test_fun m p.1 (path_fun y p.2) -
-    test_fun m p.1 (path_sup_ball_fun uch ub1 p.2).
-  have HF : measurable_fun
-    [set: (ar_carrier Ar Y * ar_carrier Ar X)%type] F.
-    apply: measurable_funB.
-    - by have [_ Hm] := path_is_path y; exact: Hm.
-    - exact: (path_sup_ball_meas uch ub1).
-  have -> :
-    (fun p : (ar_carrier Ar Y * ar_carrier Ar X)%type =>
-       test_fun m p.1 (w p.2) : R) = F.
-    apply: funext => p; rewrite /F.
-    have := w_eq p.2.
-    move/(congr1 (test_fun m p.1)).
-    rewrite test_linD => H.
-    rewrite H.
-    have addcomm : forall a b : R, (a + b - a = b)%R.
-      by move=> a b; rewrite addrAC subrr add0r.
-    by rewrite addcomm.
-  exact: HF.
+  apply: (path_sub_is_path (f := path_sup_ball_fun uch ub1)
+                           (g := path_fun y)) => //.
+    exact: path_sup_ball_is_path.
+  exact: path_is_path.
 exists (MkPath w_meas).
 by apply: path_eq => r /=.
 Qed.

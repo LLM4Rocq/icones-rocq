@@ -171,31 +171,15 @@ Lemma linhom_icones_normP (x : C) :
   cone_norm (linhom_fun phi x) <= cone_norm x.
 Proof. by have := linhom_norm_apply_le Hphi x; rewrite mul1r. Qed.
 
-Definition linhom_icones_cones : cones_hom C D :=
-  ConesHom (linhom_fun phi)
+(** The five obligations are exactly the five [linhom_car] fields of
+    [phi] — save for the norm bound, which is [linhom_icones_normP]. *)
+Definition linhom_icones : icones_hom Ar C D :=
+  mk_icones_hom (linhom_fun phi)
     (linhom_pre_linear (linhom_pre_of phi))
     (linhom_pre_continuous (linhom_pre_of phi))
-    linhom_icones_normP.
-
-Definition linhom_icones_mcones : mcones_hom Ar C D :=
-  MkMConesHom linhom_icones_cones
-    (fun X g Hg => linhom_pre_pres_path (linhom_pre_of phi) X g Hg).
-
-Lemma linhom_icones_pres_int
-    (X : ar_obj Ar) (β : ar_carrier Ar X -> C)
-    (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X)) :
-  cones_hom_fun (mcones_hom_cones linhom_icones_mcones)
-    (icone_integral β Hβ µ) =
-  icone_integral
-    (fun r => cones_hom_fun (mcones_hom_cones linhom_icones_mcones) (β r))
-    (mcones_hom_pres_path linhom_icones_mcones X β Hβ) µ.
-Proof.
-rewrite /= /linhom_fun (linhom_pres_int phi X β Hβ µ).
-by congr icone_integral; exact: Prop_irrelevance.
-Qed.
-
-Definition linhom_icones : icones_hom Ar C D :=
-  MkIConesHom linhom_icones_mcones linhom_icones_pres_int.
+    linhom_icones_normP
+    (fun X g Hg => linhom_pre_pres_path (linhom_pre_of phi) X g Hg)
+    (linhom_pres_int phi).
 
 Lemma linhom_iconesE (x : C) :
   cones_hom_fun (mcones_hom_cones (icones_hom_mcones linhom_icones)) x =

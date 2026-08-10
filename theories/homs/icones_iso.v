@@ -14,6 +14,13 @@
 
     Coverage in this file.
 
+    - [mk_icones_hom] — the smart constructor for *morphisms*: build an
+      [icones_hom Ar B C] out of a function together with its five
+      obligations (linearity, ω-continuity, the norm bound, preservation
+      of measurable paths, preservation of integrals), instead of
+      nesting [ConesHom] / [MkMConesHom] / [MkIConesHom] by hand;
+      [mk_icones_homE] is its computation rule.
+
     - [icones_iso Ar B C] — the isomorphism record, packaging a forward
       [icones_hom Ar B C], a backward [icones_hom Ar C B], and the two
       round-trip equations [icones_comp bwd fwd = icones_id Ar B] and
@@ -38,14 +45,18 @@
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals.
+From mathcomp.analysis Require Import measurable_structure.
 
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
+Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone_cat.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
+Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
+Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.icone_cat.
 
 Set Implicit Arguments.
@@ -56,6 +67,48 @@ Import GRing.Theory.
 
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
+
+(** ** Smart constructor for morphisms of [ICones]
+
+    Assembling an [icones_hom Ar B C] by hand means nesting three record
+    constructors: [ConesHom] (linear, ω-continuous, norm-bounded),
+    [MkMConesHom] (preservation of measurable paths) and [MkIConesHom]
+    (preservation of integrals).  [mk_icones_hom] performs that nesting
+    once and for all, taking the underlying function together with its
+    five obligations in the order in which they are usually proved.
+
+    The integral-preservation obligation [fint] is demanded *at the very
+    path-preservation proof term* [fpath X β Hβ], so a call site can hand
+    over the [Hβ]-shaped lemma it has already proved — no
+    [Prop_irrelevance] transfer step in between. *)
+
+Section MkIConesHom.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : ICone.type Ar.
+Variable f : B -> C.
+Hypothesis flin : is_linear f.
+Hypothesis fcont : is_omega_continuous f.
+Hypothesis fnorm : forall x : B, cone_norm (f x) <= cone_norm x.
+Hypothesis fpath :
+  forall (X : ar_obj Ar) (γ : ar_carrier Ar X -> B),
+    is_measurable_path (Ar:=Ar) (C:=B) γ ->
+    is_measurable_path (Ar:=Ar) (C:=C) (fun r => f (γ r)).
+Hypothesis fint :
+  forall (X : ar_obj Ar) (β : ar_carrier Ar X -> B)
+         (Hβ : is_measurable_path β) (µ : fmeas R (ar_carrier Ar X)),
+    f (icone_integral β Hβ µ) =
+    icone_integral (fun r => f (β r)) (@fpath X β Hβ) µ.
+
+Definition mk_icones_hom : icones_hom Ar B C :=
+  MkIConesHom (MkMConesHom (ConesHom f flin fcont fnorm) fpath) fint.
+
+Lemma mk_icones_homE (x : B) : mk_icones_hom x = f x.
+Proof. by []. Qed.
+
+End MkIConesHom.
+
+Arguments mk_icones_hom {R Ar B C}.
+Arguments mk_icones_homE {R Ar B C}.
 
 (** ** The isomorphism record — an iso in [ICones]
 

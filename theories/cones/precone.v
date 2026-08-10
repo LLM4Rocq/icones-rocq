@@ -162,6 +162,18 @@ Proof.
 by move/(precone_add_le_r z); rewrite ![_ + z]precone_addC.
 Qed.
 
+(** Left-cancellation for the cone order: [x + y ≤p x + z ⇒ y ≤p z].
+    The converse of [precone_add_le_l]; a pure (Cancel) fact, so it
+    lives here rather than in the cone layer.  Subsumes the two
+    identical copies [precone_le_addlI] of [stable/findiff.v]
+    (Section ConeHelpers) and [stable/stablehom.v]. *)
+Lemma precone_le_addlI x y z :
+  precone_le (x + y) (x + z) -> precone_le y z.
+Proof.
+move=> [w Hw]; exists w.
+by apply: (@precone_cancel _ _ x); rewrite Hw precone_addA.
+Qed.
+
 (** Zero is the least element of the cone order. *)
 Lemma precone_le0 x : precone_le 0 x.
 Proof. by exists x; rewrite precone_add0. Qed.
@@ -175,6 +187,11 @@ by rewrite Huy precone_scale_DAr.
 Qed.
 
 End PreconeOrder.
+
+(** The cancelled summand [x] is kept explicit: consumers apply this
+    lemma as [precone_le_addlI (a + b)] to say *which* left summand is
+    being cancelled — the shape the subsumed copies were used in. *)
+Arguments precone_le_addlI {R P} x y z.
 
 (** ** Notation for the cone order *)
 

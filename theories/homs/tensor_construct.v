@@ -36,6 +36,21 @@
 (*     [wi_obj] ([limpl_preserves_prod] + [limpl_eq_med] of                    *)
 (*     [limpl_continuous.v]).                                                  *)
 (*                                                                            *)
+(* ## The shared SAFT engine ([saft_construct.v])                              *)
+(*                                                                            *)
+(* The SAFT argument itself — the factoring family, the classifier            *)
+(* reindexing, the wide intersection, intersection minimality, the             *)
+(* universal element and its round-trips — is functor-parametric and is        *)
+(* proved ONCE in [Icones.homs.saft_construct] (module                         *)
+(* [Icones_saft_construct], aliased [SC] below) against the signature          *)
+(* [SC.saft_sig].  This file instantiates that signature with the right        *)
+(* functor [(C ⊸ −)] ([tensor_sig]: [tensor_ehom X := ICones(B, C ⊸ X)],       *)
+(* [tensor_emap h := (C ⊸ h) ∘ −] via [linhom_post_icones], products via       *)
+(* [limpl_preserves_prod], equalisers via [limpl_eq_med_icones]) and           *)
+(* re-exports every historical name; the instantiation-specific pointwise      *)
+(* lemmas ([tJtupleE]/[eBE]/[eprodE]/[fpick_factE]/[tensor_curryE]/…) are      *)
+(* proved here as before.                                                      *)
+(*                                                                            *)
 (* ## The discharge                                                            *)
 (*                                                                            *)
 (*  - [tensor_curry f := (C ⊸ f) ∘ tau'] (= [linhom_post_icones f ∘ tau']).    *)
@@ -46,11 +61,10 @@
 (*  - the three naturalities : from [linhom_post] functoriality + the          *)
 (*    round-trips (naturality in [B] uses [tensor_mor_l]).                      *)
 (*                                                                            *)
-(* APIs used: [representable.v] — [wi_obj]/[wi_incl]/[wi_proj]/[wi_med]/        *)
-(* [wi_med_proj]/[wi_med_unique]/[wi_factors_each]; [icones_well_powered].     *)
-(* [limpl_continuous.v] — [limpl_preserves_prod] + its [iso_bwd] and the       *)
-(* equaliser co-restriction [limpl_eq_med]/[limpl_eq_med_factor]/             *)
-(* [limpl_eq_med_unique].                                                      *)
+(* APIs used: [saft_construct.v] — the SAFT engine; [representable.v] —        *)
+(* [wi_obj]/[wi_incl]/[wi_proj]; [limpl_continuous.v] —                        *)
+(* [limpl_preserves_prod] + its [iso_bwd] and the equaliser co-restriction     *)
+(* [limpl_eq_med_icones]/[limpl_eq_med_factor].                                *)
 (******************************************************************************)
 
 From HB Require Import structures.
@@ -72,6 +86,7 @@ Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.limpl_continuous.
+Require Import Icones.homs.saft_construct.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -83,6 +98,8 @@ Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
 
 Module Icones_tensor_construct.
+
+Module SC := Icones_saft_construct.
 
 (** ** Functoriality of the post-composition action [C ⊸ −]
 
@@ -113,6 +130,97 @@ by rewrite icones_compIl => ->.
 Qed.
 
 End LinhomPostFunctor.
+
+(** [C ⊸ −] preserves monos: if [h] is injective so is
+    [linhom_post_icones h].  Pointwise, [(C ⊸ h) f = h ∘ f], so
+    [h ∘ f₁ = h ∘ f₂] gives [f₁ = f₂] by injectivity of [h] and
+    [linhom_eq].  (Placed early: the [tensor_sig] instantiation below
+    consumes it.) *)
+Lemma linhom_post_inj (R : realType) (Ar : MeasSubcat R)
+    (C D1 D2 : ICone.type Ar) (h : icones_hom Ar D1 D2) :
+  is_icones_inj h -> is_icones_inj (linhom_post_icones (C := C) h).
+Proof.
+move=> hinj f1 f2 /(congr1 (fun w : linhom_car Ar C D2 => linhom_fun w)) /= Hf.
+apply: linhom_eq => x; apply: hinj.
+by have := f_equal (fun w => w x) Hf.
+Qed.
+
+Arguments linhom_post_inj {R Ar C D1 D2} h.
+
+(** ** The SAFT signature of the right functor [(C ⊸ −)]
+
+    The generalised-element functor of the tensor instantiation:
+    [tensor_ehom X := ICones(B, C ⊸ X)] with hom-action
+    [tensor_emap h := (C ⊸ h) ∘ −].  Products are preserved through the
+    Thm 5.9 iso [limpl_preserves_prod] ([tensor_etuple]); equalisers
+    through the co-restriction [limpl_eq_med_icones].  [tensor_sig]
+    packages these as an [SC.saft_sig], against which the shared SAFT
+    engine of [saft_construct.v] delivers the construction. *)
+
+Section TensorSig.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables B C : ICone.type Ar.
+
+Definition tensor_ehom (X : ICone.type Ar) : Type :=
+  icones_hom Ar B (linhom_car Ar C X).
+
+Definition tensor_emap (X Y : ICone.type Ar) (h : icones_hom Ar X Y)
+    (g : tensor_ehom X) : tensor_ehom Y :=
+  icones_comp (linhom_post_icones (C := C) h) g.
+
+Lemma tensor_emap_id (X : ICone.type Ar) (g : tensor_ehom X) :
+  tensor_emap (icones_id Ar X) g = g.
+Proof. by rewrite /tensor_emap linhom_post_id icones_compIl. Qed.
+
+Lemma tensor_emap_comp (X Y Z : ICone.type Ar)
+    (h1 : icones_hom Ar X Y) (h2 : icones_hom Ar Y Z) (g : tensor_ehom X) :
+  tensor_emap (icones_comp h2 h1) g = tensor_emap h2 (tensor_emap h1 g).
+Proof. by rewrite /tensor_emap linhom_post_comp -icones_compA. Qed.
+
+Lemma tensor_emap_mono (X Y : ICone.type Ar) (h : icones_hom Ar X Y) :
+  is_icones_inj h ->
+  forall u v : tensor_ehom X, tensor_emap h u = tensor_emap h v -> u = v.
+Proof.
+move=> hinj u v.
+exact: (icones_inj_mono _ (linhom_post_inj (C := C) h hinj) B u v).
+Qed.
+
+Definition tensor_etuple (K : Type) (X : K -> ICone.type Ar)
+    (g : forall k, tensor_ehom (X k)) : tensor_ehom (icones_prod X) :=
+  icones_comp (iso_bwd (limpl_preserves_prod C X)) (icones_tuple g).
+
+Lemma tensor_etuple_proj (K : Type) (X : K -> ICone.type Ar)
+    (g : forall k, tensor_ehom (X k)) (k : K) :
+  tensor_emap (icones_proj k) (tensor_etuple g) = g k.
+Proof.
+apply: icones_hom_eq => b /=.
+apply: linhom_eq => c.
+by rewrite linhom_map_funE /=.
+Qed.
+
+(** Joint monicity of the [(C ⊸ π_k)]: two elements of [C ⊸ ∏ X_k] with
+    equal projections are equal (pointwise, componentwise). *)
+Lemma tensor_eprod_ext (K : Type) (X : K -> ICone.type Ar)
+    (a b : tensor_ehom (icones_prod X)) :
+  (forall k, tensor_emap (icones_proj k) a = tensor_emap (icones_proj k) b) ->
+  a = b.
+Proof.
+move=> Hab.
+apply: icones_hom_eq => x; apply: linhom_eq => c.
+apply: cones_prod_eq => k.
+have := congr1 (fun w : tensor_ehom (X k) =>
+                  linhom_fun ((w : icones_hom _ _ _) x) c) (Hab k).
+by rewrite /tensor_emap /= !linhom_map_funE /=.
+Qed.
+
+(** The packaged signature. *)
+Definition tensor_sig : SC.saft_sig Ar :=
+  @SC.MkSaftSig R Ar tensor_ehom tensor_emap tensor_emap_id tensor_emap_comp
+    tensor_emap_mono tensor_etuple tensor_etuple_proj tensor_eprod_ext
+    (fun X Y u v g H => limpl_eq_med_icones C g H)
+    (fun X Y u v g H => limpl_eq_med_factor C g H).
+
+End TensorSig.
 
 (** ** The coseparator power and the universal map [e_B]
 
@@ -168,43 +276,41 @@ Arguments eB {R Ar} B C.
     The basepoint [k0] is the identity subobject [(p, id_p, e_B)], which
     factors [e_B] trivially ([(C ⊸ id) ∘ e_B = e_B]).
 
-    [tensor B C := wi_obj] over this family. *)
+    [tensor B C := wi_obj] over this family.  The family record, the
+    classifier reindexing and the intersection are the shared skeleton's
+    ([SC.fsub]/[SC.fpick]/[SC.fAdom]/…, instantiated at [tensor_sig]);
+    this section re-exports them under the historical names. *)
 
 Section TensorObject.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables B C : ICone.type Ar.
 
 Local Notation p := (tp B C).
+Local Notation Tsig := (tensor_sig B C).
 
-(** A member of the factoring family of subobjects of [p = 1^J]: a
-    domain, an *injective* embedding into [p] (a subobject, [SA1] of
-    [representable.v]), and a *factoring witness* of [e_B] through
-    [C ⊸ −] applied to that embedding. *)
-Record fsub : Type := MkFsub {
-  fs_dom : ICone.type Ar;
-  fs_hom : icones_hom Ar fs_dom p;
-  fs_inj : is_icones_inj fs_hom;
-  fs_eA : icones_hom Ar B (linhom_car Ar C fs_dom);
-  fs_fact :
-    icones_comp (linhom_post_icones (C := C) fs_hom) fs_eA = eB B C;
-}.
+(** The factoring family of subobjects of [p = 1^J] (the skeleton's
+    [SC.fsub] at [tensor_sig]): a domain, an *injective* embedding into
+    [p] (a subobject, [SA1] of [representable.v]), and a *factoring
+    witness* of [e_B] through [C ⊸ −] applied to that embedding. *)
+Definition fsub : Type := @SC.fsub R Ar Tsig.
 
-(** The underlying subobject of a family member.  Destructured via
-    [match] so the [fs_inj] projector's auto-added [injective] arguments
-    do not leak into the application. *)
-Definition fs_sub (k : fsub) : icones_subobject p :=
-  match k with
-  | MkFsub A h hinj eA Hf => MkSubobject A h hinj
-  end.
+Definition fs_dom (k : fsub) : ICone.type Ar := @SC.fs_dom R Ar Tsig k.
+Definition fs_hom (k : fsub) : icones_hom Ar (fs_dom k) p :=
+  @SC.fs_hom R Ar Tsig k.
+Definition fs_inj (k : fsub) : is_icones_inj (fs_hom k) :=
+  @SC.fs_inj R Ar Tsig k.
+Definition fs_eA (k : fsub) : icones_hom Ar B (linhom_car Ar C (fs_dom k)) :=
+  @SC.fs_eA R Ar Tsig k.
+Definition fs_fact (k : fsub) :
+    icones_comp (linhom_post_icones (C := C) (fs_hom k)) (fs_eA k) = eB B C :=
+  @SC.fs_fact R Ar Tsig k.
 
-(** A family member's embedding is a mono.  Destructured via [match]
-    (as [fs_sub]) so the [fs_inj] projector's auto-added [injective]
-    arguments do not leak. *)
+(** The underlying subobject of a family member. *)
+Definition fs_sub (k : fsub) : icones_subobject p := @SC.fs_sub R Ar Tsig k.
+
+(** A family member's embedding is a mono. *)
 Definition fs_hom_inj (k : fsub) : is_icones_inj (fs_hom k) :=
-  match k as k' return is_icones_inj (fs_hom k') with
-  | MkFsub A h hinj eA Hf => hinj
-  end.
-
+  @SC.fs_hom_inj R Ar Tsig k.
 
 (** The basepoint subobject [(p, id_p, e_B)], which factors [e_B]
     trivially ([C ⊸ id = id]) and is a mono ([id] is injective). *)
@@ -215,9 +321,7 @@ Proof. by rewrite linhom_post_id icones_compIl. Qed.
 Lemma fk0_inj : is_icones_inj (icones_id Ar p).
 Proof. by move=> x y. Qed.
 
-Definition fbase : fsub :=
-  {| fs_dom := p; fs_hom := icones_id Ar p; fs_inj := fk0_inj;
-     fs_eA := eB B C; fs_fact := fk0_fact |}.
+Definition fbase : fsub := @SC.fbase R Ar Tsig.
 
 (** *** The small index — well-poweredness
 
@@ -230,38 +334,23 @@ Definition fbase : fsub :=
 
     For each classifier value [s] we *choose* (classically,
     [pselect]/[cid]) a factoring subobject whose classifier is [s],
-    defaulting to the basepoint [fbase] when none exists.  By
-    well-poweredness, two factoring subobjects with the same classifier
-    are iso over [p] ([icones_subobject_classP]); so indexing by the
-    classifier loses no subobject up to iso — exactly the role
-    [icones_well_powered] plays in the SAFT solution-set construction
-    (Riehl 4.6.10). *)
+    defaulting to the basepoint [fbase] when none exists ([SC.fpick]). *)
 Definition fK : Type := SubobjClassifier p.
 
 (** A chosen factoring subobject with classifier value [s] (or [fbase]).
     Every value of [fpick] is a genuine [fsub], hence factors [e_B]. *)
-Definition fpick (s : fK) : fsub :=
-  match pselect (exists k : fsub, icones_subobject_class (fs_sub k) = s) with
-  | left e => proj1_sig (cid e)
-  | right _ => fbase
-  end.
+Definition fpick (s : fK) : fsub := @SC.fpick R Ar Tsig s.
 
 (** The family data fed to [wi_obj]: domains and embeddings of the
     chosen representatives. *)
 Definition fAdom (s : fK) : ICone.type Ar := fs_dom (fpick s).
 Definition fhh (s : fK) : icones_hom Ar (fAdom s) p := fs_hom (fpick s).
 
-(** Each chosen representative's embedding is a mono.  Destructured via
-    [match] (as [fs_sub]) so the [fs_inj] projector's [injective]
-    arguments do not leak. *)
+(** Each chosen representative's embedding is a mono. *)
 Definition fhh_inj (s : fK) : is_icones_inj (fhh s) :=
-  match fpick s as k return is_icones_inj (fs_hom k) with
-  | MkFsub A h hinj eA Hf => hinj
-  end.
+  @SC.fhh_inj R Ar Tsig s.
 
-(** The basepoint index: the classifier value of [fbase].  Its chosen
-    representative [fpick fk0] is a factoring subobject (it factors
-    [e_B]), the only property the [tau'] co-restriction needs. *)
+(** The basepoint index: the classifier value of [fbase]. *)
 Definition fk0 : fK := icones_subobject_class (fs_sub fbase).
 
 (** The tensor object [B ⊗ C] as the wide intersection of the family. *)
@@ -274,7 +363,7 @@ Definition tensor_incl : icones_hom Ar tensor p := wi_incl fAdom fhh fk0.
     embedding)]: [(C ⊸ fhh s) ∘ fs_eA (fpick s) = e_B]. *)
 Lemma fpick_fact (s : fK) :
   icones_comp (linhom_post_icones (C := C) (fhh s)) (fs_eA (fpick s)) = eB B C.
-Proof. exact: fs_fact. Qed.
+Proof. exact: (@SC.fpick_fact R Ar Tsig s). Qed.
 
 (** *** Pointwise value of [e_B] and of the tuple of factoring witnesses
 
@@ -302,6 +391,11 @@ End TensorObject.
 Arguments tJtupleE {R Ar B C}.
 Arguments eBE {R Ar B C}.
 Arguments fsub {R Ar} B C.
+Arguments fs_dom {R Ar B C} k.
+Arguments fs_hom {R Ar B C} k.
+Arguments fs_inj {R Ar B C} k.
+Arguments fs_eA {R Ar B C} k.
+Arguments fs_fact {R Ar B C} k.
 Arguments fK {R Ar B C}.
 Arguments fAdom {R Ar B C}.
 Arguments fhh {R Ar B C}.
@@ -322,24 +416,15 @@ Arguments tensor_incl {R Ar} B C.
     [(fs_dom k, fs_hom k)] of [p] through which [eB] factors — the
     intersection embedding [tensor_incl] factors through its embedding,
     [fs_hom k ∘ r = tensor_incl] for some [r : B ⊗ C → fs_dom k].
-
-    [k]'s underlying subobject [fs_sub k] has some classifier
-    [s := class(fs_sub k)].  The chosen representative [fpick s] (which
-    indexes the wide intersection) has the *same* classifier ([SubAk]
-    below: a witness — [k] itself — exists, so [fpick] picks a subobject
-    with classifier [s], and [fs_subE] reads its projections); hence by
-    well-poweredness ([icones_subobject_classP]) the two are iso over [p]:
-    an iso [φ : fAdom s ≅ fs_dom k] with [fs_hom k ∘ φ = fhh s].  Then
-    [r := φ ∘ wi_proj s] works: [fs_hom k ∘ r = fhh s ∘ wi_proj s =
-    wi_incl = tensor_incl] ([wi_factors_each]).  This is exactly the
-    transport [tensor_uncurry] performs ([tu_factorP]) for its pullback
-    member, generalised to an arbitrary member. *)
+    Delivered by the skeleton's classifier transport
+    ([SC.ff_factor]/[SC.ff_factorP]). *)
 
 Section FsubFactors.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables B C : ICone.type Ar.
 
 Local Notation p := (tp B C).
+Local Notation Tsig := (tensor_sig B C).
 
 Variable k : fsub B C.
 
@@ -354,35 +439,24 @@ Local Notation SubK :=
   (@MkSubobject R Ar p (fs_dom k) (fs_hom k) (fs_hom_inj k)).
 
 (** [SubA] has classifier [ff_class]: a witness ([k]) exists, so [fpick
-    ff_class] picks a subobject with classifier [ff_class], and [fs_subE]
-    reads off its projections. *)
+    ff_class] picks a subobject with classifier [ff_class]. *)
 Lemma ff_SubA_class : icones_subobject_class SubA = ff_class.
-Proof.
-have HpD : icones_subobject_class (fs_sub (fpick ff_class)) = ff_class.
-  rewrite /fpick; case: pselect => [e|[]]; last by exists k.
-  by case: (cid e) => k1 /= ->.
-rewrite -[in RHS]HpD; congr icones_subobject_class.
-by rewrite /fAdom /fhh /fhh_inj /fs_sub; case: (fpick ff_class).
-Qed.
+Proof. exact: (@SC.ff_SubA_class R Ar Tsig k). Qed.
 
-(** [SubK] is literally [fs_sub k] (the constructor reduces), so it has
-    classifier [ff_class] by definition; [SubA] too by [ff_SubA_class].
-    Hence they are iso over [p]. *)
+(** [SubK] is literally [fs_sub k], so it has classifier [ff_class] by
+    definition; [SubA] too by [ff_SubA_class].  Hence they are iso over
+    [p]. *)
 Lemma ff_equiv : subobject_equiv SubA SubK.
-Proof.
-apply: icones_subobject_classP.
-rewrite ff_SubA_class /ff_class.
-by congr icones_subobject_class; case: k.
-Qed.
+Proof. exact: (@SC.ff_equiv R Ar Tsig k). Qed.
 
 (** The iso [φ : fAdom ff_class ≅ fs_dom k] over [p]. *)
 Definition ff_phi : icones_iso Ar (fAdom ff_class) (fs_dom k) :=
-  proj1_sig (cid ff_equiv).
+  @SC.ff_phi R Ar Tsig k.
 
 Lemma ff_phiE (z : fAdom ff_class) :
   (fs_hom k : icones_hom _ _ _) ((iso_fwd ff_phi : icones_hom _ _ _) z) =
   (fhh ff_class : icones_hom _ _ _) z.
-Proof. exact: proj2_sig (cid ff_equiv) z. Qed.
+Proof. exact: (@SC.ff_phiE R Ar Tsig k z). Qed.
 
 (** The factor [B ⊗ C → fs_dom k]. *)
 Definition ff_factor : icones_hom Ar (tensor B C) (fs_dom k) :=
@@ -391,14 +465,7 @@ Definition ff_factor : icones_hom Ar (tensor B C) (fs_dom k) :=
 (** [fs_hom k ∘ ff_factor = tensor_incl]. *)
 Lemma ff_factorP :
   icones_comp (fs_hom k) ff_factor = tensor_incl B C.
-Proof.
-rewrite /ff_factor icones_compA.
-have Hphi : icones_comp (fs_hom k) (iso_fwd ff_phi) = fhh ff_class.
-  by apply: icones_hom_eq => z /=; exact: ff_phiE.
-rewrite Hphi.
-rewrite -[tensor_incl B C]/(wi_incl fAdom fhh fk0).
-exact: (@wi_factors_each R Ar (@fK R Ar B C) p fAdom fhh fk0 ff_class).
-Qed.
+Proof. exact: (@SC.ff_factorP R Ar Tsig k). Qed.
 
 End FsubFactors.
 
@@ -414,13 +481,15 @@ Arguments ff_factorP {R Ar B C} k.
     universal map [e_prod : B → C ⊸ wi_prod] — the inverse-transported
     tuple of the factoring witnesses — through [C ⊸ (eq inclusion)],
     obtaining [tau'].  Its defining factorisation
-    [(C ⊸ wi_incl) ∘ tau' = e_B] then follows from [fpick_fact]. *)
+    [(C ⊸ wi_incl) ∘ tau' = e_B] then follows from [fpick_fact].
+    ([SC.saft_eprod_equ]/[SC.saft_tau]/[SC.saft_tau_def].) *)
 
 Section Tau.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables B C : ICone.type Ar.
 
 Local Notation p := (tp B C).
+Local Notation Tsig := (tensor_sig B C).
 Local Notation K := (@fK R Ar B C).
 Local Notation Adom := (@fAdom R Ar B C).
 Local Notation hh := (@fhh R Ar B C).
@@ -489,53 +558,34 @@ move/(congr1 (fun f : linhom_car Ar C p => linhom_fun f c)).
 by rewrite /= linhom_map_funE /=.
 Qed.
 
-(** The equalising condition: [e_prod] equalises [C ⊸ WU] and [C ⊸ WV].
-    Pointwise, both [k]-components reduce — via [WUE]/[WVE], [eprodE] and
-    the factoring [fpick_factE] — to [e_B b c]. *)
+(** The equalising condition: [e_prod] equalises [C ⊸ WU] and [C ⊸ WV]
+    ([SC.saft_eprod_equ], proved categorically in the skeleton). *)
 Lemma eprod_equ :
   icones_comp (linhom_post_icones (C := C) WU) eprod =
   icones_comp (linhom_post_icones (C := C) WV) eprod.
-Proof.
-apply: icones_hom_eq => b.
-rewrite /=.
-apply: linhom_eq => c.
-rewrite !linhom_map_funE /=.
-apply: cones_prod_eq => k.
-rewrite WUE WVE !eprodE.
-by rewrite !fpick_factE.
-Qed.
+Proof. exact: (@SC.saft_eprod_equ R Ar Tsig). Qed.
 
 (** *** [tau'] by co-restriction through [C ⊸ (eq inclusion)]
 
     [B ⊗ C = icones_eq WU WV], and [C ⊸ −] preserves this equaliser, so
-    [e_prod] (equalising [C ⊸ WU], [C ⊸ WV]) co-restricts uniquely. *)
+    [e_prod] (equalising [C ⊸ WU], [C ⊸ WV]) co-restricts uniquely
+    ([SC.saft_tau]). *)
 
 Definition tau' : icones_hom Ar B (linhom_car Ar C (tensor B C)) :=
-  limpl_eq_med_icones C eprod eprod_equ.
+  @SC.saft_tau R Ar Tsig.
 
 (** Factorisation through the equaliser inclusion:
     [(C ⊸ eq_incl) ∘ tau' = e_prod]. *)
 Lemma tau'_eq_incl :
   icones_comp (linhom_post_icones (C := C) (icones_eq_incl WU WV)) tau' = eprod.
-Proof. exact: (limpl_eq_med_factor C eprod eprod_equ). Qed.
+Proof. exact: (@SC.saft_tau_eq_incl R Ar Tsig). Qed.
 
 (** The DEFINING factorisation of the universal element:
     [(C ⊸ wi_incl) ∘ tau' = e_B].  This is Paper Eq 5.1's universal
-    property of [tau'].  Both sides are maps [B → C ⊸ p]; pointwise the
-    [j]-th [p]-component reduces, via [tau'_eq_incl]/[eprodE]/[fpick_factE]
-    and [eBE], to [j b c]. *)
+    property of [tau'] ([SC.saft_tau_def]). *)
 Lemma tau'_def :
   icones_comp (linhom_post_icones (C := C) (tensor_incl B C)) tau' = eB B C.
-Proof.
-rewrite /tensor_incl /wi_incl -/WU -/WV.
-rewrite linhom_post_comp -icones_compA tau'_eq_incl.
-apply: icones_hom_eq => b.
-rewrite /=.
-apply: linhom_eq => c.
-rewrite linhom_map_funE /=.
-apply: cones_prod_eq => j.
-by rewrite eBE (fpick_factE b c k0) eBE.
-Qed.
+Proof. exact: (@SC.saft_tau_def R Ar Tsig). Qed.
 
 End Tau.
 
@@ -545,24 +595,20 @@ Arguments tau'_def {R Ar B C}.
 (** ** The intersection embedding [tensor_incl] is a monomorphism
 
     [tensor B C = icones_eq WU WV] and [tensor_incl = (hh k0 ∘ π_{k0}) ∘
-    eq_incl].  Two points [x], [y] of the intersection are equal iff
-    their underlying tuples [val x], [val y] agree componentwise
-    ([cones_eq_extensional] + [cones_prod_eq]).  The equaliser constraint
-    [WU (val x) = WV (val x)] says — componentwise via [WUE'] / [WVE'] —
-    [hh k (val x . k) = hh k0 (val x . k0)] for every [k] (and likewise
-    for [y]); and [tensor_incl x = tensor_incl y] gives
-    [hh k0 (val x . k0) = hh k0 (val y . k0)].  Hence for every [k],
-    [hh k (val x . k) = hh k (val y . k)], so [val x . k = val y . k] by
+    eq_incl].  Two points of the intersection are equal iff their
+    underlying tuples agree componentwise; the equaliser constraint plus
+    [tensor_incl x = tensor_incl y] force [hh k (val x . k) =
+    hh k (val y . k)] for every [k], whence componentwise equality by
     [fhh_inj k].  Unlike the generic [wi_incl_inj] (which would need the
     single projection [wi_proj k0] injective — false here), this uses that
-    *every* family member [fhh k] is a mono, which holds for the tensor's
-    factoring family ([fhh_inj]). *)
+    *every* family member [fhh k] is a mono ([SC.saft_incl_inj]). *)
 
 Section TensorInclInj.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables B C : ICone.type Ar.
 
 Local Notation p := (tp B C).
+Local Notation Tsig := (tensor_sig B C).
 Local Notation K := (@fK R Ar B C).
 Local Notation hh := (@fhh R Ar B C).
 Local Notation k0 := (@fk0 R Ar B C).
@@ -591,33 +637,9 @@ by move/(congr1 (fun w : icones_hom Ar (wi_prod (@fAdom R Ar B C)) p =>
                    (w : icones_hom _ _ _) x)) => /= ->.
 Qed.
 
-(** [tensor_incl] is a mono. *)
+(** [tensor_incl] is a mono ([SC.saft_incl_inj]). *)
 Lemma tensor_incl_inj : is_icones_inj (tensor_incl B C).
-Proof.
-rewrite /is_icones_inj => x y Hxy.
-(* [tensor_incl z = hh k0 (val z . k0)]; the hypothesis says these agree. *)
-have Hk0 : (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val x) k0) =
-           (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val y) k0).
-  exact: Hxy.
-(* The equaliser constraints carried by [x] and [y]. *)
-have Hcx := cones_eq_eq x.
-have Hcy := cones_eq_eq y.
-(* Conclude tuple-wise equality of [val x], [val y]. *)
-apply: (icones_eq_incl_inj WU WV).
-apply: cones_prod_eq => k.
-apply: (@fhh_inj R Ar B C k).
-(* [hh k (val x . k) = hh k0 (val x . k0) = hh k0 (val y . k0)
-                     = hh k (val y . k)]. *)
-have Ex : (hh k : icones_hom _ _ _) (cones_prod_val (cones_eq_val x) k) =
-          (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val x) k0).
-  have := f_equal (fun z => cones_prod_val z k) Hcx.
-  by rewrite WUE' WVE'.
-have Ey : (hh k : icones_hom _ _ _) (cones_prod_val (cones_eq_val y) k) =
-          (hh k0 : icones_hom _ _ _) (cones_prod_val (cones_eq_val y) k0).
-  have := f_equal (fun z => cones_prod_val z k) Hcy.
-  by rewrite WUE' WVE'.
-by rewrite Ex Hk0 -Ey.
-Qed.
+Proof. exact: (@SC.saft_incl_inj R Ar Tsig). Qed.
 
 End TensorInclInj.
 
@@ -681,7 +703,8 @@ Arguments tensor_curry_natural_D {R Ar B C D D'}.
 
     Given [g : B → C ⊸ D], we build the unique [tensor_uncurry g :
     B ⊗ C → D] with [(C ⊸ uncurry g) ∘ tau' = g] by the
-    coseparator-power reindexing of PLAN §13.2.
+    coseparator-power reindexing of PLAN §13.2 — the skeleton's
+    [SC.saft_uncurry] at [tensor_sig].
 
     Write [1 = cone_one_car Ar].  Form the coseparator power of [D],
     [q D := 1^{ICones(D,1)}], with its canonical mono
@@ -690,8 +713,8 @@ Arguments tensor_curry_natural_D {R Ar B C D D'}.
     power [p = 1^J] of [B ⊗ C] to [q D] along
     [θ : ICones(D,1) → J, n ↦ (C ⊸ n) ∘ g], giving [P : p → q D] with
     [P x . n = x . (θ n)].  The square
-    [(C ⊸ P) ∘ eB = (C ⊸ GammaD) ∘ g] commutes (both send [b,c,n] to
-    [n (g b c)]) — this is the pullback datum.
+    [(C ⊸ P) ∘ eB = (C ⊸ GammaD) ∘ g] commutes — this is the pullback
+    datum.
 
     Pull [GammaD] back along [P]: [Dsub := pb_obj P GammaD] (the
     equaliser [{(x,d) | P x = GammaD d}]), with embedding [pb_incl :
@@ -703,27 +726,13 @@ Arguments tensor_curry_natural_D {R Ar B C D D'}.
     [tensor_incl] factors through it; the [D]-leg of that factor is the
     point map of [tensor_uncurry g]. *)
 
-(** [C ⊸ −] preserves monos: if [h] is injective so is
-    [linhom_post_icones h].  Pointwise, [(C ⊸ h) f = h ∘ f], so
-    [h ∘ f₁ = h ∘ f₂] gives [f₁ = f₂] by injectivity of [h] and
-    [linhom_eq]. *)
-Lemma linhom_post_inj (R : realType) (Ar : MeasSubcat R)
-    (C D1 D2 : ICone.type Ar) (h : icones_hom Ar D1 D2) :
-  is_icones_inj h -> is_icones_inj (linhom_post_icones (C := C) h).
-Proof.
-move=> hinj f1 f2 /(congr1 (fun w : linhom_car Ar C D2 => linhom_fun w)) /= Hf.
-apply: linhom_eq => x; apply: hinj.
-by have := f_equal (fun w => w x) Hf.
-Qed.
-
-Arguments linhom_post_inj {R Ar C D1 D2} h.
-
 Section TensorUncurry.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables B C D : ICone.type Ar.
 
 Local Notation Cone1 := (cone_one_car Ar).
 Local Notation p := (tp B C).
+Local Notation Tsig := (tensor_sig B C).
 
 Variable g : icones_hom Ar B (linhom_car Ar C D).
 
@@ -767,23 +776,11 @@ Lemma tPE (x : p) (n : tN) :
 Proof. by []. Qed.
 
 (** The pullback datum — the commuting square
-    [(C ⊸ P) ∘ eB = (C ⊸ GammaD) ∘ g].  Pointwise at [b, c], both
-    sides are the element of [C ⊸ q D] whose [n]-component is
-    [n (g b c)]: LHS via [eBE] ([eB b c . j = j b c]) and [tPE]
-    ([θ n = (C ⊸ n) ∘ g], so [eB b c . θ n = n (g b c)]); RHS via
-    [GammaDE]. *)
+    [(C ⊸ P) ∘ eB = (C ⊸ GammaD) ∘ g] ([SC.saft_P_square]). *)
 Lemma tP_square :
   icones_comp (linhom_post_icones (C := C) tP) (eB B C) =
   icones_comp (linhom_post_icones (C := C) GammaD) g.
-Proof.
-apply: icones_hom_eq => b /=.
-apply: linhom_eq => c.
-rewrite !linhom_map_funE /=.
-apply: cones_prod_eq => n.
-rewrite tPE eBE.
-rewrite GammaDE.
-by rewrite /tθ /= linhom_map_funE /=.
-Qed.
+Proof. exact: (@SC.saft_P_square R Ar Tsig D g). Qed.
 
 (** *** The pullback [Dsub = pb_obj P GammaD] and its [p]-subobject *)
 
@@ -794,29 +791,9 @@ Local Notation Dsub := (pb_obj tP GammaD).
 Local Notation Dincl := (pb_proj1 tP GammaD).
 Local Notation Dpr := (pb_proj2 tP GammaD).
 
-(** [Dincl] is a mono: if [Dincl a = Dincl b] then [P (Dincl a) =
-    P (Dincl b)], so by the pullback square [GammaD (Dpr a) =
-    GammaD (Dpr b)], whence [Dpr a = Dpr b] ([GammaD] mono); agreeing
-    on both projections of the product-equaliser forces [a = b]. *)
+(** [Dincl] is a mono ([SC.saft_Gincl_inj]). *)
 Lemma Dincl_inj : is_icones_inj Dincl.
-Proof.
-have Hsq := pb_square tP GammaD.
-move=> a b Hab.
-have Hsqpt : forall z : Dsub,
-    (tP : icones_hom _ _ _) ((Dincl : icones_hom _ _ _) z) =
-    (GammaD : icones_hom _ _ _) ((Dpr : icones_hom _ _ _) z).
-  by move=> z;
-    have := f_equal
-      (fun w : icones_hom Ar Dsub tq => (w : icones_hom _ _ _) z) Hsq.
-have Hpr2 : (Dpr : icones_hom _ _ _) a = (Dpr : icones_hom _ _ _) b.
-  by apply: GammaD_inj; rewrite -!Hsqpt Hab.
-(* [Dsub = icones_eq …]; equal iff [eq_incl] (into [pb_prod]) agree,
-   iff both bool-components agree. *)
-apply: (icones_eq_incl_inj (pb_left D tP) (pb_right p GammaD)).
-apply: cones_prod_eq; case.
-- exact: Hab.
-- exact: Hpr2.
-Qed.
+Proof. exact: (@SC.saft_Gincl_inj R Ar Tsig D g). Qed.
 
 (** *** Co-restricting [eB] and [g] to [C ⊸ Dsub]
 
@@ -851,44 +828,33 @@ apply: linhom_eq => c.
 by rewrite linhom_map_funE /=.
 Qed.
 
-(** [eAprod] equalises [C ⊸ pb_left] and [C ⊸ pb_right]: both reduce,
-    via [eAprod_pi], to [(C ⊸ P) ∘ eB] resp. [(C ⊸ GammaD) ∘ g], equal
-    by [tP_square]. *)
+(** [eAprod] equalises [C ⊸ pb_left] and [C ⊸ pb_right]
+    ([SC.saft_gprod_equ]). *)
 Lemma eAprod_equ :
   icones_comp (linhom_post_icones (C := C) (pb_left D tP)) eAprod =
   icones_comp (linhom_post_icones (C := C) (pb_right p GammaD)) eAprod.
-Proof.
-rewrite /pb_left /pb_right /pb_pi1 /pb_pi2.
-rewrite !linhom_post_comp -!icones_compA.
-rewrite (eAprod_pi true) (eAprod_pi false).
-exact: tP_square.
-Qed.
+Proof. exact: (@SC.saft_gprod_equ R Ar Tsig D g). Qed.
 
-(** The co-restriction [eA : B → C ⊸ Dsub]. *)
+(** The co-restriction [eA : B → C ⊸ Dsub] ([SC.saft_gA]). *)
 Definition eA : icones_hom Ar B (linhom_car Ar C Dsub) :=
-  limpl_eq_med_icones C eAprod eAprod_equ.
+  @SC.saft_gA R Ar Tsig D g.
 
 (** [(C ⊸ eq_incl) ∘ eA = eAprod]. *)
 Lemma eA_eq_incl :
   icones_comp (linhom_post_icones (C := C)
                  (icones_eq_incl (pb_left D tP) (pb_right p GammaD))) eA =
   eAprod.
-Proof. exact: (limpl_eq_med_factor C eAprod eAprod_equ). Qed.
+Proof. exact: (@SC.saft_gA_eq_incl R Ar Tsig D g). Qed.
 
 (** The factoring witness of the family member [(Dsub, Dincl, eA)]:
-    [(C ⊸ Dincl) ∘ eA = eB].  [Dincl = π₁ ∘ eq_incl], and
-    [(C ⊸ π₁) ∘ eAprod = eB] by [eAprod_pi true]. *)
+    [(C ⊸ Dincl) ∘ eA = eB]. *)
 Lemma eA_fact :
   icones_comp (linhom_post_icones (C := C) Dincl) eA = eB B C.
-Proof.
-rewrite /pb_proj1 /pb_pi1 linhom_post_comp -icones_compA eA_eq_incl.
-exact: (eAprod_pi true).
-Qed.
+Proof. exact: (@SC.saft_gA_fact R Ar Tsig D g). Qed.
 
-(** The family member [(Dsub, Dincl, eA)] as an [fsub]. *)
-Definition Dfsub : fsub B C :=
-  {| fs_dom := Dsub; fs_hom := Dincl; fs_inj := Dincl_inj;
-     fs_eA := eA; fs_fact := eA_fact |}.
+(** The family member [(Dsub, Dincl, eA)] as an [fsub]
+    ([SC.saft_gfsub]). *)
+Definition Dfsub : fsub B C := @SC.saft_gfsub R Ar Tsig D g.
 
 (** *** [tensor_uncurry g] via the intersection's factoring property
 
@@ -897,106 +863,62 @@ Definition Dfsub : fsub B C :=
     [(Dsub, Dincl)] ([icones_subobject_classP]): an iso [φ : fAdom s ≅
     Dsub] with [Dincl ∘ φ = fhh s].  The intersection embedding
     [tensor_incl] factors through [fhh s] ([wi_factors_each]); composing
-    with [φ] then [pb_proj2] gives the [D]-valued point map. *)
+    with [φ] then [pb_proj2] gives the [D]-valued point map.  This is
+    exactly [ff_factor]/[ff_factorP] at the member [Dfsub]. *)
 
 Definition Ds : fK := icones_subobject_class (fs_sub Dfsub).
 
-(** The subobjects (in [fs_dom]-projection form, so the resulting iso
-    has the [fAdom Ds] / [Dsub] domains [tu_factor] needs): the chosen
+(** The subobjects (in [fs_dom]-projection form): the chosen
     representative [(fAdom Ds, fhh Ds)] and the pullback [(Dsub, Dincl)]. *)
 Local Notation SubA :=
   (@MkSubobject R Ar p (fAdom Ds) (fhh Ds) (fhh_inj Ds)).
 Local Notation SubDp :=
   (@MkSubobject R Ar p Dsub Dincl Dincl_inj).
 
-(** Both have classifier [Ds]: [SubDp] by definition of [Ds] (via
-    [fs_subE] on the constructor [Dfsub]); [SubA] because [fpick Ds]
-    has classifier [Ds] (defining property of [fpick] when a witness —
-    here [Dfsub] — exists) and [fs_subE] reads off its projections. *)
+(** Both have classifier [Ds] ([SC.ff_SubA_class] at [Dfsub]). *)
 Lemma SubA_class : icones_subobject_class SubA = Ds.
-Proof.
-(* The chosen representative [fpick Ds] has classifier [Ds] (a witness
-   exists: [Dfsub]). *)
-have HpD : icones_subobject_class (fs_sub (fpick Ds)) = Ds.
-  rewrite /fpick; case: pselect => [e|[]]; last by exists Dfsub.
-  by case: (cid e) => k /= ->.
-(* [SubA = fs_sub (fpick Ds)]: casing the representative makes both
-   sides [MkSubobject A h hinj]. *)
-rewrite -[in RHS]HpD; congr icones_subobject_class.
-by rewrite /fAdom /fhh /fhh_inj /fs_sub; case: (fpick Ds).
-Qed.
+Proof. exact: (@SC.ff_SubA_class R Ar Tsig Dfsub). Qed.
 
-(** The two subobjects are iso *over [p]*: [SubDp] has classifier [Ds]
-    by definition ([fs_sub Dfsub] reduces, [Dfsub] being a constructor);
-    [SubA] by [SubA_class]. *)
+(** The two subobjects are iso *over [p]* ([SC.ff_equiv] at [Dfsub]). *)
 Lemma Ds_equiv : subobject_equiv SubA SubDp.
-Proof. by apply: icones_subobject_classP; rewrite SubA_class. Qed.
+Proof. exact: (@SC.ff_equiv R Ar Tsig Dfsub). Qed.
 
 (** The iso [φ : fAdom Ds ≅ Dsub] over [p]
     ([Dincl ∘ iso_fwd φ = fhh Ds]). *)
-Definition Dphi : icones_iso Ar (fAdom Ds) Dsub := proj1_sig (cid Ds_equiv).
+Definition Dphi : icones_iso Ar (fAdom Ds) Dsub := @SC.ff_phi R Ar Tsig Dfsub.
 
 Lemma DphiE (z : fAdom Ds) :
   (Dincl : icones_hom _ _ _) ((iso_fwd Dphi : icones_hom _ _ _) z) =
   (fhh Ds : icones_hom _ _ _) z.
-Proof. exact: proj2_sig (cid Ds_equiv) z. Qed.
+Proof. exact: (@SC.ff_phiE R Ar Tsig Dfsub z). Qed.
 
 (** The factor of [tensor_incl] through [Dincl]:
     [tensor B C → Dsub], [= iso_fwd φ ∘ wi_proj Ds]. *)
 Definition tu_factor : icones_hom Ar (tensor B C) Dsub :=
   icones_comp (iso_fwd Dphi) (wi_proj fAdom fhh fk0 Ds).
 
-(** [Dincl ∘ tu_factor = tensor_incl]: [tensor_incl] factors through
-    [fhh Ds] ([wi_factors_each]) and [Dincl ∘ iso_fwd φ = fhh Ds]
-    ([DphiE]). *)
+(** [Dincl ∘ tu_factor = tensor_incl] ([SC.ff_factorP] at [Dfsub]). *)
 Lemma tu_factorP :
   icones_comp Dincl tu_factor = tensor_incl B C.
-Proof.
-rewrite /tu_factor icones_compA.
-have HDphi : icones_comp Dincl (iso_fwd Dphi) = fhh Ds.
-  by apply: icones_hom_eq => z /=; exact: DphiE.
-rewrite HDphi.
-rewrite -[tensor_incl B C]/(wi_incl fAdom fhh fk0).
-exact: (@wi_factors_each R Ar fK p fAdom fhh fk0 Ds).
-Qed.
+Proof. exact: (@SC.ff_factorP R Ar Tsig Dfsub). Qed.
 
 (** The SAFT mediator [tensor_uncurry g : B ⊗ C → D]. *)
 Definition tensor_uncurry : icones_hom Ar (tensor B C) D :=
   icones_comp Dpr tu_factor.
 
-(** The [D]-leg factoring witness: [(C ⊸ Dpr) ∘ eA = g] ([Dpr =
-    π₂ ∘ eq_incl] and the [false]-component of [eAprod] is [g]). *)
+(** The [D]-leg factoring witness: [(C ⊸ Dpr) ∘ eA = g]
+    ([SC.saft_gA_pr_fact]). *)
 Lemma eA_pr_fact :
   icones_comp (linhom_post_icones (C := C) Dpr) eA = g.
-Proof.
-rewrite /pb_proj2 /pb_pi2 linhom_post_comp -icones_compA eA_eq_incl.
-exact: (eAprod_pi false).
-Qed.
+Proof. exact: (@SC.saft_gA_pr_fact R Ar Tsig D g). Qed.
 
 (** *** [tensor_uncurryK] : [tensor_curry (tensor_uncurry g) = g]
 
-    The defining factorisation.  Let [w := (C ⊸ tu_factor) ∘ tau'].
-    Then [(C ⊸ Dincl) ∘ w = (C ⊸ tensor_incl) ∘ tau' = eB] ([tu_factorP],
-    [tau'_def]); and [(C ⊸ Dincl) ∘ eA = eB] ([eA_fact]).  As [C ⊸ Dincl]
-    is a mono ([linhom_post_inj] of the pullback mono [Dincl]), [w = eA].
-    Hence [tensor_curry (tensor_uncurry g) = (C ⊸ Dpr) ∘ w =
-    (C ⊸ Dpr) ∘ eA = g] ([eA_pr_fact]). *)
+    The defining factorisation ([SC.saft_uncurryK]): via [C ⊸ Dincl]
+    mono, the transported element [(C ⊸ tu_factor) ∘ tau'] coincides
+    with [eA], whence the round trip by [eA_pr_fact]. *)
 Lemma tensor_uncurryK : tensor_curry tensor_uncurry = g.
-Proof.
-pose w := icones_comp (linhom_post_icones (C := C) tu_factor) (tau' B C).
-have Hw_Dincl : icones_comp (linhom_post_icones (C := C) Dincl) w = eB B C.
-  rewrite /w icones_compA -linhom_post_comp.
-  rewrite -[icones_comp Dincl tu_factor]/(icones_comp Dincl tu_factor).
-  rewrite tu_factorP.
-  exact: tau'_def.
-have Hwe : w = eA.
-  have Hmono := icones_inj_mono (linhom_post_icones (C := C) Dincl)
-                  (linhom_post_inj (C := C) Dincl Dincl_inj).
-  apply: (Hmono B w eA).
-  by rewrite Hw_Dincl eA_fact.
-rewrite /tensor_curry /tensor_uncurry linhom_post_comp -icones_compA -/w.
-by rewrite Hwe eA_pr_fact.
-Qed.
+Proof. exact: (@SC.saft_uncurryK R Ar Tsig D g). Qed.
 
 End TensorUncurry.
 
@@ -1006,7 +928,8 @@ Arguments tensor_uncurryK {R Ar B C D}.
 (** ** [tensor_curry] is injective, hence [tensor_curryK]
 
     The SAFT-uniqueness argument (equaliser of the two candidates +
-    intersection minimality), NOT joint-epicness of [tau'].
+    intersection minimality), NOT joint-epicness of [tau'] — the
+    skeleton's [SC.sci_*] machinery at [tensor_sig].
 
     Let [f1 f2 : B ⊗ C → D] with [tensor_curry f1 = tensor_curry f2],
     i.e. [(C ⊸ f1) ∘ tau' = (C ⊸ f2) ∘ tau'].  Form the equaliser
@@ -1016,19 +939,17 @@ Arguments tensor_uncurryK {R Ar B C D}.
     [tauE : B → C ⊸ E] with [(C ⊸ e) ∘ tauE = tau'].
 
     The composite [m_E := tensor_incl ∘ e : E ↪ p] is a mono, and [eB]
-    factors through [C ⊸ m_E]:
-      [eB = (C ⊸ tensor_incl) ∘ tau' = (C ⊸ tensor_incl) ∘ (C ⊸ e) ∘ tauE
-          = (C ⊸ m_E) ∘ tauE].
-    So [(E, m_E, tauE)] is a factoring-family member [fsub].  By
-    intersection minimality ([ff_factorP]) the embedding [tensor_incl]
-    factors through [m_E]: [r : B ⊗ C → E] with [m_E ∘ r = tensor_incl],
-    i.e. [tensor_incl ∘ (e ∘ r) = tensor_incl].  As [tensor_incl] is a
-    mono ([tensor_incl_inj]), [e ∘ r = id]; so [e] is a split epi.  An
-    epi from [f1 ∘ e = f2 ∘ e] then gives [f1 = f2]. *)
+    factors through [C ⊸ m_E]; so [(E, m_E, tauE)] is a factoring-family
+    member.  By intersection minimality ([ff_factorP]) the embedding
+    [tensor_incl] factors through [m_E]: [r : B ⊗ C → E] with
+    [m_E ∘ r = tensor_incl]; as [tensor_incl] is a mono, [e ∘ r = id];
+    so [e] is a split epi, and [f1 ∘ e = f2 ∘ e] gives [f1 = f2]. *)
 
 Section TensorCurryInj.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables B C D : ICone.type Ar.
+
+Local Notation Tsig := (tensor_sig B C).
 
 Variables f1 f2 : icones_hom Ar (tensor B C) D.
 Hypothesis Hcurry : tensor_curry f1 = tensor_curry f2.
@@ -1043,13 +964,13 @@ Lemma tci_equ :
   icones_comp (linhom_post_icones (C := C) f2) (tau' B C).
 Proof. exact: Hcurry. Qed.
 
-(** The co-restriction [tauE : B → C ⊸ E]. *)
+(** The co-restriction [tauE : B → C ⊸ E] ([SC.sci_tauE]). *)
 Definition tauE : icones_hom Ar B (linhom_car Ar C E) :=
-  limpl_eq_med_icones C (tau' B C) tci_equ.
+  @SC.sci_tauE R Ar Tsig D f1 f2 Hcurry.
 
 Lemma tauE_factor :
   icones_comp (linhom_post_icones (C := C) e) tauE = tau' B C.
-Proof. exact: (limpl_eq_med_factor C (tau' B C) tci_equ). Qed.
+Proof. exact: (@SC.sci_tauE_factor R Ar Tsig D f1 f2 Hcurry). Qed.
 
 (** The composite embedding [m_E := tensor_incl ∘ e : E ↪ p]. *)
 Definition tci_mE : icones_hom Ar E (tp B C) := icones_comp (tensor_incl B C) e.
@@ -1057,53 +978,30 @@ Definition tci_mE : icones_hom Ar E (tp B C) := icones_comp (tensor_incl B C) e.
 (** [m_E] is a mono (composite of the injective [tensor_incl] and the
     injective equaliser inclusion [e]). *)
 Lemma tci_mE_inj : is_icones_inj tci_mE.
-Proof.
-move=> a b /= /(tensor_incl_inj B C); exact: (icones_eq_incl_inj f1 f2).
-Qed.
+Proof. exact: (@SC.sci_mE_inj R Ar Tsig D f1 f2). Qed.
 
 (** [eB] factors through [C ⊸ m_E] via [tauE]:
     [(C ⊸ m_E) ∘ tauE = eB]. *)
 Lemma tci_fact :
   icones_comp (linhom_post_icones (C := C) tci_mE) tauE = eB B C.
-Proof.
-rewrite /tci_mE linhom_post_comp -icones_compA tauE_factor.
-exact: tau'_def.
-Qed.
+Proof. exact: (@SC.sci_fact R Ar Tsig D f1 f2 Hcurry). Qed.
 
-(** The factoring-family member [(E, m_E, tauE)]. *)
-Definition tci_fsub : fsub B C :=
-  {| fs_dom := E; fs_hom := tci_mE; fs_inj := tci_mE_inj;
-     fs_eA := tauE; fs_fact := tci_fact |}.
+(** The factoring-family member [(E, m_E, tauE)] ([SC.sci_fsub]). *)
+Definition tci_fsub : fsub B C := @SC.sci_fsub R Ar Tsig D f1 f2 Hcurry.
 
-(** Intersection minimality: [tensor_incl] factors through [m_E].
-    The [E]-leg [r := ff_factor tci_fsub] satisfies [m_E ∘ r =
-    tensor_incl] ([ff_factorP]). *)
+(** Intersection minimality: [tensor_incl] factors through [m_E]. *)
 Definition tci_r : icones_hom Ar (tensor B C) E := ff_factor tci_fsub.
 
 Lemma tci_rP : icones_comp tci_mE tci_r = tensor_incl B C.
-Proof. exact: (ff_factorP tci_fsub). Qed.
+Proof. exact: (@SC.sci_rP R Ar Tsig D f1 f2 Hcurry). Qed.
 
-(** [e] is a split epi: [e ∘ r = id_{B ⊗ C}].  From
-    [tensor_incl ∘ (e ∘ r) = m_E ∘ r = tensor_incl = tensor_incl ∘ id]
-    and [tensor_incl] mono. *)
+(** [e] is a split epi: [e ∘ r = id_{B ⊗ C}]. *)
 Lemma tci_split : icones_comp e tci_r = icones_id Ar (tensor B C).
-Proof.
-have Hmono := icones_inj_mono (tensor_incl B C) (tensor_incl_inj B C).
-apply: (Hmono _ (icones_comp e tci_r) (icones_id Ar (tensor B C))).
-rewrite icones_compA -/tci_mE tci_rP.
-by rewrite icones_compIr.
-Qed.
+Proof. exact: (@SC.sci_split R Ar Tsig D f1 f2 Hcurry). Qed.
 
-(** Hence [f1 = f2]: [f1 = f1 ∘ e ∘ r = f2 ∘ e ∘ r = f2]
-    ([icones_eq_incl_equ] : [f1 ∘ e = f2 ∘ e]). *)
+(** Hence [f1 = f2] ([SC.sci_eq]). *)
 Lemma tci_eq : f1 = f2.
-Proof.
-transitivity (icones_comp f1 (icones_comp e tci_r)).
-  by rewrite tci_split icones_compIr.
-transitivity (icones_comp f2 (icones_comp e tci_r)); last first.
-  by rewrite tci_split icones_compIr.
-by rewrite !icones_compA (icones_eq_incl_equ f1 f2).
-Qed.
+Proof. exact: (@SC.sci_eq R Ar Tsig D f1 f2 Hcurry). Qed.
 
 End TensorCurryInj.
 
@@ -1205,52 +1103,34 @@ Arguments tensor_curry_natural_B {R Ar B B' C D} u.
 (* constructive_indefinite_description} — and NO project                       *)
 (* [Axiom]/[Parameter]/[Admitted].                                            *)
 (*                                                                            *)
-(* What this file PROVES:                                                      *)
+(* ## Division of labour with [saft_construct.v]                               *)
 (*                                                                            *)
-(*   - [tensor B C := wi_obj …], [eB], [tau'] + [tau'_def], [tensor_curry] +   *)
-(*     [tensor_curryE], [tensor_curry_natural_post] / [_D].                     *)
-(*   - [tensor_incl_inj] : the intersection embedding [tensor_incl] is a       *)
-(*     mono.  Proved by the *all-components* argument (every family member     *)
-(*     [fhh k] is a mono, [fhh_inj]): two equaliser points agree componentwise *)
-(*     because their [fhh k]-images all coincide.  (The generic [wi_incl_inj]  *)
-(*     would need the single projection [wi_proj k0] injective — false here.)  *)
-(*   - [ff_factor] / [ff_factorP] : SAFT intersection minimality — for ANY     *)
-(*     factoring-family member [k : fsub B C], [tensor_incl] factors through   *)
-(*     [fs_hom k] ([fs_hom k ∘ ff_factor k = tensor_incl]), via the classifier *)
-(*     transport [icones_subobject_classP] (the same transport [tu_factorP]    *)
-(*     does for the [tensor_uncurry] pullback member, here generalised).       *)
-(*   - [tensor_uncurry g : B ⊗ C → D] — the SAFT comma-category mediator,      *)
-(*     BUILT by the coseparator-power reindexing (Riehl 4.6.11): mono          *)
-(*     [GammaD : D ↪ 1^{ICones(D,1)}], reindex [P : p → q], pullback           *)
-(*     [Dsub := pb_obj P GammaD] ([Dincl] a mono), co-restriction [eA] of      *)
-(*     [eB]/[g], classifier transport so [tensor_incl] factors through         *)
-(*     [Dincl]; [tensor_uncurry g := Dpr ∘ tu_factor].                          *)
-(*   - [tensor_uncurryK] : [tensor_curry (tensor_uncurry g) = g] — the         *)
-(*     defining factorisation, via [C ⊸ Dincl] mono ([linhom_post_inj]).       *)
+(* The functor-generic SAFT engine — the factoring family [fsub], the         *)
+(* classifier reindexing [fK]/[fpick], the wide intersection [tensor :=       *)
+(* wi_obj fhh fk0] with [tensor_incl], intersection minimality [ff_factor]/   *)
+(* [ff_factorP], the universal element [tau'] + [tau'_def], the mono          *)
+(* [tensor_incl_inj], the mediator [tensor_uncurry] + [tensor_uncurryK], and  *)
+(* the SAFT-uniqueness [tensor_curry_inj]/[tensor_curryK] — is proved ONCE in  *)
+(* [Icones.homs.saft_construct] (module [Icones_saft_construct], alias [SC])  *)
+(* and instantiated here at [tensor_sig] (the [(C ⊸ −)] right functor:        *)
+(* [linhom_post_icones] + [limpl_preserves_prod] + [limpl_eq_med_icones]).    *)
+(* This file re-exports every historical name — the definitions are           *)
+(* definitionally the same terms as before — and keeps the                    *)
+(* instantiation-specific pointwise lemmas ([tJtupleE]/[eBE]/[eprodE]/        *)
+(* [WUE]/[WVE]/[WUE']/[WVE']/[fpick_factE]/[tensor_curryE]/[GammaDE]/[tPE])   *)
+(* proved concretely as before.                                               *)
 (*                                                                            *)
 (* ## [tensor_curryK] via SAFT-uniqueness (equaliser of candidates +           *)
 (*    intersection minimality) — NOT joint-epicness of [tau']                  *)
 (*                                                                            *)
-(* A "[tau'] is jointly epic / generates [B ⊗ C]" route would be a dead       *)
-(* end (no "maps OUT of the intersection are determined by [tau']" principle   *)
-(* is exported).  Instead [tensor_curry_inj] uses the standard SAFT-uniqueness *)
-(* argument:                                                                   *)
-(*                                                                            *)
-(*   Given [f1 f2 : B ⊗ C → D] with [tensor_curry f1 = tensor_curry f2], form  *)
-(*   the equaliser [E := icones_eq f1 f2], inclusion [e := icones_eq_incl]      *)
-(*   ([f1 ∘ e = f2 ∘ e], [e] mono).  Since [C ⊸ −] preserves equalisers        *)
-(*   ([limpl_eq_med_icones]/[_factor]), [tau'] (equalising [C ⊸ f1], [C ⊸ f2]) *)
-(*   co-restricts to [tauE : B → C ⊸ E] with [(C ⊸ e) ∘ tauE = tau']           *)
-(*   ([tauE_factor]).  The composite [m_E := tensor_incl ∘ e : E ↪ p] is a     *)
-(*   mono ([tci_mE_inj]) and [eB = (C ⊸ m_E) ∘ tauE] ([tci_fact]), so          *)
-(*   [(E, m_E, tauE)] is a factoring-family member [tci_fsub].  Intersection   *)
-(*   minimality ([ff_factorP]) gives [r := ff_factor tci_fsub] with            *)
-(*   [m_E ∘ r = tensor_incl] ([tci_rP]); since [tensor_incl] is a mono         *)
-(*   ([tensor_incl_inj]), [e ∘ r = id] ([tci_split]) — [e] is a split epi.     *)
-(*   Then [f1 = f1 ∘ e ∘ r = f2 ∘ e ∘ r = f2] ([tci_eq], [icones_eq_incl_equ]).*)
-(*                                                                            *)
-(*   [tensor_curryK] : [tensor_uncurry (tensor_curry f) = f] then follows from *)
-(*   [tensor_uncurryK] + [tensor_curry_inj].                                    *)
+(* [tensor_curry_inj] uses the standard SAFT-uniqueness argument               *)
+(* ([SC.sci_*]): given [f1 f2 : B ⊗ C → D] with [tensor_curry f1 =            *)
+(* tensor_curry f2], form the equaliser [E := icones_eq f1 f2]; [tau']        *)
+(* co-restricts to [tauE] ([tauE_factor]); [(E, tensor_incl ∘ e, tauE)] is a  *)
+(* factoring-family member [tci_fsub]; intersection minimality gives          *)
+(* [tci_r] with [tci_rP]; [tensor_incl] mono gives [tci_split] ([e] split     *)
+(* epi); whence [tci_eq] : [f1 = f2].  [tensor_curryK] then follows from      *)
+(* [tensor_uncurryK] + [tensor_curry_inj].                                     *)
 (*                                                                            *)
 (* ## [tensor_curry_natural_B]                                                 *)
 (*                                                                            *)

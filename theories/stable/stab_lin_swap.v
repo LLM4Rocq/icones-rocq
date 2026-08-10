@@ -17,6 +17,15 @@
 
     Coverage in this file.
 
+    - [path_ball_of_pointwise], [ar_prod_diag_meas], [ar_prod_castl_meas]
+      — the shared scaffold of the four [..._pres_path] chases (product
+      test objects + measurable pullback along the [ar_prod] casts).
+
+    - [bnd_succ] / [bnd_succ_inv] / [bnd_succ_mulV] / [bnd_succ_inv_ball]
+      — the [(M+1)]-rescale into the unit ball, keyed on a real bound
+      [M ≥ 0] (the element-keyed variant is [linhom.v]'s [cnorm_succ_*]).
+      Also used by [stable/diag_bilinear_tensor.v].
+
     - [linhom_meas_stable] — every [linhom_car] is [is_meas_stable]
       (linear ⇒ stable, via [linear_totmono] / [linear_scott_unit]).
 
@@ -90,6 +99,116 @@ Import Order.TTheory GRing.Theory Num.Theory.
 
 Local Open Scope classical_set_scope.
 Local Open Scope ring_scope.
+
+(** ** Shared scaffold for the four path-preservation chases
+
+    The four [..._pres_path] proofs of this file ([bwd_inner_pres_path],
+    [sls_bwd_pres_path], [fwd_linhom_pres_path], [sls_fwd_pres_path]) all
+    run the same measurability chase: build a test on the PRODUCT object
+    [ar_prod Z W], obtain measurability of [λ q. m q.1 (P q.2)] there from
+    the source path, then pull it back along a measurable map
+    [ψ : Z × W → ar_carrier (ar_prod Z W) × _].  Two pullbacks occur — the
+    DIAGONAL [(s,r) ↦ (⟨s,r⟩, ⟨s,r⟩)] (when the path itself was reindexed
+    onto the product) and the HALF one [(s,r) ↦ (⟨s,r⟩, r)] (when the path
+    still lives on the second factor).  Their measurability, and the
+    unit-ball bound of every reindexed path used as a test parameter, are
+    factored here. *)
+
+Section ProdReindexScaffold.
+Variables (R : realType) (Ar : MeasSubcat R).
+
+(** A path whose values all lie in the unit ball has cone-norm [≤ 1].
+    Used for every [MkPath (reindex_path_measurable …)] fed to
+    [linhom_test] / [sh_test] below. *)
+Lemma path_ball_of_pointwise (X : ar_obj Ar) (C : ICone.type Ar)
+    (γ : path_car Ar X C) :
+  (forall q, cone_norm (path_fun γ q) <= 1) -> cone_norm γ <= 1.
+Proof.
+move=> Hγ; rewrite /cone_norm /=.
+apply: ge_sup; first exact: path_normset_nonempty.
+by move=> _ [q ->] /=; exact: Hγ.
+Qed.
+
+(** The diagonal pullback [(s,r) ↦ (⟨s,r⟩, ⟨s,r⟩)] is measurable. *)
+Lemma ar_prod_diag_meas (Z X : ar_obj Ar) :
+  measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type]
+    ((fun sr => (ar_prod_cast (sr.1, sr.2), ar_prod_cast (sr.1, sr.2))) :
+       (ar_carrier Ar Z * ar_carrier Ar X)%type ->
+       (ar_carrier Ar (ar_prod Ar Z X) * ar_carrier Ar (ar_prod Ar Z X))%type).
+Proof.
+apply: measurable_fun_pair.
+- apply: (measurableT_comp (ar_prod_cast_meas Ar Z X)).
+  by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+- apply: (measurableT_comp (ar_prod_cast_meas Ar Z X)).
+  by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+Qed.
+
+(** The half pullback [(s,r) ↦ (⟨s,r⟩, r)] is measurable. *)
+Lemma ar_prod_castl_meas (Z Y : ar_obj Ar) :
+  measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar Y)%type]
+    ((fun sr => (ar_prod_cast (sr.1, sr.2), sr.2)) :
+       (ar_carrier Ar Z * ar_carrier Ar Y)%type ->
+       (ar_carrier Ar (ar_prod Ar Z Y) * ar_carrier Ar Y)%type).
+Proof.
+apply: measurable_fun_pair; last exact: measurable_snd.
+apply: (measurableT_comp (ar_prod_cast_meas Ar Z Y)).
+by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+Qed.
+
+End ProdReindexScaffold.
+
+Arguments path_ball_of_pointwise {R Ar X C} γ.
+Arguments ar_prod_diag_meas {R} Ar Z X.
+Arguments ar_prod_castl_meas {R} Ar Z Y.
+
+(** ** The [(bound + 1)]-rescale into the unit ball
+
+    Several constructions below require their argument to be norm-[≤ 1]
+    ([linhom_diff_car], [meas_stable_comp], [fwd_linhom_pres_path]).  The
+    uniform trick is to scale by [(M + 1)⁻¹] — which sends everything of
+    norm [≤ M] into the unit ball — prove the property there, then scale
+    back by [M + 1], the two factors cancelling by [bnd_succ_mulV].
+
+    [linhom.v] already packages this keyed on an ELEMENT's norm
+    ([cnorm_succ_nng] / [cnorm_succ_inv_nng] / [cnorm_succ_mulV]); the
+    version below is keyed on a bare REAL bound [M ≥ 0], the shape taken
+    by the boundedness witnesses of paths and of stable maps
+    ([fwd_linhom_pres_path_gen] here, [diag_bilinear_tensor.v]'s
+    [meas_stable_diag_bilinear_tensor] downstream). *)
+
+Section BoundRescale.
+Variable R : realType.
+Variable M : R.
+Hypothesis M_ge0 : (0 <= M)%R.
+
+Lemma bnd_succ_pos : (0 < M + 1)%R.
+Proof. by apply: le_lt_trans M_ge0 _; rewrite ltrDl ltr01. Qed.
+
+Lemma bnd_succ_inv_ge0 : (0 <= (M + 1)^-1)%R.
+Proof. by rewrite invr_ge0 ltW// bnd_succ_pos. Qed.
+
+(** [M + 1] and [(M + 1)⁻¹] as nonneg scalars. *)
+Definition bnd_succ : {nonneg R} := NngNum (ltW bnd_succ_pos).
+Definition bnd_succ_inv : {nonneg R} := NngNum bnd_succ_inv_ge0.
+
+(** The two scalings cancel. *)
+Lemma bnd_succ_mulV :
+  (bnd_succ%:num * bnd_succ_inv%:num)%:nng = 1%:nng :> {nonneg R}.
+Proof. by apply: val_inj => /=; rewrite mulfV// gt_eqF// bnd_succ_pos. Qed.
+
+(** Anything of norm [≤ M] lands in the unit ball after the rescale. *)
+Lemma bnd_succ_inv_ball (b : R) : (b <= M)%R -> (bnd_succ_inv%:num * b <= 1)%R.
+Proof.
+move=> Hb; rewrite /= mulrC ler_pdivrMr ?bnd_succ_pos// mul1r.
+by apply: le_trans Hb _; rewrite lerDl ler01.
+Qed.
+
+End BoundRescale.
+
+Arguments bnd_succ {R M} M_ge0.
+Arguments bnd_succ_inv {R M} M_ge0.
+Arguments bnd_succ_mulV {R M} M_ge0.
+Arguments bnd_succ_inv_ball {R M} M_ge0 {b}.
 
 (** ** Every [linhom_car] is stable-and-measurable
 
@@ -293,16 +412,13 @@ Lemma linhom_le_of_pointwise (u v : linhom_car Ar C D) :
   precone_le u v.
 Proof.
 move=> Hpw.
-have t_ge0 : (0 <= cone_norm v + 1)%R by rewrite addr_ge0 ?cone_norm_ge0 ?ler01.
-have t_pos : (0 < cone_norm v + 1)%R by exact: cnorm_succ_pos.
-have tinv_ge0 : (0 <= (cone_norm v + 1)^-1)%R by rewrite invr_ge0 ltW.
-pose t : {nonneg R} := NngNum t_ge0.
-pose tinv : {nonneg R} := NngNum tinv_ge0.
+pose t : {nonneg R} := bnd_succ (cone_norm_ge0 v).
+pose tinv : {nonneg R} := bnd_succ_inv (cone_norm_ge0 v).
 pose v' : linhom_car Ar C D := linhom_scale tinv v.
 pose u' : linhom_car Ar C D := linhom_scale tinv u.
 have Hv'le1 : linhom_norm v' <= 1.
-  rewrite /v' linhom_normh /=.
-  by rewrite mulrC -ler_pdivlMr ?invr_gt0 // mul1r invrK lerDl ler01.
+  by rewrite /v' linhom_normh /tinv;
+     exact: (bnd_succ_inv_ball (cone_norm_ge0 v) (lexx _)).
 have Hle' : forall y : C, exists z : D, linhom_fun v' y = linhom_fun u' y + z.
   move=> y.
   have [z Hz] := precone_scale_le tinv (Hpw y).
@@ -326,7 +442,7 @@ rewrite -[linhom_fun (linhom_scale tinv v) y]/(linhom_scale_fun tinv v y) in Hd'
 rewrite -[linhom_fun (linhom_scale tinv u) y]/(linhom_scale_fun tinv u y) in Hd'E.
 rewrite /linhom_scale_fun in Hd'E.
 have Hscan : (t%:num * tinv%:num)%:nng = 1%:nng :> {nonneg R}.
-  by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+  exact: (bnd_succ_mulV (cone_norm_ge0 v)).
 have := congr1 (fun w => t *: w) Hd'E.
 move=> Hgoal; move: Hgoal.
 rewrite precone_scale_DAr -!precone_scale_A Hscan !precone_scale_1.
@@ -492,9 +608,7 @@ have Hδsnd : is_measurable_path δsnd.
   exact: (reindex_path_measurable (ar_prod_snd Z X) Hδ).
 pose γB : path_car Ar (ar_prod Ar Z X) B := MkPath Hδsnd.
 have γB_ub : cone_norm γB <= 1.
-  rewrite /cone_norm /=.
-  apply: ge_sup; first exact: path_normset_nonempty.
-  by move=> _ [q ->] /=; rewrite /δsnd; exact: Hδb.
+  by apply: path_ball_of_pointwise => q /=; rewrite /δsnd; exact: Hδb.
 pose mfst : test_of Ar (ar_prod Ar Z X) D := test_reindex (ar_prod_fst Z X) m.
 have mfstM : mcone_M (ar_prod Ar Z X) mfst by exact: mcone_M_comp.
 pose mSh : test_of Ar (ar_prod Ar Z X) (stablehom B D) :=
@@ -507,11 +621,7 @@ pose ψ (sr : (ar_carrier Ar Z * ar_carrier Ar X)%type) :
   (ar_carrier Ar (ar_prod Ar Z X) * ar_carrier Ar (ar_prod Ar Z X))%type :=
   (ar_prod_cast (sr.1, sr.2), ar_prod_cast (sr.1, sr.2)).
 have ψ_meas : measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type] ψ.
-  apply: measurable_fun_pair.
-  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z X)).
-    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
-  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z X)).
-    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+  by rewrite /ψ; exact: ar_prod_diag_meas.
 rewrite (_ : (fun q : (ar_carrier Ar Z * ar_carrier Ar X)%type =>
                 m q.1 (linhom_fun g (γ q.1) (δ q.2))) =
              (fun sr : (ar_carrier Ar Z * ar_carrier Ar X)%type =>
@@ -701,13 +811,13 @@ rewrite HrwE.
 pose γfst : path_car Ar (ar_prod Ar Z Y) B :=
   MkPath (reindex_path_measurable (ar_prod_fst Z Y) (path_is_path γ)).
 have γfstub : cone_norm γfst <= 1.
-  rewrite /cone_norm /=; apply: ge_sup; first exact: path_normset_nonempty.
-  by move=> _ [q ->] /=; apply: le_trans (path_norm_ub γ _) _; exact: γub.
+  by apply: path_ball_of_pointwise => q /=;
+     apply: le_trans (path_norm_ub γ _) _; exact: γub.
 pose γCfst : path_car Ar (ar_prod Ar Z Y) C :=
   MkPath (reindex_path_measurable (ar_prod_fst Z Y) (path_is_path γC)).
 have γCfstub : cone_norm γCfst <= 1.
-  rewrite /cone_norm /=; apply: ge_sup; first exact: path_normset_nonempty.
-  by move=> _ [q ->] /=; apply: le_trans (path_norm_ub γC _) _; exact: γCub.
+  by apply: path_ball_of_pointwise => q /=;
+     apply: le_trans (path_norm_ub γC _) _; exact: γCub.
 pose mDfst : test_of Ar (ar_prod Ar Z Y) D := test_reindex (ar_prod_fst Z Y) mD.
 have mDfstM : mcone_M (ar_prod Ar Z Y) mDfst by exact: mcone_M_comp.
 pose mBs : test_of Ar (ar_prod Ar Z Y) (stablehom B D) :=
@@ -722,9 +832,7 @@ pose ψ (sr : (ar_carrier Ar Z * ar_carrier Ar Y)%type) :
   (ar_carrier Ar (ar_prod Ar Z Y) * ar_carrier Ar Y)%type :=
   (ar_prod_cast (sr.1, sr.2), sr.2).
 have ψ_meas : measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar Y)%type] ψ.
-  apply: measurable_fun_pair; last exact: measurable_snd.
-  apply: (measurableT_comp (ar_prod_cast_meas Ar Z Y)).
-  by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+  by rewrite /ψ; exact: ar_prod_castl_meas.
 rewrite (_ : (fun q : (ar_carrier Ar Z * ar_carrier Ar Y)%type =>
                 mD q.1 (linhom_fun (η q.2) (γC q.1) (γ q.1))) =
              (fun sr : (ar_carrier Ar Z * ar_carrier Ar Y)%type =>
@@ -812,21 +920,20 @@ Variable f : stablehom B (linhom_car Ar C D).
     image-ball hypothesis; the original is recovered by scaling back by
     [‖f‖+1]. *)
 Lemma fwd_t_pos : (0 < sh_norm f + 1)%R.
-Proof. exact: cnorm_succ_pos. Qed.
+Proof. exact: (bnd_succ_pos (cone_norm_ge0 f)). Qed.
 
 Lemma fwd_tinv_ge0 : (0 <= (sh_norm f + 1)^-1)%R.
-Proof. by rewrite invr_ge0 ltW// fwd_t_pos. Qed.
+Proof. exact: (bnd_succ_inv_ge0 (cone_norm_ge0 f)). Qed.
 
-Definition fwd_t : {nonneg R} := NngNum (ltW fwd_t_pos).
-Definition fwd_tinv : {nonneg R} := NngNum fwd_tinv_ge0.
+Definition fwd_t : {nonneg R} := bnd_succ (cone_norm_ge0 f).
+Definition fwd_tinv : {nonneg R} := bnd_succ_inv (cone_norm_ge0 f).
 
 Definition fwd_f' : stablehom B (linhom_car Ar C D) := sh_scale fwd_tinv f.
 
 Lemma fwd_f'_norm : sh_norm fwd_f' <= 1.
 Proof.
-rewrite /fwd_f' sh_normh /=.
-rewrite mulrC -ler_pdivlMr ?invr_gt0 ?fwd_t_pos // mul1r invrK.
-by rewrite /fwd_t /= lerDl ler01.
+rewrite /fwd_f' sh_normh /fwd_tinv.
+exact: (bnd_succ_inv_ball (cone_norm_ge0 f) (lexx _)).
 Qed.
 
 Lemma fwd_f'_ball (x : B) : cone_norm x <= 1 -> cone_norm (sh_fun fwd_f' x) <= 1.
@@ -853,7 +960,7 @@ have HE : (fun x => linhom_fun (sh_fun f x) y) =
     /(linhom_scale_fun fwd_tinv (sh_fun f x) y) /linhom_scale_fun.
   rewrite -precone_scale_A.
   have -> : (fwd_t%:num * fwd_tinv%:num)%:nng = 1%:nng :> {nonneg R}.
-    by apply: val_inj => /=; rewrite mulfV// gt_eqF// fwd_t_pos.
+    exact: (bnd_succ_mulV (cone_norm_ge0 f)).
   by rewrite precone_scale_1.
 rewrite HE.
 have [Hf's Hf'p] := Hf'ms.
@@ -1002,8 +1109,7 @@ have Hδsnd : is_measurable_path δsnd.
   exact: (reindex_path_measurable (ar_prod_snd Z X) Hδ).
 pose γC : path_car Ar (ar_prod Ar Z X) C := MkPath Hδsnd.
 have γC_ub : cone_norm γC <= 1.
-  rewrite /cone_norm /=; apply: ge_sup; first exact: path_normset_nonempty.
-  by move=> _ [q ->] /=; rewrite /δsnd; exact: Hδb.
+  by apply: path_ball_of_pointwise => q /=; rewrite /δsnd; exact: Hδb.
 pose mDfst : test_of Ar (ar_prod Ar Z X) D := test_reindex (ar_prod_fst Z X) mD.
 have mDfstM : mcone_M (ar_prod Ar Z X) mDfst by exact: mcone_M_comp.
 pose mLin : test_of Ar (ar_prod Ar Z X) (linhom_car Ar C D) :=
@@ -1015,11 +1121,7 @@ pose ψ (sr : (ar_carrier Ar Z * ar_carrier Ar X)%type) :
   (ar_carrier Ar (ar_prod Ar Z X) * ar_carrier Ar (ar_prod Ar Z X))%type :=
   (ar_prod_cast (sr.1, sr.2), ar_prod_cast (sr.1, sr.2)).
 have ψ_meas : measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar X)%type] ψ.
-  apply: measurable_fun_pair.
-  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z X)).
-    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
-  - apply: (measurableT_comp (ar_prod_cast_meas Ar Z X)).
-    by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+  by rewrite /ψ; exact: ar_prod_diag_meas.
 rewrite (_ : (fun q : (ar_carrier Ar Z * ar_carrier Ar X)%type =>
                 mD q.1 (linhom_fun (f (γ q.1)) (δ q.2))) =
              (fun sr : (ar_carrier Ar Z * ar_carrier Ar X)%type =>
@@ -1046,23 +1148,18 @@ move=> Hδ.
 have [[Mδ HMδ] Hδm] := Hδ.
 have Mδ_ge0 : (0 <= Mδ)%R
   by apply: le_trans (HMδ (ar_point Ar X)); exact: cone_norm_ge0.
-have S_pos : (0 < Mδ + 1)%R by apply: le_lt_trans Mδ_ge0 _; rewrite ltrDl ltr01.
-have Sinv_ge0 : (0 <= (Mδ + 1)^-1)%R by rewrite invr_ge0 ltW.
-pose Sinv : {nonneg R} := NngNum Sinv_ge0.
-pose S : {nonneg R} := NngNum (ltW S_pos).
+pose Sinv : {nonneg R} := bnd_succ_inv Mδ_ge0.
+pose S : {nonneg R} := bnd_succ Mδ_ge0.
 pose δ' := fun r => Sinv *: δ r.
 have Hδ'b : forall r, cone_norm (δ' r) <= 1.
-  move=> r; rewrite /δ' cone_normh /= mulrC ler_pdivrMr // mul1r.
-  by apply: le_trans (HMδ r) _; rewrite lerDl ler01.
+  by move=> r; rewrite /δ' cone_normh /=; exact: (bnd_succ_inv_ball Mδ_ge0 (HMδ r)).
 have Hδ' : is_measurable_path δ' by exact: (is_measurable_path_scale Sinv Hδ).
 have HE : (fun r => fwd_stablehom (δ r)) = (fun r => S *: fwd_stablehom (δ' r)).
   apply: funext => r.
   have [_ _ HZ] := fwd_linhom_linear.
   have -> : δ r = S *: δ' r.
     rewrite /δ' -precone_scale_A.
-    have -> : (S%:num * Sinv%:num)%:nng = 1%:nng :> {nonneg R}.
-      by apply: val_inj => /=; rewrite mulfV// gt_eqF.
-    by rewrite precone_scale_1.
+    by rewrite /S /Sinv (bnd_succ_mulV Mδ_ge0) precone_scale_1.
   by rewrite (HZ S (δ' r)).
 rewrite HE.
 exact: (is_measurable_path_scale S (fwd_linhom_pres_path Hδ'b Hδ')).
@@ -1251,13 +1348,13 @@ rewrite HrwE.
 pose γfst : path_car Ar (ar_prod Ar Z Y) B :=
   MkPath (reindex_path_measurable (ar_prod_fst Z Y) (path_is_path γ)).
 have γfstub : cone_norm γfst <= 1.
-  rewrite /cone_norm /=; apply: ge_sup; first exact: path_normset_nonempty.
-  by move=> _ [q ->] /=; apply: le_trans (path_norm_ub γ _) _; exact: γub.
+  by apply: path_ball_of_pointwise => q /=;
+     apply: le_trans (path_norm_ub γ _) _; exact: γub.
 pose γCfst : path_car Ar (ar_prod Ar Z Y) C :=
   MkPath (reindex_path_measurable (ar_prod_fst Z Y) (path_is_path γC)).
 have γCfstub : cone_norm γCfst <= 1.
-  rewrite /cone_norm /=; apply: ge_sup; first exact: path_normset_nonempty.
-  by move=> _ [q ->] /=; apply: le_trans (path_norm_ub γC _) _; exact: γCub.
+  by apply: path_ball_of_pointwise => q /=;
+     apply: le_trans (path_norm_ub γC _) _; exact: γCub.
 pose mDfst : test_of Ar (ar_prod Ar Z Y) D := test_reindex (ar_prod_fst Z Y) mD.
 have mDfstM : mcone_M (ar_prod Ar Z Y) mDfst by exact: mcone_M_comp.
 pose mLin : test_of Ar (ar_prod Ar Z Y) (linhom_car Ar C D) :=
@@ -1272,9 +1369,7 @@ pose ψ (sr : (ar_carrier Ar Z * ar_carrier Ar Y)%type) :
   (ar_carrier Ar (ar_prod Ar Z Y) * ar_carrier Ar Y)%type :=
   (ar_prod_cast (sr.1, sr.2), sr.2).
 have ψ_meas : measurable_fun [set: (ar_carrier Ar Z * ar_carrier Ar Y)%type] ψ.
-  apply: measurable_fun_pair; last exact: measurable_snd.
-  apply: (measurableT_comp (ar_prod_cast_meas Ar Z Y)).
-  by apply: measurable_fun_pair; [exact: measurable_fst|exact: measurable_snd].
+  by rewrite /ψ; exact: ar_prod_castl_meas.
 rewrite (_ : (fun q : (ar_carrier Ar Z * ar_carrier Ar Y)%type =>
                 mD q.1 (linhom_fun (sh_fun (η q.2) (γ q.1)) (γC q.1))) =
              (fun sr : (ar_carrier Ar Z * ar_carrier Ar Y)%type =>
@@ -1411,13 +1506,12 @@ Lemma sh_postc_meas_stable (s : stablehom B D) :
   is_meas_stable
     (fun x => cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)) (sh_fun s x)).
 Proof.
-have t_pos : (0 < sh_norm s + 1)%R by exact: cnorm_succ_pos.
-have tinv_ge0 : (0 <= (sh_norm s + 1)^-1)%R by rewrite invr_ge0 ltW.
-pose t : {nonneg R} := NngNum (ltW t_pos).
-pose tinv : {nonneg R} := NngNum tinv_ge0.
+pose t : {nonneg R} := bnd_succ (cone_norm_ge0 s).
+pose tinv : {nonneg R} := bnd_succ_inv (cone_norm_ge0 s).
 pose s' := sh_scale tinv s.
 have s'norm : sh_norm s' <= 1.
-  by rewrite /s' sh_normh /= mulrC -ler_pdivlMr ?invr_gt0 // mul1r invrK lerDl ler01.
+  by rewrite /s' sh_normh /tinv;
+     exact: (bnd_succ_inv_ball (cone_norm_ge0 s) (lexx _)).
 have s'ball : forall x, cone_norm x <= 1 -> cone_norm (sh_fun s' x) <= 1.
   by move=> x Hx; apply: le_trans (sh_norm_ub s' x Hx) _.
 set hf := cones_hom_fun (mcones_hom_cones (icones_hom_mcones h)).
@@ -1433,7 +1527,7 @@ have HE : (fun x => hf (sh_fun s x)) = stm_scale t (fun x => hf (sh_fun s' x)).
   have [_ _ HZ] := cones_hom_linear (mcones_hom_cones (icones_hom_mcones h)).
   rewrite /hf HZ -precone_scale_A.
   have -> : (t%:num * tinv%:num)%:nng = 1%:nng :> {nonneg R}.
-    by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+    exact: (bnd_succ_mulV (cone_norm_ge0 s)).
   by rewrite precone_scale_1.
 rewrite HE.
 have [Hs Hp] := Hh'ms.

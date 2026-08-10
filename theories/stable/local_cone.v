@@ -1117,6 +1117,24 @@ Let Hxle : cone_norm x <= 1 := ltW Hx.
 
 Local Notation LC := (lc_coneType Hx).
 
+(** Paper §7.1: [lc_val] is a linear, norm-nonincreasing map of cones
+    [B_x -> B]. These are exactly the four hypotheses of the
+    [test_map] combinator of [mcone.v]. *)
+
+Lemma lc_val_lin0 : lc_val (precone_zero : LC) = precone_zero.
+Proof. by []. Qed.
+
+Lemma lc_val_linD (u v : LC) :
+  lc_val (precone_add u v) = precone_add (lc_val u) (lc_val v).
+Proof. by []. Qed.
+
+Lemma lc_val_linZ (s : {nonneg R}) (u : LC) :
+  lc_val (precone_scale s u) = precone_scale s (lc_val u).
+Proof. by []. Qed.
+
+Lemma lc_val_norm (u : LC) : cone_norm (lc_val u) <= cone_norm u.
+Proof. exact: (lc_val_norm_le Hx u). Qed.
+
 Section LocalTest.
 Variable Y : ar_obj Ar.
 Variable m : test_of Ar Y B.
@@ -1126,50 +1144,23 @@ Variable m : test_of Ar Y B.
 Definition lc_test_fun : ar_carrier Ar Y -> LC -> R :=
   fun r u => test_fun m r (lc_val u).
 
-Lemma lc_test_meas (u : LC) :
-  cone_norm u <= 1 ->
-  measurable_fun [set: ar_carrier Ar Y] (fun r => lc_test_fun r u).
-Proof.
-move=> Hu; rewrite /lc_test_fun; apply: test_meas.
-exact: le_trans (lc_val_norm_le Hx u) Hu.
-Qed.
-
-Lemma lc_test_ge0 (r : ar_carrier Ar Y) (u : LC) : 0 <= lc_test_fun r u.
-Proof. exact: test_ge0. Qed.
-
-Lemma lc_test_le1 (r : ar_carrier Ar Y) (u : LC) :
-  cone_norm u <= 1 -> lc_test_fun r u <= 1.
-Proof.
-move=> Hu; rewrite /lc_test_fun; apply: test_le1.
-exact: le_trans (lc_val_norm_le Hx u) Hu.
-Qed.
-
-Lemma lc_test_lin0 (r : ar_carrier Ar Y) : lc_test_fun r precone_zero = 0.
-Proof. by rewrite /lc_test_fun lc_val0 test_lin0. Qed.
-
-Lemma lc_test_linD (r : ar_carrier Ar Y) (u v : LC) :
-  lc_test_fun r (precone_add u v) =
-  lc_test_fun r u + lc_test_fun r v.
-Proof. by rewrite /lc_test_fun lc_valD test_linD. Qed.
-
-Lemma lc_test_linZ (r : ar_carrier Ar Y) (s : {nonneg R}) (u : LC) :
-  lc_test_fun r (precone_scale s u) = s%:num * lc_test_fun r u.
-Proof. by rewrite /lc_test_fun lc_valZ test_linZ. Qed.
-
 (** Paper §7.1: ω-continuity transports along [lc_val] via the
     sup-ball identity [lc_sup_ball_translate]: writing [S] for the
     [B_x]-sup, [m r (lc_val S) = m r (x + lc_val S) - m r x] and the
     first summand is bounded by [test_cont] of [m] on the [B]-chain
-    [n ↦ x + u_n]. *)
+    [n ↦ x + u_n]. This is the ω-continuity clause required by
+    [test_map]; the seven remaining obligations of [test_of] follow
+    from [lc_val_lin0] / [lc_val_linD] / [lc_val_linZ] /
+    [lc_val_norm]. *)
 Lemma lc_test_cont (r : ar_carrier Ar Y)
   (u : nat -> LC)
   (uch : forall n, precone_le (u n) (u n.+1))
   (ub1 : forall n, cone_norm (u n) <= 1)
   (N : R) :
-  (forall n, lc_test_fun r (u n) <= N) ->
-  lc_test_fun r (cone_sup_ball u uch ub1) <= N.
+  (forall n, test_fun m r (lc_val (u n)) <= N) ->
+  test_fun m r (lc_val (cone_sup_ball u uch ub1)) <= N.
 Proof.
-move=> HN; rewrite /lc_test_fun.
+move=> HN.
 have key := lc_sup_ball_translate (u:=u) uch ub1.
 have Hxc : test_fun m r (lc_val (cone_sup_ball u uch ub1)) =
            test_fun m r (x + lc_val (cone_sup_ball u uch ub1))%PC -
@@ -1181,18 +1172,11 @@ rewrite test_linD [in leRHS]addrC lerD2l.
 exact: HN.
 Qed.
 
-Lemma lc_test_norm_le (r : ar_carrier Ar Y) (u : LC) :
-  lc_test_fun r u <= cone_norm u.
-Proof.
-rewrite /lc_test_fun; apply: le_trans (test_norm_le _ _ _) _.
-exact: lc_val_norm_le.
-Qed.
-
-(** Paper §7.1: [m] pulled back to [B_x]. *)
+(** Paper §7.1: [m] pulled back to [B_x], via the [test_map]
+    combinator. *)
 Definition lc_test : test_of Ar Y LC :=
-  MkTestOf lc_test_meas lc_test_ge0 lc_test_le1
-           lc_test_lin0 lc_test_linD lc_test_linZ
-           lc_test_cont lc_test_norm_le.
+  test_map (@lc_val R B x) lc_val_lin0 lc_val_linD lc_val_linZ lc_val_norm
+    m lc_test_cont lc_test_fun (fun _ _ => erefl).
 
 End LocalTest.
 
@@ -1739,9 +1723,12 @@ End LocalICone.
       fixed admissibility witness), the norm-domination lemma
       [lc_val_norm_le] ([‖u‖_B ≤ ‖u‖_{B_x}]), the (Normc) operator
       identity [lc_sup_ball_translate], the *full* pullback test
-      [lc_test m : test_of Ar X B_x] (all eight [test_of] fields proved,
-      including ω-continuity [lc_test_cont] via [lc_sup_ball_translate]),
-      and the (enriched) test family [lc_mcone_M].
+      [lc_test m : test_of Ar X B_x] (built by the [test_map]
+      combinator of [mcone.v] from the linearity/norm facts
+      [lc_val_lin0] / [lc_val_linD] / [lc_val_linZ] / [lc_val_norm],
+      the only bespoke field being ω-continuity [lc_test_cont] via
+      [lc_sup_ball_translate]), and the (enriched) test family
+      [lc_mcone_M].
 
     - Paper §7.1 / Example 7.3: the [isMCone] HB *instance* on
       [local_cone x] (so [B_x] is a full [mconeType]), at the *strict*

@@ -10,6 +10,11 @@
     Coverage in this file:
     - [is_linear], [is_increasing], [is_omega_continuous] definitions.
     - Lemma 2.8 (inverse of linear ω-continuous bijection).
+    - [precone_sup_addr]: the abstract translation-of-a-supremum
+      engine (stated for any two least upper bounds, over a bare
+      [preconeType]), of which [sup_ball_addr] here and [sup_at_addr]
+      in [omega_general.v] are the radius-1 / general-radius
+      instances.
     - Lemma 2.9 (addition and scalar multiplication are increasing and
       ω-continuous in each argument), together with the workhorse
       identities [sup_ball_addr] and [sup_ball_scaler].
@@ -186,6 +191,68 @@ Qed.
 
 End Lemma28.
 
+(** ** The translation-of-a-supremum engine
+
+    The witness argument behind "the supremum of a translated chain is
+    the translate of the supremum" uses nothing about *which* supremum
+    operator is at play: only that the two elements at hand are the
+    least upper bounds of [u] and of [u + y].  We isolate it here, over
+    a bare [preconeType], so that every radius-specific instance is a
+    four-line corollary:
+
+    - [sup_ball_addr] below (radius 1, [cone_sup_ball]);
+    - [sup_at_addr] in [omega_general.v] (general radius,
+      [cone_sup_at]).
+
+    Before this factoring the [cid]-witness argument was written out
+    twice, verbatim. *)
+
+Section SupTranslate.
+Variable R : realType.
+Variable P : preconeType R.
+Implicit Types (x y : P).
+
+(** If [su] is a least upper bound of [u] and [s] is a least upper
+    bound of [n ↦ u n + y], then [s = su + y]. *)
+Lemma precone_sup_addr (u : nat -> P) (y su s : P)
+    (su_ub : forall n, precone_le (u n) su)
+    (su_lub : forall z, (forall n, precone_le (u n) z) -> precone_le su z)
+    (s_ub : forall n, precone_le (precone_add (u n) y) s)
+    (s_lub : forall z,
+       (forall n, precone_le (precone_add (u n) y) z) -> precone_le s z) :
+  s = precone_add su y.
+Proof.
+apply: precone_le_anti.
+  by apply: s_lub => n; apply: precone_add_le_r; exact: su_ub.
+(* Hard direction: witnesses [w_n] with [s = (u n + y) + w_n]. *)
+have wsex : forall n, exists w, s = precone_add (precone_add (u n) y) w.
+  by move=> n; exact: s_ub n.
+pose ws (n : nat) : P := projT1 (cid (wsex n)).
+have ws_eq : forall n, s = precone_add (precone_add (u n) y) (ws n).
+  by move=> n; exact: projT2 (cid (wsex n)).
+(* All the [u n + w n] coincide (cancel [y] on the right). *)
+have u_w_const : forall n,
+    precone_add (u n) (ws n) = precone_add (u 0) (ws 0).
+  move=> n.
+  have H0 : s = precone_add (precone_add (u 0) (ws 0)) y.
+    by rewrite (ws_eq 0) -precone_addA (precone_addC y (ws 0)) precone_addA.
+  have Hn : s = precone_add (precone_add (u n) (ws n)) y.
+    by rewrite (ws_eq n) -precone_addA (precone_addC y (ws n)) precone_addA.
+  have HH : precone_add (precone_add (u 0) (ws 0)) y =
+            precone_add (precone_add (u n) (ws n)) y.
+    by rewrite -H0.
+  by symmetry; apply: precone_cancelr HH.
+have Hu_bnd : forall n, precone_le (u n) (precone_add (u 0) (ws 0)).
+  by move=> n; rewrite -(u_w_const n); exists (ws n).
+have [z Hz] : precone_le su (precone_add (u 0) (ws 0)) by exact: su_lub.
+exists z.
+rewrite (ws_eq 0).
+rewrite -[in LHS]precone_addA (precone_addC y (ws 0)) precone_addA.
+by rewrite Hz -[in RHS]precone_addA (precone_addC y z) precone_addA.
+Qed.
+
+End SupTranslate.
+
 (** ** Paper Lemma 2.9 — addition and scalar multiplication are
        increasing and ω-continuous *)
 
@@ -218,19 +285,16 @@ Proof. by move=> x1 x2; exact: precone_scale_le. Qed.
       suffices to show [u n + y ≤p (sup u) + y] for every [n],
       which is [precone_add_le_r] applied to [u n ≤p sup u].
 
-    - [(sup u) + y ≤p sup (u + y)] is the hard direction. We
-      use [cid] to extract, for each [n], a witness [w_n] with
-      [sup (u + y) = (u n + y) + w_n]. Then for all [m, n] we have
-      [u n + w_n = u m + w_m] (cancel [y], use commutativity, and
-      cancel [u m]/[u n] mod [precone_cancel]). Setting [a := u 0 + w_0],
-      the chain [u] is bounded above by [a], so [sup u ≤p a],
-      giving [a = sup u + z] for some [z]. Then
-      [sup (u + y) = u 0 + y + w_0 = a + y = (sup u + z) + y =
-       (sup u + y) + z]. *)
+    - [(sup u) + y ≤p sup (u + y)] is the hard direction, and it uses
+      nothing about the *unit-ball* supremum beyond its upper-bound /
+      least-upper-bound characterisation: it is [precone_sup_addr]
+      above. *)
 
 (** Helper: any chain [u + y] in [B_P] satisfies
     [sup_ball (u + y) = (sup_ball u) + y]. We prove it as a single
-    equality, then use it for ω-continuity. *)
+    equality, then use it for ω-continuity.  The radius-1 instance of
+    [precone_sup_addr]; the general-radius instance is [sup_at_addr]
+    in [omega_general.v]. *)
 Lemma sup_ball_addr (u : nat -> P)
   (uch : forall n, precone_le (u n) (u n.+1))
   (ub1 : forall n, cone_norm (u n) <= 1)
@@ -240,48 +304,11 @@ Lemma sup_ball_addr (u : nat -> P)
   cone_sup_ball (fun n => precone_add (u n) y) fuch fub1 =
   precone_add (cone_sup_ball u uch ub1) y.
 Proof.
-set s  := cone_sup_ball (fun n => precone_add (u n) y) fuch fub1.
-set su := cone_sup_ball u uch ub1.
-(* Direction 1: s ≤p su + y. *)
-have Dir1 : precone_le s (precone_add su y).
-  apply: cone_sup_ball_lub => n.
-  by apply: precone_add_le_r; exact: cone_sup_ball_ub.
-(* Direction 2: su + y ≤p s. Build via witness. *)
-have Dir2 : precone_le (precone_add su y) s.
-  (* Witnesses w_n with [s = (u n + y) + w_n]. *)
-  have wsex : forall n, exists w, s = precone_add (precone_add (u n) y) w.
-    move=> n.
-    by have := cone_sup_ball_ub (fun n => precone_add (u n) y) fuch fub1 n.
-  pose ws (n : nat) : P := projT1 (cid (wsex n)).
-  have ws_eq : forall n, s = precone_add (precone_add (u n) y) (ws n).
-    by move=> n; exact: projT2 (cid (wsex n)).
-  (* All u n + w n equal u 0 + w 0. *)
-  have u_w_const : forall n,
-      precone_add (u n) (ws n) = precone_add (u 0) (ws 0).
-    move=> n.
-    have H0 : s = precone_add (precone_add (u 0) (ws 0)) y.
-      by rewrite (ws_eq 0) -precone_addA (precone_addC y (ws 0)) precone_addA.
-    have Hn : s = precone_add (precone_add (u n) (ws n)) y.
-      by rewrite (ws_eq n) -precone_addA (precone_addC y (ws n)) precone_addA.
-    have HH : precone_add (precone_add (u 0) (ws 0)) y =
-              precone_add (precone_add (u n) (ws n)) y.
-      by rewrite -H0.
-    by symmetry; apply: precone_cancelr HH.
-  (* u n ≤p u 0 + w 0 for all n. *)
-  have Hu_bnd : forall n, precone_le (u n) (precone_add (u 0) (ws 0)).
-    by move=> n; rewrite -(u_w_const n); exists (ws n).
-  (* su ≤p u 0 + w 0. *)
-  have [z Hz] : precone_le su (precone_add (u 0) (ws 0)).
-    by apply: cone_sup_ball_lub.
-  (* Hz : u 0 + w 0 = su + z. Then
-     s = (u 0 + y) + w 0 = (u 0 + w 0) + y = (su + z) + y =
-     (su + y) + z. *)
-  exists z.
-  rewrite (ws_eq 0).
-  rewrite -[in LHS]precone_addA (precone_addC y (ws 0)) precone_addA.
-  rewrite Hz.
-  rewrite -[in RHS]precone_addA (precone_addC y z) precone_addA //.
-by apply: precone_le_anti.
+apply: (precone_sup_addr (u := u)).
+- exact: cone_sup_ball_ub.
+- exact: cone_sup_ball_lub.
+- exact: (cone_sup_ball_ub (fun n => precone_add (u n) y)).
+- exact: (cone_sup_ball_lub (fun n => precone_add (u n) y)).
 Qed.
 
 (** Paper Lemma 2.9: addition is ω-continuous in the first argument

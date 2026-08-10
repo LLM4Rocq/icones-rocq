@@ -649,32 +649,11 @@ Lemma αB_test_meas (x : T) :
   αB_norm x <= 1 ->
   measurable_fun setT (fun s => αB_test_fun s x).
 Proof.
-move=> Hx; rewrite /αB_test_fun.
-(* [αB_norm x ≤ 1] means [‖val x‖_B ≤ α], not necessarily ≤ 1.
-   Use the meas-of-product trick: rescale x to land in B's unit
-   ball before invoking [test_meas]. *)
-pose v := alpha_rescale_val x.
-pose r := α_inv_nng α.
-pose v' := precone_scale r v.
-have Hv' : cone_norm v' <= 1.
-  rewrite /v' cone_normh /=.
-  have := Hx; rewrite /cone_norm /= /αB_norm /=.
-  by [].
-have Hkey : forall s, test_fun m s v = (α : R) * test_fun m s v'.
-  move=> s.
-  have step : v = precone_scale (α_nng α) v'.
-    rewrite /v' -precone_scale_A.
-    have -> : ((α_nng α)%:num * r%:num)%:nng = 1%:nng.
-      by apply: nngnum_inj => /=; rewrite divff //;
-        exact: α_neq0.
-    by rewrite precone_scale_1.
-  by rewrite {1}step test_linZ.
-apply: (eq_measurable_fun
-          (fun s => (α : R)^-1 * ((α : R) * test_fun m s v'))).
-  by move=> s _; rewrite -Hkey.
-apply: measurable_funM; first exact: measurable_cst.
-apply: measurable_funM; first exact: measurable_cst.
-exact: test_meas.
+move=> _; rewrite /αB_test_fun.
+(* [αB_norm x ≤ 1] means [‖val x‖_B ≤ α], not necessarily ≤ 1, so we
+   cannot invoke [test_meas] directly; [test_meas_gen] provides
+   measurability of [λ s. m s v] for an *arbitrary* [v : B]. *)
+by apply: measurable_funM; [exact: measurable_cst|exact: test_meas_gen].
 Qed.
 
 Lemma αB_test_ge0 (s : ar_carrier Ar Y) (x : T) :

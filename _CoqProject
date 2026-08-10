@@ -9,7 +9,6 @@
 
 theories/prelude/classical_extra.v
 theories/prelude/nonneg_extra.v
-theories/prelude/ereal_extra.v
 theories/prelude/omegacpo.v
 theories/cones/precone.v
 theories/cones/cone.v
@@ -36,6 +35,7 @@ theories/homs/icones_iso.v
 theories/icones/representable.v
 theories/homs/linhom_functor.v
 theories/homs/limpl_continuous.v
+theories/homs/saft_construct.v
 theories/homs/tensor_construct.v
 theories/homs/bang_construct.v
 theories/homs/tensor_hom_iso.v

@@ -45,7 +45,10 @@
       bounded by the path norm times the measure norm.
 
     - Test-functional monotonicity (proved): [test_fun_le] — tests
-      are monotone along the precone order.
+      are monotone along the precone order; and
+      [test_cone_sup_ball] — a test of a unit-ball sup is the [sup]
+      of the tests along the chain (the shared step of both
+      ω-continuity proofs below).
 
     - ω-continuity in [β] (proved): [integral_omega_cont_path] —
       Paper Lemma 4.7, separate continuity in the first argument.
@@ -704,6 +707,39 @@ Qed.
 
 End TestFunMonotone.
 
+(** ** Tests commute with unit-ball sups
+
+    A test is monotone ([test_fun_le]) and ω-continuous
+    ([test_cont]), so its value on [cone_sup_ball u uch ub1] is
+    exactly the supremum (in [R]) of its values along the chain. This
+    is the single fact behind every "test of a sup-ball = sup of the
+    tests" step in the ω-continuity proofs of Lemma 4.7 below. *)
+
+Section TestConeSupBall.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (C : MCone.type Ar) (X : ar_obj Ar).
+
+Lemma test_cone_sup_ball (m : test_of Ar X C) (s : ar_carrier Ar X)
+    (u : nat -> C)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, (cone_norm (u n) <= 1)%R) :
+  test_fun m s (cone_sup_ball u uch ub1) =
+  sup (range (fun n => test_fun m s (u n))).
+Proof.
+set v : nat -> R := fun n => test_fun m s (u n).
+have ub : has_ubound (range v).
+  by exists (1%R : R) => y [n _ <-]; apply: test_le1; exact: ub1.
+have nonempty : (range v) !=set0 by exists (v 0%N), 0%N.
+apply: le_anti; apply/andP; split; last first.
+  apply: ge_sup => //.
+  move=> _ [n _ <-]; apply: test_fun_le; exact: cone_sup_ball_ub.
+apply: test_cont => n.
+apply: sup_upper_bound; first by split.
+by exists n.
+Qed.
+
+End TestConeSupBall.
+
 (** ** Residue extraction along the cone order — used in ω-continuity
 
     [precone_le x y] unfolds to [∃ z, y = x + z]. By [cid], we extract
@@ -908,42 +944,14 @@ Local Lemma test_β_sup_pt
     (m : test_of Ar (ar_zero Ar) B) (r : ar_carrier Ar X) :
   test_fun m (ar_zero_pt Ar) (β_sup_fun r) =
   sup (range (fun n => test_fun m (ar_zero_pt Ar) (β n r))).
-Proof.
-set s0 := ar_zero_pt Ar.
-set u : nat -> R := fun n => test_fun m s0 (β n r).
-have ub : has_ubound (range u).
-  exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: β_bound.
-have nonempty : (range u) !=set0.
-  by exists (u 0%N), 0%N.
-apply: le_anti; apply/andP; split; last first.
-  apply: ge_sup => //.
-  move=> _ [n _ <-]; apply: test_fun_le.
-  exact: cone_sup_ball_ub.
-apply: test_cont => n.
-apply: sup_upper_bound; first by split.
-by exists n.
-Qed.
+Proof. exact: test_cone_sup_ball. Qed.
 
 (** Helper: same for the integral chain. *)
 Local Lemma test_int_β_sup_pt
     (m : test_of Ar (ar_zero Ar) B) :
   test_fun m (ar_zero_pt Ar) (cone_sup_ball int_β int_β_chain int_β_bound) =
   sup (range (fun n => test_fun m (ar_zero_pt Ar) (int_β n))).
-Proof.
-set s0 := ar_zero_pt Ar.
-set u : nat -> R := fun n => test_fun m s0 (int_β n).
-have ub : has_ubound (range u).
-  exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: int_β_bound.
-have nonempty : (range u) !=set0.
-  by exists (u 0%N), 0%N.
-apply: le_anti; apply/andP; split; last first.
-  apply: ge_sup => //.
-  move=> _ [n _ <-]; apply: test_fun_le.
-  exact: cone_sup_ball_ub.
-apply: test_cont => n.
-apply: sup_upper_bound; first by split.
-by exists n.
-Qed.
+Proof. exact: test_cone_sup_ball. Qed.
 
 (** Paper Lemma 4.7 (ω-continuity in [β]). *)
 Lemma integral_omega_cont_path :
@@ -1094,20 +1102,7 @@ set s0 := ar_zero_pt Ar.
 rewrite (icone_integral_test_pettis Hβ
            (fmeas_sup_ball µn_chain µn_bound) m mM s0).
 (* LHS: test of cone_sup_ball — sup of tests of int_µ n *)
-have test_sup :
-  test_fun m s0 (cone_sup_ball int_µ int_µ_chain int_µ_bound) =
-  sup (range (fun n => test_fun m s0 (int_µ n))).
-  set u : nat -> R := fun n => test_fun m s0 (int_µ n).
-  have ub : has_ubound (range u).
-    exists (1%R : R) => x [n _ <-]; apply: test_le1; exact: int_µ_bound.
-  have nonempty : (range u) !=set0 by exists (u 0%N), 0%N.
-  apply: le_anti; apply/andP; split; last first.
-    apply: ge_sup => //.
-    move=> _ [n _ <-]; apply: test_fun_le.
-    exact: cone_sup_ball_ub.
-  apply: test_cont => n.
-  apply: sup_upper_bound; first by split.
-  by exists n.
+have test_sup := test_cone_sup_ball m s0 int_µ_chain int_µ_bound.
 rewrite test_sup.
 (* Define the test integrand *)
 pose f r : \bar R := (test_fun m s0 (β r))%:E.

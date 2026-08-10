@@ -159,6 +159,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone_cat.
+Require Import Icones.cones.omega_general.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -1265,16 +1266,6 @@ apply: (path_integral_norm_le (Mβ := path_norm b)).
 - exact: icone_integralP.
 Qed.
 
-(** [cone_sup_ball] depends only on the chain function, not on its
-    chain/bound proofs (by [Prop_irrelevance]). *)
-Lemma cone_sup_ball_irr (C : coneType R) (u : nat -> C)
-    (uch uch' : forall n, precone_le (u n) (u n.+1))
-    (ub ub' : forall n, cone_norm (u n) <= 1) :
-  cone_sup_ball u uch ub = cone_sup_ball u uch' ub'.
-Proof.
-by rewrite (Prop_irrelevance uch uch') (Prop_irrelevance ub ub').
-Qed.
-
 (** Paper Lemma 4.7 (ω-continuity in [β]) on the unit ball, pointwise
     in [µ]: reduce both sides to a [cone_sup_ball] of the integral
     chain via [integral_omega_cont_path]. *)
@@ -1341,7 +1332,6 @@ Qed.
 
 End IntToLinhomMorph.
 
-Arguments cone_sup_ball_irr {R C} u {uch uch' ub ub'}.
 
 (** ** Paper Thm 6.1 inverse map [K] as a morphism in [Cones]
 

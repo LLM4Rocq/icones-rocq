@@ -20,6 +20,13 @@
       [coneType] [C].
     - [test_reindex] — reindexing of a test along [φ ∈ ar_hom Y X],
       used to state (Mscomp).
+    - [test_map] — transport of a test along a linear,
+      norm-nonincreasing cone map [f : D -> C] (the combinator behind
+      every "pullback of a test" in the development: product
+      projections, equaliser inclusions, local-cone inclusions, …).
+    - [test_const] — the base test attached to a single linear,
+      ω-continuous, norm-bounded functional [φ : C -> R], constant in
+      the arity point.
     - [isMCone Ar C] — the HB mixin over [coneType R] declaring the
       family [mcone_M] and the axioms (Mscomp), (Mssep), (Msnorm).
     - [MCone.type Ar] (alias [mconeType Ar]) — the HB structure
@@ -294,6 +301,194 @@ Definition test_reindex : test_of Ar Y C :=
 
 End TestReindex.
 
+(** ** Transporting a test along a cone map — the [test_map] combinator
+
+    Every "pullback of a test along a structural map of cones" in the
+    development (product projections, equaliser inclusions, local-cone
+    inclusions, …) repeats the same eight proof obligations of
+    [test_of] for a carrier of the shape [λ r x. m r (f x)]. All of
+    them are consequences of four properties of the map [f : D -> C] —
+    linearity ([f_lin0], [f_linD], [f_linZ]) and norm-nonincreasingness
+    ([f_norm]) — plus the transported ω-continuity clause [f_cont],
+    which is the only part that genuinely depends on how [D]'s
+    sup-ball is built.
+
+    The carrier is passed *explicitly* as [g], together with its
+    defining equation [gE : ∀ r x, g r x = m r (f x)] (typically
+    [fun _ _ => erefl]). This keeps the client's own carrier constant
+    as the first field of the resulting record, so that the usual
+    [rewrite /myTest /= /myTest_fun] idiom keeps working downstream. *)
+
+Section TestMap.
+Variables (R : realType) (Ar : MeasSubcat R) (Y : ar_obj Ar).
+Variables (C D : coneType R).
+Variable f : D -> C.
+Hypothesis f_lin0 : f precone_zero = precone_zero.
+Hypothesis f_linD :
+  forall x y : D, f (precone_add x y) = precone_add (f x) (f y).
+Hypothesis f_linZ :
+  forall (s : {nonneg R}) (x : D),
+    f (precone_scale s x) = precone_scale s (f x).
+Hypothesis f_norm : forall x : D, cone_norm (f x) <= cone_norm x.
+
+Variable m : test_of Ar Y C.
+(** The transported ω-continuity clause. It is stated for the fixed
+    test [m], so it can be proved by any argument specific to [D]'s
+    sup-ball (e.g. a translation trick); the other seven obligations
+    are discharged once and for all below. *)
+Hypothesis f_cont :
+  forall (r : ar_carrier Ar Y) (u : nat -> D)
+         (uch : forall n, precone_le (u n) (u n.+1))
+         (ub1 : forall n, cone_norm (u n) <= 1)
+         (N : R),
+    (forall n, test_fun m r (f (u n)) <= N) ->
+    test_fun m r (f (cone_sup_ball u uch ub1)) <= N.
+
+Variable g : ar_carrier Ar Y -> D -> R.
+Hypothesis gE : forall r x, g r x = test_fun m r (f x).
+
+Lemma test_map_meas (x : D) :
+  cone_norm x <= 1 -> measurable_fun setT (fun r => g r x).
+Proof.
+move=> Hx.
+apply: (eq_measurable_fun (fun r => test_fun m r (f x))); first by move=> r _.
+by apply: test_meas; exact: le_trans (f_norm x) Hx.
+Qed.
+
+Lemma test_map_ge0 (r : ar_carrier Ar Y) (x : D) : 0 <= g r x.
+Proof. by rewrite gE; exact: test_ge0. Qed.
+
+Lemma test_map_le1 (r : ar_carrier Ar Y) (x : D) :
+  cone_norm x <= 1 -> g r x <= 1.
+Proof.
+by move=> Hx; rewrite gE; apply: test_le1; exact: le_trans (f_norm x) Hx.
+Qed.
+
+Lemma test_map_lin0 (r : ar_carrier Ar Y) : g r precone_zero = 0.
+Proof. by rewrite gE f_lin0 test_lin0. Qed.
+
+Lemma test_map_linD (r : ar_carrier Ar Y) (x y : D) :
+  g r (precone_add x y) = g r x + g r y.
+Proof. by rewrite !gE f_linD test_linD. Qed.
+
+Lemma test_map_linZ (r : ar_carrier Ar Y) (s : {nonneg R}) (x : D) :
+  g r (precone_scale s x) = s%:num * g r x.
+Proof. by rewrite !gE f_linZ test_linZ. Qed.
+
+Lemma test_map_cont
+    (r : ar_carrier Ar Y) (u : nat -> D)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) (N : R) :
+  (forall n, g r (u n) <= N) -> g r (cone_sup_ball u uch ub1) <= N.
+Proof. by move=> HN; rewrite gE; apply: f_cont => n; rewrite -gE. Qed.
+
+Lemma test_map_norm_le (r : ar_carrier Ar Y) (x : D) :
+  g r x <= cone_norm x.
+Proof.
+by rewrite gE; apply: le_trans (test_norm_le _ _ _) _; exact: f_norm.
+Qed.
+
+(** The test [m] of [C] transported to [D] along [f]. *)
+Definition test_map : test_of Ar Y D :=
+  MkTestOf test_map_meas test_map_ge0 test_map_le1
+           test_map_lin0 test_map_linD test_map_linZ
+           test_map_cont test_map_norm_le.
+
+Lemma test_mapE (r : ar_carrier Ar Y) (x : D) :
+  test_fun test_map r x = test_fun m r (f x).
+Proof. exact: gE. Qed.
+
+End TestMap.
+
+Arguments test_map {R Ar Y C D} f f_lin0 f_linD f_linZ f_norm m f_cont g gE.
+Arguments test_mapE
+  {R Ar Y C D} f f_lin0 f_linD f_linZ f_norm m f_cont g gE.
+
+(** ** Tests that do not depend on the arity point — [test_const]
+
+    A *base* test (one that is not transported from another cone) is
+    frequently given by a single linear, ω-continuous, norm-bounded
+    functional [φ : C -> R], used at every arity and constant in the
+    arity point [r]. In that case (Msmeas) is [measurable_cst] and the
+    unit-ball bound [test_le1] follows from [test_norm_le], so only
+    the six genuinely cone-theoretic obligations remain.
+
+    As for [test_map], the carrier [g] is passed explicitly together
+    with [gE : ∀ r x, g r x = φ x]. *)
+
+Section TestConst.
+Variables (R : realType) (Ar : MeasSubcat R) (Y : ar_obj Ar).
+Variable C : coneType R.
+Variable φ : C -> R.
+Hypothesis φ_ge0 : forall x : C, 0 <= φ x.
+Hypothesis φ_lin0 : φ precone_zero = 0.
+Hypothesis φ_linD : forall x y : C, φ (precone_add x y) = φ x + φ y.
+Hypothesis φ_linZ :
+  forall (s : {nonneg R}) (x : C), φ (precone_scale s x) = s%:num * φ x.
+Hypothesis φ_cont :
+  forall (u : nat -> C)
+         (uch : forall n, precone_le (u n) (u n.+1))
+         (ub1 : forall n, cone_norm (u n) <= 1)
+         (N : R),
+    (forall n, φ (u n) <= N) -> φ (cone_sup_ball u uch ub1) <= N.
+Hypothesis φ_norm_le : forall x : C, φ x <= cone_norm x.
+
+Variable g : ar_carrier Ar Y -> C -> R.
+Hypothesis gE : forall r x, g r x = φ x.
+
+Lemma test_const_meas (x : C) :
+  cone_norm x <= 1 -> measurable_fun setT (fun r => g r x).
+Proof.
+move=> _; apply: (eq_measurable_fun (fun=> φ x)); first by move=> r _.
+exact: measurable_cst.
+Qed.
+
+Lemma test_const_ge0 (r : ar_carrier Ar Y) (x : C) : 0 <= g r x.
+Proof. by rewrite gE; exact: φ_ge0. Qed.
+
+Lemma test_const_le1 (r : ar_carrier Ar Y) (x : C) :
+  cone_norm x <= 1 -> g r x <= 1.
+Proof. by move=> Hx; rewrite gE; exact: le_trans (φ_norm_le x) Hx. Qed.
+
+Lemma test_const_lin0 (r : ar_carrier Ar Y) : g r precone_zero = 0.
+Proof. by rewrite gE; exact: φ_lin0. Qed.
+
+Lemma test_const_linD (r : ar_carrier Ar Y) (x y : C) :
+  g r (precone_add x y) = g r x + g r y.
+Proof. by rewrite !gE; exact: φ_linD. Qed.
+
+Lemma test_const_linZ (r : ar_carrier Ar Y) (s : {nonneg R}) (x : C) :
+  g r (precone_scale s x) = s%:num * g r x.
+Proof. by rewrite !gE; exact: φ_linZ. Qed.
+
+Lemma test_const_cont
+    (r : ar_carrier Ar Y) (u : nat -> C)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) (N : R) :
+  (forall n, g r (u n) <= N) -> g r (cone_sup_ball u uch ub1) <= N.
+Proof. by move=> HN; rewrite gE; apply: φ_cont => n; rewrite -(gE r). Qed.
+
+Lemma test_const_norm_le (r : ar_carrier Ar Y) (x : C) :
+  g r x <= cone_norm x.
+Proof. by rewrite gE; exact: φ_norm_le. Qed.
+
+(** The arity-constant test attached to [φ]. *)
+Definition test_const : test_of Ar Y C :=
+  MkTestOf test_const_meas test_const_ge0 test_const_le1
+           test_const_lin0 test_const_linD test_const_linZ
+           test_const_cont test_const_norm_le.
+
+Lemma test_constE (r : ar_carrier Ar Y) (x : C) :
+  test_fun test_const r x = φ x.
+Proof. exact: gE. Qed.
+
+End TestConst.
+
+Arguments test_const
+  {R Ar Y C} φ φ_ge0 φ_lin0 φ_linD φ_linZ φ_cont φ_norm_le g gE.
+Arguments test_constE
+  {R Ar Y C} φ φ_ge0 φ_lin0 φ_linD φ_linZ φ_cont φ_norm_le g gE.
+
 (** ** The [isMCone] HB mixin — Paper Def 3.2 / 3.6
 
     Over a [coneType R] and parameterized by an [MeasSubcat R],
@@ -376,51 +571,11 @@ split.
   by exists (cone_norm x) => r; exact: lexx.
 move=> Y m mM.
 (* The map [p ↦ test_fun m p.1 x] is [fun r => test_fun m r x]
-   composed with [fst]. Since [fst] is measurable and the partial
-   application is measurable when [cnorm x ≤ 1], we need to handle
-   the unrestricted case via a uniform bound. We split on whether
-   [x = 0] (cnorm = 0 ≤ 1) or rescale. *)
-(* Strategy: rescale [x] by [1 / (cnorm x ∨ 1)] to land in the unit
-   ball, then use [test_meas] there, and lift back by [test_linZ]. *)
-have [Hx1|Hx1] := leP (cone_norm x) 1.
-  by apply: (measurableT_comp (f := fun r => test_fun m r x));
-    [exact: test_meas|exact: measurable_fst].
-(* The harder case [1 < cnorm x]. Let [r := (cnorm x)^{-1}], then
-   [x = (cnorm x) *: (r *: x)] with [cnorm (r *: x) = 1 ≤ 1]. So
-   [test_fun m s x = (cnorm x) * test_fun m s (r *: x)]. *)
-have cx_pos : 0 < cone_norm x.
-  by apply: lt_trans Hx1; exact: ltr01.
-have cx_neq0 : cone_norm x != 0 by rewrite gt_eqF.
-have cx_inv_ge0 : 0 <= (cone_norm x)^-1.
-  by rewrite invr_ge0 ltW.
-pose r : {nonneg R} := NngNum cx_inv_ge0.
-have r_num : r%:num = (cone_norm x)^-1 by [].
-pose x' : C := precone_scale r x.
-have cx' : cone_norm x' = 1.
-  rewrite /x' cone_normh r_num.
-  by rewrite mulVf.
-have cx'_le1 : cone_norm x' <= 1 by rewrite cx'.
-(* For each s, [test_fun m s x = cnorm x * test_fun m s x']. *)
-have key : forall s, test_fun m s x = cone_norm x * test_fun m s x'.
-  move=> s.
-  have Hxx' : x = precone_scale (NngNum (ltW cx_pos)) x'.
-    rewrite /x' -[LHS]precone_scale_1 -precone_scale_A.
-    congr precone_scale.
-    apply: nngnum_inj => /=.
-    by rewrite mulfV.
-  by rewrite {1}Hxx' test_linZ.
-apply: (eq_measurable_fun (fun p => cone_norm x * test_fun m p.1 x')).
-  by move=> p _; rewrite key.
-(* Measurability of [fun p => c * f p.1]. *)
-have mf : measurable_fun setT
-            (fun s => test_fun m s x').
-  exact: test_meas.
-have mcomp1 : measurable_fun
-  [set: (ar_carrier Ar Y * ar_carrier Ar X)%type]
-  (fun p : ar_carrier Ar Y * ar_carrier Ar X => test_fun m p.1 x').
-  by apply: (measurableT_comp (f := fun s => test_fun m s x'));
-    [exact: mf|exact: measurable_fst].
-by apply: measurable_funM => //; exact: measurable_cst.
+   composed with [fst]. The partial application is measurable for an
+   *arbitrary* [x] by [test_meas_gen] (which performs the rescaling
+   into the unit ball once and for all), and [fst] is measurable. *)
+by apply: (measurableT_comp (f := fun r => test_fun m r x));
+  [exact: test_meas_gen|exact: measurable_fst].
 Qed.
 
 End Lemma39.

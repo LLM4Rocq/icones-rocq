@@ -32,9 +32,10 @@
     - **M2**  [meas_stable_comp_lin]: composing a meas-stable map with
       an [icones_hom] (post or pre) is meas-stable.
 
-    - **M3**  [id_spair_meas_stable]: the diagonal pairing
-      [g ↦ ⟨g, K g⟩] for a meas-stable [K] is meas-stable (CCC pairing
-      of two meas-stable maps via [scones_tuple]).
+    - **M3**  [spair_meas_stable]: the pairing [g ↦ ⟨f g, K g⟩] of two
+      meas-stable maps is meas-stable (CCC pairing via [scones_tuple]),
+      with the diagonal [id_spair_meas_stable] ([g ↦ ⟨g, K g⟩]) derived
+      from it at [f = id] ([meas_stable_id]).
 
     - **M4**  [meas_stable_diag_bilinear_tensor] — THE deliverable.
       Assembles M1 + M2 + M3 + [tensor_curryE] + [ev_meas_stable]. *)
@@ -433,173 +434,18 @@ Arguments meas_stable_comp_pre {R Ar G B C}.
 (** ** M3 — the diagonal pairing into [sprod]
 
     For meas-stable [f₁ : G → A] and [f₂ : G → B], the diagonal pairing
-    [g ↦ ⟨f₁ g, f₂ g⟩ : G → sprod A B] is meas-stable.
+    [g ↦ ⟨f₁ g, f₂ g⟩ : G → sprod A B] is meas-stable, proved directly
+    (componentwise on [sprod = icones_prod (sprod_fam C A)]).
 
-    The construction reuses [scones_tuple_meas_stable_bare] (paper Thm
-    7.32 at the bare-function level): the bool-indexed family of
-    meas-stable maps gives a meas-stable tuple. We need to rescale each
-    component to operator norm [≤ 1] to package them as [scones_hom]s,
-    apply the tuple's meas-stability, and rescale back by linearity of
-    [sprod_pair] in each factor.
+    Total monotonicity by the product (7.1) [cones_prod_le_compI]
+    reduced to the components' totmono; boundedness by the [cones_prod]
+    sup; Scott on the unit ball by [cones_prod_eq] componentwise;
+    path-preservation by the product test family (an [iniTest] of a
+    component test).  The diagonal [g ↦ ⟨g, K g⟩] is the [f = id]
+    instance, derived as [id_spair_meas_stable] right after.
 
     Alternative direct proof would mirror [scones_tuple_meas_stable_bare]
     on a fixed [sprod] (without going through [scones_hom]). *)
-
-Section IdSpairMeasStable.
-Variables (R : realType) (Ar : MeasSubcat R).
-Variables (G A : ICone.type Ar).
-Local Open Scope precone_scope.
-
-(** The diagonal pairing [g ↦ ⟨g, K g⟩] for a meas-stable [K], proved
-    directly (componentwise on [sprod = icones_prod (sprod_fam G A)]).
-
-    Total monotonicity by the product (7.1) [cones_prod_le_compI]
-    reduced to identity/totmono of [K]; boundedness by [cones_prod] sup;
-    Scott on the unit ball by [cones_prod_eq] componentwise; path-pres
-    by the product test family (an [iniTest] of a component test). *)
-Lemma id_spair_meas_stable (K : G -> A) :
-  is_meas_stable K ->
-  is_meas_stable (fun g : G => sprod_pair g (K g) : sprod G A).
-Proof.
-move=> HK.
-have [Hs Hp] := HK.
-have [Htm [Mk HMk] Hsc] := Hs.
-have Hk_ub g : cone_norm g <= 1 -> cone_norm (K g) <= Mk by exact: HMk.
-have Mk_ge0 : (0 <= Mk)%R.
-  have H0le1 : cone_norm (precone_zero : G) <= 1 by rewrite cone_norm0 ler01.
-  by apply: le_trans (cone_norm_ge0 (K precone_zero)) (HMk precone_zero H0le1).
-have id_lin : is_linear (fun g : G => g).
-  by split; rewrite ?precone_add0//.
-have id_cont : is_omega_continuous (fun g : G => g).
-  by move=> u' uch' ub1' fuch' fub1'; congr (cone_sup_ball _ _ _);
-     exact: Prop_irrelevance.
-split; first split.
-- (* Totally monotonic. *)
-  move=> n x u Hz.
-  apply: cones_prod_le_compI => i.
-  rewrite !cones_prod_val_big.
-  case: i.
-    (* true: identity sprod_fam = G; both sides of (7.1) sum [tm_arg]s
-       directly. *)
-    have := linear_totmono _ id_lin n x u Hz.
-    by rewrite [X in X <=p _](eq_bigr (fun I => tm_arg x u I)); first done;
-       move=> I _.
-  (* false: sprod_fam false = A; (7.1) for K. *)
-  rewrite (eq_bigr (fun I => K (tm_arg x u I))) //.
-  rewrite [X in _ <=p X](eq_bigr (fun I => K (tm_arg x u I))) //.
-  exact: Htm.
-- (* Bounded on the unit ball. *)
-  exists (Mk + 1)%R => g Hg.
-  rewrite /cone_norm/=.
-  apply: ge_sup; first by exists (cone_norm g), true.
-  move=> _ [b ->]; case: b => /=.
-  + apply: le_trans Hg _.
-    by apply: ler_wpDl => //; exact: Mk_ge0.
-  + apply: le_trans (Hk_ub g Hg) _.
-    by apply: ler_wpDr => //; rewrite ler01.
-- (* Scott on the unit ball: componentwise, via Scott of projections
-     [cones_proj_fun] (linear + ω-cont). *)
-  move=> Mf u uch ub1 fuch fubMf Mfpos.
-  pose Pc : bool -> coneType R := sprod_fam G A.
-  pose pair_u : nat -> sprod G A := fun n => sprod_pair (u n) (K (u n)).
-  have proj_sct (i : bool) := linear_scott_of_omega (cones_proj_fun (P:=Pc) i)
-    (cones_proj_linear Pc i) (cones_proj_continuous (P:=Pc) (i:=i)).
-  have HL i := proj_sct i Mf Mf pair_u fuch fubMf Mfpos.
-  apply: cones_prod_eq => i.
-  case: i.
-    (* true: identity component. *)
-    have eT n : cones_proj_fun (P:=Pc) true (pair_u n) = u n by [].
-    have eTch n : cones_proj_fun (P:=Pc) true (pair_u n) <=p
-                  cones_proj_fun (P:=Pc) true (pair_u n.+1)
-      by rewrite !eT; exact: uch.
-    have eTub n : cone_norm (cones_proj_fun (P:=Pc) true (pair_u n)) <=
-                  Mf%:num
-      by rewrite eT;
-        apply: le_trans (fubMf n);
-        exact: (cones_prod_norm_ge_comp (pair_u n) true).
-    rewrite -/(cones_proj_fun (P:=Pc) true
-                 (sprod_pair (cone_sup_ball u uch ub1)
-                             (K (cone_sup_ball u uch ub1)))).
-    have id_fuch n : u n <=p u n.+1 by exact: uch.
-    have id_fubMf n : cone_norm (u n) <= Mf%:num by rewrite -eT.
-    have id_E := linear_scott_unit id_lin id_cont uch ub1 id_fuch id_fubMf
-      Mfpos.
-    rewrite -[cones_proj_fun (P:=Pc) true _]
-      /(cone_sup_ball u uch ub1) id_E.
-    have := HL true eTch eTub Mfpos.
-    rewrite -[cones_prod_val (cone_sup_at fuch fubMf Mfpos) true]
-      /(cones_proj_fun (P:=Pc) true (cone_sup_at fuch fubMf Mfpos)) => ->.
-    apply: precone_le_anti.
-    + apply: (cone_sup_at_lub id_fuch id_fubMf Mfpos) => n.
-      by have := cone_sup_at_ub eTch eTub Mfpos n; rewrite eT.
-    + apply: (cone_sup_at_lub eTch eTub Mfpos) => n.
-      by rewrite eT; have := cone_sup_at_ub id_fuch id_fubMf Mfpos n.
-  (* false: K component. *)
-  have eF n : cones_proj_fun (P:=Pc) false (pair_u n) = K (u n) by [].
-  have eFch n : cones_proj_fun (P:=Pc) false (pair_u n) <=p
-                cones_proj_fun (P:=Pc) false (pair_u n.+1).
-    rewrite !eF.
-    have := fuch n.
-    by move=> H; have := cones_prod_le_comp H false; rewrite /cones_prod_val/=.
-  have eFub n : cone_norm (cones_proj_fun (P:=Pc) false (pair_u n)) <=
-                Mf%:num.
-    rewrite eF.
-    apply: le_trans (fubMf n).
-    exact: (cones_prod_norm_ge_comp (pair_u n) false).
-  have K_fuch n : K (u n) <=p K (u n.+1) by rewrite -!eF; exact: eFch.
-  have K_fubMf n : cone_norm (K (u n)) <= Mf%:num by rewrite -eF.
-  rewrite -[cones_prod_val (sprod_pair _ (K _)) false]
-    /(K (cone_sup_ball u uch ub1)).
-  rewrite (Hsc Mf u uch ub1 K_fuch K_fubMf Mfpos).
-  rewrite -[cones_prod_val (cone_sup_at fuch fubMf Mfpos) false]
-    /(cones_proj_fun (P:=Pc) false (cone_sup_at fuch fubMf Mfpos)).
-  have := HL false eFch eFub Mfpos.
-  move=> ->.
-  apply: precone_le_anti.
-  + apply: (cone_sup_at_lub K_fuch K_fubMf Mfpos) => n.
-    by have := cone_sup_at_ub eFch eFub Mfpos n; rewrite eF.
-  + apply: (cone_sup_at_lub eFch eFub Mfpos) => n.
-    by rewrite eF; have := cone_sup_at_ub K_fuch K_fubMf Mfpos n.
-(* Path-preservation: product paths are test-tuples of components. *)
-move=> X γ Hγb Hγ.
-split.
-  exists (Mk + 1)%R => r.
-  rewrite /cone_norm /= /cones_prod_norm.
-  apply: ge_sup.
-    by exists (cone_norm (cones_prod_val (sprod_pair (γ r) (K (γ r))) true)),
-      true.
-  move=> _ [b ->]; case: b => /=.
-  + apply: le_trans (Hγb r) _.
-    by apply: ler_wpDl => //; exact: Mk_ge0.
-  + apply: le_trans (Hk_ub _ (Hγb r)) _.
-    by apply: ler_wpDr => //; rewrite ler01.
-(* Per-test joint measurability via product tests. *)
-move=> Y m mM.
-have [j [n0 [n0M ->]]] := mM.
-have Kγ_path : is_measurable_path (fun r => K (γ r)).
-  exact: Hp X γ Hγb Hγ.
-have [_ Kγ_meas] := Kγ_path.
-have [_ γ_meas] := Hγ.
-destruct j.
-- (* true: test is on the [G] component. *)
-  have := γ_meas Y n0 n0M.
-  apply: eq_measurable_fun => p _.
-  by rewrite /iniTest /= /iniTest_fun /= /cones_prod_val/=.
-- (* false: test is on the [A] component. *)
-  have := Kγ_meas Y n0 n0M.
-  apply: eq_measurable_fun => p _.
-  by rewrite /iniTest /= /iniTest_fun /= /cones_prod_val/=.
-Qed.
-
-End IdSpairMeasStable.
-
-Arguments id_spair_meas_stable {R Ar G A}.
-
-(** ** General diagonal pairing — [g ↦ ⟨f g, K g⟩]
-
-    Generalization of [id_spair_meas_stable] to allow a non-identity
-    first factor [f : G → C].  Same proof structure, using [f]'s data
-    instead of identity's. *)
 Section SpairMeasStable.
 Variables (R : realType) (Ar : MeasSubcat R).
 Variables (G C A : ICone.type Ar).
@@ -738,6 +584,42 @@ End SpairMeasStable.
 
 Arguments spair_meas_stable {R Ar G C A}.
 
+(** ** The diagonal pairing [g ↦ ⟨g, K g⟩] — the [f = id] instance
+
+    The special case originally used by [meas_stable_diag_bilinear_tensor]'s
+    ancestors and by [ppl.v]: pair a point with its image.  It is
+    [spair_meas_stable] at [f = id], the identity being stable-and-measurable
+    (linear + ω-continuous, hence totally monotone by [linear_totmono] and
+    Scott-continuous on the unit ball by [linear_scott_unit]; it maps the
+    unit ball to itself and preserves measurable paths on the nose). *)
+Section IdSpairMeasStable.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (G A : ICone.type Ar).
+Local Open Scope precone_scope.
+
+Lemma meas_stable_id : is_meas_stable (fun g : G => g).
+Proof.
+have id_lin : is_linear (fun g : G => g) by split; rewrite ?precone_add0//.
+have id_cont : is_omega_continuous (fun g : G => g).
+  by move=> u' uch' ub1' fuch' fub1'; congr (cone_sup_ball _ _ _);
+     exact: Prop_irrelevance.
+split; last by move=> X γ _ Hγ.
+split.
+- exact: (linear_totmono _ id_lin).
+- by exists 1 => g Hg.
+- exact: linear_scott_unit id_lin id_cont.
+Qed.
+
+Lemma id_spair_meas_stable (K : G -> A) :
+  is_meas_stable K ->
+  is_meas_stable (fun g : G => sprod_pair g (K g) : sprod G A).
+Proof. exact: (spair_meas_stable (fun g : G => g) K meas_stable_id). Qed.
+
+End IdSpairMeasStable.
+
+Arguments meas_stable_id {R Ar} G.
+Arguments id_spair_meas_stable {R Ar G A}.
+
 (** ** M4 — the deliverable: the diagonal bilinear stability bridge
 
     The headline of the file (task #171, recipe of research #181):
@@ -784,23 +666,20 @@ have Hk_ub g : cone_norm g <= 1 -> cone_norm (K g) <= Mk by exact: HMk.
 have Mk_ge0 : (0 <= Mk)%R.
   have H0le1 : cone_norm (precone_zero : G) <= 1 by rewrite cone_norm0 ler01.
   by apply: le_trans (cone_norm_ge0 (K precone_zero)) (HMk precone_zero H0le1).
-(* Rescaling [K] to have on-ball-norm ≤ 1. *)
-have Mk1_pos : (0 < Mk + 1)%R by apply: le_lt_trans Mk_ge0 _; rewrite ltrDl.
-have Mk1_inv_ge0 : (0 <= (Mk + 1)^-1)%R by rewrite invr_ge0 ltW.
-pose alpha : {nonneg R} := NngNum Mk1_inv_ge0.
-pose beta : {nonneg R} := NngNum (ltW Mk1_pos).
+(* Rescaling [K] into the unit ball: the [(M+1)]-rescale packaged in
+   [stab_lin_swap.v] ([bnd_succ] / [bnd_succ_inv] / [bnd_succ_mulV]). *)
+pose alpha : {nonneg R} := bnd_succ_inv Mk_ge0.
+pose beta : {nonneg R} := bnd_succ Mk_ge0.
 have alpha_beta : (beta%:num * alpha%:num)%:nng = (1%:nng : {nonneg R}).
-  by apply: val_inj => /=; rewrite mulfV// gt_eqF.
+  exact: (bnd_succ_mulV Mk_ge0).
 pose K' := fun g : G => alpha *: K g.
 have HK'_ms : is_meas_stable K'.
   rewrite /K' -[fun g : G => alpha *: K g]/(stm_scale alpha K).
   split; first exact: (stable_scale alpha Hs).
   exact: (meas_stable_scale alpha Hp).
 have HK'_ball g : cone_norm g <= 1 -> cone_norm (K' g) <= 1.
-  move=> Hg; rewrite /K' cone_normh /=.
-  rewrite mulrC ler_pdivrMr // mul1r.
-  apply: le_trans (HMk g Hg) _.
-  by rewrite lerDl ler01.
+  by move=> Hg; rewrite /K' cone_normh /alpha;
+     exact: (bnd_succ_inv_ball Mk_ge0 (HMk g Hg)).
 set Phi_curry := tensor_curry Phi.
 (* Ψ' g := lift to stablehom. Meas-stable as composition of an icones_hom
    and the M1 lift. *)

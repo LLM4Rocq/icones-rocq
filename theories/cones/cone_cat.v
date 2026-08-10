@@ -15,6 +15,12 @@
     Paper coverage:
     - Definition 2.17  (record [cones_hom], identity, composition,
                        category laws).
+    - The eleven precone axioms of every carrier built here are
+      discharged once and for all by the [SubPrecone] / [SubPrecone1]
+      factories (section [SubPrecone]), which derive them from an
+      injection into a family of precones commuting with the
+      operations. Theorem 2.18 and Theorem 2.20 below are the two
+      clients; Lemma 2.23 is the same statement for a bijection.
     - Theorem 2.18     (small products in [Cones], section
                        [ConesProducts]).
     - Lemma 2.19       (separate ⇒ joint ω-continuity, section
@@ -222,6 +228,107 @@ Proof. by apply: cones_hom_eq. Qed.
 
 End ConesCat.
 
+(** ** A shared factory for componentwise precone structures
+
+    Every carrier built in this file — the product of Theorem 2.18, the
+    equaliser of Theorem 2.20, the transported carrier of Lemma 2.23 —
+    comes with an injection [sval] into a family of precones under which
+    the operations are computed componentwise. The eleven precone axioms
+    then follow from the axioms of the components by one and the same
+    argument, which we run once here rather than at every site. *)
+
+Section SubPrecone.
+Variable R : realType.
+Variable I : Type.
+Variable A : I -> preconeType R.
+Variable S : Type.
+Variable sval : S -> forall i, A i.
+Variables (szero : S) (sadd : S -> S -> S) (sscale : {nonneg R} -> S -> S).
+Hypothesis svalI : forall x y : S, (forall i, sval x i = sval y i) -> x = y.
+Hypothesis sval0 : forall i, sval szero i = precone_zero.
+Hypothesis svalD :
+  forall x y i, sval (sadd x y) i = precone_add (sval x i) (sval y i).
+Hypothesis svalZ :
+  forall r x i, sval (sscale r x) i = precone_scale r (sval x i).
+
+Let sub_addA : associative sadd.
+Proof. by move=> x y z; apply: svalI => i; rewrite !svalD precone_addA. Qed.
+
+Let sub_addC : commutative sadd.
+Proof. by move=> x y; apply: svalI => i; rewrite !svalD precone_addC. Qed.
+
+Let sub_add0 : left_id szero sadd.
+Proof. by move=> x; apply: svalI => i; rewrite svalD sval0 precone_add0. Qed.
+
+Let sub_scale_DAr (r : {nonneg R}) (x y : S) :
+  sscale r (sadd x y) = sadd (sscale r x) (sscale r y).
+Proof. by apply: svalI => i; rewrite !(svalD, svalZ) precone_scale_DAr. Qed.
+
+Let sub_scale_DAl (r s : {nonneg R}) (x : S) :
+  sscale (r%:num + s%:num)%:nng x = sadd (sscale r x) (sscale s x).
+Proof. by apply: svalI => i; rewrite !(svalD, svalZ) precone_scale_DAl. Qed.
+
+Let sub_scale_A (r s : {nonneg R}) (x : S) :
+  sscale (r%:num * s%:num)%:nng x = sscale r (sscale s x).
+Proof. by apply: svalI => i; rewrite !svalZ precone_scale_A. Qed.
+
+Let sub_scale_1 (x : S) : sscale 1%:nng x = x.
+Proof. by apply: svalI => i; rewrite svalZ precone_scale_1. Qed.
+
+Let sub_scale_0r (r : {nonneg R}) : sscale r szero = szero.
+Proof. by apply: svalI => i; rewrite svalZ !sval0 precone_scale_0r. Qed.
+
+Let sub_scale_0l (x : S) : sscale 0%:nng x = szero.
+Proof. by apply: svalI => i; rewrite svalZ sval0 precone_scale_0l. Qed.
+
+Let sub_cancel (x y z : S) : sadd x y = sadd x z -> y = z.
+Proof.
+move=> H; apply: svalI => i.
+have /(congr1 (fun w => sval w i)) := H; rewrite !svalD.
+exact: precone_cancel.
+Qed.
+
+Let sub_pos (x y : S) :
+  sadd x y = szero -> x = szero /\ y = szero.
+Proof.
+move=> H.
+have H' i : precone_add (sval x i) (sval y i) = precone_zero.
+  by rewrite -svalD H sval0.
+by split; apply: svalI => i; rewrite sval0; case: (precone_pos _ _ (H' i)).
+Qed.
+
+(** The precone structure induced on [S] by [sval]. *)
+Definition sub_isPrecone : isPrecone R S :=
+  isPrecone.Build R S
+    sub_addA sub_addC sub_add0
+    sub_scale_DAr sub_scale_DAl sub_scale_A
+    sub_scale_1 sub_scale_0r sub_scale_0l
+    sub_cancel sub_pos.
+
+End SubPrecone.
+
+(** The one-component instance of [sub_isPrecone]: a carrier injected
+    into a single precone by an operation-preserving map. *)
+
+Section SubPrecone1.
+Variable R : realType.
+Variable A : preconeType R.
+Variable S : Type.
+Variable sval : S -> A.
+Variables (szero : S) (sadd : S -> S -> S) (sscale : {nonneg R} -> S -> S).
+Hypothesis svalI : forall x y : S, sval x = sval y -> x = y.
+Hypothesis sval0 : sval szero = precone_zero.
+Hypothesis svalD : forall x y, sval (sadd x y) = precone_add (sval x) (sval y).
+Hypothesis svalZ :
+  forall r x, sval (sscale r x) = precone_scale r (sval x).
+
+Definition sub_isPrecone1 : isPrecone R S :=
+  @sub_isPrecone R unit (fun=> A) S (fun x _ => sval x) szero sadd sscale
+    (fun _ _ H => svalI (H tt)) (fun=> sval0)
+    (fun x y _ => svalD x y) (fun r x _ => svalZ r x).
+
+End SubPrecone1.
+
 (** ** Paper Theorem 2.18 — Small products in [Cones]
 
     Given a family [(P_i)_{i:I}] of cones (with no cardinality
@@ -292,78 +399,24 @@ Definition cones_prod_scale (r : {nonneg R}) (x : cones_prod_car) :
   {| cones_prod_val := fun i => precone_scale r (cones_prod_val x i);
      cones_prod_bd := cones_prod_scale_bd r x |}.
 
-(** *** Precone axioms (componentwise) *)
+(** *** Precone axioms (componentwise)
 
-Lemma cones_prod_addA : associative cones_prod_add.
-Proof.
-by move=> x y z; apply: cones_prod_eq => i; rewrite /= precone_addA.
-Qed.
+    The eleven axioms hold componentwise, so they are exactly what the
+    [SubPrecone] factory discharges from [cones_prod_eq] and the three
+    (definitional) commutation lemmas below. *)
 
-Lemma cones_prod_addC : commutative cones_prod_add.
-Proof.
-by move=> x y; apply: cones_prod_eq => i; rewrite /= precone_addC.
-Qed.
+Lemma cones_prod_val0 i : cones_prod_val cones_prod_zero i = precone_zero.
+Proof. by []. Qed.
 
-Lemma cones_prod_add0 : left_id cones_prod_zero cones_prod_add.
-Proof.
-by move=> x; apply: cones_prod_eq => i; rewrite /= precone_add0.
-Qed.
+Lemma cones_prod_valD (x y : cones_prod_car) i :
+  cones_prod_val (cones_prod_add x y) i =
+  precone_add (cones_prod_val x i) (cones_prod_val y i).
+Proof. by []. Qed.
 
-Lemma cones_prod_scale_DAr (r : {nonneg R}) (x y : cones_prod_car) :
-  cones_prod_scale r (cones_prod_add x y) =
-  cones_prod_add (cones_prod_scale r x) (cones_prod_scale r y).
-Proof.
-by apply: cones_prod_eq => i; rewrite /= precone_scale_DAr.
-Qed.
-
-Lemma cones_prod_scale_DAl (r s : {nonneg R}) (x : cones_prod_car) :
-  cones_prod_scale (r%:num + s%:num)%:nng x =
-  cones_prod_add (cones_prod_scale r x) (cones_prod_scale s x).
-Proof.
-by apply: cones_prod_eq => i; rewrite /= precone_scale_DAl.
-Qed.
-
-Lemma cones_prod_scale_A (r s : {nonneg R}) (x : cones_prod_car) :
-  cones_prod_scale (r%:num * s%:num)%:nng x =
-  cones_prod_scale r (cones_prod_scale s x).
-Proof.
-by apply: cones_prod_eq => i; rewrite /= precone_scale_A.
-Qed.
-
-Lemma cones_prod_scale_1 (x : cones_prod_car) :
-  cones_prod_scale 1%:nng x = x.
-Proof.
-by apply: cones_prod_eq => i; rewrite /= precone_scale_1.
-Qed.
-
-Lemma cones_prod_scale_0r (r : {nonneg R}) :
-  cones_prod_scale r cones_prod_zero = cones_prod_zero.
-Proof.
-by apply: cones_prod_eq => i; rewrite /= precone_scale_0r.
-Qed.
-
-Lemma cones_prod_scale_0l (x : cones_prod_car) :
-  cones_prod_scale 0%:nng x = cones_prod_zero.
-Proof.
-by apply: cones_prod_eq => i; rewrite /= precone_scale_0l.
-Qed.
-
-Lemma cones_prod_cancel (x y z : cones_prod_car) :
-  cones_prod_add x y = cones_prod_add x z -> y = z.
-Proof.
-move=> H; apply: cones_prod_eq => i.
-have /(congr1 (fun w => cones_prod_val w i)) := H => /=; exact: precone_cancel.
-Qed.
-
-Lemma cones_prod_pos (x y : cones_prod_car) :
-  cones_prod_add x y = cones_prod_zero ->
-  x = cones_prod_zero /\ y = cones_prod_zero.
-Proof.
-move=> H; split; apply: cones_prod_eq => i;
-have /(congr1 (fun w => cones_prod_val w i)) := H => /= H'.
-- by case: (precone_pos _ _ H').
-- by case: (precone_pos _ _ H').
-Qed.
+Lemma cones_prod_valZ (r : {nonneg R}) (x : cones_prod_car) i :
+  cones_prod_val (cones_prod_scale r x) i =
+  precone_scale r (cones_prod_val x i).
+Proof. by []. Qed.
 
 End ConesProducts.
 
@@ -376,13 +429,11 @@ Arguments cones_prod_scale {R I P}.
 (** *** [isPrecone] instance for [cones_prod_car] *)
 
 HB.instance Definition _ (R : realType) (I : Type) (P : I -> coneType R) :=
-  isPrecone.Build R (cones_prod_car I P)
-    (@cones_prod_addA R I P) (@cones_prod_addC R I P)
-    (@cones_prod_add0 R I P)
-    (@cones_prod_scale_DAr R I P) (@cones_prod_scale_DAl R I P)
-    (@cones_prod_scale_A R I P) (@cones_prod_scale_1 R I P)
-    (@cones_prod_scale_0r R I P) (@cones_prod_scale_0l R I P)
-    (@cones_prod_cancel R I P) (@cones_prod_pos R I P).
+  @sub_isPrecone R I (fun i => P i : preconeType R) (cones_prod_car I P)
+    (@cones_prod_val R I P) (@cones_prod_zero R I P) (@cones_prod_add R I P)
+    (@cones_prod_scale R I P)
+    (@cones_prod_eq R I P) (@cones_prod_val0 R I P)
+    (@cones_prod_valD R I P) (@cones_prod_valZ R I P).
 
 (** *** Cone structure on [cones_prod_car] *)
 
@@ -421,19 +472,28 @@ Proof.
 by apply: cones_prod_normset_ub; exists i.
 Qed.
 
-(** [cones_prod_norm x >= 0]. Two cases: [I] is inhabited (so the
-    norm-set has a [≥ 0] element and the sup is [≥ 0]) or empty
-    (then the norm-set is empty and the sup is [0]). *)
-Lemma cones_prod_norm_ge0 (x : T) : 0 <= cones_prod_norm x.
+(** The degenerate case, once and for all: either [I] is inhabited, so
+    that every norm-set is nonempty (and [ge_sup] applies), or [I] is
+    empty, so that every norm-set is [set0] and every product norm is
+    [0].  All the norm axioms below start with this alternative. *)
+Lemma cones_prod_normsetP (x : T) :
+  cones_prod_normset x !=set0 \/ (forall y : T, cones_prod_norm y = 0).
 Proof.
 have [[i _]|HE] := pselect (exists i : I, True).
-  apply: le_trans (cone_norm_ge0 (cones_prod_val x i)) _.
-  exact: cones_prod_norm_ge_comp.
-suff -> : cones_prod_norm x = 0 by [].
-rewrite /cones_prod_norm.
-suff -> : cones_prod_normset x = set0 by exact: sup0.
-apply/predeqP => y; split=> //.
+  by left; exists (cone_norm (cones_prod_val x i)); exists i.
+right => y; rewrite /cones_prod_norm.
+suff -> : cones_prod_normset y = set0 by exact: sup0.
+apply/predeqP => z; split=> //.
 by case=> i _; apply: HE; exists i.
+Qed.
+
+(** [cones_prod_norm x >= 0]: either the norm-set has a [≥ 0] element,
+    or the norm is [0]. *)
+Lemma cones_prod_norm_ge0 (x : T) : 0 <= cones_prod_norm x.
+Proof.
+have [[_ [i _]]|H0] := cones_prod_normsetP x; last by rewrite H0.
+apply: le_trans (cone_norm_ge0 (cones_prod_val x i)) _.
+exact: cones_prod_norm_ge_comp.
 Qed.
 
 (** *** Norm axioms — paper (Normh), (Normz), (Normt), (Normp) *)
@@ -456,13 +516,7 @@ Proof.
 move=> Hxy.
 have Hyub : has_ubound (cones_prod_normset y).
   exact: cones_prod_normset_has_ubound.
-case Hex : `[< cones_prod_normset x !=set0 >]; last first.
-  have HE : cones_prod_normset x = set0.
-    apply/predeqP => yy; split=> // Hyy.
-    by move/asboolPn: Hex; apply; exists yy.
-  rewrite /cones_prod_norm HE sup0.
-  exact: cones_prod_norm_ge0.
-move/asboolP: Hex => Hex.
+have [Hex|H0] := cones_prod_normsetP x; last by rewrite !H0.
 apply: ge_sup => //.
 move=> r [i ->].
 apply: le_trans (cones_prod_norm_ge_comp y i).
@@ -476,13 +530,8 @@ Lemma cones_prod_normt (x y : T) :
 Proof.
 have Hxy_uB : has_ubound (cones_prod_normset (cones_prod_add x y)).
   exact: cones_prod_normset_has_ubound.
-case Hex : `[< cones_prod_normset (cones_prod_add x y) !=set0 >]; last first.
-  have HE : cones_prod_normset (cones_prod_add x y) = set0.
-    apply/predeqP => yy; split=> // Hyy.
-    by move/asboolPn: Hex; apply; exists yy.
-  rewrite /cones_prod_norm HE sup0.
-  by apply: addr_ge0; exact: cones_prod_norm_ge0.
-move/asboolP: Hex => Hex.
+have [Hex|H0] := cones_prod_normsetP (cones_prod_add x y);
+  last by rewrite !H0 addr0.
 apply: ge_sup => //.
 move=> r [i ->] /=.
 apply: le_trans (cone_normt _ _) _.
@@ -509,16 +558,7 @@ have HNS_ub : has_ubound NS.
   exists (r%:num * M) => y [z Hz ->].
   by apply: ler_wpM2l => //; exact: HM.
 (* Case split on emptiness. *)
-case Hex : `[< NS' !=set0 >]; last first.
-  have NS'E : NS' = set0.
-    apply/predeqP => yy; split=> // Hyy.
-    by move/asboolPn: Hex; apply; exists yy.
-  have NSE0 : NS = set0.
-    rewrite NSE NS'E; apply/predeqP => y; split=> //.
-    by case=> z [].
-  rewrite /cones_prod_norm -/NS NSE0 sup0.
-  by rewrite /cones_prod_norm -/NS' NS'E sup0 mulr0.
-move/asboolP: Hex => HNS'.
+have [HNS'|H0] := cones_prod_normsetP x; last by rewrite !H0 mulr0.
 have HNS : NS !=set0.
   case: HNS' => z [i Hz].
   exists (r%:num * z); rewrite NSE.
@@ -665,12 +705,8 @@ Lemma cones_prod_sup_ball_norm :
 Proof.
 have Hub : has_ubound (cones_prod_normset cones_prod_sup_ball).
   exact: cones_prod_normset_has_ubound.
-case Hex : `[< cones_prod_normset cones_prod_sup_ball !=set0 >]; last first.
-  have HE : cones_prod_normset cones_prod_sup_ball = set0.
-    apply/predeqP => yy; split=> // Hyy.
-    by move/asboolPn: Hex; apply; exists yy.
-  by rewrite /cones_prod_norm HE sup0 ler01.
-move/asboolP: Hex => Hex.
+have [Hex|H0] := cones_prod_normsetP cones_prod_sup_ball;
+  last by rewrite H0 ler01.
 apply: ge_sup => //.
 move=> y [i ->] /=.
 exact: cone_sup_ball_norm.
@@ -806,13 +842,8 @@ Proof.
 move=> y.
 have Hub : has_ubound (cones_prod_normset (cones_tuple_fun y)).
   exact: cones_prod_normset_has_ubound.
-case Hex : `[< cones_prod_normset (cones_tuple_fun y) !=set0 >]; last first.
-  have HE : cones_prod_normset (cones_tuple_fun y) = set0.
-    apply/predeqP => yy; split=> // Hyy.
-    by move/asboolPn: Hex; apply; exists yy.
-  rewrite /cone_norm/= /cones_prod_norm HE sup0.
-  exact: cone_norm_ge0.
-move/asboolP: Hex => Hex.
+have [Hex|H0] := cones_prod_normsetP (cones_tuple_fun y); last first.
+  by rewrite /cone_norm/= H0; exact: cone_norm_ge0.
 apply: ge_sup; first exact: Hex.
 move=> r [i ->]; exact: cones_hom_norm_le1.
 Qed.
@@ -977,60 +1008,23 @@ Definition cones_eq_scale (r : {nonneg R}) (x : cones_eq_car) : cones_eq_car :=
   {| cones_eq_val := precone_scale r (cones_eq_val x);
      cones_eq_eq := cones_eq_scale_eq r x |}.
 
-(** *** Precone axioms *)
+(** *** Precone axioms
 
-Lemma cones_eq_addA : associative cones_eq_add.
-Proof.
-by move=> x y z; apply: cones_eq_extensional; rewrite /= precone_addA.
-Qed.
+    As for the product, the axioms are inherited from [P] through the
+    injection [cones_eq_val]; the [SubPrecone1] factory turns the three
+    (definitional) commutation lemmas below into the eleven axioms. *)
 
-Lemma cones_eq_addC : commutative cones_eq_add.
-Proof. by move=> x y; apply: cones_eq_extensional; rewrite /= precone_addC. Qed.
+Lemma cones_eq_val0 : cones_eq_val cones_eq_zero = precone_zero.
+Proof. by []. Qed.
 
-Lemma cones_eq_add0 : left_id cones_eq_zero cones_eq_add.
-Proof. by move=> x; apply: cones_eq_extensional; rewrite /= precone_add0. Qed.
+Lemma cones_eq_valD (x y : cones_eq_car) :
+  cones_eq_val (cones_eq_add x y) =
+  precone_add (cones_eq_val x) (cones_eq_val y).
+Proof. by []. Qed.
 
-Lemma cones_eq_scale_DAr (r : {nonneg R}) (x y : cones_eq_car) :
-  cones_eq_scale r (cones_eq_add x y) =
-  cones_eq_add (cones_eq_scale r x) (cones_eq_scale r y).
-Proof. by apply: cones_eq_extensional; rewrite /= precone_scale_DAr. Qed.
-
-Lemma cones_eq_scale_DAl (r s : {nonneg R}) (x : cones_eq_car) :
-  cones_eq_scale (r%:num + s%:num)%:nng x =
-  cones_eq_add (cones_eq_scale r x) (cones_eq_scale s x).
-Proof. by apply: cones_eq_extensional; rewrite /= precone_scale_DAl. Qed.
-
-Lemma cones_eq_scale_A (r s : {nonneg R}) (x : cones_eq_car) :
-  cones_eq_scale (r%:num * s%:num)%:nng x =
-  cones_eq_scale r (cones_eq_scale s x).
-Proof. by apply: cones_eq_extensional; rewrite /= precone_scale_A. Qed.
-
-Lemma cones_eq_scale_1 (x : cones_eq_car) :
-  cones_eq_scale 1%:nng x = x.
-Proof. by apply: cones_eq_extensional; rewrite /= precone_scale_1. Qed.
-
-Lemma cones_eq_scale_0r (r : {nonneg R}) :
-  cones_eq_scale r cones_eq_zero = cones_eq_zero.
-Proof. by apply: cones_eq_extensional; rewrite /= precone_scale_0r. Qed.
-
-Lemma cones_eq_scale_0l (x : cones_eq_car) :
-  cones_eq_scale 0%:nng x = cones_eq_zero.
-Proof. by apply: cones_eq_extensional; rewrite /= precone_scale_0l. Qed.
-
-Lemma cones_eq_cancel (x y z : cones_eq_car) :
-  cones_eq_add x y = cones_eq_add x z -> y = z.
-Proof.
-move/(congr1 cones_eq_val) => /=.
-move=> H; apply: cones_eq_extensional; exact: precone_cancel H.
-Qed.
-
-Lemma cones_eq_pos (x y : cones_eq_car) :
-  cones_eq_add x y = cones_eq_zero ->
-  x = cones_eq_zero /\ y = cones_eq_zero.
-Proof.
-move/(congr1 cones_eq_val) => /= /precone_pos[Hx Hy].
-by split; apply: cones_eq_extensional.
-Qed.
+Lemma cones_eq_valZ (r : {nonneg R}) (x : cones_eq_car) :
+  cones_eq_val (cones_eq_scale r x) = precone_scale r (cones_eq_val x).
+Proof. by []. Qed.
 
 End ConesEqualisers.
 
@@ -1043,13 +1037,11 @@ Arguments cones_eq_scale {R P Q f g}.
 
 HB.instance Definition _ (R : realType) (P Q : coneType R)
   (f g : cones_hom P Q) :=
-  isPrecone.Build R (cones_eq_car f g)
-    (@cones_eq_addA R P Q f g) (@cones_eq_addC R P Q f g)
-    (@cones_eq_add0 R P Q f g)
-    (@cones_eq_scale_DAr R P Q f g) (@cones_eq_scale_DAl R P Q f g)
-    (@cones_eq_scale_A R P Q f g) (@cones_eq_scale_1 R P Q f g)
-    (@cones_eq_scale_0r R P Q f g) (@cones_eq_scale_0l R P Q f g)
-    (@cones_eq_cancel R P Q f g) (@cones_eq_pos R P Q f g).
+  @sub_isPrecone1 R P (cones_eq_car f g) (@cones_eq_val R P Q f g)
+    (@cones_eq_zero R P Q f g) (@cones_eq_add R P Q f g)
+    (@cones_eq_scale R P Q f g) (@cones_eq_extensional R P Q f g)
+    (@cones_eq_val0 R P Q f g) (@cones_eq_valD R P Q f g)
+    (@cones_eq_valZ R P Q f g).
 
 (** *** Cone structure on [cones_eq_car] *)
 

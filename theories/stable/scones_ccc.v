@@ -56,17 +56,10 @@ Import Order.TTheory GRing.Theory Num.Theory.
 
 Local Open Scope ring_scope.
 
-(** Proof-irrelevance of the unit-ball supremum: it is characterised by
-    the upper-bound / least-upper-bound properties, so two
-    [cone_sup_ball]s of the same chain (with different proof witnesses)
-    are equal. *)
-Lemma cone_sup_ball_irr (R : realType) (P : coneType R) (w : nat -> P)
-    (c1 c2 : forall n, precone_le (w n) (w n.+1))
-    (b1 b2 : forall n, cone_norm (w n) <= 1) :
-  cone_sup_ball w c1 b1 = cone_sup_ball w c2 b2.
-Proof.
-apply: precone_le_anti; apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
-Qed.
+(** Proof-irrelevance of the unit-ball supremum ([cone_sup_ball_irr],
+    used twice below): the supremum is characterised by its upper-bound
+    / least-upper-bound properties, so it does not depend on the
+    chain/bound witnesses.  Stated once in [cones/omega_general.v]. *)
 
 (** ** Generalized total monotonicity over a finite index family
 

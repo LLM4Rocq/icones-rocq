@@ -220,18 +220,17 @@ Proof. exact: tensor_normM. Qed.
     [x ⊗ y] are equal.  Proof: it suffices to show [Φ(f) = Φ(g)] since
     [Φ = tensor_curry] is injective; and [Φ(f)(x)(y) = f(x ⊗ y) =
     g(x ⊗ y) = Φ(g)(x)(y)] by Eq 5.1 ([tensor_curryE]), so [Φ(f) =
-    Φ(g)] by extensionality of [icones_hom] and [linhom]. *)
+    Φ(g)] by extensionality of [icones_hom] and [linhom].
+
+    That proof is [Icones_tensor_iso.tens_ext]; this file's [tau] /
+    [ptensor] unfold to the module's [tauL] / [ptensor], so the two
+    statements are convertible and we simply re-export under the paper
+    name. *)
 
 Lemma tensor_ext (B C D : ICone.type Ar)
     (f g : icones_hom Ar (B ⊗ C) D) :
   (forall (x : B) (y : C), f (x ⊗p y) = g (x ⊗p y)) -> f = g.
-Proof.
-move=> Hfg.
-apply: tensor_curry_inj.
-apply: icones_hom_eq => x /=.
-apply: linhom_eq => y.
-by rewrite !tensor_curryE Hfg.
-Qed.
+Proof. exact: tens_ext. Qed.
 
 (** ** Paper Proposition 5.14 — ternary tree extensionality
 
@@ -244,18 +243,13 @@ Qed.
     [tensor_ext] it suffices these agree on pure tensors [x ⊗ y]; by
     [linhom_eq] it suffices they agree at every [z : C]; and by Eq 5.1
     ([tensor_curryE]) [Φ(f)(x ⊗ y)(z) = f((x ⊗ y) ⊗ z)], which equals
-    the [g]-side by hypothesis. *)
+    the [g]-side by hypothesis.  As for [tensor_ext], that proof is
+    [Icones_tensor_iso.tens_ext3] and we re-export it here. *)
 Lemma tensor_ext3 (A B C D : ICone.type Ar)
     (f g : icones_hom Ar ((A ⊗ B) ⊗ C) D) :
   (forall (x : A) (y : B) (z : C),
      f ((x ⊗p y) ⊗p z) = g ((x ⊗p y) ⊗p z)) -> f = g.
-Proof.
-move=> Hfg.
-apply: tensor_curry_inj.
-apply: tensor_ext => x y.
-apply: linhom_eq => z.
-by rewrite !tensor_curryE Hfg.
-Qed.
+Proof. exact: tens_ext3. Qed.
 
 End Tensor.
 

@@ -502,11 +502,19 @@ End StablehomConeAxioms.
     that a *finite* cone-sum [∑_{i∈A} sup_n (c i n)] equals the supremum
     [sup_n (∑_{i∈A} c i n)] of the (diagonal) sum chain.  The diagonal
     sum need not stay in [B_P] (it sums up to [#|A|] unit-ball terms), so
-    we phrase the supremum on the right with the radius-aware
-    [cone_sup_at] at radius [#|A|], and prove the identity by induction
-    on [A] from the binary radius-aware diagonal-sup identity
-    [sup_at_addD] (totmono.v).  This is the cone-theoretic content
-    behind (7.1)-preservation by the supremum. *)
+    the supremum on the right is taken with the radius-aware
+    [cone_sup_at]; the identity is proved by induction on [A] from the
+    binary radius-aware diagonal-sup identity.  This is the
+    cone-theoretic content behind (7.1)-preservation by the supremum.
+
+    All of it is proved once, at a general radius, in
+    [cones/omega_general.v] (Sections [ConsolidatedSumSupAt] /
+    [ConsolidatedSumSupBall]); we keep here the local names this file
+    uses — [sumsup_chain] is the [cone_sum_chain] of that section — as
+    one-line derivations of the radius-1 statements
+    [cone_sum_ball_sup_ub] / [cone_sum_ball_sup_lub] /
+    [cone_sum_ball_sup_addl_lub], plus the iterated-(Normt) bound
+    [sumsup_chain_norm_le] as an instance of [cone_norm_sum]. *)
 
 Local Open Scope precone_scope.
 
@@ -522,211 +530,45 @@ Hypothesis cub : forall i n, cnorm (c i n) <= 1.
 Definition sumsup_chain (A : {set T}) (n : nat) : P :=
   \big[precone_add/precone_zero]_(i in A) c i n.
 
-(** The diagonal sum chain is [≤p]-increasing. *)
-Lemma sumsup_chain_ch (A : {set T}) n :
-  sumsup_chain A n <=p sumsup_chain A n.+1.
-Proof.
-rewrite /sumsup_chain; elim/big_rec2: _; first exact: precone_le_refl.
-move=> i y1 y2 _ Hy; apply: precone_le_trans (precone_add_le_r _ (cch i n)).
-exact: precone_add_le_l.
-Qed.
-
-(** The cone-norm of a finite cone-sum is bounded by the sum of the
-    norms (iterated [cone_normt]). *)
+(** The cone-norm of a diagonal sum is bounded by the sum of the norms
+    of its terms — pure iterated (Normt), no chain and no bound
+    hypothesis involved.  Instance of [cone_norm_sum]
+    ([cones/omega_general.v]). *)
 Lemma sumsup_chain_norm_le (A : {set T}) n :
   cnorm (sumsup_chain A n) <= \sum_(i in A) cnorm (c i n).
-Proof.
-rewrite /sumsup_chain.
-elim/big_rec2: _ => [|i y1 y2 _ Hy]; first by rewrite cone_norm0.
-by apply: le_trans (cone_normt _ _) _; rewrite lerD.
-Qed.
-
-(** Norm bound: the diagonal sum has norm at most [#|A|]. *)
-Lemma sumsup_chain_norm (A : {set T}) n :
-  cnorm (sumsup_chain A n) <= #|A|%:R.
-Proof.
-apply: le_trans (sumsup_chain_norm_le A n) _.
-rewrite -sum1_card natr_sum.
-by apply: ler_sum => i _; exact: cub.
-Qed.
-
-(** A strictly-positive radius dominating [#|A|], for [cone_sup_at]. *)
-Lemma sumsup_radius_ge0 (A : {set T}) : (0 <= #|A|%:R + 1 :> R)%R.
-Proof. by rewrite addr_ge0 // ?ler0n ?ler01. Qed.
-
-Definition sumsup_radius (A : {set T}) : {nonneg R} :=
-  NngNum (sumsup_radius_ge0 A).
-
-Lemma sumsup_radius_pos (A : {set T}) : (0 < (sumsup_radius A)%:num)%R.
-Proof.
-rewrite /sumsup_radius /=.
-by apply: lt_le_trans ltr01 _; rewrite -[X in (X <= _)%R]add0r lerD // ler0n.
-Qed.
-
-Lemma sumsup_chain_radius (A : {set T}) n :
-  (cnorm (sumsup_chain A n) <= (sumsup_radius A)%:num)%R.
-Proof.
-apply: le_trans (sumsup_chain_norm A n) _.
-by rewrite /= -[X in (X <= _)%R]addr0 lerD // ler01.
-Qed.
+Proof. exact: cone_norm_sum. Qed.
 
 (** Every diagonal sum element is below the finite cone-sum of the
     per-index suprema (each [c i n ≤p cone_sup_ball (c i)], summed). *)
 Lemma sum_cone_sup_ub (A : {set T}) n :
   sumsup_chain A n <=p
   \big[precone_add/precone_zero]_(i in A) (cone_sup_ball (c i) (cch i) (cub i)).
-Proof.
-rewrite /sumsup_chain; elim/big_rec2: _; first exact: precone_le_refl.
-move=> i y1 y2 _ Hy.
-apply: (@precone_le_trans _ _ (cone_sup_ball (c i) (cch i) (cub i) + y2)%PC).
-  by apply: precone_add_le_r; exact: cone_sup_ball_ub.
-by apply: precone_add_le_l.
-Qed.
+Proof. exact: (cone_sum_ball_sup_ub cch cub). Qed.
 
 (** The finite cone-sum of per-index suprema is the *least* upper bound
-    of the diagonal sum chain.  Proof by cardinality induction on [A]:
-    each [a |: A] step pulls out [cone_sup_ball (c a)] via [big_setU1],
-    reads the [A]-sum sup as [cone_sup_at] (the induction hypothesis,
-    repackaged through [cone_sup_at_lub] / [cone_sup_at_ub]), and
-    combines the two suprema with the binary diagonal-sup identity
-    [sup_at_addD] at the common radius [#|a:A|+1]. *)
+    of the diagonal sum chain. *)
 Lemma sum_cone_sup_lub (A : {set T}) (y : P) :
   (forall n, sumsup_chain A n <=p y) ->
   \big[precone_add/precone_zero]_(i in A)
     (cone_sup_ball (c i) (cch i) (cub i)) <=p y.
-Proof.
-move: y; have [N] := ubnP #|A|; elim: N A => // N IH A.
-rewrite ltnS => HA y Hy.
-case: (set_0Vmem A) => [-> | [a aA]].
-  by rewrite big_set0; exact: precone_le0.
-(* Pull out [a]; let [A' := A :\ a]. *)
-have aA' : a \notin (A :\ a) by rewrite !inE eqxx.
-have AE : A = a |: (A :\ a) by rewrite finset.setD1K.
-have cardA' : (#|A :\ a| < N)%N.
-  apply: leq_trans HA; by rewrite (cardsD1 a A) aA add1n.
-set A' := A :\ a in aA' cardA' *.
-(* The diagonal sum over [A] splits as [c a + diagonal over A']. *)
-have splitE n : sumsup_chain A n = (c a n + sumsup_chain A' n)%PC.
-  by rewrite /sumsup_chain {1}AE (big_setU1 _ aA').
-(* The [A']-sum cone-sup is the [cone_sup_at] of its diagonal chain. *)
-set Mb : {nonneg R} := sumsup_radius A.
-have Mbpos := sumsup_radius_pos A.
-have ca_ubMb n : cnorm (c a n) <= Mb%:num.
-  apply: le_trans (cub a n) _.
-  by rewrite /Mb /= -[X in (X <= _)%R]add0r lerD // ?ler0n.
-have sumA'_ubMb n : cnorm (sumsup_chain A' n) <= Mb%:num.
-  apply: le_trans (sumsup_chain_norm A' n) _.
-  rewrite /Mb /= AE (cardsU1 a) aA' /= add1n mulrSr -addrA.
-  by rewrite -[X in (X <= _)%R]addr0 lerD // ?addr_ge0 ?ler0n ?ler01.
-have dch n : (c a n + sumsup_chain A' n <=p
-              c a n.+1 + sumsup_chain A' n.+1)%PC.
-  apply: precone_le_trans (precone_add_le_r _ (cch a n)).
-  exact: precone_add_le_l (sumsup_chain_ch A' n).
-have dubMb n : cnorm (c a n + sumsup_chain A' n) <= Mb%:num.
-  by rewrite -splitE; exact: sumsup_chain_radius.
-(* [cone_sup_ball (c a)] as a [cone_sup_at] at radius [Mb]. *)
-have caE : cone_sup_ball (c a) (cch a) (cub a) =
-           cone_sup_at (cch a) ca_ubMb Mbpos.
-  have pos1 : (0%R < (1%:nng : {nonneg R})%:num)%R by rewrite /= ltr01.
-  have ca_ub1 : forall n, cnorm (c a n) <= (1%:nng : {nonneg R})%:num.
-    by move=> n; exact: cub.
-  rewrite (cone_sup_at_indep (cch a) ca_ubMb ca_ub1 Mbpos pos1).
-  rewrite (@cone_sup_at_ball _ _ (c a) (cch a) (cub a) ca_ub1 pos1).
-  by congr cone_sup_ball; exact: Prop_irrelevance.
-(* The IH gives the [A']-sum cone-sup ≤p any common bound; we use it to
-   identify it with [cone_sup_at (sumsup_chain A')]. *)
-have sumA'E : \big[precone_add/precone_zero]_(i in A')
-                (cone_sup_ball (c i) (cch i) (cub i)) =
-              cone_sup_at (sumsup_chain_ch A') sumA'_ubMb Mbpos.
-  apply: precone_le_anti.
-  - apply: IH => // n.
-    apply: precone_le_trans (cone_sup_at_ub (sumsup_chain_ch A')
-      sumA'_ubMb Mbpos n) => /=; exact: precone_le_refl.
-  - apply: cone_sup_at_lub => n; exact: sum_cone_sup_ub.
-(* Combine: [Σ_A = cone_sup_ball(c a) + Σ_{A'}] = [cone_sup_at(c a +
-   Σ_{A'})], which is the lub of the diagonal chain of [A]. *)
-rewrite AE (big_setU1 _ aA') caE sumA'E.
-have key : (cone_sup_at (cch a) ca_ubMb Mbpos
-            + cone_sup_at (sumsup_chain_ch A') sumA'_ubMb Mbpos)%PC
-           = cone_sup_at dch dubMb Mbpos.
-  by rewrite (@sup_at_addD R P Mb (c a) (sumsup_chain A') (cch a) ca_ubMb
-       (sumsup_chain_ch A') sumA'_ubMb dch dubMb Mbpos).
-change (precone_add (cone_sup_at (cch a) ca_ubMb Mbpos)
-          (cone_sup_at (sumsup_chain_ch A') sumA'_ubMb Mbpos) <=p y).
-rewrite key.
-apply: cone_sup_at_lub => n.
-by apply: precone_le_trans (Hy n); rewrite splitE; exact: precone_le_refl.
-Qed.
+Proof. exact: (cone_sum_ball_sup_lub cch cub). Qed.
+
+(** Adding a constant on the left commutes with the finite-sum-sup:
+    [Z + Σ_A cone_sup_ball(c) ≤p V] reduces to the pointwise diagonal
+    bound [Z + sumsup_chain c A m ≤p V].  This is the cone fact behind
+    the supremum-passage of the alternating condition (Lemma 7.12). *)
+Lemma addl_sum_cone_sup_lub (A : {set T}) (Z V : P) :
+  (forall m, Z + sumsup_chain A m <=p V) ->
+  Z + \big[precone_add/precone_zero]_(i in A)
+        (cone_sup_ball (c i) (cch i) (cub i)) <=p V.
+Proof. exact: (cone_sum_ball_sup_addl_lub cch cub). Qed.
 
 End SumSup.
 
 Arguments sumsup_chain {R P T} c A n.
+Arguments sumsup_chain_norm_le {R P T} c A n.
 Arguments sum_cone_sup_ub {R P T c} cch cub A n.
 Arguments sum_cone_sup_lub {R P T c} cch cub A y.
-
-(** ** Adding a constant on the left commutes with the finite-sum-sup
-
-    [Z + Σ_A cone_sup_ball(c)] is the lub of [(Z + sumsup_chain c A m)_m]:
-    the finite cone-sum of per-index suprema equals the radius-[#|A|+1]
-    [cone_sup_at] of the diagonal sum chain ([sum_cone_sup_eq], via
-    [sum_cone_sup_ub] / [sum_cone_sup_lub] + [cone_sup_at] antisymmetry),
-    and adding [Z] on the left commutes through [cone_sup_at]
-    ([sup_at_addr], after a [precone_addC]).  This is the cone fact behind
-    the supremum-passage of the alternating condition (Lemma 7.12). *)
-Section AddlSumConeSup.
-Variable R : realType.
-Variable P : coneType R.
-Variable T : finType.
-Variable c : T -> nat -> P.
-Hypothesis cch : forall i n, c i n <=p c i n.+1.
-Hypothesis cub : forall i n, cnorm (c i n) <= 1.
-Local Open Scope precone_scope.
-
-(** [Σ_A cone_sup_ball(c)] as a radius-[#|A|+1] [cone_sup_at]. *)
-Lemma sum_cone_sup_eq (A : {set T}) :
-  \big[precone_add/precone_zero]_(i in A)
-     (cone_sup_ball (c i) (cch i) (cub i)) =
-  cone_sup_at (sumsup_chain_ch cch A) (sumsup_chain_radius cub A)
-              (sumsup_radius_pos R A).
-Proof.
-apply: precone_le_anti.
-- apply: (sum_cone_sup_lub cch cub) => m; exact: cone_sup_at_ub.
-- by apply: cone_sup_at_lub => m; exact: (sum_cone_sup_ub cch cub).
-Qed.
-
-(** Left-add commutes: [Z + Σ_A cone_sup_ball(c) ≤p V] reduces to the
-    pointwise diagonal bound [Z + sumsup_chain c A m ≤p V]. *)
-Lemma addl_sum_cone_sup_lub (A : {set T}) (Z V : P) :
-  (forall m, Z + sumsup_chain c A m <=p V) ->
-  Z + \big[precone_add/precone_zero]_(i in A)
-        (cone_sup_ball (c i) (cch i) (cub i)) <=p V.
-Proof.
-move=> HZ.
-rewrite sum_cone_sup_eq.
-set Mpos := sumsup_radius_pos R A.
-set ch := sumsup_chain_ch cch A.
-set ub := sumsup_chain_radius cub A.
-(* [Z + cone_sup_at = cone_sup_at (sumsup_chain + Z)] (right form). *)
-have azch m : sumsup_chain c A m + Z <=p sumsup_chain c A m.+1 + Z.
-  by apply: precone_add_le_r; exact: ch.
-have Kge0 : (0 <= (sumsup_radius R A)%:num + cnorm Z)%R.
-  by rewrite addr_ge0 // ?cone_norm_ge0 // ltW.
-pose K : {nonneg R} := NngNum Kge0.
-have Kpos : (0 < K%:num)%R.
-  by apply: lt_le_trans Mpos _; rewrite /= lerDl cone_norm_ge0.
-have azub m : cnorm (sumsup_chain c A m + Z) <= K%:num.
-  apply: le_trans (cone_normt _ _) _.
-  by rewrite /= lerD2r; exact: ub.
-have ubK m : cnorm (sumsup_chain c A m) <= K%:num.
-  by apply: le_trans (ub m) _; rewrite /= lerDl cone_norm_ge0.
-rewrite (cone_sup_at_indep ch ub ubK Mpos Kpos) precone_addC.
-rewrite -(sup_at_addr ch ubK azch azub Kpos).
-by apply: cone_sup_at_lub => m; rewrite precone_addC; exact: HZ.
-Qed.
-
-End AddlSumConeSup.
-
-Arguments sum_cone_sup_eq {R P T c} cch cub A.
 Arguments addl_sum_cone_sup_lub {R P T c} cch cub A Z V.
 
 (** ** (Normc) — the unit-ball supremum of a chain of stable maps
@@ -743,57 +585,10 @@ Arguments addl_sum_cone_sup_lub {R P T c} cch cub A Z V.
     (no uniform rescaling): the input chains for ω-continuity
     ([is_scott_continuous_unit]) and the paths for measurability are
     *already* in [B_B], so the supremum always lands in the on-ball
-    branch.  The two-sup commutation reuses a self-contained copy
-    [sh_sup_swap] of [linhom]'s [cone_sup_ball_swap] (working in the
-    codomain cone [C]). *)
+    branch.  The two-sup commutation is [cone_sup_ball_swap]
+    ([cones/omega_general.v]), applied in the codomain cone [C]. *)
 
 Local Open Scope precone_scope.
-
-(** A self-contained two-sup commutation in any [coneType]: the iterated
-    unit-ball supremum of a doubly-indexed family commutes.  Mirrors
-    [homs/linhom.v]'s [cone_sup_ball_swap]; placed here to avoid a
-    dependency on the linear-map development. *)
-Section ConeSupBallSwap.
-Variables (R : realType) (C : coneType R).
-
-Lemma sh_sup_swap (b : nat -> nat -> C)
-    (b_row_ch : forall k n, b n k <=p b n.+1 k)
-    (b_col_ch : forall n k, b n k <=p b n k.+1)
-    (b_ub : forall n k, cnorm (b n k) <= 1)
-    (b_col_sup_ub : forall n,
-       cnorm (cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k)) <= 1)
-    (b_col_sup_ch : forall n,
-       cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k) <=p
-       cone_sup_ball (b n.+1) (b_col_ch n.+1) (fun k => b_ub n.+1 k))
-    (b_row_sup_ub : forall k,
-       cnorm (cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
-       <= 1)
-    (b_row_sup_ch : forall k,
-       cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k) <=p
-       cone_sup_ball (b^~ k.+1) (b_row_ch k.+1) (fun n => b_ub n k.+1)) :
-  cone_sup_ball
-    (fun n => cone_sup_ball (b n) (b_col_ch n) (fun k => b_ub n k))
-    b_col_sup_ch b_col_sup_ub =
-  cone_sup_ball
-    (fun k => cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
-    b_row_sup_ch b_row_sup_ub.
-Proof.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n; apply: cone_sup_ball_lub => k.
-  have step1 : b n k <=p
-      cone_sup_ball (b^~ k) (b_row_ch k) (fun n0 => b_ub n0 k).
-    exact: cone_sup_ball_ub.
-  apply: precone_le_trans step1 _; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => k; apply: cone_sup_ball_lub => n.
-  have step1 : b n k <=p
-      cone_sup_ball (b n) (b_col_ch n) (fun k0 => b_ub n k0).
-    exact: cone_sup_ball_ub.
-  apply: precone_le_trans step1 _; exact: cone_sup_ball_ub.
-Qed.
-
-End ConeSupBallSwap.
-
-Arguments sh_sup_swap {R C}.
 
 (** ** Radius-aware ω-continuity of a difference — Paper Lemma 2.10
        (general image radius)
@@ -1017,7 +812,7 @@ Proof. by exists 1 => x _; exact: sh_sup_fun_norm. Qed.
     Writing [b m k := uₘ (vₖ)], we have
     [sh_sup_fun s = sup_m (uₘ s) = sup_m sup_k (b m k)]
     (ω-continuity of each [uₘ] at image radius [1]), which by the two-sup
-    commutation [sh_sup_swap] equals
+    commutation [cone_sup_ball_swap] equals
     [sup_k sup_m (b m k) = sup_k (sh_sup_fun vₖ)].  The radius-aware
     target [cone_sup_at] reduces to [cone_sup_ball] since the image of
     [sh_sup_fun] is in [B_C]. *)
@@ -1100,7 +895,7 @@ have RHS_eq :
   - apply: cone_sup_ball_lub => k /=.
     rewrite -sup_vk_eq; exact: cone_sup_ball_ub.
 rewrite LHS_eq RHS_eq.
-exact: (sh_sup_swap b b_row_ch b_col_ch b_ub).
+exact: (cone_sup_ball_swap b b_row_ch b_col_ch b_ub).
 Qed.
 
 (** ** Path-preservation of the supremum
@@ -1206,24 +1001,10 @@ Qed.
 
 End StablehomSupBall.
 
-(** ** Precone order left-cancellation
-    [z + a ≤p z + b] entails [a ≤p b]: the difference witness commutes
-    past [z] and is removed by left cancellation [precone_cancel]. *)
-Section PreconeLeCancel.
-Variable R : realType.
-Variable P : preconeType R.
-Local Open Scope precone_scope.
-
-Lemma precone_le_addlI (z a b : P) : z + a <=p z + b -> a <=p b.
-Proof.
-move=> [w Hw]; exists w.
-apply: (@precone_cancel R P z b (a + w)).
-by rewrite Hw precone_addA.
-Qed.
-
-End PreconeLeCancel.
-
-Arguments precone_le_addlI {R P z a b}.
+(** Precone-order left-cancellation ([z + a ≤p z + b ⇒ a ≤p b], used
+    twice below) is [precone_le_addlI] of [cones/precone.v]: a pure
+    (Cancel) fact, stated there once for every [preconeType].  Its
+    cancelled summand is the first explicit argument. *)
 
 (** ** Lemma 7.12 backward — the difference of two stable maps is stable
     — Paper §7.2 (txt 3345)
@@ -1345,7 +1126,7 @@ have HA := @Halt n x v Hxv.
 rewrite -/a Hsplit_neg Hsplit_pos in HA.
 (* HA : (Sf_neg + Sh_neg) + Sf_pos ≤p (Sf_pos + Sh_pos) + Sf_neg. *)
 (* Rearrange both sides to (Sf_neg + Sf_pos) + S{neg,pos}. *)
-apply: (precone_le_addlI (z := Sf_neg + Sf_pos)).
+apply: (precone_le_addlI (Sf_neg + Sf_pos)).
 apply: (@precone_le_trans _ _ ((Sf_neg + Sh_neg) + Sf_pos)).
   rewrite -precone_addA [Sf_pos + Sh_neg]precone_addC precone_addA.
   exact: precone_le_refl.
@@ -1546,7 +1327,7 @@ Proof. exact: projT2 (cid (sh_chain_mono uch (leq_addr k n))). Qed.
 (** The difference chain is [≤p]-increasing (left-cancellation). *)
 Lemma shu_diff_ch (n k : nat) : precone_le (shu_diff n k) (shu_diff n k.+1).
 Proof.
-apply: (precone_le_addlI (z := u n)).
+apply: (precone_le_addlI (u n)).
 rewrite -!shu_diff_E addnS; exact: uch.
 Qed.
 
@@ -2674,10 +2455,12 @@ End StablehomIConeCheck.
           [sum_cone_sup_lub] ([SumSup] section: a finite cone-sum of
           per-index suprema is the radius-[#|A|] [cone_sup_at] of the
           diagonal sum chain, proved by cardinality induction from the
-          binary [sup_at_addD]).
+          binary diagonal-sup identity — now the consolidated
+          [cone_sum_ball_sup_ub] / [cone_sum_ball_sup_lub] of
+          [cones/omega_general.v]).
         * [sh_sup_scott] — ω-continuity (Scott, unit ball), via the
-          two-sup commutation [sh_sup_swap] (a self-contained port of
-          [linhom]'s [cone_sup_ball_swap]).
+          two-sup commutation [cone_sup_ball_swap]
+          ([cones/omega_general.v]).
         * [sh_sup_bounded] — norm [≤ 1]; [sh_sup_pres_path] — path
           preservation, via [test_cont] + [measurable_fun_cvg] (no
           uniform rescaling needed: unit-ball paths stay in [B_B]).

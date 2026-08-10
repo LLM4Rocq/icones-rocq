@@ -339,6 +339,44 @@ Variables (R : realType) (Ar : MeasSubcat R).
 
 Local Notation T := (cone_one_car Ar).
 
+(** Paper §2.3: the functional underlying the identity test on
+    [R≥0] — the [%:num] projection. It is non-negative, linear,
+    ω-continuous and norm-preserving, hence gives a test at *every*
+    arity through the [test_const] combinator (the test does not
+    depend on the arity point [r]). *)
+
+Definition c1_num (x : T) : R := (c1_val x)%:num.
+
+Lemma c1_num_ge0 (x : T) : 0 <= c1_num x.
+Proof. exact: nngnum_ge0. Qed.
+
+Lemma c1_num_lin0 : c1_num precone_zero = 0.
+Proof. by []. Qed.
+
+Lemma c1_num_linD (x y : T) :
+  c1_num (precone_add x y) = c1_num x + c1_num y.
+Proof. by rewrite /c1_num /precone_add/= nng_addE. Qed.
+
+Lemma c1_num_linZ (s : {nonneg R}) (x : T) :
+  c1_num (precone_scale s x) = s%:num * c1_num x.
+Proof. by rewrite /c1_num /precone_scale/= nng_mulE. Qed.
+
+Lemma c1_num_cont
+    (u : nat -> T)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1)
+    (N : R) :
+  (forall n, c1_num (u n) <= N) -> c1_num (cone_sup_ball u uch ub1) <= N.
+Proof.
+move=> HN; rewrite /c1_num /cone_sup_ball/=.
+apply: ge_sup.
+- by exists (c1_val (u 0))%:num; exists 0%N.
+- by move=> y [n _ <-]; exact: HN.
+Qed.
+
+Lemma c1_num_norm_le (x : T) : c1_num x <= cone_norm x.
+Proof. by rewrite /c1_num /cone_norm/= /c1_norm. Qed.
+
 (** Paper §2.3: the identity test on [R≥0] at any arity. Returns
     [x%:num], constant in [r]. *)
 Section IdTest.
@@ -347,53 +385,10 @@ Variable Y : ar_obj Ar.
 Definition id_test_fun : ar_carrier Ar Y -> T -> R :=
   fun _ x => (c1_val x)%:num.
 
-Lemma id_test_meas (x : T) :
-  cone_norm x <= 1 ->
-  measurable_fun setT (fun r => id_test_fun r x).
-Proof. by move=> _; exact: measurable_cst. Qed.
-
-Lemma id_test_ge0 (r : ar_carrier Ar Y) (x : T) : 0 <= id_test_fun r x.
-Proof. exact: nngnum_ge0. Qed.
-
-Lemma id_test_le1 (r : ar_carrier Ar Y) (x : T) :
-  cone_norm x <= 1 -> id_test_fun r x <= 1.
-Proof. by rewrite /id_test_fun /cone_norm/= /c1_norm. Qed.
-
-Lemma id_test_lin0 (r : ar_carrier Ar Y) :
-  id_test_fun r precone_zero = 0.
-Proof. by []. Qed.
-
-Lemma id_test_linD (r : ar_carrier Ar Y) (x y : T) :
-  id_test_fun r (precone_add x y) =
-  id_test_fun r x + id_test_fun r y.
-Proof. by rewrite /id_test_fun /precone_add/= nng_addE. Qed.
-
-Lemma id_test_linZ (r : ar_carrier Ar Y) (s : {nonneg R}) (x : T) :
-  id_test_fun r (precone_scale s x) = s%:num * id_test_fun r x.
-Proof. by rewrite /id_test_fun /precone_scale/= nng_mulE. Qed.
-
-Lemma id_test_cont
-    (r : ar_carrier Ar Y) (u : nat -> T)
-    (uch : forall n, precone_le (u n) (u n.+1))
-    (ub1 : forall n, cone_norm (u n) <= 1)
-    (N : R) :
-  (forall n, id_test_fun r (u n) <= N) ->
-  id_test_fun r (cone_sup_ball u uch ub1) <= N.
-Proof.
-move=> HN; rewrite /id_test_fun /cone_sup_ball/=.
-apply: ge_sup.
-- by exists (c1_val (u 0))%:num; exists 0%N.
-- by move=> y [n _ <-]; exact: HN.
-Qed.
-
-Lemma id_test_norm_le (r : ar_carrier Ar Y) (x : T) :
-  id_test_fun r x <= cone_norm x.
-Proof. by rewrite /id_test_fun /cone_norm/= /c1_norm. Qed.
-
+(** Paper §2.3: the packaged identity test, via [test_const]. *)
 Definition id_test : test_of Ar Y T :=
-  MkTestOf id_test_meas id_test_ge0 id_test_le1
-           id_test_lin0 id_test_linD id_test_linZ
-           id_test_cont id_test_norm_le.
+  test_const c1_num c1_num_ge0 c1_num_lin0 c1_num_linD c1_num_linZ
+             c1_num_cont c1_num_norm_le id_test_fun (fun _ _ => erefl).
 
 End IdTest.
 

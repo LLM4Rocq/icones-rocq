@@ -24,7 +24,12 @@
       path is itself a measurable path. Built from
       [icone_integral_joint_measurable] (Lemma 4.7, joint
       measurability) plus the path bound [path_integral_norm_le]
-      (Lemma 4.2).
+      (Lemma 4.2). The [Y] side is *derived* from the [X] side by
+      the swap [beta_swap q := β (q.2, q.1)] rather than duplicated.
+
+    - [path_test_int_fin] — finiteness of the scalar integral of an
+      arity-0 test along a bounded measurable path; shared by the two
+      inner-integral finiteness steps of the Fubini proof.
 
     - [fubini_cone_eq_X] — the headline equation, in the form
       [icone_integral β _ (fmeas_prod µ ν)
@@ -372,7 +377,15 @@ Arguments fubini_iter_fun_X_test_meas
 Arguments fubini_iter_fun_X_is_path
   {R Ar B X Y} β Hβ ν Mβ.
 
-(** Symmetric construction for the [Y]-iterated path. *)
+(** ** Symmetric construction for the [Y]-iterated path
+
+    Rather than duplicating the whole [X] development with [X] and [Y]
+    exchanged, we transport it along the *swap* of the bivariate path:
+    [beta_swap q := β (q.2, q.1) : Y × X -> B]. The [Y]-iterated path
+    of [β] is, by conversion, the [X]-iterated path of [beta_swap],
+    and likewise for each of its hypotheses, so every statement below
+    is the corresponding [X] statement applied to [beta_swap]. The
+    public [fubini_iter_fun_Y…] names are preserved. *)
 
 Section FubiniIterPathY.
 Variables (R : realType) (Ar : MeasSubcat R).
@@ -381,7 +394,12 @@ Variable β : (ar_carrier Ar X * ar_carrier Ar Y)%type -> B.
 Hypothesis Hβ : forall y, is_measurable_path (fun x => β (x, y)).
 Variable µ : fmeas R (ar_carrier Ar X).
 
-(** The pointwise [y ↦ ∫_x β(x,y) dµ] function. *)
+(** The swapped bivariate path [β^t (y, x) := β (x, y)]. *)
+Definition beta_swap : (ar_carrier Ar Y * ar_carrier Ar X)%type -> B :=
+  fun q => β (q.2, q.1).
+
+(** The pointwise [y ↦ ∫_x β(x,y) dµ] function; convertible to
+    [fubini_iter_fun_X beta_swap Hβ µ]. *)
 Definition fubini_iter_fun_Y (y : ar_carrier Ar Y) : B :=
   icone_integral (fun x => β (x, y)) (Hβ y) µ.
 
@@ -389,11 +407,9 @@ Lemma fubini_iter_fun_Y_norm_le (Mβ : R) :
   (forall p, cone_norm (β p) <= Mβ) ->
   forall y, cone_norm (fubini_iter_fun_Y y) <= Mβ * fmeas_norm µ.
 Proof.
-move=> HMβ y.
-apply: (path_integral_norm_le (Mβ := Mβ)).
-- by move=> r; exact: HMβ.
-- exact: Hβ.
-- exact: icone_integralP.
+move=> HMβ.
+exact: (fubini_iter_fun_X_norm_le beta_swap Hβ µ Mβ
+          (fun q => HMβ (q.2, q.1))).
 Qed.
 
 Lemma fubini_iter_fun_Y_test_meas
@@ -406,28 +422,8 @@ Lemma fubini_iter_fun_Y_test_meas
   measurable_fun setT
     (fun p => test_fun m p.1 (fubini_iter_fun_Y p.2)).
 Proof.
-pose β' (y : ar_carrier Ar Y) (x : ar_carrier Ar X) : B := β (x, y).
-have Hβ' : forall y, is_measurable_path (β' y) by [].
-pose κ' (_ : ar_carrier Ar Y) : fmeas R (ar_carrier Ar X) := µ.
-have κ'_meas : forall U, measurable U ->
-    measurable_fun setT
-                   (fun s => fmeas_mu (κ' s) U).
-  by move=> U mU; exact: measurable_cst.
-have κ'_bound : exists M, forall s, (fmeas_norm (κ' s) <= M)%R.
-  by exists (fmeas_norm µ) => s; exact: lexx.
-have Mb : exists M : R, forall z y x, (test_fun m z (β' y x) <= M)%R.
-  exists Mβ => z y x.
-  apply: le_trans (test_norm_le _ _ _) _; exact: HMβ.
-have HmeasI :=
-  @icone_integral_joint_measurable R Ar B X _ (ar_carrier Ar Y)
-    β' Hβ' κ' Z m mM κ'_meas κ'_bound Hjoint Mb.
-apply: (eq_measurable_fun
-  (fun p => test_fun m p.1
-              (icone_integral (β' p.2) (Hβ' p.2) (κ' p.2)))).
-  move=> p _; rewrite /fubini_iter_fun_Y /β' /κ'.
-  congr (test_fun m _ _).
-  apply: icone_integral_eqP; exact: icone_integralP.
-exact: HmeasI.
+exact: (fubini_iter_fun_X_test_meas beta_swap Hβ µ m mM Mβ
+          (fun q => HMβ (q.2, q.1)) Hjoint).
 Qed.
 
 Lemma fubini_iter_fun_Y_is_path (Mβ : R)
@@ -440,14 +436,13 @@ Lemma fubini_iter_fun_Y_is_path (Mβ : R)
          (fun p => test_fun m p.1 (β (p.2.2, p.2.1)))) :
   is_measurable_path fubini_iter_fun_Y.
 Proof.
-split.
-  by exists (Mβ * fmeas_norm µ) => y; exact: fubini_iter_fun_Y_norm_le.
-move=> Z m mM.
-exact: (fubini_iter_fun_Y_test_meas mM HMβ (Hjoint Z m mM)).
+exact: (fubini_iter_fun_X_is_path beta_swap Hβ µ Mβ
+          (fun q => HMβ (q.2, q.1)) Hjoint).
 Qed.
 
 End FubiniIterPathY.
 
+Arguments beta_swap {R Ar B X Y} β.
 Arguments fubini_iter_fun_Y {R Ar B X Y} β Hβ µ.
 Arguments fubini_iter_fun_Y_norm_le
   {R Ar B X Y} β Hβ µ Mβ.
@@ -455,6 +450,54 @@ Arguments fubini_iter_fun_Y_test_meas
   {R Ar B X Y} β Hβ µ {Z} m mM Mβ.
 Arguments fubini_iter_fun_Y_is_path
   {R Ar B X Y} β Hβ µ Mβ.
+
+(** ** Finiteness of a scalar test-integral along a bounded path
+
+    Both "inner integral" finiteness facts of the Fubini proof below
+    ([inner_int_fin_X] and [inner_int_fin_Y]) are the same statement
+    about a bounded measurable path: the scalar integral of an
+    arity-0 test along the path is a finite extended real, being
+    squeezed between [0] and [Mγ · κ(⊤)]. *)
+
+Section PathTestIntFin.
+Local Open Scope ereal_scope.
+Variables (R : realType) (Ar : MeasSubcat R).
+Variables (B : ICone.type Ar) (W : ar_obj Ar).
+Variable γ : ar_carrier Ar W -> B.
+Hypothesis Hγ : is_measurable_path γ.
+Variable Mγ : R.
+Hypothesis HMγ : forall r, (cone_norm (γ r) <= Mγ)%R.
+Variable κ : fmeas R (ar_carrier Ar W).
+
+Lemma path_test_int_fin
+    (m : test_of Ar (ar_zero Ar) B) (mM : mcone_M (ar_zero Ar) m) :
+  \int[fmeas_mu κ]_(r in [set: ar_carrier Ar W])
+    (test_fun m (ar_zero_pt Ar) (γ r))%:E \is a fin_num.
+Proof.
+have intGe0 : 0 <= \int[fmeas_mu κ]_(r in [set: ar_carrier Ar W])
+                    (test_fun m (ar_zero_pt Ar) (γ r))%:E.
+  by apply: integral_ge0 => r _; rewrite lee_fin; apply: test_ge0.
+have mf : measurable_fun setT
+            (fun r => (test_fun m (ar_zero_pt Ar) (γ r))%:E).
+  apply/measurable_EFinP.
+  exact: (measurable_test_path_section mM Hγ).
+have mc : measurable_fun setT (fun _ : ar_carrier Ar W => Mγ%:E).
+  exact: measurable_cst.
+rewrite ge0_fin_numE//.
+apply: (le_lt_trans
+  (y := \int[fmeas_mu κ]_(r in [set: ar_carrier Ar W]) Mγ%:E)).
+  apply: ge0_le_integral => //.
+  - by move=> r _; rewrite lee_fin; apply: test_ge0.
+  - move=> r _; rewrite lee_fin.
+    apply: le_trans (test_norm_le _ _ _) _; exact: HMγ.
+rewrite (_ : (fun _ => Mγ%:E) = cst Mγ%:E)//.
+rewrite integral_cst//.
+have HfT : fmeas_mu κ [set: ar_carrier Ar W] \is a fin_num.
+  exact: fmeas_setT_fin.
+by rewrite ltey_eq fin_numM.
+Qed.
+
+End PathTestIntFin.
 
 (** ** Paper Theorem 4.15 — Cone Fubini
 
@@ -567,28 +610,8 @@ Local Lemma inner_int_fin_X (m : test_of Ar (ar_zero Ar) B)
   \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
     (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E \is a fin_num.
 Proof.
-have intGe0 : 0 <= \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y])
-                    (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E.
-  by apply: integral_ge0 => y _; rewrite lee_fin; apply: test_ge0.
-have mf : measurable_fun setT
-            (fun y => (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E).
-  apply/measurable_EFinP.
-  exact: (measurable_test_path_section mM (Hβx x)).
-have mc : measurable_fun setT
-            (fun _ : ar_carrier Ar Y => Mβ%:E).
-  exact: measurable_cst.
-rewrite ge0_fin_numE//.
-apply: (le_lt_trans
-  (y := \int[fmeas_mu ν]_(y in [set: ar_carrier Ar Y]) Mβ%:E)).
-  apply: ge0_le_integral => //.
-  - by move=> y _; rewrite lee_fin; apply: test_ge0.
-  - move=> y _; rewrite lee_fin.
-    apply: le_trans (test_norm_le _ _ _) _; exact: HMβ.
-rewrite (_ : (fun _ => Mβ%:E) = cst Mβ%:E)//.
-rewrite integral_cst//.
-have HfT : fmeas_mu ν [set: ar_carrier Ar Y] \is a fin_num.
-  exact: fmeas_setT_fin.
-by rewrite ltey_eq fin_numM.
+exact: (@path_test_int_fin R Ar B Y (fun y => β (x, y)) (Hβx x) Mβ
+          (fun y => HMβ (x, y)) ν m mM).
 Qed.
 
 (** Finiteness of the inner [X]-integral against [µ] of
@@ -598,28 +621,8 @@ Local Lemma inner_int_fin_Y (m : test_of Ar (ar_zero Ar) B)
   \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
     (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E \is a fin_num.
 Proof.
-have intGe0 : 0 <= \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X])
-                    (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E.
-  by apply: integral_ge0 => x _; rewrite lee_fin; apply: test_ge0.
-have mf : measurable_fun setT
-            (fun x => (test_fun m (ar_zero_pt Ar) (β (x, y)))%:E).
-  apply/measurable_EFinP.
-  exact: (measurable_test_path_section mM (Hβy y)).
-have mc : measurable_fun setT
-            (fun _ : ar_carrier Ar X => Mβ%:E).
-  exact: measurable_cst.
-rewrite ge0_fin_numE//.
-apply: (le_lt_trans
-  (y := \int[fmeas_mu µ]_(x in [set: ar_carrier Ar X]) Mβ%:E)).
-  apply: ge0_le_integral => //.
-  - by move=> x _; rewrite lee_fin; apply: test_ge0.
-  - move=> x _; rewrite lee_fin.
-    apply: le_trans (test_norm_le _ _ _) _; exact: HMβ.
-rewrite (_ : (fun _ => Mβ%:E) = cst Mβ%:E)//.
-rewrite integral_cst//.
-have HfT : fmeas_mu µ [set: ar_carrier Ar X] \is a fin_num.
-  exact: fmeas_setT_fin.
-by rewrite ltey_eq fin_numM.
+exact: (@path_test_int_fin R Ar B X (fun x => β (x, y)) (Hβy y) Mβ
+          (fun x => HMβ (x, y)) µ m mM).
 Qed.
 
 (** *** Paper Theorem 4.15 — the two iterations agree

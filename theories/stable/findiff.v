@@ -577,22 +577,16 @@ Arguments Sneg {R B C} f n u xb.
 (** ** Generic cone helpers used by §7.3 below
 
     Two facts about the local cone and cone-sums that drive the
-    nested-cone argument of Lemma 7.18: a left-cancellation for the cone
-    order, the [lc_val]-homomorphism over a [bigop], and the subset
-    monotonicity of a [\sumP]. *)
+    nested-cone argument of Lemma 7.18: the [lc_val]-homomorphism over a
+    [bigop], and the subset monotonicity of a [\sumP].  (The
+    left-cancellation [c + a ≤p c + b ⇒ a ≤p b] used to be re-proved
+    here; it is a pure (Cancel) fact and now lives once in
+    [cones/precone.v] as [precone_le_addlI], with the same argument
+    order — [precone_le_addlI c] still names the cancelled summand.) *)
 
 Section ConeHelpers.
 Variable R : realType.
 Local Open Scope precone_scope.
-
-(** Left-cancellation for the cone order: [c + a ≤p c + b ⇒ a ≤p b].
-    The dual of [precone_add_le_l]; derived from [precone_cancel]. *)
-Lemma precone_le_addlI (B : coneType R) (c a b : B) :
-  c + a <=p c + b -> a <=p b.
-Proof.
-move=> [z Hz]; exists z.
-by apply: (@precone_cancel _ _ c); rewrite Hz precone_addA.
-Qed.
 
 (** [lc_val] commutes with an arbitrary [bigop] (it is a precone
     homomorphism), in the general [\big[_/_]_(i <- r | Q i)] shape. *)
@@ -623,8 +617,6 @@ by apply: eq_bigr => i _; rewrite vconsS.
 Qed.
 
 End ConeHelpers.
-
-Arguments precone_le_addlI {R B} c a b.
 
 (** ** ω-continuity of the inclusion [lc_val : B_x → B] — Paper §7.1
        (the missing "translate" lemma for §7.3)
@@ -1164,140 +1156,34 @@ End DeltaWellDefConv.
 Arguments Delta_neg_le_pos_conv {R B C} f Hinc {n} u x.
 
 (** ** The scaling-chain supremum — the boundary bridge engine
+       (now in [cones/omega_general.v])
 
     For a unit-ball point [z] ([‖z‖ ≤ 1]) and the Archimedean ratios
     [λₘ = (m+1)/(m+2) ↑ 1] in [[0,1)], the chain [m ↦ λₘ ·: z] is
     increasing, stays in [B_B], and its [cone_sup_ball] is exactly [z].
     This is the only analytic ingredient the closed-ball converse adds:
     it lets us realise a boundary configuration as the supremum of an
-    increasing chain of strictly-interior ones.  The proof of the
-    least-upper-bound half is the Archimedean "the gap vanishes" argument
-    of [gauge_sup_reach] (in [local_cone.v]), specialised to the simple
-    scaling chain. *)
+    increasing chain of strictly-interior ones.
 
-Section ScaleChain.
-Variable R : realType.
-Variable P : coneType R.
-
-(** The ratio [λₘ = (m+1)/(m+2)] and its complement [1 − λₘ = 1/(m+2)],
-    both as nonneg reals. *)
-Lemma scl_ge0 (m : nat) : 0 <= (m.+1)%:R / (m.+2)%:R :> R.
-Proof. by rewrite divr_ge0// ler0n. Qed.
-
-Lemma scc_ge0 (m : nat) : 0 <= (m.+2)%:R^-1 :> R.
-Proof. by rewrite invr_ge0 ler0n. Qed.
-
-Definition scl (m : nat) : {nonneg R} := NngNum (scl_ge0 m).
-Definition scc (m : nat) : {nonneg R} := NngNum (scc_ge0 m).
-
-(** [λₘ + (1 − λₘ) = 1] as reals. *)
-Lemma scl_scc_num (m : nat) : (scl m)%:num + (scc m)%:num = 1.
-Proof.
-by rewrite /= -[X in _ + X]mul1r -mulrDl natr1 mulfV.
-Qed.
-
-Lemma scl_le1 (m : nat) : (scl m)%:num <= 1.
-Proof.
-rewrite -(scl_scc_num m) lerDl; exact: nngnum_ge0.
-Qed.
-
-Lemma scl_num (m : nat) : (scl m)%:num = 1 - (scc m)%:num.
-Proof. by rewrite -(scl_scc_num m) addrK. Qed.
-
-(** Monotonicity of the ratios: [λₘ ≤ λₘ₊₁] (equivalently [comp] ↓). *)
-Lemma scl_mono (m : nat) : (scl m)%:num <= (scl m.+1)%:num.
-Proof.
-by rewrite !scl_num lerB// lef_pV2 ?posrE ?ltr0n// ler_nat ltnS leqnSn.
-Qed.
-
-Local Open Scope precone_scope.
-
-(** The chain [m ↦ λₘ ·: z]. *)
-Lemma scchain_mono (z : P) (m : nat) : scl m *: z <=p scl m.+1 *: z.
-Proof.
-have d_ge0 : (0 <= (scl m.+1)%:num - (scl m)%:num)%R.
-  by rewrite subr_ge0; exact: scl_mono.
-exists (NngNum d_ge0 *: z).
-rewrite -precone_scale_DAl; congr (_ *: z); apply: val_inj => /=.
-by rewrite addrC subrK.
-Qed.
-
-Lemma scchain_ub1 (z : P) :
-  cone_norm z <= 1 -> forall m, cone_norm (scl m *: z) <= 1.
-Proof.
-move=> Hz m; rewrite cone_normh -[1]mulr1.
-by apply: ler_pM;
-  [exact: nngnum_ge0|exact: cone_norm_ge0|exact: scl_le1|exact: Hz].
-Qed.
-
-(** [z] is an upper bound of the chain: [λₘ ·: z ≤p z]. *)
-Lemma scchain_le (z : P) (m : nat) : scl m *: z <=p z.
-Proof.
-exists (scc m *: z).
-rewrite -precone_scale_DAl -[z in LHS]precone_scale_1.
-by congr (_ *: z); apply: val_inj => /=; rewrite scl_scc_num.
-Qed.
-
-(** **The scaling-chain supremum.** [cone_sup_ball (m ↦ λₘ ·: z) = z]. *)
-Lemma scale_chain_sup (z : P) (Hz : cone_norm z <= 1) :
-  cone_sup_ball (fun m => scl m *: z) (scchain_mono z) (scchain_ub1 Hz) = z.
-Proof.
-set s := cone_sup_ball _ _ _.
-have s_le_z : s <=p z by apply: cone_sup_ball_lub => m; exact: scchain_le.
-apply/esym/precone_le_anti => //.
-(* Remains: [z ≤p s].  Write [z = s + t] and show [‖t‖ = 0]. *)
-have [t Ht] := s_le_z.
-have t_bound : forall m, cone_norm t <= m.+2%:R^-1 * cone_norm z.
-  move=> m.
-  have [w Hw] : scl m *: z <=p s by exact: cone_sup_ball_ub.
-  (* [z = λₘ z + (1−λₘ) z] and [z = (λₘ z + w) + t], so by cancel
-     [(1−λₘ) z = w + t], hence [t ≤p (1−λₘ) z]. *)
-  have E1 : z = scl m *: z + scc m *: z.
-    rewrite -precone_scale_DAl -[z in LHS]precone_scale_1.
-    by congr (_ *: z); apply: val_inj => /=; rewrite scl_scc_num.
-  have E2 : z = scl m *: z + (w + t).
-    by rewrite [z in LHS]Ht Hw -precone_addA.
-  have Heq : scc m *: z = w + t.
-    by apply: (@precone_cancel _ _ (scl m *: z)); rewrite -E1 -E2.
-  have t_le : t <=p scc m *: z by rewrite Heq precone_addC; exists w.
-  by have := cone_normp _ _ t_le; rewrite cone_normh.
-(* Sharpen using [‖z‖ ≤ 1]: [‖t‖ ≤ 1/(m+2)], which → 0. *)
-have tb : forall m, cone_norm t <= m.+2%:R^-1.
-  move=> m; apply: le_trans (t_bound m) _; rewrite -[X in _ <= X]mulr1.
-  by rewrite ler_wpM2l// invr_ge0 ler0n.
-have t_norm0 : (cone_norm t <= 0)%R.
-  apply/unstable.ler_gtP => e e_pos.
-  have e_pos' : (0 < e^-1)%R by rewrite invr_gt0.
-  have HN := archi_boundP (ltW e_pos').
-  set N := Num.bound e^-1 in HN.
-  apply: le_trans (tb N) _.
-  rewrite -[e]invrK lef_pV2 ?posrE ?invr_gt0 ?ltr0n//.
-  apply: le_trans (ltW HN) _; rewrite ler_nat.
-  by rewrite (leq_trans (leqnSn N)) ?leqnSn.
-have t0 : t = 0.
-  by apply: cone_normz; apply/le_anti; rewrite t_norm0 cone_norm_ge0.
-by rewrite Ht t0 precone_addr0; exact: precone_le_refl.
-Qed.
-
-End ScaleChain.
-
-Arguments scl {R} m.
-Arguments scc {R} m.
-Arguments scl_le1 {R} m.
-Arguments scl_num {R} m.
-Arguments scale_chain_sup {R P} z Hz.
+    The whole toolkit — [scl] / [scc], [scl_le1], [scl_num],
+    [scchain_mono] / [scchain_ub1] / [scchain_le] and the supremum
+    [scale_chain_sup] — used to be developed here; it depends on
+    nothing but [coneType], so it now lives (under the very same names
+    and argument order) in [cones/omega_general.v], Section
+    [ConsolidatedScaleChain].  Users of this file get it through the
+    [Icones.cones.omega_general] import above. *)
 
 (** ** Radius-aware finite-sum / supremum commutation (lub direction)
 
     The boundary bridge needs to pass the open-ball inequality to the
     limit through *finite* [\sumP] sums of chains whose images escape the
-    unit ball (the values [f (λₘ ·: z_I)] have norm up to [‖f z_I‖ > 1]).
-    The unit-ball [SumSup] of [stablehom.v] does not apply; we re-derive
-    here the only half we need, the *least-upper-bound* direction, at a
-    common image radius [M] using the radius-aware binary diagonal-sup
-    identity [sup_at_addD] (totmono.v).  This mirrors [sum_cone_sup_lub]
-    of [stablehom.v] line for line, with [cone_sup_ball] replaced by
-    [cone_sup_at] and a generic radius. *)
+    unit ball (the values [f (λₘ ·: z_I)] have norm up to [‖f z_I‖ > 1]),
+    so the sums are taken with [cone_sup_at] at a common radius [M].
+    The general statements are [cone_sum_sup_ub] / [cone_sum_sup_lub] of
+    [cones/omega_general.v] (Section [ConsolidatedSumSupAt]); we keep
+    here the two local names [dsup] / [dchain] — definitionally the
+    [cone_sum_sup] / [cone_sum_chain] of that section — and the two
+    consumer-facing lemmas as one-line derivations. *)
 
 Section SumSupAt.
 Variable R : realType.
@@ -1310,106 +1196,24 @@ Hypothesis cubM : forall i n, cone_norm (c i n) <= M%:num.
 Hypothesis Mpos : (0 < M%:num)%R.
 Local Open Scope precone_scope.
 
-(** Per-index supremum [d i := cone_sup_at (c i)]. *)
+(** Per-index supremum [d i := cone_sup_at (c i)]; this is
+    [cone_sum_sup c cch cubM Mpos] spelled out. *)
 Definition dsup (i : T) : P := cone_sup_at (cch i) (cubM i) Mpos.
 
-(** The diagonal sum chain over [A]. *)
+(** The diagonal sum chain over [A]; this is [cone_sum_chain c]. *)
 Definition dchain (A : {set T}) (n : nat) : P :=
   \big[precone_add/precone_zero]_(i in A) c i n.
-
-Lemma dchain_ch (A : {set T}) n : dchain A n <=p dchain A n.+1.
-Proof.
-rewrite /dchain; elim/big_rec2: _; first exact: precone_le_refl.
-move=> i y1 y2 _ Hy; apply: precone_le_trans (precone_add_le_r _ (cch i n)).
-exact: precone_add_le_l.
-Qed.
-
-(** Norm of the diagonal sum: [≤ #|A| · M]. *)
-Lemma dchain_norm (A : {set T}) n :
-  cone_norm (dchain A n) <= #|A|%:R * M%:num.
-Proof.
-rewrite /dchain.
-have -> : #|A|%:R * M%:num = \sum_(i in A) M%:num.
-  by rewrite sumr_const mulr_natl.
-elim/big_rec2: _ => [|i y1 y2 _ Hy]; first by rewrite cone_norm0.
-by apply: le_trans (cone_normt _ _) _; rewrite lerD// cubM.
-Qed.
-
-(** A strictly-positive radius dominating [#|A| · M]: use [(#|A|+1)·M]. *)
-Lemma dradius_ge0 (A : {set T}) : (0 <= #|A|.+1%:R * M%:num :> R)%R.
-Proof. by rewrite mulr_ge0 ?ler0n// ltW. Qed.
-
-Definition dradius (A : {set T}) : {nonneg R} := NngNum (dradius_ge0 A).
-
-Lemma dradius_pos (A : {set T}) : (0 < (dradius A)%:num)%R.
-Proof. by rewrite /dradius/= mulr_gt0 ?ltr0n. Qed.
-
-Lemma dchain_radius (A : {set T}) n :
-  cone_norm (dchain A n) <= (dradius A)%:num.
-Proof.
-apply: le_trans (dchain_norm A n) _.
-by rewrite /dradius/= ler_wpM2r ?ltW// ltr_nat.
-Qed.
 
 (** The diagonal element is below the finite sum of per-index suprema. *)
 Lemma dsum_ub (A : {set T}) n :
   dchain A n <=p \big[precone_add/precone_zero]_(i in A) dsup i.
-Proof.
-rewrite /dchain; elim/big_rec2: _; first exact: precone_le_refl.
-move=> i y1 y2 _ Hy.
-apply: (precone_le_trans (y := dsup i + y2)).
-  by apply: precone_add_le_r; exact: cone_sup_at_ub.
-by apply: precone_add_le_l.
-Qed.
+Proof. exact: (cone_sum_sup_ub cch cubM Mpos). Qed.
 
 (** **Lub direction.** [Σ_A d i] is the least upper bound of [dchain A]. *)
 Lemma dsum_lub (A : {set T}) (y : P) :
   (forall n, dchain A n <=p y) ->
   \big[precone_add/precone_zero]_(i in A) dsup i <=p y.
-Proof.
-move: y; have [N] := ubnP #|A|; elim: N A => // N IH A.
-rewrite ltnS => HA y Hy.
-case: (set_0Vmem A) => [-> | [a aA]].
-  by rewrite big_set0; exact: precone_le0.
-have aA' : a \notin (A :\ a) by rewrite !inE eqxx.
-have AE : A = a |: (A :\ a) by rewrite finset.setD1K.
-have cardA' : (#|A :\ a| < N)%N.
-  by apply: leq_trans HA; rewrite (cardsD1 a A) aA add1n.
-set A' := A :\ a in aA' cardA' *.
-have splitE n : dchain A n = c a n + dchain A' n.
-  by rewrite /dchain {1}AE (big_setU1 _ aA').
-set Mb : {nonneg R} := dradius A.
-have Mbpos := dradius_pos A.
-have ca_ubMb n : cone_norm (c a n) <= Mb%:num.
-  apply: le_trans (cubM a n) _; rewrite /Mb/= ler_peMl ?ltW//.
-  by rewrite ltr1n ltnS card_gt0; apply/set0Pn; exists a.
-have sumA'_ubMb n : cone_norm (dchain A' n) <= Mb%:num.
-  apply: le_trans (dchain_norm A' n) _; rewrite /Mb/= ler_wpM2r ?ltW//.
-  by rewrite ltr_nat ltnS; apply: subset_leq_card; exact: subsetDl.
-have dch n : c a n + dchain A' n <=p c a n.+1 + dchain A' n.+1.
-  apply: precone_le_trans (precone_add_le_r _ (cch a n)).
-  exact: precone_add_le_l (dchain_ch A' n).
-have dubMb n : cone_norm (c a n + dchain A' n) <= Mb%:num.
-  by rewrite -splitE; exact: dchain_radius.
-(* [dsup a = cone_sup_at (c a)] at radius [Mb] (radius-independence). *)
-have caE : dsup a = cone_sup_at (cch a) ca_ubMb Mbpos.
-  by rewrite /dsup; apply: cone_sup_at_indep.
-(* The [A']-sum is the [cone_sup_at] of its diagonal chain (via IH). *)
-have sumA'E : \big[precone_add/precone_zero]_(i in A') dsup i =
-              cone_sup_at (dchain_ch A') sumA'_ubMb Mbpos.
-  apply: precone_le_anti.
-  - by apply: IH => // n; exact: cone_sup_at_ub.
-  - by apply: cone_sup_at_lub => n; exact: dsum_ub.
-rewrite AE (big_setU1 _ aA') caE sumA'E.
-have key : cone_sup_at (cch a) ca_ubMb Mbpos
-           + cone_sup_at (dchain_ch A') sumA'_ubMb Mbpos
-         = cone_sup_at dch dubMb Mbpos.
-  by rewrite (sup_at_addD (cch a) ca_ubMb (dchain_ch A') sumA'_ubMb dch dubMb).
-change (precone_add (cone_sup_at (cch a) ca_ubMb Mbpos)
-          (cone_sup_at (dchain_ch A') sumA'_ubMb Mbpos) <=p y).
-rewrite key; apply: cone_sup_at_lub => n.
-by apply: precone_le_trans (Hy n); rewrite splitE; exact: precone_le_refl.
-Qed.
+Proof. exact: (cone_sum_sup_lub cch cubM Mpos). Qed.
 
 End SumSupAt.
 
@@ -2227,18 +2031,20 @@ Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
       ([is_n_increasing_totmono]): a *stable* [f] (i.e. [k]-increasing for
       all [k] *and* ω-continuous, [is_scott_continuous_unit f]) is totally
       monotonic.  This is the boundary bridge.  Its three reusable
-      engines, all delivered above with NO holes:
+      engines (the first two now proved once in [omega_general.v], see
+      the section headers below; all with NO holes):
       · [scale_chain_sup]: for [‖z‖ ≤ 1] and [λₘ = (m+1)/(m+2) ↑ 1] the
         chain [m ↦ λₘ ·: z] is increasing, unit-ball, and
         [cone_sup_ball (λₘ ·: z) = z] — the Archimedean "gap vanishes"
         argument in the style of [gauge_sup_reach] of [local_cone.v],
         here with [‖t‖ ≤ 1/(m+2) ‖z‖ → 0].
-      · [dsum_lub] (section [SumSupAt]): the radius-aware finite-sum /
-        supremum *least-upper-bound* commutation — the analogue of
+      · [dsum_lub] (section [SumSupAt], a one-line reading of
+        [cone_sum_sup_lub]): the radius-aware finite-sum / supremum
+        *least-upper-bound* commutation — the analogue of
         [sum_cone_sup_lub] of [stablehom.v] but with [cone_sup_at] at a
         common image radius [M], so the summand images may escape the unit
         ball.  Built on the radius-aware binary diagonal-sup identity
-        [sup_at_addD] (totmono.v).
+        [cone_sup_at_addD].
       · the boundary limit itself: for a closed-ball config [(x, u⃗)] and
         each summand [z_I = tm_arg x u I], the chain [c I m = f (λₘ ·: z_I)]
         is increasing (f increasing), norm-bounded by a common

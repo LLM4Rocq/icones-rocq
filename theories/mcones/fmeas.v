@@ -25,7 +25,13 @@
       reduces to equality on the σ-algebra (via [fmeas_eq]), which
       is what every cone-axiom proof actually needs. The
       canonicality invariant is preserved by [fmeas_zero],
-      [fmeas_add], [fmeas_scale] by construction.
+      [fmeas_add], [fmeas_scale] by construction. Every other
+      packaging of a set function as an [fmeas] (the sup measure, the
+      two (Normc) difference witnesses, the pushforward) goes through
+      the combinator [fmeas_canonize] (and its difference variant
+      [fmeas_sub_canon]), which forces the value [0] off the σ-algebra
+      and supplies the measure laws and the two invariants once and
+      for all.
 
     - The (Normc) ω-completeness axiom for [fmeas R X] requires a
       construction of the supremum of an increasing chain of
@@ -416,6 +422,187 @@ rewrite -[in RHS]addrA opprD -addrA; congr (_ + _)%R.
 by rewrite addrCA.
 Qed.
 
+(** ** Canonicalization off the σ-algebra — a reusable combinator
+
+    Every [fmeas R X] must vanish outside the σ-algebra (invariant
+    [fmeas_canon]), but the set functions we build below (an [mseries],
+    a pushforward, a difference of two measures) do not vanish there in
+    general. [fmeas_canonize m] forces the value [0] off the σ-algebra
+    and keeps [m] on measurable sets; the lemmas of this section supply,
+    once and for all, the measure laws and the two [fmeas] invariants of
+    the canonicalized function. Every packaging of a set function as an
+    [fmeas] in this file goes through it. *)
+
+Definition fmeas_canonize (R : realType) (disp : measure_display)
+    (X : measurableType disp) (m : set X -> \bar R) : set X -> \bar R :=
+  fun A => if `[< measurable A >] then m A else 0%E.
+
+Section FMeasCanonize.
+Variable R : realType.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+
+Local Open Scope ereal_scope.
+
+Section CanonizeFun.
+Variable m : set X -> \bar R.
+
+Lemma fmeas_canonizeE A : measurable A -> fmeas_canonize m A = m A.
+Proof. by move=> mA; rewrite /fmeas_canonize asboolT. Qed.
+
+Lemma fmeas_canonize_off A : ~ measurable A -> fmeas_canonize m A = 0.
+Proof. by move=> nmA; rewrite /fmeas_canonize asboolF. Qed.
+
+(** The canonicality invariant is automatic. *)
+Lemma fmeas_canonize_canon : fmeas_canon (fmeas_canonize m).
+Proof. exact: fmeas_canonize_off. Qed.
+
+(** Finiteness is inherited from finiteness on the σ-algebra. *)
+Lemma fmeas_canonize_finP :
+  (forall A, measurable A -> m A \is a fin_num) ->
+  fmeas_finP (fmeas_canonize m).
+Proof. by move=> mfin A mA; rewrite fmeas_canonizeE//; exact: mfin. Qed.
+
+End CanonizeFun.
+
+(** *** Canonicalizing a measure: the measure laws are inherited. *)
+
+Section CanonizeMeas.
+Variable m : {measure set X -> \bar R}.
+
+Lemma fmeas_canonize_meas_set0 : fmeas_canonize m set0 = 0.
+Proof. by rewrite fmeas_canonizeE ?measurable0// measure0. Qed.
+
+Lemma fmeas_canonize_meas_ge0 A : 0 <= fmeas_canonize m A.
+Proof.
+rewrite /fmeas_canonize; case: asboolP => mA; last exact: lexx.
+exact: measure_ge0.
+Qed.
+
+Lemma fmeas_canonize_meas_sigma_additive :
+  semi_sigma_additive (fmeas_canonize m).
+Proof.
+move=> F mF tF mUF.
+have eqU : fmeas_canonize m (\bigcup_n F n) = m (\bigcup_n F n).
+  by rewrite fmeas_canonizeE.
+have eqi i : fmeas_canonize m (F i) = m (F i).
+  by rewrite fmeas_canonizeE.
+rewrite eqU.
+have base := @measure_semi_sigma_additive _ _ R m F mF tF mUF.
+have -> :
+  (fun n => \sum_(0 <= i < n) fmeas_canonize m (F i)) =
+  (fun n => \sum_(0 <= i < n) m (F i)).
+  by apply: funext => n; apply: eq_bigr => i _; exact: eqi.
+exact: base.
+Qed.
+
+End CanonizeMeas.
+
+(** *** Canonicalizing the difference of two finite measures.
+
+    If [m2 ≤ m1] on the σ-algebra and both are finite there, then
+    [A ↦ m1 A - m2 A], canonicalized, is again a finite measure. This
+    is the construction behind both (Normc) difference witnesses
+    ([fmeas_sup_ball_ub] and [fmeas_lub_w]). The three side conditions
+    are bundled as [fmeas_sub_wf] so that each law takes exactly one
+    hypothesis. *)
+
+Section CanonizeSub.
+Variables m1 m2 : {measure set X -> \bar R}.
+
+Definition fmeas_sub_canon : set X -> \bar R :=
+  fmeas_canonize (fun A => m1 A - m2 A).
+
+Definition fmeas_sub_wf : Prop :=
+  [/\ forall A, measurable A -> m1 A \is a fin_num,
+      forall A, measurable A -> m2 A \is a fin_num &
+      forall A, measurable A -> m2 A <= m1 A].
+
+Lemma fmeas_sub_canonE A :
+  measurable A -> fmeas_sub_canon A = m1 A - m2 A.
+Proof. exact: fmeas_canonizeE. Qed.
+
+Lemma fmeas_sub_canon_off A : ~ measurable A -> fmeas_sub_canon A = 0.
+Proof. exact: fmeas_canonize_off. Qed.
+
+Lemma fmeas_sub_canon_canon : fmeas_canon fmeas_sub_canon.
+Proof. exact: fmeas_canonize_canon. Qed.
+
+Lemma fmeas_sub_canon_set0 : fmeas_sub_canon set0 = 0.
+Proof. by rewrite fmeas_sub_canonE ?measurable0// !measure0 sube0. Qed.
+
+Lemma fmeas_sub_canon_ge0 : fmeas_sub_wf -> forall A, 0 <= fmeas_sub_canon A.
+Proof.
+case=> _ f2 le21 A; rewrite /fmeas_sub_canon /fmeas_canonize.
+case: asboolP => mA; last exact: lexx.
+rewrite sube_ge0; first exact: le21.
+by apply/orP; left; exact: f2.
+Qed.
+
+Lemma fmeas_sub_canon_fin :
+  fmeas_sub_wf -> forall A, measurable A -> fmeas_sub_canon A \is a fin_num.
+Proof.
+case=> f1 f2 _ A mA; rewrite fmeas_sub_canonE//.
+by rewrite fin_numB f1// f2.
+Qed.
+
+Lemma fmeas_sub_canon_finP : fmeas_sub_wf -> fmeas_finP fmeas_sub_canon.
+Proof. by move=> wf; exact: fmeas_sub_canon_fin. Qed.
+
+(** σ-additivity of the canonicalized difference: by σ-additivity of
+    [m1] and [m2], using finiteness to distribute the subtraction over
+    the partial sums. *)
+Lemma fmeas_sub_canon_sigma_additive :
+  fmeas_sub_wf -> semi_sigma_additive fmeas_sub_canon.
+Proof.
+move=> wf; have [f1 f2 _] := wf.
+move=> F mF tF mUF.
+have eqU : fmeas_sub_canon (\bigcup_n F n) =
+           m1 (\bigcup_n F n) - m2 (\bigcup_n F n).
+  by rewrite fmeas_sub_canonE.
+have eqi i : fmeas_sub_canon (F i) = m1 (F i) - m2 (F i).
+  by rewrite fmeas_sub_canonE.
+rewrite eqU.
+have H1 := @measure_semi_sigma_additive _ _ R m1 F mF tF mUF.
+have H2 := @measure_semi_sigma_additive _ _ R m2 F mF tF mUF.
+have lim1 : limn (fun n => \sum_(0 <= i < n) m1 (F i)) = m1 (\bigcup_n F n).
+  exact: cvg_lim H1.
+have lim2 : limn (fun n => \sum_(0 <= i < n) m2 (F i)) = m2 (\bigcup_n F n).
+  exact: cvg_lim H2.
+have cvg1 : cvgn (fun n => \sum_(0 <= i < n) m1 (F i))
+  by apply/cvg_ex; exists (m1 (\bigcup_n F n)).
+have cvg2 : cvgn (fun n => \sum_(0 <= i < n) m2 (F i))
+  by apply/cvg_ex; exists (m2 (\bigcup_n F n)).
+have f1F i : m1 (F i) \is a fin_num by exact: f1.
+have f2F i : m2 (F i) \is a fin_num by exact: f2.
+have sum1fin n : \sum_(0 <= i < n) m1 (F i) \is a fin_num.
+  apply/sum_fin_numP => i _ _; exact: f1F.
+have sum2fin n : \sum_(0 <= i < n) m2 (F i) \is a fin_num.
+  apply/sum_fin_numP => i _ _; exact: f2F.
+have step n :
+  \sum_(0 <= i < n) fmeas_sub_canon (F i) =
+  \sum_(0 <= i < n) m1 (F i) - \sum_(0 <= i < n) m2 (F i).
+  elim: n => [|n IH].
+    by rewrite !big_nil sube0.
+  rewrite !big_nat_recr//= IH eqi.
+  exact: efin_sub_add_distr.
+have -> :
+  (fun n => \sum_(0 <= i < n) fmeas_sub_canon (F i)) =
+  (fun n => \sum_(0 <= i < n) m1 (F i) - \sum_(0 <= i < n) m2 (F i)).
+  by apply: funext => n; exact: step.
+have Hfin1 : m1 (\bigcup_n F n) \is a fin_num by exact: f1.
+have Hfin2 : m2 (\bigcup_n F n) \is a fin_num by exact: f2.
+rewrite -lim1 -lim2.
+apply: cvgeB => //.
+have e1 : (\big[+%E/0%R]_(0 <= i <oo) m1 (F i)) = m1 (\bigcup_n F n)
+  by exact: lim1.
+by rewrite e1 fin_num_adde_defr.
+Qed.
+
+End CanonizeSub.
+
+End FMeasCanonize.
+
 (** ** (Normc) ω-completeness via telescoping [mseries] — Paper §2.1
        (footnote on page 1:10) and §3.2.1.
 
@@ -607,45 +794,25 @@ Qed.
     [mseries] of measures doesn't automatically vanish off the
     σ-algebra. *)
 Definition fmeas_sup_meas_canon_fun : set X -> \bar R :=
-  fun A => if `[< measurable A >] then fmeas_sup_meas_fun uch A else 0.
+  fmeas_canonize (fmeas_sup_meas_fun uch).
 
 Lemma fmeas_sup_meas_canon_fun_E A :
   measurable A -> fmeas_sup_meas_canon_fun A = fmeas_sup_meas_fun uch A.
-Proof. by move=> mA; rewrite /fmeas_sup_meas_canon_fun asboolT. Qed.
+Proof. exact: fmeas_canonizeE. Qed.
 
 Lemma fmeas_sup_meas_canon_fun_off A :
   ~ measurable A -> fmeas_sup_meas_canon_fun A = 0.
-Proof. by move=> nmA; rewrite /fmeas_sup_meas_canon_fun asboolF. Qed.
+Proof. exact: fmeas_canonize_off. Qed.
 
 Lemma fmeas_sup_meas_canon_set0 : fmeas_sup_meas_canon_fun set0 = 0.
-Proof. by rewrite fmeas_sup_meas_canon_fun_E ?measurable0// measure0. Qed.
+Proof. exact: fmeas_canonize_meas_set0. Qed.
 
 Lemma fmeas_sup_meas_canon_ge0 A : 0 <= fmeas_sup_meas_canon_fun A.
-Proof.
-rewrite /fmeas_sup_meas_canon_fun.
-case: asboolP => mA; first exact: measure_ge0.
-exact: lexx.
-Qed.
+Proof. exact: fmeas_canonize_meas_ge0. Qed.
 
 Lemma fmeas_sup_meas_canon_sigma_additive :
   semi_sigma_additive fmeas_sup_meas_canon_fun.
-Proof.
-move=> F mF tF mUF.
-have eqU : fmeas_sup_meas_canon_fun (\bigcup_n F n) =
-           fmeas_sup_meas_fun uch (\bigcup_n F n).
-  by rewrite fmeas_sup_meas_canon_fun_E.
-have eqi i : fmeas_sup_meas_canon_fun (F i) =
-             fmeas_sup_meas_fun uch (F i).
-  by rewrite fmeas_sup_meas_canon_fun_E.
-rewrite eqU.
-have base := @measure_semi_sigma_additive _ _ R
-  (fmeas_sup_meas_fun uch) F mF tF mUF.
-have -> :
-  (fun n => \sum_(0 <= i < n) fmeas_sup_meas_canon_fun (F i)) =
-  (fun n => \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i)).
-  by apply: funext => n; apply: eq_bigr => i _; exact: eqi.
-exact: base.
-Qed.
+Proof. exact: fmeas_canonize_meas_sigma_additive. Qed.
 
 HB.instance Definition _ :=
   isMeasure.Build _ _ _ fmeas_sup_meas_canon_fun
@@ -654,13 +821,12 @@ HB.instance Definition _ :=
 
 (** Canonicality of the candidate sup measure (post-restriction). *)
 Lemma fmeas_sup_meas_canon_canon : fmeas_canon fmeas_sup_meas_canon_fun.
-Proof. exact: fmeas_sup_meas_canon_fun_off. Qed.
+Proof. exact: fmeas_canonize_canon. Qed.
 
 (** Finiteness of the canonicalized sup measure. *)
 Lemma fmeas_sup_meas_canon_finP : fmeas_finP fmeas_sup_meas_canon_fun.
 Proof.
-move=> U mU; rewrite fmeas_sup_meas_canon_fun_E//.
-exact: fmeas_sup_meas_finP.
+by apply: fmeas_canonize_finP; exact: fmeas_sup_meas_finP.
 Qed.
 
 (** The (Normc) witness — Paper §2.1, ω-completeness of the unit ball. *)
@@ -738,115 +904,51 @@ Qed.
 (** The LUB witness function: [y A - sup A] on measurable sets,
     [0] on non-measurable. *)
 Definition fmeas_lub_w_fun : set X -> \bar R :=
-  fun A => if `[< measurable A >] then
-             fmeas_mu y A - fmeas_sup_meas_fun uch A
-           else 0.
+  fmeas_sub_canon (fmeas_mu y) (fmeas_sup_meas_fun uch).
+
+(** The side conditions of the difference construction: both measures
+    are finite on the σ-algebra, and [sup ≤ y] there. *)
+Lemma fmeas_lub_w_wf : fmeas_sub_wf (fmeas_mu y) (fmeas_sup_meas_fun uch).
+Proof.
+split.
+- by move=> A mA; exact: fmeas_fin.
+- by move=> A mA; exact: (fmeas_sup_meas_finP uch ub1).
+- by move=> A mA; exact: fmeas_lub_sup_le_y.
+Qed.
 
 Lemma fmeas_lub_w_fun_E A :
   measurable A ->
   fmeas_lub_w_fun A = fmeas_mu y A - fmeas_sup_meas_fun uch A.
-Proof. by move=> mA; rewrite /fmeas_lub_w_fun asboolT. Qed.
+Proof. exact: fmeas_sub_canonE. Qed.
 
 Lemma fmeas_lub_w_fun_off A :
   ~ measurable A -> fmeas_lub_w_fun A = 0.
-Proof. by move=> nmA; rewrite /fmeas_lub_w_fun asboolF. Qed.
+Proof. exact: fmeas_sub_canon_off. Qed.
 
 Lemma fmeas_lub_w_set0 : fmeas_lub_w_fun set0 = 0.
-Proof.
-rewrite fmeas_lub_w_fun_E ?measurable0//.
-by rewrite !measure0 sube0.
-Qed.
+Proof. exact: fmeas_sub_canon_set0. Qed.
 
 Lemma fmeas_lub_w_ge0 A : 0 <= fmeas_lub_w_fun A.
-Proof.
-rewrite /fmeas_lub_w_fun.
-case: asboolP => mA; last exact: lexx.
-rewrite sube_ge0.
-- exact: fmeas_lub_sup_le_y.
-- by apply/orP; right; exact: fmeas_fin.
-Qed.
+Proof. exact: (fmeas_sub_canon_ge0 fmeas_lub_w_wf). Qed.
 
 Lemma fmeas_lub_w_fin A :
   measurable A -> fmeas_lub_w_fun A \is a fin_num.
-Proof.
-move=> mA; rewrite fmeas_lub_w_fun_E//.
-have Hyfin : fmeas_mu y A \is a fin_num by exact: fmeas_fin.
-have Hsfin : fmeas_sup_meas_fun uch A \is a fin_num.
-  exact: (fmeas_sup_meas_finP uch ub1).
-by rewrite fin_numB Hyfin Hsfin.
-Qed.
+Proof. exact: (fmeas_sub_canon_fin fmeas_lub_w_wf). Qed.
 
 (** σ-additivity of [fmeas_lub_w_fun]: by σ-additivity of [y] and [sup],
     using finiteness to distribute the subtraction. *)
 Lemma fmeas_lub_w_sigma_additive : semi_sigma_additive fmeas_lub_w_fun.
-Proof.
-move=> F mF tF mUF.
-have eqU : fmeas_lub_w_fun (\bigcup_n F n) =
-           fmeas_mu y (\bigcup_n F n) - fmeas_sup_meas_fun uch (\bigcup_n F n).
-  by rewrite fmeas_lub_w_fun_E.
-have eqi i : fmeas_lub_w_fun (F i) =
-             fmeas_mu y (F i) - fmeas_sup_meas_fun uch (F i).
-  by rewrite fmeas_lub_w_fun_E.
-rewrite eqU.
-(* By σ-additivity of [y] and [sup_meas]: their bigcup-values are the
-   pointwise limits of partial sums. We rewrite the partial sum to
-   be the difference of partial sums (using finiteness). *)
-have Hy_cvg := @measure_semi_sigma_additive _ _ R (fmeas_mu y) F mF tF mUF.
-have Hs_cvg := @measure_semi_sigma_additive _ _ R
-                  (fmeas_sup_meas_fun uch) F mF tF mUF.
-have lim_y : limn (fun n => \sum_(0 <= i < n) fmeas_mu y (F i)) =
-             fmeas_mu y (\bigcup_n F n).
-  exact: cvg_lim Hy_cvg.
-have lim_s : limn (fun n => \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i)) =
-             fmeas_sup_meas_fun uch (\bigcup_n F n).
-  exact: cvg_lim Hs_cvg.
-have cvg_y : cvgn (fun n => \sum_(0 <= i < n) fmeas_mu y (F i))
-  by apply/cvg_ex; exists (fmeas_mu y (\bigcup_n F n)).
-have cvg_s : cvgn (fun n => \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i))
-  by apply/cvg_ex; exists (fmeas_sup_meas_fun uch (\bigcup_n F n)).
-(* Rewrite each partial sum of [fmeas_lub_w_fun (F i)] as the difference
-   of partial sums of [y (F i)] and [sup (F i)]. *)
-have wfin i : fmeas_lub_w_fun (F i) \is a fin_num.
-  exact: fmeas_lub_w_fin.
-have yfin i : fmeas_mu y (F i) \is a fin_num by exact: fmeas_fin.
-have sfin i : fmeas_sup_meas_fun uch (F i) \is a fin_num.
-  exact: (fmeas_sup_meas_finP uch ub1).
-have sumyfin n : \sum_(0 <= i < n) fmeas_mu y (F i) \is a fin_num.
-  apply/sum_fin_numP => i _ _; exact: yfin.
-have sumsfin n : \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i) \is a fin_num.
-  apply/sum_fin_numP => i _ _; exact: sfin.
-have step n :
-  \sum_(0 <= i < n) fmeas_lub_w_fun (F i) =
-  \sum_(0 <= i < n) fmeas_mu y (F i) -
-  \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i).
-  elim: n => [|n IH].
-    by rewrite !big_nil sube0.
-  rewrite !big_nat_recr//= IH eqi.
-  exact: efin_sub_add_distr.
-have -> :
-  (fun n => \sum_(0 <= i < n) fmeas_lub_w_fun (F i)) =
-  (fun n => \sum_(0 <= i < n) fmeas_mu y (F i) -
-            \sum_(0 <= i < n) fmeas_sup_meas_fun uch (F i)).
-  by apply: funext => n; exact: step.
-have HfinY : fmeas_mu y (\bigcup_n F n) \is a fin_num by exact: fmeas_fin.
-have HfinS : fmeas_sup_meas_fun uch (\bigcup_n F n) \is a fin_num.
-  exact: (fmeas_sup_meas_finP uch ub1).
-rewrite -lim_y -lim_s.
-apply: cvgeB => //.
-have ey : (\big[+%E/0%R]_(0 <= i <oo) fmeas_mu y (F i)) =
-          fmeas_mu y (\bigcup_n F n) by exact: lim_y.
-by rewrite ey fin_num_adde_defr.
-Qed.
+Proof. exact: (fmeas_sub_canon_sigma_additive fmeas_lub_w_wf). Qed.
 
 HB.instance Definition _ :=
   isMeasure.Build _ _ _ fmeas_lub_w_fun
     fmeas_lub_w_set0 fmeas_lub_w_ge0 fmeas_lub_w_sigma_additive.
 
 Lemma fmeas_lub_w_finP : fmeas_finP fmeas_lub_w_fun.
-Proof. exact: fmeas_lub_w_fin. Qed.
+Proof. exact: (fmeas_sub_canon_finP fmeas_lub_w_wf). Qed.
 
 Lemma fmeas_lub_w_canon : fmeas_canon fmeas_lub_w_fun.
-Proof. exact: fmeas_lub_w_fun_off. Qed.
+Proof. exact: fmeas_sub_canon_canon. Qed.
 
 (** The LUB witness, packaged as a [fmeas R X]. *)
 Definition fmeas_lub_w : fmeas R X :=
@@ -878,97 +980,26 @@ Variable ub1 : forall n, (fmeas_norm (u n) <= 1)%R.
 Lemma fmeas_sup_ball_ub n :
   precone_le (u n) (fmeas_sup_ball uch ub1).
 Proof.
-(* We need w : fmeas R X with [fmeas_sup_ball = u n + w].  Use the
-   LUB-witness construction with [y := fmeas_sup_ball uch ub1] (and the
-   "from-n" hypothesis: every [u m] for m >= n is bounded by sup_ball,
-   so in particular [u n] is); but we don't actually use the limit,
-   just the pointwise bound. We construct [w] directly: define
-   [w_fun A := fmeas_sup_meas_fun uch A - u n A] for measurable A,
-   zero otherwise. By the same construction as [fmeas_lub_w] (swapping
-   [y] and the "smaller" measure), it is a finite measure. *)
-(* Reuse the construction of fmeas_lub_w, applied with the supremum as
-   y and u_n as the smaller increasing chain. To shortcut, we reuse
-   fmeas_lub_w with a chain of constants [v n := u n] (i.e. the
-   constant chain at [u n]). For the constant chain, the supremum is
-   [u n]. But we need the SUP to equal [fmeas_sup_ball uch ub1] not
-   [u n]. Easier: build [w] directly by case analysis. *)
-pose w_fun (A : set X) : \bar R :=
-  if `[< measurable A >] then
-    fmeas_sup_meas_fun uch A - fmeas_mu (u n) A
-  else 0.
+(* We need [w : fmeas R X] with [fmeas_sup_ball = u n + w]: it is the
+   canonicalized difference [sup - u n], which the generic combinator
+   [fmeas_sub_canon] turns into a finite measure. *)
+have wf : fmeas_sub_wf (fmeas_sup_meas_fun uch) (fmeas_mu (u n)).
+  split.
+  - by move=> A mA; exact: (fmeas_sup_meas_finP uch ub1).
+  - by move=> A mA; exact: fmeas_fin.
+  - by move=> A _; exact: (fmeas_partial_le_mseries uch n A).
+pose w_fun := fmeas_sub_canon (fmeas_sup_meas_fun uch) (fmeas_mu (u n)).
 have w_fun_E A :
   measurable A -> w_fun A = fmeas_sup_meas_fun uch A - fmeas_mu (u n) A.
-  by move=> mA; rewrite /w_fun asboolT.
+  exact: fmeas_sub_canonE.
 have w_fun_off A : ~ measurable A -> w_fun A = 0.
-  by move=> nmA; rewrite /w_fun asboolF.
-have w_set0 : w_fun set0 = 0.
-  by rewrite w_fun_E ?measurable0// !measure0 sube0.
-have w_ge0 A : 0 <= w_fun A.
-  rewrite /w_fun.
-  case: asboolP => mA; last exact: lexx.
-  rewrite sube_ge0.
-    by exact: (fmeas_partial_le_mseries uch n A).
-  by apply/orP; left; exact: fmeas_fin.
+  exact: fmeas_sub_canon_off.
+have w_set0 : w_fun set0 = 0 by apply: fmeas_sub_canon_set0.
+have w_ge0 A : 0 <= w_fun A by apply: fmeas_sub_canon_ge0; exact: wf.
 have w_fin A : measurable A -> (w_fun A \is a fin_num).
-  move=> mA; rewrite w_fun_E//.
-  have Hsfin : fmeas_sup_meas_fun uch A \is a fin_num.
-    exact: (fmeas_sup_meas_finP uch ub1).
-  have Hufin : fmeas_mu (u n) A \is a fin_num by exact: fmeas_fin.
-  by rewrite fin_numB Hsfin Hufin.
+  by apply: fmeas_sub_canon_fin; exact: wf.
 have w_sigma_additive : semi_sigma_additive w_fun.
-  move=> F mF tF mUF.
-  have eqU : w_fun (\bigcup_k F k) =
-             fmeas_sup_meas_fun uch (\bigcup_k F k) -
-             fmeas_mu (u n) (\bigcup_k F k).
-    by rewrite w_fun_E.
-  have eqi i : w_fun (F i) =
-               fmeas_sup_meas_fun uch (F i) - fmeas_mu (u n) (F i).
-    by rewrite w_fun_E.
-  rewrite eqU.
-  have Hs_cvg := @measure_semi_sigma_additive _ _ R
-                  (fmeas_sup_meas_fun uch) F mF tF mUF.
-  have Hu_cvg := @measure_semi_sigma_additive _ _ R
-                  (fmeas_mu (u n)) F mF tF mUF.
-  have lim_s : limn (fun m => \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i)) =
-               fmeas_sup_meas_fun uch (\bigcup_k F k).
-    exact: cvg_lim Hs_cvg.
-  have lim_u : limn (fun m => \sum_(0 <= i < m) fmeas_mu (u n) (F i)) =
-               fmeas_mu (u n) (\bigcup_k F k).
-    exact: cvg_lim Hu_cvg.
-  have cvg_s : cvgn (fun m => \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i))
-    by apply/cvg_ex; exists (fmeas_sup_meas_fun uch (\bigcup_k F k)).
-  have cvg_u : cvgn (fun m => \sum_(0 <= i < m) fmeas_mu (u n) (F i))
-    by apply/cvg_ex; exists (fmeas_mu (u n) (\bigcup_k F k)).
-  have wfin' i : w_fun (F i) \is a fin_num by exact: w_fin.
-  have sfin i : fmeas_sup_meas_fun uch (F i) \is a fin_num.
-    exact: (fmeas_sup_meas_finP uch ub1).
-  have ufin i : fmeas_mu (u n) (F i) \is a fin_num by exact: fmeas_fin.
-  have sumsfin m : \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i) \is a fin_num.
-    apply/sum_fin_numP => i _ _; exact: sfin.
-  have sumufin m : \sum_(0 <= i < m) fmeas_mu (u n) (F i) \is a fin_num.
-    apply/sum_fin_numP => i _ _; exact: ufin.
-  have step m :
-    \sum_(0 <= i < m) w_fun (F i) =
-    \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i) -
-    \sum_(0 <= i < m) fmeas_mu (u n) (F i).
-    elim: m => [|m IH].
-      by rewrite !big_nil sube0.
-    rewrite !big_nat_recr//= IH eqi.
-    exact: efin_sub_add_distr.
-  have -> :
-    (fun m => \sum_(0 <= i < m) w_fun (F i)) =
-    (fun m => \sum_(0 <= i < m) fmeas_sup_meas_fun uch (F i) -
-              \sum_(0 <= i < m) fmeas_mu (u n) (F i)).
-    by apply: funext => m; exact: step.
-  have HfinS : fmeas_sup_meas_fun uch (\bigcup_k F k) \is a fin_num.
-    exact: (fmeas_sup_meas_finP uch ub1).
-  have HfinU : fmeas_mu (u n) (\bigcup_k F k) \is a fin_num by exact: fmeas_fin.
-  rewrite -lim_s -lim_u.
-  apply: cvgeB => //.
-  have es : (\big[+%E/0%R]_(0 <= i <oo) fmeas_sup_meas_fun uch (F i)) =
-            fmeas_sup_meas_fun uch (\bigcup_k F k) by exact: lim_s.
-  rewrite es.
-  by apply: fin_num_adde_defr; rewrite (fmeas_sup_meas_finP uch ub1).
+  by apply: fmeas_sub_canon_sigma_additive; exact: wf.
 have wMeas : isMeasure.axioms_ disp X R w_fun :=
   isMeasure.Build disp X R w_fun w_set0 w_ge0 w_sigma_additive.
 pose w0 : {measure set X -> \bar R} :=
@@ -1219,17 +1250,16 @@ Qed.
     the canonicalized version that vanishes on non-measurable sets. *)
 Definition fmeas_push_meas_fun (µ : fmeas R (ar_carrier Ar X)) :
     set (ar_carrier Ar Y) -> \bar R :=
-  fun A =>
-    if `[< measurable A >] then pushforward (fmeas_mu µ) φ A else 0.
+  fmeas_canonize (pushforward (fmeas_mu µ) φ).
 
 Lemma fmeas_push_meas_fun_E (µ : fmeas R (ar_carrier Ar X)) A :
   measurable A ->
   fmeas_push_meas_fun µ A = pushforward (fmeas_mu µ) φ A.
-Proof. by move=> mA; rewrite /fmeas_push_meas_fun asboolT. Qed.
+Proof. exact: fmeas_canonizeE. Qed.
 
 Lemma fmeas_push_meas_fun_off (µ : fmeas R (ar_carrier Ar X)) A :
   ~ measurable A -> fmeas_push_meas_fun µ A = 0.
-Proof. by move=> nmA; rewrite /fmeas_push_meas_fun asboolF. Qed.
+Proof. exact: fmeas_canonize_off. Qed.
 
 Lemma fmeas_push_set0 (µ : fmeas R (ar_carrier Ar X)) :
   fmeas_push_meas_fun µ set0 = 0.
@@ -1241,30 +1271,17 @@ Qed.
 Lemma fmeas_push_ge0 (µ : fmeas R (ar_carrier Ar X)) A :
   0 <= fmeas_push_meas_fun µ A.
 Proof.
-rewrite /fmeas_push_meas_fun; case: asboolP => mA; last exact: lexx.
+rewrite /fmeas_push_meas_fun /fmeas_canonize.
+case: asboolP => mA; last exact: lexx.
 rewrite /pushforward; apply: measure_ge0.
 Qed.
 
 Lemma fmeas_push_sigma_additive (µ : fmeas R (ar_carrier Ar X)) :
   semi_sigma_additive (fmeas_push_meas_fun µ).
 Proof.
-move=> F mF tF mUF.
-have measf : measurable_fun setT φ.
-  exact: measurable_funP.
-have base := @measure_semi_sigma_additive _ _ R
-  (pushforward (fmeas_mu µ) φ) F mF tF mUF.
-have eqU : fmeas_push_meas_fun µ (\bigcup_n F n) =
-           pushforward (fmeas_mu µ) φ (\bigcup_n F n).
-  by rewrite fmeas_push_meas_fun_E.
-have eqi i : fmeas_push_meas_fun µ (F i) =
-             pushforward (fmeas_mu µ) φ (F i).
-  by rewrite fmeas_push_meas_fun_E.
-rewrite eqU.
-have -> :
-  (fun n => \sum_(0 <= i < n) fmeas_push_meas_fun µ (F i)) =
-  (fun n => \sum_(0 <= i < n) pushforward (fmeas_mu µ) φ (F i)).
-  by apply: funext => n; apply: eq_bigr => i _; exact: eqi.
-exact: base.
+have measf : measurable_fun setT φ by exact: measurable_funP.
+exact: (@fmeas_canonize_meas_sigma_additive _ _ _
+          (pushforward (fmeas_mu µ) φ)).
 Qed.
 
 Section FMeasPushMeas.
@@ -1336,7 +1353,7 @@ Lemma fmeas_push_linearZ (r : {nonneg R}) (µ : fmeas R (ar_carrier Ar X)) :
 Proof.
 apply: fmeas_eq => U mU.
 rewrite /precone_scale/= fmeas_push_funE// /pushforward /mscale.
-by rewrite /fmeas_push_meas/= /fmeas_push_meas_fun asboolT.
+by rewrite /fmeas_push_meas/= /fmeas_push_meas_fun /fmeas_canonize asboolT.
 Qed.
 
 Lemma fmeas_push_is_linear : is_linear fmeas_push_fun.

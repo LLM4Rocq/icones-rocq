@@ -152,31 +152,11 @@ Qed.
 Arguments ptensor_prom_ball {A B x y}.
 
 (** The step-2 transported structure sends a promoted pure tensor to its
-    promotion: [tens_cofree_str_{A,B}(x! ⊗ y!) = (x! ⊗ y!)!].  (Factored
-    from the [tens_cofree_coassoc] computation of step 2.) *)
-Lemma tens_cofree_str_prom (A B : ICone.type Ar) (x : A) (y : B) :
-  cone_norm x <= 1 -> cone_norm y <= 1 ->
-  Lfun (tens_cofree_str A B) (x! ⊗p y!) = (x! ⊗p y!)!.
-Proof.
-move=> Hx Hy.
-have Hp : cone_norm (sprod_pair x y) <= 1 by exact: sprod_pair_norm_le1.
-have Hpp : cone_norm (sprod_pair x y)! <= 1 by exact: prom_ball.
-rewrite /tens_cofree_str.
-rewrite -[Lfun (icones_comp (bang_fmap (iso_bwd (Seely2 A B))) _) _]
-        /(Lfun (bang_fmap (iso_bwd (Seely2 A B)))
-          (Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) (x! ⊗p y!))).
-rewrite -[Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) _]
-        /(Lfun (dig (sprod A B)) (Lfun (iso_fwd (Seely2 A B)) (x! ⊗p y!))).
-rewrite (Seely2E x y Hx Hy) (dig_prom (sprod_pair x y) Hp).
-rewrite (bang_fmap_prom (iso_bwd (Seely2 A B)) (sprod_pair x y)! Hpp).
-congr (prom _).
-apply: (iso_fwd_inj (Seely2 A B)).
-rewrite -[Lfun (iso_fwd (Seely2 A B)) (Lfun (iso_bwd (Seely2 A B)) _)]
-        /(Lfun (icones_comp (iso_fwd (Seely2 A B)) (iso_bwd (Seely2 A B))) (sprod_pair x y)!).
-rewrite iso_bwdK -[Lfun (icones_id _ _) _]/((sprod_pair x y)!).
-by rewrite (Seely2E x y Hx Hy).
-Qed.
-Arguments tens_cofree_str_prom {A B x y}.
+    promotion, [tens_cofree_str_{A,B}(x! ⊗ y!) = (x! ⊗ y!)!], is
+    [em_seely_comonoid.v]'s [tens_cofree_str_prom] — factored there, where
+    it already discharges [tens_cofree_coassoc] and [d_bang_is_coalg_mor];
+    it arrives here with all arguments implicit, so [m_bang_prom] and
+    [tens_cofree_str_m_bang] below apply it as [tens_cofree_str_prom Hx Hy]. *)
 
 (** [m_{A,B}(x! ⊗ y!) = (x ⊗ y)!] for unit-ball points: [tens_cofree_str]
     sends [x!⊗y!] to [(x!⊗y!)!], then [!(ε⊗ε)] sends it to
@@ -224,24 +204,7 @@ Lemma tens_cofree_str_m_bang (A B : ICone.type Ar) :
 Proof.
 apply: tens_excl_charact => x y Hx Hy.
 (* LHS: [tens_cofree_str (x!⊗y!) = (x!⊗y!)!]. *)
-have Hstr : Lfun (tens_cofree_str A B) (x! ⊗p y!) = (x! ⊗p y!)!.
-  have Hp : cone_norm (sprod_pair x y) <= 1 by exact: sprod_pair_norm_le1.
-  have Hpp : cone_norm (sprod_pair x y)! <= 1 by exact: prom_ball.
-  rewrite /tens_cofree_str.
-  rewrite -[Lfun (icones_comp (bang_fmap (iso_bwd (Seely2 A B))) _) _]
-          /(Lfun (bang_fmap (iso_bwd (Seely2 A B)))
-            (Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) (x! ⊗p y!))).
-  rewrite -[Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) _]
-          /(Lfun (dig (sprod A B)) (Lfun (iso_fwd (Seely2 A B)) (x! ⊗p y!))).
-  rewrite (Seely2E x y Hx Hy) (dig_prom (sprod_pair x y) Hp).
-  rewrite (bang_fmap_prom (iso_bwd (Seely2 A B)) (sprod_pair x y)! Hpp).
-  congr (prom _).
-  apply: (iso_fwd_inj (Seely2 A B)).
-  rewrite -[Lfun (iso_fwd (Seely2 A B)) (Lfun (iso_bwd (Seely2 A B)) _)]
-          /(Lfun (icones_comp (iso_fwd (Seely2 A B)) (iso_bwd (Seely2 A B))) (sprod_pair x y)!).
-  rewrite iso_bwdK -[Lfun (icones_id _ _) _]/((sprod_pair x y)!).
-  by rewrite (Seely2E x y Hx Hy).
-rewrite Hstr.
+rewrite (tens_cofree_str_prom Hx Hy).
 (* RHS: [m_{!A,!B}((dig⊗dig)(x!⊗y!)) = m_{!A,!B}((x!)!⊗(y!)!) = (x!⊗y!)!]. *)
 rewrite -[Lfun (icones_comp (m_bang (Bg A) (Bg B)) (tensor_mor (dig A) (dig B))) _]
         /(Lfun (m_bang (Bg A) (Bg B)) (Lfun (tensor_mor (dig A) (dig B)) (x! ⊗p y!))).

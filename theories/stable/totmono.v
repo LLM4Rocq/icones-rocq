@@ -15,9 +15,11 @@
     - The sign-split power sets [Pneg n] / [Ppos n] over ['I_n]
       (paper, txt ~3211), with [Ppos_setT] ([{1..n} ∈ P⁺(n)]) and the
       complementarity fact [in_Pneg_Ppos].
-    - A [Monoid.com_law] instance for [precone_add] / [precone_zero],
-      enabling the cone sums [\big[precone_add/precone_zero]_(...)]
-      used in (7.1).  We expose the short alias [\sumP_(...)].
+    - The short alias [\sumP_(...)] for the cone sums
+      [\big[precone_add/precone_zero]_(...)] used in (7.1).  (The
+      [Monoid.com_law] instance for [precone_add] / [precone_zero] that
+      makes those [bigop]s usable is declared in the cones layer,
+      [cones/omega_general.v].)
     - [is_totmono] (Def 7.5, eq 7.1), with the sanity reformulations
       [totmono_increasing] (n = 1 ⇔ increasing) and [totmono2] /
       [totmono2E] (n = 2).
@@ -86,24 +88,18 @@ Import Order.TTheory GRing.Theory Num.Theory.
 
 Local Open Scope ring_scope.
 
-(** ** Cone sums — a [Monoid.com_law] for [precone_add]
+(** ** Cone sums — the [\sumP_] alias
 
     The total-monotonicity inequality (7.1) sums values of [f] over the
     finite sets [Pneg n] / [Ppos n], and forms inner sums [∑_{i∈I} u i]
-    over [I : {set 'I_n}].  We register [precone_add] / [precone_zero]
-    as a commutative monoid law so that the standard [bigop] notation
-    and lemmas ([big_split], [eq_bigr], [big1], [big_morph], [bigID])
-    apply.  We add a short alias [\sumP_(...)] for readability. *)
-
-Section PreconeBig.
-Variable R : realType.
-Variable P : preconeType R.
-
-HB.instance Definition _ :=
-  Monoid.isComLaw.Build P precone_zero precone_add
-    (@precone_addA R P) (@precone_addC R P) (@precone_add0 R P).
-
-End PreconeBig.
+    over [I : {set 'I_n}].  The [Monoid.com_law] instance for
+    [precone_add] / [precone_zero] — which makes the standard [bigop]
+    lemmas ([big_split], [eq_bigr], [big1], [big_morph], [bigID],
+    [big_setU1]) apply — is declared once and for all in the cones
+    layer ([cones/omega_general.v], Section [PreconeComLaw]); it used
+    to be declared here, and re-declaring it would only add a redundant
+    canonical projection.  We keep here just the short alias
+    [\sumP_(...)] for readability. *)
 
 Notation "\sumP_ ( i <- r | C ) F" :=
   (\big[precone_add/precone_zero]_(i <- r | C) F)
@@ -478,15 +474,19 @@ End ClosureAdd.
 
 Arguments stm_add {R P Q}.
 
-(** *** Diagonal-sup identity (local port)
+(** *** Diagonal-sup identity — now in [cones/omega_general.v]
 
     ω-continuity of the pointwise sum needs the *diagonal-sup identity*
-    [sup_n (a_n + b_n) = sup_n a_n + sup_n b_n] for unit-ball chains
-    [a, b] whose diagonal sum stays in the unit ball.  This is the cone
-    fact behind [linhom_add_fun_continuous] in [homs/linhom.v]; we port
-    a self-contained copy here (depending only on [coneType] and the
-    one-sided [sup_ball_addr] of [basic_lemmas.v]) to avoid importing
-    the full integrable-linear-map development. *)
+    [sup_n (a_n + b_n) = sup_n a_n + sup_n b_n] for chains [a], [b]
+    whose diagonal sum stays within the common radius.  Both the
+    unit-ball and the radius-aware forms used to be re-proved here (an
+    acknowledged port of the [homs/linhom.v] argument); they are now
+    stated once, over a bare [coneType] and at a general radius, in
+    [cones/omega_general.v] as [cone_sup_ball_addD] and
+    [cone_sup_at_addD].  The radius-aware form keeps its local name
+    [sup_at_addD] (it is the one the paper text cites) as a one-line
+    derivation of the general statement; the unit-ball form is gone —
+    use [cone_sup_ball_addD]. *)
 
 Section DiagonalSup.
 Variable R : realType.
@@ -494,75 +494,12 @@ Variable P : coneType R.
 Local Open Scope precone_scope.
 Implicit Types a b : nat -> P.
 
-Lemma sup_ball_addD a b
-  (ach : forall n, a n <=p a n.+1)
-  (aub : forall n, cone_norm (a n) <= 1)
-  (bch : forall n, b n <=p b n.+1)
-  (bub : forall n, cone_norm (b n) <= 1)
-  (sch : forall n, a n + b n <=p a n.+1 + b n.+1)
-  (sub : forall n, cone_norm (a n + b n) <= 1) :
-  cone_sup_ball (fun n => a n + b n) sch sub =
-  (cone_sup_ball a ach aub) + (cone_sup_ball b bch bub).
-Proof.
-set Sa := cone_sup_ball a ach aub.
-set Sb := cone_sup_ball b bch bub.
-set Ss := cone_sup_ball (fun n => a n + b n) sch sub.
-apply: precone_le_anti.
-  (* [Ss ≤p Sa + Sb] by [cone_sup_ball_lub] with witness from the ubs. *)
-  apply: cone_sup_ball_lub => n.
-  have [za Hza] : a n <=p Sa by exact: cone_sup_ball_ub.
-  have [zb Hzb] : b n <=p Sb by exact: cone_sup_ball_ub.
-  exists (za + zb); rewrite Hza Hzb -!precone_addA; congr precone_add.
-  by rewrite precone_addA [za + b n]precone_addC -precone_addA.
-(* General chain-monotonicity. *)
-have chain_mono c (cch : forall n, c n <=p c n.+1) n m :
-    (n <= m)%N -> c n <=p c m.
-  elim: m => [|m IHm] nm.
-    by move: nm; rewrite leqn0 => /eqP ->; exact: precone_le_refl.
-  case: (leqP n m) => Hk.
-    by apply: precone_le_trans (IHm Hk) _; exact: cch.
-  have -> : n = m.+1 by apply/eqP; rewrite eqn_leq nm Hk.
-  exact: precone_le_refl.
-(* Step 1: [a_n + b_k ≤p Ss] for all [n], [k]. *)
-have ab_le_Ss n k : a n + b k <=p Ss.
-  set m := maxn n k.
-  apply: precone_le_trans (cone_sup_ball_ub (fun n => a n + b n) sch sub m).
-  apply: (@precone_le_trans _ _ (a m + b k)).
-    by apply: precone_add_le_r; exact: chain_mono a ach n m (leq_maxl n k).
-  by apply: precone_add_le_l; exact: chain_mono b bch k m (leq_maxr n k).
-(* [(a_n + b_k)_n] increasing and in the unit ball. *)
-have ch_ak_bk k n : a n + b k <=p a n.+1 + b k.
-  by apply: precone_add_le_r; exact: ach.
-have ub_ak_bk k n : cone_norm (a n + b k) <= 1.
-  by apply: le_trans (cone_normp _ _ (ab_le_Ss n k)) _;
-     exact: cone_sup_ball_norm.
-(* Step 2/3: [Sa + b_k ≤p Ss] for all [k]. *)
-have Sa_bk_le_Ss k : Sa + b k <=p Ss.
-  rewrite -(@sup_ball_addr _ _ a ach aub (b k) (ch_ak_bk k) (ub_ak_bk k)).
-  by apply: cone_sup_ball_lub => n; exact: ab_le_Ss.
-(* [(b_k + Sa)_k] increasing and in the unit ball. *)
-have ch_bk_Sa k : b k + Sa <=p b k.+1 + Sa.
-  by apply: precone_add_le_r; exact: bch.
-have ub_bk_Sa k : cone_norm (b k + Sa) <= 1.
-  rewrite precone_addC.
-  by apply: le_trans (cone_normp _ _ (Sa_bk_le_Ss k)) _;
-     exact: cone_sup_ball_norm.
-(* Step 4/5: [Sa + Sb ≤p Ss] via [sup_ball_addr] on [b] with [y := Sa]. *)
-rewrite -[Sa + Sb]/(Sa + Sb) precone_addC.
-rewrite -(@sup_ball_addr _ _ b bch bub Sa ch_bk_Sa ub_bk_Sa).
-apply: cone_sup_ball_lub => k.
-by rewrite precone_addC; exact: Sa_bk_le_Ss.
-Qed.
-
-(** *** Radius-aware diagonal-sup identity
-
-    The [cone_sup_at] analogue of [sup_ball_addD]: for increasing chains
-    [a], [b] *and* their diagonal sum all bounded by a common radius
-    [M > 0], the sup of the diagonal sum is the sum of the sups.  Proof
-    mirrors [sup_ball_addD] line for line, replacing [cone_sup_ball] by
-    [cone_sup_at] and the one-sided [sup_ball_addr] by [sup_at_addr]
-    (both from [omega_general.v]).  This is the radius-aware engine
-    behind ω-continuity of the pointwise sum [f + g]. *)
+(** Radius-aware diagonal-sup identity: for increasing chains [a], [b]
+    *and* their diagonal sum all bounded by a common radius [M > 0],
+    the sup of the diagonal sum is the sum of the sups.  This is the
+    radius-aware engine behind ω-continuity of the pointwise sum
+    [f + g]; it is [omega_general.cone_sup_at_addD] under its local
+    name. *)
 Lemma sup_at_addD (M : {nonneg R}) a b
   (ach : forall n, a n <=p a n.+1)
   (aubM : forall n, cone_norm (a n) <= M%:num)
@@ -573,57 +510,7 @@ Lemma sup_at_addD (M : {nonneg R}) a b
   (Mpos : (0 < M%:num)%R) :
   cone_sup_at sch subM Mpos =
   (cone_sup_at ach aubM Mpos) + (cone_sup_at bch bubM Mpos).
-Proof.
-set Sa := cone_sup_at ach aubM Mpos.
-set Sb := cone_sup_at bch bubM Mpos.
-set Ss := cone_sup_at sch subM Mpos.
-apply: precone_le_anti.
-  (* [Ss ≤p Sa + Sb] by [cone_sup_at_lub] with witnesses from the ubs. *)
-  apply: cone_sup_at_lub => n.
-  have [za Hza] : a n <=p Sa by exact: cone_sup_at_ub.
-  have [zb Hzb] : b n <=p Sb by exact: cone_sup_at_ub.
-  exists (za + zb); rewrite Hza Hzb -!precone_addA; congr precone_add.
-  by rewrite precone_addA [za + b n]precone_addC -precone_addA.
-(* General chain-monotonicity. *)
-have chain_mono c (cch : forall n, c n <=p c n.+1) n m :
-    (n <= m)%N -> c n <=p c m.
-  elim: m => [|m IHm] nm.
-    by move: nm; rewrite leqn0 => /eqP ->; exact: precone_le_refl.
-  case: (leqP n m) => Hk.
-    by apply: precone_le_trans (IHm Hk) _; exact: cch.
-  have -> : n = m.+1 by apply/eqP; rewrite eqn_leq nm Hk.
-  exact: precone_le_refl.
-(* Step 1: [a_n + b_k ≤p Ss] for all [n], [k]. *)
-have ab_le_Ss n k : a n + b k <=p Ss.
-  set m := maxn n k.
-  apply: precone_le_trans (cone_sup_at_ub sch subM Mpos m).
-  apply: (@precone_le_trans _ _ (a m + b k)).
-    by apply: precone_add_le_r; exact: chain_mono a ach n m (leq_maxl n k).
-  by apply: precone_add_le_l; exact: chain_mono b bch k m (leq_maxr n k).
-(* [(a_n + b_k)_n] increasing and bounded by [M]. *)
-have ch_ak_bk k n : a n + b k <=p a n.+1 + b k.
-  by apply: precone_add_le_r; exact: ach.
-have ub_ak_bk k n : cone_norm (a n + b k) <= M%:num.
-  by apply: le_trans (cone_normp _ _ (ab_le_Ss n k)) _;
-     exact: cone_sup_at_norm.
-(* Step 2/3: [Sa + b_k ≤p Ss] for all [k]. *)
-have Sa_bk_le_Ss k : Sa + b k <=p Ss.
-  rewrite -(@sup_at_addr _ _ M a (b k) ach aubM
-              (ch_ak_bk k) (ub_ak_bk k) Mpos).
-  by apply: cone_sup_at_lub => n; exact: ab_le_Ss.
-(* [(b_k + Sa)_k] increasing and bounded by [M]. *)
-have ch_bk_Sa k : b k + Sa <=p b k.+1 + Sa.
-  by apply: precone_add_le_r; exact: bch.
-have ub_bk_Sa k : cone_norm (b k + Sa) <= M%:num.
-  rewrite precone_addC.
-  by apply: le_trans (cone_normp _ _ (Sa_bk_le_Ss k)) _;
-     exact: cone_sup_at_norm.
-(* Step 4/5: [Sa + Sb ≤p Ss] via [sup_at_addr] on [b] with [y := Sa]. *)
-rewrite -[Sa + Sb]/(Sa + Sb) precone_addC.
-rewrite -(@sup_at_addr _ _ M b Sa bch bubM ch_bk_Sa ub_bk_Sa Mpos).
-apply: cone_sup_at_lub => k.
-by rewrite precone_addC; exact: Sa_bk_le_Ss.
-Qed.
+Proof. exact: cone_sup_at_addD. Qed.
 
 End DiagonalSup.
 

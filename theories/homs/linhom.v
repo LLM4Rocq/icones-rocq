@@ -52,6 +52,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone_cat.
+Require Import Icones.cones.omega_general.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -246,8 +247,13 @@ Arguments linhom_zero_fun {R Ar} C D.
     in [B]. This is the *diagonal-sup identity* in cones — a
     consequence of (Normp), (Cancel) and (Normc).
 
-    We prove this once and for all here, then reuse it for the
-    [isPrecone] / [isCone] HB instances on [linhom_car]. *)
+    The mathematical content now lives, once and at a general radius,
+    in the consolidated sup-calculus of [cones/omega_general.v]
+    ([cone_sup_at_addD], with the radius-1 corollaries
+    [cone_sup_ball_addD] / [_le] / [_ge]).  What follows are the
+    radius-1 instances in the exact shape this file — and the
+    blueprint — refers to, so that the [isPrecone] / [isCone]
+    instances on [linhom_car] below read unchanged. *)
 
 Section DiagonalSup.
 Variable R : realType.
@@ -256,14 +262,7 @@ Implicit Types (a b : nat -> P).
 
 Local Open Scope precone_scope.
 
-(** Auxiliary: the diagonal sup is ≤p the pointwise sum of sups.
-
-    Given chains [a, b] in [B] with [‖a_n + b_n‖ ≤ 1] (so the
-    diagonal sum chain stays in [B]), we have
-    [cone_sup_ball (a + b) ≤p cone_sup_ball a + cone_sup_ball b].
-
-    By [cone_sup_ball_lub] on the diagonal sup, with the witness
-    [(z_a, z_b)] from the upper-bound property of [Sa] and [Sb]. *)
+(** The diagonal sup is [≤p] the pointwise sum of sups. *)
 Lemma cone_sup_ball_addD_le a b
   (ach : forall n, a n <=p a n.+1)
   (aub : forall n, cnorm (a n) <= 1)
@@ -273,30 +272,9 @@ Lemma cone_sup_ball_addD_le a b
   (sub : forall n, cnorm (precone_add (a n) (b n)) <= 1) :
   cone_sup_ball (fun n => precone_add (a n) (b n)) sch sub
     <=p precone_add (cone_sup_ball a ach aub) (cone_sup_ball b bch bub).
-Proof.
-apply: cone_sup_ball_lub => n.
-have [za Hza] : a n <=p cone_sup_ball a ach aub by exact: cone_sup_ball_ub.
-have [zb Hzb] : b n <=p cone_sup_ball b bch bub by exact: cone_sup_ball_ub.
-exists (precone_add za zb).
-rewrite Hza Hzb.
-rewrite -!precone_addA; congr precone_add.
-by rewrite precone_addA [za + b n]precone_addC -precone_addA.
-Qed.
+Proof. exact: omega_general.cone_sup_ball_addD_le. Qed.
 
-(** Auxiliary: the reverse direction.
-
-    [cone_sup_ball a + cone_sup_ball b ≤p cone_sup_ball (a + b)].
-
-    Proof. We use [sup_ball_addr] / [sup_ball_addl] in two steps.
-    For each fixed [k], the chain [(a_n + b_k)_n] is increasing and
-    unit-ball (because [a_n + b_k ≤p a_max(n,k) + b_max(n,k) ≤p Ss],
-    hence its norm is ≤ ‖Ss‖ ≤ 1 by Normp). By [sup_ball_addr] on
-    the chain [a] with [y := b_k], [sup_n (a_n + b_k) = Sa + b_k];
-    by [cone_sup_ball_lub], this sup is ≤p Ss. So [Sa + b_k ≤p Ss]
-    for every k. The chain [(Sa + b_k)_k] is then increasing and
-    unit-ball (norm ≤ ‖Ss‖). By [sup_ball_addl] applied to [b] with
-    [x := Sa], [sup_k (Sa + b_k) = Sa + Sb]; again by
-    [cone_sup_ball_lub], this is ≤p Ss. *)
+(** The reverse direction. *)
 Lemma cone_sup_ball_addD_ge a b
   (ach : forall n, a n <=p a n.+1)
   (aub : forall n, cnorm (a n) <= 1)
@@ -306,94 +284,7 @@ Lemma cone_sup_ball_addD_ge a b
   (sub : forall n, cnorm (precone_add (a n) (b n)) <= 1) :
   precone_add (cone_sup_ball a ach aub) (cone_sup_ball b bch bub)
     <=p cone_sup_ball (fun n => precone_add (a n) (b n)) sch sub.
-Proof.
-set Sa := cone_sup_ball a ach aub.
-set Sb := cone_sup_ball b bch bub.
-set Ss := cone_sup_ball (fun n => precone_add (a n) (b n)) sch sub.
-(* General chain-monotonicity: if [n <= m] then [a n <=p a m]. *)
-have chain_mono_a : forall n m : nat, (n <= m)%N -> a n <=p a m.
-  move=> n m; elim: m => [|m IHm] nm.
-    by rewrite leqn0 in nm; move/eqP: nm => ->; exact: precone_le_refl.
-  case: (leqP n m) => Hk.
-    apply: precone_le_trans (IHm Hk) _; exact: ach.
-  have -> : n = m.+1 by apply/eqP; rewrite eqn_leq nm.
-  exact: precone_le_refl.
-have chain_mono_b : forall n m : nat, (n <= m)%N -> b n <=p b m.
-  move=> n m; elim: m => [|m IHm] nm.
-    by rewrite leqn0 in nm; move/eqP: nm => ->; exact: precone_le_refl.
-  case: (leqP n m) => Hk.
-    apply: precone_le_trans (IHm Hk) _; exact: bch.
-  have -> : n = m.+1 by apply/eqP; rewrite eqn_leq nm.
-  exact: precone_le_refl.
-have ale_max : forall n k : nat, a n <=p a (maxn n k).
-  by move=> n k; apply: chain_mono_a; exact: leq_maxl.
-have ble_max : forall n k : nat, b k <=p b (maxn n k).
-  by move=> n k; apply: chain_mono_b; exact: leq_maxr.
-(* Step 1: for every n, k, a_n + b_k ≤p Ss. *)
-have ab_le_Ss : forall n k : nat, precone_add (a n) (b k) <=p Ss.
-  move=> n k.
-  set m := maxn n k.
-  have step1 : precone_add (a n) (b k) <=p precone_add (a m) (b m).
-    apply: precone_le_trans (precone_add_le_r (b k) (ale_max n k)) _.
-    by apply: precone_add_le_l; exact: ble_max.
-  apply: precone_le_trans step1 _.
-  exact: (cone_sup_ball_ub (fun n => precone_add (a n) (b n)) sch sub m).
-(* The chain (a_n + b_k)_n is increasing in n (fixed k), and unit-ball. *)
-have ch_ak_bk : forall k n,
-    precone_add (a n) (b k) <=p precone_add (a n.+1) (b k).
-  by move=> k n; apply: precone_add_le_r; exact: ach.
-have ub_ak_bk : forall k n, cnorm (precone_add (a n) (b k)) <= 1.
-  move=> k n.
-  have hle := ab_le_Ss n k.
-  apply: le_trans (cone_normp _ _ hle) _.
-  exact: cone_sup_ball_norm.
-(* Step 2: for every k, sup_n (a_n + b_k) = Sa + b_k. *)
-have step2 : forall k,
-  cone_sup_ball (fun n => precone_add (a n) (b k))
-                (ch_ak_bk k) (ub_ak_bk k) =
-  precone_add Sa (b k).
-  by move=> k; rewrite (@sup_ball_addr _ _ a ach aub (b k)).
-(* Step 3: Sa + b_k ≤p Ss for every k. *)
-have Sa_bk_le_Ss : forall k, precone_add Sa (b k) <=p Ss.
-  move=> k; rewrite -step2.
-  apply: cone_sup_ball_lub => n; exact: ab_le_Ss.
-(* The chain (Sa + b_k)_k is increasing in k, and unit-ball (norm ≤ ‖Ss‖). *)
-have ch_Sa_bk : forall k,
-    precone_add Sa (b k) <=p precone_add Sa (b k.+1).
-  by move=> k; apply: precone_add_le_l; exact: bch.
-have ub_Sa_bk : forall k, cnorm (precone_add Sa (b k)) <= 1.
-  move=> k.
-  apply: le_trans (cone_normp _ _ (Sa_bk_le_Ss k)) _.
-  exact: cone_sup_ball_norm.
-(* Step 4: sup_k (Sa + b_k) = Sa + Sb (via sup_ball_addr + commutativity). *)
-have ch_bk_Sa : forall k, precone_add (b k) Sa <=p precone_add (b k.+1) Sa.
-  by move=> k; apply: precone_add_le_r; exact: bch.
-have ub_bk_Sa : forall k, cnorm (precone_add (b k) Sa) <= 1.
-  by move=> k; rewrite precone_addC; exact: ub_Sa_bk.
-have step4_alt :
-  cone_sup_ball (fun k => precone_add (b k) Sa) ch_bk_Sa ub_bk_Sa =
-  precone_add Sb Sa.
-  exact: (@sup_ball_addr _ _ b bch bub Sa).
-have swap_eq :
-  cone_sup_ball (fun k => precone_add Sa (b k)) ch_Sa_bk ub_Sa_bk =
-  cone_sup_ball (fun k => precone_add (b k) Sa) ch_bk_Sa ub_bk_Sa.
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => k.
-    rewrite (_ : precone_add Sa (b k) = precone_add (b k) Sa);
-      last exact: precone_addC.
-    exact: cone_sup_ball_ub.
-  - apply: cone_sup_ball_lub => k.
-    rewrite (_ : precone_add (b k) Sa = precone_add Sa (b k));
-      last exact: precone_addC.
-    exact: cone_sup_ball_ub.
-have step4 :
-  cone_sup_ball (fun k => precone_add Sa (b k)) ch_Sa_bk ub_Sa_bk =
-  precone_add Sa Sb.
-  by rewrite swap_eq step4_alt precone_addC.
-(* Step 5: Sa + Sb ≤p Ss. *)
-rewrite -step4.
-apply: cone_sup_ball_lub => k; exact: Sa_bk_le_Ss.
-Qed.
+Proof. exact: omega_general.cone_sup_ball_addD_ge. Qed.
 
 End DiagonalSup.
 
@@ -415,11 +306,7 @@ Lemma cone_sup_ball_addD a b
   (sub : forall n, cnorm (precone_add (a n) (b n)) <= 1) :
   cone_sup_ball (fun n => precone_add (a n) (b n)) sch sub =
   precone_add (cone_sup_ball a ach aub) (cone_sup_ball b bch bub).
-Proof.
-apply: precone_le_anti.
-- exact: cone_sup_ball_addD_le.
-- exact: cone_sup_ball_addD_ge.
-Qed.
+Proof. exact: omega_general.cone_sup_ball_addD. Qed.
 
 End DiagonalSupEq.
 
@@ -1821,8 +1708,11 @@ Local Open Scope precone_scope.
 
 (** Commutation of two unit-ball sups in [D]. Given a doubly-indexed
     family [b : nat -> nat -> D] with row and column unit-ball chains
-    and entry-wise unit-ball bound, the iterated sup commutes. The
-    same proof template would apply in any [coneType]. *)
+    and entry-wise unit-ball bound, the iterated sup commutes. This
+    is the instance at [D] of the consolidated
+    [omega_general.cone_sup_ball_swap], which holds in any
+    [coneType]; the name is kept here for the blueprint and for the
+    use in [linhom_sup_fun_continuous] just below. *)
 Lemma cone_sup_ball_swap (b : nat -> nat -> D)
     (b_row_ch : forall k n, b n k <=p b n.+1 k)
     (b_col_ch : forall n k, b n k <=p b n k.+1)
@@ -1845,23 +1735,7 @@ Lemma cone_sup_ball_swap (b : nat -> nat -> D)
   cone_sup_ball
     (fun k => cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
     b_row_sup_ch b_row_sup_ub.
-Proof.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  apply: cone_sup_ball_lub => k.
-  have step1 : b n k <=p
-      cone_sup_ball (b^~ k) (b_row_ch k) (fun n0 => b_ub n0 k).
-    exact: cone_sup_ball_ub.
-  apply: precone_le_trans step1 _.
-  exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => k.
-  apply: cone_sup_ball_lub => n.
-  have step1 : b n k <=p
-      cone_sup_ball (b n) (b_col_ch n) (fun k0 => b_ub n k0).
-    exact: cone_sup_ball_ub.
-  apply: precone_le_trans step1 _.
-  exact: cone_sup_ball_ub.
-Qed.
+Proof. exact: omega_general.cone_sup_ball_swap. Qed.
 
 End LinhomSupCont.
 

@@ -28,7 +28,9 @@
     - the transport-of-cofree coalgebras [tens_cofree A B] (the structure
       [!A ⊗ !B] inherits across [Seely2]) and [unit_cofree] (the structure
       [1] inherits across [Seely0]) — the symmetric-monoidal (LC1-level)
-      structure of [EM(!)], NOT the cartesian product (step 3).
+      structure of [EM(!)], NOT the cartesian product (step 3); their
+      workhorse computation [tens_cofree_str_prom]
+      ([str(x! ⊗ y!) = (x! ⊗ y!)!]) is also what [em_cartesian.v] uses.
     - **LC3** — [d_A] and [e_A] are coalgebra morphisms:
       [d_bang_is_coalg_mor] ([!̃A → tens_cofree A A]) and
       [e_bang_is_coalg_mor] ([!̃A → unit_cofree]).
@@ -252,6 +254,39 @@ Definition tens_cofree_str (A B : ICone.type Ar) :
   icones_comp (bang_fmap (iso_bwd (Seely2 A B)))
     (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))).
 
+(** The transported structure sends a promoted pure tensor to its own
+    promotion: [tens_cofree_str_{A,B}(x! ⊗ y!) = (x! ⊗ y!)!].  Chase
+    [Seely2E], [dig_prom] and [bang_fmap_prom] through the transport, then
+    cancel the [Seely2] round-trip with [iso_bwdK].
+
+    This single computation is the workhorse of the whole [EM(!)]
+    monoidal layer: it discharges [tens_cofree_coassoc] and
+    [d_bang_is_coalg_mor] below, and [em_cartesian.v]'s [m_bang_prom] and
+    [tens_cofree_str_m_bang]. *)
+Lemma tens_cofree_str_prom (A B : ICone.type Ar) (x : A) (y : B) :
+  cone_norm x <= 1 -> cone_norm y <= 1 ->
+  Lfun (tens_cofree_str A B) (x! ⊗p y!) = (x! ⊗p y!)!.
+Proof.
+move=> Hx Hy.
+have Hp : cone_norm (sprod_pair x y) <= 1 by exact: sprod_pair_norm_le1.
+have Hpp : cone_norm (sprod_pair x y)! <= 1 by exact: prom_ball.
+rewrite /tens_cofree_str.
+rewrite -[Lfun (icones_comp (bang_fmap (iso_bwd (Seely2 A B))) _) _]
+        /(Lfun (bang_fmap (iso_bwd (Seely2 A B)))
+          (Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) (x! ⊗p y!))).
+rewrite -[Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) _]
+        /(Lfun (dig (sprod A B)) (Lfun (iso_fwd (Seely2 A B)) (x! ⊗p y!))).
+rewrite (Seely2E x y Hx Hy) (dig_prom (sprod_pair x y) Hp).
+rewrite (bang_fmap_prom (iso_bwd (Seely2 A B)) (sprod_pair x y)! Hpp).
+congr (prom _).
+apply: (iso_fwd_inj (Seely2 A B)).
+rewrite -[Lfun (iso_fwd (Seely2 A B)) (Lfun (iso_bwd (Seely2 A B)) _)]
+        /(Lfun (icones_comp (iso_fwd (Seely2 A B)) (iso_bwd (Seely2 A B))) (sprod_pair x y)!).
+rewrite iso_bwdK -[Lfun (icones_id _ _) _]/((sprod_pair x y)!).
+by rewrite (Seely2E x y Hx Hy).
+Qed.
+Arguments tens_cofree_str_prom {A B x y}.
+
 (** The counit law for the transported structure:
     [der ∘ str = id].  We chase through [Seely2] and [comonad_counitL]. *)
 Lemma tens_cofree_counit (A B : ICone.type Ar) :
@@ -274,24 +309,8 @@ Lemma tens_cofree_coassoc (A B : ICone.type Ar) :
   icones_comp (bang_fmap (tens_cofree_str A B)) (tens_cofree_str A B).
 Proof.
 apply: tens_excl_charact => x1 x2 Hx1 Hx2.
-have Hp : cone_norm (sprod_pair x1 x2) <= 1 by exact: sprod_pair_norm_le1.
-have Hpp : cone_norm (sprod_pair x1 x2)! <= 1 by exact: prom_ball.
 (* the structure map on [x1! ⊗ x2!] is [(x1! ⊗ x2!)!]. *)
-have Hstr : Lfun (tens_cofree_str A B) (x1! ⊗p x2!) = (x1! ⊗p x2!)!.
-  rewrite /tens_cofree_str.
-  rewrite -[Lfun (icones_comp (bang_fmap (iso_bwd (Seely2 A B))) _) _]
-          /(Lfun (bang_fmap (iso_bwd (Seely2 A B)))
-            (Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) (x1! ⊗p x2!))).
-  rewrite -[Lfun (icones_comp (dig (sprod A B)) (iso_fwd (Seely2 A B))) _]
-          /(Lfun (dig (sprod A B)) (Lfun (iso_fwd (Seely2 A B)) (x1! ⊗p x2!))).
-  rewrite (Seely2E x1 x2 Hx1 Hx2) (dig_prom (sprod_pair x1 x2) Hp).
-  rewrite (bang_fmap_prom (iso_bwd (Seely2 A B)) (sprod_pair x1 x2)! Hpp).
-  congr (prom _).
-  apply: (iso_fwd_inj (Seely2 A B)).
-  rewrite -[Lfun (iso_fwd (Seely2 A B)) (Lfun (iso_bwd (Seely2 A B)) _)]
-          /(Lfun (icones_comp (iso_fwd (Seely2 A B)) (iso_bwd (Seely2 A B))) (sprod_pair x1 x2)!).
-  rewrite iso_bwdK -[Lfun (icones_id _ _) _]/((sprod_pair x1 x2)!).
-  by rewrite (Seely2E x1 x2 Hx1 Hx2).
+have Hstr := tens_cofree_str_prom Hx1 Hx2.
 (* LHS: [dig (str (x1!⊗x2!)) = dig ((x1!⊗x2!)!) = ((x1!⊗x2!)!)!]. *)
 rewrite -[Lfun (icones_comp (dig (Bg A ⊗ Bg B)) (tens_cofree_str A B)) _]
         /(Lfun (dig (Bg A ⊗ Bg B)) (Lfun (tens_cofree_str A B) (x1! ⊗p x2!))).
@@ -413,23 +432,7 @@ have Hpt : cone_norm (x! ⊗p x!) <= 1.
 rewrite -[Lfun (icones_comp (tens_cofree_str A A) (d_bang A)) x!]
         /(Lfun (tens_cofree_str A A) (Lfun (d_bang A) x!)).
 rewrite (d_bang_prom Hx).
-have Hstr : Lfun (tens_cofree_str A A) (x! ⊗p x!) = (x! ⊗p x!)!.
-  have Hp : cone_norm (sprod_pair x x) <= 1 by exact: sprod_pair_norm_le1.
-  have Hpp : cone_norm (sprod_pair x x)! <= 1 by exact: prom_ball.
-  rewrite /tens_cofree_str.
-  rewrite -[Lfun (icones_comp (bang_fmap (iso_bwd (Seely2 A A))) _) _]
-          /(Lfun (bang_fmap (iso_bwd (Seely2 A A)))
-            (Lfun (icones_comp (dig (sprod A A)) (iso_fwd (Seely2 A A))) (x! ⊗p x!))).
-  rewrite -[Lfun (icones_comp (dig (sprod A A)) (iso_fwd (Seely2 A A))) _]
-          /(Lfun (dig (sprod A A)) (Lfun (iso_fwd (Seely2 A A)) (x! ⊗p x!))).
-  rewrite (Seely2E x x Hx Hx) (dig_prom (sprod_pair x x) Hp).
-  rewrite (bang_fmap_prom (iso_bwd (Seely2 A A)) (sprod_pair x x)! Hpp).
-  congr (prom _).
-  apply: (iso_fwd_inj (Seely2 A A)).
-  rewrite -[Lfun (iso_fwd (Seely2 A A)) (Lfun (iso_bwd (Seely2 A A)) _)]
-          /(Lfun (icones_comp (iso_fwd (Seely2 A A)) (iso_bwd (Seely2 A A))) (sprod_pair x x)!).
-  rewrite iso_bwdK -[Lfun (icones_id _ _) _]/((sprod_pair x x)!).
-  by rewrite (Seely2E x x Hx Hx).
+have Hstr := tens_cofree_str_prom Hx Hx.
 rewrite Hstr.
 (* RHS *)
 rewrite -[Lfun (icones_comp (bang_fmap (d_bang A)) (coalg_str (bang_cofree A))) x!]
@@ -519,6 +522,7 @@ Arguments comonoid_counitL {R Ar} A.
 Arguments comonoid_counitR {R Ar} A.
 Arguments comonoid_cocomm {R Ar} A.
 Arguments tens_cofree_str {R Ar} A B.
+Arguments tens_cofree_str_prom {R Ar A B x y}.
 Arguments tens_cofree {R Ar} A B.
 Arguments unit_cofree_str {R Ar}.
 Arguments unit_cofree {R Ar}.

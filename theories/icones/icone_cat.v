@@ -269,68 +269,32 @@ Variable m : test_of Ar Y (B i).
 Definition iniTest_fun : ar_carrier Ar Y -> P -> R :=
   fun s x => test_fun m s (cones_prod_val x i).
 
-Lemma iniTest_meas (x : P) :
-  cone_norm x <= 1 ->
-  measurable_fun setT (fun s => iniTest_fun s x).
-Proof.
-move=> Hx.
-have Hxi : cone_norm (cones_prod_val x i) <= 1.
-  by apply: le_trans (cones_prod_norm_ge_comp x i) _.
-exact: test_meas.
-Qed.
-
-Lemma iniTest_ge0 (s : ar_carrier Ar Y) (x : P) :
-  0 <= iniTest_fun s x.
-Proof. exact: test_ge0. Qed.
-
-Lemma iniTest_le1 (s : ar_carrier Ar Y) (x : P) :
-  cone_norm x <= 1 -> iniTest_fun s x <= 1.
-Proof.
-move=> Hx; apply: test_le1.
-exact: le_trans (cones_prod_norm_ge_comp x i) _.
-Qed.
-
-Lemma iniTest_lin0 (s : ar_carrier Ar Y) :
-  iniTest_fun s precone_zero = 0.
-Proof. by rewrite /iniTest_fun /= test_lin0. Qed.
-
-Lemma iniTest_linD (s : ar_carrier Ar Y) (x y : P) :
-  iniTest_fun s (precone_add x y) =
-  iniTest_fun s x + iniTest_fun s y.
-Proof. by rewrite /iniTest_fun /= test_linD. Qed.
-
-Lemma iniTest_linZ
-  (s : ar_carrier Ar Y) (r : {nonneg R}) (x : P) :
-  iniTest_fun s (precone_scale r x) = r%:num * iniTest_fun s x.
-Proof. by rewrite /iniTest_fun /= test_linZ. Qed.
-
+(** The ω-continuity clause required by [test_map]: the [i]-th
+    projection turns the product sup-ball into the sup-ball of the
+    [i]-components, where [test_cont] of [m] applies. The remaining
+    seven obligations of [test_of] follow from linearity
+    ([cones_prod_val0] / [cones_prod_valD] / [cones_prod_valZ]) and
+    from [cones_prod_norm_ge_comp]. *)
 Lemma iniTest_cont
   (s : ar_carrier Ar Y) (u : nat -> P)
   (uch : forall n, precone_le (u n) (u n.+1))
   (ub1 : forall n, cone_norm (u n) <= 1)
   (N : R) :
-  (forall n, iniTest_fun s (u n) <= N) ->
-  iniTest_fun s (cone_sup_ball u uch ub1) <= N.
+  (forall n, test_fun m s (cones_prod_val (u n) i) <= N) ->
+  test_fun m s (cones_prod_val (cone_sup_ball u uch ub1) i) <= N.
 Proof.
-move=> HN; rewrite /iniTest_fun /=.
-rewrite /cones_prod_sup_ball_fun.
-apply: test_cont => n.
-have := HN n.
-by rewrite /iniTest_fun.
+move=> HN; rewrite /= /cones_prod_sup_ball_fun.
+by apply: test_cont => n; exact: HN.
 Qed.
 
-Lemma iniTest_norm_le (s : ar_carrier Ar Y) (x : P) :
-  iniTest_fun s x <= cone_norm x.
-Proof.
-rewrite /iniTest_fun /=.
-apply: le_trans _ (cones_prod_norm_ge_comp x i).
-exact: test_norm_le.
-Qed.
-
+(** Paper Thm 4.16: the packaged lifted test, obtained from [m] by
+    the [test_map] combinator along the [i]-th projection. *)
 Definition iniTest : test_of Ar Y P :=
-  MkTestOf iniTest_meas iniTest_ge0 iniTest_le1
-           iniTest_lin0 iniTest_linD iniTest_linZ
-           iniTest_cont iniTest_norm_le.
+  test_map (fun x : P => cones_prod_val x i)
+    (@cones_prod_val0 _ _ _ i) (fun x y => @cones_prod_valD _ _ _ x y i)
+    (fun r x => @cones_prod_valZ _ _ _ r x i)
+    (fun x => @cones_prod_norm_ge_comp _ _ _ x i)
+    m iniTest_cont iniTest_fun (fun _ _ => erefl).
 
 End IniTest.
 
@@ -756,58 +720,28 @@ Variables (Y : ar_obj Ar) (m : test_of Ar Y B).
 Definition eqTest_fun : ar_carrier Ar Y -> E -> R :=
   fun s x => test_fun m s (cones_eq_val x).
 
-Lemma eqTest_meas (x : E) :
-  cone_norm x <= 1 ->
-  measurable_fun setT (fun s => eqTest_fun s x).
-Proof.
-move=> Hx; rewrite /eqTest_fun.
-exact: test_meas.
-Qed.
-
-Lemma eqTest_ge0 (s : ar_carrier Ar Y) (x : E) :
-  0 <= eqTest_fun s x.
-Proof. exact: test_ge0. Qed.
-
-Lemma eqTest_le1 (s : ar_carrier Ar Y) (x : E) :
-  cone_norm x <= 1 -> eqTest_fun s x <= 1.
-Proof. by move=> Hx; rewrite /eqTest_fun; apply: test_le1. Qed.
-
-Lemma eqTest_lin0 (s : ar_carrier Ar Y) :
-  eqTest_fun s precone_zero = 0.
-Proof. by rewrite /eqTest_fun /= test_lin0. Qed.
-
-Lemma eqTest_linD (s : ar_carrier Ar Y) (x y : E) :
-  eqTest_fun s (precone_add x y) =
-  eqTest_fun s x + eqTest_fun s y.
-Proof. by rewrite /eqTest_fun /= test_linD. Qed.
-
-Lemma eqTest_linZ
-  (s : ar_carrier Ar Y) (r : {nonneg R}) (x : E) :
-  eqTest_fun s (precone_scale r x) = r%:num * eqTest_fun s x.
-Proof. by rewrite /eqTest_fun /= test_linZ. Qed.
-
+(** The ω-continuity clause required by [test_map]: the equaliser
+    sup-ball is computed componentwise through [cones_eq_val], so
+    [test_cont] of [m] applies directly. The other seven obligations
+    of [test_of] follow from linearity ([cones_eq_val0] /
+    [cones_eq_valD] / [cones_eq_valZ]) and from the fact that the
+    equaliser norm *is* the norm of the underlying element. *)
 Lemma eqTest_cont
   (s : ar_carrier Ar Y) (u : nat -> E)
   (uch : forall n, precone_le (u n) (u n.+1))
   (ub1 : forall n, cone_norm (u n) <= 1)
   (N : R) :
-  (forall n, eqTest_fun s (u n) <= N) ->
-  eqTest_fun s (cone_sup_ball u uch ub1) <= N.
-Proof.
-move=> HN.
-rewrite /eqTest_fun /=.
-apply: test_cont => n.
-by have := HN n; rewrite /eqTest_fun.
-Qed.
+  (forall n, test_fun m s (cones_eq_val (u n)) <= N) ->
+  test_fun m s (cones_eq_val (cone_sup_ball u uch ub1)) <= N.
+Proof. by move=> HN; rewrite /=; apply: test_cont => n; exact: HN. Qed.
 
-Lemma eqTest_norm_le (s : ar_carrier Ar Y) (x : E) :
-  eqTest_fun s x <= cone_norm x.
-Proof. by rewrite /eqTest_fun /=; exact: test_norm_le. Qed.
-
+(** Paper Thm 4.16: the packaged restricted test, obtained from [m]
+    by the [test_map] combinator along the inclusion [cones_eq_val]. *)
 Definition eqTest : test_of Ar Y E :=
-  MkTestOf eqTest_meas eqTest_ge0 eqTest_le1
-           eqTest_lin0 eqTest_linD eqTest_linZ
-           eqTest_cont eqTest_norm_le.
+  test_map cones_eq_val
+    (@cones_eq_val0 _ _ _ _ _) (@cones_eq_valD _ _ _ _ _)
+    (@cones_eq_valZ _ _ _ _ _) (fun x => lexx (cone_norm (cones_eq_val x)))
+    m eqTest_cont eqTest_fun (fun _ _ => erefl).
 
 End EqTest.
 
