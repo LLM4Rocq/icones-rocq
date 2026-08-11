@@ -2223,6 +2223,30 @@ Lemma fix_value_unfold (F : LL) (HF : cone_norm F <= 1) :
 > transports — `fix_comb` promotes it, `fix_comb_iso` conjugates it, and
 > `eD_fix_at_setlike` reads it off the interpreter.
 
+> **Design note — chain identification since the cone rework.** All three
+> statements of this chapter that identify two suprema — `Yfix_kleeneE`
+> ($Z$-combinator iterates $=$ plain Kleene iterates), `fix_value_E`
+> (interleaved chain $=$ $Y$-chain of the body) and `fix_coalg_simpl`
+> (promoted interleaved chain $=$ literal chain $F^n(0!)$) — are
+> unchanged, but their proofs are not. `cone_sup_ball` is now a
+> phantom-witness wrapper around the total operator `cone_sup`
+> (`cone_sup_ball_supE`), so a supremum depends on the *chain alone*: each
+> of the three is `rewrite !cone_sup_ball_supE; apply: eq_cone_sup` plus
+> the pointwise chain identity, in place of the former two-sided
+> `precone_le_anti` chase through `cone_sup_ball_lub` / `cone_sup_ball_ub`.
+> `fix_coalg_simpl` also drops its `cone_sup_at_ball` step: radius-1
+> `cone_sup_at` and `cone_sup_ball` are now the same term. The seeded
+> core's `lfp_from_fixpoint` is the one case where the two chains are
+> *shifted* rather than pointwise equal ($f \circ \text{kleene\_from} =
+> n \mapsto \text{kleene\_from}\ n{+}1$), so it goes through `cone_supE`
+> against the primary laws `cone_sup_ub` / `cone_sup_le_ub` instead —
+> again one characterisation of a least upper bound, not two order
+> inequalities between wrapper terms. The same collapse retires the whole
+> body of `em_fix.v`'s `Phi_scott_unit`, whose `cone_sup_at_indep` +
+> `cone_sup_at_ball` bridge from the radius-$M_f$ supremum of
+> `is_scott_continuous_unit` to the unit-ball one is definitional — the
+> hypothesis `Phi_cont` now discharges it directly.
+
 ### The fixpoint combinator (`fix_comb`, `fix_comb_mor`, `fix_prom_E`)
 
 `fix_comb` is the value-fixpoint combinator: on a promoted unit-ball body
@@ -2794,9 +2818,14 @@ vanishes. The sup-mass bridge then converts a *limit of per-iterate
 masses* into the *mass of the Kleene supremum*: for a unit-ball $\omega$-chain
 $\nu : \mathbb{N} \to \mathit{fmeas}\ R\ X$ and a measurable $U$, the masses
 `fmeas_mu (ν n) U` converge to the mass of `cone_sup_ball ν` at $U$
-(`fmeas_kleene_sup_U_cvg`; definitionally `fmeas_sup_ball`, the HB
-`isCone` instance of `fmeas.v`), so any limit *is* that mass by
-Hausdorff uniqueness.
+(`fmeas_kleene_sup_U_cvg`), so any limit *is* that mass by
+Hausdorff uniqueness. The step from the abstract supremum to the
+concrete pointwise-`limn` construction is the identification lemma
+`fmeas_cone_sup_ballE : cone_sup_ball u uch ub1 = fmeas_sup_ball uch ub1`
+of `fmeas.v` — since the rework, `cone_sup` is a *total, spec-defined*
+operator (`cid` on the lub predicate) rather than a mixin projection
+that reduces to the instance's construction, so this equation, proved
+once from lub-uniqueness, replaces the former definitional unfolding.
 
 ```coq
 (* theories/mcones/fmeas.v (Section FMeasKleeneSup) *)
@@ -2895,7 +2924,10 @@ environment (`adj_psi_at_setlike`), the application clause computes
 there (`eD_app_at_setlike`, generic over the real object and its
 carrier casts), the if-clause dispatches into the weighted co-pairing
 `bool_case` (`if_icones_at`), and linhom-cone suprema are read
-pointwise (`linhom_fun_sup_ball`, on `cone_sup_ball_irr` of
+pointwise (`linhom_fun_sup_ball`, on `linhom_cone_sup_ballE` of
+`theories/homs/linhom.v` — which identifies the generic supremum with
+the concrete `linhom_sup_ball` construction — plus the
+now-definitional witness-independence `cone_sup_ball_irr` of
 `theories/cones/omega_general.v`). Two per-iterate helpers ride along:
 `kleene_prom_ball` / `kleene_prom_setlike` (every Kleene iterate of a
 unit-ball body promotes to a setlike unit-ball point) and

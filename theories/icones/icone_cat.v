@@ -282,7 +282,8 @@ Lemma iniTest_cont
   (forall n, test_fun m s (cones_prod_val (u n) i) <= N) ->
   test_fun m s (cones_prod_val (cone_sup_ball u uch ub1) i) <= N.
 Proof.
-move=> HN; rewrite /= /cones_prod_sup_ball_fun.
+move=> HN.
+rewrite (cones_prod_cone_sup_ballE uch ub1) /= /cones_prod_sup_ball_fun.
 by apply: test_cont => n; exact: HN.
 Qed.
 
@@ -732,7 +733,10 @@ Lemma eqTest_cont
   (N : R) :
   (forall n, test_fun m s (cones_eq_val (u n)) <= N) ->
   test_fun m s (cones_eq_val (cone_sup_ball u uch ub1)) <= N.
-Proof. by move=> HN; rewrite /=; apply: test_cont => n; exact: HN. Qed.
+Proof.
+move=> HN; rewrite (cones_eq_cone_sup_ballE uch ub1) /=.
+by apply: test_cont => n; exact: HN.
+Qed.
 
 (** Paper Thm 4.16: the packaged restricted test, obtained from [m]
     by the [test_map] combinator along the inclusion [cones_eq_val]. *)

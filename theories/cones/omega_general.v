@@ -1,25 +1,38 @@
 (**md
    * General-radius suprema and Scott-continuity — foundation for §7
 
-   The cone mixin (Normc) materialises completeness only for the *unit
-   ball* [B_P]: [cone_sup_ball] takes an increasing chain bounded by
-   [1]. The matching notion [is_omega_continuous] (paper §2.1,
-   [basic_lemmas.v]) is therefore restricted to unit-ball chains in
-   both input and output. For *linear* maps this is harmless — every
-   bounded chain rescales into [B_P] — but for the *nonlinear* stable
-   functions of §7 the rescaling argument no longer applies pointwise,
-   so we need a genuinely radius-aware Scott-continuity notion.
+   The cone mixin axiom (Normc) [cone_normc] asserts completeness only
+   for the *unit ball* [B_P]. The matching notion
+   [is_omega_continuous] (paper §2.1, [basic_lemmas.v]) is therefore
+   restricted to unit-ball chains in both input and output. For
+   *linear* maps this is harmless — every bounded chain rescales into
+   [B_P] — but for the *nonlinear* stable functions of §7 the
+   rescaling argument no longer applies pointwise, so we need a
+   genuinely radius-aware Scott-continuity notion.
 
    This file builds on top of [cone.v] and [basic_lemmas.v]; the only
    thing it asks of the latter is the abstract translation-of-a-sup
    engine [precone_sup_addr] (shared with [sup_ball_addr]).
 
-   - [cone_sup_at M u …] : the supremum of a chain bounded by [M > 0],
-     obtained by rescaling into [B_P], taking [cone_sup_ball], and
-     scaling back. Its three characterising lemmas
-     ([cone_sup_at_ub], [cone_sup_at_lub], [cone_sup_at_norm]) mirror
-     the unit-ball ones; [cone_sup_at_ball] shows it extends
-     [cone_sup_ball] (they agree at radius [1]).
+   Because the supremum is the single TOTAL operator [cone_sup] of
+   [cone.v], the general-radius layer is a family of lemmas about the
+   *same* operator:
+
+   - [cone_normc_at] / [chain_has_cone_sup] : an [M]-bounded
+     increasing chain has a least upper bound, of norm ≤ [M] — the
+     rescale-into-the-ball engine, run once.
+   - [cone_sup_ub], [cone_sup_le_ub], [cone_norm_sup], [le_cone_sup] :
+     the primary sup-calculus, with chains in [{homo}] form and the
+     radius a plain real hypothesis.
+   - [cone_supD], [cone_sup_swap], [cone_sup_scale_chain] : the
+     consolidated identities restated on [cone_sup] with *derived*
+     side conditions (see the consolidated section below).
+   - [cone_sup_at M u …] : the historical general-radius operator,
+     kept as a phantom wrapper [:= cone_sup u]. Its three
+     characterising lemmas ([cone_sup_at_ub], [cone_sup_at_lub],
+     [cone_sup_at_norm]) keep their historical statements;
+     [cone_sup_at_ball] (agreement with [cone_sup_ball] at radius 1)
+     and [cone_sup_at_indep] (radius-independence) are definitional.
    - [is_scott_continuous f] : commutation of [f] with [cone_sup_at]
      for chains of arbitrary positive radius. The bounds [M], [Mf] are
      passed as explicit arguments (see the design note at the
@@ -128,15 +141,135 @@ rewrite -(@ler_pM2l _ M%:num)// mulr1 mulrA mulfV ?gt_eqF// mul1r.
 exact: ubM.
 Qed.
 
-(** The general-radius supremum: rescale the chain into [B_P], take the
-    unit-ball supremum there, then scale back by [M]. *)
+End ConeSupAt.
+
+(** ** The general-radius sup-calculus on the total operator [cone_sup]
+
+    This is the primary interface: chain-ness is the mathcomp [{homo}]
+    form, the radius is an arbitrary real [M] entering only as the
+    *hypothesis* [forall n, cnorm (u n) <= M].  Everything is about
+    the single total operator [cone_sup] of [cone.v]; the historical
+    general-radius operator [cone_sup_at] survives below as a phantom
+    wrapper. *)
+
+Section ConeSupTheory.
+Variable R : realType.
+Variable P : coneType R.
+Implicit Types (u v : nat -> P) (x y : P) (M : R).
+
+(** Scaling a least upper bound by a strictly positive scalar. *)
+Lemma cone_lub_scale (r : {nonneg R}) u x :
+  (0 < r%:num)%R -> cone_lub u x ->
+  cone_lub (fun n => precone_scale r (u n)) (precone_scale r x).
+Proof.
+move=> rpos [xub xlub]; split=> [n|y yub].
+  by apply/precone_leP; apply: precone_scale_le; apply/precone_leP.
+apply/precone_leP.
+rewrite -[y](scale_MrecK rpos); apply: precone_scale_le.
+apply/precone_leP/xlub => n; apply/precone_leP.
+rewrite -[u n](scale_MrecVK rpos); apply: precone_scale_le.
+exact/precone_leP.
+Qed.
+
+(** (Normc) at a general radius: every [M]-bounded increasing chain
+    has a least upper bound, of norm ≤ [M].  Proof: for [M = 0] the
+    chain is constantly [0]; for [M > 0], rescale into the unit ball
+    and apply the mixin axiom [cone_normc]. *)
+Lemma cone_normc_at u M :
+  {homo u : n m / (n <= m)%N >-> (n <= m)%O} ->
+  (forall n, cnorm (u n) <= M) ->
+  exists2 x : P, cone_lub u x & cnorm x <= M.
+Proof.
+move=> uch ubM.
+have M_ge0 : 0 <= M := le_trans (cone_norm_ge0 (u 0%N)) (ubM 0%N).
+move: M_ge0 ubM; rewrite le_eqVlt => /orP[/eqP M0 | Mpos] ubM.
+  (* M = 0: the chain is constantly zero. *)
+  have u0 n : u n = precone_zero.
+    apply: cone_normz; apply/le_anti.
+    by rewrite cone_norm_ge0 andbT (le_trans (ubM n))// M0.
+  exists precone_zero; last by rewrite cone_norm0 -M0.
+  split=> [n|y _]; first by rewrite u0 lexx.
+  by apply/precone_leP; exact: precone_le0.
+(* M > 0: rescale into the unit ball. *)
+pose MN : {nonneg R} := NngNum (ltW Mpos).
+have MNpos : (0 < MN%:num)%R by [].
+pose v n := precone_scale (Mrec_nng MNpos) (u n).
+have vch : {homo v : n m / (n <= m)%N >-> (n <= m)%O}.
+  move=> n m nm; apply/precone_leP; apply: precone_scale_le.
+  exact/precone_leP/uch.
+have vb1 : forall n, cnorm (v n) <= 1 := sup_at_rb1 (M := MN) ubM MNpos.
+have [x xlub xn1] := cone_normc _ vch vb1.
+exists (precone_scale MN x).
+  have := cone_lub_scale MNpos xlub.
+  have E n : precone_scale MN (v n) = u n by exact: scale_MrecK.
+  by rewrite (funext E).
+by rewrite cone_normh/= -[M in _ <= M]mulr1 ler_pM2l// ltW.
+Qed.
+
+(** An [M]-bounded increasing chain has a supremum. *)
+Lemma chain_has_cone_sup u M :
+  {homo u : n m / (n <= m)%N >-> (n <= m)%O} ->
+  (forall n, cnorm (u n) <= M) ->
+  has_cone_sup u.
+Proof.
+by move=> uch ubM; have [x xlub _] := cone_normc_at uch ubM; exists x.
+Qed.
+
+(** [cone_sup u] is an upper bound of the chain… *)
+Lemma cone_sup_ub u M
+    (uch : {homo u : n m / (n <= m)%N >-> (n <= m)%O})
+    (ubM : forall n, cnorm (u n) <= M) n :
+  (u n <= cone_sup u)%O.
+Proof. exact: (proj1 (cone_supP (chain_has_cone_sup uch ubM))). Qed.
+
+(** …the least one… *)
+Lemma cone_sup_le_ub u M
+    (uch : {homo u : n m / (n <= m)%N >-> (n <= m)%O})
+    (ubM : forall n, cnorm (u n) <= M) y :
+  (forall n, (u n <= y)%O) -> (cone_sup u <= y)%O.
+Proof. exact: (proj2 (cone_supP (chain_has_cone_sup uch ubM))). Qed.
+
+(** …and its norm is bounded by the radius. *)
+Lemma cone_norm_sup u M
+    (uch : {homo u : n m / (n <= m)%N >-> (n <= m)%O})
+    (ubM : forall n, cnorm (u n) <= M) :
+  cnorm (cone_sup u) <= M.
+Proof.
+by have [x xlub xM] := cone_normc_at uch ubM; rewrite (cone_supE xlub).
+Qed.
+
+(** Monotonicity of [cone_sup] in the chain. *)
+Lemma le_cone_sup u v :
+  has_cone_sup u -> has_cone_sup v -> (forall n, (u n <= v n)%O) ->
+  (cone_sup u <= cone_sup v)%O.
+Proof.
+move=> hu hv uv; have [_ ulub] := cone_supP hu; have [vub _] := cone_supP hv.
+by apply: ulub => n; apply: le_trans (uv n) (vub n).
+Qed.
+
+End ConeSupTheory.
+
+Arguments cone_normc_at {R P u M} uch ubM.
+Arguments chain_has_cone_sup {R P u M} uch ubM.
+Arguments cone_sup_ub {R P u M} uch ubM n.
+Arguments cone_sup_le_ub {R P u M} uch ubM y.
+Arguments cone_norm_sup {R P u M} uch ubM.
+
+(** ** The historical general-radius operator [cone_sup_at]
+
+    Kept as a wrapper around the total [cone_sup]: the radius and the
+    three witnesses are phantom arguments.  All its historical laws
+    hold with their original statements; radius-independence and the
+    radius-1 bridge are now definitional. *)
+
+Section ConeSupAtCompat.
+Variable R : realType.
+Variable P : coneType R.
+
 Definition cone_sup_at (M : {nonneg R}) (u : nat -> P)
     (uch : forall n, precone_le (u n) (u n.+1))
     (ubM : forall n, cone_norm (u n) <= M%:num)
-    (Mpos : 0 < M%:num) : P :=
-  precone_scale M
-    (cone_sup_ball (fun n => precone_scale (Mrec_nng Mpos) (u n))
-       (sup_at_rch uch Mpos) (sup_at_rb1 ubM Mpos)).
+    (Mpos : 0 < M%:num) : P := cone_sup u.
 
 (** [cone_sup_at] is an upper bound of the chain. *)
 Lemma cone_sup_at_ub (M : {nonneg R}) (u : nat -> P)
@@ -145,8 +278,7 @@ Lemma cone_sup_at_ub (M : {nonneg R}) (u : nat -> P)
     (Mpos : 0 < M%:num) n :
   precone_le (u n) (cone_sup_at uch ubM Mpos).
 Proof.
-rewrite /cone_sup_at -[X in precone_le X _](scale_MrecK Mpos (u n)).
-by apply: precone_scale_le; exact: cone_sup_ball_ub.
+exact/precone_leP/(cone_sup_ub (precone_chain_homo uch) ubM).
 Qed.
 
 (** [cone_sup_at] is the least upper bound of the chain. *)
@@ -157,10 +289,9 @@ Lemma cone_sup_at_lub (M : {nonneg R}) (u : nat -> P)
   (forall n, precone_le (u n) y) ->
   precone_le (cone_sup_at uch ubM Mpos) y.
 Proof.
-move=> uy; rewrite /cone_sup_at.
-rewrite -[y](scale_MrecK Mpos y); apply: precone_scale_le.
-apply: cone_sup_ball_lub => n.
-by apply: precone_scale_le; exact: uy.
+move=> uy; apply/precone_leP.
+apply: (cone_sup_le_ub (precone_chain_homo uch) ubM) => n.
+exact/precone_leP.
 Qed.
 
 (** The norm of [cone_sup_at] is bounded by the radius [M]. *)
@@ -169,54 +300,29 @@ Lemma cone_sup_at_norm (M : {nonneg R}) (u : nat -> P)
     (ubM : forall n, cone_norm (u n) <= M%:num)
     (Mpos : 0 < M%:num) :
   cone_norm (cone_sup_at uch ubM Mpos) <= M%:num.
-Proof.
-rewrite /cone_sup_at cone_normh -{2}[M%:num]mulr1.
-by rewrite ler_pM2l//; exact: cone_sup_ball_norm.
-Qed.
+Proof. exact: cone_norm_sup (precone_chain_homo uch) ubM. Qed.
 
-(** [cone_sup_at] is independent of the chosen radius: any two valid
-    upper bounds [M], [M'] of the same chain produce the same supremum.
-    This is immediate from the upper-bound / least-upper-bound
-    characterisation, and is the technical engine behind the linear
-    bridge (which rescales at a convenient common radius). *)
+(** [cone_sup_at] is independent of the chosen radius — now
+    definitionally: the radius is a phantom argument. *)
 Lemma cone_sup_at_indep (M M' : {nonneg R}) (u : nat -> P)
     (uch : forall n, precone_le (u n) (u n.+1))
     (ubM : forall n, cone_norm (u n) <= M%:num)
     (ubM' : forall n, cone_norm (u n) <= M'%:num)
     (Mpos : 0 < M%:num) (M'pos : 0 < M'%:num) :
   cone_sup_at uch ubM Mpos = cone_sup_at uch ubM' M'pos.
-Proof.
-apply: precone_le_anti.
-- by apply: cone_sup_at_lub => n; exact: cone_sup_at_ub.
-- by apply: cone_sup_at_lub => n; exact: cone_sup_at_ub.
-Qed.
+Proof. by []. Qed.
 
-(** [cone_sup_at] genuinely extends [cone_sup_ball]: at radius [1] the
-    two operators agree (for any unit-ball chain). *)
+(** [cone_sup_at] genuinely extends [cone_sup_ball] — now
+    definitionally: both are [cone_sup u]. *)
 Lemma cone_sup_at_ball (u : nat -> P)
     (uch : forall n, precone_le (u n) (u n.+1))
     (ub1 : forall n, cone_norm (u n) <= 1)
     (ubM : forall n, cone_norm (u n) <= (1%:nng : {nonneg R})%:num)
     (Mpos : 0 < (1%:nng : {nonneg R})%:num) :
   cone_sup_at uch ubM Mpos = cone_sup_ball u uch ub1.
-Proof.
-rewrite /cone_sup_at.
-(* At [M = 1] the rescaling factor is [1], so both chains coincide. *)
-have rE : Mrec_nng Mpos = 1%:nng.
-  by apply: val_inj; rewrite /= invr1.
-apply: precone_le_anti.
-- rewrite -[X in (_ <=p X)%PC]precone_scale_1; apply: precone_scale_le.
-  apply: cone_sup_ball_lub => n.
-  by rewrite rE precone_scale_1; exact: cone_sup_ball_ub.
-- rewrite precone_scale_1.
-  apply: cone_sup_ball_lub => n.
-  have un : u n = (Mrec_nng Mpos *: u n)%PC.
-    by rewrite rE precone_scale_1.
-  rewrite [X in (X <=p _)%PC]un.
-  exact: (cone_sup_ball_ub (fun n => Mrec_nng Mpos *: u n)%PC).
-Qed.
+Proof. by []. Qed.
 
-End ConeSupAt.
+End ConeSupAtCompat.
 
 Arguments cone_sup_at {R P M u} uch ubM Mpos.
 
@@ -287,14 +393,10 @@ have ubK : forall n, cone_norm (u n) <= K%:num.
   by move=> n; apply: le_trans (ubM n) KM.
 have fubK : forall n, cone_norm (f (u n)) <= K%:num.
   by move=> n; apply: le_trans (fubMf n) KMf.
-(* Swap working radius to [K] on both sides via [cone_sup_at_indep]. *)
-rewrite (cone_sup_at_indep uch ubM ubK Mpos Kpos).
-rewrite (cone_sup_at_indep (u := f \o u) fuch fubMf fubK Mfpos Kpos).
-rewrite {1}/cone_sup_at (basic_lemmas.linearZ Hlin).
 (* Rescaled input chain [v := u/K] in [B_P]. *)
 set v := fun n => precone_scale (Mrec_nng Kpos) (u n).
-set vch := sup_at_rch uch Kpos.
-set vb1 := sup_at_rb1 ubK Kpos.
+have vch : forall n, precone_le (v n) (v n.+1) := sup_at_rch uch Kpos.
+have vb1 : forall n, cone_norm (v n) <= 1 := sup_at_rb1 ubK Kpos.
 (* Image chain [f ∘ v = (f ∘ u)/K] is increasing and in [B_Q]. *)
 have fvch : forall n, precone_le ((f \o v) n) ((f \o v) n.+1).
   move=> n; rewrite /v /= !(basic_lemmas.linearZ Hlin).
@@ -303,21 +405,30 @@ have fvb1 : forall n, cone_norm ((f \o v) n) <= 1.
   move=> n; rewrite /v /= (basic_lemmas.linearZ Hlin) cone_normh /=.
   rewrite -(@ler_pM2l _ K%:num)// mulr1 mulrA mulfV ?gt_eqF// mul1r.
   exact: fubK.
-(* OLD unit-ball ω-continuity discharges the inner commutation. *)
-rewrite (Hcont v vch vb1 fvch fvb1).
-(* Goal: [K · sup_ball (f∘v)] = [cone_sup_at K (f∘u)]. The latter is
-   [K · sup_ball ((f∘u)/K)]; since [f∘v = (f∘u)/K] pointwise, the two
-   [cone_sup_ball]s coincide. *)
-rewrite /cone_sup_at; congr (_ *: _)%PC.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  have fvE : (f \o v) n = precone_scale (Mrec_nng Kpos) ((f \o u) n).
-    by rewrite /v /= (basic_lemmas.linearZ Hlin).
-  by rewrite fvE; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n.
-  have fvE : precone_scale (Mrec_nng Kpos) ((f \o u) n) = (f \o v) n.
-    by rewrite /v /= (basic_lemmas.linearZ Hlin).
-  by rewrite fvE; exact: cone_sup_ball_ub.
+(* [sup u = K · sup v]: scale the lub of [v] back up. *)
+have vlub : cone_lub v (cone_sup v).
+  apply: cone_supP.
+  exact: chain_has_cone_sup (precone_chain_homo vch) vb1.
+have supuE : cone_sup u = precone_scale K (cone_sup v).
+  apply: cone_supE.
+  have := cone_lub_scale Kpos vlub.
+  have E n : precone_scale K (v n) = u n by exact: scale_MrecK.
+  by rewrite (funext E).
+(* The unit-ball ω-continuity discharges the inner commutation. *)
+have HcontE : f (cone_sup v) = cone_sup (f \o v) :=
+  Hcont v vch vb1 fvch fvb1.
+(* [sup (f∘u) = K · sup (f∘v)]: same scaling on the image side. *)
+have fvlub : cone_lub (f \o v) (cone_sup (f \o v)).
+  apply: cone_supP.
+  exact: chain_has_cone_sup (precone_chain_homo fvch) fvb1.
+have supfuE : cone_sup (f \o u) = precone_scale K (cone_sup (f \o v)).
+  apply: cone_supE.
+  have := cone_lub_scale Kpos fvlub.
+  have E n : precone_scale K ((f \o v) n) = (f \o u) n.
+    by rewrite /v /= (basic_lemmas.linearZ Hlin) scale_MrecK.
+  by rewrite (funext E).
+rewrite /cone_sup_at supuE (basic_lemmas.linearZ Hlin) HcontE.
+by rewrite -supfuE.
 Qed.
 
 End LinearScott.
@@ -436,10 +547,7 @@ Lemma id_is_linear : is_linear (@id P).
 Proof. by split. Qed.
 
 Lemma id_omega_continuous : is_omega_continuous (@id P).
-Proof.
-move=> u uch ub1 fuch fub1.
-congr (cone_sup_ball _ _ _); exact: Prop_irrelevance.
-Qed.
+Proof. by []. Qed.
 
 Lemma id_scott_continuous : is_scott_continuous (@id P).
 Proof.
@@ -549,15 +657,16 @@ Local Open Scope precone_scope.
 (** The ball supremum depends only on the chain, not on the
     chain/bound witnesses.  Subsumes the three verbatim copies
     [cone_sup_ball_irr] of [homs/bilin.v], [stable/scones_ccc.v] and
-    [programs/ex_reject_headline.v]. *)
+    [programs/ex_reject_headline.v].
+
+    Under the total-operator encoding the witnesses are phantom, so
+    this is now definitional — it survives only as a name the
+    consumers above still cite. *)
 Lemma cone_sup_ball_irr u
     (c1 c2 : forall n, u n <=p u n.+1)
     (b1 b2 : forall n, cone_norm (u n) <= 1) :
   cone_sup_ball u c1 b1 = cone_sup_ball u c2 b2.
-Proof.
-by apply: precone_le_anti; apply: cone_sup_ball_lub => n;
-   exact: cone_sup_ball_ub.
-Qed.
+Proof. by []. Qed.
 
 (** [1] is a legitimate radius. *)
 Lemma nng1_pos : (0 < (1%:nng : {nonneg R})%:num)%R.
@@ -676,12 +785,116 @@ Proof.
 by rewrite (cone_sup_ball_addD ach aub bch bub sch sub); exact: precone_le_refl.
 Qed.
 
-(** *** Commutation of two suprema *)
+End ConsolidatedSupCalculus.
 
-(** The iterated unit-ball supremum of a doubly-indexed family
+Arguments cone_sup_ball_irr {R P} u {c1 c2 b1 b2}.
+Arguments nng1_pos {R}.
+
+(** *** The consolidated identities, new-style
+
+    The same identities restated on the total [cone_sup], with
+    mathcomp-style [{homo}] chains and the radius as a plain real
+    hypothesis.  The derived side conditions of the historical
+    statements — monotonicity and bound of the *sum* chain in the
+    diagonal identity (2 hypotheses + the packaged radius), the four
+    sup-level chain/bound witnesses in the swap — are *derived* here,
+    not assumed. *)
+
+Section ConeSupCalculusNew.
+Variable R : realType.
+Variable P : coneType R.
+Implicit Types (a b u : nat -> P) (x y z : P).
+Local Open Scope precone_scope.
+
+(** Diagonal (binary) sup-addition: 4 hypotheses (was 6 + radius
+    positivity in [cone_sup_at_addD]). *)
+Lemma cone_supD a b (Ma Mb : R) :
+  {homo a : n m / (n <= m)%N >-> (n <= m)%O} ->
+  (forall n, cnorm (a n) <= Ma)%R ->
+  {homo b : n m / (n <= m)%N >-> (n <= m)%O} ->
+  (forall n, cnorm (b n) <= Mb)%R ->
+  cone_sup (fun n => a n + b n) = cone_sup a + cone_sup b.
+Proof.
+move=> ach aub bch bub.
+have Mage0 : (0 <= Ma)%R := le_trans (cone_norm_ge0 (a 0%N)) (aub 0%N).
+have Mbge0 : (0 <= Mb)%R := le_trans (cone_norm_ge0 (b 0%N)) (bub 0%N).
+have Kge0 : (0 <= Ma + Mb + 1)%R by rewrite addr_ge0// addr_ge0.
+pose K : {nonneg R} := NngNum Kge0.
+have K1 : (1 <= K%:num)%R by rewrite /= lerDr addr_ge0.
+have Kpos : (0 < K%:num)%R := lt_le_trans ltr01 K1.
+have aubK n : (cnorm (a n) <= K%:num)%R.
+  by apply: le_trans (aub n) _; rewrite /= -addrA lerDl addr_ge0.
+have bubK n : (cnorm (b n) <= K%:num)%R.
+  by apply: le_trans (bub n) _; rewrite /= (addrC Ma) -addrA lerDl addr_ge0.
+have achP := homo_precone_chain ach.
+have bchP := homo_precone_chain bch.
+have sch n : a n + b n <=p a n.+1 + b n.+1.
+  apply: precone_le_trans (precone_add_le_l _ (bchP n)).
+  exact: precone_add_le_r (achP n).
+have sub n : cnorm (a n + b n) <= K%:num.
+  apply: le_trans (cone_normt _ _) _.
+  by apply: le_trans (lerD (aub n) (bub n)) _; rewrite /= lerDl.
+exact: (cone_sup_at_addD achP aubK bchP bubK sch sub Kpos).
+Qed.
+
+(** Commutation of two suprema: 3 hypotheses (was 7 witness
+    hypotheses in [cone_sup_ball_swap] — the sup-level chains and
+    bounds are derived via [le_cone_sup] and [cone_norm_sup]). *)
+Lemma cone_sup_swap (b : nat -> nat -> P) (M : R) :
+  (forall k, {homo b^~ k : n m / (n <= m)%N >-> (n <= m)%O}) ->
+  (forall n, {homo b n : k l / (k <= l)%N >-> (k <= l)%O}) ->
+  (forall n k, cnorm (b n k) <= M)%R ->
+  cone_sup (fun n => cone_sup (b n)) = cone_sup (fun k => cone_sup (b^~ k)).
+Proof.
+move=> rowch colch ub.
+have colhas n : has_cone_sup (b n) := chain_has_cone_sup (colch n) (ub n).
+have rowhas k : has_cone_sup (b^~ k) :=
+  chain_has_cone_sup (rowch k) (fun n => ub n k).
+have outLch : {homo (fun n => cone_sup (b n))
+    : n m / (n <= m)%N >-> (n <= m)%O}.
+  move=> n m nm; apply: le_cone_sup (colhas n) (colhas m) _ => k.
+  exact: rowch k n m nm.
+have outLub n : (cnorm (cone_sup (b n)) <= M)%R :=
+  cone_norm_sup (colch n) (ub n).
+have outRch : {homo (fun k => cone_sup (b^~ k))
+    : k l / (k <= l)%N >-> (k <= l)%O}.
+  move=> k l kl; apply: le_cone_sup (rowhas k) (rowhas l) _ => n.
+  exact: colch n k l kl.
+have outRub k : (cnorm (cone_sup (b^~ k)) <= M)%R :=
+  cone_norm_sup (rowch k) (fun n => ub n k).
+apply: le_anti; apply/andP; split.
+- apply: (cone_sup_le_ub outLch outLub) => n.
+  apply: (cone_sup_le_ub (colch n) (ub n)) => k.
+  apply: le_trans (cone_sup_ub (rowch k) (fun n' => ub n' k) n) _.
+  exact: (cone_sup_ub outRch outRub k).
+- apply: (cone_sup_le_ub outRch outRub) => k.
+  apply: (cone_sup_le_ub (rowch k) (fun n => ub n k)) => n.
+  apply: le_trans (cone_sup_ub (colch n) (ub n) k) _.
+  exact: (cone_sup_ub outLch outLub n).
+Qed.
+
+End ConeSupCalculusNew.
+
+Arguments cone_supD {R P a b Ma Mb}.
+Arguments cone_sup_swap {R P} b {M}.
+
+(** *** Commutation of two suprema, historical shape
+
+    The iterated unit-ball supremum of a doubly-indexed family
     commutes.  Subsumes [cone_sup_ball_swap] (linhom.v, Section
     [LinhomSupCont]) and its copy [sh_sup_swap] (stablehom.v, Section
-    [ConeSupBallSwap]). *)
+    [ConeSupBallSwap]).
+
+    Statement unchanged from the pre-rework encoding; but the four
+    sup-level witnesses ([b_col_sup_ch], [b_col_sup_ub],
+    [b_row_sup_ch], [b_row_sup_ub]) are now phantom — they are derived
+    inside [cone_sup_swap] from the three genuine hypotheses. *)
+
+Section ConeSupBallSwapCompat.
+Variable R : realType.
+Variable P : coneType R.
+Local Open Scope precone_scope.
+
 Lemma cone_sup_ball_swap (b : nat -> nat -> P)
     (b_row_ch : forall k n, b n k <=p b n.+1 k)
     (b_col_ch : forall n k, b n k <=p b n k.+1)
@@ -705,23 +918,15 @@ Lemma cone_sup_ball_swap (b : nat -> nat -> P)
     (fun k => cone_sup_ball (b^~ k) (b_row_ch k) (fun n => b_ub n k))
     b_row_sup_ch b_row_sup_ub.
 Proof.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n; apply: cone_sup_ball_lub => k.
-  have step1 : b n k <=p
-      cone_sup_ball (b^~ k) (b_row_ch k) (fun n0 => b_ub n0 k).
-    exact: cone_sup_ball_ub.
-  apply: precone_le_trans step1 _; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => k; apply: cone_sup_ball_lub => n.
-  have step1 : b n k <=p
-      cone_sup_ball (b n) (b_col_ch n) (fun k0 => b_ub n k0).
-    exact: cone_sup_ball_ub.
-  apply: precone_le_trans step1 _; exact: cone_sup_ball_ub.
+have rowch k : {homo b^~ k : n m / (n <= m)%N >-> (n <= m)%O}.
+  exact: precone_chain_homo (b_row_ch k).
+have colch n : {homo b n : k l / (k <= l)%N >-> (k <= l)%O}.
+  exact: precone_chain_homo (b_col_ch n).
+exact: (cone_sup_swap b rowch colch b_ub).
 Qed.
 
-End ConsolidatedSupCalculus.
+End ConeSupBallSwapCompat.
 
-Arguments cone_sup_ball_irr {R P} u {c1 c2 b1 b2}.
-Arguments nng1_pos {R}.
 Arguments cone_sup_ball_swap {R P}.
 
 (** *** Finite sums of chains, at a general radius
@@ -1119,3 +1324,10 @@ Arguments scc {R} m.
 Arguments scl_le1 {R} m.
 Arguments scl_num {R} m.
 Arguments scale_chain_sup {R P} z Hz.
+
+(** The scaling-chain supremum, new-style: [cnorm z <= 1] as the only
+    hypothesis, on the total operator. *)
+Lemma cone_sup_scale_chain (R : realType) (P : coneType R) (z : P) :
+  cnorm z <= 1 ->
+  cone_sup (fun m => (scl m *: z)%PC) = z.
+Proof. by move=> Hz; exact: (scale_chain_sup z Hz). Qed.

@@ -109,17 +109,13 @@ Variable P : coneType R.
 Lemma cones_id_linear : is_linear (fun x : P => x).
 Proof. by split. Qed.
 
-(** The identity function is ω-continuous: both sides of the equation
-    are equal by [sup_irrelevant]-style reasoning, but since the
-    chain proofs in the conclusion may differ syntactically we
-    explicitly invoke antisymmetry. *)
+(** The identity function is ω-continuous.  Both sides are the
+    supremum of the *same* chain: since [cone_sup_ball] is the total
+    operator [cone_sup] with phantom witnesses, they are definitionally
+    equal (this used to need an antisymmetry argument, because the
+    supremum was indexed by its chain/bound proofs). *)
 Lemma cones_id_continuous : is_omega_continuous (fun x : P => x).
-Proof.
-move=> u uch ub1 fuch fub1.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n; exact: cone_sup_ball_ub.
-Qed.
+Proof. by []. Qed.
 
 (** The identity function preserves the norm. *)
 Lemma cones_id_norm_le1 : forall x : P, cone_norm x <= cone_norm x.
@@ -239,7 +235,7 @@ Section SubPrecone.
 Variable R : realType.
 Variable I : Type.
 Variable A : I -> preconeType R.
-Variable S : Type.
+HB.declare Context (S : Type) of hasDecEq S & hasChoice S.
 Variable sval : S -> forall i, A i.
 Variables (szero : S) (sadd : S -> S -> S) (sscale : {nonneg R} -> S -> S).
 Hypothesis svalI : forall x y : S, (forall i, sval x i = sval y i) -> x = y.
@@ -311,7 +307,7 @@ End SubPrecone.
 Section SubPrecone1.
 Variable R : realType.
 Variable A : preconeType R.
-Variable S : Type.
+HB.declare Context (S : Type) of hasDecEq S & hasChoice S.
 Variable sval : S -> A.
 Variables (szero : S) (sadd : S -> S -> S) (sscale : {nonneg R} -> S -> S).
 Hypothesis svalI : forall x y : S, sval x = sval y -> x = y.
@@ -321,7 +317,9 @@ Hypothesis svalZ :
   forall r x, sval (sscale r x) = precone_scale r (sval x).
 
 Definition sub_isPrecone1 : isPrecone R S :=
-  @sub_isPrecone R unit (fun=> A) S (fun x _ => sval x) szero sadd sscale
+  @sub_isPrecone R unit (fun=> A) S
+    local_mixin_eqtype_hasDecEq local_mixin_choice_hasChoice
+    (fun x _ => sval x) szero sadd sscale
     (fun _ _ H => svalI (H tt)) (fun=> sval0)
     (fun x y _ => svalD x y) (fun r x _ => svalZ r x).
 
@@ -426,8 +424,16 @@ Arguments cones_prod_scale {R I P}.
 
 (** *** [isPrecone] instance for [cones_prod_car] *)
 
+(** Classical [Equality]/[Choice] structures on the product carrier
+    (required by the precone partial order). *)
+HB.instance Definition _ (R : realType) (I : Type) (P : I -> coneType R) :=
+  gen_eqMixin (cones_prod_car I P).
+HB.instance Definition _ (R : realType) (I : Type) (P : I -> coneType R) :=
+  gen_choiceMixin (cones_prod_car I P).
+
 HB.instance Definition _ (R : realType) (I : Type) (P : I -> coneType R) :=
   @sub_isPrecone R I (fun i => P i : preconeType R) (cones_prod_car I P)
+    (gen_eqMixin _) (gen_choiceMixin _)
     (@cones_prod_val R I P) (@cones_prod_zero R I P) (@cones_prod_add R I P)
     (@cones_prod_scale R I P)
     (@cones_prod_eq R I P) (@cones_prod_val0 R I P)
@@ -720,11 +726,24 @@ Arguments cones_prod_sup_ball {R I P}.
 (** *** [isCone] instance for [cones_prod_car] *)
 
 HB.instance Definition _ (R : realType) (I : Type) (P : I -> coneType R) :=
-  isCone.Build R (cones_prod_car I P)
+  Cone_ofWitnessSup.Build R (cones_prod_car I P)
     (@cones_prod_normh R I P) (@cones_prod_normz R I P)
     (@cones_prod_normt R I P) (@cones_prod_normp R I P)
     (@cones_prod_sup_ball_ub R I P) (@cones_prod_sup_ball_lub R I P)
     (@cones_prod_sup_ball_norm R I P).
+
+(** The abstract [cone_sup_ball] coincides with the concrete
+    componentwise witness [cones_prod_sup_ball] (the definitional link
+    of the historical encoding, restored via lub-uniqueness). *)
+Lemma cones_prod_cone_sup_ballE (R : realType) (I : Type)
+    (P : I -> coneType R) (u : nat -> cones_prod_car I P)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = cones_prod_sup_ball u uch ub1.
+Proof.
+exact: cone_sup_ballE (cones_prod_sup_ball_ub uch ub1)
+         (cones_prod_sup_ball_lub uch ub1).
+Qed.
 
 (** *** The product cone *)
 
@@ -755,16 +774,10 @@ Lemma cones_proj_continuous (i : I) : is_omega_continuous (cones_proj_fun i).
 Proof.
 move=> u uch ub1 fuch fub1.
 rewrite /cones_proj_fun /=.
-(* LHS [cones_prod_val (cones_prod_sup_ball u uch ub1) i] reduces
-   definitionally to a [cone_sup_ball ...]; the RHS is the
-   [cone_sup_ball] of the same sequence with different proofs. *)
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub (fun m => cones_prod_val (u m) i) fuch fub1).
-- apply: cone_sup_ball_lub => n.
-  have HH : precone_le (u n) (cones_prod_sup_ball u uch ub1) by
-    exact: cones_prod_sup_ball_ub.
-  by have := cones_prod_le_comp HH i.
+(* Identify the abstract sup with the concrete componentwise witness
+   [cones_prod_sup_ball]; its [i]-component is then definitionally the
+   supremum of the component chain, which is the RHS. *)
+by rewrite (cones_prod_cone_sup_ballE uch ub1).
 Qed.
 
 Lemma cones_proj_norm_le1 (i : I) :
@@ -825,13 +838,9 @@ have ficub1 : forall n, cone_norm (f i (u n)) <= 1.
   move=> n; apply: le_trans (cones_hom_norm_le1 (f i) _) _.
   exact: ub1.
 rewrite (@cones_hom_continuous _ _ _ (f i) u uch ub1 ficuch ficub1).
-(* Now both sides are [cone_sup_ball ...] of the same underlying sequence
-   but with possibly-different proofs of monotonicity / bound. Use
-   antisymmetry. *)
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n /=; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n /=.
-  by have := cone_sup_ball_ub (f i \o u) ficuch ficub1 n.
+(* Identify the product-side sup with the concrete componentwise
+   witness; its [i]-component is the sup of [fun n => f_i (u n)]. *)
+by rewrite (cones_prod_cone_sup_ballE fuch fub1).
 Qed.
 
 Lemma cones_tuple_norm_le1 :
@@ -895,17 +904,22 @@ Arguments cones_tuple {R I P Q}.
         [f (u_n, v_k) ≤ f (u_m, v_m)], whence the double sup equals
         [sup_n f (u_n, v_n)] = the diagonal sup.
 
-    Owing to the proof-irrelevance load of the image-chain
-    hypotheses required by our [is_omega_continuous] interface
-    (which threads chain / unit-ball witnesses explicitly), a fully
-    quantified statement carries ~12 hypotheses. We present here a
-    representative pointwise version: given that all the relevant
-    sup operators are well-typed, the value [f (sup u) (sup v)]
-    coincides with the diagonal sup [sup_n f (u_n) (v_n)].
+    A fully quantified statement is still hypothesis-heavy, but for a
+    reason that is *not* proof irrelevance: [is_omega_continuous]
+    applies only to chains that are increasing *and* in the unit ball,
+    so each intermediate family (every row, every column, the
+    row-suprema, the diagonal) must be supplied with those two side
+    conditions.  What the total-operator encoding removed is the
+    other half of the old load — the suprema themselves no longer
+    carry their chain/bound proofs, so two suprema of the same chain
+    are equal on the nose and no identification step is needed.
 
-    The full unconditional version requires consolidating the chain
-    witnesses; deferred. The pointwise form below is what downstream
-    files actually consume. *)
+    We present here a representative pointwise version: given that all
+    the relevant sup operators are well-typed, the value
+    [f (sup u) (sup v)] coincides with the diagonal sup
+    [sup_n f (u_n) (v_n)].  The full unconditional version requires
+    consolidating the chain side conditions; deferred.  The pointwise
+    form below is what downstream files actually consume. *)
 
 Section Lemma219.
 Variable R : realType.
@@ -1033,9 +1047,20 @@ Arguments cones_eq_zero {R P Q f g}.
 Arguments cones_eq_add {R P Q f g}.
 Arguments cones_eq_scale {R P Q f g}.
 
+(** Classical [Equality]/[Choice] structures on the equaliser carrier
+    (required by the precone partial order). *)
 HB.instance Definition _ (R : realType) (P Q : coneType R)
   (f g : cones_hom P Q) :=
-  @sub_isPrecone1 R P (cones_eq_car f g) (@cones_eq_val R P Q f g)
+  gen_eqMixin (cones_eq_car f g).
+HB.instance Definition _ (R : realType) (P Q : coneType R)
+  (f g : cones_hom P Q) :=
+  gen_choiceMixin (cones_eq_car f g).
+
+HB.instance Definition _ (R : realType) (P Q : coneType R)
+  (f g : cones_hom P Q) :=
+  @sub_isPrecone1 R P (cones_eq_car f g)
+    (gen_eqMixin _) (gen_choiceMixin _)
+    (@cones_eq_val R P Q f g)
     (@cones_eq_zero R P Q f g) (@cones_eq_add R P Q f g)
     (@cones_eq_scale R P Q f g) (@cones_eq_extensional R P Q f g)
     (@cones_eq_val0 R P Q f g) (@cones_eq_valD R P Q f g)
@@ -1130,16 +1155,10 @@ have gub1 : forall n, cone_norm (g (cones_eq_sup_uP n)) <= 1.
   exact: cones_eq_sup_uP_ub1.
 rewrite (@cones_hom_continuous _ _ _ f _ cones_eq_sup_uP_ch _ fuch fub1).
 rewrite (@cones_hom_continuous _ _ _ g _ cones_eq_sup_uP_ch _ guch gub1).
-(* Now both are [cone_sup_ball (f \o u)] and [cone_sup_ball (g \o u)],
-   where [f (u n) = g (u n)] by [cones_eq_eq u n]. Use antisymmetry. *)
-have Heq : forall n,
-  cones_hom_fun f (cones_eq_sup_uP n) = cones_hom_fun g (cones_eq_sup_uP n).
-  by move=> n; exact: cones_eq_eq.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n /=.
-  by rewrite Heq; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n /=.
-  by rewrite -Heq; exact: cone_sup_ball_ub.
+(* Both sides are now the supremum of the *same* chain — [f (u n)] and
+   [g (u n)] agree pointwise by [cones_eq_eq] — so [eq_cone_sup]
+   concludes (this used to need an antisymmetry argument). *)
+by apply: eq_cone_sup => n /=; exact: cones_eq_eq.
 Qed.
 
 (** The (Normc) witness for the equaliser. *)
@@ -1200,11 +1219,24 @@ Arguments cones_eq_sup_ball {R P Q f g}.
 
 HB.instance Definition _ (R : realType) (P Q : coneType R)
   (f g : cones_hom P Q) :=
-  isCone.Build R (cones_eq_car f g)
+  Cone_ofWitnessSup.Build R (cones_eq_car f g)
     (@cones_eq_normh R P Q f g) (@cones_eq_normz R P Q f g)
     (@cones_eq_normt R P Q f g) (@cones_eq_normp R P Q f g)
     (@cones_eq_sup_ball_ub R P Q f g) (@cones_eq_sup_ball_lub R P Q f g)
     (@cones_eq_sup_ball_norm R P Q f g).
+
+(** The abstract [cone_sup_ball] coincides with the concrete
+    equaliser witness [cones_eq_sup_ball] (the definitional link of
+    the historical encoding, restored via lub-uniqueness). *)
+Lemma cones_eq_cone_sup_ballE (R : realType) (P Q : coneType R)
+    (f g : cones_hom P Q) (u : nat -> cones_eq_car f g)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = cones_eq_sup_ball u uch ub1.
+Proof.
+exact: cone_sup_ballE (cones_eq_sup_ball_ub uch ub1)
+         (cones_eq_sup_ball_lub uch ub1).
+Qed.
 
 (** *** The equaliser cone *)
 
@@ -1229,11 +1261,9 @@ Lemma cones_eq_incl_continuous : is_omega_continuous cones_eq_incl_fun.
 Proof.
 move=> u uch ub1 fuch fub1.
 rewrite /cones_eq_incl_fun /=.
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub _ fuch fub1 n).
-- apply: cone_sup_ball_lub => n.
-  exact: cone_sup_ball_ub.
+(* Identify the abstract sup with the concrete equaliser witness; its
+   underlying value is definitionally the sup of the value chain. *)
+by rewrite (cones_eq_cone_sup_ballE uch ub1).
 Qed.
 
 Lemma cones_eq_incl_norm_le1 :
@@ -1295,13 +1325,9 @@ have huch : forall n,
 have hub1 : forall n, cone_norm (cones_hom_fun h (u n)) <= 1.
   by move=> n; apply: le_trans (cones_hom_norm_le1 h _) _; exact: ub1.
 rewrite (@cones_hom_continuous _ _ _ h _ uch _ huch hub1).
-(* Both sides are now [cone_sup_ball] of the same sequence h(u n);
-   antisymmetry handles the chain-proof difference. *)
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub _ _ _ n).
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub _ huch hub1 n).
+(* Identify the equaliser-side sup with the concrete witness; its
+   underlying value is definitionally the sup of the value chain. *)
+by rewrite (cones_eq_cone_sup_ballE fuch fub1).
 Qed.
 
 Lemma cones_eq_med_norm_le1 :
@@ -1382,7 +1408,7 @@ End ConesIso.
 Section ConesTransport.
 Variable R : realType.
 Variable P : coneType R.
-Variable S : Type.
+HB.declare Context (S : Type) of hasDecEq S & hasChoice S.
 Variable f : P -> S.
 Variable finv : S -> P.
 Hypothesis finvK : forall s, f (finv s) = s.

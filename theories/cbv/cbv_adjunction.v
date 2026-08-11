@@ -431,7 +431,11 @@ have Hsig : icones_comp (iso_fwd (tensor_braid (Bg (coalg_obj P)) (Bg (coalg_obj
             (iso_fwd (tensor_braid (coalg_obj P) (coalg_obj Q))) (x ⊗p y)).
   by rewrite tensor_braidEp (tensor_morE b a y x).
 rewrite Hsig.
-by rewrite !icones_compA.
+(* A single re-association closes it.  Do NOT use [rewrite !icones_compA]
+   here: the repeated form re-traverses the fully elaborated
+   [icones_hom]/[ICone] terms of the [Bang] carriers looking for further
+   redexes, which costs tens of minutes of unification for no progress. *)
+by rewrite -icones_compA.
 Qed.
 
 (** The left unitor [λ] is a coalgebra morphism [EM_prod EM_term P → P].

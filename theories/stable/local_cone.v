@@ -25,15 +25,17 @@
       ([lc_leE]) — the observation used in the paper's (Normc) proof.
     - The gauge set [gauge_set] / its supremum [gauge_sup] and the gauge
       norm [lc_norm], with the reach lemmas of Lemma 7.2
-      ([gauge_sup_reach], [gauge_sup_gt_out]), and the full [isCone]
-      instance (Lemma 7.1).
+      ([gauge_sup_reach], [gauge_sup_gt_out]), and the full cone
+      instance (Lemma 7.1), registered through the
+      [Cone_ofWitnessSup] factory of [cone.v].
     - The measurable / integrable structure of [B_x] (Example 7.3): the
       renormalized pullback test family [lc_mcone_M] with its (Mscomp),
       (Mssep), (Msnorm) closure, the [isMCone] instance, and — for
       [B : iconeType] — the [isICone] instance (integral as in [B]).
 
     Design notes.
-    - The algebraic / cone development ([isPrecone], [isCone], Lemmas
+    - The algebraic / cone development ([isPrecone],
+      [Cone_ofWitnessSup], Lemmas
       7.1, 7.2) needs only that [B] is a [coneType R] and [‖x‖_B ≤ 1].
       The measurability / integrability layer ([isMCone], [isICone],
       "computed as in [B]") needs [B : mconeType] / [iconeType] *and* the
@@ -45,7 +47,8 @@
       that two carrier elements are equal as soon as their [B]-components
       are.  This is what lets the algebraic axioms reduce to the
       corresponding facts in [B].
-    - All four HB instances are *registered*: [isPrecone], [isCone],
+    - All four HB instances are *registered*: [isPrecone],
+      [Cone_ofWitnessSup],
       [isMCone] (test family the renormalized pullbacks), and [isICone]
       (integral inherited from [B] via [lc_val]).  So [B_x] is a full
       [iconeType Ar] at any strict interior point.  See the closing
@@ -329,6 +332,13 @@ Proof.
 move=> /(congr1 lc_val); rewrite lc_valD lc_val0 => /precone_pos[Hu Hv].
 by split; apply: lc_eq; rewrite lc_val0.
 Qed.
+
+(** Classical [Equality]/[Choice] structures on the carrier (required
+    by the precone partial order: mathcomp partial orders sit above
+    [choiceType], and the [sig] carrier has no canonical one because
+    [localP] is [Prop]-valued). *)
+HB.instance Definition _ := gen_eqMixin local_cone.
+HB.instance Definition _ := gen_choiceMixin local_cone.
 
 (** Paper Lemma 7.1 (algebraic half): [B_x] is a precone whose [0] and
     operations are inherited from [B]. *)
@@ -869,7 +879,7 @@ Qed.
 Section LocalSupBall.
 Variable w : nat -> P.
 (** B-order chain hypothesis (the [B_x]-order one is converted to this
-    via [lc_leE] when building the [isCone] instance). *)
+    via [lc_leE] when building the cone instance). *)
 Hypothesis wch : forall n, precone_le (lc_val (w n)) (lc_val (w n.+1)).
 Hypothesis wb1 : forall n, lc_norm (w n) <= 1.
 
@@ -965,8 +975,10 @@ Qed.
     The order [≤p] of [B_x] coincides with that of [B] ([lc_leE]), used
     to translate the [B]-order statements of (Normp) and the
     [lc_sup_ball] lemmas into the [B_x]-order shape required by the
-    [isCone] mixin. *)
-HB.instance Definition _ := @isCone.Build R (local_cone x)
+    [Cone_ofWitnessSup] factory — the historical-interface factory of
+    [cone.v], which takes exactly this witness-style (Normc) datum and
+    derives the pure-existence [isCone] mixin. *)
+HB.instance Definition _ := @Cone_ofWitnessSup.Build R (local_cone x)
   lc_norm
   lc_normh
   (fun (u : P) (H : lc_norm u = 0) => @lc_eq R B x u (lc_zero Hx) (lc_normz H))
@@ -1708,7 +1720,8 @@ End LocalICone.
       provides the monotone approximating chain.)
     - Paper Lemma 7.2 (the "out" half): [gauge_sup_gt_out]; and the
       "reach" half [gauge_sup_reach]: [x + (gauge_sup u) ·: u ∈ B_B].
-    - Paper Lemma 7.1: the full [isCone] instance on [local_cone x].
+    - Paper Lemma 7.1: the full cone instance on [local_cone x]
+      (through the [Cone_ofWitnessSup] factory).
       (Normh) [lc_normh] (via [gauge_sup_scale]), (Normz) [lc_normz],
       (Normt) [lc_normt] (via the convexity estimate [gauge_convex]),
       (Normp) [lc_normp], and (Normc) the [lc_sup_ball] operator with

@@ -259,8 +259,7 @@ have vb1 : forall n, cone_norm (v n) <= 1.
   by rewrite -[linhom_norm (u n)]/(cone_norm (u n)); exact: ub1.
 (* LHS = [cone_sup_ball v vch vb1]. *)
 have LHSE : linhom_fun (cone_sup_ball u uch ub1) x = cone_sup_ball v vch vb1.
-  rewrite -[cone_sup_ball u uch ub1 : linhom_car Ar B C]
-    /(linhom_sup_ball _ uch ub1).
+  rewrite (linhom_cone_sup_ballE uch ub1).
   rewrite -[linhom_fun (linhom_sup_ball _ uch ub1) x]
     /(linhom_sup_fun uch ub1 x).
   rewrite (@linhom_sup_fun_unitE R Ar B C u uch ub1 x Hx).
@@ -276,24 +275,15 @@ have b1 : forall n, cnorm (sh_fun ((linhom_to_stablehom \o u) n) x) <= 1.
   move=> n; rewrite /comp /=.
   apply: (le_trans (sh_norm_ub (linhom_to_stablehom (u n)) x Hx)).
   by rewrite -[sh_norm _]/(cone_norm (linhom_to_stablehom (u n))); exact: fub1.
-rewrite -[cone_sup_ball (linhom_to_stablehom \o u) fuch fub1
-        : stablehom B C] /(@sh_sup R Ar B C _ fuch fub1).
+rewrite (sh_cone_sup_ballE fuch fub1).
 rewrite -[sh_fun (@sh_sup R Ar B C _ fuch fub1) x]
   /(@sh_sup_fun R Ar B C _ fuch fub1 x).
 rewrite (@sh_sup_fun_unitE R Ar B C _ fuch fub1 x Hx ch b1).
-(* Both [cone_sup_ball] over the same diagonal chain, modulo
-   the [linhom_to_stablehom_E] equality (defeq on ball). *)
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  have : sh_fun ((linhom_to_stablehom \o u) n) x = v n.
-    by rewrite /comp /v (linhom_to_stablehom_E _ _ Hx).
-  move=> <-.
-  exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n.
-  have : v n = sh_fun ((linhom_to_stablehom \o u) n) x.
-    by rewrite /comp /v (linhom_to_stablehom_E _ _ Hx).
-  move=> <-.
-  exact: cone_sup_ball_ub.
+(* Both sides are the [cone_sup] of the *same* diagonal chain, modulo
+   the [linhom_to_stablehom_E] equality (defeq on ball): the witnesses
+   are phantom, so [eq_cone_sup] closes it pointwise. *)
+rewrite !cone_sup_ball_supE; apply: eq_cone_sup => n.
+by rewrite /comp /v (linhom_to_stablehom_E _ _ Hx).
 Qed.
 
 End LinhomToStablehomContinuous.
@@ -516,13 +506,10 @@ split; first split.
     rewrite (Hfsc Mfx u uch ub1 f_fuch f_fubMf Mfpos).
     rewrite -[cones_prod_val (cone_sup_at fuch fubMf Mfpos) true]
       /(cones_proj_fun (P:=Pc) true (cone_sup_at fuch fubMf Mfpos)).
-    have := HL true eTch eTub Mfpos.
-    move=> ->.
-    apply: precone_le_anti.
-    + apply: (cone_sup_at_lub f_fuch f_fubMf Mfpos) => n.
-      by have := cone_sup_at_ub eTch eTub Mfpos n; rewrite eT.
-    + apply: (cone_sup_at_lub eTch eTub Mfpos) => n.
-      by rewrite eT; have := cone_sup_at_ub f_fuch f_fubMf Mfpos n.
+    rewrite (HL true eTch eTub Mfpos).
+    (* Both sides are [cone_sup] of the *same* chain ([eT] is definitional)
+       and [cone_sup_at] carries no witness, so this is a conversion. *)
+    by [].
   (* false: K component. *)
   have eF n : cones_proj_fun (P:=Pc) false (pair_u n) = K (u n) by [].
   have eFch n : cones_proj_fun (P:=Pc) false (pair_u n) <=p
@@ -542,13 +529,8 @@ split; first split.
   rewrite (Hsc Mfx u uch ub1 K_fuch K_fubMf Mfpos).
   rewrite -[cones_prod_val (cone_sup_at fuch fubMf Mfpos) false]
     /(cones_proj_fun (P:=Pc) false (cone_sup_at fuch fubMf Mfpos)).
-  have := HL false eFch eFub Mfpos.
-  move=> ->.
-  apply: precone_le_anti.
-  + apply: (cone_sup_at_lub K_fuch K_fubMf Mfpos) => n.
-    by have := cone_sup_at_ub eFch eFub Mfpos n; rewrite eF.
-  + apply: (cone_sup_at_lub eFch eFub Mfpos) => n.
-    by rewrite eF; have := cone_sup_at_ub K_fuch K_fubMf Mfpos n.
+  rewrite (HL false eFch eFub Mfpos).
+  by [].
 (* Path-preservation. *)
 move=> X γ Hγb Hγ.
 split.
@@ -599,9 +581,9 @@ Local Open Scope precone_scope.
 Lemma meas_stable_id : is_meas_stable (fun g : G => g).
 Proof.
 have id_lin : is_linear (fun g : G => g) by split; rewrite ?precone_add0//.
-have id_cont : is_omega_continuous (fun g : G => g).
-  by move=> u' uch' ub1' fuch' fub1'; congr (cone_sup_ball _ _ _);
-     exact: Prop_irrelevance.
+(* [cone_sup_ball] is a phantom wrapper around the total [cone_sup], so
+   ω-continuity of the identity is definitional. *)
+have id_cont : is_omega_continuous (fun g : G => g) by [].
 split; last by move=> X γ _ Hγ.
 split.
 - exact: (linear_totmono _ id_lin).

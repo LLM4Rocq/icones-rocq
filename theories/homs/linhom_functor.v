@@ -163,7 +163,7 @@ Proof.
 move=> U Uch Uub1 ΛUch ΛUub1.
 apply: linhom_eq => x.
 apply: mcone_M_sep => m2 m2M.
-rewrite linhom_mapE.
+rewrite linhom_mapE (linhom_cone_sup_ballE ΛUch ΛUub1).
 rewrite (linhom_sup_fun_test_sup ΛUch ΛUub1 m2 (ar_zero_pt Ar) x).
 (* Scale [h x] into the unit ball: [S := ‖h x‖ + 1], [y' := S⁻¹ • h x]. *)
 have S_ge0 : 0 <= cnorm (hf x) + 1 by exact: ltW (cnorm_succ_pos _).
@@ -174,7 +174,8 @@ have Hxs : cnorm (precone_scale (nng_inv S) (hf x)) <= 1.
   by rewrite mulrC ler_pdivrMr // mul1r
              -[X in X <= _]addr0 lerD2l ler01.
 have Hlin_sup : linhom_fun (cone_sup_ball U Uch Uub1) (hf x) =
-    linhom_sup_fun Uch Uub1 (hf x) by [].
+    linhom_sup_fun Uch Uub1 (hf x)
+  by rewrite (linhom_cone_sup_ballE Uch Uub1).
 rewrite Hlin_sup (linhom_sup_fun_at_scale Uch Uub1 Spos Hxs).
 rewrite /linhom_sup_unit.
 have [_ _ HgZ] :=

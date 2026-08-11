@@ -1038,7 +1038,7 @@ Lemma hot_continuous : is_omega_continuous hot_fun.
 Proof.
 move=> u uch ub1 fuch fub1.
 apply: cone_one_eq; apply: nngnum_inj.
-rewrite [RHS]examples_icone.c1_sup_ball_E /=.
+rewrite examples_icone.c1_cone_sup_ballE [RHS]examples_icone.c1_sup_ball_E /=.
 set S : set R := [set _ | _ in _].
 have S_ne : S !=set0 by exists (test_fun m s0 (u 0%N)); exists 0%N.
 have S_ub : has_ubound S.

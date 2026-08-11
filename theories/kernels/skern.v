@@ -156,7 +156,7 @@ apply: le_trans
 apply: le_trans (_ : 1 * 1 <= 1); last by rewrite mulr1.
 apply: ler_pM.
 - exact: path_norm_ge0.
-- exact: cone_norm_ge0.
+- exact: fmeas_norm_ge0.
 - exact: skern_norm_le1.
 - have := path_norm_ub (skern_path λ) r.
   by move/le_trans; apply; exact: skern_norm_le1.

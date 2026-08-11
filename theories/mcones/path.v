@@ -246,6 +246,15 @@ End PathAlgebra.
 
 (** ** Precone HB instance — Paper §3.2.2 *)
 
+(** Classical [Equality]/[Choice] structures on the carrier (required
+    by the precone partial order). *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (X : ar_obj Ar) (B : MCone.type Ar) :=
+  gen_eqMixin (path_car Ar X B).
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (X : ar_obj Ar) (B : MCone.type Ar) :=
+  gen_choiceMixin (path_car Ar X B).
+
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (X : ar_obj Ar) (B : MCone.type Ar) :=
   @isPrecone.Build R (path_car Ar X B)
@@ -675,7 +684,7 @@ End PathSupBall.
 
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (X : ar_obj Ar) (B : MCone.type Ar) :=
-  @isCone.Build R (path_car Ar X B)
+  @Cone_ofWitnessSup.Build R (path_car Ar X B)
     (@path_norm R Ar X B)
     (@path_normh R Ar X B) (@path_normz R Ar X B)
     (@path_normt R Ar X B) (@path_normp R Ar X B)
@@ -683,6 +692,20 @@ HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (@path_sup_ball_ub R Ar X B)
     (@path_sup_ball_lub R Ar X B)
     (@path_sup_ball_norm R Ar X B).
+
+(** The abstract [cone_sup_ball] coincides with the concrete pointwise
+    witness [path_sup_ball] (the definitional link of the historical
+    encoding, restored as an equation via lub-uniqueness). *)
+Lemma path_cone_sup_ballE (R : realType) (Ar : MeasSubcat R)
+    (X : ar_obj Ar) (B : MCone.type Ar)
+    (u : nat -> path_car Ar X B)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = path_sup_ball uch ub1.
+Proof.
+exact: cone_sup_ballE (path_sup_ball_ub uch ub1)
+         (path_sup_ball_lub uch ub1).
+Qed.
 
 (** ** The test family on [Path(X, B)] — Paper §3.2.2
 
@@ -768,7 +791,7 @@ Lemma path_test_cont
   (forall n, path_test_fun s (u n) <= N) ->
   path_test_fun s (cone_sup_ball u uch ub1) <= N.
 Proof.
-move=> HN; rewrite /path_test_fun /=.
+move=> HN; rewrite /path_test_fun path_cone_sup_ballE /=.
 exact: (test_cont (u := fun n => path_fun (u n) (φ s))).
 Qed.
 

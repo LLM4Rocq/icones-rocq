@@ -362,8 +362,11 @@ have RHSeq :
     = sup [set test_fun m (ar_zero_pt Ar)
              (cones_prod_val
                 (linhom_fun ((limpl_prod_inv_map \o U) n) x) i) | n in [set: nat]].
+  (* Identify the abstract sup with the concrete pointwise witness
+     [linhom_sup_ball], whose [linhom_fun] *is* [linhom_sup_fun]. *)
+  rewrite (linhom_cone_sup_ballE KUch KUub1).
   rewrite -[in LHS]/(@iniTest_fun R Ar I D (ar_zero Ar) i m (ar_zero_pt Ar)
-                       (linhom_fun (cone_sup_ball (limpl_prod_inv_map \o U) KUch KUub1) x)).
+                       (linhom_fun (linhom_sup_ball (limpl_prod_inv_map \o U) KUch KUub1) x)).
   have := linhom_sup_fun_test_sup (u := limpl_prod_inv_map \o U) KUch KUub1
             (@iniTest R Ar I D (ar_zero Ar) i m) (ar_zero_pt Ar) x.
   by rewrite /iniTest /= /iniTest_fun.
@@ -382,17 +385,15 @@ have prodComp :
     cones_prod_val (cone_sup_ball U Uch Uub1) i =
     cone_sup_ball (fun n => cones_prod_val (U n) i) pch pub.
   rewrite -[LHS]/(cones_proj_fun i (cone_sup_ball U Uch Uub1)).
-  rewrite (@cones_proj_continuous R I
-             (fun i => linhom_car Ar C (D i) : coneType R) i
-             U Uch Uub1 pch pub).
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => n.
-    exact: (cone_sup_ball_ub (fun n => cones_prod_val (U n) i) pch pub n).
-  - apply: cone_sup_ball_lub => n.
-    exact: (cone_sup_ball_ub (cones_proj_fun i \o U) pch pub n).
-rewrite prodComp.
-(* Now LHS = [linhom_fun (linhom cone_sup_ball of (U·)_i) x]; the linhom
-   [cone_sup_ball]'s value at [x] is [linhom_sup_fun x]. *)
+  (* Both sides are the supremum of the *same* chain — the witnesses are
+     phantom on the total operator, so this closes definitionally (it
+     used to need a two-sided antisymmetry argument). *)
+  exact: (@cones_proj_continuous R I
+            (fun i => linhom_car Ar C (D i) : coneType R) i
+            U Uch Uub1 pch pub).
+rewrite prodComp (linhom_cone_sup_ballE pch pub).
+(* Now LHS = [linhom_fun (linhom sup-ball of (U·)_i) x]; the linhom
+   sup-ball's value at [x] is [linhom_sup_fun x]. *)
 have := linhom_sup_fun_test_sup
           (u := fun n => cones_prod_val (U n) i) pch pub
           m (ar_zero_pt Ar) x.
@@ -610,14 +611,11 @@ have φub1 n : cnorm (linhom_fun φ (u n)) <= 1.
   by have := fub1 n; rewrite [cnorm (corestr_fun (u n))]/=.
 rewrite /linhom_fun.
 rewrite (linhom_pre_continuous (linhom_pre_of φ) u uch ub1 φch φub1).
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  have HH : precone_le ((corestr_fun \o u) n)
-              (cone_sup_ball (corestr_fun \o u) fuch fub1).
-    exact: cone_sup_ball_ub.
-  exact: (cones_eq_le_underlying HH).
-- apply: cone_sup_ball_lub => n.
-  exact: (cone_sup_ball_ub (fun n => linhom_fun φ (u n)) φch φub1 n).
+(* The equaliser sup is computed through [cones_eq_val]: identify the
+   abstract sup with the concrete witness [cones_eq_sup_ball], whose
+   underlying value *is* the [D1]-sup of the chain.  (This used to need
+   a two-sided antisymmetry argument.) *)
+by rewrite (cones_eq_cone_sup_ballE fuch fub1).
 Qed.
 
 Lemma corestr_pres_path
@@ -766,6 +764,7 @@ have RHSeq :
   = sup [set test_fun m (ar_zero_pt Ar)
            (cones_eq_val (linhom_fun ((limpl_eq_med_fun \o u) n) x))
            | n in [set: nat]].
+  rewrite (linhom_cone_sup_ballE fuch fub1).
   have := linhom_sup_fun_test_sup (u := limpl_eq_med_fun \o u) fuch fub1
             (eqTest m) (ar_zero_pt Ar) x.
   by rewrite /eqTest /= /eqTest_fun.
@@ -775,6 +774,7 @@ rewrite RHSeq.
 rewrite limpl_eq_med_funE.
 rewrite (@cones_hom_continuous _ _ _
            (mcones_hom_cones (icones_hom_mcones h)) u uch ub1 huch huub1).
+rewrite (linhom_cone_sup_ballE huch huub1).
 have := linhom_sup_fun_test_sup
           (u := fun n => hf (u n)) huch huub1 m (ar_zero_pt Ar) x.
 move=> ->.

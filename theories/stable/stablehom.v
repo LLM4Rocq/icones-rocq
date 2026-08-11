@@ -37,12 +37,14 @@
       [sh_normh], (Normt) [sh_normt], (Normp) [sh_normp] — Lemma 7.14.
 
     The full cone structure is delivered (see the closing status
-    block): the **[isCone] HB instance** — [stablehom B C : coneType R]
+    block): the **cone HB instance** ([Cone_ofWitnessSup] factory)
+    — [stablehom B C : coneType R]
     — with (Normz) discharged by the canonical 0-extension carrier (the
     [sh_offball] field), and (Normc) by the pointwise supremum [sh_sup]
     together with the difference-is-stable construction (Lemma 7.12
     backward, [sh_diff]) supplying the precone-order witnesses
-    [sh_sup ⊖ uₙ] / [y ⊖ sh_sup] required by the [cone_sup_ball] mixin.
+    [sh_sup ⊖ uₙ] / [y ⊖ sh_sup] required by the factory's
+    [cone_sup_ball] field.
     The measurability structure [isMCone] (the [γ ▷ m] test family,
     txt 3365) is registered — [stablehom B C : mconeType Ar].  Finally
     the integrability structure [isICone] (txt 3372/3373: "exactly as
@@ -305,6 +307,16 @@ Arguments sh_scale {R Ar B C}.
 
     The eleven precone axioms reduce pointwise to those of the codomain
     cone [C], exactly as for [linhom]'s [isPrecone]. *)
+
+(** Classical [Equality]/[Choice] structures on the record carrier
+    (required by the precone partial order, which sits above
+    [choiceType]). *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (B C : MCone.type Ar) :=
+  gen_eqMixin (stablehom B C).
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (B C : MCone.type Ar) :=
+  gen_choiceMixin (stablehom B C).
 
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (B C : MCone.type Ar) :=
@@ -853,10 +865,10 @@ have um_s_eq m :
   have b_ub1 k : cnorm (sh_fun (u m) (v k)) <= (1%:nng : {nonneg R})%:num.
     by rewrite /=; apply: le_trans (ub1 m); exact: sh_norm_ub _ _ (Hvk k).
   have pos1 : (0%R < (1%:nng : {nonneg R})%:num)%R by rewrite /= ltr01.
-  rewrite (Hcont 1%:nng v vch vb1 (b_col_ch m) b_ub1 pos1).
-  rewrite (@cone_sup_at_ball _ _ (fun k => sh_fun (u m) (v k))
-             (b_col_ch m) (fun k => b_ub m k) b_ub1 pos1).
-  by congr cone_sup_ball; exact: Prop_irrelevance.
+  (* [cone_sup_at] and [cone_sup_ball] are the same total operator
+     [cone_sup] with phantom witnesses, so the radius-1 bridge and the
+     change of witnesses are both definitional. *)
+  by rewrite (Hcont 1%:nng v vch vb1 (b_col_ch m) b_ub1 pos1).
 (* [sh_sup_fun s = cone_sup_ball_m (uₘ s) = LHS-iterated sup]. *)
 have LHS_eq : sh_sup_fun s =
     cone_sup_ball
@@ -1469,7 +1481,7 @@ Arguments sh_sup_ball_ub {R Ar B C} u uch ub1 n.
 Arguments sh_sup_ball_lub {R Ar B C} u uch ub1 y.
 Arguments sh_sup_ball_norm {R Ar B C} u uch ub1.
 
-(** ** [isCone] HB instance on [stablehom B C] — Paper §7.2 / Lemma 7.14
+(** ** Cone HB instance on [stablehom B C] — Paper §7.2 / Lemma 7.14
 
     With (Normh)/(Normt)/(Normp)/(Normz) already proved and (Normc)
     discharged via [sh_sup] + [sh_sup_ball_ub] / [sh_sup_ball_lub] /
@@ -1478,12 +1490,27 @@ Arguments sh_sup_ball_norm {R Ar B C} u uch ub1.
 
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (B C : MCone.type Ar) :=
-  @isCone.Build R (stablehom B C)
+  @Cone_ofWitnessSup.Build R (stablehom B C)
     (@sh_norm R Ar B C)
     (@sh_normh R Ar B C) (@sh_normz R Ar B C)
     (@sh_normt R Ar B C) (@sh_normp R Ar B C)
     (@sh_sup R Ar B C) (@sh_sup_ball_ub R Ar B C)
     (@sh_sup_ball_lub R Ar B C) (@sh_sup_ball_norm R Ar B C).
+
+(** The abstract [cone_sup_ball] coincides with the concrete pointwise
+    witness [sh_sup].  Under the historical encoding this link was
+    definitional (the mixin projection reduced to the instance's
+    construction); with the total, spec-based [cone_sup] it is an
+    equation, obtained from lub-uniqueness ([cone_sup_ballE]). *)
+Lemma sh_cone_sup_ballE (R : realType) (Ar : MeasSubcat R)
+    (B C : MCone.type Ar) (u : nat -> stablehom B C)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = sh_sup uch ub1.
+Proof.
+exact: cone_sup_ballE (sh_sup_ball_ub u uch ub1)
+         (sh_sup_ball_lub u uch ub1).
+Qed.
 
 (** Sanity check: [stablehom B C] is a [coneType R] — Paper §7.2. *)
 Section StablehomConeCheck.
@@ -1610,7 +1637,7 @@ have ch : forall n, sh_fun (u n) (path_fun γ s) <=p
 have b1 : forall n, cnorm (sh_fun (u n) (path_fun γ s)) <= 1.
   move=> n.
   apply: le_trans (sh_norm_ub (u n) (path_fun γ s) Hγ) _; exact: ub1.
-rewrite /sh_test_fun /=.
+rewrite /sh_test_fun sh_cone_sup_ballE /=.
 rewrite (sh_sup_fun_unitE uch ub1 Hγ ch b1).
 rewrite (test_of_sup m s ch b1).
 apply: ge_sup.
@@ -1847,9 +1874,10 @@ Local Open Scope precone_scope.
 
 (** Test value of a general-radius supremum equals the supremum of the
     test values along the chain — the [cone_sup_at] analogue of
-    [test_of_sup].  Proof unfolds [cone_sup_at = M *: cone_sup_ball …]
-    and reduces to [test_of_sup] via [test_linZ]; the [≤] direction uses
-    [test_cont] on the rescaled chain. *)
+    [test_of_sup].  Proof identifies [cone_sup_at = M *: cone_sup_ball …]
+    (lub-uniqueness [cone_supE] on [cone_lub_scale]) and reduces to
+    [test_of_sup] via [test_linZ]; the [≤] direction uses [test_cont]
+    on the rescaled chain. *)
 Lemma test_of_sup_at (Z : ar_obj Ar) (m : test_of Ar Z C)
     (s : ar_carrier Ar Z) (M : {nonneg R}) (a : nat -> C)
     (ach : forall n, a n <=p a n.+1)
@@ -1868,13 +1896,22 @@ have v_le_sup n : v n <= sup (range v).
 apply: le_anti; apply/andP; split; last first.
   apply: ge_sup => //.
   by move=> _ [n _ <-]; apply: test_fun_le; exact: cone_sup_at_ub.
-(* [≤] direction: unfold [cone_sup_at = M *: cone_sup_ball …], pull [M]
-   out via [test_linZ], bound the rescaled chain by [M⁻¹ · sup] via
-   [test_cont], then cancel [M · M⁻¹]. *)
-rewrite /cone_sup_at test_linZ.
+(* [≤] direction: rescale into the unit ball, i.e. identify
+   [cone_sup_at ach aubM Mpos = M *: cone_sup_ball b bch bub] with
+   [b n = M⁻¹ ·: a n] (this was definitional under the historical
+   encoding of [cone_sup_at]; it is now an instance of lub-uniqueness,
+   [cone_supE] applied to [cone_lub_scale]); then pull [M] out via
+   [test_linZ], bound the rescaled chain by [M⁻¹ · sup] via
+   [test_cont], and cancel [M · M⁻¹]. *)
 set b : nat -> C := fun n => (Mrec_nng Mpos) *: a n.
 set bch := sup_at_rch ach Mpos.
 set bub := sup_at_rb1 aubM Mpos.
+have -> : cone_sup_at ach aubM Mpos = M *: cone_sup_ball b bch bub.
+  apply: cone_supE.
+  have E n : M *: b n = a n by exact: scale_MrecK.
+  rewrite -(funext E).
+  exact: (cone_lub_scale Mpos (cone_lub_sup (precone_chain_homo bch) bub)).
+rewrite test_linZ.
 have key : test_fun m s (cone_sup_ball b bch bub) <=
            (Mrec_nng Mpos)%:num * sup (range v).
   apply: test_cont => n.
@@ -2497,7 +2534,8 @@ End StablehomIConeCheck.
           of the [sh_alt uₘ y] (forward direction + the [SumSup]
           finite-sum/sup commutation [addl_sum_cone_sup_lub]).
         * [sh_sup_ball_norm] — operator norm [≤ 1].
-    - **[isCone] HB instance — REGISTERED.**  [stablehom B C : coneType
+    - **Cone HB instance ([Cone_ofWitnessSup]) — REGISTERED.**
+      [stablehom B C : coneType
       R]: the stable function cone [B ⇒ₛ C] is a cone (Paper §7.2 /
       Lemmas 7.11, 7.12, 7.14).
 

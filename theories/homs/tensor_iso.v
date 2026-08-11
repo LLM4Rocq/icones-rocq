@@ -161,9 +161,10 @@ Lemma eval_path_continuous : is_omega_continuous eval_path_fun.
 Proof.
 move=> u uch ub1 fuch fub1.
 rewrite /eval_path_fun.
-(* [cone_sup_ball] in [Path] is [path_sup_ball], whose value at [r] is
-   the [E]-[cone_sup_ball] of the pointwise sections. *)
-rewrite -[path_fun (cone_sup_ball u uch ub1) r]/(path_sup_ball_fun uch ub1 r).
+(* The abstract sup in [Path] is [path_sup_ball], whose value at [r] is
+   the [E]-sup of the pointwise sections. *)
+rewrite (path_cone_sup_ballE uch ub1).
+rewrite -[path_fun (path_sup_ball uch ub1) r]/(path_sup_ball_fun uch ub1 r).
 rewrite /path_sup_ball_fun.
 exact: cone_sup_ball_irr.
 Qed.
@@ -409,7 +410,8 @@ move=> u uch ub1 fuch fub1.
 rewrite /eval_at_fun.
 apply: mcone_M_sep => m mM.
 set s := ar_zero_pt Ar.
-rewrite -[linhom_fun (cone_sup_ball u uch ub1) y]/(linhom_sup_fun uch ub1 y).
+rewrite (linhom_cone_sup_ballE uch ub1).
+rewrite -[linhom_fun (linhom_sup_ball u uch ub1) y]/(linhom_sup_fun uch ub1 y).
 rewrite (linhom_sup_fun_test_sup uch ub1 m s y).
 rewrite (eval_at_test_sup_ball fuch fub1 m s).
 by congr (sup _).
@@ -673,6 +675,7 @@ have φcont : is_omega_continuous (linhom_fun φ).
   by rewrite -[linhom_fun φ]/(linhom_pre_fun (linhom_pre_of φ));
      exact: linhom_pre_continuous.
 (* RHS: the [B⊸D]-sup-ball applied at [β s] is the [linhom_sup_fun]. *)
+rewrite (linhom_cone_sup_ballE fuch fub1).
 rewrite (linhom_sup_fun_test_sup (u := [eta swap_inner f r] \o u)
            fuch fub1 mD s (path_fun β s)).
 (* LHS: φ (cone_sup_ball u …) = cone_sup_ball (φ∘u) … by ω-cont of φ. *)
@@ -704,6 +707,7 @@ Qed.
 Lemma lfps_continuous : is_omega_continuous lfps.
 Proof.
 move=> u uch ub1 fuch fub1.
+rewrite (path_cone_sup_ballE fuch fub1).
 apply: path_eq => r /=.
 rewrite /path_sup_ball_fun.
 rewrite (swap_inner_continuous uch ub1
@@ -957,7 +961,7 @@ have t_bound : forall n,
   have := cone_normp _ _ t_le.
   by rewrite cone_normh.
 have LsupE : L%:num = sup [set (c1_val (u n))%:num | n in [set: nat]].
-  exact: c1_sup_ball_E.
+  by rewrite /L c1_cone_sup_ballE; exact: c1_sup_ball_E.
 have t_norm0 : (cone_norm t <= 0)%R.
   apply/unstable.ler_gtP => e e_pos.
   have hs : has_sup [set (c1_val (u n))%:num | n in [set: nat]].
@@ -1170,6 +1174,7 @@ apply: (@linhom_mcone_M_sep _ _ One C) => p [δ [δub [m [mM Hp]]]].
 rewrite Hp /linhom_test /linhom_test_fun /=.
 set s := ar_zero_pt Ar.
 rewrite lin_ptE.
+rewrite (linhom_cone_sup_ballE fuch fub1).
 rewrite (linhom_sup_fun_test_sup (u := [eta lin_pt (C:=C)] \o u)
            fuch fub1 m s (path_fun δ s)).
 rewrite test_linZ.
@@ -1472,6 +1477,7 @@ Qed.
 Lemma etaX_inner_continuous : is_omega_continuous (etaX_path b).
 Proof.
 move=> u uch ub1 fuch fub1.
+rewrite (path_cone_sup_ballE fuch fub1).
 apply: path_eq => r /=.
 rewrite /path_sup_ball_fun.
 have Qcont : is_omega_continuous (linhom_fun (ptX_Q b r)).
@@ -1794,12 +1800,14 @@ have Hub : forall n, cone_norm (linhom_fun φlh (u n)) <= 1.
   rewrite -[X in _ <= X]mulr1; apply: ler_pM;
     [exact: linhom_norm_ge0|exact: cone_norm_ge0|exact: φnorm|exact: ub1].
 rewrite (φcont u uch ub1 Hch Hub).
-rewrite -[linhom_fun (cone_sup_ball (linhom_fun φlh \o u) Hch Hub) (ζ s0)]
+rewrite (linhom_cone_sup_ballE Hch Hub).
+rewrite -[linhom_fun (linhom_sup_ball (linhom_fun φlh \o u) Hch Hub) (ζ s0)]
           /(linhom_sup_fun Hch Hub (ζ s0)).
 rewrite (linhom_sup_fun_test_sup Hch Hub m2 s0 (ζ s0)).
 rewrite -[r0]/(φ s0).
-rewrite -(mPXred (linhom_fun (cone_sup_ball (etaX_inner \o u) fuch fub1) c')).
-rewrite -[linhom_fun (cone_sup_ball (etaX_inner \o u) fuch fub1) c']
+rewrite (linhom_cone_sup_ballE fuch fub1).
+rewrite -(mPXred (linhom_fun (linhom_sup_ball (etaX_inner \o u) fuch fub1) c')).
+rewrite -[linhom_fun (linhom_sup_ball (etaX_inner \o u) fuch fub1) c']
           /(linhom_sup_fun fuch fub1 c').
 rewrite (linhom_sup_fun_test_sup fuch fub1 mPX s0 c').
 congr (sup _); apply: eq_imagel => n _ /=.
@@ -2209,10 +2217,12 @@ have rescE : forall h : Dom,
 rewrite -[X in test_fun mD s0 (linhom_fun X (ptensor b c))]
           /(Psi_map (cone_sup_ball u uch ub1)).
 rewrite (rescE (cone_sup_ball u uch ub1)).
-rewrite -[linhom_fun (cone_sup_ball u uch ub1) b]/(linhom_sup_fun uch ub1 b).
+rewrite (linhom_cone_sup_ballE uch ub1).
+rewrite -[linhom_fun (linhom_sup_ball u uch ub1) b]/(linhom_sup_fun uch ub1 b).
 rewrite (linhom_sup_fun_test_sup uch ub1 mCD s0 b).
 (* RHS: mD(s₀, (sup_n Ψ(u_n))(b⊗c)). *)
-rewrite -[linhom_fun (cone_sup_ball (Psi_map \o u) fuch fub1) (ptensor b c)]
+rewrite (linhom_cone_sup_ballE fuch fub1).
+rewrite -[linhom_fun (linhom_sup_ball (Psi_map \o u) fuch fub1) (ptensor b c)]
           /(linhom_sup_fun fuch fub1 (ptensor b c)).
 rewrite (linhom_sup_fun_test_sup fuch fub1 mD s0 (ptensor b c)).
 (* Both real-sup sets coincide via [rescE] on each [u_n]. *)
@@ -2895,6 +2905,7 @@ set φ := (f : icones_hom _ _ _) (path_fun β s).
 have φcont : is_omega_continuous (linhom_fun φ).
   by rewrite -[linhom_fun φ]/(linhom_pre_fun (linhom_pre_of φ));
      exact: linhom_pre_continuous.
+rewrite (linhom_cone_sup_ballE fuch fub1).
 rewrite (linhom_sup_fun_test_sup (u := sl \o u) fuch fub1 mC s (path_fun β s)).
 have Hch : forall n, precone_le (linhom_fun φ (u n)) (linhom_fun φ (u n.+1)).
   move=> n; have [w Hw] := uch n.

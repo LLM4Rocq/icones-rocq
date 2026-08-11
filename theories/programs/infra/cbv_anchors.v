@@ -54,7 +54,11 @@
     - [eD_app_at_setlike] — the application clause computes there
       (Section [ProgramAnchors], generic over the real object);
     - [linhom_fun_sup_ball] — linhom-cone suprema are POINTWISE (on
-      [cone_sup_ball_irr] of [theories/cones/omega_general.v]),
+      [linhom_cone_sup_ballE] of [theories/homs/linhom.v], which
+      identifies the generic supremum with the concrete
+      [linhom_sup_ball] construction, plus the now-definitional
+      witness-independence [cone_sup_ball_irr] of
+      [theories/cones/omega_general.v]),
 
     plus the per-branch mass bookkeeping [bool_case_mass].  These used
     to live in [theories/programs/ex_reject_headline.v] §1, which
@@ -443,9 +447,17 @@ Qed.
 
 (** Linhom-cone suprema are POINTWISE: evaluating the ball-sup of a
     chain of linear maps at a unit-ball point is the ball-sup of the
-    evaluations (for any witnesses of the evaluated chain).  The
-    proof-irrelevance it rests on is [cone_sup_ball_irr] of
-    [theories/cones/omega_general.v]. *)
+    evaluations (for any witnesses of the evaluated chain).
+
+    Two ingredients.  (i) [linhom_cone_sup_ballE] of
+    [theories/homs/linhom.v] identifies the generic [cone_sup_ball] at
+    [linhom_car] with the concrete construction [linhom_sup_ball] —
+    under the total-operator encoding of (Normc) the mixin's supremum
+    no longer *reduces* to the instance's construction, so this
+    identification lemma replaces what used to be a definitional link.
+    (ii) Independence from the chain/bound witnesses, [cone_sup_ball_irr]
+    of [theories/cones/omega_general.v] — now definitional, since those
+    witnesses are phantom arguments of the wrapper. *)
 Lemma linhom_fun_sup_ball (C D : ICone.type Ar)
     (u : nat -> linhom_car Ar C D)
     (uch : forall n, precone_le (u n) (u n.+1))
@@ -457,7 +469,7 @@ Lemma linhom_fun_sup_ball (C D : ICone.type Ar)
   linhom_fun (cone_sup_ball u uch ub1) x =
   cone_sup_ball (fun n => linhom_fun (u n) x) pwch pwub.
 Proof.
-have -> : cone_sup_ball u uch ub1 = linhom_sup_ball u uch ub1 by [].
+rewrite (linhom_cone_sup_ballE uch ub1).
 have -> : linhom_fun (linhom_sup_ball u uch ub1) x
           = linhom_sup_fun uch ub1 x by [].
 rewrite (linhom_sup_fun_unitE uch ub1 Hx) (linhom_sup_unitE uch ub1 Hx).

@@ -352,6 +352,15 @@ Qed.
 
 End FMeasPrecone.
 
+(** Classical [Equality]/[Choice] structures on [fmeas R X] (required
+    by the precone partial order). *)
+HB.instance Definition _ (R : realType) (d : measure_display)
+    (X : measurableType d) :=
+  gen_eqMixin (fmeas R X).
+HB.instance Definition _ (R : realType) (d : measure_display)
+    (X : measurableType d) :=
+  gen_choiceMixin (fmeas R X).
+
 (** Register the precone instance on [fmeas R X]. *)
 HB.instance Definition _ (R : realType) (d : measure_display)
     (X : measurableType d) :=
@@ -1044,7 +1053,7 @@ Qed.
 
 HB.instance Definition _ (R : realType) (disp : measure_display)
     (X : measurableType disp) :=
-  @isCone.Build R (fmeas R X)
+  @Cone_ofWitnessSup.Build R (fmeas R X)
     (@fmeas_norm R disp X)
     (@fmeas_normh R disp X) (@fmeas_normz R disp X)
     (@fmeas_normt R disp X) (@fmeas_normp R disp X)
@@ -1052,6 +1061,20 @@ HB.instance Definition _ (R : realType) (disp : measure_display)
     (@fmeas_sup_ball_ub R disp X)
     (@fmeas_sup_ball_lub R disp X)
     (@fmeas_sup_ball_norm R disp X).
+
+(** The abstract [cone_sup_ball] coincides with the concrete
+    [fmeas_sup_ball] witness (the definitional link of the historical
+    encoding, restored as an equation via lub-uniqueness). *)
+Lemma fmeas_cone_sup_ballE (R : realType) (disp : measure_display)
+    (X : measurableType disp)
+    (u : nat -> fmeas R X)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = fmeas_sup_ball uch ub1.
+Proof.
+exact: cone_sup_ballE (fmeas_sup_ball_ub uch ub1)
+         (fmeas_sup_ball_lub uch ub1).
+Qed.
 
 (** ** The measurable-cone structure on [fmeas R X] — Paper §3.2.1
 
@@ -1131,7 +1154,7 @@ Lemma eU_cont
   (eU_fun s (cone_sup_ball u uch ub1) <= N)%R.
 Proof.
 move=> HN.
-rewrite /eU_fun /=.
+rewrite /eU_fun /= fmeas_cone_sup_ballE.
 rewrite (fmeas_sup_ballE _ ub1 mU).
 have cvg_eU := @fmeas_sup_cvg R disp X u uch _ mU.
 have Hsfin : fmeas_sup_meas_fun uch U \is a fin_num
@@ -1399,6 +1422,7 @@ have lim_pre :
   limn (fun n => fmeas_mu (u n) (φ @^-1` U)) =
   fmeas_sup_meas_fun uch (φ @^-1` U).
   exact: cvg_lim cvg_pre.
+rewrite !fmeas_cone_sup_ballE.
 rewrite (fmeas_sup_ballE _ ub1 mφU) -lim_pre.
 (* The RHS: cone_sup_ball (fmeas_push_fun \o u) ... U =
    fmeas_sup_meas_fun on the pushforward chain U *)
@@ -1479,8 +1503,8 @@ End FMeasPushFunctor.
     norm-bounded by [1]) and a measurable [U], the mass of the Kleene
     supremum at [U] is the limit of the per-iterate masses at [U].
 
-    [cone_sup_ball] at [fmeas R X] is definitionally [fmeas_sup_ball]
-    (the [isCone] instance above), so the bridge is [fmeas_sup_ballE]
+    [cone_sup_ball] at [fmeas R X] coincides with [fmeas_sup_ball]
+    (by [fmeas_cone_sup_ballE]), so the bridge is [fmeas_sup_ballE]
     + [fmeas_sup_cvg] + [cvg_unique]. *)
 
 Section FMeasKleeneSup.
@@ -1495,7 +1519,7 @@ Hypothesis nub1 : forall n, (cone_norm (nu n) <= 1)%R.
 Local Open Scope ereal_scope.
 
 (** Per-set mass convergence: [fmeas_mu (ν n) U] converges to the mass
-    of the ball-sup at [U]. The first step is definitional —
+    of the ball-sup at [U]. The first step is [fmeas_cone_sup_ballE] —
     [cone_sup_ball] at [fmeas R X] *is* [fmeas_sup_ball]. *)
 Lemma fmeas_kleene_sup_U_cvg (U : set X) :
   measurable U ->
@@ -1504,7 +1528,7 @@ Lemma fmeas_kleene_sup_U_cvg (U : set X) :
 Proof.
 move=> mU.
 have HE : (cone_sup_ball nu nuch nub1 : fmeas R X)
-          = fmeas_sup_ball nuch nub1 by [].
+          = fmeas_sup_ball nuch nub1 := fmeas_cone_sup_ballE nuch nub1.
 rewrite HE (fmeas_sup_ballE _ nub1 mU).
 exact: fmeas_sup_cvg.
 Qed.

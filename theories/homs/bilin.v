@@ -485,6 +485,9 @@ have core :
   by rewrite -rhs_eq -key lhs_swap lhs_scaler.
 have multiply_s : forall x : B, precone_scale s (precone_scale sinv x) = x.
   by move=> x; rewrite -precone_scale_A s_sinv_nng precone_scale_1.
+(* Identify the abstract sup of the measure chain with the concrete
+   [fmeas_sup_ball] witness used by [core] / [key] / [rhs_eq]. *)
+rewrite fmeas_cone_sup_ballE.
 by rewrite -[LHS]multiply_s core multiply_s.
 Qed.
 
@@ -1298,9 +1301,7 @@ Lemma int_to_linhom_is_omega_continuous :
   is_omega_continuous (int_to_linhom : P -> L).
 Proof.
 move=> u uch ub1 fuch fub1.
-rewrite [cone_sup_ball u uch ub1]/(path_sup_ball uch ub1).
-rewrite [cone_sup_ball (int_to_linhom \o u) fuch fub1]
-  /(linhom_sup_ball (fun n => int_to_linhom (u n)) fuch fub1).
+rewrite (path_cone_sup_ballE uch ub1) (linhom_cone_sup_ballE fuch fub1).
 apply: linhom_eq => µ; rewrite /linhom_fun.
 pose s_num : R := fmeas_norm µ + 1.
 have s_pos : 0 < s_num.
@@ -1394,9 +1395,7 @@ Lemma linhom_to_int_is_omega_continuous :
   is_omega_continuous (linhom_to_int : L -> P).
 Proof.
 move=> u uch ub1 fuch fub1.
-rewrite [cone_sup_ball u uch ub1]/(linhom_sup_ball u uch ub1).
-rewrite [cone_sup_ball (linhom_to_int \o u) fuch fub1]
-  /(path_sup_ball fuch fub1).
+rewrite (linhom_cone_sup_ballE uch ub1) (path_cone_sup_ballE fuch fub1).
 apply: path_eq => r.
 have Hd : cone_norm (dirac_fmeas r) <= 1 by rewrite dirac_fmeas_norm.
 rewrite linhom_to_int_E /linhom_fun /= (linhom_sup_fun_unitE uch ub1 Hd).

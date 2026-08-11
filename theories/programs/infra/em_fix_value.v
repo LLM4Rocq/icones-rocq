@@ -314,16 +314,21 @@ have fuch n : precone_le ((f \o kleene_from) n) ((f \o kleene_from) n.+1).
 have fub1 n : cone_norm ((f \o kleene_from) n) <= 1.
   by rewrite /comp; apply: f_ball; exact: kleene_from_ball.
 rewrite (@f_cont kleene_from kleene_from_chain kleene_from_ball fuch fub1).
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  rewrite -[(f \o kleene_from) n]/(f (kleene_from n)) -kleene_from_S.
-  exact: (cone_sup_ball_ub kleene_from kleene_from_chain
-            kleene_from_ball n.+1).
-- apply: cone_sup_ball_lub => n.
-  apply: (precone_le_trans (y := (f \o kleene_from) n)).
-    by rewrite -[(f \o kleene_from) n]/(f (kleene_from n)) -kleene_from_S;
-      exact: kleene_from_chain.
-  exact: cone_sup_ball_ub.
+(* The image chain is the SHIFT [n ↦ kleene_from n.+1] of the seeded
+   chain.  Since a supremum depends on the chain alone (the wrappers'
+   witnesses are phantom), it suffices to characterise [cone_sup
+   kleene_from] as the least upper bound of the shift, via [cone_supE]
+   against the primary laws [cone_sup_ub] / [cone_sup_le_ub] — no
+   antisymmetry chase between two [cone_sup_ball] terms. *)
+rewrite !cone_sup_ball_supE; apply: cone_supE; split=> [n|y uby].
+- rewrite /comp -kleene_from_S.
+  exact: (cone_sup_ub (precone_chain_homo kleene_from_chain)
+            kleene_from_ball).
+- apply: (cone_sup_le_ub (precone_chain_homo kleene_from_chain)
+            kleene_from_ball) => n.
+  apply: le_trans (uby n).
+  by rewrite /comp -kleene_from_S; apply/precone_leP;
+    exact: kleene_from_chain.
 Qed.
 
 End SeededKleene.
@@ -567,15 +572,11 @@ rewrite -[sh_fun (cone_sup_ball u uch ub1) f]
         /(sh_eval_at_fun f (cone_sup_ball u uch ub1)).
 rewrite ((@sh_eval_at_continuous R Ar (stablehom A A) A f)
            u uch ub1 fuch fub1).
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  rewrite -[(sh_eval_at_fun f \o u) n]/(sh_fun (u n) f).
-  rewrite (Zcomb_kleene_at Hf n).
-  exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n.
-  rewrite -(Zcomb_kleene_at Hf n).
-  rewrite -[sh_fun (u n) f]/((sh_eval_at_fun f \o u) n).
-  exact: cone_sup_ball_ub.
+(* Both sides are [cone_sup] of the SAME chain (the witnesses are
+   phantom), so pointwise equality of the chains suffices. *)
+rewrite !cone_sup_ball_supE; apply: eq_cone_sup => n.
+by rewrite -[(sh_eval_at_fun f \o u) n]/(sh_fun (u n) f)
+           (Zcomb_kleene_at Hf n).
 Qed.
 
 (** *** §3.4 — The value map [fix_value : (!A ⊸ !A) → A] in [SCones] *)
@@ -601,11 +602,7 @@ have HE n : yfix_chain f n = fix_chain F n.
   elim: n => [|n IH] //.
   rewrite /yfix_chain iterS -/(yfix_chain f n) IH fix_chain_S.
   by rewrite /f (fix_body_E HF (fix_chain_ball HF n)).
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  rewrite HE; exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n.
-  rewrite -(HE n); exact: cone_sup_ball_ub.
+by rewrite !cone_sup_ball_supE; apply: eq_cone_sup.
 Qed.
 
 (** The fixpoint equation of the value map (from [Yfix_fix]). *)
@@ -832,18 +829,14 @@ move: (Hsc); rewrite /is_scott_continuous_unit => Hc.
 rewrite -promE.
 rewrite (Hc 1%:nng (fix_chain F) (fix_chain_chain HF) (fix_chain_ball HF)
             pch pb1 ltr01).
-rewrite (cone_sup_at_ball pch pb1 pb1 ltr01).
-(* Identify the promoted interleaved chain with the literal chain. *)
-apply: precone_le_anti.
-- apply: cone_sup_ball_lub => n.
-  rewrite promE -(fix_iter_promE n).
-  rewrite -[iter n (linhom_fun F) _]
-          /(kleene_from (linhom_fun F) (prom (precone_zero : A)) n).
-  exact: cone_sup_ball_ub.
-- apply: cone_sup_ball_lub => n.
-  rewrite -[kleene_from _ _ n]/(iter n (linhom_fun F) (prom precone_zero)).
-  rewrite (fix_iter_promE n) -promE.
-  exact: cone_sup_ball_ub.
+(* [cone_sup_at] at radius 1 IS [cone_sup_ball] — both are phantom
+   wrappers around the total [cone_sup] — so only the pointwise
+   identification of the promoted interleaved chain with the literal
+   chain remains. *)
+rewrite /cone_sup_at !cone_sup_ball_supE; apply: eq_cone_sup => n.
+rewrite /comp promE -(fix_iter_promE n).
+by rewrite -[iter n (linhom_fun F) _]
+           /(kleene_from (linhom_fun F) (prom (precone_zero : A)) n).
 Qed.
 
 (** The !A-level unfolding for coalgebraic bodies:

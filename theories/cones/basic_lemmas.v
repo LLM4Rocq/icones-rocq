@@ -39,6 +39,18 @@
       need: we cannot conclude [f] is ω-continuous as a unit-ball
       endomap, only as a partial commutation with [cone_sup_ball] *when
       the image chain is also in the unit ball*.
+    - [is_omega_continuous] still *states* the commutation with the
+      historical [cone_sup_ball], whose chain/bound arguments are now
+      phantom (it wraps the total operator [cone_sup] of [cone.v]).
+      That changes how the proofs here are written: two suprema of
+      pointwise-equal chains are identified by [eq_cone_sup], and a
+      supremum is pinned to a concrete least upper bound by
+      [cone_supE] / [cone_sup_ballE], where the pre-rework proofs had
+      to run an antisymmetry argument to absorb differing chain
+      witnesses.  The [Prop]-order witness arguments ([precone_le],
+      [cid]-extracted summands) are untouched — see
+      [precone_sup_addr] and [sup_ball_scaler], which are about the
+      order, not about the supremum operator's arguments.
 *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -176,14 +188,11 @@ have Hfx : f x = cone_sup_ball (f \o (fun n => invf (u n))) fch fub.
   rewrite /x.
   move: Hcont; rewrite /is_omega_continuous => Hcont'.
   exact: Hcont'.
-(* The sequence [f \o invf \o u] coincides pointwise with [u]. *)
+(* The sequence [f \o invf \o u] coincides pointwise with [u], so the
+   two suprema are equal by [eq_cone_sup] — no antisymmetry needed,
+   since the supremum depends on the chain alone. *)
 have Hfx_eq_y : f x = y.
-  apply: precone_le_anti.
-  - rewrite Hfx; apply: cone_sup_ball_lub => n.
-    rewrite /= invfK; exact: cone_sup_ball_ub.
-  - rewrite Hfx; apply: cone_sup_ball_lub => n.
-    have ->: u n = (f \o (fun n => invf (u n))) n by rewrite /= invfK.
-    exact: cone_sup_ball_ub.
+  by rewrite Hfx; apply: eq_cone_sup => n /=; exact: invfK.
 by apply: Hinj; rewrite Hfx_eq_y invfK.
 Qed.
 
@@ -328,17 +337,12 @@ have fuch' : forall n,
   by move=> n; rewrite -!(precone_addC x); exact: fuch.
 have fub1' : forall n, cone_norm (precone_add (u n) x) <= 1.
   by move=> n; rewrite precone_addC; exact: fub1.
-(* LHS is sup_ball (fun n => x + u n) fuch fub1.
-   First swap the chain to sup_ball (fun n => u n + x) fuch' fub1'. *)
+(* LHS is sup_ball (fun n => x + u n) fuch fub1.  Swap the chain to
+   sup_ball (fun n => u n + x) fuch' fub1': the two chains agree
+   pointwise by commutativity, so [eq_cone_sup] applies. *)
 have swap_eq : cone_sup_ball (fun n => precone_add x (u n)) fuch fub1 =
                cone_sup_ball (fun n => precone_add (u n) x) fuch' fub1'.
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => n /=.
-    have -> : precone_add x (u n) = precone_add (u n) x by rewrite precone_addC.
-    exact: cone_sup_ball_ub.
-  - apply: cone_sup_ball_lub => n /=.
-    have -> : precone_add (u n) x = precone_add x (u n) by rewrite precone_addC.
-    exact: cone_sup_ball_ub.
+  by apply: eq_cone_sup => n /=; exact: precone_addC.
 rewrite swap_eq.
 rewrite (@sup_ball_addr u uch ub1 x fuch' fub1').
 by rewrite precone_addC.

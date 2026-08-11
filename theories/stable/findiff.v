@@ -1751,8 +1751,10 @@ Arguments SD_723_1 {R B C} f Hf u v u0 xb.
     cone at the origin of coherent differentiation (Remark 7.24): not the
     coproduct, nor the product, but [1 & ⋯ & 1 ⊸ B].
 
-    We deliver the full [coneType]: the [isPrecone] mixin (pointwise, by
-    the [funext] componentwise reductions) and the [isCone] mixin.  The
+    We deliver the full [coneType]: the [isPrecone] factory (pointwise,
+    by the [funext] componentwise reductions — the function carrier gets
+    its [Equality]/[Choice] structures classically, as the precone
+    partial order requires) and the [Cone_ofWitnessSup] factory.  The
     five norm axioms reduce, through the total-sum homomorphism
     [snb_sum (g) = Σ_i g i] (which commutes with [+], [·:], and is
     monotone), to the [B]-norm axioms; (Normc) bundles the componentwise
@@ -1838,6 +1840,12 @@ move=> H; split; apply/funext => i;
 - by case: (precone_pos _ _ H').
 - by case: (precone_pos _ _ H').
 Qed.
+
+(** Classical [Equality]/[Choice] structures on the function carrier
+    (required by the precone partial order, which sits above
+    [choiceType]). *)
+HB.instance Definition _ := gen_eqMixin snb_car.
+HB.instance Definition _ := gen_choiceMixin snb_car.
 
 HB.instance Definition _ := @isPrecone.Build R snb_car
   snb_zero snb_add snb_scale
@@ -1990,7 +1998,7 @@ Qed.
 
 End Sup.
 
-HB.instance Definition _ := @isCone.Build R Sn
+HB.instance Definition _ := @Cone_ofWitnessSup.Build R Sn
   (@snb_norm R B n) (@snb_normh R B n) (@snb_normz R B n)
   (@snb_normt R B n) (@snb_normp R B n)
   snb_supf snb_supf_ub snb_supf_lub snb_supf_norm.

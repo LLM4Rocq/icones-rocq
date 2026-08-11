@@ -422,6 +422,15 @@ Qed.
 
 End AlphaRescalePrecone.
 
+(** Classical [Equality]/[Choice] structures on the carrier (required
+    by the precone partial order). *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (α : pos_real R) (B : MCone.type Ar) :=
+  gen_eqMixin (alpha_rescale_car α B).
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (α : pos_real R) (B : MCone.type Ar) :=
+  gen_choiceMixin (alpha_rescale_car α B).
+
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (α : pos_real R) (B : MCone.type Ar) :=
   @isPrecone.Build R (alpha_rescale_car α B)
@@ -613,7 +622,7 @@ End AlphaRescaleCone.
 
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (α : pos_real R) (B : MCone.type Ar) :=
-  @isCone.Build R (alpha_rescale_car α B)
+  @Cone_ofWitnessSup.Build R (alpha_rescale_car α B)
     (@αB_norm R Ar α B)
     (@αB_normh R Ar α B)
     (@αB_normz R Ar α B)
@@ -623,6 +632,19 @@ HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (@αB_sup_ball_ub R Ar α B)
     (@αB_sup_ball_lub R Ar α B)
     (@αB_sup_ball_norm R Ar α B).
+
+(** The abstract [cone_sup_ball] coincides with the concrete rescaled
+    witness [αB_sup_ball] (the definitional link of the historical
+    encoding, restored as an equation via lub-uniqueness). *)
+Lemma αB_cone_sup_ballE (R : realType) (Ar : MeasSubcat R)
+    (α : pos_real R) (B : MCone.type Ar)
+    (u : nat -> alpha_rescale_car α B)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = αB_sup_ball uch ub1.
+Proof.
+exact: cone_sup_ballE (αB_sup_ball_ub uch ub1) (αB_sup_ball_lub uch ub1).
+Qed.
 
 (** *** Test family of [αB] — Paper Definition 3.15 *)
 
@@ -700,13 +722,14 @@ Lemma αB_test_cont
   αB_test_fun s (cone_sup_ball u uch ub1) <= N.
 Proof.
 move=> HN.
-(* The αB sup-ball, in its [αB_sup_ball_def] form, has val
-   [α_nng α *: s'] where [s' = cone_sup_ball u' …] for the
-   rescaled chain [u' n = α_inv_nng α *: val (u n)] in B.
-   [αB_test_fun s (cone_sup_ball u uch ub1) =
-    α^-1 * m s (α *: s') = m s s'], and [test_cont] of [m] on
-   [u'] in B gives the bound. *)
-rewrite /αB_test_fun /cone_sup_ball /=
+(* Identify the abstract sup with the concrete witness [αB_sup_ball]:
+   in its [αB_sup_ball_def] form, it has val [α_nng α *: s'] where
+   [s' = cone_sup_ball u' …] for the rescaled chain
+   [u' n = α_inv_nng α *: val (u n)] in B.
+   [αB_test_fun s (…) = α^-1 * m s (α *: s') = m s s'], and
+   [test_cont] of [m] on [u'] in B gives the bound. *)
+rewrite αB_cone_sup_ballE.
+rewrite /αB_test_fun
         /αB_sup_ball /αB_sup_ball_def /= test_linZ /= mulrA.
 have ->: (α : R)^-1 * (α : R) = 1.
   by rewrite mulVf //; exact: α_neq0.

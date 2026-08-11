@@ -421,7 +421,7 @@ have t_bound : forall n,
   rewrite -[cone_norm (linhom_scale dn psi)]/(linhom_norm (linhom_scale dn psi)).
   by rewrite linhom_normh.
 have LsupE : L%:num = sup [set (c1_val (u n))%:num | n in [set: nat]].
-  exact: c1_sup_ball_E.
+  by rewrite /L c1_cone_sup_ballE; exact: c1_sup_ball_E.
 have t_norm0 : (cone_norm t <= 0)%R.
   apply/unstable.ler_gtP => e e_pos.
   have hs : has_sup [set (c1_val (u n))%:num | n in [set: nat]].
@@ -1162,14 +1162,16 @@ have RHSe : test_fun m s
   by rewrite /linhom_test /linhom_test_fun.
 rewrite RHSe.
 have RHS_b : linhom_fun (cone_sup_ball (Phi_map \o u) fuch fub1) (path_fun β s) =
-    linhom_sup_fun fuch fub1 (path_fun β s) by [].
+    linhom_sup_fun fuch fub1 (path_fun β s).
+  by rewrite (linhom_cone_sup_ballE fuch fub1).
 rewrite RHS_b.
 rewrite (linhom_sup_fun_test_sup fuch fub1 (linhom_test γ γub m mM) s
            (path_fun β s)).
 (* LHS via [linhom_sup_fun_test_sup] on the domain. *)
 have LHS_z : linhom_fun (cone_sup_ball u uch ub1)
     (ptensor (path_fun β s) (path_fun γ s)) =
-    linhom_sup_fun uch ub1 (ptensor (path_fun β s) (path_fun γ s)) by [].
+    linhom_sup_fun uch ub1 (ptensor (path_fun β s) (path_fun γ s)).
+  by rewrite (linhom_cone_sup_ballE uch ub1).
 rewrite LHS_z.
 rewrite (linhom_sup_fun_test_sup uch ub1 m s
            (ptensor (path_fun β s) (path_fun γ s))).

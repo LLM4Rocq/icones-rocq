@@ -933,6 +933,15 @@ End LinhomPrecone.
 
 (** ** Precone HB instance — Paper §5.1 *)
 
+(** Classical [Equality]/[Choice] structures on the carrier (required
+    by the precone partial order). *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (C D : ICone.type Ar) :=
+  gen_eqMixin (linhom_car Ar C D).
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
+    (C D : ICone.type Ar) :=
+  gen_choiceMixin (linhom_car Ar C D).
+
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (C D : ICone.type Ar) :=
   @isPrecone.Build R (linhom_car Ar C D)
@@ -1598,7 +1607,10 @@ have linD_fn : forall n,
   case: (linhom_pre_linear (linhom_pre_of (u n))) => _ HD _.
   rewrite precone_scale_DAr.
   exact: HD.
-(* Set up the chains needed by cone_sup_ball_addD. *)
+(* Migrate to the total-operator interface: the ball sups are
+   [cone_sup]s (witnesses phantom), the diagonal identity is
+   [cone_supD] — no sum-chain side conditions, no proof-irrelevance
+   bookkeeping. *)
 pose a (n : nat) : D := linhom_fun (u n) (precone_scale (nng_inv s) x).
 pose b (n : nat) : D := linhom_fun (u n) (precone_scale (nng_inv s) y).
 have a_chain : forall n, precone_le (a n) (a n.+1).
@@ -1609,51 +1621,10 @@ have a_ub : forall n, cone_norm (a n) <= 1.
   by move=> n; exact: linhom_sup_pw_ub1.
 have b_ub : forall n, cone_norm (b n) <= 1.
   by move=> n; exact: linhom_sup_pw_ub1.
-have ab_chain : forall n,
-    precone_le (precone_add (a n) (b n)) (precone_add (a n.+1) (b n.+1)).
-  move=> n.
-  rewrite -(linD_fn n) -(linD_fn n.+1).
-  exact: linhom_sup_pw_chain.
-have ab_ub : forall n, cone_norm (precone_add (a n) (b n)) <= 1.
-  move=> n; rewrite -(linD_fn n).
-  exact: linhom_sup_pw_ub1.
-(* The key: cone_sup_ball_addD. *)
-have addD := @cone_sup_ball_addD R D a b
-                a_chain a_ub b_chain b_ub ab_chain ab_ub.
-(* Now relate the linhom_sup_unit's to the cone_sup_balls. *)
-(* lsu(s⁻¹(x+y)) = cone_sup_ball (a + b) = (by linD_fn) cone_sup_ball (f_n(s⁻¹(x+y))). *)
-have csb_xy :
-  cone_sup_ball (fun n => linhom_fun (u n)
-                            (precone_scale (nng_inv s) (precone_add x y)))
-                [eta linhom_sup_pw_chain _]
-                (linhom_sup_pw_ub1 Hsxy) =
-  cone_sup_ball (fun n => precone_add (a n) (b n)) ab_chain ab_ub.
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => n.
-    rewrite /= linD_fn.
-    exact: cone_sup_ball_ub.
-  - apply: cone_sup_ball_lub => n.
-    rewrite /= -linD_fn.
-    exact: cone_sup_ball_ub.
-have csb_x :
-  cone_sup_ball (fun n => linhom_fun (u n) (precone_scale (nng_inv s) x))
-                [eta linhom_sup_pw_chain _]
-                (linhom_sup_pw_ub1 Hsx) =
-  cone_sup_ball a a_chain a_ub.
-  have e1 : [eta linhom_sup_pw_chain (precone_scale (nng_inv s) x)] = a_chain
-    by exact: Prop_irrelevance.
-  have e2 : linhom_sup_pw_ub1 Hsx = a_ub by exact: Prop_irrelevance.
-  by rewrite e1 e2.
-have csb_y :
-  cone_sup_ball (fun n => linhom_fun (u n) (precone_scale (nng_inv s) y))
-                [eta linhom_sup_pw_chain _]
-                (linhom_sup_pw_ub1 Hsy) =
-  cone_sup_ball b b_chain b_ub.
-  have e1 : [eta linhom_sup_pw_chain (precone_scale (nng_inv s) y)] = b_chain
-    by exact: Prop_irrelevance.
-  have e2 : linhom_sup_pw_ub1 Hsy = b_ub by exact: Prop_irrelevance.
-  by rewrite e1 e2.
-by rewrite csb_xy csb_x csb_y addD.
+rewrite !cone_sup_ball_supE.
+rewrite (eq_cone_sup (v := fun n => precone_add (a n) (b n)) linD_fn).
+exact: cone_supD (precone_chain_homo a_chain) a_ub
+         (precone_chain_homo b_chain) b_ub.
 Qed.
 
 (** Norm bound: [cnorm (linhom_sup_fun x) ≤ cnorm x] (operator-norm
@@ -3084,7 +3055,7 @@ Arguments linhom_sup_ball_lub {R Ar C D} u uch ub1 y.
 
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (C D : ICone.type Ar) :=
-  @isCone.Build R (linhom_car Ar C D)
+  @Cone_ofWitnessSup.Build R (linhom_car Ar C D)
     (@linhom_norm R Ar C D)
     (@linhom_normh R Ar C D) (@linhom_normz R Ar C D)
     (@linhom_normt R Ar C D) (@linhom_normp R Ar C D)
@@ -3092,6 +3063,19 @@ HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
     (@linhom_sup_ball_ub R Ar C D)
     (@linhom_sup_ball_lub R Ar C D)
     (@linhom_sup_ball_norm R Ar C D).
+
+(** The abstract [cone_sup_ball] coincides with the concrete pointwise
+    witness [linhom_sup_ball] (the definitional link of the historical
+    encoding, restored as an equation via lub-uniqueness). *)
+Lemma linhom_cone_sup_ballE (R : realType) (Ar : MeasSubcat R)
+    (C D : ICone.type Ar) (u : nat -> linhom_car Ar C D)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = linhom_sup_ball u uch ub1.
+Proof.
+exact: cone_sup_ballE (linhom_sup_ball_ub u uch ub1)
+         (linhom_sup_ball_lub u uch ub1).
+Qed.
 
 (** ** Sanity check: [linhom_car Ar C D] is a [coneType R] *)
 
@@ -3282,7 +3266,7 @@ Lemma linhom_test_cont
   linhom_test_fun s (cone_sup_ball u uch ub1) <= N.
 Proof.
 move=> HN.
-rewrite /linhom_test_fun /=.
+rewrite /linhom_test_fun (linhom_cone_sup_ballE uch ub1) /=.
 rewrite (linhom_sup_fun_test_sup uch ub1 m s (path_fun γ s)).
 apply: ge_sup.
   by exists (test_fun m s (linhom_fun (u 0%N) (path_fun γ s))), 0%N.

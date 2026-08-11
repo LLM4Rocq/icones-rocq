@@ -126,11 +126,12 @@ Proof. by rewrite -!ders_comp icones_eq_incl_equ. Qed.
 Lemma der_incl_omega :
   is_omega_continuous (fun x : E => cones_eq_val x).
 Proof.
+(* The equaliser sup is computed through [cones_eq_val]: identify the
+   abstract sup with the concrete witness [cones_eq_sup_ball], whose
+   underlying value *is* the [D1]-sup of the chain.  (This used to be
+   definitional, and needed a two-sided antisymmetry argument.) *)
 move=> v vch vb1 fvch fvb1.
-apply: precone_le_anti.
-- by apply: cone_sup_ball_lub => n; exact: (cone_sup_ball_ub _ fvch fvb1 n).
-- apply: cone_sup_ball_lub => n; apply: cones_eq_le_underlying.
-  exact: (cone_sup_ball_ub v vch vb1 n).
+by rewrite (cones_eq_cone_sup_ballE vch vb1).
 Qed.
 
 Lemma der_incl_linear : is_linear (fun x : E => cones_eq_val x).

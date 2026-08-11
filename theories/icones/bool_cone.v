@@ -218,6 +218,13 @@ Qed.
 
 End BoolConePrecone.
 
+(** Classical [Equality]/[Choice] structures on the carrier (required
+    by the precone partial order). *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
+  gen_eqMixin (bool_cone_car Ar).
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
+  gen_choiceMixin (bool_cone_car Ar).
+
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
   @isPrecone.Build R (bool_cone_car Ar)
     (@bc_zero R Ar) (@bc_add R Ar) (@bc_scale R Ar)
@@ -460,11 +467,23 @@ Qed.
 End BoolConeCone.
 
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
-  @isCone.Build R (bool_cone_car Ar)
+  @Cone_ofWitnessSup.Build R (bool_cone_car Ar)
     (@bc_norm R Ar)
     (@bc_normh R Ar) (@bc_normz R Ar) (@bc_normt R Ar) (@bc_normp R Ar)
     (@bc_sup_ball R Ar)
     (@bc_sup_ball_ub R Ar) (@bc_sup_ball_lub R Ar) (@bc_sup_ball_norm R Ar).
+
+(** The abstract [cone_sup_ball] coincides with the concrete
+    componentwise witness [bc_sup_ball] (the definitional link of the
+    historical encoding, restored as an equation via lub-uniqueness). *)
+Lemma bc_cone_sup_ballE (R : realType) (Ar : MeasSubcat R)
+    (u : nat -> bool_cone_car Ar)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = bc_sup_ball uch ub1.
+Proof.
+exact: cone_sup_ballE (bc_sup_ball_ub uch ub1) (bc_sup_ball_lub uch ub1).
+Qed.
 
 (** ** Stage 3 — the [isMCone] instance
 
@@ -569,7 +588,7 @@ Lemma bool_test_cont (Y : ar_obj Ar) (o : option bool)
   (forall n, @bool_test_fun Y o r (u n) <= N) ->
   @bool_test_fun Y o r (cone_sup_ball u uch ub1) <= N.
 Proof.
-rewrite /bool_test_fun /bc_test_val /cone_sup_ball/=.
+rewrite /bool_test_fun /bc_test_val bc_cone_sup_ballE/=.
 case: o => [[]|] HN.
 - (* Some true: sup of bc_t. *)
   apply: ge_sup.
@@ -1343,7 +1362,8 @@ have Sc_eq : Sc = [set (bc_t (u n))%:num * alpha
   apply: propext; split=> [[n _ <-]|[n _ <-]].
   - by exists n => //; rewrite testNth.
   - by exists n => //; rewrite testNth.
-rewrite testLHS test_rhs_eq Sc_eq.
+rewrite testLHS !bc_cone_sup_ballE bc_sup_ball_tE bc_sup_ball_fE.
+rewrite test_rhs_eq Sc_eq.
 by apply: bool_case_sup_distrib => //; apply: nngnum_ge0.
 Qed.
 

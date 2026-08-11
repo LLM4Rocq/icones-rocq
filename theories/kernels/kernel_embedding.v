@@ -130,7 +130,7 @@ apply: le_trans Hub _.
 have -> : cone_norm µ = 1 * cone_norm µ by rewrite mul1r.
 apply: ler_pM.
 - exact: path_norm_ge0.
-- exact: cone_norm_ge0.
+- exact: fmeas_norm_ge0.
 - exact: skern_norm_le1.
 - exact: lexx.
 Qed.

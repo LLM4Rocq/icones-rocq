@@ -496,7 +496,10 @@ Lemma ev_bounded :
 Proof. by exists 1 => φ Hφ; exact: ev_image_ball. Qed.
 
 (** The unit-ball supremum of a chain of product points projects
-    componentwise (definitionally, the [cones_prod_sup_ball]). *)
+    componentwise.  This was definitional under the historical
+    encoding (the mixin projection reduced to [cones_prod_sup_ball]);
+    it is now one rewrite with the product cone's identification lemma
+    [cones_prod_cone_sup_ballE]. *)
 Lemma sprod_fst_sup (u : nat -> SP)
     (uch : forall n, precone_le (u n) (u n.+1))
     (ub1 : forall n, cone_norm (u n) <= 1) :
@@ -504,7 +507,7 @@ Lemma sprod_fst_sup (u : nat -> SP)
   cone_sup_ball (fun n => sprod_fst (u n))
     (cones_prod_sup_ball_chain_comp uch true)
     (cones_prod_sup_ball_ub1_comp ub1 true).
-Proof. by []. Qed.
+Proof. by rewrite (cones_prod_cone_sup_ballE uch ub1). Qed.
 
 Lemma sprod_snd_sup (u : nat -> SP)
     (uch : forall n, precone_le (u n) (u n.+1))
@@ -513,7 +516,7 @@ Lemma sprod_snd_sup (u : nat -> SP)
   cone_sup_ball (fun n => sprod_snd (u n))
     (cones_prod_sup_ball_chain_comp uch false)
     (cones_prod_sup_ball_ub1_comp ub1 false).
-Proof. by []. Qed.
+Proof. by rewrite (cones_prod_cone_sup_ballE uch ub1). Qed.
 
 (** Evaluation is increasing on the unit ball (from total monotonicity). *)
 Lemma ev_incr (φ ψ : SP) :
@@ -548,10 +551,15 @@ have YE : Y = cone_sup_ball x xch xb1.
   by rewrite /Y sprod_snd_sup; exact: cone_sup_ball_irr.
 have evΦE : ev_fun Φ = sh_sup_fun fch fb1 Y.
   rewrite /ev_fun /Y sprod_fst_sup.
+  (* the hom-component supremum IS the [stablehom] supremum [sh_sup]
+     — definitional before the total-[cone_sup] rework, now an instance
+     of lub-uniqueness fed with [sh_sup]'s own ub/lub laws. *)
   have -> : cone_sup_ball (fun n : nat => sprod_fst (u n))
       (cones_prod_sup_ball_chain_comp uch true)
       (cones_prod_sup_ball_ub1_comp ub1 true) = sh_sup fch fb1.
-    exact: cone_sup_ball_irr.
+    apply: cone_sup_ballE => [n|y Hy].
+      exact: (sh_sup_ball_ub _ fch fb1 n).
+    exact: (sh_sup_ball_lub _ fch fb1 y Hy).
   by [].
 (* the two chains are monotone in [≤] (not just successor steps) *)
 have xmono m k : (m <= k)%N -> x m <=p x k.
@@ -801,23 +809,20 @@ Lemma sprod_pair_sup (z : D) (u : nat -> B)
   cone_sup_ball (fun n => sprod_pair z (u n)) pch pb1.
 Proof.
 set S := cone_sup_ball (fun n => sprod_pair z (u n)) pch pb1.
+(* The abstract product supremum IS the componentwise witness
+   [cones_prod_sup_ball] (definitional before the total-[cone_sup]
+   rework, an equation since). *)
+have SE : S = cones_prod_sup_ball (fun n => sprod_pair z (u n)) pch pb1.
+  exact: cones_prod_cone_sup_ballE.
 (* The [true]-component of the paired-chain sup is [z] (constant chain). *)
 have Etrue : cones_prod_val S true = z.
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => n.
-    by have ->: cones_prod_val (sprod_pair z (u n)) true = z by [];
-       exact: precone_le_refl.
-  - have KEY := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 0%N) true.
-    by move: KEY; have ->: cones_prod_val (sprod_pair z (u 0%N)) true = z by [].
-(* The [false]-component is [cone_sup_ball u] (the [B]-chain sup). *)
+  rewrite SE; apply: precone_le_anti.
+  - by apply: cone_sup_ball_lub => n; exact: precone_le_refl.
+  - exact: (cone_sup_ball_ub _ _ _ 0%N).
+(* The [false]-component is [cone_sup_ball u] (the [B]-chain sup): both
+   sides are the total [cone_sup] of the very same chain. *)
 have Efalse : cones_prod_val S false = cone_sup_ball u uch ub1.
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => n.
-    have ->: cones_prod_val (sprod_pair z (u n)) false = u n by [].
-    exact: cone_sup_ball_ub.
-  - apply: cone_sup_ball_lub => n.
-    have := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 n) false.
-    by have ->: cones_prod_val (sprod_pair z (u n)) false = u n by [].
+  by rewrite SE.
 apply: cones_prod_eq => -[].
 - by rewrite Etrue.
 - by rewrite Efalse.
@@ -1240,21 +1245,19 @@ Lemma sprod_pair_sup_l (x : B) (u : nat -> D)
   cone_sup_ball (fun n => sprod_pair (u n) x) pch pb1.
 Proof.
 set S := cone_sup_ball (fun n => sprod_pair (u n) x) pch pb1.
+(* The abstract product supremum IS the componentwise witness
+   [cones_prod_sup_ball] (definitional before the total-[cone_sup]
+   rework, an equation since). *)
+have SE : S = cones_prod_sup_ball (fun n => sprod_pair (u n) x) pch pb1.
+  exact: cones_prod_cone_sup_ballE.
 have Efalse : cones_prod_val S false = x.
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => n.
-    by have ->: cones_prod_val (sprod_pair (u n) x) false = x by [];
-       exact: precone_le_refl.
-  - have KEY := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 0%N) false.
-    by move: KEY; have ->: cones_prod_val (sprod_pair (u 0%N) x) false = x by [].
+  rewrite SE; apply: precone_le_anti.
+  - by apply: cone_sup_ball_lub => n; exact: precone_le_refl.
+  - exact: (cone_sup_ball_ub _ _ _ 0%N).
+(* The [true]-component: both sides are the total [cone_sup] of the very
+   same chain. *)
 have Etrue : cones_prod_val S true = cone_sup_ball u uch ub1.
-  apply: precone_le_anti.
-  - apply: cone_sup_ball_lub => n.
-    have ->: cones_prod_val (sprod_pair (u n) x) true = u n by [].
-    exact: cone_sup_ball_ub.
-  - apply: cone_sup_ball_lub => n.
-    have := cones_prod_le_comp (cone_sup_ball_ub _ pch pb1 n) true.
-    by have ->: cones_prod_val (sprod_pair (u n) x) true = u n by [].
+  by rewrite SE.
 apply: cones_prod_eq => -[].
 - by rewrite Etrue.
 - by rewrite Efalse.

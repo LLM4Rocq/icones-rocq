@@ -57,9 +57,11 @@
     [U ⊣ !̃] packaging promotes at setlike points), [if_icones_at] (the
     if-then-else dispatch at setlike points), [eD_app_at_setlike] (the
     application clause there), [linhom_fun_sup_ball] (pointwise reading
-    of the linhom-cone supremum; the ball-sup proof-irrelevance it
-    rests on is [cone_sup_ball_irr] of
-    [theories/cones/omega_general.v]), and [bool_case_mass] (the
+    of the linhom-cone supremum; it rests on [linhom_cone_sup_ballE] of
+    [theories/homs/linhom.v] — the identification of the generic
+    supremum with the concrete [linhom_sup_ball] — and on the
+    now-definitional ball-sup witness-independence [cone_sup_ball_irr]
+    of [theories/cones/omega_general.v]), and [bool_case_mass] (the
     per-branch mass bookkeeping).
 
     The three sibling headline programs run the SAME skeleton and each

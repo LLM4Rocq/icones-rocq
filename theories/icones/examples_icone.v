@@ -29,11 +29,15 @@
     Design notes.
 
     - [cone_one_car Ar] is a thin [Record] wrapper around
-      [{nonneg R}] indexed by [Ar]. It is used in place of the bare
-      [{nonneg R}] (which has its [Cone] structure installed without
-      an [Ar] parameter in [examples_cone.v]) because the [isMCone]
-      mixin is [Ar]-parameterised. The wrapper mirrors the
-      [alpha_rescale_car] pattern from [mcone_cat.v].
+      [{nonneg R}] indexed by [Ar]. It is used in place of
+      [ConeOne.T R] (the [Ar]-less wrapper of [{nonneg R}] carrying
+      the plain [Cone] structure of [examples_cone.v]) because the
+      [isMCone] mixin is [Ar]-parameterised. The wrapper mirrors the
+      [alpha_rescale_car] pattern from [mcone_cat.v]. Note that
+      neither wrapper may be replaced by the bare [{nonneg R}]: the
+      [isPrecone] factory installs an [Order.POrder] instance on its
+      carrier, which on mathcomp's [Itv.nonneg] key would shadow the
+      [Num] order of non-negative reals.
 
     - Tests on [cone_one_car Ar] at arity [Y] are the singleton
       family [{ id_test }] where [id_test r x = (c1_val x)%:num] is
@@ -82,11 +86,11 @@ Local Open Scope ring_scope.
 
 (** ** Deliverable 1 — Paper §2.3 / §4: ⊥ is integrable *)
 
-(** The [isMCone] mixin is parameterised by [Ar]; the underlying
-    [Cone] instance on [{nonneg R}] (registered in [examples_cone.v])
-    is not. We therefore wrap [{nonneg R}] in a thin [Record]
-    indexed by [Ar] and re-register [isPrecone], [isCone], [isMCone],
-    [isICone] HB instances on the wrapper, mirroring the
+(** The [isMCone] mixin is parameterised by [Ar]; the [Cone] instance
+    of [examples_cone.v] (on [ConeOne.T R], itself a wrapper of
+    [{nonneg R}]) is not. We therefore wrap [{nonneg R}] in a thin
+    [Record] indexed by [Ar] and re-register [isPrecone], [isCone],
+    [isMCone], [isICone] HB instances on the wrapper, mirroring the
     [alpha_rescale_car] pattern from [mcone_cat.v]. The wrapper
     carrier is [cone_one_car Ar = { c1_val : {nonneg R} }]. *)
 
@@ -204,6 +208,13 @@ Qed.
 
 End ConeOnePrecone.
 
+(** Classical [Equality]/[Choice] structures on the carrier (required
+    by the precone partial order). *)
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
+  gen_eqMixin (cone_one_car Ar).
+HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
+  gen_choiceMixin (cone_one_car Ar).
+
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
   @isPrecone.Build R (cone_one_car Ar)
     (@c1_zero R Ar) (@c1_add R Ar) (@c1_scale R Ar)
@@ -318,11 +329,23 @@ Qed.
 End ConeOneCone.
 
 HB.instance Definition _ (R : realType) (Ar : MeasSubcat R) :=
-  @isCone.Build R (cone_one_car Ar)
+  @Cone_ofWitnessSup.Build R (cone_one_car Ar)
     (@c1_norm R Ar)
     (@c1_normh R Ar) (@c1_normz R Ar) (@c1_normt R Ar) (@c1_normp R Ar)
     (@c1_sup_ball R Ar)
     (@c1_sup_ball_ub R Ar) (@c1_sup_ball_lub R Ar) (@c1_sup_ball_norm R Ar).
+
+(** The abstract [cone_sup_ball] coincides with the concrete witness
+    [c1_sup_ball] (the definitional link of the historical encoding,
+    restored as an equation via lub-uniqueness). *)
+Lemma c1_cone_sup_ballE (R : realType) (Ar : MeasSubcat R)
+    (u : nat -> cone_one_car Ar)
+    (uch : forall n, precone_le (u n) (u n.+1))
+    (ub1 : forall n, cone_norm (u n) <= 1) :
+  cone_sup_ball u uch ub1 = c1_sup_ball uch ub1.
+Proof.
+exact: cone_sup_ballE (c1_sup_ball_ub uch ub1) (c1_sup_ball_lub uch ub1).
+Qed.
 
 (** *** Measurable-cone instance on [cone_one_car Ar]
 
@@ -367,7 +390,8 @@ Lemma c1_num_cont
     (N : R) :
   (forall n, c1_num (u n) <= N) -> c1_num (cone_sup_ball u uch ub1) <= N.
 Proof.
-move=> HN; rewrite /c1_num /cone_sup_ball/=.
+move=> HN.
+rewrite /c1_num c1_cone_sup_ballE /=.
 apply: ge_sup.
 - by exists (c1_val (u 0))%:num; exists 0%N.
 - by move=> y [n _ <-]; exact: HN.

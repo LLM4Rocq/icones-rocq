@@ -668,7 +668,9 @@ have rfch n : r *: (f \o u) n <=p r *: (f \o u) n.+1.
   by apply: precone_scale_le; exact: fch.
 rewrite (scaler_scott_continuous r Mf' Mf (f \o u) fch fubM Mf'pos rfch
            fubMf Mfpos).
-by congr cone_sup_at; exact: Prop_irrelevance.
+(* [cone_sup_at] is the total [cone_sup] with phantom witnesses, so
+   the two sides are now definitionally equal. *)
+by [].
 Qed.
 
 End ClosureScale.

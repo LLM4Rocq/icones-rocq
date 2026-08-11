@@ -341,15 +341,16 @@ Hypothesis Phi_cont :
 (** Bridge to the generic continuity packaging: on unit-ball chains
     the image chain is itself in the unit ball (by [Phi_ball]), so the
     radius-[Mf] supremum of [is_scott_continuous_unit] collapses to
-    the unit-ball one via [cone_sup_at_indep] + [cone_sup_at_ball]. *)
+    the unit-ball one.  Since [cone_sup_at] and [cone_sup_ball] are
+    both phantom-witness wrappers around the total operator
+    [cone_sup], that collapse is now DEFINITIONAL — the radius, the
+    chain and the bound witnesses are all irrelevant to the term, so
+    the historical [cone_sup_at_indep] + [cone_sup_at_ball] rewrites
+    are no longer needed and [Phi_cont] applies directly. *)
 Lemma Phi_scott_unit : is_scott_continuous_unit Phi.
 Proof.
 move=> Mf u uch ub1 fuch fubMf Mfpos.
 have Pub1 n : cone_norm (Phi (u n)) <= 1 by apply: Phi_ball; exact: ub1.
-have Pub1' n : cone_norm ((Phi \o u) n) <= (1%:nng : {nonneg _})%:num.
-  exact: Pub1.
-rewrite (cone_sup_at_indep fuch fubMf Pub1' Mfpos ltr01).
-rewrite (cone_sup_at_ball fuch Pub1 Pub1' ltr01).
 exact: Phi_cont.
 Qed.
 

@@ -306,7 +306,7 @@ have ch : forall n, sh_fun (u n) x <=p sh_fun (u n.+1) x.
   by move=> n; exact: sh_le_pointwise (uch n) x.
 have b1 : forall n, cnorm (sh_fun (u n) x) <= 1.
   by move=> n; apply: le_trans (sh_norm_ub (u n) x Hx) _; exact: ub1.
-rewrite -[cone_sup_ball u uch ub1 : stablehom B D]/(sh_sup uch ub1).
+rewrite (sh_cone_sup_ballE uch ub1).
 rewrite -[sh_sup uch ub1 x]/(sh_sup_fun uch ub1 x).
 rewrite (sh_sup_fun_unitE uch ub1 Hx ch b1).
 (* The two image suprema are over the SAME (defeq) chain. *)
@@ -760,8 +760,7 @@ have HLrw : mD s (linhom_fun (cone_sup_ball u uch ub1) (γC s) (γ s)) =
             mSh s (linhom_fun (cone_sup_ball u uch ub1) (γC s)).
   by rewrite /mSh /sh_test /= /sh_test_fun /sh_const_x_path /sh_const_x_path_arity /=.
 rewrite HLrw.
-rewrite -[cone_sup_ball u uch ub1 : linhom_car Ar C (stablehom B D)]
-  /(linhom_sup_ball u uch ub1).
+rewrite (linhom_cone_sup_ballE uch ub1).
 rewrite -[linhom_fun (linhom_sup_ball u uch ub1) (γC s)]
   /(linhom_sup_fun uch ub1 (γC s)).
 rewrite (linhom_sup_fun_test_sup uch ub1 mSh s (γC s)).
@@ -771,9 +770,10 @@ have ch : forall n, sh_fun (bwd_stablehom (u n)) (γ s) <=p
 have b1 : forall n, cnorm (sh_fun (bwd_stablehom (u n)) (γ s)) <= 1.
   by move=> n; apply: le_trans (sh_norm_ub (bwd_stablehom (u n)) (γ s) Hbs) _;
     exact: fub1.
+rewrite (sh_cone_sup_ballE fuch fub1).
+rewrite -[sh_fun (sh_sup fuch fub1) (γ s)]/(sh_sup_fun fuch fub1 (γ s)).
 rewrite (sh_sup_fun_unitE fuch fub1 Hbs ch b1).
-rewrite -[cone_sup_ball (fun m0 : nat => bwd_stablehom (u m0) (γ s)) ch b1
-          : linhom_car Ar C D]/(linhom_sup_ball _ ch b1).
+rewrite (linhom_cone_sup_ballE ch b1).
 rewrite -[linhom_fun (linhom_sup_ball _ ch b1) (γC s)]
   /(linhom_sup_fun ch b1 (γC s)).
 rewrite (linhom_sup_fun_test_sup ch b1 mD s (γC s)).
@@ -1060,6 +1060,8 @@ have ch : forall n, sh_fun (fwd_stablehom (u n)) (γ s) <=p
 have b1' : forall n, cnorm (sh_fun (fwd_stablehom (u n)) (γ s)) <= 1.
   by move=> n; apply: le_trans (sh_norm_ub (fwd_stablehom (u n)) (γ s) Hbs) _;
     exact: fub1.
+rewrite (sh_cone_sup_ballE fuch fub1).
+rewrite -[sh_fun (sh_sup fuch fub1) (γ s)]/(sh_sup_fun fuch fub1 (γ s)).
 rewrite (sh_sup_fun_unitE fuch fub1 Hbs ch b1').
 rewrite (test_of_sup mD s ch b1').
 by congr (sup _); apply: eq_imagel => n _ /=.
@@ -1285,12 +1287,11 @@ apply: linhom_mcone_M_sep => P PM.
 case: PM => γC [γCub [mBs [mBsM HP]]].
 rewrite HP.
 set s := ar_zero_pt Ar.
-rewrite -[cone_sup_ball u uch ub1 : Src]/(sh_sup uch ub1).
+rewrite (sh_cone_sup_ballE uch ub1).
 rewrite -[linhom_test γC γCub mBs mBsM s
           (cone_sup_ball (fun n => fwd_linhom_car (u n)) fuch fub1)]
   /(mBs s (linhom_fun (cone_sup_ball (fun n => fwd_linhom_car (u n)) fuch fub1) (γC s))).
-rewrite -[cone_sup_ball (fun n => fwd_linhom_car (u n)) fuch fub1 : Tgt]
-  /(linhom_sup_ball _ fuch fub1).
+rewrite (linhom_cone_sup_ballE fuch fub1).
 rewrite -[linhom_fun (linhom_sup_ball _ fuch fub1) (γC s)]
   /(linhom_sup_fun fuch fub1 (γC s)).
 rewrite (linhom_sup_fun_test_sup fuch fub1 mBs s (γC s)).
@@ -1309,8 +1310,7 @@ have b1 : forall n, cnorm (sh_fun (u n) (γ s)) <= 1.
   by move=> n; apply: le_trans (sh_norm_ub (u n) (γ s) Hbs) _; exact: ub1.
 rewrite -[sh_fun (sh_sup uch ub1) (γ s)]/(sh_sup_fun uch ub1 (γ s)).
 rewrite (sh_sup_fun_unitE uch ub1 Hbs ch b1).
-rewrite -[cone_sup_ball (fun m : nat => sh_fun (u m) (γ s)) ch b1
-          : linhom_car Ar C D]/(linhom_sup_ball _ ch b1).
+rewrite (linhom_cone_sup_ballE ch b1).
 rewrite -[linhom_fun (linhom_sup_ball _ ch b1) (γC s)]/(linhom_sup_fun ch b1 (γC s)).
 rewrite (linhom_sup_fun_test_sup ch b1 mD s (γC s)).
 congr (sup _); apply: eq_imagel => n _ /=.
