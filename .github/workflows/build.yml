@@ -1,8 +1,9 @@
 name: Build
 
 # Gating CI for the Rocq formalisation: a clean `make` plus the MVP
-# axiom check (`verify.sh`). Unlike the blueprint workflow, this one
-# is NOT best-effort — a failure here means the formalisation does
+# axiom check (`verify.sh`). Unlike the docs/Pages workflow
+# (`blueprint.yml`), this one is NOT best-effort — a failure here
+# means the formalisation does
 # not compile or the MVP headline picked up an unexpected axiom.
 
 on:

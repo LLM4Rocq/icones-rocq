@@ -34,30 +34,17 @@ rocq_mcp_cache_*.v
 scratch/
 *.bak
 
-# Blueprint build artefacts
-blueprint/web/
-blueprint/print/
-blueprint/src/*.aux
-blueprint/src/*.log
-blueprint/src/*.out
-blueprint/src/*.toc
-blueprint/src/*.fls
-blueprint/src/*.fdb_latexmk
-blueprint/src/*.synctex.gz
-blueprint/src/*.bbl
-blueprint/src/*.blg
-blueprint/src/print.pdf
-blueprint/src/main.pdf
-
-
 # Paper (not tracked — local-only artifact)
 paper/
 
 # Auditor build
 tools/**/__pycache__/
 tools/**/*.pyc
+# The rendered dashboard: CI assembles it into site/ and uploads it as a
+# Pages artefact, and the README's local-build recipe writes it here too.
+site/
 # Tarball of theories/**/*.glob — CI ships the real dependency-graph data
-# from build.yml to blueprint.yml's build-auditor through it; reproducing
+# from build.yml to the docs workflow's build-auditor through it; reproducing
 # that packaging step locally must not leave a tracked artefact behind.
 theories-glob.tar.gz
 

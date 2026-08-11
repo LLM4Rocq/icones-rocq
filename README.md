@@ -1,9 +1,7 @@
 # Icones — Integration in Cones, formalized in Rocq
 
 [![Build](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/build.yml?branch=main&style=for-the-badge&label=build)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/build.yml)
-[![Blueprint CI](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/blueprint.yml?branch=main&style=for-the-badge&label=blueprint%20CI)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/blueprint.yml)
-[![Blueprint (frozen)](https://img.shields.io/badge/blueprint-online%20(frozen)-lightgrey?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint/)
-[![Blueprint PDF (frozen)](https://img.shields.io/badge/blueprint-PDF%20(frozen)-lightgrey?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)
+[![Docs CI](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/blueprint.yml?branch=main&style=for-the-badge&label=docs%20CI)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/blueprint.yml)
 [![Auditor — Paper](https://img.shields.io/badge/auditor-paper-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/paper/)
 [![Auditor — PPL](https://img.shields.io/badge/auditor-PPL-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/ppl/)
 [![Auditor — Examples](https://img.shields.io/badge/auditor-examples-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/examples/)
@@ -491,17 +489,8 @@ another, and neither do `kernels` and `exp`. `python3 tools/check_layers.py` re-
 every `Require` edge from the sources and fails on any upward or cross-parallel import;
 `_CoqProject` lists the files in the same order.
 
-Two parallel entry points for reviewing the formalization without first opening the
-sources:
+The entry point for reviewing the formalization without first opening the sources:
 
-- A LaTeX **blueprint** *(frozen)* (Patrick Massot's `leanblueprint` style, adapted to Rocq)
-  describing the mathematics in English alongside its Rocq counterpart, with a rendered
-  dependency graph:
-  **[online (frozen)](https://llm4rocq.github.io/icones-rocq/blueprint/)** ·
-  **[PDF (frozen)](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)** · sources in
-  [`blueprint/src/`](./blueprint/src/).
-  **Frozen as of 2026-08 and superseded by the auditor dashboard below**: its citations
-  are no longer maintained and the `theories/` module paths it names may be stale.
 - An interactive **auditor dashboard** with three tabs:
   the **[Paper tab](https://llm4rocq.github.io/icones-rocq/auditor/paper/)**
   (paper-to-Rocq correspondence for §§ 2–9, plus the paper-cited meta-theorems we
@@ -524,19 +513,25 @@ make
 ./verify.sh        # clean rebuild + Print Assumptions on the headline results
 ```
 
-Building the blueprint locally:
+Building the auditor dashboard locally:
 
 ```bash
-pip install -r blueprint/requirements.txt
-sudo apt install graphviz libgraphviz-dev texlive-xetex texlive-latex-extra \
-                 texlive-fonts-extra latexmk
-rocqblueprint web      # HTML → blueprint/web/
-rocqblueprint pdf      # PDF  → blueprint/print/print.pdf
+pip install -r tools/auditor/requirements.txt
+python tools/build_auditor.py \
+    --paper docs/PAPER.md --ppl docs/PPL.md --examples docs/EXAMPLES.md \
+    --out site/auditor/ --coqproject _CoqProject   # HTML → site/auditor/
+pytest tools/auditor/tests/
 ```
 
+The fenced `coq` blocks on the dashboard are one-line identifier stubs resolved from
+`theories/**/*.v` at build time; `python -m tools.auditor.snippets` reports any that no
+longer resolve. See [`docs/AUDITOR_FORMAT.md`](./docs/AUDITOR_FORMAT.md) for the entry
+format and the full CLI.
+
 CI ([`build.yml`](./.github/workflows/build.yml)) runs `make` and the axiom check on every push
-and PR; [`blueprint.yml`](./.github/workflows/blueprint.yml) builds the blueprint and publishes
-it to GitHub Pages from `main`.
+and PR; [`blueprint.yml`](./.github/workflows/blueprint.yml) — the docs/Pages workflow, kept
+under its historical file name — builds the auditor dashboard and coqdoc and publishes them
+to GitHub Pages from `main`.
 
 ## Paper and license
 

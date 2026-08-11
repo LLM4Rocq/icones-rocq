@@ -1,13 +1,18 @@
-name: Deploy Blueprint
+name: Deploy Docs
 
-# The blueprint build is a SEPARATE workflow from the main Rocq build
-# (build.yml). It is kept NON-BLOCKING by simply not making it a
-# required status check in branch protection — NOT by hiding failures.
-# A failing blueprint build therefore turns this workflow (and its
-# badge) red, which is the honest signal, while still never blocking a
+# The documentation site (auditor dashboard + coqdoc) is a SEPARATE
+# workflow from the main Rocq build (build.yml). It is kept NON-BLOCKING
+# by simply not making it a required status check in branch protection —
+# NOT by hiding failures. A failing docs build therefore turns this
+# workflow red, which is the honest signal, while still never blocking a
 # merge. Only the best-effort coqdoc job below keeps
 # `continue-on-error: true` (a missing coqdoc page is cosmetic); the
-# blueprint web build and the Pages deploy fail loudly.
+# auditor build and the Pages deploy fail loudly.
+#
+# The file name stays `blueprint.yml` on purpose, even though the LaTeX
+# blueprint it was named for was retired in 2026-08: renaming it would
+# break every Actions-history URL and the `workflow:` selectors that the
+# artefact-download steps below use to find this workflow's own runs.
 
 on:
   push:
@@ -35,10 +40,9 @@ concurrency:
 
 jobs:
   build-docs:
-    # Gate coqdoc on the blueprint web build: if the blueprint fails
-    # there is no point spending the (slow) Rocq toolchain install on
-    # coqdoc, nor deploying. coqdoc itself stays best-effort.
-    needs: build-blueprint
+    # Ungated: this job used to wait on the (now removed) blueprint web
+    # build. It runs unconditionally and stays best-effort — a missing
+    # coqdoc page is cosmetic and must never hold up the Pages deploy.
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -53,10 +57,10 @@ jobs:
             startGroup "Workaround permission issue"
               sudo chown -R 1000:1000 .
             endGroup
-          # The full Rocq build of this project is non-trivial; the
-          # blueprint links into coqdoc HTML for cross-refs. We build
-          # whatever compiles within the runner budget; missing pages
-          # render as plain anchors in the blueprint.
+          # The full Rocq build of this project is non-trivial. coqdoc is
+          # published at /docs/ for source browsing, and the auditor cards
+          # deep-link into it. We build whatever compiles within the runner
+          # budget; a missing page degrades an auditor link, nothing more.
           after_script: |
             startGroup "Build coqdoc (best effort)"
               if ! command -v rocq >/dev/null 2>&1 ; then
@@ -83,7 +87,7 @@ jobs:
   build-auditor:
     # Build the paper-to-Rocq auditor dashboard from docs/PAPER.md +
     # docs/PPL.md + docs/EXAMPLES.md (the triple-tab dashboard).
-    # This job runs in parallel with build-blueprint; it fails loudly on
+    # This is the job the deploy actually waits on: it fails loudly on
     # its own errors but its artefact is best-effort consumed by
     # combine-and-deploy (so a parser regression doesn't block the
     # Pages deploy).
@@ -203,8 +207,8 @@ jobs:
         env:
           # LENIENT here, ON PURPOSE — the strict check runs as its own step
           # after the upload below.  Raising mid-build made the entire Pages
-          # publish (blueprint and coqdoc included, since `combine-and-deploy`
-          # is the only job that downloads them) hostage to another
+          # publish (coqdoc included, since `combine-and-deploy` is the
+          # only job that downloads it) hostage to another
           # workflow's artefact: a red `build.yml`, an expired
           # `theories-glob` or an Actions-API hiccup skipped the deploy
           # outright.  Instead we build the degraded graph — which
@@ -249,76 +253,25 @@ jobs:
       - name: Guard — the graph must carry real .glob dependency edges
         run: python -m tools.auditor.render --check-graph site/auditor/graph.json
 
-  build-blueprint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            graphviz libgraphviz-dev \
-            texlive-latex-base texlive-latex-extra \
-            texlive-xetex texlive-fonts-extra \
-            latexmk
-
-      - name: Install rocqblueprint
-        run: pip install rocqblueprint
-
-      # Do NOT mask the web build with `|| true`: a failure must be
-      # visible. This job is NOT continue-on-error, so a failure here
-      # shows the workflow red and skips coqdoc + the Pages deploy — yet
-      # never blocks a PR, because this check is simply not required.
-      - name: Build blueprint (web)
-        run: rocqblueprint web
-
-      - name: Build blueprint (pdf, best-effort)
-        run: rocqblueprint pdf || true
-
-      - name: Stage site
-        run: |
-          mkdir -p site
-          # Fail loudly rather than deploying an empty /blueprint/ (which
-          # would 404). The web build above must have produced blueprint/web.
-          test -d blueprint/web
-          cp -r blueprint/web site/blueprint
-          if [ -f blueprint/print/print.pdf ]; then
-            cp blueprint/print/print.pdf site/blueprint.pdf
-          fi
-
-      - name: Upload blueprint artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: blueprint-site
-          path: site/
-          if-no-files-found: ignore
-
   combine-and-deploy:
-    # Gated on `build-auditor` ONLY.  The (slow) `build-blueprint` and
-    # `build-docs` jobs are NOT in the needs-list, so the auditor
-    # deploys as soon as its own short job finishes (~5 min) instead
-    # of waiting on the LaTeX build + Rocq toolchain install (~15 min
-    # together).  Blueprint and coqdoc artefacts are fetched best-
-    # effort from this run if they happen to be ready in time, falling
-    # back to the most recent successful build on `main` (via
-    # `dawidd6/action-download-artifact`) so that `/blueprint/` and
-    # `/docs/` don't 404 between deploys.  If the slow builds finish
-    # AFTER this deploy, their fresh content lands on the next push
-    # that triggers the workflow.
+    # Gated on `build-auditor` ONLY.  The (slow) `build-docs` job is NOT
+    # in the needs-list, so the auditor deploys as soon as its own short
+    # job finishes (~5 min) instead of waiting on the Rocq toolchain
+    # install (~15 min).  The coqdoc artefact is fetched best-effort from
+    # this run if it happens to be ready in time, falling back to the most
+    # recent successful build on `main` (via
+    # `dawidd6/action-download-artifact`) so that `/docs/` doesn't 404
+    # between deploys.  If coqdoc finishes AFTER this deploy, its fresh
+    # content lands on the next push that triggers the workflow.
     #
     # `always()` (plus an explicit cancellation check): a RED `build-auditor`
-    # must not take `/blueprint/` and `/docs/` down with it.  This is the only
-    # job that publishes them, so gating it on another job's success meant a
-    # degraded graph, an expired `theories-glob`, or `actions: read` being
-    # denied on a fork PR unpublished the entire site.  Every artefact below
-    # is fetched defensively and the assembled site is verified before it is
-    # deployed, so a failure upstream degrades to "last known good", never to
-    # a 404.
+    # must not take `/docs/` down with it.  This is the only job that
+    # publishes it, so gating it on another job's success meant a degraded
+    # graph, an expired `theories-glob`, or `actions: read` being denied on
+    # a fork PR unpublished the entire site.  Every artefact below is
+    # fetched defensively and the assembled site is verified before it is
+    # deployed, so a failure upstream degrades to "last known good", never
+    # to a 404.
     if: >-
       always()
       && github.event_name == 'push'
@@ -330,17 +283,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download blueprint (this run if ready, else last successful)
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          name: blueprint-site
-          path: site/
-          workflow: blueprint.yml
-          workflow_conclusion: success
-          if_no_artifact_found: warn
-          search_artifacts: true
-        continue-on-error: true
-
       - name: Download coqdoc (this run if ready, else last successful)
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -373,6 +315,33 @@ jobs:
           search_artifacts: true
         continue-on-error: true
 
+      # The LaTeX blueprint was retired in 2026-08 (its content was migrated
+      # into the auditor dashboard; the pre-removal tree stays checkoutable
+      # at the `blueprint-final` tag, which is pushed to origin, so the
+      # recovery path resolves from a fresh clone).  `/blueprint/` was a published,
+      # externally linkable URL, so it degrades to a redirect rather than a
+      # bare 404.  `/blueprint.pdf` has no equivalent — a PDF cannot
+      # redirect — and is left to 404 deliberately.
+      - name: Stage the retired-blueprint tombstone
+        run: |
+          mkdir -p site/blueprint
+          cat > site/blueprint/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <title>The Icones blueprint has been retired</title>
+            <meta http-equiv="refresh" content="0; url=../auditor/paper/">
+            <link rel="canonical" href="../auditor/paper/">
+          </head>
+          <body>
+            <p>The LaTeX blueprint has been retired; the auditor dashboard is the
+            maintained documentation. Redirecting to
+            <a href="../auditor/paper/">the Paper tab</a>.</p>
+          </body>
+          </html>
+          HTML
+
       # The one hard requirement of this job: never publish a site whose
       # /auditor/ is missing (that would 404 the dashboard the whole deploy
       # exists for).  Both downloads above are best-effort; this is where a
@@ -384,7 +353,8 @@ jobs:
           fi
           test -f site/auditor/index.html \
             || { echo "::error::no auditor dashboard to deploy (neither this run's artefact nor a previous successful one)"; exit 1; }
-          test -d site/blueprint || echo "::warning::no blueprint/ in the assembled site"
+          test -f site/blueprint/index.html \
+            || echo "::warning::the /blueprint/ tombstone redirect is missing"
           echo "site contents:"; ls -la site/
 
       - name: Upload Pages artifact
