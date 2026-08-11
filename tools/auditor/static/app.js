@@ -54,7 +54,18 @@
     // CSS placeholder visible.  Resolve against the document base instead so
     // the absolute URL is correct on every page depth and hosting subpath.
     const uiUrl = new URL(base + 'pagefind-ui.js', document.baseURI).href;
-    import(/* webpackIgnore: true */ uiUrl).then(({ PagefindUI }) => {
+    import(/* webpackIgnore: true */ uiUrl).then((mod) => {
+      // pagefind-ui.js is an IIFE bundle, not an ES module: it attaches
+      // `window.PagefindUI` and exports nothing, so destructuring the module
+      // namespace yields undefined and `new undefined()` throws — which the
+      // catch below used to swallow, leaving the inert placeholder shell
+      // (the "search bar you cannot click" bug).  Prefer a real export if a
+      // future ESM build provides one; otherwise use the global the script
+      // just set.
+      const PagefindUI = (mod && mod.PagefindUI) || window.PagefindUI;
+      if (!PagefindUI) {
+        throw new Error('pagefind-ui.js loaded but PagefindUI is undefined');
+      }
       // Pagefind CSS is auto-injected by the UI module.  `bundlePath` tells the
       // UI where the index/fragment files live — give it the same absolute,
       // document-resolved base so its index/fragment fetches don't default to
@@ -71,6 +82,11 @@
           zero_results: 'No results for "[SEARCH_TERM]"',
         },
       });
-    }).catch(() => { /* offline / mock — keep the fallback shell. */ });
+    }).catch((err) => {
+      // Keep the fallback shell, but never silently: a missing /pagefind/
+      // (mock/dev build) and a broken UI init look identical to the user,
+      // and the silent variant already cost us one shipped bug.
+      console.warn('[auditor] search UI unavailable:', err && err.message ? err.message : err);
+    });
   }
 })();
