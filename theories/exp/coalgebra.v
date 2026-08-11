@@ -60,8 +60,8 @@ Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor_hom_iso.
 Require Import Icones.stable.totmono.
 Require Import Icones.stable.scones_cat.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

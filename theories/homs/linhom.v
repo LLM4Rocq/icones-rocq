@@ -46,7 +46,6 @@ From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import topology normedtype sequences.
 Import numFieldTopology.Exports.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -948,7 +947,8 @@ HB.instance Definition _ (R : realType) (Ar : MeasSubcat R)
 
     Paper §5.1: [‖f‖ = sup {‖f x‖ | ‖x‖ ≤ 1}]. We define this as the
     canonical real-valued [sup] of the image set. The set is bounded
-    above by [linmap_norm f] (M1's [xchoose]-witness from Lemma 2.11),
+    above by [linmap_norm f] (M1's [cid]-extracted witness from
+    Lemma 2.11),
     so it has a sup, and that sup is the *least* upper bound, hence
     fit for proving (Normh)/(Normz)/(Normt)/(Normp)/(Normc) in the
     [isCone] HB instance. *)
@@ -970,8 +970,8 @@ case: (linhom_pre_linear (linhom_pre_of f)) => H0 _ _.
 by rewrite /linhom_fun H0 cone_norm0.
 Qed.
 
-(** Bounded above: M1's [linmap_norm] (an [xchoose]-extracted upper
-    bound) bounds the set. *)
+(** Bounded above: M1's [linmap_norm] (a [cid]-extracted upper
+    bound, not itself a supremum) bounds the set. *)
 Lemma linhom_normset_has_ubound (f : linhom_car Ar C D) :
   has_ubound (linhom_normset f).
 Proof.

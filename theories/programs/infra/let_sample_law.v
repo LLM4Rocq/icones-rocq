@@ -82,7 +82,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
-Require Import Icones.programs.infra.bool_cone.
+Require Import Icones.icones.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -98,17 +98,17 @@ Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_construct.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
 Require Import Icones.homs.tensor_hom_iso.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.fmeas_lax.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
-Require Import Icones.programs.infra.cbv_adjunction.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.fmeas_lax.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
+Require Import Icones.cbv.cbv_adjunction.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.distributions.
 Require Import Icones.programs.infra.em_fix_value.
@@ -599,7 +599,8 @@ End LetLawGeneralObjFMeas.
     ]]
     with [M : tR], plus its per-[U] mass form [eD_let_mu_E] — the
     shapes the rejection-sampling COMBINATOR ([ex_reject_model.v]) and
-    the kernel anchors ([infra/kernel_anchors.v]) consume.  Statements
+    the kernel anchors ([theories/programs/kernel_anchors.v])
+    consume.  Statements
     unchanged; the proofs are the [B := R_obj] instantiations (the only
     friction is the measurability witness in [eD_let_int], repackaged
     from [let_sample_path_obj] to [let_sample_path] by

@@ -12,13 +12,14 @@
       [cone_norm0] (positivity at 0) implicitly via (Normh) with
       [r = 0]; non-negativity at every point follows as
       [cone_norm_ge0] below from (Normh) and (Normp).
-    - (Normc) is encoded as a concrete [cone_sup_ball] operator (not as
-      a sigma-type) for the same reason discussed in
-      [Icones.prelude.omegacpo]: downstream proofs need direct access
-      to the supremum. The operator takes a sequence [u : nat -> P], a
-      monotonicity witness in the cone order, and a norm-bound witness;
-      it returns an element [sup_ball u … : P] with the three
-      characterising properties.
+    - (Normc) is encoded as a concrete [cone_sup_ball] operator rather
+      than as a sigma-type "a least upper bound exists": downstream
+      proofs need direct access to the supremum *as a function of the
+      chain*, and re-extracting it with [cid] at every use would block
+      the rewriting steps in the ω-continuity proofs. The operator takes
+      a sequence [u : nat -> P], a monotonicity witness in the cone
+      order, and a norm-bound witness; it returns an element
+      [sup_ball u … : P] with the three characterising properties.
 *)
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
 From mathcomp.classical Require Import boolp.
@@ -26,9 +27,7 @@ From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From HB Require Import structures.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
-Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 
 Set Implicit Arguments.

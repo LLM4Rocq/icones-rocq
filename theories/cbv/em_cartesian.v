@@ -82,13 +82,13 @@ Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

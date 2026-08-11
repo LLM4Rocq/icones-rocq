@@ -28,7 +28,7 @@
 
     — the EM-cartesian product of cofrees is the cofree on the [&]
     (cone) product, the [Seely2 : !X ⊗ !Y ≅ !(X & Y)] story of
-    [theories/homs/seely.v]: the carrier of [EM_prod (!̃X) (!̃Y)] is
+    [theories/exp/seely.v]: the carrier of [EM_prod (!̃X) (!̃Y)] is
     [!X ⊗ !Y], its structure map is [tens_cofree_str X Y]
     ([em_cartesian.v::tens_cofree_str_m_bang]), and [tens_cofree_str]
     is BY DEFINITION the transport of [dig_{X&Y}] along [Seely2].
@@ -87,21 +87,21 @@ Require Import Icones.stable.stablehom.
 Require Import Icones.stable.scones_cat.
 Require Import Icones.stable.scones_ccc.
 Require Import Icones.stable.fixpoint.
-Require Import Icones.stable.stab_lin_swap.
-Require Import Icones.stable.diag_bilinear_tensor.
+Require Import Icones.exp.stab_lin_swap.
+Require Import Icones.cbv.diag_bilinear_tensor.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.bilin.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang_construct.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang_construct.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
 (* NOTE: the tensor stack comes AFTER the Seely/EM stack on purpose:
    [seely.v] and [tensor_hom_iso.v] both export a [linhom_icones]
    constant; downstream files must see [tensor_hom_iso]'s. *)

@@ -47,7 +47,6 @@ From mathcomp.classical Require Import boolp classical_sets.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference archimedean.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.

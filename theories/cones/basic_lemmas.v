@@ -46,9 +46,7 @@ From mathcomp.classical Require Import boolp classical_sets.
 From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference archimedean.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
-Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 
@@ -570,15 +568,20 @@ Variables P Q : coneType R.
       [‖f y_n‖ ≥ (1/2^n) * ‖f x_n‖ ≥ 2^n], a contradiction with
       [‖f y‖] finite.
 
-    Our formalisation: as in the spec, we use the real [sup] from
-    [mathcomp.reals.reals]. [linmap_norm f] is defined as a [sup] over
-    the unit-ball image norms — returning [0] if the set is not
-    bounded — but we prove it IS bounded for [f] linear.
-
-    Time-box note: the partial-sum sequence requires a non-trivial
-    nat-indexed construction in a cone (\sum-style) which our
-    skeleton precone does not yet have as a primitive. We sketch the
-    construction below and complete the boundedness proof. *)
+    Our formalisation departs from that sketch in two ways.
+    - We do NOT use the real [sup] of [mathcomp.reals.reals], and we do
+      not build the set of unit-ball image norms as a [set R] at all.
+      [linmap_bounded] below is a bare existential [exists M, 0 <= M /\
+      ...], proved by classical contradiction ([contrapT]): the negation
+      yields a "no-bound" oracle, [cid] turns it into a witness sequence
+      [x n], and the supremum taken is the *cone's own* (Normc)
+      supremum [cone_sup_ball] of the scaled partial sums — not a
+      supremum in [R].
+    - The nat-indexed partial-sum construction the sketch needs is
+      supplied by [pcone_sum] just below, together with its chain
+      ([pcone_sum_chain]) and norm-bound ([pcone_sum_norm_le],
+      [pcone_sum_norm_le_pw]) lemmas; the boundedness proof is
+      complete. *)
 
 (** Iterated addition in a precone: [pcone_sum f N = ∑_{k=0}^{N-1} f k]. *)
 Fixpoint pcone_sum (f : nat -> P) (n : nat) : P :=
@@ -750,11 +753,17 @@ move=> /Order.POrderTheory.lt_trans => /(_ _ Hm).
 by rewrite ltr_nat ltnNge leqnSn.
 Qed.
 
-(** Paper Lemma 2.11 (operator norm): extract the operator-norm
-    bound [‖f‖] via [xchoose]. We do NOT prove that [linmap_norm f]
-    is the supremum — only that it is *an* upper bound. Downstream
-    cone-of-linear-maps clients (M1e, [cone_cat.v]) need exactly
-    this bound to package the norm. *)
+(** Paper Lemma 2.11 (operator norm): extract a unit-ball bound for
+    [f] from the existential [linmap_bounded] by [cid] (constructive
+    indefinite description on a [Prop] existential — no [choiceType]
+    and no [xchoose] is involved).
+
+    Consequently [linmap_norm Hf] is *an* upper bound, not *the*
+    supremum: we neither prove nor need leastness, and the value is
+    whatever witness [cid] picks (so it also depends on the proof term
+    [Hf]). Downstream cone-of-linear-maps clients (M1e, [cone_cat.v])
+    need exactly [linmap_norm_ge0] + [linmap_norm_ub] to package the
+    norm. *)
 Definition linmap_norm (f : P -> Q) (Hf : is_linear f) : R :=
   projT1 (cid (linmap_bounded Hf)).
 

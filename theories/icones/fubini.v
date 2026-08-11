@@ -74,7 +74,6 @@ From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import lebesgue_integral_fubini.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.

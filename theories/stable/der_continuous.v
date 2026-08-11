@@ -32,7 +32,7 @@
 (*   This file is pure [ICones]/[SCones] limit theory, axiom-free               *)
 (*   relative to the classical base of mathcomp-analysis.  Theorem 7.34       *)
 (*   is the INPUT consumed by the M-SAFT machinery of                          *)
-(*   [Icones.icones.representable] to build the left adjoint [E] of [Der]     *)
+(*   [Icones.homs.representable] to build the left adjoint [E] of [Der]     *)
 (*   (the exponential, PLAN §13.4); it must not itself consume the            *)
 (*   resulting exponential.                                                   *)
 (******************************************************************************)
@@ -44,7 +44,6 @@ From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -404,7 +403,7 @@ Arguments der_eq_med_unique {R Ar D1 D2 f g H} h.
 
     [der_continuous] below bundles the equaliser half as a single record,
     the concrete per-consumer input that Theorem 7.34 feeds, via the
-    M-SAFT machinery of [Icones.icones.representable], to construct the
+    M-SAFT machinery of [Icones.homs.representable], to construct the
     left adjoint [E] of [Der] (the exponential, PLAN §13.4).  This
     limit-preservation is the *input* to SAFT, not a consumer of the
     (later) exponential structure. *)

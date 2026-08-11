@@ -6,7 +6,7 @@
 (*   [icones_hom Ar (C1 ⊸ D1) (C2 ⊸ D2)] (Paper Prop 5.8).  The crux —        *)
 (*   measurable-path preservation *in [f]* — is discharged using the          *)
 (*   reusable test-pullback infrastructure of                                 *)
-(*   [Icones.mcones.test_pullback]: pulling a [D2]-test                        *)
+(*   [Icones.icones.test_pullback]: pulling a [D2]-test                        *)
 (*   back along [g] (resp. a [C2]-path forward along [h]) lands inside the    *)
 (*   measurability structure of [D1] (resp. [C1]), exactly as in §5.3.        *)
 (*                                                                            *)
@@ -35,7 +35,6 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -46,7 +45,7 @@ Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.path.
 Require Import Icones.mcones.mcone_cat.
-Require Import Icones.mcones.test_pullback.
+Require Import Icones.icones.test_pullback.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.

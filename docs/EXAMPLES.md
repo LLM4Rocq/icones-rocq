@@ -30,7 +30,7 @@ programs carry
 closed-form CBV marginal identities, up to the model evidence of a
 higher-order Bayesian linear regression
 (`ex_bayes_linear_cbv_evidence`,
-`theories/programs/infra/cbv_marginals.v`), itself re-read as iterated
+`theories/programs/cbv_marginals.v`), itself re-read as iterated
 conditioning (`ex_bayes_linear_is_iter_condition`,
 `theories/programs/examples.v`).
 
@@ -90,7 +90,7 @@ Bayesian linear regression `ex_bayes_linear`.
 
 Each program ships a closed-form CBV identity tying its denotation to
 the corresponding distribution, proved in
-`theories/programs/infra/cbv_marginals.v`. Every proof follows the same
+`theories/programs/cbv_marginals.v`. Every proof follows the same
 route: the let-at-sample integral law `eD_let_sample_int`
 (`theories/programs/infra/let_sample_law.v`) turns each
 `let x = sample µ in …` prefix into a Pettis integral over Diracs of the
@@ -99,9 +99,9 @@ integral, and the integrand computes pointwise down to a Dirac integral.
 
 | Example | Statement | Rocq |
 |---|---|---|
-| ex_random_constant: a random constant function | Sample a constant $c \sim \mu$, return $\lambda x. c$; derelicting the function value and evaluating it at any probability test point recovers the prior $\mu$. | `ex_random_constant`, `ex_random_constant_cbv_marginal` — theories/programs/examples.v; theories/programs/infra/cbv_marginals.v |
-| ex_random_linear: a random affine function | Sample slope and intercept from $\mu$, return $\lambda x. m \cdot x + b$; at a Dirac test point the marginal is the iterated integral $\int\int \delta_{m \cdot r_0 + b}(U)\,d\mu(b)\,d\mu(m)$. | `ex_random_linear`, `ex_random_linear_cbv_marginal`, `rl_inner_marginal` — theories/programs/examples.v; theories/programs/infra/cbv_marginals.v |
-| ex_score_posterior: score reweights the prior | Sample a parameter, score it by a bundled test function, return it; the denotation's measure of every measurable `U` is $\int_U f\,d\mu$, with total mass the evidence $\int f\,d\mu$. | `ex_score_posterior`, `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass` — theories/programs/examples.v; theories/programs/infra/cbv_marginals.v |
+| ex_random_constant: a random constant function | Sample a constant $c \sim \mu$, return $\lambda x. c$; derelicting the function value and evaluating it at any probability test point recovers the prior $\mu$. | `ex_random_constant`, `ex_random_constant_cbv_marginal` — theories/programs/examples.v; theories/programs/cbv_marginals.v |
+| ex_random_linear: a random affine function | Sample slope and intercept from $\mu$, return $\lambda x. m \cdot x + b$; at a Dirac test point the marginal is the iterated integral $\int\int \delta_{m \cdot r_0 + b}(U)\,d\mu(b)\,d\mu(m)$. | `ex_random_linear`, `ex_random_linear_cbv_marginal`, `rl_inner_marginal` — theories/programs/examples.v; theories/programs/cbv_marginals.v |
+| ex_score_posterior: score reweights the prior | Sample a parameter, score it by a bundled test function, return it; the denotation's measure of every measurable `U` is $\int_U f\,d\mu$, with total mass the evidence $\int f\,d\mu$. | `ex_score_posterior`, `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass` — theories/programs/examples.v; theories/programs/cbv_marginals.v |
 
 ### ex_random_constant: a random constant function (`ex_random_constant`, `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass`)
 
@@ -112,7 +112,7 @@ The main identity is the marginal at a test point: derelicting the
 (promoted) function value and evaluating it at a test point recovers the
 prior $\mu$. (Dereliction, `der`, is the counit that recovers a plain
 value `x` from its promoted form `x!` — `der_prom`,
-`theories/homs/bang.v`.)
+`theories/exp/bang.v`.)
 
 ```coq
 (* theories/programs/examples.v *)
@@ -130,7 +130,7 @@ Diracs are probabilities, so the corollary
 $\delta_{r_0}$.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section RandomConstantMarginal) *)
+(* theories/programs/cbv_marginals.v (Section RandomConstantMarginal) *)
 Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
   fmeas_mu x [set: ar_carrier Ar R_obj] = 1%E ->
   linhom_fun
@@ -150,7 +150,7 @@ The per-`U` reading of the same equality is
 measurable `U` equals $\mu(U)$.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section RandomConstantMarginal) *)
+(* theories/programs/cbv_marginals.v (Section RandomConstantMarginal) *)
 Theorem ex_random_constant_cbv_marginal_mass (x : FMeas R_obj)
     (Hx1 : fmeas_mu x [set: ar_carrier Ar R_obj] = 1%E)
     (U : set (ar_carrier Ar R_obj)) :
@@ -207,7 +207,7 @@ The program exercises `ne_add` and `ne_mul` via the arithmetic lifts of
 arithmetic (`add_lift_dirac` / `mul_lift_dirac`).
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section RandomLinearMarginal) *)
+(* theories/programs/cbv_marginals.v (Section RandomLinearMarginal) *)
 Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   fmeas_mu
@@ -229,7 +229,7 @@ a single integral over the intercept, and the outer theorem is that
 lemma integrated over the slope.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section RandomLinearMarginal) *)
+(* theories/programs/cbv_marginals.v (Section RandomLinearMarginal) *)
 Lemma rl_inner_marginal (m r0 : ar_carrier Ar R_obj)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   fmeas_mu
@@ -292,7 +292,7 @@ reweighted by the density, not normalised — and its mass corollary is
 the evidence.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section ScorePosterior) *)
+(* theories/programs/cbv_marginals.v (Section ScorePosterior) *)
 Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
@@ -322,7 +322,7 @@ and the integral collapses to $\int_U f\,d\mu$.
 > This program is the anchor for the whole conditioning/rejection
 > chapter: `score` produces the unnormalised posterior, rejection
 > sampling produces the normalised one, and `ex_reject_normalises_score`
-> (`theories/programs/infra/cbv_marginals.v`) connects the two programs
+> (`theories/programs/cbv_marginals.v`) connects the two programs
 > exactly — the rejection denotation times the total evidence $\int f\,d\mu$
 > *is* the measure computed here. Note also what the score does not do:
 > nothing in the semantics divides by the evidence, so the denotation of
@@ -353,9 +353,9 @@ denotation reduces to a hierarchy integral and whose total mass is exactly
 
 | Example | Statement | Rocq |
 |---|---|---|
-| ex_bayes_linear: the Bayesian linear model | The random affine model, bound once and conditioned on a list of Gaussian observations; the counit of its denotation is the model evidence. | `ex_bayes_linear`, `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2` — theories/programs/examples.v; theories/programs/infra/cbv_marginals.v |
+| ex_bayes_linear: the Bayesian linear model | The random affine model, bound once and conditioned on a list of Gaussian observations; the counit of its denotation is the model evidence. | `ex_bayes_linear`, `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2` — theories/programs/examples.v; theories/programs/cbv_marginals.v |
 | Observation folding and iterated conditioning | One observation is one soft-conditioning step of the model at a known input; the regression is defined as the fold of those steps, and unfolds to the raw score fold. | `condition_at`, `iter_condition`, `ex_bayes_linear_is_iter_condition` — theories/programs/examples.v |
-| ex_gaussian_walk: a Gaussian hierarchy | `let s = Gaussian(0,1) in Gaussian(s,1)`: the denotation's measure of every measurable `U` is the hierarchy integral, and the total mass is exactly `1`. | `ex_gaussian_walk`, `ex_gaussian_walk_E`, `ex_gaussian_walk_mass` — theories/programs/examples.v; theories/programs/infra/kernel_anchors.v |
+| ex_gaussian_walk: a Gaussian hierarchy | `let s = Gaussian(0,1) in Gaussian(s,1)`: the denotation's measure of every measurable `U` is the hierarchy integral, and the total mass is exactly `1`. | `ex_gaussian_walk`, `ex_gaussian_walk_E`, `ex_gaussian_walk_mass` — theories/programs/examples.v; theories/programs/kernel_anchors.v |
 
 ### ex_bayes_linear: the Bayesian linear model (`ex_bayes_linear`, `ex_bayes_linear3`, `ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`)
 
@@ -412,7 +412,7 @@ product of the observation densities `obs_d` at the model's values, over the
 priors on slope and intercept.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v — Section BayesLinearEvidence *)
+(* theories/programs/cbv_marginals.v — Section BayesLinearEvidence *)
 Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
@@ -427,7 +427,7 @@ The literal 2-observation instance writes the product out: the counit mass at
 `[:: o1; o2]` is $\int\int$ `obs_d` $o_1 (m \cdot x_1 + b) \cdot$ `obs_d` $o_2 (m \cdot x_2 + b)\,d\mu\,d\mu$.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v — Section BayesLinearEvidence *)
+(* theories/programs/cbv_marginals.v — Section BayesLinearEvidence *)
 Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
@@ -578,7 +578,7 @@ $\int N($`cR`$r, 1)($`toC`$^{-1} U)\,dN(0,1)(r)$, taken against the transported 
 mass exactly $1$.
 
 ```coq
-(* theories/programs/infra/kernel_anchors.v — Section GaussianWalkAnchors *)
+(* theories/programs/kernel_anchors.v — Section GaussianWalkAnchors *)
 Lemma ex_gaussian_walk_E (U : set (ar_carrier Ar R_obj)) :
   measurable U ->
   fmeas_mu (linhom_fun
@@ -626,7 +626,8 @@ entries, `ne_fix_mr` — with the boolean cascade, exhibiting productive
 partial termination. Their CBV mass identities, and for the two
 halting samplers the full distribution refinements that pin the
 denotations as *measures*, are proved in
-`theories/programs/ex_reject_headline.v` against the seeded
+`theories/programs/ex_geom.v`, `theories/programs/ex_almost_loop.v` and
+`theories/programs/ex_even_odd.v` against the seeded
 value-fixpoint interpreter (`fix_comb`, `fix_value`), by the same
 reduction-chain-plus-affine-cascade recipe as the rejection sampler of
 the next chapter.
@@ -644,10 +645,10 @@ mass `0`.
 | Example | Statement | Rocq |
 |---|---|---|
 | ex_loop: unproductive divergence | `let rec l _ = l () in l ()` at `tunit` — an infinite chain of unit-typed recursive calls, no sampling and no scoring; no identity of its own, the mass-`0` theorem being carried by `ex_almost_loop_cbv_zero` at `p = 0`. | `ex_loop`, `ex_loop_cbv` — theories/programs/examples.v |
-| ex_geom: the geometric distribution | The fair-coin counter halts almost surely, and its denotation is the geometric law: the atom at the embedded natural `k` carries mass $\left(\frac{1}{2}\right)^{k+1}$. | `ex_geom`, `ex_geom_cbv_distribution`, `ex_geom_cbv_pmf` — theories/programs/examples.v; theories/programs/ex_reject_headline.v |
-| ex_almost_loop: escape with probability one | A Bernoulli-guarded loop parameterised by a bundled probability: at $p > 0$ the denotation is the unit point `one1`, at $p = 0$ it is the zero point of the unit cone. | `ex_almost_loop`, `ex_almost_loop_cbv_dirac`, `ex_almost_loop_cbv_zero` — theories/programs/examples.v; theories/programs/ex_reject_headline.v |
-| ex_even_odd_pair: mutual recursion at a pair of functions | One recursive name bound by `ne_fix_mr` at a pair of function types; the pair denotation is `0! ⊗p 0!`, the pair of promoted-zero functions — *not* the cone-zero. | `ex_even_odd_pair`, `ex_even_odd_pair_cbv_value` — theories/programs/examples.v; theories/programs/ex_reject_headline.v |
-| ex_even and ex_odd: divergence of the projections | Each projection of the recursive pair delegates to the other with no base case; applied to `()`, both land in the unit cone as its zero element — mass `0`. | `ex_even`, `ex_even_cbv_diverges`, `ex_odd_cbv_diverges` — theories/programs/examples.v; theories/programs/ex_reject_headline.v |
+| ex_geom: the geometric distribution | The fair-coin counter halts almost surely, and its denotation is the geometric law: the atom at the embedded natural `k` carries mass $\left(\frac{1}{2}\right)^{k+1}$. | `ex_geom`, `ex_geom_cbv_distribution`, `ex_geom_cbv_pmf` — theories/programs/examples.v; theories/programs/ex_geom.v |
+| ex_almost_loop: escape with probability one | A Bernoulli-guarded loop parameterised by a bundled probability: at $p > 0$ the denotation is the unit point `one1`, at $p = 0$ it is the zero point of the unit cone. | `ex_almost_loop`, `ex_almost_loop_cbv_dirac`, `ex_almost_loop_cbv_zero` — theories/programs/examples.v; theories/programs/ex_almost_loop.v |
+| ex_even_odd_pair: mutual recursion at a pair of functions | One recursive name bound by `ne_fix_mr` at a pair of function types; the pair denotation is `0! ⊗p 0!`, the pair of promoted-zero functions — *not* the cone-zero. | `ex_even_odd_pair`, `ex_even_odd_pair_cbv_value` — theories/programs/examples.v; theories/programs/ex_even_odd.v |
+| ex_even and ex_odd: divergence of the projections | Each projection of the recursive pair delegates to the other with no base case; applied to `()`, both land in the unit cone as its zero element — mass `0`. | `ex_even`, `ex_even_cbv_diverges`, `ex_odd_cbv_diverges` — theories/programs/examples.v; theories/programs/ex_even_odd.v |
 
 ### ex_loop: unproductive divergence (`ex_loop`)
 
@@ -714,7 +715,7 @@ probability is a bare real literal and its `[0,1]` bounds are
 discharged by `lra` — no bundle, no `Const`, no loose witnesses.
 
 ```coq
-(* theories/programs/ex_reject_headline.v — Section GeomRider *)
+(* theories/programs/ex_geom.v — Section GeomRider *)
 Theorem ex_geom_cbv_mass_one :
   fmeas_mu g_denot [set: ar_carrier Ar R_obj] = 1.
 ```
@@ -726,7 +727,7 @@ notations: the embedded point `gpt k` places the natural `k` in the
 real carrier, and `geom_w k` is the weight $\left(\frac{1}{2}\right)^{k+1}$ as an ereal.
 
 ```coq
-(* theories/programs/ex_reject_headline.v — Section GeomRider
+(* theories/programs/ex_geom.v — Section GeomRider
    gpt k := R_to_carrier R_carrier_eq (k%:R : R)
    geom_w k := (((1 / 2 : R) ^+ k.+1)%:E) *)
 Theorem ex_geom_cbv_distribution (U : set (ar_carrier Ar R_obj))
@@ -740,7 +741,7 @@ The atoms are distinct (`gpt_inj`) and each singleton is measurable
 one surviving term — the PMF.
 
 ```coq
-(* theories/programs/ex_reject_headline.v — Section GeomRider *)
+(* theories/programs/ex_geom.v — Section GeomRider *)
 Theorem ex_geom_cbv_pmf (k : nat) :
   fmeas_mu g_denot [set gpt k] = ((1 / 2 : R) ^+ k.+1)%:E.
 ```
@@ -754,8 +755,8 @@ per-iterate measures (`ex_geom_sup_E`); one Kleene step computes to
 the boolean dispatch $\nu_{n+1} = \tfrac{1}{2}\cdot\delta_0 + \tfrac{1}{2}\cdot($ `add_lift` ` $(\delta_1 \otimes \nu_n))$
 (`g_step`); the translation-mass invariance `add_lift_mass` reduces
 the mass cascade to $x_{n+1} = \tfrac{1}{2} + \tfrac{1}{2}\cdot x_n$ (`g_val_S`); the affine
-cascade and the sup-mass bridge of
-`theories/programs/infra/affine_cascade.v` close the limit at `1`.
+cascade (`theories/prelude/geom_series.v`) and the sup-mass bridge
+(`theories/mcones/fmeas.v`) close the limit at `1`.
 The distribution refinement runs the same induction per set: the
 per-`U` step recurrence `g_iter_U_S` splits the THEN branch into
 $\left(\frac{1}{2}\right) \delta_0$ and the ELSE branch into the previous iterate pushed
@@ -806,7 +807,7 @@ of the unit cone (the CBV `tunit` is the terminal coalgebra on
 point's norm.
 
 ```coq
-(* theories/programs/ex_reject_headline.v — Section AlmostLoopRider *)
+(* theories/programs/ex_almost_loop.v — Section AlmostLoopRider *)
 Theorem ex_almost_loop_cbv_mass_one : (0 < p)%R ->
   cone_norm al_denot = 1%R.
 
@@ -819,7 +820,7 @@ norm identity to the point itself, since a norm-one element of the
 one-dimensional unit cone is `one1` (`cone_one_norm_eq1`).
 
 ```coq
-(* theories/programs/ex_reject_headline.v — Section AlmostLoopRider *)
+(* theories/programs/ex_almost_loop.v — Section AlmostLoopRider *)
 Theorem ex_almost_loop_cbv_dirac : (0 < p)%R -> al_denot = one1.
 ```
 
@@ -884,14 +885,14 @@ CBV denotation elaborates through the genuine Seely-transported
 fixpoint path `fix_mr_comb` of `theories/programs/ppl_cbv.v`
 (`fix_mr_clause` at `tprod`), built on
 `theories/programs/infra/em_fix_mr.v` (the Seely isomorphism
-`Seely2 : !B₁ ⊗ !B₂ ≅ !(B₁ & B₂)` of `theories/homs/seely_defs.v`, with
+`Seely2 : !B₁ ⊗ !B₂ ≅ !(B₁ & B₂)` of `theories/exp/seely_defs.v`, with
 `Seely2 (x₁! ⊗ x₂!) = ⟨x₁,x₂⟩!`, lets a promoted pair be read as, and
 rebuilt from, a pair of promotions); `ex_even_odd_pair_cbv` of
 `theories/programs/examples.v` is that elaboration recorded as a
 smoke test.
 
 ```coq
-(* theories/programs/ex_reject_headline.v — Section ExEvenOddRider *)
+(* theories/programs/ex_even_odd.v — Section ExEvenOddRider *)
 Lemma ex_even_odd_pair_cbv_value :
   Lfun (eD_cbv' (ex_even_odd_pair : @named_expr R Ar R_obj nil pair_ty))
        one1 =
@@ -952,7 +953,7 @@ two theorems are the certain-divergence statements of the mutual
 recursion.
 
 ```coq
-(* theories/programs/ex_reject_headline.v — Section ExEvenOddRider *)
+(* theories/programs/ex_even_odd.v — Section ExEvenOddRider *)
 Theorem ex_even_cbv_diverges :
   Lfun (eD_cbv' ex_even_run) one1 = precone_zero.
 
@@ -1025,8 +1026,8 @@ then the program level, the equivalence theorem, the sampler instance
 | The rejection master identity: program level | The same identity through the interpreter, over an arbitrary thunked model program and an arbitrary predicate program. | `reject_prog_master`, `reject_prog_is_normalised`, `reject_prog_zero` — theories/programs/ex_reject_model.v |
 | The equivalence theorem | Rejection sampling normalises conditioning: $Z \cdot \llbracket\text{reject\_prog}\rrbracket U = \llbracket\text{condition\_prog}\rrbracket U$, division-free and unconditional. | `reject_normalises_condition`, `reject_prog_computes_condition` — theories/programs/ex_reject_model.v |
 | ex_reject: the sampler instance | At `ex_sampler` with a unit-mass prior the identity becomes the classical $\int t\,d\mu \cdot \nu(U) = \int_U t\,d\mu$. | `ex_reject`, `ex_reject_master`, `ex_reject_comb_sampler_master` — theories/programs/examples.v; theories/programs/ex_reject_headline.v; theories/programs/ex_reject_model.v |
-| The normalised posterior of ex_reject | With positive acceptance mass the sampler denotes $(\int_U f\,d\mu) / (\int f\,d\mu)$, terminates almost surely, normalises the score posterior. | `ex_reject_is_normalised_posterior`, `ex_reject_mass_one`, `ex_reject_normalises_score` — theories/programs/ex_reject_headline.v; theories/programs/infra/cbv_marginals.v |
-| Hard conditioning as the deterministic instance | A deterministic predicate makes `t` the indicator of the accept set; the give-up term denotes the zero measure. | `ne_fail_zero`, `bc_t` — theories/programs/ex_reject_model.v; theories/programs/infra/bool_cone.v |
+| The normalised posterior of ex_reject | With positive acceptance mass the sampler denotes $(\int_U f\,d\mu) / (\int f\,d\mu)$, terminates almost surely, normalises the score posterior. | `ex_reject_is_normalised_posterior`, `ex_reject_mass_one`, `ex_reject_normalises_score` — theories/programs/ex_reject_headline.v; theories/programs/cbv_marginals.v |
+| Hard conditioning as the deterministic instance | A deterministic predicate makes `t` the indicator of the accept set; the give-up term denotes the zero measure. | `ne_fail_zero`, `bc_t` — theories/programs/ex_reject_model.v; theories/icones/bool_cone.v |
 
 ### Fail, assert, and the two combinators (`ne_reject`, `ne_condition`, `ne_fail`, `ne_assert`)
 
@@ -1280,9 +1281,9 @@ Proof idea (`theories/programs/ex_reject_model.v`), in three moves.
 - **Sum.** `eD_let_int_obj` integrates the iterate over $\nu_M$, giving the
   affine recurrence `reject_model_iter_mass`, whose retry mass
   $\int \text{bc\_f}\,d\nu_M = m_0 - I_f$ (`rm_int_onem`, the generic
-  `fmeas_int_compl` of `theories/programs/infra/affine_cascade.v`) keeps the model's own
+  `fmeas_int_compl` of `theories/mcones/fmeas.v`) keeps the model's own
   divergence mass out of the loop; the affine cascade `affine_iter_cvg`
-  (`theories/programs/infra/affine_cascade.v`) at $a := I_{Uf} U$,
+  (`theories/prelude/geom_series.v`) at $a := I_{Uf} U$,
   $q := m_0 - I_f$ gives the limit $I_{Uf} U / (1 - q)$,
   `fmeas_kleene_sup_U_E` identifies it with $\nu(U)$, and $q = 1$ is the
   constantly-zero chain.
@@ -1541,13 +1542,13 @@ Theorem ex_reject_zero :
 ```
 
 Finally `ex_reject_normalises_score` is the equivalence at this instance,
-stated in `theories/programs/infra/cbv_marginals.v` where the score
+stated in `theories/programs/cbv_marginals.v` where the score
 posterior lives: at $\mu(\text{setT}) = 1$, rejection sampling normalises exactly
 the score program's unnormalised posterior,
 $(\int f\,d\mu) \cdot \nu_{\text{reject}}(U) = \nu_{\text{score}}(U)$.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v — Section ScorePosterior *)
+(* theories/programs/cbv_marginals.v — Section ScorePosterior *)
 Theorem ex_reject_normalises_score
     (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
@@ -1634,27 +1635,27 @@ make -j
 
 # Basic sampling/scoring examples — the CBV marginals + the evidence
 echo "Print Assumptions ex_random_constant_cbv_marginal." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions ex_random_linear_cbv_marginal."   | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions ex_score_posterior_cbv_E."        | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions ex_bayes_linear_cbv_evidence."    | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 
 # Runtime-parameter distributions — the Gaussian hierarchy demo
 echo "Print Assumptions ex_gaussian_walk_E."    | \
-  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
+  rocq top -Q theories Icones -l theories/programs/kernel_anchors.v
 echo "Print Assumptions ex_gaussian_walk_mass." | \
-  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
+  rocq top -Q theories Icones -l theories/programs/kernel_anchors.v
 
 # Recursive probabilistic examples — the CBV mass identities
 echo "Print Assumptions ex_geom_cbv_mass_one."          | \
-  rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
+  rocq top -Q theories Icones -l theories/programs/ex_geom.v
 echo "Print Assumptions ex_almost_loop_cbv_mass_one."   | \
-  rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
+  rocq top -Q theories Icones -l theories/programs/ex_almost_loop.v
 echo "Print Assumptions ex_almost_loop_cbv_zero."       | \
-  rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
+  rocq top -Q theories Icones -l theories/programs/ex_almost_loop.v
 
 # The rejection-sampling combinator — master identity, normalised
 # distribution, and the instance bridge
@@ -1683,7 +1684,7 @@ echo "Print Assumptions ex_reject_master."              | \
 echo "Print Assumptions ex_reject_is_normalised_posterior." | \
   rocq top -Q theories Icones -l theories/programs/ex_reject_headline.v
 echo "Print Assumptions ex_reject_normalises_score."    | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 ```
 
 Each command reports only `propositional_extensionality`,

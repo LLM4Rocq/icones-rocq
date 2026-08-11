@@ -53,7 +53,6 @@ From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import topology normedtype sequences.
 Import numFieldTopology.Exports.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -64,13 +63,13 @@ Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.path.
 Require Import Icones.mcones.mcone_cat.
-Require Import Icones.mcones.test_pullback.
+Require Import Icones.icones.test_pullback.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.examples_icone.
 Require Import Icones.icones.icone_cat.
-Require Import Icones.icones.representable.
+Require Import Icones.homs.representable.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.icones_iso.

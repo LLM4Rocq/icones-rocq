@@ -346,7 +346,7 @@ The CBV clauses `eD_gaussian_E` and `eD_uniform_E`
 (`theories/programs/ppl_cbv.v`) have the `ne_add` shape with the kernel
 lift in place of the pushforward:
 $\llbracket \text{Gaussian}(e_1,e_2) \rrbracket = \delta_\Gamma ; (\llbracket e_1 \rrbracket \otimes \llbracket e_2 \rrbracket) ; \text{kernel\_lift2 gaussian\_kernel}$.
-The anchors live in `theories/programs/infra/kernel_anchors.v`:
+The anchors live in `theories/programs/kernel_anchors.v`:
 `eD_gaussian_at` and `eD_gaussian_dirac_E` (on point-mass arguments the
 draw *is* the transported `normal_prob`, with the $s = 0$ Dirac fibre),
 `eD_gaussian_mass` (the result's mass is the product of the argument
@@ -964,7 +964,7 @@ reads `Bernoulli (test f #"x")` or `Score (test f #"m")`. Test functions
 are the *soft*, score-based side of conditioning: `Score (test f #"x")`
 is the score posterior `ex_score_posterior`
 (`theories/programs/examples.v`, analysed in
-`theories/programs/infra/cbv_marginals.v`), and `ex_reject`
+`theories/programs/cbv_marginals.v`), and `ex_reject`
 (`theories/programs/examples.v`, analysed in
 `theories/programs/ex_reject_headline.v`) accepts through the coin
 `Bernoulli (test f #"x")`. The `reject` / `condition`
@@ -1243,7 +1243,7 @@ semantic-laws chapter.
 
 | Construction | Statement | Rocq |
 |---|---|---|
-| The semantic target: EM cartesian structure | Every `!`-coalgebra carries a commutative comonoid $(\delta, \varepsilon)$, and these comonoids make $(EM(!), \otimes, 1)$ cartesian: pairing, projections and the terminal morphism are definable from $(\delta, \varepsilon)$ alone. | `coalg_d`, `coalg_e`, `em_pair_mor` — theories/homs/em_cartesian.v; theories/programs/infra/cbv_adjunction.v |
+| The semantic target: EM cartesian structure | Every `!`-coalgebra carries a commutative comonoid $(\delta, \varepsilon)$, and these comonoids make $(EM(!), \otimes, 1)$ cartesian: pairing, projections and the terminal morphism are definable from $(\delta, \varepsilon)$ alone. | `coalg_d`, `coalg_e`, `em_pair_mor` — theories/cbv/em_cartesian.v; theories/cbv/cbv_adjunction.v |
 | Type translation | Each surface type denotes a `!`-coalgebra; the function type denotes the cofree coalgebra on the clean internal hom, with no `Tobj` wrap anywhere. | `tyD_cbv` — theories/programs/ppl_cbv.v |
 | Context translation | A context denotes the right-nested iterated EM product of its types' coalgebras, and variable lookup is the evident chain of projections. | `ctxD_cbv`, `var_lookup_cbv` — theories/programs/ppl_cbv.v |
 | Term interpretation | The denotation of a term, by structural recursion on `named_expr`: uniformly comonoid-primitive, `icones_hom`-valued internally and linhom-valued in public. | `eD_cbv`, `eD` — theories/programs/ppl_cbv.v |
@@ -1261,13 +1261,13 @@ cartesian — pairing, projections and the terminal morphism are all
 definable from $(\delta, \varepsilon)$ alone. This is the entire toolbox the CBV
 interpreter branches on.
 
-The constructions live in `theories/homs/em_cartesian.v` (Melliès
+The constructions live in `theories/cbv/em_cartesian.v` (Melliès
 §7.4 Prop 28 / Cor 20 — see the Paper-tab pages [EM(!) is fully
 cartesian](../../paper/beyond/beyond-em.html) and [Cartesian-η of
 EM(!)](../../paper/beyond/beyond-cartesian-of-em.html)).
 
 ```coq
-(* theories/homs/em_cartesian.v *)
+(* theories/cbv/em_cartesian.v *)
 
 (** Eq 88 (diagonal): [coalg_d = (ε⊗ε) ∘ d_{!A} ∘ a : A ⊸ A⊗A]. *)
 Definition coalg_d (P : Coalgebra Ar) :
@@ -1302,12 +1302,12 @@ Definition em_term_mor (P : Coalgebra Ar) :
 The unbundled cartesian-η identity `em_pair_mor_proj_id` — pairing the
 two projections back together is the identity,
 $\text{em\_pair\_mor}(\text{em\_proj1\_mor}, \text{em\_proj2\_mor}) = \mathrm{id}_{P \otimes Q}$ — is exposed
-in `theories/programs/infra/cbv_adjunction.v` (Section EmPairProjId)
+in `theories/cbv/cbv_adjunction.v` (Section EmPairProjId)
 and proved by promoted-point extensionality on the cofree pair, then
 transported along the `coalg_str` retract.
 
 ```coq
-(* theories/programs/infra/cbv_adjunction.v (Section EmPairProjId) *)
+(* theories/cbv/cbv_adjunction.v (Section EmPairProjId) *)
 (** Cartesian-η: pairing the two projections is the identity. *)
 Lemma em_pair_mor_proj_id (P Q : Coalgebra Ar) :
   @em_pair_mor R Ar (EM_prod P Q) P Q (em_proj1_mor P Q) (em_proj2_mor P Q)
@@ -1349,7 +1349,7 @@ Fixpoint tyD_cbv (t : ppl_type Ar) : Coalgebra Ar :=
 
 The `tbase` clause is the
 [Thm 9.7 coalgebra](../../paper/entries/thm-9-7.html) of
-`theories/homs/coalgebra.v`; the `tbool` clause uses
+`theories/exp/coalgebra.v`; the `tbool` clause uses
 `bool_cone_coalg` of `theories/programs/infra/bool_cone_coalg.v`,
 documented in the boolean-cascade chapter.
 
@@ -1480,7 +1480,7 @@ of `theories/programs/distributions.v`. The behaviour of those two
 clauses on point masses, on total mass and on sampling agreement is
 pinned by the anchors `eD_gaussian_at`, `eD_gaussian_dirac_E`,
 `eD_gaussian_mass` and `eD_gaussian_sample_agree` (with `Uniform`
-mirrors) of `theories/programs/infra/kernel_anchors.v`.
+mirrors) of `theories/programs/kernel_anchors.v`.
 
 The `ne_fix` clause is the composite $\text{fix\_comb} \circ \llbracket \lambda s.\text{body} \rrbracket$: the
 self-abstraction is interpreted as an *ordinary* lambda (the
@@ -1574,7 +1574,7 @@ lift: package $x \mapsto \text{bernoulli } (g\,x)$ as a measurable path into
 the path to $g$, $1 - g$ and the constant $1$), then promote
 with `int_to_linhom`. The integral semantics is then automatic by
 Pettis uniqueness against the componentwise integral `bool_int` of
-`theories/programs/infra/bool_cone.v` — the content of `bern_lift_E`,
+`theories/icones/bool_cone.v` — the content of `bern_lift_E`,
 from which the two coordinate readings `bern_lift_t_E` and
 `bern_lift_f_E` follow.
 
@@ -1802,8 +1802,8 @@ operator before its removal — is *provably the zero linhom*, always
 (`Phi_fun_lfp_eq0`): a linear step preserves the zero seed, and the bottom of a
 CBV function-value type is not the cone-zero of `!L` but the promoted zero
 `(0)!`, the diverging-function value of `e_bang`-mass one. Then the
-`stable/`-side infrastructure the repair consumes (paper-§7 material, in
-`theories/stable/diag_bilinear_tensor.v`, a file imported by exactly
+stable-map infrastructure the repair consumes (paper-§7 material, carried in
+the CBV layer at `theories/cbv/diag_bilinear_tensor.v`, a file imported by exactly
 `em_fix_value.v` and `em_fix_mr.v`): the lift `linhom_to_stablehom`, which
 turns linear data into a *stable* map, and the diagonal bridge
 `meas_stable_diag_bilinear_tensor`, which applies a bilinear `ICones` map along
@@ -1828,8 +1828,8 @@ it satisfies, and the `SCones` fixpoint core `Yfix` on which everything rests.
 |---|---|---|
 | Why the naive fixpoint degenerates | The zero-seeded Kleene iteration of the naive linear step is the zero linhom, for every diagonal and every body. | `Phi_fun_lfp_eq0`, `Phi_fun_zero` — theories/programs/infra/em_fix_value.v; `lfp_eq0` — theories/stable/fixpoint.v |
 | The naive linear Kleene step | The linear step $\text{prev} \mapsto M \circ (\text{id} \otimes \text{prev}) \circ \text{diag}$ and the linhom least-fixpoint core it used to be iterated in. | `Phi_fun`, `linhom_lfp`, `linhom_lfp_fixpoint` — theories/programs/infra/em_fix.v |
-| Lifting linear morphisms to stable functions | Every inhabitant of the internal hom is a stable map of cones, and the packaging function is itself measurable-stable. | `linhom_to_stablehom`, `linhom_to_stablehom_meas_stable` — theories/stable/diag_bilinear_tensor.v |
-| Bilinear stability through the tensor | Applying a bilinear `ICones` map along a measurable-stable argument yields a measurable-stable diagonal. | `meas_stable_diag_bilinear_tensor` — theories/stable/diag_bilinear_tensor.v |
+| Lifting linear morphisms to stable functions | Every inhabitant of the internal hom is a stable map of cones, and the packaging function is itself measurable-stable. | `linhom_to_stablehom`, `linhom_to_stablehom_meas_stable` — theories/cbv/diag_bilinear_tensor.v |
+| Bilinear stability through the tensor | Applying a bilinear `ICones` map along a measurable-stable argument yields a measurable-stable diagonal. | `meas_stable_diag_bilinear_tensor` — theories/cbv/diag_bilinear_tensor.v |
 | The seeded Kleene core | The Kleene chain from an arbitrary seed $b_0$ with $b_0 \leq f b_0$, and its fixpoint equation. | `kleene_from`, `lfp_from`, `lfp_from_fixpoint` — theories/programs/infra/em_fix_value.v |
 | The interleaved chain and the value map | The chain $x_{n+1} = \mathrm{der}(F (x_n !))$ and the stable map sending a body to its supremum. | `fix_chain`, `fix_value`, `fix_value_E` — theories/programs/infra/em_fix_value.v |
 | The fixpoint combinator | The value map as a morphism of cofree `!`-coalgebras, with its prom-point computation law. | `fix_comb`, `fix_comb_mor`, `fix_prom_E` — theories/programs/infra/em_fix_value.v |
@@ -1949,7 +1949,7 @@ measurable map of cones, and the `linhom → stablehom` packaging function
 measurable-stable — the internal-hom version of paper Lemma 7.31.
 
 ```coq
-(* theories/stable/diag_bilinear_tensor.v *)
+(* theories/cbv/diag_bilinear_tensor.v *)
 Definition linhom_to_stablehom (h : linhom_car Ar B C) : stablehom B C :=
   MkStablehom (sc_clamp (linhom_fun h))
               (sc_clamp_meas_stable (linhom_meas_stable h))
@@ -1964,7 +1964,7 @@ The 0-extension off the unit ball is the standard `sc_clamp`.
 > This is the lift the CBV value-fixpoint consumes: `fix_lts` of
 > `theories/programs/infra/em_fix_value.v` applies it to the post-action
 > $F \mapsto \mathrm{der} \circ F$, feeding `fix_value` — it is the first ingredient of the value
-> map, and the reason a chapter of `stable/` material sits inside the recursion
+> map, and the reason a chapter of stable-map material sits inside the recursion
 > story.
 
 ### Bilinear stability through the tensor (`meas_stable_diag_bilinear_tensor`)
@@ -1988,7 +1988,7 @@ pre-composition twin `meas_stable_comp_pre`), the diagonal pair
 rescaling by linearity of `ev_fun` in its first slot.
 
 ```coq
-(* theories/stable/diag_bilinear_tensor.v *)
+(* theories/cbv/diag_bilinear_tensor.v *)
 Lemma meas_stable_diag_bilinear_tensor
     (K : G -> EA)
     (Phi : icones_hom Ar (tensor Ar G EA) EB) :
@@ -2003,8 +2003,9 @@ Lemma meas_stable_diag_bilinear_tensor
 ```
 
 > `EA` and `EB` are kept as arbitrary integrable cones rather than instantiated
-> to `Bang Ar A` / `Bang Ar B`, so that `stable/` does not have to import the
-> exponential adjunction. The two consumers are exactly
+> to `Bang Ar A` / `Bang Ar B`, so that `diag_bilinear_tensor.v` does not have to
+> import the exponential adjunction: it stays pure `homs`/`stable` material even
+> though the CBV layer is where it is consumed. The two consumers are exactly
 > `theories/programs/infra/em_fix_value.v` and
 > `theories/programs/infra/em_fix_mr.v`.
 
@@ -2096,7 +2097,7 @@ Lemma fix_value_unfold (F : LL) (HF : cone_norm F <= 1) :
 `fix_comb` $(F!) = (\sup_n x_n)!$ (the chapter's opening formula, pinned by
 `fix_prom_E` below). A stable map `(!A ⊸ !A) → A` *is* a linear map
 `!(!A ⊸ !A) ⊸ A` via the SAFT (Special Adjoint Functor Theorem)
-hom-bijection `lin`/`Theta` of `theories/homs/bang.v`
+hom-bijection `lin`/`Theta` of `theories/exp/bang.v`
 (`fix_lin := lin fix_value`, with the promoted-point computation
 `fix_lin_promE`); `adj_psi` of the `U ⊣ !̃` adjunction then packages the linear
 map as a morphism into the
@@ -2483,13 +2484,13 @@ rejection/conditioning equivalence of
 |---|---|---|
 | The β-rule and the if-pins | $(\lambda x.M) V = \text{let } x := V \text{ in } M$, and the boolean dispatch is oriented — `if true` selects the left branch, `if false` the right | `eD_beta`, `eD_if_true`, `eD_if_false` — theories/programs/infra/cbv_anchors.v |
 | The let-at-sample integral law | $\llbracket \text{let } x = \text{sample } \mu \text{ in } K \rrbracket(\gamma) = \int \llbracket K \rrbracket(\gamma \otimes \delta_r) \mu(dr)$, and the same law at an arbitrary bound computation | `eD_let_sample_int`, `eD_let_sample_mu_E`, `eD_let_int` — theories/programs/infra/let_sample_law.v |
-| The affine cascade, the sup-mass bridge, and the mass bookkeeping | The scalar recurrence $x(n+1) = a + q \cdot x_n$ in closed form; the mass of a Kleene supremum as the limit of the per-iterate masses; and the acceptance-mass integrals of a bounded nonnegative integrand, with the complementary weight $\int h\,d\nu = \nu(\text{setT}) - \int g\,d\nu$ at $g + h \equiv 1$ | `affine_iter_closed`, `fmeas_kleene_sup_U_E`, `fmeas_int_le_mass`, `fmeas_int_compl` — theories/programs/infra/affine_cascade.v |
+| The affine cascade, the sup-mass bridge, and the mass bookkeeping | The scalar recurrence $x(n+1) = a + q \cdot x_n$ in closed form; the mass of a Kleene supremum as the limit of the per-iterate masses; and the acceptance-mass integrals of a bounded nonnegative integrand, with the complementary weight $\int h\,d\nu = \nu(\text{setT}) - \int g\,d\nu$ at $g + h \equiv 1$ | `affine_iter_closed` — theories/prelude/geom_series.v; `fmeas_kleene_sup_U_E`, `fmeas_int_le_mass`, `fmeas_int_compl` — theories/mcones/fmeas.v |
 | The setlike-point kit | At setlike unit-ball points the Eq-88 comonoid computes: the diagonal is the pure tensor square $x \otimes x$, the counit is the unit point; and the three interpreter clauses every rider runs on — lambda, application, if — compute there | `coalg_d_setlike`, `coalg_str_tensor_setlike`, `em_pair_mor_constE`, `adj_psi_at_setlike`, `eD_app_at_setlike`, `if_icones_at`, `linhom_fun_sup_ball` — theories/programs/infra/cbv_anchors.v |
 | The sharing-semantics anchors | `let x = Bernoulli(p) in (x, x)` denotes the diagonal pushforward; two separate draws denote the independent product $\otimes$ | `let_bernoulli_pair_diag`, `pair_bernoulli_indep` — theories/programs/infra/cbv_anchors.v |
-| The marginal kit at non-setlike points | The `FMeas` counit sends every probability measure to the unit point, so a discarded probability leaves the kept component unchanged | `coalg_e_FMeas_prob`, `em_proj1_mor_probE`, `one_dirac_setlike` — theories/programs/infra/cbv_marginals.v |
-| The score posterior and its normalisation | `score` denotes the prior reweighted by the evidence density; rejection sampling denotes the same measure, normalised | `ex_score_posterior_cbv_E`, `ex_reject_normalises_score` — theories/programs/infra/cbv_marginals.v |
-| The marginals of random functions | A sampled constant derelicts to the prior at probability test points; the random affine model derelicts to the joint pushforward at Diracs | `ex_random_constant_cbv_marginal`, `ex_random_linear_cbv_marginal` — theories/programs/infra/cbv_marginals.v |
-| The Bayesian-linear model evidence | The comonoid counit of the function-space denotation of `ex_bayes_linear l` is the model evidence | `ex_bayes_linear_cbv_evidence`, `obs_fold_at` — theories/programs/infra/cbv_marginals.v |
+| The marginal kit at non-setlike points | The `FMeas` counit sends every probability measure to the unit point, so a discarded probability leaves the kept component unchanged | `coalg_e_FMeas_prob`, `em_proj1_mor_probE`, `one_dirac_setlike` — theories/programs/cbv_marginals.v |
+| The score posterior and its normalisation | `score` denotes the prior reweighted by the evidence density; rejection sampling denotes the same measure, normalised | `ex_score_posterior_cbv_E`, `ex_reject_normalises_score` — theories/programs/cbv_marginals.v |
+| The marginals of random functions | A sampled constant derelicts to the prior at probability test points; the random affine model derelicts to the joint pushforward at Diracs | `ex_random_constant_cbv_marginal`, `ex_random_linear_cbv_marginal` — theories/programs/cbv_marginals.v |
+| The Bayesian-linear model evidence | The comonoid counit of the function-space denotation of `ex_bayes_linear l` is the model evidence | `ex_bayes_linear_cbv_evidence`, `obs_fold_at` — theories/programs/cbv_marginals.v |
 | The conditioning law and the equivalence | $\llbracket \text{condition } f \, m \rrbracket(U) = \int_U t \, d\nu_M$ at the predicate's true-weight $t$, for an arbitrary model; rejection sampling computes that measure, normalised | `condition_model_E`, `condition_E`, `reject_normalises_condition` — theories/programs/ex_reject_model.v |
 
 ### The β-rule and the if-pins (`eD_beta`, `eD_if_true`, `eD_if_false`)
@@ -2632,7 +2633,7 @@ form $x_n = a (1 - q^n) / (1 - q)$ away from $q = 1$ and
 the limit $a / (1 - q)$ when $q < 1$.
 
 ```coq
-(* theories/programs/infra/affine_cascade.v *)
+(* theories/prelude/geom_series.v *)
 (** Closed form: [x n = a * (1 + q + ... + q^(n-1))]. *)
 Lemma affine_iter_closed (n : nat) :
   x n = (a * (\sum_(i < n) q ^+ i))%R.
@@ -2658,7 +2659,7 @@ $\nu : \mathbb{N} \to \mathit{fmeas}\ R\ X$ and a measurable $U$, the masses
 Hausdorff uniqueness.
 
 ```coq
-(* theories/programs/infra/affine_cascade.v (Section FMeasKleeneSup) *)
+(* theories/mcones/fmeas.v (Section FMeasKleeneSup) *)
 Lemma fmeas_kleene_sup_U_E (U : set X) (l : \bar R) :
   measurable U ->
   fmeas_mu (nu n) U @[n --> \oo] --> l ->
@@ -2825,7 +2826,7 @@ measure to `one1`: Diracs are setlike, and the Dirac-to-integral lift
 plus the Pettis equation on `cone_one` reads off the total mass.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section FMeasCounitKit) *)
+(* theories/programs/cbv_marginals.v (Section FMeasCounitKit) *)
 Lemma coalg_e_FMeas_prob (X : ar_obj Ar) (nu : FMeas X) :
   fmeas_mu nu [set: ar_carrier Ar X] = 1%E ->
   Lfun (coalg_e (FMeas_coalgebra X)) nu = one1.
@@ -2841,7 +2842,7 @@ underlying `cones_hom`) moves the resulting `precone_scale` factor
 through any morphism.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section EMProjKit) *)
+(* theories/programs/cbv_marginals.v (Section EMProjKit) *)
 (** Discarding a [tunit]-typed component weighs by the scalar. *)
 Lemma em_proj1_mor_unitE (P : Coalgebra Ar)
     (x : coalg_obj P) (s : cone_one_car Ar) :
@@ -2867,7 +2868,7 @@ computation is evaluated at — $\text{one1} \otimes \delta_r$, the context of o
 coalgebra law.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section OneDiracEnv) *)
+(* theories/programs/cbv_marginals.v (Section OneDiracEnv) *)
 Lemma one_dirac_ball (r : ar_carrier Ar R_obj) :
   cone_norm ((one1 : cone_one_car Ar) ⊗p dirac_fmeas r) <= 1.
 
@@ -2893,11 +2894,11 @@ is, on every measurable $U$, the prior reweighted by the evidence
 density — *not* normalised; the mass corollary
 `ex_score_posterior_cbv_mass` gives the total evidence $\int f \, d\mu$. The
 identity is proved against the CBV interpreter `eD` in
-`theories/programs/infra/cbv_marginals.v`, reparameterized over a
+`theories/programs/cbv_marginals.v`, reparameterized over a
 bundled `probObj` `P`, a bundled prior `pmeas` and a bundled `testfn`.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section ScorePosterior) *)
+(* theories/programs/cbv_marginals.v (Section ScorePosterior) *)
 Theorem ex_score_posterior_cbv_E (U : set (ar_carrier Ar R_obj))
     (mU : measurable U) :
   fmeas_mu
@@ -2921,7 +2922,7 @@ pairing: at a probability prior ($\mu(\mathit{setT}) = 1$), the rejection-sampli
 denotation times the total evidence *is* the score denotation.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section ScorePosterior) *)
+(* theories/programs/cbv_marginals.v (Section ScorePosterior) *)
 Theorem ex_reject_normalises_score
     (Hmu1 : fmeas_mu mu [set: ar_carrier Ar R_obj] = 1)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
@@ -2950,7 +2951,7 @@ corollary `ex_random_constant_cbv_marginal_dirac`; the per-$U$ reading
 is `ex_random_constant_cbv_marginal_mass`.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section RandomConstantMarginal) *)
+(* theories/programs/cbv_marginals.v (Section RandomConstantMarginal) *)
 Theorem ex_random_constant_cbv_marginal (x : FMeas R_obj) :
   fmeas_mu x [set: ar_carrier Ar R_obj] = 1%E ->
   linhom_fun
@@ -2972,7 +2973,7 @@ the joint pushforward of two independent prior draws along
 $(m, b) \mapsto m \cdot r_0 + b$.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section RandomLinearMarginal) *)
+(* theories/programs/cbv_marginals.v (Section RandomLinearMarginal) *)
 Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
     (U : set (ar_carrier Ar R_obj)) (mU : measurable U) :
   fmeas_mu
@@ -2997,7 +2998,7 @@ Theorem ex_random_linear_cbv_marginal (r0 : ar_carrier Ar R_obj)
 
 ### The Bayesian-linear model evidence (`ex_bayes_linear_cbv_evidence`, `ex_bayes_linear_cbv_evidence2`, `obs_fold_at`)
 
-The headline of `theories/programs/infra/cbv_marginals.v`:
+The headline of `theories/programs/cbv_marginals.v`:
 `ex_bayes_linear l` samples the random affine model *once* (it is
 literally `ex_random_linear`), binds it to `"f"`, conditions it on each
 element of the meta-level list `l : seq (obs R)` in turn
@@ -3008,7 +3009,7 @@ comonoid counit ("total mass") of the function-space denotation is the
 **model evidence**.
 
 ```coq
-(* theories/programs/infra/cbv_marginals.v (Section BayesLinearEvidence) *)
+(* theories/programs/cbv_marginals.v (Section BayesLinearEvidence) *)
 Theorem ex_bayes_linear_cbv_evidence (l : seq (obs R)) :
   ((c1_val (Lfun (coalg_e (tyD_cbv tF))
       (linhom_fun
@@ -3121,9 +3122,9 @@ structure that gives `tbool` its shared-sample semantics.
 
 | Construction | Statement | Rocq |
 |---|---|---|
-| The 2-point cone | The carrier $(p, q)$ of non-negative weights on true and false, with norm $p + q$ and the two Dirac basis points, carrying the full `ICone` tower. | `bool_cone_car`, `bool_dirac_true`, `bool_dirac_false` — theories/programs/infra/bool_cone.v |
-| The universal co-pairing | The eliminator $[a, b](x) = bc_t(x) \cdot a + bc_f(x) \cdot b$, with its Dirac equations and its linearity, $\omega$-continuity, norm, path and integral obligations. | `bool_case`, `bool_case_true`, `bool_case_false` — theories/programs/infra/bool_cone.v |
-| Icones-hom packaging | The co-pairing packaged at each categorical level, and its α/β sum decomposition. | `bool_case_linhom`, `bool_case_icones_hom`, `alpha_linhom` — theories/programs/infra/bool_case_hom.v |
+| The 2-point cone | The carrier $(p, q)$ of non-negative weights on true and false, with norm $p + q$ and the two Dirac basis points, carrying the full `ICone` tower. | `bool_cone_car`, `bool_dirac_true`, `bool_dirac_false` — theories/icones/bool_cone.v |
+| The universal co-pairing | The eliminator $[a, b](x) = bc_t(x) \cdot a + bc_f(x) \cdot b$, with its Dirac equations and its linearity, $\omega$-continuity, norm, path and integral obligations. | `bool_case`, `bool_case_true`, `bool_case_false` — theories/icones/bool_cone.v |
+| Icones-hom packaging | The co-pairing packaged at each categorical level, and its α/β sum decomposition. | `bool_case_linhom`, `bool_case_icones_hom`, `alpha_linhom` — theories/exp/bool_case_hom.v |
 | The coalgebra on the 2-point cone | A `!`-coalgebra structure on the 2-point cone mirroring the §9.7 `FMeas` coalgebra, with the basis-point dispatch lemma that discharges its two laws. | `bool_coalg_str`, `bool_cone_coalg`, `bool_cone_dispatch` — theories/programs/infra/bool_cone_coalg.v |
 
 ### The 2-point cone (`bool_cone_car`, `bool_dirac_true`, `bool_dirac_false`)
@@ -3134,7 +3135,7 @@ true and false, with norm $\lVert (p, q) \rVert = p + q$ — concretely the pape
 Dirac basis points as the boolean values.
 
 ```coq
-(* theories/programs/infra/bool_cone.v *)
+(* theories/icones/bool_cone.v *)
 Record bool_cone_car (dummy : MeasSubcat R) : Type :=
   MkBoolCone { bc_t : {nonneg R}; bc_f : {nonneg R} }.
 
@@ -3172,7 +3173,7 @@ on the two basis points, is linear in `x`, $\omega$-continuous on the unit
 ball, norm-bounded, and preserves measurable paths and integrals.
 
 ```coq
-(* theories/programs/infra/bool_cone.v *)
+(* theories/icones/bool_cone.v *)
 Local Notation T := (bool_cone_car Ar).
 
 Definition bool_case (x : T) (a b : A) : A :=
@@ -3227,7 +3228,7 @@ the path-preservation proofs drop the unit ball on test scrutinees.
 ### Icones-hom packaging (`bool_case_linhom`, `bool_case_icones_hom`, `alpha_linhom`, `beta_linhom`)
 
 The co-pairing is packaged once at each categorical level in
-`theories/programs/infra/bool_case_hom.v`: as a linhom
+`theories/exp/bool_case_hom.v`: as a linhom
 `bool_case_linhom : bool_cone` $\multimap$ `A` and as an icones_hom
 `bool_case_icones_hom`. The packaging work is done once, in the
 unit-ball-free `bool_case_linhom_gen`; `bool_case_linhom` *is*
@@ -3237,7 +3238,7 @@ signature because the $\lVert\cdot\rVert \leq 1$ bound
 does need them.
 
 ```coq
-(* theories/programs/infra/bool_case_hom.v *)
+(* theories/exp/bool_case_hom.v *)
 Local Notation T := (bool_cone_car Ar).
 
 (** Unit-ball-free packaging; uses [bool_case_norm_le_max0_ball]. *)
@@ -3393,23 +3394,23 @@ echo "Print Assumptions eD_let_sample_int."       | \
 echo "Print Assumptions let_bernoulli_pair_diag." | \
   rocq top -Q theories Icones -l theories/programs/infra/cbv_anchors.v
 echo "Print Assumptions meas_stable_diag_bilinear_tensor." | \
-  rocq top -Q theories Icones -l theories/stable/diag_bilinear_tensor.v
+  rocq top -Q theories Icones -l theories/cbv/diag_bilinear_tensor.v
 echo "Print Assumptions ex_score_posterior_cbv_E." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions ex_reject_normalises_score." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions ex_random_constant_cbv_marginal." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions ex_random_linear_cbv_marginal." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions ex_bayes_linear_cbv_evidence." | \
-  rocq top -Q theories Icones -l theories/programs/infra/cbv_marginals.v
+  rocq top -Q theories Icones -l theories/programs/cbv_marginals.v
 echo "Print Assumptions fix_comb_iso_prom_E." | \
   rocq top -Q theories Icones -l theories/programs/infra/em_fix_mr.v
 echo "Print Assumptions eD_gaussian_sample_agree." | \
-  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
+  rocq top -Q theories Icones -l theories/programs/kernel_anchors.v
 echo "Print Assumptions ex_gaussian_walk_mass." | \
-  rocq top -Q theories Icones -l theories/programs/infra/kernel_anchors.v
+  rocq top -Q theories Icones -l theories/programs/kernel_anchors.v
 ```
 
 Each command reports only `propositional_extensionality`,

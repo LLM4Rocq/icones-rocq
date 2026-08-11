@@ -92,13 +92,13 @@ Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor_hom_iso.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.fmeas_lax.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.cbv.fmeas_lax.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.distributions.
 Require Import Icones.programs.ppl_cbv.
@@ -827,7 +827,7 @@ Arguments uniform {R Ar R_obj} R_carrier_eq R_to_carrier_meas {a b} ab.
     [ne_gaussian] (no witnesses; the kernel family is total) — the
     constant-parameter first draw is just the kernel surface at real
     literals ([eD_gaussian_sample_agree] in
-    [theories/programs/infra/kernel_anchors.v] pins it to the old
+    [theories/programs/kernel_anchors.v] pins it to the old
     [sample (gaussian 0 1)] form).  The denotation reduction
     [ex_gaussian_walk_E] and the mass-1 corollary
     [ex_gaussian_walk_mass] live in the same anchors file (they consume
@@ -1008,7 +1008,7 @@ Definition ex_sampler_cbv (m : pmeas Ar R_obj) :=
 (** The Gaussian-hierarchy denotation — the runtime-parameter
     [ne_gaussian] smoke test; the denotation reduction
     [ex_gaussian_walk_E] / mass-1 corollary [ex_gaussian_walk_mass]
-    live in [theories/programs/infra/kernel_anchors.v]. *)
+    live in [theories/programs/kernel_anchors.v]. *)
 Definition ex_gaussian_walk_cbv :=
   eDv (ex_gaussian_walk : @named_expr R Ar R_obj nil (tR R_obj)).
 

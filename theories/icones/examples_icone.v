@@ -59,7 +59,6 @@ From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 From mathcomp.analysis Require Import measurable_fun_approximation.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -644,7 +643,7 @@ under eq_integral do rewrite measure0.
 exact: integral0.
 Qed.
 
-Lemma fmeas_int_ge0 (U : set (ar_carrier Ar X)) :
+Lemma fmeas_int_fun_ge0 (U : set (ar_carrier Ar X)) :
   0 <= fmeas_int_fun U.
 Proof.
 rewrite /fmeas_int_fun.
@@ -731,7 +730,7 @@ Qed.
 
 HB.instance Definition _ :=
   isMeasure.Build _ _ _ fmeas_int_fun
-    fmeas_int_set0 fmeas_int_ge0 fmeas_int_sigma_additive.
+    fmeas_int_set0 fmeas_int_fun_ge0 fmeas_int_sigma_additive.
 
 Lemma fmeas_int_finP : fmeas_finP fmeas_int_fun.
 Proof.

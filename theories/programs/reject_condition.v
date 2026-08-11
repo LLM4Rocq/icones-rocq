@@ -45,13 +45,13 @@ Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor_hom_iso.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.fmeas_lax.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.cbv.fmeas_lax.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
 Require Import Icones.programs.ppl.
 
 Set Implicit Arguments.

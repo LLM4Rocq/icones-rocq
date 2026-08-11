@@ -8,7 +8,7 @@
     the categorical coproduct [cone_one ⊕ cone_one] in ICones; the
     co-pairing [bool_case] is the universal-property eliminator.
 
-    See also: [theories/programs/infra/bool_case_hom.v] (icones_hom packaging),
+    See also: [theories/exp/bool_case_hom.v] (icones_hom packaging),
     [theories/programs/ppl.v] (ne_true, ne_false, ne_if, ne_bernoulli). *)
 
 (** * The boolean cone — the 2-point sub-probability ICone
@@ -76,9 +76,7 @@ From mathcomp.analysis Require Import lebesgue_integral_definition.
 From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
-Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.

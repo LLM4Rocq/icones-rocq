@@ -84,7 +84,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
-Require Import Icones.programs.infra.bool_cone.
+Require Import Icones.icones.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -100,9 +100,9 @@ Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_construct.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.seely.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.fmeas_lax.
+Require Import Icones.exp.seely.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.fmeas_lax.
 Require Import Icones.kernels.skern.
 Require Import Icones.kernels.kernel_embedding.
 Require Import Icones.programs.ppl.

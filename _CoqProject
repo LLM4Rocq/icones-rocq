@@ -7,41 +7,60 @@
 -arg -w -arg -deprecated-since-mathcomp-analysis-1.9.0
 -arg -w -arg -deprecated-since-mathcomp-2.5.0
 
-theories/prelude/classical_extra.v
+# Import layers (enforced by tools/check_layers.py):
+#
+#   prelude, cones            base
+#   mcones, icones            measurable cones / integrable cones
+#   homs | stable             SMCC hom-structure  ||  stable maps (parallel)
+#   kernels | exp             s-finite kernels    ||  ! and Seely (parallel)
+#   cbv                       Eilenberg-Moore / CBV leaves
+#   programs                  the PPL layer
+#
+# A file may only Require files in a strictly lower layer, or in its own
+# layer.  Parallel layers on the same line never import one another.
+
+# -- base ----------------------------------------------------------------
 theories/prelude/nonneg_extra.v
-theories/prelude/omegacpo.v
+theories/prelude/geom_series.v
 theories/cones/precone.v
 theories/cones/cone.v
 theories/cones/basic_lemmas.v
 theories/cones/omega_general.v
 theories/cones/examples_cone.v
 theories/cones/cone_cat.v
+
+# -- measurable cones ----------------------------------------------------
 theories/mcones/ar.v
 theories/mcones/mcone.v
 theories/mcones/fmeas.v
 theories/mcones/path.v
 theories/mcones/mcone_cat.v
+
+# -- integrable cones ----------------------------------------------------
 theories/icones/pettis.v
 theories/icones/icone.v
 theories/icones/icone_integral.v
 theories/icones/examples_icone.v
+theories/icones/bool_cone.v
 theories/icones/fubini.v
 theories/icones/icone_cat.v
-theories/mcones/test_pullback.v
+theories/icones/test_pullback.v
+
+# -- homs: the symmetric monoidal closed structure -----------------------
 theories/homs/linhom.v
 theories/homs/bilin.v
-theories/homs/fmeas_lax.v
 theories/homs/icones_iso.v
-theories/icones/representable.v
+theories/homs/representable.v
 theories/homs/linhom_functor.v
 theories/homs/limpl_continuous.v
 theories/homs/saft_construct.v
 theories/homs/tensor_construct.v
-theories/homs/bang_construct.v
 theories/homs/tensor_hom_iso.v
 theories/homs/tensor_iso.v
-theories/kernels/skern.v
-theories/kernels/kernel_embedding.v
+theories/homs/tensor.v
+theories/homs/smcc.v
+
+# -- stable: stable maps, scones (parallel to homs) ----------------------
 theories/stable/local_cone.v
 theories/stable/totmono.v
 theories/stable/stablehom.v
@@ -51,25 +70,33 @@ theories/stable/scones_cat.v
 theories/stable/der_continuous.v
 theories/stable/scones_ccc.v
 theories/stable/fixpoint.v
-theories/stable/stab_lin_swap.v
-theories/homs/tensor.v
-theories/stable/diag_bilinear_tensor.v
-theories/homs/smcc.v
-theories/homs/exp_adjunction.v
-theories/homs/bang.v
-theories/homs/seely_defs.v
-theories/homs/seely.v
-theories/homs/coalgebra.v
-theories/homs/em_cat.v
-theories/homs/em_seely_comonoid.v
-theories/homs/em_cartesian.v
-theories/programs/infra/bool_cone.v
-theories/programs/infra/bool_case_hom.v
+
+# -- kernels: s-finite kernels (parallel to exp) -------------------------
+theories/kernels/skern.v
+theories/kernels/kernel_embedding.v
+
+# -- exp: the linear exponential ! and the Seely category ----------------
+theories/exp/stab_lin_swap.v
+theories/exp/bang_construct.v
+theories/exp/exp_adjunction.v
+theories/exp/bang.v
+theories/exp/seely_defs.v
+theories/exp/coalgebra.v
+theories/exp/seely.v
+theories/exp/bool_case_hom.v
+
+# -- cbv: Eilenberg-Moore category and CBV leaves ------------------------
+theories/cbv/fmeas_lax.v
+theories/cbv/diag_bilinear_tensor.v
+theories/cbv/em_cat.v
+theories/cbv/em_seely_comonoid.v
+theories/cbv/em_cartesian.v
+theories/cbv/cbv_adjunction.v
+
+# -- programs: the PPL layer ---------------------------------------------
 theories/programs/infra/bool_cone_coalg.v
-theories/programs/infra/cbv_adjunction.v
 theories/programs/ppl.v
 theories/programs/distributions.v
-theories/programs/infra/affine_cascade.v
 theories/programs/infra/em_fix.v
 theories/programs/infra/em_fix_value.v
 theories/programs/infra/em_fix_mr.v
@@ -78,8 +105,11 @@ theories/programs/examples.v
 theories/programs/infra/cbv_anchors.v
 theories/programs/infra/cbv_fix_unfold.v
 theories/programs/infra/let_sample_law.v
-theories/programs/infra/kernel_anchors.v
+theories/programs/kernel_anchors.v
 theories/programs/ex_reject_headline.v
-theories/programs/infra/cbv_marginals.v
+theories/programs/ex_almost_loop.v
+theories/programs/ex_geom.v
+theories/programs/ex_even_odd.v
+theories/programs/cbv_marginals.v
 theories/programs/reject_condition.v
 theories/programs/ex_reject_model.v

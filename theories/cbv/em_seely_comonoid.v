@@ -61,12 +61,12 @@ Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

@@ -60,7 +60,6 @@ From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 From mathcomp.analysis Require Import lebesgue_integral.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -1188,8 +1187,8 @@ Arguments icones_coseparator_inj {R Ar D} x y.
 (*                                                                            *)
 (*  (G3) PER-CONSUMER LIMIT-PRESERVATION + REPRESENTING-OBJECT BUILD.  To      *)
 (*       actually DISCHARGE the tensor (resp. exponential) adjunction         *)
-(*       — see [theories/homs/seely_defs.v] (resp.                            *)
-(*       [theories/homs/exp_adjunction.v]) — one                              *)
+(*       — see [theories/exp/seely_defs.v] (resp.                            *)
+(*       [theories/exp/exp_adjunction.v]) — one                              *)
 (*       proves [(C₀ ⊸ −)] (resp. [Der]) continuous — Thm 5.9 (resp. 7.34),  *)
 (*       PLAN §13.2/§13.4 — then runs the SA3/SA4 intersection on the small   *)
 (*       family of subobjects of the coseparator power to build [B ⊗ C₀]      *)

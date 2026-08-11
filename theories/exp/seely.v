@@ -1,8 +1,8 @@
 (**md**************************************************************************)
 (** * [ICones] is a Seely category — Paper §9
 
-    From the exponential comonad [!] ([theories/homs/bang.v], built on
-    [theories/homs/exp_adjunction.v] + [bang_construct.v]) and the
+    From the exponential comonad [!] ([theories/exp/bang.v], built on
+    [theories/exp/exp_adjunction.v] + [bang_construct.v]) and the
     AXIOM-FREE symmetric monoidal tensor [⊗]
     ([theories/homs/tensor.v]/[smcc.v]) we DERIVE — as genuine
     theorems — that [!] is a *strong monoidal comonad*, i.e. [ICones] is
@@ -100,10 +100,10 @@ Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.tensor_hom_iso.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Icones.stable.stab_lin_swap.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Icones.exp.stab_lin_swap.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -139,7 +139,7 @@ Local Open Scope ring_scope.
     The construction itself lives in [tensor_hom_iso.v] (module
     [Icones_tensor_hom_iso], already in scope here through [tensor.v]'s
     [Export]); the abbreviations below keep the historical
-    [Icones.homs.seely] spellings of the bridge and its computation law,
+    [Icones.exp.seely] spellings of the bridge and its computation law,
     which the blueprint and the downstream files cite. *)
 Notation linhom_icones := Icones_tensor_hom_iso.linhom_icones.
 Notation linhom_iconesE := Icones_tensor_hom_iso.linhom_iconesE.
@@ -338,19 +338,19 @@ Proof. by rewrite /Theta ders_comp -scones_compA. Qed.
     and the [n=1] [bang_ext] (backward composite); the characterisation
     [Seely2E] is the chain's pure-tensor computation [psiV_prom]. *)
 
-(** Lemma 9.4 — wired in from the proved [theories/stable/stab_lin_swap.v]
+(** Lemma 9.4 — wired in from the proved [theories/exp/stab_lin_swap.v]
     (referenced qualified to avoid importing its helper names). *)
 Definition stab_lin_swap (B C D : ICone.type Ar) :
     icones_iso Ar (stablehom B (linhom_car Ar C D))
       (linhom_car Ar C (stablehom B D)) :=
-  @Icones.stable.stab_lin_swap.stab_lin_swap R Ar B C D.
+  @Icones.exp.stab_lin_swap.stab_lin_swap R Ar B C D.
 
 (** Element law of the forward swap: [swap(g)(c)(b) = g(b)(c)]. *)
 Lemma stab_lin_swapE (B C D : ICone.type Ar)
     (g : stablehom B (linhom_car Ar C D)) (b : B) (c : C) :
   sh_fun (linhom_fun (Lfun (iso_fwd (stab_lin_swap B C D)) g) c) b =
   linhom_fun (sh_fun g b) c.
-Proof. exact: Icones.stable.stab_lin_swap.stab_lin_swap_fwdE. Qed.
+Proof. exact: Icones.exp.stab_lin_swap.stab_lin_swap_fwdE. Qed.
 
 (** Derived [iso_bwd] form of the swap law: [swap⁻¹(h)(b)(c) = h(c)(b)]. *)
 Lemma stab_lin_swap_bwdE (B C D : ICone.type Ar)

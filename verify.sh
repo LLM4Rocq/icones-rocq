@@ -40,13 +40,18 @@ echo "=== Print Assumptions (headline results) ==="
 # batch flag). Modules are loaded via `Require Import` of the
 # already-compiled .vo, so this is fast.
 cmd='From Icones.kernels Require Import kernel_embedding.
-From Icones.homs Require Import smcc bang seely coalgebra.
+From Icones.homs Require Import smcc.
+From Icones.exp Require Import bang seely coalgebra.
+From Icones.programs Require Import ex_reject_model.
+From Icones.programs.infra Require Import let_sample_law.
 Print Assumptions Skern_to_ICones_fully_faithful.  (* Thm 6.5  — the anchor *)
 Print Assumptions ICones_smcc.                      (* Thm 5.15 — SMCC *)
 Print Assumptions Bang_comonad.                     (* the ! exponential comonad *)
 Print Assumptions ICones_Seely.                     (* Thm 9.5  — Seely category *)
 Print Assumptions Coalg_counit.                     (* Thm 9.7  — FMeas coalgebra *)
-Print Assumptions Coalg_coassoc.'
+Print Assumptions Coalg_coassoc.
+Print Assumptions reject_normalises_condition.      (* PPL — rejection = conditioning *)
+Print Assumptions eD_let_sample_int.'
 if command -v rocq >/dev/null 2>&1; then
   printf '%s\n' "$cmd" | rocq repl -q -Q theories Icones
 else

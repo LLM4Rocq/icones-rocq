@@ -2,7 +2,7 @@
 
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
     (paper §2-§9). It packages the [bool_case] co-pairing of
-    [theories/programs/infra/bool_cone.v] (paper §4.4 / Theorem 4.24 coproduct
+    [theories/icones/bool_cone.v] (paper §4.4 / Theorem 4.24 coproduct
     [cone_one ⊕ cone_one]) as a [linhom_car] and a full [icones_hom],
     with the unit-ball-free generalisation [bool_case_linhom_gen] and
     the α/β decomposition into separately-bilinear pieces. Together
@@ -10,7 +10,7 @@
     what the [ne_if] (boolean elimination) clause of the CBV PPL
     consumes.
 
-    See also: [theories/programs/infra/bool_cone.v] (the 2-point ICone and the
+    See also: [theories/icones/bool_cone.v] (the 2-point ICone and the
     universal co-pairing), [theories/programs/ppl.v] (tbool, ne_true,
     ne_false, ne_bernoulli, ne_if, case_em). *)
 
@@ -19,7 +19,7 @@
     This file packages the [bool_case] co-pairing as a [linhom_car]
     ([bool_case_linhom]) and then as a full [icones_hom]
     ([bool_case_icones_hom]) via the [linhom_icones] bridge of
-    [theories/homs/seely.v].  It also constructs the
+    [theories/exp/seely.v].  It also constructs the
     EM-Kleisli-level "case" combinator [case_em] used by the
     PPL's [ne_if] clause.
 
@@ -45,9 +45,7 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import measure.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
-Require Import Icones.prelude.omegacpo.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.basic_lemmas.
@@ -56,10 +54,10 @@ Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
-Require Import Icones.programs.infra.bool_cone.
+Require Import Icones.icones.bool_cone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
-Require Import Icones.homs.seely.
+Require Import Icones.exp.seely.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

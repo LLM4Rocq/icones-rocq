@@ -2,7 +2,7 @@
 (** * The exponential comonad [!] on [ICones] — Paper §9
 
     From the linear/non-linear adjunction [E ⊣ Der]
-    ([theories/homs/exp_adjunction.v], built on [bang_construct.v]) we
+    ([theories/exp/exp_adjunction.v], built on [bang_construct.v]) we
     DERIVE — as genuine theorems — the exponential comonad [(!, der, dig)]
     of paper §9, the model of the [!] modality of [LL].
 
@@ -54,7 +54,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.stable.scones_cat.
-Require Import Icones.homs.exp_adjunction.
+Require Import Icones.exp.exp_adjunction.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

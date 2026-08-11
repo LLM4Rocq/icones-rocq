@@ -27,7 +27,6 @@ From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From HB Require Import structures.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 
 Set Implicit Arguments.

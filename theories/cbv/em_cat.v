@@ -54,9 +54,9 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.stable.scones_cat.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.coalgebra.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.coalgebra.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

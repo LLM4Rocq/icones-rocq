@@ -30,10 +30,10 @@ any of them in your local checkout:
 
 ```sh
 # Type and definition
-echo 'Print Icones.homs.seely.ICones_Seely.' | rocq top -Q theories Icones
+echo 'Print Icones.exp.seely.ICones_Seely.' | rocq top -Q theories Icones
 
 # Axiom dependencies
-echo 'Print Assumptions Icones.homs.seely.ICones_Seely.' \
+echo 'Print Assumptions Icones.exp.seely.ICones_Seely.' \
   | rocq top -Q theories Icones
 ```
 
@@ -607,7 +607,7 @@ Push-forward of measures along $\phi\in\mathbf{Ar}(X,Y)$ is a $\mathbf{Cones}$-m
 
 > **Paper — Lemma 3.17** (arXiv 2212.02371, `lemma:pushf-measurable`). We have $\phi_*\in\mathbf{MCones}(\mathsf{FMeas}(X),\mathsf{FMeas}(Y))$. The operation $\mathsf{FMeas}$ on measurable cones extends to a functor $\mathsf{FMeas}:\mathbf{Ar}\to\mathbf{MCones}$, acting on morphisms by measure push-forward: $\mathsf{FMeas}(\phi)=\phi_*$.
 
-> **Difference.** The mechanisation packages $\phi_*$ as a `cones_hom` (a linear, $\omega$-continuous map of norm $\le 1$) rather than as a full `mcones_hom` record: path-preservation is not bundled at this point. The packaged mcones/icones-morphism version, `FMeas_fmap`, lives later in `theories/homs/coalgebra.v` for the ICones/coalgebra layer. Functoriality is stated on the underlying functions ($=1$) — `fmeas_push_id` and `fmeas_push_comp` — rather than as categorical equalities.
+> **Difference.** The mechanisation packages $\phi_*$ as a `cones_hom` (a linear, $\omega$-continuous map of norm $\le 1$) rather than as a full `mcones_hom` record: path-preservation is not bundled at this point. The packaged mcones/icones-morphism version, `FMeas_fmap`, lives later in `theories/exp/coalgebra.v` for the ICones/coalgebra layer. Functoriality is stated on the underlying functions ($=1$) — `fmeas_push_id` and `fmeas_push_comp` — rather than as categorical equalities.
 
 ```coq
 (* theories/mcones/fmeas.v — Section FMeasPushforward,
@@ -716,7 +716,7 @@ builds the full HB tower `Precone → Cone → MCone → ICone`.
 | Cat 4 | The category $\mathbf{ICones}$ has integrable cones and $\mathbf{MCones}$-morphisms preserving the integral. | `icones_hom`, `icones_comp`, `ICones` — `theories/icones/icone_cat.v` |
 | Thm 4.15 (Fubini) | The two iterated integrals of a path of paths coincide: $\int_X(\int_Y\dots)\,d\mu = \int_Y(\int_X\dots)\,d\nu$. | `fubini_cone_eq` (paper-form wrapper `fubini_cone_eq_arprod`); supporting `fubini_path_X`/`fubini_path_Y`, `fubini_iter_fun_X` — `theories/icones/fubini.v` |
 | Thm 4.16 (ICones complete) | $\mathbf{ICones}$ is complete: it has all small products and all binary equalisers, each with its universal property. | `icones_tuple_unique`, `icones_eq_med_unique` (with `icones_prod`/`icones_eq`, `icones_proj`, `icones_tuple`, `icones_eq_incl`, `icones_eq_med`) — `theories/icones/icone_cat.v` |
-| Thm 4.18 | $\mathbf{ICones}$ is well-powered and $1$ is both a separator and a coseparator. | `icones_coseparator`, `icones_separator` — `theories/icones/icone_cat.v`; `icones_well_powered`, `icones_subobject_classP` — `theories/icones/representable.v` |
+| Thm 4.18 | $\mathbf{ICones}$ is well-powered and $1$ is both a separator and a coseparator. | `icones_coseparator`, `icones_separator` — `theories/icones/icone_cat.v`; `icones_well_powered`, `icones_subobject_classP` — `theories/homs/representable.v` |
 | Thm 4.19 | $\mathbf{ICones}$ is complete with $1$ a coseparator; therefore every limit-preserving functor $\mathbf{ICones}\to\mathcal{C}$ has a left adjoint (by SAFT). | The completeness data (products, equalisers, the coseparator) is in `icone_cat.v`; the bespoke **SAFT engine** is `representable.v` (`wi_obj`, `wi_med`, `is_icones_left_adjoint`) — see *Beyond the paper* below |
 
 ### Def 4.3 (`isICone`, `ICone`)
@@ -989,7 +989,7 @@ Lemma icones_separator (f g : icones_hom Ar B C) :
     cones_hom_fun (mcones_hom_cones (icones_hom_mcones g)) x) ->
   f = g.
 
-(* theories/icones/representable.v — Section Classifier,
+(* theories/homs/representable.v — Section Classifier,
    Variables (R : realType) (Ar : MeasSubcat R), B : ICone.type Ar *)
 
 Record SubobjClassifier : Type := MkClassifier {
@@ -1026,7 +1026,7 @@ Every limit-preserving functor out of $\mathbf{ICones}$ has a left adjoint, by S
 > **Difference.** The paper's one-line proof invokes SAFT as a black box; the development contains no single theorem quantifying over an arbitrary locally small $\mathcal{C}$. Instead the SAFT *argument* is mechanised as a reusable engine (subobject classifier, wide intersections with their universal property — see *Beyond the paper*), and the two instances the paper actually consumes are built concretely against the `is_icones_left_adjoint` contract: the tensor ${-}\otimes C \dashv C \multimap {-}$ (`tensor_curry` / `tensor_uncurry` with proved round-trips, `tensor_construct.v`) and the exponential $\mathsf{E} \dashv \mathsf{Der}$ (`Bang`, `nl` / `lin`, `bang_construct.v`). The remark's third instance (integral completion of a measurable cone along $\mathbf{ICones}\to\mathbf{MCones}$) is not used by §§ 5–9 and is not constructed.
 
 ```coq
-(* theories/icones/representable.v — Section SAFTExport *)
+(* theories/homs/representable.v — Section SAFTExport *)
 Definition is_icones_left_adjoint
     (Cobj : Type) (Homc : Cobj -> Cobj -> Type)
     (Robj : ICone.type Ar -> Cobj)
@@ -1038,7 +1038,7 @@ Definition is_icones_left_adjoint
   (forall c x (f : icones_hom Ar (Fobj c) x), Psi c x (Phi c x f) = f) /\
   (forall c x (g : Homc c (Robj x)), Phi c x (Psi c x g) = g).
 
-(* theories/icones/representable.v — Section WideIntersection *)
+(* theories/homs/representable.v — Section WideIntersection *)
 Definition wi_med : icones_hom Ar Z wi_obj :=
   icones_eq_med wi_u wi_v wi_tuple wi_tuple_equ.
 
@@ -1364,9 +1364,9 @@ Definition ICones_smcc (R : realType) (Ar : MeasSubcat R) :
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| Cat 6 | The category $\mathbf{Skern}$ of substochastic kernels: objects in $\mathbf{Ar}$, morphisms $\kappa : X \leadsto \mathsf{FMeas}(Y)$. | `Skern_hom`, `Skern_id`, `Skern_comp`, `Skern` — `theories/kernels/skern.v` |
+| Cat 6 | The category $\mathbf{Skern}$ of substochastic kernels: objects in $\mathbf{Ar}$, morphisms $\kappa : X \leadsto \mathsf{FMeas}(Y)$. Given unbundled — there is no single `Skern` declaration; the category is the hom record plus its identity, composition and the three category laws. | `Skern_hom`, `Skern_id`, `Skern_comp`, `Skern_compIl`, `Skern_compIr`, `Skern_compA` — `theories/kernels/skern.v` |
 | Thm 6.1 | Bijection $\mathsf{Path}(X, B) \simeq \mathsf{FMeas}(X) \multimap B$ (cone iso) given by the integration map $\mathcal{I}^{B}_X$. | `int_to_linhom`, `int_to_linhom_iso` — `theories/homs/bilin.v` |
-| Thm 6.2 | *Dirac density*: two $\mathbf{ICones}$ morphisms $\mathsf{FMeas}(X) \to B$ that agree on every Dirac mass $\boldsymbol\delta^{X}(r)$ are equal. | `dirac_dense` — `theories/homs/coalgebra.v` |
+| Thm 6.2 | *Dirac density*: two $\mathbf{ICones}$ morphisms $\mathsf{FMeas}(X) \to B$ that agree on every Dirac mass $\boldsymbol\delta^{X}(r)$ are equal. | `dirac_dense` — `theories/exp/coalgebra.v` |
 | Thm 6.5 | The functor $\mathsf{Klin} : \mathbf{Skern} \to \mathbf{ICones}$, sending $X \mapsto \mathsf{FMeas}(X)$ and a kernel to its integration map, is **fully faithful**. | `Skern_to_ICones_fully_faithful` (= the *regression anchor*) — `theories/kernels/kernel_embedding.v` |
 
 `Skern_to_ICones_fully_faithful` is the lemma checked by `./verify.sh` and is
@@ -1430,7 +1430,7 @@ The Dirac masses $\boldsymbol\delta^{X}(r)$ are *dense* in the integrable cone $
 > **Paper — Theorem 6.2** (arXiv 2212.02371, `th:dirac-dense`). Let $X\in\mathbf{Ar}$, $B$ be an object of $\mathbf{ICones}$ and $f_1,f_2\in\mathbf{ICones}(\mathsf{FMeas}(X),B)$. If, for all $r\in X$, one has $f_1(\boldsymbol\delta^{X}(r))=f_2(\boldsymbol\delta^{X}(r))$ then $f_1=f_2$.
 
 ```coq
-(* theories/homs/coalgebra.v — Section Coalgebra, Variables R Ar *)
+(* theories/exp/coalgebra.v — Section Coalgebra, Variables R Ar *)
 Lemma dirac_dense (X : ar_obj Ar) (B : ICone.type Ar)
     (f g : icones_hom Ar (FMeas X) B) :
   (forall r : ar_carrier Ar X, Lfun f (dirac_fmeas r) = Lfun g (dirac_fmeas r)) ->
@@ -1726,7 +1726,7 @@ The signed finite-difference machinery driving Thm 7.19 and the §7.3 closure pr
 > **Paper — Lemma 7.25** (arXiv 2212.02371, `lemma:fdiff-glob-increasing`). If $f:\mathcal{B}\underline{B}\to\underline{C}$ is totally monotonic, the map $(x,\overrightarrow{u})\to\Delta f(\overrightarrow{u})(x)$ is increasing $\mathcal{B}\mathsf{S}^n B\to\underline{C}$.
 
 ```coq
-(* theories/stable/findiff.v + theories/stable/compose.v *)
+(* theories/stable/compose.v *)
 
 (* [totmono_Delta]: the finite-difference [Δf(u⃗) := SDpos f − SDneg f]
    on the unit ball, packaging Δε / Δ for ε ∈ {+, −}. *)
@@ -1734,9 +1734,19 @@ Lemma totmono_Delta (n : nat) (u : 'I_n -> B)
     (Hs : (* sum bound on u *)) :
   (* totmono of f gives totmono of Δf(u⃗) on the residual ball *).
 
-(* [SnB]: the "[(x, u⃗) ∈ B_n]" predicate; Lemma 7.25 says
-   [(x,u⃗) ↦ Δf(u⃗)(x)] is increasing on it. *)
-Definition SnB_diff (g : SnB B n) : C := (* Δf(u⃗)(x) for g = (x, u⃗) *).
+(* theories/stable/findiff.v — [SnB] is a CONE, not a predicate:
+   the carrier is the family type ['I_n.+1 -> B] (the centre [g ord0]
+   together with the [n] directions), with pointwise [0]/[+]/[*:] and
+   pointwise order, normed by the norm of the total sum
+   [snb_norm g := cone_norm (snb_sum g)].  Its unit ball is exactly the
+   paper's configuration set [‖x + Σᵢ uᵢ‖ ≤ 1]. *)
+Definition SnB (R : realType) (B : coneType R) (n : nat) : coneType R :=
+  snb_car B n.
+
+(* Lemma 7.25 ([theories/stable/compose.v]): [(x,u⃗) ↦ Δf(u⃗)(x)],
+   read off the family as centre [g ord0] and tail directions. *)
+Definition SnB_diff (g : SnB B n) : C :=
+  SD f (fun i => g (lift ord0 i)) (g ord0).
 Lemma SnB_increasing : is_increasing SnB_diff.
 ```
 
@@ -1930,13 +1940,13 @@ Lemma Yfix_fix (f : BB) :
 
 | Paper | English statement | Rocq |
 |---|---|---|
-| LL $!$ | The linear-exponential comonad $! : \mathbf{ICones} \to \mathbf{ICones}$, obtained as $! = \mathsf{E}\circ\mathsf{Der}$ where $\mathsf{E}$ is the left adjoint of $\mathsf{Der}$ (existing by the special adjoint functor theorem). | `Bang`, `nl`, `lin`, `lin_beta`, `lin_unique` (the adjunction data) — `theories/homs/exp_adjunction.v`; `Bang_comonad` — `theories/homs/bang.v` |
-| Comonad | $(!, \mathsf{der}, \mathsf{dig})$ is a comonad with the standard counit / coassociativity, satisfying $\mathsf{der}_B(x^!)=x$ and $\mathsf{dig}_B(x^!)=x^{!!}$. | `der`, `dig`, `der_prom`, `dig_prom`, the comonad laws — `theories/homs/bang.v` |
-| Lem 9.2 | Two linear maps ${!B_1}\otimes\cdots\otimes{!B_n}\to C$ agreeing on every promoted pure tensor $x_1^!\otimes\cdots\otimes x_n^!$ (for $x_i\in\mathcal{B}\underline{B_i}$) are equal. | `tens_excl_charact` (the $n=2$ case characterising the binary Seely iso), with `tens_excl_charact3` / `tens_excl_charact3l` the $n=3$ coherence instances — `theories/homs/seely.v` |
-| Lem 9.3 | The exponential functor on a promoted point: $({!f})(x^!)=f(x)^!$. | `bang_fmap_prom` (the computation behind `bang_fmap_id` / `bang_fmap_comp` functoriality and `Coalg_coassoc`) — `theories/homs/bang.v` |
-| Lem 9.4 | The natural iso $(B \Rightarrow (C \multimap D)) \simeq (C \multimap (B \Rightarrow D))$ ("swap a stable outer and a linear inner"). | `stab_lin_swap` (a fully spelled-out `icones_iso`; paper gives the map + "pattern seen many times", no proof) — `theories/stable/stab_lin_swap.v` |
-| Thm 9.5 | $(\mathbf{ICones}, \otimes, 1, !)$ is a **Seely category** (i.e. has the Seely isos $\mathsf{m}^2 : {!B_1} \otimes {!B_2} \simeq {!(B_1 \mathrel{\&} B_2)}$ and $\mathsf{m}^0 : 1 \simeq {!\top}$, and the comonad / SMC coherence). | `Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`, the full `SeelyCategory` record + the witness `ICones_Seely` — `theories/homs/seely.v` |
-| Thm 9.7 | For each $X \in \mathbf{Ar}$, $\mathsf{FMeas}(X)$ is a $!$-coalgebra (with structure map $\mathsf{h}_X(\mu) = \int_{r\in X} (\boldsymbol\delta^X(r))^! \,\mu(dr)$); the assignment $X \mapsto \mathsf{FMeas}(X)$ is a functor into $\mathbf{ICones}^!$. | `Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap` — `theories/homs/coalgebra.v` |
+| LL $!$ | The linear-exponential comonad $! : \mathbf{ICones} \to \mathbf{ICones}$, obtained as $! = \mathsf{E}\circ\mathsf{Der}$ where $\mathsf{E}$ is the left adjoint of $\mathsf{Der}$ (existing by the special adjoint functor theorem). | `Bang`, `nl`, `lin`, `lin_beta`, `lin_unique` (the adjunction data) — `theories/exp/exp_adjunction.v`; `Bang_comonad` — `theories/exp/bang.v` |
+| Comonad | $(!, \mathsf{der}, \mathsf{dig})$ is a comonad with the standard counit / coassociativity, satisfying $\mathsf{der}_B(x^!)=x$ and $\mathsf{dig}_B(x^!)=x^{!!}$. | `der`, `dig`, `der_prom`, `dig_prom`, the comonad laws — `theories/exp/bang.v` |
+| Lem 9.2 | Two linear maps ${!B_1}\otimes\cdots\otimes{!B_n}\to C$ agreeing on every promoted pure tensor $x_1^!\otimes\cdots\otimes x_n^!$ (for $x_i\in\mathcal{B}\underline{B_i}$) are equal. | `tens_excl_charact` (the $n=2$ case characterising the binary Seely iso), with `tens_excl_charact3` / `tens_excl_charact3l` the $n=3$ coherence instances — `theories/exp/seely.v` |
+| Lem 9.3 | The exponential functor on a promoted point: $({!f})(x^!)=f(x)^!$. | `bang_fmap_prom` (the computation behind `bang_fmap_id` / `bang_fmap_comp` functoriality and `Coalg_coassoc`) — `theories/exp/bang.v` |
+| Lem 9.4 | The natural iso $(B \Rightarrow (C \multimap D)) \simeq (C \multimap (B \Rightarrow D))$ ("swap a stable outer and a linear inner"). | `stab_lin_swap` (a fully spelled-out `icones_iso`; paper gives the map + "pattern seen many times", no proof) — `theories/exp/stab_lin_swap.v` |
+| Thm 9.5 | $(\mathbf{ICones}, \otimes, 1, !)$ is a **Seely category** (i.e. has the Seely isos $\mathsf{m}^2 : {!B_1} \otimes {!B_2} \simeq {!(B_1 \mathrel{\&} B_2)}$ and $\mathsf{m}^0 : 1 \simeq {!\top}$, and the comonad / SMC coherence). | `Seely2`, `Seely2E`, `Seely2_natural`, `Seely0`, `Seely0E`, the full `SeelyCategory` record + the witness `ICones_Seely` — `theories/exp/seely.v` |
+| Thm 9.7 | For each $X \in \mathbf{Ar}$, $\mathsf{FMeas}(X)$ is a $!$-coalgebra (with structure map $\mathsf{h}_X(\mu) = \int_{r\in X} (\boldsymbol\delta^X(r))^! \,\mu(dr)$); the assignment $X \mapsto \mathsf{FMeas}(X)$ is a functor into $\mathbf{ICones}^!$. | `Coalg`, `Coalg_dirac`, `dirac_dense`, `FMeas_coalgebra`, `FMeas_fmap` — `theories/exp/coalgebra.v` |
 | Sect 9.2 | Fixpoint combinator $\mathcal{Y}$ on the cartesian closed $\mathbf{SCones}$. | `Yfix`, `Yfix_fix` (the paper's CCC construction) — `theories/stable/fixpoint.v` |
 
 ### Linear exponential `!` (`Bang`, `nl`, `lin`, `lin_beta`, `lin_unique`)
@@ -1946,7 +1956,7 @@ The linear exponential ${!B} = \mathsf{E}(B)$ is the object part of the left adj
 > **Paper — §9** (arXiv 2212.02371, `sec:lin-nonlin-adj`). Let $\mathsf{E} : \mathbf{SCones}\to\mathbf{ICones}$ be the left adjoint of $\mathsf{Der}$, which exists by Theorem 4.19, and $\Theta_{B,C} : \mathbf{ICones}(\mathsf{E}B,C)\to\mathbf{SCones}(B,\mathsf{Der}\,C)=\mathbf{SCones}(B,C)$ the associated natural bijection (remember $\mathsf{Der}\,C=C$). Let $\mathsf{nl}_B=\Theta_{B,\mathsf{E}B}(\mathsf{Id}_{\mathsf{E}B})\in\mathbf{SCones}(B,{!B})$ be the unit of the adjunction, which is the "universal nonlinear map" on $B$ in the sense that for each integrable cone $C$ and each $f\in\mathbf{SCones}(B,C)$ one has $f=\phi\circ\mathsf{nl}_B$ for a unique $\phi\in\mathbf{ICones}({!B},C)$, namely $\phi=\Theta^{-1}_{B,C}(f)$. So that for $h\in\mathbf{ICones}({!B},C)$ one has $\Theta_{B,C}(h)=h\circ\mathsf{nl}_B$. For each $x\in\mathcal{B}\underline{B}$ we set $x^!=\mathsf{nl}_B(x)\in\mathcal{B}\underline{{!B}}$ so that, for $f\in\mathbf{SCones}(B,C)$, we have $f(x)=\Theta^{-1}_{B,C}(f)(x^!)$.
 
 ```coq
-(* theories/homs/exp_adjunction.v — Section ExpInterface,
+(* theories/exp/exp_adjunction.v — Section ExpInterface,
    Variables (R : realType) (Ar : MeasSubcat R) *)
 
 Definition Bang (B : ICone.type Ar) : ICone.type Ar :=
@@ -1976,7 +1986,7 @@ The comonad induced on $\mathbf{ICones}$ by the linear-non-linear adjunction has
 > **Difference.** The paper obtains $!$, $\mathsf{der}$, $\mathsf{dig}$ from the abstract left adjoint $\mathsf{E}$; the formalization takes the same route but bundles the comonad as an explicit record `Comonad` (endofunctor + counit + comultiplication + laws) so that the Seely and coalgebra layers can quantify over it. The Kleisli-equivalence discussion is kept informal in the paper and is not part of the mechanised bundle.
 
 ```coq
-(* theories/homs/bang.v *)
+(* theories/exp/bang.v *)
 
 Definition der (B : ICone.type Ar) : icones_hom Ar (Bang Ar B) B :=
   lin (scones_id B).
@@ -2031,7 +2041,7 @@ Promoted pure tensors are *jointly separating* for linear maps out of a tensor o
 > **Difference.** The paper states the lemma for general $n$ (by induction). The mechanisation instantiates the $n=2$ case actually used to characterise the binary Seely iso, and the two $n=3$ cases (right- and left-associated) needed by the monoidal-functor associativity coherence; the $n=3$ proofs are the paper's induction step unfolded once, reducing to the $n=2$ case.
 
 ```coq
-(* theories/homs/seely.v *)
+(* theories/exp/seely.v *)
 
 Lemma tens_excl_charact (B1 B2 C : ICone.type Ar)
     (f g : icones_hom Ar (Bang Ar B1 ⊗ Bang Ar B2) C) :
@@ -2062,7 +2072,7 @@ The exponential functor $!$ commutes with promotion on unit-ball points: for a l
 > **Paper — Lemma 9.3** (arXiv 2212.02371, `lemma:excl-fun-prom`). Let $f\in\mathbf{ICones}(B,C)$ and $x\in\mathcal{B}\underline{B}$. We have $({!f})(x^!)=f(x)^!$.
 
 ```coq
-(* theories/homs/bang.v *)
+(* theories/exp/bang.v *)
 
 Lemma bang_fmap_prom (B C : ICone.type Ar) (f : icones_hom Ar B C) (x : B) :
   cone_norm x <= 1 -> Lfun (bang_fmap f) x! = prom (Lfun f x).
@@ -2075,7 +2085,7 @@ The *stable/linear swap* isomorphism exchanges a stable outer argument and a lin
 > **Paper — Lemma 9.4** (arXiv 2212.02371, `lemma:stab-lin-swap`). Let $B,C,D$ be integrable cones. There is an isomorphism in $\mathbf{ICones}$ from $L(B,C,D)=(B\Rightarrow(C\multimap D))$ to $R(B,C,D)=(C\multimap(B\Rightarrow D))$ which is natural in $B$, $C$ and $D$. The natural isomorphism maps $f\in\underline{B\Rightarrow(C\multimap D)}$ to $\boldsymbol\lambda y\in\underline{C}\cdot\boldsymbol\lambda x\in\mathcal{B}\underline{B}\cdot f(x,y)$.
 
 ```coq
-(* theories/stable/stab_lin_swap.v — Section variables B C D : ICone.type Ar *)
+(* theories/exp/stab_lin_swap.v — Section variables B C D : ICone.type Ar *)
 
 Definition stab_lin_swap :
     icones_iso Ar (stablehom B (linhom_car Ar C D))
@@ -2102,7 +2112,7 @@ Equipped with the strong monoidal comonad $!$, the SMCC $\mathbf{ICones}$ is a *
 > **Paper — §9** (arXiv 2212.02371, `sec:lin-nonlin-adj`). There is a natural isomorphism $\mathsf{m}^2_{B_1,B_2}$ in $\mathbf{ICones}({!B_1}\otimes{!B_2},{!(B_1\mathrel{\&}B_2)})$ which satisfies $\mathsf{m}^2_{B_1,B_2}(x_1^!\otimes x_2^!)=\langle x_1,x_2\rangle^!$ (this equation fully characterizes $\mathsf{m}^2_{B_1,B_2}$ by Lemma 9.2). Similarly we define an iso $\mathsf{m}^0\in\mathbf{ICones}(1,{!\top})$ such that $\mathsf{m}^0(t)=t\,0^!$ for all $t\in\mathbb{R}_{\geq 0}$.
 
 ```coq
-(* theories/homs/seely.v *)
+(* theories/exp/seely.v *)
 
 Definition Seely2 : icones_iso Ar (tensor Ar (Bang Ar B1) (Bang Ar B2))
                                    (Bang Ar (sprod B1 B2)) :=
@@ -2164,7 +2174,7 @@ For each $X\in\mathbf{Ar}$, the finite-measure cone $\mathsf{FMeas}(X)$ carries 
 > **Paper — §9** (arXiv 2212.02371, `sec:stable-exp-meas-coalg`). We define $\mathsf{h}_X=\mathcal{I}^{{!\mathsf{FMeas}(X)}}_X(\mathsf{nl}_{\mathsf{FMeas}(X)}\circ\boldsymbol\delta^X)\in\mathbf{ICones}(\mathsf{FMeas}(X),{!\mathsf{FMeas}(X)})$ using Theorem 6.1. In other words $\mathsf{h}_X(\mu)=\int_{r\in X}(\boldsymbol\delta^X(r))^!\,\mu(dr)$ and it satisfies $\mathsf{h}_X(\boldsymbol\delta^X(r))=(\boldsymbol\delta^X(r))^!$.
 
 ```coq
-(* theories/homs/coalgebra.v *)
+(* theories/exp/coalgebra.v *)
 
 Record Coalgebra : Type := MkCoalgebra {
   coalg_obj    : ICone.type Ar;
@@ -2215,17 +2225,17 @@ the surface language and its examples) is in the [PPL tab](../ppl/).
 
 | Item | English statement | Rocq |
 |---|---|---|
-| SAFT engine | Freyd's special adjoint functor theorem, mechanised concretely: a complete, well-powered, locally small category with a small coseparator has a left adjoint to every continuous functor, built as a wide intersection of subobjects of a power of the coseparator. | `SubobjClassifier`, `wi_obj`, `wi_med`, `is_icones_left_adjoint` — `theories/icones/representable.v` |
+| SAFT engine | Freyd's special adjoint functor theorem, mechanised concretely: a complete, well-powered, locally small category with a small coseparator has a left adjoint to every continuous functor, built as a wide intersection of subobjects of a power of the coseparator. | `SubobjClassifier`, `wi_obj`, `wi_med`, `is_icones_left_adjoint` — `theories/homs/representable.v` |
 | Tensor as SAFT left adjoint | $-\otimes C$ is constructed as the SAFT left adjoint of $(C\multimap -)$, using the concrete SAFT engine, so the tree carries no `Parameter`/`Axiom`. | `tensor`, `tensor_incl` — `theories/homs/tensor_construct.v` |
-| Exponential as SAFT left adjoint | $\;! = E$ is constructed as the SAFT left adjoint of $\mathsf{Der}$, again via the concrete SAFT engine. | `Bang`, `Bang_incl`, `nl`, `lin` — `theories/homs/bang_construct.v` |
-| Melliès Prop 26 | Every $!$-coalgebra $(A,h_A)$ is a retract of its cofree coalgebra $(!A,\delta_A)$ in $\mathrm{EM}(!)$. | `diagram81` — `theories/homs/em_cartesian.v` |
-| Melliès Prop 20 | Retraction lifting: if $i$ is a coalgebra morphism with carrier retraction $r\circ i = \mathrm{id}$ and $i\circ f$ is a coalgebra morphism, then $f$ is a coalgebra morphism. | `coalg_mor_lift` — `theories/homs/em_cartesian.v` |
-| Melliès Prop 27 | A retract of a commutative comonoid lifts to a commutative comonoid; the four transported comonoid laws. | `transp_counitL`, `transp_counitR`, `transp_cocomm`, `transp_coassoc` — `theories/homs/em_cartesian.v` |
-| Melliès Prop 28 | The monoidal structure of a linear category is cartesian in $\mathrm{EM}(!)$; the comonoid predicate holds on **every** coalgebra. | `EMComon_all` — `theories/homs/em_cartesian.v` |
-| Melliès Cor 17 | A symmetric monoidal category in which every object carries a monoidal-natural comonoid is cartesian, with product the tensor and terminal object the unit. | `ICones_EM_cartesian`, `EM_Cartesian` — `theories/homs/em_cartesian.v` |
-| Fox η-law cofree | The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ on cofree coalgebra pairs. | `em_pair_mor_proj_id_cofree` — `theories/programs/infra/cbv_adjunction.v` |
-| Fox η-law general | The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ for the $\mathrm{EM}(!)$ binary product on **every** pair of coalgebras. | `em_pair_mor_proj_id` — `theories/programs/infra/cbv_adjunction.v` |
-| Melliès Prop 29 | The cofree-coalgebra adjunction $U\dashv\tilde{!} : \mathbf{ICones}\rightleftarrows\mathrm{EM}(!)$ is a linear/non-linear (lax symmetric monoidal) adjunction. | `CBV_Model`, `ICones_CBV` — `theories/programs/infra/cbv_adjunction.v` |
+| Exponential as SAFT left adjoint | $\;! = E$ is constructed as the SAFT left adjoint of $\mathsf{Der}$, instantiating the shared SAFT engine (`saft_construct.v`) behind a `Qed`-sealed pack. | `bang_sig`, `bang_pack`, `Bang`, `nl`, `lin` — `theories/exp/bang_construct.v` |
+| Melliès Prop 26 | Every $!$-coalgebra $(A,h_A)$ is a retract of its cofree coalgebra $(!A,\delta_A)$ in $\mathrm{EM}(!)$. | `diagram81` — `theories/cbv/em_cartesian.v` |
+| Melliès Prop 20 | Retraction lifting: if $i$ is a coalgebra morphism with carrier retraction $r\circ i = \mathrm{id}$ and $i\circ f$ is a coalgebra morphism, then $f$ is a coalgebra morphism. | `coalg_mor_lift` — `theories/cbv/em_cartesian.v` |
+| Melliès Prop 27 | A retract of a commutative comonoid lifts to a commutative comonoid; the four transported comonoid laws. | `transp_counitL`, `transp_counitR`, `transp_cocomm`, `transp_coassoc` — `theories/cbv/em_cartesian.v` |
+| Melliès Prop 28 | The monoidal structure of a linear category is cartesian in $\mathrm{EM}(!)$; the comonoid predicate holds on **every** coalgebra. | `EMComon_all` — `theories/cbv/em_cartesian.v` |
+| Melliès Cor 17 | A symmetric monoidal category in which every object carries a monoidal-natural comonoid is cartesian, with product the tensor and terminal object the unit. | `ICones_EM_cartesian`, `EM_Cartesian` — `theories/cbv/em_cartesian.v` |
+| Fox η-law cofree | The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ on cofree coalgebra pairs. | `em_pair_mor_proj_id_cofree` — `theories/cbv/cbv_adjunction.v` |
+| Fox η-law general | The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ for the $\mathrm{EM}(!)$ binary product on **every** pair of coalgebras. | `em_pair_mor_proj_id` — `theories/cbv/cbv_adjunction.v` |
+| Melliès Prop 29 | The cofree-coalgebra adjunction $U\dashv\tilde{!} : \mathbf{ICones}\rightleftarrows\mathrm{EM}(!)$ is a linear/non-linear (lax symmetric monoidal) adjunction. | `CBV_Model`, `ICones_CBV` — `theories/cbv/cbv_adjunction.v` |
 
 ### SAFT engine (`SubobjClassifier`, `wi_obj`, `wi_med`, `is_icones_left_adjoint`)
 
@@ -2240,7 +2250,7 @@ The paper builds $\otimes$, $!$, and the Seely isos via Freyd's Special Adjoint 
 > **Difference.** SAFT is a *meta-theorem* about the existence of an adjoint; the mechanisation replaces the abstract statement with the concrete construction its proof supplies. `SubobjClassifier` / `icones_well_powered` discharge well-poweredness (Riehl's "each object admits only a set's worth of subobjects"); `pb_med` and `wi_obj`/`wi_med` build the binary and wide intersections of Lemma 4.6.11; and `is_icones_left_adjoint` records the hom-bijection contract a candidate left adjoint must satisfy. The coseparator is the unit cone $1$ (paper Thm 4.18), not the interval $I$ of Riehl's Stone–Čech example.
 
 ```coq
-(* theories/icones/representable.v *)
+(* theories/homs/representable.v *)
 Record SubobjClassifier : Type := MkClassifier {
   cls_S : set B; cls_add : B -> B -> B; cls_scl : {nonneg R} -> B -> B;
   cls_zer : B; cls_nrm : B -> R;
@@ -2289,22 +2299,28 @@ Definition tensor_incl : icones_hom Ar tensor p := wi_incl fAdom fhh fk0.
 End Icones_tensor_construct.
 ```
 
-### Exponential as SAFT left adjoint (`Bang`, `Bang_incl`, `nl`, `lin`)
+### Exponential as SAFT left adjoint (`bang_sig`, `bang_pack`, `Bang`, `nl`, `lin`)
 
-The exponential $! = E$ is discharged as the SAFT left adjoint of the dereliction functor $\mathsf{Der}$: the object $\mathrm{Bang}\,B = E\,B$ is the wide intersection of the factoring subobjects of $B\multimap 1^{\mathbf{Ar}}$, with the universal nonlinear map `nl` and the linear factoriser `lin`.
+The exponential $! = E$ is discharged as the SAFT left adjoint of the dereliction functor $\mathsf{Der}$, by instantiating the shared parametric SAFT engine of `theories/homs/saft_construct.v` at the signature `bang_sig` (hom-sets $\mathbf{SCones}(B, X)$, action $\mathsf{Der}\,h \circ -$; products preserved on the nose by `scones_tuple`, equalisers by `der_eq_med`): the object $\mathrm{Bang}\,B = E\,B$ is the engine's wide intersection of the factoring subobjects of the coseparator power $1^{\mathbf{SCones}(B,\mathbb{1})}$, with the universal nonlinear map `nl` (the engine's universal element) and the linear factoriser `lin` (the engine's mediator). Unlike the tensor instance, the instantiation is **sealed**: the engine output is packed in the Σ-type witness `bang_pack`, closed with `Qed`, and `Bang` / `nl` / `lin` are thin projections of that kernel-opaque pack — so their normal forms are atomic and the nested-`Bang` comonad proofs of `bang.v` never unfold the SAFT construction.
 
 > **Source — Riehl, *Category Theory in Context*, Theorem 4.6.10** (as above). A continuous functor out of a complete, locally small, well-powered category with a small coseparator admits a left adjoint, given concretely by the wide intersection of the factoring subobjects of a power of the coseparator.
 
-> **Difference.** The paper's §7 (Thm 7.34) supplies the limit-preservation of $\mathsf{Der}$ and then invokes SAFT for $!$; the mechanisation runs the concrete engine, so `Bang`, `nl`, `lin` are proved definitions with no axiom interface. Continuity of $\mathsf{Der}$ (Thm 7.34) is in `theories/stable/der_continuous.v`.
+> **Difference.** The paper's §7 (Thm 7.34) supplies the limit-preservation of $\mathsf{Der}$ and then invokes SAFT for $!$; the mechanisation runs the shared concrete engine behind the `Qed`-sealed pack, so `Bang`, `nl`, `lin` are proved definitions with no axiom interface (`Print Assumptions` traverses the sealed pack; only the three `boolp` classical axioms remain). Continuity of $\mathsf{Der}$ (Thm 7.34) is in `theories/stable/der_continuous.v`.
 
 ```coq
-(* theories/homs/bang_construct.v *)
-Module Icones_bang_construct.
-Definition Bang : ICone.type Ar := wi_obj fhh fk0.
-Definition Bang_incl : icones_hom Ar Bang p := wi_incl fAdom fhh fk0.
-Definition nl  : scones_hom B (Bang B) := (* the universal nonlinear map *) _.
-Definition lin : icones_hom Ar (Bang B) C := (* the linear factoriser *) _.
-End Icones_bang_construct.
+(* theories/exp/bang_construct.v *)
+Definition bang_sig : SC.saft_sig Ar :=
+  @SC.MkSaftSig R Ar bang_ehom bang_emap bang_emap_id bang_emap_comp
+    bang_emap_mono bang_etuple bang_etuple_proj bang_eprod_ext
+    bang_eq_med bang_eq_med_factor.
+
+Definition Bang : ICone.type Ar := projT1 bang_pack.
+
+Definition nl : scones_hom B Bang := projT1 (projT2 bang_pack).
+
+Definition lin (C : ICone.type Ar) (f : scones_hom B C) :
+    icones_hom Ar Bang C :=
+  proj1_sig (projT2 (projT2 bang_pack)) C f.
 ```
 
 ### Melliès Prop 26 (`diagram81`)
@@ -2316,7 +2332,7 @@ Every $!$-coalgebra $(A,h_A)$ is a retract of its cofree coalgebra $(!A,\delta_A
 > **Difference.** Melliès states the square in a generic linear category; the mechanisation instantiates it at the icones comonad $!$ and records the concrete morphism equality `diagram81` (the transported diagonal via the structure map `coalg_str`), which the Cor-20 lift then consumes.
 
 ```coq
-(* theories/homs/em_cartesian.v *)
+(* theories/cbv/em_cartesian.v *)
 Lemma diagram81 (P : Coalgebra Ar) :
   icones_comp (tensor_mor (coalg_str P) (coalg_str P)) (coalg_d P) =
   icones_comp (d_bang (coalg_obj P)) (coalg_str P).
@@ -2331,7 +2347,7 @@ The retraction-lifting property Melliès flags as *"less obvious"*: given a carr
 > **Difference.** The REFERENCE MAP cites this as "Cor 20 / Prop 20"; in Melliès it is Proposition 20 of §6.11 (a lifting property of the coalgebra morphism $i$). The mechanisation gives the $(\Leftarrow)$ direction directly as `coalg_mor_lift` and applies it at the retraction $(h_A\otimes h_A)/(\varepsilon_A\otimes\varepsilon_A)$ to show the transported diagonal $d_A$ is a coalgebra morphism.
 
 ```coq
-(* theories/homs/em_cartesian.v *)
+(* theories/cbv/em_cartesian.v *)
 Lemma coalg_mor_lift (X PA QB : Coalgebra Ar)
     (i : icones_hom Ar (coalg_obj PA) (coalg_obj QB))
     (r : icones_hom Ar (coalg_obj QB) (coalg_obj PA))
@@ -2351,7 +2367,7 @@ A retract of a commutative comonoid inherits a commutative comonoid structure. T
 > **Difference.** Melliès packages the transport as a single equivalence; the mechanisation unbundles it into the four comonoid-law equations (`transp_counitL/_R/_cocomm/_coassoc`) proved by a generic SMC transport under an Eq-(85) hypothesis fixing the $(i,r,d_B,e_B)$ retraction setup — the concrete content of "the comonoid $(A,d_A,e_A)$ is uniquely defined".
 
 ```coq
-(* theories/homs/em_cartesian.v *)
+(* theories/cbv/em_cartesian.v *)
 Lemma transp_counitL :
   icones_comp (iso_fwd (tensor_lunit A))
     (icones_comp (tensor_mor eA (icones_id Ar A)) dA) = icones_id Ar A.
@@ -2375,7 +2391,7 @@ The analytic core: the comonoid predicate `EMComon` holds *unconditionally* on e
 > **Difference.** The naïve route — reducing to *promoted points* $x^{!}$ — fails for a general carrier, since an arbitrary $a\,x$ is not promoted; the structural retraction proof (Prop 26 + Prop 27 + the Prop-20 lift) is what §7.4 actually requires. The headline is the single Prop `EMComon_all` asserting the comonoid predicate for *every* coalgebra $P$.
 
 ```coq
-(* theories/homs/em_cartesian.v *)
+(* theories/cbv/em_cartesian.v *)
 Lemma EMComon_all (P : Coalgebra Ar) : EMComon P.
 ```
 
@@ -2388,7 +2404,7 @@ The bridge from comonoids to a cartesian structure: a symmetric monoidal categor
 > **Difference.** Melliès' Corollary 17 does *not* require the comonoids to be commutative; the underlying classical result is Fox's theorem (T. Fox, *Coalgebras and cartesian categories*, Comm. Algebra 4, 1976). The mechanisation records the cartesian package as the record `EM_Cartesian` and populates every field in `ICones_EM_cartesian`, with the binary product carried by the linear tensor $\otimes$ — not the cartesian $\&$.
 
 ```coq
-(* theories/homs/em_cartesian.v *)
+(* theories/cbv/em_cartesian.v *)
 Record EM_Cartesian (R : realType) (Ar : MeasSubcat R) : Type :=
   MkEMCartesian {
   cart_prod : Coalgebra Ar -> Coalgebra Ar -> Coalgebra Ar;
@@ -2422,7 +2438,7 @@ The cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ on the cofree pai
 > **Difference.** The β-laws only give the universal property *out of* a coalgebra; the η-law is Fox's theorem specialised to $\mathrm{EM}(!)$ of a linear-exponential comonad (Melliès Prop 28 at the icones level). The cofree case `em_pair_mor_proj_id_cofree` establishes η on promoted tensors by Melliès' retract-and-lift technique, *not* by promoted-point reduction.
 
 ```coq
-(* theories/programs/infra/cbv_adjunction.v *)
+(* theories/cbv/cbv_adjunction.v *)
 Lemma em_pair_mor_proj_id_cofree (A B : ICone.type Ar) :
   @em_pair_mor R Ar (EM_prod (bang_cofree A) (bang_cofree B))
     (bang_cofree A) (bang_cofree B)
@@ -2440,7 +2456,7 @@ The full cartesian η-law $\langle\pi_1,\pi_2\rangle = \mathrm{id}$ for the $\ma
 > **Difference.** Fox's theorem is stated for the whole comonoid category; the mechanisation specialises it to $\mathrm{EM}(!)$ and proves the η-law `em_pair_mor_proj_id` for every $(P,Q)$ by a split-mono retraction reducing to the cofree case above — Melliès' retract-and-lift, again avoiding promoted-point reduction.
 
 ```coq
-(* theories/programs/infra/cbv_adjunction.v *)
+(* theories/cbv/cbv_adjunction.v *)
 Lemma em_pair_mor_proj_id (P Q : Coalgebra Ar) :
   @em_pair_mor R Ar (EM_prod P Q) P Q
     (em_proj1_mor P Q) (em_proj2_mor P Q)
@@ -2456,7 +2472,7 @@ The cofree-coalgebra adjunction $U\dashv\tilde{!} : \mathbf{ICones}\rightleftarr
 > **Difference.** Melliès obtains the monoidal adjunction via Lack's lifting theorem (S. Lack, *Composing PROPs*, Theory Appl. Categ. 13, 2004); the mechanisation packages the LNL structure as the record `CBV_Model` and discharges every field in `ICones_CBV`, taking the value side to be the *full* $\mathrm{EM}(!)$ (using Cor 20 / `em_pair_mor_proj_id`) rather than a chosen subcategory.
 
 ```coq
-(* theories/programs/infra/cbv_adjunction.v *)
+(* theories/cbv/cbv_adjunction.v *)
 Record CBV_Model (R : realType) (Ar : MeasSubcat R) : Type := MkCBVModel {
   cbv_smcc : ICones_SMCC Ar;
   cbv_em   : EM_Cat Ar;
@@ -2511,7 +2527,7 @@ make -j
 ./verify.sh
 
 # 3. Spot-check any headline result yourself.
-echo 'From Icones.homs Require Import seely. Print Assumptions Icones.homs.seely.ICones_Seely.' \
+echo 'From Icones.exp Require Import seely. Print Assumptions Icones.exp.seely.ICones_Seely.' \
   | rocq top -Q theories Icones
 
 # Or for the rejection-sampling master theorem:
@@ -2534,18 +2550,19 @@ results:
    logic core: $(\mathbf{ICones}, \otimes, \mathbf{1})$ is a SMCC.
 3. **Theorem 7.32** (`SCones_ccc` in `theories/stable/scones_ccc.v`) — the
    cartesian closed `SCones`.
-4. **Theorem 9.5** (`ICones_Seely` in `theories/homs/seely.v`) — the Seely
+4. **Theorem 9.5** (`ICones_Seely` in `theories/exp/seely.v`) — the Seely
    category structure (the full LL / intuitionistic-linear model).
-5. **Theorem 9.7** (`FMeas_coalgebra` in `theories/homs/coalgebra.v`) — the
+5. **Theorem 9.7** (`FMeas_coalgebra` in `theories/exp/coalgebra.v`) — the
    measure cone is a `!`-coalgebra; `X ↦ FMeas(X)` is a functor into `EM(!)`.
 6. **The mechanised paper-cited meta-theorems** (`EMComon_all` and
-   `ICones_CBV` in `theories/homs/em_cartesian.v` /
-   `theories/programs/infra/cbv_adjunction.v`) — Mellies' Cor 20 (full
+   `ICones_CBV` in `theories/cbv/em_cartesian.v` /
+   `theories/cbv/cbv_adjunction.v`) — Mellies' Cor 20 (full
    cartesianness of `EM(!)`) and the LNL adjunction.
 
 For the PPL development on top — including recursive examples and their
 mass identities — see the [PPL tab](../ppl/).
 
-For deeper inspection, the `blueprint/` directory contains a
-LaTeX/Patrick-Massot-style overview that mirrors this table chapter by
-chapter, with clickable links to each Rocq definition.
+The `blueprint/` directory contains an older LaTeX/Patrick-Massot-style
+overview that mirrors this table chapter by chapter. It is **frozen as of
+2026-08 and superseded by this dashboard**: its citations are no longer
+maintained and the module paths it names may be stale.

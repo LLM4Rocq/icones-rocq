@@ -38,13 +38,15 @@
 (*                                                                            *)
 (* [tensor_construct.v] instantiates the signature ([tensor_sig]) and         *)
 (* re-exports the results under its historical names (keeping its             *)
-(* instantiation-specific pointwise lemmas locally).  The [Der]/[bang]        *)
-(* instantiation TYPECHECKS against this signature as well (universe-clean),  *)
-(* but is NOT wired in: routing [Bang]/[nl]/[lin] through the signature       *)
-(* record multiplies the conversion cost of [bang.v]'s nested-[Bang]          *)
-(* comonad proofs (measured: [comonad_coassoc]'s                              *)
-(* [rewrite (dig_prom (prom_ball _))] goes from 632 s concrete to >2400 s),   *)
-(* so [bang_construct.v] keeps its concrete twin of this argument.  This      *)
+(* instantiation-specific pointwise lemmas locally).  [bang_construct.v]      *)
+(* instantiates it as well ([bang_sig], the [Der]/[bang] instance) but        *)
+(* SEALS the result: the engine output is packed into a Σ-type whose          *)
+(* witness ([bang_pack]) is closed with [Qed], so the consumer-visible        *)
+(* [Bang]/[nl]/[lin] are conversion-atomic projections.  (An UNSEALED         *)
+(* transparent instantiation was measured to multiply the conversion cost     *)
+(* of [bang.v]'s nested-[Bang] comonad proofs >3.9x; the sealed wiring        *)
+(* instead COLLAPSES that cost — [bang.v] drops from 236 s to 5 s — because   *)
+(* conversion can no longer unfold the [wi_obj] normal forms at all.)  This   *)
 (* file is AXIOM-FREE relative to the classical [boolp] base — NO [Axiom]/    *)
 (* [Parameter]/[Admitted].                                                    *)
 (*                                                                            *)
@@ -67,7 +69,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.examples_icone.
 Require Import Icones.icones.icone_cat.
-Require Import Icones.icones.representable.
+Require Import Icones.homs.representable.
 Require Import Icones.homs.icones_iso.
 
 Set Implicit Arguments.

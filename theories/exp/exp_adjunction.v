@@ -4,10 +4,10 @@
 (* This file exposes the linear/non-linear adjunction [E ⊣ Der] in its         *)
 (* universal-arrow form as five symbols ([Bang], [nl], [lin], [lin_beta],     *)
 (* [lin_unique]) — the §13.4 content the comonad milestone                    *)
-(* [theories/homs/bang.v] consumes.                                           *)
+(* [theories/exp/bang.v] consumes.                                           *)
 (*                                                                            *)
 (* The data are AXIOM-FREE theorems, supplied by the concrete SAFT             *)
-(* construction [Icones.homs.bang_construct] (the exponential analog of the   *)
+(* construction [Icones.exp.bang_construct] (the exponential analog of the   *)
 (* tensor's [tensor_construct.v], with the limit-preserving functor [Der] in  *)
 (* place of [(C ⊸ −)]; Der's limit preservation is                             *)
 (* [theories/stable/der_continuous.v], paper Thm 7.34).                        *)
@@ -44,7 +44,7 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.stable.scones_cat.
-Require Import Icones.homs.bang_construct.
+Require Import Icones.exp.bang_construct.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

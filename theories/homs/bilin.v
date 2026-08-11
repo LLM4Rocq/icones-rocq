@@ -114,7 +114,7 @@
       hypothesis is supplied by [η]'s joint-test field at arity
       [ar_prod Z X] using
       [path_test (ar_prod_snd) (test_reindex (ar_prod_fst) m)].
-      Used by [theories/homs/fmeas_lax.v] to bundle [fmeas_lax_pre]
+      Used by [theories/cbv/fmeas_lax.v] to bundle [fmeas_lax_pre]
       as a real [icones_hom] (the genuine lax-monoidal map of [FMeas]).
 
     Still deferred / follow-up.
@@ -153,7 +153,6 @@ From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import kernel.
 Import numFieldTopology.Exports.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.

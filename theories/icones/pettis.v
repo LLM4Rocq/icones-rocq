@@ -56,7 +56,6 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_integral_definition.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.

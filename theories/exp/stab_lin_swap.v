@@ -24,7 +24,7 @@
     - [bnd_succ] / [bnd_succ_inv] / [bnd_succ_mulV] / [bnd_succ_inv_ball]
       — the [(M+1)]-rescale into the unit ball, keyed on a real bound
       [M ≥ 0] (the element-keyed variant is [linhom.v]'s [cnorm_succ_*]).
-      Also used by [stable/diag_bilinear_tensor.v].
+      Also used by [cbv/diag_bilinear_tensor.v].
 
     - [linhom_meas_stable] — every [linhom_car] is [is_meas_stable]
       (linear ⇒ stable, via [linear_totmono] / [linear_scott_unit]).
@@ -56,7 +56,6 @@ From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import topology normedtype sequences.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -68,7 +67,7 @@ Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
 Require Import Icones.mcones.path.
 Require Import Icones.mcones.mcone_cat.
-Require Import Icones.mcones.test_pullback.
+Require Import Icones.icones.test_pullback.
 Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.

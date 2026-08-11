@@ -47,7 +47,6 @@ From mathcomp.reals Require Import reals.
 From mathcomp.algebra Require Import interval_inference.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -67,7 +66,7 @@ Require Import Icones.stable.stablehom.
 Require Import Icones.stable.compose.
 Require Import Icones.stable.scones_cat.
 Require Import Icones.stable.scones_ccc.
-Require Import Icones.stable.stab_lin_swap.
+Require Import Icones.exp.stab_lin_swap.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -651,8 +650,9 @@ Local Open Scope precone_scope.
 
 (** The deliverable, stated generically: [EA] and [EB] are arbitrary
     integrable cones (in the intended application, [EA = Bang Ar A] and
-    [EB = Bang Ar B]; we keep them generic to avoid pulling
-    [exp_adjunction.v] into [stable/]). *)
+    [EB = Bang Ar B]; we keep them generic so this file never has to
+    import [exp_adjunction.v] — it stays pure [homs/] + [stable/]
+    material even though it is the CBV layer that consumes it). *)
 Lemma meas_stable_diag_bilinear_tensor
     (K : G -> EA)
     (Phi : icones_hom Ar (tensor Ar G EA) EB) :

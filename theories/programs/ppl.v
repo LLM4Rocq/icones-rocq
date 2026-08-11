@@ -81,7 +81,7 @@
     - [ne_true] / [ne_false] — boolean constants of type [tbool],
       interpreted as the constant morphisms at the bool-cone
       Diracs [bool_dirac_true] / [bool_dirac_false] of
-      [theories/programs/infra/bool_cone.v].
+      [theories/icones/bool_cone.v].
     - [ne_bernoulli p Hp_ge0 Hp_le1] — sample from a Bernoulli
       distribution: the 2-point sub-probability [(p, 1-p)] on
       [bool_cone] (norm exactly [1]).
@@ -134,7 +134,7 @@
     ** Infrastructure **
 
     The arithmetic and term-level-score constructors lean on the FMeas
-    lax monoidal map of paper §9 ([theories/homs/fmeas_lax.v]):
+    lax monoidal map of paper §9 ([theories/cbv/fmeas_lax.v]):
     - [fmeas_lax X Y : FMeas X ⊗ FMeas Y ⊸ FMeas (X × Y)] is the Phase-A
       "tensored pair to joint measure" map, with Dirac identity
       [fmeas_lax_dirac : fmeas_lax (δ_a ⊗ δ_b) = δ_(a,b)] (used directly
@@ -175,7 +175,7 @@ Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
-Require Import Icones.programs.infra.bool_cone.
+Require Import Icones.icones.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -192,17 +192,17 @@ Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_construct.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
 Require Import Icones.homs.tensor_hom_iso.
-Require Import Icones.programs.infra.bool_case_hom.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.fmeas_lax.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
+Require Import Icones.exp.bool_case_hom.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.fmeas_lax.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -349,7 +349,7 @@ Arguments tR {R Ar} R_obj.
     - [tprod τ1 τ2] WITH BOTH [τi] free-coalgebra: the product of two
       free coalgebras IS a free coalgebra by the Seely iso [Seely2]:
       [tensor (bang_cofree L1) (bang_cofree L2) ≅ bang_cofree (sprod L1
-      L2)] ([theories/homs/seely.v]).  This is the constructor that
+      L2)] ([theories/exp/seely.v]).  This is the constructor that
       ENABLES mutually-recursive function pairs (the construction
       "marche sur les types dont l'interprétation est une coalgèbre
       libre, ce qui inclut aussi les produits de types fonction et permet
@@ -1071,7 +1071,7 @@ Arguments add_lift_mass
 
     The semantic engine of [ne_meas]: for a measurable [f : R -> R],
     the [FMeas] functorial action [FMeas(f̂) : FMeas R_obj → FMeas R_obj]
-    of [theories/homs/coalgebra.v] at the carrier transport
+    of [theories/exp/coalgebra.v] at the carrier transport
     [f̂ := R_to_carrier ∘ f ∘ carrier_to_R].  No new path construction
     is needed: [FMeas_fmap] IS the Dirac-path pushforward
     [µ ↦ ∫ δ_(f̂ r) dµ(r)], with the computation law
@@ -1705,7 +1705,7 @@ Arguments bernoulli_norm_le1 {R Ar} p Hp_ge0 Hp_le1.
     constant [1]), then promote with [int_to_linhom].  The integral
     semantics is automatic by Pettis uniqueness against the
     componentwise integral [bool_int] of
-    [theories/programs/infra/bool_cone.v] ([bern_lift_g_E]); the
+    [theories/icones/bool_cone.v] ([bern_lift_g_E]); the
     Dirac identity ([bern_lift_g_dirac]) and total-mass identity
     ([bern_lift_g_mass]: the lift preserves total mass — the coin is
     NORM-1 pointwise) are the load-bearing laws for the

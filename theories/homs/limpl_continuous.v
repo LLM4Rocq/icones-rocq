@@ -26,7 +26,7 @@
 (*   This file is AXIOM-FREE relative to the classical base of                *)
 (*   mathcomp-analysis: it is pure [ICones] limit theory.  Theorem 5.9 is     *)
 (*   the INPUT consumed by the SAFT machinery of                              *)
-(*   [Icones.icones.representable] to build the tensor [- ⊗ C] as the SAFT    *)
+(*   [Icones.homs.representable] to build the tensor [- ⊗ C] as the SAFT    *)
 (*   left adjoint of [C ⊸ -].                                                 *)
 (*                                                                            *)
 (*   APIs used:                                                               *)
@@ -46,7 +46,6 @@ From mathcomp.reals Require Import reals.
 From mathcomp.analysis Require Import ereal measurable_structure measurable_function.
 From mathcomp.analysis Require Import measure lebesgue_integral_definition.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -908,7 +907,7 @@ Arguments limpl_eq_med_unique {R Ar} C {D1 D2 f g H} h.
 
     [limpl_continuous C] below bundles the two as a single record, the
     concrete per-consumer input that Theorem [th:limpl-has-left-adj]
-    feeds, via the SAFT machinery of [Icones.icones.representable]
+    feeds, via the SAFT machinery of [Icones.homs.representable]
     ([is_icones_left_adjoint], SA-conditions + [icones_well_powered]), to
     construct the tensor [− ⊗ C] as the SAFT *left adjoint* of [C ⊸ −].
     Crucially this limit-preservation is AXIOM-FREE: it is the *input* to

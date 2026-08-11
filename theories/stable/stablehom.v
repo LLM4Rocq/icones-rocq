@@ -63,7 +63,6 @@ From mathcomp.analysis Require Import lebesgue_integral_nonneg.
 From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
 From mathcomp.analysis Require Import topology normedtype sequences.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -78,7 +77,7 @@ Require Import Icones.icones.pettis.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_integral.
 Require Import Icones.icones.fubini.
-Require Import Icones.mcones.test_pullback.
+Require Import Icones.icones.test_pullback.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

@@ -91,14 +91,14 @@ Require Import Icones.homs.linhom.
 Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -651,7 +651,7 @@ Qed.
 (** *** Step 2 — helper: naturality of [em_pair_mor] in its output factors
     (right form, no side condition).  This is the canonical statement of
     right naturality for [em_pair_mor]; it has no counterpart elsewhere.
-    Its natural paper-side home would be [theories/homs/em_cartesian.v]
+    Its natural paper-side home would be [theories/cbv/em_cartesian.v]
     (next to the [em_pair_mor] β-laws); it is stated here for now because
     the CBV development below is its only consumer. *)
 Lemma em_pair_mor_natR_cbv (Z P Q P' Q' : Coalgebra Ar)
@@ -669,7 +669,7 @@ Qed.
 (** *** Step 2 — helper: left naturality of [em_pair_mor] (needs the input
     morphism to be a coalgebra morphism).  Canonical statement, with no
     counterpart elsewhere; like the right form above its natural paper-side
-    home would be [theories/homs/em_cartesian.v]. *)
+    home would be [theories/cbv/em_cartesian.v]. *)
 Lemma em_pair_mor_natL_cbv (Z Y P Q : Coalgebra Ar)
     (h : icones_hom Ar (coalg_obj Z) (coalg_obj Y))
     (p : icones_hom Ar (coalg_obj Y) (coalg_obj P))

@@ -8,7 +8,7 @@
 (*   Seely2_{B1,B2} : !B1 ⊗ !B2  ≅  !(B1 & B2)     (paper [\Seelyt])          *)
 (*   Seely0         :        1   ≅  !⊤             (paper [\Seelyz])          *)
 (*                                                                            *)
-(* Both isos are PROVED in [theories/homs/seely.v]:                            *)
+(* Both isos are PROVED in [theories/exp/seely.v]:                            *)
 (*                                                                            *)
 (*   - [Seely0] / [Seely0E] (the unit iso, paper [\Seelyz]) is built by the   *)
 (*     contravariant Yoneda lemma [co_yoneda_iso] on the natural             *)
@@ -46,8 +46,8 @@ Require Import Icones.stable.scones_ccc.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.icones_iso.
 Require Import Icones.homs.tensor.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -81,7 +81,7 @@ Local Notation "x '!'" := (prom x) (at level 2, format "x '!'").
 
       [Seely2(x1! ⊗ x2!) = ⟨x1,x2⟩!].
 
-    The iso and its characterisation are PROVED in [theories/homs/seely.v]
+    The iso and its characterisation are PROVED in [theories/exp/seely.v]
     (the paper's natural-in-[C] bijection chain of content.tex ~7482,
     folded to the element level via the [E ⊣ Der] adjunction [Θ]/[lin],
     the [SCones] CCC [curry]/[Ev], [tensor_hom_iso] / the braiding, and —
@@ -138,13 +138,13 @@ Definition sprod_mor (B1 B2 B1' B2' : ICone.type Ar)
 
     [Seely2] is a natural transformation in both arguments; the square
     [!(f1 & f2) ∘ Seely2_{B1,B2} = Seely2_{B1',B2'} ∘ (!f1 ⊗ !f2)] is
-    PROVED as [Seely2_natural] in [theories/homs/seely.v] (directly from
+    PROVED as [Seely2_natural] in [theories/exp/seely.v] (directly from
     [Seely2E] via the [n=2] promotion extensionality [tens_excl_charact]). *)
 
 (** ** Paper §9 — the unit Seely isomorphism [\Seelyz]
 
     The unit Seely iso [Seely0 : 1 ≅ !⊤] and its characterisation
-    [Seely0(t) = t·(0!)] are PROVED in [theories/homs/seely.v] (via the
+    [Seely0(t) = t·(0!)] are PROVED in [theories/exp/seely.v] (via the
     contravariant Yoneda lemma [co_yoneda_iso] on the natural
     hom-bijection [ICones(1,C) ≃ ICones(!⊤,C)]). *)
 

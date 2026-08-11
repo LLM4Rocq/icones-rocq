@@ -15,6 +15,13 @@
       positivity, scalar-distribution) over [fmeas R X]. Paper §2.1.
     - Cone norm axioms (Normh), (Normz), (Normt), (Normp) over
       [fmeas R X]. Paper §2.1.
+    - [fmeas_kleene_sup_U_cvg] / [fmeas_kleene_sup_U_E] — the
+      sup-mass bridge: the mass of a unit-ball Kleene supremum at a
+      measurable [U] is the limit of the per-iterate masses at [U].
+    - [fmeas_int_ge0], [fmeas_int_le_mass], [fmeas_int_fin],
+      [fmeas_intU_ge0], [fmeas_intU_le], [fmeas_intU_fin],
+      [fmeas_int_compl] — mass bookkeeping for a measurable integrand
+      [g] with [0 ≤ g ≤ 1] against an [fmeas].
 
     Design notes.
 
@@ -59,16 +66,19 @@
 *)
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
-From mathcomp.classical Require Import boolp classical_sets.
+From mathcomp.classical Require Import boolp classical_sets functions.
 From mathcomp.reals Require Import reals.
 From mathcomp.analysis Require Import ereal.
 From mathcomp.analysis Require Import measurable_structure measurable_function.
+From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import measure.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
-From mathcomp.analysis Require Import normedtype sequences.
+From mathcomp.analysis Require Import lebesgue_integral_definition.
+From mathcomp.analysis Require Import lebesgue_integral_monotone_convergence.
+From mathcomp.analysis Require Import lebesgue_integral_nonneg.
+From mathcomp.analysis Require Import topology normedtype sequences.
 Import numFieldTopology.Exports.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -1462,3 +1472,171 @@ by [].
 Qed.
 
 End FMeasPushFunctor.
+
+(** ** The sup-mass bridge for unit-ball ω-chains in [FMeas]
+
+    For a unit-ball ω-chain [ν : nat -> fmeas R X] (increasing and
+    norm-bounded by [1]) and a measurable [U], the mass of the Kleene
+    supremum at [U] is the limit of the per-iterate masses at [U].
+
+    [cone_sup_ball] at [fmeas R X] is definitionally [fmeas_sup_ball]
+    (the [isCone] instance above), so the bridge is [fmeas_sup_ballE]
+    + [fmeas_sup_cvg] + [cvg_unique]. *)
+
+Section FMeasKleeneSup.
+Variable R : realType.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+
+Variable nu : nat -> fmeas R X.
+Hypothesis nuch : forall n, precone_le (nu n) (nu n.+1).
+Hypothesis nub1 : forall n, (cone_norm (nu n) <= 1)%R.
+
+Local Open Scope ereal_scope.
+
+(** Per-set mass convergence: [fmeas_mu (ν n) U] converges to the mass
+    of the ball-sup at [U]. The first step is definitional —
+    [cone_sup_ball] at [fmeas R X] *is* [fmeas_sup_ball]. *)
+Lemma fmeas_kleene_sup_U_cvg (U : set X) :
+  measurable U ->
+  fmeas_mu (nu n) U @[n --> \oo] -->
+  fmeas_mu (cone_sup_ball nu nuch nub1 : fmeas R X) U.
+Proof.
+move=> mU.
+have HE : (cone_sup_ball nu nuch nub1 : fmeas R X)
+          = fmeas_sup_ball nuch nub1 by [].
+rewrite HE (fmeas_sup_ballE _ nub1 mU).
+exact: fmeas_sup_cvg.
+Qed.
+
+(** The bridge: any limit of the per-iterate masses at [U] *is* the
+    mass of the ball-sup at [U] (by [cvg_unique] in the Hausdorff
+    space [\bar R]). *)
+Lemma fmeas_kleene_sup_U_E (U : set X) (l : \bar R) :
+  measurable U ->
+  fmeas_mu (nu n) U @[n --> \oo] --> l ->
+  fmeas_mu (cone_sup_ball nu nuch nub1 : fmeas R X) U = l.
+Proof.
+move=> mU Hcvg.
+have Hsup := fmeas_kleene_sup_U_cvg mU.
+exact: (@cvg_unique _ (@ereal_hausdorff R) _ _ _ _ Hsup Hcvg).
+Qed.
+
+End FMeasKleeneSup.
+
+Arguments fmeas_kleene_sup_U_cvg {R disp X nu} nuch nub1 {U} mU.
+Arguments fmeas_kleene_sup_U_E {R disp X nu} nuch nub1 {U l} mU Hcvg.
+
+(** ** Mass bookkeeping for a bounded nonnegative integrand
+
+    The total [Ig := ∫ g dν] and the restricted [IUg U := ∫_U g dν],
+    for a measurable [g] with [0 ≤ g ≤ 1] against a finite measure
+    [ν]: nonnegativity, the bound by the total mass, finiteness, and
+    the complementary weight [∫ h dν = ν(setT) - ∫ g dν] at
+    [g + h ≡ 1].
+
+    The bookkeeping never uses [ν(setT) = 1], so the statements below
+    are the general (sub-probability) shapes.  They are the shapes the
+    acceptance-mass integrals of the rejection-sampling riders
+    ([theories/programs/ex_reject_headline.v],
+    [theories/programs/ex_reject_model.v]) instantiate. *)
+
+Section MassBookkeeping.
+Variable R : realType.
+Variable disp : measure_display.
+Variable X : measurableType disp.
+
+Variable nu : fmeas R X.
+Variable g : X -> R.
+Hypothesis g_ge0 : forall r, (0 <= g r)%R.
+Hypothesis g_le1 : forall r, (g r <= 1)%R.
+Hypothesis g_meas : measurable_fun [set: X] g.
+
+Local Open Scope ereal_scope.
+
+Local Notation Ig :=
+  (\int[fmeas_mu nu]_(r in [set: X]) (g r)%:E) (only parsing).
+Local Notation IUg U :=
+  (\int[fmeas_mu nu]_(r in U) (g r)%:E) (only parsing).
+
+Let ge0_gE r : [set: X] r -> 0 <= (g r)%:E.
+Proof. by move=> _; rewrite lee_fin g_ge0. Qed.
+
+Let meas_gE : measurable_fun [set: X] (fun r => (g r)%:E).
+Proof. by apply/measurable_EFinP; exact: g_meas. Qed.
+
+Lemma fmeas_int_ge0 : 0 <= Ig.
+Proof. exact: integral_ge0. Qed.
+
+(** The integrand is [≤ 1], so the integral is at most the total mass. *)
+Lemma fmeas_int_le_mass : Ig <= fmeas_mu nu [set: X].
+Proof.
+apply: (le_trans (y := \int[fmeas_mu nu]_(r in [set: X])
+                        (cst (1%:E : \bar R)) r)).
+  apply: ge0_le_integral.
+  - exact: measurableT.
+  - exact: ge0_gE.
+  - exact: meas_gE.
+  - exact: measurable_cst.
+  - by move=> r _; rewrite lee_fin g_le1.
+by rewrite integral_cst// mul1e.
+Qed.
+
+Lemma fmeas_int_fin : Ig \is a fin_num.
+Proof.
+rewrite ge0_fin_numE ?fmeas_int_ge0//.
+apply: le_lt_trans fmeas_int_le_mass _.
+by rewrite ltey_eq fmeas_setT_fin.
+Qed.
+
+Lemma fmeas_intU_ge0 U : measurable U -> 0 <= IUg U.
+Proof. by move=> mU; apply: integral_ge0 => r _; rewrite lee_fin g_ge0. Qed.
+
+Lemma fmeas_intU_le U : measurable U -> IUg U <= Ig.
+Proof. by move=> mU; apply: ge0_subset_integral => //; exact: meas_gE. Qed.
+
+Lemma fmeas_intU_fin U : measurable U -> IUg U \is a fin_num.
+Proof.
+move=> mU; rewrite ge0_fin_numE ?fmeas_intU_ge0//.
+apply: le_lt_trans (fmeas_intU_le mU) _.
+apply: le_lt_trans fmeas_int_le_mass _.
+by rewrite ltey_eq fmeas_setT_fin.
+Qed.
+
+(** The COMPLEMENTARY weight.  For a measurable [h ≥ 0] with
+    [g + h ≡ 1] — the totality of the two branch weights —
+    [∫ h dν = ν(setT) - ∫ g dν]: what the dispatch does not accept it
+    retries, minus whatever mass [ν] itself is missing. *)
+Lemma fmeas_int_compl (h : X -> R) :
+  (forall r, (0 <= h r)%R) -> measurable_fun [set: X] h ->
+  (forall r, (g r + h r)%R = 1%R) ->
+  \int[fmeas_mu nu]_(r in [set: X]) (h r)%:E =
+  ((fine (fmeas_mu nu [set: X]) - fine Ig)%R)%:E.
+Proof.
+move=> h_ge0 h_meas ghE.
+have ge0_hE r : [set: X] r -> 0 <= (h r)%:E.
+  by move=> _; rewrite lee_fin h_ge0.
+have meas_hE : measurable_fun [set: X] (fun r => (h r)%:E).
+  by apply/measurable_EFinP; exact: h_meas.
+have Hsum : Ig + \int[fmeas_mu nu]_(r in [set: X]) (h r)%:E =
+            fmeas_mu nu [set: X].
+  rewrite -(ge0_integralD _ measurableT ge0_gE meas_gE ge0_hE meas_hE).
+  under eq_integral => r _.
+    rewrite -EFinD ghE.
+    over.
+  by rewrite integral_cst// mul1e.
+have := congr1 (fun z => z - Ig) Hsum.
+rewrite (addeC Ig) addeK ?fmeas_int_fin// => ->.
+rewrite -{1}(fineK (fmeas_setT_fin nu)).
+by rewrite -{1}(fineK fmeas_int_fin) -EFinB.
+Qed.
+
+End MassBookkeeping.
+
+Arguments fmeas_int_ge0 {R disp X} nu {g} g_ge0.
+Arguments fmeas_int_le_mass {R disp X} nu {g} g_ge0 g_le1 g_meas.
+Arguments fmeas_int_fin {R disp X} nu {g} g_ge0 g_le1 g_meas.
+Arguments fmeas_intU_ge0 {R disp X} nu {g} g_ge0 {U}.
+Arguments fmeas_intU_le {R disp X} nu {g} g_ge0 g_meas {U}.
+Arguments fmeas_intU_fin {R disp X} nu {g} g_ge0 g_le1 g_meas {U}.
+Arguments fmeas_int_compl {R disp X} nu {g} g_ge0 g_le1 g_meas h.

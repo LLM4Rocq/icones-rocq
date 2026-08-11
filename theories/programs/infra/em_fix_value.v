@@ -48,9 +48,9 @@
         ([stable/fixpoint.v]'s §9.2 combinator [Yfix : (A ⇒ₛ A) → A],
         the CCC combinators of [stable/scones_ccc.v], and the
         linear-to-stable lift [linhom_to_stablehom] of
-        [stable/diag_bilinear_tensor.v]).  A stable map [(!A⊸!A) → A]
+        [cbv/diag_bilinear_tensor.v]).  A stable map [(!A⊸!A) → A]
         IS a linear map [!(!A⊸!A) ⊸ A] via the SAFT hom-bijection
-        ([lin]/[Theta], [homs/bang.v]); then [adj_psi] of the [U ⊣ !̃]
+        ([lin]/[Theta], [exp/bang.v]); then [adj_psi] of the [U ⊣ !̃]
         adjunction packages the linear map as the EM-morphism
         [fix_comb] into the cofree coalgebra — coalgebra-morphism-ness
         is BY CONSTRUCTION.
@@ -109,19 +109,19 @@ Require Import Icones.stable.stablehom.
 Require Import Icones.stable.scones_cat.
 Require Import Icones.stable.scones_ccc.
 Require Import Icones.stable.fixpoint.
-Require Import Icones.stable.stab_lin_swap.
-Require Import Icones.stable.diag_bilinear_tensor.
+Require Import Icones.exp.stab_lin_swap.
+Require Import Icones.cbv.diag_bilinear_tensor.
 Require Import Icones.homs.linhom.
 Require Import Icones.homs.linhom_functor.
 Require Import Icones.homs.bilin.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang_construct.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang_construct.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
 (* NOTE: the tensor stack comes AFTER the Seely/EM stack on purpose:
    [seely.v] and [tensor_hom_iso.v] both export a [linhom_icones]
    constant; the §1 degeneracy proofs must see [tensor_hom_iso]'s (the
@@ -625,7 +625,7 @@ Qed.
 (** *** §3.5 — The linear extension [fix_lin] (the lin/nl bridge)
 
     A stable map [(!A ⊸ !A) → A] IS a linear map [!(!A ⊸ !A) ⊸ A]:
-    [lin]/[Theta] of the SAFT construction ([homs/bang.v]).  This is
+    [lin]/[Theta] of the SAFT construction ([exp/bang.v]).  This is
     obligation (a)'s "linear extension to the whole Bang", obtained by
     the universal property — no fresh order analysis of the SAFT [Bang]
     is needed. *)

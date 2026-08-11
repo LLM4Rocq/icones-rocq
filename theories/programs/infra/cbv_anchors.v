@@ -64,7 +64,7 @@
     See also: [theories/programs/ppl_cbv.v] (the interpreter + the
     [eD_*_E] definitional-unfolding pack consumed here),
     [theories/programs/infra/bool_cone_coalg.v] (the §9.7 boolean
-    coalgebra), [theories/homs/em_cartesian.v] (Eq 88 / [EM_prod]). *)
+    coalgebra), [theories/cbv/em_cartesian.v] (Eq 88 / [EM_prod]). *)
 
 From HB Require Import structures.
 From mathcomp Require Import all_ssreflect ssralg ssrnum.
@@ -85,7 +85,7 @@ Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
 Require Import Icones.cones.omega_general.
-Require Import Icones.programs.infra.bool_cone.
+Require Import Icones.icones.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -102,19 +102,19 @@ Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_construct.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
 Require Import Icones.homs.tensor_hom_iso.
-Require Import Icones.programs.infra.bool_case_hom.
-Require Import Icones.homs.coalgebra.
+Require Import Icones.exp.bool_case_hom.
+Require Import Icones.exp.coalgebra.
 Require Import Icones.programs.infra.bool_cone_coalg.
-Require Import Icones.homs.fmeas_lax.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
-Require Import Icones.programs.infra.cbv_adjunction.
+Require Import Icones.cbv.fmeas_lax.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
+Require Import Icones.cbv.cbv_adjunction.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.infra.em_fix_value.
@@ -420,6 +420,25 @@ Lemma kleene_prom_setlike (L : ICone.type Ar)
   ((fix_chain F n)!)!.
 Proof.
 by rewrite bang_cofree_str; exact: (dig_prom _ (fix_chain_ball HF n)).
+Qed.
+
+(** The same pair for the LIMIT of that chain: the seeded fixpoint
+    VALUE of a unit-ball body endofunction promotes to a unit-ball
+    point of [!L] and is setlike there.  This is what every [let rec]
+    rider's continuation environment [one1 ⊗p (fix_value F)!] is built
+    from, exactly as its per-iterate tower is built from
+    [kleene_prom_ball] / [kleene_prom_setlike]. *)
+Lemma fix_value_prom_ball (L : ICone.type Ar)
+    (F : linhom_car Ar (Bg L) (Bg L)) (HF : cone_norm F <= 1) :
+  cone_norm ((sc_fun (fix_value L) F)!) <= 1.
+Proof. exact: prom_ball (fix_value_ball F HF). Qed.
+
+Lemma fix_value_prom_setlike (L : ICone.type Ar)
+    (F : linhom_car Ar (Bg L) (Bg L)) (HF : cone_norm F <= 1) :
+  Lfun (coalg_str (bang_cofree L)) ((sc_fun (fix_value L) F)!) =
+  ((sc_fun (fix_value L) F)!)!.
+Proof.
+by rewrite bang_cofree_str; exact: (dig_prom _ (fix_value_ball F HF)).
 Qed.
 
 (** Linhom-cone suprema are POINTWISE: evaluating the ball-sup of a

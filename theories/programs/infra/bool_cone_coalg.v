@@ -3,8 +3,8 @@
     This file is NOT part of the Ehrhard-Geoffroy 2025 formalization
     (paper §2-§9).  It hand-rolls a [!]-coalgebra structure on the
     2-point sub-probability cone [bool_cone_car Ar] of
-    [theories/programs/infra/bool_cone.v], mirroring the §9.7-style
-    [FMeas_coalgebra] of [theories/homs/coalgebra.v].
+    [theories/icones/bool_cone.v], mirroring the §9.7-style
+    [FMeas_coalgebra] of [theories/exp/coalgebra.v].
 
     Mathematical content.  The §9.7 coalgebra on [FMeas X] is
     [Coalg_X(µ) = ∫ prom(δ_x) dµ(x)].  Specialised to the 2-point cone
@@ -34,9 +34,9 @@
     identity [bool_coalg_str (bool_dirac_true) = prom(bool_dirac_true)]
     (and similarly for [false]).
 
-    See also: [theories/homs/coalgebra.v] (the prototype, on [FMeas X]),
-    [theories/programs/infra/bool_cone.v] (the carrier),
-    [theories/programs/infra/bool_case_hom.v] (the universal-property
+    See also: [theories/exp/coalgebra.v] (the prototype, on [FMeas X]),
+    [theories/icones/bool_cone.v] (the carrier),
+    [theories/exp/bool_case_hom.v] (the universal-property
     combinator), [theories/programs/ppl_cbv.v] (the consumer). *)
 
 From HB Require Import structures.
@@ -56,13 +56,13 @@ Require Import Icones.mcones.mcone_cat.
 Require Import Icones.icones.icone.
 Require Import Icones.icones.icone_cat.
 Require Import Icones.homs.linhom.
-Require Import Icones.homs.seely.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.coalgebra.
-Require Import Icones.homs.em_cat.
-Require Import Icones.programs.infra.bool_cone.
-Require Import Icones.programs.infra.bool_case_hom.
+Require Import Icones.exp.seely.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.coalgebra.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.icones.bool_cone.
+Require Import Icones.exp.bool_case_hom.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

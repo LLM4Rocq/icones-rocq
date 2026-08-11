@@ -56,7 +56,6 @@ From mathcomp.analysis Require Import measurable_structure measurable_function.
 From mathcomp.analysis Require Import measurable_realfun.
 From mathcomp.analysis Require Import lebesgue_stieltjes_measure.
 
-Require Import Icones.prelude.classical_extra.
 Require Import Icones.prelude.nonneg_extra.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.cone.
@@ -1216,7 +1215,7 @@ Proof. by move=> Hinj a1 a2; exact: Hinj. Qed.
     classifier [SubobjClassifier B] together with the theorem that it
     determines each subobject up to ICones-iso ([icones_subobject_classP]
     / [icones_well_powered]) — lives downstream in
-    [theories/icones/representable.v] (it must, since it builds on the
+    [theories/homs/representable.v] (it must, since it builds on the
     [icones_iso] record of [homs/icones_iso.v], which depends on this
     file).  That result is the faithful, axiom-free rendering of the
     paper's [(S, F)] essential-smallness argument. *)

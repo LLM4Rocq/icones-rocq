@@ -76,11 +76,12 @@
     See also: [theories/programs/reject_condition.v] (the clean
     combinators), [theories/programs/infra/cbv_anchors.v] (the
     setlike/sup kit and [bool_case_mass] used here),
-    [theories/programs/infra/bool_cone.v]
+    [theories/icones/bool_cone.v]
     ([bool_case], [bc_t]/[bc_f], [bool_coord_meas]),
     [theories/programs/infra/let_sample_law.v] (the general let-law),
-    [theories/programs/infra/affine_cascade.v] (the scalar cascade and
-    the mass bookkeeping [fmeas_int_*]).
+    [theories/prelude/geom_series.v] (the scalar cascade),
+    [theories/mcones/fmeas.v] (the sup-mass bridge and the mass
+    bookkeeping [fmeas_int_*]).
 
     Author: Guillaume Baudart <guillaume.baudart@inria.fr>. *)
 
@@ -103,12 +104,13 @@ Import numFieldTopology.Exports.
 From Stdlib Require Import Strings.String.
 
 Require Import Icones.prelude.nonneg_extra.
+Require Import Icones.prelude.geom_series.
 Require Import Icones.cones.precone.
 Require Import Icones.cones.basic_lemmas.
 Require Import Icones.cones.cone.
 Require Import Icones.cones.cone_cat.
 Require Import Icones.cones.omega_general.
-Require Import Icones.programs.infra.bool_cone.
+Require Import Icones.icones.bool_cone.
 Require Import Icones.mcones.ar.
 Require Import Icones.mcones.mcone.
 Require Import Icones.mcones.fmeas.
@@ -126,19 +128,19 @@ Require Import Icones.homs.bilin.
 Require Import Icones.homs.tensor.
 Require Import Icones.homs.tensor_construct.
 Require Import Icones.homs.smcc.
-Require Import Icones.homs.exp_adjunction.
-Require Import Icones.homs.bang.
-Require Import Icones.homs.seely_defs.
-Require Import Icones.homs.seely.
+Require Import Icones.exp.exp_adjunction.
+Require Import Icones.exp.bang.
+Require Import Icones.exp.seely_defs.
+Require Import Icones.exp.seely.
 Require Import Icones.homs.tensor_hom_iso.
-Require Import Icones.programs.infra.bool_case_hom.
-Require Import Icones.homs.coalgebra.
+Require Import Icones.exp.bool_case_hom.
+Require Import Icones.exp.coalgebra.
 Require Import Icones.programs.infra.bool_cone_coalg.
-Require Import Icones.homs.fmeas_lax.
-Require Import Icones.homs.em_cat.
-Require Import Icones.homs.em_seely_comonoid.
-Require Import Icones.homs.em_cartesian.
-Require Import Icones.programs.infra.cbv_adjunction.
+Require Import Icones.cbv.fmeas_lax.
+Require Import Icones.cbv.em_cat.
+Require Import Icones.cbv.em_seely_comonoid.
+Require Import Icones.cbv.em_cartesian.
+Require Import Icones.cbv.cbv_adjunction.
 Require Import Icones.programs.ppl.
 Require Import Icones.programs.infra.em_fix.
 Require Import Icones.programs.infra.em_fix_value.
@@ -146,12 +148,11 @@ Require Import Icones.programs.ppl_cbv.
 Require Import Icones.programs.infra.cbv_anchors.
 Require Import Icones.programs.infra.cbv_fix_unfold.
 Require Import Icones.programs.infra.let_sample_law.
-Require Import Icones.programs.infra.affine_cascade.
 Require Import Icones.programs.examples.
 (* The setlike-point kit this rider runs on is [infra/cbv_anchors.v]; no
    name of [ex_reject_headline.v] is used here, so it is NOT imported —
    which also keeps this file's [fix_chain_prom_ball] unambiguous. *)
-Require Import Icones.programs.infra.cbv_marginals.
+Require Import Icones.programs.cbv_marginals.
 Require Import Icones.programs.reject_condition.
 
 Set Implicit Arguments.
@@ -1007,7 +1008,7 @@ Lemma rm_m0_le1 : (m0 <= 1)%R.
 Proof. exact: rm_dist_ball. Qed.
 
 (** The acceptance-mass bookkeeping is the generic one of
-    [theories/programs/infra/affine_cascade.v] (Section
+    [theories/mcones/fmeas.v] (Section
     [MassBookkeeping]) at [ν := ν_M] and [g := bc_t ∘ sdist]; nothing
     here needs [ν_M] to be a probability, which is why the generic
     statements are these shapes and the headline rider's unit-mass
