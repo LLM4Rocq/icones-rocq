@@ -5,6 +5,13 @@ by entry B ⇒ edge A→B) and the parsed Document hierarchy (tab → group →
 entry compound nesting).  These tests check the emitted data is well
 formed: every edge endpoint is a real node, no self-edges, parents resolve,
 entry URLs follow the page route, and the hierarchy is carried.
+
+They also pin the ARCHITECTURAL LANE the client lays the graph out on: an
+entry's lane is derived here, in Python, from the ``theories/<dir>/…``
+paths it documents, following the same layer table the CI import checker
+enforces — including the parallel ``homs`` ∥ ``stable`` pair that shares one
+lane as two stacked bands — plus the leaf/root flags that mark the sinks and
+sources of the real dependency relation.
 """
 
 from __future__ import annotations
@@ -35,7 +42,9 @@ def _name_span(ident: str) -> str:
     return f'<span class="n">{ident}</span>'
 
 
-def _entry(eid: str, idents, snippet_html: str = "", vfile: str = "") -> Entry:
+def _entry(eid: str, idents, snippet_html: str = "", vfile="") -> Entry:
+    vfiles = [vfile] if isinstance(vfile, str) else list(vfile)
+    vfiles = [v for v in vfiles if v]
     return Entry(
         id=eid,
         paper_label=eid,
@@ -44,19 +53,16 @@ def _entry(eid: str, idents, snippet_html: str = "", vfile: str = "") -> Entry:
         paper_section_id="sec-x",
         statement_html="",
         rocq_idents=list(idents),
-        rocq_files=(
-            [
-                RocqFile(
-                    path=vfile,
-                    section=None,
-                    github_url="",
-                    coqdoc_url=None,
-                    coqdoc_anchor=None,
-                )
-            ]
-            if vfile
-            else []
-        ),
+        rocq_files=[
+            RocqFile(
+                path=v,
+                section=None,
+                github_url="",
+                coqdoc_url=None,
+                coqdoc_anchor=None,
+            )
+            for v in vfiles
+        ],
         status=["axiom-free"],
         detail=EntryDetail(
             prose_html="",
@@ -312,6 +318,378 @@ def test_meta_counts_consistent():
     assert meta["n_entries"] == 2
     assert meta["n_tabs"] == 1
     assert meta["n_groups"] == 1
+
+
+# -- architectural lanes ----------------------------------------------------
+
+
+def test_lane_table_matches_the_layer_checker():
+    """The lane table names exactly the directories CI enforces layers for.
+
+    ``graph.py`` keeps its own copy of the layer table (so the auditor stays
+    vendorable on its own).  A copy that drifts is worse than no copy: a new
+    ``theories/`` directory would be laid out at the left edge of the graph
+    while ``check_layers.py`` happily ranks it.  This test is the join.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_check_layers", ROOT / "check_layers.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    from tools.auditor.graph import LANES, LAYER_DIRS
+
+    assert [list(t) for t in LAYER_DIRS] == [list(t) for t in mod.LAYERS]
+    # Every layer directory lands in exactly one lane band, and every band
+    # names only real directories.
+    placed = [d for lane in LANES for band in lane["bands"] for d in band["dirs"]]
+    assert sorted(placed) == sorted(mod.RANK)
+    assert len(placed) == len(set(placed))
+    # Lanes are ordered: a lane's directories never rank below an earlier
+    # lane's, which is what makes "left → right" a dependency order.
+    tops = [max(mod.RANK[d] for b in lane["bands"] for d in b["dirs"]) for lane in LANES]
+    assert tops == sorted(tops)
+
+
+def test_lane_assigned_from_source_file_path():
+    """Each ``theories/<dir>/`` maps to its architectural lane and band."""
+    cases = {
+        "prelude": ("foundations", "foundations", 0, 0),
+        "cones": ("foundations", "foundations", 0, 0),
+        "mcones": ("measurable", "measurable", 1, 0),
+        "icones": ("measurable", "measurable", 1, 0),
+        "homs": ("linear-stable", "homs", 2, 0),
+        "stable": ("linear-stable", "stable", 2, 1),
+        "kernels": ("exponential", "kernels", 3, 0),
+        "exp": ("exponential", "exp", 3, 1),
+        "cbv": ("cbv", "cbv", 4, 0),
+        "programs": ("ppl", "ppl", 5, 0),
+    }
+    entries = [
+        _entry(f"def-{d}", idents=[f"w_{d}"], vfile=f"theories/{d}/mod.v")
+        for d in cases
+    ]
+    byid = _byid(build_graph(_three(paper=[_section("sec-x", entries)])))
+
+    for d, (lane_id, band_id, lane, band) in cases.items():
+        node = byid[f"paper::def-{d}"]
+        assert (node["lane_id"], node["band_id"]) == (lane_id, band_id), d
+        assert (node["lane"], node["band"]) == (lane, band), d
+        assert node["layer_dir"] == d
+        assert node["lane_src"] == "files"
+
+
+def test_parallel_directories_are_one_lane_in_two_bands():
+    """``homs`` ∥ ``stable`` (and ``kernels`` ∥ ``exp``) share a lane.
+
+    They are parallel layers — neither may import the other — so the picture
+    must NOT put one to the left of the other, which would read as "stable
+    is built on homs".  Same column, two stacked bands.
+    """
+    entries = [
+        _entry("def-h", idents=["h_w"], vfile="theories/homs/linhom.v"),
+        _entry("def-s", idents=["s_w"], vfile="theories/stable/scone.v"),
+        _entry("def-k", idents=["k_w"], vfile="theories/kernels/sfin.v"),
+        _entry("def-e", idents=["e_w"], vfile="theories/exp/bang.v"),
+    ]
+    byid = _byid(build_graph(_three(paper=[_section("sec-x", entries)])))
+    h, s = byid["paper::def-h"], byid["paper::def-s"]
+    k, e = byid["paper::def-k"], byid["paper::def-e"]
+
+    assert h["lane"] == s["lane"] and h["band"] != s["band"]
+    assert k["lane"] == e["lane"] and k["band"] != e["band"]
+    # …and the two parallel lanes are still ordered against each other.
+    assert h["lane"] < k["lane"]
+
+
+def test_lane_is_the_max_layer_over_the_entry_files():
+    """An entry spanning layers belongs to its DEEPEST one.
+
+    Everything below a layer is available there, so taking the max is the
+    only rule under which a dependency cannot point rightwards across the
+    lanes.  (A tie between two parallel directories resolves to the first
+    declared, so the answer never depends on file order.)
+    """
+    spanning = _entry(
+        "thm-span",
+        idents=["span_w"],
+        vfile=["theories/cones/precone.v", "theories/homs/linhom.v"],
+    )
+    tie = _entry(
+        "thm-tie",
+        idents=["tie_w"],
+        vfile=["theories/stable/scone.v", "theories/homs/linhom.v"],
+    )
+    byid = _byid(build_graph(_three(paper=[_section("sec-x", [spanning, tie])])))
+
+    assert byid["paper::thm-span"]["layer_dir"] == "homs"
+    assert byid["paper::thm-span"]["lane_id"] == "linear-stable"
+    assert byid["paper::thm-tie"]["layer_dir"] == "homs"
+
+
+def test_nested_and_unknown_source_paths():
+    """A nested path keeps its top directory; an unknown one does not lie."""
+    nested = _entry(
+        "def-nested", idents=["n_w"], vfile="theories/programs/infra/util.v"
+    )
+    stray = _entry("def-stray", idents=["s_w"], vfile="theories/sandbox/toy.v")
+    byid = _byid(
+        build_graph(
+            _three(
+                paper=[_section("sec-a", [nested])],
+                ppl=[_section("sec-b", [stray])],
+            )
+        )
+    )
+    assert byid["paper::def-nested"]["lane_id"] == "ppl"
+    assert byid["paper::def-nested"]["layer_dir"] == "programs"
+    # No known layer anywhere in the section ⇒ parked at the left edge and
+    # flagged as such rather than silently placed in a real lane.
+    assert byid["ppl::def-stray"]["lane"] == 0
+    assert byid["ppl::def-stray"]["lane_src"] == "fallback"
+
+
+def test_entry_without_files_inherits_its_section_lane():
+    """No file info ⇒ the section's dominant lane, marked as inherited."""
+    a = _entry("def-a", idents=["a_w"], vfile="theories/exp/bang.v")
+    b = _entry("def-b", idents=["b_w"], vfile="theories/exp/seely.v")
+    orphan = _entry("rem-x", idents=[])          # a remark with no source
+    three = _three(paper=[_section("sec-x", [a, b, orphan])])
+
+    byid = _byid(build_graph(three))
+    assert byid["paper::rem-x"]["lane_id"] == "exponential"
+    assert byid["paper::rem-x"]["band_id"] == "exp"
+    assert byid["paper::rem-x"]["lane_src"] == "section"
+    assert byid["paper::rem-x"]["layer_dir"] == ""
+    # The group node carries the same dominant lane (the legacy section view
+    # orders by it too).
+    assert byid["grp::paper::sec-x"]["lane_id"] == "exponential"
+
+
+def test_leaf_and_root_flags_on_a_known_sink(tmp_path):
+    """``thm-master`` uses ``def-base`` ⇒ base is no leaf, master is no root.
+
+    The flags are the point of the whole lane picture: a leaf is a headline
+    result (nothing builds on it), a root is where a reading can start.  They
+    are computed from the REAL dependency relation only — a prose mention of
+    an entry must not stop it being a leaf.
+    """
+    demo = tmp_path / "theories" / "cbv"
+    demo.mkdir(parents=True)
+    (demo / "foo.v").write_text("(* source *)\n", encoding="utf-8")
+    (demo / "foo.glob").write_text(_FIXTURE_GLOB, encoding="utf-8")
+
+    base = _entry("def-base", idents=["base_lem"], vfile="theories/cbv/foo.v")
+    master = _entry(
+        "thm-master",
+        idents=["master_thm"],
+        snippet_html="the combinator and the master identity",
+        vfile="theories/cbv/foo.v",
+    )
+    # A third entry nobody uses and which uses nobody: isolated, NOT a
+    # headline result, so it is flagged apart from the real leaves.
+    lonely = _entry("def-lonely", idents=["lonely_def"], vfile="theories/cbv/foo.v")
+    three = _three(paper=[_section("sec-x", [base, master, lonely])])
+
+    graph = build_graph(three, theories_root=tmp_path / "theories")
+    byid = _byid(graph)
+
+    assert byid["paper::def-base"]["leaf"] is False   # master depends on it
+    assert byid["paper::def-base"]["root"] is True    # it depends on nothing
+    assert byid["paper::thm-master"]["leaf"] is True  # nothing depends on it
+    assert byid["paper::thm-master"]["root"] is False
+    assert byid["paper::thm-master"]["isolated"] is False
+    assert byid["paper::def-lonely"]["isolated"] is True
+
+    meta = graph["meta"]
+    assert meta["n_leaves"] == 2 and meta["n_isolated"] == 1
+    # The flagged set excludes the isolated entry.
+    assert meta["n_leaf_results"] == 1
+    assert meta["leaves_by_tab"]["paper"] == 1
+
+
+def test_prose_mentions_do_not_change_leaf_status():
+    """A doc co-reference is not a dependency, and must not mark a leaf.
+
+    With no ``.glob`` the graph still emits ``mentions`` edges; if those
+    counted, an entry merely *named* in someone's prose would stop being a
+    headline result and the flag would drift with the documentation's wording
+    rather than with the proofs.
+    """
+    a = _entry("def-a", idents=["alpha_widget"], vfile="theories/homs/a.v")
+    b = _entry(
+        "def-b",
+        idents=["beta_widget"],
+        snippet_html=_name_span("alpha_widget"),
+        vfile="theories/homs/b.v",
+    )
+    graph = build_graph(_three(paper=[_section("sec-x", [a, b])]))
+    byid = _byid(graph)
+
+    assert graph["meta"]["n_mentions"] > 0 and graph["meta"]["n_depends"] == 0
+    assert byid["paper::def-a"]["leaf"] is True
+    assert byid["paper::def-b"]["leaf"] is True
+    # Nothing depends on anything ⇒ every entry is isolated, and the client
+    # keys its marks off n_depends rather than flagging the whole canvas.
+    assert graph["meta"]["n_leaf_results"] == 0
+
+
+def test_meta_carries_the_lane_table_and_histogram():
+    """The client sizes and captions lanes from ``meta``, not from literals."""
+    three = _three(
+        paper=[
+            _section(
+                "sec-x",
+                [
+                    _entry("def-a", idents=["a_w"], vfile="theories/cones/a.v"),
+                    _entry("def-b", idents=["b_w"], vfile="theories/stable/b.v"),
+                ],
+            )
+        ],
+        ppl=[
+            _section(
+                "ppl-s",
+                [_entry("ppl-a", idents=["p_w"], vfile="theories/programs/p.v")],
+            )
+        ],
+    )
+    meta = build_graph(three)["meta"]
+
+    lanes = meta["lanes"]
+    assert [lane["id"] for lane in lanes] == [
+        "foundations",
+        "measurable",
+        "linear-stable",
+        "exponential",
+        "cbv",
+        "ppl",
+    ]
+    assert [b["id"] for b in lanes[2]["bands"]] == ["homs", "stable"]
+    assert lanes[2]["bands"][1]["dirs"] == ["stable"]
+    # One row per tab, one column per lane, summing to that tab's entries.
+    assert meta["lanes_by_tab"]["paper"] == [1, 0, 1, 0, 0, 0]
+    assert meta["lanes_by_tab"]["ppl"] == [0, 0, 0, 0, 0, 1]
+    assert meta["lanes_by_tab"]["examples"] == [0] * len(lanes)
+    assert sum(meta["lanes_by_tab"]["paper"]) == meta["nodes_by_tab"]["paper"]["entries"]
+
+
+def test_lane_fields_are_additive_and_always_present():
+    """Every entry node carries the lane keys; old keys are untouched."""
+    a = _entry("def-a", idents=["alpha"], vfile="theories/cbv/em.v")
+    byid = _byid(build_graph(_three(paper=[_section("sec-x", [a])])))
+    node = byid["paper::def-a"]
+
+    for key in ("id", "label", "ntype", "tab", "parent", "url", "kind", "status"):
+        assert key in node, key
+    for key in (
+        "lane", "lane_id", "band", "band_id", "layer_dir", "lane_src",
+        "leaf", "root", "isolated",
+    ):
+        assert key in node, key
+
+
+def _backward_graph(tmp_path, claim_files):
+    """A graph with ONE dependency that runs against the lane order.
+
+    ``thm-user`` is formalised in ``theories/prelude`` (lane 0) and its proof
+    uses ``base_lem``; the entry that CLAIMS ``base_lem`` is placed by
+    ``claim_files``.  Point those at a deeper layer and the resulting edge
+    necessarily runs left → right against the lane reading.
+    """
+    src = tmp_path / "theories" / "prelude"
+    src.mkdir(parents=True)
+    (src / "x.v").write_text("(* source *)\n", encoding="utf-8")
+    (src / "x.glob").write_text(_FIXTURE_GLOB, encoding="utf-8")
+
+    claim = _entry("def-claim", idents=["base_lem"], vfile=claim_files)
+    user = _entry("thm-user", idents=["master_thm"], vfile="theories/prelude/x.v")
+    three = _three(paper=[_section("sec-x", [claim, user])])
+    return build_graph(three, theories_root=tmp_path / "theories")
+
+
+def test_backward_edges_are_flagged_on_the_edge(tmp_path):
+    """A dependency against the lane order is MARKED, not merely counted.
+
+    The hero used to promise that nothing on the left depends on anything to
+    its right, and the canvas drew such edges exactly like the rest — so the
+    reader who spotted one had already been told it could not exist.  The
+    flag rides on the edge so the client can style the exception.
+    """
+    graph = _backward_graph(tmp_path, "theories/programs/ppl.v")
+    byid = _byid(graph)
+    assert byid["paper::thm-user"]["lane"] < byid["paper::def-claim"]["lane"]
+
+    edge = next(
+        e["data"]
+        for e in graph["edges"]
+        if e["data"]["source"] == "paper::thm-user"
+        and e["data"]["target"] == "paper::def-claim"
+    )
+    assert edge["kind"] == "depends"
+    assert edge["backward"] is True
+    # Forward edges stay unflagged rather than carrying ``backward: False``:
+    # the key means "this one is an exception".
+    for e in graph["edges"]:
+        if e["data"]["source"] != "paper::thm-user":
+            assert "backward" not in e["data"]
+
+
+def test_backward_edges_are_split_by_their_actual_cause(tmp_path):
+    """Multi-layer placement and contested ident ownership are counted apart.
+
+    Blaming every backward edge on "an entry documenting files from several
+    layers is placed by its deepest one" is false whenever the target's files
+    all live in ONE layer — there the placement rule cannot be at fault and
+    the real cause is identifier ownership.  The two are counted separately
+    so the page can say which is which.
+    """
+    contested = _backward_graph(tmp_path / "a", "theories/programs/ppl.v")
+    assert contested["meta"]["n_lane_backward"] == 1
+    assert contested["meta"]["n_lane_backward_contested"] == 1
+    assert contested["meta"]["n_lane_backward_multilayer"] == 0
+
+    spanning = _backward_graph(
+        tmp_path / "b", ["theories/mcones/mcone.v", "theories/programs/ppl.v"]
+    )
+    assert spanning["meta"]["n_lane_backward"] == 1
+    assert spanning["meta"]["n_lane_backward_multilayer"] == 1
+    assert spanning["meta"]["n_lane_backward_contested"] == 0
+
+    # The split is a partition of the total, in either build.
+    for g in (contested, spanning):
+        m = g["meta"]
+        assert (
+            m["n_lane_backward_multilayer"] + m["n_lane_backward_contested"]
+            == m["n_lane_backward"]
+        )
+
+
+def test_lane_span_counts_lanes_not_files(tmp_path):
+    """``lane_span`` is what tells the two causes apart, so pin its meaning.
+
+    Two files in the SAME lane (even in the two parallel bands of it) are one
+    lane, not two: a backward edge into such an entry is not explained by the
+    max-layer placement rule.
+    """
+    one = _entry("def-one", idents=["a_w"], vfile="theories/exp/bang.v")
+    parallel = _entry(
+        "def-par",
+        idents=["b_w"],
+        vfile=["theories/homs/linhom.v", "theories/stable/scone.v"],
+    )
+    two = _entry(
+        "def-two",
+        idents=["c_w"],
+        vfile=["theories/cones/precone.v", "theories/exp/bang.v"],
+    )
+    byid = _byid(
+        build_graph(_three(paper=[_section("sec-x", [one, parallel, two])]))
+    )
+    assert byid["paper::def-one"]["lane_span"] == 1
+    assert byid["paper::def-par"]["lane_span"] == 1   # one lane, two bands
+    assert byid["paper::def-two"]["lane_span"] == 2
 
 
 # -- real Coq dependency edges (.glob) --------------------------------------
@@ -650,8 +1028,8 @@ def test_attach_glob_relations_marks_and_adds_navigation_links(tmp_path):
     assert len([x for x in master.cross_refs if x.kind == "uses"]) == 1
 
 
-def test_attach_glob_relations_upgrades_and_orders(tmp_path):
-    """A doc ref the .glob confirms is upgraded; proof-backed links sort first."""
+def test_attach_glob_relations_upgrades_and_demotes(tmp_path):
+    """A doc ref the .glob confirms is upgraded; one it does not is demoted."""
     from tools.auditor.schema import CrossRef
     from tools.auditor.xref import attach_glob_relations
 
@@ -670,6 +1048,10 @@ def test_attach_glob_relations_upgrades_and_orders(tmp_path):
         three, [(("paper", "thm-master"), ("paper", "def-zulu"))]
     )
 
+    # Only the proof-backed relation keeps the directional `uses` kind; the
+    # unbacked one becomes an undirected co-reference (a dependency claim
+    # the proofs do not support must not render as one).
     uses = [x for x in master.cross_refs if x.kind == "uses"]
-    assert [x.target for x in uses] == ["def-zulu", "def-base"]  # glob first
-    assert [x.via for x in uses] == ["glob", "doc"]
+    assert [(x.target, x.via) for x in uses] == [("def-zulu", "glob")]
+    mentions = [x for x in master.cross_refs if x.kind == "mentions"]
+    assert [(x.target, x.via) for x in mentions] == [("def-base", "doc")]

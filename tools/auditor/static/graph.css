@@ -18,6 +18,19 @@
   --g-focus:     #111318;
   --g-stub:      #8b8f98;
   --g-surface:   #ffffff;
+  /* Lane bands: a background, deliberately quiet — they carry the layer
+     story by POSITION, and must never compete with the nodes. */
+  --g-band:      #eceef3;
+  --g-band-line: #d5d9e0;
+  --g-band-fg:   #5c6270;
+  /* The two data marks: a leaf (nothing depends on it) and its quieter
+     complement, a root (it depends on nothing). */
+  --g-leaf:      #b4530a;
+  --g-root:      #8b8f98;
+  /* A dependency that runs AGAINST the lane order.  Drawn as an exception
+     so a right-to-left arrow reads as "known and flagged", not as proof
+     that the lane order is decorative. */
+  --g-backward:  #b91c1c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +45,12 @@
     --g-focus:    #f3f4f0;
     --g-stub:     #8b8f98;
     --g-surface:  #1c1e25;
+    --g-band:      #262a33;
+    --g-band-line: #363c48;
+    --g-band-fg:   #9aa1b0;
+    --g-leaf:      #f0a35c;
+    --g-root:      #8b8f98;
+    --g-backward:  #f0736b;
   }
 }
 
@@ -153,6 +172,48 @@
   cursor: pointer;
 }
 .graph-btn:hover { background: var(--accent-soft, #e6ecf5); }
+.graph-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+.graph-btn[disabled]:hover { background: var(--bg-elev, #fff); }
+
+/* The "leaves" quick filter — a pressed toggle, not a link. */
+.graph-btn-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.graph-btn-mark .graph-flag { color: var(--g-leaf); font-weight: 700; }
+.graph-btn-mark.is-on {
+  background: color-mix(in srgb, var(--g-leaf) 16%, transparent);
+  border-color: var(--g-leaf);
+  color: var(--g-leaf);
+}
+.graph-btn-mark.is-on .graph-flag { color: inherit; }
+
+/* Zoom cluster: ± around a live readout of the zoom level. */
+.graph-zoom { gap: 0.3rem; }
+.graph-btn-icon {
+  min-width: 1.9rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 1rem;
+  line-height: 1.1;
+  text-align: center;
+}
+.graph-zoom-level {
+  min-width: 3.1rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--fg-mute, #5a5a55);
+}
+/* Below the readability floor the number says so rather than pretending the
+   view is fine — "Fit" puts it back. */
+.graph-zoom-level.is-small {
+  color: var(--g-leaf);
+  font-weight: 600;
+}
+
+/* Controls that only mean something in one layout. */
+.graph-app[data-view="lanes"] .graph-only-sections { display: none; }
 
 .cy-swatch {
   display: inline-block;
@@ -243,8 +304,12 @@
 }
 
 .graph-canvas {
-  height: min(74vh, 840px);
-  min-height: 460px;
+  /* Taller than the old canvas: the lane layout trades width for readable
+     labels, so the viewport is the scarce resource. */
+  height: min(78vh, 900px);
+  min-height: 480px;
+  /* Panning the graph must not bounce the page underneath it. */
+  overscroll-behavior: contain;
   border: 1px solid var(--border, #d0d7de);
   border-radius: var(--radius, 0.5rem);
   background:
@@ -259,7 +324,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  max-height: min(74vh, 840px);
+  max-height: min(78vh, 900px);
   overflow-y: auto;
   padding: 0.75rem;
   border: 1px solid var(--border, #d0d7de);
@@ -442,6 +507,14 @@
   border-top-color: var(--g-mention);
   border-top-style: dashed;
 }
+.graph-legend-edge-backward {
+  border-top-color: var(--g-backward);
+  border-top-style: dotted;
+  border-top-width: 3px;
+}
+/* The hero names the flagged edges; colour the phrase so the reader can
+   match it to what is on the canvas without hunting the legend first. */
+.graph-hint-backward { color: var(--g-backward); }
 .graph-legend-port {
   justify-self: center;
   align-self: center;
@@ -472,6 +545,63 @@
   font-size: 0.82rem;
   color: var(--fg-faint, #87877f);
   white-space: nowrap;
+}
+/* A lane band: two stacked stripes, the way a parallel lane is drawn. */
+.graph-legend-lane {
+  justify-self: center;
+  align-self: center;
+  display: grid;
+  gap: 2px;
+  width: 30px;
+}
+.graph-legend-lane::before,
+.graph-legend-lane::after {
+  content: "";
+  display: block;
+  height: 9px;
+  border-radius: 3px;
+  border: 1px solid var(--g-band-line);
+  background: var(--g-band);
+}
+.graph-legend-lane::after { border-style: dashed; }
+/* The two node marks, at legend size. */
+.graph-legend-node {
+  justify-self: center;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 17px;
+  border-radius: 5px;
+  background: var(--g-paper);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+.graph-legend-node-leaf { border: 2.5px solid var(--g-leaf); }
+.graph-legend-node-root { border: 1.6px dotted var(--g-root); }
+@media (prefers-color-scheme: dark) {
+  .graph-legend-node { color: #10131a; }
+}
+
+/* The same two marks, inline in the info panel. */
+.graph-mark {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.02rem 0.32rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.graph-mark-leaf {
+  color: var(--g-leaf);
+  border: 1.5px solid var(--g-leaf);
+}
+.graph-mark-root {
+  color: var(--fg-mute, #5a5a55);
+  border: 1.5px dotted var(--g-root);
 }
 
 /* Where the edges came from — the honest provenance line.  A build with no

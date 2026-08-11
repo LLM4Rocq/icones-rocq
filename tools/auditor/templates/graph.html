@@ -30,26 +30,35 @@
      the canvas.  It is server-rendered for the default (Paper) tab and
      re-stated by graph.js from `meta.nodes_by_tab` on every tab switch. #}
   {% set cap = graph_meta.nodes_by_tab.paper if graph_meta else none %}
+  {% set lanes_paper = graph_meta.lanes_by_tab.paper if graph_meta else none %}
   <p class="graph-caption">
     <strong id="cy-caption">Paper tab:
       {{ cap.entries if cap else 0 }} entries in
-      {{ cap.groups if cap else 0 }} sections</strong>
-    — one node per documentation entry, which is the page you navigate to.
-    Sections start as a single folded box and unfold on click; edges are
-    machine-extracted proof dependencies from the compiled sources, and prose
-    co-references are hidden by default. The line under the canvas reports
-    what is drawn right now.
+      {{ cap.groups if cap else 0 }} sections{% if lanes_paper %}, spread over
+      {{ lanes_paper | select | list | length }} architectural layers{% endif %}</strong>
+    — one node per documentation entry, which is the page you navigate to,
+    placed in the lane of the <em>theories/</em> layer it is formalised in.
+    Edges are machine-extracted proof dependencies from the compiled sources;
+    prose co-references are hidden by default. The line under the canvas
+    reports what is drawn right now.
     {% if graph_meta %}
     <span class="graph-caption-total">All three tabs together:
     {{ graph_meta.n_entries }} entries in {{ graph_meta.n_groups }} sections.</span>
     {% endif %}
   </p>
   <p class="graph-hint">
-    One tab at a time, dependencies flowing left&nbsp;→&nbsp;right; the view
-    opens with as many sections unfolded as stay readable.
-    <b>Click a section</b> to fold or unfold it, <b>click an entry</b> to
-    light its dependency cone, <b>double-click</b> to open its page,
-    <kbd>Esc</kbd> to clear, <kbd>/</kbd> to search.
+    Lanes run left&nbsp;→&nbsp;right in dependency order — Foundations,
+    Measurable, Linear&nbsp;∥&nbsp;Stable, Exponential, CBV, PPL. Almost every
+    arrow therefore runs left&nbsp;→&nbsp;right too; the
+    {% if graph_meta and graph_meta.n_lane_backward %}{{ graph_meta.n_lane_backward }}
+    that run{% else %}few that may run{% endif %} the other way are
+    <b class="graph-hint-backward">drawn dotted and flagged</b> rather than
+    hidden (see the legend). <b>⚑ marks a leaf</b>:
+    an entry nothing else depends on, i.e. a result rather than machinery.
+    <b>Click an entry</b> to light its dependency cone, <b>double-click</b> to
+    open its page, <kbd>Esc</kbd> to clear, <kbd>/</kbd> to search.
+    Scroll to pan, <kbd>Shift</kbd>+scroll (or pinch, or the ± buttons) to
+    zoom.
   </p>
 </header>
 
@@ -70,13 +79,34 @@
     </div>
   </div>
 
+  <div class="graph-control">
+    <span class="graph-control-label" id="cy-views-label">Layout</span>
+    <div class="graph-seg" id="cy-views" role="radiogroup"
+         aria-labelledby="cy-views-label">
+      <button type="button" role="radio" data-view="lanes" aria-checked="true"
+              class="graph-seg-btn is-on"
+              title="Place every entry in the lane of its theories/ layer">Lanes</button>
+      <button type="button" role="radio" data-view="sections" aria-checked="false"
+              class="graph-seg-btn" tabindex="-1"
+              title="The document view: one foldable box per section">Sections</button>
+    </div>
+  </div>
+
+  <button type="button" id="cy-leaves" class="graph-btn graph-btn-mark"
+          aria-pressed="false">
+    <span class="graph-flag" aria-hidden="true">⚑</span> Leaves
+    {%- if graph_meta and graph_meta.n_leaf_results %}
+    <span class="graph-count">{{ graph_meta.n_leaf_results }}</span>
+    {%- endif %}
+  </button>
+
   <label class="graph-check" for="cy-mentions">
     <input type="checkbox" id="cy-mentions">
     Show prose co-references
     <span class="graph-count" id="cy-mentions-count"></span>
   </label>
 
-  <label class="graph-check" for="cy-expand-all">
+  <label class="graph-check graph-only-sections" for="cy-expand-all">
     <input type="checkbox" id="cy-expand-all">
     Expand all sections
   </label>
@@ -91,6 +121,16 @@
       <ul class="graph-search-results" id="cy-search-results" role="listbox"
           aria-label="Search results" hidden></ul>
     </div>
+  </div>
+
+  <div class="graph-control graph-zoom" role="group" aria-label="Zoom">
+    <button type="button" id="cy-zoom-out" class="graph-btn graph-btn-icon"
+            aria-label="Zoom out">−</button>
+    <output class="graph-zoom-level" id="cy-zoom-level" aria-live="off">100%</output>
+    <button type="button" id="cy-zoom-in" class="graph-btn graph-btn-icon"
+            aria-label="Zoom in">+</button>
+    <button type="button" id="cy-fit" class="graph-btn"
+            title="Fit the tab — but never below the size at which labels stay readable">Fit</button>
   </div>
 
   <button type="button" id="cy-reset" class="graph-btn">Reset</button>
@@ -139,11 +179,56 @@
 <details class="graph-legend-details">
   <summary>How to read this graph</summary>
   <ul class="graph-legend" aria-label="Legend">
+    <li><span class="graph-legend-lane" aria-hidden="true"></span>
+      <strong>lane</strong> — the <code>theories/</code> import layer the
+      entry is formalised in, derived from its source files and ordered
+      left&nbsp;→&nbsp;right exactly as <code>tools/check_layers.py</code>
+      enforces it: Foundations, Measurable, Linear&nbsp;∥&nbsp;Stable,
+      Exponential, CBV, PPL. Two lanes are drawn as a pair of stacked bands
+      (<code>homs</code>&nbsp;∥&nbsp;<code>stable</code>,
+      <code>kernels</code>&nbsp;∥&nbsp;<code>exp</code>) because those
+      directories are <em>parallel</em>: neither may import the other
+      {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.lanes | length }} lanes</span>{% endif %}</li>
+    <li><span class="graph-legend-node graph-legend-node-leaf" aria-hidden="true">⚑</span>
+      <strong>leaf</strong> — nothing in any tab depends on it, and it does
+      rest on something: a headline result rather than machinery. Leaves are
+      not confined to the right-hand lanes — a lane says where a result is
+      <em>proved</em>, not how far up the stack it sits. The <b>Leaves</b>
+      button lights them all at once
+      {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_leaf_results }} across all tabs</span>{% endif %}</li>
+    <li><span class="graph-legend-node graph-legend-node-root" aria-hidden="true"></span>
+      <strong>root</strong> — the complementary, quieter mark: it depends on
+      no other documented entry, so it is where a reading of that lane can
+      start. Entries with no entry-level dependency in <em>either</em>
+      direction carry this mark too rather than the leaf flag
+      {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_roots }} across all tabs, {{ graph_meta.n_isolated }} of them isolated</span>{% endif %}</li>
     <li><span class="graph-legend-edge graph-legend-edge-depends"></span>
       <strong>depends</strong> — a real Coq proof dependency read from the
       <code>.glob</code> files: this entry's lemma <em>uses</em> an identifier
-      the target documents
+      the target documents. The arrowhead sits on the <em>dependent</em> end,
+      so every arrow runs left&nbsp;→&nbsp;right, from a lemma to the result
+      resting on it
       {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_depends }} across all tabs</span>{% endif %}</li>
+    <li><span class="graph-legend-edge graph-legend-edge-backward"></span>
+      <strong>against the lane order</strong> — a real dependency whose source
+      sits <em>left</em> of its target, i.e. the one shape the lane reading
+      does not predict. Two distinct causes, counted apart because they are
+      not the same defect:
+      {% if graph_meta and graph_meta.n_lane_backward_multilayer %}
+      <b>{{ graph_meta.n_lane_backward_multilayer }}</b> point at an entry
+      documenting files from several layers, which the lane rule places by its
+      <em>deepest</em> one — the layout is honest, the entry is simply wider
+      than a lane;
+      {% endif %}
+      {% if graph_meta and graph_meta.n_lane_backward_contested %}
+      <b>{{ graph_meta.n_lane_backward_contested }}</b> point at an entry whose
+      files all live in <em>one</em> layer, so placement cannot be the cause:
+      these come from identifier ownership — the entry claims an identifier
+      that is defined or re-used in another layer, and every use of it is then
+      attributed here. That is a data bug in the entry's
+      <code>Identifiers:</code> list, and the lane view is what surfaced it.
+      {% endif %}
+      {% if graph_meta and graph_meta.n_lane_backward %}<span class="graph-legend-count">{{ graph_meta.n_lane_backward }} of {{ graph_meta.n_depends }} dependency edges</span>{% endif %}</li>
     <li><span class="graph-legend-edge graph-legend-edge-mentions"></span>
       <strong>prose co-reference</strong> — the statement, prose or snippet
       text merely <em>names</em> an identifier the target documents; hidden
@@ -151,14 +236,17 @@
       {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_mentions }} across all tabs</span>{% endif %}</li>
     <li><span class="graph-legend-port" aria-hidden="true">3</span>
       <strong>cross-tab port</strong> — dependencies that leave the visible
-      tab are drawn as a port on the node (left = incoming, right =
-      outgoing) rather than as an edge to something off screen; the badge
-      counts <em>distinct entries</em> in that tab, and clicking lists them
+      tab are drawn as a port on the node rather than as an edge to something
+      off screen. It sits on the side that node would be on: left = what this
+      entry <em>uses</em> (a lower layer), right = what <em>uses</em> it. The
+      badge counts <em>distinct entries</em> in that tab, and clicking lists
+      them
       {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_cross_tab }} cross-tab edges</span>{% endif %}</li>
     <li><span class="graph-legend-box" aria-hidden="true"></span>
-      <strong>section</strong> — a collapsed section node stands for all its
-      entries, and the edges of those entries aggregate onto it; click to
-      expand
+      <strong>section</strong> — in the <b>Sections</b> layout only: a
+      collapsed section node stands for all its entries, and their edges
+      aggregate onto it; click to expand. Sections rarely sit in one lane
+      (§&nbsp;7 alone spans two), which is why the lane layout is the default
       {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_groups }} sections, {{ graph_meta.n_entries }} entries across all tabs</span>{% endif %}</li>
   </ul>
   {% if graph_meta %}
@@ -170,6 +258,16 @@
     across {{ graph_meta.n_entries }} entries.
     {{ graph_meta.n_cross_tab }} of the {{ graph_meta.n_edges }} edges cross a
     tab boundary.
+    {% if graph_meta.n_lane_backward %}
+    {% if graph_meta.n_lane_backward == 1 %}One dependency edge runs{% else %}{{ graph_meta.n_lane_backward }}
+    dependency edges run{% endif %} against the lane order and
+    {% if graph_meta.n_lane_backward == 1 %}is{% else %}are{% endif %} drawn
+    dotted: {{ graph_meta.n_lane_backward_multilayer }} from an entry spanning
+    several layers (placed by its deepest one) and
+    {{ graph_meta.n_lane_backward_contested }} from contested identifier
+    ownership, where a single-layer entry claims an identifier used across
+    layers. See the legend.
+    {% endif %}
     {% else %}
     <strong>Degraded:</strong> no <code>.glob</code> data was available for this
     build, so every edge below is a doc co-reference, not a proof dependency.
