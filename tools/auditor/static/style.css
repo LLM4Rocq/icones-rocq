@@ -1027,16 +1027,21 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 .xrefs .label { font-weight: 500; }
 .xref { color: var(--link); }
 
-/* Uses / Used-by navigation panel.
+/* Relations panel: Uses / Used by, then Mentioned with.
  *
- * Two relations share it, styled exactly like the dependency graph's two
- * edge kinds so the card and the graph read the same:
+ * Two relations share the panel and they are NOT interchangeable, so the
+ * separation is structural (own row, own heading, own badge) and the
+ * styling below only reinforces it:
  *   - `.xref-via-glob` — a REAL Coq proof dependency read from the .glob
- *     files: solid underline, ink colour;
- *   - `.xref-via-doc`  — a doc co-reference (text names the ident): dashed,
- *     muted.
- * The panel is a <details> with a count-badged summary so a densely linked
- * entry stays compact; it renders open for a handful of links. */
+ *     files: solid underline, ink colour.  Only `Uses` / `Used by` links
+ *     can carry it;
+ *   - `.xref-via-doc`  — an undirected doc co-reference (both texts name
+ *     the same ident): dashed, muted, and always under the direction-free
+ *     `Mentioned with` heading.
+ * Styling matches the dependency graph's two edge kinds so the card and
+ * the graph read the same.  The panel is a <details> with a count-badged
+ * summary so a densely linked entry stays compact; it renders open for a
+ * handful of links. */
 .xref-panel {
   margin: 0.6rem 0 0;
   padding: 0.4rem 0.7rem;
@@ -1083,6 +1088,9 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 .xref-badge b { font-variant-numeric: tabular-nums; color: var(--fg); }
 .xref-badge-uses { color: var(--accent); }
 .xref-badge-used-by { color: var(--link); }
+/* Co-references are counted separately from the dependency badges — never
+ * summed into them — and stay visually quieter than both. */
+.xref-badge-mentions { color: var(--fg-mute); border-style: dashed; }
 .xref-badge-proof {
   border-color: var(--accent-soft);
   background: var(--accent-soft);
@@ -1093,6 +1101,14 @@ body.filter-gap                 .entry:not([data-status~="gap"]) {
 .xref-panel .xrefs { margin: 0.2rem 0; line-height: 1.7; }
 .xref-panel .xref-uses .label { color: var(--accent, #2a6); }
 .xref-panel .xref-used-by .label { color: var(--link, #26a); }
+/* The co-reference row sits below a rule: it answers a different question
+ * from the two dependency rows above it. */
+.xref-panel .xref-mentions {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px dotted var(--border-soft, rgba(0, 0, 0, 0.12));
+}
+.xref-panel .xref-mentions .label { color: var(--fg-mute); }
 .xref-sep { color: var(--fg-faint); margin: 0 0.25rem; }
 /* Solid = real .glob dependency; dashed = doc co-reference. */
 .xref-via-glob {

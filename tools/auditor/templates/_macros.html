@@ -182,14 +182,25 @@
 {%- endmacro %}
 
 {% macro xref_link(x) -%}
-{#- One relation link.  `via` records HOW the relation was derived (see
-    schema.CrossRef): `glob` = a real Coq proof-level dependency read from
-    the .glob files, `doc` = a doc co-reference (the text names an ident the
-    target documents).  The two are styled solid vs dashed, mirroring the
-    dependency graph's edge kinds, so the card and the graph read the same. -#}
+{#- One relation link.  The two relations are different animals, and the
+    ROW each link sits in — not its styling — is what says which (see
+    schema.CrossRef):
+      `uses` / `used-by`  a real Coq dependency read from the .glob files
+                          (always via='glob'; the pipeline demotes any
+                          directional claim the proofs do not back), and
+      `mentions`          an UNDIRECTED doc co-reference: the two entries'
+                          text is written about the same identifier.
+    Styling stays solid vs dashed to mirror the graph's edge kinds, but it
+    is now a reminder, not the only signal. -#}
+{%- if x.kind in ('uses', 'used-by', 'mentions') -%}
 <a class="xref xref-{{ x.kind }} xref-via-{{ x.via|default('doc', true) }}"
    href="{{ xref_href(x) }}"
-   title="{% if x.via == 'glob' %}Real Coq dependency (from the .glob files) — {% if x.kind == 'used-by' %}{{ x.label }} is proved through an object this entry documents{% else %}this entry is proved through an object {{ x.label }} documents{% endif %}{% else %}Doc co-reference — {% if x.kind == 'used-by' %}{{ x.label }}'s text names an identifier this entry documents{% else %}this entry's text names an identifier {{ x.label }} documents{% endif %}{% endif %}">{{ x.label }}</a>
+   title="{% if x.kind == 'mentions' %}Doc co-reference (no direction) — this entry and {{ x.label }} are written about the same identifier{% elif x.kind == 'used-by' %}Real Coq dependency (from the .glob files) — {{ x.label }} is proved through an object this entry documents{% else %}Real Coq dependency (from the .glob files) — this entry is proved through an object {{ x.label }} documents{% endif %}">{{ x.label }}</a>
+{%- else -%}
+{#- A section / beyond / chapter pointer: navigation, not a relation, so it
+    claims nothing about identifiers and takes neither underline style. -#}
+<a class="xref xref-{{ x.kind }}" href="{{ xref_href(x) }}">{{ x.label }}</a>
+{%- endif -%}
 {%- endmacro %}
 
 {% macro xref_row(cls, label, refs) -%}
@@ -202,38 +213,56 @@
 {%- endmacro %}
 
 {% macro xref_panel(entry) -%}
-{#- Per-card navigation: where this entry's Rocq content comes from and what
-    builds on it, each link resolving to the target entry's page (cross-tab
-    aware via xref_href).  Count-badged summary so a dense entry stays
-    compact; folded shut past a handful of links. -#}
+{#- Per-card navigation, in TWO separated relations:
+
+      Uses / Used by   directional, and proof-level ONLY — every link here
+                       is a real Coq dependency read from the .glob files.
+      Mentioned with   undirected co-reference: the docs write about the
+                       same identifier.  It carries no verb, because a
+                       prose mention has no direction (Thm 4.18's text
+                       pointing the reader forward to Thm 4.19 used to
+                       render as "Thm 4.19 · Used by · Thm 4.18").
+
+    Each link resolves to the partner entry's page (cross-tab aware via
+    xref_href).  Count-badged summary so a dense entry stays compact;
+    folded shut past a handful of links. -#}
 {% if entry.cross_refs %}
 {% set uses_refs = entry.cross_refs | selectattr('kind', 'equalto', 'uses') | list %}
 {% set usedby_refs = entry.cross_refs | selectattr('kind', 'equalto', 'used-by') | list %}
-{% set other_refs = entry.cross_refs | rejectattr('kind', 'equalto', 'uses') | rejectattr('kind', 'equalto', 'used-by') | list %}
-{% set n_rel = uses_refs|length + usedby_refs|length + other_refs|length %}
-{% set n_proof = (uses_refs + usedby_refs) | selectattr('via', 'equalto', 'glob') | list | length %}
+{% set mention_refs = entry.cross_refs | selectattr('kind', 'equalto', 'mentions') | list %}
+{% set other_refs = entry.cross_refs | rejectattr('kind', 'equalto', 'uses') | rejectattr('kind', 'equalto', 'used-by') | rejectattr('kind', 'equalto', 'mentions') | list %}
+{% set n_rel = uses_refs|length + usedby_refs|length + mention_refs|length + other_refs|length %}
+{% set n_proof = uses_refs|length + usedby_refs|length %}
 <details class="xref-panel"{% if n_rel <= 8 %} open{% endif %}>
   <summary class="xref-summary">
     <span class="xref-summary-label">Navigate</span>
     {% if uses_refs %}<span class="xref-badge xref-badge-uses">Uses <b>{{ uses_refs|length }}</b></span>{% endif %}
     {% if usedby_refs %}<span class="xref-badge xref-badge-used-by">Used by <b>{{ usedby_refs|length }}</b></span>{% endif %}
+    {#- The counts are never merged: a dependency count that silently
+        included prose co-references is what made a collapsed panel
+        overstate what the proofs say. -#}
+    {% if mention_refs %}<span class="xref-badge xref-badge-mentions" title="Undirected: the docs write about the same identifier. Not a dependency.">Mentioned with <b>{{ mention_refs|length }}</b></span>{% endif %}
     {% if other_refs %}<span class="xref-badge xref-badge-see-also">See also <b>{{ other_refs|length }}</b></span>{% endif %}
-    {% if n_proof %}<span class="xref-badge xref-badge-proof" title="Relations backed by a real Coq dependency read from the .glob files">{{ n_proof }} from proofs</span>{% endif %}
+    {% if n_proof %}<span class="xref-badge xref-badge-proof" title="Uses / Used by are read from the .glob files — real Coq dependencies">{{ n_proof }} from proofs</span>{% endif %}
   </summary>
   <div class="xref-body">
     {{ xref_row('xref-uses', 'Uses:', uses_refs) }}
     {{ xref_row('xref-used-by', 'Used by:', usedby_refs) }}
+    {{ xref_row('xref-mentions', 'Mentioned with:', mention_refs) }}
     {{ xref_row('xref-see-also', 'See also:', other_refs) }}
-    {% if n_proof %}
+    {#- The legend is NOT gated on there being proof-backed links: a panel
+        made entirely of co-references is exactly the one whose reader most
+        needs to be told that nothing in it is a dependency. -#}
     <p class="xref-legend">
-      <span class="xref-via-glob">solid</span> = real Coq dependency
-      (<code>.glob</code>) · <span class="xref-via-doc">dashed</span> = doc
-      co-reference.
+      {% if n_proof %}<span class="xref-via-glob">Uses / Used by</span> = real
+      Coq dependency read from the <code>.glob</code> files{% if mention_refs %} ·
+      {% endif %}{% endif %}{% if mention_refs %}<span class="xref-via-doc">Mentioned
+      with</span> = the docs name the same identifier — a co-reference, not a
+      dependency, and it points in no direction{% endif %}{% if n_proof or mention_refs %}.{% endif %}
       {# Deep-link into the graph page focused on THIS entry: it opens the
          entry's tab, expands its section and lights its dependency cone. #}
       <a href="{{ tab_prefix }}graph.html{% if tab %}?tab={{ tab }}&amp;focus={{ tab }}::{{ entry.id }}{% endif %}">See this entry in the graph →</a>
     </p>
-    {% endif %}
   </div>
 </details>
 {% endif %}

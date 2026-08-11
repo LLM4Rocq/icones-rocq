@@ -702,12 +702,14 @@ def test_xref_first_occurrence_only():
     assert html.count(_name_span("EM_term")) == 2
 
 
-def test_attach_entry_relations_uses_used_by():
-    """Ident overlap yields reciprocal 'uses' / 'used-by' cross-refs.
+def test_attach_entry_relations_mentions_are_undirected():
+    """Ident overlap yields an UNDIRECTED 'mentions' ref on both entries.
 
-    An Examples entry whose snippet mentions an identifier owned by a Paper
-    entry gains a ``uses`` cross-ref (tab-tagged ``paper``); the Paper entry
-    gains the reciprocal ``used-by`` cross-ref (tab-tagged ``examples``).
+    An Examples entry whose snippet names an identifier a Paper entry
+    documents is *co-referenced* with it, not dependent on it: both sides
+    get the same ``mentions`` cross-ref (tab-tagged with the partner's
+    tab), and neither gets a directional ``uses`` / ``used-by`` claim —
+    those are reserved for the proof-level ``.glob`` relation.
     """
     from tools.auditor.xref import attach_entry_relations
 
@@ -725,18 +727,22 @@ def test_attach_entry_relations_uses_used_by():
     attach_entry_relations(three)
 
     ex_refs = three.examples.sections[0].entries[0].cross_refs
-    uses = [x for x in ex_refs if x.kind == "uses"]
-    assert uses, "examples entry got no 'uses' cross_ref"
-    assert uses[0].target == "def-1"
-    assert uses[0].tab == "paper"
-    # The label is the target entry's paper_label (== eid in the helper).
-    assert uses[0].label == "def-1"
+    mentions = [x for x in ex_refs if x.kind == "mentions"]
+    assert mentions, "examples entry got no 'mentions' cross_ref"
+    assert mentions[0].target == "def-1"
+    assert mentions[0].tab == "paper"
+    assert mentions[0].via == "doc"
+    # The label is the partner entry's paper_label (== eid in the helper).
+    assert mentions[0].label == "def-1"
+    assert not [x for x in ex_refs if x.kind in ("uses", "used-by")]
 
+    # The partner carries the mirror image — same kind, no direction.
     paper_refs = three.paper.sections[0].entries[0].cross_refs
-    used_by = [x for x in paper_refs if x.kind == "used-by"]
-    assert used_by, "paper entry got no 'used-by' cross_ref"
-    assert used_by[0].target == "ex-geom"
-    assert used_by[0].tab == "examples"
+    back = [x for x in paper_refs if x.kind == "mentions"]
+    assert back, "paper entry got no 'mentions' cross_ref"
+    assert back[0].target == "ex-geom"
+    assert back[0].tab == "examples"
+    assert not [x for x in paper_refs if x.kind in ("uses", "used-by")]
 
 
 def test_attach_entry_relations_preserves_beyond_and_dedups():
@@ -765,8 +771,8 @@ def test_attach_entry_relations_preserves_beyond_and_dedups():
     ex_refs = three.examples.sections[0].entries[0].cross_refs
     # The pre-existing 'beyond' ref is kept exactly once.
     assert sum(1 for x in ex_refs if x.kind == "beyond") == 1
-    # The derived 'uses' ref appears exactly once (no duplicate on re-run).
-    assert sum(1 for x in ex_refs if x.kind == "uses") == 1
+    # The derived co-reference appears exactly once (no duplicate on re-run).
+    assert sum(1 for x in ex_refs if x.kind == "mentions") == 1
 
 
 # -- constructor / projection source-index tests ----------------------------

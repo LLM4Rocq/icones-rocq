@@ -93,6 +93,16 @@ from .schema import (
 #: Identifiers shorter than this are never linkified (over-link noise).
 MIN_IDENT_LEN = 4
 
+#: Cross-ref kinds of the *directional* relation shown as Uses / Used by.
+#: They are dependency claims, so only the proof-level ``.glob`` relation
+#: may fill them (``via='glob'``); see :func:`attach_glob_relations`.
+_RELATION_KINDS = ("uses", "used-by")
+
+#: Cross-ref kind of the *undirected* doc co-reference — "these two entries
+#: are written about the same identifier".  Always ``via='doc'``, filed on
+#: both endpoints, and never a dependency claim.
+MENTION_KIND = "mentions"
+
 #: Shape of a linkable Rocq identifier — plain name, no dots/operators.
 _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_']*")
 
@@ -896,24 +906,27 @@ def build_entry_edges(
 
 
 def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
-    """Populate each entry's ``uses`` / ``used-by`` cross-refs; returns ``three``.
+    """Populate each entry's ``mentions`` cross-refs; returns ``three``.
 
     Reuses :func:`build_entry_edges` — the same Rocq-identifier overlap the
-    linkifier turns into inline links — to derive, per entry:
+    linkifier turns into inline links.  That relation is a **co-occurrence**,
+    not a dependency: ``A -> B`` merely records that *some token* in ``A``'s
+    statement / prose / snippet text is an identifier ``B`` documents.  A
+    prose mention carries no direction (Thm 4.18's text pointing the reader
+    *forward* to Thm 4.19 produced, verbatim, a "Thm 4.19 is used by Thm
+    4.18" claim), and the relation is demonstrably symmetric in the data:
+    dozens of pairs mention each other.
 
-    * **uses** — the entries this entry's code/prose mentions (edge
-      *targets*);
-    * **used-by** — the entries that mention this one (edge *sources*).
+    So the pair is filed **undirected**, as ``kind='mentions'`` with
+    ``via='doc'``, on *both* endpoints — never as ``uses`` / ``used-by``,
+    which are reserved for the proof-level ``.glob`` relation attached by
+    :func:`attach_glob_relations`.  ``target``/``tab``/``label`` describe
+    the partner entry, so the renderer can still build a cross-tab href.
 
-    Each becomes a :class:`~tools.auditor.schema.CrossRef` with
-    ``kind='uses'|'used-by'``, ``target`` the other entry id, ``tab`` its
-    owning tab (so the renderer can build a cross-tab href), ``label`` the
-    other entry's ``paper_label`` and ``via='doc'`` (a *doc co-reference*,
-    the weaker of the two relations — see :func:`attach_glob_relations` for
-    the real proof-level one).  Refs are appended to the entry's existing
-    ``cross_refs`` (the synthetic ``beyond`` ref is preserved) and
-    deduplicated by ``(kind, target, tab)``.  Entry objects shared across
-    the beyond compat shim are updated exactly once (dedup by object id).
+    Refs are appended to the entry's existing ``cross_refs`` (the synthetic
+    ``beyond`` ref is preserved) and deduplicated by
+    ``(kind, target, tab)``.  Entry objects shared across the beyond compat
+    shim are updated exactly once (dedup by object id).
     """
     edges = build_entry_edges(three)
 
@@ -925,11 +938,12 @@ def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
         for entry in _iter_entries(doc):
             entry_by_key.setdefault((tab, entry.id), entry)
 
-    uses: dict[tuple[str, str], set[tuple[str, str]]] = {}
-    used_by: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    # Symmetrise: an edge in either direction makes the two entries
+    # partners in exactly one undirected co-reference.
+    partners: dict[tuple[str, str], set[tuple[str, str]]] = {}
     for src, tgt in edges:
-        uses.setdefault(src, set()).add(tgt)
-        used_by.setdefault(tgt, set()).add(src)
+        partners.setdefault(src, set()).add(tgt)
+        partners.setdefault(tgt, set()).add(src)
 
     def label_for(key: tuple[str, str]) -> str:
         target = entry_by_key.get(key)
@@ -959,13 +973,9 @@ def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
         if id(entry) in seen:
             continue
         seen.add(id(entry))
-        append_refs(entry, "uses", uses.get(key, set()))
-        append_refs(entry, "used-by", used_by.get(key, set()))
+        append_refs(entry, MENTION_KIND, partners.get(key, set()))
     return three
 
-
-#: Relation kinds handled by the Uses / Used-by navigation panel.
-_RELATION_KINDS = ("uses", "used-by")
 
 
 def attach_glob_relations(
@@ -985,16 +995,26 @@ def attach_glob_relations(
     For every entry it:
 
     * marks an existing ``uses`` / ``used-by`` ref that the ``.glob`` data
-      confirms with ``via='glob'`` (the stronger relation wins, mirroring
-      the graph's ``depends`` > ``mentions`` merge);
+      confirms with ``via='glob'``;
+    * **demotes** any ``uses`` / ``used-by`` ref the ``.glob`` data does
+      *not* confirm to an undirected :data:`MENTION_KIND` co-reference.
+      A directional dependency claim the proofs do not back is exactly the
+      class of falsehood this panel used to publish ("Thm 4.19 · Used by ·
+      Thm 4.18", minted by a forward-pointing sentence in Thm 4.18's
+      prose), so the invariant is enforced here rather than trusted:
+      **after this pass every ``uses`` / ``used-by`` ref carries
+      ``via='glob'``**;
     * appends a ``via='glob'`` ref for a real dependency the prose never
-      named — the case that motivates parsing ``.glob`` at all; and
-    * re-orders the relation refs so proof-backed links come first, then
+      named — the case that motivates parsing ``.glob`` at all;
+    * drops a ``mentions`` ref for a partner this entry already has a
+      proof-level relation with (the strong relation subsumes the weak
+      one, in either direction); and
+    * re-orders the refs: proof-backed ``uses`` then ``used-by``, then the
       doc co-references, each alphabetically by label.
 
-    Idempotent (dedup by ``(kind, target, tab)``) and a no-op on an empty
-    ``edges``, so a build without ``.glob`` data keeps exactly the
-    doc-co-reference panel it had before.
+    Idempotent (dedup by ``(kind, target, tab)``).  On an empty ``edges``
+    the demotion still runs: a build without ``.glob`` data then shows an
+    honest co-reference-only panel instead of unbacked dependency claims.
     """
     entry_by_key: dict[tuple[str, str], Entry] = {}
     for tab in ALL_TABS:
@@ -1020,16 +1040,19 @@ def attach_glob_relations(
         real = {"uses": uses.get(key, set()), "used-by": used_by.get(key, set())}
         if not (real["uses"] or real["used-by"] or entry.cross_refs):
             continue
-        # 1. Confirm the refs the .glob data backs.
+        # 1. Confirm the refs the .glob data backs; DEMOTE the rest to an
+        #    undirected co-reference (a dependency claim the proofs do not
+        #    back must never render in a Uses / Used-by slot).
         present: dict[str, set[tuple[str, str]]] = {k: set() for k in _RELATION_KINDS}
         for ref in entry.cross_refs:
             if ref.kind not in _RELATION_KINDS:
                 continue
             pair = (ref.tab, ref.target)
-            present[ref.kind].add(pair)
             if pair in real[ref.kind]:
+                present[ref.kind].add(pair)
                 ref.via = "glob"
-            elif not ref.via:
+            else:
+                ref.kind = MENTION_KIND
                 ref.via = "doc"
         # 2. Append the real dependencies no prose mentioned.
         for kind in _RELATION_KINDS:
@@ -1043,10 +1066,29 @@ def attach_glob_relations(
                         via="glob",
                     )
                 )
-        # 3. Proof-backed links first, then doc co-references.
-        others = [x for x in entry.cross_refs if x.kind not in _RELATION_KINDS]
-        ordered = others
-        for kind in _RELATION_KINDS:
+        # 3. A partner this entry really depends on (either direction) is
+        #    already stated the strong way; the weak co-reference to the
+        #    same entry is then pure duplication.  Drop it, and collapse
+        #    the duplicates the demotion in (1) may have created.
+        proof_partners = real["uses"] | real["used-by"]
+        kept: list[CrossRef] = []
+        seen_triples: set[tuple[str, str, str]] = set()
+        for ref in entry.cross_refs:
+            if ref.kind == MENTION_KIND and (ref.tab, ref.target) in proof_partners:
+                continue
+            triple = (ref.kind, ref.target, ref.tab)
+            if triple in seen_triples:
+                continue
+            seen_triples.add(triple)
+            kept.append(ref)
+        entry.cross_refs = kept
+        # 4. Proof-backed links first, then the doc co-references.
+        ordered = [
+            x
+            for x in entry.cross_refs
+            if x.kind not in _RELATION_KINDS and x.kind != MENTION_KIND
+        ]
+        for kind in (*_RELATION_KINDS, MENTION_KIND):
             ordered = ordered + sorted(
                 (x for x in entry.cross_refs if x.kind == kind),
                 key=lambda x: (x.via != "glob", x.label.lower(), x.tab),
@@ -1196,6 +1238,7 @@ def linkify_all(
 
 
 __all__ = [
+    "MENTION_KIND",
     "MIN_IDENT_LEN",
     "LinkTarget",
     "attach_entry_relations",

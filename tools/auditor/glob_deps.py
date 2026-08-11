@@ -24,6 +24,21 @@ co-reference).
 * **reference** — ``R<bytestart>:<byteend> <modpath> <dotpath> <localname>
   <refkind>`` — a *use* of ``<modpath>.<localname>`` at that byte offset.
 
+**Co-documented objects.** Two entries may legitimately document the *same*
+Coq object — an overview entry and the object's own page, a paper theorem
+and the "beyond the paper" entry that collects its engine.  When they do, a
+reference *between* the objects they share says nothing about how the two
+entries relate: ``wi_med`` referring to ``wi_obj`` is one internal step of
+a single shared object set, yet it used to publish "Thm 4.19 is used by the
+SAFT engine".
+
+So exactly one class of edge is dropped: ``S -> T`` sourced from an object
+that ``T`` *also documents* (:func:`build_claimant_map` supplies the
+co-claimants).  Every other edge out of a co-documented object is kept —
+it points at some third entry, and a dependency of a shared object is a
+genuine dependency of **each** entry that documents it.  Suppressing those
+too would delete hundreds of true edges to spare ten false ones.
+
 The byte offsets inside a proof are *elaboration*-ordered, not source-ordered,
 so a span cannot be delimited by "next larger offset".  Instead we walk the
 file **line by line**: a definition line opens a region that owns every
@@ -161,14 +176,38 @@ def load_glob_uses(
     return merged, missing
 
 
-def _entry_owned_names(entry: Entry) -> list[str]:
-    """The Coq object names an entry *documents* — its ``rocq_idents``.
+#: Owner key of a documented Coq object: ``(tab, entry_id)``.
+OwnerKey = tuple[str, str]
 
-    These are the names whose ``.glob`` use-sets define the entry's real
-    dependencies.  No filtering beyond what the entry already carries; the
-    edge builder validates targets against the documented-ident map.
+
+def build_claimant_map(
+    owners: Iterable[tuple[str, str, Entry]],
+) -> dict[str, list[OwnerKey]]:
+    """``{ident: [every entry documenting it]}``, in tab/document order.
+
+    Note the plural: this map does **not** arbitrate a single owner.  An
+    identifier listed by two entries is documented by two entries, and both
+    of them really do depend on whatever that object's proof rests on — the
+    only thing co-documentation makes meaningless is a "dependency" between
+    the co-documenters themselves (see the module docstring, and
+    :func:`build_glob_relation` for where the map is consulted).
+
+    Deliberately *no* name filtering: unlike the text matcher, a ``.glob``
+    object name is unambiguous, so short names (``eD``, ``lin``) and
+    non-identifier cells stay eligible to source real dependencies.  Cells
+    that name no Coq object simply never match a ``.glob`` region.
+
+    Entries claiming an ident twice are recorded once, so the lists are
+    genuine claimant sets and ``len(...) > 1`` means "co-documented".
     """
-    return list(entry.rocq_idents)
+    claimants: dict[str, list[OwnerKey]] = {}
+    for tab, eid, entry in owners:
+        key = (tab, eid)
+        for ident in entry.rocq_idents:
+            claims = claimants.setdefault(ident, [])
+            if key not in claims:
+                claims.append(key)
+    return claimants
 
 
 @dataclass
@@ -199,6 +238,15 @@ class GlobRelation:
     n_glob_found: int = 0
     n_glob_missing: int = 0
     n_objects: int = 0
+    #: ``{ident: [claimants]}`` for every ident more than one entry
+    #: documents (see :func:`build_claimant_map`).  Docs hygiene, not a
+    #: fault: co-documentation is legitimate and only costs the edges in
+    #: ``suppressed``.
+    contested: dict[str, list[OwnerKey]] = field(default_factory=dict)
+    #: Edges dropped as *internal* cross-references — ``S -> T`` sourced
+    #: from an object ``T`` also documents.  Sorted; excludes any pair that
+    #: some other object independently justifies.
+    suppressed: list[Edge] = field(default_factory=list)
 
     @property
     def available(self) -> bool:
@@ -214,6 +262,50 @@ class GlobRelation:
             f".glob · {self.n_objects} object(s) parsed · "
             f"{len(self.edges)} entry-to-entry dependency edge(s)"
         )
+
+    def report_lines(self, limit: int = 10) -> list[str]:
+        """Build-log lines for the one edge class the pass drops, and why.
+
+        Names every co-documented identifier and every edge suppressed as
+        an internal cross-reference, so a reader of the log can check that
+        the pass took away nothing else.  ``limit`` caps each list; the
+        counts are always exact.
+        """
+        if not self.expected:
+            return []
+        lines = [
+            "glob deps: co-documentation policy — an edge is dropped only "
+            "when its TARGET also documents the object it was sourced from "
+            "(an internal step inside one shared object set); every other "
+            "edge out of a co-documented object is kept."
+        ]
+        if self.contested:
+            lines.append(
+                f"glob deps: {len(self.contested)} ident(s) documented by "
+                "more than one entry (legitimate; each claimant keeps that "
+                "object's real dependencies):"
+            )
+            for ident, keys in sorted(self.contested.items())[:limit]:
+                who = ", ".join(f"{t}/{i}" for t, i in keys)
+                lines.append(f"glob deps:   `{ident}` -> {who}")
+            if len(self.contested) > limit:
+                lines.append(
+                    f"glob deps:   … and {len(self.contested) - limit} more"
+                )
+        if self.suppressed:
+            lines.append(
+                f"glob deps: {len(self.suppressed)} internal cross-reference"
+                "(s) suppressed (co-documented endpoints):"
+            )
+            for (s_tab, s_id), (t_tab, t_id) in self.suppressed[:limit]:
+                lines.append(
+                    f"glob deps:   {s_tab}/{s_id} -> {t_tab}/{t_id}"
+                )
+            if len(self.suppressed) > limit:
+                lines.append(
+                    f"glob deps:   … and {len(self.suppressed) - limit} more"
+                )
+        return lines
 
 
 def build_glob_relation(
@@ -231,6 +323,14 @@ def build_glob_relation(
     hundreds of idents but only a handful are themselves documented nodes).
     Self-edges and duplicates are dropped; the list is sorted for
     determinism.
+
+    One further exclusion, and only one: an edge sourced from an object
+    ``B`` *also* documents is an internal step inside a shared object set
+    rather than a relation between ``A`` and ``B`` — see the module
+    docstring.  It is judged per sourcing object, so a co-documented
+    object's dependencies on *third* entries survive; both the excluded
+    edges and the co-documented names land in ``suppressed`` / ``contested``
+    for :meth:`GlobRelation.report_lines`.
 
     ``theories_root=None`` yields an empty, ``expected=False`` relation with
     a NOTICE — the caller then renders a doc-co-reference-only graph.
@@ -285,17 +385,29 @@ def build_glob_relation(
             "Coq dependencies are omitted (doc co-reference still covers them)."
         )
 
+    # Every entry sources the use-set of every object it documents.  The
+    # ONE exclusion is per (sourcing object, target) pair: an edge whose
+    # target also documents the object it came from is an internal step
+    # inside a shared object set, not a relation between the two entries
+    # (see the module docstring).  Judging this per object rather than per
+    # entry is what keeps a co-documented object's genuine dependencies —
+    # on third entries — instead of discarding its whole use-set.
+    claimants = build_claimant_map(owners)
+
     edges: set[Edge] = set()
+    internal: set[Edge] = set()
     for tab, eid, entry in owners:
         src = (tab, eid)
-        used: set[str] = set()
-        for name in _entry_owned_names(entry):
-            used |= uses.get(name, set())
-        for ident in used:
-            tgt = entry_map.get(ident)
-            if tgt is None or tgt == src or tgt not in known:
-                continue
-            edges.add((src, tgt))
+        for name in entry.rocq_idents:
+            co_documented = claimants.get(name, ())
+            for ident in uses.get(name, ()):
+                tgt = entry_map.get(ident)
+                if tgt is None or tgt == src or tgt not in known:
+                    continue
+                if tgt in co_documented:
+                    internal.add((src, tgt))
+                else:
+                    edges.add((src, tgt))
 
     return GlobRelation(
         edges=sorted(edges),
@@ -305,6 +417,11 @@ def build_glob_relation(
         n_glob_found=max(0, len(v_paths) - len(missing)),
         n_glob_missing=len(missing),
         n_objects=len(uses),
+        contested={i: k for i, k in claimants.items() if len(k) > 1},
+        # A pair some OTHER documented object independently justifies is a
+        # real dependency, however it also arose; only report what the
+        # exclusion actually cost.
+        suppressed=sorted(internal - edges),
     )
 
 
@@ -336,6 +453,8 @@ def _walk_sections(doc) -> Iterable[list[Entry]]:
 __all__ = [
     "Edge",
     "GlobRelation",
+    "OwnerKey",
+    "build_claimant_map",
     "parse_glob_uses",
     "load_glob_uses",
     "build_glob_relation",

@@ -262,16 +262,64 @@ navigation spine. Its nodes are entries, compound-nested entry → section →
 tab; its edges come in exactly two kinds, and the distinction is the whole
 point:
 
-| kind | source | meaning | drawn |
-|------|--------|---------|-------|
-| `depends`  | `theories/**/*.glob` | a **real Coq proof-level dependency**: an object this entry documents *uses* an object the target documents | solid |
-| `mentions` | entry statement / prose / snippet text | a **doc co-reference**: the text names an identifier the target documents | dashed |
+| kind | source | arity | meaning | drawn |
+|------|--------|-------|---------|-------|
+| `depends`  | `theories/**/*.glob` | **directed** (`directed: true`) | a **real Coq proof-level dependency**: an object the source entry documents *uses* an object the target documents | solid, arrowhead |
+| `mentions` | entry statement / prose / snippet text | **undirected** (`directed: false`) | a **doc co-reference**: both entries' text names the same identifier | dashed, *no* arrowhead |
 
-When the same ordered pair is both, `depends` wins. The same edge data
-also drives every card's **Uses / Used by** panel, so an entry page links
-straight to what its proofs rest on and to what rests on it, cross-tab —
-each relation ref carrying `via: "glob" | "doc"` and rendered solid vs
-dashed to match the graph.
+The two kinds differ in arity, not just in strength, and that is the whole
+point. A `mentions` edge is emitted **once** per pair, with its endpoints in
+canonical (sorted) order purely to make the record unique — consumers must
+not read `source`/`target` as a direction on it, and the canvas draws it
+without an arrowhead so it cannot state one either. A pair the proofs relate
+in **either** direction is emitted only as `depends`; the strong relation
+says strictly more.
+
+The same two relations drive every card's relations panel, and the cards
+keep them apart exactly as the graph does — they answer different
+questions, so they never share a row or a count:
+
+| `cross_refs` kind | `via` | panel row | claim |
+|---|---|---|---|
+| `uses` / `used-by` | always `glob` | **Uses:** / **Used by:** | directional: an object this entry documents references (or is referenced by) an object the other documents |
+| `mentions` | always `doc` | **Mentioned with:** | **undirected**: both entries' text names the same identifier |
+
+`uses` / `used-by` are proof-level *only*.  A doc co-reference has no
+direction to publish — the sentence in Thm 4.18 that points the reader
+*forward* to Thm 4.19 was rendering as "Thm 4.19 · Used by · Thm 4.18" —
+so the pair is filed as one `mentions` ref on **both** entries, and
+`attach_glob_relations` demotes any directional ref the `.glob` data does
+not confirm rather than trusting its input.  A pair that is already a
+dependency is not also listed as a co-reference.
+
+**Co-documented objects.** Two entries may legitimately list the same
+identifier — an overview entry and the object's own page, a paper theorem
+and the "beyond the paper" entry collecting its engine. Exactly one class of
+edge is then dropped: `S → T` sourced from an object that **`T` also
+documents**, which is an internal step inside one shared object set rather
+than a relation between the two entries. (`wi_med` referring to `wi_obj`
+says nothing about how Thm 4.19 and the SAFT engine relate; it nevertheless
+published "Thm 4.19 is used by SAFT engine".)
+
+Everything else out of a co-documented object is **kept**. A shared object's
+dependencies on *third* entries are genuine dependencies of every entry that
+documents it, so the test is per sourcing object, never per entry — an
+entry-level "only one claimant may source this ident" rule deletes hundreds
+of true edges to spare a handful of false ones. The build log names every
+co-documented identifier and every suppressed edge, so the exclusion is
+auditable and shared names stay a visible docs-hygiene signal.
+
+**Provenance.** `rocq_files` is the card's source citation *and* this
+entry's contribution to the `.glob` scan set. Spell the sources as
+`theories/…/foo.v` paths in the Rocq cell. Note what a missing path does
+and does not cost: the scan set is the **union** over all entries and
+`load_glob_uses` merges `{object: uses}` across every file it reads, so a
+path-less entry still sources and receives proof-level edges as long as
+some entry names the file its objects live in. Only a file *no* entry names
+goes unread — and then every object in it is invisible corpus-wide. When a
+cell names identifiers but no path at all, the parser backfills the files
+from the live-snippet declaration index (unambiguous hits only) and reports
+each one it recovered.
 
 ### Where the `.glob` files come from
 

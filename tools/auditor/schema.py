@@ -33,25 +33,37 @@ class CrossRef:
 
     ``tab`` names the tab that owns ``target`` (``"paper"`` | ``"ppl"`` |
     ``"examples"``).  It is empty for same-tab / tab-agnostic refs (the
-    synthetic ``beyond`` ref, section refs); the ``uses`` / ``used-by``
-    relation refs derived from Rocq-identifier overlap set it so the
-    renderer can build a cross-tab href when it differs from the current
-    tab.
+    synthetic ``beyond`` ref, section refs); the ``uses`` / ``used-by`` /
+    ``mentions`` relation refs set it so the renderer can build a cross-tab
+    href when it differs from the current tab.
 
-    ``via`` records *how* a ``uses`` / ``used-by`` relation was derived —
-    the same two-tier distinction the dependency graph draws:
+    Two relations, and they are **not** the same animal:
 
-    * ``"glob"`` — a **real Coq proof-level dependency** read from the
-      ``.glob`` files (this entry's documented object *uses* an object the
-      target documents).  Load-bearing; rendered solid.
-    * ``"doc"``  — a **doc co-reference**: this entry's statement / prose /
-      snippet text names an identifier the target documents.  Rendered
-      dashed.
+    * ``kind='uses'`` / ``kind='used-by'`` — a **directional dependency**.
+      Only the proof-level ``.glob`` relation may make this claim, so these
+      always carry ``via='glob'``: entry ``A`` *uses* ``B`` when a Coq
+      object ``A`` documents references an object ``B`` documents.
+      :func:`tools.auditor.xref.attach_glob_relations` enforces the
+      invariant by demoting any unbacked directional ref it finds.
+    * ``kind='mentions'`` — an **undirected doc co-reference**
+      (``via='doc'``): the two entries' text is written about the same
+      identifier.  Filed on *both* endpoints with no direction, because a
+      prose mention has none — a sentence in Thm 4.18 pointing the reader
+      *forward* to Thm 4.19 is not Thm 4.18 depending on Thm 4.19.
+
+    ``via`` therefore records *how* a relation was derived:
+
+    * ``"glob"`` — real Coq proof-level dependency (``.glob``).  Rendered
+      solid.  The only value a ``uses`` / ``used-by`` ref may carry.
+    * ``"doc"``  — doc co-reference.  Rendered dashed, under a heading
+      that states no direction.
     * ``""``     — not a relation ref (section / beyond / chapter refs),
       or a legacy payload written before ``via`` existed.
     """
 
-    kind: str  # "section" | "entry" | "beyond" | "chapter" | "uses" | "used-by"
+    # "section" | "entry" | "beyond" | "chapter" | "uses" | "used-by"
+    # | "mentions"
+    kind: str
     target: str
     label: str
     tab: str = ""

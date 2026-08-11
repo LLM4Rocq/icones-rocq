@@ -22,6 +22,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
@@ -711,6 +712,117 @@ def _highlight_coq(raw: str) -> str:
     """Run Pygments on a Coq block; return HTML wrapped in ``<div class="highlight">``."""
     formatter = HtmlFormatter(nowrap=False, cssclass="highlight coq")
     return highlight(raw, _coq_lexer(), formatter)
+
+
+# -- provenance backfill ----------------------------------------------------
+
+
+def _walk_entries(
+    sections: list[Section],
+    chapters: list[Chapter],
+    beyond: list[BeyondContrib],
+) -> list[Entry]:
+    """Every distinct Entry of a tab, in document order.
+
+    The ``beyond`` compat shim aliases the same Entry objects into two
+    trees, so dedup is by object identity (ids can legitimately repeat
+    across tabs, never within one).
+    """
+    out: list[Entry] = []
+    seen: set[int] = set()
+
+    def take(entries: list[Entry]) -> None:
+        for entry in entries:
+            if id(entry) in seen:
+                continue
+            seen.add(id(entry))
+            out.append(entry)
+
+    for section in sections:
+        take(section.entries)
+    for chapter in chapters:
+        for section in chapter.sections:
+            take(section.entries)
+    for contrib in beyond:
+        take(contrib.entries)
+    return out
+
+
+def backfill_rocq_files(
+    entries: Iterable[Entry],
+    snip_resolver: SnippetResolver,
+    resolver: CoqdocResolver,
+    *,
+    tab: str = "",
+) -> list[str]:
+    """Recover ``rocq_files`` for entries whose docs named no ``.v`` path.
+
+    ``rocq_files`` is transcribed from the docs: a Rocq cell that spells its
+    sources as prose ("the SAFT engine is ``representable.v``") rather than
+    as ``theories/…`` paths yields an entry with identifiers but *no* files.
+    Two things then go wrong, and it is worth being precise about which:
+
+    * the card shows no provenance — it names identifiers from nowhere; and
+    * the entry contributes nothing to the ``.glob`` scan set that
+      :func:`tools.auditor.glob_deps.build_glob_relation` assembles.
+
+    That scan set is the union over **all** entries, and
+    :func:`~tools.auditor.glob_deps.load_glob_uses` merges the resulting
+    ``{object: uses}`` across every file it reads.  So a path-less entry is
+    *not* cut off from the dependency relation: its objects are found (and
+    it both sources and receives edges) as long as some other entry names
+    the file they live in.  Only a file **no** entry names is invisible —
+    and then every object in it is invisible corpus-wide, not just this
+    entry's.  Thm 4.19 was the mild case: no paths of its own, but its
+    ``representable.v`` was already in the scan set via the SAFT-engine
+    entry, so it kept its edges and lost only its provenance.
+
+    For each entry that has ``rocq_idents`` but an empty ``rocq_files``,
+    every ident is looked up in the live-snippet declaration index and the
+    files its declarations live in are attached, in first-seen order.
+    :meth:`~tools.auditor.snippets.SnippetResolver.lookup` answers only
+    when a name resolves to exactly ONE declaration, so an ambiguous name
+    contributes nothing — an entry is never given a file that merely
+    *might* be its own.
+
+    Deliberately narrow: it runs only when the docs supplied nothing at
+    all.  Unioning resolver hits into a *non-empty* list would widen
+    ownership with files an entry merely mentions in passing (a prose
+    reference to ``isPrecone`` is not a claim on ``precone.v``).
+
+    Returns one report line per entry touched; mutates the entries.
+    """
+    notices: list[str] = []
+    for entry in entries:
+        if entry.rocq_files or not entry.rocq_idents:
+            continue
+        found: dict[str, list[str]] = {}
+        for ident in entry.rocq_idents:
+            decl = snip_resolver.lookup(ident)
+            if decl is None or not decl.vfile:
+                continue
+            found.setdefault(decl.vfile, []).append(ident)
+        if not found:
+            continue
+        for vfile in found:
+            entry.rocq_files.append(
+                RocqFile(
+                    path=vfile,
+                    section=None,
+                    github_url=resolver.github_url(vfile),
+                    coqdoc_url=resolver.coqdoc_url(vfile),
+                    coqdoc_anchor=None,
+                )
+            )
+        where = f"{tab}/" if tab else ""
+        detail = "; ".join(
+            f"{vfile} ({', '.join(idents)})" for vfile, idents in found.items()
+        )
+        notices.append(
+            f"provenance: '{where}{entry.id}' named identifiers but no "
+            f"theories/*.v path; backfilled from the ident index: {detail}"
+        )
+    return notices
 
 
 def normalise(
@@ -1483,6 +1595,21 @@ def normalise(
                     ),
                 )
 
+    # -- provenance backfill ----------------------------------------------
+    # An entry whose Rocq cell names identifiers but no theories/*.v path
+    # ships with rocq_files=[]: a card citing identifiers from nowhere, and
+    # one fewer contribution to the .glob scan set (which is the union over
+    # all entries — see backfill_rocq_files for what that does and does not
+    # cost).  Recover the paths from the live-snippet index, which already
+    # knows where each declaration lives.  Runs BEFORE the stats rollup so
+    # the recovered sources count toward the section's LoC.
+    prov_notices = backfill_rocq_files(
+        _walk_entries(sections, chapters, beyond),
+        snip_resolver,
+        resolver,
+        tab=tab,
+    )
+
     # Per-section / per-contrib stats rollup: entries by kind, displayed
     # code-block count, and LoC.  ``loc`` counts the on-disk lines of the
     # DISTINCT theories/*.v files the entries reference — the size of the
@@ -1565,6 +1692,9 @@ def normalise(
     # unchanged); ``tools/build_auditor.py`` reads it via
     # :func:`snippet_stats` to print the build's snippet summary.
     setattr(doc, "snippet_stats", snip_resolver.stats)
+    # Same treatment for the provenance-backfill report: a dynamic
+    # attribute the renderer prints into the build log.
+    setattr(doc, "provenance_notices", prov_notices)
     return doc
 
 

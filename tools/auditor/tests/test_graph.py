@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT.parent) not in sys.path:
     sys.path.insert(0, str(ROOT.parent))
 
-from tools.auditor.glob_deps import build_glob_edges, parse_glob_uses
+from tools.auditor.glob_deps import GlobRelation, build_glob_edges, parse_glob_uses
 from tools.auditor.graph import build_graph
 from tools.auditor.schema import (
     CoqSnippet,
@@ -119,7 +119,13 @@ def test_edge_from_reference_to_definer():
 
 
 def test_cross_tab_edge():
-    """A PPL entry referencing a Paper-owned ident yields a cross-tab edge."""
+    """A PPL entry naming a Paper-owned ident yields ONE undirected edge.
+
+    Text overlap is a co-reference, so the payload states a *pair*: one
+    edge, ``directed: false``, endpoints in canonical order.  Asserting an
+    orientation here would be asserting the very direction claim the panel
+    and the canvas were fixed to stop making.
+    """
     paper = _entry("thm-9-7", idents=["EM_term"], snippet_html="")
     ppl = _entry(
         "ppl-x", idents=["tyD_cbv"], snippet_html=_name_span("EM_term")
@@ -127,10 +133,43 @@ def test_cross_tab_edge():
     three = _three(paper=[_section("sec-x", [paper])], ppl=[_section("ppl-s", [ppl])])
 
     graph = build_graph(three)
-    edge_pairs = {
-        (e["data"]["source"], e["data"]["target"]) for e in graph["edges"]
-    }
-    assert ("ppl::ppl-x", "paper::thm-9-7") in edge_pairs
+    co = [e["data"] for e in graph["edges"] if e["data"]["kind"] == "mentions"]
+    assert len(co) == 1
+    assert {co[0]["source"], co[0]["target"]} == {"ppl::ppl-x", "paper::thm-9-7"}
+    assert co[0]["directed"] is False
+
+
+def test_mentions_are_undirected_and_deduped():
+    """Two entries naming each other are ONE co-reference, not two arrows."""
+    a = _entry("def-a", idents=["alpha_widget"], snippet_html=_name_span("beta_widget"))
+    b = _entry("def-b", idents=["beta_widget"], snippet_html=_name_span("alpha_widget"))
+    three = _three(paper=[_section("sec-x", [a, b])])
+
+    graph = build_graph(three)
+    co = [e["data"] for e in graph["edges"] if e["data"]["kind"] == "mentions"]
+    assert len(co) == 1, [(e["source"], e["target"]) for e in co]
+    # Canonical (sorted) orientation, so the record is unique rather than
+    # a claim about which entry came first.
+    assert (co[0]["source"], co[0]["target"]) == ("paper::def-a", "paper::def-b")
+
+
+def test_a_proof_dependency_suppresses_the_co_reference_either_way():
+    """The strong relation subsumes the weak one, in EITHER direction.
+
+    Same rule the card panel applies, so the graph and the panel cannot
+    disagree about a pair.
+    """
+    a = _entry("def-a", idents=["alpha_widget"], snippet_html=_name_span("beta_widget"))
+    b = _entry("def-b", idents=["beta_widget"], snippet_html=_name_span("alpha_widget"))
+    three = _three(paper=[_section("sec-x", [a, b])])
+    rel = GlobRelation(edges=[(("paper", "def-a"), ("paper", "def-b"))])
+
+    graph = build_graph(three, glob_relation=rel)
+    kinds = [e["data"]["kind"] for e in graph["edges"]]
+    assert kinds == ["depends"], [
+        (e["data"]["source"], e["data"]["target"], e["data"]["kind"])
+        for e in graph["edges"]
+    ]
 
 
 def test_graph_well_formed_no_dangling():

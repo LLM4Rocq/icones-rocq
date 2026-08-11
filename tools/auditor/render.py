@@ -213,7 +213,8 @@ def _xref_href(
     a Paper section page back to ``out/paper/``); the resolver appends the
     sub-route.
 
-    ``uses`` / ``used-by`` relation refs are tab- and canonical-aware: a
+    ``uses`` / ``used-by`` / ``mentions`` relation refs are tab- and
+    canonical-aware: a
     same-tab target routes to ``{prefix}<suffix>`` and a cross-tab one to
     ``{prefix}../<target-tab>/<suffix>``, where ``<suffix>`` is
     ``sections/<id>.html`` when the target is a collapsed canonical section
@@ -235,7 +236,7 @@ def _xref_href(
         # xref may be a dataclass or a dict; tolerate both.
         kind = getattr(xref, "kind", None) or xref.get("kind", "")
         tgt = getattr(xref, "target", None) or xref.get("target", "")
-        if kind in ("uses", "used-by"):
+        if kind in ("uses", "used-by", "mentions"):
             xtab = _get(xref, "tab", "")
             if xtab and xtab != tab:
                 return f"{prefix}../{xtab}/{_suffix(xtab, tgt)}"
@@ -664,6 +665,15 @@ def render(
     # walked a second time).
     glob_rel: GlobRelation = build_glob_relation(doc, theories_root)
     print(f"[build_auditor] {glob_rel.summary()}", file=sys.stderr)
+    # The ownership policy takes names away from entries; every such
+    # decision is named in the build log rather than applied silently.
+    for line in glob_rel.report_lines():
+        print(f"[build_auditor] {line}", file=sys.stderr)
+    # Provenance backfill (parser): entries whose Rocq files were recovered
+    # from the ident index because the docs named none.
+    for tab_doc in (doc.paper, doc.ppl, doc.examples):
+        for line in getattr(tab_doc, "provenance_notices", []) or []:
+            print(f"[build_auditor] {line}", file=sys.stderr)
     attach_glob_relations(doc, glob_rel.edges)
 
     # Fail fast, before a single page is written: a rejected build must not

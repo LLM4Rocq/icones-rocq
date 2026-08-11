@@ -37,7 +37,7 @@ def xref_href(prefix: str, tab: str = ""):
     """Dev-server mirror of :func:`tools.auditor.render._xref_href`.
 
     Kept in step with the production resolver for the ``uses`` / ``used-by``
-    relation kinds — the per-card "Uses / Used by" navigation panel — so a
+    / ``mentions`` relation kinds — the per-card relations panel — so a
     dev preview exercises the same links the deployed site serves.  A
     cross-tab target (``xref['tab']`` differing from the page's tab) climbs
     out of the current tab; the canonical-section collapsing that the real
@@ -48,7 +48,7 @@ def xref_href(prefix: str, tab: str = ""):
     def _h(xref):
         kind = xref.get("kind")
         tgt = xref.get("target", "")
-        if kind in ("uses", "used-by"):
+        if kind in ("uses", "used-by", "mentions"):
             xtab = xref.get("tab", "")
             if xtab and tab and xtab != tab:
                 return f"{prefix}../{xtab}/entries/{tgt}.html"

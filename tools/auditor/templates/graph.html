@@ -230,9 +230,12 @@
       {% endif %}
       {% if graph_meta and graph_meta.n_lane_backward %}<span class="graph-legend-count">{{ graph_meta.n_lane_backward }} of {{ graph_meta.n_depends }} dependency edges</span>{% endif %}</li>
     <li><span class="graph-legend-edge graph-legend-edge-mentions"></span>
-      <strong>prose co-reference</strong> — the statement, prose or snippet
-      text merely <em>names</em> an identifier the target documents; hidden
-      until you ask for it
+      <strong>prose co-reference</strong> — both entries' statement, prose or
+      snippet text merely <em>names</em> the same identifier. Drawn dashed and
+      with <em>no arrowhead</em>, because it points no way: a sentence in one
+      entry pointing the reader at another is not a dependency of either on
+      the other. Pairs the proofs already relate are drawn as the dependency
+      instead; hidden until you ask for it
       {% if graph_meta %}<span class="graph-legend-count">{{ graph_meta.n_mentions }} across all tabs</span>{% endif %}</li>
     <li><span class="graph-legend-port" aria-hidden="true">3</span>
       <strong>cross-tab port</strong> — dependencies that leave the visible

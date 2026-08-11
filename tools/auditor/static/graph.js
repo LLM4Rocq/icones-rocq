@@ -426,20 +426,31 @@
        * ============================================================== */
       var rendered = {};   // rendered node id -> {out:[], in:[]} adjacency
       var crossPorts = {}; // rendered node id -> {out:{tab:[items]}, in:{…}}
+      var coPorts = {};    // rendered node id -> {tab:[items]} (undirected)
 
       /** Fold the raw relation onto the nodes currently DRAWN.
        *
-       * Returns ``{agg, ports}``:
+       * Returns ``{agg, ports, co}``:
        *
-       *   * ``agg``   — one slot per drawn ordered pair, keeping the two
-       *     kinds APART (``depends`` / ``mentions``) so the caller can style
-       *     and weigh each on its own evidence;
+       *   * ``agg``   — one slot per drawn pair, keeping the two kinds APART
+       *     (``depends`` / ``mentions``) so the caller can style and weigh
+       *     each on its own evidence.  A dependency slot is keyed by the
+       *     ORDERED pair; a co-reference slot is keyed by the pair in
+       *     canonical order, because that relation has no direction and two
+       *     opposed halves of one undirected fact must not draw as two
+       *     lines facing each other;
        *   * ``ports`` — per drawn node, per direction, per foreign tab, the
-       *     DISTINCT foreign entries it reaches.  Distinct is the whole
-       *     point: a collapsed section funnels all of its entries into one
-       *     bucket, so the same target arrives once per raw edge, and a
-       *     bucket that counted arrivals would badge (and list) the same
-       *     entry several times over.
+       *     DISTINCT foreign entries it reaches BY A DEPENDENCY.  Distinct
+       *     is the whole point: a collapsed section funnels all of its
+       *     entries into one bucket, so the same target arrives once per raw
+       *     edge, and a bucket that counted arrivals would badge (and list)
+       *     the same entry several times over;
+       *   * ``co``    — the same, for cross-tab CO-REFERENCES, in a separate
+       *     direction-free bucket.  A port is an inherently directional
+       *     device — left = what this entry uses, right = what uses it — so
+       *     an undirected relation may not be drawn as one, or the port
+       *     panel ends up announcing "Depends on 3 entries in PPL" about
+       *     three prose mentions.  The entry panel reports these as a count.
        *
        * ``withMentions`` is passed explicitly rather than read from the
        * view state so the co-reference toggle can price itself against the
@@ -449,6 +460,7 @@
         var tab = state.tab;
         var agg = {};
         var ports = {};
+        var co = {};
         var seen = {};   // host \0 dir \0 tab \0 foreign entry -> true
 
         function port(host, dir, otherTab, otherId) {
@@ -457,6 +469,15 @@
           seen[mark] = true;
           var slot = ports[host] || (ports[host] = { out: {}, in: {} });
           var bucket = slot[dir][otherTab] || (slot[dir][otherTab] = []);
+          bucket.push(otherId);
+        }
+
+        function coPort(host, otherTab, otherId) {
+          var mark = [host, "co", otherTab, otherId].join("\u0000");
+          if (seen[mark]) return;
+          seen[mark] = true;
+          var slot = co[host] || (co[host] = {});
+          var bucket = slot[otherTab] || (slot[otherTab] = []);
           bucket.push(otherId);
         }
 
@@ -472,6 +493,12 @@
             // internal to that box, so it is not drawn (it reappears when
             // the group is expanded) rather than becoming a self-loop.
             if (a === b) return;
+            // Folding a section can bring two co-references that ran between
+            // different entries onto the same pair of boxes in opposite
+            // orientations.  Canonicalise: one undirected fact, one slot.
+            if (e.kind === "mentions" && b < a) {
+              var swap = a; a = b; b = swap;
+            }
             var key = a + "\u0000" + b;
             var slot = agg[key];
             if (!slot) {
@@ -479,47 +506,48 @@
             }
             slot[e.kind] += 1;
             if (e.kind === "depends" && e.back) slot.back += 1;
+          } else if (e.kind === "mentions") {
+            if (sIn) coPort(renderIdOf(e.s), byId[e.t].tab, e.t);
+            else coPort(renderIdOf(e.t), byId[e.s].tab, e.s);
           } else if (sIn) {
             port(renderIdOf(e.s), "out", byId[e.t].tab, e.t);
           } else {
             port(renderIdOf(e.t), "in", byId[e.s].tab, e.s);
           }
         });
-        return { agg: agg, ports: ports };
-      }
-
-      function portTotal(ports) {
-        var n = 0;
-        Object.keys(ports).forEach(function (host) {
-          ["out", "in"].forEach(function (dir) {
-            Object.keys(ports[host][dir]).forEach(function (t) {
-              n += ports[host][dir][t].length;
-            });
-          });
-        });
-        return n;
+        return { agg: agg, ports: ports, co: co };
       }
 
       /** What switching co-references ON actually costs IN THIS VIEW.
        *
        * Not the dataset's co-reference count: in a view with sections
-       * folded, most raw co-references are internal to one box, or already
-       * duplicated by a dependency edge drawn between the same pair, or
-       * leave the tab and land in a port.  Quoting the raw number next to a
-       * checkbox that visibly adds a handful of edges is what made the
+       * folded, most raw co-references are internal to one box, or leave the
+       * tab, or name a pair the proofs already relate (in which case the
+       * payload carries only the dependency).  Quoting the raw number next
+       * to a checkbox that visibly adds a handful of edges is what made the
        * flagship control look broken, so the label quotes what will be
-       * drawn: the dashed edges, and the extra port entries.
+       * drawn: the dashed edges, plus the cross-tab partners the panel
+       * gains — ``ports`` for historical reasons, though a co-reference
+       * gets no port.
        */
       function coReferenceCost() {
         var on = aggregate(true);
-        var off = aggregate(false);
         var dashed = 0;
         Object.keys(on.agg).forEach(function (k) {
           if (!on.agg[k].depends) dashed += 1;
         });
+        // A cross-tab co-reference gets no port — a port points a way and
+        // this relation does not — so it is listed in the entry panel
+        // instead, and counted here so the tooltip still accounts for it.
+        var listed = 0;
+        Object.keys(on.co).forEach(function (host) {
+          Object.keys(on.co[host]).forEach(function (t) {
+            listed += on.co[host][t].length;
+          });
+        });
         return {
           edges: dashed,
-          ports: portTotal(on.ports) - portTotal(off.ports),
+          ports: listed,
           total: tabMentions[state.tab] || 0,
         };
       }
@@ -546,6 +574,7 @@
         var nodes = [];
         rendered = {};
         crossPorts = {};
+        coPorts = {};
 
         (entriesOfTab[tab] || []).forEach(function (eid) {
           var d = byId[eid];
@@ -578,6 +607,7 @@
         var nodes = [];
         rendered = {};
         crossPorts = {};
+        coPorts = {};
 
         groupsOfTab[tab].forEach(function (gid) {
           var g = byId[gid];
@@ -632,6 +662,7 @@
         var edges = [];
         var built = aggregate(state.mentions);
         crossPorts = built.ports;
+        coPorts = built.co;
 
         Object.keys(built.agg).forEach(function (key, i) {
           var a = built.agg[key];
@@ -664,6 +695,14 @@
           });
           rendered[a.s].out.push({ to: a.t, edge: id, kind: kind });
           rendered[a.t].in.push({ to: a.s, edge: id, kind: kind });
+          if (kind === "mentions") {
+            // Undirected, so it is filed BOTH ways.  Anything reading this
+            // adjacency — the focus cone, the info panel — then cannot pick
+            // a direction out of the storage order, and the cone reaches a
+            // co-referenced neighbour whichever way the reader is walking.
+            rendered[a.t].out.push({ to: a.s, edge: id, kind: kind });
+            rendered[a.s].in.push({ to: a.t, edge: id, kind: kind });
+          }
         });
 
         return edges;
@@ -897,12 +936,20 @@
               "z-index": 2,
             },
           },
+          // A co-reference is UNDIRECTED — both entries' text names the same
+          // identifier, which points no way at all.  So it is drawn with NO
+          // arrowhead on either end: an arrow here would restate, on the
+          // canvas, the very direction claim the cards were fixed for
+          // ("Thm 4.19 · Used by · Thm 4.18", minted by a sentence in Thm
+          // 4.18 pointing the reader FORWARD).  Dashed + arrowless is the
+          // whole visual grammar of the relation.
           {
             selector: "edge.mentions",
             style: {
               "line-style": "dashed",
               "line-color": pal.mention,
-              "source-arrow-color": pal.mention,
+              "source-arrow-shape": "none",
+              "target-arrow-shape": "none",
               opacity: 0.4,
             },
           },
@@ -1780,11 +1827,50 @@
       /* ==============================================================
        * 7. Info panel
        * ============================================================== */
+      /** The DEPENDENCY neighbours of ``id`` on one side.
+       *
+       * Proof-level only.  These two lists are rendered under "Uses" and
+       * "Used by" — verbs that make a claim about the proof — so a prose
+       * co-reference must never reach them: that is exactly the sentence
+       * the owner reported ("Thm 4.19 · Used by · Thm 4.18"), and it was
+       * still being published here, one click from the fixed card, whenever
+       * the co-reference toggle was on. */
       function neighbourList(id, dir) {
         var adj = (rendered[id] || {})[dir] || [];
-        return adj.map(function (link) {
-          return link.to;
+        return adj
+          .filter(function (link) {
+            return link.kind === "depends";
+          })
+          .map(function (link) {
+            return link.to;
+          });
+      }
+
+      /** The CO-REFERENCE neighbours of ``id`` — one direction-free list.
+       *
+       * The adjacency files an undirected link both ways, so reading one
+       * side and de-duplicating yields each partner exactly once. */
+      function coNeighbourList(id) {
+        var adj = (rendered[id] || {}).out || [];
+        var out = [];
+        var seenTo = {};
+        adj.forEach(function (link) {
+          if (link.kind !== "mentions" || seenTo[link.to]) return;
+          seenTo[link.to] = true;
+          out.push(link.to);
         });
+        return out;
+      }
+
+      /** Cross-tab co-reference partners of ``id``, which get no port. */
+      function coPortCount(id) {
+        var slot = coPorts[id];
+        if (!slot) return 0;
+        var total = 0;
+        Object.keys(slot).forEach(function (t) {
+          total += slot[t].length;
+        });
+        return total;
       }
 
       function portCount(id, dir) {
@@ -1816,7 +1902,11 @@
         );
       }
 
-      function listBlock(title, ids, extra, limit) {
+      /** ``extraNote`` says where the ``extra`` cross-tab items went.  It is
+       * a parameter because dependencies leave the tab as a PORT on the node
+       * while co-references cannot (a port is directional), so pointing the
+       * reader at a port that does not exist would be its own small lie. */
+      function listBlock(title, ids, extra, limit, extraNote) {
         if (!ids.length && !extra) return "";
         var shown = ids.slice(0, limit || 8);
         var more = ids.length - shown.length;
@@ -1826,8 +1916,9 @@
           "</span></h3><ul>" + shown.map(linkRow).join("") +
           (more > 0 ? '<li class="graph-more">+' + more + " more</li>" : "") +
           (extra
-            ? '<li class="graph-more">' + extra +
-              " in other tabs (see the ports on the node)</li>"
+            ? '<li class="graph-more">' + extra + " " +
+              (extraNote || "in other tabs (see the ports on the node)") +
+              "</li>"
             : "") +
           "</ul></div>"
         );
@@ -1973,10 +2064,29 @@
             (isGroup ? "Open section page" : "Open entry page") + " →</a>"
           : "";
 
+        // "Uses" / "Used by" state a direction, so only the proof-level
+        // relation may fill them.  Co-references get their own block under a
+        // direction-free heading, and only when they are being drawn — the
+        // panel never states a relation the canvas is hiding.
+        var mentionedWith = state.mentions ? coNeighbourList(id) : [];
+        var coBlock = "";
+        if (mentionedWith.length || (state.mentions && coPortCount(id))) {
+          coBlock =
+            listBlock(
+              "Mentioned with", mentionedWith, coPortCount(id), 0,
+              "in other tabs"
+            ) +
+            '<p class="graph-panel-note">Both entries\' text names the same ' +
+            "identifier. That points in no direction — it is not a " +
+            "dependency, and cross-tab co-references are listed here rather " +
+            "than drawn as a port.</p>";
+        }
+
         body.innerHTML =
           head + facts + link +
           listBlock("Uses", uses, portCount(id, "out")) +
-          listBlock("Used by", usedBy, portCount(id, "in"));
+          listBlock("Used by", usedBy, portCount(id, "in")) +
+          coBlock;
       }
 
       function renderPortPanel(stub) {
@@ -2300,8 +2410,9 @@
           " tab in the data. In this view they draw " + cost.edges +
           " dashed edge" + (cost.edges === 1 ? "" : "s") +
           (cost.ports
-            ? " and add " + cost.ports + " cross-tab port entr" +
-              (cost.ports === 1 ? "y" : "ies")
+            ? " and list " + cost.ports + " cross-tab partner" +
+              (cost.ports === 1 ? "" : "s") + " in the panel (they get no " +
+              "port: a port points a way and a co-reference does not)"
             : "") +
           (state.view === "lanes"
             ? "; the rest duplicate a proof dependency already drawn, or " +

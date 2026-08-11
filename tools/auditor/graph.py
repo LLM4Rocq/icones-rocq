@@ -77,7 +77,7 @@ from __future__ import annotations
 
 from collections import Counter
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Iterator
 
 from .glob_deps import GlobRelation, build_glob_relation
 from .schema import ALL_TABS, Document, Entry, ThreeTabDocument
@@ -539,19 +539,29 @@ def build_graph(
 
     * ``nodes`` — one per entry, plus group (section/contribution) and tab
       compound parents, each ``{data: {...}}`` in Cytoscape.js shape.
-    * ``edges`` — deduped directed dependency edges between entry nodes,
-      ``{data: {source, target, kind}}`` (self-edges already dropped
-      upstream).  Two kinds are emitted:
+    * ``edges`` — deduped edges between entry nodes, ``{data: {source,
+      target, kind, directed}}`` (self-edges already dropped upstream).
+      Two kinds are emitted, and they differ in *arity*, not only in
+      strength:
 
       - ``depends`` — a **real Coq proof-level dependency** read from the
         ``.glob`` files (entry ``A``'s documented lemma *uses* an identifier
-        that entry ``B`` documents).  These are the load-bearing edges and
-        are styled solid in the client.
-      - ``mentions`` — a **doc co-reference** (``A``'s statement/prose/snippet
-        text names an identifier ``B`` documents).  Styled dashed/lighter.
+        that entry ``B`` documents).  Genuinely **directed**
+        (``directed: true``); the load-bearing edges, styled solid in the
+        client and drawn with an arrowhead.
+      - ``mentions`` — a **doc co-reference**: both entries' text names the
+        same identifier.  **Undirected** (``directed: false``).  Text
+        overlap has no direction to publish — the sentence in Thm 4.18 that
+        points the reader *forward* to Thm 4.19 is not a dependency of
+        either on the other — so the pair is emitted **once**, with its
+        endpoints in canonical (sorted) order purely to make the record
+        unique, and the client draws it dashed and arrowless.  Consumers
+        must not read ``source``/``target`` as a direction on these.
 
-      When the same ordered pair is both a real dependency and a doc mention
-      it is emitted once as ``depends`` (the stronger relation wins).
+      A pair the proofs relate in **either** direction is emitted only as
+      ``depends``: the strong relation subsumes the weak one, the same rule
+      :func:`tools.auditor.xref.attach_glob_relations` applies to the cards,
+      so the graph and the per-entry panel state the same thing.
 
     * ``meta`` — counts for the build log / tests (including per-kind edge
       counts and any graceful-degradation ``notices``).
@@ -588,26 +598,34 @@ def build_graph(
     notices = list(rel.notices)
     mentions_raw = build_entry_edges(three)
 
-    edges: list[dict[str, Any]] = []
-    edge_kind: dict[tuple[str, str], str] = {}
-
-    def _emit(raw, kind: str) -> None:
+    def _nodes(raw) -> Iterator[tuple[str, str]]:
+        """Raw entry-key pairs as node-id pairs, skipping unknown endpoints."""
         for (s_tab, s_id), (t_tab, t_id) in raw:
             if (s_tab, s_id) not in entry_keys or (t_tab, t_id) not in entry_keys:
                 continue
-            src = _entry_node_id(s_tab, s_id)
-            tgt = _entry_node_id(t_tab, t_id)
-            key = (src, tgt)
-            prev = edge_kind.get(key)
-            if prev == "depends":
-                continue  # depends already wins for this pair
-            edge_kind[key] = kind if prev is None else "depends"
+            yield _entry_node_id(s_tab, s_id), _entry_node_id(t_tab, t_id)
 
-    # Order matters only for which kind "wins"; the merge above makes the
-    # result order-independent (depends always beats mentions).
-    _emit(depends_raw, "depends")
-    _emit(mentions_raw, "mentions")
+    # ``depends`` is directed: A -> B and B -> A are two different claims and
+    # both may be true, so both are kept.
+    depends_pairs: set[tuple[str, str]] = set(_nodes(depends_raw))
 
+    # ``mentions`` is UNDIRECTED.  Fold both orientations onto the canonical
+    # (sorted) one so the payload states a pair, not an arrow — emitting
+    # `{source: thm-4-18, target: thm-4-19, kind: mentions}` is the same
+    # false direction claim the cards were fixed for, merely moved into
+    # graph.json.  A pair the proofs already relate either way is dropped
+    # outright: the dependency says strictly more.
+    mention_pairs: set[tuple[str, str]] = set()
+    for src, tgt in _nodes(mentions_raw):
+        pair = (src, tgt) if src <= tgt else (tgt, src)
+        if pair in depends_pairs or pair[::-1] in depends_pairs:
+            continue
+        mention_pairs.add(pair)
+
+    edge_kind: dict[tuple[str, str], str] = {p: "depends" for p in depends_pairs}
+    edge_kind.update({p: "mentions" for p in mention_pairs})
+
+    edges: list[dict[str, Any]] = []
     for (src, tgt), kind in sorted(edge_kind.items()):
         edges.append(
             {
@@ -616,6 +634,9 @@ def build_graph(
                     "source": src,
                     "target": tgt,
                     "kind": kind,
+                    # Explicit, so no consumer has to infer arity from the
+                    # kind name.
+                    "directed": kind == "depends",
                 }
             }
         )
@@ -638,9 +659,15 @@ def build_graph(
     for e in edges:
         d = e["data"]
         s_tab = node_tab.get(d["source"], "")
-        if s_tab in by_tab:
-            by_tab[s_tab][d["kind"]] += 1
-        if s_tab != node_tab.get(d["target"], ""):
+        t_tab = node_tab.get(d["target"], "")
+        # A directed dependency is booked to its SOURCE's tab — the tab
+        # whose entry does the depending.  An undirected co-reference has no
+        # source to book it to, so it counts once for each tab it touches
+        # (the same accounting the client's toggle tooltip uses).
+        for t in [s_tab] if d["directed"] else sorted({s_tab, t_tab}):
+            if t in by_tab:
+                by_tab[t][d["kind"]] += 1
+        if s_tab != t_tab:
             n_cross_tab += 1
     # Per-tab node accounting.  The client renders ONE tab at a time (a
     # readable DAG rather than a three-tab hairball), so it needs the size
