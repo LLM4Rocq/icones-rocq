@@ -122,7 +122,7 @@ coalgebra (header `em_cartesian.v:12-40`). The discrepancy is with the planning 
 subcategory is "more work," yet the delivered code is the "à défaut" subcategory. README is
 honest ("cartesianness step is under way," CBV listed as in-progress). So no doc *overclaims*
 this as done — but the plan's recommendation and the delivered artifact diverge.
-*Evidence.* `theories/homs/em_cartesian.v:12-60` (honest header), record fields gated on
+*Evidence.* `theories/cbv/em_cartesian.v:12-60` (honest header), record fields gated on
 `EMComon`; `~/prime_gap/icones-cbv-plan.md:247-260` (contrary recommendation); README "In
 progress" section.
 *Recommended action.* Update `icones-cbv-plan.md` to record that the à-défaut subcategory was

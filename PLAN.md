@@ -866,7 +866,7 @@ uniqueness from the coseparator.
 **Exported interface** (consumed by 13.2/13.4; `==` §12's axioms once proved):
 `icones_left_adjoint : ∀ (U : ICones→C continuous), { L & L ⊣ U }` and
 `icones_continuous_representable : ∀ (F : ICones→Set continuous), { r & ICones(r,−) ≅ F }`.
-File: `theories/icones/representable.v`. Effort ≈ 2.5–3.5 mo nominal / **5–8 mo
+File: `theories/homs/representable.v`. Effort ≈ 2.5–3.5 mo nominal / **5–8 mo
 realistic**; the highest-risk milestone of the iteration (the subobject-intersection
 machinery does not exist yet).
 
