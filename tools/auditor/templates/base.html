@@ -9,8 +9,9 @@
   <link rel="stylesheet" href="{{ static_prefix }}static/toc.css">
   <link rel="stylesheet" href="{{ static_prefix }}static/pygments.css">
   <link rel="stylesheet" media="print" href="{{ static_prefix }}static/print.css">
-  {# Pagefind UI is loaded lazily by app.js (it's an ESM that ships its own CSS too). #}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  {# The Pagefind UI bundle is loaded lazily by app.js.  Its stock stylesheet
+     (pagefind/pagefind-ui.css) is deliberately NOT linked: the widget is
+     dressed in the site's own tokens by the "Search" block of style.css. #}
   {% block head_extra %}{% endblock %}
   {# MathJax renders LaTeX: $..$ inline, $$..$$ display (the parser emits
      \(..\)/\[..\] delimiters). Self-hosted SVG build; code/pre are skipped. #}
@@ -102,6 +103,17 @@
      below it — the nav can never be covered or scrolled away. #}
   <div class="content-pane">
     <main id="main" data-pagefind-body>
+      {# Search provenance.  Pagefind meta/filters are page-level, so this
+         marker is emitted exactly ONCE per page: one tab pill per search
+         result (never two, never zero on a tab page) and the tab filter
+         group.  Empty element, values carried by the attributes — nothing
+         here reaches the indexed text (see _macros.html). #}
+      {% if tab %}
+      {% set tab_labels = {'paper': 'Paper', 'ppl': 'PPL', 'examples': 'Examples'} %}
+      <span hidden
+            data-pagefind-meta="tab:{{ tab_labels.get(tab, tab|title) }}"
+            data-pagefind-filter="tab:{{ tab }}"></span>
+      {% endif %}
       {% block content %}{% endblock %}
     </main>
 

@@ -243,22 +243,420 @@ code, .mono { font-family: var(--font-mono); font-size: var(--fs-code); }
   .gh-flag-repo { background: rgba(0, 0, 0, 0.28); }
 }
 
+/* ============================================================ Search
+ *
+ * The header search is Pagefind: tools/build_auditor.py writes the index,
+ * static/app.js instantiates PagefindUI into #search.  The UI bundle ships a
+ * stock stylesheet (pagefind/pagefind-ui.css) which this site deliberately
+ * never loads — it is a foreign widget look (own scale, own palette, 21px
+ * result titles) that would have to be undone before it could be themed.
+ * The whole widget is therefore dressed here, in the site's own tokens.
+ *
+ * Two consequences worth knowing before editing:
+ *   - the STATE classes are ours to define.  With the stock sheet absent,
+ *     nothing else hides the results drawer (.pagefind-ui__hidden) or the
+ *     "Clear" button (.pagefind-ui__suppressed), and the widget renders
+ *     permanently open;
+ *   - this design REQUIRES that the stock sheet stay unlinked; it does not
+ *     merely prefer it.  Do not link pagefind/pagefind-ui.css "to be safe".
+ *     The rules below are scoped `.search-shell .pagefind-ui__x` (0,2,0),
+ *     while the stock sheet is Svelte-scoped with doubled class selectors —
+ *     `.pagefind-ui__result.svelte-j9e30.svelte-j9e30` (0,3,0),
+ *     `.pagefind-ui__result-title.svelte-j9e30 .pagefind-ui__result-link
+ *     .svelte-j9e30` (0,4,0), the open-filter chip rule (0,5,0).  Those beat
+ *     us regardless of source order, so linking it would revert results,
+ *     titles, links, tags, excerpts, nested results and the filter chips to
+ *     the stock look; only the `!important` state rule below survives, and
+ *     the exact 0,2,0 ties (input, form, drawer) would be decided by link
+ *     order.  The single guarantee is that base.html never links it.
+ * The --pagefind-ui-* custom properties are damage control seen from the
+ * other side: should that sheet ever load anyway, it at least themes itself
+ * from the site tokens instead of its own palette.
+ */
+
 .search-row { padding-top: 0; padding-bottom: 0.65rem; }
 .search-shell {
   flex: 1 1 100%;
   min-width: 0;
+
+  /* One source of truth for the input box, shared with the :empty fallback
+     below so hydration is not a flash-of-restyle. */
+  --search-pad-y: 0.45rem;
+  --search-pad-x: 0.8rem;
+  --search-fs: 0.9rem;
+  --search-icon-gap: 1.5rem;   /* magnifier + the space after it */
+  --search-clear-gap: 4.2rem;  /* room the "Clear" button needs */
+
+  /* Stock-sheet insurance (see above): site font, site palette, no scaling
+     (Pagefind's own default is 0.8 — the "tiny" look). */
+  --pagefind-ui-scale: 1;
+  --pagefind-ui-font: var(--font-prose);
+  --pagefind-ui-primary: var(--accent);
+  --pagefind-ui-text: var(--fg);
+  --pagefind-ui-background: var(--bg-soft);
+  --pagefind-ui-border: var(--border);
+  --pagefind-ui-tag: var(--bg-soft);
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: var(--radius-sm);
 }
-/* Fallback look until Pagefind UI hydrates. */
+
+/* No-JS / no-index fallback: an inert look-alike of the live input.  Keep
+   it and .pagefind-ui__search-input in lockstep. */
 .search-shell:empty::before {
   content: "🔍  Search entries, Rocq identifiers, file paths…";
   display: block;
-  padding: 0.45rem 0.8rem;
+  padding: var(--search-pad-y) var(--search-pad-x);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
   color: var(--fg-faint);
-  font-size: 0.9rem;
+  font-family: var(--font-prose);
+  font-size: var(--search-fs);
+  line-height: var(--lh-body);
 }
+
+/* -- the input ---------------------------------------------------------- */
+
+.search-shell .pagefind-ui {
+  width: 100%;
+  font-family: var(--font-prose);
+  color: var(--fg);
+}
+.search-shell .pagefind-ui__form {
+  position: relative;   /* containing block for the results drawer */
+  margin: 0;
+}
+/* Magnifier, placed to land where the fallback's emoji does. */
+.search-shell .pagefind-ui__form::before {
+  content: "🔍";
+  position: absolute;
+  top: 50%;
+  left: var(--search-pad-x);
+  transform: translateY(-50%);
+  font-size: var(--search-fs);
+  line-height: 1;
+  opacity: 0.75;
+  pointer-events: none;
+}
+.search-shell .pagefind-ui__search-input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: var(--search-pad-y) var(--search-clear-gap) var(--search-pad-y)
+           calc(var(--search-pad-x) + var(--search-icon-gap));
+  /* …and the right side has to be defended.  On every search PagefindUI
+     measures the "Clear" button and writes an INLINE
+     `padding-right: <clearWidth + 2>px` on this input (pagefind-ui.js: the
+     `Ts` handler, `v.style.paddingRight = `${Q+2}px``).  An inline
+     declaration outranks a normal author rule, so without !important the
+     token below would hold only until the first keystroke and the caret
+     would then slide ~12px.  Author-!important does outrank inline, which
+     keeps --search-clear-gap the single source of truth. */
+  padding-right: var(--search-clear-gap) !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font-family: var(--font-prose);
+  font-size: var(--search-fs);
+  line-height: var(--lh-body);
+  appearance: none;
+}
+.search-shell .pagefind-ui__search-input::placeholder {
+  color: var(--fg-faint);
+  opacity: 1;   /* Pagefind's stock sheet fades it to 0.2 */
+}
+.search-shell .pagefind-ui__search-input:hover { border-color: var(--fg-faint); }
+/* :focus as well as :focus-visible — a text field is always "visibly"
+   focused, and the pair keeps the ring on pre-:focus-visible browsers. */
+.search-shell .pagefind-ui__search-input:focus,
+.search-shell .pagefind-ui__search-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-color: var(--accent);
+  background: var(--bg-elev);
+}
+.search-shell .pagefind-ui__search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  padding: 0.25rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-mute);
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+.search-shell .pagefind-ui__search-clear:hover {
+  background: var(--bg-elev);
+  border-color: var(--border);
+  color: var(--fg);
+}
+.search-shell .pagefind-ui__search-clear:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* State classes the stock sheet would otherwise provide. */
+.search-shell .pagefind-ui__hidden { display: none !important; }
+.search-shell .pagefind-ui__suppressed { opacity: 0; pointer-events: none; }
+
+/* Ours, not Pagefind's: the drawer is an overlay (below), and the widget has
+   no dismissal of its own — its only Escape handler is bound to the input,
+   so it does nothing once focus has left.  app.js sets this on outside-click
+   / Escape and clears it when the widget is focused or typed in again.  It
+   is a SEPARATE class on purpose: `pagefind-ui__hidden` is Svelte's, toggled
+   from its own state, and borrowing it would leave the drawer stuck shut
+   whenever that state does not change on the next keystroke. */
+.search-shell .pagefind-ui__drawer.is-dismissed { display: none !important; }
+
+/* -- the results drawer -------------------------------------------------- */
+
+/* An overlay, not a block in the header: the desktop app shell (toc.css)
+   hands the header a fixed slice of a full-height flex column, so an in-flow
+   drawer would squeeze the nav and content panes on every keystroke.  Height
+   is capped against the viewport and scrolls inside itself — `body` is
+   `overflow: hidden` up there, so anything taller would simply be cut off. */
+.search-shell .pagefind-ui__drawer {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+  max-height: max(12rem, min(60vh, calc(100vh - 12rem)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.2rem 0.9rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow-hover);
+}
+/* …and for the overlay to land ON TOP of those panes, the header has to be
+   in the positioned layer.  The desktop shell sets `position: static` (it
+   wants the header out of the sticky business entirely), which also drops
+   its z-index; `relative` restores the paint order and moves nothing.  The
+   doubled class outweighs toc.css, which is linked after this file. */
+@media screen and (min-width: 60.01rem) {
+  .site-header.site-header { position: relative; z-index: 20; }
+}
+
+.search-shell .pagefind-ui__results-area { min-width: 0; }
+.search-shell .pagefind-ui__message {
+  margin: 0.7rem 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+.search-shell .pagefind-ui__results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Same anatomy as a dashboard card. */
+.search-shell .pagefind-ui__result {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  list-style: none;
+}
+.search-shell .pagefind-ui__result:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+.search-shell .pagefind-ui__result:focus-within { border-color: var(--accent); }
+.search-shell .pagefind-ui__result-inner { display: block; }
+.search-shell .pagefind-ui__result-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.search-shell .pagefind-ui__result-link {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.16em;
+  overflow-wrap: anywhere;
+}
+.search-shell .pagefind-ui__result-link:hover { color: var(--link-hover); }
+.search-shell .pagefind-ui__result-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.search-shell .pagefind-ui__result-excerpt {
+  margin: 0.25rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--fg-mute);
+  overflow-wrap: anywhere;
+}
+.search-shell .pagefind-ui mark {
+  padding: 0 0.12em;
+  border-radius: 2px;
+  background: var(--accent-soft);
+  color: var(--fg);
+  font-weight: 600;
+}
+/* Sub-results: indented under their parent, one step down in the scale. */
+.search-shell .pagefind-ui__result-nested {
+  margin: 0.45rem 0 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--border);
+}
+.search-shell .pagefind-ui__result-nested .pagefind-ui__result-title {
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.search-shell .pagefind-ui__result-nested .pagefind-ui__result-excerpt {
+  font-size: 0.86rem;
+}
+/* Page tags (tab, and the rare statuses — see _macros.html). */
+.search-shell .pagefind-ui__result-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.search-shell .pagefind-ui__result-tag {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--fg-mute);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+/* Skeleton rows while a result's fragment loads. */
+.search-shell .pagefind-ui__loading {
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: transparent;
+  opacity: 0.7;
+  pointer-events: none;
+  user-select: none;
+}
+.search-shell .pagefind-ui__button {
+  display: block;
+  width: 100%;
+  margin: 0.7rem 0 0;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.search-shell .pagefind-ui__button:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--link-hover);
+}
+.search-shell .pagefind-ui__button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* -- the filter panel ---------------------------------------------------- */
+
+/* A row of chips above the results; an open group takes the full width. */
+.search-shell .pagefind-ui__filter-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  border: 0;
+}
+.search-shell .pagefind-ui__filter-panel-label {
+  padding: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+.search-shell .pagefind-ui__filter-block { flex: 0 0 auto; }
+.search-shell .pagefind-ui__filter-block[open] { flex: 1 1 100%; }
+.search-shell .pagefind-ui__filter-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--fg);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.search-shell .pagefind-ui__filter-name::-webkit-details-marker { display: none; }
+.search-shell .pagefind-ui__filter-name::before {
+  content: "▸";
+  color: var(--fg-mute);
+  font-size: 0.85em;
+  line-height: 1;
+}
+.search-shell .pagefind-ui__filter-block[open] .pagefind-ui__filter-name::before {
+  content: "▾";
+}
+.search-shell .pagefind-ui__filter-name:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--link-hover);
+}
+.search-shell .pagefind-ui__filter-name:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.search-shell .pagefind-ui__filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.9rem;
+  margin: 0.35rem 0 0.2rem;
+  padding: 0;
+  border: 0;
+}
+/* The <legend> repeats the summary chip's label: keep it for screen
+   readers, drop it from the layout. */
+.search-shell .pagefind-ui__filter-group-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.search-shell .pagefind-ui__filter-value {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.86rem;
+  color: var(--fg);
+}
+.search-shell .pagefind-ui__filter-checkbox {
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.search-shell .pagefind-ui__filter-label { cursor: pointer; }
 
 /* Breadcrumbs */
 .breadcrumbs {
@@ -1123,17 +1521,7 @@ table.overview .ov-rocq code { white-space: nowrap; }
 
 .verify-block .verify-prose pre { font-size: 0.86rem; }
 
-/* Pagefind UI overrides — keep neutral, integrate with theme. */
-.pagefind-ui {
-  --pagefind-ui-primary: var(--accent);
-  --pagefind-ui-text: var(--fg);
-  --pagefind-ui-background: var(--bg-elev);
-  --pagefind-ui-border: var(--border);
-  --pagefind-ui-tag: var(--bg-soft);
-  --pagefind-ui-border-radius: var(--radius-sm);
-  --pagefind-ui-border-width: 1px;
-  --pagefind-ui-font: var(--font-prose);
-}
+/* (Pagefind UI: styled in full by the "Search" block above.) */
 
 /* ============================================================ Tab nav */
 

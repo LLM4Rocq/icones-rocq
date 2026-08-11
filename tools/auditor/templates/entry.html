@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import entry_card with context %}
+{% from "_macros.html" import entry_card, search_status_meta with context %}
 
 {% block title %}{{ entry.paper_label }} — {% if section.paper_section_number %}§ {{ section.paper_section_number }} {% endif %}{{ section.title }}{% endblock %}
 {% block body_class_extra %} page-entry{% endblock %}
@@ -31,6 +31,9 @@
 
 {% block content %}
 <article class="entry-page">
+  {# One entry per page, so its status is the page's status tag (the card
+     itself only contributes filters — see _macros.html). #}
+  {{ search_status_meta(entry.status, tab) }}
   <header class="entry-hero">
     {% if section and section.paper_section_number %}
     <p class="eyebrow mono">§ {{ section.paper_section_number }} · {{ entry.paper_kind }}</p>

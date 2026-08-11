@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge with context %}
+{% from "_macros.html" import status_badge, search_status_filters, search_status_meta with context %}
 
 {% block title %}Not formalised — Icones auditor{% endblock %}
 {% block body_class_extra %} page-gaps{% endblock %}
@@ -14,6 +14,9 @@
 {% endblock %}
 
 {% block content %}
+{# Every article on this page is a gap, so `gap` is the page's status tag
+   (emitted once — Pagefind meta is page-level). #}
+{{ search_status_meta(['gap'], tab) }}
 <header class="entry-hero">
   <p class="eyebrow mono">Status</p>
   <h1>What is not formalised</h1>
@@ -25,14 +28,13 @@
 
 <div class="gap-list">
   {% for g in gaps %}
-  <article class="gap-entry"
-           id="{{ g.id }}"
-           data-pagefind-meta="title:{{ g.paper_label }}, kind:gap"
-           data-pagefind-filter="status:gap{% if tab %}, tab:{{ tab }}{% endif %}">
-    {% if tab %}<span hidden data-pagefind-filter="tab">{{ tab }}</span>{% endif %}
+  <article class="gap-entry" id="{{ g.id }}">
+    {{ search_status_filters(['gap'], tab) }}
     <header class="gap-head">
       <h2>
-        <a class="anchor" href="#{{ g.id }}" aria-label="Permalink">¶</a>
+        {# Furniture, not content — keep the pilcrow out of the excerpts. #}
+        <a class="anchor" href="#{{ g.id }}" aria-label="Permalink"
+           data-pagefind-ignore>¶</a>
         <span class="gap-title-label">{{ g.paper_label }}</span>
       </h2>
       {{ status_badge('gap') }}

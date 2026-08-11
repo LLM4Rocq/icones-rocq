@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status_badge, rocq_file, entry_card, section_snippets, stats_line with context %}
+{% from "_macros.html" import status_badge, rocq_file, entry_card, section_snippets, stats_line, search_status_filters, search_status_meta with context %}
 
 {% block title %}{{ beyond.title }} — Beyond the paper{% endblock %}
 {% block body_class_extra %} page-beyond{% endblock %}
@@ -15,10 +15,12 @@
 {% endblock %}
 
 {% block content %}
-<article class="beyond-page"
-         data-pagefind-meta="title:{{ beyond.title }}, kind:beyond"
-         data-pagefind-filter="status:beyond-paper{% if tab %}, tab:{{ tab }}{% endif %}">
-  {% if tab %}<span hidden data-pagefind-filter="tab">{{ tab }}</span>{% endif %}
+<article class="beyond-page">
+  {# On the Paper tab `beyond-paper` marks the pages with no paper
+     counterpart; on PPL/Examples it is the whole tab, so both macros emit
+     nothing there and the tab pill carries the provenance alone. #}
+  {{ search_status_meta(['beyond-paper'], tab) }}
+  {{ search_status_filters(['beyond-paper'], tab) }}
   <header class="entry-hero">
     <p class="eyebrow mono">Beyond the paper{% if beyond.paper_refs %} · {{ beyond.paper_refs|join(', ') }}{% endif %}</p>
     <h1>{{ beyond.title }}</h1>

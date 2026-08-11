@@ -118,6 +118,59 @@
 </span>
 {%- endmacro %}
 
+{# ==================================================== Search metadata (Pagefind)
+
+   Pagefind reads `data-pagefind-meta` (page tags, shown as pills under a
+   search result) and `data-pagefind-filter` (the filter checkboxes) off the
+   rendered HTML.  Three properties of that API drive the macros below:
+
+   * Both are PAGE-level.  A meta key emitted twice on one page keeps the
+     LAST value, so a page tag may only be emitted ONCE per page; filters
+     are multi-valued and may be emitted per entry card.
+   * Neither attribute splits on commas (pagefind 1.5): the old
+     `data-pagefind-meta="title:X, section:Y"` indexed the single key
+     `title` with the value `X, section:Y`, and the matching filter
+     attribute indexed `status` = `beyond-paper, tab:ppl`.  One key per
+     attribute, always.
+   * A `key:value` attribute takes its value from the attribute, so the
+     markers below are EMPTY elements.  A marker carrying its value as text
+     (the old `<span hidden data-pagefind-filter="status">gap</span>`) has
+     that text indexed as page CONTENT and reused as the element's anchor
+     label — which is how "beyond-paperppl" ended up glued to the front of
+     every PPL search excerpt.
+#}
+
+{#- The statuses worth indexing, as a space-separated string (Jinja macros
+    return text; callers `.split()` it).  The rule is information-theoretic:
+    a tag must DISTINGUISH a result, not restate what every result shares.
+
+      * `axiom-free`   — the development has zero Axiom/Admitted, so this
+                         holds for every entry: never indexed.
+      * `beyond-paper` — the defining property of the PPL and Examples tabs
+                         (every entry there carries it, where it merely
+                         repeats the tab tag); only on the Paper tab does it
+                         distinguish the few entries with no paper
+                         counterpart, so only there is it indexed.
+      * everything else (`gap`, `regression-anchor`, `discharged-deferred`)
+                       — rare, hence informative: always indexed. -#}
+{% macro search_statuses(statuses, tab) %}{% for s in statuses %}{% if s != 'axiom-free' and not (s == 'beyond-paper' and tab != 'paper') %}{{ s }} {% endif %}{% endfor %}{% endmacro %}
+
+{#- Per-entry filter markers.  Safe to repeat on a page: a filter key holds
+    a set of values, so a section page becomes reachable through every
+    status its cards carry. -#}
+{% macro search_status_filters(statuses, tab) -%}
+{% for s in search_statuses(statuses, tab).split() %}<span hidden data-pagefind-filter="status:{{ s }}"></span>{% endfor %}
+{%- endmacro %}
+
+{#- The page's status tag.  ONCE per page, and only from a template that
+    knows the whole page has that status (an entry page, a Beyond page, the
+    gaps page) — never from a card on a mixed page, where the last card
+    rendered would silently win. -#}
+{% macro search_status_meta(statuses, tab) -%}
+{% set shown = search_statuses(statuses, tab).split() %}
+{%- if shown %}<span hidden data-pagefind-meta="status:{{ shown|join(' · ') }}"></span>{% endif -%}
+{%- endmacro %}
+
 {% macro rocq_file(rf) -%}
 <span class="rocq-file">
   <code class="mono path">{{ rf.path }}</code>
@@ -187,19 +240,22 @@
 {%- endmacro %}
 
 {% macro entry_card(entry, section, expanded=False, tab=None) -%}
-{# `tab` is forwarded into the Pagefind filter set so users can scope a
-   search to a single tab. Defaults to None for back-compat. #}
+{# `tab` selects the entry's search statuses (see search_statuses): on the
+   Paper tab `beyond-paper` distinguishes an entry, elsewhere it is the tab
+   itself.  Defaults to None for back-compat.
+   The card contributes FILTERS only; the page tags (tab, status) are
+   emitted once per page — the tab tag by base.html, the status tag by the
+   single-entry templates. #}
 <article class="entry"
          id="{{ entry.id }}"
-         data-status="{{ entry.status|join(' ') }}"
-         data-pagefind-meta="title:{{ entry.paper_label }}, section:{{ section.paper_section_number if section else '' }}"
-         data-pagefind-filter="status:{{ entry.status|join(', status:') }}{% if tab %}, tab:{{ tab }}{% endif %}">
-  {# Per-status spans give Pagefind individual values to index for status. #}
-  {% for s in entry.status %}<span hidden data-pagefind-filter="status">{{ s }}</span>{% endfor %}
-  {% if tab %}<span hidden data-pagefind-filter="tab">{{ tab }}</span>{% endif %}
+         data-status="{{ entry.status|join(' ') }}">
+  {{ search_status_filters(entry.status, tab) }}
   <header class="entry-head">
     <h3 class="entry-title">
-      <a class="anchor" href="#{{ entry.id }}" aria-label="Permalink">¶</a>
+      {# Ignored by the indexer: the pilcrow is furniture, and it opened
+         every search excerpt for this card ("… Def. ¶ The kernel grammar"). #}
+      <a class="anchor" href="#{{ entry.id }}" aria-label="Permalink"
+         data-pagefind-ignore>¶</a>
       <span class="entry-label">{{ entry.paper_label }}</span>
       {% if entry.paper_kind %}<span class="kind">{{ entry.paper_kind }}</span>{% endif %}
     </h3>
