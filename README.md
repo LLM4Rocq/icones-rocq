@@ -2,8 +2,8 @@
 
 [![Build](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/build.yml?branch=main&style=for-the-badge&label=build)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/build.yml)
 [![Blueprint CI](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/blueprint.yml?branch=main&style=for-the-badge&label=blueprint%20CI)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/blueprint.yml)
-[![Blueprint](https://img.shields.io/badge/blueprint-online-blue?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint/)
-[![Blueprint PDF](https://img.shields.io/badge/blueprint-PDF-red?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)
+[![Blueprint (frozen)](https://img.shields.io/badge/blueprint-online%20(frozen)-lightgrey?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint/)
+[![Blueprint PDF (frozen)](https://img.shields.io/badge/blueprint-PDF%20(frozen)-lightgrey?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)
 [![Auditor — Paper](https://img.shields.io/badge/auditor-paper-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/paper/)
 [![Auditor — PPL](https://img.shields.io/badge/auditor-PPL-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/ppl/)
 [![Auditor — Examples](https://img.shields.io/badge/auditor-examples-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/examples/)
@@ -112,7 +112,7 @@ exhibiting a carrier (Remark 5.1 gives no explicit formula for `⊗`). The forma
 the **same route**, but — since Coq cannot cite SAFT as a black box — it **mechanizes the SAFT
 argument itself**: it proves `ICones` well-powered and runs Freyd's construction, building the
 adjoint as a wide intersection of subobjects of a coseparator power
-(`theories/icones/representable.v`, `theories/homs/tensor_construct.v`). So these are the same
+(`theories/homs/representable.v`, `theories/homs/tensor_construct.v`). So these are the same
 SAFT-given objects as in the paper, with their construction fully spelled out — which is what
 lets the development carry no `Parameter`/`Axiom` interfaces and leave nothing "assumed."
 
@@ -172,8 +172,9 @@ total program predicate) — `ex_reject_comb_sampler_master`. The
 hard-coded sampler's direct theorems (`ex_reject_master`,
 `ex_reject_is_normalised_posterior`, `ex_reject_mass_one`,
 `ex_reject_zero`) remain in `theories/programs/ex_reject_headline.v`,
-axiom-free. The same file proves the **CBV distribution identities** for the
-geometric and almost-loop programs: the geometric counter denotes the
+axiom-free. Its sibling files prove the **CBV distribution identities** for the
+geometric (`theories/programs/ex_geom.v`) and almost-loop
+(`theories/programs/ex_almost_loop.v`) programs: the geometric counter denotes the
 geometric law — the geometric PMF `(1/2)^(k+1)` at every embedded
 natural `k` (`ex_geom_cbv_distribution`, `ex_geom_cbv_pmf`), with the
 total-mass-1 specialisation `ex_geom_cbv_mass_one`; the almost-loop
@@ -181,7 +182,7 @@ denotation is the unit Dirac `one1` for `p > 0`
 (`ex_almost_loop_cbv_dirac`, strengthening
 `ex_almost_loop_cbv_mass_one`) and the zero point at `p = 0`
 (`ex_almost_loop_cbv_zero`), and
-`theories/programs/infra/cbv_marginals.v` proves the **CBV marginal
+`theories/programs/cbv_marginals.v` proves the **CBV marginal
 headlines** of the basic sampling/scoring examples — the unnormalised
 score posterior `ex_score_posterior_cbv_E`, paired exactly with the
 rejection sampler by `ex_reject_normalises_score`, the marginal
@@ -239,7 +240,7 @@ The surface also has **runtime-parameter distributions**
 `let s = Gaussian(0,1) in Gaussian(s,1)` (`ex_gaussian_walk`) is
 proved a probability of mass `1` with the hierarchy integral as its
 measure (`ex_gaussian_walk_E` / `ex_gaussian_walk_mass` in
-`theories/programs/infra/kernel_anchors.v`).
+`theories/programs/kernel_anchors.v`).
 
 Two pieces of this layer are formalizations we have not seen elsewhere
 in Coq / Rocq: the cartesian-η identity `em_pair_mor_proj_id` (Fox 1976
@@ -278,11 +279,13 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   master identity `ex_reject_comb_sampler_master`), via the let-at-sample Pettis
   integral law `eD_let_sample_int` and its arbitrary-bound-computation
   generalisation `eD_let_int` (`theories/programs/infra/let_sample_law.v`),
-  the affine-cascade closed form + sup-mass bridge
-  (`theories/programs/infra/affine_cascade.v`), and the setlike-point
-  regression anchors (`theories/programs/infra/cbv_anchors.v`). The same
-  file carries the CBV mass identities `ex_geom_cbv_mass_one` and
-  `ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero`. The `tbool`
+  the affine-cascade closed form (`theories/prelude/geom_series.v`) +
+  sup-mass bridge (`theories/mcones/fmeas.v`), and the setlike-point
+  regression anchors (`theories/programs/infra/cbv_anchors.v`). The CBV
+  mass identities `ex_geom_cbv_mass_one` and
+  `ex_almost_loop_cbv_mass_one` / `ex_almost_loop_cbv_zero` live in
+  `theories/programs/ex_geom.v` and
+  `theories/programs/ex_almost_loop.v`. The `tbool`
   clause uses the §9.7-style coalgebra `bool_cone_coalg` on
   `bool_cone_car` (in `theories/programs/infra/bool_cone_coalg.v`) for
   shared-sample diagonal semantics.
@@ -305,7 +308,7 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
     `let rec f x := M in K` sugar.
 
   Demoed end to end by `ex_surface_demo` / `ex_surface_walk`.
-- **The CBV marginals** (`theories/programs/infra/cbv_marginals.v`,
+- **The CBV marginals** (`theories/programs/cbv_marginals.v`,
   axiom-free): the non-recursive basic sampling/scoring examples carry
   closed-form CBV identities — `ex_score_posterior_cbv_E` (the denotation of
   the score program is the unnormalised posterior `∫_U f dµ`),
@@ -319,7 +322,7 @@ interpretation is preserved on the [`cbn-track`](../../tree/cbn-track) branch):
   `ex_reject_normalises_score` connects the score program and the rejection
   sampler exactly: `(∫ f dµ) · ν_reject(U) = ν_score(U)` at a probability prior.
 - **The SCones↔ICones-tensor diagonal bilinear stability bridge**
-  `meas_stable_diag_bilinear_tensor` (`theories/stable/diag_bilinear_tensor.v`,
+  `meas_stable_diag_bilinear_tensor` (`theories/cbv/diag_bilinear_tensor.v`,
   axiom-free) — its `linhom_to_stablehom` lift is the stable ingredient of the
   CBV value-fixpoint (`fix_value`).
 
@@ -346,22 +349,34 @@ theories/
 ├── cones/     precones → cones, the category Cones                       (§2)
 ├── mcones/    measurable cones, the measure cone FMeas, Path, MCones     (§3)
 ├── icones/    Pettis integral, integrable cones, Fubini, completeness,   (§4)
-│              well-poweredness + the representability machinery
-├── homs/      internal hom ⊸, tensor ⊗ + SMCC, the ! comonad + E⊣Der,    (§5, §9)
-│              the Seely category, the FMeas !-coalgebra;
-│              the call-by-value model structure (beyond the paper):       (CBV)
+│              the test-pullback machinery, and the 2-point ICone
+│              bool_cone.v (the §4.4 coproduct cone_one ⊕ cone_one)
+├── homs/      internal hom ⊸, tensor ⊗ + SMCC; well-poweredness and     (§4, §5)
+│              the representability / SAFT machinery (representable.v,
+│              saft_construct.v) that constructs ⊗
+├── stable/    stable functions, the CCC SCones, fixpoints               (§7)
+│              (parallel to homs/ — neither imports the other)
+├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
+├── exp/       the linear exponential ! and its adjunction E ⊣ Der,      (§9)
+│              the Seely category, the FMeas !-coalgebra, Lemma 9.4
+│              (stab_lin_swap.v) — sits above BOTH homs/ and stable/;
+│              bool_case_hom.v packages the 2-point co-pairing as a
+│              linhom / icones_hom
+├── cbv/       the call-by-value model structure (beyond the paper):     (CBV)
 │                em_cat.v            EM(!) + the cofree adjunction U ⊣ !̃
 │                em_seely_comonoid.v the Seely comonoid d/e on !A (LC2–4)
 │                em_cartesian.v      full EM(!) cartesian via ⊗ (Cor 20)
 │                fmeas_lax.v         FMeas is lax symmetric monoidal
 │                                    (µ ⊗ ν ↦ µ × ν as an icones_hom)
-├── stable/    stable functions, the CCC SCones, fixpoints, Lemma 9.4     (§7, §9.2)
-│              diag_bilinear_tensor.v  the SCones↔ICones-tensor diagonal     (PPL)
-│                                      bilinear stability bridge
-│                                      meas_stable_diag_bilinear_tensor;
-│                                      its linhom_to_stablehom lift feeds
-│                                      the CBV value-fixpoint
-├── kernels/   substochastic kernels Skern and the embedding (Thm 6.5)    (§6)
+│                diag_bilinear_tensor.v  the SCones↔ICones-tensor diagonal
+│                                    bilinear stability bridge
+│                                    meas_stable_diag_bilinear_tensor;
+│                                    its linhom_to_stablehom lift feeds
+│                                    the CBV value-fixpoint
+│                cbv_adjunction.v    Linear-Logic / EM-cartesian /
+│                                    bang-comonoid plumbing (Melliès
+│                                    Prop 29: U ⊣ !̃ is an LNL
+│                                    adjunction) — no Moggi monad
 └── programs/  the PPL — surface syntax and its CBV interpretation
                (the CBN interpretation lives on branch cbn-track):
                  ppl.v               surface syntax (types, terms,
@@ -390,10 +405,21 @@ theories/
                                      sampling denotes the normalised
                                      posterior (ex_reject_master,
                                      ex_reject_is_normalised_posterior,
-                                     ex_reject_mass_one, ex_reject_zero)
-                                     + the CBV mass riders
-                                     ex_geom_cbv_mass_one,
-                                     ex_almost_loop_cbv_mass_one/_zero
+                                     ex_reject_mass_one, ex_reject_zero);
+                                     the six-step reduction-chain
+                                     skeleton the three files below
+                                     re-run is documented here, once
+                 ex_almost_loop.v    the Bernoulli-guarded loop:
+                                     ex_almost_loop_cbv_mass_one /
+                                     _cbv_dirac / _cbv_zero
+                 ex_geom.v           the geometric counter:
+                                     ex_geom_cbv_mass_one and the
+                                     distribution refinements
+                                     ex_geom_cbv_distribution / _pmf
+                 ex_even_odd.v       the mutual-recursion witness:
+                                     ex_even_odd_pair_cbv_value,
+                                     ex_even_cbv_diverges /
+                                     ex_odd_cbv_diverges
                  ex_reject_model.v   THE CBV capstone: the rejection
                                      COMBINATOR over any model
                                      (reject_model_master,
@@ -403,17 +429,26 @@ theories/
                                      and the equivalence
                                      (reject_normalises_condition +
                                      division / probability forms)
+                 cbv_marginals.v     the CBV marginal headlines of the
+                                     basic sampling/scoring examples —
+                                     the unnormalised score posterior
+                                     (ex_score_posterior_cbv_E), the
+                                     score/rejection pairing
+                                     (ex_reject_normalises_score), the
+                                     marginals
+                                     ex_random_constant_cbv_marginal /
+                                     ex_random_linear_cbv_marginal, and
+                                     the Bayesian-regression model
+                                     evidence
+                                     (ex_bayes_linear_cbv_evidence)
+                 kernel_anchors.v    the runtime-parameter distribution
+                                     anchors (ex_gaussian_walk_E /
+                                     _mass)
                  infra/              PPL support:
-                   bool_cone.v         2-point ICone (paper §4.4
-                                       coproduct cone_one ⊕ cone_one)
                    bool_cone_coalg.v   §9.7-style !-coalgebra structure
                                        on bool_cone_car — diagonal
                                        pushforward, used for the
                                        CBV tbool shared-sample semantics
-                   bool_case_hom.v     bool_case as linhom + icones_hom
-                   cbv_adjunction.v    Linear-Logic / EM-cartesian /
-                                       bang-comonoid plumbing — no
-                                       Moggi monad
                    em_fix.v            the naive linear Kleene step
                                        Phi_fun + the linhom LFP core
                                        (its zero-seeded operator was
@@ -439,37 +474,34 @@ theories/
                    let_sample_law.v    the let-at-sample Pettis
                                        integral law eD_let_sample_int
                                        and its measure-on-U form
-                   affine_cascade.v    affine Kleene cascades: closed
-                                       form, limit, and the FMeas
-                                       sup-mass bridge
                    cbv_anchors.v       semantic regression anchors —
                                        setlike-point kit, shared-sample
                                        diagonal vs independent-product
                                        contrast, eD_beta, if-pins
-                   cbv_marginals.v     the CBV marginal headlines of
-                                       the basic sampling/scoring
-                                       examples — the unnormalised
-                                       score posterior
-                                       (ex_score_posterior_cbv_E),
-                                       the score/rejection pairing
-                                       (ex_reject_normalises_score),
-                                       the marginals
-                                       ex_random_constant_cbv_marginal /
-                                       ex_random_linear_cbv_marginal,
-                                       and the Bayesian-regression
-                                       model evidence
-                                       (ex_bayes_linear_cbv_evidence)
 ```
+
+The directories are **import layers**, in the order
+
+```
+prelude → cones → mcones → icones → homs ‖ stable → kernels ‖ exp → cbv → programs
+```
+
+where `‖` marks directories that are *parallel*: `homs` and `stable` never import one
+another, and neither do `kernels` and `exp`. `python3 tools/check_layers.py` re-derives
+every `Require` edge from the sources and fails on any upward or cross-parallel import;
+`_CoqProject` lists the files in the same order.
 
 Two parallel entry points for reviewing the formalization without first opening the
 sources:
 
-- A LaTeX **blueprint** (Patrick Massot's `leanblueprint` style, adapted to Rocq) describing
-  the mathematics in English alongside its Rocq counterpart, with each statement linked to
-  its `theories/` declaration and a rendered dependency graph:
-  **[online](https://llm4rocq.github.io/icones-rocq/blueprint/)** ·
-  **[PDF](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)** · sources in
+- A LaTeX **blueprint** *(frozen)* (Patrick Massot's `leanblueprint` style, adapted to Rocq)
+  describing the mathematics in English alongside its Rocq counterpart, with a rendered
+  dependency graph:
+  **[online (frozen)](https://llm4rocq.github.io/icones-rocq/blueprint/)** ·
+  **[PDF (frozen)](https://llm4rocq.github.io/icones-rocq/blueprint.pdf)** · sources in
   [`blueprint/src/`](./blueprint/src/).
+  **Frozen as of 2026-08 and superseded by the auditor dashboard below**: its citations
+  are no longer maintained and the `theories/` module paths it names may be stale.
 - An interactive **auditor dashboard** with three tabs:
   the **[Paper tab](https://llm4rocq.github.io/icones-rocq/auditor/paper/)**
   (paper-to-Rocq correspondence for §§ 2–9, plus the paper-cited meta-theorems we
