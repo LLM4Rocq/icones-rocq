@@ -2,9 +2,7 @@
 
 [![Build](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/build.yml?branch=main&style=for-the-badge&label=build)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/build.yml)
 [![Docs CI](https://img.shields.io/github/actions/workflow/status/LLM4Rocq/icones-rocq/blueprint.yml?branch=main&style=for-the-badge&label=docs%20CI)](https://github.com/LLM4Rocq/icones-rocq/actions/workflows/blueprint.yml)
-[![Auditor — Paper](https://img.shields.io/badge/auditor-paper-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/paper/)
-[![Auditor — PPL](https://img.shields.io/badge/auditor-PPL-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/ppl/)
-[![Auditor — Examples](https://img.shields.io/badge/auditor-examples-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/examples/)
+[![Auditor](https://img.shields.io/badge/auditor-online-green?style=for-the-badge)](https://llm4rocq.github.io/icones-rocq/auditor/)
 [![Rocq 9.1.1](https://img.shields.io/badge/rocq-9.1.1-orange?style=for-the-badge)](https://rocq-prover.org/)
 [![License](https://img.shields.io/badge/license-CC--BY--4.0-blue.svg?style=for-the-badge)](https://creativecommons.org/licenses/by/4.0/)
 
