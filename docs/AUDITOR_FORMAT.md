@@ -282,7 +282,9 @@ dashed to match the graph.
   prints a NOTICE, but the graph shows doc co-references only.
 - **In CI** — `build.yml` is the one job that compiles the formalisation;
   it tars `theories/**/*.glob` into the `theories-glob` artefact.
-  `blueprint.yml`'s `build-auditor` downloads that artefact instead of
+  the docs workflow (`.github/workflows/blueprint.yml`, kept under its
+  historical file name) has a `build-auditor` job that downloads that
+  artefact instead of
   paying for a second ~15 min Rocq build on the deploy critical path.
 
   That download is **pinned to the commit being built**
@@ -321,13 +323,13 @@ traceback.
 
 #### …and why CI runs it *after* the build, not during it
 
-`combine-and-deploy` is the only job that publishes `/blueprint/` and
-`/docs/` too. Gating it on `build-auditor`'s success therefore made the
+`combine-and-deploy` is the only job that publishes `/docs/` (the coqdoc
+tree) too. Gating it on `build-auditor`'s success therefore made the
 *entire* site publish hostage to another workflow's artefact: a red
 `build.yml`, an expired `theories-glob`, or `actions: read` denied on a
-fork PR unpublished the blueprint and coqdoc as collateral.
+fork PR unpublished coqdoc as collateral.
 
-So `blueprint.yml` inverts the order:
+So the docs workflow inverts the order:
 
 1. build with `AUDITOR_REQUIRE_GLOB_DEPS: '0'` — a degraded graph ships
    behind the explicit "Degraded" banner `templates/graph.html` renders,

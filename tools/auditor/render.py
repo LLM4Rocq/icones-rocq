@@ -145,7 +145,7 @@ def check_graph_json(path: str | Path) -> int:
 
     Split out of :func:`render` on purpose.  Raising *during* the build is
     right for a developer (fail fast, write nothing), but in CI it made the
-    whole Pages publish — blueprint and coqdoc included — hostage to another
+    whole Pages publish — coqdoc included — hostage to another
     workflow's artefact: a red ``build.yml``, an expired ``theories-glob``,
     or an Actions-API hiccup skipped the deploy job entirely.
 

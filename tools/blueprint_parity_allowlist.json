@@ -1,0 +1,207 @@
+{
+  "$schema_note": "Consumed by tools/blueprint_parity.py --allowlist. Keys are the fully-qualified names as the blueprint cites them (\\rocq{...}); the loader also accepts a plain newline-separated .txt file.",
+  "purpose": "Blueprint citations deliberately NOT mirrored in docs/PAPER.md, docs/PPL.md or docs/EXAMPLES.md, each with the evidence for that decision. The deletion gate is: for chapters 01-08, {cited} ∩ {resolves in theories/} \\ {present in the auditor docs} \\ {this allowlist} must be empty.",
+  "scope_discipline": "This file may only hold names that CANNOT be migrated — a citation that does not resolve, an anonymous HB instance with no name to cite, a claim verified stale, or code deleted from theories/. A name that resolves and could be cited must be MIGRATED into the docs, not allowlisted: allowlisting such a name would let the gated party pass the gate by widening it. An earlier revision of this file carried 51 further entries under an 'internal-supporting-lemma' class; every one of those names has since been written into the auditor docs (see `migrated_instead_of_allowlisted`) and the class has been removed. Adding a new group to this file is a change to the acceptance test and needs the owner's sign-off.",
+  "groups": {
+    "dangling-or-stale-citation": "The blueprint names something that does not exist under that name, or attributes it to the wrong module. Migrating the name as written would create a citation the auditor could not resolve.",
+    "anonymous-hb-instance": "A qualified name for an `HB.instance Definition _`, which has no name to cite. The auditor documents these in prose plus the snippet.",
+    "verified-stale-do-not-migrate": "The blueprint's surrounding claim was checked and found false or superseded; migrating it would import a false limitation or a placeholder.",
+    "removed-code": "The declaration was deleted from theories/ after the blueprint froze; the docs record the removal."
+  },
+  "gate_effect_values": {
+    "blocks-gate-01-08": "This entry is load-bearing: without it the deletion gate for chapters 01-08 fails.",
+    "chapter-09-only": "Absent from the docs, but only in chapter 09, which `--gate` does not check. Recorded for completeness; removing it would not change the gate.",
+    "inert": "The final dot-segment is already matched in the auditor docs, so the entry never fires. Kept because the acceptance test names it and because it records a real blueprint defect (a wrong module path) worth preserving past the deletion."
+  },
+  "counts": {
+    "total": 16,
+    "blocks-gate-01-08": 2,
+    "chapter-09-only": 7,
+    "inert": 7,
+    "by_group": {
+      "dangling-or-stale-citation": 6,
+      "anonymous-hb-instance": 2,
+      "verified-stale-do-not-migrate": 1,
+      "removed-code": 7
+    }
+  },
+  "migrated_instead_of_allowlisted": {
+    "note": "These 53 names were allowlisted in an earlier revision and are now cited in the auditor docs instead. Listed so the change is auditable: re-running tools/blueprint_parity.py must show each of them under `present_in_target_doc` (verified against tools/blueprint_parity_final.json: all 53).",
+    "PAPER.md Lem 4.7": [
+      "path_integral_eq_addmu",
+      "path_integral_eq_scalemu",
+      "integral_omega_cont_path",
+      "integral_omega_cont_meas",
+      "integral_meas_sup",
+      "precone_residue"
+    ],
+    "PAPER.md Thm 4.5 / 4.12": ["fmeas_int_exists"],
+    "PAPER.md Thm 4.15": [
+      "beta_uncast_bound",
+      "beta_uncast_secX",
+      "beta_uncast_secY",
+      "beta_uncast_jointX",
+      "beta_uncast_jointY"
+    ],
+    "PAPER.md Thm 4.18": ["icones_subobject_inj"],
+    "PAPER.md Thm 5.13": ["tensor_normM"],
+    "PAPER.md Lem 7.1": [
+      "gauge_set_ub",
+      "lc_val_norm_le",
+      "lc_sup_ball_translate",
+      "lc_mcone_M",
+      "lc_mcone_M_comp",
+      "lc_mcone_M_sep",
+      "lc_mcone_M_norm",
+      "lc_icone_exists"
+    ],
+    "PAPER.md Def 7.5": [
+      "in_Pneg",
+      "in_Ppos",
+      "in_Pneg_Ppos",
+      "Ppos_setT",
+      "sumP_add",
+      "sumP_scale",
+      "totmono_increasing",
+      "totmono2"
+    ],
+    "PAPER.md Lem 7.11": [
+      "totmono_add",
+      "totmono_scale",
+      "sup_at_addD",
+      "meas_stable_add",
+      "meas_stable_scale"
+    ],
+    "PAPER.md §7.3 diff": ["Delta_pos_recur", "Delta_neg_recur"],
+    "PAPER.md Thm 7.19": ["conv_strict"],
+    "PAPER.md Lem 7.26": ["kfun_increasing", "dB_kfun"],
+    "PAPER.md Thm 7.30": ["scott_comp", "bounded_comp", "meas_path_comp"],
+    "PAPER.md Lem 7.31": [
+      "card_Ppos_Pneg",
+      "big_Pneg_le_Ppos",
+      "Spos_lin_shift",
+      "Sneg_lin_shift"
+    ],
+    "PAPER.md Thm 7.32": [
+      "gen_totmono",
+      "sprod_pair_norm_le1",
+      "curry_app",
+      "curry_totmono_step",
+      "curry_beta",
+      "curry_eta"
+    ]
+  },
+  "allow": {
+    "Icones.prelude.omegacpo.sup_irrelevant": {
+      "group": "dangling-or-stale-citation",
+      "gate_effect": "blocks-gate-01-08",
+      "reason": "Citation to a module that does not exist and a name that is never declared.",
+      "evidence": "theories/prelude/ holds only geom_series.v and nonneg_extra.v; `sup_irrelevant` occurs in theories/ only inside a comment (cone_cat.v:113, \"by [sup_irrelevant]-style reasoning\"). The proof-irrelevance fact that does exist is `cone_sup_ball_irr` of theories/cones/omega_general.v, cited by the auditor's §7.0 entry.",
+      "documented_under": "PAPER.md §7.0"
+    },
+    "Icones.icones.icone_cat.icones_well_powered_bound": {
+      "group": "verified-stale-do-not-migrate",
+      "gate_effect": "blocks-gate-01-08",
+      "reason": "Verified-stale: the blueprint presents a cardinality placeholder as the well-poweredness proof. Migrating it would import a false claim.",
+      "evidence": "icone_cat.v:1207-1223 says in-code that `icones_well_powered_bound := set C` is 'only a *cardinality placeholder*: it records the codomain type, not a proved injection', and points at the genuine route. docs/PAPER.md Thm 4.18 documents that genuine route (SubobjClassifier, icones_subobject_classP, icones_well_powered).",
+      "documented_under": "PAPER.md Thm 4.18"
+    },
+    "Icones.programs.ppl.normal_peak": {
+      "group": "dangling-or-stale-citation",
+      "gate_effect": "inert",
+      "reason": "Mis-attributed upstream definition: the blueprint stamps a mathcomp-analysis name with this project's own module prefix.",
+      "evidence": "No Definition/Notation/Let normal_peak anywhere in theories/; it is `Definition normal_peak s := (sqrtr (s ^+ 2 * pi *+ 2))^-1` in mathcomp-analysis probability.v (~L1695), used from theories/programs/ppl.v and distributions.v."
+    },
+    "Icones.stable.compose.SD_cons": {
+      "group": "dangling-or-stale-citation",
+      "gate_effect": "inert",
+      "reason": "Wrong module: the same chapter cites these correctly 30 lines earlier under findiff.",
+      "evidence": "Neither SD_cons nor SD_add is in theories/stable/compose.v; both are in theories/stable/findiff.v (SD_cons:1538, SD_add:1604). The lemmas themselves DO migrate, under the findiff.v anchor, in the Lem 7.20–7.25 entry. Only the wrong path is allowlisted; because the parity script matches on the final dot-segment, the entry never actually fires.",
+      "documented_under": "PAPER.md Lem 7.20–7.25"
+    },
+    "Icones.stable.compose.SD_add": {
+      "group": "dangling-or-stale-citation",
+      "gate_effect": "inert",
+      "reason": "Wrong module: the same chapter cites these correctly 30 lines earlier under findiff.",
+      "evidence": "Neither SD_cons nor SD_add is in theories/stable/compose.v; both are in theories/stable/findiff.v (SD_cons:1538, SD_add:1604). The lemmas themselves DO migrate, under the findiff.v anchor, in the Lem 7.20–7.25 entry. Only the wrong path is allowlisted; because the parity script matches on the final dot-segment, the entry never actually fires.",
+      "documented_under": "PAPER.md Lem 7.20–7.25"
+    },
+    "Icones.stable.findiff.SD_concat": {
+      "group": "dangling-or-stale-citation",
+      "gate_effect": "inert",
+      "reason": "Names a Rocq object that does not exist.",
+      "evidence": "`grep -rnw SD_concat theories` matches comment text only (findiff.v:1405, compose.v:1376/1608/1634/1695 are `(** ** SD_concat ... *)` section headers). The concatenation engine is real but is not named SD_concat in code; the auditor cites its actual lemmas (SD_diag, SD_723).",
+      "documented_under": "PAPER.md Lem 7.20–7.25"
+    },
+    "Icones.homs.tensor.tensor_normM": {
+      "group": "dangling-or-stale-citation",
+      "gate_effect": "inert",
+      "reason": "Wrong module. The name itself is real and has since been migrated; only the blueprint's module path is wrong.",
+      "evidence": "tensor_normM is declared in theories/homs/tensor_hom_iso.v:696, not tensor.v. docs/PAPER.md's Thm 5.13 entry now cites it under its real file, alongside the exported `tensor_normME` and `tensor_norm_le`.",
+      "documented_under": "PAPER.md Thm 5.13"
+    },
+    "Icones.mcones.fmeas.isMCone": {
+      "group": "anonymous-hb-instance",
+      "gate_effect": "inert",
+      "reason": "Qualified name of an anonymous HB instance; it cannot resolve.",
+      "evidence": "isMCone is declared only in Icones.mcones.mcone. fmeas.v and path.v register `HB.instance Definition _ := @isMCone.Build ...`, which has no name. The auditor's treatment ('the isMCone instance' in prose plus the actual snippet) is the correct one.",
+      "documented_under": "PAPER.md Def 3.16 / §3.2.2 Path tests"
+    },
+    "Icones.mcones.path.isMCone": {
+      "group": "anonymous-hb-instance",
+      "gate_effect": "inert",
+      "reason": "Qualified name of an anonymous HB instance; it cannot resolve.",
+      "evidence": "isMCone is declared only in Icones.mcones.mcone. fmeas.v and path.v register `HB.instance Definition _ := @isMCone.Build ...`, which has no name. The auditor's treatment ('the isMCone instance' in prose plus the actual snippet) is the correct one.",
+      "documented_under": "PAPER.md Def 3.16 / §3.2.2 Path tests"
+    },
+    "Icones.programs.infra.em_fix.Phi_fun_omega_cont": {
+      "group": "removed-code",
+      "gate_effect": "chapter-09-only",
+      "reason": "Removed from the sources together with the degenerate zero-seeded operator they supported; the removal itself is documented, so re-citing them would resurrect a construction the degeneracy theorem retired.",
+      "evidence": "None of these resolves in theories/ today. docs/PPL.md's 'The naive linear Kleene step' entry closes with a blockquote naming this exact family as removed with the operator; the surviving record is `Phi_fun_zero` plus the generic `lfp_eq0`.",
+      "documented_under": "PPL.md — The naive linear Kleene step"
+    },
+    "Icones.programs.infra.em_fix.kleene_lin_ball": {
+      "group": "removed-code",
+      "gate_effect": "chapter-09-only",
+      "reason": "Removed from the sources together with the degenerate zero-seeded operator they supported; the removal itself is documented, so re-citing them would resurrect a construction the degeneracy theorem retired.",
+      "evidence": "None of these resolves in theories/ today. docs/PPL.md's 'The naive linear Kleene step' entry closes with a blockquote naming this exact family as removed with the operator; the surviving record is `Phi_fun_zero` plus the generic `lfp_eq0`.",
+      "documented_under": "PPL.md — The naive linear Kleene step"
+    },
+    "Icones.programs.infra.em_fix.kleene_lin_chain": {
+      "group": "removed-code",
+      "gate_effect": "chapter-09-only",
+      "reason": "Removed from the sources together with the degenerate zero-seeded operator they supported; the removal itself is documented, so re-citing them would resurrect a construction the degeneracy theorem retired.",
+      "evidence": "None of these resolves in theories/ today. docs/PPL.md's 'The naive linear Kleene step' entry closes with a blockquote naming this exact family as removed with the operator; the surviving record is `Phi_fun_zero` plus the generic `lfp_eq0`.",
+      "documented_under": "PPL.md — The naive linear Kleene step"
+    },
+    "Icones.programs.infra.em_fix.linhom_lfp_norm_le1": {
+      "group": "removed-code",
+      "gate_effect": "chapter-09-only",
+      "reason": "Removed from the sources together with the degenerate zero-seeded operator they supported; the removal itself is documented, so re-citing them would resurrect a construction the degeneracy theorem retired.",
+      "evidence": "None of these resolves in theories/ today. docs/PPL.md's 'The naive linear Kleene step' entry closes with a blockquote naming this exact family as removed with the operator; the surviving record is `Phi_fun_zero` plus the generic `lfp_eq0`.",
+      "documented_under": "PPL.md — The naive linear Kleene step"
+    },
+    "Icones.programs.infra.em_fix.linhom_post_icones_sup": {
+      "group": "removed-code",
+      "gate_effect": "chapter-09-only",
+      "reason": "Removed from the sources together with the degenerate zero-seeded operator they supported; the removal itself is documented, so re-citing them would resurrect a construction the degeneracy theorem retired.",
+      "evidence": "None of these resolves in theories/ today. docs/PPL.md's 'The naive linear Kleene step' entry closes with a blockquote naming this exact family as removed with the operator; the surviving record is `Phi_fun_zero` plus the generic `lfp_eq0`.",
+      "documented_under": "PPL.md — The naive linear Kleene step"
+    },
+    "Icones.programs.infra.em_fix.linhom_pre_icones_sup": {
+      "group": "removed-code",
+      "gate_effect": "chapter-09-only",
+      "reason": "Removed from the sources together with the degenerate zero-seeded operator they supported; the removal itself is documented, so re-citing them would resurrect a construction the degeneracy theorem retired.",
+      "evidence": "None of these resolves in theories/ today. docs/PPL.md's 'The naive linear Kleene step' entry closes with a blockquote naming this exact family as removed with the operator; the surviving record is `Phi_fun_zero` plus the generic `lfp_eq0`.",
+      "documented_under": "PPL.md — The naive linear Kleene step"
+    },
+    "Icones.programs.infra.em_fix.tensor_mor_omega_cont_R": {
+      "group": "removed-code",
+      "gate_effect": "chapter-09-only",
+      "reason": "Removed from the sources together with the degenerate zero-seeded operator they supported; the removal itself is documented, so re-citing them would resurrect a construction the degeneracy theorem retired.",
+      "evidence": "None of these resolves in theories/ today. docs/PPL.md's 'The naive linear Kleene step' entry closes with a blockquote naming this exact family as removed with the operator; the surviving record is `Phi_fun_zero` plus the generic `lfp_eq0`.",
+      "documented_under": "PPL.md — The naive linear Kleene step"
+    }
+  }
+}

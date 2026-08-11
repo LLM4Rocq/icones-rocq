@@ -318,9 +318,13 @@ def test_full_document_smoke():
     n_entries = sum(len(s.entries) for s in doc.sections) + sum(
         len(b.entries) for b in doc.beyond
     )
-    # Expected ballpark: ~80 entries.
-    # Expected ~66 entries after AUDITOR.md → PAPER.md split (~80 legacy).
-    assert 60 <= n_entries <= 120, f"got {n_entries}"
+    # Expected ballpark, in the order the document grew:
+    #   ~80 legacy AUDITOR.md → ~66 after the AUDITOR.md → PAPER.md split
+    #   → ~142 after the blueprint-parity migration (2026-08) added the
+    #     per-layer § 5.1 / §7.x cards and the § 6 / § 9 / Beyond detail
+    #     blocks.  This is a smoke bound, not a target: it only has to fail
+    #     if the chapter structure collapses or the file doubles by accident.
+    assert 60 <= n_entries <= 220, f"got {n_entries}"
     # Regression anchor is present.
     assert any(
         "regression-anchor" in e.status for s in doc.sections for e in s.entries

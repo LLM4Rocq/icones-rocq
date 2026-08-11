@@ -10,10 +10,17 @@ at the diverging function value, computed pointwise through a
 `der`/`prom` sandwich. The language is direct-style
 (Plotkin / Girard) and named-variable (Saito–Affeldt APLAS 2023), and
 probabilistic effects live entirely in the interpretation: there is
-no `tprob` type marker, no syntactic `return`, no `bind`. A
-call-by-name interpretation of the same surface syntax (through the
-cartesian closed `SCones` of paper §7) is preserved on the
-`cbn-track` branch; main is CBV-only.
+no `tprob` type marker, no syntactic `return`, no `bind`.
+Call-by-value is where the *Eilenberg–Moore* route to the exponential
+leads, exactly as the *co-Kleisli* route leads to call-by-name
+(Melliès, *Categorical Semantics of Linear Logic* §7.4); the
+call-by-name reading of the same surface syntax — through the
+cartesian closed `SCones` of paper §7, which is that co-Kleisli side —
+is preserved on the `cbn-track` branch, and main is CBV-only. The
+choice of side is the reason this layer exists: a probabilistic
+call-by-value language is named in the paper's own abstract as the
+thing an integration theory for cones is *for*, and is left there as
+future work.
 
 The paper-side correspondence (§§ 2–9 ↔ Rocq) lives on the
 [Paper tab](../paper/), and the example programs with their mass,
@@ -1230,6 +1237,26 @@ codomain of `tfun`: function *values* are linear maps
 $U\llbracket t_1 \rrbracket \multimap U\llbracket t_2 \rrbracket$, and duplicability comes from the outer cofree `!̃`
 only.
 
+Why *this* interpretation, and why it is a chapter of its own. The
+paper's model is a Seely category — the linear-logic exponential `!`
+of paper §9 — and a Seely category admits two standard routes from
+linear morphisms to a language semantics: the **co-Kleisli** category
+of `!`, which gives **call-by-name**, and the **Eilenberg–Moore**
+category of `!`-coalgebras, which gives **call-by-value**
+(Melliès, *Categorical Semantics of Linear Logic*, §7.4). The
+co-Kleisli side is the paper's own §7: the cartesian closed `SCones`
+of stable maps, documented on the [Paper tab](../paper/), and it is
+the side the `cbn-track` branch interprets. This chapter takes the
+other one. That is what makes every type here denote a
+`!`-coalgebra rather than a plain cone, why the context comonoid
+$(\delta, \varepsilon) = ($`coalg_d`, `coalg_e`$)$ is the primitive every clause
+branches on, and why recursion needs a *value* fixpoint in $EM(!)$
+rather than the `SCones` operator `Yfix` (which nevertheless supplies
+its analytic core — see the recursion chapter). Neither call-by-value
+nor call-by-push-value is carried out in the paper itself; the paper
+names them, in its abstract, as the languages its integration theory
+is built to reach.
+
 The chapter is ordered as the construction is built. It opens with
 the semantic target — the EM cartesian toolbox every clause branches
 on — then gives the type and context translations, the interpreter
@@ -1251,6 +1278,28 @@ semantic-laws chapter.
 | The value-dependent Bernoulli lift | The semantics of `ne_bernoulli_f`: a measure $\mu$ on the reals is sent to the 2-point sub-probability $(\int f \, d\mu, \int (1 - f) \, d\mu)$. | `bern_lift`, `bern_lift_mass`, `bern_lift_P` — theories/programs/ppl.v |
 | If-then-else at the icones level | The CBV value-level conditional: two branches and a scrutinee into the 2-point cone, co-paired and evaluated with no Kleisli wrapping at any step. | `if_icones`, `if_under` — theories/programs/ppl_cbv.v (Section IfICones) |
 | The definitional-unfolding pack | One `by []` lemma per interpreter clause, pinning the exact clause body so a refactor breaks loudly in a named lemma instead of silently changing the semantics. | `eD_var_E`, `eD_let_E`, `eD_fix_mr_prod_E` — theories/programs/ppl_cbv.v (Section EDUnfold) |
+
+> **Paper — Abstract** (arXiv 2212.02371 / LMCS **21**(1:1) 2025).
+> Measurable cones, with linear and measurable functions as morphisms,
+> are a model of intuitionistic linear logic and of call-by-name
+> probabilistic PCF which accommodates 'continuous data types' such as
+> the real line. So far however, they lacked a major feature to make
+> them a model of more general probabilistic programming languages
+> (notably call-by-value and call-by-push-value languages): a theory of
+> integration for functions whose codomain is a cone, which is the key
+> ingredient for interpreting the sampling programming primitives.
+
+> **Difference.** The paper stops at the model: it builds the
+> integration theory and the two exponentials, and leaves the
+> call-by-value / call-by-push-value languages its abstract names as
+> future work. This chapter takes the Eilenberg–Moore step and
+> interprets a call-by-value language, on top of the axiom-free Seely
+> category of paper §9 — so nothing here is filed as a paper-§ result,
+> and the whole chapter is *beyond the paper* in the sense the
+> [Paper tab](../paper/)'s "Beyond the paper" chapter uses. There is no
+> call-by-push-value layer: no adjunction splitting values from
+> computations is formalised, and no Moggi metalanguage — both are
+> recorded in this document's "What is **not** formalised" chapter.
 
 ### The semantic target: EM cartesian structure (`coalg_d`, `coalg_e`, `em_pair_mor`, `em_proj1_mor`, `em_proj2_mor`, `em_term_mor`)
 
@@ -1848,8 +1897,10 @@ iteration `linhom_lfp (Phi_fun diag M) …` — the construction that used to be
 `em_fix.v`'s CBV value-fixpoint operator — equals the zero linhom. The
 structural reason: the Kleene step `Phi_fun` is *linear* in the previous
 iterate, so it maps the linhom cone-zero seed to the cone-zero (`Phi_fun_zero`
-— the $\text{id}_\Gamma \otimes 0$ tensor vanishes by bilinearity, then post-composition by the
-linear `M` preserves zero); by induction every Kleene iterate is zero
+— the $\text{id}_\Gamma \otimes 0$ tensor vanishes by bilinearity, which
+is `tensor_mor_R_lin_zero`, the pure-tensor map being linear in its
+right argument; then post-composition by the linear `M` preserves zero);
+by induction every Kleene iterate is zero
 (`kleene_lin_Phi_fun_eq0`), and so is the supremum.
 
 The collapse itself is generic — any Kleene step that preserves the zero seed
@@ -1865,6 +1916,12 @@ Lemma lfp_eq0 : f 0 = 0 -> lfp = (0 : B).
 
 ```coq
 (* theories/programs/infra/em_fix_value.v (Section CbvFixDegeneracy) *)
+(** STEP A: [id_Γ ⊗ 0 = 0] at the linhom level. *)
+Lemma tensor_mor_R_lin_zero :
+  tensor_mor_R_lin Gamma
+    (linhom_icones (precone_zero : linhom_car Ar Gamma B) (zero_ball _ _)) =
+  precone_zero.
+
 (** STEP B: the Kleene step kills zero. *)
 Lemma Phi_fun_zero : Phi_fun diag M precone_zero = precone_zero.
 
@@ -1912,6 +1969,42 @@ Definition Phi_fun_safe
     (linhom_pre_act diag
       (tensor_mor_R_lin Gamma
         (linhom_icones prev Hprev))).
+```
+
+`Phi_fun` itself is the `pselect`-totalised wrapper of `Phi_fun_safe`,
+returning `precone_zero` off the ball; `Phi_fun_unit` is the agreement
+law, saying that on the unit ball — where the whole Kleene chain lives
+— the totalised operator *is* the safe one, for any norm witness. The
+monotonicity law `Phi_fun_incr` then transports a precone-order
+inequality $\text{prev}_1 \leq \text{prev}_2$ through the three linear layers; the
+layer that actually carries the approximant is the tensor, whose
+monotonicity witness is `tensor_mor_R_lin_incr`, and the generic fact
+underneath every layer is `linear_increasing` of
+`theories/cones/basic_lemmas.v`: a linear map of cones is increasing
+for the cone order, because $x \leq y$ means $y = x + z$ and linearity turns
+that into $f\,y = f\,x + f\,z$.
+
+```coq
+(* theories/programs/infra/em_fix.v *)
+(** On the unit ball the totalised operator is the safe one. *)
+Lemma Phi_fun_unit (prev : linhom_car Ar Gamma B)
+    (Hprev : cone_norm prev <= 1) :
+  Phi_fun prev = Phi_fun_safe prev Hprev.
+
+(** The tensor layer is monotone in the carried approximant. *)
+Lemma tensor_mor_R_lin_incr (G C1 C2 : ICone.type Ar)
+    (prev1 prev2 : linhom_car Ar C1 C2)
+    (Hprev1 : cone_norm prev1 <= 1) (Hprev2 : cone_norm prev2 <= 1) :
+  precone_le prev1 prev2 ->
+  precone_le (tensor_mor_R_lin G (linhom_icones prev1 Hprev1))
+             (tensor_mor_R_lin G (linhom_icones prev2 Hprev2)).
+```
+
+```coq
+(* theories/cones/basic_lemmas.v *)
+(** A linear map is increasing: if [y = x + z] then [f y = f x + f z]. *)
+Lemma linear_increasing (f : P -> Q) :
+  is_linear f -> is_increasing f.
 ```
 
 The construction, the ball bound and the fixpoint equation are all true — and
@@ -2042,8 +2135,10 @@ a body $F : LL$ is $x_0 = 0 : A$, $x_{n+1} = \mathrm{der}(F (x_n !))$: each iter
 *re-promoted* before it re-enters the body and *dereferenced* after — so the
 body always sees a legitimate (promoted) function value, and the chain lives in
 `A` where the genuine bottom is `0`. Monotonicity needs no linearity of the
-assignment $F \mapsto x_n$: `prom` is totally monotone (it is the underlying map of
-the stable `nl`), and `F` and `der` are linear (`fix_step_incr`).
+assignment $F \mapsto x_n$: `prom` is totally monotone on the unit ball
+(`prom_incr`: it is the underlying map of the stable `nl`, so its total
+monotonicity is read off `sc_meas_stable`), and `F` and `der` are linear
+(`fix_step_incr`).
 
 ```coq
 (* theories/programs/infra/em_fix_value.v (Section FixCombinator) *)
@@ -2066,6 +2161,44 @@ combinator `Yfix` of `theories/stable/fixpoint.v` — whose value at a unit-ball
 `f` is identified with the plain Kleene supremum $\sup_n f^n(0)$ by
 `Yfix_kleeneE`. The chain's own unit-ball and chain conditions are
 `fix_chain_ball` and `fix_chain_chain`.
+
+The two named pieces of that composite are worth having by name,
+because they are where the chain's step actually lives.
+`fix_lts_fun` is the underlying function of the `SCones` morphism
+`fix_lts`: it lifts the post-action $F \mapsto \mathrm{der} \circ F$ to a stable map
+through `linhom_to_stablehom`. `fix_step` is the composite that
+evaluates it against the `nl`-promoted argument —
+$\mathrm{Ev} \circ \langle \text{fix\_lts} \circ \pi_1,\ \text{nl} \circ \pi_2 \rangle$ — and `fix_body` is its CCC
+currying. `fix_step_E` is the payoff — on
+unit-ball points the curried-and-evaluated composite computes to
+exactly one step of the interleaved chain, $(F, x) \mapsto \mathrm{der}(F(x!))$, so
+nothing about the `SCones` detour survives into the chain's equations.
+
+```coq
+(* theories/programs/infra/em_fix_value.v (Section FixCombinator) *)
+(** [fix_lts : LL → (!A ⇒ₛ A)], as a plain function. *)
+Definition fix_lts_fun (F : LL) : stablehom BA A :=
+  linhom_to_stablehom (linhom_post (der A) F).
+
+(** [fix_step : LL × A → A], the SCones composite. *)
+Definition fix_step : scones_hom (sprod LL A) A :=
+  scones_comp (Ev BA A)
+    (scpair (scones_comp fix_lts pF) (scones_comp (nl A) px)).
+
+(** Pointwise computation of the step on the ball. *)
+Lemma fix_step_E (F : LL) (x : A) :
+  cone_norm F <= 1 -> cone_norm x <= 1 ->
+  sc_fun fix_step (sprod_pair F x) =
+  Lfun (der A) (linhom_fun F (prom x)).
+```
+
+```coq
+(* theories/programs/infra/em_fix_value.v *)
+(** Promotion is monotone on the unit ball ([nl] is totally monotone). *)
+Lemma prom_incr (x y : A) :
+  precone_le x y -> cone_norm y <= 1 ->
+  precone_le (prom x) (prom y).
+```
 
 ```coq
 (* theories/programs/infra/em_fix_value.v *)
@@ -2177,10 +2310,17 @@ scalar) — the
 direct contrast with `Phi_fun_lfp_eq0`. The simplest honest instance is the
 identity body `fix_idF`: its interleaved chain is constantly `0` (since
 $\mathrm{der}(0!) = 0$), so `fix_comb` $(id!) = 0!$ — the *diverging value*, which is
-provably nonzero.
+provably nonzero. The general fact the entry rests on is `prom_neq0`: *no*
+promoted unit-ball point is the cone-zero, because `e_bang` sends it to `one1`
+(`e_bang_prom`) while it sends the zero to the zero scalar.
+`fix_prom_neq0` is that lemma applied to the combinator's own output.
 
 ```coq
 (* theories/programs/infra/em_fix_value.v *)
+(** A promoted unit-ball point is never the cone-zero of [!A]. *)
+Lemma prom_neq0 (x : A) :
+  cone_norm x <= 1 -> prom x <> (precone_zero : Bang Ar A).
+
 Lemma fix_prom_neq0 (F : LL) (HF : cone_norm F <= 1) :
   Lfun (ch_mor fix_comb) (prom F) <> precone_zero.
 
@@ -2717,9 +2857,25 @@ at the true- and false-weights $\text{bc}_t$, $\text{bc}_f$ of a point of
 the 2-point boolean cone (`bool_coalg_d_E` — the independent-product reading would
 produce cross terms instead), and the `FMeas` diagonal sends a Dirac to
 its diagonal tensor (`coalg_d_FMeas_dirac`).
+The two basis corollaries `bool_coalg_d_true` and `bool_coalg_d_false`
+are the diagonal read at $\delta_T$ and $\delta_F$ themselves — $d(\delta_T) = \delta_T \otimes \delta_T$ and
+$d(\delta_F) = \delta_F \otimes \delta_F$ — which is what every branch-level computation of
+the chapter actually rewrites with; both follow from `coalg_d_setlike`
+at the basis points, since `bool_coalg_str` sends each of them to its
+own promotion.
 
 ```coq
 (* theories/programs/infra/cbv_anchors.v (Section AnchorKit) *)
+(** Basis corollary: [d(δ_T) = δ_T ⊗ δ_T]. *)
+Lemma bool_coalg_d_true :
+  Lfun (coalg_d (@bool_cone_coalg R Ar)) bool_dirac_true =
+  bool_dirac_true ⊗p bool_dirac_true.
+
+(** Basis corollary: [d(δ_F) = δ_F ⊗ δ_F]. *)
+Lemma bool_coalg_d_false :
+  Lfun (coalg_d (@bool_cone_coalg R Ar)) bool_dirac_false =
+  bool_dirac_false ⊗p bool_dirac_false.
+
 (** The full diagonal:
     [d(x) = bc_t x · (δ_T ⊗ δ_T) + bc_f x · (δ_F ⊗ δ_F)]. *)
 Lemma bool_coalg_d_E (x : bool_cone_car Ar) :
@@ -3286,6 +3442,10 @@ The 2-point cone carries a hand-rolled `!`-coalgebra structure
 9.7](../../paper/entries/thm-9-7.html)'s `FMeas_coalgebra`: the §9.7
 integral $\text{Coalg}_X(\mu) = \int \text{prom}(\delta_x) \, d\mu(x)$ degenerates on the two-point
 carrier to the finite sum $p \cdot \delta_T + q \cdot \delta_F \mapsto p \cdot \text{prom}(\delta_T) + q \cdot \text{prom}(\delta_F)$.
+Both branches are legitimate co-pairing data because a promoted
+unit-ball point is itself unit-ball — `prom_ball`
+(`theories/exp/bang.v`), the ball law of the `!`-promotion, which the
+two Dirac branches instantiate.
 (Here `prom` $x = x!$ promotes a point into `!`, `der : !B ⊸ B` is the
 `!`-comonad's dereliction and `dig : !B ⊸ !!B` its comultiplication.)
 
@@ -3302,6 +3462,10 @@ Definition bool_coalg_str : icones_hom Ar T (Bang Ar T) :=
 Lemma bool_coalg_str_true :
   Lfun bool_coalg_str bool_dirac_true = prom (bool_dirac_true : T).
 
+(** On the false basis: [bool_coalg_str(δ_F) = prom(δ_F)]. *)
+Lemma bool_coalg_str_false :
+  Lfun bool_coalg_str bool_dirac_false = prom (bool_dirac_false : T).
+
 (** Universal-property dispatch: an [icones_hom] out of [T] is
     determined by its two basis values. *)
 Lemma bool_cone_dispatch (B : ICone.type Ar)
@@ -3313,6 +3477,22 @@ Lemma bool_cone_dispatch (B : ICone.type Ar)
 (** Package as a [Coalgebra Ar]. *)
 Definition bool_cone_coalg : Coalgebra Ar :=
   MkCoalgebra bool_coalg_counit bool_coalg_coassoc.
+
+(** Pointwise expansion: [x = bool_case x δ_T δ_F] for every [x]. *)
+Lemma bool_cone_basis_expand (x : T) :
+  x = bool_case x bool_dirac_true bool_dirac_false.
+
+(** Sanity pins: the packaged coalgebra is the expected pair. *)
+Lemma bool_cone_coalg_obj : coalg_obj bool_cone_coalg = T.
+
+Lemma bool_cone_coalg_str_E : coalg_str bool_cone_coalg = bool_coalg_str.
+```
+
+```coq
+(* theories/exp/bang.v *)
+(** For [‖x‖ ≤ 1], the promoted point [x!] is in the unit ball of [!B]. *)
+Lemma prom_ball (B : ICone.type Ar) (x : B) :
+  cone_norm x <= 1 -> cone_norm (prom x) <= 1.
 ```
 
 This is the structure that makes `tyD_cbv tbool` give *shared-sample*
@@ -3325,7 +3505,15 @@ independently re-sampled — the four-point product the cofree
 to the comonad identities `der` $\circ$ `prom` $=$ `id` and `dig` $\circ$ `prom` $=$ `prom` $\circ$
 `prom`, dispatched by the universal-property extensionality lemma
 `bool_cone_dispatch` (any two linear morphisms out of the 2-point cone
-agreeing on `δ_T` and `δ_F` are equal).
+agreeing on `δ_T` and `δ_F` are equal) — and `bool_cone_dispatch` is
+itself true because of `bool_cone_basis_expand`, the pointwise identity
+$x = \text{bool\_case}\,x\,\delta_T\,\delta_F$: every point of the 2-point cone *is* the
+co-pairing of the two basis points weighted by its own coordinates, so
+linearity carries agreement on the basis to agreement everywhere. Two
+`by []` sanity pins record what the packaged `Coalgebra` actually is —
+`bool_cone_coalg_obj` (its carrier is `bool_cone_car Ar`) and
+`bool_cone_coalg_str_E` (its structure map is `bool_coalg_str`) — so a
+refactor of the packaging breaks in a named lemma.
 
 > Theorem 9.7 builds the coalgebra on `FMeas X` for a measurable space
 > `X`; the boolean type has no `measurableType` backing in this
@@ -3368,9 +3556,26 @@ through `coalg_str` only on the promoted-point (setlike) shape. The
 categorical statement would buy uniform-fixpoint-operator
 cleanliness, not any program-level fact.
 
+One entry of the table below is a *scope* statement rather than a
+deferral, and reads wrongly as a hole if it is not said out loud:
+$EM(!)$ is not cartesian closed, and is not expected to be. That is a
+structural fact about Eilenberg–Moore categories of a linear-exponential
+comonad, not a diagram chase left undone. What $EM(!)$ *is* — cartesian,
+unconditionally (`EMComon_all`), with the linear side reached by the
+monoidal adjunction `ICones_CBV` — is exactly what the linhom-valued
+reading of this chapter consumes: a program denotes a linear morphism
+between the *carriers*, so the function type never has to be an
+exponential *in* $EM(!)$. Cartesian closure lives on the other side of
+Melliès §7.4, in the co-Kleisli category — the `SCones` of paper §7,
+whose `SCones_CCC` record is on the [Paper tab](../paper/).
+
 | Item | What it is | Why not yet |
 |---|---|---|
 | External semantic equivalence | A correspondence with another formalised semantics or a real PPL implementation (ProbProg / Pyro / Stan). | The correctness statements in this development are denotational identities at the categorical level. |
+| Cartesian *closure* of $EM(!)$ | An exponential object $Q^P$ inside the Eilenberg–Moore category, making $(EM(!), \otimes, 1)$ a CCC the way `SCones` is one. | Not a gap: $EM(!)$ of a linear-exponential comonad is cartesian (`EMComon_all`, `EM_Cartesian` — theories/cbv/em_cartesian.v) but is not cartesian closed and is not expected to be. The linhom-valued interpretation needs only the cartesian structure plus the SMCC of `ICone`; cartesian closure is the co-Kleisli side's property (`SCones_CCC` — theories/stable/scones_ccc.v). |
+| Adequacy, normalization, full abstraction | The operational metatheory: an operational semantics for `named_expr`, a soundness/adequacy pair against `eD`, and a full-abstraction result. | These need an operational semantics and a definability argument, neither of which a denotational model supplies; nothing in this development is stated operationally. |
+| Coproducts beyond the boolean case | A general sum type $t_1 + t_2$ with injections and case analysis, of which `tbool` would be the two-point instance. | The cones model has no general coproduct; what exists is the concrete 2-point cone `bool_cone_car` (theories/icones/bool_cone.v) with its hand-built coalgebra and universal co-pairing `bool_case`, which is enough for branching but does not generalise to arbitrary summands. |
+| A Moggi metalanguage | An explicit value/computation split — a computation type constructor $T\tau$ with `return`/`bind`, in the style of the computational metalanguage or of call-by-push-value. | Orthogonal to the framing adopted here: `eD` is linhom-valued and comonoid-primitive, there is no `Tobj` wrapper on the codomain of `tfun`, and no monad appears anywhere in the interpretation. A metalanguage layer would be a second interpretation, not a refinement of this one. |
 
 ## How to verify
 

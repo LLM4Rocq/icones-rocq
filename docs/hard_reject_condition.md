@@ -188,5 +188,5 @@ Build a clean end state; remove legacy.
 
 **End state:** one `reject`, one `condition`, one master theorem, `a → b`, no
 `ne_test`/`Test`, no legacy. Whole project builds; no admits; axiom budget = the
-3 `boolp` classical axioms; auditor `--strict`, the auditor tests, and the
-blueprint PDF all green.
+3 `boolp` classical axioms; auditor `--strict` and the auditor tests all
+green.

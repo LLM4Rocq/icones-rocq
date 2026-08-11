@@ -1,6 +1,38 @@
 #!/usr/bin/env python3
 """Blueprint-to-docs citation parity baseline.
 
+HISTORICAL — THE BLUEPRINT IS GONE
+==================================
+``blueprint/`` was DELETED on this branch (2026-08) after the gate below
+passed; its pre-removal state stays checkoutable at the ``blueprint-final``
+tag (``git checkout blueprint-final -- blueprint/``).  That tag is annotated,
+points at commit ``dfa56be``, and **is pushed to ``origin``** — the recovery
+path therefore works from a fresh clone, and survives even a squash-merge of
+this branch, which would otherwise drop the last commit that still contained
+``blueprint/``.
+
+This script and its three JSON companions are retained as the durable record
+of the gate that authorised the deletion:
+
+    blueprint_parity_baseline.json   PRE-migration snapshot, taken before any
+                                     module rename or file move: gate_pass
+                                     false, 333 blockers, empty allowlist.
+    blueprint_parity_allowlist.json  the citations deliberately not mirrored
+                                     in the docs, each with a group, a reason
+                                     and its evidence.
+    blueprint_parity_final.json      POST-migration run: gate_pass true, 0
+                                     blockers — the measurement that
+                                     authorised the deletion.  It carries an
+                                     extra ``reproduction`` block (the only
+                                     hand-added key) recording the tag, the
+                                     command, and the sha256 of the three
+                                     target docs as measured.
+
+Run against the current tree this script finds no ``blueprint/src/chapters/``
+and reports nothing; to reproduce the measurement, restore the tree from the
+tag first.  The prose below is kept in the present tense as it read at the
+time of the gate.
+
 WHY THIS EXISTS
 ===============
 ``blueprint/`` is FROZEN as of 2026-08 (see the banner at the top of
@@ -21,7 +53,9 @@ USAGE
     python3 tools/blueprint_parity.py -o tools/blueprint_parity_baseline.json
     python3 tools/blueprint_parity.py --summary          # human-readable table
     python3 tools/blueprint_parity.py --gate             # exit 1 if the gate fails
-    python3 tools/blueprint_parity.py --allowlist FILE   # newline-separated names
+    python3 tools/blueprint_parity.py \
+        --allowlist tools/blueprint_parity_allowlist.json   # JSON, with reasons
+    python3 tools/blueprint_parity.py --allowlist FILE.txt  # or newline-separated
 
 THE DELETION GATE
 =================
@@ -34,8 +68,11 @@ Chapters 01-08 are the paper chapters and their target document is
 material; its targets are ``docs/PPL.md`` + ``docs/EXAMPLES.md``, and it is
 reported but is NOT part of the gate (``--gate`` ignores it), because the
 PPL layer is documented top-down rather than citation-by-citation.  An
-allowlist file (one name per line, ``#`` comments allowed) records the
-citations that are deliberately not mirrored in the docs.
+allowlist file records the citations that are deliberately not mirrored in
+the docs.  The checked-in one is
+``tools/blueprint_parity_allowlist.json``, whose ``"allow"`` object maps each
+name to its group, reason and evidence; a plain text file (one name per line,
+``#`` comments allowed) is also accepted.
 
 WHAT IT DOES
 ============
@@ -327,10 +364,25 @@ def code_identifiers(md: str) -> set[str]:
 
 
 def load_allowlist(path: Path | None) -> set[str]:
+    """Read an allowlist of fully-qualified blueprint citations.
+
+    Two formats are accepted.  A ``.json`` file is the documented one — it
+    carries a per-name justification, so a reader can tell a deliberate
+    omission from an oversight; the names are the keys of its ``"allow"``
+    object (``tools/blueprint_parity_allowlist.json``).  Anything else is read
+    as plain text, one name per line, ``#`` starting a comment.
+    """
     if path is None:
         return set()
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".json":
+        data = json.loads(text)
+        allow = data.get("allow", data)
+        if isinstance(allow, dict):
+            return set(allow)
+        return set(allow)
     out = set()
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         line = line.split("#", 1)[0].strip()
         if line:
             out.add(line)

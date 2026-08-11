@@ -79,8 +79,9 @@ themselves.
 ## Basic sampling and scoring
 
 Three end-to-end probabilistic programs of
-`theories/programs/examples.v` without recursion: two random-function
-programs and a one-parameter score program. The calculus
+`theories/programs/examples.v` without recursion — two random-function
+programs and a one-parameter score program — plus the four boolean
+sanity checks that exercise the branching path. The calculus
 shape mirrors the higher-order probabilistic calculus of
 Heunen–Kammar–Staton–Yang (*A Convenient Category for Higher-Order
 Probability Theory*); the semantics here is the integrable-cones model,
@@ -88,8 +89,8 @@ not quasi-Borel spaces. One of the three is also the raw material of the
 next chapter: `ex_random_linear` is reused verbatim as the model of the
 Bayesian linear regression `ex_bayes_linear`.
 
-Each program ships a closed-form CBV identity tying its denotation to
-the corresponding distribution, proved in
+Each of the three ships a closed-form CBV identity tying its denotation
+to the corresponding distribution, proved in
 `theories/programs/cbv_marginals.v`. Every proof follows the same
 route: the let-at-sample integral law `eD_let_sample_int`
 (`theories/programs/infra/let_sample_law.v`) turns each
@@ -102,6 +103,7 @@ integral, and the integrand computes pointwise down to a Dirac integral.
 | ex_random_constant: a random constant function | Sample a constant $c \sim \mu$, return $\lambda x. c$; derelicting the function value and evaluating it at any probability test point recovers the prior $\mu$. | `ex_random_constant`, `ex_random_constant_cbv_marginal` — theories/programs/examples.v; theories/programs/cbv_marginals.v |
 | ex_random_linear: a random affine function | Sample slope and intercept from $\mu$, return $\lambda x. m \cdot x + b$; at a Dirac test point the marginal is the iterated integral $\int\int \delta_{m \cdot r_0 + b}(U)\,d\mu(b)\,d\mu(m)$. | `ex_random_linear`, `ex_random_linear_cbv_marginal`, `rl_inner_marginal` — theories/programs/examples.v; theories/programs/cbv_marginals.v |
 | ex_score_posterior: score reweights the prior | Sample a parameter, score it by a bundled test function, return it; the denotation's measure of every measurable `U` is $\int_U f\,d\mu$, with total mass the evidence $\int f\,d\mu$. | `ex_score_posterior`, `ex_score_posterior_cbv_E`, `ex_score_posterior_cbv_mass` — theories/programs/examples.v; theories/programs/cbv_marginals.v |
+| The boolean sanity programs | The four closed `tbool` programs that exercise the branching path end to end: the two literals `True` / `False`, the constant fair coin, and the `if`-dispatch over it. | `ex_true`, `ex_false`, `ex_fair_coin`, `ex_if_demo` — theories/programs/examples.v |
 
 ### ex_random_constant: a random constant function (`ex_random_constant`, `ex_random_constant_cbv_marginal`, `ex_random_constant_cbv_marginal_dirac`, `ex_random_constant_cbv_marginal_mass`)
 
@@ -329,6 +331,53 @@ and the integral collapses to $\int_U f\,d\mu$.
 > a scored program is a sub-probability whose mass is the evidence, and
 > normalisation only ever appears as a theorem relating two programs.
 
+### The boolean sanity programs (`ex_true`, `ex_false`, `ex_fair_coin`, `ex_if_demo`)
+
+Four closed programs of type `tbool`, the smallest ones in the file.
+`ex_true` and `ex_false` are the two literals; `ex_fair_coin` is the
+constant coin `Bernoulli [| (1/2 : R) |]` written with a bare real
+literal, its $[0,1]$ bounds discharged on the spot by `lra` rather than
+carried by a bundled `prob` value; and `ex_if_demo` puts that coin in
+scrutinee position. Their job is to exercise the branching path of the
+interpreter — the `if_icones` dispatch of the
+[PPL tab](../ppl/)'s call-by-value chapter, and through it the 2-point
+cone `bool_cone_car` and its `!`-coalgebra `bool_cone_coalg` — on terms
+small enough that a failure localises immediately.
+
+```coq
+(* theories/programs/examples.v — Section ExBoolDemo *)
+Definition ex_true : @named_expr R Ar (po_robj P) nil tbool := [ True ].
+
+Definition ex_false : @named_expr R Ar (po_robj P) nil tbool := [ False ].
+
+Definition ex_fair_coin : @named_expr R Ar (po_robj P) nil tbool :=
+  [ Bernoulli [| (1 / 2 : R) |] ].
+```
+
+```coq
+(* theories/programs/examples.v — Section ExIfDemo *)
+Definition ex_if_demo :
+    @named_expr R Ar (po_robj P) nil tbool :=
+  [ if Bernoulli [| (1 / 2 : R) |]
+    then True else False ].
+```
+
+Each has a recorded CBV denotation — `ex_true_cbv`, `ex_false_cbv`,
+`ex_fair_coin_cbv`, `ex_if_demo_cbv` — so that elaboration of the
+surface notation and type-checking of the `eD` application are both
+regression-tested, in the same style as `ex_loop_cbv` in the recursion
+chapter.
+
+> These four carry no mass or marginal identity, and that is the point:
+> they are type-checking and elaboration checks, not semantic results.
+> The semantic content of boolean branching is stated once, generically,
+> on the [PPL tab](../ppl/) — `if_icones_at` for the dispatch,
+> `let_bernoulli_pair_diag` for the shared-sample reading of a
+> duplicated draw — rather than re-proved per program. `ex_if_demo` is
+> the only place in the example roster where a coin appears in
+> scrutinee position with no surrounding `let`, which is why it exists
+> separately from `ex_fair_coin`.
+
 ## Runtime-parameter distributions
 
 A distribution whose parameters are real literals can be bundled ahead of
@@ -440,11 +489,36 @@ Theorem ex_bayes_linear_cbv_evidence2 (o1 o2 : obs R) :
           obs_d o2 (cR m * obs_x o2 + cR b))%R)%:E))%:E).
 ```
 
-Proof idea: the per-`(m,b)` weights factor out of the fold one observation at
-a time — `obs_fold_at` says the fold at the depth-`n` environment is the
-promoted closure scaled by $\prod_{o \in l}$ `obs_d` $o (m \cdot x_o + b)$ — and then two
-applications of the let-at-sample law `eD_let_sample_int` integrate those
-weights against the priors on slope and intercept, in that order.
+Proof idea, in two halves. Inside the fold, the per-$(m,b)$ weights
+factor out one observation at a time: `obs_score_E` computes a single
+scored observation — the shared closure is evaluated at the Dirac
+argument $\delta_{x_o}$, so the whole score node collapses to the scalar
+`obs_d` $o\,(m \cdot x_o + b)$ in the unit cone — and `obs_fold_at` iterates
+that, stating that the fold at the depth-`n` environment is the
+promoted closure scaled by $\prod_{o \in l}$ `obs_d` $o (m \cdot x_o + b)$. Outside the
+fold, two applications of the let-at-sample law `eD_let_sample_int`
+integrate those weights against the priors on slope and intercept, in
+that order; `obs_evidence_inner` is the inner ($b$) integral at a fixed
+slope Dirac, and the outer ($m$) integral repeats the same move.
+
+```coq
+(* theories/programs/cbv_marginals.v — Section BayesLinearEvidence *)
+(** One scored observation is a scalar weight in the unit cone. *)
+Lemma obs_score_E (m b : ar_carrier Ar R_obj) n (o : obs R) :
+  Lfun (eD_cbv' (obs_score n o))
+       (obs_env m b n) =
+  MkConeOne Ar (NngNum (obs_ge0 o (cR m * obs_x o + cR b))).
+
+(** The inner [b]-integral at a fixed slope Dirac. *)
+Lemma obs_evidence_inner (l : seq (obs R)) (m : ar_carrier Ar R_obj) :
+  ((c1_val (Lfun (coalg_e (tyD_cbv tF))
+      (Lfun (eD_cbv' (obs_fold (obs_var 0) l))
+         ((one1 : cone_one_car Ar) ⊗p
+          Lfun (eD_cbv' (ex_rl_inner pm))
+            (one1 ⊗p dirac_fmeas m)))))%:num)%R =
+  fine (\int[fmeas_mu mu]_(b in [set: ar_carrier Ar R_obj])
+     ((\prod_(o <- l) obs_d o (cR m * obs_x o + cR b))%R)%:E).
+```
 
 > Call-by-value matters here. The sampled function is bound once and shared
 > across every observation and the return: each access to `#"f"` goes through
@@ -520,6 +594,11 @@ The historical raw score-fold shape survives as the derived reading
 `ex_bayes_linear_obs_fold`: `obs_fold` emits, for each observation, the same
 `ne_score_p` node that `condition_at` emits, with the `named_var` witness
 locating `"f"` extended by `nv_tail` in lock-step with the growing context.
+That the two shapes coincide is `obs_fold_is_iter_condition`, an
+induction on the observation list: `obs_fold v l = iter_condition v l`
+for every context and every witness, with the one-observation case
+definitional. `ex_bayes_linear_obs_fold` is that identity transported
+under the outer `let`.
 
 ```coq
 (* theories/programs/examples.v — Section BayesLinear *)
@@ -540,6 +619,14 @@ Lemma ex_bayes_linear_obs_fold (l : seq (obs R)) :
   ex_bayes_linear l =
   ne_let "f"%string (ex_random_linear m)
     (obs_fold (nv_head "f"%string (tfun tR' tR') nil) l).
+```
+
+```coq
+(* theories/programs/examples.v — Section IteratedConditioning *)
+(** The observation fold IS the iterated conditioning. *)
+Lemma obs_fold_is_iter_condition (G : named_ctx Ar)
+    (v : named_var G (tfun tR' tR')) (l : seq (obs R)) :
+  obs_fold v l = iter_condition v l.
 ```
 
 > The point of this entry is that "Bayesian linear regression = iterated
@@ -1257,6 +1344,42 @@ Theorem reject_model_zero :
   reject_model_denot R_to_carrier_meas fpred g a0 = precone_zero.
 ```
 
+All of these are stated at an arbitrary measurable return object. The
+master identity is proved once as `reject_model_master_obj` in
+`Section RejectModel`, over a model returning values in any
+`B : ar_obj Ar`, with the acceptance scalar read as
+the true-mass $t(x) = \text{bc}_t\,\llbracket f\,x \rrbracket$ of the program predicate at the
+Dirac $\delta_x$. The public `reject_model_master` /
+`reject_model_is_normalised` names above are *the same statement at the
+same arbitrary `B`*, re-exported by `Section RejectModelCompat`: the
+compat section repeats the ball / totality / set-like side conditions as
+its own hypotheses, writes `reject_model_dist` and `reject_model_denot`
+out at explicit arguments and unfolds the abbreviation
+$m_0 = \nu_M(\text{setT})$, and discharges each theorem by a one-line
+`exact: (reject_model_..._obj …)`. So it is an argument-explicit
+re-export, **not** a specialisation of `B` and not a definitional
+coincidence. Genuine `B := R_obj` instances of the same `_obj` theorem
+appear one level up, where the return object *is* the real line: the
+readable program-level `reject_prog_master` and the sampler's
+`ex_reject_comb_sampler_master`, each again obtained by applying
+`reject_model_master_obj`. That is why the
+`ex_reject` sampler and the higher-order models of the earlier chapters
+share one theorem rather than two.
+
+```coq
+(* theories/programs/ex_reject_model.v — Section RejectModel *)
+(** The master identity at an arbitrary return object — division-free,
+    unconditional.  [reject_model_master] re-exports it verbatim in
+    [Section RejectModelCompat]; [reject_prog_master] and
+    [ex_reject_comb_sampler_master] apply it at [B := R_obj]. *)
+Theorem reject_model_master_obj U (mU : measurable U) :
+  ((1 - m0
+      + fine (\int[fmeas_mu reject_model_dist]_(x in [set: ar_carrier Ar B])
+                ((bc_t (sdist x))%:num)%:E))%R)%:E
+    * fmeas_mu reject_model_denot U
+  = \int[fmeas_mu reject_model_dist]_(x in U) ((bc_t (sdist x))%:num)%:E.
+```
+
 Proof idea (`theories/programs/ex_reject_model.v`), in three moves.
 
 - **To a chain.** `reject_comb_val_E`, `reject_after_f_val_E` and
@@ -1276,8 +1399,12 @@ Proof idea (`theories/programs/ex_reject_model.v`), in three moves.
   computes it: the scrutinee is the applied predicate `sdist r`
   (`rm_scrut_E` through `eD_app_at_setlike`), and `bool_case` (via
   `if_icones_at`) keeps $\delta_r$ with weight $t(r)$ and takes the previous
-  iterate $\nu_n$ with weight `bc_f`; the let-bound model application is
-  $\nu_M$ (`rm_model_app_E`).
+  iterate $\nu_n$ with weight `bc_f` — `rm_case_mass` is the mass of that
+  one dispatch, $t(r)\cdot\mathbf{1}_U(r) + \text{bc}_f(\text{sdist}\,r)\cdot\nu_n(U)$, the
+  generic `bool_case_mass` of
+  `theories/programs/infra/cbv_anchors.v` read at the applied
+  predicate; the let-bound model application is $\nu_M$
+  (`rm_model_app_E`).
 - **Sum.** `eD_let_int_obj` integrates the iterate over $\nu_M$, giving the
   affine recurrence `reject_model_iter_mass`, whose retry mass
   $\int \text{bc\_f}\,d\nu_M = m_0 - I_f$ (`rm_int_onem`, the generic
@@ -1476,14 +1603,73 @@ Theorem ex_reject_master U : measurable U ->
   = \int[fmeas_mu mu]_(x in U) ((f (cR x))%:E).
 ```
 
+Proof idea (`theories/programs/ex_reject_headline.v`), in five steps —
+the hard-coded twin of the model-level sketch above.
+
+- **Strip the application.** `ex_reject_app_E`: the outer application
+  of the promoted fixpoint to the identity continuation collapses by
+  $\mathrm{der} \circ \mathrm{prom}$ cancellation, before any continuity argument is
+  needed, leaving $\nu = (\text{fix\_value}\,W_0)(a_0)$ with $W_0$ the body's
+  endo-function at the empty context and $a_0$ the promoted identity
+  continuation.
+- **To a chain.** `reject_iter n` names the $n$-th per-iterate measure
+  $\nu_n = (\text{fix\_chain}\,W_0\,n)(a_0)$, and `ex_reject_sup_E` reads the
+  denotation as its `cone_sup_ball`: evaluation at a point commutes
+  with the Kleene supremum because linhom-cone sups are pointwise
+  (`linhom_fun_sup_ball`, the shared setlike-point kit of
+  `theories/programs/infra/cbv_anchors.v`).
+- **One step.** `ex_reject_iter_S` unfolds the Kleene step to the inner
+  `let`-`if` body evaluated at the extended setlike environment.
+- **Dispatch.** `ex_reject_inner_at_dirac`: at the environment
+  $\gamma_n \otimes \delta_r$ the branch dispatch computes to
+  $\text{bool\_case}\,(\text{bernoulli}(f\,r))\,\delta_r\,\nu_n$ — the scrutinee is the
+  value coin at the sampled point, the THEN branch is the accepted
+  sample, and the ELSE branch, being the recursive call at the *same*
+  continuation, is literally the previous iterate.
+- **Sum.** `reject_case_mass` gives the mass of one dispatch as
+  $f(r)\cdot\mathbf{1}_U(r) + (1 - f(r))\cdot\nu_n(U)$; the let-at-sample measure law
+  `eD_let_sample_mu_E` integrates it over $r \sim \mu$, and
+  $\int (1 - f)\,d\mu = 1 - \int f\,d\mu$ (`reject_int_onem`, at a unit-mass prior)
+  splits the integral into the affine recurrence
+  $\nu_{n+1}(U) = \int_U f\,d\mu + (1 - \int f\,d\mu)\cdot\nu_n(U)$
+  (`ex_reject_iter_mass`). From there the affine cascade and the
+  sup-mass bridge close the identity exactly as at the model level.
+
+```coq
+(* theories/programs/ex_reject_headline.v — Section RejectHeadline *)
+(** The per-iterate measures the denotation is the sup of. *)
+Definition reject_iter (n : nat) : coalg_obj (tyD_cbv tR') :=
+  linhom_fun (fix_chain reject_W0 n) reject_arg.
+
+(** The affine mass recurrence. *)
+Lemma ex_reject_iter_mass n U (mU : measurable U) :
+  fmeas_mu (reject_iter n.+1) U =
+  IUf U + ((1 - fine If)%R)%:E * fmeas_mu (reject_iter n) U.
+```
+
 The combinator's own sampler instance is the predicate-based version.
-`sampler_lin` is the sampler model's linear map, `inst_dist_E` identifies
+`sampler_lin` is the sampler model's linear map. Two lemmas say why it
+is the right object to feed the master identity. `sampler_val_E` is the
+worked instance of the general fact the model-level theorems quantify
+over — *every* lambda-written model denotes a promoted point, because
+the `λ`-clause promotes the curried body at setlike environments —
+here $\llbracket$`ex_sampler`$\rrbracket(1) =$ `sampler_lin`$^!$.
+`sampler_out_E` then reads its output distribution: $\nu_M =$ `sampler_lin`$(1) = \mu$,
+so $m_0 = 1$ and the general master identity degenerates to the
+classical one. `inst_dist_E` identifies
 its output with the prior µ, and `ex_reject_comb_sampler_master`
 re-derives the classical identity at `m₀ = 1` for an arbitrary total
 predicate value.
 
 ```coq
 (* theories/programs/ex_reject_model.v — Section SamplerInstance *)
+(** The closed lambda-written sampler denotes a promoted point. *)
+Lemma sampler_val_E :
+  Lfun (eD_cbv' (ex_sampler m)) one1 = sampler_lin!.
+
+(** Its output distribution is the prior: [ν_M = g_µ(1) = µ]. *)
+Lemma sampler_out_E : linhom_fun sampler_lin one1 = mu.
+
 Lemma inst_dist_E :
   reject_model_dist (ta := tunit) sampler_lin one1 = mu.
 
@@ -1617,10 +1803,16 @@ and runtime-parameter distributions (`Gaussian( e1 , e2 )` /
 `Uniform( e1 , e2 )` over the probability-kernel layer of
 `theories/programs/distributions.v`, with the hierarchy demo
 `ex_gaussian_walk`).
+The model-level scope statements — that $EM(!)$ is cartesian but not
+cartesian closed, that adequacy and full abstraction are not attempted,
+that there is no general sum type and no Moggi value/computation split —
+are on the [PPL tab](../ppl/); the one that belongs here is the absence
+of a normalisation *primitive*.
 
 | Item | What it is | Why not yet |
 |---|---|---|
 | Runtime-parameter kernels for other distribution families | `pkernel` instances beyond `dirac` / `bernoulli` / `gaussian` / `uniform` (e.g. exponential, beta) and surface forms for them. | Each family needs its own parameter-measurability proof (the Fubini–Tonelli route of `measurable_normal_prob_pair`) and a totalisation convention for degenerate parameters; the kernel layer itself is generic and ready. |
+| A general *normalize* / posterior pass | A language primitive (or a meta-level pass) taking an unnormalised model to its Bayesian posterior, applicable to any program. | Not interpreted — but narrower than it sounds for the shape these examples use. The conditioning/rejection equivalence `reject_normalises_condition` shows the model already *computes* the conditioned model's normalised distribution for the soft-likelihood shape (`ex_reject_is_normalised_posterior` at the hard-coded instance, `ex_reject_normalises_score` against the score program): normalisation is performed by the rejection program's own recursion, not by a metalanguage primitive. A general pass would have to apply to programs with no such rejection loop, which needs a normalisation operator in the syntax and a semantics for it. |
 
 These choices are deliberate; each requires substantial
 infrastructure outside the current scope and does not block any
