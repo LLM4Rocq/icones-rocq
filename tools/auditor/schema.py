@@ -47,11 +47,11 @@ class CrossRef:
     * ``"doc"``  — a **doc co-reference**: this entry's statement / prose /
       snippet text names an identifier the target documents.  Rendered
       dashed.
-    * ``""``     — not a relation ref (section / beyond / blueprint refs),
+    * ``""``     — not a relation ref (section / beyond / chapter refs),
       or a legacy payload written before ``via`` existed.
     """
 
-    kind: str  # "section" | "entry" | "beyond" | "blueprint" | "uses" | "used-by"
+    kind: str  # "section" | "entry" | "beyond" | "chapter" | "uses" | "used-by"
     target: str
     label: str
     tab: str = ""

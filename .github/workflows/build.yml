@@ -21,6 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cheap and fast, so it runs BEFORE the (slow) Rocq toolchain install:
+      # a layering violation is a design regression that `make` would happily
+      # compile, so nothing downstream would catch it.
+      - name: Check the import layering
+        run: python3 tools/check_layers.py
+
       - uses: coq-community/docker-coq-action@v1
         with:
           opam_file: icones.opam

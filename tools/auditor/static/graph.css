@@ -1,78 +1,489 @@
-/* Interactive dependency-graph page (graph.html). */
+/* Interactive dependency-graph page (graph.html).
+ *
+ * The canvas colours are declared HERE, as custom properties on
+ * `.graph-app`, and read by graph.js through getComputedStyle — one
+ * palette for the page and the canvas, and dark mode follows the
+ * dashboard's own `prefers-color-scheme` switch instead of a second,
+ * hard-coded set of hexes inside the script. */
 
-.graph-toolbar {
+.graph-app {
+  /* Canvas palette (read by graph.js). */
+  --g-paper:     #2563eb;
+  --g-ppl:       #16a34a;
+  --g-examples:  #d97706;
+  --g-node-fg:   #ffffff;
+  --g-group-fg:  #33352f;
+  --g-edge:      #6b7280;
+  --g-mention:   #b3b9c4;
+  --g-focus:     #111318;
+  --g-stub:      #8b8f98;
+  --g-surface:   #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .graph-app {
+    --g-paper:    #6f9bf3;
+    --g-ppl:      #4ec27a;
+    --g-examples: #e0a24a;
+    --g-node-fg:  #10131a;
+    --g-group-fg: #d8d9d3;
+    --g-edge:     #99a0ad;
+    --g-mention:  #545b68;
+    --g-focus:    #f3f4f0;
+    --g-stub:     #8b8f98;
+    --g-surface:  #1c1e25;
+  }
+}
+
+/* ------------------------------------------------------------ hero ------ */
+
+.graph-hero { margin-bottom: 0.5rem; }
+
+.graph-caption {
+  margin: 0.5rem 0 0;
+  max-width: var(--maxw-prose, 52rem);
+  font-size: 1rem;
+  color: var(--fg-mute, #5a5a55);
+}
+.graph-caption strong { color: var(--fg, #1d1d1b); }
+/* Dataset-wide totals sit BEHIND the per-tab headline, visually subordinate
+   to it, so the number nearest the canvas is the one describing the canvas. */
+.graph-caption-total {
+  color: var(--fg-faint, #87877f);
+  font-size: 0.92em;
+}
+
+.graph-hint {
+  margin: 0.45rem 0 0;
+  max-width: var(--maxw-prose, 52rem);
+  font-size: 0.88rem;
+  color: var(--fg-faint, #87877f);
+}
+.graph-hint b { color: var(--fg-mute, #5a5a55); font-weight: 600; }
+.graph-hint kbd {
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  padding: 0.05em 0.35em;
+  border: 1px solid var(--border, #e4e2dc);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--bg-elev, #fff);
+}
+
+/* -------------------------------------------------------- controls ------ */
+
+.graph-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem 1.5rem;
+  gap: 0.6rem 1.1rem;
   margin: 1rem 0 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.85rem;
   border: 1px solid var(--border, #d0d7de);
-  border-radius: 8px;
-  background: var(--surface, #f6f8fa);
+  border-radius: var(--radius, 0.5rem);
+  background: var(--bg-soft, #f6f8fa);
   font-size: 0.9rem;
 }
 
-.graph-toolbar-group {
+.graph-control {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
-.graph-toolbar-group label {
+.graph-control-label {
+  font-weight: 600;
+  color: var(--fg-mute, #5a5a55);
+  white-space: nowrap;
+}
+
+.graph-check {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.4rem;
   cursor: pointer;
   white-space: nowrap;
 }
 
-.graph-toolbar-label {
-  font-weight: 600;
-  opacity: 0.8;
-}
-
-.cy-swatch {
-  display: inline-block;
-  width: 0.8em;
-  height: 0.8em;
-  border-radius: 2px;
-  vertical-align: middle;
-}
-
-/* Tab colours — kept in sync with graph.js TAB_COLORS. */
-.cy-swatch-paper    { background: #2563eb; }
-.cy-swatch-ppl      { background: #16a34a; }
-.cy-swatch-examples { background: #d97706; }
-
-.graph-stats {
-  margin-left: auto;
+.graph-count {
   font-variant-numeric: tabular-nums;
-  opacity: 0.8;
+  font-size: 0.8rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--bg-elev, #fff);
+  border: 1px solid var(--border, #e4e2dc);
+  color: var(--fg-mute, #5a5a55);
 }
 
-#cy-layout,
-#cy-reset {
+/* Segmented radio group (tab selector, cone depth). */
+.graph-seg {
+  display: inline-flex;
+  border: 1px solid var(--border, #e4e2dc);
+  border-radius: 999px;
+  background: var(--bg-elev, #fff);
+  overflow: hidden;
+}
+.graph-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font: inherit;
-  padding: 0.25rem 0.5rem;
+  font-weight: 600;
+  padding: 0.28rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--fg-mute, #5a5a55);
+  cursor: pointer;
+}
+.graph-seg-btn + .graph-seg-btn { border-left: 1px solid var(--border, #e4e2dc); }
+.graph-seg-btn:hover { background: var(--accent-soft, #e6ecf5); }
+.graph-seg-btn.is-on {
+  background: var(--accent, #2b4a7d);
+  color: #fff;
+}
+.graph-seg-sm .graph-seg-btn { padding: 0.16rem 0.55rem; font-size: 0.84rem; }
+
+.graph-btn {
+  font: inherit;
+  padding: 0.28rem 0.75rem;
   border: 1px solid var(--border, #d0d7de);
-  border-radius: 6px;
-  background: var(--bg, #fff);
+  border-radius: var(--radius-sm, 0.35rem);
+  background: var(--bg-elev, #fff);
   color: inherit;
   cursor: pointer;
 }
+.graph-btn:hover { background: var(--accent-soft, #e6ecf5); }
+
+.cy-swatch {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 2px;
+}
+/* Tab colours — the same custom properties graph.js paints the canvas with. */
+.cy-swatch-paper    { background: var(--g-paper); }
+.cy-swatch-ppl      { background: var(--g-ppl); }
+.cy-swatch-examples { background: var(--g-examples); }
+
+/* ---------------------------------------------------------- search ------ */
+
+.graph-control-search { flex: 1 1 16rem; min-width: 12rem; }
+.graph-search-wrap { position: relative; flex: 1 1 auto; }
+
+#cy-search {
+  font: inherit;
+  width: 100%;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: var(--radius-sm, 0.35rem);
+  background: var(--bg-elev, #fff);
+  color: inherit;
+}
+
+.graph-search-results {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 19rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.2rem;
+  list-style: none;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: var(--radius-sm, 0.35rem);
+  background: var(--bg-elev, #fff);
+  box-shadow: var(--shadow-hover, 0 4px 14px rgba(0, 0, 0, 0.12));
+}
+.graph-search-none {
+  padding: 0.4rem 0.5rem;
+  color: var(--fg-faint, #87877f);
+}
+.graph-result {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  border-radius: var(--radius-sm, 0.35rem);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.graph-result:hover,
+.graph-result:focus-visible { background: var(--accent-soft, #e6ecf5); }
+.graph-result-label {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.graph-result-ident,
+.graph-result-sec {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--fg-faint, #87877f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
+/* ----------------------------------------------------------- stage ------ */
+
+.graph-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: 0.85rem;
+  align-items: stretch;
+}
 
 .graph-canvas {
-  width: 100%;
-  height: min(72vh, 820px);
+  height: min(74vh, 840px);
   min-height: 460px;
   border: 1px solid var(--border, #d0d7de);
-  border-radius: 8px;
+  border-radius: var(--radius, 0.5rem);
   background:
-    repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(127,127,127,0.06) 24px),
-    repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(127,127,127,0.06) 24px);
+    repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(127,127,127,0.055) 24px),
+    repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(127,127,127,0.055) 24px);
   overflow: hidden;
 }
+
+/* ----------------------------------------------------------- panel ------ */
+
+.graph-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: min(74vh, 840px);
+  overflow-y: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: var(--radius, 0.5rem);
+  background: var(--bg-elev, #fff);
+  font-size: 0.88rem;
+}
+
+.graph-focusbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--border-soft, #ededea);
+  font-size: 0.82rem;
+}
+.graph-focusbar .graph-control-label { font-size: 0.78rem; }
+
+.graph-panel-empty {
+  margin: 0;
+  color: var(--fg-faint, #87877f);
+  line-height: 1.45;
+}
+
+.graph-panel-body h2 {
+  margin: 0.1rem 0 0.5rem;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+.graph-panel-kicker {
+  margin: 0;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-faint, #87877f);
+}
+.graph-panel-note { margin: 0 0 0.5rem; color: var(--fg-mute, #5a5a55); }
+
+.graph-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.18rem 0.6rem;
+  margin: 0 0 0.6rem;
+}
+.graph-facts dt {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--fg-faint, #87877f);
+  padding-top: 0.12rem;
+}
+.graph-facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.graph-facts code { font-size: 0.78rem; }
+
+.graph-panel-link {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+.graph-panel-block { border-top: 1px solid var(--border-soft, #ededea); padding-top: 0.5rem; }
+.graph-panel-block h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--fg-mute, #5a5a55);
+}
+.graph-panel-block ul { margin: 0; padding: 0; list-style: none; }
+.graph-panel-block li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.08rem 0;
+}
+.graph-jump {
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link, #1a4691);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  overflow-wrap: anywhere;
+}
+.graph-jump:hover { color: var(--link-hover, #0d2c63); }
+.graph-open { text-decoration: none; font-size: 0.85em; opacity: 0.75; }
+.graph-open:hover { opacity: 1; }
+.graph-more { color: var(--fg-faint, #87877f); font-size: 0.82rem; }
+
+.graph-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.02rem 0.35rem;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+}
+.graph-tag-paper    { background: var(--g-paper); }
+.graph-tag-ppl      { background: var(--g-ppl); }
+.graph-tag-examples { background: var(--g-examples); }
+@media (prefers-color-scheme: dark) {
+  .graph-tag { color: #10131a; }
+}
+
+/* ------------------------------------------------- stats / legend ------- */
+
+.graph-statsline {
+  margin: 0.55rem 0 0;
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-mute, #5a5a55);
+}
+
+/* Screen-reader announcements for focus / expand / reset actions. */
+.graph-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.graph-legend-details {
+  margin: 0.9rem 0 0;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: var(--radius, 0.5rem);
+  background: var(--bg-soft, #f6f8fa);
+}
+.graph-legend-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--fg-mute, #5a5a55);
+}
+.graph-legend {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.88rem;
+  max-width: var(--maxw-prose, 52rem);
+}
+.graph-legend li {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.graph-legend-edge {
+  align-self: center;
+  display: inline-block;
+  width: 34px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: solid;
+}
+.graph-legend-edge-depends {
+  border-top-color: var(--g-edge);
+  border-top-width: 2.5px;
+}
+.graph-legend-edge-mentions {
+  border-top-color: var(--g-mention);
+  border-top-style: dashed;
+}
+.graph-legend-port {
+  justify-self: center;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1.2px solid var(--g-ppl);
+  color: var(--g-ppl);
+  background: color-mix(in srgb, var(--g-ppl) 16%, transparent);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+.graph-legend-box {
+  justify-self: center;
+  align-self: center;
+  display: inline-block;
+  width: 30px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1.5px solid var(--g-paper);
+  background: color-mix(in srgb, var(--g-paper) 12%, transparent);
+}
+.graph-legend-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--fg-faint, #87877f);
+  white-space: nowrap;
+}
+
+/* Where the edges came from — the honest provenance line.  A build with no
+ * .glob data says so here in full sentences rather than quietly drawing a
+ * word-overlap graph that looks like a dependency graph. */
+.graph-provenance {
+  margin: 0.7rem 0 0;
+  font-size: 0.88rem;
+  color: var(--fg-mute, #5a5a55);
+  max-width: var(--maxw-prose, 52rem);
+}
+.graph-provenance strong { color: var(--fg, #1d1d1b); }
 
 .graph-empty {
   margin-top: 1rem;
@@ -81,53 +492,24 @@
   background: rgba(217, 119, 6, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  .graph-toolbar { background: rgba(255, 255, 255, 0.03); }
+/* ------------------------------------------------------- a11y / rwd ----- */
+
+.graph-canvas:focus-visible,
+.graph-seg-btn:focus-visible,
+.graph-btn:focus-visible,
+.graph-jump:focus-visible,
+.graph-result:focus-visible,
+#cy-search:focus-visible {
+  outline: 2px solid var(--focus-ring, #4f7ec9);
+  outline-offset: 2px;
 }
 
-/* Edge-kind legend (depends vs mentions). */
-.graph-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-  margin: 0.75rem 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.92rem;
-}
-.graph-legend li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.graph-legend-edge {
-  display: inline-block;
-  width: 34px;
-  height: 0;
-  border-top-width: 2px;
-  border-top-style: solid;
-}
-.graph-legend-edge-depends {
-  border-top-color: #4b5563;
-  border-top-width: 2.5px;
-}
-.graph-legend-edge-mentions {
-  border-top-color: #c0c7d1;
-  border-top-style: dashed;
-}
-.graph-legend-count {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.82rem;
-  color: var(--fg-mute, #5a5a55);
+@media (max-width: 900px) {
+  .graph-stage { grid-template-columns: minmax(0, 1fr); }
+  .graph-panel { max-height: none; }
+  .graph-canvas { height: min(62vh, 560px); }
 }
 
-/* Where the edges came from — the honest provenance line.  A build with no
- * .glob data says so here in full sentences rather than quietly drawing a
- * word-overlap graph that looks like a dependency graph. */
-.graph-provenance {
-  margin: 0.6rem 0 0;
-  font-size: 0.88rem;
-  color: var(--fg-mute, #5a5a55);
-  max-width: var(--maxw-prose, 52rem);
+@media (prefers-reduced-motion: reduce) {
+  .graph-app * { transition: none !important; animation: none !important; }
 }
-.graph-provenance strong { color: var(--fg, #1d1d1b); }

@@ -28,6 +28,15 @@ Every entry node carries a ``url`` relative to the graph page
 (``<tab>/entries/<id>.html``), the parent group's id+title, the owning
 tab, the entry ``kind`` (Def/Thm/…) and its ``status`` list, so the
 client can render, colour, filter and navigate without a second fetch.
+It also carries the entry's cited Rocq ``idents`` and source ``files``,
+which the client's search box matches against (searching by lemma name
+is how a reader who knows the Rocq source finds the documentation entry)
+and its info panel displays.  Group nodes carry ``n_entries`` so a
+*collapsed* group can show its size without the client walking the node
+list.  All of those are **additive**: the historical
+``id``/``label``/``ntype``/``tab``/``parent``/``url``/``kind``/``status``
+shape is unchanged, so an older client keeps working against a newer
+``graph.json``.
 """
 
 from __future__ import annotations
@@ -77,6 +86,27 @@ def _short_label(entry: Entry) -> str:
     return entry.paper_label or entry.id
 
 
+def _dedup(values) -> list[str]:
+    """Order-preserving de-duplication of a string sequence."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for v in values:
+        if v and v not in seen:
+            seen.add(v)
+            out.append(v)
+    return out
+
+
+def _entry_idents(entry: Entry) -> list[str]:
+    """The Rocq identifiers this entry documents (search keys, deduped)."""
+    return _dedup(entry.rocq_idents)
+
+
+def _entry_files(entry: Entry) -> list[str]:
+    """The distinct ``theories/*.v`` paths this entry documents."""
+    return _dedup(f.path for f in entry.rocq_files)
+
+
 def _collect_nodes(
     three: ThreeTabDocument,
 ) -> tuple[list[dict[str, Any]], set[tuple[str, str]]]:
@@ -90,6 +120,9 @@ def _collect_nodes(
     entry_keys: set[tuple[str, str]] = set()
     seen_groups: set[str] = set()
     seen_entries: set[str] = set()
+    # Node-id -> its ``data`` dict, so the entry walk can back-fill the
+    # ``n_entries`` size a *collapsed* group node displays as its badge.
+    container: dict[str, dict[str, Any]] = {}
 
     tab_titles = {"paper": "Paper", "ppl": "PPL", "examples": "Examples"}
 
@@ -97,16 +130,15 @@ def _collect_nodes(
         nid = _tab_node_id(tab)
         if nid not in seen_groups:
             seen_groups.add(nid)
-            nodes.append(
-                {
-                    "data": {
-                        "id": nid,
-                        "label": tab_titles.get(tab, tab.upper()),
-                        "ntype": "tab",
-                        "tab": tab,
-                    }
-                }
-            )
+            data = {
+                "id": nid,
+                "label": tab_titles.get(tab, tab.upper()),
+                "ntype": "tab",
+                "tab": tab,
+                "n_entries": 0,
+            }
+            container[nid] = data
+            nodes.append({"data": data})
         return nid
 
     def add_group(
@@ -115,18 +147,18 @@ def _collect_nodes(
         nid = _group_node_id(tab, group_id)
         if nid not in seen_groups:
             seen_groups.add(nid)
-            nodes.append(
-                {
-                    "data": {
-                        "id": nid,
-                        "label": title or group_id,
-                        "ntype": "group",
-                        "tab": tab,
-                        "parent": add_tab(tab),
-                        "url": _group_url(tab, group_id, kind=kind),
-                    }
-                }
-            )
+            data = {
+                "id": nid,
+                "label": title or group_id,
+                "ntype": "group",
+                "tab": tab,
+                "parent": add_tab(tab),
+                "url": _group_url(tab, group_id, kind=kind),
+                "gkind": kind,
+                "n_entries": 0,
+            }
+            container[nid] = data
+            nodes.append({"data": data})
         return nid
 
     def add_entry(
@@ -145,6 +177,11 @@ def _collect_nodes(
             if canonical
             else _entry_url(tab, entry.id)
         )
+        group = container.get(group_nid, {})
+        group["n_entries"] = group.get("n_entries", 0) + 1
+        tab_nid = _tab_node_id(tab)
+        if tab_nid in container:
+            container[tab_nid]["n_entries"] += 1
         nodes.append(
             {
                 "data": {
@@ -156,6 +193,10 @@ def _collect_nodes(
                     "url": url,
                     "kind": entry.paper_kind,
                     "status": list(entry.status),
+                    # -- additive: search keys + info-panel provenance ----
+                    "idents": _entry_idents(entry),
+                    "files": _entry_files(entry),
+                    "group_label": group.get("label", ""),
                 }
             }
         )
@@ -312,6 +353,22 @@ def build_graph(
             by_tab[s_tab][d["kind"]] += 1
         if s_tab != node_tab.get(d["target"], ""):
             n_cross_tab += 1
+    # Per-tab node accounting.  The client renders ONE tab at a time (a
+    # readable DAG rather than a three-tab hairball), so it needs the size
+    # of each tab up front to label the tab selector before that tab has
+    # ever been built.
+    nodes_by_tab: dict[str, dict[str, int]] = {
+        t: {"entries": 0, "groups": 0} for t in ALL_TABS
+    }
+    for n in nodes:
+        d = n["data"]
+        bucket = nodes_by_tab.get(d.get("tab", ""))
+        if bucket is None:
+            continue
+        if d["ntype"] == "entry":
+            bucket["entries"] += 1
+        elif d["ntype"] == "group":
+            bucket["groups"] += 1
     return {
         "nodes": nodes,
         "edges": edges,
@@ -325,6 +382,7 @@ def build_graph(
             "n_mentions": n_mentions,
             "n_cross_tab": n_cross_tab,
             "edges_by_tab": by_tab,
+            "nodes_by_tab": nodes_by_tab,
             # -- .glob provenance, consumed by the strict build guard ------
             "glob_expected": rel.expected,
             "glob_available": rel.available,

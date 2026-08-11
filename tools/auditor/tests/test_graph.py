@@ -181,6 +181,122 @@ def test_entry_url_follows_route():
     assert grp["url"] == "ppl/sections/ppl-s.html"
 
 
+def test_entry_nodes_carry_search_keys_and_provenance():
+    """Entry nodes carry their Rocq ``idents``/``files`` and section label.
+
+    The graph page searches by *cited Rocq identifier* (that is how a reader
+    who knows the source finds the documentation entry) and its info panel
+    names the source file, so both have to travel in ``graph.json``: the
+    client makes exactly one fetch and never sees the parsed Document.
+    """
+    a = _entry(
+        "def-a",
+        idents=["alpha_widget", "alpha_widget_ext", "alpha_widget"],
+        vfile="theories/demo/alpha.v",
+    )
+    three = _three(paper=[_section("sec-x", [a])])
+
+    ent = _byid(build_graph(three))["paper::def-a"]
+    # Deduped, order preserving.
+    assert ent["idents"] == ["alpha_widget", "alpha_widget_ext"]
+    assert ent["files"] == ["theories/demo/alpha.v"]
+    # The containing section's display label, for the info panel.
+    assert ent["group_label"] == "§ sec-x"
+
+
+def test_entry_without_sources_still_has_empty_search_keys():
+    """The additive fields are always present (never missing keys)."""
+    a = _entry("def-a", idents=[])
+    three = _three(ppl=[_section("ppl-s", [a])])
+
+    ent = _byid(build_graph(three))["ppl::def-a"]
+    assert ent["idents"] == [] and ent["files"] == []
+
+
+def test_group_and_tab_nodes_carry_entry_counts():
+    """Collapsed group nodes need their size without walking the node list."""
+    entries = [_entry(f"def-{i}", idents=[f"w{i}"]) for i in range(3)]
+    three = _three(
+        paper=[_section("sec-x", entries[:2]), _section("sec-y", entries[2:])]
+    )
+
+    byid = _byid(build_graph(three))
+    assert byid["grp::paper::sec-x"]["n_entries"] == 2
+    assert byid["grp::paper::sec-y"]["n_entries"] == 1
+    assert byid["grp::paper::sec-x"]["gkind"] == "section"
+    # The tab node totals its groups.
+    assert byid["tab::paper"]["n_entries"] == 3
+
+
+def test_node_shape_stays_backward_compatible():
+    """The historical node keys are untouched — new fields are additive."""
+    a = _entry("def-a", idents=["alpha_widget"], vfile="theories/demo/alpha.v")
+    three = _three(paper=[_section("sec-x", [a])])
+
+    byid = _byid(build_graph(three))
+    for key in ("id", "label", "ntype", "tab", "parent", "url", "kind", "status"):
+        assert key in byid["paper::def-a"], key
+    for key in ("id", "label", "ntype", "tab", "parent", "url"):
+        assert key in byid["grp::paper::sec-x"], key
+    for key in ("id", "label", "ntype", "tab"):
+        assert key in byid["tab::paper"], key
+
+
+def test_meta_reports_nodes_per_tab():
+    """The client renders one tab at a time and sizes the selector up front."""
+    three = _three(
+        paper=[_section("sec-x", [_entry("def-a", idents=["a_w"])])],
+        ppl=[
+            _section(
+                "ppl-s",
+                [_entry("ppl-a", idents=["p_w"]), _entry("ppl-b", idents=["q_w"])],
+            )
+        ],
+    )
+
+    meta = build_graph(three)["meta"]
+    assert meta["nodes_by_tab"]["paper"] == {"entries": 1, "groups": 1}
+    assert meta["nodes_by_tab"]["ppl"] == {"entries": 2, "groups": 1}
+    assert meta["nodes_by_tab"]["examples"] == {"entries": 0, "groups": 0}
+    # Totals stay consistent with the per-tab split.
+    assert sum(v["entries"] for v in meta["nodes_by_tab"].values()) == (
+        meta["n_entries"]
+    )
+
+
+def test_graph_page_caption_is_per_tab(tmp_path):
+    """The hero caption sizes the TAB on screen, not the whole dataset.
+
+    The canvas draws one tab at a time, so a caption quoting the three-tab
+    entry total sat directly above a stats line reporting a single tab and
+    contradicted it.  ``meta.nodes_by_tab`` is the per-tab split; the page
+    must render the default (Paper) tab's numbers from it, keep the whole
+    dataset figure clearly marked as such, and expose the ``cy-caption``
+    hook graph.js re-states on every tab switch.
+    """
+    from tools.auditor.render import render
+
+    three = _three(
+        paper=[_section("sec-x", [_entry("def-a", idents=["a_w"])])],
+        ppl=[
+            _section(
+                "ppl-s",
+                [_entry("ppl-a", idents=["p_w"]), _entry("ppl-b", idents=["q_w"])],
+            )
+        ],
+    )
+    render(three, tmp_path / "site", require_glob_deps=False)
+    raw = (tmp_path / "site" / "graph.html").read_text(encoding="utf-8")
+    html = " ".join(raw.split())   # the template wraps; compare on one line
+
+    assert 'id="cy-caption"' in html          # the per-tab hook graph.js owns
+    assert "Paper tab: 1 entries in 1 sections" in html  # the tab, not the total
+    # The dataset-wide total is still stated, but labelled as such.
+    assert "All three tabs together: 3 entries in 2 sections" in html
+    # Legend counts that describe the whole dataset say so.
+    assert "entries across all tabs" in html
+
+
 def test_meta_counts_consistent():
     """``meta`` counts match the emitted node/edge lists."""
     a = _entry("def-a", idents=["alpha_widget"], snippet_html="")

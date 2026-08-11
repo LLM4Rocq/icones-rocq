@@ -451,7 +451,7 @@ def build_source_index(
 ) -> dict[str, tuple[str, int]]:
     """Scrape ``{ident: (vfile, line)}`` from ``theories/**/*.v``.
 
-    ``vfile`` is repository-relative (e.g. ``theories/homs/coalgebra.v``),
+    ``vfile`` is repository-relative (e.g. ``theories/exp/coalgebra.v``),
     suitable for :meth:`CoqdocResolver.github_url`.  Paths are made
     relative to ``repo_root`` (the directory holding ``theories/``);
     when omitted it defaults to ``theories_root``'s parent.

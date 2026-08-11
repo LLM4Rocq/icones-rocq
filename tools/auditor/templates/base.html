@@ -45,8 +45,9 @@
       </span>
     </a>
     <nav class="pill-nav" aria-label="External resources">
-      <a class="pill" href="{{ tab_prefix }}graph.html">Graph</a>
-      <a class="pill" href="{{ tab_prefix }}../blueprint/web/index.html">Blueprint</a>
+      {# Carry the current tab into the graph page: it renders ONE tab at a
+         time and defaults to the tab the reader came from (?tab=…). #}
+      <a class="pill" href="{{ tab_prefix }}graph.html{% if tab %}?tab={{ tab }}{% endif %}">Graph</a>
       {% set gh_repo = document.build_meta.repo|default('LLM4Rocq/icones-rocq') %}
       <a class="gh-flag" href="https://github.com/{{ gh_repo }}"
          rel="noopener" target="_blank"

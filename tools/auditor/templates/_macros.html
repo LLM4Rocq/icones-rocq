@@ -175,7 +175,10 @@
     <p class="xref-legend">
       <span class="xref-via-glob">solid</span> = real Coq dependency
       (<code>.glob</code>) · <span class="xref-via-doc">dashed</span> = doc
-      co-reference. <a href="{{ tab_prefix }}graph.html">See the whole graph →</a>
+      co-reference.
+      {# Deep-link into the graph page focused on THIS entry: it opens the
+         entry's tab, expands its section and lights its dependency cone. #}
+      <a href="{{ tab_prefix }}graph.html{% if tab %}?tab={{ tab }}&amp;focus={{ tab }}::{{ entry.id }}{% endif %}">See this entry in the graph →</a>
     </p>
     {% endif %}
   </div>

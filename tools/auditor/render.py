@@ -211,7 +211,7 @@ def _xref_href(
 
     The prefix already points at the current tab's root (e.g. ``"../"`` from
     a Paper section page back to ``out/paper/``); the resolver appends the
-    sub-route. ``blueprint`` cross-refs go up one more level to ``out/``.
+    sub-route.
 
     ``uses`` / ``used-by`` relation refs are tab- and canonical-aware: a
     same-tab target routes to ``{prefix}<suffix>`` and a cross-tab one to
@@ -254,8 +254,6 @@ def _xref_href(
             return f"{prefix}beyond/{tgt}.html"
         if kind == "chapter":
             return f"{prefix}chapters/{tgt}.html"
-        if kind == "blueprint":
-            return f"{prefix}../../blueprint/{tgt}"
         return "#" + tgt
     return _h
 

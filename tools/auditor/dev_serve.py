@@ -63,8 +63,6 @@ def xref_href(prefix: str, tab: str = ""):
             if tgt == "beyond":
                 return f"{prefix}index.html#beyond"
             return f"{prefix}beyond/{tgt}.html"
-        if kind == "blueprint":
-            return f"{prefix}../../blueprint/web/{tgt}"
         return "#" + tgt
     return _h
 
