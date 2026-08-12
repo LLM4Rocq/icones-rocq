@@ -19,10 +19,10 @@ bug-reports: "https://github.com/LLM4Rocq/icones-rocq/issues"
 dev-repo: "git+https://github.com/LLM4Rocq/icones-rocq.git"
 depends: [
   "rocq-core" { >= "9.1" }
-  "rocq-mathcomp-ssreflect" { >= "2.5.0" }
-  "rocq-mathcomp-algebra" { >= "2.5.0" }
-  "rocq-mathcomp-classical" { >= "1.16.0" }
-  "rocq-mathcomp-analysis" { >= "1.16.0" }
+  "rocq-mathcomp-ssreflect" { >= "2.5.0" & < "2.6" }
+  "rocq-mathcomp-algebra" { >= "2.5.0" & < "2.6" }
+  "rocq-mathcomp-classical" { >= "1.16.0" & < "1.17" }
+  "rocq-mathcomp-analysis" { >= "1.16.0" & < "1.17" }
   "rocq-hierarchy-builder" { >= "1.10.0" }
 ]
 build: [
