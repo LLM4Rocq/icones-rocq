@@ -274,7 +274,7 @@ jobs:
     # to a 404.
     if: >-
       always()
-      && github.event_name == 'push'
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       && github.ref == 'refs/heads/main'
       && needs.build-auditor.result != 'cancelled'
     needs: [build-auditor]
