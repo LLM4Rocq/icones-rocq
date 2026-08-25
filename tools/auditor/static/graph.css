@@ -296,13 +296,11 @@
 
 /* ----------------------------------------------------------- stage ------ */
 
-/* The canvas owns the whole stage width; the info panel FLOATS over its
-   bottom-left corner (see below) instead of costing it a 20rem column —
-   the owner's call: the graph box is the scarce resource, the description
-   box is not. */
-.graph-stage {
-  position: relative;
-}
+/* The canvas owns the whole stage width; the info panel sits BELOW it, in
+   flow, left-aligned (owner's call, twice refined: first out of the 20rem
+   side column that shrank the canvas, then out of the overlay that blocked
+   the view). Nothing here to lay out — #cy fills the stage, the aside
+   follows it. */
 
 .graph-canvas {
   /* Taller than the old canvas: the lane layout trades width for readable
@@ -321,36 +319,30 @@
 
 /* ----------------------------------------------------------- panel ------ */
 
-/* The selected-node card, overlaid bottom-left INSIDE the canvas (a map-UI
-   idiom): the description stays in view next to what was clicked without
-   shrinking the graph.  The canvas remains pannable around it, so nothing
-   is ever unreachable underneath. */
+/* The selected-node card, under the canvas and docked left: it never costs
+   the graph a pixel, and never covers one either.  Width-capped so it reads
+   as a card, height-capped so a long cone list scrolls inside it instead of
+   pushing the legend off-screen. */
 .graph-panel {
-  position: absolute;
-  left: 0.7rem;
-  bottom: 0.7rem;
-  z-index: 20;
-  width: min(21rem, calc(100% - 1.4rem));
+  width: min(26rem, 100%);
+  margin-top: 0.85rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  max-height: min(55%, 26rem);
+  max-height: 26rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.75rem;
   border: 1px solid var(--border, #d0d7de);
   border-radius: var(--radius, 0.5rem);
   background: var(--bg-elev, #fff);
-  box-shadow: var(--shadow-hover, 0 4px 14px rgba(0, 0, 0, 0.14));
   font-size: 0.88rem;
 }
-/* Nothing selected yet: keep the standing hint, but quiet and small, so the
-   default view is a graph with a whisper in the corner — not a card. */
+/* Nothing selected yet: keep the standing hint, but quiet and slim, so the
+   resting state is a graph with a caption under it — not an empty card. */
 .graph-panel:has(.graph-panel-body[hidden]):has(.graph-focusbar[hidden]) {
   padding: 0.45rem 0.6rem;
-  width: min(17rem, calc(100% - 1.4rem));
   opacity: 0.88;
-  box-shadow: none;
 }
 
 .graph-focusbar {
@@ -670,15 +662,7 @@
 }
 
 @media (max-width: 900px) {
-  /* Too narrow for an overlay: the panel drops back into the flow, below
-     the canvas. */
-  .graph-panel {
-    position: static;
-    width: auto;
-    max-height: none;
-    margin-top: 0.85rem;
-    box-shadow: none;
-  }
+  .graph-panel { width: 100%; max-height: none; }
   .graph-canvas { height: min(62vh, 560px); }
 }
 
