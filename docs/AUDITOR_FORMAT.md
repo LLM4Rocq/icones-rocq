@@ -264,16 +264,24 @@ point:
 
 | kind | source | arity | meaning | drawn |
 |------|--------|-------|---------|-------|
-| `depends`  | `theories/**/*.glob` | **directed** (`directed: true`) | a **real Coq proof-level dependency**: an object the source entry documents *uses* an object the target documents | solid, arrowhead |
+| `depends`  | `theories/**/*.glob` | **directed** (`directed: true`) | a **real Coq statement-level dependency**: the *statement* (or plain definitional body) of an object the source entry documents uses an object the target documents — references made only inside proof scripts (`Proof. … Qed.`) are masked out | solid, arrowhead |
 | `mentions` | entry statement / prose / snippet text | **undirected** (`directed: false`) | a **doc co-reference**: both entries' text names the same identifier | dashed, *no* arrowhead |
 
 The two kinds differ in arity, not just in strength, and that is the whole
 point. A `mentions` edge is emitted **once** per pair, with its endpoints in
 canonical (sorted) order purely to make the record unique — consumers must
 not read `source`/`target` as a direction on it, and the canvas draws it
-without an arrowhead so it cannot state one either. A pair the proofs relate
+without an arrowhead so it cannot state one either. A pair the statements relate
 in **either** direction is emitted only as `depends`; the strong relation
 says strictly more.
+
+Why statements only (owner ruling, 2026-08): the audit's question about an
+entry is what it is *stated in terms of*, not how its proof is scripted — a
+proof touches an order of magnitude more documented entries than its
+statement does (~78k of ~107k dependency-kind references in the corpus are
+proof-script-only), and drawing them buried the concept-level graph.  A
+plain `Definition` body still counts in full: for a definition the body is
+the mathematical content.
 
 The same two relations drive every card's relations panel, and the cards
 keep them apart exactly as the graph does — they answer different
@@ -284,7 +292,8 @@ questions, so they never share a row or a count:
 | `uses` / `used-by` | always `glob` | **Uses:** / **Used by:** | directional: an object this entry documents references (or is referenced by) an object the other documents |
 | `mentions` | always `doc` | **Mentioned with:** | **undirected**: both entries' text names the same identifier |
 
-`uses` / `used-by` are proof-level *only*.  A doc co-reference has no
+`uses` / `used-by` are statement-level *only* (same masking as the graph's
+`depends` edges).  A doc co-reference has no
 direction to publish — the sentence in Thm 4.18 that points the reader
 *forward* to Thm 4.19 was rendering as "Thm 4.19 · Used by · Thm 4.18" —
 so the pair is filed as one `mentions` ref on **both** entries, and
@@ -314,7 +323,7 @@ entry's contribution to the `.glob` scan set. Spell the sources as
 `theories/…/foo.v` paths in the Rocq cell. Note what a missing path does
 and does not cost: the scan set is the **union** over all entries and
 `load_glob_uses` merges `{object: uses}` across every file it reads, so a
-path-less entry still sources and receives proof-level edges as long as
+path-less entry still sources and receives statement-level edges as long as
 some entry names the file its objects live in. Only a file *no* entry names
 goes unread — and then every object in it is invisible corpus-wide. When a
 cell names identifiers but no path at all, the parser backfills the files

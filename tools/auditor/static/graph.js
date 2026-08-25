@@ -2,7 +2,7 @@
  *
  * The data (graph.json, emitted by tools/auditor/graph.py) is the whole
  * three-tab relation: ~220 entry nodes inside ~20 section groups, plus
- * ~1400 edges of two kinds (real .glob proof dependencies, and weaker doc
+ * edges of two kinds (real .glob statement-level dependencies, and weaker doc
  * co-references).  Drawing all of that at once produces a hairball, so
  * this client never does.  It renders a PROJECTION of the data:
  *
@@ -259,7 +259,7 @@
         var i = d && typeof d.band === "number" ? d.band : 0;
         return Math.max(0, Math.min(bands.length - 1, i));
       }
-      /* An ISOLATED entry (no proof dependency either way) satisfies the
+      /* An ISOLATED entry (no statement dependency either way) satisfies the
        * letter of "leaf" without being a headline result — flagging the 14
        * of them would spend the strongest mark on the least interesting
        * nodes.  They get the quiet root mark instead. */
@@ -1829,8 +1829,8 @@
        * ============================================================== */
       /** The DEPENDENCY neighbours of ``id`` on one side.
        *
-       * Proof-level only.  These two lists are rendered under "Uses" and
-       * "Used by" — verbs that make a claim about the proof — so a prose
+       * Statement-level only.  These two lists are rendered under "Uses" and
+       * "Used by" — verbs that make a dependency claim — so a prose
        * co-reference must never reach them: that is exactly the sentence
        * the owner reported ("Thm 4.19 · Used by · Thm 4.18"), and it was
        * still being published here, one click from the fixed card, whenever
@@ -1942,10 +1942,10 @@
         }
         if (isLeaf(d.id)) {
           out += '<br><span class="graph-mark graph-mark-leaf">⚑ leaf</span> ' +
-            "nothing in the three tabs depends on this";
+            "no other statement in the three tabs is written in terms of this";
         } else if (d.isolated) {
           out += '<br><span class="graph-mark graph-mark-root">isolated</span> ' +
-            "no proof dependency either way at entry level";
+            "no statement dependency either way at entry level";
         } else if (isRoot(d.id)) {
           out += '<br><span class="graph-mark graph-mark-root">root</span> ' +
             "depends on no other documented entry";
@@ -2064,7 +2064,7 @@
             (isGroup ? "Open section page" : "Open entry page") + " →</a>"
           : "";
 
-        // "Uses" / "Used by" state a direction, so only the proof-level
+        // "Uses" / "Used by" state a direction, so only the statement-level
         // relation may fill them.  Co-references get their own block under a
         // direction-free heading, and only when they are being drawn — the
         // panel never states a relation the canvas is hiding.

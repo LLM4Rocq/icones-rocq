@@ -8,12 +8,23 @@ its backticked name in the surrounding prose.
 
 Coq's ``.glob`` files (one per ``theories/**/*.v``, emitted by ``coqc
 -emit-glob``) record every identifier *reference* with a byte range and every
-top-level object's *definition*.  Parsing them yields a faithful proof-level
-dependency relation: for a documented lemma ``L`` we collect every identifier
-``L``'s statement-and-proof region *uses*, then map those used identifiers back
-to the entries that *document* them.  The result is the ``depends`` edge kind
+top-level object's *definition*.  Parsing them yields a faithful
+**statement-level** dependency relation: for a documented lemma ``L`` we
+collect every identifier ``L``'s *statement* uses — references made only
+inside a proof script (``Proof. … Qed.``) are masked out by byte position
+(see :func:`proof_spans`) — then map those used identifiers back to the
+entries that *document* them.  The result is the ``depends`` edge kind
 (real Coq dependency), kept distinct from the ``mentions`` kind (doc
 co-reference).
+
+**Why statements only.**  The audit's question about an entry is *what it is
+stated in terms of*, not how its proof happens to be scripted: a proof
+routinely touches ten times as many documented entries as its statement
+does, and drawing all of them buried the readable concept-level graph under
+tactic-level noise (the owner's ruling, 2026-08).  A ``Definition`` body
+that is a plain term (no ``Proof.`` script) still counts in full — for a
+definition the body *is* the mathematical content, and those references are
+what keep the machinery connected to the results stated in terms of it.
 
 ``.glob`` line grammar (the two forms we consume):
 
@@ -51,6 +62,7 @@ body it belongs to.
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -68,8 +80,10 @@ _GLOB_DEF_RE = re.compile(
 )
 
 #: ``.glob`` reference line:
-#: ``R<bs>:<be> <modpath> <dotpath> <localname> <refkind>``.
-_GLOB_REF_RE = re.compile(r"^R\d+:\d+\s+(\S+)\s+\S+\s+(\S+)\s+(\S+)\s*$")
+#: ``R<bs>:<be> <modpath> <dotpath> <localname> <refkind>``.  The byte start
+#: is captured so a reference can be located relative to the source file's
+#: proof-script spans (statement-level masking).
+_GLOB_REF_RE = re.compile(r"^R(\d+):\d+\s+(\S+)\s+\S+\s+(\S+)\s+(\S+)\s*$")
 
 #: Reference kinds that name a *defined object* we may depend on (lemmas,
 #: definitions, constructors, fields, instances).  Notations (``not``),
@@ -79,8 +93,103 @@ _DEP_REF_KINDS = frozenset(
     {"def", "thm", "lem", "prf", "constr", "proj", "inst", "ind", "rec", "scheme"}
 )
 
+#: The tokens that matter to the proof-span scanner: comment delimiters,
+#: string delimiters, the ``Proof`` vernacular opener and the four proof
+#: terminators.  Word boundaries exclude identifiers like ``proof_of`` (Coq
+#: identifiers may also contain ``'``, hence the primed classes).
+_PROOF_EVENT_RE = re.compile(
+    rb"\(\*|\*\)|\""
+    rb"|(?<![A-Za-z0-9_'])(?:Proof|Qed|Defined|Admitted|Abort)(?![A-Za-z0-9_'])"
+)
 
-def parse_glob_uses(text: str) -> dict[str, set[str]]:
+
+def proof_spans(src: bytes) -> list[tuple[int, int]]:
+    """Byte spans ``[start, end)`` of the proof scripts in a ``.v`` source.
+
+    A span opens at the ``Proof`` of a vernacular ``Proof.`` sentence and
+    closes after the ``.`` of the next ``Qed`` / ``Defined`` / ``Admitted``
+    / ``Abort``.  The scan is comment-aware (nested ``(* … *)``, where the
+    words *Proof* and *Qed* occur freely as prose) and string-aware
+    (``"…"`` with ``""`` escapes) so neither can open or close a span.
+
+    Deliberate asymmetries, both erring toward *keeping* a reference:
+
+    * a terminator with no open span is ignored — a tactic proof entered
+      without ``Proof.`` (non-mathcomp style) is then simply not masked;
+    * ``Proof`` NOT followed by ``.`` (``Proof using``, legacy ``Proof
+      term``) opens nothing, for the same reason.
+
+    An unterminated span runs to end-of-file (a truncated source mid-write;
+    masking too much there is the safe direction, since the file is about
+    to be re-read anyway).
+    """
+    spans: list[tuple[int, int]] = []
+    depth = 0                # comment nesting
+    open_at = -1             # start of the current proof span, -1 = none
+    pos, n = 0, len(src)
+    while pos < n:
+        m = _PROOF_EVENT_RE.search(src, pos)
+        if m is None:
+            break
+        tok, start, end = m.group(0), m.start(), m.end()
+        if depth > 0:
+            if tok == b"(*":
+                depth += 1
+            elif tok == b"*)":
+                depth -= 1
+            pos = end
+            continue
+        if tok == b"(*":
+            depth = 1
+            pos = end
+            continue
+        if tok == b"*)":     # stray close outside any comment: not ours
+            pos = end
+            continue
+        if tok == b'"':      # skip the string literal ("" escapes a quote)
+            i = end
+            while True:
+                j = src.find(b'"', i)
+                if j == -1:
+                    i = n
+                    break
+                if src[j + 1:j + 2] == b'"':
+                    i = j + 2
+                    continue
+                i = j + 1
+                break
+            pos = i
+            continue
+        # A keyword, outside comments and strings.  Both the opener and the
+        # terminators must be a full vernacular sentence: optional layout,
+        # then the sentence-ending ``.``.
+        j = end
+        while j < n and src[j] in b" \t\r\n":
+            j += 1
+        is_sentence = src[j:j + 1] == b"."
+        if tok == b"Proof":
+            if open_at < 0 and is_sentence:
+                open_at = start
+                pos = j + 1
+            else:
+                pos = end
+            continue
+        if open_at >= 0 and is_sentence:
+            spans.append((open_at, j + 1))
+            open_at = -1
+            pos = j + 1
+        else:
+            pos = end
+    if open_at >= 0:
+        spans.append((open_at, n))
+    return spans
+
+
+def parse_glob_uses(
+    text: str,
+    exclude_spans: list[tuple[int, int]] | None = None,
+    stats: dict[str, int] | None = None,
+) -> dict[str, set[str]]:
     """Parse one ``.glob`` file body into ``{object_name: {used_idents}}``.
 
     Walks ``text`` line by line.  A definition line opens the *current*
@@ -91,10 +200,30 @@ def parse_glob_uses(text: str) -> dict[str, set[str]]:
     entry's ``rocq_idents``.  Self-references are *not* filtered here; the
     edge builder drops self-edges downstream.
 
+    ``exclude_spans`` — the source file's :func:`proof_spans` — makes the
+    result **statement-level**: a reference whose byte start falls inside a
+    proof script is dropped.  ``None`` (no source available) keeps every
+    reference, the historical statement-and-proof behaviour.
+
+    ``stats``, when given, is a mutable tally: ``kept`` / ``masked`` are
+    incremented per dependency-kind reference so the caller can report how
+    much the statement mask removed.
+
     Multiple definition lines with the same name (re-opened sections,
     overloaded local lets) accumulate into one use-set — harmless, since we
     only query documented top-level names.
     """
+    starts: list[int] = []
+    ends: list[int] = []
+    if exclude_spans:
+        for s, e in sorted(exclude_spans):
+            starts.append(s)
+            ends.append(e)
+
+    def in_proof(b: int) -> bool:
+        i = bisect_right(starts, b) - 1
+        return i >= 0 and b < ends[i]
+
     uses: dict[str, set[str]] = {}
     current: str | None = None
     for line in text.splitlines():
@@ -106,8 +235,14 @@ def parse_glob_uses(text: str) -> dict[str, set[str]]:
             continue
         r = _GLOB_REF_RE.match(line)
         if r is not None and current is not None:
-            localname, refkind = r.group(2), r.group(3)
+            localname, refkind = r.group(3), r.group(4)
             if refkind in _DEP_REF_KINDS and localname != "<>":
+                if starts and in_proof(int(r.group(1))):
+                    if stats is not None:
+                        stats["masked"] = stats.get("masked", 0) + 1
+                    continue
+                if stats is not None:
+                    stats["kept"] = stats.get("kept", 0) + 1
                 # Keep the bare local name (drop any dotted qualifier).
                 uses[current].add(localname.rsplit(".", 1)[-1])
     return uses
@@ -130,16 +265,24 @@ def _glob_path_for(vfile_rel: str, theories_root: Path) -> Path | None:
 
 
 def load_glob_uses(
-    theories_root: str | Path, vfiles: Iterable[str]
+    theories_root: str | Path,
+    vfiles: Iterable[str],
+    stats: dict[str, int] | None = None,
 ) -> tuple[dict[str, set[str]], list[str]]:
     """Load and merge ``{object_name: {used_idents}}`` for the given ``.v``s.
 
     ``vfiles`` is the set of repo-relative ``.v`` paths the documented
     entries reference (their ``rocq_files`` paths).  For each we read the
-    sibling ``.glob`` and merge its per-object use-sets.  Returns
-    ``(uses, missing)`` where ``missing`` is the list of ``.v`` paths whose
-    ``.glob`` was absent or unreadable — the caller turns a non-empty
-    ``missing`` into a build NOTICE and degrades gracefully.
+    sibling ``.glob`` and merge its per-object use-sets — **statement-level**:
+    the ``.v`` source itself is read alongside to compute its proof-script
+    spans (:func:`proof_spans`), and references made inside a proof are
+    masked out.  An unreadable ``.v`` (but readable ``.glob``) degrades that
+    one file to the unmasked statement-and-proof set rather than losing it.
+    Returns ``(uses, missing)`` where ``missing`` is the list of ``.v``
+    paths whose ``.glob`` was absent or unreadable — the caller turns a
+    non-empty ``missing`` into a build NOTICE and degrades gracefully.
+    ``stats`` (optional) tallies ``kept`` / ``masked`` reference counts
+    across all files, for provenance reporting.
 
     A *single* unreadable file must never sink the build: a concurrent
     ``make`` truncates and rewrites ``.glob`` files in place, so one can
@@ -158,9 +301,14 @@ def load_glob_uses(
         if not gpath.is_file():
             missing.append(vfile)
             continue
+        spans: list[tuple[int, int]] | None
+        try:
+            spans = proof_spans(gpath.with_suffix(".v").read_bytes())
+        except OSError:
+            spans = None
         try:
             text = gpath.read_text(encoding="utf-8")
-            parsed = parse_glob_uses(text)
+            parsed = parse_glob_uses(text, exclude_spans=spans, stats=stats)
         except (OSError, UnicodeDecodeError, ValueError):
             missing.append(vfile)
             continue
@@ -238,6 +386,11 @@ class GlobRelation:
     n_glob_found: int = 0
     n_glob_missing: int = 0
     n_objects: int = 0
+    #: Statement-level accounting: dependency-kind references kept (in a
+    #: statement or a plain definitional body) vs masked out as
+    #: proof-script-only.  Both zero when no ``.glob`` was read.
+    n_refs_stmt: int = 0
+    n_refs_proof: int = 0
     #: ``{ident: [claimants]}`` for every ident more than one entry
     #: documents (see :func:`build_claimant_map`).  Docs hygiene, not a
     #: fault: co-documentation is legitimate and only costs the edges in
@@ -260,7 +413,9 @@ class GlobRelation:
         return (
             f"glob deps: {self.n_glob_found}/{self.n_vfiles} .v file(s) had a "
             f".glob · {self.n_objects} object(s) parsed · "
-            f"{len(self.edges)} entry-to-entry dependency edge(s)"
+            f"{len(self.edges)} statement-level dependency edge(s) "
+            f"({self.n_refs_stmt} refs kept, {self.n_refs_proof} "
+            "proof-script refs masked)"
         )
 
     def report_lines(self, limit: int = 10) -> list[str]:
@@ -312,10 +467,11 @@ def build_glob_relation(
     three: ThreeTabDocument,
     theories_root: str | Path | None,
 ) -> GlobRelation:
-    """Real Coq dependency edges ``A -> B`` derived from ``.glob`` files.
+    """Statement-level Coq dependency edges ``A -> B`` from ``.glob`` files.
 
     For each documented entry ``A`` and each Coq object name ``A``
-    documents, look up that object's ``.glob`` use-set, map every used
+    documents, look up that object's ``.glob`` use-set (statement-level:
+    proof-script references are masked, see :func:`proof_spans`), map every used
     identifier through the cross-tab documented-ident map
     (:func:`tools.auditor.xref.build_global_entry_map`) to the entry ``B``
     that *documents* it, and emit ``A -> B``.  Only edges to **other
@@ -368,7 +524,8 @@ def build_glob_relation(
     # Only ``.v`` paths can have a sibling ``.glob``; anything else is not
     # part of the expected-vs-missing accounting.
     v_paths = {p for p in vfiles if p.strip().endswith(".v")}
-    uses, missing = load_glob_uses(theories_root, vfiles)
+    ref_stats: dict[str, int] = {}
+    uses, missing = load_glob_uses(theories_root, vfiles, stats=ref_stats)
 
     notices: list[str] = []
     if not uses and missing:
@@ -417,6 +574,8 @@ def build_glob_relation(
         n_glob_found=max(0, len(v_paths) - len(missing)),
         n_glob_missing=len(missing),
         n_objects=len(uses),
+        n_refs_stmt=ref_stats.get("kept", 0),
+        n_refs_proof=ref_stats.get("masked", 0),
         contested={i: k for i, k in claimants.items() if len(k) > 1},
         # A pair some OTHER documented object independently justifies is a
         # real dependency, however it also arose; only report what the
@@ -455,6 +614,7 @@ __all__ = [
     "GlobRelation",
     "OwnerKey",
     "build_claimant_map",
+    "proof_spans",
     "parse_glob_uses",
     "load_glob_uses",
     "build_glob_relation",

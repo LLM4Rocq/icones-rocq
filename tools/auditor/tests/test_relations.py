@@ -801,3 +801,70 @@ def test_backfill_refuses_ambiguous_and_unknown_idents(tmp_path):
     assert ambiguous.rocq_files == []
     assert unknown.rocq_files == []
     assert notices == []
+
+
+# -- 8. statement-level masking ----------------------------------------------
+#
+# The owner's ruling (2026-08): "the audit does not need to inspect the
+# proof — dependency arrows should only match statements."  A reference made
+# only inside a proof script (``Proof. … Qed.``) must not mint a ``depends``
+# edge; a reference in the statement (or in a plain definitional body) must.
+
+
+def test_proof_spans_are_comment_and_string_aware():
+    """The scanner reads vernacular structure, not raw token matches."""
+    from tools.auditor.glob_deps import proof_spans
+
+    src = (
+        b"(* prose Proof. and Qed. inside a (* nested *) comment *)\n"
+        b"Lemma a : stmt_ref = 0.\n"
+        b"Proof. by rewrite proof_ref. Qed.\n"
+        b'Definition s := "a string with Proof. inside".\n'
+        b"Lemma b : other_stmt.\n"
+        b"Proof.\napply other_proof.\n"        # unterminated: runs to EOF
+    )
+    spans = proof_spans(src)
+    assert len(spans) == 2
+    covered = lambda name: any(
+        s <= src.find(name) < e for s, e in spans
+    )
+    assert covered(b"proof_ref") and covered(b"other_proof")
+    assert not covered(b"stmt_ref") and not covered(b"other_stmt")
+    # The unterminated span really does reach EOF (safe direction: mask).
+    assert spans[-1][1] == len(src)
+
+
+def test_proof_only_references_do_not_mint_edges(tmp_path):
+    """End to end: statement refs make edges, proof-script refs do not."""
+    demo = tmp_path / "theories" / "demo"
+    demo.mkdir(parents=True)
+    src = (
+        "Definition base_stmt := 0.\n"
+        "Definition proof_helper := 1.\n"
+        "Lemma user_thm : base_stmt = 0.\n"
+        "Proof. by rewrite /proof_helper. Qed.\n"
+    )
+    (demo / "foo.v").write_text(src, encoding="utf-8")
+    off = {n: src.index(n, 60) for n in ("base_stmt", "proof_helper")}
+    (demo / "foo.glob").write_text(
+        "DIGEST deadbeef\n"
+        "FIcones.demo.foo\n"
+        "def 11:19 <> base_stmt\n"
+        "def 38:49 <> proof_helper\n"
+        "thm 61:68 <> user_thm\n"
+        f"R{off['base_stmt']}:{off['base_stmt'] + 8} "
+        "Icones.demo.foo <> base_stmt def\n"
+        f"R{off['proof_helper']}:{off['proof_helper'] + 11} "
+        "Icones.demo.foo <> proof_helper def\n",
+        encoding="utf-8",
+    )
+    base = _entry("def-base", idents=["base_stmt"], vfile="theories/demo/foo.v")
+    helper = _entry("def-helper", idents=["proof_helper"], vfile="theories/demo/foo.v")
+    user = _entry("thm-user", idents=["user_thm"], vfile="theories/demo/foo.v")
+    three = _three(paper=[_section("sec-x", [base, helper, user])])
+
+    rel = build_glob_relation(three, tmp_path / "theories")
+
+    assert (("paper", "thm-user"), ("paper", "def-base")) in rel.edges
+    assert (("paper", "thm-user"), ("paper", "def-helper")) not in rel.edges
+    assert rel.n_refs_stmt == 1 and rel.n_refs_proof == 1

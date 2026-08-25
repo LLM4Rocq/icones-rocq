@@ -185,9 +185,11 @@
 {#- One relation link.  The two relations are different animals, and the
     ROW each link sits in — not its styling — is what says which (see
     schema.CrossRef):
-      `uses` / `used-by`  a real Coq dependency read from the .glob files
-                          (always via='glob'; the pipeline demotes any
-                          directional claim the proofs do not back), and
+      `uses` / `used-by`  a real Coq STATEMENT-LEVEL dependency read from
+                          the .glob files (always via='glob'; proof-script
+                          references are masked upstream, and the pipeline
+                          demotes any directional claim the statements do
+                          not back), and
       `mentions`          an UNDIRECTED doc co-reference: the two entries'
                           text is written about the same identifier.
     Styling stays solid vs dashed to mirror the graph's edge kinds, but it
@@ -195,7 +197,7 @@
 {%- if x.kind in ('uses', 'used-by', 'mentions') -%}
 <a class="xref xref-{{ x.kind }} xref-via-{{ x.via|default('doc', true) }}"
    href="{{ xref_href(x) }}"
-   title="{% if x.kind == 'mentions' %}Doc co-reference (no direction) — this entry and {{ x.label }} are written about the same identifier{% elif x.kind == 'used-by' %}Real Coq dependency (from the .glob files) — {{ x.label }} is proved through an object this entry documents{% else %}Real Coq dependency (from the .glob files) — this entry is proved through an object {{ x.label }} documents{% endif %}">{{ x.label }}</a>
+   title="{% if x.kind == 'mentions' %}Doc co-reference (no direction) — this entry and {{ x.label }} are written about the same identifier{% elif x.kind == 'used-by' %}Real Coq statement-level dependency (from the .glob files) — {{ x.label }}'s statement is written in terms of an object this entry documents{% else %}Real Coq statement-level dependency (from the .glob files) — this entry's statement is written in terms of an object {{ x.label }} documents{% endif %}">{{ x.label }}</a>
 {%- else -%}
 {#- A section / beyond / chapter pointer: navigation, not a relation, so it
     claims nothing about identifiers and takes neither underline style. -#}
@@ -215,8 +217,10 @@
 {% macro xref_panel(entry) -%}
 {#- Per-card navigation, in TWO separated relations:
 
-      Uses / Used by   directional, and proof-level ONLY — every link here
-                       is a real Coq dependency read from the .glob files.
+      Uses / Used by   directional, and statement-level ONLY — every link
+                       here is a real Coq dependency read from the .glob
+                       files, restricted to statements (proof-script
+                       references are masked upstream).
       Mentioned with   undirected co-reference: the docs write about the
                        same identifier.  It carries no verb, because a
                        prose mention has no direction (Thm 4.18's text
@@ -243,7 +247,7 @@
         overstate what the proofs say. -#}
     {% if mention_refs %}<span class="xref-badge xref-badge-mentions" title="Undirected: the docs write about the same identifier. Not a dependency.">Mentioned with <b>{{ mention_refs|length }}</b></span>{% endif %}
     {% if other_refs %}<span class="xref-badge xref-badge-see-also">See also <b>{{ other_refs|length }}</b></span>{% endif %}
-    {% if n_proof %}<span class="xref-badge xref-badge-proof" title="Uses / Used by are read from the .glob files — real Coq dependencies">{{ n_proof }} from proofs</span>{% endif %}
+    {% if n_proof %}<span class="xref-badge xref-badge-proof" title="Uses / Used by are read from the .glob files — real statement-level Coq dependencies">{{ n_proof }} from the sources</span>{% endif %}
   </summary>
   <div class="xref-body">
     {{ xref_row('xref-uses', 'Uses:', uses_refs) }}
@@ -255,7 +259,8 @@
         needs to be told that nothing in it is a dependency. -#}
     <p class="xref-legend">
       {% if n_proof %}<span class="xref-via-glob">Uses / Used by</span> = real
-      Coq dependency read from the <code>.glob</code> files{% if mention_refs %} ·
+      Coq statement-level dependency read from the <code>.glob</code>
+      files{% if mention_refs %} ·
       {% endif %}{% endif %}{% if mention_refs %}<span class="xref-via-doc">Mentioned
       with</span> = the docs name the same identifier — a co-reference, not a
       dependency, and it points in no direction{% endif %}{% if n_proof or mention_refs %}.{% endif %}

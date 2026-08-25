@@ -94,7 +94,7 @@ from .schema import (
 MIN_IDENT_LEN = 4
 
 #: Cross-ref kinds of the *directional* relation shown as Uses / Used by.
-#: They are dependency claims, so only the proof-level ``.glob`` relation
+#: They are dependency claims, so only the statement-level ``.glob`` relation
 #: may fill them (``via='glob'``); see :func:`attach_glob_relations`.
 _RELATION_KINDS = ("uses", "used-by")
 
@@ -919,7 +919,7 @@ def attach_entry_relations(three: ThreeTabDocument) -> ThreeTabDocument:
 
     So the pair is filed **undirected**, as ``kind='mentions'`` with
     ``via='doc'``, on *both* endpoints — never as ``uses`` / ``used-by``,
-    which are reserved for the proof-level ``.glob`` relation attached by
+    which are reserved for the statement-level ``.glob`` relation attached by
     :func:`attach_glob_relations`.  ``target``/``tab``/``label`` describe
     the partner entry, so the renderer can still build a cross-tab href.
 
@@ -984,12 +984,12 @@ def attach_glob_relations(
 ) -> ThreeTabDocument:
     """Upgrade each entry's Uses / Used-by panel with REAL ``.glob`` deps.
 
-    ``edges`` is the proof-level dependency relation
+    ``edges`` is the statement-level dependency relation
     (:func:`tools.auditor.glob_deps.build_glob_relation`): ``A -> B`` when a
     Coq object entry ``A`` documents *uses* an object entry ``B`` documents,
     as recorded in the ``.glob`` files.  This is the same edge set the
     dependency graph draws solid — surfaced here as per-card navigation, so
-    an entry page links to exactly what its proof rests on and to what rests
+    an entry page links to exactly what its statement rests on and to what rests
     on it, without the reader having to open the graph.
 
     For every entry it:
@@ -1007,7 +1007,7 @@ def attach_glob_relations(
     * appends a ``via='glob'`` ref for a real dependency the prose never
       named — the case that motivates parsing ``.glob`` at all;
     * drops a ``mentions`` ref for a partner this entry already has a
-      proof-level relation with (the strong relation subsumes the weak
+      statement-level relation with (the strong relation subsumes the weak
       one, in either direction); and
     * re-orders the refs: proof-backed ``uses`` then ``used-by``, then the
       doc co-references, each alphabetically by label.

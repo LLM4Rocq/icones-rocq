@@ -296,17 +296,18 @@
 
 /* ----------------------------------------------------------- stage ------ */
 
+/* The canvas owns the whole stage width; the info panel FLOATS over its
+   bottom-left corner (see below) instead of costing it a 20rem column —
+   the owner's call: the graph box is the scarce resource, the description
+   box is not. */
 .graph-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 20rem;
-  gap: 0.85rem;
-  align-items: stretch;
+  position: relative;
 }
 
 .graph-canvas {
   /* Taller than the old canvas: the lane layout trades width for readable
      labels, so the viewport is the scarce resource. */
-  height: min(78vh, 900px);
+  height: min(80vh, 1000px);
   min-height: 480px;
   /* Panning the graph must not bounce the page underneath it. */
   overscroll-behavior: contain;
@@ -320,17 +321,36 @@
 
 /* ----------------------------------------------------------- panel ------ */
 
+/* The selected-node card, overlaid bottom-left INSIDE the canvas (a map-UI
+   idiom): the description stays in view next to what was clicked without
+   shrinking the graph.  The canvas remains pannable around it, so nothing
+   is ever unreachable underneath. */
 .graph-panel {
+  position: absolute;
+  left: 0.7rem;
+  bottom: 0.7rem;
+  z-index: 20;
+  width: min(21rem, calc(100% - 1.4rem));
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  max-height: min(78vh, 900px);
+  max-height: min(55%, 26rem);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.75rem;
   border: 1px solid var(--border, #d0d7de);
   border-radius: var(--radius, 0.5rem);
   background: var(--bg-elev, #fff);
+  box-shadow: var(--shadow-hover, 0 4px 14px rgba(0, 0, 0, 0.14));
   font-size: 0.88rem;
+}
+/* Nothing selected yet: keep the standing hint, but quiet and small, so the
+   default view is a graph with a whisper in the corner — not a card. */
+.graph-panel:has(.graph-panel-body[hidden]):has(.graph-focusbar[hidden]) {
+  padding: 0.45rem 0.6rem;
+  width: min(17rem, calc(100% - 1.4rem));
+  opacity: 0.88;
+  box-shadow: none;
 }
 
 .graph-focusbar {
@@ -485,11 +505,20 @@
   font-size: 0.88rem;
   max-width: var(--maxw-prose, 52rem);
 }
+/* Two grid cells per item: the mark, then ONE .graph-legend-text wrapper
+   holding all the prose.  The wrapper is not decoration: bare inline
+   children (text runs, <strong>, <code>) of a grid container each become
+   their own anonymous grid item, and this legend once rendered as one
+   fragment per cell because of exactly that. */
 .graph-legend li {
   display: grid;
   grid-template-columns: 2.6rem minmax(0, 1fr);
-  align-items: baseline;
+  align-items: start;
   gap: 0.6rem;
+}
+.graph-legend-text {
+  min-width: 0;
+  line-height: 1.45;
 }
 .graph-legend-edge {
   align-self: center;
@@ -581,6 +610,12 @@
 }
 .graph-legend-node-leaf { border: 2.5px solid var(--g-leaf); }
 .graph-legend-node-root { border: 1.6px dotted var(--g-root); }
+/* The items are multi-line paragraphs now: pin every mark to the first
+   line instead of letting align-self:center float it mid-paragraph. */
+.graph-legend li > span:first-child {
+  align-self: start;
+  margin-top: 0.3em;
+}
 @media (prefers-color-scheme: dark) {
   .graph-legend-node { color: #10131a; }
 }
@@ -635,8 +670,15 @@
 }
 
 @media (max-width: 900px) {
-  .graph-stage { grid-template-columns: minmax(0, 1fr); }
-  .graph-panel { max-height: none; }
+  /* Too narrow for an overlay: the panel drops back into the flow, below
+     the canvas. */
+  .graph-panel {
+    position: static;
+    width: auto;
+    max-height: none;
+    margin-top: 0.85rem;
+    box-shadow: none;
+  }
   .graph-canvas { height: min(62vh, 560px); }
 }
 

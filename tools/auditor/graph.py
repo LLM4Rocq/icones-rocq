@@ -501,7 +501,7 @@ def _assign_leaf_root(
     the reader of a formalisation is looking for.  An entry that points at
     nothing is a **root**: it rests on no other documented entry.
 
-    Only real proof dependencies count (prose co-references would make every
+    Only real statement-level dependencies count (prose co-references would make every
     entry that is merely *named* somewhere stop being a leaf), and the whole
     three-tab relation counts: a Paper theorem used only by a PPL example is
     not a leaf, even while the Paper tab is the one on screen.
@@ -544,9 +544,11 @@ def build_graph(
       Two kinds are emitted, and they differ in *arity*, not only in
       strength:
 
-      - ``depends`` — a **real Coq proof-level dependency** read from the
-        ``.glob`` files (entry ``A``'s documented lemma *uses* an identifier
-        that entry ``B`` documents).  Genuinely **directed**
+      - ``depends`` — a **real Coq statement-level dependency** read from
+        the ``.glob`` files (entry ``A``'s documented *statement* uses an
+        identifier that entry ``B`` documents; references made only inside
+        proof scripts are masked out, see
+        :func:`tools.auditor.glob_deps.proof_spans`).  Genuinely **directed**
         (``directed: true``); the load-bearing edges, styled solid in the
         client and drawn with an arrowhead.
       - ``mentions`` — a **doc co-reference**: both entries' text names the
@@ -558,7 +560,7 @@ def build_graph(
         unique, and the client draws it dashed and arrowless.  Consumers
         must not read ``source``/``target`` as a direction on these.
 
-      A pair the proofs relate in **either** direction is emitted only as
+      A pair the statements relate in **either** direction is emitted only as
       ``depends``: the strong relation subsumes the weak one, the same rule
       :func:`tools.auditor.xref.attach_glob_relations` applies to the cards,
       so the graph and the per-entry panel state the same thing.
@@ -588,7 +590,7 @@ def build_graph(
     nodes, entry_keys = _collect_nodes(three)
     _assign_lanes(nodes)
 
-    # Real Coq proof dependencies (.glob) and doc co-references (text).
+    # Real Coq statement-level dependencies (.glob) and doc co-references (text).
     rel = (
         glob_relation
         if glob_relation is not None
@@ -613,7 +615,7 @@ def build_graph(
     # (sorted) one so the payload states a pair, not an arrow — emitting
     # `{source: thm-4-18, target: thm-4-19, kind: mentions}` is the same
     # false direction claim the cards were fixed for, merely moved into
-    # graph.json.  A pair the proofs already relate either way is dropped
+    # graph.json.  A pair the statements already relate either way is dropped
     # outright: the dependency says strictly more.
     mention_pairs: set[tuple[str, str]] = set()
     for src, tgt in _nodes(mentions_raw):
@@ -805,6 +807,11 @@ def build_graph(
             "n_glob_files": rel.n_glob_found,
             "n_glob_missing": rel.n_glob_missing,
             "n_glob_objects": rel.n_objects,
+            # Statement-level accounting: how many dependency-kind .glob
+            # references fed the relation vs were masked as proof-script-only
+            # (the graph draws statements, not proof internals).
+            "n_refs_stmt": rel.n_refs_stmt,
+            "n_refs_proof": rel.n_refs_proof,
             "notices": notices,
         },
     }
