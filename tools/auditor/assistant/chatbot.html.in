@@ -115,18 +115,26 @@
     border: 1px solid var(--border); border-radius: var(--radius-sm);
     padding: 0.5rem 0.7rem;
   }
-  .composer button {
+  .composer > button {
     font: inherit; font-weight: 600; padding: 0.5rem 1rem;
     border-radius: var(--radius-sm); border: 1px solid var(--accent);
     background: var(--accent); color: #fff; cursor: pointer;
   }
-  .composer button:disabled { opacity: 0.45; cursor: default; }
+  .composer > button:disabled { opacity: 0.45; cursor: default; }
   .composer .stop { background: transparent; color: var(--fg-mute); border-color: var(--border); }
-  .composer select {
-    font: inherit; font-size: 0.88rem; color: var(--fg-mute);
-    background: var(--bg-elev); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 0.5rem 0.35rem;
+  .seg {
+    display: flex; align-items: stretch; flex-shrink: 0;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    overflow: hidden; background: var(--bg-elev);
   }
+  .seg-btn {
+    font: inherit; font-size: 0.92rem; font-weight: 600;
+    padding: 0.5rem 0.85rem; border: none; cursor: pointer;
+    background: transparent; color: var(--fg-mute);
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+  .seg-btn[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .seg-btn:not([aria-pressed="true"]):hover { color: var(--fg); background: var(--bg-soft); }
   .foot { font-size: 0.78rem; color: var(--fg-faint); padding: 0 0 1rem; }
 </style>
 
@@ -162,11 +170,12 @@
   <form class="composer" id="composer">
     <textarea id="box" rows="1" placeholder="Ask about an entry, a status, a dependency…"
               aria-label="Your question" disabled></textarea>
-    <select id="depth" aria-label="Answer depth"
-            title="Deep uses the most capable model — slower, and uses more of your plan">
-      <option value="default">Balanced</option>
-      <option value="complex">Deep</option>
-    </select>
+    <div class="seg" id="depth" role="group" aria-label="Answer depth">
+      <button type="button" class="seg-btn" data-tier="default" aria-pressed="true"
+              title="Everyday model — fast answers">Balanced</button>
+      <button type="button" class="seg-btn" data-tier="complex" aria-pressed="false"
+              title="Most capable model — thinks longer, uses more of your plan">Deep</button>
+    </div>
     <button type="button" class="stop" id="stopBtn" hidden>Stop</button>
     <button type="submit" id="sendBtn" disabled>Ask</button>
   </form>
@@ -382,7 +391,7 @@ async function ask(question) {
   setBusy(true);
   ctl = new AbortController();
   stopBtn.onclick = () => ctl.abort();
-  const tier = document.getElementById("depth").value === "complex" ? "complex" : "default";
+  const tier = tierChoice;
   try {
     const res = await sampleFn(
       [{ role: "user", content: rules }, ...turns],
@@ -441,6 +450,14 @@ box.addEventListener("input", () => {
 document.getElementById("chips").addEventListener("click", (ev) => {
   const chip = ev.target.closest(".chip");
   if (chip) ask(chip.textContent);
+});
+let tierChoice = "default";
+document.getElementById("depth").addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".seg-btn");
+  if (!btn) return;
+  tierChoice = btn.dataset.tier === "complex" ? "complex" : "default";
+  for (const b of document.querySelectorAll("#depth .seg-btn"))
+    b.setAttribute("aria-pressed", String(b === btn));
 });
 
 /* ---------- boot ---------- */

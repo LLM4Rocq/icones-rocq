@@ -138,10 +138,17 @@ jobs:
           # commit, which build.yml never uploaded an artefact for; the PR
           # head SHA is the one it actually built.
           commit: ${{ github.event.pull_request.head.sha || github.sha }}
-          # `fail` (not `warn`) on purpose: it is what lets the fallback step
-          # below detect that nothing was downloaded.
-          if_no_artifact_found: fail
+          # `warn` (not `fail`): a missing pinned artefact is the EXPECTED
+          # state on any push whose build.yml is still running (a docs- or
+          # tools-only change hits this every time), and `fail` painted a red
+          # "Error:" annotation on a perfectly green job. The fallback step
+          # keys on the absence of the downloaded file, not on this step's
+          # outcome, so nothing is lost by succeeding quietly here.
+          if_no_artifact_found: warn
           search_artifacts: true
+        # Belt for genuine download failures (network, auth): the job still
+        # continues and the file-presence check below still triggers the
+        # fallback.
         continue-on-error: true
 
       # Explicitly separate, explicitly named: if this step runs, the build is
@@ -152,7 +159,9 @@ jobs:
       # and the provenance line recorded for the build log.
       - name: Fetch Rocq .glob files (FALLBACK — last successful main build, NOT this commit)
         id: glob_fallback
-        if: steps.glob_pinned.outcome != 'success'
+        # File presence, not step outcome: the pinned step now succeeds-with-
+        # warning when the artefact does not exist yet.
+        if: hashFiles('theories-glob.tar.gz') == ''
         uses: dawidd6/action-download-artifact@v6
         with:
           name: theories-glob
@@ -166,12 +175,12 @@ jobs:
 
       - name: Unpack Rocq .glob files
         run: |
-          if [ "${{ steps.glob_pinned.outcome }}" = "success" ]; then
-            echo "glob provenance: this commit (${{ github.event.pull_request.head.sha || github.sha }})"
-          elif [ -f theories-glob.tar.gz ]; then
-            echo "::warning::theories-glob for this commit was not available (build.yml has not finished for it); fell back to the last successful build on main. The dependency graph and the live-snippet extraction describe a DIFFERENT revision of theories/ than this checkout."
-          fi
           if [ -f theories-glob.tar.gz ]; then
+            if [ "${{ steps.glob_fallback.outcome }}" = "skipped" ]; then
+              echo "glob provenance: this commit (${{ github.event.pull_request.head.sha || github.sha }})"
+            else
+              echo "::warning::theories-glob for this commit was not available (build.yml has not finished for it); fell back to the last successful build on main. The dependency graph and the live-snippet extraction describe a DIFFERENT revision of theories/ than this checkout."
+            fi
             tar -xzf theories-glob.tar.gz
             rm -f theories-glob.tar.gz
           else
