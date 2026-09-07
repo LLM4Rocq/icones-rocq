@@ -499,6 +499,12 @@ The entry point for reviewing the formalization without first opening the source
   deep-linkable per entry, with per-entry links to coqdoc and GitHub. Sources in
   [`docs/PAPER.md`](./docs/PAPER.md) + [`docs/PPL.md`](./docs/PPL.md) +
   [`docs/EXAMPLES.md`](./docs/EXAMPLES.md).
+- An **[audit assistant](https://llm4rocq.github.io/icones-rocq/auditor/assistant/)**:
+  a grounded LLM chat (runs on the auditor's own claude.ai account — Pro is
+  enough, no API key) plus a downloadable Claude skill, both generated from the
+  dashboard's own build data so they can never drift from the site. See the
+  "Audit assistant bundle" section of
+  [`docs/AUDITOR_FORMAT.md`](./docs/AUDITOR_FORMAT.md).
 
 ## Building
 

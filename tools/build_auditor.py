@@ -29,6 +29,7 @@ if __package__ in {None, ""}:
 from tools.auditor.coqdoc import CoqdocResolver, parse_coqproject  # noqa: E402
 from tools.auditor.parser import parse_three_tabs, snippet_stats  # noqa: E402
 from tools.auditor.render import GlobDependencyError, render  # noqa: E402
+from tools.auditor.skillgen import generate_assistant_bundle  # noqa: E402
 from tools.auditor.xref import attach_entry_relations, linkify_all  # noqa: E402
 
 
@@ -74,6 +75,21 @@ def _build_argparser() -> argparse.ArgumentParser:
         help=(
             "How many entries of each live-snippet report list to print "
             "without --check-snippets (0 = all).  Default: 12."
+        ),
+    )
+    p.add_argument(
+        "--site-url",
+        default="https://llm4rocq.github.io/icones-rocq/auditor/",
+        help="Published base URL of the auditor site (used by the generated assistant bundle)",
+    )
+    p.add_argument(
+        "--assistant-artifact-url",
+        # The canonical published chat artifact.  This default is the ONE place
+        # the URL lives (see .claude/skills/publish-assistant/SKILL.md).
+        default="https://claude.ai/code/artifact/febf01d8-2939-4a27-be03-dfd9860b1916",
+        help=(
+            "Published claude.ai artifact URL for the chat assistant; "
+            "substituted into generated assistant pages"
         ),
     )
     return p
@@ -233,6 +249,19 @@ def main(argv: list[str] | None = None) -> int:
     search_notice = _build_search_index(out_path)
     if search_notice:
         print(f"[build_auditor] NOTICE: {search_notice}", file=sys.stderr)
+
+    # Post-render, post-search-index: derive the audit-assistant bundle from
+    # the site's own graph.json/data.json (kept out of the Pagefind index by
+    # running after it).  A failure here fails the build — an assistant
+    # bundle that silently didn't build is worse than a broken build.
+    assistant_counts = generate_assistant_bundle(
+        out_path, site_url=args.site_url, artifact_url=args.assistant_artifact_url
+    )
+    print(
+        "[build_auditor] assistant bundle: "
+        f"{assistant_counts.get('entries', 0)} entries, "
+        f"{assistant_counts.get('depends', 0)} depends edges"
+    )
 
     p_n, p_f, p_status = _tab_counts(three.paper)
     l_n, l_f, l_status = _tab_counts(three.ppl)

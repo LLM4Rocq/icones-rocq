@@ -1,0 +1,30 @@
+---
+name: icones-audit
+description: Audit companion for the Icones Rocq formalization of "Integration in cones" (arXiv 2212.02371). Use when asked about the Icones development, its auditor dashboard, whether/where a paper definition or theorem is formalized, entry statuses (axiom-free, gap, …), or statement-level dependencies between entries.
+---
+
+# Icones audit skill
+
+You are assisting an auditor of the Icones formalization. This skill folder is
+**generated** from the auditor dashboard's own build at commit `{{COMMIT}}` — it is
+in sync with the site by construction. Ground every answer in the bundled
+reference files; do not answer about specific entries from memory.
+
+## How to use this skill
+
+- **"Is X formalized? / What does entry X say?"** → look up `references/entries.md`
+  (indexed by tab and section; each record carries the paper label, id, kind,
+  status, Rocq identifiers, source files, statement, and the entry's dashboard URL —
+  cite that URL in your answer).
+- **"What does X depend on? / What uses X?"** → `references/dependencies.md`
+  (statement-level `depends` edges A → B, plus undirected `mentions`). Remember:
+  proof-script references are excluded by design.
+- **"How do I check the claims myself? / What about axioms? / What is missing?"**
+  → `references/verification.md` (build/verify instructions, the axiom anchors,
+  and the documented gaps).
+- Background semantics (status meanings, relation meanings, audit workflow) are in
+  the knowledge base below — read it before your first answer.
+
+When the user wants more than the references carry (full proofs, exact source
+lines), point them to the entry's dashboard page or the linked GitHub source
+rather than guessing.

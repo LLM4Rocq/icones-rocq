@@ -1,0 +1,452 @@
+<meta charset="utf-8">
+<title>Icones Audit Assistant</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --font-prose: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", "Fira Code", Consolas, Menlo, monospace;
+    --bg: #fbfbfa; --bg-elev: #ffffff; --bg-soft: #f3f3f0; --bg-code: #f6f4ef;
+    --fg: #1d1d1b; --fg-mute: #5a5a55; --fg-faint: #87877f;
+    --border: #e4e2dc; --border-soft: #ededea;
+    --accent: #2b4a7d; --accent-soft: #e6ecf5;
+    --link: #1a4691; --link-hover: #0d2c63; --focus-ring: #4f7ec9;
+    --user-bubble: #e6ecf5; --danger: #a4302f;
+    --radius: 0.5rem; --radius-sm: 0.35rem;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.03);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14151a; --bg-elev: #1c1e25; --bg-soft: #232631; --bg-code: #1a1c23;
+      --fg: #e8e8e3; --fg-mute: #aeb0aa; --fg-faint: #7e8079;
+      --border: #2f323d; --border-soft: #242732;
+      --accent: #7faaf0; --accent-soft: #243250;
+      --link: #9fc0f7; --link-hover: #cfe0fc; --focus-ring: #7faaf0;
+      --user-bubble: #243250; --danger: #e08d8c;
+      --shadow: 0 1px 2px rgba(0,0,0,0.5), 0 1px 1px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14151a; --bg-elev: #1c1e25; --bg-soft: #232631; --bg-code: #1a1c23;
+    --fg: #e8e8e3; --fg-mute: #aeb0aa; --fg-faint: #7e8079;
+    --border: #2f323d; --border-soft: #242732;
+    --accent: #7faaf0; --accent-soft: #243250;
+    --link: #9fc0f7; --link-hover: #cfe0fc; --focus-ring: #7faaf0;
+    --user-bubble: #243250; --danger: #e08d8c;
+    --shadow: 0 1px 2px rgba(0,0,0,0.5), 0 1px 1px rgba(0,0,0,0.4);
+  }
+
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-prose); font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 46rem; margin: 0 auto; padding: 0 clamp(0.75rem, 3vw, 1.5rem);
+    min-height: 100dvh; display: flex; flex-direction: column;
+  }
+  a { color: var(--link); text-decoration: underline; text-underline-offset: 0.16em; }
+  a:hover { color: var(--link-hover); }
+  a:focus-visible, button:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px;
+  }
+  code { font-family: var(--font-mono); font-size: 0.875em; background: var(--bg-code);
+         border: 1px solid var(--border-soft); border-radius: 3px; padding: 0.05em 0.3em; }
+  pre { background: var(--bg-code); border: 1px solid var(--border-soft);
+        border-radius: var(--radius-sm); padding: 0.7rem 0.85rem; overflow-x: auto; }
+  pre code { background: none; border: none; padding: 0; }
+
+  .chrome {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+    padding: 1rem 0 0.8rem; border-bottom: 1px solid var(--border);
+  }
+  .brand { font-weight: 700; font-size: 1.05rem; white-space: nowrap; }
+  .brand::before {
+    content: ""; display: inline-block; width: 0.62em; height: 0.62em;
+    background: var(--accent); border-radius: 2px; margin-right: 0.5em;
+  }
+  .chrome-meta { font-size: 0.82rem; color: var(--fg-faint); text-align: right; }
+  .chrome-meta a { color: var(--fg-mute); }
+
+  .banner {
+    margin: 0.9rem 0 0; padding: 0.6rem 0.9rem; font-size: 0.9rem;
+    border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm); background: var(--bg-elev); color: var(--fg-mute);
+  }
+  .banner.is-error { border-left-color: var(--danger); }
+
+  .thread { flex: 1; display: flex; flex-direction: column; gap: 0.8rem; padding: 1.1rem 0 0.5rem; }
+  .welcome {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-elev); box-shadow: var(--shadow); padding: 1rem 1.2rem;
+  }
+  .welcome h1 { margin: 0 0 0.4rem; font-size: 1.15rem; text-wrap: balance; }
+  .welcome p { margin: 0.4rem 0; color: var(--fg-mute); font-size: 0.95rem; }
+  .welcome .stats { font-size: 0.83rem; color: var(--fg-faint); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.7rem; }
+  .chip {
+    border: 1px solid var(--border); border-radius: 999px; background: var(--bg-soft);
+    color: var(--fg-mute); font-size: 0.85rem; padding: 0.32rem 0.8rem;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--fg); }
+
+  .msg { max-width: 92%; padding: 0.6rem 0.9rem; border-radius: var(--radius);
+         overflow-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--user-bubble); white-space: pre-wrap; }
+  .msg.bot  { align-self: flex-start; background: var(--bg-elev);
+              border: 1px solid var(--border-soft); box-shadow: var(--shadow); }
+  .msg.bot > :first-child { margin-top: 0; }
+  .msg.bot > :last-child { margin-bottom: 0; }
+  .msg.bot ul { margin: 0.4rem 0; padding-left: 1.3rem; }
+  .msg .aside { color: var(--fg-faint); font-size: 0.82rem; margin-top: 0.4rem; }
+  .thinking { color: var(--fg-faint); font-style: italic; }
+  @media (prefers-reduced-motion: no-preference) {
+    .thinking { animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.45; } }
+  }
+
+  .composer {
+    position: sticky; bottom: 0; background: var(--bg);
+    padding: 0.6rem 0 0.9rem; border-top: 1px solid var(--border-soft);
+    display: flex; gap: 0.5rem; align-items: flex-end;
+  }
+  .composer textarea {
+    flex: 1; resize: none; min-height: 2.6rem; max-height: 10rem;
+    font: inherit; color: var(--fg); background: var(--bg-elev);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0.5rem 0.7rem;
+  }
+  .composer button {
+    font: inherit; font-weight: 600; padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm); border: 1px solid var(--accent);
+    background: var(--accent); color: #fff; cursor: pointer;
+  }
+  .composer button:disabled { opacity: 0.45; cursor: default; }
+  .composer .stop { background: transparent; color: var(--fg-mute); border-color: var(--border); }
+  .foot { font-size: 0.78rem; color: var(--fg-faint); padding: 0 0 1rem; }
+</style>
+
+<div class="page">
+  <header class="chrome">
+    <div class="brand">Icones Audit Assistant</div>
+    <div class="chrome-meta">
+      build <code>{{COMMIT}}</code> · <a href="{{SITE}}" target="_blank" rel="noopener">dashboard ↗</a>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main id="thread" class="thread" aria-live="polite">
+    <section class="welcome">
+      <h1>Ask about the Icones formalization</h1>
+      <p>
+        Grounded chat for auditors: answers are looked up in the dashboard's own
+        build data — entries, statuses, and <em>statement-level</em> dependencies
+        (proof-script references are excluded by design) — and every claim links
+        back to an entry page.
+      </p>
+      <p class="stats">{{N_ENTRIES}} entries · {{TAB_COUNTS}} · {{N_DEPENDS}} dependency edges · built {{BUILT_AT}}</p>
+      <div class="chips" id="chips">
+        <button class="chip">Is Theorem 6.5 formalized, and why is it the regression anchor?</button>
+        <button class="chip">What does Lem 7.16 depend on at statement level?</button>
+        <button class="chip">List the documented gaps — what is not formalised?</button>
+        <button class="chip">Which entries are beyond the paper's scope?</button>
+      </div>
+    </section>
+  </main>
+
+  <form class="composer" id="composer">
+    <textarea id="box" rows="1" placeholder="Ask about an entry, a status, a dependency…"
+              aria-label="Your question" disabled></textarea>
+    <button type="button" class="stop" id="stopBtn" hidden>Stop</button>
+    <button type="submit" id="sendBtn" disabled>Ask</button>
+  </form>
+  <p class="foot">
+    Runs on your own Claude account (claude.ai login; your first question asks
+    permission and usage bills your plan). The conversation stays in this tab.
+  </p>
+</div>
+
+<script>
+"use strict";
+const CHATDATA = __CHATDATA_JSON__;
+const RULES_BASE = __CHAT_RULES_JSON__;
+const ARTIFACT_URL = "{{ARTIFACT_URL}}";
+const SITE = CHATDATA.meta.site;
+
+/* ---------- index the data pack ---------- */
+const ENTRIES = CHATDATA.entries;
+const byId = new Map(), byEid = new Map(), byIdent = new Map();
+for (const e of ENTRIES) {
+  byId.set(e.id, e);
+  if (!byEid.has(e.eid)) byEid.set(e.eid, []);
+  byEid.get(e.eid).push(e);
+  for (const i of e.idents || []) {
+    const k = i.toLowerCase();
+    if (!byIdent.has(k)) byIdent.set(k, []);
+    byIdent.get(k).push(e);
+  }
+}
+const depOut = new Map(), depIn = new Map(), menAdj = new Map();
+const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+for (const [s, t] of CHATDATA.depends || []) { push(depOut, s, t); push(depIn, t, s); }
+for (const [a, b] of CHATDATA.mentions || []) { push(menAdj, a, b); push(menAdj, b, a); }
+const absUrl = (u) => SITE + u;
+const brief = (e) => ({ id: e.id, label: e.label, kind: e.kind, tab: e.tab,
+  section: e.section, status: e.status, idents: e.idents, url: absUrl(e.url) });
+const ref = (id) => { const e = byId.get(id); return e ? { id, label: e.label } : { id }; };
+
+/* ---------- tools ---------- */
+function doSearch(input) {
+  const q = String(input.query || "").trim().toLowerCase();
+  if (!q) throw new Error("query is required");
+  const limit = Math.min(Number(input.limit) || 8, 20);
+  const toks = q.split(/\s+/);
+  const scored = [];
+  for (const e of ENTRIES) {
+    const label = e.label.toLowerCase(), idents = (e.idents || []).join(" ").toLowerCase();
+    const hay = [label, e.eid, idents, (e.section || "").toLowerCase(),
+                 (e.files || []).join(" ").toLowerCase(), (e.text || "").toLowerCase()];
+    let score = 0;
+    if (label === q || e.eid === q || byIdent.has(q) && byIdent.get(q).includes(e)) score += 100;
+    for (const t of toks) {
+      if (label.includes(t)) score += 40;
+      else if (idents.includes(t)) score += 30;
+      else if (hay[3].includes(t) || hay[4].includes(t)) score += 12;
+      else if (hay[5].includes(t)) score += 6;
+    }
+    if (score > 0) scored.push([score, e]);
+  }
+  scored.sort((a, b) => b[0] - a[0]);
+  return { total_matches: scored.length,
+           results: scored.slice(0, limit).map(([, e]) => brief(e)) };
+}
+function doGet(input) {
+  const q = String(input.id || "").trim();
+  if (!q) throw new Error("id is required");
+  const lower = q.toLowerCase();
+  let hits = [];
+  if (byId.has(q)) hits = [byId.get(q)];
+  else if (byEid.has(lower)) hits = byEid.get(lower);
+  else if (byIdent.has(lower)) hits = byIdent.get(lower);
+  else hits = ENTRIES.filter((e) => e.label.toLowerCase() === lower);
+  if (hits.length === 0)
+    throw new Error("no entry matches " + JSON.stringify(q) + " — try search_entries");
+  if (hits.length > 1)
+    return { ambiguous: true, candidates: hits.slice(0, 5).map(brief) };
+  const e = hits[0];
+  return { ...brief(e), leaf: !!e.leaf, files: e.files, statement: e.text || null,
+    uses: (depOut.get(e.id) || []).slice(0, 40).map(ref),
+    used_by: (depIn.get(e.id) || []).slice(0, 40).map(ref),
+    mentions: (menAdj.get(e.id) || []).slice(0, 20).map(ref) };
+}
+function doList(input) {
+  const limit = Math.min(Number(input.limit) || 50, 100);
+  const sec = input.section ? String(input.section).toLowerCase() : null;
+  const st = input.status ? String(input.status).toLowerCase() : null;
+  const kind = input.kind ? String(input.kind).toLowerCase() : null;
+  const out = ENTRIES.filter((e) =>
+    (!input.tab || e.tab === input.tab) &&
+    (!sec || (e.section || "").toLowerCase().includes(sec)) &&
+    (!st || (e.status || []).some((s) => s.toLowerCase() === st)) &&
+    (!kind || e.kind.toLowerCase() === kind) &&
+    (input.leaf === undefined || !!e.leaf === !!input.leaf));
+  return { total: out.length, shown: Math.min(out.length, limit),
+    entries: out.slice(0, limit).map((e) => ({ id: e.id, label: e.label,
+      kind: e.kind, tab: e.tab, status: e.status })) };
+}
+const TOOLS = [
+  { name: "search_entries",
+    description: "Search the audited entries by paper label, Rocq identifier, section title, source file, or statement words. Returns the best matches with id, label, kind, tab, section, status, idents and dashboard URL. Use before asserting anything about a specific entry.",
+    inputSchema: { type: "object", properties: {
+      query: { type: "string", description: "search text" },
+      limit: { type: "number", description: "max results, default 8" } },
+      required: ["query"] },
+    execute: doSearch },
+  { name: "get_entry",
+    description: "Fetch one entry's full record by id (e.g. paper::lem-7-16), slug (lem-7-16), exact Rocq identifier, or exact paper label. Returns statement, status, files, dashboard URL, and its statement-level relations: uses (dependencies), used_by (dependents), mentions.",
+    inputSchema: { type: "object", properties: {
+      id: { type: "string", description: "entry id, slug, identifier, or label" } },
+      required: ["id"] },
+    execute: doGet },
+  { name: "list_entries",
+    description: "List entries filtered by tab (paper|ppl|examples), section title substring, status flag (axiom-free, gap, beyond-paper, regression-anchor, discharged-deferred), kind (Def, Thm, Lem, ...), or leaf flag. Returns ids and labels; follow up with get_entry for details.",
+    inputSchema: { type: "object", properties: {
+      tab: { type: "string" }, section: { type: "string" }, status: { type: "string" },
+      kind: { type: "string" }, leaf: { type: "boolean" }, limit: { type: "number" } } },
+    execute: doList },
+];
+
+/* ---------- tiny safe markdown renderer ---------- */
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function inline(s) {
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, (_, c) => "<code>" + c + "</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+function mdLite(text) {
+  const parts = String(text).split(/```[a-z]*\n?/);
+  let html = "";
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 1) { html += "<pre><code>" + esc(parts[i]) + "</code></pre>"; continue; }
+    const lines = parts[i].split("\n");
+    let para = [], list = [];
+    const flushP = () => { if (para.length) { html += "<p>" + inline(para.join(" ")) + "</p>"; para = []; } };
+    const flushL = () => { if (list.length) { html += "<ul>" + list.map((l) => "<li>" + inline(l) + "</li>").join("") + "</ul>"; list = []; } };
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      if (/^\s*[-*] /.test(line)) { flushP(); list.push(line.replace(/^\s*[-*] /, "")); }
+      else if (line.trim() === "") { flushP(); flushL(); }
+      else { flushL(); para.push(line.trim()); }
+    }
+    flushP(); flushL();
+  }
+  return html;
+}
+
+/* ---------- chat plumbing ---------- */
+const thread = document.getElementById("thread");
+const box = document.getElementById("box");
+const sendBtn = document.getElementById("sendBtn");
+const stopBtn = document.getElementById("stopBtn");
+const banner = document.getElementById("banner");
+const turns = [];
+let sampleFn = null, toolsOK = false, rules = RULES_BASE, busy = false, ctl = null;
+
+function notice(msg, isError, withLink) {
+  banner.textContent = "";
+  banner.append(msg);
+  if (withLink && ARTIFACT_URL) {
+    const a = document.createElement("a");
+    a.href = ARTIFACT_URL; a.textContent = "Open the assistant on claude.ai ↗";
+    banner.append(" ", a);
+  }
+  banner.classList.toggle("is-error", !!isError);
+  banner.hidden = false;
+}
+function bubble(cls) {
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  thread.append(div);
+  div.scrollIntoView({ block: "end" });
+  return div;
+}
+function setBusy(b) {
+  busy = b;
+  sendBtn.disabled = b || !sampleFn;
+  box.disabled = b || !sampleFn;
+  stopBtn.hidden = !b;
+}
+function trimTurns() {
+  let bytes = rules.length;
+  for (const t of turns) bytes += t.content.length;
+  while (bytes > 50000 && turns.length > 2) {
+    bytes -= turns[0].content.length + (turns[1] ? turns[1].content.length : 0);
+    turns.splice(0, 2);
+  }
+}
+const ERRCOPY = {
+  not_granted: "Claude access was not granted for this page — reload to be asked again.",
+  sampling_disabled: "Claude is not available on this account.",
+  rate_limited: "Rate limited — wait a moment, then try again.",
+  session_expired: "Your claude.ai session expired — sign in again and reload.",
+  refused: "Claude declined that question; try rephrasing it.",
+  prompt_too_large: "The conversation got too long — older turns were dropped, please ask again.",
+  empty_completion: "No answer came back — try rephrasing.",
+  upstream_error: "A transient error interrupted the answer — you can try again.",
+};
+
+async function ask(question) {
+  if (busy || !sampleFn) return;
+  const q = question.trim();
+  if (!q) return;
+  banner.hidden = true;
+  box.value = ""; box.style.height = "";
+  const ub = bubble("user"); ub.textContent = q;
+  turns.push({ role: "user", content: q });
+  trimTurns();
+  const bb = bubble("bot");
+  bb.innerHTML = '<span class="thinking">Thinking…</span>';
+  setBusy(true);
+  ctl = new AbortController();
+  stopBtn.onclick = () => ctl.abort();
+  try {
+    const res = await sampleFn(
+      [{ role: "user", content: rules }, ...turns],
+      { cache: false, signal: ctl.signal,
+        tools: toolsOK ? TOOLS : undefined,
+        onText: ({ text }) => { bb.innerHTML = mdLite(text); bb.scrollIntoView({ block: "end" }); } });
+    bb.innerHTML = mdLite(res.text);
+    turns.push({ role: "assistant", content: res.text });
+    if (res.truncated) {
+      const n = document.createElement("p"); n.className = "aside";
+      n.textContent = "Answer was cut short — ask for less at a time."; bb.append(n);
+    }
+  } catch (e) {
+    const code = e && e.code ? e.code : "upstream_error";
+    if (e && e.text) {
+      bb.innerHTML = mdLite(e.text);
+      if (code !== "cancelled") {
+        const n = document.createElement("p"); n.className = "aside";
+        n.textContent = "(interrupted)"; bb.append(n);
+      }
+      turns.push({ role: "assistant", content: e.text });
+    } else if (code === "cancelled") {
+      bb.remove();
+    } else {
+      bb.innerHTML = '<p class="aside">No answer.</p>';
+    }
+    if (code === "refused") { bb.innerHTML = '<p class="aside">Claude declined this question.</p>'; }
+    if (code === "prompt_too_large") { turns.splice(0, Math.max(0, turns.length - 2)); }
+    if (code !== "cancelled") notice(ERRCOPY[code] || ERRCOPY.upstream_error, true);
+    if (code === "not_granted" || code === "sampling_disabled" ||
+        code === "not_declared" || code === "capability_disabled") {
+      sampleFn = null;
+    }
+  } finally {
+    setBusy(false);
+    bb.scrollIntoView({ block: "end" });
+  }
+}
+
+document.getElementById("composer").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  ask(box.value);
+});
+box.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); ask(box.value); }
+});
+box.addEventListener("input", () => {
+  box.style.height = "auto";
+  box.style.height = Math.min(box.scrollHeight, 160) + "px";
+});
+document.getElementById("chips").addEventListener("click", (ev) => {
+  const chip = ev.target.closest(".chip");
+  if (chip) ask(chip.textContent);
+});
+
+/* ---------- boot ---------- */
+(async () => {
+  if (!window.claude || typeof window.claude.use !== "function") {
+    notice("This is the static copy of the assistant — chatting needs the claude.ai page.", false, true);
+    return;
+  }
+  const sample = await window.claude.use("sample");
+  if (!sample) {
+    notice("Chat is unavailable in this view.", false, true);
+    return;
+  }
+  const caps = await sample.limits().catch(() => null);
+  toolsOK = !!(caps && caps.tools);
+  if (!toolsOK) {
+    rules = RULES_BASE +
+      "\n\n# No-tools mode\nThe lookup tools are unavailable in this view; a compact entry index follows. Answer from it and the knowledge base, admit when detail is missing, and link entry pages as " +
+      SITE + "<url>.\n" +
+      ENTRIES.map((e) => e.label + " (" + e.eid + ", " + e.tab + ", " + e.url + ")").join("; ");
+  }
+  sampleFn = sample;
+  setBusy(false);
+})();
+</script>

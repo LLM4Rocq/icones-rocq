@@ -1,0 +1,85 @@
+# Icones audit knowledge base
+
+Generated from the auditor dashboard's own build outputs (`graph.json` + `data.json`)
+at commit `{{COMMIT}}`, built {{BUILT_AT}}. The dashboard is the authoritative view:
+{{SITE}}
+
+## What is being audited
+
+Icones is a Rocq (Coq) formalization, built on mathcomp / mathcomp-analysis, of
+*Integration in cones* (arXiv 2212.02371) and of a small probabilistic programming
+language (PPL) whose semantics lives in the cones framework. The auditor dashboard
+tracks, entry by entry, how the paper's definitions and theorems correspond to the
+Rocq development.
+
+The dashboard has three tabs:
+
+- **Paper** — section-by-section audit of the paper: each entry pairs a paper item
+  (e.g. `Lem 7.16`) with the Rocq identifiers and source files that formalize it.
+- **PPL** — the probabilistic programming language layer: syntax, typing, and the
+  cone-valued semantics, organized by chapters.
+- **Examples** — worked examples and end-to-end programs exercising the development.
+
+Corpus at this build: {{N_ENTRIES}} entries ({{TAB_COUNTS}}),
+{{N_DEPENDS}} statement-level dependency edges, {{N_MENTIONS}} co-reference pairs,
+{{N_LEAVES}} leaf entries.
+
+## The entry model
+
+Every entry has: a **paper label** (`Lem 7.16`, `Def 2.1`, …), a slug **id**
+(`lem-7-16`), a **kind** (Def, Thm, Lem, Prop, Cor, Cat, Fubini, Other), the
+**statement** in paper terms, the **Rocq identifiers** that realize it, the
+**source files** (`theories/**/*.v`) they live in, and **status flags**. Each entry
+has a page on the dashboard; the URLs recorded in the reference data are
+authoritative — use them as given rather than reconstructing them (a few entries
+canonically live on their section page instead of an entry page).
+
+## Status flags (assigned by the build's classifier)
+
+| Status | Entries |
+|---|---|
+{{STATUS_COUNTS}}
+
+Semantics: `axiom-free` — the default for paper-section entries; the development is
+checked axiom-free against the regression anchor (see verification). `beyond-paper`
+— contributions beyond the paper's scope. `gap` — documented as *not* formalized,
+with a reason. `regression-anchor` — the entry whose `Print Assumptions` is the
+CI-checked axiom audit anchor. `discharged-deferred` — a previously deferred
+obligation that has since been discharged.
+
+## Relations between entries (what the arrows mean)
+
+- **depends** (directed, A → B): A's *statement* refers to an object B documents,
+  read from the compiler's `.glob` output. This relation is **statement-level by
+  design**: references made only inside proof scripts (`Proof.` … `Qed.`) are
+  excluded, because an auditor checks what results *say*, not how they are proved.
+  Plain `Definition` bodies count in full — the body is the content.
+- **mentions** (undirected): the documentation texts of two entries reference each
+  other's identifiers, with no statement-level dependency behind it. Weak evidence
+  of relatedness only.
+- **leaf**: no other entry's statement is written in terms of this entry.
+
+Arrows do not compose into claims: A → C and B → C means A and B share the
+vocabulary C, not that A depends on B.
+
+## Auditing workflow
+
+1. Start from a paper section or a specific claim; find its entry (by label,
+   Rocq identifier, or search).
+2. Compare the entry's statement with the paper's; the entry page shows the live
+   Rocq snippet resolved from the actual sources at build time (never a stale paste).
+3. Check the status flags and, for global trust, the verification instructions and
+   the axiom anchor (`Print Assumptions` on the regression anchor must stay clean).
+4. Use **depends** edges to see which prior definitions a statement is really built
+   on — and what would be impacted by a change (used-by direction).
+5. Anything absent from the corpus is untracked: say so explicitly rather than guess.
+
+## Grounding rules for answering audit questions
+
+- Answer only from this reference data and the dashboard; quote exact paper labels
+  and Rocq identifiers, and link the entry pages.
+- Distinguish clearly between: formalized (with status), documented as a gap, and
+  not tracked at all.
+- Never invent entry ids, identifiers, or dependency edges; if the data does not
+  show it, it is not there — the depends relation is complete for statements at
+  this commit.

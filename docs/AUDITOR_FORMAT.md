@@ -515,7 +515,9 @@ python tools/build_auditor.py \\
     --commit $GITHUB_SHA \\
     [--strict] \\
     [--check-snippets] [--snippet-report-limit N] \\
-    [--template-dir tools/auditor/templates]
+    [--template-dir tools/auditor/templates] \\
+    [--site-url https://llm4rocq.github.io/icones-rocq/auditor/] \\
+    [--assistant-artifact-url <claude.ai artifact URL>]
 ```
 
 All three of `--paper`, `--ppl`, and `--examples` are required.
@@ -568,14 +570,51 @@ site/auditor/
 │   ├── entries/<id>.html
 │   ├── beyond/<id>.html
 │   └── gaps.html
-└── examples/
-    ├── index.html                   Examples-tab landing
-    ├── data.json                    examples-only export
-    ├── sections/<id>.html
-    ├── entries/<id>.html
-    ├── beyond/<id>.html
-    └── gaps.html
+├── examples/
+│   ├── index.html                   Examples-tab landing
+│   ├── data.json                    examples-only export
+│   ├── sections/<id>.html
+│   ├── entries/<id>.html
+│   ├── beyond/<id>.html
+│   └── gaps.html
+└── assistant/                       generated audit-assistant bundle (see below)
+    ├── index.html                   landing: chat link + skill download
+    ├── chatbot.html                 chat page source (published as a claude.ai artifact)
+    ├── chatdata.json                compact data pack embedded in the chat page
+    ├── icones-audit-skill.zip       downloadable Claude skill
+    └── skill/icones-audit/          browsable skill (SKILL.md + references/)
 ```
+
+## Audit assistant bundle (generated — single source of truth)
+
+`tools/auditor/skillgen.py` runs at the end of every build and derives the
+assistant bundle from the site's **own build outputs** — `graph.json` and
+`data.json` — never from a second hand-maintained copy. That is the sync
+contract: the skill, the chat page's data pack, and the website cannot drift
+apart, because every deploy regenerates all three from the same bytes.
+
+Content ownership (who is authoritative for what):
+
+- **Facts** (entries, statements, statuses, statement-level `depends` edges,
+  gaps, verify instructions): `docs/*.md` + the Rocq `.glob` files, via
+  `graph.json`/`data.json`. Never restate these in the assistant templates.
+- **Assistant prose** (audit workflow, status/relation semantics, grounding
+  rules): `tools/auditor/assistant/core_guide.md.in`, shared verbatim by the
+  skill (`SKILL.md`) and the chat page's instruction turn. Write it once there.
+- **Medium-specific wrappers**: `skill_header.md.in` (claude.ai/Claude Code
+  skill usage) and `chat_header.md.in` (chat persona + tool contract — its tool
+  names must match the `TOOLS` array in `chatbot.html.in`).
+
+Templates use `{{PLACEHOLDER}}` markers (counts, commit, URLs) substituted at
+build time; generation **fails** if any marker is left unsubstituted, so a
+typo'd placeholder cannot ship silently.
+
+The chat runs as a **claude.ai artifact** (so auditors sign in with their own
+Claude account and usage bills their plan — a Pro login suffices, no API key):
+the artifact is a published copy of the generated `assistant/chatbot.html`.
+Republishing it after content changes is a one-command flow documented in
+`.claude/skills/publish-assistant/SKILL.md`; the artifact URL is passed to
+builds via `--assistant-artifact-url` (defaulted in `tools/build_auditor.py`).
 
 ### Examples MD contract
 
