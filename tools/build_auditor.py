@@ -86,7 +86,7 @@ def _build_argparser() -> argparse.ArgumentParser:
         "--assistant-artifact-url",
         # The canonical published chat artifact.  This default is the ONE place
         # the URL lives (see .claude/skills/publish-assistant/SKILL.md).
-        default="https://claude.ai/code/artifact/597a6526-d68c-4ae4-80f9-8f351574ed7e",
+        default="https://claude.ai/code/artifact/febf01d8-2939-4a27-be03-dfd9860b1916",
         help=(
             "Published claude.ai artifact URL for the chat assistant; "
             "substituted into generated assistant pages"
