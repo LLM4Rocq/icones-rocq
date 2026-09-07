@@ -122,6 +122,11 @@
   }
   .composer button:disabled { opacity: 0.45; cursor: default; }
   .composer .stop { background: transparent; color: var(--fg-mute); border-color: var(--border); }
+  .composer select {
+    font: inherit; font-size: 0.88rem; color: var(--fg-mute);
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0.5rem 0.35rem;
+  }
   .foot { font-size: 0.78rem; color: var(--fg-faint); padding: 0 0 1rem; }
 </style>
 
@@ -157,6 +162,11 @@
   <form class="composer" id="composer">
     <textarea id="box" rows="1" placeholder="Ask about an entry, a status, a dependency…"
               aria-label="Your question" disabled></textarea>
+    <select id="depth" aria-label="Answer depth"
+            title="Deep uses the most capable model — slower, and uses more of your plan">
+      <option value="default">Balanced</option>
+      <option value="complex">Deep</option>
+    </select>
     <button type="button" class="stop" id="stopBtn" hidden>Stop</button>
     <button type="submit" id="sendBtn" disabled>Ask</button>
   </form>
@@ -372,10 +382,11 @@ async function ask(question) {
   setBusy(true);
   ctl = new AbortController();
   stopBtn.onclick = () => ctl.abort();
+  const tier = document.getElementById("depth").value === "complex" ? "complex" : "default";
   try {
     const res = await sampleFn(
       [{ role: "user", content: rules }, ...turns],
-      { cache: false, signal: ctl.signal,
+      { cache: false, signal: ctl.signal, modelTier: tier,
         tools: toolsOK ? TOOLS : undefined,
         onText: ({ text }) => { bb.innerHTML = mdLite(text); bb.scrollIntoView({ block: "end" }); } });
     bb.innerHTML = mdLite(res.text);
@@ -383,6 +394,11 @@ async function ask(question) {
     if (res.truncated) {
       const n = document.createElement("p"); n.className = "aside";
       n.textContent = "Answer was cut short — ask for less at a time."; bb.append(n);
+    }
+    if (tier === "complex" && res.modelTierApplied && res.modelTierApplied !== "complex") {
+      const n = document.createElement("p"); n.className = "aside";
+      n.textContent = "Deep was not available on this plan — answered at the standard tier.";
+      bb.append(n);
     }
   } catch (e) {
     const code = e && e.code ? e.code : "upstream_error";
