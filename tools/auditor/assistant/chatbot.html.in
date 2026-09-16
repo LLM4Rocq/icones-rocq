@@ -334,12 +334,17 @@ const banner = document.getElementById("banner");
 const turns = [];
 let sampleFn = null, toolsOK = false, rules = RULES_BASE, busy = false, ctl = null;
 
-function notice(msg, isError, withLink) {
+function notice(msg, isError, action) {
   banner.textContent = "";
   banner.append(msg);
-  if (withLink && ARTIFACT_URL) {
+  if (action === "artifact" && ARTIFACT_URL) {
     const a = document.createElement("a");
     a.href = ARTIFACT_URL; a.textContent = "Open the assistant on claude.ai ↗";
+    banner.append(" ", a);
+  } else if (action === "reload") {
+    const a = document.createElement("a");
+    a.href = "#"; a.textContent = "Reload";
+    a.addEventListener("click", (ev) => { ev.preventDefault(); location.reload(); });
     banner.append(" ", a);
   }
   banner.classList.toggle("is-error", !!isError);
@@ -463,12 +468,15 @@ document.getElementById("depth").addEventListener("click", (ev) => {
 /* ---------- boot ---------- */
 (async () => {
   if (!window.claude || typeof window.claude.use !== "function") {
-    notice("This is the static copy of the assistant — chatting needs the claude.ai page.", false, true);
+    notice("This is the static copy of the assistant — chatting needs the claude.ai page.", false, "artifact");
     return;
   }
   const sample = await window.claude.use("sample");
   if (!sample) {
-    notice("Chat is unavailable in this view.", false, true);
+    notice(
+      "Chat is unavailable in this view — make sure you're signed in to claude.ai in this browser, then reload.",
+      false, "reload"
+    );
     return;
   }
   const caps = await sample.limits().catch(() => null);
