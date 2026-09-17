@@ -86,7 +86,10 @@ def _build_argparser() -> argparse.ArgumentParser:
         "--assistant-artifact-url",
         # The canonical published chat artifact.  This default is the ONE place
         # the URL lives (see .claude/skills/publish-assistant/SKILL.md).
-        default="https://claude.ai/code/artifact/febf01d8-2939-4a27-be03-dfd9860b1916",
+        # Owned by the LLM4Rocq org account — org sharing (not "anyone with
+        # the link") is required for the `sample` capability to reach
+        # non-owner viewers; see docs/AUDITOR_FORMAT.md § Audit assistant bundle.
+        default="https://claude.ai/artifact/Aes5D53GNnDH1Yv8zNKWzz",
         help=(
             "Published claude.ai artifact URL for the chat assistant; "
             "substituted into generated assistant pages"
